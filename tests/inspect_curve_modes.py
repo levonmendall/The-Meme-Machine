@@ -5,7 +5,6 @@ or create any paper position. It reports only public account mode fields needed
 to decide whether the current adapter is rejecting a faithfully modelable Pump
 surface.
 """
-import base64
 import json
 import os
 import struct
@@ -28,14 +27,15 @@ MINTS = [
 ]
 
 
-def classify(account):
+def classify_curve(account):
     raw = pump.raw_account(account, pump.PROGRAM, 'BondingCurve')
     if len(raw) < 49:
         raise ValueError('unsupported short curve')
     quote_raw = raw[83:115] if len(raw) >= 115 else b'\0' * 32
     quote_mint = None if not any(quote_raw) else pump.b58(quote_raw)
     return {
-        'data_len': len(raw),
+        'curve_data_len': len(raw),
+        'curve_token_total_supply': struct.unpack_from('<Q', raw, 40)[0],
         'is_mayhem_mode': bool(raw[81]) if len(raw) > 81 else False,
         'is_cashback_coin': bool(raw[82]) if len(raw) > 82 else False,
         'quote_mint': quote_mint,
@@ -50,12 +50,18 @@ def main():
     if rpc.call('getGenesisHash', priority=True) != pump.MAINNET:
         raise RuntimeError('unsupported_network')
     pools = [pump.pda([b'bonding-curve', pump.un58(mint)]) for mint in MINTS]
-    result = rpc.call('getMultipleAccounts', [pools, {'encoding':'base64','commitment':'finalized'}], priority=True)
+    addresses = [x for pair in zip(pools, MINTS) for x in pair]
+    result = rpc.call('getMultipleAccounts', [addresses, {'encoding':'base64','commitment':'finalized'}], priority=True)
+    accounts = result['value']
     rows = []
-    for mint, pool, account in zip(MINTS, pools, result['value']):
+    for i, (mint, pool) in enumerate(zip(MINTS, pools)):
+        curve_account, mint_account = accounts[2*i], accounts[2*i+1]
         row = {'mint': mint, 'pool': pool}
         try:
-            row.update(classify(account))
+            row.update(classify_curve(curve_account))
+            mint_supply, decimals = pump.mint_info(mint_account)
+            row.update(mint_supply=mint_supply, mint_decimals=decimals,
+                       supply_delta=mint_supply-row['curve_token_total_supply'])
         except Exception as exc:
             row['classification_error'] = type(exc).__name__ + ':' + str(exc)
         rows.append(row)
