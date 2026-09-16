@@ -44,7 +44,7 @@ def tick(engine, adapter, now):
                     engine.note('healthy_scout_no_nomination' if covered else 'incomplete_scout_window',None,observed)
             for nomination in nominations[:2]:
                 snap=adapter.snapshot(nomination['mint'],now)
-                market,covered=adapter.history(snap['pool'],now)
+                market,covered=adapter.history(snap['pool'],now,require_coverage=True)
                 concentration=adapter.concentration(nomination['mint'],snap)
                 snap=adapter.snapshot(nomination['mint'],int(time.time()))
                 engine.consider(nomination,dict(snapshot=snap,events=market,covered=covered,
