@@ -22,6 +22,7 @@ CAPTURE=Path('tests/fixtures/mainnet_trade.json')
 # a validation experiment genesis; no performance continuity with that lost local DB.
 GENESIS_SOL_USD_MICROS=97_840_000
 GENESIS_SOURCE='2026-09-16 recorded validation reference: $97.84/SOL; new shadow experiment, not performance continuity'
+MAX_EVIDENCE_CANDIDATES=2
 
 
 def _failure(result, stage, exc):
@@ -33,6 +34,41 @@ def _failure(result, stage, exc):
 def admissible_after(events, eligible_after):
     """Return only trades that occurred after this wallet became an admitted scout."""
     return [e for e in events if int(e['market_time']) > int(eligible_after)]
+
+
+def evaluate_nomination(engine, adapter, nomination):
+    """Evaluate one unique mint immediately while its scout signal is still fresh."""
+    result=dict(mint=nomination['mint'],nomination_id=nomination['id'],
+                scout_wallet=nomination['wallet'],
+                signal_age_seconds=max(0,int(time.time())-nomination['market_time']))
+    observed=int(time.time())
+    try:
+        snap=adapter.snapshot(nomination['mint'],observed,priority=True)
+    except (Unavailable,ValueError,KeyError,TypeError) as exc:
+        return _failure(result,'initial_snapshot',exc)
+    try:
+        market,market_covered=adapter.history(snap['pool'],observed,priority=True)
+    except (Unavailable,ValueError,KeyError,TypeError) as exc:
+        return _failure(result,'pool_history',exc)
+    try:
+        concentration=adapter.concentration(nomination['mint'],snap,priority=True)
+    except (Unavailable,ValueError,KeyError,TypeError) as exc:
+        return _failure(result,'concentration',exc)
+    try:
+        snap=adapter.snapshot(nomination['mint'],int(time.time()),priority=True)
+    except (Unavailable,ValueError,KeyError,TypeError) as exc:
+        return _failure(result,'final_snapshot',exc)
+    evidence=dict(snapshot=snap,events=market,covered=market_covered,concentration_bps=concentration)
+    try:
+        reason=engine.qualify(nomination,evidence,int(time.time()))
+        curve=pump.curve(snap['accounts'][0])
+    except (Unavailable,ValueError,KeyError,TypeError) as exc:
+        return _failure(result,'qualification',exc)
+    result.update(reason=reason,evidence_stage='complete',market_window_covered=market_covered,
+                  market_events=len(market),concentration_bps=concentration,
+                  real_sol_lamports=curve.real_sol,
+                  quote_age_seconds=int(time.time())-snap['market_time'])
+    return result
 
 
 def main():
@@ -60,9 +96,10 @@ def main():
         store=Store(str(Path(td)/'shadow.db'),'prospective',GENESIS_SOL_USD_MICROS,GENESIS_SOURCE)
         engine=Engine(store,seeds)
         initial=store.state['cash']
+        nomination_ids=set()
+        attempted_mints=set()
         try:
             adapter=PumpAdapter(rpc)
-            nominations=[]
             for record in records:
                 seed=record['wallet']
                 try:
@@ -77,7 +114,17 @@ def main():
                     report['seed_windows'].append(dict(seed=seed,eligible_after=record['eligible_after'],
                         covered=covered,events=len(events),admissible_events=len(eligible),
                         ignored_pre_admission=len(events)-len(eligible),nominations=len(found)))
-                    nominations.extend(found)
+                    # Match the runtime's priority: when a scout produces a fresh
+                    # nomination, evaluate it before spending RPC budget on later
+                    # scouts. Deduplicate by mint so multiple buys of the same token
+                    # do not consume the bounded evidence-candidate budget twice.
+                    for nomination in sorted(found,key=lambda n:n['market_time'],reverse=True):
+                        nomination_ids.add(nomination['id'])
+                        mint=nomination['mint']
+                        if mint in attempted_mints or len(attempted_mints)>=MAX_EVIDENCE_CANDIDATES:
+                            continue
+                        attempted_mints.add(mint)
+                        report['results'].append(evaluate_nomination(engine,adapter,nomination))
                 except (Unavailable,ValueError) as exc:
                     decision_time=int(time.time())
                     with store.transaction('shadow_provider_gap'):
@@ -85,41 +132,8 @@ def main():
                     report['seed_windows'].append(dict(seed=seed,eligible_after=record['eligible_after'],
                         covered=False,events=None,admissible_events=None,ignored_pre_admission=None,
                         nominations=0,evidence_stage='seed_history',limitation=str(exc)))
-            # Deduplicate nominations by immutable event id before full evidence work.
-            unique={n['id']:n for n in nominations}
-            report['nominations']=len(unique)
-            for nomination in list(unique.values())[:2]:
-                result=dict(mint=nomination['mint'],nomination_id=nomination['id'],
-                            scout_wallet=nomination['wallet'],
-                            signal_age_seconds=max(0,int(time.time())-nomination['market_time']))
-                observed=int(time.time())
-                try:
-                    snap=adapter.snapshot(nomination['mint'],observed,priority=True)
-                except (Unavailable,ValueError,KeyError,TypeError) as exc:
-                    report['results'].append(_failure(result,'initial_snapshot',exc));continue
-                try:
-                    market,market_covered=adapter.history(snap['pool'],observed,priority=True)
-                except (Unavailable,ValueError,KeyError,TypeError) as exc:
-                    report['results'].append(_failure(result,'pool_history',exc));continue
-                try:
-                    concentration=adapter.concentration(nomination['mint'],snap,priority=True)
-                except (Unavailable,ValueError,KeyError,TypeError) as exc:
-                    report['results'].append(_failure(result,'concentration',exc));continue
-                try:
-                    snap=adapter.snapshot(nomination['mint'],int(time.time()),priority=True)
-                except (Unavailable,ValueError,KeyError,TypeError) as exc:
-                    report['results'].append(_failure(result,'final_snapshot',exc));continue
-                evidence=dict(snapshot=snap,events=market,covered=market_covered,concentration_bps=concentration)
-                try:
-                    reason=engine.qualify(nomination,evidence,int(time.time()))
-                    curve=pump.curve(snap['accounts'][0])
-                except (Unavailable,ValueError,KeyError,TypeError) as exc:
-                    report['results'].append(_failure(result,'qualification',exc));continue
-                result.update(reason=reason,evidence_stage='complete',market_window_covered=market_covered,
-                              market_events=len(market),concentration_bps=concentration,
-                              real_sol_lamports=curve.real_sol,
-                              quote_age_seconds=int(time.time())-snap['market_time'])
-                report['results'].append(result)
+            report['nominations']=len(nomination_ids)
+            report['evidence_candidates_attempted']=len(attempted_mints)
         except (Unavailable,ValueError) as exc:
             report['limitations'].append(str(exc))
         finally:
