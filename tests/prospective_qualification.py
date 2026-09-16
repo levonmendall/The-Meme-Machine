@@ -101,6 +101,12 @@ def main():
         try:
             adapter=PumpAdapter(rpc)
             for record in records:
+                # Once this bounded run has spent its evidence-candidate budget,
+                # stop before polling later scouts. This preserves the useful proof
+                # while avoiding public-RPC work that cannot affect this run's result.
+                if len(attempted_mints)>=MAX_EVIDENCE_CANDIDATES:
+                    report['seed_scan_stopped_after_evidence_budget']=True
+                    break
                 seed=record['wallet']
                 try:
                     observed=int(time.time())
