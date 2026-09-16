@@ -31,3 +31,5 @@ jobs:
         run: python -m tests.scout_census
       - name: Existing captured-seed live probe (diagnostic only)
         run: python -m tests.live_probe
+      - name: Full shadow qualification using unchanged continuation-v1
+        run: python -m tests.prospective_qualification
