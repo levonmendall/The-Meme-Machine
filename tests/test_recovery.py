@@ -7,6 +7,7 @@ from meme_machine.store import Store,IntegrityError
 from meme_machine.engine import Engine
 from meme_machine.wallets import observe
 from meme_machine.__main__ import tick
+from tests.prospective_qualification import admissible_after
 from tests.support import *
 
 
@@ -100,5 +101,9 @@ class Recovery(unittest.TestCase):
         self.assertEqual(f['qualified'],1)
         self.assertEqual(f['entries'],1)
         self.assertEqual(f['settled_exits'],0)
+    def test_new_scout_cannot_retroactively_nominate_discovery_trade(self):
+        discovery=event(now=100,id='discovery')
+        later=event(now=101,id='later')
+        self.assertEqual(admissible_after([discovery,later],100),[later])
 
 if __name__=='__main__':unittest.main()

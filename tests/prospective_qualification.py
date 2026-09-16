@@ -3,6 +3,8 @@
 Uses explicitly recorded unvalidated public seeds and continuation-v1 exactly as
 implemented. It may call Engine.qualify, but never Engine.consider/fill/monitor, so
 a transient GitHub runner cannot create a paper position that it cannot resume.
+Watchlist seeds are point-in-time: the trade that discovered a wallet can never be
+reused later as that wallet's qualifying scout nomination.
 """
 import json
 import os
@@ -28,17 +30,29 @@ def _failure(result, stage, exc):
     return result
 
 
+def admissible_after(events, eligible_after):
+    """Return only trades that occurred after this wallet became an admitted scout."""
+    return [e for e in events if int(e['market_time']) > int(eligible_after)]
+
+
 def main():
     watch=json.loads(WATCHLIST.read_text())
     capture=json.loads(CAPTURE.read_text())
     captured_seed=pump.trade_events(capture['response'])[0]['wallet']
-    seeds=[x['wallet'] for x in watch['seeds']]
-    if captured_seed not in seeds:
-        seeds.append(captured_seed)
-    seeds=seeds[:4]
+    admitted=int(watch.get('created_at_unix',0))
+    records=[dict(wallet=x['wallet'],eligible_after=int(x.get('eligible_after_unix',admitted)),source='watchlist')
+             for x in watch['seeds']]
+    if captured_seed not in {x['wallet'] for x in records}:
+        # The captured fixture predates this prospective-validation program; it was
+        # already known before this run, so future 60-second activity may nominate.
+        records.append(dict(wallet=captured_seed,eligible_after=0,source='captured_fixture'))
+    records=records[:4]
+    seeds=[x['wallet'] for x in records]
+    admission={x['wallet']:x['eligible_after'] for x in records}
     now=int(time.time())
     report=dict(kind='real_shadow_full_qualification',network='solana-mainnet',protocol='pump.fun',
-                seeds=seeds,seed_provenance=dict(watchlist=str(WATCHLIST),captured_signature=capture['signature']),
+                seeds=seeds,seed_admission=admission,
+                seed_provenance=dict(watchlist=str(WATCHLIST),captured_signature=capture['signature']),
                 started=now,paper_trades=0,order_authority=False,portfolio_performance_claim=False,
                 seed_windows=[],results=[],limitations=[])
     rpc=RPC(os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com'),limit=120)
@@ -49,16 +63,28 @@ def main():
         try:
             adapter=PumpAdapter(rpc)
             nominations=[]
-            for seed in seeds:
+            for record in records:
+                seed=record['wallet']
                 try:
                     observed=int(time.time())
                     events,covered=adapter.history(seed,observed,priority=True)
-                    found=engine.scout(events,int(time.time()))
-                    report['seed_windows'].append(dict(seed=seed,covered=covered,events=len(events),nominations=len(found)))
+                    eligible=admissible_after(events,record['eligible_after'])
+                    decision_time=int(time.time())
+                    found=engine.scout(eligible,decision_time)
+                    if not covered:
+                        with store.transaction('shadow_incomplete_seed_window'):
+                            engine.quarantine('wallet_window_incomplete',decision_time)
+                    report['seed_windows'].append(dict(seed=seed,eligible_after=record['eligible_after'],
+                        covered=covered,events=len(events),admissible_events=len(eligible),
+                        ignored_pre_admission=len(events)-len(eligible),nominations=len(found)))
                     nominations.extend(found)
                 except (Unavailable,ValueError) as exc:
-                    report['seed_windows'].append(dict(seed=seed,covered=False,events=None,nominations=0,
-                                                       evidence_stage='seed_history',limitation=str(exc)))
+                    decision_time=int(time.time())
+                    with store.transaction('shadow_provider_gap'):
+                        engine.quarantine('discovery_data_unavailable',decision_time)
+                    report['seed_windows'].append(dict(seed=seed,eligible_after=record['eligible_after'],
+                        covered=False,events=None,admissible_events=None,ignored_pre_admission=None,
+                        nominations=0,evidence_stage='seed_history',limitation=str(exc)))
             # Deduplicate nominations by immutable event id before full evidence work.
             unique={n['id']:n for n in nominations}
             report['nominations']=len(unique)
@@ -97,11 +123,15 @@ def main():
         except (Unavailable,ValueError) as exc:
             report['limitations'].append(str(exc))
         finally:
+            ended=int(time.time())
             report.update(orders=len(store.state['orders']),positions=len(store.state['positions']),
-                          cash_unchanged=store.state['cash']==initial,reserved_lamports=store.state['reserved'])
+                          cash_unchanged=store.state['cash']==initial,reserved_lamports=store.state['reserved'],
+                          entry_quarantine_until=store.state.get('entry_quarantine_until',0),
+                          active_entry_quarantine=ended<store.state.get('entry_quarantine_until',0),
+                          funnel=store.state.get('funnel',{}))
             store.close()
-    report.update(ended=int(time.time()),requests=rpc.calls,failures=rpc.failures,cache_hits=rpc.cache_hits,
-                  provider_spend_usd=0,infrastructure_spend_usd=0)
+    report.update(ended=int(time.time()),requests=rpc.calls,failures=rpc.failures,retries=rpc.retries,
+                  cache_hits=rpc.cache_hits,provider_spend_usd=0,infrastructure_spend_usd=0)
     print(json.dumps(report,sort_keys=True))
 
 
