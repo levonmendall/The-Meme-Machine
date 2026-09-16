@@ -2,131 +2,129 @@
 
 ## Repository and authority
 
-Repository: `levonmendall/The-Meme-Machine`, verified **public** on 2026-09-16.
-Authorized minimal `main` initialization remains
-`54712c4c6470cc4dc267888f934bd693aac030d0` (README only).
-Implementation branch: `feat/pump-directional-paper`. PR #1 remains the review boundary.
-No predecessor repository, deployment, provider configuration or production state was
-modified. Do not merge, deploy, purchase services or enable live trading.
+Repository: `levonmendall/The-Meme-Machine` (public). Authorized minimal `main`
+initialization remains `54712c4c6470cc4dc267888f934bd693aac030d0`.
+Implementation branch: `feat/pump-directional-paper`; PR #1 is the review boundary.
+Do not merge, deploy, purchase services, enable signing/submission/live money, or alter
+predecessor repositories/services without separate authorization.
 
-The reviewable implementation is branch HEAD. Resolve its exact commit with
-`git rev-parse HEAD`; GitHub Actions attaches verification to that SHA. Do not
-substitute `main` for this implementation.
+The reviewable implementation is branch HEAD. Resolve it with `git rev-parse HEAD`;
+GitHub Actions attaches verification to the exact SHA. Do not substitute `main`.
 
-## Implemented boundary
+## Implemented directional surface
 
-Pump.fun standard SOL bonding curves, including metadata-only Token-2022 mints:
-wallet scout → independent continuation-v1 qualification → shared allocator →
-reservation → later finalized quote/attempt → settled spot position → scheduled
-monitoring → delayed exit → settlement → restart reconciliation.
-The paper fill model is `pump-sol-cp-v1`. DLMM allocation is disabled. Other named
-markets remain planned; there are no placeholder working adapters.
+The sole implemented venue remains Pump.fun on Solana mainnet. The paper lifecycle is:
+wallet scouting -> independent continuation-v1 qualification -> shared $500 allocator
+-> reservation -> delayed finalized quote/fill -> independent position monitoring ->
+exit -> settlement -> restart reconciliation. DLMM allocation and all other venue
+adapters remain disabled/deferred.
 
-One CPython 3.12.14 app, no third-party dependencies, one SQLite writer. Raw account
-bytes embedded with orders preserve quote evidence. Startup/status do not scan full
-history. Synthetic/captured/prospective modes and seed configuration are persisted
-and cannot silently change on restart.
+The Pump adapter now supports both ordinary native-SOL Pump bonding curves and
+**native-SOL Mayhem Mode bonding curves** when `quote_mint` is the SOL/default value
+and cashback is disabled. Mayhem does not change the constant-product reserve quote
+used for our own hypothetical buy/sell, but it does change supply context. The model
+therefore validates the real mint supply, uses that supply for dynamic fee-tier market
+cap and concentration, and keeps the Mayhem agent inventory visible as genuine supply
+and exit-overhang risk.
 
-## Deterministic evidence
+Cashback and non-native quote assets remain fail-closed. They require different
+cash-flow/quote-capital accounting and were not enabled merely to increase candidate
+coverage. Completed/graduated curves remain outside this first Pump bonding-curve
+execution surface.
 
-The original milestone passed 34 tests. Bounded prospective-validation work added
-funnel/gap/retry/point-in-time regressions; the exact current-head workflow continues
-to run the complete deterministic suite, bounded 240,000-event resource workload,
-and synthetic connected lifecycle. Current exact-head push CI is green for both the
-`test` and `live-diagnostic` jobs.
+## What the rejected natural candidates actually were
 
-Synthetic/captured results remain software evidence only. They are not market-driven
-portfolio results or profitability evidence.
+A bounded read-only on-chain inspection classified ten naturally nominated mints that
+had previously failed as `unsupported curve mode or quote asset`:
 
-## Prospective-validation repairs and instrumentation
+- all 10 had `is_mayhem_mode=true`;
+- all 10 had native-SOL/default `quote_mint`;
+- all 10 had `is_cashback_coin=false`;
+- all 10 had 6-decimal mints;
+- all 10 had curve `token_total_supply` of 1,000,000,000 tokens while observed mint
+  supply was approximately 2,000,000,000 tokens, consistent with Mayhem's additional
+  trading-agent inventory (two observations were one base unit below 2B);
+- none of the inspected curves had a custom creator fee or holder-reward flag.
 
-Review found that historical `gaps` were originally an eternal entry veto. A transient
-public-RPC gap could therefore prevent every later entry even after its potentially
-missed 60-second nomination window was stale. The repair preserves gap history but
-uses `entry_quarantine_until` to fail closed only for the affected signal window.
-Repeated gaps extend quarantine; existing positions retain monitoring/exit priority.
-This did not change any continuation-v1 strategy threshold.
+This established a concrete adapter-compatibility gap rather than a strategy
+qualification failure. After native-SOL Mayhem support was added, natural nominations
+advanced past `initial_snapshot`; the old mode rejection disappeared.
 
-Status exposes bounded funnel counts for scout batches, new observed events, seed
-events, nominations, qualification attempts, qualified candidates, entries and
-settled exits.
+## Mayhem provenance correction
 
-`evidence/unvalidated_seed_watchlist.json` contains public finalized Pump.fun buyers
-with exact discovery provenance. They are observation-only scouts: no skill claim,
-sizing influence, or purchase authority. Their discovery trade is excluded from
-future nomination authority; only events after scout admission are admissible.
+The original public buyer census had accidentally admitted
+`BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s` as an unvalidated scout. Pump's public
+Mayhem documentation identifies that address as the protocol's disclosed Mayhem
+trading-agent wallet. It is now removed from `evidence/unvalidated_seed_watchlist.json`.
+`Engine` rejects that address as a scout, and Mayhem qualification excludes its trades
+from independent-buyer/net-demand corroboration. Its market trades still affect real
+reserves and its token inventory remains visible in concentration. This is a source-
+provenance correction, not a continuation-v1 threshold change.
 
-Provider diagnostics now classify failures without exposing URLs or bodies. The real
-HTTP path has at most one paced, budget-counted retry. The repeated validation
-workflow no longer runs unrelated scout-census/live-probe requests immediately before
-qualification, and the qualification diagnostic evaluates fresh unique nominations
-immediately rather than waiting until all scouts have been polled.
+## Current exact verification
 
-The diagnostic also stops polling later scouts once its two-unique-mint evidence
-budget is spent. This is a read-only RPC-efficiency change: work that cannot affect
-that bounded run's outcome is not performed. It does not alter market eligibility,
-entry sizing, or exits.
+Exact verified head: `ae602bcf4384c0d3aca3c445a07ea603572282f2`.
+Exact push workflow: `35163710197`.
 
-## Latest exact-head prospective evidence
+Both workflow jobs passed. The deterministic suite is **49/49 passing**. It includes
+Mayhem reserve-math, Mayhem supply, actual-supply fee-tier selection, standard-supply
+fail-closed behavior, system-wallet exclusion, independent-demand exclusion, cashback
+and non-native-quote rejection, and bounded pool-window short-circuit regressions.
 
-Exact head for this evidence: `73a7fb170dc9e59847b1951a2f65fc6a7b05fb35`.
-Push workflow run: `35160692595`. Both jobs passed.
+The same exact-head resource workload remained bounded at 2,000 frames / 240,000
+submitted events, ~1.26 MB SQLite DB, ~0.71 MB WAL and 26,444 KiB peak RSS on the
+GitHub runner. The connected synthetic lifecycle also completed entry -> monitoring ->
+exit -> settlement. These remain software/resource proofs, not market profitability.
 
-The admitted-scout shadow run observed 9 admissible events from the active admitted
-seed and produced 4 natural nominations. It immediately attempted two unique mints,
-with signal ages about 18 and 22 seconds. Both reached account inspection and were
-rejected at `initial_snapshot` as `unsupported curve mode or quote asset`:
+## Latest prospective evidence
 
-- `5Re47wrh5ww6RUfLndqpRr24VA3XGzCVLzkQ93GCpump`
-- `3NPxFq3VBo3br7uN2HLEiMK1sc71vMtxDUcmoXwQpump`
+On the exact verified head, admitted-scout shadow qualification observed 9 admissible
+real events and produced 4 natural nominations. Two fresh unique Mayhem/native-SOL
+candidates were inspected at about 22 and 33 seconds signal age. Both passed the new
+Mayhem account/supply snapshot validation, then stopped with the explicit unchanged-
+policy result `incomplete_market_window` because the bounded 40-signature pool tail did
+not span the complete required 60-second evidence window.
 
-Those are implementation-scope rejections, not continuation-v1 economic rejections.
-They do not prove a supported standard-SOL candidate would qualify.
+That exact run used 18 public RPC requests with **0 failures, 0 retries and no HTTP
+429s**. It created zero orders, reservations, positions or paper trades; shadow cash
+was unchanged. Therefore the adapter-mode repair is proven to have moved the evidence
+boundary from account compatibility to market-history completeness.
 
-The efficiency change removed the public-RPC failure seen in the immediately prior
-runs: this exact run used 14 RPC requests with **0 failures, 0 retries, and no HTTP
-429s**, then deliberately stopped before polling later scouts because its two-mint
-evidence budget was exhausted. Cash was unchanged; orders, reservations, positions,
-and paper trades all remained zero.
+Earlier runs did encounter public-RPC HTTP 429 responses while attempting transaction-
+heavy pool history. The provider now honors a bounded Retry-After delay, and required
+pool-history reads short-circuit before fetching transaction bodies when their bounded
+signature census already proves that the complete 60-second window is unavailable.
+Open-position monitoring retains priority.
 
-Earlier bounded runs repeatedly produced HTTP 429s. Those remain relevant provider
-capacity evidence, but the current reduced-RPC path shows the present bounded proof
-can proceed without a 429 when it stops once useful evidence capacity is consumed.
-Do not broaden the curve parser or loosen strategy rules merely to obtain a supported
-candidate.
+## Policy / safety status
 
-## Limits / acceptance
+`continuation-v1` economic thresholds, fixed 5% initial-SOL entry budget, concentration
+limit, independent-demand threshold, liquidity threshold, price/chase guard,
+round-trip-cost threshold, delay, take-profit, stop, timeout and portfolio limits have
+not been loosened to obtain a result. Wallet skill still has zero sizing influence.
 
-This remains bounded real-data diagnostic evidence, **not prospective operational
-acceptance or profitability evidence**. No supported standard-SOL Pump.fun nomination
-has yet reached full `evidence_stage=complete` qualification, and no market-driven
-entry-to-settlement exists.
+This branch remains paper-only. The GitHub shadow diagnostic may call qualification but
+has no order/reservation authority; a shadow `qualified` result would not itself be a
+paper trade. Operational acceptance and profitability evidence remain false until a
+market-driven position can be durably entered, monitored, exited and reconciled.
 
-A shadow `qualified` result would still not be a paper trade. A real market-driven
-lifecycle requires durable state that can be resumed through entry, monitoring, exit,
-and settlement. Ephemeral CI diagnostics therefore have no order authority.
+## Exact continuation boundary
 
-Quotes remain hypothetical execution evidence rather than guarantees of landing,
-future gas, or own-trade market response. Graduation outside the implemented surface
-can leave an unresolved position. No LP fee engine, partial exits, re-entry, scaling,
-or strategy evolution is enabled. Wallet performance remains unvalidated.
+The observed curve-mode question is resolved: current natural nominations are
+native-SOL Mayhem curves, and that mode is now explicitly supported with Mayhem-specific
+supply/fee/provenance controls. Do not broaden to cashback, custom quote assets, DLMM,
+PumpSwap or another venue to manufacture activity.
 
-## Exact next task
+The next evidence boundary is **complete point-in-time pool history for a natural
+nomination under the unchanged 60-second continuation-v1 window**. Continue bounded
+prospective observation. If a candidate obtains a complete market window, run the
+existing concentration/final snapshot and unchanged `Engine.qualify` path and record
+its exact accept/reject reason. If active pools consistently exceed the bounded history
+capacity or public RPC again prevents complete evidence, treat that as a read-only data
+capacity/efficiency problem rather than changing strategy thresholds.
 
-Continue **Pump.fun-only bounded observation of the already-admitted scouts** with
-unchanged continuation-v1 until a naturally nominated **supported standard-SOL**
-Pump.fun curve reaches full qualification evidence. Report its exact accept/reject
-reason; do not force qualification.
-
-Use the reduced-RPC live diagnostic. At most one bounded observation attempt should
-be made per monitoring interval; do not hammer the public endpoint. If HTTP 429s again
-repeatedly prevent useful coverage under this reduced path, stop repeated observation
-and treat read-only RPC capacity/efficiency as the next engineering boundary rather
-than modifying strategy thresholds.
-
-Do not add DLMM or another venue to avoid this boundary. Do not merge, deploy, add a
-paid provider, enable live money/signing/submission, or create a paper position on an
-ephemeral GitHub runner.
+Do not create a paper position on an ephemeral Actions runner. A real paper entry must
+use durable resumable state through monitoring and settlement.
 
 Reproduce deterministic checks:
 
@@ -141,4 +139,10 @@ Bounded admitted-scout shadow diagnostic:
 
 ```sh
 python -m tests.prospective_qualification
+```
+
+Optional one-off curve-mode inspection (diagnostic only; not part of every live run):
+
+```sh
+python -m tests.inspect_curve_modes
 ```
