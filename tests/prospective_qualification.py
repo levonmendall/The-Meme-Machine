@@ -22,6 +22,12 @@ GENESIS_SOL_USD_MICROS=97_840_000
 GENESIS_SOURCE='2026-09-16 recorded validation reference: $97.84/SOL; new shadow experiment, not performance continuity'
 
 
+def _failure(result, stage, exc):
+    """Attach a safe stage label without exposing RPC URLs or provider bodies."""
+    result.update(reason='unavailable_executable_evidence',evidence_stage=stage,limitation=str(exc))
+    return result
+
+
 def main():
     watch=json.loads(WATCHLIST.read_text())
     capture=json.loads(CAPTURE.read_text())
@@ -51,28 +57,43 @@ def main():
                     report['seed_windows'].append(dict(seed=seed,covered=covered,events=len(events),nominations=len(found)))
                     nominations.extend(found)
                 except (Unavailable,ValueError) as exc:
-                    report['seed_windows'].append(dict(seed=seed,covered=False,events=None,nominations=0,limitation=str(exc)))
+                    report['seed_windows'].append(dict(seed=seed,covered=False,events=None,nominations=0,
+                                                       evidence_stage='seed_history',limitation=str(exc)))
             # Deduplicate nominations by immutable event id before full evidence work.
             unique={n['id']:n for n in nominations}
             report['nominations']=len(unique)
             for nomination in list(unique.values())[:2]:
+                result=dict(mint=nomination['mint'],nomination_id=nomination['id'],
+                            scout_wallet=nomination['wallet'],
+                            signal_age_seconds=max(0,int(time.time())-nomination['market_time']))
+                observed=int(time.time())
                 try:
-                    observed=int(time.time())
                     snap=adapter.snapshot(nomination['mint'],observed,priority=True)
+                except (Unavailable,ValueError,KeyError,TypeError) as exc:
+                    report['results'].append(_failure(result,'initial_snapshot',exc));continue
+                try:
                     market,market_covered=adapter.history(snap['pool'],observed,priority=True)
+                except (Unavailable,ValueError,KeyError,TypeError) as exc:
+                    report['results'].append(_failure(result,'pool_history',exc));continue
+                try:
                     concentration=adapter.concentration(nomination['mint'],snap,priority=True)
+                except (Unavailable,ValueError,KeyError,TypeError) as exc:
+                    report['results'].append(_failure(result,'concentration',exc));continue
+                try:
                     snap=adapter.snapshot(nomination['mint'],int(time.time()),priority=True)
-                    evidence=dict(snapshot=snap,events=market,covered=market_covered,concentration_bps=concentration)
+                except (Unavailable,ValueError,KeyError,TypeError) as exc:
+                    report['results'].append(_failure(result,'final_snapshot',exc));continue
+                evidence=dict(snapshot=snap,events=market,covered=market_covered,concentration_bps=concentration)
+                try:
                     reason=engine.qualify(nomination,evidence,int(time.time()))
                     curve=pump.curve(snap['accounts'][0])
-                    report['results'].append(dict(mint=nomination['mint'],nomination_id=nomination['id'],
-                        scout_wallet=nomination['wallet'],reason=reason,market_window_covered=market_covered,
-                        market_events=len(market),concentration_bps=concentration,real_sol_lamports=curve.real_sol,
-                        quote_age_seconds=int(time.time())-snap['market_time']))
                 except (Unavailable,ValueError,KeyError,TypeError) as exc:
-                    report['results'].append(dict(mint=nomination.get('mint'),nomination_id=nomination.get('id'),
-                                                  scout_wallet=nomination.get('wallet'),
-                                                  reason='unavailable_executable_evidence',limitation=str(exc)))
+                    report['results'].append(_failure(result,'qualification',exc));continue
+                result.update(reason=reason,evidence_stage='complete',market_window_covered=market_covered,
+                              market_events=len(market),concentration_bps=concentration,
+                              real_sol_lamports=curve.real_sol,
+                              quote_age_seconds=int(time.time())-snap['market_time'])
+                report['results'].append(result)
         except (Unavailable,ValueError) as exc:
             report['limitations'].append(str(exc))
         finally:
