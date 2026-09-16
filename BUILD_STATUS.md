@@ -30,62 +30,103 @@ persisted and cannot silently change on restart.
 
 ## Evidence already obtained
 
-- 34 local tests pass: connected profitable/loss-making synthetic paths, meaningful
-  nonqualification, unavailable exits, failed/stale entry attempts and fees,
-  duplicate/conflicting delivery, shared capital, disabled LP, open/reserved restart,
-  lost fill acknowledgement, actual subprocess termination before/after commit,
-  checkpoint/journal corruption, accounting damage, mint restrictions, fee tiers,
-  real captured decoding and independent monitoring.
-- `evidence/local_tests.txt` contains the test transcript. Repeat on final HEAD.
-- `evidence/resource_check.json`: 2,000 synthetic frames / 240,000 submitted events;
-  queue admission 100/frame, dedup <=1,000, decisions <=100, gaps <=20.
-  Approximately 1.25 MB DB + 0.62 MB WAL and <20 MiB peak RSS on this host.
-  This is a temporary-memory-filesystem workload, not a continuous-market or
-  physical-disk/power-loss benchmark. WAL FULL and process-crash behavior are tested.
-- `evidence/synthetic_result.json`: one synthetic profitable lifecycle; not market
-  performance. Separate losing-path assertions are in the connected tests.
-- Public mainnet genesis verified. Three public RPC captures in `tests/fixtures`
-  contain a finalized Pump sell at slot 447633818 and a later live curve/mint/fee
-  snapshot at slot 447634246. The token is not our paper position.
-- `evidence/live_probe.json`: real read-only scout probe, two RPC requests, zero
-  errors and no buys in the sampled recent wallet window; no portfolio initialized.
-- `evidence/prospective_probe.json`: pre-commit 30-second bounded live application
-  run, four requests, three worker cycles, zero provider failures, zero nominations,
-  zero paper trades, zero fees and zero realized P&L. Initial $500 converted once
-  at recorded $97.84/SOL reference; current USD NAV is deliberately unknown.
-  Its `-dirty` release label is explicit; this is not exact-final-release evidence.
-- Public RPC required no credential. Coinbase's optional price HTTP lookup timed
-  out; initial reference was obtained independently through web finance. No paid
-  provider, subscription or infrastructure was created. `MM_SOLANA_RPC_URL` is
-  optional; no missing RPC credential is claimed.
+- Original milestone: 34 local tests passed, including connected profitable/loss-making
+  synthetic paths, meaningful nonqualification, unavailable exits, failed/stale entry
+  attempts and fees, duplicate/conflicting delivery, shared capital, disabled LP,
+  open/reserved restart, lost fill acknowledgement, actual subprocess termination
+  before/after commit, checkpoint/journal corruption, accounting damage, mint
+  restrictions, fee tiers, real captured decoding and independent monitoring.
+- The bounded prospective-validation patch raised the deterministic suite to **36/36
+  passing** on exact GitHub commit `51242c665f55f1843889d4e1d72c6ac806eaf49b`.
+  It adds funnel counters and tests the new transient-gap quarantine behavior without
+  changing any continuation-v1 strategy threshold.
+- `evidence/resource_check.json` baseline: 2,000 synthetic frames / 240,000 submitted
+  events; queue admission 100/frame, dedup <=1,000, decisions <=100, gaps <=20.
+  The exact prospective-validation CI rerun remained bounded at about 1.26 MB DB,
+  0.71 MB WAL and 26,464 KiB peak RSS on the GitHub runner. This is not continuous
+  market or physical-disk certification.
+- Public mainnet genesis verified. Checked-in captures validate Pump event/account/
+  fee decoding. They are not portfolio performance.
+- A new read-only Pump program census runs in CI. In run `35158920117` it observed
+  one recent finalized buyer. In run `35159048378` it observed two. In push run
+  `35159139251` it decoded six recent Pump trade events including four buys from
+  four distinct addresses. These are activity observations only, not skill claims.
+- The existing captured public seed also produced a real buy nomination in run
+  `35158920117`: three wallet events, one buy nomination, nine RPC requests, zero
+  provider failures. A later probe on the same seed had no current events. This proves
+  the scout can observe a natural buy; it does **not** prove qualification or alpha.
+- `evidence/unvalidated_seed_watchlist.json` records three public buyers from the
+  first bounded censuses with exact event provenance. They have diagnostic scouting
+  authority only: no skill, sizing, or purchase authority.
+- Full shadow qualification is now executable in CI without calling `consider`,
+  reserving capital, or creating positions. It uses unchanged continuation-v1.
+  On push run `35159139251`, four recorded unvalidated seeds produced two observed
+  events across one seed, zero current buy nominations, one provider request failure
+  on another seed, zero orders, zero positions and unchanged cash. Thus no full live
+  qualification result has yet been observed.
+- The short Pump-program census reports `program_window_covered=false` because its
+  bounded 20-signature tail does not span the full minute on an active global program.
+  That diagnostic is not used as market-window authority for entries.
+- Public RPC required no credential. No paid provider, subscription, deployment, or
+  infrastructure was created. `MM_SOLANA_RPC_URL` remains optional.
+
+## Prospective-validation repair made in this branch
+
+Review found an operational correctness issue in the original prospective path:
+`wallet_window_incomplete` and `discovery_data_unavailable` were appended to a
+persistent `gaps` list, while the allocator rejected every new entry whenever that
+list was nonempty. A single transient public-RPC gap could therefore block new
+exposure for the rest of the experiment even after the potentially missed 60-second
+nomination window had become stale.
+
+The repair keeps the gap history but fails closed for an explicit
+`entry_quarantine_until` covering the complete 60-second signal window. Repeated gaps
+extend the quarantine. Existing positions still receive priority monitoring/exits.
+After the missing window has fully aged out, unrelated fresh evidence may be evaluated
+again. This is a data-readiness/liveness correction, **not a strategy-threshold
+change**. Existing databases with legacy gap state migrate conservatively by applying
+one signal-window quarantine on first open.
+
+Status now exposes bounded funnel counts for scout batches, new observed events,
+seed events, nominations, qualification attempts, qualified candidates, settled
+entries and settled exits. `gaps` remains preserved diagnostic history rather than an
+eternal trading veto; `active_entry_quarantine` is the current blocking state.
 
 ## Limits / acceptance
 
-This is executable offline milestone evidence plus a real-data smoke run, **not
-prospective operational acceptance or profitability evidence**. No market-driven
-entry-to-settlement occurred. Keep `operational_acceptance=false` and
-`profitability_evidence=false` until independently earned.
+This remains executable milestone evidence plus bounded real-data diagnostics, **not
+prospective operational acceptance or profitability evidence**. No naturally
+qualifying market-driven entry-to-settlement has occurred. Keep
+`operational_acceptance=false` and `profitability_evidence=false` until independently
+earned.
 
 Quotes model hypothetical costs; they do not guarantee landing, exact future gas,
 or exact own-trade market response. Finalized snapshots can be too old; that blocks
 entries. Graduation outside this surface leaves an explicit unresolved position.
 No LP fee engine, partial exits, re-entry, scaling or strategy evolution exists.
-Wallet scorecards are bounded/unvalidated cash-flow observations, not complete
-wallet returns; full balance boundaries, network-fee attribution and comparative
+Wallet scorecards are bounded/unvalidated cash-flow observations, not complete wallet
+returns; full balance boundaries, network-fee attribution and comparative
 wallet/control performance remain research work before any skill-based influence.
-Gaps block new exposure and require explicit evidence-preserving review; exits stay
-scheduled. Rare finalized reorganization economics are not automatically repaired.
+Rare finalized reorganization economics are not automatically repaired.
 
 ## Exact next task
 
-Continue from this branch/PR after reviewing CI. Run repeated **budgeted prospective
-Pump.fun-only sessions** with recorded unvalidated seeds and the same persisted
-ledger until natural nominations provide independent evidence. Establish a real
-market-driven entry → monitored exit → settlement, or preserve explicit rejection /
-provider-gap evidence. Do not loosen defaults or force trades. Do not add DLMM or
-another adapter to avoid this remaining proof boundary.
+Continue **Pump.fun-only bounded prospective validation**. Re-run the manual/live
+workflow diagnostic or a bounded prospective session using recorded unvalidated seeds
+and unchanged continuation-v1 until one of these evidence boundaries is reached:
 
-Reproduce:
+1. a natural nomination reaches full qualification, exposing its exact accept/reject
+   reason and executable evidence; or
+2. enough repeated observation shows a specific coverage/provider limitation that
+   prevents full qualification.
+
+Do not loosen defaults or force activity. Do not add DLMM or another adapter to avoid
+this boundary. Do not create a paper position on an ephemeral runner unless its state
+can be durably resumed through monitoring and settlement. A shadow `qualified` result
+is not a paper trade; an actual market-driven lifecycle still requires durable entry,
+monitoring, exit and settlement.
+
+Reproduce deterministic checks:
 
 ```sh
 python -m unittest discover -v
@@ -94,8 +135,14 @@ python -m tests.make_tape
 python -m meme_machine --mode synthetic --config config.synthetic.json --db /tmp/meme-fresh.db --tape tests/fixtures/synthetic_lifecycle.jsonl
 ```
 
-The working host's ordinary disk was full before this task. Source/test work used
-`/dev/shm/meme-build` without deleting prior user work; GitHub is the durable handoff.
-Runtime DBs/config.local.json are intentionally not committed. There are no open
-positions in the observed live smoke experiment. Do not treat its temporary local
-state as a durable deployed portfolio.
+Read-only bounded live diagnostics:
+
+```sh
+python -m tests.scout_census
+python -m tests.live_probe
+python -m tests.prospective_qualification
+```
+
+Runtime DBs/config.local.json are intentionally not committed. There are no paper
+positions created by the CI diagnostics. No merge, deployment, paid service, DLMM,
+other venue adapter, live money, signing, or transaction submission is authorized.
