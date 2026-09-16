@@ -9,6 +9,9 @@ RENT = 2_100_000             # Refundable SPL token account capital, separate fr
 DELAY = 2
 MAX_AGE = 20
 SIGNAL_WINDOW = 60
+# Pump's currently disclosed Mayhem trading-agent wallet / Mayhem sol-vault.
+# It is protocol-controlled activity, not an independent scouting wallet or buyer.
+MAYHEM_AGENT_WALLET = 'BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s'
 
 
 @dataclass(frozen=True)
@@ -56,6 +59,8 @@ class Engine:
         self.store,self.seeds,self.groups = store,set(seeds),groups or {}
         for address in seeds:
             pump.un58(address)
+            if address == MAYHEM_AGENT_WALLET:
+                raise ValueError('system_wallet_cannot_scout')
         identity=digest(dict(seeds=sorted(seeds),groups=self.groups))
         if 'scout_config' in store.state and store.state['scout_config']!=identity:
             raise ValueError('scout_configuration_changed')
@@ -155,6 +160,11 @@ class Engine:
         if c.complete or c.real_sol<10_000_000_000:
             return 'exit_liquidity'
         excluded={self.group(nomination['wallet']),self.group(c.creator)}
+        # Mayhem's disclosed protocol agent follows a random walk. Its trades are
+        # real market activity and affect reserves, but are not independent buyer
+        # corroboration for continuation-v1.
+        if pump.curve_mode(snap['accounts'][0])['mayhem']:
+            excluded.add(self.group(MAYHEM_AGENT_WALLET))
         participants=set()
         net=0
         events=evidence['events']
