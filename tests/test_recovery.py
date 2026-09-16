@@ -73,3 +73,32 @@ class Recovery(unittest.TestCase):
     def test_liquidity_interface_cannot_bypass_shared_allocator(self):
         self.assertEqual(self.e.allocator.allowed('liquidity',self.s.state['initial']*10,'x','x'),'dlmm_disabled')
         self.assertEqual(self.s.state['reserved'],0)
+    def test_transient_discovery_gap_quarantines_only_missing_signal_window(self):
+        self.e.scout([],100)
+        with self.s.transaction('test_gap'):
+            self.e.quarantine('wallet_window_incomplete',100)
+        self.assertEqual(self.e.allocator.allowed('spot',1,'other','other',120),'unresolved_data_gap')
+        self.assertFalse(self.e.status(120)['ready'])
+        # Once the potentially missed 60-second nomination window is entirely stale,
+        # the historical gap remains visible but no longer blocks unrelated new evidence.
+        self.e.scout([],161)
+        self.assertIsNone(self.e.allocator.allowed('spot',1,'other','other',161))
+        status=self.e.status(161)
+        self.assertTrue(status['ready'])
+        self.assertFalse(status['active_entry_quarantine'])
+        self.assertEqual(status['gaps'][-1]['reason'],'wallet_window_incomplete')
+    def test_funnel_distinguishes_observation_nomination_qualification_and_entry(self):
+        nomination=self.e.scout([event()],100)[0]
+        self.assertEqual(self.e.consider(nomination,evidence(),100),'qualified')
+        self.assertEqual(self.e.fill(nomination['id'],snapshot(102),102),'settled')
+        f=self.e.status(102)['funnel']
+        self.assertEqual(f['scout_batches'],1)
+        self.assertEqual(f['observed_events'],1)
+        self.assertEqual(f['seed_events'],1)
+        self.assertEqual(f['nominations'],1)
+        self.assertEqual(f['qualification_attempts'],1)
+        self.assertEqual(f['qualified'],1)
+        self.assertEqual(f['entries'],1)
+        self.assertEqual(f['settled_exits'],0)
+
+if __name__=='__main__':unittest.main()

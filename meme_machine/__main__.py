@@ -36,11 +36,12 @@ def tick(engine, adapter, now):
             events,covered=adapter.history(wallet,now)
             nominations=engine.scout(events,int(time.time()))
             with engine.store.transaction('discovery_coverage'):
-                s.setdefault('coverage',{})[wallet]=dict(window_covered=covered,observed_events=len(events),time=int(time.time()))
+                observed=int(time.time())
+                s.setdefault('coverage',{})[wallet]=dict(window_covered=covered,observed_events=len(events),time=observed)
                 if not covered:
-                    s['gaps']=(s['gaps']+['wallet_window_incomplete'])[-20:]
+                    engine.quarantine('wallet_window_incomplete',observed)
                 if not nominations:
-                    engine.note('healthy_scout_no_nomination' if covered else 'incomplete_scout_window',None,int(time.time()))
+                    engine.note('healthy_scout_no_nomination' if covered else 'incomplete_scout_window',None,observed)
             for nomination in nominations[:2]:
                 snap=adapter.snapshot(nomination['mint'],now)
                 market,covered=adapter.history(snap['pool'],now)
@@ -50,8 +51,9 @@ def tick(engine, adapter, now):
                                                 concentration_bps=concentration),int(time.time()))
         except (Unavailable,ValueError):
             with engine.store.transaction('provider_gap'):
-                s['gaps']=(s['gaps']+['discovery_data_unavailable'])[-20:]
-                engine.note('provider_or_evidence_failure',None,now)
+                observed=int(time.time())
+                engine.quarantine('discovery_data_unavailable',observed)
+                engine.note('provider_or_evidence_failure',None,observed)
     with engine.store.transaction('heartbeat'):
         s['provider']=dict(requests=adapter.rpc.calls,failures=adapter.rpc.failures,
                            cache_hits=adapter.rpc.cache_hits,limit=adapter.rpc.limit,

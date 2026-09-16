@@ -8,6 +8,7 @@ GAS = 50_000                 # Conservative per simulated transaction, incl prio
 RENT = 2_100_000             # Refundable SPL token account capital, separate from fees.
 DELAY = 2
 MAX_AGE = 20
+SIGNAL_WINDOW = 60
 
 
 @dataclass(frozen=True)
@@ -23,11 +24,12 @@ class Allocator:
     def __init__(self, store):
         self.store = store
 
-    def allowed(self, kind, amount, mint, related):
+    def allowed(self, kind, amount, mint, related, now=None):
         s = self.store.state
         if kind != 'spot':
             return 'dlmm_disabled'
-        if s['gaps']:
+        observed_now = s.get('last_time',0) if now is None else now
+        if observed_now < s.get('entry_quarantine_until',0):
             return 'unresolved_data_gap'
         if mint in s['positions'] or any(o['mint']==mint and o['status']=='reserved' for o in s['orders'].values()):
             return 'token_exposure'
@@ -71,6 +73,19 @@ class Engine:
         s['decisions'].append(dict(reason=reason,mint=mint,time=now))
         s['decisions']=s['decisions'][-100:]
 
+    def quarantine(self, reason, now, seconds=SIGNAL_WINDOW):
+        """Fail closed only for the signal window that could contain unseen events.
+
+        Gap history is retained for diagnosis, while new exposure automatically
+        becomes eligible again only after the missed 60-second nomination window
+        has fully aged out. Existing positions remain monitorable throughout.
+        Caller must hold a Store transaction.
+        """
+        s=self.store.state
+        until=now+seconds
+        s['entry_quarantine_until']=max(s.get('entry_quarantine_until',0),until)
+        s['gaps']=(s['gaps']+[dict(reason=reason,time=now,until=until)])[-20:]
+
     def validate_snapshot(self, snap, now):
         s = self.store.state
         if snap['network']!='solana-mainnet' or snap['protocol']!='pump.fun':
@@ -91,6 +106,7 @@ class Engine:
         nominations = []
         with self.store.transaction('scout'):
             s = self.store.state
+            f=s['funnel'];f['scout_batches']+=1
             if now < s['last_time']:
                 raise ValueError('time_regression')
             s['last_time']=now
@@ -104,20 +120,23 @@ class Engine:
                         raise ValueError('conflicting_event')
                     continue
                 s['seen'][e['id']]=dict(hash=h,time=e['market_time'])
+                f['observed_events']+=1
                 if e['wallet'] in self.seeds:
+                    f['seed_events']+=1
                     w=s['wallets'].setdefault(e['wallet'],dict(nominations=0,skill='unvalidated',sizing_influence=0))
                     observe(w,e)
-                if e.get('type','trade')=='trade' and e['wallet'] in self.seeds and e['buy'] and now-e['market_time']<=60:
+                if e.get('type','trade')=='trade' and e['wallet'] in self.seeds and e['buy'] and now-e['market_time']<=SIGNAL_WINDOW:
                     nominations.append(e)
+                    f['nominations']+=1
                     w=s['wallets'].setdefault(e['wallet'],dict(nominations=0,skill='unvalidated',sizing_influence=0))
                     w['nominations']+=1
             # Dedup lifetime exceeds signal eligibility; old events cannot trigger entries.
             s['seen']={k:v for k,v in s['seen'].items() if now-v['time']<=120}
             if len(s['seen'])>1000:
                 s['seen']=dict(list(s['seen'].items())[-1000:])
-                s['gaps']=(s['gaps']+['dedup_capacity'])[-20:]
+                self.quarantine('dedup_capacity',now)
             if len(events)>100:
-                s['gaps']=(s['gaps']+['intake_capacity'])[-20:]
+                self.quarantine('intake_capacity',now)
             s['progress']+=1
         return nominations
 
@@ -126,7 +145,7 @@ class Engine:
         c,rates=self.validate_snapshot(snap,now)
         if nomination['mint']!=snap['mint'] or nomination['wallet'] not in self.seeds:
             return 'invalid_nomination'
-        if not nomination['market_time'] <= nomination['available_time'] <= now or now-nomination['market_time']>60:
+        if not nomination['market_time'] <= nomination['available_time'] <= now or now-nomination['market_time']>SIGNAL_WINDOW:
             return 'stale_signal'
         if not evidence.get('covered'):
             return 'incomplete_market_window'
@@ -151,7 +170,7 @@ class Engine:
             seen[e['id']]=digest(e)
             if e['amount']<=0 or e['tokens']<=0:
                 return 'invalid_trade_amount'
-            if e['mint']!=snap['mint'] or not now-60 <= e['market_time'] <= e['available_time'] <= now or e['slot']>snap['slot']:
+            if e['mint']!=snap['mint'] or not now-SIGNAL_WINDOW <= e['market_time'] <= e['available_time'] <= now or e['slot']>snap['slot']:
                 return 'invalid_market_window'
             if self.group(e['wallet']) in excluded:
                 continue
@@ -168,7 +187,7 @@ class Engine:
         proceeds,_=pump.sell(c,tokens,rates)
         if (cost+2*GAS-proceeds)*10000 > cost*500:
             return 'roundtrip_cost'
-        return self.allocator.allowed('spot',amount,snap['mint'],self.group(c.creator)) or 'qualified'
+        return self.allocator.allowed('spot',amount,snap['mint'],self.group(c.creator),now) or 'qualified'
 
     def consider(self, nomination, evidence, now):
         oid=nomination['id']
@@ -179,9 +198,11 @@ class Engine:
         except (ValueError,KeyError,TypeError):
             reason='unavailable_executable_evidence'
         with self.store.transaction('qualification'):
+            s=self.store.state
+            s['funnel']['qualification_attempts']+=1
             self.note(reason,nomination['mint'],now)
             if reason=='qualified':
-                s=self.store.state
+                s['funnel']['qualified']+=1
                 amount=s['initial']//20
                 reservation=amount+GAS+RENT
                 tokens,_,_=pump.buy(*self._quote_args(evidence['snapshot'],now,amount))
@@ -236,6 +257,7 @@ class Engine:
                     rent=RENT,opened=now,related=o['related'],entry_slot=snap['slot'],next_monitor=now+5,
                     mark=None,mark_time=None,unresolved=False,exit_due=None,exit_reason=None)
                 s['entry_count']+=1
+                s['funnel']['entries']+=1
                 o.update(status='settled',fill=dict(tokens=tokens,cost=cost,fee=fee,gas=GAS,
                     slot=snap['slot'],market_time=snap['market_time'],available_time=snap['available_time'],time=now),fill_snapshot=snap)
         return o['status']
@@ -290,6 +312,7 @@ class Engine:
                     order['exit']=dict(reason=p['exit_reason'],proceeds=proceeds,fee=fee,gas=GAS,
                                        realized=proceeds-GAS-p['basis'],time=now,snapshot=snap)
             del s['positions'][mint]
+            s['funnel']['settled_exits']+=1
             self.note('settled_exit',mint,now)
             return 'settled'
 
@@ -300,12 +323,14 @@ class Engine:
             if p['mark_time'] is None or now-p['mark_time']>MAX_AGE:
                 p['mark']=None
         marks=[p['mark'] for p in positions.values()]
-        return dict(live=True,ready=not s['gaps'] and s['progress']>0 and now-s['last_time']<=MAX_AGE,
+        quarantined=now < s.get('entry_quarantine_until',0)
+        return dict(live=True,ready=not quarantined and s['progress']>0 and now-s['last_time']<=MAX_AGE,
             operational_acceptance=False,profitability_evidence=False,policy=s['policy'],model=s['model'],
             mode=s['mode'],network='solana-mainnet',initial_usd_micros=s['initial_usd_micros'],
             cash_lamports=s['cash'],reserved_lamports=s['reserved'],rent_lamports=s['rent'],
             realized_lamports=s['realized'],fees_lamports=s['fees'],positions=positions,
             unrealized_lamports=None if any(m is None for m in marks) else sum(marks)-sum(p['basis'] for p in positions.values()),
             current_usd_value=None,counts=s['counts'],decisions=s['decisions'][-10:],gaps=s['gaps'],
-            progress=s['progress'],coverage=s.get('coverage',{}),wallets=s['wallets'],provider=s['provider'],dlmm_enabled=False,
-            pressure=self.store.pressure())
+            entry_quarantine_until=s.get('entry_quarantine_until',0),active_entry_quarantine=quarantined,
+            funnel=dict(s['funnel']),progress=s['progress'],coverage=s.get('coverage',{}),wallets=s['wallets'],
+            provider=s['provider'],dlmm_enabled=False,pressure=self.store.pressure())

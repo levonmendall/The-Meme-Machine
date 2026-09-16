@@ -21,6 +21,11 @@ def digest(value):
     return hashlib.sha256(encode(value).encode()).hexdigest()
 
 
+def _funnel_defaults():
+    return dict(scout_batches=0,observed_events=0,seed_events=0,nominations=0,
+                qualification_attempts=0,qualified=0,entries=0,settled_exits=0)
+
+
 class IntegrityError(RuntimeError):
     pass
 
@@ -53,7 +58,7 @@ class Store:
                     initial=initial,sol_usd_micros=sol_usd_micros,valuation_source=valuation_source,
                     cash=initial,reserved=0,rent=0,fees=0,realized=0,positions={},orders={},seen={},
                     decisions=[],counts={},wallets={},progress=0,gaps=[],journal_seq=0,journal_hash='0'*64,
-                    entry_count=0,provider={},last_time=0)
+                    entry_count=0,provider={},last_time=0,entry_quarantine_until=0,funnel=_funnel_defaults())
                 with self.transaction('genesis'):
                     pass
             else:
@@ -68,6 +73,15 @@ class Store:
                 if tail != (self.state['journal_seq'],self.state['journal_hash']):
                     raise IntegrityError('journal_checkpoint_mismatch')
                 self.reconcile()
+                # Additive runtime-state migration only. Existing gaps conservatively
+                # quarantine new exposure for one complete 60-second signal window.
+                if 'entry_quarantine_until' not in self.state or 'funnel' not in self.state:
+                    with self.transaction('prospective_validation_state_v2'):
+                        if 'entry_quarantine_until' not in self.state:
+                            self.state['entry_quarantine_until']=(self.state.get('last_time',0)+60 if self.state.get('gaps') else 0)
+                        self.state.setdefault('funnel',_funnel_defaults())
+                        for key,value in _funnel_defaults().items():
+                            self.state['funnel'].setdefault(key,value)
         except BaseException:
             if hasattr(self, 'db'):
                 self.db.close()
