@@ -15,6 +15,7 @@ TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
 MAINNET = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d'
 ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 MODEL = 'pump-sol-cp-v1'
+MAYHEM_EXTRA_WHOLE_TOKENS = 1_000_000_000
 
 
 def b58(raw):
@@ -81,23 +82,54 @@ class Curve:
     creator: str
 
 
-def curve(account):
-    raw = raw_account(account, PROGRAM, 'BondingCurve')
+def _curve_mode_raw(raw):
     if len(raw) < 83:
         raise ValueError('unsupported short curve')
+    quote_raw = raw[83:115] if len(raw) >= 115 else bytes(32)
+    return dict(
+        mayhem=bool(raw[81]),
+        cashback=bool(raw[82]),
+        quote_mint=None if not any(quote_raw) else b58(quote_raw),
+    )
+
+
+def curve_mode(account):
+    return _curve_mode_raw(raw_account(account, PROGRAM, 'BondingCurve'))
+
+
+def curve(account):
+    raw = raw_account(account, PROGRAM, 'BondingCurve')
+    mode = _curve_mode_raw(raw)
     values = struct.unpack_from('<QQQQQ?', raw, 8)
     # Mayhem is still a SOL-paired Pump bonding curve: the external Mayhem agent
     # changes market participation, not the reserve invariant used to quote our own
     # buy/sell. Keep cashback and non-native quote assets fail-closed because their
     # cash-flow/accounting semantics are outside pump-sol-cp-v1.
-    if raw[82] or (len(raw) >= 115 and any(raw[83:115])):
+    if mode['cashback'] or mode['quote_mint'] is not None:
         raise ValueError('unsupported cashback or quote asset')
     if min(values[:2]) <= 0 or values[4] <= 0:
         raise ValueError('invalid reserves')
     return Curve(*values, b58(raw[49:81]))
 
 
-def fees(account, c):
+def validate_mint_supply(curve_account, c, mint_supply, decimals):
+    """Validate standard and Mayhem supply semantics without changing reserve math."""
+    mode = curve_mode(curve_account)
+    if mode['mayhem']:
+        # Pump documents Mayhem as minting one additional billion tokens. The
+        # unsold portion may later be burned, so observed supply can fall anywhere
+        # between the curve allocation and that documented upper bound.
+        if decimals != 6:
+            raise ValueError('unsupported mayhem decimals')
+        extra = MAYHEM_EXTRA_WHOLE_TOKENS * (10 ** decimals)
+        if not c.supply <= mint_supply <= c.supply + extra:
+            raise ValueError('supply_mismatch')
+    elif mint_supply != c.supply:
+        raise ValueError('supply_mismatch')
+    return mode
+
+
+def fees(account, c, mint_supply=None):
     raw = raw_account(account, FEE_PROGRAM, 'FeeConfig')
     count = struct.unpack_from('<I', raw, 65)[0]
     if not 0 < count <= 64 or len(raw) < 69 + count*40:
@@ -112,7 +144,11 @@ def fees(account, c):
         tiers.append((threshold, protocol, creator))
     if [x[0] for x in tiers] != sorted(set(x[0] for x in tiers)):
         raise ValueError('unordered fee tiers')
-    cap = c.sol*c.supply//c.token
+    effective_supply = c.supply if mint_supply is None else mint_supply
+    if effective_supply <= 0:
+        raise ValueError('invalid mint supply')
+    # Pump fee tiers are selected from market cap using the actual mint supply.
+    cap = c.sol*effective_supply//c.token
     selected = tiers[0]
     for t in tiers:
         if cap >= t[0]:
