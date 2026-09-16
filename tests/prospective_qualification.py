@@ -47,9 +47,16 @@ def evaluate_nomination(engine, adapter, nomination):
     except (Unavailable,ValueError,KeyError,TypeError) as exc:
         return _failure(result,'initial_snapshot',exc)
     try:
-        market,market_covered=adapter.history(snap['pool'],observed,priority=True)
+        market,market_covered=adapter.history(snap['pool'],observed,priority=True,require_coverage=True)
     except (Unavailable,ValueError,KeyError,TypeError) as exc:
         return _failure(result,'pool_history',exc)
+    if not market_covered:
+        # continuation-v1 cannot qualify without a complete market window, so do
+        # not spend RPC budget on concentration/final snapshots that cannot change
+        # this bounded diagnostic result.
+        result.update(reason='incomplete_market_window',evidence_stage='pool_history',
+                      market_window_covered=False,market_events=len(market))
+        return result
     try:
         concentration=adapter.concentration(nomination['mint'],snap,priority=True)
     except (Unavailable,ValueError,KeyError,TypeError) as exc:
@@ -98,13 +105,14 @@ def main():
         initial=store.state['cash']
         nomination_ids=set()
         attempted_mints=set()
+        proof_boundary_reached=False
         try:
             adapter=PumpAdapter(rpc)
             for record in records:
-                # Once this bounded run has spent its evidence-candidate budget,
-                # stop before polling later scouts. This preserves the useful proof
-                # while avoiding public-RPC work that cannot affect this run's result.
-                if len(attempted_mints)>=MAX_EVIDENCE_CANDIDATES:
+                # Once this bounded run has spent its evidence-candidate budget or
+                # obtained one complete unchanged-policy qualification result, stop
+                # before polling later scouts.
+                if len(attempted_mints)>=MAX_EVIDENCE_CANDIDATES or proof_boundary_reached:
                     report['seed_scan_stopped_after_evidence_budget']=True
                     break
                 seed=record['wallet']
@@ -130,7 +138,12 @@ def main():
                         if mint in attempted_mints or len(attempted_mints)>=MAX_EVIDENCE_CANDIDATES:
                             continue
                         attempted_mints.add(mint)
-                        report['results'].append(evaluate_nomination(engine,adapter,nomination))
+                        evaluated=evaluate_nomination(engine,adapter,nomination)
+                        report['results'].append(evaluated)
+                        if evaluated.get('evidence_stage')=='complete':
+                            proof_boundary_reached=True
+                            report['proof_boundary_reached']=True
+                            break
                 except (Unavailable,ValueError) as exc:
                     decision_time=int(time.time())
                     with store.transaction('shadow_provider_gap'):
