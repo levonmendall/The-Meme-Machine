@@ -1,6 +1,7 @@
 """One bounded provider budget; monitoring gets reserved capacity."""
 import json
 import time
+import urllib.error
 import urllib.request
 from urllib.parse import urlparse
 from . import pump
@@ -23,6 +24,7 @@ class RPC:
         self.url, self.limit, self.clock = url, limit, clock
         self.transport = transport or self._http
         self.calls = self.failures = self.cache_hits = self.retries = 0
+        self.failure_kinds = {}
         self.cache = {}
         self.cache_bytes = 0
         self.started = clock()
@@ -35,6 +37,21 @@ class RPC:
         if len(raw) > 2_000_000:
             raise Unavailable('response_size_limit')
         return json.loads(raw)
+
+    @staticmethod
+    def _failure_kind(exc):
+        # Keep diagnostics useful without ever returning URLs, response bodies,
+        # credentials, or provider messages.
+        if isinstance(exc, urllib.error.HTTPError):
+            return f'http_{int(exc.code)}'
+        if isinstance(exc, (TimeoutError, urllib.error.URLError)):
+            return 'network_or_timeout'
+        if isinstance(exc, json.JSONDecodeError):
+            return 'invalid_json'
+        if isinstance(exc, Unavailable):
+            text=str(exc)
+            return text if text in ('provider_error','response_size_limit') else 'provider_unavailable'
+        return 'transport_exception'
 
     def call(self, method, params=None, priority=False):
         if method not in self.ALLOWED:
@@ -68,6 +85,8 @@ class RPC:
                 break
             except Exception as exc:
                 self.failures += 1
+                kind=self._failure_kind(exc)
+                self.failure_kinds[kind]=self.failure_kinds.get(kind,0)+1
                 last_error = exc
                 # Custom/test transports remain single-attempt. Real HTTP gets one
                 # bounded retry for transient public-RPC/network failure; no retry
