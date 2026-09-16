@@ -131,7 +131,8 @@ def main():
                           funnel=store.state.get('funnel',{}))
             store.close()
     report.update(ended=int(time.time()),requests=rpc.calls,failures=rpc.failures,retries=rpc.retries,
-                  cache_hits=rpc.cache_hits,provider_spend_usd=0,infrastructure_spend_usd=0)
+                  failure_kinds=rpc.failure_kinds,cache_hits=rpc.cache_hits,
+                  provider_spend_usd=0,infrastructure_spend_usd=0)
     print(json.dumps(report,sort_keys=True))
 
 
