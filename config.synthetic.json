@@ -1,0 +1,10 @@
+{
+  "initial_sol_usd_micros": 100000000,
+  "valuation_source": "synthetic $100/SOL",
+  "seeds": [
+    "YMN9Qj5jPNp7j14VPcML1B6xGgcPWVZUGLFU3Mnyfaf"
+  ],
+  "seed_provenance": "synthetic test address; never use prospectively",
+  "related_groups": {},
+  "request_limit": 120
+}
