@@ -53,6 +53,19 @@ class RPC:
             return text if text in ('provider_error','response_size_limit') else 'provider_unavailable'
         return 'transport_exception'
 
+    @staticmethod
+    def _retry_delay(exc):
+        # Solana's public endpoint explicitly asks 429 clients to honor Retry-After.
+        # Bound the wait so a stale signal fails closed rather than holding a worker
+        # indefinitely. Provider bodies/URLs are never surfaced.
+        if isinstance(exc, urllib.error.HTTPError) and int(exc.code) == 429:
+            try:
+                value=float(exc.headers.get('Retry-After'))
+                return max(0.5,min(value,30.0))
+            except (TypeError,ValueError,AttributeError):
+                return 1.0
+        return 0.5
+
     def call(self, method, params=None, priority=False):
         if method not in self.ALLOWED:
             raise ValueError('read-only method allowlist')
@@ -93,7 +106,7 @@ class RPC:
                 # changes a strategy decision and all attempts count toward cap.
                 if attempt+1 < attempts:
                     self.retries += 1
-                    time.sleep(0.5)
+                    time.sleep(self._retry_delay(exc))
         if last_error is not None:
             # Never leak credential-bearing URLs/provider error bodies.
             raise Unavailable('provider_request_failed') from None
@@ -114,11 +127,16 @@ class PumpAdapter:
             raise Unavailable('unsupported_network')
         self.fee_address = pump.pda([b'fee_config',pump.un58(pump.PROGRAM)], pump.FEE_PROGRAM)
 
-    def history(self, address, now, priority=False):
-        signatures = self.rpc.call('getSignaturesForAddress', [address, {'limit':20,'commitment':'finalized'}], priority)
+    def history(self, address, now, priority=False, require_coverage=False):
+        # Qualification needs a complete 60-second pool window. Give that path a
+        # single larger signature census, but never fetch transaction bodies when
+        # the bounded tail already proves the window is incomplete.
+        limit = 40 if require_coverage else 20
+        signatures = self.rpc.call('getSignaturesForAddress', [address, {'limit':limit,'commitment':'finalized'}], priority)
         events = []
-        # Only claim a complete 60-second window if the bounded tail reaches its start.
         covered = bool(signatures) and signatures[-1].get('blockTime') is not None and signatures[-1]['blockTime'] <= now-60
+        if require_coverage and not covered:
+            return events, False
         for sig in reversed(signatures):
             if sig.get('err') or sig.get('blockTime') is None or sig['blockTime'] < now-60:
                 continue
