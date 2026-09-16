@@ -136,15 +136,17 @@ class PumpAdapter:
         result = self.rpc.call('getMultipleAccounts', [[pool,mint,self.fee_address], {'encoding':'base64','commitment':'finalized'}], priority)
         c = pump.curve(result['value'][0])
         supply, decimals = pump.mint_info(result['value'][1])
-        if supply != c.supply:
-            raise Unavailable('supply_mismatch')
-        rates = pump.fees(result['value'][2], c)
+        mode = pump.validate_mint_supply(result['value'][0], c, supply, decimals)
+        # Validate the current fee schedule using actual mint supply. Mayhem mints
+        # have additional circulating/agent inventory beyond token_total_supply.
+        pump.fees(result['value'][2], c, supply)
         market_time = self.rpc.call('getBlockTime', [result['context']['slot']], priority)
         if market_time is None:
             raise Unavailable('missing_block_time')
         # Exact source bytes retained with orders, not every poll.
         return dict(mint=mint,pool=pool,slot=result['context']['slot'],market_time=market_time,
                     available_time=int(self.rpc.clock()),accounts=result['value'],decimals=decimals,
+                    mint_supply=supply,mayhem_mode=mode['mayhem'],
                     protocol='pump.fun',network='solana-mainnet',kind='real')
 
     def concentration(self, mint, snapshot, priority=False):
@@ -152,8 +154,12 @@ class PumpAdapter:
         if result['context']['slot'] < snapshot['slot']-32:
             raise Unavailable('stale_concentration')
         # Curve custody is excluded; this metric is account concentration, not beneficial ownership.
+        # Use actual mint supply so Mayhem's additional documented supply does not
+        # mechanically double the concentration ratio.
         c = pump.curve(snapshot['accounts'][0])
+        supply, decimals = pump.mint_info(snapshot['accounts'][1])
+        pump.validate_mint_supply(snapshot['accounts'][0], c, supply, decimals)
         custody = pump.pda([pump.un58(snapshot['pool']), pump.un58(snapshot['accounts'][1]['owner']), pump.un58(mint)],
                            'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
         amounts = sorted((int(x['amount']) for x in result['value'] if x['address'] != custody), reverse=True)
-        return sum(amounts[:5])*10000//c.supply
+        return sum(amounts[:5])*10000//supply
