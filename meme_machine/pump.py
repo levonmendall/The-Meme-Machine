@@ -86,9 +86,12 @@ def curve(account):
     if len(raw) < 83:
         raise ValueError('unsupported short curve')
     values = struct.unpack_from('<QQQQQ?', raw, 8)
-    # Standard SOL only; reject mayhem, cashback and non-native quote assets.
-    if raw[81] or raw[82] or (len(raw) >= 115 and any(raw[83:115])):
-        raise ValueError('unsupported curve mode or quote asset')
+    # Mayhem is still a SOL-paired Pump bonding curve: the external Mayhem agent
+    # changes market participation, not the reserve invariant used to quote our own
+    # buy/sell. Keep cashback and non-native quote assets fail-closed because their
+    # cash-flow/accounting semantics are outside pump-sol-cp-v1.
+    if raw[82] or (len(raw) >= 115 and any(raw[83:115])):
+        raise ValueError('unsupported cashback or quote asset')
     if min(values[:2]) <= 0 or values[4] <= 0:
         raise ValueError('invalid reserves')
     return Curve(*values, b58(raw[49:81]))
