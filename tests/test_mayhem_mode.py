@@ -5,9 +5,9 @@ import unittest
 from pathlib import Path
 
 from meme_machine import pump
-from meme_machine.engine import Engine
+from meme_machine.engine import Engine, MAYHEM_AGENT_WALLET
 from meme_machine.store import Store
-from tests.support import SCOUT, snapshot
+from tests.support import SCOUT, evidence, event, snapshot
 
 
 def curve_account_with(**changes):
@@ -28,6 +28,13 @@ def set_mint_supply(account, supply):
     struct.pack_into('<Q', raw, 36, supply)
     account['data'][0] = base64.b64encode(raw).decode()
     return account
+
+
+def enable_mayhem(snap):
+    raw = bytearray(base64.b64decode(snap['accounts'][0]['data'][0]))
+    raw[81] = 1
+    snap['accounts'][0]['data'][0] = base64.b64encode(raw).decode()
+    return snap
 
 
 class MayhemMode(unittest.TestCase):
@@ -73,9 +80,7 @@ class MayhemMode(unittest.TestCase):
         self.assertEqual(pump.fees(fee_account, c, c.supply * 2), (200, 0))
 
     def test_engine_accepts_mayhem_supply_without_policy_change(self):
-        snap = snapshot()
-        raw = bytearray(base64.b64decode(snap['accounts'][0]['data'][0])); raw[81] = 1
-        snap['accounts'][0]['data'][0] = base64.b64encode(raw).decode()
+        snap = enable_mayhem(snapshot())
         c = pump.curve(snap['accounts'][0])
         set_mint_supply(snap['accounts'][1], c.supply * 2)
         with tempfile.TemporaryDirectory() as td:
@@ -85,6 +90,27 @@ class MayhemMode(unittest.TestCase):
                 validated, rates = engine.validate_snapshot(snap, 100)
                 self.assertEqual(validated, c)
                 self.assertEqual(rates, pump.fees(snap['accounts'][2], c, c.supply * 2))
+            finally:
+                store.close()
+
+    def test_disclosed_mayhem_agent_cannot_be_scout(self):
+        with tempfile.TemporaryDirectory() as td:
+            store = Store(str(Path(td)/'state.db'), 'synthetic', 100_000_000, 'test')
+            try:
+                with self.assertRaisesRegex(ValueError, 'system_wallet_cannot_scout'):
+                    Engine(store, [MAYHEM_AGENT_WALLET])
+            finally:
+                store.close()
+
+    def test_mayhem_agent_does_not_count_as_independent_demand(self):
+        ev = evidence()
+        enable_mayhem(ev['snapshot'])
+        ev['events'][0]['wallet'] = MAYHEM_AGENT_WALLET
+        with tempfile.TemporaryDirectory() as td:
+            store = Store(str(Path(td)/'state.db'), 'synthetic', 100_000_000, 'test')
+            try:
+                engine = Engine(store, [SCOUT])
+                self.assertEqual(engine.qualify(event(), ev, 100), 'independent_demand')
             finally:
                 store.close()
 
