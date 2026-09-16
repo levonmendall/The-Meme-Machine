@@ -27,9 +27,9 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12.14'
-      - name: Bounded public scout census (diagnostic only)
-        run: python -m tests.scout_census
-      - name: Existing captured-seed live probe (diagnostic only)
-        run: python -m tests.live_probe
-      - name: Full shadow qualification using unchanged continuation-v1
+      # Repeated prospective validation focuses only on the already-admitted scouts.
+      # The census/live-probe utilities remain available as explicit diagnostics, but
+      # running them immediately before qualification consumed public-RPC capacity
+      # and contributed no authority to this evidence boundary.
+      - name: Admitted-scout shadow qualification using unchanged continuation-v1
         run: python -m tests.prospective_qualification
