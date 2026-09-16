@@ -97,10 +97,9 @@ class Engine:
         if snap['pool'] != pump.pda([b'bonding-curve',pump.un58(snap['mint'])]):
             raise ValueError('pool_identity')
         c = pump.curve(snap['accounts'][0])
-        supply,_ = pump.mint_info(snap['accounts'][1])
-        if supply != c.supply:
-            raise ValueError('supply_mismatch')
-        return c,pump.fees(snap['accounts'][2],c)
+        supply,decimals = pump.mint_info(snap['accounts'][1])
+        pump.validate_mint_supply(snap['accounts'][0],c,supply,decimals)
+        return c,pump.fees(snap['accounts'][2],c,supply)
 
     def scout(self, events, now):
         nominations = []
