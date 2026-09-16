@@ -22,7 +22,7 @@ class RPC:
         self.last_request = -float('inf')
         self.url, self.limit, self.clock = url, limit, clock
         self.transport = transport or self._http
-        self.calls = self.failures = self.cache_hits = 0
+        self.calls = self.failures = self.cache_hits = self.retries = 0
         self.cache = {}
         self.cache_bytes = 0
         self.started = clock()
@@ -47,19 +47,35 @@ class RPC:
             return self.cache[key][1]
         # Session lifetime cap; restarting deliberately starts a new explicitly budgeted run.
         cap = self.limit if priority else max(0, self.limit-40)
-        if self.calls >= cap:
-            raise Unavailable('provider_budget_exhausted')
-        if self.transport == self._http:
-            time.sleep(max(0, self.last_request + 0.5 - self.clock()))
-            self.last_request = self.clock()
-        self.calls += 1
-        try:
-            response = self.transport({'jsonrpc':'2.0','id':self.calls,'method':method,'params':params})
-            if response.get('error') or 'result' not in response:
-                raise Unavailable('provider_error')
-            result = response['result']
-        except Exception:
-            self.failures += 1
+        attempts = 2 if self.transport == self._http else 1
+        result = None
+        last_error = None
+        for attempt in range(attempts):
+            if self.calls >= cap:
+                raise Unavailable('provider_budget_exhausted')
+            if self.transport == self._http:
+                # Every physical request, including the one bounded retry, obeys the
+                # same pacing and consumes the same request budget.
+                time.sleep(max(0, self.last_request + 0.5 - self.clock()))
+                self.last_request = self.clock()
+            self.calls += 1
+            try:
+                response = self.transport({'jsonrpc':'2.0','id':self.calls,'method':method,'params':params})
+                if response.get('error') or 'result' not in response:
+                    raise Unavailable('provider_error')
+                result = response['result']
+                last_error = None
+                break
+            except Exception as exc:
+                self.failures += 1
+                last_error = exc
+                # Custom/test transports remain single-attempt. Real HTTP gets one
+                # bounded retry for transient public-RPC/network failure; no retry
+                # changes a strategy decision and all attempts count toward cap.
+                if attempt+1 < attempts:
+                    self.retries += 1
+                    time.sleep(0.5)
+        if last_error is not None:
             # Never leak credential-bearing URLs/provider error bodies.
             raise Unavailable('provider_request_failed') from None
         size = len(json.dumps(result))
@@ -67,7 +83,7 @@ class RPC:
             self.cache_bytes -= self.cache.pop(key)[2]
         while self.cache and (len(self.cache) >= 128 or self.cache_bytes+size > 8*1024*1024):
             self.cache_bytes -= self.cache.pop(next(iter(self.cache)))[2]
-        self.cache[key] = (now, result, size)
+        self.cache[key] = (self.clock(), result, size)
         self.cache_bytes += size
         return result
 
