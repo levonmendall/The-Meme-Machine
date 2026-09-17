@@ -27,8 +27,16 @@ WATCHLIST=Path('evidence/unvalidated_seed_watchlist.json')
 CAPTURE=Path('tests/fixtures/mainnet_trade.json')
 GENESIS_SOL_USD_MICROS=97_840_000
 GENESIS_SOURCE='2026-09-16 recorded validation reference: $97.84/SOL; new shadow experiment, not performance continuity'
-MAX_EVIDENCE_CANDIDATES=4
-OBSERVE_SECONDS=max(30,min(int(os.environ.get('MM_STREAM_OBSERVE_SECONDS','105')),150))
+DEFAULT_OBSERVE_SECONDS=105
+MIN_OBSERVE_SECONDS=30
+MAX_OBSERVE_SECONDS=3300
+MAX_EVIDENCE_CANDIDATE_LIMIT=24
+OBSERVE_SECONDS=max(MIN_OBSERVE_SECONDS,min(
+    int(os.environ.get('MM_STREAM_OBSERVE_SECONDS',str(DEFAULT_OBSERVE_SECONDS))),
+    MAX_OBSERVE_SECONDS))
+MAX_EVIDENCE_CANDIDATES=max(1,min(
+    int(os.environ.get('MM_STREAM_MAX_EVIDENCE_CANDIDATES',str(MAX_EVIDENCE_CANDIDATE_LIMIT))),
+    MAX_EVIDENCE_CANDIDATE_LIMIT))
 
 
 def _failure(result, stage, exc):
@@ -115,6 +123,7 @@ def main():
     started=int(time.time())
     report=dict(kind='real_stream_shadow_full_qualification',network='solana-mainnet',
                 protocol='pump.fun',window_seconds=WINDOW_SECONDS,
+                observe_seconds=OBSERVE_SECONDS,max_evidence_candidates=MAX_EVIDENCE_CANDIDATES,
                 acquisition='finalized_logsSubscribe',seeds=seeds,seed_admission=admission,
                 started=started,paper_trades=0,order_authority=False,
                 qualification_policy='continuation-v1',qualification_policy_frozen=True,
@@ -140,16 +149,18 @@ def main():
         attempted=set()
         nomination_ids=set()
         coverage_ready_at=None
+        evidence_budget_exhausted_at=None
         try:
             adapter=PumpAdapter(rpc)
             if not ready.wait(15) or stream.error_kind:
                 report['limitations'].append('stream_subscription_unavailable')
             else:
                 deadline=time.monotonic()+WINDOW_SECONDS+OBSERVE_SECONDS+5
-                while time.monotonic()<deadline and len(attempted)<MAX_EVIDENCE_CANDIDATES:
+                while time.monotonic()<deadline:
                     now=int(time.time())
                     if stream.error_kind:
                         report['limitations'].append('stream_continuity_lost')
+                        report['qualification_observation_ended_at']=now
                         break
                     if not tape.covered(now):
                         cursor=None
@@ -173,11 +184,16 @@ def main():
                         nomination_ids.add(nomination['id'])
                         if nomination['mint'] in attempted:
                             continue
+                        if len(attempted)>=MAX_EVIDENCE_CANDIDATES:
+                            if evidence_budget_exhausted_at is None:
+                                evidence_budget_exhausted_at=now
+                                report['evidence_candidate_budget_exhausted_at']=now
+                                report['qualification_observation_ended_at']=now
+                                report['limitations'].append('evidence_candidate_budget_exhausted')
+                            continue
                         attempted.add(nomination['mint'])
                         outcome=evaluate_nomination(engine,adapter,concentration_reader,tape,nomination)
                         report['results'].append(outcome)
-                        if len(attempted)>=MAX_EVIDENCE_CANDIDATES:
-                            break
                     time.sleep(0.25)
                 report['nominations']=len(nomination_ids)
                 report['evidence_candidates_attempted']=len(attempted)
@@ -190,6 +206,15 @@ def main():
             report['limitations'].append(str(exc))
         finally:
             captured_at=int(time.time())
+            if coverage_ready_at is not None:
+                qualification_ended=int(report.get('qualification_observation_ended_at',captured_at))
+                report.setdefault('qualification_observation_ended_at',qualification_ended)
+                report.update(
+                    stream_observation_ended_at=captured_at,
+                    stream_observation_seconds=max(0,captured_at-coverage_ready_at),
+                    qualification_observation_seconds=max(0,qualification_ended-coverage_ready_at),
+                    evidence_candidate_budget_exhausted=evidence_budget_exhausted_at is not None,
+                )
             report.update(stream=tape.status(captured_at),orders=len(store.state['orders']),
                           positions=len(store.state['positions']),reserved_lamports=store.state['reserved'],
                           cash_unchanged=store.state['cash']==initial_cash,
