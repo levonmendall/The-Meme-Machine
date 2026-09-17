@@ -26,18 +26,38 @@ Workflow `35259863580` produced **6 verified point-in-time opportunities across 
 
 This proved only that structural eligibility without contemporaneous trading flow is insufficient.
 
-## Active-pool continuation
+## Active-pool experiment
 
-The current continuation changes candidate discovery only:
+The active continuation changed candidate discovery only:
 
-1. use the official Meteora Data API current `volume_30m` ranking as a discovery source;
-2. require a SOL/WSOL pair and supported pool metadata;
-3. prefilter non-SOL mint accounts in one finalized read to remove unsupported token-program/authority candidates without spending repeated pool-snapshot calls;
-4. independently re-read and validate every surviving pool/bin state from finalized Solana accounts;
-5. observe a separate finalized warmup interval;
+1. official Meteora Data API current `volume_30m` ranking for discovery;
+2. SOL/WSOL and supported metadata screen;
+3. one finalized mint-account batch to cheaply remove unsupported token programs/authorities;
+4. complete PR #4 finalized pool/bin revalidation for every survivor;
+5. separate finalized warmup interval;
 6. only a verified nonzero warmup may select the predeclared `sdk_bidask`, 8-bin research variant;
-7. evaluate that selection and the unchanged shadow grid on a later verified outcome interval.
+7. later verified outcome interval for counterfactual P&L.
 
-The public-RPC path remains bounded. `getTransaction` evidence is physically batched but consumes the same logical request budget and still requires complete signature coverage, unique transaction ordering, supported swap identity, and terminal-state equality. Unsupported or rate-limited intervals are excluded rather than inferred.
+Physical `getTransaction` reads were batched without changing logical request counts, complete signature coverage, ordering, supported-event identity or terminal-state equality.
 
-Prior active-pool attempts identified STONK-SOL, JUP-SOL and CARDS-SOL as current high-activity pools that can pass the supported finalized structural subset. The first attempts were blocked by public Solana RPC transaction-history rate/errors; CARDS additionally exhibited terminal state movement not explained by the supported swap-only tape and correctly failed closed. No P&L inference was made from those failed intervals.
+### Provider/ranking proof
+
+Meteora activity discovery succeeded and repeatedly surfaced current supported high-activity candidates. Finalized on-chain revalidation admitted examples including STONK-SOL, USELESS-SOL, JUP-SOL and CARDS-SOL while rejecting unsupported Token-2022/authority/freeze candidates. A finalized mint prefilter reduced the successful 6-second run to **34 logical RPC calls, zero provider failures and zero retries**.
+
+That 6-second run verified complete warmup/outcome intervals for USELESS-SOL and CARDS-SOL, but both intervals had zero supported swaps. No strategy was selected; the shadow grid again produced approximately -35 bps solely from the unchanged cost hurdle. STONK-SOL contained an unsupported non-swap pool mutation and was correctly excluded.
+
+### Bounded-max 12-second result
+
+Authoritative active test workflow: `35262612233`, exact execution head `1f3f728947cca41e1c6b973b2d112a34649a26ed`.
+
+Three current activity-ranked pools passed finalized structural validation, but none produced a complete interval eligible for strategy selection:
+
+- **STONK-SOL**: warmup exceeded the unchanged `MAX_TRANSACTIONS=16` evidence bound (`dlmm_transaction_bound`).
+- **USELESS-SOL**: the later interval ended with `last_update` state movement not explained by the supported swap-only reconstruction (`dlmm_terminal_state_disagrees_with_forward_reconstruction:last_update`).
+- **CARDS-SOL**: the later interval contained a pool transaction outside the current assumption of exactly one supported exact-input swap per transaction (`dlmm_requires_one_exact_input_swap_per_transaction`).
+
+The run completed with no weakened evidence predicate. `opportunity_count=0`, `selected_trade_count=0`, `nonempty_warmup_count=0`, `nonempty_outcome_count=0`, and the conclusion remains `insufficient_active_point_in_time_sample`.
+
+This is not evidence that the proposed BidAsk strategy is unprofitable. It establishes a narrower engineering/research boundary: **the pools active enough to matter currently exercise a richer Meteora mutation/transaction surface than PR #4's deliberately narrow swap-only tape supports.** Point-in-time strategy profitability cannot be evaluated honestly on those intervals until that authentic current behavior is interpreted and terminal-state-verified rather than discarded or inferred.
+
+Allocation authority remains disabled. No P&L, strategy ranking or repeatability claim may be derived from rejected active intervals.
