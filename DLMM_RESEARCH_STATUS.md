@@ -56,3 +56,11 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Endpoint-defining DLMM snapshots now bypass the 2-second RPC response cache for both finalized account reads while ordinary discovery reads remain cacheable.
 - This marker authorizes exactly one bounded provider-backed replay: one supported pool, one cycle, 12-second windows, unchanged pressure scheduler and `MAX_TRANSACTIONS=16`.
 - The proof target is that a pressure-triggered close obtains a strictly newer finalized endpoint slot rather than reusing the authenticated start slot. No second replay is authorized by this marker.
+
+
+## Endpoint-slot telemetry live proof
+
+- Telemetry-only commit `9f1ca5c3726b4b7fca48088df1e25fab07daddb5` passed complete offline CI before this marker.
+- This marker authorizes exactly one bounded provider-backed replay: one supported pool, one cycle, 12-second windows, unchanged pressure scheduler and `MAX_TRANSACTIONS=16`.
+- The proof must record `start_slot`, freshly acquired `end_slot`, and `slot_advanced` before signature-census processing, then preserve first-page/fallback census diagnostics even on failure.
+- No second replay is authorized by this marker.
