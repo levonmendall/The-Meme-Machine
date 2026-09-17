@@ -15,6 +15,8 @@ from meme_machine.provider import Unavailable
 from meme_machine.store import encode
 
 PAGE_LIMIT = 64
+MAX_CENSUS_PAGES = 8
+MAX_CENSUS_ROWS = PAGE_LIMIT * MAX_CENSUS_PAGES
 ENDPOINT_DIAGNOSTICS = []
 
 
@@ -64,60 +66,95 @@ def _page_telemetry(prefix, page, start_slot, end_slot, target):
 
 
 def complete_signature_census(rpc, pool, start_slot, end_slot, telemetry=None):
-    """Return complete successful interval signatures plus one start-boundary anchor.
+    """Prove finalized signature coverage from end_slot back through start_slot.
 
-    The fallback page is boundary-only acquisition. It cannot increase the accepted
-    transaction count: if pagination reveals more than MAX_TRANSACTIONS successful
-    post-start transactions, the interval still fails closed before any transaction
-    bodies are fetched. Optional telemetry is observational only and never changes
-    acceptance, pagination, or provider-call behavior.
+    Pages newer than the authenticated endpoint are scheduling noise: they are scanned
+    only to reach the endpoint and are never admitted to the verified interval. The
+    census is bounded to MAX_CENSUS_PAGES/MAX_CENSUS_ROWS. Once it reaches the
+    authenticated interval, every successful transaction in (start_slot, end_slot] is
+    retained and MAX_TRANSACTIONS=16 remains unchanged. One finalized signature at or
+    before start_slot proves the lower boundary.
     """
     if telemetry is None:
         telemetry = {}
-    first = _validate_page(rpc.call(
-        'getSignaturesForAddress',
-        [pool, dict(limit=PAGE_LIMIT, commitment='finalized')],
-        True,
-    ))
-    _page_telemetry('first_page',first,start_slot,end_slot,telemetry)
-    telemetry['fallback_attempted'] = False
-    combined = list(first)
-    selected = _successful_interval(combined, start_slot, end_slot)
-    if len(selected) > MAX_TRANSACTIONS:
-        raise Unavailable('dlmm_transaction_bound')
+    telemetry.update(
+        census_page_limit=PAGE_LIMIT,
+        census_page_cap=MAX_CENSUS_PAGES,
+        census_row_cap=MAX_CENSUS_ROWS,
+        census_pages=[],
+        post_endpoint_rows_skipped=0,
+        fallback_attempted=False,
+    )
+    selected=[]
+    boundary_sig=None
+    seen=set()
+    previous_oldest_key=None
+    before=None
+    rows_scanned=0
 
-    if not any(sig['slot'] <= start_slot for sig in combined):
-        if not combined:
-            raise Unavailable('dlmm_signature_census_missing_start_boundary')
-        telemetry['fallback_attempted'] = True
-        oldest = combined[-1]['signature']
-        second = _validate_page(rpc.call(
-            'getSignaturesForAddress',
-            [pool, dict(limit=PAGE_LIMIT, before=oldest, commitment='finalized')],
-            True,
-        ))
-        _page_telemetry('fallback_page',second,start_slot,end_slot,telemetry)
-        first_ids = {sig['signature'] for sig in combined}
-        if any(sig['signature'] in first_ids for sig in second):
-            raise Unavailable('dlmm_signature_census_pagination_duplicate')
-        combined.extend(second)
-        keys = [_key(sig) for sig in combined]
-        if keys != sorted(keys, reverse=True):
-            raise Unavailable('dlmm_signature_census_pagination_order')
-        selected = _successful_interval(combined, start_slot, end_slot)
-        telemetry['combined_successful_post_start'] = len(selected)
-        telemetry['combined_has_start_boundary'] = any(sig['slot'] <= start_slot for sig in combined)
-        if len(selected) > MAX_TRANSACTIONS:
+    for page_index in range(MAX_CENSUS_PAGES):
+        config=dict(limit=PAGE_LIMIT,commitment='finalized')
+        if before is not None:
+            config['before']=before
+            telemetry['fallback_attempted']=True
+        page=_validate_page(rpc.call(
+            'getSignaturesForAddress',[pool,config],True))
+        rows_scanned += len(page)
+        if rows_scanned > MAX_CENSUS_ROWS:
+            raise Unavailable('dlmm_signature_census_row_bound')
+
+        if page:
+            page_ids={sig['signature'] for sig in page}
+            if len(page_ids)!=len(page) or seen.intersection(page_ids):
+                raise Unavailable('dlmm_signature_census_pagination_duplicate')
+            newest_key=_key(page[0]);oldest_key=_key(page[-1])
+            if previous_oldest_key is not None and not newest_key < previous_oldest_key:
+                raise Unavailable('dlmm_signature_census_pagination_order')
+            previous_oldest_key=oldest_key
+            seen.update(page_ids)
+
+        item=dict(
+            page=page_index+1,
+            count=len(page),
+            newest_slot=None if not page else page[0]['slot'],
+            oldest_slot=None if not page else page[-1]['slot'],
+            post_endpoint=sum(1 for sig in page if sig['slot']>end_slot),
+            interval_successful=len(_successful_interval(page,start_slot,end_slot)),
+            has_start_boundary=any(sig['slot']<=start_slot for sig in page),
+        )
+        telemetry['census_pages'].append(item)
+        telemetry['post_endpoint_rows_skipped'] += item['post_endpoint']
+        if page_index==0:
+            _page_telemetry('first_page',page,start_slot,end_slot,telemetry)
+        elif page_index==1:
+            _page_telemetry('fallback_page',page,start_slot,end_slot,telemetry)
+
+        selected.extend(_successful_interval(page,start_slot,end_slot))
+        if len(selected)>MAX_TRANSACTIONS:
             raise Unavailable('dlmm_transaction_bound')
-        if not telemetry['combined_has_start_boundary']:
-            raise Unavailable('dlmm_signature_census_missing_start_boundary')
 
-    if len({sig['signature'] for sig in selected}) != len(selected):
+        candidates=[sig for sig in page if sig['slot']<=start_slot]
+        if candidates:
+            boundary_sig=max(candidates,key=_key)
+            break
+        if not page or len(page)<PAGE_LIMIT:
+            break
+        before=page[-1]['signature']
+
+    telemetry['census_pages_used']=len(telemetry['census_pages'])
+    telemetry['census_rows_scanned']=rows_scanned
+    telemetry['combined_successful_post_start']=len(selected)
+    telemetry['combined_has_start_boundary']=boundary_sig is not None
+    if boundary_sig is None:
+        telemetry['census_completed']=False
+        if len(telemetry['census_pages'])>=MAX_CENSUS_PAGES and telemetry['census_pages'][-1]['count']==PAGE_LIMIT:
+            raise Unavailable('dlmm_signature_census_page_bound')
+        raise Unavailable('dlmm_signature_census_missing_start_boundary')
+    if len({sig['signature'] for sig in selected})!=len(selected):
         raise Unavailable('dlmm_transaction_bound_or_duplicates')
-    boundary = max((sig for sig in combined if sig['slot'] <= start_slot), key=_key)
-    telemetry['boundary_slot'] = boundary['slot']
-    telemetry['census_completed'] = True
-    proof = sorted(selected + [boundary], key=_key, reverse=True)
+    telemetry['boundary_slot']=boundary_sig['slot']
+    telemetry['census_completed']=True
+    proof=sorted(selected+[boundary_sig],key=_key,reverse=True)
     return proof
 
 
