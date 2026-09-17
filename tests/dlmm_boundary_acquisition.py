@@ -104,7 +104,7 @@ def complete_signature_census(rpc, pool, start_slot, end_slot):
 def capture_chunk(adapter, start, cursor):
     """Capture one terminal-verified chunk with bounded start-boundary pagination."""
     rpc = adapter.rpc
-    end_snapshot = adapter.snapshot(start['pool'], int(time.time()), True)
+    end_snapshot = adapter.snapshot(start['pool'], int(time.time()), True, fresh=True)
     signatures = complete_signature_census(
         rpc, start['pool'], start['slot'], end_snapshot['slot'])
     relevant = [sig for sig in signatures

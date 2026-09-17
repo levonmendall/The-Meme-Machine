@@ -282,14 +282,19 @@ class Adapter:
         if rpc.call('getGenesisHash',priority=True)!=pump.MAINNET:
             raise Unavailable('unsupported_network')
 
-    def snapshot(self,address,now,priority=False):
+    def snapshot(self,address,now,priority=False,fresh=False):
+        if type(fresh) is not bool:
+            raise ValueError('dlmm_snapshot_fresh_flag')
+        # Discovery snapshots may reuse the short provider cache. Interval endpoints
+        # must opt into fresh=True so a pressure-triggered close cannot reuse the
+        # authenticated starting context and collapse end_slot back onto start_slot.
         initial=self.rpc.call('getMultipleAccounts',[[address],
-            dict(encoding='base64',commitment='finalized')],priority)
+            dict(encoding='base64',commitment='finalized')],priority,fresh=fresh)
         p=pool(initial['value'][0]); center=p['active']//70
         indices=[center-1,center,center+1]
         keys=[address,p['x'],p['y'],p['vault_x'],p['vault_y']]+[array_address(address,i) for i in indices]
         response=self.rpc.call('getMultipleAccounts',[keys,dict(encoding='base64',commitment='finalized',
-            minContextSlot=initial['context']['slot'])],priority)
+            minContextSlot=initial['context']['slot'])],priority,fresh=fresh)
         slot=response['context']['slot']
         market_time=self.rpc.call('getBlockTime',[slot],priority)
         if market_time is None:

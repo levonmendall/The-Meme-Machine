@@ -26,7 +26,7 @@ ADVANCE_DIAGNOSTICS=[]
 
 def _capture_chunk(adapter,start,cursor):
     rpc=adapter.rpc
-    end_snapshot=adapter.snapshot(start['pool'],int(time.time()),True)
+    end_snapshot=adapter.snapshot(start['pool'],int(time.time()),True,fresh=True)
     signatures=rpc.call('getSignaturesForAddress',
         [start['pool'],dict(limit=64,commitment='finalized')],True)
     relevant=[s for s in signatures if start['slot']<s['slot']<=end_snapshot['slot'] and not s.get('err')]

@@ -98,14 +98,17 @@ class RPC:
             self.sleep(max(0, self.last_request + interval - self.clock()))
             self.last_request = self.clock()
 
-    def call(self, method, params=None, priority=False):
+    def call(self, method, params=None, priority=False, fresh=False):
         if method not in self.ALLOWED:
             raise ValueError('read-only method allowlist')
         params = params or []
+        if type(fresh) is not bool:
+            raise ValueError('fresh must be bool')
         key = self._key(method,params)
-        hit,result=self._cache_get(key)
-        if hit:
-            return result
+        if not fresh:
+            hit,result=self._cache_get(key)
+            if hit:
+                return result
         cap=self._cap(priority)
         attempts = 2 if self.transport == self._http else 1
         result = None
