@@ -83,6 +83,7 @@ amount. It requires a context slot tied to the candidate snapshot, excludes veri
 curve custody, and calculates the same top-five-account percentage over validated
 actual mint supply. The old `getTokenLargestAccounts` call remains a fail-closed
 fallback. No secondary provider, key, subscription, or new cost is required by default.
+A live one-mint probe has verified this compact scan on mainnet; see `BUILD_STATUS.md`.
 
 Important boundary: the finalized stream is currently wired into the shadow
 prospective qualifier, not yet into the durable authoritative prospective runtime.
