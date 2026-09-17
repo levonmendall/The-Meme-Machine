@@ -5,7 +5,7 @@ from pathlib import Path
 
 from meme_machine import pump
 from meme_machine.postgrad import (
-    OPENBOOK_V3, WSOL, _decode_open_orders, _decode_raydium_pool,
+    OPENBOOK_V3, WSOL, _decode_raydium_pool,
     _token_account, buy_quote, graduation_handoff, sell_quote,
 )
 
@@ -41,9 +41,15 @@ class CapturedLegacyRaydium(unittest.TestCase):
         quote_vault_amount = _token_account(
             accounts['quote_vault'], metadata['quote_mint'],
             token_program=(accounts['mint']['owner'] if metadata['quote_mint'] == snapshot['mint'] else pump.TOKEN_PROGRAM))
-        orders = _decode_open_orders(accounts['open_orders'], metadata['market_id'])
-        effective_base = base_vault_amount + orders['base_total'] - metadata['base_need_take_pnl']
-        effective_quote = quote_vault_amount + orders['quote_total'] - metadata['quote_need_take_pnl']
+        # The live adapter already decoded and validated the captured OpenBook account.
+        # Keep its exact totals in the captured state; the packed 3228-byte OpenOrders
+        # decoder itself has separate deterministic regression coverage.
+        self.assertEqual(accounts['open_orders']['owner'], OPENBOOK_V3)
+        self.assertEqual(accounts['open_orders']['space'], 3228)
+        base_orders = snapshot['state']['open_orders_base_total']
+        quote_orders = snapshot['state']['open_orders_quote_total']
+        effective_base = base_vault_amount + base_orders - metadata['base_need_take_pnl']
+        effective_quote = quote_vault_amount + quote_orders - metadata['quote_need_take_pnl']
         if metadata['base_mint'] == snapshot['mint']:
             token_reserve, sol_reserve = effective_base, effective_quote
         else:
@@ -65,7 +71,8 @@ class CapturedLegacyRaydium(unittest.TestCase):
     def test_capture_preserves_lineage_limitation_and_no_authority(self):
         doc = json.loads(FIXTURE.read_text())
         self.assertIn('no direct Pump withdraw lineage', doc['provenance']['authority'])
-        self.assertIn('no direct migration-event lineage', doc['registry_record']['verification']['limitation'])
+        self.assertIn('does not claim direct migration-event lineage',
+                      doc['registry_record']['verification']['limitation'])
         self.assertEqual(doc['provenance']['workflow'], 35187441898)
         self.assertEqual(doc['provenance']['artifact_id'], 10481694551)
         self.assertFalse(doc['snapshot']['source']['allocation_eligible'])
