@@ -33,3 +33,10 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - The instruction is treated as structural only: it creates an empty bin-array account and does not modify modeled LbPair, vault, existing-bin, fee, or virtual-position economics.
 - Any subsequent liquidity/config/limit-order mutation remains fail-closed; a swap requiring bins not present in authenticated state still fails closed.
 - Strategy `sdk_bidask/8`, costs, activity gate, transaction bounds, and allocation authority are unchanged.
+
+## Dedicated Solana RPC validation
+
+- The dedicated Solana mainnet read-only endpoint has been corrected in GitHub Actions secret `MM_SOLANA_READ_RPC_URL`.
+- The workflow validates URL shape before any network call and scopes the secret only to the single DLMM replay step.
+- One bounded replay is requested: one supported pool, one cycle, 12-second warmup/outcome windows, unchanged `MAX_TRANSACTIONS=16` and pressure-bounded chunking.
+- No repeated provider runs are authorized by this validation marker; the result should be inspected before any further replay.
