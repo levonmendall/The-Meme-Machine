@@ -80,3 +80,10 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - The census remains finalized and bounded to 16 pages / 1,024 signature rows, with one-second inter-page pacing to avoid provider bursts.
 - Rows newer than the authenticated `end_slot` remain coverage-only and cannot enter the verified interval. The actual interval remains hard-capped at `MAX_TRANSACTIONS=16`.
 - This marker authorizes exactly one bounded one-pool, one-cycle, 12-second live replay. No retry is authorized by this marker.
+
+
+## Second paced bounded signature coverage replay
+
+- User explicitly authorized one additional bounded live replay after the prior proof reached the true `MAX_TRANSACTIONS=16` boundary.
+- Code, strategy, finality, pagination pacing, 16-page/1,024-row census cap, and `MAX_TRANSACTIONS=16` are unchanged from `7d18c54a43a0559b031755dd3906be4fd83dabc6`.
+- This marker authorizes exactly one additional one-pool, one-cycle, 12-second replay. No further retry is authorized by this marker.
