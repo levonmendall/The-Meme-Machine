@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.12.14'
       - name: Validate HANSEM FomoScan current vs historical timestamps
-        run: python -m tests.hansem_fomoscan_live_probe | tee hansem-fomoscan-live-probe.log
+        run: set -o pipefail; python -m tests.hansem_fomoscan_live_probe | tee hansem-fomoscan-live-probe.log
       - name: Preserve sanitized validation report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
