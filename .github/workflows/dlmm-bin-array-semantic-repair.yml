@@ -48,7 +48,8 @@ jobs:
           status=Path('DLMM_RESEARCH_STATUS.md')
           s=status.read_text()
           section='''\n## `initialize_bin_array` structural semantics\n\n- Pinned Meteora IDL discriminator `235613b94ed44bd3` is accepted only as `initialize_bin_array`.\n- `lb_pair` must be read-only account position 0, instruction data must be exactly discriminator + signed i64 index, account 1 must equal the deterministic `bin_array` PDA, and account 3 must be the system program.\n- The instruction is treated as structural only: it creates an empty bin-array account and does not modify modeled LbPair, vault, existing-bin, fee, or virtual-position economics.\n- Any subsequent liquidity/config/limit-order mutation remains fail-closed; a swap requiring bins not present in authenticated state still fails closed.\n- Strategy `sdk_bidask/8`, costs, activity gate, transaction bounds, and allocation authority are unchanged.\n'''
-          if '## `initialize_bin_array` structural semantics' not in s:\n              status.write_text(s+section)
+          if '## `initialize_bin_array` structural semantics' not in s:
+              status.write_text(s+section)
           PY
       - name: Verify narrow semantics
         run: |
