@@ -3,14 +3,22 @@
 No Store is opened, no paper reservation is created, and no transaction can be built,
 signed or submitted. The output capture is source evidence for decoder regression only.
 """
+import base64
 from dataclasses import asdict
 import json
 import os
+import struct
 import time
 from pathlib import Path
 
+from meme_machine import pump
 from meme_machine.postgrad import (
-    PostGraduationAdapter, buy_quote, graduation_handoff, pumpswap_pool, sell_quote,
+    PUMPSWAP_DOCUMENTED_POOL if False else PUMPSWAP_PROGRAM,
+)
+from meme_machine.postgrad import (
+    RAYDIUM_AMM_V4, RAYDIUM_LAYOUT_SIZE, WSOL,
+    PostGraduationAdapter, _decode_raydium_pool, buy_quote, graduation_handoff,
+    pumpswap_pool, sell_quote,
 )
 from meme_machine.provider import RPC
 
@@ -63,6 +71,88 @@ def _surface(adapter, mint, surface):
     return result, capture
 
 
+def _legacy_raydium_lineage(adapter, mint):
+    """Collect bounded lineage evidence without selecting among ambiguous pools."""
+    adapter._verify_scan()
+    candidates = {}
+    for offset in (400, 432):
+        result = adapter.scan_rpc.call(
+            'getProgramAccounts',
+            [RAYDIUM_AMM_V4, {
+                'commitment':'finalized', 'withContext':True, 'encoding':'base64',
+                'filters':[
+                    {'dataSize':RAYDIUM_LAYOUT_SIZE},
+                    {'memcmp':{'offset':offset, 'bytes':mint}},
+                ],
+            }],
+            True,
+        )
+        for row in result.get('value') or []:
+            try:
+                key = row['pubkey']
+                state = _decode_raydium_pool(key, row['account'], mint)
+                raw = base64.b64decode(row['account']['data'][0], validate=True)
+                candidates[key] = dict(
+                    pool=key,
+                    pool_open_time=struct.unpack_from('<Q', raw, 224)[0],
+                    owner=pump.b58(raw[688:720]),
+                    lp_reserve=struct.unpack_from('<Q', raw, 720)[0],
+                    market_id=state['market_id'],
+                    open_orders=state['open_orders'],
+                    base_mint=state['base_mint'],
+                    quote_mint=state['quote_mint'],
+                    base_vault=state['base_vault'],
+                    quote_vault=state['quote_vault'],
+                    swap_fee_numerator=state['swap_fee_numerator'],
+                    swap_fee_denominator=state['swap_fee_denominator'],
+                )
+            except (ValueError, KeyError, TypeError, struct.error):
+                continue
+
+    curve = pump.pda([b'bonding-curve', pump.un58(mint)])
+    signatures = adapter.rpc.call(
+        'getSignaturesForAddress',
+        [curve, {'limit':20, 'commitment':'finalized'}],
+        True,
+    )
+    successful = [row for row in signatures if not row.get('err')]
+    params = [[row['signature'], {
+        'encoding':'json', 'commitment':'finalized',
+        'maxSupportedTransactionVersion':0,
+    }] for row in successful]
+    txs = adapter.rpc.call_many('getTransaction', params, True, batch_size=8) if params else []
+    terminal = []
+    withdraw = []
+    for sig, tx in zip(successful, txs):
+        if not tx:
+            continue
+        logs = (tx.get('meta') or {}).get('logMessages') or []
+        text = '\n'.join(logs)
+        row = dict(
+            signature=sig['signature'],
+            slot=int(tx.get('slot') or sig.get('slot') or 0),
+            block_time=tx.get('blockTime', sig.get('blockTime')),
+            pump_withdraw=('Instruction: Withdraw' in text),
+            pump_program_invoked=any(pump.PROGRAM in line for line in logs),
+        )
+        terminal.append(row)
+        if row['pump_withdraw']:
+            withdraw.append(row)
+    withdraw_times = [int(row['block_time']) for row in withdraw if row.get('block_time') is not None]
+    if withdraw_times:
+        reference = max(withdraw_times)
+        for row in candidates.values():
+            row['seconds_from_withdraw'] = int(row['pool_open_time'])-reference
+    return dict(
+        authority='read_only_diagnostic',
+        selection_performed=False,
+        bonding_curve=curve,
+        candidates=sorted(candidates.values(), key=lambda x:(x['pool_open_time'], x['pool'])),
+        recent_terminal_transactions=terminal,
+        withdraw_matches=withdraw,
+    )
+
+
 def main():
     url = os.environ.get('MM_SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.com')
     rpc = RPC(url, limit=200)
@@ -100,10 +190,17 @@ def main():
             report['samples'][surface] = result
             captures[surface] = capture
         except Exception as exc:
-            report['samples'][surface] = dict(
+            row = dict(
                 success=False, mint=mint, surface=surface,
                 blocker=str(exc) if str(exc) else type(exc).__name__,
             )
+            if surface == 'raydium-v4' and str(exc) == 'ambiguous_legacy_raydium_pools':
+                try:
+                    row['lineage_diagnostic'] = _legacy_raydium_lineage(adapter, mint)
+                except Exception as lineage_exc:
+                    row['lineage_diagnostic_error'] = (
+                        f'{type(lineage_exc).__name__}:{str(lineage_exc)}')
+            report['samples'][surface] = row
             report['limitations'].append(f'{surface}:{type(exc).__name__}:{str(exc)}')
     report.update(
         success=all(report['samples'].get(surface, {}).get('success') for surface, _ in checks),
