@@ -1,0 +1,1831 @@
+{
+  "source": "MeteoraAg/dlmm-sdk",
+  "commit": "576919e3e4368e542c402f000b4264724f7f23ec",
+  "package": "@meteora-ag/dlmm@1.9.14",
+  "hashes": {
+    "ts-client/src/dlmm/helpers/math.ts": "641f84224bf5c791287db024cad22920c1248462031f588722bbbd10dad1e6c1",
+    "ts-client/src/dlmm/helpers/u64xu64_math.ts": "4326e3230830df81cd509cdde541bfb4008e7a3c23267e1befb5e3f9e285b3a0",
+    "ts-client/src/dlmm/helpers/fee.ts": "47af32afa7bff0628a3b0edb6cd2a1b26d38cd607da1f39f8fe1acfba4702a83",
+    "ts-client/src/dlmm/helpers/bin.ts": "94cf1dbc517be75b6ff2e54e89ddb684f6d35734af710c183ba833be2f5bef09"
+  },
+  "prices": [
+    {
+      "step": 1,
+      "id": -1000,
+      "value": "16691387729992145910"
+    },
+    {
+      "step": 1,
+      "id": -78,
+      "value": "18303426301599067253"
+    },
+    {
+      "step": 1,
+      "id": -2,
+      "value": "18443055278223354162"
+    },
+    {
+      "step": 1,
+      "id": -1,
+      "value": "18444899583751176498"
+    },
+    {
+      "step": 1,
+      "id": 0,
+      "value": "18446744073709551616"
+    },
+    {
+      "step": 1,
+      "id": 1,
+      "value": "18448588748116922571"
+    },
+    {
+      "step": 1,
+      "id": 2,
+      "value": "18450433606991734264"
+    },
+    {
+      "step": 1,
+      "id": 1000,
+      "value": "20386703156472573444"
+    },
+    {
+      "step": 10,
+      "id": -1000,
+      "value": "6789569577138953565"
+    },
+    {
+      "step": 10,
+      "id": -78,
+      "value": "17063247064098582975"
+    },
+    {
+      "step": 10,
+      "id": -2,
+      "value": "18409905852099500515"
+    },
+    {
+      "step": 10,
+      "id": -1,
+      "value": "18428315757951600016"
+    },
+    {
+      "step": 10,
+      "id": 0,
+      "value": "18446744073709551616"
+    },
+    {
+      "step": 10,
+      "id": 1,
+      "value": "18465190817783261167"
+    },
+    {
+      "step": 10,
+      "id": 2,
+      "value": "18483656008601044429"
+    },
+    {
+      "step": 10,
+      "id": 1000,
+      "value": "50118400445692101499"
+    },
+    {
+      "step": 25,
+      "id": -1000,
+      "value": "1518932344856077884"
+    },
+    {
+      "step": 25,
+      "id": -78,
+      "value": "15182314435521988665"
+    },
+    {
+      "step": 25,
+      "id": -2,
+      "value": "18354855080462983801"
+    },
+    {
+      "step": 25,
+      "id": -1,
+      "value": "18400742218164141262"
+    },
+    {
+      "step": 25,
+      "id": 0,
+      "value": "18446744073709551616"
+    },
+    {
+      "step": 25,
+      "id": 1,
+      "value": "18492860933893825495"
+    },
+    {
+      "step": 25,
+      "id": 2,
+      "value": "18539093086228560061"
+    },
+    {
+      "step": 25,
+      "id": 1000,
+      "value": "224027336091247007920"
+    },
+    {
+      "step": 250,
+      "id": -1000,
+      "value": "348380895"
+    },
+    {
+      "step": 250,
+      "id": -78,
+      "value": "2688179234379807051"
+    },
+    {
+      "step": 250,
+      "id": -2,
+      "value": "17557876572239906355"
+    },
+    {
+      "step": 250,
+      "id": -1,
+      "value": "17996823486545904015"
+    },
+    {
+      "step": 250,
+      "id": 0,
+      "value": "18446744073709551616"
+    },
+    {
+      "step": 250,
+      "id": 1,
+      "value": "18907912675552290407"
+    },
+    {
+      "step": 250,
+      "id": 2,
+      "value": "19380610492441097668"
+    },
+    {
+      "step": 250,
+      "id": 1000,
+      "value": "976753811143801279525889637064"
+    },
+    {
+      "step": 1000,
+      "id": -1000,
+      "value": "0"
+    },
+    {
+      "step": 1000,
+      "id": -78,
+      "value": "10896581717897135"
+    },
+    {
+      "step": 1000,
+      "id": -2,
+      "value": "15245243036123596377"
+    },
+    {
+      "step": 1000,
+      "id": -1,
+      "value": "16769767339735956015"
+    },
+    {
+      "step": 1000,
+      "id": 0,
+      "value": "18446744073709551616"
+    },
+    {
+      "step": 1000,
+      "id": 1,
+      "value": "20291418481080506777"
+    },
+    {
+      "step": 1000,
+      "id": 2,
+      "value": "22320560329188557455"
+    },
+    {
+      "step": 1000,
+      "id": 1000,
+      "value": "0"
+    }
+  ],
+  "fees": [
+    {
+      "step": 10,
+      "volatility": 0,
+      "rate": "1000000"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "rate": "1000100"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "rate": "1122500"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "rate": "25000000"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "rate": "25062500"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "rate": "100000000"
+    }
+  ],
+  "swaps": [
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": -2,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": -2,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "996",
+      "lpFee": "1",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": -2,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "997004",
+      "lpFee": "800",
+      "protocolFee": "200"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": -2,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "200600802",
+      "amountOut": "200000000",
+      "lpFee": "160481",
+      "protocolFee": "40120"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": -2,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": -2,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "999",
+      "lpFee": "1",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": -2,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "1000998",
+      "lpFee": "800",
+      "protocolFee": "200"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": -2,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "199800401",
+      "amountOut": "200000000",
+      "lpFee": "159841",
+      "protocolFee": "39960"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 0,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 0,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "998",
+      "lpFee": "1",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 0,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "999000",
+      "lpFee": "800",
+      "protocolFee": "200"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 0,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "200200201",
+      "amountOut": "200000000",
+      "lpFee": "160161",
+      "protocolFee": "40040"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 0,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 0,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "998",
+      "lpFee": "1",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 0,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "999000",
+      "lpFee": "800",
+      "protocolFee": "200"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 0,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "200200201",
+      "amountOut": "200000000",
+      "lpFee": "160161",
+      "protocolFee": "40040"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 2,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 2,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "999",
+      "lpFee": "1",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 2,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "1000998",
+      "lpFee": "800",
+      "protocolFee": "200"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 2,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "199800401",
+      "amountOut": "200000000",
+      "lpFee": "159841",
+      "protocolFee": "39960"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 2,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 2,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "996",
+      "lpFee": "1",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 2,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "997004",
+      "lpFee": "800",
+      "protocolFee": "200"
+    },
+    {
+      "step": 10,
+      "volatility": 0,
+      "id": 2,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "200600802",
+      "amountOut": "200000000",
+      "lpFee": "160481",
+      "protocolFee": "40120"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": -2,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": -2,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "996",
+      "lpFee": "1",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": -2,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "997003",
+      "lpFee": "801",
+      "protocolFee": "200"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": -2,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "200600822",
+      "amountOut": "200000000",
+      "lpFee": "160497",
+      "protocolFee": "40124"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": -2,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": -2,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "999",
+      "lpFee": "1",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": -2,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "1000997",
+      "lpFee": "801",
+      "protocolFee": "200"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": -2,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "199800421",
+      "amountOut": "200000000",
+      "lpFee": "159857",
+      "protocolFee": "39964"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 0,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 0,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "998",
+      "lpFee": "1",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 0,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "998999",
+      "lpFee": "801",
+      "protocolFee": "200"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 0,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "200200221",
+      "amountOut": "200000000",
+      "lpFee": "160177",
+      "protocolFee": "40044"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 0,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 0,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "998",
+      "lpFee": "1",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 0,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "998999",
+      "lpFee": "801",
+      "protocolFee": "200"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 0,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "200200221",
+      "amountOut": "200000000",
+      "lpFee": "160177",
+      "protocolFee": "40044"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 2,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 2,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "999",
+      "lpFee": "1",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 2,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "1000997",
+      "lpFee": "801",
+      "protocolFee": "200"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 2,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "199800421",
+      "amountOut": "200000000",
+      "lpFee": "159857",
+      "protocolFee": "39964"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 2,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 2,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "996",
+      "lpFee": "1",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 2,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "997003",
+      "lpFee": "801",
+      "protocolFee": "200"
+    },
+    {
+      "step": 10,
+      "volatility": 10000,
+      "id": 2,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "200600822",
+      "amountOut": "200000000",
+      "lpFee": "160497",
+      "protocolFee": "40124"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": -2,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": -2,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "995",
+      "lpFee": "2",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": -2,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "996882",
+      "lpFee": "899",
+      "protocolFee": "224"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": -2,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "200625404",
+      "amountOut": "200000000",
+      "lpFee": "180163",
+      "protocolFee": "45040"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": -2,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": -2,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "998",
+      "lpFee": "2",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": -2,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "1000875",
+      "lpFee": "899",
+      "protocolFee": "224"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": -2,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "199824904",
+      "amountOut": "200000000",
+      "lpFee": "179444",
+      "protocolFee": "44860"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 0,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 0,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "997",
+      "lpFee": "2",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 0,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "998877",
+      "lpFee": "899",
+      "protocolFee": "224"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 0,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "200224753",
+      "amountOut": "200000000",
+      "lpFee": "179803",
+      "protocolFee": "44950"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 0,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 0,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "997",
+      "lpFee": "2",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 0,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "998877",
+      "lpFee": "899",
+      "protocolFee": "224"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 0,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "200224753",
+      "amountOut": "200000000",
+      "lpFee": "179803",
+      "protocolFee": "44950"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 2,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 2,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "998",
+      "lpFee": "2",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 2,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "1000875",
+      "lpFee": "899",
+      "protocolFee": "224"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 2,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "199824904",
+      "amountOut": "200000000",
+      "lpFee": "179444",
+      "protocolFee": "44860"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 2,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 2,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "995",
+      "lpFee": "2",
+      "protocolFee": "0"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 2,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "996882",
+      "lpFee": "899",
+      "protocolFee": "224"
+    },
+    {
+      "step": 10,
+      "volatility": 350000,
+      "id": 2,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "200625404",
+      "amountOut": "200000000",
+      "lpFee": "180163",
+      "protocolFee": "45040"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": -2,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": -2,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "927",
+      "lpFee": "20",
+      "protocolFee": "5"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": -2,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "928019",
+      "lpFee": "20000",
+      "protocolFee": "5000"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": -2,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "215512822",
+      "amountOut": "200000000",
+      "lpFee": "4310257",
+      "protocolFee": "1077564"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": -2,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": -2,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "1023",
+      "lpFee": "20",
+      "protocolFee": "5"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": -2,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "1024359",
+      "lpFee": "20000",
+      "protocolFee": "5000"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": -2,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "195243980",
+      "amountOut": "200000000",
+      "lpFee": "3904880",
+      "protocolFee": "976220"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 0,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 0,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "974",
+      "lpFee": "20",
+      "protocolFee": "5"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 0,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "975000",
+      "lpFee": "20000",
+      "protocolFee": "5000"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 0,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "205128206",
+      "amountOut": "200000000",
+      "lpFee": "4102565",
+      "protocolFee": "1025641"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 0,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 0,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "974",
+      "lpFee": "20",
+      "protocolFee": "5"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 0,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "975000",
+      "lpFee": "20000",
+      "protocolFee": "5000"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 0,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "205128206",
+      "amountOut": "200000000",
+      "lpFee": "4102565",
+      "protocolFee": "1025641"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 2,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 2,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "1023",
+      "lpFee": "20",
+      "protocolFee": "5"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 2,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "1024359",
+      "lpFee": "20000",
+      "protocolFee": "5000"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 2,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "195243980",
+      "amountOut": "200000000",
+      "lpFee": "3904880",
+      "protocolFee": "976220"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 2,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 2,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "927",
+      "lpFee": "20",
+      "protocolFee": "5"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 2,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "928019",
+      "lpFee": "20000",
+      "protocolFee": "5000"
+    },
+    {
+      "step": 250,
+      "volatility": 0,
+      "id": 2,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "215512822",
+      "amountOut": "200000000",
+      "lpFee": "4310257",
+      "protocolFee": "1077564"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": -2,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": -2,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "926",
+      "lpFee": "21",
+      "protocolFee": "5"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": -2,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "927959",
+      "lpFee": "20051",
+      "protocolFee": "5012"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": -2,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "215526638",
+      "amountOut": "200000000",
+      "lpFee": "4321310",
+      "protocolFee": "1080327"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": -2,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": -2,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "1022",
+      "lpFee": "21",
+      "protocolFee": "5"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": -2,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "1024293",
+      "lpFee": "20051",
+      "protocolFee": "5012"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": -2,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "195256496",
+      "amountOut": "200000000",
+      "lpFee": "3914893",
+      "protocolFee": "978723"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 0,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 0,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "973",
+      "lpFee": "21",
+      "protocolFee": "5"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 0,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "974937",
+      "lpFee": "20051",
+      "protocolFee": "5012"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 0,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "205141356",
+      "amountOut": "200000000",
+      "lpFee": "4113085",
+      "protocolFee": "1028271"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 0,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 0,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "973",
+      "lpFee": "21",
+      "protocolFee": "5"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 0,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "974937",
+      "lpFee": "20051",
+      "protocolFee": "5012"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 0,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "205141356",
+      "amountOut": "200000000",
+      "lpFee": "4113085",
+      "protocolFee": "1028271"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 2,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 2,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "1022",
+      "lpFee": "21",
+      "protocolFee": "5"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 2,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "1024293",
+      "lpFee": "20051",
+      "protocolFee": "5012"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 2,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "195256496",
+      "amountOut": "200000000",
+      "lpFee": "3914893",
+      "protocolFee": "978723"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 2,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 2,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "926",
+      "lpFee": "21",
+      "protocolFee": "5"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 2,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "927959",
+      "lpFee": "20051",
+      "protocolFee": "5012"
+    },
+    {
+      "step": 250,
+      "volatility": 10000,
+      "id": 2,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "215526638",
+      "amountOut": "200000000",
+      "lpFee": "4321310",
+      "protocolFee": "1080327"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": -2,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": -2,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "855",
+      "lpFee": "80",
+      "protocolFee": "20"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": -2,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "856632",
+      "lpFee": "80000",
+      "protocolFee": "20000"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": -2,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "233472224",
+      "amountOut": "200000000",
+      "lpFee": "18677779",
+      "protocolFee": "4669444"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": -2,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": -2,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "944",
+      "lpFee": "80",
+      "protocolFee": "20"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": -2,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "945562",
+      "lpFee": "80000",
+      "protocolFee": "20000"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": -2,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "211514312",
+      "amountOut": "200000000",
+      "lpFee": "16921146",
+      "protocolFee": "4230286"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 0,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 0,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "899",
+      "lpFee": "80",
+      "protocolFee": "20"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 0,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "900000",
+      "lpFee": "80000",
+      "protocolFee": "20000"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 0,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "222222223",
+      "amountOut": "200000000",
+      "lpFee": "17777779",
+      "protocolFee": "4444444"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 0,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 0,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "899",
+      "lpFee": "80",
+      "protocolFee": "20"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 0,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "900000",
+      "lpFee": "80000",
+      "protocolFee": "20000"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 0,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "222222223",
+      "amountOut": "200000000",
+      "lpFee": "17777779",
+      "protocolFee": "4444444"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 2,
+      "direction": true,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 2,
+      "direction": true,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "944",
+      "lpFee": "80",
+      "protocolFee": "20"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 2,
+      "direction": true,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "945562",
+      "lpFee": "80000",
+      "protocolFee": "20000"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 2,
+      "direction": true,
+      "input": 450000000,
+      "amountIn": "211514312",
+      "amountOut": "200000000",
+      "lpFee": "16921146",
+      "protocolFee": "4230286"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 2,
+      "direction": false,
+      "input": 1,
+      "amountIn": "1",
+      "amountOut": "0",
+      "lpFee": "0",
+      "protocolFee": "0"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 2,
+      "direction": false,
+      "input": 999,
+      "amountIn": "999",
+      "amountOut": "855",
+      "lpFee": "80",
+      "protocolFee": "20"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 2,
+      "direction": false,
+      "input": 1000000,
+      "amountIn": "1000000",
+      "amountOut": "856632",
+      "lpFee": "80000",
+      "protocolFee": "20000"
+    },
+    {
+      "step": 250,
+      "volatility": 350000,
+      "id": 2,
+      "direction": false,
+      "input": 450000000,
+      "amountIn": "233472224",
+      "amountOut": "200000000",
+      "lpFee": "18677779",
+      "protocolFee": "4669444"
+    }
+  ]
+}

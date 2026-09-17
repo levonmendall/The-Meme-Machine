@@ -114,15 +114,21 @@ class Store:
         s = self.state
         positions = s['positions'].values()
         basis = sum(p['basis'] for p in positions)
+        lp = s.get('liquidity_positions', {})
+        basis += sum(p['basis'] for p in lp.values())
         if s['cash']+s['reserved']+s['rent']+basis != s['initial']+s['realized']:
             raise IntegrityError('capital_conservation')
         pending = sum(o['reservation'] for o in s['orders'].values() if o['status']=='reserved')
+        pending += sum(o['reservation'] for o in s.get('liquidity_orders', {}).values() if o['status']=='reserved')
         if pending != s['reserved'] or min(s['cash'],s['reserved'],s['rent']) < 0:
             raise IntegrityError('reservation_invariant')
-        if s['rent'] != sum(p['rent'] for p in s['positions'].values()):
+        if s['rent'] != sum(p['rent'] for p in s['positions'].values())+sum(p['rent'] for p in lp.values()):
             raise IntegrityError('rent_invariant')
         if any(p['tokens'] <= 0 or p['kind'] != 'spot' for p in s['positions'].values()):
             raise IntegrityError('position_invariant')
+        if 'liquidity_orders' in s or 'liquidity_positions' in s or 'dlmm_allocation_enabled' in s:
+            from .dlmm_paper import reconcile_liquidity
+            reconcile_liquidity(s)
         return True
 
     def _rotate_journal_if_needed(self):

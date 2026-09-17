@@ -17,6 +17,7 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - run: python -m unittest discover -v
       - run: python -m tests.resource_check
+      - run: python -m tests.dlmm_resource_check
       - run: python -m tests.make_tape && python -m meme_machine --mode synthetic --config config.synthetic.json --db /tmp/meme-ci.db --tape tests/fixtures/synthetic_lifecycle.jsonl
   longevity-soak:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[longevity-soak]')
