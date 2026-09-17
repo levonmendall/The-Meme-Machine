@@ -1,7 +1,7 @@
 """Research-only qualification attribution for the frozen continuation-v1 policy.
 
-Nothing in this module grants order authority.  Engine.qualify remains the canonical
-entry decision.  These helpers expose the contemporaneous values behind every gate and
+Nothing in this module grants order authority. Engine.qualify remains the canonical
+entry decision. These helpers expose the contemporaneous values behind every gate and
 answer counterfactual questions without changing any production threshold.
 """
 from collections import Counter
@@ -20,8 +20,8 @@ CURRENT_THRESHOLDS = dict(
     max_roundtrip_loss_bps=500,
 )
 
-# Analysis-only neighborhoods.  Inclusion here never changes Engine.qualify and never
-# authorizes a paper reservation.  The current value is always included explicitly.
+# Analysis-only neighborhoods. Inclusion here never changes Engine.qualify and never
+# authorizes a paper reservation. The current value is always included explicitly.
 SENSITIVITY_GRID = dict(
     max_concentration_bps=[3000, 3500, 4000, 4500],
     min_real_sol_lamports=[5_000_000_000, 7_500_000_000, 10_000_000_000, 12_500_000_000],
@@ -252,7 +252,8 @@ def analyze_reports(reports, min_sample=50):
         for row in report.get('results', []):
             vector = row.get('qualification_vector')
             nomination_id = row.get('nomination_id')
-            if not vector or not nomination_id or row.get('evidence_stage') != 'complete':
+            if (not vector or not nomination_id or row.get('evidence_stage') != 'complete' or
+                    row.get('natural_nomination') is not True):
                 continue
             dedup.setdefault(nomination_id, vector)
     vectors = list(dedup.values())
