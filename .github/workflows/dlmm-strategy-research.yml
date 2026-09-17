@@ -18,6 +18,19 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Research and tape-extension regressions
         run: python -m unittest tests.test_dlmm_tape_extensions tests.test_dlmm_strategy_point_in_time tests.test_dlmm_strategy_high_activity -v
+      - name: Validate dedicated RPC secret shape without a network call
+        env:
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+        run: |
+          python - <<'PY'
+          import os
+          from urllib.parse import urlparse
+          value=os.environ.get('MM_SOLANA_READ_RPC_URL','').strip()
+          parsed=urlparse(value)
+          if parsed.scheme not in ('http','https') or not parsed.netloc:
+              raise SystemExit('MM_SOLANA_READ_RPC_URL must contain the full https:// Solana RPC endpoint, not only an API key')
+          print('dedicated Solana RPC secret has valid URL shape')
+          PY
       - name: Highest-activity finalized DLMM strategy replay
         env:
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
