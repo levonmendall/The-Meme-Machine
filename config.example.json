@@ -1,8 +1,12 @@
 {
   "initial_sol_usd_micros": 0,
   "valuation_source": "REQUIRED: actual initial valuation source and timestamp",
+  "discovery_mode": "market_native",
+  "discovery_provenance": "finalized Pump.fun program logsSubscribe; no configured scout wallets",
   "seeds": [],
-  "seed_provenance": "REQUIRED: public captured transaction or explicit operator selection",
+  "seed_provenance": "legacy offline/captured compatibility only; unused prospectively",
   "related_groups": {},
-  "request_limit": 120
+  "request_limit": 240,
+  "market_native_preflight_budget": 60,
+  "market_native_full_evidence_budget": 20
 }
