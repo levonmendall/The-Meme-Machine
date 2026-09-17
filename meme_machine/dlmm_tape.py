@@ -98,11 +98,9 @@ def _log_swap_fallback(meta,pool):
 def transaction_swaps(tx,pool):
     """Return all authenticated exact-input swaps in execution order.
 
-    The Solana `innerInstructions` list is already execution ordered within each
-    top-level instruction. A new exact-input invocation opens one record and its
-    subsequent Swap/Swap2Evt CPI events close that record before the next invocation.
-    Any other DLMM instruction touching the interval remains fail-closed and exposes
-    only its 8-byte discriminator for diagnosis.
+    Both pinned IDL exact-input layouts place `lb_pair` at account zero. Keep that
+    identity requirement strict. A diagnostic records whether the target pool was
+    present elsewhere if a live transaction violates the supported layout.
     """
     if not tx or not tx.get('meta') or tx['meta'].get('err'):
         raise Unavailable('dlmm_missing_or_failed_transaction')
@@ -117,9 +115,16 @@ def transaction_swaps(tx,pool):
         dlmm_seen=True
         raw=_un58_data(instruction['data'])
         if raw[:8] in EXACT_IN:
-            if len(raw)<24 or not instruction.get('accounts') or keys[instruction['accounts'][0]]!=pool:
-                raise ValueError('dlmm_swap_instruction_identity')
-            current=dict(call=raw,legacy=[],v2=[],order=[outer,inner],instruction=EXACT_IN_NAME[raw[:8]])
+            accounts=instruction.get('accounts') or []
+            name=EXACT_IN_NAME[raw[:8]]
+            positions=[]
+            for i,account_index in enumerate(accounts):
+                if type(account_index) is int and 0<=account_index<len(keys) and keys[account_index]==pool:
+                    positions.append(i)
+            if len(raw)<24 or not accounts or keys[accounts[0]]!=pool:
+                pos='none' if not positions else ','.join(map(str,positions))
+                raise ValueError(f'dlmm_swap_instruction_identity:{name}:pool_positions={pos}:accounts={len(accounts)}')
+            current=dict(call=raw,legacy=[],v2=[],order=[outer,inner],instruction=name)
             records.append(current)
         elif raw[:8]==EVENT_CPI and raw[8:16]==SWAP:
             if current is None:raise Unavailable('dlmm_swap_event_without_ordered_call')
@@ -185,27 +190,6 @@ def chain_verified_tapes(start,tapes):
                         tuple(adjustments))
 
 
-def _carry_terminal_clock(start,state,end,events):
-    """Use authentic post-swap Clock state only after economic equality is proven.
-
-    Solana RPC blockTime is not the program's Clock::unix_timestamp. The replay uses
-    blockTime to reproduce swaps; if every output/fee/protocol amount and every other
-    terminal field already matches chain state, a sole `last_update` mismatch cannot
-    alter past economics. Carry the authenticated chain value forward only when it is
-    monotonic from the prestate and no later than the terminal snapshot time.
-    """
-    if not events:return None
-    chain_value=end['last_update']
-    if chain_value<start['last_update'] or chain_value>end['time']:
-        return None
-    final=events[-1]
-    adjustment=dict(kind='authenticated_terminal_swap_clock',chain_last_update=chain_value,
-        modeled_last_update=state['last_update'],delta_from_rpc_block_time_seconds=chain_value-final['time'],
-        signature=final['signature'],instruction=final['instruction'])
-    state['last_update']=chain_value
-    return adjustment
-
-
 def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
     if len(signatures)>64 or len(transactions)>MAX_TRANSACTIONS or len(encode(transactions))>2_000_000:
         raise Unavailable('dlmm_interval_evidence_bound')
@@ -246,19 +230,13 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
                 instruction=e['instruction'],execution_order=e['execution_order']))
             previous=next_cursor
     mismatches=[key for key in set(state)-{'time','slot'} if state[key]!=end[key]]
-    adjustments=[]
-    if mismatches==['last_update']:
-        adjustment=_carry_terminal_clock(start,state,end,events)
-        if adjustment is not None:
-            adjustments.append(adjustment);mismatches=[]
     if mismatches:
         key=mismatches[0];detail=''
         if key=='last_update' and events:
             detail=f':sim={state[key]}:chain={end[key]}:last_instruction={events[-1]["instruction"]}'
         raise Unavailable('dlmm_terminal_state_disagrees_with_forward_reconstruction:'+key+detail)
     return VerifiedTape(digest(start),digest(end),tuple(events),end,
-                        digest(dict(start=start,end=end_snapshot,signatures=signatures,transactions=transactions)),
-                        tuple(adjustments))
+                        digest(dict(start=start,end=end_snapshot,signatures=signatures,transactions=transactions)),())
 
 
 def capture(adapter,start,end_snapshot,now,cursor):
