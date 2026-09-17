@@ -14,7 +14,9 @@ def sig(name, slot, index, err=None):
 class _RPC:
     def __init__(self,*pages):
         self.pages=[list(page) for page in pages]
-        self.calls=[]
+        self.calls=[];self.sleeps=[]
+    def sleep(self,seconds):
+        self.sleeps.append(seconds)
     def call(self,method,params,priority):
         self.calls.append((method,params,priority))
         if method!='getSignaturesForAddress':
@@ -45,6 +47,7 @@ class SignatureBoundary(unittest.TestCase):
         proof=boundary.complete_signature_census(rpc,'pool',100,104,telemetry)
         self.assertEqual([x['signature'] for x in proof],['i4','i3','i2','i1','anchor'])
         self.assertEqual(len(rpc.calls),3)
+        self.assertEqual(rpc.sleeps,[boundary.CENSUS_PAGE_DELAY_SECONDS]*2)
         self.assertEqual(rpc.calls[1][1][1]['before'],'p1-63')
         self.assertEqual(rpc.calls[2][1][1]['before'],'p2-63')
         self.assertEqual(telemetry['post_endpoint_rows_skipped'],129)

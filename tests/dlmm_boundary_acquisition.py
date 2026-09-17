@@ -15,8 +15,9 @@ from meme_machine.provider import Unavailable
 from meme_machine.store import encode
 
 PAGE_LIMIT = 64
-MAX_CENSUS_PAGES = 8
+MAX_CENSUS_PAGES = 16
 MAX_CENSUS_ROWS = PAGE_LIMIT * MAX_CENSUS_PAGES
+CENSUS_PAGE_DELAY_SECONDS = 1.0
 ENDPOINT_DIAGNOSTICS = []
 
 
@@ -81,6 +82,7 @@ def complete_signature_census(rpc, pool, start_slot, end_slot, telemetry=None):
         census_page_limit=PAGE_LIMIT,
         census_page_cap=MAX_CENSUS_PAGES,
         census_row_cap=MAX_CENSUS_ROWS,
+        census_page_delay_seconds=CENSUS_PAGE_DELAY_SECONDS,
         census_pages=[],
         post_endpoint_rows_skipped=0,
         fallback_attempted=False,
@@ -93,6 +95,10 @@ def complete_signature_census(rpc, pool, start_slot, end_slot, telemetry=None):
     rows_scanned=0
 
     for page_index in range(MAX_CENSUS_PAGES):
+        if page_index:
+            sleeper=getattr(rpc,'sleep',None)
+            if callable(sleeper):
+                sleeper(CENSUS_PAGE_DELAY_SECONDS)
         config=dict(limit=PAGE_LIMIT,commitment='finalized')
         if before is not None:
             config['before']=before
