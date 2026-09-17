@@ -217,6 +217,10 @@ class PumpAdapter:
         if rpc.call('getGenesisHash', priority=True) != pump.MAINNET:
             raise Unavailable('unsupported_network')
         self.fee_address = pump.pda([b'fee_config',pump.un58(pump.PROGRAM)], pump.FEE_PROGRAM)
+        # Lazily reuse the exact concentration evidence path already proven by the
+        # natural observer. Import locally to avoid a provider/concentration module
+        # cycle during module initialization.
+        self._concentration_reader = None
 
     def history(self, address, now, priority=False, require_coverage=False):
         # Qualification must prove the complete unchanged 60-second window. One
@@ -275,17 +279,23 @@ class PumpAdapter:
                     mint_supply=supply,mayhem_mode=mode['mayhem'],
                     protocol='pump.fun',network='solana-mainnet',kind='real')
 
-    def concentration(self, mint, snapshot, priority=False):
-        result = self.rpc.call('getTokenLargestAccounts',[mint, {'commitment':'finalized'}],priority)
-        if result['context']['slot'] < snapshot['slot']-32:
-            raise Unavailable('stale_concentration')
-        # Curve custody is excluded; this metric is account concentration, not beneficial ownership.
-        # Use actual mint supply so Mayhem's additional documented supply does not
-        # mechanically double the concentration ratio.
-        c = pump.curve(snapshot['accounts'][0])
-        supply, decimals = pump.mint_info(snapshot['accounts'][1])
-        pump.validate_mint_supply(snapshot['accounts'][0], c, supply, decimals)
-        custody = pump.pda([pump.un58(snapshot['pool']), pump.un58(snapshot['accounts'][1]['owner']), pump.un58(mint)],
-                           'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
-        amounts = sorted((int(x['amount']) for x in result['value'] if x['address'] != custody), reverse=True)
-        return sum(amounts[:5])*10000//supply
+    def concentration(self, mint, snapshot, priority=True):
+        """Return top-five concentration through the shared bounded evidence reader.
+
+        Prospective qualification previously called getTokenLargestAccounts directly,
+        while the natural observer used the compact finalized getProgramAccounts scan.
+        Reuse that same reader here so observation and executable qualification have
+        identical concentration semantics and fallback behavior. The compact scan has
+        its own bounded 40-request read-only budget; failures still fail closed.
+        """
+        if self._concentration_reader is None:
+            from .concentration import ConcentrationReader
+            self._concentration_reader = ConcentrationReader(self.rpc)
+        value,_meta = self._concentration_reader.read(
+            mint, snapshot, priority=bool(priority))
+        return value
+
+    def concentration_status(self):
+        if self._concentration_reader is None:
+            return dict(initialized=False)
+        return dict(initialized=True, **self._concentration_reader.status())
