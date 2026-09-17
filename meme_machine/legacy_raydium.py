@@ -99,8 +99,12 @@ def read_explicit_pool(adapter, handoff, provenance, now, priority=True):
     slot = int(result['context']['slot'])
     market_time = adapter._market_time(slot, priority)
     available_time = int(adapter.rpc.clock())
-    if not market_time <= available_time <= max(now, available_time):
-        raise ValueError('future_raydium_snapshot')
+    # The RPC call itself can advance past the caller's pre-request `now`, so judge
+    # freshness at receipt rather than comparing to a stale pre-request clock. This
+    # avoids the canary's earlier false future-quote boundary while still failing
+    # closed on future or >20-second-old finalized marks.
+    if market_time > available_time or available_time-market_time > 20:
+        raise ValueError('stale_or_future_raydium_snapshot')
 
     return dict(
         mint=handoff.mint,
