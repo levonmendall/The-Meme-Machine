@@ -197,11 +197,12 @@ def swap(state, amount, for_y, timestamp):
     Every traversed bin must be present. No extrapolation across missing arrays.
     Fee growth uses integer LP supply, as PositionV2's claim calculation does.
 
-    Important: the pinned Meteora quote implementation reads
-    `last_update_timestamp` to decay volatility references but does not overwrite it
-    for each swap. Live finalized STONK/USELESS intervals confirm the account field
-    can remain unchanged across authenticated swaps. Preserve the authoritative field
-    here; a real non-swap mutation must still be observed and terminal-verified.
+    The deployed program advances `last_update_timestamp` on the non-high-frequency
+    branch only: authenticated historical and current mainnet intervals both show the
+    field changing to the swap timestamp exactly when
+    `timestamp - last_update >= filter_period`, while higher-frequency swaps preserve
+    the previous value. This is the same branch on which reference volatility/index
+    parameters are refreshed.
     """
     if type(amount) is not int or not 0 < amount < 1<<64 or type(for_y) is not bool:
         raise ValueError('dlmm_invalid_swap')
@@ -213,6 +214,7 @@ def swap(state, amount, for_y, timestamp):
         p['index_reference']=p['active']
         p['volatility_reference']=(p['volatility_accumulator']*s['reduction_factor']//10000
                                    if elapsed < s['decay_period'] else 0)
+        p['last_update']=timestamp
     left=amount; output=fees=protocol=0; traversed=[]
     start=p['active']
     while left:
