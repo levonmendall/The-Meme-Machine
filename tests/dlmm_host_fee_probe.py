@@ -10,7 +10,6 @@ from meme_machine.dlmm_tape import (
 )
 from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
-from tests import dlmm_boundary_acquisition as boundary
 
 POOL='C8Gr6AUuq9hEdSYJzoEpNcdjpojPZwqG5MtQbeouNNwg'
 START_SLOT=447920201
@@ -66,11 +65,36 @@ def run():
     rpc=PoolScanRPC(url,limit=80)
     if rpc.call('getGenesisHash',priority=True)!=pump.MAINNET:
         raise Unavailable('host_probe_wrong_network')
-    telemetry={}
-    proof=boundary.complete_signature_census(rpc,POOL,START_SLOT,END_SLOT,telemetry)
-    selected=[s for s in proof if START_SLOT<s['slot']<=END_SLOT and not s.get('err')]
+    # Historical diagnostic only: use Solana's 1000-signature page size so this
+    # already-known interval can be recovered cheaply without changing the live
+    # verifier's 16x64 census. Four pages / 4000 rows is a hard probe-only cap.
+    telemetry=dict(pages=[],rows=0)
+    selected=[];before=None;boundary_seen=False;seen=set()
+    for page_index in range(4):
+        cfg=dict(limit=1000,commitment='finalized')
+        if before is not None:
+            cfg['before']=before
+            rpc.sleep(1.0)
+        page=rpc.call('getSignaturesForAddress',[POOL,cfg],True)
+        if not isinstance(page,list) or len(page)>1000:
+            raise Unavailable('host_probe_signature_shape')
+        ids=[x.get('signature') for x in page]
+        if any(not isinstance(x,str) or not x for x in ids) or seen.intersection(ids):
+            raise Unavailable('host_probe_signature_duplicate')
+        seen.update(ids);telemetry['rows']+=len(page)
+        telemetry['pages'].append(dict(page=page_index+1,count=len(page),
+            newest_slot=None if not page else page[0].get('slot'),
+            oldest_slot=None if not page else page[-1].get('slot')))
+        selected.extend(s for s in page if START_SLOT<s.get('slot',-1)<=END_SLOT and not s.get('err'))
+        if any(isinstance(s.get('slot'),int) and s['slot']<=START_SLOT for s in page):
+            boundary_seen=True;break
+        if not page or len(page)<1000:break
+        before=page[-1]['signature']
+    if not boundary_seen:
+        raise Unavailable('host_probe_historical_page_bound')
     if len(selected)!=2:
         raise Unavailable('host_probe_expected_exact_two_transactions')
+    proof=selected
     params=[[s['signature'],dict(encoding='json',commitment='finalized',
                                 maxSupportedTransactionVersion=0)] for s in selected]
     txs=rpc.call_many('getTransaction',params,True,batch_size=2)
