@@ -28,7 +28,7 @@ class FomoShadowScaffold(unittest.TestCase):
         self.assertEqual(rows[0].rank, 7)
         self.assertEqual(rows[0].sampled_at, 100)
         self.assertEqual(rows[0].observed_at, 101)
-        with self.assertRaisesRegex(ValueError, 'invalid public key'):
+        with self.assertRaisesRegex(ValueError, 'invalid_solana_mint'):
             normalize_token_board(
                 'trending',
                 {'items': [{'tokenAddress': '0x1234', 'rank': 1}]},
