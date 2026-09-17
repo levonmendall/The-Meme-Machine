@@ -216,6 +216,20 @@ def replay(engine,path):
     return engine.status(now)
 
 
+def _retire_scout_state(store):
+    """One-time prospective migration; never touches economic/order/position state."""
+    s=store.state
+    if 'retired_scout_config' in s:
+        return False
+    with store.transaction('retire_scout_discovery'):
+        s['retired_scout_config']=s.pop('scout_config',None)
+        s['wallets']={}
+        s['seen']={}
+        coverage=s.get('coverage',{})
+        s['coverage']={k:v for k,v in coverage.items() if k=='pump_program_stream'}
+    return True
+
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--db',required=True)
@@ -256,6 +270,8 @@ def main():
             ap.error(f'request_limit must be >= {required} for configured market-native budgets')
 
     store=Store(args.db,args.mode,config['initial_sol_usd_micros'],config['valuation_source'])
+    if args.mode=='prospective':
+        _retire_scout_state(store)
     engine=Engine(store,[] if args.mode=='prospective' else config.get('seeds',[]),config.get('related_groups'))
     release=subprocess.run(['git','rev-parse','HEAD'],capture_output=True,text=True).stdout.strip() or 'uncommitted'
     dirty=subprocess.run(['git','status','--porcelain'],capture_output=True,text=True).stdout.strip()
