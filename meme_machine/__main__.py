@@ -8,6 +8,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .engine import Engine
+from .market_native_runtime import MarketNativeRuntime
 from .postgrad import PostGraduationAdapter
 from .provider import RPC, PumpAdapter, Unavailable
 from .pumpswap_runtime import POSTGRAD_WAIT_SECONDS, PumpSwapPaperRuntime
@@ -18,7 +19,6 @@ from .stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 def tick(engine, adapter, now):
     """Legacy HTTP-history tick retained for captured regression compatibility."""
     s=engine.store.state
-    # Existing exposure always comes first, independently of wallet activity.
     for mint,p in list(s['positions'].items()):
         if now>=p['next_monitor']:
             try:
@@ -70,8 +70,6 @@ def _monitor_existing(engine, adapter, now, pumpswap_runtime=None):
     for mint,p in list(s['positions'].items()):
         if now<p['next_monitor']:
             continue
-        # Once the handoff is durably known, never poll the retired bonding curve
-        # again. Restart recovery resumes directly from canonical PumpSwap state.
         if pumpswap_runtime is not None and (
                 p.get('surface') in ('pumpswap','graduating-pumpswap') or
                 p.get('postgrad_handoff')):
@@ -110,9 +108,6 @@ def _monitor_existing(engine, adapter, now, pumpswap_runtime=None):
                 result=pumpswap_runtime.fill_existing_order(oid)
                 if result != 'not_graduated':
                     continue
-                # A transient active-Pump provider gap should not destroy an already
-                # authorized reservation immediately. Keep the same bounded 60-second
-                # delayed-fill horizon used by post-graduation discovery.
                 if int(time.time())-int(o['created']) <= POSTGRAD_WAIT_SECONDS:
                     continue
             engine.fill(oid,{},int(time.time()))
@@ -129,13 +124,11 @@ def _monitor_existing(engine, adapter, now, pumpswap_runtime=None):
 
 
 def tick_stream(engine, adapter, tape, now, cursor, pumpswap_runtime=None):
-    """Prospective Pump path backed by one finalized 60-second program tape.
+    """Legacy scout-backed stream tick retained only for regression compatibility.
 
-    The stream is acquisition infrastructure only. continuation-v1 is unchanged:
-    a candidate still needs a complete 60-second market window, independent demand,
-    concentration, liquidity, price and round-trip-cost gates before paper authority.
-    Existing authorized orders/positions can continue on canonical PumpSwap if the
-    bonding curve completes; this does not create new post-graduation allocation.
+    The prospective CLI no longer calls this function. Active prospective discovery is
+    market-native through MarketNativeRuntime; keeping this helper allows historical
+    scout/captured tests to prove old lifecycle behavior without keeping scouts active.
     """
     _monitor_existing(engine,adapter,now,pumpswap_runtime=pumpswap_runtime)
     s=engine.store.state
@@ -144,9 +137,6 @@ def tick_stream(engine, adapter, tape, now, cursor, pumpswap_runtime=None):
         return cursor
 
     if not status['covered']:
-        # During a healthy initial warmup, pin quarantine to the exact time the full
-        # window becomes available instead of extending it on every 5-second tick.
-        # A disconnected/loss state remains fail-closed until continuity is restored.
         with engine.store.transaction('stream_coverage'):
             if status['connected'] and status['warm_seconds'] < WINDOW_SECONDS:
                 until=now+(WINDOW_SECONDS-status['warm_seconds'])
@@ -158,8 +148,6 @@ def tick_stream(engine, adapter, tape, now, cursor, pumpswap_runtime=None):
         return None
 
     if cursor is None:
-        # Events received before the first complete uninterrupted warmup are market
-        # evidence only; they may not retrospectively become scout nominations.
         cursor=tape.latest_sequence()
         with engine.store.transaction('stream_coverage_ready'):
             s.setdefault('coverage',{})['pump_program_stream']=dict(
@@ -192,8 +180,6 @@ def tick_stream(engine, adapter, tape, now, cursor, pumpswap_runtime=None):
                 with engine.store.transaction('stream_gap_before_qualification'):
                     engine.quarantine('stream_continuity_unavailable',qualified_at)
                 break
-            # Re-slice at the actual decision time so the unchanged rolling 60-second
-            # policy window and final snapshot slot are point-in-time aligned.
             market=tape.window(nomination['mint'],qualified_at,max_slot=final['slot'])
             engine.consider(nomination,dict(snapshot=final,events=market,covered=True,
                                             concentration_bps=concentration),qualified_at)
@@ -241,16 +227,36 @@ def main():
     args=ap.parse_args()
     with open(args.config) as f:
         config=json.load(f)
-    if not config.get('seed_provenance'):
-        ap.error('seed provenance required')
-    if args.mode=='prospective' and ('synthetic' in config['seed_provenance'].lower() or 'synthetic' in config['valuation_source'].lower()):
-        ap.error('synthetic configuration cannot be prospective')
-    if args.mode=='prospective' and args.tape:
-        ap.error('prospective mode cannot accept a tape')
+
+    discovery_mode=config.get('discovery_mode','market_native' if args.mode=='prospective' else 'scout')
+    if args.mode=='prospective':
+        if discovery_mode!='market_native':
+            ap.error('prospective scout discovery retired; discovery_mode must be market_native')
+        if config.get('seeds'):
+            ap.error('prospective market-native discovery requires empty seeds')
+        if not config.get('discovery_provenance'):
+            ap.error('market-native discovery provenance required')
+        if ('synthetic' in config.get('discovery_provenance','').lower() or
+                'synthetic' in config['valuation_source'].lower()):
+            ap.error('synthetic configuration cannot be prospective')
+        if args.tape:
+            ap.error('prospective mode cannot accept a tape')
+    else:
+        if not config.get('seed_provenance'):
+            ap.error('seed provenance required')
     if not 1<=args.seconds<=3600:
         ap.error('budgeted session must be 1..3600 seconds')
+
+    request_limit=int(config.get('request_limit',240 if args.mode=='prospective' else 120))
+    preflight_budget=int(config.get('market_native_preflight_budget',60))
+    full_evidence_budget=int(config.get('market_native_full_evidence_budget',20))
+    if args.mode=='prospective':
+        required=40+1+2*preflight_budget+3*full_evidence_budget
+        if request_limit<required:
+            ap.error(f'request_limit must be >= {required} for configured market-native budgets')
+
     store=Store(args.db,args.mode,config['initial_sol_usd_micros'],config['valuation_source'])
-    engine=Engine(store,config['seeds'],config.get('related_groups'))
+    engine=Engine(store,[] if args.mode=='prospective' else config.get('seeds',[]),config.get('related_groups'))
     release=subprocess.run(['git','rev-parse','HEAD'],capture_output=True,text=True).stdout.strip() or 'uncommitted'
     dirty=subprocess.run(['git','status','--porcelain'],capture_output=True,text=True).stdout.strip()
     if dirty:
@@ -261,7 +267,10 @@ def main():
         return
     if args.mode!='prospective':
         ap.error('offline mode requires --tape')
-    published=dict(engine.status(int(time.time())),release=release)
+
+    published=dict(engine.status(int(time.time())),release=release,
+                   discovery_mode='market_native',scout_lane_active=False,
+                   scout_storage_active=False)
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path not in ('/live','/ready','/status'):
@@ -283,11 +292,8 @@ def main():
     stream_thread=None
     try:
         url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
-        rpc=RPC(url,limit=config.get('request_limit',120))
+        rpc=RPC(url,limit=request_limit)
         adapter=PumpAdapter(rpc)
-        # Current-era graduation continuation is canonical PumpSwap only. Deliberately
-        # disable the Raydium program scanner in the prospective runtime: the legacy
-        # adapter remains research/replay evidence and has no paper allocation path.
         postgrad_adapter=PostGraduationAdapter(rpc,scan_rpc=object())
         pumpswap_runtime=PumpSwapPaperRuntime(store,postgrad_adapter)
         tape=PumpTape()
@@ -295,6 +301,11 @@ def main():
         log_stream=PumpLogStream(url,tape)
         stream_thread=threading.Thread(target=log_stream.run,args=(stopping,ready),daemon=True)
         stream_thread.start()
+        market_runtime=MarketNativeRuntime(
+            engine,adapter,max(1,args.seconds),
+            preflight_budget=preflight_budget,
+            full_evidence_budget=full_evidence_budget,
+        )
         if not ready.wait(15) or log_stream.error_kind:
             with store.transaction('stream_start_failure'):
                 engine.quarantine('stream_continuity_unavailable',int(time.time()))
@@ -302,9 +313,13 @@ def main():
         deadline=time.monotonic()+args.seconds
         while time.monotonic()<deadline and not stopping.is_set():
             now=int(time.time())
-            cursor=tick_stream(engine,adapter,tape,now,cursor,pumpswap_runtime=pumpswap_runtime)
+            _monitor_existing(engine,adapter,now,pumpswap_runtime=pumpswap_runtime)
+            cursor=market_runtime.tick(tape,now,cursor)
             published=dict(engine.status(int(time.time())),release=release,
+                           discovery_mode='market_native',scout_lane_active=False,
+                           scout_storage_active=False,
                            stream=tape.status(int(time.time())),
+                           market_native_discovery=market_runtime.status(),
                            pumpswap_continuation=pumpswap_runtime.status())
             stopping.wait(5)
         print(json.dumps(published,sort_keys=True))
