@@ -25,16 +25,19 @@ test_missing_traversal_does_not_modify_input (tests.test_dlmm.Protocol.test_miss
 test_provider_reuses_finalized_budget (tests.test_dlmm.Protocol.test_provider_reuses_finalized_budget) ... ok
 test_scout_non_authoritative_and_missing_research_explicit (tests.test_dlmm.Protocol.test_scout_non_authoritative_and_missing_research_explicit) ... ok
 test_supported_scope_and_identity_fail_closed (tests.test_dlmm.Protocol.test_supported_scope_and_identity_fail_closed) ... ok
+test_authentic_swap_tape_restart_and_zero_fee_for_untraversed_virtual_bins (tests.test_dlmm_reference.OfficialReference.test_authentic_swap_tape_restart_and_zero_fee_for_untraversed_virtual_bins) ... ok
 test_captured_current_pool_rejects_missing_active_array (tests.test_dlmm_reference.OfficialReference.test_captured_current_pool_rejects_missing_active_array) ... ok
 test_current_mainnet_pool_through_runtime_decoders_and_scout (tests.test_dlmm_reference.OfficialReference.test_current_mainnet_pool_through_runtime_decoders_and_scout) ... ok
 test_idl_account_offsets_and_sizes (tests.test_dlmm_reference.OfficialReference.test_idl_account_offsets_and_sizes) ... ok
 test_mainnet_bytes_deposit_withdraw_restart_and_cost_only_loss (tests.test_dlmm_reference.OfficialReference.test_mainnet_bytes_deposit_withdraw_restart_and_cost_only_loss) ... ok
 test_official_executed_sdk_vectors (tests.test_dlmm_reference.OfficialReference.test_official_executed_sdk_vectors) ... ok
 test_official_historical_pool_and_bins_without_invented_timestamp (tests.test_dlmm_reference.OfficialReference.test_official_historical_pool_and_bins_without_invented_timestamp) ... ok
-test_real_captured_empty_interval_awards_no_fees (tests.test_dlmm_reference.OfficialReference.test_real_captured_empty_interval_awards_no_fees) ... ok
+test_real_captured_swap_interval_exact_state_and_fee_attribution (tests.test_dlmm_reference.OfficialReference.test_real_captured_swap_interval_exact_state_and_fee_attribution) ... ok
 test_connected_verified_interval_and_captured_store (tests.test_dlmm_tape.Tape.test_connected_verified_interval_and_captured_store) ... ok
+test_current_swap2_companion_is_cross_checked (tests.test_dlmm_tape.Tape.test_current_swap2_companion_is_cross_checked) ... ok
 test_missing_mutation_ambiguous_order_and_history_fail_closed (tests.test_dlmm_tape.Tape.test_missing_mutation_ambiguous_order_and_history_fail_closed) ... ok
 test_restart_after_real_swap_before_interval_checkpoint (tests.test_dlmm_tape.Tape.test_restart_after_real_swap_before_interval_checkpoint) ... ok
+test_same_slot_transactions_use_rpc_transaction_index_order (tests.test_dlmm_tape.Tape.test_same_slot_transactions_use_rpc_transaction_index_order) ... ok
 test_spoofed_events_and_host_fee_rejected (tests.test_dlmm_tape.Tape.test_spoofed_events_and_host_fee_rejected) ... ok
 test_terminal_is_validation_only_no_backward_inference (tests.test_dlmm_tape.Tape.test_terminal_is_validation_only_no_backward_inference) ... ok
 test_explicit_pool_is_onchain_validated_and_orientation_normalized (tests.test_legacy_raydium.ExplicitLegacyRaydium.test_explicit_pool_is_onchain_validated_and_orientation_normalized) ... ok
@@ -130,6 +133,6 @@ test_durable_tick_uses_only_post_warmup_scout_events_and_stream_window (tests.te
 test_http_rpc_path_maps_to_same_secure_websocket_endpoint (tests.test_stream.StreamTape.test_http_rpc_path_maps_to_same_secure_websocket_endpoint) ... ok
 
 ----------------------------------------------------------------------
-Ran 130 tests in 2.694s
+Ran 133 tests in 2.870s
 
 OK

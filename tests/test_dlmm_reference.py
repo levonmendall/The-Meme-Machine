@@ -1,3 +1,6 @@
+import base64
+import copy
+import gzip
 import json
 import unittest
 import tempfile
@@ -7,6 +10,14 @@ from meme_machine.provider import Unavailable
 from tests.dlmm_support import snapshot
 
 FIXTURES=Path(__file__).parent/'fixtures'
+
+
+def mainnet_swap_interval():
+    raw=base64.b64decode((FIXTURES/'dlmm_mainnet_swap_interval.json.gz.b64').read_text())
+    capture=json.loads(gzip.decompress(raw))
+    for address in capture.pop('end_account_reuse'):
+        capture['end']['accounts'][address]=copy.deepcopy(capture['start']['accounts'][address])
+    return capture
 
 
 class OfficialReference(unittest.TestCase):
@@ -46,6 +57,25 @@ class OfficialReference(unittest.TestCase):
                 self.assertEqual(quote['output'],int(row['amountOut']))
                 self.assertEqual(quote['fee']-quote['protocol_fee'],int(row['lpFee']))
                 self.assertEqual(quote['protocol_fee'],int(row['protocolFee']))
+        self.assertEqual(v['hashes']['ts-client/src/dlmm/helpers/rebalance/rebalancePosition.ts'],
+                         '3acdf01b77a895b4fef148fa24a4cd1160b1f50b7b22adc1a8004aa46e0394ad')
+        for row in v['accounting']:
+            with self.subTest(accounting=row):
+                b=dict(x=int(row['binX']),y=int(row['binY']),price=int(row['price']),
+                       supply=int(row['supply']))
+                share=dlmm.deposit_share(b,int(row['inX']),int(row['inY']))
+                self.assertEqual(share,int(row['share']))
+                post_supply=b['supply']+share
+                self.assertEqual(dlmm.withdraw_amount(share,b['x']+int(row['inX']),post_supply),
+                                 int(row['withdrawX']))
+                self.assertEqual(dlmm.withdraw_amount(share,b['y']+int(row['inY']),post_supply),
+                                 int(row['withdrawY']))
+                self.assertEqual(dlmm.claim_fee(share,int(row['feeDelta'])),int(row['claim']))
+                # The pinned rebalance preview divides inventory by Q64 supply
+                # before multiplying by share, returning zero for these cases.
+                # Program/share semantics retain the exact 0-or-1-unit dust shown
+                # by withdrawX/Y; keep this known SDK-helper deviation explicit.
+                self.assertEqual((int(row['sdkSimulatedX']),int(row['sdkSimulatedY'])),(0,0))
 
     def test_idl_account_offsets_and_sizes(self):
         idl=json.loads((FIXTURES/'dlmm_idl_subset.json').read_text())
@@ -92,24 +122,67 @@ class OfficialReference(unittest.TestCase):
             path=Path(d)/'p.db';s=Store(path,'captured',100_000_000,'captured protocol mechanics')
             r=Replay(s);r.reserve('lp',snap,now);r.deposit('lp',snap,now);s.close()
             s=Store(path,'captured',100_000_000,'captured protocol mechanics');r=Replay(s)
+            mark=r.mark('lp',now);self.assertTrue(mark['resolved'])
+            self.assertEqual(mark['assets']['fee_x']+mark['assets']['fee_y'],0)
+            r.exit_intent('lp','captured_accounting_check',now);s.close()
+            s=Store(path,'captured',100_000_000,'captured protocol mechanics');r=Replay(s)
+            r.withdraw('lp',now);s.close()
+            s=Store(path,'captured',100_000_000,'captured protocol mechanics');r=Replay(s)
             try:
-                mark=r.mark('lp',now);self.assertTrue(mark['resolved'])
-                self.assertEqual(mark['assets']['fee_x']+mark['assets']['fee_y'],0)
-                r.exit_intent('lp','captured_accounting_check',now);r.withdraw('lp',now)
                 settled=r.settle('lp',now)
                 self.assertEqual(settled['realized'],-350002)  # costs plus 2 lamports of share rounding
                 self.assertEqual(settled['costs'],ENTRY_COST+EXIT_COST)
                 self.assertTrue(s.reconcile())
             finally:s.close()
 
-    def test_real_captured_empty_interval_awards_no_fees(self):
+    def test_real_captured_swap_interval_exact_state_and_fee_attribution(self):
         from meme_machine.dlmm_tape import reconstruct
-        p=json.loads((FIXTURES/'dlmm_mainnet_interval.json').read_text())
+        p=mainnet_swap_interval()
         start=dlmm.validate(p['start'],p['start']['available_time'],'real')
         tape=reconstruct(start,p['end'],p['signatures'],p['transactions'],p['validated_at'],
                          [start['slot'],2**31-1,2**31-1])
-        self.assertEqual(len(tape.events),0)
-        self.assertEqual(tape.terminal['bins'],start['bins'])
+        self.assertEqual(len(tape.events),1)
+        event=tape.events[0]
+        self.assertEqual(event['cursor'],[447856269,148,0])
+        self.assertEqual(event['observed'],dict(start=1073,end=1074,output=593490,fee=21841,protocol_fee=2183))
+        end=tape.terminal
+        self.assertEqual(end['vault_x_amount']-start['vault_x_amount'],-593490)
+        self.assertEqual(end['vault_y_amount']-start['vault_y_amount'],8692234)
+        self.assertEqual(end['protocol_fee_y']-start['protocol_fee_y'],2183)
+        accounted=0
+        for bid in ('1073','1074'):
+            growth=end['bins'][bid]['fee_y']-start['bins'][bid]['fee_y']
+            accounted+=dlmm.claim_fee(start['bins'][bid]['supply'],growth)
+        # 19,658 LP-fee units: 19,656 represented by the two integer fee-growth
+        # increments and exactly 2 units of per-bin division dust.
+        self.assertEqual((event['observed']['fee']-event['observed']['protocol_fee'],accounted),
+                         (19658,19656))
         # Historical interval verification cannot turn expired evidence into a current quote.
         with self.assertRaisesRegex(ValueError,'stale'):
             dlmm.validate(p['end'],p['validated_at'],'real')
+
+    def test_authentic_swap_tape_restart_and_zero_fee_for_untraversed_virtual_bins(self):
+        from meme_machine.dlmm_tape import reconstruct
+        from meme_machine.dlmm_paper import Replay
+        from meme_machine.store import Store,digest
+        p=mainnet_swap_interval();start=dlmm.validate(p['start'],p['start']['available_time'],'real')
+        tape=reconstruct(start,p['end'],p['signatures'],p['transactions'],p['validated_at'],
+                         [start['slot'],2**31-1,2**31-1])
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'real.db';store=Store(path,'captured',100_000_000,'authentic finalized swap')
+            replay=Replay(store);replay.reserve('lp',p['start'],p['start']['available_time'])
+            replay.deposit('lp',p['start'],p['start']['available_time']);store.close()
+            store=Store(path,'captured',100_000_000,'authentic finalized swap');replay=Replay(store)
+            replay.process_tape('lp',tape,p['validated_at']);before=digest(store.state);store.close()
+            store=Store(path,'captured',100_000_000,'authentic finalized swap');replay=Replay(store)
+            try:
+                self.assertEqual(before,digest(store.state))
+                position=store.state['liquidity_positions']['lp']
+                self.assertEqual(position['events'],1)
+                # The fixed one-sided experiment occupies 1071/1072; the real
+                # swap traversed 1073/1074, so zero fees are the exact attribution.
+                self.assertEqual(position['inventory']['fee_x']+position['inventory']['fee_y'],0)
+                with self.assertRaisesRegex(Unavailable,'anchor'):
+                    replay.process_tape('lp',tape,p['validated_at'])
+                self.assertTrue(store.reconcile())
+            finally:store.close()

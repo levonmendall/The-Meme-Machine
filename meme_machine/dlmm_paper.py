@@ -79,10 +79,11 @@ def inventory(p):
     x=y=fx=fy=0
     for bid,share in p['shares'].items():
         b=p['virtual']['bins'][bid]
-        x+=share*b['x']//b['supply']; y+=share*b['y']//b['supply']
+        x+=dlmm.withdraw_amount(share,b['x'],b['supply'])
+        y+=dlmm.withdraw_amount(share,b['y'],b['supply'])
         start=p['fee_start'][bid]
-        fx+=(share>>64)*(b['fee_x']-start['x'])>>64
-        fy+=(share>>64)*(b['fee_y']-start['y'])>>64
+        fx+=dlmm.claim_fee(share,b['fee_x']-start['x'])
+        fy+=dlmm.claim_fee(share,b['fee_y']-start['y'])
     return dict(x=x,y=y,fee_x=fx,fee_y=fy)
 
 
@@ -91,8 +92,8 @@ def _withdraw_preview(p):
     if p['stage']!='withdrawn':
         for bid,share in p['shares'].items():
             b=state['bins'][bid]
-            b['x']-=share*b['x']//b['supply']
-            b['y']-=share*b['y']//b['supply']
+            b['x']-=dlmm.withdraw_amount(share,b['x'],b['supply'])
+            b['y']-=dlmm.withdraw_amount(share,b['y'],b['supply'])
             b['supply']-=share
     return state,assets
 
@@ -176,9 +177,8 @@ class Replay:
                 raise Unavailable('dlmm_missing_deposit_bin_array')
             if b['x' if sol_y else 'y']:
                 raise ValueError('dlmm_non_sol_side_composition')
-            px=b['price']; x,y=(0,amount) if sol_y else (amount,0)
-            incoming=x*px+y*dlmm.Q; existing=b['x']*px+b['y']*dlmm.Q
-            share=incoming*b['supply']//existing if existing else incoming
+            x,y=(0,amount) if sol_y else (amount,0)
+            share=dlmm.deposit_share(b,x,y)
             if share>>64==0 or share+b['supply']>dlmm.U128:
                 raise ValueError('dlmm_invalid_deposit_share')
             shares[str(bid)]=share; starts[str(bid)]=dict(x=b['fee_x'],y=b['fee_y'])
@@ -191,7 +191,7 @@ class Replay:
             initial_y=sum(amounts) if sol_y else 0,shared_capital_reserved=RESERVATION,
             basis=CAPITAL+ENTRY_COST+EXIT_COST,rent=RENT,entry_cost=ENTRY_COST,
             exit_cost_reserve=EXIT_COST,idle_sol=CAPITAL-sum(amounts),real=real,virtual=v,
-            cursor=[real['slot'],2**31-1,2**31-1],last_time=now,events=0,lineage=digest(snapshot),
+            cursor=[real['slot'],2**31-1,2**31-1],last_time=real['time'],events=0,lineage=digest(snapshot),
             stage='deposited',exit_reason=None,withdrawal=None,last_mark=None,unresolved=None,
             range_state='out_of_range',last_authoritative_slot=real['slot'])
         p['inventory']=inventory(p)

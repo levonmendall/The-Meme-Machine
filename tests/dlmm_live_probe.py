@@ -16,7 +16,9 @@ from meme_machine.store import encode
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--pool');parser.add_argument('--bin-step',type=int,default=25)
+    parser.add_argument('--wait-seconds',type=int,default=0)
     parser.add_argument('--output',required=True);args=parser.parse_args()
+    if not 0<=args.wait_seconds<=60:parser.error('--wait-seconds must be 0..60')
     rpc=PoolScanRPC('https://api.mainnet-beta.solana.com',limit=80);adapter=dlmm.Adapter(rpc)
     capture=dict(kind='real_finalized_rpc_capture',allocation_enabled=False,transactions={})
     report=dict(allocation_enabled=False,signing=False,real_swap_count=0,verified_interval=False)
@@ -31,6 +33,7 @@ def main():
         if 'start' not in capture:raise Unavailable('dlmm_no_validated_pool_in_bounded_partition')
         # The next account read naturally advances through public RPC latency.
         # No trade is generated and no qualifying economic outcome is required.
+        if args.wait_seconds:time.sleep(args.wait_seconds)
         rpc.cache.clear();rpc.cache_bytes=0
         capture['end']=adapter.snapshot(capture['start']['pool'],int(time.time()),True)
         start=dlmm.validate(capture['start'],capture['start']['available_time'],'real')

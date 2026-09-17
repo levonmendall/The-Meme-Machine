@@ -60,7 +60,9 @@ def pool(account):
                   pair_type=raw[75],activation_type=raw[86],
                   activation_point=struct.unpack_from('<Q',raw,816)[0],
                   x=pump.b58(raw[88:120]),y=pump.b58(raw[120:152]),
-                  vault_x=pump.b58(raw[152:184]),vault_y=pump.b58(raw[184:216]))
+                  vault_x=pump.b58(raw[152:184]),vault_y=pump.b58(raw[184:216]),
+                  protocol_fee_x=struct.unpack_from('<Q',raw,216)[0],
+                  protocol_fee_y=struct.unpack_from('<Q',raw,224)[0])
     if raw[82] != 0 or raw[75] not in (0,2,3) or raw[86] not in (0,1):
         raise ValueError('dlmm_disabled_or_permissioned_pool')
     if raw[880:882] != bytes(2) or raw[882] > 1:
@@ -151,7 +153,8 @@ def validate(snapshot, now, kind=None):
         raise ValueError('dlmm_missing_active_or_liquidity')
     if sum(b['x'] for b in bins.values()) > vx or sum(b['y'] for b in bins.values()) > vy:
         raise ValueError('dlmm_vault_inventory_mismatch')
-    return dict(pool=address,**p,bins=bins,slot=snapshot['slot'],time=snapshot['market_time'])
+    return dict(pool=address,**p,bins=bins,vault_x_amount=vx,vault_y_amount=vy,
+                slot=snapshot['slot'],time=snapshot['market_time'])
 
 
 def total_fee(p):
@@ -159,6 +162,33 @@ def total_fee(p):
     base=s['base_factor']*p['step']*10*10**s['base_fee_power_factor']
     variable=pump.ceildiv(s['variable_fee_control']*(p['volatility_accumulator']*p['step'])**2,100_000_000_000)
     return min(base+variable,100_000_000)
+
+
+def liquidity(x,y,qprice):
+    """Q64.64 bin liquidity used by the pinned SDK's getLiquidity helper."""
+    if min(x,y,qprice)<0:
+        raise ValueError('dlmm_negative_liquidity')
+    return x*qprice+y*Q
+
+
+def deposit_share(b,x,y):
+    incoming=liquidity(x,y,b['price'])
+    existing=liquidity(b['x'],b['y'],b['price'])
+    if not incoming or (b['supply'] and not existing):
+        raise ValueError('dlmm_invalid_deposit_liquidity')
+    return incoming*b['supply']//existing if b['supply'] else incoming
+
+
+def withdraw_amount(share,amount,supply):
+    if min(share,amount)<0 or supply<=0 or share>supply:
+        raise ValueError('dlmm_invalid_withdraw_share')
+    return share*amount//supply
+
+
+def claim_fee(share,growth_delta):
+    if min(share,growth_delta)<0:
+        raise ValueError('dlmm_invalid_fee_growth')
+    return (share>>64)*growth_delta>>64
 
 
 def swap(state, amount, for_y, timestamp):
@@ -199,6 +229,9 @@ def swap(state, amount, for_y, timestamp):
             pf=fee*s['protocol_share']//10000
             in_key,out_key=('x','y') if for_y else ('y','x')
             b[in_key]+=net; b[out_key]-=out
+            p['vault_'+in_key+'_amount']+=used
+            p['vault_'+out_key+'_amount']-=out
+            p['protocol_fee_'+in_key]+=pf
             if b[in_key] >= 1<<64 or b['supply']>>64 == 0:
                 raise ValueError('dlmm_bin_overflow_or_zero_fee_supply')
             b['fee_'+in_key]+=((fee-pf)<<64)//(b['supply']>>64)

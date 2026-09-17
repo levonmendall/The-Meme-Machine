@@ -2,7 +2,7 @@
 
 Snapshots bracket the interval. Signature census must reach the starting slot;
 every intervening pool transaction must be readable. Reject LP mutations, unknown
-instructions, exact-out, host fees, truncated logs and ambiguous same-slot order.
+instructions, exact-out, host fees, truncated logs and missing transaction order.
 The terminal snapshot only validates the forward calculation; it never supplies
 earlier inventory or fees. Any discrepancy rejects the entire interval.
 """
@@ -16,6 +16,7 @@ from .provider import Unavailable
 from .store import digest,encode
 
 SWAP = bytes([81,108,227,190,205,208,10,196])
+SWAP2 = bytes.fromhex('2e7452d7941b544d')
 EXACT_IN = {bytes([248,198,158,145,225,117,135,200]),bytes([65,75,63,76,235,91,91,136])}
 EVENT_CPI = bytes.fromhex('e445a52e51cb9a1d')
 MAX_TRANSACTIONS = 16
@@ -38,6 +39,30 @@ def decode_swap(raw,pool):
                 observed=dict(start=start,end=end,output=output,fee=fee,protocol_fee=protocol))
 
 
+def decode_swap2(raw,pool):
+    """Decode the companion current-program swap event.
+
+    The legacy Swap event remains the economic source because the exact-input
+    instruction emits it too. Swap2Evt proves that the same invocation was fully
+    filled, charged fees on input and used neither limit-order nor host fees.
+    """
+    if len(raw)!=155 or raw[:8]!=SWAP2 or pump.b58(raw[8:40])!=pool or raw[80] not in (0,1):
+        raise ValueError('dlmm_swap2_event_layout_or_identity')
+    start,end=struct.unpack_from('<ii',raw,72)
+    amount,left,output,mm_fee,protocol,limit_fee,host=struct.unpack_from('<QQQQQQQ',raw,97)
+    fees_on_input,fees_on_x=raw[153],raw[154]
+    if fees_on_input not in (0,1) or fees_on_x not in (0,1):
+        raise ValueError('dlmm_swap2_event_flags')
+    if left or limit_fee or host or not fees_on_input:
+        raise Unavailable('dlmm_partial_limit_order_host_or_output_fee_swap_unsupported')
+    direction=bool(raw[80])
+    if bool(fees_on_x)!=direction:
+        raise Unavailable('dlmm_fee_token_direction_unsupported')
+    return dict(amount=amount,for_y=direction,
+                observed=dict(start=start,end=end,output=output,
+                              fee=mm_fee+protocol,protocol_fee=protocol))
+
+
 def transaction_swap(tx,pool):
     if not tx or not tx.get('meta') or tx['meta'].get('err'):
         raise Unavailable('dlmm_missing_or_failed_transaction')
@@ -49,7 +74,7 @@ def transaction_swap(tx,pool):
     if meta.get('innerInstructions') is None:
         raise Unavailable('dlmm_missing_inner_instructions')
     for group in meta['innerInstructions']:instructions.extend(group['instructions'])
-    calls=[];events=[]
+    calls=[];events=[];events2=[]
     for instruction in instructions:
         if keys[instruction['programIdIndex']]!=dlmm.PROGRAM:continue
         raw=_un58_data(instruction['data'])
@@ -57,8 +82,10 @@ def transaction_swap(tx,pool):
             if len(raw)<24 or keys[instruction['accounts'][0]]!=pool:
                 raise ValueError('dlmm_swap_instruction_identity')
             calls.append(raw)
-        elif raw[:8]==EVENT_CPI:
+        elif raw[:8]==EVENT_CPI and raw[8:16]==SWAP:
             events.append(decode_swap(raw[8:],pool))
+        elif raw[:8]==EVENT_CPI and raw[8:16]==SWAP2:
+            events2.append(decode_swap2(raw[8:],pool))
         else:
             raise Unavailable('dlmm_non_swap_mutation_in_interval')
     if len(calls)!=1:
@@ -74,8 +101,10 @@ def transaction_swap(tx,pool):
                 raw=base64.b64decode(line[14:],validate=True)
                 if raw[:8]==SWAP:events.append(decode_swap(raw,pool))
         if stack:raise Unavailable('dlmm_incomplete_logs')
-    if len(events)!=1:raise Unavailable('dlmm_missing_or_ambiguous_swap_event')
+    if len(events)!=1 or len(events2)>1:raise Unavailable('dlmm_missing_or_ambiguous_swap_event')
     e=events[0]
+    if events2 and events2[0]!=e:
+        raise ValueError('dlmm_swap_event_versions_disagree')
     amount,minimum=struct.unpack_from('<QQ',calls[0],8)
     # Direction is emitted by the verified DLMM invocation, not a swap argument.
     if e['amount']!=amount or e['observed']['output']<minimum:
@@ -98,7 +127,10 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
         raise Unavailable('dlmm_interval_evidence_bound')
     if any(s.get('confirmationStatus')!='finalized' for s in signatures):
         raise Unavailable('dlmm_signature_not_finalized')
-    if [s['slot'] for s in signatures]!=sorted((s['slot'] for s in signatures),reverse=True):
+    if any(type(s.get('transactionIndex')) is not int or s['transactionIndex']<0 for s in signatures):
+        raise Unavailable('dlmm_transaction_index_unavailable')
+    if [(s['slot'],s['transactionIndex']) for s in signatures]!=sorted(
+            ((s['slot'],s['transactionIndex']) for s in signatures),reverse=True):
         raise Unavailable('dlmm_signature_order')
     # History may arrive after the current-quote TTL. Validate that the endpoint
     # was fresh when captured, never treat it as executable evidence at `now`.
@@ -113,10 +145,10 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
     selected=[s for s in signatures if start['slot']<s['slot']<=end['slot'] and not s.get('err')]
     if len(selected)>MAX_TRANSACTIONS or len({s['signature'] for s in selected})!=len(selected):
         raise Unavailable('dlmm_transaction_bound_or_duplicates')
-    if len({s['slot'] for s in selected})!=len(selected):
-        raise Unavailable('dlmm_same_slot_transaction_order_unavailable')
+    if len({(s['slot'],s['transactionIndex']) for s in selected})!=len(selected):
+        raise Unavailable('dlmm_transaction_order_ambiguous')
     state=deepcopy(start);events=[];previous=list(cursor)
-    for sig in sorted(selected,key=lambda s:s['slot']):
+    for sig in sorted(selected,key=lambda s:(s['slot'],s['transactionIndex'])):
         tx=transactions.get(sig['signature'])
         if not tx or tx['transaction']['signatures'][0]!=sig['signature'] or tx['slot']!=sig['slot']:
             raise Unavailable('dlmm_transaction_missing_or_identity')
@@ -126,7 +158,7 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
         prehash=digest(state);state,quote=dlmm.swap(state,e['amount'],e['for_y'],e['time'])
         if any(e['observed'][k]!=quote[k] for k in ('start','end','output','fee','protocol_fee')):
             raise Unavailable('dlmm_observed_swap_cannot_be_reconstructed')
-        next_cursor=[e['slot'],0,0];state['slot']=e['slot']
+        next_cursor=[e['slot'],sig['transactionIndex'],0];state['slot']=e['slot']
         events.append(dict(kind='real',commitment='finalized',pool=start['pool'],
             cursor=next_cursor,previous_cursor=previous,prestate_hash=prehash,
             amount=e['amount'],for_y=e['for_y'],time=e['time'],available_time=now,
