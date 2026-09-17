@@ -69,7 +69,10 @@ class FomoShadowScore:
 def _solana_mint(value):
     if not isinstance(value, str):
         raise ValueError('missing_token_address')
-    pump.un58(value)
+    try:
+        pump.un58(value)
+    except ValueError:
+        raise ValueError('invalid_solana_mint') from None
     return value
 
 
@@ -197,7 +200,10 @@ class FomoSignalBook:
         return rows[-2] if len(rows) >= 2 else None
 
     def score(self, mint, now=None, max_age_seconds=MAX_SCORE_AGE_SECONDS):
-        pump.un58(mint)
+        try:
+            pump.un58(mint)
+        except ValueError:
+            raise ValueError('invalid_solana_mint') from None
         now = int(time.time() if now is None else now)
         latest = [self._latest(mint, board) for board in BOARD_PATHS]
         latest = [row for row in latest if row is not None]
