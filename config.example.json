@@ -1,0 +1,8 @@
+{
+  "initial_sol_usd_micros": 0,
+  "valuation_source": "REQUIRED: actual initial valuation source and timestamp",
+  "seeds": [],
+  "seed_provenance": "REQUIRED: public captured transaction or explicit operator selection",
+  "related_groups": {},
+  "request_limit": 120
+}
