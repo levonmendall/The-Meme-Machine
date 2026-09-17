@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from meme_machine import pump
-from meme_machine.concentration import ConcentrationReader, FREE_PUBLIC_CONCENTRATION_RPC
+from meme_machine.concentration import ConcentrationReader
 from meme_machine.engine import Engine
 from meme_machine.provider import RPC, PumpAdapter, Unavailable
 from meme_machine.store import Store
@@ -113,7 +113,10 @@ def main():
                 started=started,paper_trades=0,order_authority=False,
                 portfolio_performance_claim=False,results=[],limitations=[])
     url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
-    concentration_url=os.environ.get('MM_SOLANA_CONCENTRATION_RPC_URL',FREE_PUBLIC_CONCENTRATION_RPC).strip()
+    # No external service is required by default. An explicitly configured secondary
+    # remains available for experiments, but current free proof uses the same primary
+    # endpoint with a compact program-account amount slice before the legacy method.
+    concentration_url=os.environ.get('MM_SOLANA_CONCENTRATION_RPC_URL','').strip()
     rpc=RPC(url,limit=120)
     concentration_reader=ConcentrationReader(rpc,secondary_url=concentration_url)
     tape=PumpTape()
