@@ -3,8 +3,9 @@
 Snapshots bracket every verified interval. Signature census must reach the starting
 slot and every intervening pool transaction must be readable and ordered. Supported
 exact-input swaps are replayed in authenticated execution order, including multiple
-swaps in one transaction. Unknown pool mutations, exact-out, host fees, truncated
-logs and incomplete ordering fail closed. Terminal state only validates forward
+swaps in one transaction. Pinned host-fee exact-input swaps require authenticated
+input-token host-account deltas. Unknown pool mutations, exact-out, truncated logs
+and incomplete ordering fail closed. Terminal state only validates forward
 reconstruction; it never supplies earlier inventory or fees.
 """
 import base64
@@ -40,10 +41,10 @@ def decode_swap(raw,pool):
     if len(raw)!=137 or raw[:8]!=SWAP or pump.b58(raw[8:40])!=pool or raw[96] not in (0,1):
         raise ValueError('dlmm_swap_event_layout_or_identity')
     start,end,amount,output,direction,fee,protocol=struct.unpack_from('<iiQQ?QQ',raw,72)
-    if int.from_bytes(raw[129:137],'little'):
-        raise Unavailable('dlmm_host_fee_unsupported')
+    host=int.from_bytes(raw[129:137],'little')
     return dict(amount=amount,for_y=direction,
-                observed=dict(start=start,end=end,output=output,fee=fee,protocol_fee=protocol))
+                observed=dict(start=start,end=end,output=output,fee=fee,
+                              protocol_fee=protocol,host_fee=host))
 
 
 def decode_swap2(raw,pool):
@@ -55,14 +56,15 @@ def decode_swap2(raw,pool):
     fees_on_input,fees_on_x=raw[153],raw[154]
     if fees_on_input not in (0,1) or fees_on_x not in (0,1):
         raise ValueError('dlmm_swap2_event_flags')
-    if left or limit_fee or host or not fees_on_input:
-        raise Unavailable('dlmm_partial_limit_order_host_or_output_fee_swap_unsupported')
+    if left or limit_fee or not fees_on_input:
+        raise Unavailable('dlmm_partial_limit_order_or_output_fee_swap_unsupported')
     direction=bool(raw[80])
     if bool(fees_on_x)!=direction:
         raise Unavailable('dlmm_fee_token_direction_unsupported')
     return dict(amount=amount,for_y=direction,
                 observed=dict(start=start,end=end,output=output,
-                              fee=mm_fee+protocol,protocol_fee=protocol))
+                              fee=mm_fee+protocol+host,protocol_fee=protocol,
+                              host_fee=host))
 
 
 def _keys(meta,message):
@@ -96,6 +98,40 @@ def _event_pool(raw):
     # EVENT_CPI prefix (8) + event discriminator (8) + first event field: pool (32).
     if len(raw)<48:return None
     return pump.b58(raw[16:48])
+
+
+def _token_balance(meta,side,account_index):
+    rows=[row for row in meta.get(side) or [] if row.get('accountIndex')==account_index]
+    if len(rows)!=1:
+        raise Unavailable('dlmm_host_fee_token_balance_missing')
+    row=rows[0];token=row.get('uiTokenAmount') or {};amount=token.get('amount')
+    if not isinstance(row.get('mint'),str) or not isinstance(amount,str) or not amount.isdigit():
+        raise Unavailable('dlmm_host_fee_token_balance_shape')
+    return row['mint'],int(amount)
+
+
+def _authenticate_host_fee(record,event,meta,keys):
+    host=event['observed'].get('host_fee',0)
+    if not host:
+        return
+    accounts=record.get('accounts') or []
+    # Pinned IDL for both exact-input instructions:
+    # 0 lb_pair, 1 bitmap, 2/3 reserves, 4/5 user token accounts,
+    # 6/7 token mints, 8 oracle, 9 optional host_fee_in.
+    if len(accounts)<=9 or any(type(accounts[i]) is not int or not 0<=accounts[i]<len(keys)
+                               for i in (2,3,6,7,9)):
+        raise Unavailable('dlmm_host_fee_account_identity')
+    host_index=accounts[9]
+    host_address=keys[host_index]
+    if host_address in (dlmm.PROGRAM,SYSTEM_PROGRAM):
+        raise Unavailable('dlmm_host_fee_account_identity')
+    input_mint=keys[accounts[6 if event['for_y'] else 7]]
+    pre_mint,pre_amount=_token_balance(meta,'preTokenBalances',host_index)
+    post_mint,post_amount=_token_balance(meta,'postTokenBalances',host_index)
+    if pre_mint!=input_mint or post_mint!=input_mint:
+        raise Unavailable('dlmm_host_fee_wrong_token')
+    if post_amount-pre_amount!=host:
+        raise Unavailable('dlmm_host_fee_balance_delta_mismatch')
 
 
 def _log_swap_fallback(meta,pool):
@@ -153,7 +189,8 @@ def transaction_swaps(tx,pool):
                     pos=','.join(map(str,positions))
                     raise ValueError(f'dlmm_swap_instruction_identity:{name}:pool_positions={pos}:accounts={len(accounts)}')
                 current=None;continue
-            current=dict(call=raw,legacy=[],v2=[],order=[outer,inner],instruction=name)
+            current=dict(call=raw,legacy=[],v2=[],order=[outer,inner],instruction=name,
+                         accounts=list(accounts))
             records.append(current)
         elif raw[:8]==EVENT_CPI and raw[8:16]==SWAP:
             if _event_pool(raw)!=pool:continue
@@ -207,6 +244,7 @@ def transaction_swaps(tx,pool):
         amount,minimum=struct.unpack_from('<QQ',record['call'],8)
         if e['amount']!=amount or e['observed']['output']<minimum:
             raise ValueError('dlmm_instruction_event_mismatch')
+        _authenticate_host_fee(record,e,meta,keys)
         if tx.get('blockTime') is None:raise Unavailable('dlmm_missing_transaction_time')
         result.append(dict(**e,time=tx['blockTime'],slot=tx['slot'],
                            instruction=record['instruction'],execution_order=record['order']))
@@ -276,9 +314,14 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
         for swap_index,e in enumerate(swaps):
             if not state['time']<=e['time']<=end['time']:
                 raise ValueError('dlmm_transaction_time_outside_interval')
-            prehash=digest(state);state,quote=dlmm.swap(state,e['amount'],e['for_y'],e['time'])
-            if any(e['observed'][k]!=quote[k] for k in ('start','end','output','fee','protocol_fee')):
+            host=e['observed'].get('host_fee',0)
+            prehash=digest(state);state,quote=dlmm.swap(
+                state,e['amount'],e['for_y'],e['time'],host_fee=host if host else None)
+            keys=('start','end','output','fee','protocol_fee')
+            if any(e['observed'][k]!=quote[k] for k in keys):
                 raise Unavailable('dlmm_observed_swap_cannot_be_reconstructed')
+            if host and quote.get('host_fee')!=host:
+                raise Unavailable('dlmm_observed_host_fee_cannot_be_reconstructed')
             next_cursor=[e['slot'],sig['transactionIndex'],swap_index];state['slot']=e['slot']
             events.append(dict(kind='real',commitment='finalized',pool=start['pool'],cursor=next_cursor,
                 previous_cursor=previous,prestate_hash=prehash,amount=e['amount'],for_y=e['for_y'],

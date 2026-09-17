@@ -16,6 +16,7 @@ PROGRAM = 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo'
 Q = 1 << 64
 U128 = (1 << 128) - 1
 FEE_PRECISION = 1_000_000_000
+HOST_FEE_BPS = 2_000
 MAX_BINS = 210
 MAX_AGE = 20
 DLMM_ALLOCATION_ENABLED = False
@@ -191,7 +192,7 @@ def claim_fee(share,growth_delta):
     return (share>>64)*growth_delta>>64
 
 
-def swap(state, amount, for_y, timestamp):
+def swap(state, amount, for_y, timestamp, host_fee=None):
     """Exact-input counterfactual traversal. Returns new state; never mutates input.
 
     Every traversed bin must be present. No extrapolation across missing arrays.
@@ -205,6 +206,9 @@ def swap(state, amount, for_y, timestamp):
     """
     if type(amount) is not int or not 0 < amount < 1<<64 or type(for_y) is not bool:
         raise ValueError('dlmm_invalid_swap')
+    host_enabled=host_fee is not None
+    if host_enabled and (type(host_fee) is not int or not 0 <= host_fee < 1<<64):
+        raise ValueError('dlmm_invalid_host_fee')
     p=deepcopy(state); s=p['parameters']
     if timestamp < max(p['last_update'],p['time']):
         raise ValueError('dlmm_time_regression')
@@ -213,7 +217,7 @@ def swap(state, amount, for_y, timestamp):
         p['index_reference']=p['active']
         p['volatility_reference']=(p['volatility_accumulator']*s['reduction_factor']//10000
                                    if elapsed < s['decay_period'] else 0)
-    left=amount; output=fees=protocol=0; traversed=[]
+    left=amount; output=fees=protocol=0; protocol_pre_host=expected_host=0; traversed=[]
     start=p['active']
     while left:
         bid=p['active']; b=p['bins'].get(str(bid))
@@ -232,17 +236,27 @@ def swap(state, amount, for_y, timestamp):
             out=min(out_reserve,net*px//Q if for_y else net*Q//px)
             if net==0 or out==0:
                 raise Unavailable('dlmm_dust_swap_unsupported')
-            pf=fee*s['protocol_share']//10000
+            pf_pre=fee*s['protocol_share']//10000
+            bin_host=pf_pre*HOST_FEE_BPS//10000 if host_enabled else 0
+            pf=pf_pre-bin_host
             in_key,out_key=('x','y') if for_y else ('y','x')
             b[in_key]+=net; b[out_key]-=out
-            p['vault_'+in_key+'_amount']+=used
+            # Host fee is carved from the protocol portion and paid directly to the
+            # authenticated host token account. It never enters the pool vault.
+            p['vault_'+in_key+'_amount']+=used-bin_host
             p['vault_'+out_key+'_amount']-=out
             p['protocol_fee_'+in_key]+=pf
             if b[in_key] >= 1<<64 or b['supply']>>64 == 0:
                 raise ValueError('dlmm_bin_overflow_or_zero_fee_supply')
-            b['fee_'+in_key]+=((fee-pf)<<64)//(b['supply']>>64)
+            # LP fee remains total fee minus the pre-host protocol share. Diverting
+            # protocol revenue to a host never becomes LP revenue.
+            b['fee_'+in_key]+=((fee-pf_pre)<<64)//(b['supply']>>64)
             left-=used; output+=out; fees+=fee; protocol+=pf
-            traversed.append(dict(bin=bid,input=used,output=out,fee=fee,protocol_fee=pf))
+            protocol_pre_host+=pf_pre;expected_host+=bin_host
+            item=dict(bin=bid,input=used,output=out,fee=fee,protocol_fee=pf)
+            if host_enabled:
+                item.update(protocol_fee_pre_host=pf_pre,host_fee=bin_host)
+            traversed.append(item)
         else:
             traversed.append(dict(bin=bid,input=0,output=0,fee=0,protocol_fee=0))
         if left:
@@ -255,8 +269,13 @@ def swap(state, amount, for_y, timestamp):
     if p['active'] != start:
         p['last_update']=timestamp
     p['time']=timestamp
-    return p,dict(input=amount,output=output,fee=fees,protocol_fee=protocol,
-                  start=start,end=p['active'],traversed=traversed)
+    if host_enabled and host_fee!=expected_host:
+        raise Unavailable('dlmm_host_fee_cannot_be_reconstructed')
+    quote=dict(input=amount,output=output,fee=fees,protocol_fee=protocol,
+               start=start,end=p['active'],traversed=traversed)
+    if host_enabled:
+        quote.update(host_fee=expected_host,protocol_fee_pre_host=protocol_pre_host)
+    return p,quote
 
 
 def scout(snapshot, now, api_identity=None):
