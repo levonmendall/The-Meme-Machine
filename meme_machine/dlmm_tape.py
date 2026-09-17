@@ -81,6 +81,20 @@ def _ordered_instructions(meta,message):
             yield (index,inner_index,inner)
 
 
+def _instruction_pool_positions(instruction,keys,pool):
+    positions=[]
+    for i,account_index in enumerate(instruction.get('accounts') or []):
+        if type(account_index) is int and 0<=account_index<len(keys) and keys[account_index]==pool:
+            positions.append(i)
+    return positions
+
+
+def _event_pool(raw):
+    # EVENT_CPI prefix (8) + event discriminator (8) + first event field: pool (32).
+    if len(raw)<48:return None
+    return pump.b58(raw[16:48])
+
+
 def _log_swap_fallback(meta,pool):
     events=[];stack=[]
     for line in meta.get('logMessages') or []:
@@ -90,17 +104,21 @@ def _log_swap_fallback(meta,pool):
             if not stack or stack.pop()!=line.split()[1]:raise ValueError('dlmm_log_stack')
         elif line.startswith('Program data: ') and stack and stack[-1]==dlmm.PROGRAM:
             raw=base64.b64decode(line[14:],validate=True)
-            if raw[:8]==SWAP:events.append(decode_swap(raw,pool))
+            if raw[:8]==SWAP and pump.b58(raw[8:40])==pool:events.append(decode_swap(raw,pool))
     if stack:raise Unavailable('dlmm_incomplete_logs')
     return events
 
 
 def transaction_swaps(tx,pool):
-    """Return all authenticated exact-input swaps in execution order.
+    """Return target-pool exact-input swaps in authenticated execution order.
 
-    Both pinned IDL exact-input layouts place `lb_pair` at account zero. Keep that
-    identity requirement strict. A diagnostic records whether the target pool was
-    present elsewhere if a live transaction violates the supported layout.
+    A routed transaction may invoke Meteora for multiple pools. The pinned IDL puts
+    `lb_pair` at account zero for both `swap` and `swap2`: an exact-input invocation
+    whose account zero is another pool and which does not reference the target pool is
+    unrelated and is ignored. If the target appears elsewhere in that invocation it
+    remains an identity failure. Event CPI records are similarly filtered by their
+    embedded pool pubkey. Unknown DLMM instructions are rejected only when their
+    authenticated account list references the target pool.
     """
     if not tx or not tx.get('meta') or tx['meta'].get('err'):
         raise Unavailable('dlmm_missing_or_failed_transaction')
@@ -109,36 +127,38 @@ def transaction_swaps(tx,pool):
         raise ValueError('dlmm_transaction_pool_identity')
     if meta.get('innerInstructions') is None:
         raise Unavailable('dlmm_missing_inner_instructions')
-    records=[];current=None;dlmm_seen=False
+    records=[];current=None
     for outer,inner,instruction in _ordered_instructions(meta,message):
         if keys[instruction['programIdIndex']]!=dlmm.PROGRAM:continue
-        dlmm_seen=True
         raw=_un58_data(instruction['data'])
+        positions=_instruction_pool_positions(instruction,keys,pool)
         if raw[:8] in EXACT_IN:
             accounts=instruction.get('accounts') or []
             name=EXACT_IN_NAME[raw[:8]]
-            positions=[]
-            for i,account_index in enumerate(accounts):
-                if type(account_index) is int and 0<=account_index<len(keys) and keys[account_index]==pool:
-                    positions.append(i)
-            if len(raw)<24 or not accounts or keys[accounts[0]]!=pool:
-                pos='none' if not positions else ','.join(map(str,positions))
-                raise ValueError(f'dlmm_swap_instruction_identity:{name}:pool_positions={pos}:accounts={len(accounts)}')
+            if len(raw)<24 or not accounts:
+                if positions:raise ValueError(f'dlmm_swap_instruction_identity:{name}:pool_positions={positions}:accounts={len(accounts)}')
+                current=None;continue
+            if keys[accounts[0]]!=pool:
+                if positions:
+                    pos=','.join(map(str,positions))
+                    raise ValueError(f'dlmm_swap_instruction_identity:{name}:pool_positions={pos}:accounts={len(accounts)}')
+                current=None;continue
             current=dict(call=raw,legacy=[],v2=[],order=[outer,inner],instruction=name)
             records.append(current)
         elif raw[:8]==EVENT_CPI and raw[8:16]==SWAP:
+            if _event_pool(raw)!=pool:continue
             if current is None:raise Unavailable('dlmm_swap_event_without_ordered_call')
             current['legacy'].append(decode_swap(raw[8:],pool))
         elif raw[:8]==EVENT_CPI and raw[8:16]==SWAP2:
+            if _event_pool(raw)!=pool:continue
             if current is None:raise Unavailable('dlmm_swap2_event_without_ordered_call')
             current['v2'].append(decode_swap2(raw[8:],pool))
         else:
-            raise Unavailable('dlmm_non_swap_mutation_in_interval:'+raw[:8].hex())
-    if not records:
-        # Referencing the pool account without invoking its owning program cannot
-        # mutate pool data. Terminal equality still catches unrelated vault changes.
-        if not dlmm_seen:return []
-        raise Unavailable('dlmm_missing_swap_call')
+            if positions:raise Unavailable('dlmm_non_swap_mutation_in_interval:'+raw[:8].hex())
+            # An authenticated DLMM instruction for another pool cannot mutate the
+            # target lb_pair/bin state; terminal equality still validates this claim.
+            continue
+    if not records:return []
     if len(records)==1 and not records[0]['legacy']:
         records[0]['legacy']=_log_swap_fallback(meta,pool)
     result=[]
