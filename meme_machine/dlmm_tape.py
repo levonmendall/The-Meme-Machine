@@ -20,6 +20,7 @@ SWAP = bytes([81,108,227,190,205,208,10,196])
 SWAP2 = bytes.fromhex('2e7452d7941b544d')
 SWAP_IX = bytes([248,198,158,145,225,117,135,200])
 SWAP2_IX = bytes([65,75,63,76,235,91,91,136])
+INITIALIZE_POSITION_IX = bytes.fromhex('dbc0ea47bebf6650')
 EXACT_IN = {SWAP_IX,SWAP2_IX}
 EXACT_IN_NAME = {SWAP_IX:'swap',SWAP2_IX:'swap2'}
 EVENT_CPI = bytes.fromhex('e445a52e51cb9a1d')
@@ -117,8 +118,14 @@ def transaction_swaps(tx,pool):
     whose account zero is another pool and which does not reference the target pool is
     unrelated and is ignored. If the target appears elsewhere in that invocation it
     remains an identity failure. Event CPI records are similarly filtered by their
-    embedded pool pubkey. Unknown DLMM instructions are rejected only when their
-    authenticated account list references the target pool.
+    embedded pool pubkey.
+
+    The one observed non-swap exception is the pinned-IDL `initialize_position`
+    instruction (`dbc0ea47bebf6650`). Its `lb_pair` is read-only account position 2;
+    it creates only a new position account and does not mutate pool/bin/vault state.
+    We therefore accept exactly that identity as a pool-neutral no-op. Every other
+    target-pool Meteora instruction remains fail-closed and terminal equality still
+    independently validates that no modeled pool state changed.
     """
     if not tx or not tx.get('meta') or tx['meta'].get('err'):
         raise Unavailable('dlmm_missing_or_failed_transaction')
@@ -153,6 +160,15 @@ def transaction_swaps(tx,pool):
             if _event_pool(raw)!=pool:continue
             if current is None:raise Unavailable('dlmm_swap2_event_without_ordered_call')
             current['v2'].append(decode_swap2(raw[8:],pool))
+        elif raw[:8]==INITIALIZE_POSITION_IX:
+            if positions:
+                accounts=instruction.get('accounts') or []
+                if len(accounts)!=8 or positions!=[2]:
+                    pos=','.join(map(str,positions))
+                    raise ValueError(f'dlmm_initialize_position_identity:pool_positions={pos}:accounts={len(accounts)}')
+            # Pinned IDL: payer, position, read-only lb_pair, owner, system, rent,
+            # event authority, program. No modeled pool state is mutated.
+            continue
         else:
             if positions:raise Unavailable('dlmm_non_swap_mutation_in_interval:'+raw[:8].hex())
             # An authenticated DLMM instruction for another pool cannot mutate the
