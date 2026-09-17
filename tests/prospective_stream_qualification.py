@@ -30,7 +30,7 @@ GENESIS_SOURCE='2026-09-16 recorded validation reference: $97.84/SOL; new shadow
 DEFAULT_OBSERVE_SECONDS=105
 MIN_OBSERVE_SECONDS=30
 MAX_OBSERVE_SECONDS=3300
-MAX_EVIDENCE_CANDIDATE_LIMIT=24
+MAX_EVIDENCE_CANDIDATE_LIMIT=20
 OBSERVE_SECONDS=max(MIN_OBSERVE_SECONDS,min(
     int(os.environ.get('MM_STREAM_OBSERVE_SECONDS',str(DEFAULT_OBSERVE_SECONDS))),
     MAX_OBSERVE_SECONDS))
@@ -160,7 +160,7 @@ def main():
                     now=int(time.time())
                     if stream.error_kind:
                         report['limitations'].append('stream_continuity_lost')
-                        report['qualification_observation_ended_at']=now
+                        report.setdefault('qualification_observation_ended_at',now)
                         break
                     if not tape.covered(now):
                         cursor=None
@@ -185,15 +185,15 @@ def main():
                         if nomination['mint'] in attempted:
                             continue
                         if len(attempted)>=MAX_EVIDENCE_CANDIDATES:
-                            if evidence_budget_exhausted_at is None:
-                                evidence_budget_exhausted_at=now
-                                report['evidence_candidate_budget_exhausted_at']=now
-                                report['qualification_observation_ended_at']=now
-                                report['limitations'].append('evidence_candidate_budget_exhausted')
                             continue
                         attempted.add(nomination['mint'])
                         outcome=evaluate_nomination(engine,adapter,concentration_reader,tape,nomination)
                         report['results'].append(outcome)
+                        if len(attempted)>=MAX_EVIDENCE_CANDIDATES and evidence_budget_exhausted_at is None:
+                            evidence_budget_exhausted_at=int(time.time())
+                            report['evidence_candidate_budget_exhausted_at']=evidence_budget_exhausted_at
+                            report['qualification_observation_ended_at']=evidence_budget_exhausted_at
+                            report['limitations'].append('evidence_candidate_budget_exhausted')
                     time.sleep(0.25)
                 report['nominations']=len(nomination_ids)
                 report['evidence_candidates_attempted']=len(attempted)
