@@ -160,7 +160,7 @@ jobs:
               raise SystemExit('prior_public_rpc_probe_still_active')
           PY
       - name: First real market-native active paper lifecycle
-        run: python -m tests.market_native_active_paper | tee market-native-active-paper-report.json
+        run: python -m tests.market_native_active_paper
       - name: Preserve active paper lifecycle proof
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
