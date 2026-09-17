@@ -1,0 +1,64 @@
+name: dlmm-bin-array-semantic-repair
+on:
+  push:
+    branches:
+      - research/dlmm-point-in-time-replay
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: contains(github.event.head_commit.message, '[dlmm-bin-array-repair-trigger]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Apply narrow initialize_bin_array semantics
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          tape=Path('meme_machine/dlmm_tape.py')
+          text=tape.read_text()
+          old="INITIALIZE_POSITION_IX = bytes.fromhex('dbc0ea47bebf6650')\nEXACT_IN = {SWAP_IX,SWAP2_IX}\n"
+          new="INITIALIZE_POSITION_IX = bytes.fromhex('dbc0ea47bebf6650')\nINITIALIZE_BIN_ARRAY_IX = bytes.fromhex('235613b94ed44bd3')\nSYSTEM_PROGRAM = '11111111111111111111111111111111'\nEXACT_IN = {SWAP_IX,SWAP2_IX}\n"
+          assert old in text
+          text=text.replace(old,new,1)
+
+          old_doc="""    The one observed non-swap exception is the pinned-IDL `initialize_position`\n    instruction (`dbc0ea47bebf6650`). Its `lb_pair` is read-only account position 2;\n    it creates only a new position account and does not mutate pool/bin/vault state.\n    We therefore accept exactly that identity as a pool-neutral no-op. Every other\n    target-pool Meteora instruction remains fail-closed and terminal equality still\n    independently validates that no modeled pool state changed.\n"""
+          new_doc="""    Two observed structural instructions are accepted only with their exact pinned-IDL\n    identities. `initialize_position` has read-only `lb_pair` at account position 2.\n    `initialize_bin_array` has read-only `lb_pair` at position 0 and only creates the\n    deterministic empty bin-array PDA for its signed i64 index. Neither changes the\n    modeled LbPair/vault/existing-bin economics. Any later liquidity/config mutation\n    remains independently fail-closed, and terminal equality still validates that no\n    modeled pool state changed.\n"""
+          assert old_doc in text
+          text=text.replace(old_doc,new_doc,1)
+
+          anchor="""        elif raw[:8]==INITIALIZE_POSITION_IX:\n            if positions:\n                accounts=instruction.get('accounts') or []\n                if len(accounts)!=8 or positions!=[2]:\n                    pos=','.join(map(str,positions))\n                    raise ValueError(f'dlmm_initialize_position_identity:pool_positions={pos}:accounts={len(accounts)}')\n            # Pinned IDL: payer, position, read-only lb_pair, owner, system, rent,\n            # event authority, program. No modeled pool state is mutated.\n            continue\n        else:\n"""
+          replacement="""        elif raw[:8]==INITIALIZE_POSITION_IX:\n            if positions:\n                accounts=instruction.get('accounts') or []\n                if len(accounts)!=8 or positions!=[2]:\n                    pos=','.join(map(str,positions))\n                    raise ValueError(f'dlmm_initialize_position_identity:pool_positions={pos}:accounts={len(accounts)}')\n            # Pinned IDL: payer, position, read-only lb_pair, owner, system, rent,\n            # event authority, program. No modeled pool state is mutated.\n            continue\n        elif raw[:8]==INITIALIZE_BIN_ARRAY_IX:\n            if positions:\n                accounts=instruction.get('accounts') or []\n                pos=','.join(map(str,positions))\n                if len(raw)!=16 or len(accounts)!=4 or positions!=[0]:\n                    raise ValueError(f'dlmm_initialize_bin_array_identity:pool_positions={pos}:accounts={len(accounts)}:data={len(raw)}')\n                if any(type(i) is not int or not 0<=i<len(keys) for i in accounts):\n                    raise ValueError('dlmm_initialize_bin_array_account_index')\n                index=struct.unpack_from('<q',raw,8)[0]\n                expected=pump.pda([b'bin_array',pump.un58(pool),struct.pack('<q',index)],dlmm.PROGRAM)\n                if keys[accounts[1]]!=expected or keys[accounts[3]]!=SYSTEM_PROGRAM:\n                    raise ValueError('dlmm_initialize_bin_array_pda_or_system')\n            # Pinned IDL: read-only lb_pair, newly-created writable bin_array PDA,\n            # writable signer funder, system program. Creation introduces only an\n            # empty structural array. Any instruction that later changes its bins or\n            # pool liquidity is still unsupported and fails closed separately.\n            continue\n        else:\n"""
+          assert anchor in text
+          tape.write_text(text.replace(anchor,replacement,1))
+
+          test=Path('tests/test_dlmm_bin_array_neutral.py')
+          test.write_text('''"""Authenticated structural no-op coverage for Meteora initialize_bin_array."""\nimport copy\nimport struct\nimport unittest\n\nfrom meme_machine import dlmm,pump\nfrom meme_machine.dlmm_tape import INITIALIZE_BIN_ARRAY_IX,SYSTEM_PROGRAM,reconstruct,transaction_swaps\nfrom tests.dlmm_support import snapshot\nfrom tests.test_dlmm_tape import encode_state,transaction\n\n\nclass BinArrayInitialization(unittest.TestCase):\n    def _with_init(self,tx,pool,index=-44):\n        out=copy.deepcopy(tx)\n        keys=out['transaction']['message']['accountKeys']\n        bin_array=pump.pda([b'bin_array',pump.un58(pool),struct.pack('<q',index)],dlmm.PROGRAM)\n        keys.extend([bin_array,pump.b58(bytes([91])*32),SYSTEM_PROGRAM])\n        out['transaction']['message']['instructions'].append(dict(\n            programIdIndex=1,accounts=[0,2,3,4],\n            data=pump.b58(INITIALIZE_BIN_ARRAY_IX+struct.pack('<q',index))))\n        return out,bin_array\n\n    def test_initialize_bin_array_is_structural_and_terminal_verified(self):\n        s=snapshot();s['kind']='real';start=dlmm.validate(s,100)\n        post,tx=transaction(start,1_000_000,101,101,'swap-plus-bin-init')\n        tx,_=self._with_init(tx,start['pool'])\n        swaps=transaction_swaps(tx,start['pool'])\n        self.assertEqual(len(swaps),1);self.assertEqual(swaps[0]['amount'],1_000_000)\n        end=encode_state(s,post,102,102)\n        sigs=[dict(signature='swap-plus-bin-init',slot=101,transactionIndex=7,err=None,confirmationStatus='finalized'),\n              dict(signature='anchor',slot=100,transactionIndex=1,err=None,confirmationStatus='finalized')]\n        tape=reconstruct(start,end,sigs,{'swap-plus-bin-init':tx},102,[100,2**31-1,2**31-1])\n        self.assertEqual(len(tape.events),1);self.assertEqual(tape.terminal,dlmm.validate(end,102))\n\n    def test_initialize_bin_array_requires_exact_pool_position_pda_and_system(self):\n        s=snapshot();s['kind']='real';start=dlmm.validate(s,100)\n        _,tx=transaction(start,1_000_000,101,101,'bad-bin-init')\n        tx,_=self._with_init(tx,start['pool'])\n        init=tx['transaction']['message']['instructions'][-1]\n        bad=copy.deepcopy(tx);bad['transaction']['message']['instructions'][-1]['accounts']=[2,0,3,4]\n        with self.assertRaisesRegex(ValueError,'dlmm_initialize_bin_array_identity'):\n            transaction_swaps(bad,start['pool'])\n        bad=copy.deepcopy(tx);bad['transaction']['message']['accountKeys'][init['accounts'][1]]=pump.b58(bytes([92])*32)\n        with self.assertRaisesRegex(ValueError,'dlmm_initialize_bin_array_pda_or_system'):\n            transaction_swaps(bad,start['pool'])\n        bad=copy.deepcopy(tx);bad['transaction']['message']['accountKeys'][init['accounts'][3]]=pump.b58(bytes([93])*32)\n        with self.assertRaisesRegex(ValueError,'dlmm_initialize_bin_array_pda_or_system'):\n            transaction_swaps(bad,start['pool'])\n\n    def test_other_non_swap_pool_mutation_still_fails_closed(self):\n        s=snapshot();s['kind']='real';start=dlmm.validate(s,100)\n        _,tx=transaction(start,1_000_000,101,101,'unknown-mutation')\n        tx,_=self._with_init(tx,start['pool'])\n        tx['transaction']['message']['instructions'][-1]['data']=pump.b58(bytes.fromhex('0102030405060708'))\n        with self.assertRaisesRegex(Exception,'dlmm_non_swap_mutation_in_interval'):\n            transaction_swaps(tx,start['pool'])\n\n\nif __name__=='__main__':unittest.main()\n''')
+
+          status=Path('DLMM_RESEARCH_STATUS.md')
+          s=status.read_text()
+          section='''\n## `initialize_bin_array` structural semantics\n\n- Pinned Meteora IDL discriminator `235613b94ed44bd3` is accepted only as `initialize_bin_array`.\n- `lb_pair` must be read-only account position 0, instruction data must be exactly discriminator + signed i64 index, account 1 must equal the deterministic `bin_array` PDA, and account 3 must be the system program.\n- The instruction is treated as structural only: it creates an empty bin-array account and does not modify modeled LbPair, vault, existing-bin, fee, or virtual-position economics.\n- Any subsequent liquidity/config/limit-order mutation remains fail-closed; a swap requiring bins not present in authenticated state still fails closed.\n- Strategy `sdk_bidask/8`, costs, activity gate, transaction bounds, and allocation authority are unchanged.\n'''
+          if '## `initialize_bin_array` structural semantics' not in s:\n              status.write_text(s+section)
+          PY
+      - name: Verify narrow semantics
+        run: |
+          python -m unittest tests.test_dlmm_bin_array_neutral tests.test_dlmm_pool_neutral tests.test_dlmm_tape_extensions tests.test_dlmm_reference tests.test_dlmm_strategy_high_activity -v
+          python -m tests.dlmm_resource_check
+      - name: Commit semantic extension
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add meme_machine/dlmm_tape.py tests/test_dlmm_bin_array_neutral.py DLMM_RESEARCH_STATUS.md
+          git diff --cached --check
+          git commit -m '[qualification-build] [dlmm-strategy-replay] Authenticate initialize_bin_array structural no-op'
+          git push origin HEAD:research/dlmm-point-in-time-replay
