@@ -11,7 +11,7 @@ The active Pump bonding-curve decoder remains unchanged and still rejects zero q
 
 ## Canonical PumpSwap proof
 
-Workflow `35186308858` established a complete canonical PumpSwap read on mainnet for Pump's documented migrated mint `7LSsEoJGhLeZzpvNrFshg1E1id1ceUDfc6vPUTxp98q`? **No**: the exact mint is `7LSsEoJGhLeZzGvDofTdNg7M3JttxQqGWNLo6vWMpump`.
+Workflow `35186308858` established a complete canonical PumpSwap read on mainnet for Pump's documented migrated mint `7LSsEoJGhLeZzGvDofTdNg7M3JttxQqGWNLo6vWMpump`.
 
 - derived and observed pool: `GseMAnNDvntR5uFePZ51yZBXzNSn7GdFPkfHwfr6d77J`, matching Pump's official documented pool;
 - completed-curve handoff slot: `447716801`; PumpSwap snapshot slot: `447716806`;
