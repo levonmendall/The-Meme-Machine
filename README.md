@@ -136,8 +136,10 @@ same Engine/Store accounting semantics.
 
 SQLite FULL-sync transactions atomically persist action journal and authoritative
 state. Intents/reservations survive a crash; repeated settled order IDs cannot spend
-twice. Startup verifies the current checkpoint, journal tail and accounting invariants
-without scanning all history. Full archive verification is separate.
+twice. Startup verifies the current checkpoint, retained journal tail and accounting
+invariants without scanning all historical runtime. The retained journal remains
+hash-chained from a compact anchor; retired event payloads are intentionally not kept
+forever, so they cannot become an unbounded hidden archive.
 
 | Dataset | Purpose | Bound |
 | --- | --- | --- |
@@ -146,7 +148,7 @@ without scanning all history. Full archive verification is separate.
 | Dedup IDs | Reject duplicate/conflicting observations | 120 seconds, <=1,000 |
 | Decisions | Explain rejects/zero-trade state | latest 100 + aggregate counts |
 | Gaps | Preserve missing-data truth | latest 20 |
-| Journal | Atomic audit events | bounded experiment; admission pressure at 32 MiB |
+| Journal | Atomic audit tail | <=4,096 retained rows; rotates to 2,048 and preserves retired-chain anchor |
 | HTTP cache | Reuse read-only provider results | <=128 responses / 8 MiB, two-second reuse |
 | Finalized trade tape | Complete prospective 60-second windows | memory-only, 75 seconds, <=50,000 decoded events |
 | Captured fixtures | Decoder/research regression | small public fixtures, no prospective authority |
@@ -154,6 +156,33 @@ without scanning all history. Full archive verification is separate.
 Pressure stops discretionary entry work before monitoring. Open positions and orders
 are never deleted to satisfy a resource limit. Missing observations or executable
 marks remain unknown/fail-closed rather than being replaced by favorable estimates.
+Repeated identical unavailable exit marks are still polled every five seconds, but
+only one unresolved state is durably journaled per minute; a recovered quote or any
+real failed exit attempt is committed immediately.
+
+## Storage / memory longevity proof
+
+`tests/longevity_soak.py` exercises a high-write stuck-position workload together with
+the bounded finalized-tape data structure, RPC cache and SQLite journal. Its default
+mode advances **24 logical hours** rapidly and asserts that journal rows, tape
+occupancy, RPC-cache size, late-run RSS, allocated DB+WAL size and hourly write rate
+remain bounded rather than increasing with runtime. The current CI one-shot soak uses
+1,200 decoded events/minute plus the normal 12 durable heartbeat writes/minute.
+
+```sh
+python -m tests.longevity_soak --hours 24 --events-per-minute 1200 --writes-per-minute 12
+```
+
+Accelerated logical time is a boundedness/regression proof, not a full process-residency
+leak proof. For that, the same harness can remain alive for the complete duration on a
+suitable durable host:
+
+```sh
+python -m tests.longevity_soak --hours 24 --events-per-minute 1200 --writes-per-minute 12 --real-time
+```
+
+The wall-clock 24-hour mode is not automatically run on ephemeral GitHub-hosted CI and
+does not require a provider or live trading authority.
 
 Wallet scorecards are shadow-only and bounded. Unknown initial inventory, transfers,
 partial sells, and incomplete outcomes cannot become claimed wallet profit. The initial
