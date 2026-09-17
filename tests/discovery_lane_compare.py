@@ -54,7 +54,8 @@ def _watchlist():
 
 
 def _eligible_scout(events,admission):
-    return [e for e in events if e['wallet'] in admission and int(e['market_time'])>int(admission[e['wallet'])]
+    return [e for e in events if e['wallet'] in admission and
+            int(e['market_time'])>int(admission[e['wallet']])]
 
 
 def _rpc_snapshot(rpc,reader):
@@ -78,9 +79,7 @@ def _evaluate(lane,nomination,tape,adapter,reader,scout_engine,workdir,index,fir
     result=dict(
         lane=lane,mint=nomination['mint'],nomination_id=nomination['id'],
         nomination_market_time=int(nomination['market_time']),
-        first_meaningful_activity=int(first_activity),
-        discovery_to_first_activity_seconds=None,
-        complete=False,
+        first_meaningful_activity=int(first_activity),complete=False,
     )
     before=_rpc_snapshot(adapter.rpc,reader)
     observed=int(time.time())
@@ -354,9 +353,9 @@ def main():
                 provider_spend_usd=0 if url=='https://api.mainnet-beta.solana.com' else None,
                 infrastructure_spend_usd=0,
             )
-            if len(attempted['scout'])>=MAX_PER_LANE:
+            if len(scout_discovered)>len(attempted['scout']):
                 report['limitations'].append('scout_evidence_budget_exhausted')
-            if len(attempted['market_native'])>=MAX_PER_LANE:
+            if len(market_discovered)>len(attempted['market_native']):
                 report['limitations'].append('market_native_evidence_budget_exhausted')
             _save(report)
             for item in lifecycles:
