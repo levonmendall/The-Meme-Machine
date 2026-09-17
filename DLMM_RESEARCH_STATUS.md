@@ -40,3 +40,11 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - The workflow validates URL shape before any network call and scopes the secret only to the single DLMM replay step.
 - One bounded replay is requested: one supported pool, one cycle, 12-second warmup/outcome windows, unchanged `MAX_TRANSACTIONS=16` and pressure-bounded chunking.
 - No repeated provider runs are authorized by this validation marker; the result should be inspected before any further replay.
+
+## Signature start-boundary repair
+
+- Offline repair commit `6256e71700dbcb5fad8334411b1390f702b85e0b` keeps the core verifier unchanged.
+- If the first 64-signature page has at most 16 successful post-start transactions but no signature at/before the authenticated start slot, acquisition may make exactly one boundary-only `before=<oldest_signature>` page request.
+- Pagination may not silently deduplicate, skip ordering, or expand the accepted transaction set; if it reveals more than `MAX_TRANSACTIONS=16`, the interval still fails closed before transaction bodies are fetched.
+- Full CI, resource checks, and synthetic lifecycle passed before this marker.
+- This marker authorizes exactly one bounded provider-backed replay of the unchanged one-pool, one-cycle, 12-second research experiment. No repeated replay is authorized without inspecting that result.
