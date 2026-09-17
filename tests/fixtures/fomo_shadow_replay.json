@@ -1,0 +1,83 @@
+{
+  "fixture_kind": "synthetic-provider-shaped-replay",
+  "live_capture": false,
+  "provider_compatibility": "fomoscan-v2",
+  "purpose": "Deterministic offline point-in-time Fomo replay; not a claim about live provider results.",
+  "target_mint": "So11111111111111111111111111111111111111112",
+  "frames": [
+    {
+      "board": "trending",
+      "observed_at": 101,
+      "source": "fixture:fomoscan-v2:trending:100",
+      "payload": {
+        "at": 100,
+        "items": [
+          {
+            "tokenAddress": "So11111111111111111111111111111111111111112",
+            "rank": 20
+          },
+          {
+            "tokenAddress": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "rank": 1
+          }
+        ]
+      }
+    },
+    {
+      "board": "most-held",
+      "observed_at": 102,
+      "source": "fixture:fomoscan-v2:most-held:100",
+      "payload": {
+        "at": 100,
+        "items": [
+          {
+            "tokenAddress": "So11111111111111111111111111111111111111112",
+            "rank": 9
+          }
+        ]
+      }
+    },
+    {
+      "board": "graduated",
+      "observed_at": 103,
+      "source": "fixture:fomoscan-v2:graduated:100",
+      "payload": {
+        "at": 100,
+        "items": [
+          {
+            "tokenAddress": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "rank": 2
+          }
+        ]
+      }
+    },
+    {
+      "board": "trending",
+      "observed_at": 115,
+      "source": "fixture:fomoscan-v2:trending:110",
+      "payload": {
+        "at": 110,
+        "items": [
+          {
+            "tokenAddress": "So11111111111111111111111111111111111111112",
+            "rank": 5
+          }
+        ]
+      }
+    },
+    {
+      "board": "graduated",
+      "observed_at": 130,
+      "source": "fixture:fomoscan-v2:graduated:125",
+      "payload": {
+        "at": 125,
+        "items": [
+          {
+            "tokenAddress": "So11111111111111111111111111111111111111112",
+            "rank": 4
+          }
+        ]
+      }
+    }
+  ]
+}

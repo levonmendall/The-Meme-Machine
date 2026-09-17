@@ -1,73 +1,144 @@
-# Inactive Fomo shadow intelligence scaffold
+# Offline Fomo intelligence integration — draft milestone
 
-## Purpose
+## Authority boundary
 
-Add a provider-neutral, research-only Fomo intelligence boundary without changing the active Solana strategy, candidate authority, execution, or DLMM state.
+This work remains research-only and stacks on the inactive Fomo scaffold from draft PR #6. It does **not** change Pump market-native discovery, `continuation-v1`, Pump/PumpSwap execution, sizing, exits, signing/submission, or DLMM allocation.
 
-This scaffold is intentionally inactive. It is not imported by `meme_machine.engine`, does not nominate tokens, does not alter `continuation-v1`, cannot reserve capital, and cannot enable DLMM.
+Fomo remains an independent information layer:
 
-## Current source adapter
+`market-native Pump candidate -> unchanged directional qualification -> point-in-time Fomo annotation -> research outcome attribution`
 
-The first adapter is compatible with the currently documented FomoScan v2 token leaderboard surfaces:
+and, separately:
 
-- `/v2/leaderboard/tokens/trending`
-- `/v2/leaderboard/tokens/most-held`
-- `/v2/leaderboard/tokens/graduated`
+`direct Meteora/DLMM economics + contemporaneous Fomo annotation -> research-only DLMM feature vector`
 
-The vendor documentation was reviewed on 2026-09-17. These endpoints require a keyed API plan. No key is stored in this repository, no plan is purchased, and CI performs zero Fomo/FomoScan network requests.
+Fomo cannot nominate or suppress a candidate, turn a rejection into `qualified`, reserve capital, create an order, or enable DLMM. `meme_machine.engine` does not import the Fomo module.
 
-FomoScan is an independent data product and is not treated as execution authority or as equivalent to FOMO itself. The internal normalized book is deliberately provider-neutral so a different authorized Fomo data source can replace the adapter later.
+## Point-in-time model
 
-## Normalized point-in-time evidence
+`meme_machine/fomo_shadow.py` now retains bounded normalized leaderboard snapshots with:
 
-`meme_machine/fomo_shadow.py` normalizes a leaderboard row into:
+- Solana mint identity;
+- trending rank and point-in-time rank change;
+- trending strength and attention acceleration;
+- most-held rank/presence and strength;
+- graduated rank/presence;
+- provider/source timestamp;
+- local availability timestamp;
+- provenance;
+- freshness and missing-data status;
+- a deterministic state id for the exact Fomo state available at a decision timestamp.
 
-- Solana mint;
-- board (`trending`, `most-held`, or `graduated`);
-- rank;
-- provider sample timestamp;
-- local observation timestamp;
-- source identifier.
+Annotation selects only snapshots whose provider time **and** local availability time are no later than the portfolio decision timestamp. Freshness is applied per leaderboard. A fresh board on which the mint is absent is represented as `present=false`; a missing or stale board is represented as unavailable instead of being inferred as absence.
 
-Malformed token identity, duplicate token rows, future timestamps, unsupported boards, and time regression fail closed. State is bounded to 256 tokens and eight snapshots per board by default.
+Malformed/non-Solana identity, time regression, conflicting duplicate snapshots, conflicting duplicate rows, future snapshots, missing provenance, and capacity violations fail closed. Stale evidence is returned as unavailable and contributes no score.
 
-## Research-only v0 scores
+The existing transparent research scores remain instrumentation only. They are not calibrated alpha models and have no trading threshold.
 
-The scaffold publishes two deterministic integer scores from 0-100:
+## Provider-neutral candidate annotation
 
-1. `directional_attention_score`
-   - trending-rank strength: 60%;
-   - most-held rank strength: 20%;
-   - improving trending rank: 20%.
+`FomoCandidateAnnotator` reads only a candidate mint and decision timestamp. It returns a separate immutable Fomo annotation envelope and never mutates the candidate.
 
-2. `dlmm_flow_score`
-   - trending-rank strength: 30%;
-   - most-held rank strength: 30%;
-   - improving trending rank: 20%;
-   - presence on the graduated board: 20%.
+A Pump candidate remains fully evaluable when the Fomo book is empty or the provider is unavailable. Missing Fomo evidence returns `unavailable`; it does not block discovery, qualification, monitoring, or exits.
 
-These are transparent instrumentation weights only. They are **not calibrated**, are not a prediction of return, and have no threshold that can authorize an order or liquidity position. Scores older than 120 seconds are unavailable rather than carried forward.
+## Deterministic replay
 
-The eventual purpose of the DLMM score is only to answer whether Fomo attention may justify *further direct Meteora pool research*. Actual DLMM qualification must use direct pool identity, liquidity distribution, fees, volume, volatility, inventory risk, and executable paper economics. DLMM remains disabled in the allocator.
+`tests/fixtures/fomo_shadow_replay.json` is explicitly marked as a **synthetic provider-shaped replay fixture**, not a live Fomo result. It exercises the FomoScan-compatible leaderboard envelope without making a network request.
 
-## Provider-spend guard
+Replay tests cover:
 
-`FomoScanClient` is read-only but defaults to `enabled=false`. Even with a key supplied by a future task, construction with live polling enabled fails unless `provider_spend_authorized=true` is separately supplied. No environment variable automatically activates it.
+- exact local-availability alignment;
+- future observation exclusion;
+- stale evidence rejection;
+- malformed Solana identity;
+- duplicate/conflicting rows and snapshots;
+- time regression;
+- missing provenance;
+- missing Fomo evidence;
+- immutable candidate behavior;
+- no order/capital authority;
+- DLMM remaining disabled.
 
-This prevents an installed key or later secret from silently creating paid API usage.
+No live Fomo request belongs in ordinary CI.
 
-## Verification target
+## Incremental-value research record
 
-Normal CI must prove:
+`FomoResearchLedger` stores bounded summary records for the later question:
 
-- deterministic leaderboard normalization;
-- Solana-only token identity;
-- point-in-time/future-data rejection;
-- bounded history;
-- deterministic directional/DLMM research scores;
-- stale scores become unavailable;
-- no live client activity without explicit spend authority;
-- `meme_machine.engine` has no Fomo dependency;
-- allocator still returns `dlmm_disabled`.
+> Did Fomo information add predictive value beyond market-native discovery and unchanged `continuation-v1`?
 
-No live Fomo ingestion, scoring comparison, strategy change, merge, or deployment is authorized by this scaffold.
+Each record freezes the exact Fomo state id and flattened point-in-time annotation used at the candidate decision, then supports later outcome fields for:
+
+- qualification result;
+- rejection reasons;
+- Pump entry/no entry;
+- graduation;
+- realized paper result;
+- MFE;
+- MAE;
+- time-to-graduation;
+- time-to-exit.
+
+The ledger contains no weight fitting, threshold optimization, or claim that leaderboard presence is alpha.
+
+## DLMM research bridge
+
+`DirectDlmmEconomics` represents the separate direct-Meteora evidence boundary and has fields for:
+
+- canonical pool identity and token pair;
+- current price / active bin;
+- liquidity distribution;
+- TVL;
+- recent and historical volume;
+- fee rate / dynamic fees;
+- fees generated;
+- volatility;
+- position range;
+- inventory exposure;
+- rebalance and withdrawal cost;
+- executable LP P&L;
+- provider/source and point-in-time availability.
+
+`build_dlmm_research_vector(...)` requires a direct DLMM record, same-mint identity, and contemporaneous availability. The returned Fomo/DLMM research vector references the direct-economics observation id but does not copy direct pool economics into Fomo authority.
+
+Direct DLMM economics may be authoritative as measurements; neither the Fomo annotation nor this bridge has allocation authority. DLMM remains disabled.
+
+## Resource bounds
+
+Fomo storage is intentionally bounded:
+
+- default distinct retained mint bound: **256**;
+- default snapshot history: **8 per board**;
+- three boards, therefore at most **24 retained normalized snapshots**;
+- hard normalized observation-cell bound exposed by status: **3 × 8 × 256 = 6,144**;
+- raw provider payload retention: **none**;
+- in-memory research outcome bound: **512 records** by default;
+- optional research persistence: one **bounded atomic summary snapshot**, rewritten rather than append-only;
+- rejection-reason count and text fields are bounded;
+- no social/feed archive exists.
+
+The resource regression intentionally overfeeds observation and outcome state and verifies retained counts and persisted snapshot size plateau within those configured bounds.
+
+## Provider boundary
+
+The first executable adapter remains FomoScan-v2-compatible and read-only. It requires both an API key and a separately supplied `provider_spend_authorized=true` switch before a live request can run.
+
+No key is committed or logged. No paid plan is purchased or authorized. Provider failure therefore degrades to `Fomo unavailable` because the production Pump engine has no Fomo dependency.
+
+## Live-access limitation
+
+This milestone contains **no genuine live Fomo result**. Genuine FomoScan polling still requires provider API access (a valid FomoScan API key/plan) plus explicit authorization to consume that provider capacity. Neither is supplied by this task.
+
+That missing live access does not block the offline integration or deterministic replay proof.
+
+## Next genuine experiment
+
+Do not start the live Fomo experiment until the current market-native natural-sample baseline is complete.
+
+The next experiment should freeze the exact same market-native candidates and decision timestamps, then compare:
+
+**market-native baseline vs the exact same candidates with contemporaneous Fomo context**
+
+Fomo must remain out of the clean baseline >=50-vector `continuation-v1` review sample. The first live sample is for incremental-value measurement only; it must not be used to lower thresholds, manufacture trades, fit Fomo weights, or create a separate Fomo strategy.
+
+Direct Meteora/DLMM economics should continue on its independent research path, with Fomo joined only as contemporaneous context.
