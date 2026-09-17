@@ -73,13 +73,21 @@ coverage and requires a fresh warmup. The tape retains 75 seconds and at most 50
 decoded trade events.
 
 This stream has already demonstrated complete natural 60-second windows containing
-14 and 109 Pump trades; see `BUILD_STATUS.md` for the exact code SHA and workflow
-evidence. The recurring CI shadow diagnostic has **no order/reservation authority**.
+14 and 109 Pump trades; see `BUILD_STATUS.md` for exact evidence. The recurring CI
+shadow diagnostic has **no order/reservation authority**.
+
+For the existing <=35% concentration gate, `concentration.py` first uses the same
+primary read-only RPC to issue one finalized `getProgramAccounts` request against the
+mint's token program, filtered by mint and sliced to only each token account's 8-byte
+amount. It requires a context slot tied to the candidate snapshot, excludes verified
+curve custody, and calculates the same top-five-account percentage over validated
+actual mint supply. The old `getTokenLargestAccounts` call remains a fail-closed
+fallback. No secondary provider, key, subscription, or new cost is required by default.
 
 Important boundary: the finalized stream is currently wired into the shadow
 prospective qualifier, not yet into the durable authoritative prospective runtime.
 The durable runtime still uses its earlier HTTP history path. Do not interpret the
-stream proof as a market-driven paper lifecycle.
+stream or concentration proof as a market-driven paper lifecycle.
 
 ## Runtime and dependencies
 
@@ -96,8 +104,9 @@ python -m meme_machine --mode synthetic --config config.synthetic.json --db /tmp
 
 For a bounded prospective session, copy `config.example.json` locally and provide real
 public scout addresses/provenance plus an explicit initial SOL/USD valuation. Empty
-seeds mean no scouting. `MM_SOLANA_RPC_URL` is the only optional credential-bearing
-provider variable; never provide a wallet private key.
+seeds mean no scouting. `MM_SOLANA_RPC_URL` is the optional credential-bearing primary
+provider variable. `MM_SOLANA_CONCENTRATION_RPC_URL` is an optional read-only secondary
+experiment only and is empty by default. Never provide a wallet private key.
 
 ```sh
 python -m meme_machine --mode prospective --config config.local.json --db /path/to/state/paper.db --seconds 60
@@ -108,18 +117,21 @@ One process owns the SQLite writer. Restart with the same database/config to pre
 cash, reservations, positions, and reconciliation state. Monitoring/open-position
 work has priority over discretionary discovery.
 
-The no-order-authority finalized-stream validator can be run separately:
+The no-order-authority finalized-stream validator and explicit concentration probe can
+be run separately:
 
 ```sh
 python -m tests.prospective_stream_qualification
+python -m tests.concentration_live_probe
 ```
 
 ## Architecture and bounded state
 
 `provider.py` owns HTTP retrieval/budgets; `stream.py` owns the bounded finalized log
-tape; `pump.py` decodes and quotes; `engine.py` scouts, qualifies, allocates and manages
-paper lifecycles; `store.py` is the sole durable writer. Replay and live execution use
-the same Engine/Store accounting semantics.
+tape; `concentration.py` owns retrieval of the existing concentration input; `pump.py`
+decodes and quotes; `engine.py` scouts, qualifies, allocates and manages paper
+lifecycles; `store.py` is the sole durable writer. Replay and live execution use the
+same Engine/Store accounting semantics.
 
 SQLite FULL-sync transactions atomically persist action journal and authoritative
 state. Intents/reservations survive a crash; repeated settled order IDs cannot spend
