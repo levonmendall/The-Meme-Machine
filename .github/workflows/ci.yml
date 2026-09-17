@@ -68,31 +68,8 @@ jobs:
             legacy-raydium-live-capture.json
           if-no-files-found: warn
           retention-days: 30
-  legacy-lineage-archival:
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[legacy-lineage]')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12.14'
-      - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: One bounded old Pump to Raydium archival attempt
-        run: python -m tests.legacy_raydium_archival_probe
-      - name: Preserve archival attempt evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: legacy-raydium-lineage-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            legacy-raydium-archival-report.json
-            legacy-raydium-archival-capture.json
-          if-no-files-found: warn
-          retention-days: 30
   live-diagnostic:
-    if: github.event_name != 'pull_request' && github.ref_name != 'feat/post-graduation-pumpswap-raydium' && !contains(github.event.head_commit.message, '[forced-canary]') && !contains(github.event.head_commit.message, '[longevity') && !contains(github.event.head_commit.message, '[qualification-build]') && !contains(github.event.head_commit.message, '[postgrad-live]') && !contains(github.event.head_commit.message, '[legacy-lineage]')
+    if: github.event_name != 'pull_request' && github.ref_name != 'feat/post-graduation-pumpswap-raydium' && !contains(github.event.head_commit.message, '[forced-canary]') && !contains(github.event.head_commit.message, '[longevity') && !contains(github.event.head_commit.message, '[qualification-build]') && !contains(github.event.head_commit.message, '[postgrad-live]')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     continue-on-error: true
