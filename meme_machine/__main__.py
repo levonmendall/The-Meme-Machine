@@ -223,10 +223,19 @@ def _retire_scout_state(store):
         return False
     with store.transaction('retire_scout_discovery'):
         s['retired_scout_config']=s.pop('scout_config',None)
+        funnel=s.setdefault('funnel',{})
+        scout_keys=('scout_batches','observed_events','seed_events','nominations')
+        s['retired_scout_funnel']={key:int(funnel.get(key,0)) for key in scout_keys}
+        for key in scout_keys:
+            funnel[key]=0
         s['wallets']={}
         s['seen']={}
         coverage=s.get('coverage',{})
         s['coverage']={k:v for k,v in coverage.items() if k=='pump_program_stream'}
+        # An old scout heartbeat must never make the new discovery authority ready.
+        # Fresh market-native stream coverage will advance both fields after warmup.
+        s['progress']=0
+        s['last_time']=0
     return True
 
 
