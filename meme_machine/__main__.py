@@ -1,4 +1,4 @@
-"""Bounded paper experiment; one writer loop, read-only HTTP snapshot publication."""
+"""Bounded paper experiment; one writer loop, read-only status publication."""
 import argparse
 import json
 import os
@@ -10,9 +10,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .engine import Engine
 from .provider import RPC, PumpAdapter, Unavailable
 from .store import Store
+from .stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 
 
 def tick(engine, adapter, now):
+    """Legacy HTTP-history tick retained for captured regression compatibility."""
     s=engine.store.state
     # Existing exposure always comes first, independently of wallet activity.
     for mint,p in list(s['positions'].items()):
@@ -58,6 +60,107 @@ def tick(engine, adapter, now):
         s['provider']=dict(requests=adapter.rpc.calls,failures=adapter.rpc.failures,
                            cache_hits=adapter.rpc.cache_hits,limit=adapter.rpc.limit,
                            infrastructure_spend_usd=0,provider_spend_usd=0 if getattr(adapter.rpc,'url',None)=='https://api.mainnet-beta.solana.com' else None)
+
+
+def _monitor_existing(engine, adapter, now):
+    """Positions/orders outrank discovery and never depend on stream continuity."""
+    s=engine.store.state
+    for mint,p in list(s['positions'].items()):
+        if now>=p['next_monitor']:
+            try:
+                snap=adapter.snapshot(mint,now,priority=True)
+            except (Unavailable,ValueError):
+                snap={}
+            engine.monitor(mint,snap,int(time.time()))
+    for oid,o in list(s['orders'].items()):
+        if o['status']=='reserved' and now>=o['due']:
+            try:
+                snap=adapter.snapshot(o['mint'],now,priority=True)
+            except (Unavailable,ValueError):
+                snap={}
+            engine.fill(oid,snap,int(time.time()))
+
+
+def tick_stream(engine, adapter, tape, now, cursor):
+    """Prospective Pump path backed by one finalized 60-second program tape.
+
+    The stream is acquisition infrastructure only. continuation-v1 is unchanged:
+    a candidate still needs a complete 60-second market window, independent demand,
+    concentration, liquidity, price and round-trip-cost gates before paper authority.
+    """
+    _monitor_existing(engine,adapter,now)
+    s=engine.store.state
+    status=tape.status(now)
+    if engine.store.pressure():
+        return cursor
+
+    if not status['covered']:
+        # During a healthy initial warmup, pin quarantine to the exact time the full
+        # window becomes available instead of extending it on every 5-second tick.
+        # A disconnected/loss state remains fail-closed until continuity is restored.
+        with engine.store.transaction('stream_coverage'):
+            if status['connected'] and status['warm_seconds'] < WINDOW_SECONDS:
+                until=now+(WINDOW_SECONDS-status['warm_seconds'])
+                s['entry_quarantine_until']=max(s.get('entry_quarantine_until',0),until)
+            else:
+                engine.quarantine('stream_continuity_unavailable',now)
+            s.setdefault('coverage',{})['pump_program_stream']=dict(
+                window_covered=False,time=now,stream=status)
+        return None
+
+    if cursor is None:
+        # Events received before the first complete uninterrupted warmup are market
+        # evidence only; they may not retrospectively become scout nominations.
+        cursor=tape.latest_sequence()
+        with engine.store.transaction('stream_coverage_ready'):
+            s.setdefault('coverage',{})['pump_program_stream']=dict(
+                window_covered=True,time=now,stream=status)
+        return cursor
+
+    fresh,cursor=tape.events_since(cursor)
+    seed_events=[e for e in fresh if e['wallet'] in engine.seeds]
+    nominations=engine.scout(seed_events,now) if seed_events else []
+    with engine.store.transaction('stream_coverage'):
+        s.setdefault('coverage',{})['pump_program_stream']=dict(
+            window_covered=True,time=now,stream=status,
+            fresh_trade_events=len(fresh),fresh_seed_events=len(seed_events))
+        if not nominations and seed_events:
+            engine.note('healthy_scout_no_nomination',None,now)
+
+    for nomination in nominations[:2]:
+        try:
+            initial=adapter.snapshot(nomination['mint'],now)
+            observed=int(time.time())
+            if not tape.covered(observed):
+                with engine.store.transaction('stream_gap_before_qualification'):
+                    engine.quarantine('stream_continuity_unavailable',observed)
+                break
+            market=tape.window(nomination['mint'],observed,max_slot=initial['slot'])
+            concentration=adapter.concentration(nomination['mint'],initial)
+            final=adapter.snapshot(nomination['mint'],int(time.time()))
+            qualified_at=int(time.time())
+            if not tape.covered(qualified_at):
+                with engine.store.transaction('stream_gap_before_qualification'):
+                    engine.quarantine('stream_continuity_unavailable',qualified_at)
+                break
+            # Re-slice at the actual decision time so the unchanged rolling 60-second
+            # policy window and final snapshot slot are point-in-time aligned.
+            market=tape.window(nomination['mint'],qualified_at,max_slot=final['slot'])
+            engine.consider(nomination,dict(snapshot=final,events=market,covered=True,
+                                            concentration_bps=concentration),qualified_at)
+        except (Unavailable,ValueError,KeyError,TypeError):
+            with engine.store.transaction('provider_gap'):
+                observed=int(time.time())
+                engine.quarantine('discovery_data_unavailable',observed)
+                engine.note('provider_or_evidence_failure',nomination.get('mint'),observed)
+
+    with engine.store.transaction('heartbeat'):
+        s['provider']=dict(requests=adapter.rpc.calls,http_requests=adapter.rpc.http_requests,
+                           failures=adapter.rpc.failures,cache_hits=adapter.rpc.cache_hits,
+                           limit=adapter.rpc.limit,stream=tape.status(int(time.time())),
+                           infrastructure_spend_usd=0,
+                           provider_spend_usd=0 if getattr(adapter.rpc,'url',None)=='https://api.mainnet-beta.solana.com' else None)
+    return cursor
 
 
 def replay(engine,path):
@@ -128,17 +231,32 @@ def main():
     stopping=threading.Event()
     signal.signal(signal.SIGTERM,lambda *_:stopping.set())
     signal.signal(signal.SIGINT,lambda *_:stopping.set())
+    stream_thread=None
     try:
-        rpc=RPC(os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com'),limit=config.get('request_limit',120))
+        url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
+        rpc=RPC(url,limit=config.get('request_limit',120))
         adapter=PumpAdapter(rpc)
+        tape=PumpTape()
+        ready=threading.Event()
+        log_stream=PumpLogStream(url,tape)
+        stream_thread=threading.Thread(target=log_stream.run,args=(stopping,ready),daemon=True)
+        stream_thread.start()
+        if not ready.wait(15) or log_stream.error_kind:
+            with store.transaction('stream_start_failure'):
+                engine.quarantine('stream_continuity_unavailable',int(time.time()))
+        cursor=None
         deadline=time.monotonic()+args.seconds
         while time.monotonic()<deadline and not stopping.is_set():
             now=int(time.time())
-            tick(engine,adapter,now)
-            published=dict(engine.status(int(time.time())),release=release)
+            cursor=tick_stream(engine,adapter,tape,now,cursor)
+            published=dict(engine.status(int(time.time())),release=release,
+                           stream=tape.status(int(time.time())))
             stopping.wait(5)
         print(json.dumps(published,sort_keys=True))
     finally:
+        stopping.set()
+        if stream_thread is not None:
+            stream_thread.join(timeout=3)
         server.shutdown()
         store.close()
 
