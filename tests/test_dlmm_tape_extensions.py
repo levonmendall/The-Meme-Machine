@@ -41,25 +41,36 @@ class DlmmTapeExtensions(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'pool_positions=1'):
             transaction_swaps(bad,POOL)
 
-    def test_last_update_changes_only_after_filter_period(self):
+    def test_last_update_is_bin_cross_gated_not_filter_gated(self):
         start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
         self.assertEqual(start['parameters']['filter_period'],30)
-        fast,_=dlmm.swap(start,1_000_000,True,110)
-        self.assertEqual(fast['last_update'],100)
-        slow,_=dlmm.swap(start,1_000_000,True,130)
-        self.assertEqual(slow['last_update'],130)
-        later,_=dlmm.swap(slow,1_000_000,True,140)
-        self.assertEqual(later['last_update'],130)
+        same,quote=dlmm.swap(start,1_000_000,True,140)
+        self.assertEqual((quote['start'],quote['end']),(0,0))
+        self.assertEqual(same['last_update'],100)
+        crossed,quote=dlmm.swap(start,250_000_000,True,110)
+        self.assertNotEqual(quote['start'],quote['end'])
+        self.assertEqual(crossed['last_update'],110)
 
-    def test_non_high_frequency_last_update_terminal_equality(self):
+    def test_same_bin_after_filter_period_preserves_last_update_terminal_equality(self):
         start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
-        post,tx=transaction(start,1_000_000,101,140,'clock')
-        self.assertEqual(post['last_update'],140)
+        post,tx=transaction(start,1_000_000,101,140,'clock-same')
+        self.assertEqual(post['last_update'],100)
         end=encode_state(start_snapshot,post,102,142)
-        sigs=[dict(signature='clock',slot=101,transactionIndex=7,err=None,confirmationStatus='finalized'),dict(signature='anchor',slot=100,transactionIndex=1,err=None,confirmationStatus='finalized')]
-        tape=reconstruct(start,end,sigs,{'clock':tx},142,[100,2**31-1,2**31-1])
+        sigs=[dict(signature='clock-same',slot=101,transactionIndex=7,err=None,confirmationStatus='finalized'),dict(signature='anchor',slot=100,transactionIndex=1,err=None,confirmationStatus='finalized')]
+        tape=reconstruct(start,end,sigs,{'clock-same':tx},142,[100,2**31-1,2**31-1])
         self.assertEqual(tape.terminal_adjustments,())
-        self.assertEqual(tape.terminal['last_update'],140)
+        self.assertEqual(tape.terminal['last_update'],100)
+
+    def test_bin_cross_updates_last_update_terminal_equality(self):
+        start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
+        post,tx=transaction(start,250_000_000,101,110,'clock-cross')
+        self.assertNotEqual(start['active'],post['active'])
+        self.assertEqual(post['last_update'],110)
+        end=encode_state(start_snapshot,post,102,112)
+        sigs=[dict(signature='clock-cross',slot=101,transactionIndex=7,err=None,confirmationStatus='finalized'),dict(signature='anchor',slot=100,transactionIndex=1,err=None,confirmationStatus='finalized')]
+        tape=reconstruct(start,end,sigs,{'clock-cross':tx},112,[100,2**31-1,2**31-1])
+        self.assertEqual(tape.terminal_adjustments,())
+        self.assertEqual(tape.terminal['last_update'],110)
 
     def test_unexplained_terminal_last_update_mutation_still_fails_closed(self):
         start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)

@@ -197,12 +197,11 @@ def swap(state, amount, for_y, timestamp):
     Every traversed bin must be present. No extrapolation across missing arrays.
     Fee growth uses integer LP supply, as PositionV2's claim calculation does.
 
-    The deployed program advances `last_update_timestamp` on the non-high-frequency
-    branch only: authenticated historical and current mainnet intervals both show the
-    field changing to the swap timestamp exactly when
-    `timestamp - last_update >= filter_period`, while higher-frequency swaps preserve
-    the previous value. This is the same branch on which reference volatility/index
-    parameters are refreshed.
+    Reference/index decay still depends on time since `last_update`, but the deployed
+    smart-contract mitigation persists `last_update_timestamp` only when a swap crosses
+    at least one bin. Authentic mainnet evidence covers both sides: a same-bin swap more
+    than one filter period after the stored timestamp leaves it unchanged, while the
+    captured 1073->1074 swap advances it to the swap timestamp.
     """
     if type(amount) is not int or not 0 < amount < 1<<64 or type(for_y) is not bool:
         raise ValueError('dlmm_invalid_swap')
@@ -214,7 +213,6 @@ def swap(state, amount, for_y, timestamp):
         p['index_reference']=p['active']
         p['volatility_reference']=(p['volatility_accumulator']*s['reduction_factor']//10000
                                    if elapsed < s['decay_period'] else 0)
-        p['last_update']=timestamp
     left=amount; output=fees=protocol=0; traversed=[]
     start=p['active']
     while left:
@@ -251,6 +249,11 @@ def swap(state, amount, for_y, timestamp):
             p['active']+=-1 if for_y else 1
             if not s['min_bin_id'] <= p['active'] <= s['max_bin_id']:
                 raise Unavailable('dlmm_pool_bin_limit')
+    # Meteora PR-178 mitigation: only bin traversal advances the persisted variable-
+    # parameter timestamp. Same-bin swaps may refresh references after filter_period,
+    # but they do not move this clock.
+    if p['active'] != start:
+        p['last_update']=timestamp
     p['time']=timestamp
     return p,dict(input=amount,output=output,fee=fees,protocol_fee=protocol,
                   start=start,end=p['active'],traversed=traversed)
