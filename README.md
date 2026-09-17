@@ -1,142 +1,151 @@
 # The Meme Machine
 
 Fresh, paper-only research application. Wallets scout; independent contemporaneous
-market evidence authorizes a paper entry. Profitability is an untested hypothesis.
-One shared portfolio starts once at **$500**, allocated to simulated SOL on Solana
-mainnet using an explicit recorded starting USD/SOL valuation. It is not $500 per
-strategy. Cash benchmark is holding that initial SOL balance; current USD value is
-unknown without a fresh conversion mark. No signing, transaction submission, paid
-services, deployment, predecessor imports, or automatic policy optimization.
+market evidence decides whether anything remains executable. Profitability is an
+untested hypothesis. One shared portfolio starts once at **$500**, allocated to
+simulated SOL on Solana mainnet from an explicit recorded starting USD/SOL valuation.
+It is not $500 per strategy. No signing, transaction submission, paid services,
+deployment, predecessor imports, or automatic policy optimization.
 
-## Milestone and contract
+## Current milestone
 
-Pump.fun **standard SOL bonding curves** are the sole implemented surface. The
-read-only RPC adapter decodes real accounts and successful Pump invocation logs.
-Integer constant-product quotes use contemporaneous on-chain dynamic fee tiers,
-real reserve bounds, exact proposed size, and conservative fee rounding. This is a
-versioned hypothetical execution model, not a promise that a transaction lands.
-Token-2022 metadata-only mints are supported. Transfer hooks/taxes, freeze/mint authorities, mayhem/cashback, custom
-quote assets and completed curves fail explicitly. Graduation retains mint identity
-but an unavailable bonding-curve exit remains unresolved; it never becomes a
+The only implemented trading surface is Pump.fun bonding-curve trading on Solana
+mainnet. Both ordinary native-SOL curves and native-SOL **Mayhem Mode** curves are
+supported. Cashback and non-native quote assets remain fail-closed. Completed curves
+remain outside this first bonding-curve execution surface; graduation never becomes a
 fictional PumpSwap fill.
+
+The read-only adapter decodes real Pump accounts and successful Pump invocation logs.
+Integer constant-product quotes use contemporaneous reserves, real-liquidity bounds,
+actual mint supply where Mayhem requires it, dynamic protocol/creator fee tiers, exact
+proposed size, and conservative fee rounding. Token-2022 metadata-only mints are
+supported; transfer fees/hooks and other transfer-changing extensions are rejected.
+
+Wallet scouting never grants purchase authority. The publicly disclosed Pump Mayhem
+agent wallet is prohibited as a scout and excluded from independent-demand
+corroboration, while its real reserve and inventory effects remain visible.
 
 | Target | Status |
 | --- | --- |
-| Pump.fun standard SOL bonding curve | Implemented offline; live evidence in BUILD_STATUS.md |
+| Pump.fun native-SOL standard + Mayhem bonding curves | Implemented; prospective evidence in `BUILD_STATUS.md` |
 | PumpSwap and Raydium | Planned, no adapters |
-| FOMO application/feed and underlying pool | Planned; identity must be verified; not a chain or sentiment score |
-| Robinhood Chain on-chain pools | Planned; chain/network/contracts/providers must be verified |
+| FOMO application/feed and underlying pool | Planned; identity must be verified |
+| Robinhood Chain on-chain pools | Planned; chain/contracts/providers must be verified |
 | Solana Meteora DLMM | Planned; liquidity-position interface only, allocation disabled |
-| Robinhood Chain Ramses DLMM candidate | Planned; offering/deployment must be verified, allocation disabled |
+| Robinhood Chain Ramses DLMM candidate | Planned; must be separately verified, allocation disabled |
 
-No legacy code was copied. There is no v5.2 equivalence claim. The uploaded mandate
-is the broader product contract; this branch deliberately implements only its first
-directional experiment. Live operational acceptance and profitability are separate
-from liveness, data readiness, fixture correctness and captured mainnet evidence.
+No legacy application code was copied and there is no v5.2-equivalence claim. Live
+operational acceptance and profitability remain separate from liveness, data readiness,
+fixture correctness, captured evidence, and shadow qualification.
 
 ## Fixed policy: continuation-v1
 
-These uncalibrated research defaults are declared before evaluating outcomes:
+These research defaults remain unchanged while prospective evidence is gathered:
 
-- At most eight explicitly configured public scout addresses, with seed provenance.
-  A scout buy within 60 seconds nominates a mint. No wallet skill or sizing bonus.
-- Require a complete bounded 60-second pool window. Exclude scout/creator and known
-  related groups from demand; require three distinct remaining groups and net buys
-  of at least 1 SOL. Unknown common ownership remains a stated uncertainty.
-- Top-five token-account concentration excluding verified curve custody <=35% of
-  supply. This is account concentration, not proof of beneficial-owner independence.
-- Require >=10 SOL real exit liquidity; current price <=120% of observed scout
-  transaction price; exact-size round-trip loss including modeled fees <=5%.
-- Fixed entry budget 5% of initial SOL, four concurrent positions/reservations
-  maximum; one mint and one creator/related group at a time. Preserve 10% gas/cash
-  reserve. No scale-in, leverage, averaging down, re-entry or partial exits/runners.
-- Quote age <=20 seconds; minimum execution delay 2 seconds; require a later
-  finalized slot and post-delay market timestamp. Entry slippage limit 1%; cancel
-  unavailable/stale attempts. A delayed finality quote waits up to 60 seconds.
-- Model 50,000 lamports network/priority cost per attempted transaction; actual
-  future inclusion fee is uncertain. Reserve 2,100,000 refundable ATA rent (conservative reserve for SPL/Token-2022); release
-  it only with the modeled full exit/account closure. These assumptions are not
-  RPC transaction simulation or a measured fill. Protocol fees are charged once.
-- Monitor every 5 seconds, independent of scouts. Full exit at net +15%, -10%,
-  15-minute timeout, or real SOL liquidity below 5 SOL. An exit intent remains
-  active until a later valid mark settles it. Failed exits retain inventory; stale
-  or missing marks are unknown, including when a curve graduates.
-- No threshold changes to obtain a trade. No positive-skill promotion. Partial
-  wallet episodes and observed trades are not validated wallet performance.
+- at most eight provenance-recorded public scout addresses; a scout buy within 60
+  seconds nominates a mint, with no wallet-skill sizing bonus;
+- require a **complete point-in-time 60-second market window**; exclude scout, creator,
+  known related groups, and the Mayhem system wallet where applicable; require at
+  least three remaining independent groups and at least 1 SOL net buying;
+- top-five token-account concentration excluding verified curve custody <=35% of
+  actual mint supply;
+- require >=10 SOL real exit liquidity, current price <=120% of scout transaction
+  price, and exact-size modeled round-trip loss including protocol fees <=5%;
+- fixed entry budget 5% of initial SOL, maximum four concurrent positions/reservations,
+  one mint and one creator/related group at a time, with a 10% cash/gas reserve;
+- quote age <=20 seconds, minimum execution delay 2 seconds, later finalized slot and
+  post-delay timestamp required, 1% entry slippage limit;
+- model 50,000 lamports per attempted transaction and reserve 2,100,000 refundable ATA
+  rent until modeled full exit/account closure;
+- monitor every 5 seconds independently of scouts; full exit at net +15%, -10%,
+  15-minute timeout, or real SOL liquidity below 5 SOL;
+- no leverage, averaging down, scale-in, re-entry, partial exits/runners, threshold
+  changes to obtain a trade, or automatic positive-skill promotion.
 
-## Run
+## Point-in-time market evidence
 
-Use **CPython 3.12.14**, the same exact version as CI; standard library only, zero
-third-party Python dependencies. Linux/macOS file locking is required. Use a durable
-local directory for real experiments. Never put runtime databases or credentials
-in Git. One process owns the SQLite writer.
+Hot Mayhem pools exceeded retrospective bounded signature-history capacity. The
+prospective shadow validator therefore maintains one finalized Pump-program
+`logsSubscribe` stream and a bounded in-memory trade tape. A scout event receives no
+nomination authority until the stream has been uninterrupted for the full 60 seconds.
+Disconnect, parse loss, future-time inconsistency, or tape-capacity loss invalidates
+coverage and requires a fresh warmup. The tape retains 75 seconds and at most 50,000
+decoded trade events.
+
+This stream has already demonstrated complete natural 60-second windows containing
+14 and 109 Pump trades; see `BUILD_STATUS.md` for the exact code SHA and workflow
+evidence. The recurring CI shadow diagnostic has **no order/reservation authority**.
+
+Important boundary: the finalized stream is currently wired into the shadow
+prospective qualifier, not yet into the durable authoritative prospective runtime.
+The durable runtime still uses its earlier HTTP history path. Do not interpret the
+stream proof as a market-driven paper lifecycle.
+
+## Runtime and dependencies
+
+Use **CPython 3.12.14**, matching CI. The application is otherwise standard-library
+focused and currently has one pinned third-party dependency, `websockets==17.1`, for
+the finalized read-only log stream.
 
 ```sh
+python -m pip install -r requirements.txt
 python -m unittest discover -v
 python -m tests.make_tape
 python -m meme_machine --mode synthetic --config config.synthetic.json --db /tmp/meme-synthetic.db --tape tests/fixtures/synthetic_lifecycle.jsonl
 ```
 
-For a budgeted prospective session, copy `config.example.json` locally; enter actual
-public scout addresses and provenance plus the initial SOL/USD valuation and its
-source. Empty seeds explicitly mean no scouting; never substitute synthetic seeds.
-`MM_SOLANA_RPC_URL` is the only optional credential-bearing variable; public RPC is
-the default. A private provider URL, if needed, must support read-only finalized
-`getGenesisHash`, `getSignaturesForAddress`, `getTransaction`, `getMultipleAccounts`,
-`getBlockTime`, and `getTokenLargestAccounts`. Never supply a wallet private key.
+For a bounded prospective session, copy `config.example.json` locally and provide real
+public scout addresses/provenance plus an explicit initial SOL/USD valuation. Empty
+seeds mean no scouting. `MM_SOLANA_RPC_URL` is the only optional credential-bearing
+provider variable; never provide a wallet private key.
 
 ```sh
 python -m meme_machine --mode prospective --config config.local.json --db /path/to/state/paper.db --seconds 60
 ```
 
-Local read-only endpoints: `http://127.0.0.1:8080/live`, `/ready`, `/status`.
-Status cannot place orders or fetch market history. Session duration is bounded
-(1..3600 seconds); do not leave positions unattended after a session ends. Restart
-with the same database/config to resume. Provider budget is 120 calls/session by
-default (hard maximum 240), with 40 reserved for monitoring; at most 2 requests/sec,
-no hidden retries, shared two-second cache and bounded responses. These are request
-budgets, not proof of a particular vendor's monthly allowance.
+The durable runtime exposes local read-only `/live`, `/ready`, and `/status` endpoints.
+One process owns the SQLite writer. Restart with the same database/config to preserve
+cash, reservations, positions, and reconciliation state. Monitoring/open-position
+work has priority over discretionary discovery.
 
-## Architecture, authority and persistence
+The no-order-authority finalized-stream validator can be run separately:
 
-`provider.py` owns RPC retrieval and budgeting; `pump.py` decodes and quotes;
-`engine.py` scouts, qualifies, allocates and manages paper lifecycle; `store.py`
-is the sole durable writer. Replay and live use the same Engine and Store. SQLite
-FULL-sync transactions atomically persist action journal and authoritative state.
-Intents/reservations survive a crash; repeated settled order IDs cannot spend twice.
-Finalized observations reduce reorganization exposure; history is not rewritten to
-invent a recovered trade. Contradictory evidence is a failure, not an overwrite.
+```sh
+python -m tests.prospective_stream_qualification
+```
 
-| Dataset | Owner/purpose | Retention and bound |
+## Architecture and bounded state
+
+`provider.py` owns HTTP retrieval/budgets; `stream.py` owns the bounded finalized log
+tape; `pump.py` decodes and quotes; `engine.py` scouts, qualifies, allocates and manages
+paper lifecycles; `store.py` is the sole durable writer. Replay and live execution use
+the same Engine/Store accounting semantics.
+
+SQLite FULL-sync transactions atomically persist action journal and authoritative
+state. Intents/reservations survive a crash; repeated settled order IDs cannot spend
+twice. Startup verifies the current checkpoint, journal tail and accounting invariants
+without scanning all history. Full archive verification is separate.
+
+| Dataset | Purpose | Bound |
 | --- | --- | --- |
-| State checkpoint | Store; current authority | One hashed row; <=4 active positions; <=100 entries per experiment |
-| Orders + embedded entry/exit evidence | Engine; reproduce economics | Keep all experiment orders; cap experiment at 100 entries; no automatic deletion |
-| Dedup IDs | Scout; reject duplicate/conflicting observations | 120 seconds, <=1,000; expired events cannot qualify |
-| Decisions | Engine; explicit zero-trade reasons | Latest 100 plus aggregate counts |
-| Gaps | Provider/scout; visible loss markers | Latest 20; no fabricated continuity |
-| Journal | Store; atomic audit events | Append for bounded session/experiment; 32 MiB admission pressure boundary |
-| Provider cache | RPC; shared retrieval | Memory only, <=128 responses / 8 MiB encoded payload, 2-second reuse; <=2 MB/response |
-| Raw research captures | Tests/research | Small public redacted fixtures, separate from prospective authority |
+| State checkpoint | Current portfolio authority | one hashed row; <=4 active positions; <=100 entries/experiment |
+| Orders + entry/exit evidence | Reproduce paper economics | bounded experiment, retained for audit |
+| Dedup IDs | Reject duplicate/conflicting observations | 120 seconds, <=1,000 |
+| Decisions | Explain rejects/zero-trade state | latest 100 + aggregate counts |
+| Gaps | Preserve missing-data truth | latest 20 |
+| Journal | Atomic audit events | bounded experiment; admission pressure at 32 MiB |
+| HTTP cache | Reuse read-only provider results | <=128 responses / 8 MiB, two-second reuse |
+| Finalized trade tape | Complete prospective 60-second windows | memory-only, 75 seconds, <=50,000 decoded events |
+| Captured fixtures | Decoder/research regression | small public fixtures, no prospective authority |
 
-Pressure stops discretionary entries before monitoring, including <16 MiB filesystem free space. Open positions and orders
-are never deleted to satisfy a size limit. Existing positions may require bounded
-additional writes above the admission threshold. No rollover/copy/full-ledger scan
-on startup or status. Startup checks checkpoint hash, journal tail and current
-accounting invariants. `Store.verify_archive()` separately streams the complete
-journal for audit; hashes detect accidental damage, not a malicious DB owner.
-A hostile rewrite or old-checkpoint rollback requires external anchoring, deferred.
-No cross-chain balance, gas conversion or liquidity-position allocation is implied.
+Pressure stops discretionary entry work before monitoring. Open positions and orders
+are never deleted to satisfy a resource limit. Missing observations or executable
+marks remain unknown/fail-closed rather than being replaced by favorable estimates.
 
-Wallet shadow scorecards retain at most 32 token episodes per configured seed.
-They record observed buys/sells, token inventory, costs and availability times;
-unknown starting inventory, partial sells and transfers cannot become claimed
-profit. Wallet protocol fees are observed; network-fee allocation across composite
-transactions and complete balance boundaries remain unresolved. No follower return
-is credited from the leader's earlier price. Budget-matched discovery-control and
-wallet-informed/blind performance comparisons remain the next research layer;
-this initial policy deliberately grants no wallet-skill influence.
+Wallet scorecards are shadow-only and bounded. Unknown initial inventory, transfers,
+partial sells, and incomplete outcomes cannot become claimed wallet profit. The initial
+policy grants wallet skill zero sizing influence. Budget-matched wallet-assisted versus
+wallet-blind research remains a later milestone.
 
-A gap blocks further entries for that experiment while exits continue. Clearing a
-gap is not automated: preserve evidence and review a new experiment or a specific
-recovery repair. A rare contradiction in finalized history is a gap, not permission
-to retroactively rewrite fills. No reorganization economics are fabricated.
+See `BUILD_STATUS.md` for the exact current verification SHA, live evidence, and next
+engineering boundary.
