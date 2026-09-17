@@ -53,10 +53,13 @@ class QualificationResearch(unittest.TestCase):
         self.assertIn('concentration',vector['all_rejections'])
         self.assertIn('independent_demand',vector['all_rejections'])
 
-    def test_aggregate_deduplicates_nominations_and_requires_sample(self):
+    def test_aggregate_deduplicates_only_natural_nominations_and_requires_sample(self):
         vector=qualification_vector(self.engine,event(),evidence(),100)
-        row=dict(nomination_id='same',evidence_stage='complete',qualification_vector=vector)
-        analysis=analyze_reports([{'results':[row]},{'results':[row]}],min_sample=2)
+        natural=dict(nomination_id='same',evidence_stage='complete',natural_nomination=True,
+                     qualification_vector=vector)
+        non_natural=dict(nomination_id='canary',evidence_stage='complete',natural_nomination=False,
+                         qualification_vector=vector)
+        analysis=analyze_reports([{'results':[natural,non_natural]},{'results':[natural]}],min_sample=2)
         self.assertEqual(analysis['unique_complete_nominations'],1)
         self.assertEqual(analysis['current_qualified'],1)
         self.assertFalse(analysis['sample_sufficient'])
