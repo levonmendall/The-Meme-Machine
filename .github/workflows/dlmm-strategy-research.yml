@@ -17,9 +17,9 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Research harness regressions
-        run: python -m unittest tests.test_dlmm_strategy_point_in_time -v
-      - name: Point-in-time finalized DLMM strategy replay
-        run: python -m tests.dlmm_strategy_point_in_time --cycles 3 --window-seconds 18
+        run: python -m unittest tests.test_dlmm_strategy_point_in_time tests.test_dlmm_strategy_high_activity -v
+      - name: Current high-activity finalized DLMM strategy replay
+        run: python -m tests.dlmm_strategy_high_activity --cycles 2 --window-seconds 6
       - name: Preserve research report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
