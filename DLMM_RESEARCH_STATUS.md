@@ -25,3 +25,11 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - `getTransaction` null is retried once and remains fail-closed if still unavailable.
 - Research defaults to Solana's canonical public mainnet endpoint and accepts optional `MM_SOLANA_READ_RPC_URL` for an authorized dedicated read-only endpoint.
 - No transaction count, finality, freshness, strategy, cost, or allocation boundary is widened.
+
+## `initialize_bin_array` structural semantics
+
+- Pinned Meteora IDL discriminator `235613b94ed44bd3` is accepted only as `initialize_bin_array`.
+- `lb_pair` must be read-only account position 0, instruction data must be exactly discriminator + signed i64 index, account 1 must equal the deterministic `bin_array` PDA, and account 3 must be the system program.
+- The instruction is treated as structural only: it creates an empty bin-array account and does not modify modeled LbPair, vault, existing-bin, fee, or virtual-position economics.
+- Any subsequent liquidity/config/limit-order mutation remains fail-closed; a swap requiring bins not present in authenticated state still fails closed.
+- Strategy `sdk_bidask/8`, costs, activity gate, transaction bounds, and allocation authority are unchanged.

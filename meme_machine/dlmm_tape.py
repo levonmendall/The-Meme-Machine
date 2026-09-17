@@ -21,6 +21,8 @@ SWAP2 = bytes.fromhex('2e7452d7941b544d')
 SWAP_IX = bytes([248,198,158,145,225,117,135,200])
 SWAP2_IX = bytes([65,75,63,76,235,91,91,136])
 INITIALIZE_POSITION_IX = bytes.fromhex('dbc0ea47bebf6650')
+INITIALIZE_BIN_ARRAY_IX = bytes.fromhex('235613b94ed44bd3')
+SYSTEM_PROGRAM = '11111111111111111111111111111111'
 EXACT_IN = {SWAP_IX,SWAP2_IX}
 EXACT_IN_NAME = {SWAP_IX:'swap',SWAP2_IX:'swap2'}
 EVENT_CPI = bytes.fromhex('e445a52e51cb9a1d')
@@ -120,12 +122,13 @@ def transaction_swaps(tx,pool):
     remains an identity failure. Event CPI records are similarly filtered by their
     embedded pool pubkey.
 
-    The one observed non-swap exception is the pinned-IDL `initialize_position`
-    instruction (`dbc0ea47bebf6650`). Its `lb_pair` is read-only account position 2;
-    it creates only a new position account and does not mutate pool/bin/vault state.
-    We therefore accept exactly that identity as a pool-neutral no-op. Every other
-    target-pool Meteora instruction remains fail-closed and terminal equality still
-    independently validates that no modeled pool state changed.
+    Two observed structural instructions are accepted only with their exact pinned-IDL
+    identities. `initialize_position` has read-only `lb_pair` at account position 2.
+    `initialize_bin_array` has read-only `lb_pair` at position 0 and only creates the
+    deterministic empty bin-array PDA for its signed i64 index. Neither changes the
+    modeled LbPair/vault/existing-bin economics. Any later liquidity/config mutation
+    remains independently fail-closed, and terminal equality still validates that no
+    modeled pool state changed.
     """
     if not tx or not tx.get('meta') or tx['meta'].get('err'):
         raise Unavailable('dlmm_missing_or_failed_transaction')
@@ -168,6 +171,23 @@ def transaction_swaps(tx,pool):
                     raise ValueError(f'dlmm_initialize_position_identity:pool_positions={pos}:accounts={len(accounts)}')
             # Pinned IDL: payer, position, read-only lb_pair, owner, system, rent,
             # event authority, program. No modeled pool state is mutated.
+            continue
+        elif raw[:8]==INITIALIZE_BIN_ARRAY_IX:
+            if positions:
+                accounts=instruction.get('accounts') or []
+                pos=','.join(map(str,positions))
+                if len(raw)!=16 or len(accounts)!=4 or positions!=[0]:
+                    raise ValueError(f'dlmm_initialize_bin_array_identity:pool_positions={pos}:accounts={len(accounts)}:data={len(raw)}')
+                if any(type(i) is not int or not 0<=i<len(keys) for i in accounts):
+                    raise ValueError('dlmm_initialize_bin_array_account_index')
+                index=struct.unpack_from('<q',raw,8)[0]
+                expected=pump.pda([b'bin_array',pump.un58(pool),struct.pack('<q',index)],dlmm.PROGRAM)
+                if keys[accounts[1]]!=expected or keys[accounts[3]]!=SYSTEM_PROGRAM:
+                    raise ValueError('dlmm_initialize_bin_array_pda_or_system')
+            # Pinned IDL: read-only lb_pair, newly-created writable bin_array PDA,
+            # writable signer funder, system program. Creation introduces only an
+            # empty structural array. Any instruction that later changes its bins or
+            # pool liquidity is still unsupported and fails closed separately.
             continue
         else:
             if positions:raise Unavailable('dlmm_non_swap_mutation_in_interval:'+raw[:8].hex())
