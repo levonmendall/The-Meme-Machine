@@ -48,16 +48,25 @@ That 6-second run verified complete warmup/outcome intervals for USELESS-SOL and
 
 ### Bounded-max 12-second result
 
-Authoritative active test workflow: `35262612233`, exact execution head `1f3f728947cca41e1c6b973b2d112a34649a26ed`.
+Workflow `35262612233`, execution head `1f3f728947cca41e1c6b973b2d112a34649a26ed`, established three distinct evidence gaps without weakening any predicate:
 
-Three current activity-ranked pools passed finalized structural validation, but none produced a complete interval eligible for strategy selection:
+- **STONK-SOL** exceeded `MAX_TRANSACTIONS=16` in the monolithic warmup.
+- **USELESS-SOL** exposed a `last_update` terminal mismatch.
+- **CARDS-SOL** exposed more than one current exact-input swap surface inside a transaction.
 
-- **STONK-SOL**: warmup exceeded the unchanged `MAX_TRANSACTIONS=16` evidence bound (`dlmm_transaction_bound`).
-- **USELESS-SOL**: the later interval ended with `last_update` state movement not explained by the supported swap-only reconstruction (`dlmm_terminal_state_disagrees_with_forward_reconstruction:last_update`).
-- **CARDS-SOL**: the later interval contained a pool transaction outside the current assumption of exactly one supported exact-input swap per transaction (`dlmm_requires_one_exact_input_swap_per_transaction`).
+No P&L was inferred from those rejected intervals.
 
-The run completed with no weakened evidence predicate. `opportunity_count=0`, `selected_trade_count=0`, `nonempty_warmup_count=0`, `nonempty_outcome_count=0`, and the conclusion remains `insufficient_active_point_in_time_sample`.
+## Narrow evidence/replay extension
 
-This is not evidence that the proposed BidAsk strategy is unprofitable. It establishes a narrower engineering/research boundary: **the pools active enough to matter currently exercise a richer Meteora mutation/transaction surface than PR #4's deliberately narrow swap-only tape supports.** Point-in-time strategy profitability cannot be evaluated honestly on those intervals until that authentic current behavior is interpreted and terminal-state-verified rather than discarded or inferred.
+The continuation keeps `MAX_TRANSACTIONS=16`, the `sdk_bidask`/8-bin selected strategy, the nonzero-warmup gate and the 350,000-lamport cost hurdle unchanged.
 
-Allocation authority remains disabled. No P&L, strategy ranking or repeatability claim may be derived from rejected active intervals.
+Implemented evidence-layer changes:
+
+- Authenticate and replay multiple exact-input Meteora swaps inside one transaction in actual top-level/inner-instruction execution order, with durable per-swap cursors `[slot, transactionIndex, swapIndex]`.
+- Preserve the pinned IDL rule that `lb_pair` is account zero for both `swap` and `swap2`; identity mismatches expose bounded diagnostic metadata but remain rejected.
+- Break dense observation windows into sequential independently verified chunks. Every chunk still has a complete signature census, `MAX_TRANSACTIONS<=16`, ordered transaction evidence, supported mutation identities and exact terminal-state equality before it can chain into the next chunk.
+- Correct the replay model's `last_update` semantics. The pinned Meteora SDK/commons `updateReference(s)` logic reads `last_update_timestamp` for volatility-reference decay but does not overwrite it for each swap. Finalized STONK and USELESS evidence likewise showed the field remaining unchanged across authenticated swaps. `dlmm.swap()` therefore now preserves the authoritative field rather than inventing a swap-time update. A real unexplained terminal change remains fail-closed.
+
+A single highest-activity STONK run on workflow `35264407618` already proved that 2-second chunking admits dense activity without raising bounds: six warmup chunks reconstructed **4 authenticated swaps** with zero provider failures/retries. Its outcome then hit a strict swap-instruction identity rejection; the current rerun adds exact IDL-layout diagnostics for that boundary while keeping the identity predicate unchanged.
+
+Allocation authority remains disabled. No strategy, sizing, cost, entry threshold or portfolio authority changes are part of this extension.
