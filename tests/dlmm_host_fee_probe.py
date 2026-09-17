@@ -65,8 +65,9 @@ def _token_balances(meta):
 
 
 def run():
-    url=os.environ.get('MM_SOLANA_READ_RPC_URL','').strip()
-    if not url: raise SystemExit('MM_SOLANA_READ_RPC_URL missing')
+    # Probe-only public endpoint: exact recent slots, paced and read-only. The live
+    # research provider and its secret are not changed or consumed by this probe.
+    url='https://api.mainnet-beta.solana.com'
     # Exact-slot historical diagnostic only. Accounts-only blocks expose signatures
     # and all resolved account keys without heavyweight instructions/logs. This avoids
     # walking the pool's very high-volume signature history. Production/live census is
@@ -77,6 +78,7 @@ def run():
     selected=[]
     block_telemetry=[]
     for slot in range(START_SLOT+1,END_SLOT+1):
+        if slot>START_SLOT+1: rpc.sleep(1.0)
         block=rpc.call('getBlock',[slot,dict(commitment='finalized',encoding='json',
             transactionDetails='accounts',maxSupportedTransactionVersion=0,rewards=False)],True)
         if block is None:
