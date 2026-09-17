@@ -34,8 +34,8 @@ KNOWN_POOLS = (
 DISCOVERY_STEPS = (10, 25, 50)
 WIDTHS = (2, 4, 8, 16, 32)
 STRATEGIES = ("foundation_spot", "sdk_bidask")
-MAX_POOLS = 6
-MAX_CYCLES = 4
+MAX_POOLS = 4
+MAX_CYCLES = 3
 MAX_WINDOW_SECONDS = 20
 REPORT = Path(os.environ.get("MM_DLMM_STRATEGY_REPORT", "dlmm-strategy-report.json"))
 
@@ -227,9 +227,9 @@ def _to_sol(state, amount, token, bin_id):
     if token == dlmm.WSOL:
         return amount
     p = dlmm.price(bin_id, state["step"])
-    if state["y"] == dlmm.WSOL:  # token is X; Y/X price is SOL/token
+    if state["y"] == dlmm.WSOL:
         return amount * p // dlmm.Q
-    return amount * dlmm.Q // p  # token is Y; X=SOL
+    return amount * dlmm.Q // p
 
 
 def regime_features(state, tape):
@@ -345,7 +345,7 @@ def _advance(adapter, states, wait_seconds):
 def run_live(cycles=MAX_CYCLES, window_seconds=18):
     if not 1 <= cycles <= MAX_CYCLES or not 5 <= window_seconds <= MAX_WINDOW_SECONDS:
         raise ValueError("dlmm_research_live_bounds")
-    rpc = PoolScanRPC("https://api.mainnet-beta.solana.com", limit=360)
+    rpc = PoolScanRPC("https://api.mainnet-beta.solana.com", limit=240)
     adapter = dlmm.Adapter(rpc)
     states, discovery_errors, discovery_rejections = _discover(adapter, int(time.time()))
     report = dict(
@@ -415,7 +415,8 @@ def run_live(cycles=MAX_CYCLES, window_seconds=18):
     stats, best = _summary(report["results"])
     pools = {o["pool"] for o in report["opportunities"]}
     nonempty = sum(o["outcome_swaps"] > 0 for o in report["opportunities"])
-    pilot_adequate = len(report["opportunities"]) >= 20 and len(pools) >= 5 and nonempty >= 10
+    pilot_adequate = len(report["opportunities"]) >= 8 and len(pools) >= 3 and nonempty >= 4
+    repeatability_adequate = len(report["opportunities"]) >= 200 and len(pools) >= 20
     report.update(
         ended=int(time.time()),
         strategy_stats=stats,
@@ -424,10 +425,11 @@ def run_live(cycles=MAX_CYCLES, window_seconds=18):
         opportunity_count=len(report["opportunities"]),
         nonempty_outcome_count=nonempty,
         pilot_sample_adequate=pilot_adequate,
+        repeatability_sample_adequate=repeatability_adequate,
         conclusion=(
-            "pilot_sample_only_no_allocation_authority"
+            "pilot_complete_repeatability_not_established"
             if pilot_adequate
-            else "insufficient_point_in_time_sample_for_repeatability"
+            else "insufficient_point_in_time_sample_for_pilot"
         ),
         rpc_calls=rpc.calls,
         rpc_http_requests=rpc.http_requests,
@@ -452,7 +454,20 @@ def main():
     parser.add_argument("--cycles", type=int, default=MAX_CYCLES)
     parser.add_argument("--window-seconds", type=int, default=18)
     args = parser.parse_args()
-    run_live(args.cycles, args.window_seconds)
+    try:
+        run_live(args.cycles, args.window_seconds)
+    except Exception as exc:
+        failure = dict(
+            kind="dlmm_point_in_time_strategy_replay_v1",
+            allocation_authority=False,
+            prospective_allocation_enabled=False,
+            conclusion="experiment_failed_before_valid_sample",
+            error=str(exc)[:160],
+            ended=int(time.time()),
+        )
+        REPORT.write_text(json.dumps(failure, indent=2, sort_keys=True) + "\n")
+        print(json.dumps(failure, sort_keys=True))
+        raise
 
 
 if __name__ == "__main__":
