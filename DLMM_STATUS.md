@@ -5,7 +5,10 @@
 - Exact starting PR #2 head: `6403621c21ff4c02046dc787354e0cf04f52e70d`.
 - Branch: `feat/meteora-dlmm-paper-foundation`, stacked on
   `feat/post-graduation-pumpswap-raydium`, never PR #3.
-- Final implementation SHA: recorded in the status-only follow-up commit.
+- Exact final implementation SHA: `bbc7879a65f8bf2870b5ea75ef78eeb72d0d437a`.
+  This status-only follow-up changes no implementation. The PR description and
+  final handoff record its exact review-head SHA (a file cannot embed its own
+  content-addressed Git commit hash).
 - Allocation remains **disabled**. No signing, submission, deployment, merge,
   paid provider, second bankroll or strategy-threshold change.
 - **Mechanical implementation and deterministic tests complete; authentic
