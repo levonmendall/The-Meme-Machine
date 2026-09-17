@@ -1,7 +1,8 @@
+import base64
 import unittest
 
 from meme_machine import pump
-from meme_machine.concentration import ConcentrationReader
+from meme_machine.concentration import ConcentrationReader, ProgramScanRPC
 from meme_machine.provider import RPC
 from tests.support import snapshot
 
@@ -15,6 +16,44 @@ class ConcentrationReaderTests(unittest.TestCase):
                  'decimals': 6, 'uiAmount': None, 'uiAmountString': '0'},
             ],
         }
+
+    def test_compact_program_scan_uses_mint_filter_amount_slice_and_no_largest_call(self):
+        snap=snapshot(slot=100)
+        primary_calls=[]
+        program_calls=[]
+        amount=100_000_000_000_000
+        def primary_transport(request):
+            primary_calls.append(request['method'])
+            raise AssertionError('program scan should satisfy concentration')
+        def program_transport(request):
+            program_calls.append(request['method'])
+            if request['method']=='getGenesisHash':
+                return {'result':pump.MAINNET}
+            if request['method']=='getProgramAccounts':
+                config=request['params'][1]
+                self.assertTrue(config['withContext'])
+                self.assertEqual(config['commitment'],'finalized')
+                self.assertEqual(config['minContextSlot'],68)
+                self.assertEqual(config['dataSlice'],{'offset':64,'length':8})
+                self.assertEqual(config['filters'],[{'memcmp':{'offset':0,'bytes':snap['mint']}}])
+                self.assertEqual(request['params'][0],snap['accounts'][1]['owner'])
+                return {'result':{
+                    'context':{'slot':100},
+                    'value':[{
+                        'pubkey':pump.b58(bytes([31])*32),
+                        'account':{'data':[base64.b64encode(amount.to_bytes(8,'little')).decode(),'base64']},
+                    }],
+                }}
+            raise AssertionError(request['method'])
+        primary=RPC('https://primary.example',limit=40,transport=primary_transport)
+        program=ProgramScanRPC('https://primary.example',limit=40,transport=program_transport)
+        reader=ConcentrationReader(primary,program_rpc=program)
+        value,meta=reader.read(snap['mint'],snap)
+        self.assertEqual(value,1000)
+        self.assertEqual(meta['source'],'program_scan')
+        self.assertEqual(primary_calls,[])
+        self.assertEqual(program_calls,['getGenesisHash','getProgramAccounts'])
+        self.assertTrue(reader.status()['program_scan_verified'])
 
     def test_verified_secondary_serves_concentration_without_primary_expensive_call(self):
         snap=snapshot()
@@ -59,7 +98,7 @@ class ConcentrationReaderTests(unittest.TestCase):
         reader=ConcentrationReader(primary,secondary_url='https://secondary.example',secondary_rpc=secondary)
         value,meta=reader.read(snap['mint'],snap)
         self.assertEqual(value,1000)
-        self.assertEqual(meta['source'],'primary')
+        self.assertEqual(meta['source'],'primary_largest')
         self.assertEqual(reader.status()['retrieval_failures'],1)
 
     def test_wrong_network_secondary_is_never_trusted(self):
@@ -79,7 +118,7 @@ class ConcentrationReaderTests(unittest.TestCase):
         reader=ConcentrationReader(primary,secondary_url='https://secondary.example',secondary_rpc=secondary)
         value,meta=reader.read(snap['mint'],snap)
         self.assertEqual(value,1000)
-        self.assertEqual(meta['source'],'primary')
+        self.assertEqual(meta['source'],'primary_largest')
         self.assertEqual(secondary_methods,['getGenesisHash'])
         self.assertEqual(reader.status()['secondary_disabled_reason'],'wrong_network')
 
