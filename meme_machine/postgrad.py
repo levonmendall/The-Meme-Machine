@@ -88,6 +88,32 @@ def pumpswap_fee_address():
     return pump.pda([b'fee_config', pump.un58(PUMPSWAP_PROGRAM)], pump.FEE_PROGRAM)
 
 
+def _graduated_curve_state(account):
+    """Decode an immutable completed Pump curve without requiring live quote reserves.
+
+    Pump's active-curve decoder deliberately rejects zero virtual reserves because an
+    active curve with zero reserves cannot be quoted safely. After migration, however,
+    old completed curve accounts may have their quote state retired/zeroed. Graduation
+    identity only needs the immutable curve fields, completion bit and appended mode
+    flags. Older pre-Mayhem accounts may also end at the original 81-byte layout, so
+    missing appended fields default to false/none here only.
+    """
+    raw = pump.raw_account(account, pump.PROGRAM, 'BondingCurve')
+    if len(raw) < 81:
+        raise ValueError('unsupported_short_graduated_curve')
+    values = struct.unpack_from('<QQQQQ?', raw, 8)
+    c = pump.Curve(*values, pump.b58(raw[49:81]))
+    if c.supply <= 0:
+        raise ValueError('invalid_graduated_supply')
+    mayhem = bool(raw[81]) if len(raw) > 81 else False
+    cashback = bool(raw[82]) if len(raw) > 82 else False
+    quote_raw = raw[83:115] if len(raw) >= 115 else bytes(32)
+    quote_mint = None if not any(quote_raw) else pump.b58(quote_raw)
+    if cashback or quote_mint is not None:
+        raise ValueError('unsupported_graduated_cashback_or_quote_asset')
+    return c, dict(mayhem=mayhem, cashback=cashback, quote_mint=quote_mint)
+
+
 def graduation_handoff(snapshot, now):
     """Verify that a Pump snapshot represents a completed curve before handoff."""
     if snapshot.get('network') != 'solana-mainnet' or snapshot.get('protocol') != 'pump.fun':
@@ -101,15 +127,14 @@ def graduation_handoff(snapshot, now):
     accounts = snapshot.get('accounts') or []
     if len(accounts) < 2:
         raise ValueError('missing_graduation_accounts')
-    c = pump.curve(accounts[0])
+    c, mode = _graduated_curve_state(accounts[0])
     supply, decimals = pump.mint_info(accounts[1])
-    mode = pump.curve_mode(accounts[0])
     if not c.complete or c.real_token != 0:
         raise ValueError('bonding_curve_not_complete')
-    # After graduation the fixed mint can legitimately have burns (for example LP
-    # tokens or holder burns), so current mint supply need not still equal the curve's
-    # original token_total_supply. Keep the immutable upper bound and revoked
-    # authority/freeze checks, while allowing only supply to move downward.
+    # After graduation the fixed mint can legitimately have burns, so current mint
+    # supply need not still equal the curve's original token_total_supply. Keep the
+    # immutable upper bound and revoked authority/freeze checks, while allowing only
+    # supply to move downward.
     if decimals != 6 or supply <= 0:
         raise ValueError('invalid_graduated_mint')
     upper = c.supply
