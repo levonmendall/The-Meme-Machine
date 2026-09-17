@@ -72,3 +72,11 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Acquisition may scan at most 8 finalized pages / 512 signature rows to reach the authenticated interval, discarding every `slot > end_slot` row from the verified transaction set.
 - The actual verified interval remains capped at `MAX_TRANSACTIONS=16`; exceeding that bound still fails closed before transaction-body acquisition.
 - This marker authorizes exactly one bounded live replay of the unchanged one-pool, one-cycle, 12-second research experiment. No retry is authorized by this marker.
+
+
+## Paced bounded signature coverage proof
+
+- Green repair head `dc588f6857e45c7e8f0cacf74dfb8ae02b363576` passed 168 tests, standard resource checks, DLMM resource checks, and the synthetic lifecycle with live jobs skipped.
+- The census remains finalized and bounded to 16 pages / 1,024 signature rows, with one-second inter-page pacing to avoid provider bursts.
+- Rows newer than the authenticated `end_slot` remain coverage-only and cannot enter the verified interval. The actual interval remains hard-capped at `MAX_TRANSACTIONS=16`.
+- This marker authorizes exactly one bounded one-pool, one-cycle, 12-second live replay. No retry is authorized by this marker.
