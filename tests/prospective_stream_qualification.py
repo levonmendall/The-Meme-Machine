@@ -3,6 +3,10 @@
 The stream must be continuously subscribed for the entire unchanged 60-second
 continuation-v1 window before any scout event can nominate. A disconnect, parse
 loss, or tape-capacity loss removes coverage and forces a new full warmup.
+
+Research instrumentation emits a complete qualification vector for every completed
+natural nomination. Engine.qualify remains frozen and authoritative; the vector and
+counterfactual sensitivity fields are shadow-only and cannot create reservations.
 """
 import json
 import os
@@ -15,6 +19,7 @@ from meme_machine import pump
 from meme_machine.concentration import ConcentrationReader
 from meme_machine.engine import Engine
 from meme_machine.provider import RPC, PumpAdapter, Unavailable
+from meme_machine.research import qualification_vector
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 
@@ -22,7 +27,7 @@ WATCHLIST=Path('evidence/unvalidated_seed_watchlist.json')
 CAPTURE=Path('tests/fixtures/mainnet_trade.json')
 GENESIS_SOL_USD_MICROS=97_840_000
 GENESIS_SOURCE='2026-09-16 recorded validation reference: $97.84/SOL; new shadow experiment, not performance continuity'
-MAX_EVIDENCE_CANDIDATES=2
+MAX_EVIDENCE_CANDIDATES=4
 OBSERVE_SECONDS=max(30,min(int(os.environ.get('MM_STREAM_OBSERVE_SECONDS','105')),150))
 
 
@@ -39,7 +44,7 @@ def admissible_after(events, admission):
 
 def evaluate_nomination(engine, adapter, concentration_reader, tape, nomination):
     result=dict(mint=nomination['mint'],nomination_id=nomination['id'],
-                scout_wallet=nomination['wallet'],
+                scout_wallet=nomination['wallet'],natural_nomination=True,
                 signal_age_seconds=max(0,int(time.time())-nomination['market_time']))
     observed=int(time.time())
     if not tape.covered(observed):
@@ -82,15 +87,16 @@ def evaluate_nomination(engine, adapter, concentration_reader, tape, nomination)
     evidence=dict(snapshot=final,events=market,covered=True,
                   concentration_bps=concentration)
     try:
-        reason=engine.qualify(nomination,evidence,qualified_at)
+        vector=qualification_vector(engine,nomination,evidence,qualified_at)
         curve=pump.curve(final['accounts'][0])
     except (Unavailable,ValueError,KeyError,TypeError) as exc:
         return _failure(result,'qualification',exc)
-    result.update(reason=reason,evidence_stage='complete',market_window_covered=True,
-                  market_events=len(market),concentration_bps=concentration,
-                  real_sol_lamports=curve.real_sol,
+    result.update(reason=vector['actual_reason'],evidence_stage='complete',
+                  market_window_covered=True,market_events=len(market),
+                  concentration_bps=concentration,real_sol_lamports=curve.real_sol,
                   quote_age_seconds=qualified_at-final['market_time'],
-                  initial_snapshot_slot=initial['slot'],final_snapshot_slot=final['slot'])
+                  initial_snapshot_slot=initial['slot'],final_snapshot_slot=final['slot'],
+                  qualification_vector=vector)
     return result
 
 
@@ -111,7 +117,9 @@ def main():
                 protocol='pump.fun',window_seconds=WINDOW_SECONDS,
                 acquisition='finalized_logsSubscribe',seeds=seeds,seed_admission=admission,
                 started=started,paper_trades=0,order_authority=False,
-                portfolio_performance_claim=False,results=[],limitations=[])
+                qualification_policy='continuation-v1',qualification_policy_frozen=True,
+                research_authority_only=True,portfolio_performance_claim=False,
+                results=[],limitations=[])
     url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
     # No external service is required by default. An explicitly configured secondary
     # remains available for experiments, but current free proof uses the same primary
@@ -168,16 +176,14 @@ def main():
                         attempted.add(nomination['mint'])
                         outcome=evaluate_nomination(engine,adapter,concentration_reader,tape,nomination)
                         report['results'].append(outcome)
-                        # The requested proof boundary is one complete unchanged-policy
-                        # result. Do not spend additional RPC once it exists.
-                        if outcome.get('evidence_stage')=='complete':
-                            report['proof_boundary_reached']=True
+                        if len(attempted)>=MAX_EVIDENCE_CANDIDATES:
                             break
-                    if report.get('proof_boundary_reached'):
-                        break
                     time.sleep(0.25)
                 report['nominations']=len(nomination_ids)
                 report['evidence_candidates_attempted']=len(attempted)
+                report['complete_qualification_vectors']=sum(
+                    row.get('evidence_stage')=='complete' and 'qualification_vector' in row
+                    for row in report['results'])
                 if coverage_ready_at is None and not report['limitations']:
                     report['limitations'].append('stream_never_reached_complete_60_second_warmup')
         except (Unavailable,ValueError) as exc:
