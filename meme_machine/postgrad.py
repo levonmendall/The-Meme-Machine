@@ -103,9 +103,20 @@ def graduation_handoff(snapshot, now):
         raise ValueError('missing_graduation_accounts')
     c = pump.curve(accounts[0])
     supply, decimals = pump.mint_info(accounts[1])
-    mode = pump.validate_mint_supply(accounts[0], c, supply, decimals)
+    mode = pump.curve_mode(accounts[0])
     if not c.complete or c.real_token != 0:
         raise ValueError('bonding_curve_not_complete')
+    # After graduation the fixed mint can legitimately have burns (for example LP
+    # tokens or holder burns), so current mint supply need not still equal the curve's
+    # original token_total_supply. Keep the immutable upper bound and revoked
+    # authority/freeze checks, while allowing only supply to move downward.
+    if decimals != 6 or supply <= 0:
+        raise ValueError('invalid_graduated_mint')
+    upper = c.supply
+    if mode['mayhem']:
+        upper += pump.MAYHEM_EXTRA_WHOLE_TOKENS * (10 ** decimals)
+    if supply > upper:
+        raise ValueError('graduated_supply_exceeds_original')
     return GraduationHandoff(
         mint=mint,
         creator=c.creator,
@@ -384,6 +395,26 @@ class PostGraduationAdapter:
             raise Unavailable('missing_block_time')
         return int(value)
 
+    def graduation_snapshot(self, mint, now, priority=True):
+        """Read a completed Pump curve without applying active-curve supply equality."""
+        pool_key = pump.pda([b'bonding-curve', pump.un58(mint)])
+        result = self.rpc.call(
+            'getMultipleAccounts',
+            [[pool_key, mint], {'encoding':'base64', 'commitment':'finalized'}],
+            priority,
+        )
+        if len(result.get('value') or []) != 2 or any(x is None for x in result['value']):
+            raise Unavailable('graduation_accounts_missing')
+        slot = int(result['context']['slot'])
+        snapshot = dict(
+            mint=mint, pool=pool_key, slot=slot,
+            market_time=self._market_time(slot, priority),
+            available_time=int(self.rpc.clock()), accounts=list(result['value']),
+            protocol='pump.fun', network='solana-mainnet', kind='real',
+        )
+        graduation_handoff(snapshot, max(now, snapshot['available_time']))
+        return snapshot
+
     def pumpswap_snapshot(self, handoff, now, priority=True):
         pool_key = pumpswap_pool(handoff.mint)
         probe = self.rpc.call(
@@ -443,6 +474,10 @@ class PostGraduationAdapter:
                 pool_probe_slot=int(probe['context']['slot']),
                 account_slot=slot,
                 fee_address=self.fee_address,
+            ),
+            accounts=dict(
+                pool=pool_account, mint=mint_account, base_vault=base_vault,
+                quote_vault=quote_vault, fee_config=fee_account,
             ),
         )
 
@@ -551,6 +586,10 @@ class PostGraduationAdapter:
             source=dict(
                 graduation_slot=handoff.source_slot, discovery_slot=discovery_slot,
                 pool_probe_slot=int(first['context']['slot']), account_slot=slot,
+            ),
+            accounts=dict(
+                pool=pool_account, mint=mint_account, base_vault=base_vault,
+                quote_vault=quote_vault, open_orders=open_orders_account,
             ),
         )
 
