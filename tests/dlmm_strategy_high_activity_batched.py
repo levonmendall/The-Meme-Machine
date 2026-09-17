@@ -22,6 +22,7 @@ DEEP_DISCOVERY_POOL_MULTIPLIER=12
 DEEP_DISCOVERY_PAGE=80
 CHUNK_SECONDS=4
 ADVANCE_DIAGNOSTICS=[]
+ENDPOINT_DIAGNOSTICS=[]
 
 
 def _capture_chunk(adapter,start,cursor):
@@ -151,7 +152,7 @@ def historical_last_update_reference():
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--cycles',type=int,default=1);parser.add_argument('--window-seconds',type=int,default=12)
-    args=parser.parse_args();ADVANCE_DIAGNOSTICS.clear()
+    args=parser.parse_args();ADVANCE_DIAGNOSTICS.clear();ENDPOINT_DIAGNOSTICS.clear()
     original_advance=research._advance;original_fetch=research.fetch_high_activity
     original_discover=research.discover_and_revalidate;original_max_pools=research.MAX_POOLS
     def deep_fetch(_limit=24):
@@ -171,6 +172,7 @@ def main():
     report['supported_pool_target']=TARGET_SUPPORTED_POOLS
     report['verified_chunk_seconds']=CHUNK_SECONDS
     report['evidence_extension_diagnostics']=ADVANCE_DIAGNOSTICS
+    report['endpoint_snapshot_diagnostics']=ENDPOINT_DIAGNOSTICS
     report['historical_last_update_reference']=historical_last_update_reference()
     research.REPORT.write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
     print(json.dumps(dict(provider=report['research_rpc_provider'],conclusion=report['conclusion'],

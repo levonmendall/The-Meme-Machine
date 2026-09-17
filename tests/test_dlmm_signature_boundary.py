@@ -69,4 +69,42 @@ class SignatureBoundary(unittest.TestCase):
             boundary.complete_signature_census(rpc,'pool',100,102)
 
 
+    def test_telemetry_describes_first_and_fallback_pages_without_changing_proof(self):
+        first=[sig('n4',104,4),sig('n3',103,3),sig('n2',102,2),sig('n1',101,1)]
+        second=[sig('anchor',100,9),sig('older',99,8)]
+        rpc=_RPC(first,second);telemetry={}
+        proof=boundary.complete_signature_census(rpc,'pool',100,104,telemetry=telemetry)
+        self.assertEqual([x['signature'] for x in proof],['n4','n3','n2','n1','anchor'])
+        self.assertEqual(telemetry['first_page_newest_slot'],104)
+        self.assertEqual(telemetry['first_page_oldest_slot'],101)
+        self.assertFalse(telemetry['first_page_has_start_boundary'])
+        self.assertTrue(telemetry['fallback_attempted'])
+        self.assertEqual(telemetry['fallback_page_oldest_slot'],99)
+        self.assertTrue(telemetry['combined_has_start_boundary'])
+        self.assertEqual(telemetry['boundary_slot'],100)
+        self.assertTrue(telemetry['census_completed'])
+
+    def test_endpoint_slots_survive_census_failure(self):
+        boundary.ENDPOINT_DIAGNOSTICS.clear()
+        class Adapter:
+            def __init__(self):
+                self.rpc=_RPC([sig('n2',102,2),sig('n1',101,1)],
+                              [sig('still-new',101,0)])
+            def snapshot(self,pool,now,priority=False,fresh=False):
+                self.fresh=fresh
+                return dict(slot=104,market_time=101,available_time=102)
+        adapter=Adapter()
+        start=dict(pool='pool',slot=100,time=100)
+        with self.assertRaisesRegex(Unavailable,'missing_start_boundary'):
+            boundary.capture_chunk(adapter,start,[100,2**31-1,2**31-1])
+        self.assertTrue(adapter.fresh)
+        self.assertEqual(len(boundary.ENDPOINT_DIAGNOSTICS),1)
+        item=boundary.ENDPOINT_DIAGNOSTICS[0]
+        self.assertEqual((item['start_slot'],item['end_slot']),(100,104))
+        self.assertTrue(item['slot_advanced'])
+        self.assertTrue(item['fallback_attempted'])
+        self.assertFalse(item['census_completed'])
+        self.assertEqual(item['capture_error'],'dlmm_signature_census_missing_start_boundary')
+
+
 if __name__=='__main__':unittest.main()

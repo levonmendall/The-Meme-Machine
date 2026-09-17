@@ -13,6 +13,7 @@ from tests import dlmm_boundary_acquisition as boundary
 run.TARGET_SUPPORTED_POOLS=1
 run.CHUNK_SECONDS=2
 run._capture_chunk=boundary.capture_chunk
+run.ENDPOINT_DIAGNOSTICS=boundary.ENDPOINT_DIAGNOSTICS
 run.batched_advance=dense.pressure_advance
 
 if __name__=='__main__':
