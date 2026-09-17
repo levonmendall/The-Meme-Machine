@@ -48,11 +48,12 @@ def fee_config(lp=20, protocol=5, creator=50):
     return account(bytes(raw), pump.FEE_PROGRAM)
 
 
-def complete_pump_snapshot(now=100, mint=MINT, creator=CREATOR, mayhem=False):
-    token = 500_000_000_000_000
-    sol = 80_000_000_000
+def complete_pump_snapshot(now=100, mint=MINT, creator=CREATOR, mayhem=False,
+                           retired=False, legacy_layout=False):
+    token = 0 if retired else 500_000_000_000_000
+    sol = 0 if retired else 80_000_000_000
     real_token = 0
-    real_sol = 30_000_000_000
+    real_sol = 0 if retired else 30_000_000_000
     curve_supply = 1_000_000_000_000_000
     curve = bytearray(
         pump.discriminator('BondingCurve') +
@@ -60,6 +61,10 @@ def complete_pump_snapshot(now=100, mint=MINT, creator=CREATOR, mayhem=False):
         pump.un58(creator) + bytes(66)
     )
     curve[81] = 1 if mayhem else 0
+    if legacy_layout:
+        if mayhem:
+            raise ValueError('legacy layout predates mayhem')
+        curve = curve[:81]
     actual_supply = curve_supply + (1_000_000_000*1_000_000 if mayhem else 0)
     mint_acc = mint_account(actual_supply)
     return dict(
@@ -198,6 +203,17 @@ class PostGraduation(unittest.TestCase):
         bad['accounts'][0]['data'][0] = base64.b64encode(raw).decode()
         with self.assertRaisesRegex(ValueError, 'not_complete'):
             graduation_handoff(bad, 100)
+
+    def test_retired_and_legacy_completed_curve_handoff_does_not_require_quote_reserves(self):
+        retired = complete_pump_snapshot(retired=True)
+        handoff = graduation_handoff(retired, 100)
+        self.assertEqual(handoff.mint, MINT)
+        self.assertEqual(handoff.creator, CREATOR)
+        self.assertFalse(handoff.mayhem_mode)
+        legacy = complete_pump_snapshot(retired=True, legacy_layout=True)
+        legacy_handoff = graduation_handoff(legacy, 100)
+        self.assertEqual(legacy_handoff.mint, MINT)
+        self.assertFalse(legacy_handoff.mayhem_mode)
 
     def test_canonical_pumpswap_identity_and_quote_math(self):
         pool_key, pool_acc, _, _ = pumpswap_pool_account()
