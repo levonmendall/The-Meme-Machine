@@ -1,0 +1,25 @@
+{
+  "schema": "legacy-raydium-pool-provenance-v1",
+  "authority": "read-only research only; never selects or authorizes a trade",
+  "records": [
+    {
+      "mint": "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump",
+      "pool": "Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw",
+      "surface": "raydium-v4",
+      "current_pair_identity_verified": true,
+      "direct_pump_withdraw_lineage_verified": false,
+      "allocation_eligible": false,
+      "verification": {
+        "onchain": "Raydium AMM-v4 owner/layout, WSOL+mint pair, OpenBook market, vault and reserve validation required at read time",
+        "corroborating_public_sources": [
+          "https://solscan.io/account/Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw",
+          "https://docs.trojan.com/trojan-arena/referral-system",
+          "https://docs.bitquery.io/docs/usecases/solana-ohlc-calculator/",
+          "https://solanatracker.mintlify.app/data-api/tokens/get-multiple-tokens",
+          "https://whattofarm.io/pairs/solana-raydium-fartcoin-sol-created-2024-11-08"
+        ],
+        "limitation": "The legacy Pump withdraw/migration transaction is not available through the bounded free public-RPC history used by this project, so this record verifies the known current primary Raydium pair but does not claim direct migration-event lineage."
+      }
+    }
+  ]
+}
