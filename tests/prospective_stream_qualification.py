@@ -48,6 +48,20 @@ def evaluate_nomination(engine, adapter, tape, nomination):
         initial=adapter.snapshot(nomination['mint'],observed,priority=True)
     except (Unavailable,ValueError,KeyError,TypeError) as exc:
         return _failure(result,'initial_snapshot',exc)
+
+    # Establish and publish the exact pool-history boundary before any unrelated
+    # concentration/final-snapshot RPC can fail. The finalized stream has already
+    # been uninterrupted for >=60s; mint identity uniquely selects this Pump curve.
+    history_observed_at=int(time.time())
+    if not tape.covered(history_observed_at):
+        return dict(result,reason='incomplete_market_window',evidence_stage='stream_window',
+                    market_window_covered=False)
+    initial_market=tape.window(nomination['mint'],history_observed_at,
+                               max_slot=initial['slot'])
+    result.update(market_window_covered=True,market_events=len(initial_market),
+                  history_observed_at=history_observed_at,
+                  history_snapshot_slot=initial['slot'])
+
     try:
         concentration=adapter.concentration(nomination['mint'],initial,priority=True)
     except (Unavailable,ValueError,KeyError,TypeError) as exc:
