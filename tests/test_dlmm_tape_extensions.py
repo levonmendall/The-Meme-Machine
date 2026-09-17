@@ -2,9 +2,9 @@
 import copy
 import unittest
 
-from meme_machine import dlmm
-from meme_machine.dlmm_tape import chain_verified_tapes,reconstruct,transaction_swaps
-from tests.dlmm_support import snapshot
+from meme_machine import dlmm,pump
+from meme_machine.dlmm_tape import chain_verified_tapes,reconstruct,transaction_swaps,_un58_data
+from tests.dlmm_support import snapshot,POOL
 from tests.test_dlmm_tape import encode_state,transaction
 
 
@@ -24,6 +24,22 @@ class DlmmTapeExtensions(unittest.TestCase):
         tape=reconstruct(start,end,sigs,{'combo':combo},102,[100,2**31-1,2**31-1])
         self.assertEqual([e['cursor'] for e in tape.events],[[101,7,0],[101,7,1]])
         self.assertEqual(tape.terminal_adjustments,())
+
+    def test_routed_transaction_ignores_authenticated_swap_for_other_pool(self):
+        start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
+        _,tx=transaction(start,1_000_000,101,101,'route')
+        other=pump.b58(bytes([99])*32);routed=copy.deepcopy(tx)
+        routed['transaction']['message']['accountKeys'].append(other)
+        routed['transaction']['message']['instructions'][0]['accounts']=[2]
+        inner=routed['meta']['innerInstructions'][0]['instructions'][0]
+        raw=bytearray(_un58_data(inner['data']))
+        raw[16:48]=pump.un58(other)
+        inner['data']=pump.b58(bytes(raw))
+        self.assertEqual(transaction_swaps(routed,POOL),[])
+        bad=copy.deepcopy(routed)
+        bad['transaction']['message']['instructions'][0]['accounts']=[2,0]
+        with self.assertRaisesRegex(ValueError,'pool_positions=1'):
+            transaction_swaps(bad,POOL)
 
     def test_swap_preserves_variable_parameter_last_update(self):
         start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
