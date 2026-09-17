@@ -52,8 +52,10 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Read-only PumpSwap and legacy Raydium proof
+      - name: Read-only PumpSwap and generic legacy Raydium discovery proof
         run: python -m tests.postgrad_live_probe | tee postgrad-live-report.json
+      - name: Explicit provenanced legacy Raydium read and quote proof
+        run: python -m tests.legacy_raydium_live_probe | tee legacy-raydium-live-report.json
       - name: Preserve raw captured evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -62,6 +64,8 @@ jobs:
           path: |
             postgrad-live-report.json
             postgrad-live-capture.json
+            legacy-raydium-live-report.json
+            legacy-raydium-live-capture.json
           if-no-files-found: warn
           retention-days: 30
   live-diagnostic:
