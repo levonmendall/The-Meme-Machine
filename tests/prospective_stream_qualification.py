@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from meme_machine import pump
+from meme_machine.concentration import ConcentrationReader, FREE_PUBLIC_CONCENTRATION_RPC
 from meme_machine.engine import Engine
 from meme_machine.provider import RPC, PumpAdapter, Unavailable
 from meme_machine.store import Store
@@ -36,7 +37,7 @@ def admissible_after(events, admission):
             int(e['market_time']) > int(admission[e['wallet']])]
 
 
-def evaluate_nomination(engine, adapter, tape, nomination):
+def evaluate_nomination(engine, adapter, concentration_reader, tape, nomination):
     result=dict(mint=nomination['mint'],nomination_id=nomination['id'],
                 scout_wallet=nomination['wallet'],
                 signal_age_seconds=max(0,int(time.time())-nomination['market_time']))
@@ -63,7 +64,10 @@ def evaluate_nomination(engine, adapter, tape, nomination):
                   history_snapshot_slot=initial['slot'])
 
     try:
-        concentration=adapter.concentration(nomination['mint'],initial,priority=True)
+        concentration,concentration_meta=concentration_reader.read(
+            nomination['mint'],initial,priority=True)
+        result.update(concentration_source=concentration_meta['source'],
+                      concentration_slot=concentration_meta['slot'])
     except (Unavailable,ValueError,KeyError,TypeError) as exc:
         return _failure(result,'concentration',exc)
     try:
@@ -109,7 +113,9 @@ def main():
                 started=started,paper_trades=0,order_authority=False,
                 portfolio_performance_claim=False,results=[],limitations=[])
     url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
+    concentration_url=os.environ.get('MM_SOLANA_CONCENTRATION_RPC_URL',FREE_PUBLIC_CONCENTRATION_RPC).strip()
     rpc=RPC(url,limit=120)
+    concentration_reader=ConcentrationReader(rpc,secondary_url=concentration_url)
     tape=PumpTape()
     stop=threading.Event();ready=threading.Event()
     stream=PumpLogStream(url,tape)
@@ -157,7 +163,7 @@ def main():
                         if nomination['mint'] in attempted:
                             continue
                         attempted.add(nomination['mint'])
-                        outcome=evaluate_nomination(engine,adapter,tape,nomination)
+                        outcome=evaluate_nomination(engine,adapter,concentration_reader,tape,nomination)
                         report['results'].append(outcome)
                         # The requested proof boundary is one complete unchanged-policy
                         # result. Do not spend additional RPC once it exists.
@@ -178,7 +184,8 @@ def main():
             report.update(stream=tape.status(captured_at),orders=len(store.state['orders']),
                           positions=len(store.state['positions']),reserved_lamports=store.state['reserved'],
                           cash_unchanged=store.state['cash']==initial_cash,
-                          funnel=store.state.get('funnel',{}))
+                          funnel=store.state.get('funnel',{}),
+                          concentration_retrieval=concentration_reader.status())
             store.close()
             stop.set();thread.join(timeout=3)
     report.update(ended=int(time.time()),http_logical_requests=rpc.calls,
