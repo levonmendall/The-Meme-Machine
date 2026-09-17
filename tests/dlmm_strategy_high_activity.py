@@ -175,7 +175,8 @@ def select_variant(features):
 def run_live(cycles=MAX_CYCLES, window_seconds=6):
     if not 1 <= cycles <= MAX_CYCLES or not 5 <= window_seconds <= MAX_WINDOW_SECONDS:
         raise ValueError("dlmm_high_activity_live_bounds")
-    rpc = PoolScanRPC("https://api.mainnet-beta.solana.com", limit=240)
+    rpc_url = os.environ.get("MM_SOLANA_READ_RPC_URL") or "https://api.mainnet.solana.com"
+    rpc = PoolScanRPC(rpc_url, limit=240)
     adapter = dlmm.Adapter(rpc)
     states, candidates, rejections, api_error = discover_and_revalidate(adapter, int(time.time()))
     report = dict(
@@ -283,6 +284,10 @@ def run_live(cycles=MAX_CYCLES, window_seconds=6):
         rpc_failures=rpc.failures,
         rpc_retries=rpc.retries,
         provider_failure_kinds=rpc.failure_kinds,
+        provider_failure_methods=rpc.failure_methods,
+        rpc_batch_fallbacks=rpc.batch_fallbacks,
+        rpc_batch_fallback_items=rpc.batch_fallback_items,
+        rpc_null_retries=rpc.null_retries,
     )
     REPORT.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(json.dumps(dict(

@@ -26,7 +26,9 @@ class RPC:
         # calls is the logical RPC-attempt budget. http_requests separately shows
         # physical transports so batching cannot silently increase economic scope.
         self.calls = self.http_requests = self.failures = self.cache_hits = self.retries = 0
+        self.batch_fallbacks = self.batch_fallback_items = self.null_retries = 0
         self.failure_kinds = {}
+        self.failure_methods = {}
         self.cache = {}
         self.cache_bytes = 0
         self.started = clock()
@@ -120,12 +122,17 @@ class RPC:
                 if response.get('error') or 'result' not in response:
                     raise Unavailable('provider_error')
                 result = response['result']
+                if method=='getTransaction' and result is None and attempt+1 < attempts:
+                    self._record_failure(method,'null_result')
+                    self.null_retries += 1
+                    self.retries += 1
+                    self.sleep(0.5)
+                    continue
                 last_error = None
                 break
             except Exception as exc:
-                self.failures += 1
                 kind=self._failure_kind(exc)
-                self.failure_kinds[kind]=self.failure_kinds.get(kind,0)+1
+                self._record_failure(method,kind)
                 last_error = exc
                 if attempt+1 < attempts:
                     self.retries += 1
@@ -135,13 +142,20 @@ class RPC:
         self._cache_put(key,result)
         return result
 
-    def call_many(self, method, params_list, priority=False, batch_size=8):
-        """Read-only bounded JSON-RPC batching while preserving logical budgets.
+    def _record_failure(self, method, kind, count=1):
+        self.failures += count
+        self.failure_kinds[kind]=self.failure_kinds.get(kind,0)+count
+        key=f'{method}:{kind}'
+        self.failure_methods[key]=self.failure_methods.get(key,0)+count
 
-        Public Solana RPC can return JSON-RPC batch responses out of order, so ids
-        are verified explicitly. Every subrequest consumes the same logical request
-        budget as an individual call; batching only removes transport/latency waste.
-        Custom/test transports keep the old one-request-at-a-time behavior.
+    def call_many(self, method, params_list, priority=False, batch_size=8):
+        """Read-only bounded JSON-RPC batching with fail-closed item recovery.
+
+        A batch is only a transport optimization. Successful subresponses are retained.
+        Missing/error/null `getTransaction` items are retried individually so one public
+        RPC batch anomaly cannot discard an otherwise complete finalized interval. The
+        fallback consumes the normal logical request budget and never widens evidence
+        scope, transaction count, commitment, or freshness bounds.
         """
         if method not in self.ALLOWED:
             raise ValueError('read-only method allowlist')
@@ -169,45 +183,55 @@ class RPC:
             chunk=missing[:batch_size]
             missing=missing[batch_size:]
             logical=len(chunk)
-            last_error=None
-            values=None
-            for attempt in range(2):
-                if self.calls + logical > cap:
-                    raise Unavailable('provider_budget_exhausted')
-                # Eight getTransaction items every ~2 seconds stays at a bounded
-                # four logical requests/sec while completing dense windows quickly.
-                self._pace(max(0.5,logical/4.0))
-                first_id=self.calls+1
-                requests=[{'jsonrpc':'2.0','id':first_id+i,'method':method,'params':params}
-                          for i,(_,params,_) in enumerate(chunk)]
-                self.calls += logical
-                self.http_requests += 1
-                try:
-                    response=self.transport(requests)
-                    if not isinstance(response,list):
-                        raise Unavailable('provider_error')
-                    by_id={item.get('id'):item for item in response if isinstance(item,dict)}
-                    values=[]
-                    for i in range(logical):
-                        item=by_id.get(first_id+i)
-                        if not item or item.get('error') or 'result' not in item:
-                            raise Unavailable('provider_error')
-                        values.append(item['result'])
-                    last_error=None
-                    break
-                except Exception as exc:
-                    self.failures += logical
-                    kind=self._failure_kind(exc)
-                    self.failure_kinds[kind]=self.failure_kinds.get(kind,0)+logical
-                    last_error=exc
-                    if attempt == 0:
-                        self.retries += logical
-                        self.sleep(self._retry_delay(exc))
-            if last_error is not None:
-                raise Unavailable('provider_request_failed') from None
-            for (index,_params,key),value in zip(chunk,values):
-                results[index]=value
-                self._cache_put(key,value)
+            if self.calls + logical > cap:
+                raise Unavailable('provider_budget_exhausted')
+            self._pace(max(0.5,logical/4.0))
+            first_id=self.calls+1
+            requests=[{'jsonrpc':'2.0','id':first_id+i,'method':method,'params':params}
+                      for i,(_,params,_) in enumerate(chunk)]
+            self.calls += logical
+            self.http_requests += 1
+            fallback=[]
+            try:
+                response=self.transport(requests)
+                if not isinstance(response,list):
+                    raise Unavailable('provider_error')
+                by_id={}
+                for item in response:
+                    if not isinstance(item,dict) or item.get('id') in by_id:
+                        continue
+                    by_id[item.get('id')]=item
+                for i,(index,params,key) in enumerate(chunk):
+                    item=by_id.get(first_id+i)
+                    if not item or item.get('error') or 'result' not in item:
+                        self._record_failure(method,'provider_error')
+                        fallback.append((index,params,key))
+                        continue
+                    value=item['result']
+                    if method=='getTransaction' and value is None:
+                        self._record_failure(method,'null_result')
+                        fallback.append((index,params,key))
+                        continue
+                    results[index]=value
+                    self._cache_put(key,value)
+            except Exception as exc:
+                kind=self._failure_kind(exc)
+                self._record_failure(method,kind,logical)
+                fallback=list(chunk)
+            if fallback:
+                self.batch_fallbacks += 1
+                self.batch_fallback_items += len(fallback)
+                for index,params,key in fallback:
+                    # Individual calls retain finalized commitment and retry once on
+                    # the real HTTP path. This is intentionally narrower than
+                    # repeating an identical failing batch.
+                    value=self.call(method,params,priority)
+                    if method=='getTransaction' and value is None:
+                        # A finalized signature with a still-null body is incomplete
+                        # evidence. Never convert it into an empty/benign mutation.
+                        raise Unavailable('provider_transaction_unavailable')
+                    results[index]=value
+                    self._cache_put(key,value)
         return results
 
 

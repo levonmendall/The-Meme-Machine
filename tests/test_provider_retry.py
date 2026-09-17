@@ -87,6 +87,63 @@ class BoundedRetry(unittest.TestCase):
         self.assertEqual(rpc.batch_sizes,[8,8,8,8,8,8,8,4])
         self.assertEqual(rpc.failures,0)
 
+    def test_batch_item_error_falls_back_only_for_failed_item(self):
+        class PartialBatchRPC(RPC):
+            def __init__(self):
+                self.single=[]
+                super().__init__('https://example.invalid',limit=40,clock=lambda:100.0,sleeper=lambda _seconds:None)
+            def _http(self,request):
+                if isinstance(request,list):
+                    rows=[]
+                    for i,item in enumerate(request):
+                        if i==1:
+                            rows.append({'jsonrpc':'2.0','id':item['id'],'error':{'code':-32005}})
+                        else:
+                            rows.append({'jsonrpc':'2.0','id':item['id'],'result':{'signature':item['params'][0]}})
+                    return rows
+                self.single.append(request['params'][0])
+                return {'jsonrpc':'2.0','id':request['id'],'result':{'signature':request['params'][0]}}
+        rpc=PartialBatchRPC()
+        params=[[f'sig-{i}',{'encoding':'json','commitment':'finalized','maxSupportedTransactionVersion':0}] for i in range(4)]
+        out=rpc.call_many('getTransaction',params,True,batch_size=4)
+        self.assertEqual([x['signature'] for x in out],[f'sig-{i}' for i in range(4)])
+        self.assertEqual(rpc.single,['sig-1'])
+        self.assertEqual((rpc.batch_fallbacks,rpc.batch_fallback_items),(1,1))
+        self.assertEqual(rpc.failure_methods,{'getTransaction:provider_error':1})
+        self.assertEqual((rpc.calls,rpc.http_requests),(5,2))
+
+    def test_rejected_batch_degrades_to_bounded_individual_reads(self):
+        class NoBatchRPC(RPC):
+            def __init__(self):
+                self.singles=0
+                super().__init__('https://example.invalid',limit=40,clock=lambda:100.0,sleeper=lambda _seconds:None)
+            def _http(self,request):
+                if isinstance(request,list):
+                    return {'jsonrpc':'2.0','id':1,'error':{'code':-32600}}
+                self.singles+=1
+                return {'jsonrpc':'2.0','id':request['id'],'result':{'signature':request['params'][0]}}
+        rpc=NoBatchRPC()
+        params=[[f'sig-{i}',{'encoding':'json','commitment':'finalized','maxSupportedTransactionVersion':0}] for i in range(4)]
+        out=rpc.call_many('getTransaction',params,True,batch_size=4)
+        self.assertEqual(len(out),4);self.assertEqual(rpc.singles,4)
+        self.assertEqual((rpc.batch_fallbacks,rpc.batch_fallback_items),(1,4))
+        self.assertEqual(rpc.failure_methods,{'getTransaction:provider_error':4})
+        self.assertEqual((rpc.calls,rpc.http_requests),(8,5))
+
+    def test_individual_transaction_null_retries_once(self):
+        class NullOnceRPC(RPC):
+            def __init__(self):
+                self.n=0
+                super().__init__('https://example.invalid',limit=40,clock=lambda:100.0,sleeper=lambda _seconds:None)
+            def _http(self,request):
+                self.n+=1
+                return {'jsonrpc':'2.0','id':request['id'],'result':None if self.n==1 else {'slot':1}}
+        rpc=NullOnceRPC()
+        value=rpc.call('getTransaction',['sig',{'encoding':'json','commitment':'finalized','maxSupportedTransactionVersion':0}],True)
+        self.assertEqual(value,{'slot':1})
+        self.assertEqual((rpc.null_retries,rpc.retries,rpc.failures),(1,1,1))
+        self.assertEqual(rpc.failure_methods,{'getTransaction:null_result':1})
+
     def test_unknown_signature_time_cannot_claim_complete_window(self):
         calls=[]
         def transport(request):

@@ -18,3 +18,10 @@ Research-only continuation stacked on draft PR #4. Prospective DLMM allocation r
 The first post-repair live validation attempt was provider-invalid: the public Solana RPC recorded eight failures before a verified opportunity could form. It produced no protocol-semantic contradiction and is not treated as strategy evidence.
 
 This commit triggers one bounded revalidation of the exact same repaired code and unchanged point-in-time high-activity replay. It does not grant allocation authority and does not change strategy behavior.
+
+## Read-only RPC acquisition repair
+
+- Finalized transaction batches are transport optimization only; a partial/rejected batch now falls back only for unresolved items.
+- `getTransaction` null is retried once and remains fail-closed if still unavailable.
+- Research defaults to Solana's canonical public mainnet endpoint and accepts optional `MM_SOLANA_READ_RPC_URL` for an authorized dedicated read-only endpoint.
+- No transaction count, finality, freshness, strategy, cost, or allocation boundary is widened.
