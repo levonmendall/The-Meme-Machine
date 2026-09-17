@@ -102,14 +102,6 @@ def _target_terminal(state, target_id):
     return bool(order.get('exit') and mint not in state.get('positions', {}))
 
 
-def _new_live_clients(url):
-    rpc = RPC(url, limit=RPC_LIMIT)
-    adapter = PumpAdapter(rpc)
-    postgrad = PostGraduationAdapter(rpc, scan_rpc=object())
-    pumpswap = PumpSwapPaperRuntime(None, postgrad)  # store is attached by caller
-    return rpc, adapter, pumpswap
-
-
 def main():
     started = int(time.time())
     report = dict(
