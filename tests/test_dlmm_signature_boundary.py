@@ -62,9 +62,9 @@ class SignatureBoundary(unittest.TestCase):
             boundary.complete_signature_census(rpc,'pool',100,120)
         self.assertEqual(MAX_TRANSACTIONS,16)
 
-    def test_page_cap_fails_closed_without_fetching_ninth_page(self):
+    def test_page_cap_fails_closed_without_fetching_seventeenth_page(self):
         pages=[]
-        slot=1000
+        slot=5000
         for p in range(boundary.MAX_CENSUS_PAGES):
             pages.append([sig(f'p{p}-{i}',slot-i,63-i) for i in range(boundary.PAGE_LIMIT)])
             slot-=boundary.PAGE_LIMIT
@@ -103,7 +103,7 @@ class SignatureBoundary(unittest.TestCase):
     def test_endpoint_slots_survive_page_bound_failure(self):
         boundary.ENDPOINT_DIAGNOSTICS.clear()
         pages=[]
-        slot=1000
+        slot=5000
         for p in range(boundary.MAX_CENSUS_PAGES):
             pages.append([sig(f'p{p}-{i}',slot-i,63-i) for i in range(boundary.PAGE_LIMIT)])
             slot-=boundary.PAGE_LIMIT
