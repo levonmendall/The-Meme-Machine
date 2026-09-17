@@ -1,9 +1,15 @@
 import json
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from meme_machine import pump
+from meme_machine.__main__ import tick_stream
+from meme_machine.engine import Engine
+from meme_machine.store import Store
 from meme_machine.stream import PumpTape, websocket_url
+from tests.support import SCOUT, evidence, event, snapshot
 
 
 class StreamTape(unittest.TestCase):
@@ -64,6 +70,67 @@ class StreamTape(unittest.TestCase):
                          'wss://example.test/v2/key?x=1')
         with self.assertRaisesRegex(ValueError,'HTTPS'):
             websocket_url('http://example.test')
+
+    def test_durable_tick_uses_only_post_warmup_scout_events_and_stream_window(self):
+        class Tape:
+            def __init__(self):
+                self.cursor=7
+                self.fresh=[]
+            def status(self,now):
+                return dict(covered=True,connected=True,warm_seconds=60,loss_until=0)
+            def covered(self,now):
+                return True
+            def latest_sequence(self):
+                return self.cursor
+            def events_since(self,cursor):
+                return list(self.fresh),self.cursor+len(self.fresh)
+            def window(self,mint,now,max_slot=None):
+                rows=evidence(now,mint=mint)['events']
+                return [dict(x,slot=min(x['slot'],max_slot or x['slot'])) for x in rows]
+        class RPC:
+            calls=0;http_requests=0;failures=0;cache_hits=0;limit=120
+            url='https://api.mainnet-beta.solana.com'
+        class Adapter:
+            rpc=RPC()
+            def snapshot(self,mint,now,priority=False):
+                return snapshot(now,mint=mint,slot=now)
+            def concentration(self,mint,snap,priority=False):
+                return 1000
+
+        with tempfile.TemporaryDirectory() as td:
+            store=Store(str(Path(td)/'state.db'),'synthetic',100_000_000,'test')
+            engine=Engine(store,[SCOUT])
+            tape=Tape();adapter=Adapter()
+            with patch('meme_machine.__main__.time.time',return_value=100):
+                cursor=tick_stream(engine,adapter,tape,100,None)
+            self.assertEqual(cursor,7)
+            self.assertEqual(store.state['orders'],{})
+            tape.fresh=[event(now=101)]
+            with patch('meme_machine.__main__.time.time',return_value=101):
+                cursor=tick_stream(engine,adapter,tape,101,cursor)
+            self.assertEqual(store.state['funnel']['nominations'],1)
+            self.assertEqual(store.state['funnel']['qualification_attempts'],1)
+            self.assertEqual(store.state['funnel']['qualified'],1)
+            self.assertEqual(store.state['orders']['nomination']['status'],'reserved')
+            store.close()
+
+    def test_durable_tick_stays_fail_closed_without_complete_stream_window(self):
+        class Tape:
+            def status(self,now):
+                return dict(covered=False,connected=True,warm_seconds=20,loss_until=0)
+        class RPC:
+            calls=0;http_requests=0;failures=0;cache_hits=0;limit=120
+            url='https://api.mainnet-beta.solana.com'
+        class Adapter: rpc=RPC()
+        with tempfile.TemporaryDirectory() as td:
+            store=Store(str(Path(td)/'state.db'),'synthetic',100_000_000,'test')
+            engine=Engine(store,[SCOUT])
+            with patch('meme_machine.__main__.time.time',return_value=100):
+                cursor=tick_stream(engine,Adapter(),Tape(),100,None)
+            self.assertIsNone(cursor)
+            self.assertGreaterEqual(store.state['entry_quarantine_until'],140)
+            self.assertEqual(store.state['orders'],{})
+            store.close()
 
 
 if __name__=='__main__':
