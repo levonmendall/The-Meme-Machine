@@ -67,10 +67,10 @@ def run():
         raise Unavailable('host_probe_wrong_network')
     # Historical diagnostic only: use Solana's 1000-signature page size so this
     # already-known interval can be recovered cheaply without changing the live
-    # verifier's 16x64 census. Four pages / 4000 rows is a hard probe-only cap.
+    # verifier's 16x64 census. Eight pages / 8000 rows is a hard probe-only cap.
     telemetry=dict(pages=[],rows=0)
     selected=[];before=None;boundary_seen=False;seen=set()
-    for page_index in range(4):
+    for page_index in range(8):
         cfg=dict(limit=1000,commitment='finalized')
         if before is not None:
             cfg['before']=before
@@ -91,8 +91,17 @@ def run():
         if not page or len(page)<1000:break
         before=page[-1]['signature']
     if not boundary_seen:
+        OUT.write_text(json.dumps(dict(kind='dlmm_jup_host_fee_probe_partial',
+            pool=POOL,start_slot=START_SLOT,end_slot=END_SLOT,signature_census=telemetry,
+            rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,
+            rpc_failures=rpc.failures,rpc_retries=rpc.retries),indent=2,sort_keys=True)+'\\n')
         raise Unavailable('host_probe_historical_page_bound')
     if len(selected)!=2:
+        OUT.write_text(json.dumps(dict(kind='dlmm_jup_host_fee_probe_partial',
+            pool=POOL,start_slot=START_SLOT,end_slot=END_SLOT,signature_census=telemetry,
+            selected=[dict(signature=s.get('signature'),slot=s.get('slot')) for s in selected],
+            rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,
+            rpc_failures=rpc.failures,rpc_retries=rpc.retries),indent=2,sort_keys=True)+'\\n')
         raise Unavailable('host_probe_expected_exact_two_transactions')
     proof=selected
     params=[[s['signature'],dict(encoding='json',commitment='finalized',
