@@ -29,7 +29,7 @@ Raw source evidence is Actions artifact `postgrad-live-35186308858-1`, artifact 
 
 The historical sample mint `9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump` currently has more than one structurally valid WSOL Raydium-v4 pool. Generic discovery therefore still fails closed with `ambiguous_legacy_raydium_pools`; it never ranks by liquidity or chooses a convenient pool.
 
-Pump's current documentation states that old completed curves used the deprecated withdraw/off-chain migration route to Raydium, whereas current migration uses canonical PumpSwap. The bounded free public-RPC history available to this project cannot recover the old Fartcoin Pump withdraw transaction, so **direct Pump-withdraw -> Raydium migration-event lineage is not claimed**.
+Pump's current documentation states that old completed curves used the deprecated withdraw/off-chain migration route to Raydium, whereas current migration uses canonical PumpSwap. **Direct Pump-withdraw -> Raydium migration-event lineage is not claimed.**
 
 For research-only current-pair evidence, `evidence/legacy_raydium_pool_registry.json` records one explicit Fartcoin pool, `Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw`, with:
 
@@ -55,6 +55,16 @@ Workflow `35187441898`, artifact `10481694551`, proved this explicit read path l
 
 A captured Raydium fixture preserves the same finalized pool/mint/vault state and decoded OpenOrders totals. The exact packed OpenOrders decoder is also independently covered by deterministic synthetic regression; the live adapter decoded the original 3228-byte OpenOrders account successfully.
 
+## One targeted historical-lineage attempt
+
+Workflow `35232477616`, archival job `105239864025`, ran one bounded public-RPC attempt for the old Pump withdraw/migrator address `39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg` around the exact external creation timestamp of the known Fartcoin/Bzc9 pair. Artifact `legacy-raydium-lineage-35232477616-1`, ID `10502232524`, preserves the report.
+
+The attempt did **not** recover the migration transaction. It paged the migrator address for the configured maximum `180` pages / `180000` finalized signature records and consumed `197` bounded logical/transport RPC requests. The oldest migrator signature reached was Unix time `1788282010`, while the target pair creation timestamp was `1729231787`; therefore the scan never reached the 2024 target window. There were `16` HTTP-429 failures/retries, zero candidate signatures in the target +/-1-hour window, zero transaction bodies examined, and no same-transaction or direct-withdraw lineage match.
+
+This result means only that the single bounded public-RPC route is insufficient for this archival reconstruction. It does **not** disprove the historical Pump -> Raydium relationship and it does not justify weakening the provenance predicate. Any further attempt should use a historical/indexed source capable of seeking directly to the 2024 migration window rather than paging millions of newer migrator signatures.
+
+No registry flag, allocation authority, strategy threshold, or current-pair identity claim was changed by the archival attempt.
+
 ## Fail-closed surface resolver
 
 `meme_machine/postgrad_resolver.py` separates discovery from authority:
@@ -78,6 +88,6 @@ Prospective post-graduation allocation remains hard-disabled. `test_allocation=T
 
 The adapter, current-pair identity validation, integer quote mechanics, captured mainnet evidence, synthetic restart-safe lifecycle and shared-capital accounting are now in place for canonical PumpSwap and the explicit legacy Raydium research sample. CI on the latest implementation also skips the base Pump natural-qualification live watcher on stacked-branch pushes so strategy-evidence collection stays on the base branch instead of consuming duplicate CI runtime.
 
-The remaining limitation is historical lineage for legacy Raydium: the current Bzc9 pair is strongly identified and live-read verified, but the old Pump withdraw transaction itself has not been reconstructed from an authoritative historical source. That distinction is deliberately carried in every legacy snapshot and keeps prospective Raydium allocation disabled.
+The remaining legacy limitation is historical lineage: the current Bzc9 pair is strongly identified and live-read verified, but the old Pump withdraw transaction itself has not been reconstructed from an authoritative historical source. The one bounded public-RPC archival attempt demonstrated that chronological paging through the high-volume migrator address cannot reach the 2024 window within the project's resource limits. That distinction remains carried in every legacy snapshot and keeps prospective Raydium allocation disabled.
 
 Do not enable prospective PumpSwap or Raydium allocation, merge, deploy, add costs, or change `continuation-v1` without separate authorization.
