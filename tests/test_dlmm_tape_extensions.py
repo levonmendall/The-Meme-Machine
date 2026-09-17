@@ -25,34 +25,24 @@ class DlmmTapeExtensions(unittest.TestCase):
         self.assertEqual([e['cursor'] for e in tape.events],[[101,7,0],[101,7,1]])
         self.assertEqual(tape.terminal_adjustments,())
 
-    def test_authenticated_terminal_clock_carries_useful_post_swap_state(self):
+    def test_swap_preserves_variable_parameter_last_update(self):
         start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
         post,tx=transaction(start,1_000_000,101,110,'clock')
-        # Program Clock may differ from RPC blockTime. All economics below were
-        # produced by the authenticated swap; only the terminal Clock field changes.
-        post['last_update']=104
+        self.assertEqual(post['last_update'],start['last_update'])
         end=encode_state(start_snapshot,post,102,112)
         sigs=[dict(signature='clock',slot=101,transactionIndex=7,err=None,confirmationStatus='finalized'),dict(signature='anchor',slot=100,transactionIndex=1,err=None,confirmationStatus='finalized')]
         tape=reconstruct(start,end,sigs,{'clock':tx},112,[100,2**31-1,2**31-1])
-        self.assertEqual(len(tape.terminal_adjustments),1)
-        adjustment=tape.terminal_adjustments[0]
-        self.assertEqual(adjustment['kind'],'authenticated_terminal_swap_clock')
-        self.assertEqual(adjustment['chain_last_update'],104)
-        self.assertEqual(adjustment['modeled_last_update'],110)
-        self.assertEqual(adjustment['delta_from_rpc_block_time_seconds'],-6)
-        self.assertEqual(adjustment['instruction'],'swap2')
-        self.assertEqual(tape.terminal['last_update'],104)
+        self.assertEqual(tape.terminal_adjustments,())
+        self.assertEqual(tape.terminal['last_update'],start['last_update'])
 
-    def test_terminal_clock_must_be_monotonic_and_inside_terminal_snapshot(self):
+    def test_unexplained_terminal_last_update_mutation_still_fails_closed(self):
         start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
         post,tx=transaction(start,1_000_000,101,110,'clock-bad')
+        post['last_update']=start['last_update']+1
+        end=encode_state(start_snapshot,post,102,112)
         sigs=[dict(signature='clock-bad',slot=101,transactionIndex=7,err=None,confirmationStatus='finalized'),dict(signature='anchor',slot=100,transactionIndex=1,err=None,confirmationStatus='finalized')]
-        regressed=copy.deepcopy(post);regressed['last_update']=99
         with self.assertRaisesRegex(Exception,'last_update'):
-            reconstruct(start,encode_state(start_snapshot,regressed,102,112),sigs,{'clock-bad':tx},112,[100,2**31-1,2**31-1])
-        future=copy.deepcopy(post);future['last_update']=113
-        with self.assertRaisesRegex(Exception,'last_update'):
-            reconstruct(start,encode_state(start_snapshot,future,102,112),sigs,{'clock-bad':tx},113,[100,2**31-1,2**31-1])
+            reconstruct(start,end,sigs,{'clock-bad':tx},112,[100,2**31-1,2**31-1])
 
     def test_verified_chunks_chain_without_raising_transaction_bound(self):
         s0=snapshot();s0['kind']='real';p0=dlmm.validate(s0,100)
