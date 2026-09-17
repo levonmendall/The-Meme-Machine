@@ -2,10 +2,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from meme_machine.__main__ import _retire_scout_state
 from meme_machine.engine import Engine
 from meme_machine.market_native_runtime import MarketNativeAuthority, MarketNativeRuntime
 from meme_machine.store import Store
-from tests.support import evidence, event, MINT
+from tests.support import evidence, event, SCOUT
 
 
 class MarketNativeRuntimeTests(unittest.TestCase):
@@ -22,6 +23,27 @@ class MarketNativeRuntimeTests(unittest.TestCase):
             self.assertEqual(store.state['wallets'],{})
             self.assertEqual(store.state['orders']['market-native-anchor']['status'],'reserved')
             self.assertEqual(store.state['funnel']['qualification_attempts'],1)
+            store.close()
+
+    def test_retirement_migration_archives_scout_config_and_clears_only_scout_caches(self):
+        with tempfile.TemporaryDirectory() as td:
+            store=Store(str(Path(td)/'state.db'),'synthetic',100_000_000,'test')
+            scout=Engine(store,[SCOUT])
+            scout.scout([event(now=100,wallet=SCOUT,id='old-scout')],100)
+            cash=store.state['cash']
+            old_config=store.state['scout_config']
+            self.assertTrue(store.state['wallets'])
+            self.assertTrue(store.state['seen'])
+            self.assertTrue(_retire_scout_state(store))
+            self.assertEqual(store.state['retired_scout_config'],old_config)
+            self.assertNotIn('scout_config',store.state)
+            self.assertEqual(store.state['wallets'],{})
+            self.assertEqual(store.state['seen'],{})
+            self.assertEqual(store.state['cash'],cash)
+            market_engine=Engine(store,[])
+            self.assertEqual(market_engine.seeds,set())
+            self.assertFalse(_retire_scout_state(store))
+            self.assertEqual(store.state['cash'],cash)
             store.close()
 
     def test_market_native_runtime_refuses_configured_scouts(self):
