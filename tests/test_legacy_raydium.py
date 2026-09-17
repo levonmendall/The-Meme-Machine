@@ -10,21 +10,24 @@ from tests.test_postgrad import (
 
 
 class FakeRaydiumRPC:
-    def __init__(self, pool_key, pool_account, mint_acc, base_acc, quote_acc, orders_acc):
+    def __init__(self, pool_key, pool_account, mint_acc, base_acc, quote_acc, orders_acc,
+                 clock_value=101, block_time=100):
         self.url = 'https://example.invalid'
         self.transport = object()
         self._http = object()
         self.calls = 0
         self.pool_key = pool_key
         self.accounts = [pool_account, mint_acc, base_acc, quote_acc, orders_acc]
+        self.clock_value = clock_value
+        self.block_time = block_time
     def clock(self):
-        return 101
+        return self.clock_value
     def call(self, method, params=None, priority=False):
         self.calls += 1
         if method == 'getGenesisHash':
             return pump.MAINNET
         if method == 'getBlockTime':
-            return 100
+            return self.block_time
         if method == 'getMultipleAccounts':
             addresses = params[0]
             if addresses == [self.pool_key]:
@@ -59,17 +62,20 @@ def fixture(reverse=True):
 
 
 class ExplicitLegacyRaydium(unittest.TestCase):
-    def test_explicit_pool_is_onchain_validated_and_orientation_normalized(self):
-        pool_key, pool_acc, mint_acc, base_acc, quote_acc, orders = fixture(reverse=True)
-        rpc = FakeRaydiumRPC(pool_key, pool_acc, mint_acc, base_acc, quote_acc, orders)
-        adapter = PostGraduationAdapter(rpc, scan_rpc=object())
-        handoff = GraduationHandoff(MINT, CREATOR, 'source', 900, 90, False)
-        provenance = LegacyRaydiumProvenance(
+    def provenance(self, pool_key):
+        return LegacyRaydiumProvenance(
             mint=MINT, pool=pool_key,
             current_pair_identity_verified=True,
             direct_pump_withdraw_lineage_verified=False,
             source_label='captured-known-primary',
         )
+
+    def test_explicit_pool_is_onchain_validated_and_orientation_normalized(self):
+        pool_key, pool_acc, mint_acc, base_acc, quote_acc, orders = fixture(reverse=True)
+        rpc = FakeRaydiumRPC(pool_key, pool_acc, mint_acc, base_acc, quote_acc, orders)
+        adapter = PostGraduationAdapter(rpc, scan_rpc=object())
+        handoff = GraduationHandoff(MINT, CREATOR, 'source', 900, 90, False)
+        provenance = self.provenance(pool_key)
         snap = read_explicit_pool(adapter, handoff, provenance, 101)
         self.assertEqual(snap['pool'], pool_key)
         self.assertEqual(snap['surface'], 'raydium-v4')
@@ -80,6 +86,16 @@ class ExplicitLegacyRaydium(unittest.TestCase):
         self.assertFalse(snap['source']['allocation_eligible'])
         self.assertFalse(provenance.allocation_eligible)
         self.assertEqual(snap['state']['market_program'], OPENBOOK_V3)
+
+    def test_stale_finalized_mark_fails_closed_at_receipt(self):
+        pool_key, pool_acc, mint_acc, base_acc, quote_acc, orders = fixture(reverse=True)
+        rpc = FakeRaydiumRPC(
+            pool_key, pool_acc, mint_acc, base_acc, quote_acc, orders,
+            clock_value=130, block_time=100)
+        adapter = PostGraduationAdapter(rpc, scan_rpc=object())
+        handoff = GraduationHandoff(MINT, CREATOR, 'source', 900, 90, False)
+        with self.assertRaisesRegex(ValueError, 'stale_or_future_raydium_snapshot'):
+            read_explicit_pool(adapter, handoff, self.provenance(pool_key), 100)
 
     def test_explicit_provenance_cannot_override_mint_identity(self):
         pool_key, pool_acc, mint_acc, base_acc, quote_acc, orders = fixture(reverse=False)
