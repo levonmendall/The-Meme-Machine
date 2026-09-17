@@ -21,3 +21,5 @@ The fixed strategy grid is declared before outcome collection:
 Current live pilot is bounded to at most four pools, three warmup/outcome cycles, 18 seconds per interval, one public read-only RPC budget, and no paid data source. Unsupported or incomplete intervals are excluded rather than inferred.
 
 A single pilot cannot establish repeatability. `pilot_sample_adequate` requires at least 8 verified opportunities across 3 pools with 4 nonempty outcome intervals. `repeatability_sample_adequate` remains false until at least 200 point-in-time opportunities across 20 pools exist. Prospective allocation remains disabled regardless of either flag.
+
+The live pilot is triggered only by the dedicated research workflow; ordinary Pump live diagnostics are suppressed on that trigger commit.
