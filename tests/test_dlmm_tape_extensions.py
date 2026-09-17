@@ -44,7 +44,7 @@ class DlmmTapeExtensions(unittest.TestCase):
         adjustment=tape.terminal_adjustments[0]
         self.assertEqual(adjustment['kind'],'final_swap_clock_timestamp')
         self.assertEqual(adjustment['delta_seconds'],1)
-        self.assertEqual(adjustment['instruction'],'swap')
+        self.assertEqual(adjustment['instruction'],'swap2')
 
     def test_final_clock_difference_outside_bound_still_fails(self):
         start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
