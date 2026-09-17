@@ -24,7 +24,6 @@ EXACT_IN = {SWAP_IX,SWAP2_IX}
 EXACT_IN_NAME = {SWAP_IX:'swap',SWAP2_IX:'swap2'}
 EVENT_CPI = bytes.fromhex('e445a52e51cb9a1d')
 MAX_TRANSACTIONS = 16
-MAX_CLOCK_SKEW_SECONDS = 2
 
 
 def _un58_data(s):
@@ -133,8 +132,7 @@ def transaction_swaps(tx,pool):
     if not records:
         # Referencing the pool account without invoking its owning program cannot
         # mutate pool data. Terminal equality still catches unrelated vault changes.
-        if not dlmm_seen:
-            return []
+        if not dlmm_seen:return []
         raise Unavailable('dlmm_missing_swap_call')
     if len(records)==1 and not records[0]['legacy']:
         records[0]['legacy']=_log_swap_fallback(meta,pool)
@@ -157,8 +155,7 @@ def transaction_swaps(tx,pool):
 def transaction_swap(tx,pool):
     """Backward-compatible single-swap helper used by existing tests/callers."""
     swaps=transaction_swaps(tx,pool)
-    if len(swaps)!=1:
-        raise Unavailable('dlmm_requires_one_exact_input_swap_per_transaction')
+    if len(swaps)!=1:raise Unavailable('dlmm_requires_one_exact_input_swap_per_transaction')
     return swaps[0]
 
 
@@ -188,6 +185,27 @@ def chain_verified_tapes(start,tapes):
                         tuple(adjustments))
 
 
+def _carry_terminal_clock(start,state,end,events):
+    """Use authentic post-swap Clock state only after economic equality is proven.
+
+    Solana RPC blockTime is not the program's Clock::unix_timestamp. The replay uses
+    blockTime to reproduce swaps; if every output/fee/protocol amount and every other
+    terminal field already matches chain state, a sole `last_update` mismatch cannot
+    alter past economics. Carry the authenticated chain value forward only when it is
+    monotonic from the prestate and no later than the terminal snapshot time.
+    """
+    if not events:return None
+    chain_value=end['last_update']
+    if chain_value<start['last_update'] or chain_value>end['time']:
+        return None
+    final=events[-1]
+    adjustment=dict(kind='authenticated_terminal_swap_clock',chain_last_update=chain_value,
+        modeled_last_update=state['last_update'],delta_from_rpc_block_time_seconds=chain_value-final['time'],
+        signature=final['signature'],instruction=final['instruction'])
+    state['last_update']=chain_value
+    return adjustment
+
+
 def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
     if len(signatures)>64 or len(transactions)>MAX_TRANSACTIONS or len(encode(transactions))>2_000_000:
         raise Unavailable('dlmm_interval_evidence_bound')
@@ -198,8 +216,7 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
     if [(s['slot'],s['transactionIndex']) for s in signatures]!=sorted(
             ((s['slot'],s['transactionIndex']) for s in signatures),reverse=True):
         raise Unavailable('dlmm_signature_order')
-    if end_snapshot['available_time']>now:
-        raise ValueError('dlmm_future_endpoint')
+    if end_snapshot['available_time']>now:raise ValueError('dlmm_future_endpoint')
     end=dlmm.validate(end_snapshot,end_snapshot['available_time'],'real')
     if end['pool']!=start['pool'] or end['slot']<=start['slot'] or end['time']-start['time']>60:
         raise Unavailable('dlmm_interval_identity_or_age')
@@ -223,29 +240,19 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
             if any(e['observed'][k]!=quote[k] for k in ('start','end','output','fee','protocol_fee')):
                 raise Unavailable('dlmm_observed_swap_cannot_be_reconstructed')
             next_cursor=[e['slot'],sig['transactionIndex'],swap_index];state['slot']=e['slot']
-            events.append(dict(kind='real',commitment='finalized',pool=start['pool'],
-                cursor=next_cursor,previous_cursor=previous,prestate_hash=prehash,
-                amount=e['amount'],for_y=e['for_y'],time=e['time'],available_time=now,
-                observed=e['observed'],signature=sig['signature'],instruction=e['instruction'],
-                execution_order=e['execution_order']))
+            events.append(dict(kind='real',commitment='finalized',pool=start['pool'],cursor=next_cursor,
+                previous_cursor=previous,prestate_hash=prehash,amount=e['amount'],for_y=e['for_y'],
+                time=e['time'],available_time=now,observed=e['observed'],signature=sig['signature'],
+                instruction=e['instruction'],execution_order=e['execution_order']))
             previous=next_cursor
     mismatches=[key for key in set(state)-{'time','slot'} if state[key]!=end[key]]
     adjustments=[]
-    if mismatches==['last_update'] and events:
-        # RPC blockTime is an estimate; Meteora writes Clock::unix_timestamp. If all
-        # swap economics and every other terminal field match exactly, accept only a
-        # tiny final-clock difference and carry the authentic terminal timestamp
-        # forward. This cannot change any already-replayed fee/output economics.
-        final=events[-1];delta=end['last_update']-state['last_update']
-        if (abs(delta)<=MAX_CLOCK_SKEW_SECONDS
-                and abs(end['last_update']-final['time'])<=MAX_CLOCK_SKEW_SECONDS):
-            adjustments.append(dict(kind='final_swap_clock_timestamp',delta_seconds=delta,
-                                    signature=final['signature'],instruction=final['instruction']))
-            state['last_update']=end['last_update']
-            mismatches=[]
+    if mismatches==['last_update']:
+        adjustment=_carry_terminal_clock(start,state,end,events)
+        if adjustment is not None:
+            adjustments.append(adjustment);mismatches=[]
     if mismatches:
-        key=mismatches[0]
-        detail=''
+        key=mismatches[0];detail=''
         if key=='last_update' and events:
             detail=f':sim={state[key]}:chain={end[key]}:last_instruction={events[-1]["instruction"]}'
         raise Unavailable('dlmm_terminal_state_disagrees_with_forward_reconstruction:'+key+detail)
@@ -263,6 +270,5 @@ def capture(adapter,start,end_snapshot,now,cursor):
     for sig in relevant:
         transactions[sig['signature']]=rpc.call('getTransaction',[sig['signature'],
             dict(encoding='json',commitment='finalized',maxSupportedTransactionVersion=0)],True)
-        if len(encode(transactions))>2_000_000:
-            raise Unavailable('dlmm_interval_evidence_bound')
+        if len(encode(transactions))>2_000_000:raise Unavailable('dlmm_interval_evidence_bound')
     return reconstruct(start,end_snapshot,signatures,transactions,now,cursor)
