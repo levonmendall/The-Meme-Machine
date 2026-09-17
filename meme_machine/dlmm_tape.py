@@ -42,9 +42,10 @@ def decode_swap(raw,pool):
         raise ValueError('dlmm_swap_event_layout_or_identity')
     start,end,amount,output,direction,fee,protocol=struct.unpack_from('<iiQQ?QQ',raw,72)
     host=int.from_bytes(raw[129:137],'little')
-    return dict(amount=amount,for_y=direction,
-                observed=dict(start=start,end=end,output=output,fee=fee,
-                              protocol_fee=protocol,host_fee=host))
+    observed=dict(start=start,end=end,output=output,fee=fee,protocol_fee=protocol)
+    if host:
+        observed['host_fee']=host
+    return dict(amount=amount,for_y=direction,observed=observed)
 
 
 def decode_swap2(raw,pool):
@@ -61,10 +62,11 @@ def decode_swap2(raw,pool):
     direction=bool(raw[80])
     if bool(fees_on_x)!=direction:
         raise Unavailable('dlmm_fee_token_direction_unsupported')
-    return dict(amount=amount,for_y=direction,
-                observed=dict(start=start,end=end,output=output,
-                              fee=mm_fee+protocol+host,protocol_fee=protocol,
-                              host_fee=host))
+    observed=dict(start=start,end=end,output=output,
+                  fee=mm_fee+protocol+host,protocol_fee=protocol)
+    if host:
+        observed['host_fee']=host
+    return dict(amount=amount,for_y=direction,observed=observed)
 
 
 def _keys(meta,message):

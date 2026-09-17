@@ -106,9 +106,10 @@ class Tape(unittest.TestCase):
         decoded=transaction_swap(tx,POOL)
         self.assertEqual(decoded['amount'],450_000_000)
         bad=copy.deepcopy(tx)
-        raw=_un58_data(bad['meta']['innerInstructions'][0]['instructions'][1]['data'])
-        raw=raw[:-3]+b'\1'+raw[-2:]
-        bad['meta']['innerInstructions'][0]['instructions'][1]['data']=pump.b58(raw)
+        raw=bytearray(_un58_data(bad['meta']['innerInstructions'][0]['instructions'][1]['data']))
+        # EVENT_CPI (8) + Swap2Evt amount_left offset (105).
+        raw[113:121]=(1).to_bytes(8,'little')
+        bad['meta']['innerInstructions'][0]['instructions'][1]['data']=pump.b58(bytes(raw))
         with self.assertRaisesRegex(Unavailable,'partial_limit'):
             transaction_swap(bad,POOL)
 
