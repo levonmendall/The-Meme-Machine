@@ -139,7 +139,7 @@ class ConcentrationReader:
             'filters':[{'memcmp':{'offset':0,'bytes':mint}}],
         }]
         return self._decode_program_scan(
-            self.program_rpc.call('getProgramAccounts', params, priority), mint, snapshot)
+            self.program_rpc.call('getProgramAccounts', params, True), mint, snapshot)
 
     def read(self, mint, snapshot, priority=True):
         # First choice: same authorized provider, one compact account scan. This
