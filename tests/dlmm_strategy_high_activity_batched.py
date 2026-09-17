@@ -12,7 +12,7 @@ import json
 import time
 
 from meme_machine import dlmm,pump
-from meme_machine.dlmm_tape import MAX_TRANSACTIONS,chain_verified_tapes,reconstruct
+from meme_machine.dlmm_tape import MAX_TRANSACTIONS,chain_verified_tapes,reconstruct,transaction_swaps
 from meme_machine.provider import Unavailable
 from meme_machine.store import digest,encode
 from tests import dlmm_strategy_high_activity as research
@@ -44,6 +44,19 @@ def _capture_chunk(adapter,start,cursor):
     return tape,next_cursor,len(relevant)
 
 
+def _chunk_meta(round_index,start,tape,tx_count):
+    times=[e['time'] for e in tape.events]
+    return dict(
+        round=round_index,start_slot=start['slot'],end_slot=tape.terminal['slot'],
+        transactions=tx_count,swaps=len(tape.events),terminal_adjustments=list(tape.terminal_adjustments),
+        start_last_update=start['last_update'],end_last_update=tape.terminal['last_update'],
+        filter_period=start['parameters']['filter_period'],decay_period=start['parameters']['decay_period'],
+        event_times=times,event_instructions=[e.get('instruction') for e in tape.events],
+        first_elapsed_from_last_update=None if not times else times[0]-start['last_update'],
+        last_elapsed_from_last_update=None if not times else times[-1]-start['last_update'],
+    )
+
+
 def batched_advance(adapter,states,wait_seconds):
     if wait_seconds<=0:raise ValueError('dlmm_chunk_wait')
     current=dict(states);cursors={a:[s['slot'],2**31-1,2**31-1] for a,s in states.items()}
@@ -56,10 +69,11 @@ def batched_advance(adapter,states,wait_seconds):
             try:
                 tape,cursor,tx_count=_capture_chunk(adapter,start,cursors[address])
                 chunks[address].append(tape);cursors[address]=cursor;current[address]=tape.terminal
-                meta[address].append(dict(round=round_index,start_slot=start['slot'],end_slot=tape.terminal['slot'],
-                    transactions=tx_count,swaps=len(tape.events),terminal_adjustments=list(tape.terminal_adjustments)))
+                meta[address].append(_chunk_meta(round_index,start,tape,tx_count))
             except (Unavailable,ValueError,KeyError,TypeError) as exc:
-                errors.append(dict(pool=address,chunk=round_index,reason=str(exc)))
+                errors.append(dict(pool=address,chunk=round_index,reason=str(exc),
+                    start_last_update=start.get('last_update'),filter_period=(start.get('parameters') or {}).get('filter_period'),
+                    start_time=start.get('time')))
                 current.pop(address,None)
         round_index+=1
     advanced={};tapes={};diag={}
@@ -109,11 +123,30 @@ def efficient_discover_and_revalidate(adapter,now):
                 dlmm.scout(snap,snap['available_time'],dict(pool=address,x=candidate['token_x'],y=candidate['token_y']))
             states[address]=state
             accepted.append(dict(**candidate,finalized_slot=state['slot'],active_bin=state['active'],
-                                 onchain_bin_step=state['step'],evidence_hash=digest(snap)))
+                                 onchain_bin_step=state['step'],evidence_hash=digest(snap),
+                                 last_update=state['last_update'],filter_period=state['parameters']['filter_period'],
+                                 decay_period=state['parameters']['decay_period'],market_time=state['time']))
         except (Unavailable,ValueError,KeyError,TypeError) as exc:
             rejections.append(dict(pool=address,name=candidate.get('name'),reason=str(exc)[:140],stage='pool_revalidation'))
         if len(states)>=TARGET_SUPPORTED_POOLS:break
     return states,accepted,rejections,api_error
+
+
+def historical_last_update_reference():
+    """Pinned PR4 authentic interval diagnostic; no live or strategy authority."""
+    from tests.test_dlmm_reference import mainnet_swap_interval
+    capture=mainnet_swap_interval()
+    start=dlmm.validate(capture['start'],capture['start']['available_time'],'real')
+    selected=[s for s in capture['signatures'] if start['slot']<s['slot']<=capture['end']['slot'] and not s.get('err')]
+    events=[]
+    for sig in sorted(selected,key=lambda s:(s['slot'],s['transactionIndex'])):
+        events.extend(transaction_swaps(capture['transactions'][sig['signature']],start['pool']))
+    end=dlmm.validate(capture['end'],capture['end']['available_time'],'real')
+    return dict(start_last_update=start['last_update'],end_last_update=end['last_update'],
+        filter_period=start['parameters']['filter_period'],decay_period=start['parameters']['decay_period'],
+        event_times=[e['time'] for e in events],instructions=[e['instruction'] for e in events],
+        elapsed_to_first=None if not events else events[0]['time']-start['last_update'],
+        elapsed_to_last=None if not events else events[-1]['time']-start['last_update'])
 
 
 def main():
@@ -138,12 +171,14 @@ def main():
     report['supported_pool_target']=TARGET_SUPPORTED_POOLS
     report['verified_chunk_seconds']=CHUNK_SECONDS
     report['evidence_extension_diagnostics']=ADVANCE_DIAGNOSTICS
+    report['historical_last_update_reference']=historical_last_update_reference()
     research.REPORT.write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
     print(json.dumps(dict(provider=report['research_rpc_provider'],conclusion=report['conclusion'],
         pools=report['distinct_pools'],initial_pools=len(report['initial_pools']),opportunities=report['opportunity_count'],
         nonempty_warmups=report['nonempty_warmup_count'],nonempty_outcomes=report['nonempty_outcome_count'],
         selected_trades=report['selected_trade_count'],selected_median_pnl_bps=report['selected_median_pnl_bps'],
-        rpc_calls=report['rpc_calls'],rpc_failures=report['rpc_failures']),sort_keys=True))
+        rpc_calls=report['rpc_calls'],rpc_failures=report['rpc_failures'],
+        historical_last_update_reference=report['historical_last_update_reference']),sort_keys=True))
 
 
 if __name__=='__main__':main()
