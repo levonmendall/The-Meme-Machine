@@ -48,3 +48,11 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Pagination may not silently deduplicate, skip ordering, or expand the accepted transaction set; if it reveals more than `MAX_TRANSACTIONS=16`, the interval still fails closed before transaction bodies are fetched.
 - Full CI, resource checks, and synthetic lifecycle passed before this marker.
 - This marker authorizes exactly one bounded provider-backed replay of the unchanged one-pool, one-cycle, 12-second research experiment. No repeated replay is authorized without inspecting that result.
+
+
+## Cache-bypass endpoint proof
+
+- Offline cache-bypass repair commit `5c77cef352f10f73da1cae152798b1fc95140fe5` passed the complete test suite, standard resource check, DLMM resource check, and synthetic lifecycle.
+- Endpoint-defining DLMM snapshots now bypass the 2-second RPC response cache for both finalized account reads while ordinary discovery reads remain cacheable.
+- This marker authorizes exactly one bounded provider-backed replay: one supported pool, one cycle, 12-second windows, unchanged pressure scheduler and `MAX_TRANSACTIONS=16`.
+- The proof target is that a pressure-triggered close obtains a strictly newer finalized endpoint slot rather than reusing the authenticated start slot. No second replay is authorized by this marker.
