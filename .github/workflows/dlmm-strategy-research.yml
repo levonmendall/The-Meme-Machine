@@ -16,8 +16,8 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Research harness regressions
-        run: python -m unittest tests.test_dlmm_strategy_point_in_time tests.test_dlmm_strategy_high_activity -v
+      - name: Research and tape-extension regressions
+        run: python -m unittest tests.test_dlmm_tape_extensions tests.test_dlmm_strategy_point_in_time tests.test_dlmm_strategy_high_activity -v
       - name: Current high-activity finalized DLMM strategy replay
         run: python -m tests.dlmm_strategy_high_activity_batched --cycles 1 --window-seconds 12
       - name: Preserve research report
