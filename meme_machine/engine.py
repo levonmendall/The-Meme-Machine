@@ -9,6 +9,7 @@ RENT = 2_100_000             # Refundable SPL token account capital, separate fr
 DELAY = 2
 MAX_AGE = 20
 SIGNAL_WINDOW = 60
+UNRESOLVED_RECORD_INTERVAL = 60
 # Pump's currently disclosed Mayhem trading-agent wallet / Mayhem sol-vault.
 # It is protocol-controlled activity, not an independent scouting wallet or buyer.
 MAYHEM_AGENT_WALLET = 'BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s'
@@ -264,7 +265,8 @@ class Engine:
                 s['fees']+=fee+GAS
                 s['positions'][o['mint']]=dict(kind='spot',chain='solana-mainnet',tokens=tokens,basis=cost+GAS,
                     rent=RENT,opened=now,related=o['related'],entry_slot=snap['slot'],next_monitor=now+5,
-                    mark=None,mark_time=None,unresolved=False,exit_due=None,exit_reason=None)
+                    mark=None,mark_time=None,unresolved=False,last_unresolved_record=0,
+                    exit_due=None,exit_reason=None)
                 s['entry_count']+=1
                 s['funnel']['entries']+=1
                 o.update(status='settled',fill=dict(tokens=tokens,cost=cost,fee=fee,gas=GAS,
@@ -285,14 +287,20 @@ class Engine:
             proceeds,fee=pump.sell(c,p['tokens'],rates)
         except (ValueError,KeyError,TypeError) as exc:
             error=str(exc)
+        # Missing/invalid exit marks are polled at the normal monitor cadence, but
+        # identical non-economic failures do not need a durable write every five
+        # seconds. Keep one auditable unresolved record per minute. A recovered quote
+        # or a real failed exit attempt still commits immediately.
+        if error and p.get('unresolved') and now-int(p.get('last_unresolved_record',0)) < UNRESOLVED_RECORD_INTERVAL:
+            return 'unresolved_coalesced'
         with self.store.transaction('monitor'):
             s=self.store.state
             p['next_monitor']=now+5
             if error:
-                p.update(mark=None,mark_time=None,unresolved=True)
+                p.update(mark=None,mark_time=None,unresolved=True,last_unresolved_record=now)
                 self.note('unavailable_exit',mint,now)
                 return 'unresolved'
-            p.update(mark=max(0,proceeds-GAS),mark_time=now,unresolved=False)
+            p.update(mark=max(0,proceeds-GAS),mark_time=now,unresolved=False,last_unresolved_record=0)
             reason = ('risk' if proceeds-GAS<=p['basis']*9000//10000 else
                       'take_profit' if proceeds-GAS>=p['basis']*11500//10000 else
                       'timeout' if now-p['opened']>=900 else
