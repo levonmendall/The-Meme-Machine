@@ -8,7 +8,9 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .engine import Engine
+from .postgrad import PostGraduationAdapter
 from .provider import RPC, PumpAdapter, Unavailable
+from .pumpswap_runtime import POSTGRAD_WAIT_SECONDS, PumpSwapPaperRuntime
 from .store import Store
 from .stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 
@@ -62,33 +64,80 @@ def tick(engine, adapter, now):
                            infrastructure_spend_usd=0,provider_spend_usd=0 if getattr(adapter.rpc,'url',None)=='https://api.mainnet-beta.solana.com' else None)
 
 
-def _monitor_existing(engine, adapter, now):
-    """Positions/orders outrank discovery and never depend on stream continuity."""
+def _monitor_existing(engine, adapter, now, pumpswap_runtime=None):
+    """Positions/orders outrank discovery and survive a Pump -> PumpSwap graduation."""
     s=engine.store.state
     for mint,p in list(s['positions'].items()):
-        if now>=p['next_monitor']:
+        if now<p['next_monitor']:
+            continue
+        # Once the handoff is durably known, never poll the retired bonding curve
+        # again. Restart recovery resumes directly from canonical PumpSwap state.
+        if pumpswap_runtime is not None and (
+                p.get('surface') in ('pumpswap','graduating-pumpswap') or
+                p.get('postgrad_handoff')):
+            pumpswap_runtime.monitor_existing_position(mint)
+            continue
+        try:
+            snap=adapter.snapshot(mint,now,priority=True)
+        except (Unavailable,ValueError):
+            if pumpswap_runtime is not None:
+                result=pumpswap_runtime.monitor_existing_position(mint)
+                if result != 'not_graduated':
+                    continue
+            engine.monitor(mint,{},int(time.time()))
+            continue
+        if pumpswap_runtime is not None:
             try:
-                snap=adapter.snapshot(mint,now,priority=True)
-            except (Unavailable,ValueError):
-                snap={}
-            engine.monitor(mint,snap,int(time.time()))
+                handoff=pumpswap_runtime.handoff_from_snapshot(snap)
+            except (ValueError,KeyError,TypeError):
+                handoff=None
+            if handoff is not None:
+                pumpswap_runtime.monitor_existing_position(mint,graduation_snapshot=snap)
+                continue
+        engine.monitor(mint,snap,int(time.time()))
+
     for oid,o in list(s['orders'].items()):
-        if o['status']=='reserved' and now>=o['due']:
+        if o['status']!='reserved' or now<o['due']:
+            continue
+        if pumpswap_runtime is not None and (
+                o.get('surface')=='pumpswap' or o.get('postgrad_handoff')):
+            pumpswap_runtime.fill_existing_order(oid)
+            continue
+        try:
+            snap=adapter.snapshot(o['mint'],now,priority=True)
+        except (Unavailable,ValueError):
+            if pumpswap_runtime is not None:
+                result=pumpswap_runtime.fill_existing_order(oid)
+                if result != 'not_graduated':
+                    continue
+                # A transient active-Pump provider gap should not destroy an already
+                # authorized reservation immediately. Keep the same bounded 60-second
+                # delayed-fill horizon used by post-graduation discovery.
+                if int(time.time())-int(o['created']) <= POSTGRAD_WAIT_SECONDS:
+                    continue
+            engine.fill(oid,{},int(time.time()))
+            continue
+        if pumpswap_runtime is not None:
             try:
-                snap=adapter.snapshot(o['mint'],now,priority=True)
-            except (Unavailable,ValueError):
-                snap={}
-            engine.fill(oid,snap,int(time.time()))
+                handoff=pumpswap_runtime.handoff_from_snapshot(snap)
+            except (ValueError,KeyError,TypeError):
+                handoff=None
+            if handoff is not None:
+                pumpswap_runtime.fill_existing_order(oid,graduation_snapshot=snap)
+                continue
+        engine.fill(oid,snap,int(time.time()))
 
 
-def tick_stream(engine, adapter, tape, now, cursor):
+def tick_stream(engine, adapter, tape, now, cursor, pumpswap_runtime=None):
     """Prospective Pump path backed by one finalized 60-second program tape.
 
     The stream is acquisition infrastructure only. continuation-v1 is unchanged:
     a candidate still needs a complete 60-second market window, independent demand,
     concentration, liquidity, price and round-trip-cost gates before paper authority.
+    Existing authorized orders/positions can continue on canonical PumpSwap if the
+    bonding curve completes; this does not create new post-graduation allocation.
     """
-    _monitor_existing(engine,adapter,now)
+    _monitor_existing(engine,adapter,now,pumpswap_runtime=pumpswap_runtime)
     s=engine.store.state
     status=tape.status(now)
     if engine.store.pressure():
@@ -236,6 +285,11 @@ def main():
         url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
         rpc=RPC(url,limit=config.get('request_limit',120))
         adapter=PumpAdapter(rpc)
+        # Current-era graduation continuation is canonical PumpSwap only. Deliberately
+        # disable the Raydium program scanner in the prospective runtime: the legacy
+        # adapter remains research/replay evidence and has no paper allocation path.
+        postgrad_adapter=PostGraduationAdapter(rpc,scan_rpc=object())
+        pumpswap_runtime=PumpSwapPaperRuntime(store,postgrad_adapter)
         tape=PumpTape()
         ready=threading.Event()
         log_stream=PumpLogStream(url,tape)
@@ -248,9 +302,10 @@ def main():
         deadline=time.monotonic()+args.seconds
         while time.monotonic()<deadline and not stopping.is_set():
             now=int(time.time())
-            cursor=tick_stream(engine,adapter,tape,now,cursor)
+            cursor=tick_stream(engine,adapter,tape,now,cursor,pumpswap_runtime=pumpswap_runtime)
             published=dict(engine.status(int(time.time())),release=release,
-                           stream=tape.status(int(time.time())))
+                           stream=tape.status(int(time.time())),
+                           pumpswap_continuation=pumpswap_runtime.status())
             stopping.wait(5)
         print(json.dumps(published,sort_keys=True))
     finally:
