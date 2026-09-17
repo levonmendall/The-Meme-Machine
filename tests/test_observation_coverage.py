@@ -15,8 +15,8 @@ class ObservationCoverageContract(unittest.TestCase):
         self.assertIn('while time.monotonic()<deadline:',source)
         self.assertNotIn('while time.monotonic()<deadline and len(attempted)',source)
         self.assertIn("'evidence_candidate_budget_exhausted'",source)
-        self.assertIn("'qualification_observation_seconds'",source)
-        self.assertIn("'stream_observation_seconds'",source)
+        self.assertIn('qualification_observation_seconds=max',source)
+        self.assertIn('stream_observation_seconds=max',source)
         self.assertIn("report.setdefault('qualification_observation_ended_at',now)",source)
 
     def test_workflow_requests_55_minutes_of_post_warmup_observation(self):
