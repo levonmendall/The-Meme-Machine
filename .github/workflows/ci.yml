@@ -31,7 +31,7 @@ jobs:
       - name: One isolated forced real-data paper canary
         run: python -m tests.forced_real_data_canary
   live-diagnostic:
-    if: github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[forced-canary]')
+    if: github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[forced-canary]') && !contains(github.event.head_commit.message, '[longevity]')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     continue-on-error: true
