@@ -13,10 +13,7 @@ from pathlib import Path
 
 from meme_machine import pump
 from meme_machine.postgrad import (
-    PUMPSWAP_DOCUMENTED_POOL if False else PUMPSWAP_PROGRAM,
-)
-from meme_machine.postgrad import (
-    RAYDIUM_AMM_V4, RAYDIUM_LAYOUT_SIZE, WSOL,
+    RAYDIUM_AMM_V4, RAYDIUM_LAYOUT_SIZE,
     PostGraduationAdapter, _decode_raydium_pool, buy_quote, graduation_handoff,
     pumpswap_pool, sell_quote,
 )
