@@ -64,3 +64,11 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - This marker authorizes exactly one bounded provider-backed replay: one supported pool, one cycle, 12-second windows, unchanged pressure scheduler and `MAX_TRANSACTIONS=16`.
 - The proof must record `start_slot`, freshly acquired `end_slot`, and `slot_advanced` before signature-census processing, then preserve first-page/fallback census diagnostics even on failure.
 - No second replay is authorized by this marker.
+
+
+## Bounded post-endpoint signature census proof
+
+- Repair head `3d833363b50bbe686071b3ddd9f79feeade9eca8` passed complete offline CI after adding bounded pagination across signatures newer than the authenticated endpoint.
+- Acquisition may scan at most 8 finalized pages / 512 signature rows to reach the authenticated interval, discarding every `slot > end_slot` row from the verified transaction set.
+- The actual verified interval remains capped at `MAX_TRANSACTIONS=16`; exceeding that bound still fails closed before transaction-body acquisition.
+- This marker authorizes exactly one bounded live replay of the unchanged one-pool, one-cycle, 12-second research experiment. No retry is authorized by this marker.
