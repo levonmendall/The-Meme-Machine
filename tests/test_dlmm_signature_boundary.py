@@ -37,8 +37,8 @@ class SignatureBoundary(unittest.TestCase):
     def test_post_endpoint_pages_are_skipped_until_interval_and_boundary(self):
         # Two full pages are entirely newer than the authenticated endpoint. They
         # prove nothing about the interval and must not consume its 16-tx allowance.
-        p1=[sig(f'p1-{i}',220-i,63-i) for i in range(64)]
-        p2=[sig(f'p2-{i}',156-i,63-i) for i in range(64)]
+        p1=[sig(f'p1-{i}',300-i,63-i) for i in range(64)]
+        p2=[sig(f'p2-{i}',236-i,63-i) for i in range(64)]
         p3=[sig('newer',105,5),sig('i4',104,4),sig('i3',103,3),
             sig('i2',102,2),sig('i1',101,1),sig('anchor',100,9)]
         rpc=_RPC(p1,p2,p3);telemetry={}
