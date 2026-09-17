@@ -160,3 +160,9 @@ The 24-logical-hour storage/memory proof can be repeated with:
 ```sh
 python -m tests.longevity_soak --hours 24 --events-per-minute 1200 --writes-per-minute 12
 ```
+
+## Active-paper rerun marker
+
+Deterministic CI is green after the non-priority concentration-budget repair. This
+section is documentation-only and exists solely to trigger one isolated active-paper
+rerun; it changes no strategy, sizing, exit, authority, provider, or execution logic.
