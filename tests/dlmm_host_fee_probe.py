@@ -9,6 +9,11 @@ from meme_machine.dlmm_tape import (
     _keys, _ordered_instructions, _un58_data,
 )
 from meme_machine.postgrad import PoolScanRPC
+
+
+class HistoricalProbeRPC(PoolScanRPC):
+    # Probe-only exact-slot lookup. Production/live RPC allowlists are unchanged.
+    ALLOWED = PoolScanRPC.ALLOWED | {'getBlock'}
 from meme_machine.provider import Unavailable
 
 POOL='C8Gr6AUuq9hEdSYJzoEpNcdjpojPZwqG5MtQbeouNNwg'
@@ -62,48 +67,49 @@ def _token_balances(meta):
 def run():
     url=os.environ.get('MM_SOLANA_READ_RPC_URL','').strip()
     if not url: raise SystemExit('MM_SOLANA_READ_RPC_URL missing')
-    rpc=PoolScanRPC(url,limit=80)
+    # Exact-slot historical diagnostic only. Accounts-only blocks expose signatures
+    # and all resolved account keys without heavyweight instructions/logs. This avoids
+    # walking the pool's very high-volume signature history. Production/live census is
+    # unchanged.
+    rpc=HistoricalProbeRPC(url,limit=80)
     if rpc.call('getGenesisHash',priority=True)!=pump.MAINNET:
         raise Unavailable('host_probe_wrong_network')
-    # Historical diagnostic only: use Solana's 1000-signature page size so this
-    # already-known interval can be recovered cheaply without changing the live
-    # verifier's 16x64 census. Eight pages / 8000 rows is a hard probe-only cap.
-    telemetry=dict(pages=[],rows=0)
-    selected=[];before=None;boundary_seen=False;seen=set()
-    for page_index in range(8):
-        cfg=dict(limit=1000,commitment='finalized')
-        if before is not None:
-            cfg['before']=before
-            rpc.sleep(1.0)
-        page=rpc.call('getSignaturesForAddress',[POOL,cfg],True)
-        if not isinstance(page,list) or len(page)>1000:
-            raise Unavailable('host_probe_signature_shape')
-        ids=[x.get('signature') for x in page]
-        if any(not isinstance(x,str) or not x for x in ids) or seen.intersection(ids):
-            raise Unavailable('host_probe_signature_duplicate')
-        seen.update(ids);telemetry['rows']+=len(page)
-        telemetry['pages'].append(dict(page=page_index+1,count=len(page),
-            newest_slot=None if not page else page[0].get('slot'),
-            oldest_slot=None if not page else page[-1].get('slot')))
-        selected.extend(s for s in page if START_SLOT<s.get('slot',-1)<=END_SLOT and not s.get('err'))
-        if any(isinstance(s.get('slot'),int) and s['slot']<=START_SLOT for s in page):
-            boundary_seen=True;break
-        if not page or len(page)<1000:break
-        before=page[-1]['signature']
-    if not boundary_seen:
-        OUT.write_text(json.dumps(dict(kind='dlmm_jup_host_fee_probe_partial',
-            pool=POOL,start_slot=START_SLOT,end_slot=END_SLOT,signature_census=telemetry,
-            rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,
-            rpc_failures=rpc.failures,rpc_retries=rpc.retries),indent=2,sort_keys=True)+'\\n')
-        raise Unavailable('host_probe_historical_page_bound')
+    selected=[]
+    block_telemetry=[]
+    for slot in range(START_SLOT+1,END_SLOT+1):
+        block=rpc.call('getBlock',[slot,dict(commitment='finalized',encoding='json',
+            transactionDetails='accounts',maxSupportedTransactionVersion=0,rewards=False)],True)
+        if block is None:
+            raise Unavailable('host_probe_missing_finalized_block')
+        matches=0
+        for transaction_index,row in enumerate(block.get('transactions') or []):
+            tx=row.get('transaction') or {}
+            keys=[]
+            for item in tx.get('accountKeys') or []:
+                key=item.get('pubkey') if isinstance(item,dict) else item
+                if isinstance(key,str): keys.append(key)
+            if POOL not in keys or (row.get('meta') or {}).get('err'):
+                continue
+            signatures=tx.get('signatures') or []
+            if not signatures or not isinstance(signatures[0],str):
+                raise Unavailable('host_probe_block_signature_shape')
+            selected.append(dict(signature=signatures[0],slot=slot,
+                                 transactionIndex=transaction_index,err=None,
+                                 confirmationStatus='finalized'))
+            matches+=1
+        block_telemetry.append(dict(slot=slot,matching_successful_transactions=matches,
+                                    transaction_rows=len(block.get('transactions') or [])))
     if len(selected)!=2:
         OUT.write_text(json.dumps(dict(kind='dlmm_jup_host_fee_probe_partial',
-            pool=POOL,start_slot=START_SLOT,end_slot=END_SLOT,signature_census=telemetry,
-            selected=[dict(signature=s.get('signature'),slot=s.get('slot')) for s in selected],
+            pool=POOL,start_slot=START_SLOT,end_slot=END_SLOT,
+            block_scan=block_telemetry,
+            selected=[dict(signature=s.get('signature'),slot=s.get('slot'),
+                           transactionIndex=s.get('transactionIndex')) for s in selected],
             rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,
             rpc_failures=rpc.failures,rpc_retries=rpc.retries),indent=2,sort_keys=True)+'\\n')
         raise Unavailable('host_probe_expected_exact_two_transactions')
-    proof=selected
+    telemetry=dict(method='finalized_getBlock_accounts_exact_slots',
+                   slots_scanned=END_SLOT-START_SLOT,blocks=block_telemetry)
     params=[[s['signature'],dict(encoding='json',commitment='finalized',
                                 maxSupportedTransactionVersion=0)] for s in selected]
     txs=rpc.call_many('getTransaction',params,True,batch_size=2)
