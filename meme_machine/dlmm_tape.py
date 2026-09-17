@@ -1,10 +1,11 @@
-"""Bounded finalized swap-only interval reconstruction.
+"""Bounded finalized DLMM interval reconstruction.
 
-Snapshots bracket the interval. Signature census must reach the starting slot;
-every intervening pool transaction must be readable. Reject LP mutations, unknown
-instructions, exact-out, host fees, truncated logs and missing transaction order.
-The terminal snapshot only validates the forward calculation; it never supplies
-earlier inventory or fees. Any discrepancy rejects the entire interval.
+Snapshots bracket every verified interval. Signature census must reach the starting
+slot and every intervening pool transaction must be readable and ordered. Supported
+exact-input swaps are replayed in authenticated execution order, including multiple
+swaps in one transaction. Unknown pool mutations, exact-out, host fees, truncated
+logs and incomplete ordering fail closed. Terminal state only validates forward
+reconstruction; it never supplies earlier inventory or fees.
 """
 import base64
 from copy import deepcopy
@@ -17,9 +18,13 @@ from .store import digest,encode
 
 SWAP = bytes([81,108,227,190,205,208,10,196])
 SWAP2 = bytes.fromhex('2e7452d7941b544d')
-EXACT_IN = {bytes([248,198,158,145,225,117,135,200]),bytes([65,75,63,76,235,91,91,136])}
+SWAP_IX = bytes([248,198,158,145,225,117,135,200])
+SWAP2_IX = bytes([65,75,63,76,235,91,91,136])
+EXACT_IN = {SWAP_IX,SWAP2_IX}
+EXACT_IN_NAME = {SWAP_IX:'swap',SWAP2_IX:'swap2'}
 EVENT_CPI = bytes.fromhex('e445a52e51cb9a1d')
 MAX_TRANSACTIONS = 16
+MAX_CLOCK_SKEW_SECONDS = 2
 
 
 def _un58_data(s):
@@ -40,12 +45,7 @@ def decode_swap(raw,pool):
 
 
 def decode_swap2(raw,pool):
-    """Decode the companion current-program swap event.
-
-    The legacy Swap event remains the economic source because the exact-input
-    instruction emits it too. Swap2Evt proves that the same invocation was fully
-    filled, charged fees on input and used neither limit-order nor host fees.
-    """
+    """Decode the companion current-program swap event."""
     if len(raw)!=155 or raw[:8]!=SWAP2 or pump.b58(raw[8:40])!=pool or raw[80] not in (0,1):
         raise ValueError('dlmm_swap2_event_layout_or_identity')
     start,end=struct.unpack_from('<ii',raw,72)
@@ -63,54 +63,103 @@ def decode_swap2(raw,pool):
                               fee=mm_fee+protocol,protocol_fee=protocol))
 
 
-def transaction_swap(tx,pool):
+def _keys(meta,message):
+    return (message['accountKeys']+meta.get('loadedAddresses',{}).get('writable',[])
+            +meta.get('loadedAddresses',{}).get('readonly',[]))
+
+
+def _ordered_instructions(meta,message):
+    """Yield top-level instruction then its recorded inner execution order."""
+    groups={}
+    for group in meta.get('innerInstructions') or []:
+        index=group.get('index')
+        if type(index) is not int or index<0 or index>=len(message['instructions']) or index in groups:
+            raise Unavailable('dlmm_inner_instruction_order_ambiguous')
+        groups[index]=group.get('instructions') or []
+    for index,instruction in enumerate(message['instructions']):
+        yield (index,0,instruction)
+        for inner_index,inner in enumerate(groups.get(index,()),1):
+            yield (index,inner_index,inner)
+
+
+def _log_swap_fallback(meta,pool):
+    events=[];stack=[]
+    for line in meta.get('logMessages') or []:
+        if 'Log truncated' in line:raise Unavailable('dlmm_truncated_logs')
+        if line.startswith('Program ') and ' invoke [' in line:stack.append(line.split()[1])
+        elif line.startswith('Program ') and (' success' in line or ' failed:' in line):
+            if not stack or stack.pop()!=line.split()[1]:raise ValueError('dlmm_log_stack')
+        elif line.startswith('Program data: ') and stack and stack[-1]==dlmm.PROGRAM:
+            raw=base64.b64decode(line[14:],validate=True)
+            if raw[:8]==SWAP:events.append(decode_swap(raw,pool))
+    if stack:raise Unavailable('dlmm_incomplete_logs')
+    return events
+
+
+def transaction_swaps(tx,pool):
+    """Return all authenticated exact-input swaps in execution order.
+
+    The Solana `innerInstructions` list is already execution ordered within each
+    top-level instruction. A new exact-input invocation opens one record and its
+    subsequent Swap/Swap2Evt CPI events close that record before the next invocation.
+    Any other DLMM instruction touching the interval remains fail-closed and exposes
+    only its 8-byte discriminator for diagnosis.
+    """
     if not tx or not tx.get('meta') or tx['meta'].get('err'):
         raise Unavailable('dlmm_missing_or_failed_transaction')
-    meta=tx['meta'];message=tx['transaction']['message']
-    keys=message['accountKeys']+meta.get('loadedAddresses',{}).get('writable',[])+meta.get('loadedAddresses',{}).get('readonly',[])
+    meta=tx['meta'];message=tx['transaction']['message'];keys=_keys(meta,message)
     if pool not in keys or len(keys)>256:
         raise ValueError('dlmm_transaction_pool_identity')
-    instructions=list(message['instructions'])
     if meta.get('innerInstructions') is None:
         raise Unavailable('dlmm_missing_inner_instructions')
-    for group in meta['innerInstructions']:instructions.extend(group['instructions'])
-    calls=[];events=[];events2=[]
-    for instruction in instructions:
+    records=[];current=None;dlmm_seen=False
+    for outer,inner,instruction in _ordered_instructions(meta,message):
         if keys[instruction['programIdIndex']]!=dlmm.PROGRAM:continue
+        dlmm_seen=True
         raw=_un58_data(instruction['data'])
         if raw[:8] in EXACT_IN:
-            if len(raw)<24 or keys[instruction['accounts'][0]]!=pool:
+            if len(raw)<24 or not instruction.get('accounts') or keys[instruction['accounts'][0]]!=pool:
                 raise ValueError('dlmm_swap_instruction_identity')
-            calls.append(raw)
+            current=dict(call=raw,legacy=[],v2=[],order=[outer,inner],instruction=EXACT_IN_NAME[raw[:8]])
+            records.append(current)
         elif raw[:8]==EVENT_CPI and raw[8:16]==SWAP:
-            events.append(decode_swap(raw[8:],pool))
+            if current is None:raise Unavailable('dlmm_swap_event_without_ordered_call')
+            current['legacy'].append(decode_swap(raw[8:],pool))
         elif raw[:8]==EVENT_CPI and raw[8:16]==SWAP2:
-            events2.append(decode_swap2(raw[8:],pool))
+            if current is None:raise Unavailable('dlmm_swap2_event_without_ordered_call')
+            current['v2'].append(decode_swap2(raw[8:],pool))
         else:
-            raise Unavailable('dlmm_non_swap_mutation_in_interval')
-    if len(calls)!=1:
+            raise Unavailable('dlmm_non_swap_mutation_in_interval:'+raw[:8].hex())
+    if not records:
+        # Referencing the pool account without invoking its owning program cannot
+        # mutate pool data. Terminal equality still catches unrelated vault changes.
+        if not dlmm_seen:
+            return []
+        raise Unavailable('dlmm_missing_swap_call')
+    if len(records)==1 and not records[0]['legacy']:
+        records[0]['legacy']=_log_swap_fallback(meta,pool)
+    result=[]
+    for record in records:
+        if len(record['legacy'])!=1 or len(record['v2'])>1:
+            raise Unavailable('dlmm_missing_or_ambiguous_swap_event')
+        e=record['legacy'][0]
+        if record['v2'] and record['v2'][0]!=e:
+            raise ValueError('dlmm_swap_event_versions_disagree')
+        amount,minimum=struct.unpack_from('<QQ',record['call'],8)
+        if e['amount']!=amount or e['observed']['output']<minimum:
+            raise ValueError('dlmm_instruction_event_mismatch')
+        if tx.get('blockTime') is None:raise Unavailable('dlmm_missing_transaction_time')
+        result.append(dict(**e,time=tx['blockTime'],slot=tx['slot'],
+                           instruction=record['instruction'],execution_order=record['order']))
+    return result
+
+
+def transaction_swap(tx,pool):
+    """Backward-compatible single-swap helper used by existing tests/callers."""
+    swaps=transaction_swaps(tx,pool)
+    if len(swaps)!=1:
         raise Unavailable('dlmm_requires_one_exact_input_swap_per_transaction')
-    if not events:
-        stack=[]
-        for line in meta.get('logMessages') or []:
-            if 'Log truncated' in line:raise Unavailable('dlmm_truncated_logs')
-            if line.startswith('Program ') and ' invoke [' in line:stack.append(line.split()[1])
-            elif line.startswith('Program ') and (' success' in line or ' failed:' in line):
-                if not stack or stack.pop()!=line.split()[1]:raise ValueError('dlmm_log_stack')
-            elif line.startswith('Program data: ') and stack and stack[-1]==dlmm.PROGRAM:
-                raw=base64.b64decode(line[14:],validate=True)
-                if raw[:8]==SWAP:events.append(decode_swap(raw,pool))
-        if stack:raise Unavailable('dlmm_incomplete_logs')
-    if len(events)!=1 or len(events2)>1:raise Unavailable('dlmm_missing_or_ambiguous_swap_event')
-    e=events[0]
-    if events2 and events2[0]!=e:
-        raise ValueError('dlmm_swap_event_versions_disagree')
-    amount,minimum=struct.unpack_from('<QQ',calls[0],8)
-    # Direction is emitted by the verified DLMM invocation, not a swap argument.
-    if e['amount']!=amount or e['observed']['output']<minimum:
-        raise ValueError('dlmm_instruction_event_mismatch')
-    if tx.get('blockTime') is None:raise Unavailable('dlmm_missing_transaction_time')
-    return dict(**e,time=tx['blockTime'],slot=tx['slot'])
+    return swaps[0]
 
 
 @dataclass(frozen=True)
@@ -120,6 +169,23 @@ class VerifiedTape:
     events: tuple
     terminal: dict
     lineage: str
+    terminal_adjustments: tuple=()
+
+
+def chain_verified_tapes(start,tapes):
+    """Combine already-terminal-verified chunks without weakening per-chunk bounds."""
+    tapes=tuple(tapes)
+    if not tapes:raise ValueError('dlmm_empty_verified_tape_chain')
+    expected=digest(start);events=[];adjustments=[];lineages=[]
+    for tape in tapes:
+        if not isinstance(tape,VerifiedTape) or tape.start_hash!=expected:
+            raise Unavailable('dlmm_verified_chunk_chain_gap')
+        expected=tape.end_hash
+        events.extend(tape.events);adjustments.extend(tape.terminal_adjustments);lineages.append(tape.lineage)
+    last=tapes[-1]
+    return VerifiedTape(tapes[0].start_hash,last.end_hash,tuple(events),deepcopy(last.terminal),
+                        digest(dict(chunks=lineages,start=tapes[0].start_hash,end=last.end_hash)),
+                        tuple(adjustments))
 
 
 def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
@@ -132,9 +198,6 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
     if [(s['slot'],s['transactionIndex']) for s in signatures]!=sorted(
             ((s['slot'],s['transactionIndex']) for s in signatures),reverse=True):
         raise Unavailable('dlmm_signature_order')
-    # History may arrive after the current-quote TTL. Validate that the endpoint
-    # was fresh when captured, never treat it as executable evidence at `now`.
-    # Replay.mark independently applies the unchanged 20-second current-state TTL.
     if end_snapshot['available_time']>now:
         raise ValueError('dlmm_future_endpoint')
     end=dlmm.validate(end_snapshot,end_snapshot['available_time'],'real')
@@ -152,24 +215,43 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
         tx=transactions.get(sig['signature'])
         if not tx or tx['transaction']['signatures'][0]!=sig['signature'] or tx['slot']!=sig['slot']:
             raise Unavailable('dlmm_transaction_missing_or_identity')
-        e=transaction_swap(tx,start['pool'])
-        if not state['time']<=e['time']<=end['time']:
-            raise ValueError('dlmm_transaction_time_outside_interval')
-        prehash=digest(state);state,quote=dlmm.swap(state,e['amount'],e['for_y'],e['time'])
-        if any(e['observed'][k]!=quote[k] for k in ('start','end','output','fee','protocol_fee')):
-            raise Unavailable('dlmm_observed_swap_cannot_be_reconstructed')
-        next_cursor=[e['slot'],sig['transactionIndex'],0];state['slot']=e['slot']
-        events.append(dict(kind='real',commitment='finalized',pool=start['pool'],
-            cursor=next_cursor,previous_cursor=previous,prestate_hash=prehash,
-            amount=e['amount'],for_y=e['for_y'],time=e['time'],available_time=now,
-            observed=e['observed'],signature=sig['signature']))
-        previous=next_cursor
-    # Same array footprint is required: no invisible liquidity enters the model.
-    for key in set(state)-{'time','slot'}:
-        if state[key]!=end[key]:
-            raise Unavailable('dlmm_terminal_state_disagrees_with_forward_reconstruction:'+key)
+        swaps=transaction_swaps(tx,start['pool'])
+        for swap_index,e in enumerate(swaps):
+            if not state['time']<=e['time']<=end['time']:
+                raise ValueError('dlmm_transaction_time_outside_interval')
+            prehash=digest(state);state,quote=dlmm.swap(state,e['amount'],e['for_y'],e['time'])
+            if any(e['observed'][k]!=quote[k] for k in ('start','end','output','fee','protocol_fee')):
+                raise Unavailable('dlmm_observed_swap_cannot_be_reconstructed')
+            next_cursor=[e['slot'],sig['transactionIndex'],swap_index];state['slot']=e['slot']
+            events.append(dict(kind='real',commitment='finalized',pool=start['pool'],
+                cursor=next_cursor,previous_cursor=previous,prestate_hash=prehash,
+                amount=e['amount'],for_y=e['for_y'],time=e['time'],available_time=now,
+                observed=e['observed'],signature=sig['signature'],instruction=e['instruction'],
+                execution_order=e['execution_order']))
+            previous=next_cursor
+    mismatches=[key for key in set(state)-{'time','slot'} if state[key]!=end[key]]
+    adjustments=[]
+    if mismatches==['last_update'] and events:
+        # RPC blockTime is an estimate; Meteora writes Clock::unix_timestamp. If all
+        # swap economics and every other terminal field match exactly, accept only a
+        # tiny final-clock difference and carry the authentic terminal timestamp
+        # forward. This cannot change any already-replayed fee/output economics.
+        final=events[-1];delta=end['last_update']-state['last_update']
+        if (abs(delta)<=MAX_CLOCK_SKEW_SECONDS
+                and abs(end['last_update']-final['time'])<=MAX_CLOCK_SKEW_SECONDS):
+            adjustments.append(dict(kind='final_swap_clock_timestamp',delta_seconds=delta,
+                                    signature=final['signature'],instruction=final['instruction']))
+            state['last_update']=end['last_update']
+            mismatches=[]
+    if mismatches:
+        key=mismatches[0]
+        detail=''
+        if key=='last_update' and events:
+            detail=f':sim={state[key]}:chain={end[key]}:last_instruction={events[-1]["instruction"]}'
+        raise Unavailable('dlmm_terminal_state_disagrees_with_forward_reconstruction:'+key+detail)
     return VerifiedTape(digest(start),digest(end),tuple(events),end,
-                        digest(dict(start=start,end=end_snapshot,signatures=signatures,transactions=transactions)))
+                        digest(dict(start=start,end=end_snapshot,signatures=signatures,transactions=transactions)),
+                        tuple(adjustments))
 
 
 def capture(adapter,start,end_snapshot,now,cursor):
