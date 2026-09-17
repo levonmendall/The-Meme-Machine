@@ -41,15 +41,25 @@ class DlmmTapeExtensions(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'pool_positions=1'):
             transaction_swaps(bad,POOL)
 
-    def test_swap_preserves_variable_parameter_last_update(self):
+    def test_last_update_changes_only_after_filter_period(self):
         start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
-        post,tx=transaction(start,1_000_000,101,110,'clock')
-        self.assertEqual(post['last_update'],start['last_update'])
-        end=encode_state(start_snapshot,post,102,112)
+        self.assertEqual(start['parameters']['filter_period'],30)
+        fast,_=dlmm.swap(start,1_000_000,True,110)
+        self.assertEqual(fast['last_update'],100)
+        slow,_=dlmm.swap(start,1_000_000,True,130)
+        self.assertEqual(slow['last_update'],130)
+        later,_=dlmm.swap(slow,1_000_000,True,140)
+        self.assertEqual(later['last_update'],130)
+
+    def test_non_high_frequency_last_update_terminal_equality(self):
+        start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
+        post,tx=transaction(start,1_000_000,101,140,'clock')
+        self.assertEqual(post['last_update'],140)
+        end=encode_state(start_snapshot,post,102,142)
         sigs=[dict(signature='clock',slot=101,transactionIndex=7,err=None,confirmationStatus='finalized'),dict(signature='anchor',slot=100,transactionIndex=1,err=None,confirmationStatus='finalized')]
-        tape=reconstruct(start,end,sigs,{'clock':tx},112,[100,2**31-1,2**31-1])
+        tape=reconstruct(start,end,sigs,{'clock':tx},142,[100,2**31-1,2**31-1])
         self.assertEqual(tape.terminal_adjustments,())
-        self.assertEqual(tape.terminal['last_update'],start['last_update'])
+        self.assertEqual(tape.terminal['last_update'],140)
 
     def test_unexplained_terminal_last_update_mutation_still_fails_closed(self):
         start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
