@@ -43,7 +43,7 @@ jobs:
       - name: One isolated forced real-data paper canary
         run: python -m tests.forced_real_data_canary
   live-diagnostic:
-    if: github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[forced-canary]') && !contains(github.event.head_commit.message, '[longevity')
+    if: github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[forced-canary]') && !contains(github.event.head_commit.message, '[longevity') && !contains(github.event.head_commit.message, '[qualification-build]')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     continue-on-error: true
@@ -57,4 +57,12 @@ jobs:
       # 60-second evidence window, then allow only post-warmup scout events to nominate.
       # The diagnostic calls Engine.qualify only; it has no order/reservation authority.
       - name: Finalized-stream shadow qualification using unchanged continuation-v1
-        run: python -m tests.prospective_stream_qualification
+        run: python -m tests.prospective_stream_qualification | tee qualification-report.json
+      - name: Preserve qualification research artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: qualification-vector-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qualification-report.json
+          if-no-files-found: warn
+          retention-days: 90
