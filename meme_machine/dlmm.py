@@ -196,6 +196,12 @@ def swap(state, amount, for_y, timestamp):
 
     Every traversed bin must be present. No extrapolation across missing arrays.
     Fee growth uses integer LP supply, as PositionV2's claim calculation does.
+
+    Important: the pinned Meteora quote implementation reads
+    `last_update_timestamp` to decay volatility references but does not overwrite it
+    for each swap. Live finalized STONK/USELESS intervals confirm the account field
+    can remain unchanged across authenticated swaps. Preserve the authoritative field
+    here; a real non-swap mutation must still be observed and terminal-verified.
     """
     if type(amount) is not int or not 0 < amount < 1<<64 or type(for_y) is not bool:
         raise ValueError('dlmm_invalid_swap')
@@ -243,7 +249,7 @@ def swap(state, amount, for_y, timestamp):
             p['active']+=-1 if for_y else 1
             if not s['min_bin_id'] <= p['active'] <= s['max_bin_id']:
                 raise Unavailable('dlmm_pool_bin_limit')
-    p['last_update']=timestamp; p['time']=timestamp
+    p['time']=timestamp
     return p,dict(input=amount,output=output,fee=fees,protocol_fee=protocol,
                   start=start,end=p['active'],traversed=traversed)
 
@@ -283,8 +289,6 @@ class Adapter:
         market_time=self.rpc.call('getBlockTime',[slot],priority)
         if market_time is None:
             raise Unavailable('dlmm_missing_block_time')
-        # Missing adjacent arrays are not invented. Keep available arrays only;
-        # quotes fail closed if traversal subsequently needs any absent bin.
         accounts=dict(zip(keys,response['value']))
         indices=[i for i in indices if accounts[array_address(address,i)] is not None]
         snap=dict(pool=address,accounts=accounts,array_indices=indices,slot=slot,
@@ -305,12 +309,7 @@ class Adapter:
         return dict(candidates=candidates,rejections=rejections,allocation_enabled=False)
 
     def pool_addresses(self,step,now,sol_is_y=True):
-        """Bounded public RPC index fallback; requires existing PoolScanRPC.
-
-        Bin step is a discovery partition, not a strategy threshold. Favor fresh
-        evidence (at most four addresses), without TVL/APR/profitability ranking.
-        The shared transport enforces its existing 2 MB response ceiling.
-        """
+        """Bounded public RPC index fallback; requires existing PoolScanRPC."""
         if type(step) is not int or not 1<=step<=10000:
             raise ValueError('dlmm_discovery_step')
         rows=self.rpc.call('getProgramAccounts',[PROGRAM,dict(encoding='base64',commitment='finalized',
