@@ -2,7 +2,7 @@
 
 Ported from the pinned verified BinHelper, PriceHelper, Uint128x128Math,
 FeeHelper and PairParameterHelper (MIT). LP fees compound in bin reserves.
-Raw replay currently supports swaps; other mutations are explicit boundaries.
+Replay covers authenticated swap, liquidity, share, fee and parameter mutations.
 """
 from collections import Counter
 from copy import deepcopy
@@ -51,6 +51,12 @@ def price(bin_id, step):
 def unpack(value):
     n=int(value,16) if isinstance(value,str) else value
     return [n & (Q-1), n >> 128]
+
+
+def pack(amounts):
+    if len(amounts)!=2 or any(type(x) is not int or not 0<=x<Q for x in amounts):
+        raise BoundaryError('invalid_packed_amounts')
+    return amounts[0] | (amounts[1]<<128)
 
 
 def values(raw):
