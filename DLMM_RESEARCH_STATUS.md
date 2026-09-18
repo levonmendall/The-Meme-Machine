@@ -284,10 +284,19 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - DLMM RPC routing is pinned at `d90b4cd869f028c70f584b9e0b8dbeb233fae153`.
 - All active DLMM live/replay entrypoints now resolve through one canonical validator: `tests.dlmm_alchemy_provider`.
 - The only accepted RPC shape is `https://solana-mainnet.g.alchemy.com/v2/<api-key>`. Solana Labs, PublicNode, devnet, plaintext HTTP, key-only values, query/fragment variants, and any other host fail closed.
-- The old generic `MM_SOLANA_READ_RPC_URL` path is removed from DLMM workflows. The required GitHub Actions secret is `MM_ALCHEMY_SOLANA_RPC_URL`.
+- The old generic `MM_SOLANA_READ_RPC_URL` and mistaken `MM_ALCHEMY_SOLANA_RPC_URL` paths are removed from DLMM workflows. DLMM inherits the established Solana ROI credential `SOLANA_ROI_ALCHEMY_API_KEY`; the Solana Mainnet Alchemy URL is constructed internally.
 - All active DLMM workflows use the dedicated `dlmm-alchemy-solana-live` concurrency group and validate the Alchemy route before making a network request.
 - The legacy `tests.dlmm_strategy_high_activity_publicnode` entrypoint is retained only to fail explicitly with `dlmm_publicnode_route_retired_use_alchemy`; it can no longer route traffic.
-- Provider telemetry now reports `alchemy_solana_mainnet` without logging the endpoint or API key.
+- Provider telemetry now reports `solana_roi_alchemy_solana_mainnet` and records that the credential is inherited from `solana-roi-convergence`, without logging the endpoint or API key.
 - Full deterministic CI passed on exact routing head in run `35306102369`: unit discovery, standard resource check, DLMM resource check, and canonical synthetic lifecycle all succeeded.
-- The connected Alchemy app `LeVon's First App` has Solana Mainnet enabled. A direct mainnet RPC health call at this boundary returned `monthly capacity limit exceeded`, so no new DLMM live research run is launched until Alchemy capacity becomes available. This is a provider-capacity blocker only; strategy/mechanics remain unchanged.
+- Correction: the prior connector-selected Alchemy app was not the intended DLMM provider. DLMM must use the established Solana ROI Alchemy credential (`SOLANA_ROI_ALCHEMY_API_KEY`) instead. Capacity observed on the connector-selected app is therefore not evidence about the intended DLMM provider and is not a DLMM blocker.
 - Prospective DLMM allocation remains disabled. No strategy thresholds, costs, verifier capacity, finality predicates, swap/fee mechanics, Store authority, signing, or submission behavior changed.
+
+
+## DLMM Alchemy routing correction
+
+- The prior routing decision incorrectly associated DLMM with a connector-selected Alchemy app.
+- The canonical provider context is the existing Solana ROI Alchemy Solana Mainnet credential: `SOLANA_ROI_ALCHEMY_API_KEY`.
+- DLMM now accepts only that API-key environment variable and constructs `https://solana-mainnet.g.alchemy.com/v2/<key>` internally. Full URLs, alternate Alchemy app URLs, Solana Labs, PublicNode, and other provider shapes fail closed.
+- All DLMM GitHub Actions workflows now read only `secrets.SOLANA_ROI_ALCHEMY_API_KEY` and share the `dlmm-solana-roi-alchemy-live` concurrency group.
+- No strategy, verifier, mechanics, cost, allocation, signing, or submission behavior changed.
