@@ -22,7 +22,7 @@ class LiquidityMutationIdentity(unittest.TestCase):
         # Derive fresh stand-in indices from the actual fixture key count so only
         # pinned account position 1 references the target lb_pair.
         base=len(keys)
-        for value in range(40,53):
+        for value in range(180,193):
             keys.append(pump.b58(bytes([value])*32))
         accounts=[base,0]+[base+i for i in range(1,12)]+[1,base+12]
         out['transaction']['message']['instructions'].append(dict(
