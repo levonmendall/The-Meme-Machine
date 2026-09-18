@@ -111,10 +111,13 @@ class BoundedMultiRpc:
                     program_logical_limit=self.max_sessions*200,batch_size=self.batch_size,batch_pause_seconds=self.batch_pause)
 
 
-def run(endpoint):
+def run(endpoint, *, forced_paper=False, forced_db_path=None):
     rpc=BoundedMultiRpc(endpoint,max_sessions=4)
-    result=dict(kind='prospective_finalized_ramses',started_at=time.time(),reads=[],
-                allocation_authority=False,prospective_range=False,research_only=True)
+    lifecycle=None;forced_identity=None
+    result=dict(kind=('forced_ramses_paper_mechanics' if forced_paper else 'prospective_finalized_ramses'),
+                started_at=time.time(),reads=[],allocation_authority=False,
+                prospective_range=False,research_only=True,forced_paper=bool(forced_paper),
+                strategy_evidence_eligible=(False if forced_paper else None))
     factory=load('ramses_factory')['address'];abi=load('ramses_pool_implementation')['abi']
 
     def read(address,sig,args=(),block=None,scope='pool'):
@@ -322,78 +325,94 @@ def run(endpoint):
         result['watch_schedule']=schedule_public;result['watch_schedule_hash']=schedule_hash
         result['selection_rule']='first_authenticated_economic_mutation_on_frozen_preentry_watch_schedule'
 
-        # Observe each precommitted cohort only during its fixed slot. Reserves
-        # detect swaps/mints/burns; protocol fees additionally detect flash loans.
-        # Exact logs are fetched only after a state change.
-        selection=None;selection_decoded=None;activity=[];watch_started=time.monotonic()
-        result['watch_slots']=[]
-        for slot,cohort in enumerate(cohorts):
-            if selection is not None:break
-            slot_frontier=rpc.call('eth_getBlockByNumber',['latest',False],scope='discovery')
-            cursor=int(slot_frontier['number'],16)
-            initial_calls=[]
-            for row in cohort:
-                initial_calls.extend([
-                    ('eth_call',[dict(to=row['address'],data=calldata('getReserves()')),hex(cursor)]),
-                    ('eth_call',[dict(to=row['address'],data=calldata('getProtocolFees()')),hex(cursor)]),
-                ])
-            initial=rpc.batch(initial_calls,scope='discovery')
-            last_state={}
-            for i,row in enumerate(cohort):
-                last_state[row['address']]=(tuple(values(initial[2*i])),tuple(values(initial[2*i+1])))
-            slot_started=time.monotonic();slot_end=cursor;polls=0
-            while time.monotonic()-slot_started<WATCH_SLOT_SECONDS and selection is None:
-                time.sleep(ACTIVITY_POLL_SECONDS)
-                frontier=rpc.call('eth_getBlockByNumber',['latest',False],scope='discovery')
-                height=int(frontier['number'],16)
-                if height<=cursor:continue
-                calls=[]
+        if forced_paper:
+            result['selection_rule']='forced_paper_first_authenticated_pool_from_frozen_preentry_schedule'
+            address=scheduled[0]['address']
+            activity=[]
+            result['watch_slots']=[]
+            result['activity_watch_seconds']=0
+            result['discovery_logs']=[]
+            result['selection_event_name']='forced_paper_admission'
+            result['selection_event']=None
+            result['selection_finality']=dict(finalized=True,source='finalized_preentry_state')
+            result['forced_admission']=dict(
+                authority='forced_ramses_machinery_test',natural_proof=False,
+                strategy_evidence_eligible=False,outcome_used_for_selection=False,
+                selected_from_schedule_hash=schedule_hash,pool=address)
+            result['pool']=address
+        else:
+            # Observe each precommitted cohort only during its fixed slot. Reserves
+            # detect swaps/mints/burns; protocol fees additionally detect flash loans.
+            # Exact logs are fetched only after a state change.
+            selection=None;selection_decoded=None;activity=[];watch_started=time.monotonic()
+            result['watch_slots']=[]
+            for slot,cohort in enumerate(cohorts):
+                if selection is not None:break
+                slot_frontier=rpc.call('eth_getBlockByNumber',['latest',False],scope='discovery')
+                cursor=int(slot_frontier['number'],16)
+                initial_calls=[]
                 for row in cohort:
-                    calls.extend([
-                        ('eth_call',[dict(to=row['address'],data=calldata('getReserves()')),hex(height)]),
-                        ('eth_call',[dict(to=row['address'],data=calldata('getProtocolFees()')),hex(height)]),
+                    initial_calls.extend([
+                        ('eth_call',[dict(to=row['address'],data=calldata('getReserves()')),hex(cursor)]),
+                        ('eth_call',[dict(to=row['address'],data=calldata('getProtocolFees()')),hex(cursor)]),
                     ])
-                current=rpc.batch(calls,scope='discovery');polls+=1
-                changed=[];current_state={}
+                initial=rpc.batch(initial_calls,scope='discovery')
+                last_state={}
                 for i,row in enumerate(cohort):
-                    state_now=(tuple(values(current[2*i])),tuple(values(current[2*i+1])))
-                    current_state[row['address']]=state_now
-                    if state_now!=last_state[row['address']]:changed.append(row['address'])
-                if changed:
-                    interval=batched_logs(cursor+1,height,address=changed,topics=economic_topics,scope='discovery')
-                    activity.extend(interval)
-                    eligible=economically_active(interval)
-                    if eligible:
-                        selection,selection_decoded=sorted(eligible,key=lambda row:(int(row[0]['blockNumber'],16),
-                            int(row[0]['transactionIndex'],16),int(row[0]['logIndex'],16),row[0]['address'].lower()))[0]
-                last_state=current_state;cursor=height;slot_end=height
-            result['watch_slots'].append(dict(slot=slot,start_block=int(slot_frontier['number'],16),
-                                               end_block=slot_end,polls=polls,
-                                               seconds=time.monotonic()-slot_started,
-                                               selected=selection is not None))
-        result['activity_watch_seconds']=time.monotonic()-watch_started
-        result['discovery_logs']=activity
-        if selection is None:raise BoundaryError('no_natural_native_ramses_activity_on_frozen_watch_schedule')
-        result['selection_event_name']=selection_decoded['name']
-        address=selection['address'];result['selection_event']=selection
-        selection_block=int(selection['blockNumber'],16)
-        finality_started=time.monotonic()
-        selection_finalized=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
-        while int(selection_finalized['number'],16)<selection_block:
-            if time.monotonic()-finality_started>=FINALITY_WAIT_SECONDS:
-                raise BoundaryError('selection_finality_timeout')
-            time.sleep(10)
+                    last_state[row['address']]=(tuple(values(initial[2*i])),tuple(values(initial[2*i+1])))
+                slot_started=time.monotonic();slot_end=cursor;polls=0
+                while time.monotonic()-slot_started<WATCH_SLOT_SECONDS and selection is None:
+                    time.sleep(ACTIVITY_POLL_SECONDS)
+                    frontier=rpc.call('eth_getBlockByNumber',['latest',False],scope='discovery')
+                    height=int(frontier['number'],16)
+                    if height<=cursor:continue
+                    calls=[]
+                    for row in cohort:
+                        calls.extend([
+                            ('eth_call',[dict(to=row['address'],data=calldata('getReserves()')),hex(height)]),
+                            ('eth_call',[dict(to=row['address'],data=calldata('getProtocolFees()')),hex(height)]),
+                        ])
+                    current=rpc.batch(calls,scope='discovery');polls+=1
+                    changed=[];current_state={}
+                    for i,row in enumerate(cohort):
+                        state_now=(tuple(values(current[2*i])),tuple(values(current[2*i+1])))
+                        current_state[row['address']]=state_now
+                        if state_now!=last_state[row['address']]:changed.append(row['address'])
+                    if changed:
+                        interval=batched_logs(cursor+1,height,address=changed,topics=economic_topics,scope='discovery')
+                        activity.extend(interval)
+                        eligible=economically_active(interval)
+                        if eligible:
+                            selection,selection_decoded=sorted(eligible,key=lambda row:(int(row[0]['blockNumber'],16),
+                                int(row[0]['transactionIndex'],16),int(row[0]['logIndex'],16),row[0]['address'].lower()))[0]
+                    last_state=current_state;cursor=height;slot_end=height
+                result['watch_slots'].append(dict(slot=slot,start_block=int(slot_frontier['number'],16),
+                                                   end_block=slot_end,polls=polls,
+                                                   seconds=time.monotonic()-slot_started,
+                                                   selected=selection is not None))
+            result['activity_watch_seconds']=time.monotonic()-watch_started
+            result['discovery_logs']=activity
+            if selection is None:raise BoundaryError('no_natural_native_ramses_activity_on_frozen_watch_schedule')
+            result['selection_event_name']=selection_decoded['name']
+            address=selection['address'];result['selection_event']=selection
+            selection_block=int(selection['blockNumber'],16)
+            finality_started=time.monotonic()
             selection_finalized=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
-        selection_header=rpc.call('eth_getBlockByNumber',[hex(selection_block),False],scope='discovery')
-        if selection_header['hash']!=selection['blockHash']:
-            raise BoundaryError('selection_reorg_before_freeze')
-        selection_receipt=rpc.receipt(selection['transactionHash'],selection['blockHash'],scope='discovery')
-        if (int(selection_receipt['status'],16)!=1
-            or selection_receipt['transactionIndex']!=selection['transactionIndex']
-            or selection not in selection_receipt['logs']):
-            raise BoundaryError('selection_receipt_identity_disagreement')
-        result['selection_finality']=dict(finalized=True,block=selection_block,block_hash=selection['blockHash'],
-                                          waited_seconds=time.monotonic()-finality_started)
+            while int(selection_finalized['number'],16)<selection_block:
+                if time.monotonic()-finality_started>=FINALITY_WAIT_SECONDS:
+                    raise BoundaryError('selection_finality_timeout')
+                time.sleep(10)
+                selection_finalized=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
+            selection_header=rpc.call('eth_getBlockByNumber',[hex(selection_block),False],scope='discovery')
+            if selection_header['hash']!=selection['blockHash']:
+                raise BoundaryError('selection_reorg_before_freeze')
+            selection_receipt=rpc.receipt(selection['transactionHash'],selection['blockHash'],scope='discovery')
+            if (int(selection_receipt['status'],16)!=1
+                or selection_receipt['transactionIndex']!=selection['transactionIndex']
+                or selection not in selection_receipt['logs']):
+                raise BoundaryError('selection_receipt_identity_disagreement')
+            result['selection_finality']=dict(finalized=True,block=selection_block,block_hash=selection['blockHash'],
+                                              waited_seconds=time.monotonic()-finality_started)
         result['factory_checks']={}
         result['pool']=address
         start_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='connectivity')
@@ -427,6 +446,24 @@ def run(endpoint):
                       quote_asset=wnative,source='finalized_prestate')
         result['range_freeze']=freeze;result['prospective_range']=True;result['quote_side']=quote_side
         result['proposal_hash']=freeze['proposal_hash'];result['prehistory']=prehistory
+        if forced_paper:
+            if not forced_db_path: raise BoundaryError('forced_ramses_paper_db_required')
+            from .ramses_paper import RamsesPaper
+            lifecycle=RamsesPaper(forced_db_path,PAPER_NATIVE_CAPITAL)
+            forced_identity='forced:'+address.lower()+':'+str(start)+':'+freeze['proposal_hash']
+            reserved=lifecycle.reserve(
+                forced_identity,pool=address,freeze=freeze,proposal_index=0,
+                block=start,block_hash=start_frontier['hash'],at=start_ts)
+            opened=lifecycle.enter(forced_identity,at=start_ts)
+            before_restart=lifecycle.reconcile()
+            lifecycle.close()
+            lifecycle=RamsesPaper(forced_db_path,PAPER_NATIVE_CAPITAL)
+            after_restart=lifecycle.reconcile()
+            if before_restart!=after_restart or lifecycle.position(forced_identity)['status']!='open':
+                raise BoundaryError('forced_ramses_entry_restart_reconciliation')
+            result['forced_paper_entry']=dict(
+                identity=forced_identity,reservation=reserved,opened=opened,
+                reconciliation=after_restart,restart_proven=True)
         # Nothing after this point can alter the frozen proposal definitions.
         target=start_ts+FORWARD_SECONDS;head_deadline=time.monotonic()+FORWARD_HEAD_WAIT_SECONDS
         end_candidate=rpc.call('eth_getBlockByNumber',['latest',False],scope='forward')
@@ -486,7 +523,7 @@ def run(endpoint):
 
         result['replay']=replay(result)
         result['observation_seconds']=end_ts-start_ts
-        if not events:raise BoundaryError('insufficient_forward_activity')
+        if not events and not forced_paper:raise BoundaryError('insufficient_forward_activity')
         observations=[]
         terminal_state=result['replay']['terminal_state']
         for index,_proposal in enumerate(freeze['proposals']):
@@ -505,13 +542,37 @@ def run(endpoint):
             outcome=paper_outcome(position,terminal_state,unwind=unwind,costs=None,lp_fees_captured=captured_fees)
             observations.append(dict(proposal_index=index,name=position['proposal']['name'],position=position,outcome=outcome))
         result['observations']=observations
-        if any(o['outcome']['unresolved_inventory'] for o in observations):
-            raise BoundaryError('unwind_liquidity_unavailable')
-        # Exact hypothetical add/remove/claim/unwind gas is not inferable from unrelated receipts.
-        # Do not manufacture it; after-cost return stays null until executable cost evidence exists.
-        raise BoundaryError('cost_evidence_unavailable')
+        if forced_paper:
+            chosen=observations[0]
+            lifecycle.exit_intent(forced_identity,at=end_ts,reason='forced_test_horizon')
+            final_position=lifecycle.finish(forced_identity,outcome=chosen['outcome'],at=end_ts)
+            before_final_restart=lifecycle.reconcile()
+            lifecycle.close()
+            from .ramses_paper import RamsesPaper
+            lifecycle=RamsesPaper(forced_db_path,PAPER_NATIVE_CAPITAL)
+            after_final_restart=lifecycle.reconcile()
+            if before_final_restart!=after_final_restart:
+                raise BoundaryError('forced_ramses_final_restart_reconciliation')
+            final_position=lifecycle.position(forced_identity)
+            result['forced_paper_final']=dict(
+                position=final_position,reconciliation=after_final_restart,
+                restart_proven=True,terminal_equality=result['replay']['terminal_equality'],
+                paper_only=True,allocation_authority=False,natural_proof=False,
+                strategy_evidence_eligible=False)
+            result['mechanics_complete']=final_position['status']=='settled'
+            if not result['mechanics_complete']:
+                raise BoundaryError('forced_ramses_unwind_unavailable')
+        else:
+            if any(o['outcome']['unresolved_inventory'] for o in observations):
+                raise BoundaryError('unwind_liquidity_unavailable')
+            # Exact hypothetical add/remove/claim/unwind gas is not inferable from unrelated receipts.
+            # Do not manufacture it; after-cost return stays null until executable cost evidence exists.
+            raise BoundaryError('cost_evidence_unavailable')
     except BoundaryError as exc:
         result['boundary']=str(exc)
+    if lifecycle is not None:
+        try: lifecycle.close()
+        except Exception: pass
     result['provider']=rpc.telemetry();result['ended_at']=time.time()
     return result
 
