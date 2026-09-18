@@ -19,11 +19,12 @@ from tests.test_dlmm_tape import transaction
 class LiquidityMutationIdentity(unittest.TestCase):
     def _with_mutation(self,tx,pool):
         out=copy.deepcopy(tx);keys=out['transaction']['message']['accountKeys']
-        # Existing keys [pool, program]. Add enough stand-ins for the pinned 14
-        # main accounts plus one remaining bin array. Pool is lb_pair position 1.
-        for value in range(40,54):
+        # Derive fresh stand-in indices from the actual fixture key count so only
+        # pinned account position 1 references the target lb_pair.
+        base=len(keys)
+        for value in range(40,53):
             keys.append(pump.b58(bytes([value])*32))
-        accounts=[2,0,3,4,5,6,7,8,9,10,11,12,13,1,14]
+        accounts=[base,0]+[base+i for i in range(1,12)]+[1,base+12]
         out['transaction']['message']['instructions'].append(dict(
             programIdIndex=1,accounts=accounts,
             data=pump.b58(ADD_LIQUIDITY_BY_STRATEGY2_IX+b'payload')))
