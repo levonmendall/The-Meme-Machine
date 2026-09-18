@@ -246,7 +246,7 @@ class Replay:
         return hypothetical
 
     def process_tape(self,oid,tape,now):
-        from .dlmm_tape import VerifiedTape
+        from .dlmm_tape import VerifiedTape, apply_terminal_adjustments
         _guard(self.store)
         p=self.store.state['liquidity_positions'][oid]
         if not isinstance(tape,VerifiedTape) or digest(tape.terminal)!=tape.end_hash:
@@ -273,6 +273,8 @@ class Replay:
             p=s['liquidity_positions'][oid]
             if tape.terminal['time']<p['last_time']:
                 raise ValueError('dlmm_interval_time_regression')
+            p['virtual']=apply_terminal_adjustments(
+                p['virtual'],tape.terminal_adjustments)
             p.update(real=deepcopy(tape.terminal),cursor=[tape.terminal['slot'],2**31-1,2**31-1],
                 last_time=tape.terminal['time'],last_authoritative_slot=tape.terminal['slot'],
                 lineage=digest([p['lineage'],tape.lineage]),unresolved=None,last_mark=None)
