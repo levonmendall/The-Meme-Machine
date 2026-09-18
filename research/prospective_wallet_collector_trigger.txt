@@ -9,3 +9,4 @@ Hourly trigger: 2026-09-18T19:06:40Z
 Hourly trigger: 2026-09-18T20:14:59Z
 Hourly trigger: 2026-09-18T21:44:28Z
 Hourly trigger: 2026-09-18T22:00:19Z
+Secondary post-hoc unique-mint/unmatched-outcome analysis activated from d0681340f607be5e5e6386c617e036180554ad25; frozen admission and preregistered robust analysis unchanged.
