@@ -142,6 +142,55 @@ def liquidity_floor_eligibility(vector):
 
 
 
+
+def is_two_buyer_sole_near_miss(row):
+    """True only when 3->2 buyer groups alone flips the frozen vector to pass."""
+    vector=(row or {}).get('qualification_vector') or {}
+    if row.get('evidence_stage')!='complete':
+        return False
+    if int(vector.get('independent_buyer_groups') or -1) != 2:
+        return False
+    grid=(((vector.get('sensitivity') or {}).get('values') or {})
+          .get('min_independent_groups') or {})
+    return bool(grid.get('2', False)) and not bool(vector.get('current_threshold_pass'))
+
+
+def summarize_two_buyer_near_misses(natural_rows):
+    rows=[r for r in natural_rows if is_two_buyer_sole_near_miss(r)]
+    horizons={}
+    for horizon in DEFAULT_HORIZONS:
+        vals=[]
+        for row in rows:
+            mark=((row.get('future_outcomes') or {}).get('marks') or {}).get(str(horizon))
+            if mark and mark.get('return_bps') is not None:
+                vals.append(int(mark['return_bps']))
+        horizons[str(horizon)]=dict(
+            observed=len(vals),
+            median_return_bps=_median(vals),
+            positive=sum(x>0 for x in vals),
+            above_15pct=sum(x>=1500 for x in vals),
+            below_minus_10pct=sum(x<=-1000 for x in vals),
+        )
+    mfes=[(r.get('future_outcomes') or {}).get('max_favorable_bps') for r in rows]
+    maes=[(r.get('future_outcomes') or {}).get('max_adverse_bps') for r in rows]
+    return dict(
+        authority='research_only',
+        trading_threshold_unchanged=True,
+        candidate_count=len(rows),
+        with_future_trade=sum(bool((r.get('future_outcomes') or {}).get('observed_trade_events')) for r in rows),
+        median_mfe_bps=_median(mfes),
+        median_mae_bps=_median(maes),
+        clean_15pct_winners=sum(
+            (r.get('future_outcomes') or {}).get('max_favorable_bps') is not None and
+            int((r.get('future_outcomes') or {}).get('max_favorable_bps'))>=1500 and
+            (r.get('future_outcomes') or {}).get('max_adverse_bps') is not None and
+            int((r.get('future_outcomes') or {}).get('max_adverse_bps'))>-1000
+            for r in rows
+        ),
+        horizons=horizons,
+        nomination_ids=[r.get('nomination_id') for r in rows if r.get('nomination_id')],
+    )
+
 def high_density_features(events, now):
     """Describe a >100-event Pump window without using future information."""
     now=int(now)
