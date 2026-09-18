@@ -1,3 +1,139 @@
+# Robinhood handoff — Pons protocol-native milestone
+
+## Current milestone — 2026-09-18
+
+Starting continuation head for this slice:
+`9e557245963f64aaff7412cca72f9c2915a2a8ff`.
+
+Branch remains `feat/robinhood-research-foundation`; PR #15 remains open/draft.
+No Solana source, threshold, workflow, provider, paper authority, merge state or
+deployment was changed.
+
+### Authentic Pons V2 graduation -> Uniswap V4 lineage: PROVEN
+
+Bounded mainnet lineage run
+[35378762520](https://github.com/levonmendall/The-Meme-Machine/actions/runs/35378762520)
+completed with zero provider failures/retries. Artifact `10561890805`, SHA256
+`97582b1ce347cd3e13650cc8c4c74571ad4d6406bdbc5cf9acb2ecbc41041353`.
+
+The authenticated same-transaction proof binds:
+
+- Pons V2 token: `0xf25cbd487fe0294dd0a39ba2955982bcff28fd72`;
+- source-verified curve: `0xea069fb8e88e3e08b427f8a4d496f7b94a8215b2`;
+- Pons factory `PoolGraduated`;
+- Pons hook `PoolRegistered`;
+- Uniswap V4 PoolManager `Initialize`;
+- exact PoolKey-derived pool ID:
+  `0x2075abed94de15d218a27b4da93541a974e23e131f1d2da32177b33634ac8da7`;
+- position ID `2103714`;
+- transaction
+  `0x1d49a28a0e27ecdd952094c4aaa9de2105253a2d62924ec36e761c13e43493c9`.
+
+Token appearance on V4 alone is not accepted. Pool ID, currencies, fee, tick
+spacing, hook, factory state and all three protocol-native events must agree.
+
+### Authentic Pons V1 -> Uniswap V3 provenance: PROVEN
+
+The same bounded proof independently authenticated:
+
+- Pons V1 token: `0xc4cb8a0167c77e36194f6affb6b71d931fab62c0`;
+- pair token: `0x0bd7d308f8e1639fab988df18a8011f41eacad73`;
+- exact V3 pool: `0x1e1779d5cf272a54ce27df5c9eb718ed5649d125`;
+- fee: `10000`;
+- position ID: `350747`;
+- factory-record DEX ID: `0`;
+- transaction:
+  `0xb4731f87f0ed4f30e804d3aad492e2410ff6efffd953150ee833fd04584a68cc`.
+
+The token creation height (`17661055`) was found with bounded historical-code
+binary search. The proof then requires Pons V1 `TokenLaunched` and Uniswap V3
+`PoolCreated` in the same receipt plus full agreement with the pinned Pons factory
+record. An unrelated or substituted V3 pool fails closed.
+
+### Captured-mainnet regressions
+
+Committed fixture:
+`robinhood_tests/fixtures/pons_lineage_35378762520.json`.
+
+Committed regression:
+`robinhood_tests/test_captured_pons_lineage.py`.
+
+It replays both authentic lineage proofs and contains negative controls for an
+unrelated V4 initialization and a substituted V3 pool. The compact fixture is tied
+to the full Actions artifact/run/digest above rather than presented as synthetic
+evidence.
+
+### Five-second / finality boundary: UNCHANGED
+
+The confirmed-evidence ledger from the prior protocol-verification work was not
+weakened. Confirmed evidence still requires the ledger; the quote state must remain
+within the existing five-second gate; displaced blocks invalidate dependent
+evidence; later finalization preserves the original observation time; restart
+recovery and canonical-hash disagreement remain tested.
+
+### Bounded natural Pons observation: COMPLETED
+
+The first live attempt exposed a real acquisition bug rather than producing a false
+candidate: a state-changing `buy` eth_call from an unfunded research address
+returned RPC -32000 and repeated events from the same curve wasted the bounded
+budget. The repair did **not** widen freshness or provider limits: the observer now
+uses the already source-verified buy arithmetic with the deployed curve's on-chain
+`currentSnipeTaxBps` and evaluates each curve only once.
+
+Repaired bounded run
+[35379763812](https://github.com/levonmendall/The-Meme-Machine/actions/runs/35379763812)
+completed successfully. Artifact `10561613083`, SHA256
+`08fd897af26c301d028a7789eabb91834e868de51d4da46089db911c400a3a04`.
+
+Prospectively selected first authenticated current curve:
+
+- token: `0x27fbf4f24a502b90eb40037c814099e3255f4134`;
+- curve: `0xb844ddc0c0e4311a0890d075d2e3c6680ebc525e`;
+- candidate block: `66436054`;
+- state freshness at frozen quote: **2 seconds**;
+- dependency status at quote: `confirmed`;
+- frozen research input: `0.01` native quote units (`10^16` wei);
+- source-verified quote tokens:
+  `2691280098289079811502556`;
+- current snipe rate: `0` bps;
+- no paper order/reservation/allocation authority.
+
+Fixed 60-second follow-up:
+
+- 17 authenticated subsequent curve trade events;
+- no graduation during the follow-up;
+- full-position curve mark remained executable;
+- gross marked return: **+1227 bps (+12.27%)**;
+- gas was intentionally not modeled, therefore
+  `after_cost_return=null` and profitability is **not established**;
+- dependency remained `confirmed` rather than being backdated as finalized;
+- provider: 119 transport requests, zero failures, zero retries.
+
+This is a natural protocol/economic observation, not evidence that a Robinhood
+trading policy is profitable and not authorization to trade.
+
+### Verification
+
+Exact-head deterministic CI before this handoff update:
+[35379783167](https://github.com/levonmendall/The-Meme-Machine/actions/runs/35379783167)
+passed **81 tests**. The live natural job is restored to its explicit push-marker
+guard; ordinary commits do not repeat it.
+
+### Next causal boundary
+
+Pons protocol identity, V2->V4 lineage, V1->V3 provenance, current confirmed
+freshness handling, exact curve quoting and one natural 60-second observation are
+now proven.
+
+The next Robinhood work should return to the independent Ramses lane: complete the
+range-specific pre-entry economic case against the already authenticated replay,
+then obtain one valid approximately 60-second current Ramses observation without
+weakening the 35-bps research hurdle. Separately, directional profitability still
+requires a natural sample and a justified Robinhood-native qualification policy
+before any paper allocation authority is enabled.
+
+---
+
 # Robinhood handoff — protocol verification continuation
 
 Continuation starting SHA (fetched and verified before edits):
