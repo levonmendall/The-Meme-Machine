@@ -111,7 +111,7 @@ class Paper:
             raise
         return p
 
-    def advance(self, identity, *, now, action, quote=None, transition=None, finality_ledger=None):
+    def advance(self, identity, *, now, action, quote=None, transition=None, finality_ledger=None, cancel_reason=None):
         self.store.db.execute('BEGIN IMMEDIATE')
         try:
             p = self._get(identity)
@@ -149,6 +149,10 @@ class Paper:
                     if net < 0:
                         raise BoundaryError('exit_gas_exceeds_proceeds')
                     p.update(status='settled', pnl=net-p['cost'], tokens=0, reserved=0, reason=None)
+            elif action == 'cancel':
+                if p['status'] != 'reserved' or not cancel_reason:
+                    raise BoundaryError('invalid_reservation_cancel')
+                p.update(status='settled', reserved=0, reason=str(cancel_reason), tokens=0)
             elif action == 'transition':
                 if p['status'] not in ('open', 'exit_pending') or not transition or transition['previous_market'] != p['market']:
                     raise BoundaryError('invalid_pool_transition')
