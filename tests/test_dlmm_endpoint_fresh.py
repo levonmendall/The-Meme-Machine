@@ -53,7 +53,7 @@ class FreshProviderRead(unittest.TestCase):
         self.assertFalse(block_reads[0][3])
 
     def test_state_hinted_endpoint_uses_one_account_read_and_forward_context(self):
-        fixture=snapshot();start=dlmm.validate(fixture,100,'real');calls=[]
+        fixture=snapshot();fixture['kind']='real';start=dlmm.validate(fixture,100,'real');calls=[]
         class StubRPC:
             clock=staticmethod(lambda:101.0)
             def call(self,method,params=None,priority=False,fresh=False):
