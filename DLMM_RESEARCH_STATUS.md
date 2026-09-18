@@ -87,3 +87,12 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - User explicitly authorized one additional bounded live replay after the prior proof reached the true `MAX_TRANSACTIONS=16` boundary.
 - Code, strategy, finality, pagination pacing, 16-page/1,024-row census cap, and `MAX_TRANSACTIONS=16` are unchanged from `7d18c54a43a0559b031755dd3906be4fd83dabc6`.
 - This marker authorizes exactly one additional one-pool, one-cycle, 12-second replay. No further retry is authorized by this marker.
+
+
+## Host-fee end-to-end certification attempt
+
+- Host-fee mechanics and transaction authentication are green offline at `260d4942004c8b6591fe13b0a648ef6488fb79bd`.
+- Self-enforcing certification telemetry/gate is green offline at `3293e0dfbee228f073b4a5197cb83298d492635a`.
+- This marker authorizes exactly one bounded one-pool, one-cycle, 12-second live replay.
+- Certification requires: allocation disabled; at least one verified opportunity; nonempty warmup; nonempty outcome; at least one real nonzero host-fee swap; at least one resolved selected after-cost counterfactual; zero interval errors; zero RPC failures.
+- No retry is authorized by this marker.
