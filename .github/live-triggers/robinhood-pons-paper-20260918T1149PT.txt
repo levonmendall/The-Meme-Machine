@@ -1,0 +1,1 @@
+Run one bounded genuine natural Pons paper lifecycle proof from the repaired harness. Paper/research only; no merge or deployment.
