@@ -1,2 +1,4 @@
 Bounded read-only Ramses baseline capture before mutation-complete/range-economics implementation.
 No allocation authority, signing, submission, merge, or deployment.
+
+Prospective rerun from mutation-complete frozen-range implementation at 3f8f8e1cc7c34dc783920d9cde39554447d7296e.
