@@ -70,6 +70,53 @@ class WalletDerivedStudy(unittest.TestCase):
         self.assertEqual(failures[0]["failure_kind_delta"],{"provider_error":1})
         self.assertEqual([call[1] for call in rpc.calls],["bad","good-1","good-2"])
 
+    def test_repeatability_requires_cross_wallet_consensus(self):
+        profiles=[
+            dict(
+                dominant_hold_bucket=dict(value="1-4h"),
+                dominant_width_bucket=dict(value="11-25"),
+                median_hold_seconds=7200,
+                median_width_bins=17,
+                rebalance_proxy_rate=0.8,
+            ),
+            dict(
+                dominant_hold_bucket=dict(value="1-4h"),
+                dominant_width_bucket=dict(value="11-25"),
+                median_hold_seconds=7500,
+                median_width_bins=19,
+                rebalance_proxy_rate=0.6,
+            ),
+            dict(
+                dominant_hold_bucket=dict(value="1-4h"),
+                dominant_width_bucket=dict(value="11-25"),
+                median_hold_seconds=6900,
+                median_width_bins=18,
+                rebalance_proxy_rate=0.7,
+            ),
+        ]
+        r=study._repeatability(profiles)
+        self.assertTrue(r["repeatable_behavior_identified"])
+        self.assertEqual(r["derived_hold_seconds"],7200)
+        self.assertEqual(r["derived_width_bins"],18)
+        self.assertEqual(r["rebalance_preference"]["value"],"active")
+
+        no_consensus=[dict(row) for row in profiles]
+        no_consensus[1]=dict(
+            dominant_hold_bucket=dict(value="<15m"),
+            dominant_width_bucket=dict(value="<=10"),
+            median_hold_seconds=600,
+            median_width_bins=8,
+            rebalance_proxy_rate=0.2,
+        )
+        no_consensus[2]=dict(
+            dominant_hold_bucket=dict(value="4-24h"),
+            dominant_width_bucket=dict(value=">50"),
+            median_hold_seconds=20000,
+            median_width_bins=80,
+            rebalance_proxy_rate=0.2,
+        )
+        self.assertFalse(study._repeatability(no_consensus)["repeatable_behavior_identified"])
+
     def test_position_metrics_tracks_hold_width_and_fee_efficiency(self):
         row=dict(
             positionAddress="position",
