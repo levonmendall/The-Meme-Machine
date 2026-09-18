@@ -444,3 +444,25 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Strategy, range placement, 35-bps hurdle, 12-second warmup, 60-second horizon, MAX_TRANSACTIONS=16, Alchemy pacing/budgets, paper-only authority, and disabled allocation remain unchanged.
 - Exact-head CI run `35370152998` passed unit discovery, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
 - This marker authorizes exactly one unchanged development batch for natural validation.
+
+
+## PERPSPAD single-transaction isolation and external-effect telemetry repair
+
+- The remaining PERPSPAD failure from run `35370329650` was isolated to exactly one finalized transaction:
+  - pool: `EHqk4Fw3pTCf9UW75dWoCMf6a2GxyJ8FGYEj2Qmw9rfr`
+  - start slot: `448142429`
+  - endpoint slot: `448142448`
+  - transaction slot: `448142440`
+  - signature: `2pZdWH2LxbJc9VJWDniwNvJeQStq9Ronao4ebMcr5QtJvxmTvBt6iLUxHDkVRLtgcFdBobC1PLpzNZKNnmix5aPt`
+- Read-only shape probe run `35377346900`, artifact `10560383710`, SHA256 `e8f3cfeea8d5ed09d812364e7cd7580ae82fd50088620935cbe7a3d115b43efb`, proved the transaction contains no target swap. It contains `claim_fee2` followed by `remove_liquidity_by_range2`.
+- The prior reason `dlmm_host_fee_token_balance_missing` was therefore misleading. The missing row belongs to the destination user token account for an external-effect transfer, not to host-fee recipient attribution.
+- The SOL destination ATA is created in the same transaction and correctly has no `preTokenBalances` row. Ordered `TransferChecked` instructions authenticate the ClaimFee2 and removal transfers exactly:
+  - ClaimFee2: 40,982,582 PERPS and 2,111,659 lamports-equivalent WSOL units.
+  - RemoveLiquidityByRange2: 1,248,827,314 PERPS and 4,628,172,814 WSOL units.
+  - Aggregate reserve deltas and post-user balances match those authenticated transfers exactly.
+- External effects now authenticate from ordered reserve→user SPL transfers first. Balance rows remain a conservation cross-check/fallback. A newly-created destination ATA may lack a pre balance row when exact ordered transfers and terminal pool equality prove the movement.
+- Missing/ambiguous/shape failures in this path now use `dlmm_external_effect_*` telemetry and no longer report `dlmm_host_fee_*`.
+- Wrong mint, wrong source/destination, wrong transfer amount, or inconsistent reserve/user balance deltas remain fail-closed.
+- Exact-head CI run `35377640096` passed unit discovery, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
+- Strategy, normalized ranges, 35-bps hurdle, 12-second warmup, 60-second outcome horizon, `MAX_TRANSACTIONS=16`, Alchemy pacing/budgets, paper-only authority, and disabled allocation are unchanged.
+- This marker authorizes exactly one unchanged development batch to validate the repaired PERPSPAD external-effect path on natural mainnet traffic.
