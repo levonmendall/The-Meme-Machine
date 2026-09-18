@@ -350,3 +350,14 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - No 60-second development label completed in this particular market sample because the candidate mix was: 3 over-verification-capacity warmups, 4 verified zero-swap warmups, 1 provider-body failure, and 1 fail-closed host-fee balance-delta verification mismatch.
 - These terminal outcomes are not strategy losses and do not re-open the repaired 429/budget issue. Selected trades and completed outcomes remain zero.
 - This marker authorizes exactly one additional unchanged development batch under the repaired acquisition path to seek a naturally occurring certifiable nonzero warmup and prove a full 60-second label can complete.
+
+
+## DLMM claimFee2 reconstruction and development sample 4
+
+- Exact claim-fee reconstruction is pinned at `3971c388d725cfd120f8179bc6d73cebdcdaa40a`.
+- The authenticated discriminator `70bf65ab1c907fbb` is the pinned Meteora `claim_fee2` instruction. Its effect is now reconstructed exactly from pre/post reserve and user SPL-token balances: claimed X/Y must leave the authenticated pool reserves and arrive one-for-one in the corresponding user token accounts with the correct mints.
+- claimFee2 is represented as an explicit terminal adjustment to the real and counterfactual pool vault state. LbPair/bin terminal equality still independently proves that no unmodeled pool-liquidity state changed.
+- Multiple claimFee2 instructions in one transaction, claimFee2 mixed with a target-pool swap, wrong account identity/mint, non-conserving balance deltas, vault underflow, or unknown adjustment shape remain fail-closed.
+- `remove_liquidity_by_range2` (`cc02c391359191cd`) remains unsupported and censored; no liquidity-removal rule was weakened.
+- Full CI run `35309070266` passed the unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
+- This marker authorizes exactly one unchanged development batch under the already-repaired Alchemy pacing/per-candidate-budget path to seek a complete 60-second label.
