@@ -388,3 +388,17 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Counterfactual research replay and paper replay both consume ordered swap/effect actions, including exact-out swaps and supported external liquidity effects.
 - Exact-head CI run `35352006568` passed unit discovery, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
 - This marker authorizes exactly one unchanged 12-second warmup / 60-second development batch. Strategy, cost hurdle, verifier capacity, Alchemy routing/pacing, and disabled allocation remain unchanged.
+
+
+## DLMM protocol coverage v2 — first live result and final event-binding repair
+
+- Live validation run `35352327097` completed successfully on `199a05258b36d6dc332dd44ad325cdd93eeccc8d`.
+- Artifact `10550752555` has SHA256 `0e208f29151598fad06be7a831df64fc8eaf13f9b8472719b524d79e42cea258`.
+- The run produced the first fully verified 60-second DLMM development observation: CARDS-SOL completed 2 authenticated warmup swaps plus 22 authenticated outcome swaps over the complete 60-second horizon.
+- The economic selector rejected CARDS-SOL before outcome because none of the proposed normalized bid ranges were touched in warmup and projected range fee capture did not clear the unchanged 35-bps hurdle. The legacy fixed sdk_bidask width-8 comparator resolved at approximately -35.0008 bps.
+- Alchemy transport remained healthy: 0 HTTP 429s and 0 per-candidate budget exhaustions.
+- The original recurring host-fee balance-delta mismatch did not recur. Transaction-level host aggregation remains enabled and regression-covered.
+- Three other pools exposed `dlmm_claim_fee2_event_without_ordered_call`. Inspection showed that ClaimFee2 EventCpi emission is not guaranteed to be adjacent to the ClaimFee2 instruction because other inner DLMM instructions can intervene.
+- Final parser repair `d86206475edcd1f8e844cfb0c71c1ba6c6082f75` binds ClaimFee2 and RemoveLiquidity events only by same top-level transaction execution group, exact PositionV2 identity, exact effect kind, and unique unmatched preceding instruction. It does not use loose nearest-event matching.
+- Exact-head CI run `35353440772` passed the complete unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle. Regressions explicitly insert intervening DLMM inner instructions and require claim/removal events to bind correctly.
+- This marker authorizes exactly one final unchanged development batch to validate the repaired event association on live mainnet evidence. Strategy, costs, 16-transaction capacity, 60-second horizon, Alchemy pacing/budgets, paper-only authority, and disabled allocation remain unchanged.
