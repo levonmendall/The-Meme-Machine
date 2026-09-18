@@ -785,22 +785,41 @@ def run_live(
     boundary.ENDPOINT_DIAGNOSTICS.clear()
     dense.ENDPOINT_CAPTURE_HIGH_WATER.clear()
 
-    rpc = PoolScanRPC(alchemy_provider.rpc_url(), limit=240)
-    adapter = dlmm.Adapter(rpc)
-
-    discovery_start = _rpc_metrics(rpc)
-    candidates, rejections, api_errors = _discover_for_scan(
-        adapter, max_attempted_pools
+    # One pacing gate controls physical request rate across the whole batch, while
+    # discovery and each candidate receive independent bounded logical-call budgets.
+    # Resetting a logical budget can therefore never create an HTTP burst.
+    pacer = alchemy_provider.AlchemyPacer()
+    provider_rpcs = []
+    discovery_rpc_client = alchemy_provider.new_rpc(
+        limit=DISCOVERY_RPC_LIMIT,
+        pacer=pacer,
     )
-    discovery_rpc = _metric_delta(discovery_start, _rpc_metrics(rpc))
-    observation_start_calls = rpc.calls
+    provider_rpcs.append(discovery_rpc_client)
+    discovery_adapter = dlmm.Adapter(discovery_rpc_client)
+
+    discovery_start = _rpc_metrics(discovery_rpc_client)
+    candidates, rejections, api_errors = _discover_for_scan(
+        discovery_adapter, max_attempted_pools
+    )
+    discovery_rpc = _metric_delta(
+        discovery_start, _rpc_metrics(discovery_rpc_client)
+    )
 
     report = dict(
-        kind="dlmm_range_economic_point_in_time_v4",
+        kind="dlmm_range_economic_point_in_time_v5",
         base="pr4_verified_simulator",
         rpc_provider=alchemy_provider.PROVIDER_LABEL,
         rpc_provider_host=alchemy_provider.ALCHEMY_SOLANA_MAINNET_HOST,
         rpc_provider_fallback_allowed=False,
+        rpc_budget_policy="independent_bounded_budget_per_candidate_shared_physical_pacer",
+        discovery_rpc_limit=DISCOVERY_RPC_LIMIT,
+        per_candidate_rpc_limit=PER_POOL_RPC_LIMIT,
+        alchemy_min_request_interval_seconds=(
+            alchemy_provider.ALCHEMY_MIN_REQUEST_INTERVAL_SECONDS
+        ),
+        alchemy_min_429_backoff_seconds=(
+            alchemy_provider.ALCHEMY_429_MIN_BACKOFF_SECONDS
+        ),
         allocation_authority=False,
         prospective_allocation_enabled=False,
         study_phase=study_phase,
@@ -870,35 +889,53 @@ def run_live(
 
     completed = 0
     attempted = 0
+    budget_instances = 0
     candidate_scanned = 0
     supported_pools = []
     for candidate in candidates:
-        if completed >= target_completed or attempted >= max_attempted_pools:
+        if (
+            completed >= target_completed
+            or budget_instances >= max_attempted_pools
+        ):
             break
         candidate_scanned += 1
+        budget_instances += 1
         address = candidate["address"]
-        fresh_before = _rpc_metrics(rpc)
+
+        pool_rpc = alchemy_provider.new_rpc(
+            limit=PER_POOL_RPC_LIMIT,
+            pacer=pacer,
+        )
+        provider_rpcs.append(pool_rpc)
+        pool_rpc_start = _zero_rpc_metrics()
         try:
-            start = _fresh_supported_start(adapter, candidate)
+            pool_adapter = dlmm.Adapter(pool_rpc)
+            fresh_before = _rpc_metrics(pool_rpc)
+            start = _fresh_supported_start(pool_adapter, candidate)
         except (Unavailable, ValueError, KeyError, TypeError) as exc:
             reason = str(exc)
             rejection = dict(
                 candidate_scan=candidate_scanned,
+                provider_budget_instance=budget_instances,
                 pool=address,
                 name=candidate.get("name"),
                 discovery_rank=candidate.get("rank"),
                 reason=reason,
                 terminal_classification=_classify_reason(reason),
-                rpc=_metric_delta(fresh_before, _rpc_metrics(rpc)),
+                rpc_budget_limit=PER_POOL_RPC_LIMIT,
+                rpc=_metric_delta(
+                    pool_rpc_start, _rpc_metrics(pool_rpc)
+                ),
             )
             report["candidate_revalidation_rejections"].append(rejection)
-            if rejection["terminal_classification"] == "provider_budget_exhausted":
-                break
+            # A provider failure or exhausted budget belongs only to this candidate.
+            # The next candidate receives a fresh bounded budget but shares the same
+            # physical Alchemy pacing gate.
             continue
 
         attempted += 1
         supported_pools.append(address)
-        fresh_rpc = _metric_delta(fresh_before, _rpc_metrics(rpc))
+        fresh_rpc = _metric_delta(fresh_before, _rpc_metrics(pool_rpc))
         (
             attempt,
             opportunity,
@@ -907,15 +944,20 @@ def run_live(
             normalized,
             legacy,
         ) = _attempt_candidate(
-            adapter,
+            pool_adapter,
             candidate,
             start,
             warmup_seconds,
             holding_seconds,
             study_phase,
             attempted,
-            rpc_before=fresh_before,
+            rpc_before=pool_rpc_start,
             fresh_start_rpc=fresh_rpc,
+        )
+        attempt["provider_budget_instance"] = budget_instances
+        attempt["rpc_budget_limit"] = PER_POOL_RPC_LIMIT
+        attempt["rpc_budget_remaining"] = max(
+            0, PER_POOL_RPC_LIMIT - int(attempt["rpc"]["calls"])
         )
         report["attempts"].append(attempt)
         if attempt["terminal_classification"] == "over_verification_capacity":
@@ -950,8 +992,7 @@ def run_live(
                     for error in phase["errors"]
                 )
         if not attempt["completed_window"]:
-            if attempt["terminal_classification"] == "provider_budget_exhausted":
-                break
+            # A per-candidate budget exhaustion is no longer batch-terminal.
             continue
         completed += 1
         report["opportunities"].append(opportunity)
