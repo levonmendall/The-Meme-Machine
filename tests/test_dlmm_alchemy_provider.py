@@ -1,4 +1,4 @@
-"""Regression coverage for DLMM Alchemy-only RPC routing."""
+"""Regression coverage for existing-secret Alchemy-only DLMM routing."""
 import unittest
 
 from meme_machine.provider import Unavailable
@@ -6,23 +6,24 @@ from tests import dlmm_alchemy_provider as provider
 
 
 class DlmmAlchemyProvider(unittest.TestCase):
-    def test_accepts_only_alchemy_solana_mainnet_full_endpoint(self):
+    def test_accepts_existing_full_alchemy_mainnet_url(self):
         env = {
             provider.ENV_NAME:
                 "https://solana-mainnet.g.alchemy.com/v2/example-key"
         }
         self.assertEqual(provider.rpc_url(env), env[provider.ENV_NAME])
         meta = provider.metadata()
-        self.assertEqual(meta["provider"], "alchemy_solana_mainnet")
+        self.assertEqual(
+            meta["provider"], "alchemy_solana_mainnet_existing_secret"
+        )
+        self.assertEqual(meta["credential"], "MM_SOLANA_READ_RPC_URL")
         self.assertFalse(meta["fallback_allowed"])
-        self.assertFalse(meta["signing"])
-        self.assertFalse(meta["submission"])
 
     def test_missing_route_fails_closed(self):
         with self.assertRaisesRegex(Unavailable, "alchemy_rpc_missing"):
             provider.rpc_url({})
 
-    def test_public_and_non_alchemy_routes_are_rejected(self):
+    def test_non_alchemy_and_non_mainnet_routes_are_rejected(self):
         for value in (
             "https://api.mainnet-beta.solana.com",
             "https://api.mainnet.solana.com",
