@@ -24,7 +24,7 @@ EVENTS_PATH = Path("prospective_events.jsonl")
 SUMMARY_PATH = Path("prospective_summary.json")
 ARTIFACT_NAME = "prospective-skilled-wallet-state"
 
-PROTOCOLS = {"PUMPFUN", "PUMPSWAP", "BONK", "METEORA", "RAYDIUM", "ORCA"}
+PROTOCOLS = {"PUMPFUN", "PUMPSWAP"}
 ROLLING_SECONDS = 300
 ACTIVE_MAX_AGE = 60
 ENTRY_TOLERANCE = 90
@@ -368,6 +368,8 @@ def process_detection_hour(
 
             if action not in ("buy", "sell"):
                 continue
+            if event.get("protocol") not in PROTOCOLS:
+                continue
             price = event.get("price")
             if not isinstance(price, (int, float)) or price <= 0:
                 continue
@@ -532,6 +534,7 @@ def label_mature_outcomes(
             if (
                 mint not in relevant_mints
                 or action not in ("buy", "sell")
+                or event.get("protocol") not in PROTOCOLS
                 or not isinstance(ts, (int, float))
                 or not isinstance(price, (int, float))
                 or price <= 0
