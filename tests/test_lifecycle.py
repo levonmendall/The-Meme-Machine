@@ -1,5 +1,7 @@
+import base64
 import copy
 import json
+import struct
 import os
 import subprocess
 import sys
@@ -12,6 +14,14 @@ from meme_machine.provider import RPC, Unavailable
 from meme_machine import pump
 from meme_machine.__main__ import replay
 from tests.support import *
+
+
+def with_real_sol(snap, real_sol):
+    row=copy.deepcopy(snap)
+    raw=bytearray(base64.b64decode(row['accounts'][0]['data'][0]))
+    struct.pack_into('<Q',raw,32,int(real_sol))
+    row['accounts'][0]['data'][0]=base64.b64encode(raw).decode()
+    return row
 
 
 class Lifecycle(unittest.TestCase):
@@ -87,6 +97,28 @@ class Lifecycle(unittest.TestCase):
         self.assertEqual(self.e.monitor(MINT,{},107),'unresolved')
         self.assertIsNone(self.e.status(107)['unrealized_lamports'])
         self.assertIn(MINT,self.store.state['positions'])
+
+    def test_collapsing_pump_liquidity_sets_liquidity_exit_before_sell(self):
+        self.enter()
+        thin=with_real_sol(snapshot(107),4_000_000_000)
+        self.assertEqual(self.e.monitor(MINT,thin,107),'exit_intended')
+        position=self.store.state['positions'][MINT]
+        self.assertEqual(position['exit_reason'],'liquidity_invalidation')
+        self.assertIsNone(position.get('last_exit_error'))
+
+    def test_impossible_full_position_sell_is_explicit_and_not_falsely_settled(self):
+        self.enter()
+        impossible=with_real_sol(snapshot(107),1)
+        self.assertEqual(self.e.monitor(MINT,impossible,107),'unresolved')
+        position=self.store.state['positions'][MINT]
+        self.assertEqual(position['exit_reason'],'liquidity_invalidation')
+        self.assertEqual(position['last_exit_error']['reason'],'insufficient_real_exit_liquidity')
+        self.assertIn(MINT,self.store.state['positions'])
+        self.assertEqual(self.store.state['funnel']['settled_exits'],0)
+        self.assertEqual(self.store.state['counts']['unavailable_exit:insufficient_real_exit_liquidity'],1)
+        # Identical failures inside the durable coalescing interval do not write again.
+        self.assertEqual(self.e.monitor(MINT,with_real_sol(snapshot(112),1),112),'unresolved_coalesced')
+        self.assertEqual(self.store.state['counts']['unavailable_exit:insufficient_real_exit_liquidity'],1)
     def test_shared_capital_and_dlmm_disabled(self):
         self.assertEqual(self.e.allocator.allowed('liquidity',1,MINT,'x'),'dlmm_disabled')
         for i in range(4):
