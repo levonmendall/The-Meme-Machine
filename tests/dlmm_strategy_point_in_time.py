@@ -26,6 +26,7 @@ from meme_machine.dlmm_tape import VerifiedTape
 from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
 from meme_machine.store import digest
+from tests import dlmm_alchemy_provider as alchemy_provider
 
 KNOWN_POOLS = (
     "Cqc2v6yhK5NBgmhNoYBFYmUA5WR1UriYANa3wf7ijN7C",
@@ -349,12 +350,15 @@ def _advance(adapter, states, wait_seconds):
 def run_live(cycles=MAX_CYCLES, window_seconds=18):
     if not 1 <= cycles <= MAX_CYCLES or not 5 <= window_seconds <= MAX_WINDOW_SECONDS:
         raise ValueError("dlmm_research_live_bounds")
-    rpc = PoolScanRPC("https://api.mainnet-beta.solana.com", limit=240)
+    rpc = PoolScanRPC(alchemy_provider.rpc_url(), limit=240)
     adapter = dlmm.Adapter(rpc)
     states, discovery_errors, discovery_rejections = _discover(adapter, int(time.time()))
     report = dict(
         kind="dlmm_point_in_time_strategy_replay_v1",
         base="pr4_verified_simulator",
+        research_rpc_provider=alchemy_provider.PROVIDER_LABEL,
+        research_rpc_provider_host=alchemy_provider.ALCHEMY_SOLANA_MAINNET_HOST,
+        research_rpc_fallback_allowed=False,
         allocation_authority=False,
         prospective_allocation_enabled=False,
         capital_lamports=CAPITAL,
