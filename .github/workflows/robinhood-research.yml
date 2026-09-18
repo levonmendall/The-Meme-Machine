@@ -1,0 +1,44 @@
+name: robinhood-research
+on:
+  push:
+    branches: [feat/robinhood-research-foundation]
+  pull_request:
+    paths: ['robinhood_research/**', 'robinhood_tests/**', '.github/workflows/robinhood-research.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deterministic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m unittest discover -s robinhood_tests -v
+  bounded-read-proof:
+    needs: deterministic
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-read-proof]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: meme-machine-robinhood-read-proof
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Bounded read-only Robinhood provider proof
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+        run: python -m robinhood_research.probe
+      - name: Preserve exact-release read evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: robinhood-read-${{ github.sha }}-${{ github.run_id }}
+          path: robinhood-live-report.json
+          retention-days: 30
+          if-no-files-found: error
