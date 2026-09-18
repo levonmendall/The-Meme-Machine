@@ -1084,21 +1084,34 @@ def main():
     parser.add_argument(
         "--max-attempted-pools", type=int, default=MAX_ATTEMPTED_POOLS
     )
-    parser.add_argument("--window-seconds", type=int, default=12)
+    parser.add_argument(
+        "--warmup-seconds", type=int, default=DEFAULT_WARMUP_SECONDS
+    )
+    parser.add_argument(
+        "--holding-seconds", type=int, default=economics.HOLD_SECONDS
+    )
+    parser.add_argument(
+        "--study-phase",
+        choices=("development", "holdout"),
+        default="development",
+    )
     args = parser.parse_args()
     try:
         run_live(
             target_completed=args.target_completed,
             max_attempted_pools=args.max_attempted_pools,
-            window_seconds=args.window_seconds,
+            warmup_seconds=args.warmup_seconds,
+            holding_seconds=args.holding_seconds,
+            study_phase=args.study_phase,
         )
     except Exception as exc:
         failure = dict(
-            kind="dlmm_profitability_density_screened_point_in_time_v3",
+            kind="dlmm_range_economic_point_in_time_v4",
             allocation_authority=False,
             prospective_allocation_enabled=False,
             profitability_conclusion="not_established",
             conclusion="experiment_failed_before_valid_sample",
+            study_phase=args.study_phase,
             error=str(exc)[:160],
             ended=int(time.time()),
         )
