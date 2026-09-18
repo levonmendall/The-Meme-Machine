@@ -118,18 +118,20 @@ class CurveState:
         if self.graduated or self.token_reserve <= self.reserved_tokens:
             raise BoundaryError('curve_closed_pending_or_completed_graduation')
 
-    def buy(self, received, *, recipient_exempt):
-        """Exact native quote input; ERC20 transfer-tax behavior needs separate proof.
+    def buy_with_snipe(self, received, current_snipe_bps):
+        """Exact buy arithmetic when the deployed curve's current snipe bps is read onchain.
 
-        Recipient exemption must be read, not defaulted. Returned fee includes the
-        deployed launch-window snipe tax, matching CurveBuy's fee field.
+        This avoids relying on a state-changing eth_call from a funded account while
+        preserving the source-derived arithmetic. The supplied snipe rate is evidence,
+        not a locally predicted value.
         """
         self.check()
-        if type(recipient_exempt) is not bool or uint(received)==0:
-            raise BoundaryError('missing_recipient_or_amount')
-        elapsed=self.timestamp-self.launched_at
-        snipe=0 if recipient_exempt or elapsed>=self.snipe_seconds else self.snipe_start_bps >> (elapsed*14//self.snipe_seconds)
-        snipe=min(snipe,9900-self.fee_bps-self.creator_tax_bps)
+        if uint(received)==0 or type(current_snipe_bps) is not int:
+            raise BoundaryError('missing_snipe_or_amount')
+        maximum=9900-self.fee_bps-self.creator_tax_bps
+        if not 0<=current_snipe_bps<=maximum:
+            raise BoundaryError('invalid_current_snipe_bps')
+        snipe=current_snipe_bps
         spent=received
         def charges(amount):
             return (mul(amount,self.fee_bps)//10000,mul(amount,self.creator_tax_bps)//10000,mul(amount,snipe)//10000)
@@ -143,10 +145,22 @@ class CurveState:
             out=sellable
             net=mul(mul(out,self.quote_reserve),10000)//mul(self.token_reserve-out,10000)+1
             denom=10000-self.fee_bps-self.creator_tax_bps-snipe
+            if denom<=0:
+                raise BoundaryError('invalid_buy_fee_sum')
             spent=min((mul(net,10000)+denom-1)//denom,received)
             fee,tax,penalty=charges(spent)
         return dict(spent=spent,refund=received-spent,tokens_out=out,fee=fee+penalty,
                     creator_tax=tax,snipe_tax=penalty,ready_to_graduate=out==sellable)
+
+    def buy(self, received, *, recipient_exempt):
+        """Exact native quote input using the source-derived snipe-decay schedule."""
+        self.check()
+        if type(recipient_exempt) is not bool or uint(received)==0:
+            raise BoundaryError('missing_recipient_or_amount')
+        elapsed=self.timestamp-self.launched_at
+        snipe=0 if recipient_exempt or elapsed>=self.snipe_seconds else self.snipe_start_bps >> (elapsed*14//self.snipe_seconds)
+        snipe=min(snipe,9900-self.fee_bps-self.creator_tax_bps)
+        return self.buy_with_snipe(received,snipe)
 
     def sell(self, tokens):
         self.check()
