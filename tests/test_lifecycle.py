@@ -92,6 +92,18 @@ class Lifecycle(unittest.TestCase):
         bad=event();bad['amount']+=1
         with self.assertRaisesRegex(ValueError,'conflicting'):
             self.e.scout([bad],100)
+    def test_order_identity_collision_fails_closed_and_exact_duplicate_is_idempotent(self):
+        first=event(id='shared-order-id')
+        self.assertEqual(self.e.consider(first,evidence(),100),'qualified')
+        self.assertEqual(self.e.consider(dict(first),evidence(),100),'reserved')
+        other_mint=pump.b58(bytes([31])*32)
+        collision=event(id='shared-order-id',mint=other_mint)
+        with self.assertRaisesRegex(ValueError,'order_identity_collision'):
+            self.e.consider(collision,evidence(mint=other_mint,creator=pump.b58(bytes([41])*32)),100)
+        self.assertEqual(len(self.store.state['orders']),1)
+        self.assertEqual(self.store.state['orders']['shared-order-id']['mint'],MINT)
+        self.store.reconcile()
+
     def test_unavailable_exit_unknown_mark(self):
         self.enter()
         self.assertEqual(self.e.monitor(MINT,{},107),'unresolved')
