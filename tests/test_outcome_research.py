@@ -3,9 +3,10 @@ import unittest
 from tests.market_native_opportunity_outcomes import CONCENTRATION_ROTATE_AT, EvidenceSessions
 
 from meme_machine.outcome_research import (
-    enable_shadow_exit, high_density_features, liquidity_floor_eligibility, new_tracker,
-    observe_trade, return_bps, summarize_liquidity_counterfactual,
-    summarize_post_exit_tail, summarize_trackers,
+    enable_shadow_exit, high_density_features, is_two_buyer_sole_near_miss,
+    liquidity_floor_eligibility, new_tracker, observe_trade, return_bps,
+    summarize_liquidity_counterfactual, summarize_post_exit_tail,
+    summarize_trackers, summarize_two_buyer_near_misses,
 )
 
 MINT='mint'
@@ -46,6 +47,34 @@ class OutcomeResearchTests(unittest.TestCase):
         self.assertTrue(got['5000000000'])
         self.assertTrue(got['7500000000'])
         self.assertFalse(got['10000000000'])
+
+
+
+    def test_two_buyer_cohort_requires_pivotal_group_rule_only(self):
+        tracker=new_tracker(MINT,100,100,100,['natural_sample'],horizons=(60,))
+        observe_trade(tracker,trade(160,120))
+        pivotal=dict(
+            nomination_id='p',evidence_stage='complete',
+            qualification_vector=dict(
+                current_threshold_pass=False,independent_buyer_groups=2,
+                sensitivity={'values':{'min_independent_groups':{'2':True,'3':False}}},
+            ),
+            future_outcomes=tracker,
+        )
+        contaminated=dict(
+            nomination_id='x',evidence_stage='complete',
+            qualification_vector=dict(
+                current_threshold_pass=False,independent_buyer_groups=2,
+                sensitivity={'values':{'min_independent_groups':{'2':False,'3':False}}},
+            ),
+            future_outcomes=tracker,
+        )
+        self.assertTrue(is_two_buyer_sole_near_miss(pivotal))
+        self.assertFalse(is_two_buyer_sole_near_miss(contaminated))
+        got=summarize_two_buyer_near_misses([pivotal,contaminated])
+        self.assertEqual(got['candidate_count'],1)
+        self.assertEqual(got['horizons']['60']['median_return_bps'],2000)
+        self.assertTrue(got['trading_threshold_unchanged'])
 
 
     def test_high_density_features_are_point_in_time_only(self):
