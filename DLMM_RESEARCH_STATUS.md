@@ -277,3 +277,17 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Prospective DLMM allocation remains disabled. No Store authority, live-money authority, swap/fee mechanics, cost assumptions, finality rules, verifier capacity, or provider safety predicates changed.
 - Exact-head GitHub Actions run `35305570090` passed the full unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
 - No holdout run is authorized while the rule remains unfrozen.
+
+
+## DLMM provider routing: Alchemy Solana Mainnet only
+
+- DLMM RPC routing is pinned at `d90b4cd869f028c70f584b9e0b8dbeb233fae153`.
+- All active DLMM live/replay entrypoints now resolve through one canonical validator: `tests.dlmm_alchemy_provider`.
+- The only accepted RPC shape is `https://solana-mainnet.g.alchemy.com/v2/<api-key>`. Solana Labs, PublicNode, devnet, plaintext HTTP, key-only values, query/fragment variants, and any other host fail closed.
+- The old generic `MM_SOLANA_READ_RPC_URL` path is removed from DLMM workflows. The required GitHub Actions secret is `MM_ALCHEMY_SOLANA_RPC_URL`.
+- All active DLMM workflows use the dedicated `dlmm-alchemy-solana-live` concurrency group and validate the Alchemy route before making a network request.
+- The legacy `tests.dlmm_strategy_high_activity_publicnode` entrypoint is retained only to fail explicitly with `dlmm_publicnode_route_retired_use_alchemy`; it can no longer route traffic.
+- Provider telemetry now reports `alchemy_solana_mainnet` without logging the endpoint or API key.
+- Full deterministic CI passed on exact routing head in run `35306102369`: unit discovery, standard resource check, DLMM resource check, and canonical synthetic lifecycle all succeeded.
+- The connected Alchemy app `LeVon's First App` has Solana Mainnet enabled. A direct mainnet RPC health call at this boundary returned `monthly capacity limit exceeded`, so no new DLMM live research run is launched until Alchemy capacity becomes available. This is a provider-capacity blocker only; strategy/mechanics remain unchanged.
+- Prospective DLMM allocation remains disabled. No strategy thresholds, costs, verifier capacity, finality predicates, swap/fee mechanics, Store authority, signing, or submission behavior changed.
