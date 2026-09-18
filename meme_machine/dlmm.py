@@ -278,6 +278,83 @@ def swap(state, amount, for_y, timestamp, host_fee=None):
     return p,quote
 
 
+
+def swap_exact_out(state, out_amount, for_y, timestamp, host_fee=None):
+    """Exact-output counterfactual traversal for the supported input-fee/no-LO subset.
+
+    Semantic reference: dlmm-sdk quote_exact_out / swap_exact_out_quote_at_bin.
+    The requested output is removed exactly; required input and fees use the SDK's
+    ceil rounding. Host fee remains a carve-out of the protocol portion.
+    """
+    if type(out_amount) is not int or not 0 < out_amount < 1<<64 or type(for_y) is not bool:
+        raise ValueError('dlmm_invalid_exact_out')
+    host_enabled=host_fee is not None
+    if host_enabled and (type(host_fee) is not int or not 0 <= host_fee < 1<<64):
+        raise ValueError('dlmm_invalid_host_fee')
+    p=deepcopy(state);s=p['parameters']
+    if s.get('collect_fee_mode')!=0:
+        raise Unavailable('dlmm_exact_out_requires_input_fee_mode')
+    if timestamp < max(p['last_update'],p['time']):
+        raise ValueError('dlmm_time_regression')
+    elapsed=timestamp-p['last_update']
+    if elapsed >= s['filter_period']:
+        p['index_reference']=p['active']
+        p['volatility_reference']=(p['volatility_accumulator']*s['reduction_factor']//10000
+                                   if elapsed < s['decay_period'] else 0)
+    left=out_amount;total_input=fees=protocol=0;protocol_pre_host=expected_host=0
+    traversed=[];start=p['active']
+    while left:
+        bid=p['active'];b=p['bins'].get(str(bid))
+        if b is None or len(traversed)>=MAX_BINS:
+            raise Unavailable('dlmm_missing_traversal_bins')
+        p['volatility_accumulator']=min(
+            s['max_volatility_accumulator'],
+            p['volatility_reference']+abs(p['index_reference']-bid)*10000)
+        rate=total_fee(p)
+        out_key='y' if for_y else 'x'
+        in_key='x' if for_y else 'y'
+        available=b[out_key]
+        if available:
+            take=min(left,available)
+            net=(pump.ceildiv(take*Q,b['price']) if for_y
+                 else pump.ceildiv(take*b['price'],Q))
+            if net<=0:
+                raise Unavailable('dlmm_dust_swap_unsupported')
+            fee=pump.ceildiv(net*rate,FEE_PRECISION-rate)
+            used=net+fee
+            pf_pre=fee*s['protocol_share']//10000
+            bin_host=pf_pre*HOST_FEE_BPS//10000 if host_enabled else 0
+            pf=pf_pre-bin_host
+            b[in_key]+=net;b[out_key]-=take
+            p['vault_'+in_key+'_amount']+=used-bin_host
+            p['vault_'+out_key+'_amount']-=take
+            p['protocol_fee_'+in_key]+=pf
+            if b[in_key]>=1<<64 or b['supply']>>64==0:
+                raise ValueError('dlmm_bin_overflow_or_zero_fee_supply')
+            b['fee_'+in_key]+=((fee-pf_pre)<<64)//(b['supply']>>64)
+            left-=take;total_input+=used;fees+=fee;protocol+=pf
+            protocol_pre_host+=pf_pre;expected_host+=bin_host
+            item=dict(bin=bid,input=used,output=take,fee=fee,protocol_fee=pf)
+            if host_enabled:
+                item.update(protocol_fee_pre_host=pf_pre,host_fee=bin_host)
+            traversed.append(item)
+        else:
+            traversed.append(dict(bin=bid,input=0,output=0,fee=0,protocol_fee=0))
+        if left:
+            p['active']+=-1 if for_y else 1
+            if not s['min_bin_id']<=p['active']<=s['max_bin_id']:
+                raise Unavailable('dlmm_pool_bin_limit')
+    if p['active']!=start:
+        p['last_update']=timestamp
+    p['time']=timestamp
+    if host_enabled and host_fee!=expected_host:
+        raise Unavailable('dlmm_host_fee_cannot_be_reconstructed')
+    quote=dict(input=total_input,output=out_amount,fee=fees,protocol_fee=protocol,
+               start=start,end=p['active'],traversed=traversed)
+    if host_enabled:
+        quote.update(host_fee=expected_host,protocol_fee_pre_host=protocol_pre_host)
+    return p,quote
+
 def scout(snapshot, now, api_identity=None):
     """Structural evidence only. This function has no Store or allocator."""
     p=validate(snapshot,now)
