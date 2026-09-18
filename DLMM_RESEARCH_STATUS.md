@@ -187,3 +187,13 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - External LP mutations remain fail-closed in research; no state discontinuity is bridged.
 - A verified nonzero host-fee event in any completed warmup/outcome will also close the remaining live host-fee occurrence sub-proof.
 - This marker authorizes exactly one profitability pilot batch.
+
+
+## Live host-fee occurrence closeout
+
+- Full host-fee arithmetic and terminal reconstruction remain covered by the captured/offline authenticated host-fee regressions.
+- JUP-SOL state-continuity proof is currently impossible within the unchanged 16-transaction cap because its first 0.5-second census already exceeded the cap.
+- The remaining certification gap is therefore narrowed to current live occurrence: one finalized exact-input swap with nonzero host fee and authenticated input-token host-account balance delta.
+- This bounded scan checks up to 12 successful finalized transactions on each of STONK-SOL, JUP-SOL, and USELESS-SOL, paced one second per body read, and stops at the first authenticated hosted swap.
+- No strategy, verifier, cost, threshold, or allocation authority is changed.
+- This marker authorizes exactly one bounded live occurrence scan.
