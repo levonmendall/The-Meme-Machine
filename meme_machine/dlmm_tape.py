@@ -462,7 +462,10 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
         raise ValueError('dlmm_transaction_pool_identity')
     if meta.get('innerInstructions') is None:
         raise Unavailable('dlmm_missing_inner_instructions')
-    ordered=list(_ordered_instructions(meta,message))
+    ordered=[
+        ((outer,inner),instruction)
+        for outer,inner,instruction in _ordered_instructions(meta,message)
+    ]
     records=[];effects=[];current=None
     for (outer,inner),instruction in ordered:
         if keys[instruction['programIdIndex']]!=dlmm.PROGRAM:
