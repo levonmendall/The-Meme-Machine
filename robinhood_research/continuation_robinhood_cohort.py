@@ -42,8 +42,8 @@ ROOT=Path(os.environ.get(
 ))
 
 COHORT_TARGET=10
-MAX_ENROLLED=300
-DISCOVERY_SECONDS=1800
+MAX_ENROLLED=5000
+DISCOVERY_SECONDS=14400
 MONITOR_SECONDS=5
 MAX_HOLD_SECONDS=EXIT_POLICY["timeout_seconds"]
 TAKE_PROFIT_BPS=EXIT_POLICY["take_profit_bps"]
@@ -52,7 +52,7 @@ ENTRY_DELAY_SECONDS=EXIT_POLICY["delayed_execution_seconds"]
 PAPER_AMOUNT=REFERENCE_ENTRY_WEI
 PAPER_CAPITAL=REFERENCE_ENTRY_WEI*20
 MAX_TAPE_EVENTS=5000
-MAX_DISCOVERY_SESSIONS=128
+MAX_DISCOVERY_SESSIONS=1024
 POLL_SECONDS=0.5
 
 
@@ -452,6 +452,12 @@ def run(endpoint):
             seen_curves.add(event["address"].lower())
             row=_evaluate(endpoint,event,len(result["enrollments"]),list(tape))
             result["enrollments"].append(row)
+            if len(result["enrollments"])%50==0:
+                print(json.dumps(dict(
+                    progress="cohort_sampling",enrolled=len(result["enrollments"]),
+                    qualifiers=len(result["qualifiers"]),
+                    complete=sum(bool((r.get("vector") or {}).get("complete")) for r in result["enrollments"]),
+                ),sort_keys=True),flush=True)
             vector=row.get("vector") or {}
             if vector.get("current_threshold_pass"):
                 qindex=len(result["qualifiers"])
@@ -461,6 +467,11 @@ def run(endpoint):
                     vector=vector,enrollment_sequence=row["sequence"],
                 )
                 result["qualifiers"].append(qualifier)
+                print(json.dumps(dict(
+                    progress="genuine_qualifier",index=qindex,token=row["token"],
+                    evidence_age=vector.get("decision_state_age_seconds"),
+                    qualifiers=len(result["qualifiers"]),
+                ),sort_keys=True),flush=True)
                 futures.append((
                     qindex,pool.submit(
                         _run_lifecycle,endpoint,row,event,qindex
