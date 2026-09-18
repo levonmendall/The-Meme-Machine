@@ -255,6 +255,129 @@ class ProfitabilityDensityPreflight(unittest.TestCase):
         validate.assert_called_once_with(snap, 123, "real")
         scout.assert_called_once()
 
+    def test_per_candidate_budget_exhaustion_does_not_stop_batch(self):
+        class BudgetRPC:
+            def __init__(self):
+                self.limit = pilot.PER_POOL_RPC_LIMIT
+                self.calls = 0
+                self.http_requests = 0
+                self.failures = 0
+                self.retries = 0
+                self.batch_fallbacks = 0
+                self.batch_fallback_items = 0
+                self.null_retries = 0
+                self.cache_hits = 0
+                self.failure_kinds = {}
+                self.failure_methods = {}
+
+        class Pacer:
+            def telemetry(self):
+                return dict(
+                    minimum_interval_seconds=1.0,
+                    paced_requests=0,
+                    throttle_sleep_seconds=0.0,
+                )
+
+        rpcs = [BudgetRPC(), BudgetRPC(), BudgetRPC()]
+        candidates = [
+            dict(address="pool-1", name="ONE-SOL", rank=1, source="test"),
+            dict(address="pool-2", name="TWO-SOL", rank=2, source="test"),
+        ]
+        starts = {
+            "pool-1": dict(pool="pool-1", slot=100),
+            "pool-2": dict(pool="pool-2", slot=200),
+        }
+
+        def attempt(adapter, candidate, start, *args, **kwargs):
+            rpc = adapter.rpc
+            if candidate["address"] == "pool-1":
+                rpc.calls = rpc.http_requests = pilot.PER_POOL_RPC_LIMIT
+                return (
+                    dict(
+                        terminal_classification="provider_budget_exhausted",
+                        completed_window=False,
+                        rpc=dict(
+                            calls=pilot.PER_POOL_RPC_LIMIT,
+                            http_requests=pilot.PER_POOL_RPC_LIMIT,
+                            failures=0,
+                            retries=0,
+                        ),
+                    ),
+                    None,
+                    [],
+                    [],
+                    [],
+                    [],
+                )
+            rpc.calls = rpc.http_requests = 10
+            opportunity = dict(
+                pool="pool-2",
+                features=dict(warmup_swaps=1),
+                outcome_swaps=1,
+                warmup_host_fee_swaps=0,
+                outcome_host_fee_swaps=0,
+            )
+            return (
+                dict(
+                    terminal_classification="certifiable",
+                    completed_window=True,
+                    strategy_selected=False,
+                    rpc=dict(
+                        calls=10,
+                        http_requests=10,
+                        failures=0,
+                        retries=0,
+                    ),
+                ),
+                opportunity,
+                [],
+                [],
+                [],
+                [],
+            )
+
+        report_sink = SimpleNamespace(write_text=lambda _text: None)
+        with patch.object(
+            pilot.alchemy_provider, "AlchemyPacer", return_value=Pacer()
+        ), patch.object(
+            pilot.alchemy_provider, "new_rpc", side_effect=rpcs
+        ) as new_rpc, patch.object(
+            pilot.dlmm,
+            "Adapter",
+            side_effect=lambda rpc: SimpleNamespace(rpc=rpc),
+        ), patch.object(
+            pilot,
+            "_discover_for_scan",
+            return_value=(candidates, [], []),
+        ), patch.object(
+            pilot,
+            "_fresh_supported_start",
+            side_effect=lambda _adapter, candidate: starts[candidate["address"]],
+        ), patch.object(
+            pilot, "_attempt_candidate", side_effect=attempt
+        ) as attempt_call, patch.object(
+            pilot.research, "_summary", return_value=([], None)
+        ), patch.object(
+            pilot.research, "REPORT", report_sink
+        ), patch.object(
+            pilot.run, "historical_last_update_reference", return_value={}
+        ):
+            report = pilot.run_live(
+                target_completed=1,
+                max_attempted_pools=2,
+                warmup_seconds=12,
+                holding_seconds=60,
+                study_phase="development",
+            )
+
+        self.assertEqual(new_rpc.call_count, 3)  # discovery + two candidates
+        self.assertEqual(attempt_call.call_count, 2)
+        self.assertEqual(report["completed_window_count"], 1)
+        self.assertEqual(report["provider_budget_instance_count"], 2)
+        self.assertEqual(report["per_candidate_budget_exhaustion_count"], 1)
+        self.assertEqual(report["attempted_pool_count"], 2)
+        self.assertGreater(report["rpc_calls"], pilot.PER_POOL_RPC_LIMIT)
+
     def test_width8_is_retained_as_legacy_comparator(self):
         self.assertEqual(research.SELECTED_STRATEGY, "sdk_bidask")
         self.assertEqual(research.SELECTED_WIDTH, 8)
@@ -266,6 +389,8 @@ class ProfitabilityDensityPreflight(unittest.TestCase):
         self.assertEqual(pilot.TARGET_COMPLETED_WINDOWS, 6)
         self.assertEqual(pilot.MAX_ACTIVITY_PAGES, 4)
         self.assertEqual(pilot.ACTIVITY_PAGE_SIZE, 80)
+        self.assertEqual(pilot.DISCOVERY_RPC_LIMIT, 120)
+        self.assertEqual(pilot.PER_POOL_RPC_LIMIT, 240)
 
 
 if __name__ == "__main__":
