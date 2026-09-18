@@ -21,13 +21,13 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Validate Alchemy Solana route
         env:
-          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL || secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL }}
         run: python -m tests.dlmm_alchemy_provider
       - name: Host-fee regressions
         run: python -m unittest tests.test_dlmm_host_fee tests.test_dlmm_dense_acquisition tests.test_dlmm_endpoint_fresh -v
       - name: Current finalized host-fee occurrence proof
         env:
-          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL || secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL }}
         run: python -m tests.dlmm_live_host_fee_proof
       - name: Preserve host-fee proof
         if: always()
