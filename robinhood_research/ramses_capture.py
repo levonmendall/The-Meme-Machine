@@ -15,10 +15,12 @@ from .provider import Rpc
 from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, paper_outcome,
                      paper_fee_capture, paper_position, paper_removal, price, quote_value, replay, state, unpack, values)
 
-ACTIVITY_WAIT_SECONDS=300
 ACTIVITY_POLL_SECONDS=5
-RANK_POOL_COUNT=16
+RANK_POOL_COUNT=40
 WATCH_POOL_COUNT=8
+WATCH_COHORT_COUNT=4
+WATCH_SLOT_SECONDS=20
+ACTIVITY_WAIT_SECONDS=WATCH_COHORT_COUNT*WATCH_SLOT_SECONDS
 LOG_BLOCK_CHUNK=10
 MAX_FACTORY_POOLS=400
 FORWARD_SECONDS=60
@@ -271,10 +273,10 @@ def run(endpoint):
                     eligible.append((event,decoded))
             return eligible
 
-        # Freeze a small watch cohort using only point-in-time state available
-        # before any future observation. Variable-fee last-update recency ranks
-        # the complete authenticated native universe; current reserves and hooks
-        # then exclude empty/hooked pools and break ties without outcome data.
+        # Freeze a deterministic multi-cohort watch schedule using only
+        # point-in-time state available before any future observation. The
+        # entire schedule is hashed before slot 1; pools are never reranked,
+        # promoted or substituted using outcomes observed during the watch.
         variable_rows=rpc.batch([
             ('eth_call',[dict(to=a,data=calldata('getVariableFeeParameters()')),hex(discovery_end)])
             for a in native_pools],scope='discovery')
@@ -299,58 +301,74 @@ def run(endpoint):
             native_reserve=reserves[0 if side=='x' else 1]
             if hooks==0 and any(reserves):
                 watchable.append(dict(address=row['address'],last_update=row['last_update'],
-                                      native_reserve=native_reserve,reserves=reserves,variable=row['variable'],
-                                      native_side=side,bin_step=native_meta[row['address']]['bin_step']))
+                                      native_reserve=native_reserve,native_side=side,
+                                      bin_step=native_meta[row['address']]['bin_step']))
         watchable.sort(key=lambda row:(row['last_update'],row['native_reserve'],row['address']),reverse=True)
-        cohort=watchable[:WATCH_POOL_COUNT]
-        if not cohort:raise BoundaryError('no_watchable_native_ramses_pool')
-        cohort_public=[{k:row[k] for k in ('address','last_update','native_reserve','native_side','bin_step')} for row in cohort]
-        cohort_hash=hashlib.sha256(json.dumps(cohort_public,sort_keys=True,separators=(',',':')).encode()).hexdigest()
-        result['watch_cohort']=cohort_public;result['watch_cohort_hash']=cohort_hash
-        result['selection_rule']='first_authenticated_economic_mutation_on_frozen_preentry_watch_cohort'
+        scheduled=watchable[:WATCH_POOL_COUNT*WATCH_COHORT_COUNT]
+        if not scheduled:raise BoundaryError('no_watchable_native_ramses_pool')
+        cohorts=[scheduled[i:i+WATCH_POOL_COUNT] for i in range(0,len(scheduled),WATCH_POOL_COUNT)]
+        if len(cohorts)>WATCH_COHORT_COUNT:raise BoundaryError('watch_schedule_capacity')
+        schedule_public=[]
+        for slot,cohort in enumerate(cohorts):
+            schedule_public.append(dict(slot=slot,pools=[
+                {k:row[k] for k in ('address','last_update','native_reserve','native_side','bin_step')}
+                for row in cohort]))
+        schedule_hash=hashlib.sha256(json.dumps(schedule_public,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+        result['watch_schedule']=schedule_public;result['watch_schedule_hash']=schedule_hash
+        result['selection_rule']='first_authenticated_economic_mutation_on_frozen_preentry_watch_schedule'
 
-        # Add protocol-fee state and then observe only this frozen cohort. State
-        # polling is cheap; exact logs are fetched only for a pool that actually
-        # changed, avoiding repeated large-range log scans.
-        protocol_rows=rpc.batch([
-            ('eth_call',[dict(to=row['address'],data=calldata('getProtocolFees()')),hex(discovery_end)])
-            for row in cohort],scope='discovery')
-        last_state={}
-        for row,protocol_raw in zip(cohort,protocol_rows):
-            last_state[row['address']]=(tuple(row['reserves']),tuple(row['variable']),tuple(values(protocol_raw)))
-        selection=None;selection_decoded=None;activity=[];cursor=discovery_end
-        watch_started=time.monotonic()
-        while time.monotonic()-watch_started<ACTIVITY_WAIT_SECONDS and selection is None:
-            time.sleep(ACTIVITY_POLL_SECONDS)
-            frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
-            height=int(frontier['number'],16)
-            if height<=cursor:continue
-            calls=[]
+        # Observe each precommitted cohort only during its fixed slot. Reserves
+        # detect swaps/mints/burns; protocol fees additionally detect flash loans.
+        # Exact logs are fetched only after a state change.
+        selection=None;selection_decoded=None;activity=[];watch_started=time.monotonic()
+        result['watch_slots']=[]
+        for slot,cohort in enumerate(cohorts):
+            if selection is not None:break
+            slot_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
+            cursor=int(slot_frontier['number'],16)
+            initial_calls=[]
             for row in cohort:
-                a=row['address']
-                calls.extend([
-                    ('eth_call',[dict(to=a,data=calldata('getReserves()')),hex(height)]),
-                    ('eth_call',[dict(to=a,data=calldata('getVariableFeeParameters()')),hex(height)]),
-                    ('eth_call',[dict(to=a,data=calldata('getProtocolFees()')),hex(height)]),
+                initial_calls.extend([
+                    ('eth_call',[dict(to=row['address'],data=calldata('getReserves()')),hex(cursor)]),
+                    ('eth_call',[dict(to=row['address'],data=calldata('getProtocolFees()')),hex(cursor)]),
                 ])
-            current=rpc.batch(calls,scope='discovery')
-            changed=[];current_state={}
+            initial=rpc.batch(initial_calls,scope='discovery')
+            last_state={}
             for i,row in enumerate(cohort):
-                state_now=(tuple(values(current[3*i])),tuple(values(current[3*i+1])),tuple(values(current[3*i+2])))
-                current_state[row['address']]=state_now
-                if state_now!=last_state[row['address']]:changed.append(row['address'])
-            if changed:
-                interval=batched_logs(cursor+1,height,address=changed,topics=economic_topics,scope='discovery')
-                activity.extend(interval)
-                eligible=economically_active(interval)
-                if eligible:
-                    selection,selection_decoded=sorted(eligible,key=lambda row:(int(row[0]['blockNumber'],16),
-                        int(row[0]['transactionIndex'],16),int(row[0]['logIndex'],16),row[0]['address'].lower()))[0]
-                    break
-            last_state=current_state;cursor=height
+                last_state[row['address']]=(tuple(values(initial[2*i])),tuple(values(initial[2*i+1])))
+            slot_started=time.monotonic();slot_end=cursor;polls=0
+            while time.monotonic()-slot_started<WATCH_SLOT_SECONDS and selection is None:
+                time.sleep(ACTIVITY_POLL_SECONDS)
+                frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
+                height=int(frontier['number'],16)
+                if height<=cursor:continue
+                calls=[]
+                for row in cohort:
+                    calls.extend([
+                        ('eth_call',[dict(to=row['address'],data=calldata('getReserves()')),hex(height)]),
+                        ('eth_call',[dict(to=row['address'],data=calldata('getProtocolFees()')),hex(height)]),
+                    ])
+                current=rpc.batch(calls,scope='discovery');polls+=1
+                changed=[];current_state={}
+                for i,row in enumerate(cohort):
+                    state_now=(tuple(values(current[2*i])),tuple(values(current[2*i+1])))
+                    current_state[row['address']]=state_now
+                    if state_now!=last_state[row['address']]:changed.append(row['address'])
+                if changed:
+                    interval=batched_logs(cursor+1,height,address=changed,topics=economic_topics,scope='discovery')
+                    activity.extend(interval)
+                    eligible=economically_active(interval)
+                    if eligible:
+                        selection,selection_decoded=sorted(eligible,key=lambda row:(int(row[0]['blockNumber'],16),
+                            int(row[0]['transactionIndex'],16),int(row[0]['logIndex'],16),row[0]['address'].lower()))[0]
+                last_state=current_state;cursor=height;slot_end=height
+            result['watch_slots'].append(dict(slot=slot,start_block=int(slot_frontier['number'],16),
+                                               end_block=slot_end,polls=polls,
+                                               seconds=time.monotonic()-slot_started,
+                                               selected=selection is not None))
         result['activity_watch_seconds']=time.monotonic()-watch_started
         result['discovery_logs']=activity
-        if selection is None:raise BoundaryError('no_natural_native_ramses_activity_on_frozen_watch_cohort')
+        if selection is None:raise BoundaryError('no_natural_native_ramses_activity_on_frozen_watch_schedule')
         result['selection_event_name']=selection_decoded['name']
         address=selection['address'];result['selection_event']=selection
         result['factory_checks']={}
