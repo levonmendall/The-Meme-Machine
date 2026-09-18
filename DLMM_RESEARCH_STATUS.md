@@ -537,3 +537,12 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Any candidate strategy must be derived only from repeatable patterns in the frozen wallet cohort, frozen in a later reviewed commit, and tested prospectively on strictly post-freeze data.
 - Full deterministic CI on implementation head `2b3e4dba3ff510f75b35b9945388850f7f5c2fcd` passed unit discovery, standard resource checks, DLMM resource checks, and canonical synthetic lifecycle.
 - This marker authorizes exactly one Phase A wallet-cohort discovery run. It does not authorize PnL analysis, strategy freeze, allocation, signing, submission, or live money.
+
+
+## Wallet cohort discovery retry after provider-failure isolation
+
+- Initial Phase A run `35401807605` reached the authorized Alchemy endpoint with the PnL access guard intact, but one unrecoverable `getTransaction` provider error aborted the whole discovery job before a cohort artifact could be produced.
+- Repair `6628accd276835f6c6fc5d363cab292c03237768` changes only discovery failure scope: signature-census failure is terminal for that pool; individual transaction-body failure is recorded/skipped; later transactions and pools continue under the same bounded budgets and shared pacing.
+- No PnL endpoint is permitted in Phase A, no wallet can enter based on profitability, and pool/wallet sampling rules are unchanged.
+- Full CI run `35401880174` passed.
+- This marker authorizes exactly one blind Phase A retry.
