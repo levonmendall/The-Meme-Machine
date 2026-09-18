@@ -1,0 +1,22 @@
+name: solana-tracker-key-check
+on:
+  push:
+    branches: [research/solana-skilled-wallet-alpha]
+permissions: {contents: read}
+jobs:
+  check:
+    if: contains(github.event.head_commit.message, '[st-key-check]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    env:
+      ST_API_KEY: ${{ secrets.ST_API_KEY }}
+      SOLANA_TRACKER_API_KEY: ${{ secrets.SOLANA_TRACKER_API_KEY }}
+      SOLANATRACKER_API_KEY: ${{ secrets.SOLANATRACKER_API_KEY }}
+    steps:
+      - name: Check Solana Tracker credential availability
+        run: |
+          if [ -n "$ST_API_KEY" ]; then echo "credential=ST_API_KEY"; exit 0; fi
+          if [ -n "$SOLANA_TRACKER_API_KEY" ]; then echo "credential=SOLANA_TRACKER_API_KEY"; exit 0; fi
+          if [ -n "$SOLANATRACKER_API_KEY" ]; then echo "credential=SOLANATRACKER_API_KEY"; exit 0; fi
+          echo "credential=missing"
+          exit 2
