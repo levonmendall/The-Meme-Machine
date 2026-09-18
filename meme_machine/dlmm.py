@@ -326,6 +326,40 @@ class Adapter:
         validate(snap,max(now,snap['available_time']),'real')
         return snap
 
+    def snapshot_from_state(self,start,now,priority=False,fresh=False):
+        """Capture a forward endpoint with one account read from authenticated start identity."""
+        if type(fresh) is not bool:
+            raise ValueError('dlmm_snapshot_fresh_flag')
+        if not isinstance(start,dict):
+            raise ValueError('dlmm_endpoint_start_state')
+        required=('pool','x','y','vault_x','vault_y','active','slot')
+        if any(key not in start for key in required):
+            raise ValueError('dlmm_endpoint_start_state')
+        address=start['pool'];center=int(start['active'])//70
+        indices=[center-1,center,center+1]
+        keys=[address,start['x'],start['y'],start['vault_x'],start['vault_y']]+[
+            array_address(address,i) for i in indices]
+        response=self.rpc.call('getMultipleAccounts',[keys,dict(
+            encoding='base64',commitment='finalized',
+            minContextSlot=int(start['slot'])+1)],priority,fresh=fresh)
+        if (not isinstance(response,dict) or not isinstance(response.get('context'),dict)
+                or not isinstance(response.get('value'),list)
+                or len(response['value'])!=len(keys)):
+            raise Unavailable('dlmm_endpoint_snapshot_shape')
+        slot=response['context'].get('slot')
+        if type(slot) is not int or slot<=int(start['slot']):
+            raise Unavailable('dlmm_endpoint_snapshot_not_forward')
+        market_time=self.rpc.call('getBlockTime',[slot],priority)
+        if market_time is None:
+            raise Unavailable('dlmm_missing_block_time')
+        accounts=dict(zip(keys,response['value']))
+        indices=[i for i in indices if accounts[array_address(address,i)] is not None]
+        snap=dict(pool=address,accounts=accounts,array_indices=indices,slot=slot,
+                  market_time=market_time,available_time=int(self.rpc.clock()),
+                  network='solana-mainnet',commitment='finalized',kind='real')
+        validate(snap,max(now,snap['available_time']),'real')
+        return snap
+
     def discover(self,addresses,now):
         if len(addresses)>4:
             raise ValueError('dlmm_discovery_bound')

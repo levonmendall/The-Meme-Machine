@@ -199,10 +199,20 @@ def _fetch_transaction_bodies(rpc, relevant, telemetry=None):
 def capture_chunk(adapter, start, cursor):
     """Capture one terminal-verified chunk with bounded start-boundary pagination."""
     rpc = adapter.rpc
-    end_snapshot = adapter.snapshot(start['pool'], int(time.time()), True, fresh=True)
+    endpoint_started=time.monotonic()
+    fast_snapshot=getattr(adapter,'snapshot_from_state',None)
+    if callable(fast_snapshot):
+        end_snapshot=fast_snapshot(start,int(time.time()),True,fresh=True)
+        endpoint_mode='authenticated_start_hint_single_account_read'
+    else:
+        end_snapshot=adapter.snapshot(start['pool'],int(time.time()),True,fresh=True)
+        endpoint_mode='full_snapshot'
+    endpoint_capture_seconds=max(0.0,time.monotonic()-endpoint_started)
     telemetry = dict(
         pool=start['pool'],
         fresh_endpoint=True,
+        endpoint_capture_mode=endpoint_mode,
+        endpoint_capture_seconds=endpoint_capture_seconds,
         start_slot=start['slot'],
         end_slot=end_snapshot['slot'],
         slot_advanced=end_snapshot['slot'] > start['slot'],

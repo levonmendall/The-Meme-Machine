@@ -8,6 +8,7 @@ uses the normal authentic snapshot -> complete signature census -> transaction b
 """
 from __future__ import annotations
 
+import math
 import time
 
 from meme_machine import dlmm
@@ -21,7 +22,12 @@ PRESSURE_CENSUS_LIMIT = MAX_TRANSACTIONS + 1
 PRESSURE_INITIAL_POLL_SECONDS = 0.50
 PRESSURE_ACTIVE_POLL_SECONDS = 0.25
 PRESSURE_IDLE_POLL_SECONDS = 0.75
+PRESSURE_MIN_HEADROOM = 10
+PRESSURE_CAPTURE_DEFAULT_SECONDS = 1.0
+PRESSURE_CAPTURE_SAFETY_FACTOR = 1.5
+PRESSURE_RATE_JITTER_TRANSACTIONS = 1
 MAX_VERIFIED_CHUNKS_PER_ADVANCE = 24
+ENDPOINT_CAPTURE_HIGH_WATER = {}
 MAX_WARMUP_STATE_RESETS = 2
 STATE_RESET_PREFIX = 'dlmm_snapshot_reset_required:add_liquidity_by_strategy2:'
 
@@ -44,14 +50,35 @@ def _pressure_census(rpc, start):
                and isinstance(sig.get('slot'), int) and sig['slot'] > start['slot'])
 
 
-def _await_pressure_boundary(adapter, current, max_wait):
-    """Wait until time or transaction pressure says to close the next chunk."""
+def _predictive_close_policy(samples,capture_seconds):
+    """Reserve verifier capacity for growth while the endpoint snapshot is captured."""
+    capture=max(PRESSURE_CAPTURE_DEFAULT_SECONDS,float(capture_seconds or 0))
+    rate=0.0
+    for (t0,c0),(t1,c1) in zip(samples,samples[1:]):
+        dt=t1-t0
+        if dt>0 and c1>=c0:
+            rate=max(rate,(c1-c0)/dt)
+    projected=int(math.ceil(rate*capture*PRESSURE_CAPTURE_SAFETY_FACTOR))
+    headroom=max(PRESSURE_MIN_HEADROOM,projected+PRESSURE_RATE_JITTER_TRANSACTIONS)
+    headroom=min(MAX_TRANSACTIONS-1,headroom)
+    threshold=max(1,min(PRESSURE_SOFT_LIMIT,MAX_TRANSACTIONS-headroom))
+    return dict(arrival_rate_per_second=rate,capture_latency_seconds=capture,
+                projected_capture_growth=projected,reserved_headroom=headroom,
+                close_threshold=threshold)
+
+
+def _await_pressure_boundary(adapter,current,max_wait,capture_latency=None):
+    """Wait until predictive transaction pressure says to close the next chunk."""
     if not current or max_wait <= 0:
         raise ValueError('dlmm_pressure_boundary_input')
     began = time.monotonic()
     polls = 0
     peak = {address: 0 for address in current}
     counts = {address: 0 for address in current}
+    capture_latency=dict(capture_latency or {})
+    samples={address:[] for address in current}
+    policies={address:_predictive_close_policy([],capture_latency.get(address))
+              for address in current}
     delay = min(PRESSURE_INITIAL_POLL_SECONDS, max_wait)
     trigger = 'time'
     overflow = []
@@ -63,14 +90,18 @@ def _await_pressure_boundary(adapter, current, max_wait):
             count = _pressure_census(adapter.rpc, start)
             counts[address] = count
             peak[address] = max(peak[address], count)
-        elapsed = min(max_wait, max(0.0, time.monotonic() - began))
-        overflow = [address for address, count in counts.items()
-                    if count > MAX_TRANSACTIONS]
+        elapsed = min(max_wait, max(0.0,time.monotonic()-began))
+        for address,count in counts.items():
+            samples[address].append((elapsed,count))
+            policies[address]=_predictive_close_policy(
+                samples[address],capture_latency.get(address))
+        overflow=[address for address,count in counts.items() if count>MAX_TRANSACTIONS]
         if overflow:
-            trigger = 'hard_cap_visible'
+            trigger='hard_cap_visible'
             break
-        if any(count >= PRESSURE_SOFT_LIMIT for count in counts.values()):
-            trigger = 'transaction_pressure'
+        if any(count>=policies[address]['close_threshold']
+               for address,count in counts.items()):
+            trigger='predictive_transaction_pressure'
             break
         remaining = max_wait - elapsed
         if remaining <= 0:
@@ -88,6 +119,7 @@ def _await_pressure_boundary(adapter, current, max_wait):
         overflow=tuple(overflow),
         soft_limit=PRESSURE_SOFT_LIMIT,
         hard_limit=MAX_TRANSACTIONS,
+        predictive_policy={address:dict(policy) for address,policy in policies.items()},
     )
 
 
@@ -108,6 +140,8 @@ def pressure_advance(adapter, states, wait_seconds, allow_snapshot_reset=False):
         raise ValueError('dlmm_snapshot_reset_requires_single_pool')
     current = dict(states)
     origins = dict(states)
+    capture_latency={address:ENDPOINT_CAPTURE_HIGH_WATER.get(
+        address,PRESSURE_CAPTURE_DEFAULT_SECONDS) for address in states}
     cursors = {address: [state['slot'], 2**31 - 1, 2**31 - 1]
                for address, state in states.items()}
     chunks = {address: [] for address in states}
@@ -129,7 +163,8 @@ def pressure_advance(adapter, states, wait_seconds, allow_snapshot_reset=False):
             break
         max_wait = min(float(base.CHUNK_SECONDS), remaining)
         try:
-            boundary = _await_pressure_boundary(adapter, current, max_wait)
+            boundary = _await_pressure_boundary(
+                adapter,current,max_wait,capture_latency=capture_latency)
         except (Unavailable, ValueError, KeyError, TypeError) as exc:
             for address, start in current.items():
                 errors.append(dict(pool=address, chunk=round_index,
@@ -151,16 +186,29 @@ def pressure_advance(adapter, states, wait_seconds, allow_snapshot_reset=False):
             start = current[address]
             try:
                 tape, cursor, tx_count = base._capture_chunk(adapter, start, cursors[address])
-                chunks[address].append(tape)
-                cursors[address] = cursor
-                current[address] = tape.terminal
-                item = base._chunk_meta(round_index, start, tape, tx_count)
-                item['pressure_boundary'] = dict(
-                    trigger=boundary['trigger'], polls=boundary['polls'],
+                chunks[address].append(tape);cursors[address]=cursor;current[address]=tape.terminal
+                endpoint=None
+                for candidate in reversed(getattr(base,'ENDPOINT_DIAGNOSTICS',[])):
+                    if candidate.get('pool')==address and candidate.get('start_slot')==start.get('slot'):
+                        endpoint=candidate;break
+                if endpoint and isinstance(endpoint.get('endpoint_capture_seconds'),(int,float)):
+                    measured=max(PRESSURE_CAPTURE_DEFAULT_SECONDS,float(endpoint['endpoint_capture_seconds']))
+                    capture_latency[address]=max(capture_latency.get(address,0),measured)
+                    ENDPOINT_CAPTURE_HIGH_WATER[address]=max(
+                        ENDPOINT_CAPTURE_HIGH_WATER.get(address,0),measured)
+                policy=(boundary.get('predictive_policy') or {}).get(address,{})
+                item=base._chunk_meta(round_index,start,tape,tx_count)
+                item['pressure_boundary']=dict(
+                    trigger=boundary['trigger'],polls=boundary['polls'],
                     waited_seconds=boundary['waited_seconds'],
-                    preflight_transactions=boundary['counts'].get(address, 0),
-                    peak_transactions=boundary['peak_transactions'].get(address, 0),
-                    soft_limit=boundary['soft_limit'], hard_limit=boundary['hard_limit'])
+                    preflight_transactions=boundary['counts'].get(address,0),
+                    peak_transactions=boundary['peak_transactions'].get(address,0),
+                    soft_limit=boundary['soft_limit'],hard_limit=boundary['hard_limit'],
+                    close_threshold=policy.get('close_threshold'),
+                    reserved_headroom=policy.get('reserved_headroom'),
+                    arrival_rate_per_second=policy.get('arrival_rate_per_second'),
+                    capture_latency_seconds=policy.get('capture_latency_seconds'),
+                    projected_capture_growth=policy.get('projected_capture_growth'))
                 meta[address].append(item)
             except (Unavailable, ValueError, KeyError, TypeError) as exc:
                 reason=str(exc)

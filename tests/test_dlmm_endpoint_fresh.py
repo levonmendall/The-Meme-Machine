@@ -52,6 +52,27 @@ class FreshProviderRead(unittest.TestCase):
         self.assertEqual(len(block_reads),1)
         self.assertFalse(block_reads[0][3])
 
+    def test_state_hinted_endpoint_uses_one_account_read_and_forward_context(self):
+        fixture=snapshot();start=dlmm.validate(fixture,100,'real');calls=[]
+        class StubRPC:
+            clock=staticmethod(lambda:101.0)
+            def call(self,method,params=None,priority=False,fresh=False):
+                params=params or [];calls.append((method,params,priority,fresh))
+                if method=='getGenesisHash': return pump.MAINNET
+                if method=='getMultipleAccounts':
+                    keys=params[0];self.min_context=params[1].get('minContextSlot')
+                    return {'context':{'slot':101},
+                            'value':[fixture['accounts'].get(key) for key in keys]}
+                if method=='getBlockTime': return 101
+                raise AssertionError(method)
+        rpc=StubRPC();adapter=dlmm.Adapter(rpc)
+        result=adapter.snapshot_from_state(start,101,True,fresh=True)
+        self.assertEqual(result['slot'],101)
+        account_reads=[call for call in calls if call[0]=='getMultipleAccounts']
+        self.assertEqual(len(account_reads),1)
+        self.assertEqual(rpc.min_context,101)
+        self.assertTrue(account_reads[0][3])
+
     def test_interval_capture_requires_fresh_endpoint_snapshot(self):
         seen={}
         class Adapter:

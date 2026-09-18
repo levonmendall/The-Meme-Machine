@@ -30,18 +30,23 @@ class DenseAcquisition(unittest.TestCase):
         def sleep(seconds):state['t']+=seconds
         return state,monotonic,sleep
 
-    def test_pressure_closes_chunk_before_two_second_wall_clock(self):
-        rpc=_RPC([4,7,10]);adapter=SimpleNamespace(rpc=rpc)
-        state,monotonic,sleep=self._clock()
-        current={'pool':dict(pool='pool',slot=100)}
+    def test_predictive_pressure_closes_before_old_eight_transaction_boundary(self):
+        rpc=_RPC([2,4,8]);adapter=SimpleNamespace(rpc=rpc)
+        state,monotonic,sleep=self._clock();current={'pool':dict(pool='pool',slot=100)}
         with patch.object(dense.time,'monotonic',monotonic),patch.object(dense.time,'sleep',sleep):
             boundary=dense._await_pressure_boundary(adapter,current,2.0)
-        self.assertEqual(boundary['trigger'],'transaction_pressure')
-        self.assertEqual(boundary['counts']['pool'],10)
-        self.assertEqual(boundary['polls'],3)
-        self.assertLess(boundary['waited_seconds'],2.0)
+        self.assertEqual(boundary['trigger'],'predictive_transaction_pressure')
+        self.assertLess(boundary['counts']['pool'],8)
+        policy=boundary['predictive_policy']['pool']
+        self.assertGreaterEqual(policy['reserved_headroom'],10)
+        self.assertLessEqual(policy['close_threshold'],6)
         self.assertEqual(rpc.calls[0][1][1]['limit'],MAX_TRANSACTIONS+1)
-        self.assertEqual(boundary['hard_limit'],16)
+
+    def test_measured_endpoint_latency_never_reduces_predictive_reserve(self):
+        fast=dense._predictive_close_policy([(0.5,1),(0.75,2)],1.0)
+        slow=dense._predictive_close_policy([(0.5,1),(0.75,2)],2.0)
+        self.assertGreaterEqual(slow['reserved_headroom'],fast['reserved_headroom'])
+        self.assertLessEqual(slow['close_threshold'],fast['close_threshold'])
 
     def test_idle_market_closes_on_time_without_busy_polling(self):
         rpc=_RPC([0,0,0]);adapter=SimpleNamespace(rpc=rpc)
