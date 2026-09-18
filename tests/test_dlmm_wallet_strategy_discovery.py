@@ -51,7 +51,7 @@ class WalletDerivedStudy(unittest.TestCase):
                 self.failure_kinds={}
                 self.calls=[]
             def call(self,method,params,priority):
-                self.calls.append((method,params[0],priority))
+                self.calls.append((method,params,priority))
                 if params[0]=="bad":
                     self.failure_kinds["provider_error"]=self.failure_kinds.get("provider_error",0)+1
                     raise study.alchemy_provider.Unavailable("provider_request_failed")
@@ -68,7 +68,12 @@ class WalletDerivedStudy(unittest.TestCase):
         self.assertEqual([row[0]["signature"] for row in readable],["good-1","good-2"])
         self.assertEqual([row["signature"] for row in failures],["bad"])
         self.assertEqual(failures[0]["failure_kind_delta"],{"provider_error":1})
-        self.assertEqual([call[1] for call in rpc.calls],["bad","good-1","good-2"])
+        self.assertEqual([call[1][0] for call in rpc.calls],["bad","good-1","good-2"])
+        self.assertTrue(all(
+            call[1][1]["maxSupportedTransactionVersion"]==
+            study.MAX_SUPPORTED_TRANSACTION_VERSION==1
+            for call in rpc.calls
+        ))
 
     def test_repeatability_requires_cross_wallet_consensus(self):
         profiles=[
