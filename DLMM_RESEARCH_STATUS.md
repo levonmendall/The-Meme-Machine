@@ -558,3 +558,13 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Phase B may now read Meteora portfolio, closed-position PnL, and position-history endpoints for only these frozen wallets.
 - Profitability classification thresholds remain exactly preregistered; this marker does not permit adding/replacing wallets based on PnL.
 - This marker authorizes one Phase B behavior-analysis run only. It does not authorize strategy freeze or prospective allocation.
+
+
+## Wallet cohort normalized Phase B rerun
+
+- Frozen cohort remains exactly 23 wallets with cohort hash `sha256:95a7cad9e2f7418afde8d9003cc3eb79743ea18b344845640a182faf97db7708`.
+- No wallet membership changed after PnL analysis.
+- The first Phase B run identified repeatable holding-duration and rebalance signals, but raw bin counts are not economically comparable across pools with different bin steps.
+- Current analysis code now records pool `binStep`, converts each closed position's bin width to approximate price-span basis points, and classifies first-add composition as SOL-only, token-only, or two-sided from the immutable position event history.
+- This marker authorizes one rerun of Phase B on the exact same frozen cohort to normalize range geometry and composition before any candidate strategy is frozen.
+- It does not authorize cohort replacement, threshold fitting from the legacy 60-second sample, prospective allocation, signing, submission, or live money.
