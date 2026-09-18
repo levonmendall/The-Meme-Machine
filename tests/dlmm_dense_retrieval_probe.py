@@ -6,6 +6,7 @@ from pathlib import Path
 from meme_machine import dlmm,pump
 from meme_machine.dlmm_tape import _keys
 from meme_machine.postgrad import PoolScanRPC
+from tests import dlmm_alchemy_provider as alchemy_provider
 from meme_machine.provider import Unavailable
 from meme_machine.store import encode
 from tests import dlmm_boundary_acquisition as boundary
@@ -31,9 +32,7 @@ def _account_keys(row):
 
 
 def run():
-    url=os.environ.get('MM_SOLANA_READ_RPC_URL','').strip()
-    if not url: raise SystemExit('MM_SOLANA_READ_RPC_URL missing')
-    rpc=HistoricalDenseRPC(url,limit=100)
+    rpc=HistoricalDenseRPC(alchemy_provider.rpc_url(),limit=100)
     if rpc.call('getGenesisHash',priority=True)!=pump.MAINNET:
         raise Unavailable('dense_retrieval_wrong_network')
 
