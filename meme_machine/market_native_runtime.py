@@ -37,7 +37,7 @@ from .research import qualification_vector
 from .stream import WINDOW_SECONDS
 
 
-DEFAULT_PREFLIGHT_BUDGET = 60
+DEFAULT_PREFLIGHT_BUDGET = 90
 DEFAULT_FULL_EVIDENCE_BUDGET = 20
 MAX_DISCOVERED_MINTS = 5_000
 
@@ -80,7 +80,7 @@ class MarketNativeRuntime:
     def __init__(self, engine, adapter, session_seconds,
                  preflight_budget=DEFAULT_PREFLIGHT_BUDGET,
                  full_evidence_budget=DEFAULT_FULL_EVIDENCE_BUDGET,
-                 clock=time.time):
+                 clock=time.time, provider_rotation_threshold=None):
         if engine.seeds:
             raise ValueError('scouts_must_be_disabled_for_market_native_runtime')
         if session_seconds < 1 or preflight_budget < 1 or full_evidence_budget < 1:
@@ -95,12 +95,21 @@ class MarketNativeRuntime:
         self.slot_seconds = priority_slot_seconds(self.session_seconds, self.preflight_budget)
 
         # Discovery RPC is deliberately non-priority so at least 40 logical requests
-        # stay reserved for monitoring already-authorized exposure. Include a worst-
-        # case primary concentration fallback for every full-evidence attempt.
+        # stay reserved for monitoring already-authorized exposure. Without provider
+        # rotation, the whole configured research/trading budget must fit one session.
+        # With bounded read-only rotation, each session instead rotates strictly below
+        # the non-priority cap while Store/Engine authority remains unchanged.
         discovery_cap = max(0, int(adapter.rpc.limit) - 40)
-        worst_case = int(adapter.rpc.calls) + 2*self.preflight_budget + 3*self.full_evidence_budget
-        if worst_case > discovery_cap:
-            raise ValueError('market_native_budget_exceeds_discovery_rpc_reserve')
+        self.provider_rotation_threshold = (
+            None if provider_rotation_threshold is None else int(provider_rotation_threshold))
+        if self.provider_rotation_threshold is None:
+            worst_case = int(adapter.rpc.calls) + 2*self.preflight_budget + 3*self.full_evidence_budget
+            if worst_case > discovery_cap:
+                raise ValueError('market_native_budget_exceeds_discovery_rpc_reserve')
+        elif not 40 <= self.provider_rotation_threshold <= discovery_cap:
+            raise ValueError('invalid_market_native_provider_rotation_threshold')
+        self.provider_rotations = 0
+        self.provider_sessions = []
 
         self.coverage_ready_at = None
         self.last_flushed_slot = -1
@@ -137,6 +146,18 @@ class MarketNativeRuntime:
             return
         self.last_attempt['stage'] = stage
         self.last_attempt.update(details)
+
+    def replace_adapter(self, adapter):
+        """Rotate only read-only evidence transport; never economic/order authority."""
+        if self.provider_rotation_threshold is None:
+            raise ValueError('market_native_provider_rotation_not_enabled')
+        discovery_cap=max(0,int(adapter.rpc.limit)-40)
+        if self.provider_rotation_threshold>discovery_cap:
+            raise ValueError('invalid_market_native_provider_rotation_threshold')
+        self.provider_sessions.append(self._provider_status())
+        self.provider_sessions=self.provider_sessions[-8:]
+        self.adapter=adapter
+        self.provider_rotations+=1
 
     def _now(self):
         return int(self.clock())
@@ -360,6 +381,9 @@ class MarketNativeRuntime:
             capacity_losses=self.capacity_losses,
             provider_failures=self.provider_failures,
             slot_seconds=self.slot_seconds,
+            provider_rotation_threshold=self.provider_rotation_threshold,
+            provider_rotations=self.provider_rotations,
+            prior_provider_sessions=list(self.provider_sessions),
             order_authority='unchanged_engine_after_continuation_v1',
             dlmm_enabled=False,
         )
