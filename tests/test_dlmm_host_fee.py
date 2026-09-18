@@ -276,20 +276,24 @@ class HostFeeAccounting(unittest.TestCase):
         post,_,host,tx=host_transaction(
             p,450_000_000,101,101,omit_host_balances=True)
         bad=copy.deepcopy(tx)
-        # Legacy event: EVENT_CPI(8) + Swap event host is final u64.
+        # Spoof +1 host / -1 protocol in both event versions so the total fee
+        # stays unchanged and the version cross-check passes. Terminal pool
+        # reconstruction must still reject the wrong host carve-out.
         raw=bytearray()
         from meme_machine.dlmm_tape import _un58_data
         encoded=_un58_data(
             bad['meta']['innerInstructions'][0]['instructions'][0]['data'])
         raw=bytearray(encoded)
-        raw[-8:]=(host+1).to_bytes(8,'little')
+        protocol=int.from_bytes(raw[113:121],'little')
+        raw[113:121]=(protocol-1).to_bytes(8,'little')
+        raw[137:145]=(host+1).to_bytes(8,'little')
         bad['meta']['innerInstructions'][0]['instructions'][0]['data']=pump.b58(bytes(raw))
-        # Keep companion event aligned so event-version cross-check does not mask
-        # the terminal conservation failure.
         encoded=_un58_data(
             bad['meta']['innerInstructions'][0]['instructions'][1]['data'])
         raw=bytearray(encoded)
-        raw[-10:-2]=(host+1).to_bytes(8,'little')
+        protocol=int.from_bytes(raw[137:145],'little')
+        raw[137:145]=(protocol-1).to_bytes(8,'little')
+        raw[153:161]=(host+1).to_bytes(8,'little')
         bad['meta']['innerInstructions'][0]['instructions'][1]['data']=pump.b58(bytes(raw))
         end=encode_state(s,post,102,102)
         sigs=[
