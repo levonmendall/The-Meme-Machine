@@ -145,6 +145,12 @@ def _safe_board_summary(name, response):
     }
 
 
+def _stable_fingerprint(value):
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode()
+    ).hexdigest()
+
+
 def _numeric_credit(value):
     try:
         return float(value)
@@ -246,7 +252,62 @@ def main():
             ],
         }
 
-    all_calls = list(responses.values()) + [at_hour, at_epoch] + trader_calls
+    pilot_decision_ms = 1789671678 * 1000
+    trader_current = _request("/v2/leaderboard/24h", {"limit": 10}, key)
+    trader_past = _request(
+        "/v2/leaderboard/24h",
+        {"limit": 10, "at": pilot_decision_ms},
+        key,
+    )
+    trader_ancient = _request(
+        "/v2/leaderboard/24h",
+        {"limit": 10, "at": 1},
+        key,
+    )
+
+    def trader_fingerprint(response):
+        data = response["data"] if isinstance(response["data"], dict) else {}
+        rows = data.get("traders") if isinstance(data.get("traders"), list) else []
+        payload = {
+            "capturedAt": data.get("capturedAt"),
+            "rows": [
+                (r.get("rank"), r.get("userId"), r.get("handle"), r.get("pnlUsd"))
+                for r in rows
+            ],
+        }
+        return _stable_fingerprint(payload)
+
+    trader_current_data = (
+        trader_current["data"] if isinstance(trader_current["data"], dict) else {}
+    )
+    trader_past_data = (
+        trader_past["data"] if isinstance(trader_past["data"], dict) else {}
+    )
+    trader_ancient_data = (
+        trader_ancient["data"] if isinstance(trader_ancient["data"], dict) else {}
+    )
+    trader_current_fp = trader_fingerprint(trader_current)
+    trader_past_fp = trader_fingerprint(trader_past)
+    trader_ancient_fp = trader_fingerprint(trader_ancient)
+
+    if (
+        trader_past["status"] == trader_current["status"] == trader_ancient["status"] == 200
+        and trader_past_data.get("capturedAt") == trader_current_data.get("capturedAt")
+        and trader_ancient_data.get("capturedAt") == trader_current_data.get("capturedAt")
+        and trader_past_fp == trader_current_fp == trader_ancient_fp
+    ):
+        trader_at_behavior = "ignored"
+    elif trader_past["status"] >= 400 or trader_ancient["status"] >= 400:
+        trader_at_behavior = "rejected_or_unsupported"
+    else:
+        trader_at_behavior = "ambiguous_or_honored"
+
+    all_calls = (
+        list(responses.values())
+        + [at_hour, at_epoch]
+        + trader_calls
+        + [trader_current, trader_past, trader_ancient]
+    )
     observed_credit_cost = sum(_numeric_credit(x["credit_cost"]) for x in all_calls)
 
     report = {
@@ -260,6 +321,15 @@ def main():
         "dlmm_authority": False,
         "boards": summaries,
         "current_trader_leaderboards": trader_boards,
+        "historical_trader_at_test": {
+            "requested_pilot_decision_epoch_ms": pilot_decision_ms,
+            "classification": trader_at_behavior,
+            "current_captured_at": trader_current_data.get("capturedAt"),
+            "past_captured_at": trader_past_data.get("capturedAt"),
+            "ancient_captured_at": trader_ancient_data.get("capturedAt"),
+            "past_same_fingerprint": trader_past_fp == trader_current_fp,
+            "ancient_same_fingerprint": trader_ancient_fp == trader_current_fp,
+        },
         "historical_at_test": {
             "requested_one_hour_ago_epoch_ms": one_hour_ago_ms,
             "current_status": trending["status"],
