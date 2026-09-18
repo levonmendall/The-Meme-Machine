@@ -1,5 +1,6 @@
 """Prospective bounded Ramses proof: freeze range first, then observe finalized mainnet."""
 import base64
+from collections import Counter
 import json
 import os
 from pathlib import Path
@@ -16,13 +17,75 @@ from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, p
 DISCOVERY_BLOCKS=200
 ACTIVITY_WAIT_SECONDS=30
 ACTIVITY_POLL_SECONDS=5
-MAX_FACTORY_POOLS=40
+MAX_FACTORY_POOLS=400
 FORWARD_SECONDS=60
 PAPER_NATIVE_CAPITAL=10**16
 
 
+class BoundedMultiRpc:
+    """Ramses-only bounded multi-session reader for complete factory inventory.
+
+    Each underlying Rpc keeps the existing 200-logical-request hard boundary.
+    This wrapper may open at most four sessions and aggregates all provider
+    telemetry, so complete inventory is possible without changing shared/Pons
+    provider behavior or making the budget unbounded.
+    """
+    def __init__(self,endpoint,*,max_sessions=4):
+        self.endpoint=endpoint;self.max_sessions=max_sessions;self.sessions=[]
+        self._new()
+
+    def _new(self):
+        if len(self.sessions)>=self.max_sessions:
+            raise BoundaryError('ramses_provider_program_budget_exhausted')
+        session=Rpc(self.endpoint,limit=200,per_scope=200,retries=0)
+        self.sessions.append(session)
+        return session
+
+    def _session(self,needed=1):
+        current=self.sessions[-1]
+        if current.used+needed>current.limit:
+            current=self._new()
+        return current
+
+    def call(self,method,params,*,scope='connectivity'):
+        return self._session(1).call(method,params,scope=scope)
+
+    def batch(self,calls,*,scope='connectivity'):
+        if not isinstance(calls,list) or not calls:
+            raise BoundaryError('provider_batch_shape')
+        out=[]
+        for i in range(0,len(calls),50):
+            chunk=calls[i:i+50]
+            out.extend(self._session(len(chunk)).batch(chunk,scope=scope))
+        return out
+
+    def receipt(self,tx_hash,block_hash,*,scope):
+        result=self.call('eth_getTransactionReceipt',[tx_hash],scope=scope)
+        if result['transactionHash']!=tx_hash or result['blockHash']!=block_hash:
+            raise BoundaryError('receipt_block_disagreement')
+        return result
+
+    def verify_chain(self):
+        result=self.call('eth_chainId',[])
+        if int(result,16)!=4663:
+            raise BoundaryError('wrong_chain')
+        return 4663
+
+    def telemetry(self):
+        requests=transport=logical=retries=0
+        methods=Counter();logical_methods=Counter();scopes=Counter();failures=Counter()
+        for session in self.sessions:
+            row=session.telemetry()
+            requests+=row['requests'];transport+=row['transport_requests'];logical+=row['logical_requests'];retries+=row['retries']
+            methods.update(row['methods']);logical_methods.update(row['logical_methods']);scopes.update(row['scopes']);failures.update(row['failures'])
+        return dict(requests=requests,transport_requests=transport,logical_requests=logical,retries=retries,
+                    methods=dict(methods),logical_methods=dict(logical_methods),scopes=dict(scopes),
+                    failures=dict(failures),sessions=len(self.sessions),max_sessions=self.max_sessions,
+                    program_logical_limit=self.max_sessions*200)
+
+
 def run(endpoint):
-    rpc=Rpc(endpoint,limit=200,per_scope=160,retries=0)
+    rpc=BoundedMultiRpc(endpoint,max_sessions=4)
     result=dict(kind='prospective_finalized_ramses',started_at=time.time(),reads=[],
                 allocation_authority=False,prospective_range=False,research_only=True)
     factory=load('ramses_factory')['address'];abi=load('ramses_pool_implementation')['abi']
