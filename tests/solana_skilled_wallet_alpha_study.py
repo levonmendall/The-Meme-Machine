@@ -113,7 +113,7 @@ def main():
   if not opts:return None
   x=min(opts,key=lambda z:(z[0],z[1]));used_ctrl[x[1]]=t;return x
  for h in hours:
-  with requests.get(f"{REPLAY}/{h}.jsonl.zst",headers=headers,stream=True,timeout=60) as resp:
+  with requests.get(f"{REPLAY}/{h}.jsonl.zst",headers=headers,stream=True,timeout=300) as resp:
    resp.raise_for_status();reader=zstandard.ZstdDecompressor().stream_reader(resp.raw)
    for line in io.TextIOWrapper(reader,encoding="utf-8"):
     try:e=json.loads(line)
