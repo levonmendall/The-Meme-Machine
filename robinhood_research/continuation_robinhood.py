@@ -80,7 +80,7 @@ def normalized_trade(decoded,*,identity,event_at):
 
 def qualification_vector(*,state,record,nomination,events,concentration_bps,
                          concentration_meta,current_snipe_bps,roundtrip_gas_wei,
-                         asof,asof_block):
+                         asof,asof_block,evidence_available_at=None):
     """Evaluate the frozen policy without order/allocation authority."""
     vector=dict(
         policy=POLICY,authority="research_only",qualification_authority=False,
@@ -88,6 +88,9 @@ def qualification_vector(*,state,record,nomination,events,concentration_bps,
         translation_snapshot=dict(TRANSLATION_SNAPSHOT),
         reference_entry_wei=REFERENCE_ENTRY_WEI,
         asof=int(asof),asof_block=int(asof_block),
+        evidence_available_at=int(asof if evidence_available_at is None else evidence_available_at),
+        decision_state_age_seconds=int((asof if evidence_available_at is None else evidence_available_at)-state.timestamp),
+        decision_state_fresh=bool(int((asof if evidence_available_at is None else evidence_available_at)-state.timestamp)<=5),
         all_rejections=[],current_threshold_pass=False,
         pair_token=record.get("pairToken"),curve=record.get("curve"),
         token=record.get("token"),creator=record.get("deployer"),
@@ -103,6 +106,8 @@ def qualification_vector(*,state,record,nomination,events,concentration_bps,
         if reason not in reject:
             reject.append(reason)
 
+    if not vector["decision_state_fresh"] or vector["decision_state_age_seconds"]<0:
+        add("stale_state_after_evidence")
     if record.get("pairToken","").lower()!=ZERO:
         add("unsupported_pair_quote")
     if state.graduated:
