@@ -329,3 +329,18 @@ class NativeRamsesTests(unittest.TestCase):
     def test_prospective_capture_module_is_research_only(self):
         self.assertEqual(ramses_capture.FORWARD_SECONDS,60)
         self.assertEqual(ramses_capture.PAPER_NATIVE_CAPITAL,10**16)
+
+
+class RamsesInventoryWatchTests(unittest.TestCase):
+    def test_inventory_baseline_is_research_data_not_contract_pin(self):
+        baseline=json.loads((Path(__file__).parents[1]/'robinhood_research'/'ramses_native_inventory_baseline.json').read_text())
+        self.assertEqual(baseline['factory_pool_count'],271)
+        self.assertEqual(baseline['native_pool_count'],86)
+        self.assertEqual(baseline['native_entries_sha256'],INVENTORY_NATIVE_SHA)
+        self.assertEqual(len(baseline['native_pools']),86)
+
+    def test_watch_configuration_is_bounded_and_prospective(self):
+        self.assertEqual(ramses_capture.WATCH_POOL_COUNT,8)
+        self.assertEqual(ramses_capture.RANK_POOL_COUNT,16)
+        self.assertLessEqual(ramses_capture.ACTIVITY_WAIT_SECONDS,75)
+        self.assertEqual(ramses_capture.LOG_BLOCK_CHUNK,10)
