@@ -652,14 +652,15 @@ def _attempt_candidate(
             rule,
             placement_state=entry,
         )
-        placement = economics.normalized_placements(entry)
         target = int(rule["target_distance_bps"])
-        target_row = min(
-            placement,
-            key=lambda item: abs(item["target_distance_bps"] - target),
+        width = economics.normalized_width(entry, target)
+        target_row = dict(
+            strategy=rule["strategy"],
+            target_distance_bps=target,
+            width=width,
+            actual_distance_bps=economics.width_distance_bps(entry, width),
+            features=holdout_features,
         )
-        target_row = dict(target_row)
-        target_row["features"] = holdout_features
         target_row["economic_case"] = dict(
             passes=economic_choice is not None,
             rule="frozen_holdout_rule_v1",
