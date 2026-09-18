@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - research/dlmm-point-in-time-replay
+      - research/dlmm-capital-case-ranking-v1
 permissions:
   contents: read
 jobs:
@@ -22,7 +23,7 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Profitability research regressions
-        run: python -m unittest tests.test_dlmm_strategy_point_in_time tests.test_dlmm_strategy_high_activity tests.test_dlmm_dense_acquisition tests.test_dlmm_profitability_pilot -v
+        run: python -m unittest tests.test_dlmm_strategy_point_in_time tests.test_dlmm_strategy_high_activity tests.test_dlmm_dense_acquisition tests.test_dlmm_profitability_pilot tests.test_dlmm_economics -v
       - name: Density-screened completed-window profitability batch
         env:
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
