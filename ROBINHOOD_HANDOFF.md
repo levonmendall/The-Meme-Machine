@@ -1,4 +1,10 @@
-# Robinhood handoff — partial foundation; protocol gates remain
+# Robinhood handoff — protocol verification continuation
+
+Continuation starting SHA (fetched and verified before edits):
+`7b1307c264d16c063ed1f19c13ecee02199bcef2`.
+Starting branch: `feat/robinhood-research-foundation`; PR #15 open/draft; clean tree.
+The original foundation handoff below remains as historical evidence.
+
 
 Starting branch: `main`.
 Starting SHA: `54712c4c6470cc4dc267888f934bd693aac030d0` (README only).

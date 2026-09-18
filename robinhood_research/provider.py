@@ -12,6 +12,7 @@ READ_METHODS = frozenset({
     'eth_chainId', 'eth_blockNumber', 'eth_getBlockByNumber',
     'eth_getBlockByHash', 'eth_getLogs', 'eth_getTransactionReceipt',
     'eth_getCode', 'eth_call', 'eth_gasPrice', 'eth_getBalance',
+    'eth_getStorageAt', 'eth_getTransactionByHash',
 })
 
 
@@ -29,6 +30,9 @@ class Rpc:
         self.transport = transport or self._http
         self.counts, self.failures, self.cache = Counter(), Counter(), OrderedDict()
         self.used = 0
+        self.logical = 0
+        self.retry_count = 0
+        self.methods, self.logical_methods = Counter(), Counter()
 
     def _http(self, method, params):
         body = json.dumps(dict(jsonrpc='2.0', id=1, method=method, params=params)).encode()
@@ -62,6 +66,8 @@ class Rpc:
             raise BoundaryError('rpc_method_not_read_only')
         if scope not in self.counts and len(self.counts) >= 32:
             raise BoundaryError('provider_scope_capacity')
+        self.logical += 1
+        self.logical_methods[method] += 1
         # Cache only immutable receipts after the caller verifies their block hash.
         # Latest/state/log requests never reuse stale cache entries.
         key = json.dumps([method, params], sort_keys=True)
@@ -75,6 +81,8 @@ class Rpc:
                 raise BoundaryError('provider_session_budget_exhausted')
             self.used += 1
             self.counts[scope] += 1
+            self.methods[method] += 1
+            self.retry_count += int(attempt > 0)
             try:
                 result = self.transport(method, params)
                 if result is None:
@@ -98,5 +106,22 @@ class Rpc:
         return CHAIN_ID
 
     def telemetry(self):
-        return dict(requests=self.used, scopes=dict(self.counts), failures=dict(self.failures))
+        return dict(requests=self.used, transport_requests=self.used,
+                    logical_requests=self.logical, retries=self.retry_count,
+                    methods=dict(self.methods), logical_methods=dict(self.logical_methods),
+                    scopes=dict(self.counts), failures=dict(self.failures))
 
+    def receipt(self, tx_hash, block_hash, *, scope):
+        # A receipt is immutable only under the (transaction, block) identity.
+        key = 'receipt:' + tx_hash + ':' + block_hash
+        if key in self.cache:
+            self.logical += 1
+            self.logical_methods['eth_getTransactionReceipt'] += 1
+            return json.loads(self.cache[key])
+        result = self.call('eth_getTransactionReceipt', [tx_hash], scope=scope)
+        if result['transactionHash'] != tx_hash or result['blockHash'] != block_hash:
+            raise BoundaryError('receipt_block_disagreement')
+        self.cache[key] = json.dumps(result)
+        while len(self.cache) > 128:
+            self.cache.popitem(last=False)
+        return result
