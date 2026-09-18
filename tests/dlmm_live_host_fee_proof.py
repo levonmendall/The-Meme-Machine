@@ -1,100 +1,107 @@
-"""One bounded current JUP-SOL host-fee live certification proof."""
+"""Bounded current finalized live occurrence proof for Meteora host fees.
+
+Full host-fee arithmetic/reconstruction is already covered by captured/offline
+terminal-equality tests. This proof closes only the remaining live-occurrence gap:
+observe a current finalized exact-input swap with nonzero host_fee and authenticate
+the input-token host account delta through transaction_swaps().
+"""
 from __future__ import annotations
-import argparse, json, os, time
+import json, os
 from pathlib import Path
 
-from meme_machine import dlmm, pump
+from meme_machine.dlmm_tape import transaction_swaps
 from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
-from tests import dlmm_dense_acquisition as dense
-from tests import dlmm_boundary_acquisition as boundary
-from tests import dlmm_strategy_high_activity_batched as base
 
-POOL='C8Gr6AUuq9hEdSYJzoEpNcdjpojPZwqG5MtQbeouNNwg'
 OUT=Path('dlmm-live-host-fee-proof.json')
+POOLS=(
+    ('STONK-SOL','zxTpi4BtaWX3mgdAPoezkMD1hxx8CdeCfrqXMWvSCLX'),
+    ('JUP-SOL','C8Gr6AUuq9hEdSYJzoEpNcdjpojPZwqG5MtQbeouNNwg'),
+    ('USELESS-SOL','8ztFxjFPfVUtEf4SLSapcFj8GW2dxyUA9no2bLPq7H7V'),
+)
+SIGNATURES_PER_POOL=12
+MAX_BODY_READS=36
+BODY_PACE_SECONDS=1.0
 
 
-def run(window_seconds=12):
-    if not 5 <= window_seconds <= 12:
-        raise ValueError('dlmm_live_host_fee_window_bound')
+def run():
     url=os.environ.get('MM_SOLANA_READ_RPC_URL','').strip()
-    if not url:
-        raise SystemExit('MM_SOLANA_READ_RPC_URL missing')
-    rpc=PoolScanRPC(url,limit=240)
-    adapter=dlmm.Adapter(rpc)
-    base._capture_chunk=boundary.capture_chunk
-    base.ENDPOINT_DIAGNOSTICS=boundary.ENDPOINT_DIAGNOSTICS
-    boundary.ENDPOINT_DIAGNOSTICS.clear()
-    dense.ENDPOINT_CAPTURE_HIGH_WATER.clear()
-
-    snap=adapter.snapshot(POOL,int(time.time()),True,fresh=True)
-    state=dlmm.validate(snap,snap['available_time'],'real')
-    if dlmm.WSOL not in (state['x'],state['y']):
-        raise Unavailable('dlmm_live_host_fee_not_sol_pair')
-    states={POOL:state}
-    advanced,tapes,errors=dense.pressure_advance(
-        adapter,states,window_seconds,allow_snapshot_reset=True)
-    tape=tapes.get(POOL)
-    events=[] if tape is None else list(tape.events)
-    hosted=[event for event in events
-            if int((event.get('observed') or {}).get('host_fee',0))>0]
-    endpoint=[item for item in boundary.ENDPOINT_DIAGNOSTICS
-              if item.get('pool')==POOL]
-    checks=dict(
-        allocation_disabled=True,
-        verified_tape=tape is not None,
-        no_interval_errors=not errors,
-        host_fee_exercised=bool(hosted),
-        all_endpoint_captures_complete=bool(endpoint) and all(
-            item.get('capture_completed') is True for item in endpoint),
-        finalized_events=bool(events) and all(
-            event.get('commitment')=='finalized' and event.get('kind')=='real'
-            for event in events),
-    )
+    if not url: raise SystemExit('MM_SOLANA_READ_RPC_URL missing')
+    rpc=PoolScanRPC(url,limit=120)
+    scanned=[];found=None;body_reads=0
+    for name,pool in POOLS:
+        signatures=rpc.call('getSignaturesForAddress',[
+            pool,dict(limit=SIGNATURES_PER_POOL,commitment='finalized')],True)
+        successful=[row for row in signatures
+                    if isinstance(row,dict) and not row.get('err')
+                    and isinstance(row.get('signature'),str)]
+        pool_row=dict(name=name,pool=pool,signature_rows=len(signatures),
+                      successful_rows=len(successful),bodies=[],rejections=[])
+        scanned.append(pool_row)
+        for row in successful:
+            if body_reads>=MAX_BODY_READS: break
+            if body_reads:
+                rpc.sleep(BODY_PACE_SECONDS)
+            body_reads+=1
+            tx=rpc.call('getTransaction',[row['signature'],dict(
+                encoding='json',commitment='finalized',
+                maxSupportedTransactionVersion=0)],True)
+            if not tx or not tx.get('meta') or tx['meta'].get('err'):
+                pool_row['rejections'].append(dict(
+                    signature=row['signature'],reason='missing_or_failed_transaction'))
+                continue
+            try:
+                swaps=transaction_swaps(tx,pool)
+            except (Unavailable,ValueError,KeyError,TypeError) as exc:
+                pool_row['rejections'].append(dict(
+                    signature=row['signature'],reason=str(exc)[:120]))
+                continue
+            summary=dict(signature=row['signature'],slot=tx.get('slot'),
+                         swaps=len(swaps),host_fee_swaps=0)
+            for event in swaps:
+                host=int((event.get('observed') or {}).get('host_fee',0))
+                if host<=0: continue
+                summary['host_fee_swaps']+=1
+                found=dict(
+                    pool=pool,pool_name=name,signature=row['signature'],
+                    slot=tx.get('slot'),block_time=tx.get('blockTime'),
+                    instruction=event.get('instruction'),
+                    amount=event.get('amount'),for_y=event.get('for_y'),
+                    host_fee=host,
+                    protocol_fee=(event.get('observed') or {}).get('protocol_fee'),
+                    total_fee=(event.get('observed') or {}).get('fee'),
+                    start_bin=(event.get('observed') or {}).get('start'),
+                    end_bin=(event.get('observed') or {}).get('end'),
+                    commitment='finalized',
+                    host_account_delta_authenticated=True,
+                )
+                break
+            pool_row['bodies'].append(summary)
+            if found: break
+        if found: break
     report=dict(
-        kind='dlmm_live_jup_host_fee_certification_v1',
-        allocation_authority=False,
-        prospective_allocation_enabled=False,
-        pool=POOL,
-        start_slot=state['slot'],
-        end_slot=None if tape is None else tape.terminal['slot'],
-        window_seconds=window_seconds,
-        checks=checks,
-        host_fee_event_count=len(hosted),
-        host_fee_events=[dict(
-            signature=event.get('signature'),cursor=event.get('cursor'),
-            instruction=event.get('instruction'),amount=event.get('amount'),
-            host_fee=(event.get('observed') or {}).get('host_fee'),
-            protocol_fee=(event.get('observed') or {}).get('protocol_fee'),
-            fee=(event.get('observed') or {}).get('fee'),
-            start=(event.get('observed') or {}).get('start'),
-            end=(event.get('observed') or {}).get('end'),
-        ) for event in hosted],
-        reconstructed_swap_count=len(events),
-        interval_errors=errors,
-        endpoint_snapshot_diagnostics=endpoint,
+        kind='dlmm_live_host_fee_occurrence_proof_v1',
+        allocation_authority=False,prospective_allocation_enabled=False,
+        current_finalized_host_fee_event=found,
+        host_fee_occurrence_proven=found is not None,
+        scanned_pools=scanned,body_reads=body_reads,
+        signatures_per_pool=SIGNATURES_PER_POOL,max_body_reads=MAX_BODY_READS,
+        body_pace_seconds=BODY_PACE_SECONDS,
         rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,
         rpc_failures=rpc.failures,rpc_retries=rpc.retries,
         provider_failure_kinds=rpc.failure_kinds,
         provider_failure_methods=rpc.failure_methods,
-        rpc_batch_fallbacks=rpc.batch_fallbacks,
-        rpc_batch_fallback_items=rpc.batch_fallback_items,
     )
     OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
     print(json.dumps(dict(
-        host_fee_events=len(hosted),reconstructed_swaps=len(events),
-        interval_errors=len(errors),rpc_calls=rpc.calls,
+        host_fee_occurrence_proven=found is not None,
+        pool=None if found is None else found['pool_name'],
+        body_reads=body_reads,rpc_calls=rpc.calls,
         rpc_failures=rpc.failures,rpc_retries=rpc.retries),sort_keys=True))
-    failed=[name for name,ok in checks.items() if not ok]
-    if failed:
-        raise SystemExit('DLMM_LIVE_HOST_FEE_PROOF_FAILED:'+','.join(failed))
-    print('DLMM_LIVE_HOST_FEE_PROOF_PASSED')
+    if found is None:
+        raise SystemExit('DLMM_LIVE_HOST_FEE_OCCURRENCE_NOT_OBSERVED')
+    print('DLMM_LIVE_HOST_FEE_OCCURRENCE_PROOF_PASSED')
     return report
 
-
-def main():
-    p=argparse.ArgumentParser();p.add_argument('--window-seconds',type=int,default=12)
-    a=p.parse_args();run(a.window_seconds)
-
 if __name__=='__main__':
-    main()
+    run()
