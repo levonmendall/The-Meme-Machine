@@ -725,14 +725,23 @@ def _attempt_candidate(
 def run_live(
     target_completed=TARGET_COMPLETED_WINDOWS,
     max_attempted_pools=MAX_ATTEMPTED_POOLS,
-    window_seconds=12,
+    warmup_seconds=DEFAULT_WARMUP_SECONDS,
+    holding_seconds=economics.HOLD_SECONDS,
+    study_phase="development",
 ):
     if not 1 <= target_completed <= TARGET_COMPLETED_WINDOWS:
         raise ValueError("dlmm_profitability_target_bound")
     if not target_completed <= max_attempted_pools <= MAX_ATTEMPTED_POOLS:
         raise ValueError("dlmm_profitability_attempt_bound")
-    if not 5 <= window_seconds <= research.MAX_WINDOW_SECONDS:
-        raise ValueError("dlmm_profitability_window_bound")
+    if not 5 <= warmup_seconds <= research.MAX_WINDOW_SECONDS:
+        raise ValueError("dlmm_profitability_warmup_bound")
+    if holding_seconds != economics.HOLD_SECONDS:
+        raise ValueError("dlmm_profitability_holding_horizon_must_match_mechanical")
+    if study_phase not in ("development", "holdout"):
+        raise ValueError("dlmm_profitability_study_phase")
+    frozen_rule = None
+    if study_phase == "holdout":
+        frozen_rule = economics.load_frozen_rule()
 
     run.ADVANCE_DIAGNOSTICS.clear()
     boundary.ENDPOINT_DIAGNOSTICS.clear()
@@ -750,26 +759,43 @@ def run_live(
     observation_start_calls = rpc.calls
 
     report = dict(
-        kind="dlmm_profitability_density_screened_point_in_time_v3",
+        kind="dlmm_range_economic_point_in_time_v4",
         base="pr4_verified_simulator",
         allocation_authority=False,
         prospective_allocation_enabled=False,
+        study_phase=study_phase,
+        profitability_claim_allowed=study_phase == "holdout",
+        sample_protocol=economics.sample_protocol(),
+        frozen_rule=frozen_rule,
         capital_lamports=CAPITAL,
         fixed_cost_lamports=ENTRY_COST + EXIT_COST,
+        fixed_cost_bps=economics.FIXED_COST_BPS,
+        warmup_seconds=warmup_seconds,
+        holding_seconds=holding_seconds,
+        outcome_segment_seconds=OUTCOME_SEGMENT_SECONDS,
         shadow_strategies=list(research.STRATEGIES),
         shadow_widths=list(research.WIDTHS),
-        selected_strategy=research.SELECTED_STRATEGY,
-        selected_width=research.SELECTED_WIDTH,
+        legacy_comparator=dict(
+            strategy=research.SELECTED_STRATEGY,
+            width=research.SELECTED_WIDTH,
+            rule="verified_nonzero_warmup_activity_then_fixed_sdk_bidask_8",
+        ),
+        normalized_target_distances_bps=list(economics.NORMALIZED_TARGET_BPS),
         selector_uses_outcome_data=False,
-        selector_rule="nonzero_verified_warmup_activity_only",
+        selector_rule=(
+            "development_cost_hurdle_plus_range_entry_plus_reversion"
+            if study_phase == "development"
+            else "frozen_holdout_rule_v1"
+        ),
         point_in_time=True,
         verification_capacity=MAX_TRANSACTIONS,
         density_preflight_seconds=PREFLIGHT_SECONDS,
         density_preflight_signature_limit=MAX_TRANSACTIONS + 1,
         target_completed_windows=target_completed,
         max_attempted_pools=max_attempted_pools,
-        window_seconds=window_seconds,
-        candidate_scanning_policy="activity_ranked_candidates_until_completed_window_target_or_safety_bound",
+        candidate_scanning_policy=(
+            "activity_ranked_candidates_until_completed_60s_window_target_or_safety_bound"
+        ),
         discovery_source="meteora_data_api_current_volume_30m_then_finalized_onchain",
         discovery_api_errors=api_errors,
         discovery_candidates=candidates,
@@ -786,9 +812,15 @@ def run_live(
         density_exclusions=[],
         opportunities=[],
         results=[],
+        normalized_results=[],
         selected_results=[],
+        legacy_selected_results=[],
         interval_errors=[],
-        profitability_conclusion="not_established",
+        profitability_conclusion=(
+            "development_only_no_profitability_claim"
+            if study_phase == "development"
+            else "holdout_not_yet_adequate"
+        ),
         density_generalization_warning=(
             "High-density pools excluded by the unchanged 16-transaction verifier "
             "capacity are explicit censored observations. Profitability measured on "
@@ -827,11 +859,20 @@ def run_live(
         attempted += 1
         supported_pools.append(address)
         fresh_rpc = _metric_delta(fresh_before, _rpc_metrics(rpc))
-        attempt, opportunity, results, selected = _attempt_candidate(
+        (
+            attempt,
+            opportunity,
+            results,
+            selected,
+            normalized,
+            legacy,
+        ) = _attempt_candidate(
             adapter,
             candidate,
             start,
-            window_seconds,
+            warmup_seconds,
+            holding_seconds,
+            study_phase,
             attempted,
             rpc_before=fresh_before,
             fresh_start_rpc=fresh_rpc,
@@ -851,10 +892,10 @@ def run_live(
                     "terminal_classification"
                 )
             if attempt.get("outcome"):
-                exclusion["outcome_preflight"] = attempt["outcome"].get("preflight")
                 exclusion["outcome_terminal"] = attempt["outcome"].get(
                     "terminal_classification"
                 )
+                exclusion["outcome_segments"] = attempt["outcome"].get("segments")
             report["density_exclusions"].append(exclusion)
         for phase_name in ("warmup", "outcome"):
             phase = attempt.get(phase_name)
@@ -876,6 +917,8 @@ def run_live(
         report["opportunities"].append(opportunity)
         report["results"].extend(results)
         report["selected_results"].extend(selected)
+        report["normalized_results"].extend(normalized)
+        report["legacy_selected_results"].extend(legacy)
 
     stats, best = research._summary(report["results"])
     pools = {item["pool"] for item in report["opportunities"]}
@@ -889,6 +932,10 @@ def run_live(
         item for item in report["selected_results"] if item.get("resolved")
     ]
     selected_pnl = [item["pnl_bps"] for item in selected_resolved]
+    legacy_resolved = [
+        item for item in report["legacy_selected_results"] if item.get("resolved")
+    ]
+    legacy_pnl = [item["pnl_bps"] for item in legacy_resolved]
     host_fee_swaps = sum(
         item.get("warmup_host_fee_swaps", 0)
         + item.get("outcome_host_fee_swaps", 0)
@@ -906,6 +953,19 @@ def run_live(
         if phase
     )
     sample_complete = completed >= target_completed
+    selected_pool_count = len({
+        item["pool"] for item in report["selected_results"]
+    })
+    current_batch_freeze_eligible = (
+        study_phase == "development"
+        and completed >= economics.DEVELOPMENT_MIN_COMPLETED
+        and len(pools) >= economics.DEVELOPMENT_MIN_DISTINCT_POOLS
+    )
+    holdout_adequate = (
+        study_phase == "holdout"
+        and completed >= economics.HOLDOUT_MIN_COMPLETED
+        and len(pools) >= economics.HOLDOUT_MIN_DISTINCT_POOLS
+    )
 
     report.update(
         ended=int(time.time()),
@@ -914,6 +974,11 @@ def run_live(
         discovered_supported_pools=sorted(supported_pools),
         zero_activity_warmup_count=sum(
             item["terminal_classification"] == "verified_zero_swap"
+            for item in report["attempts"]
+        ),
+        economic_rejection_count=sum(
+            bool(item.get("completed_window"))
+            and not bool(item.get("strategy_selected"))
             for item in report["attempts"]
         ),
         completed_window_count=completed,
@@ -925,13 +990,14 @@ def run_live(
             None if not attempted else len(report["density_exclusions"]) / attempted
         ),
         strategy_stats=stats,
-        best_observed_variant=best,
+        best_observed_shadow_variant=best,
         distinct_pools=len(pools),
         opportunity_count=len(report["opportunities"]),
         nonempty_warmup_count=warm_nonempty,
         nonempty_outcome_count=outcome_nonempty,
         selected_trade_count=len(report["selected_results"]),
         selected_resolved_count=len(selected_resolved),
+        selected_distinct_pools=selected_pool_count,
         host_fee_swap_count=host_fee_swaps,
         selected_mean_pnl_bps=(
             None if not selected_pnl else statistics.fmean(selected_pnl)
@@ -944,12 +1010,25 @@ def run_live(
             if not selected_pnl
             else sum(value > 0 for value in selected_pnl) / len(selected_pnl)
         ),
-        completed_window_sample_adequate=sample_complete,
-        repeatability_sample_adequate=False,
+        legacy_width8_resolved_count=len(legacy_resolved),
+        legacy_width8_mean_pnl_bps=(
+            None if not legacy_pnl else statistics.fmean(legacy_pnl)
+        ),
+        legacy_width8_median_pnl_bps=(
+            None if not legacy_pnl else statistics.median(legacy_pnl)
+        ),
+        current_batch_rule_freeze_eligible=current_batch_freeze_eligible,
+        automatic_rule_freeze=False,
+        holdout_sample_adequate=holdout_adequate,
+        repeatability_sample_adequate=holdout_adequate,
         conclusion=(
-            "completed_window_pilot_acquired_repeatability_not_established"
-            if sample_complete
-            else "insufficient_completed_window_sample"
+            "development_sample_collecting_no_profitability_claim"
+            if study_phase == "development"
+            else (
+                "holdout_complete"
+                if holdout_adequate
+                else "holdout_sample_incomplete"
+            )
         ),
         rpc_calls=rpc.calls,
         rpc_http_requests=rpc.http_requests,
@@ -980,19 +1059,21 @@ def run_live(
     research.REPORT.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(json.dumps(dict(
         conclusion=report["conclusion"],
+        study_phase=study_phase,
         attempted_pools=attempted,
         completed_windows=completed,
+        economic_rejections=report["economic_rejection_count"],
         density_exclusions=report["density_exclusion_count"],
-        terminal_classifications=report["terminal_classification_counts"],
         selected_trades=report["selected_trade_count"],
         selected_median_pnl_bps=report["selected_median_pnl_bps"],
+        legacy_width8_median_pnl_bps=report["legacy_width8_median_pnl_bps"],
         rpc_calls=report["rpc_calls"],
-        rpc_calls_per_attempted_pool=report["rpc_calls_per_attempted_pool"],
         rpc_calls_per_completed_observation=report[
             "rpc_calls_per_completed_observation"
         ],
     ), sort_keys=True))
     return report
+
 
 
 def main():
