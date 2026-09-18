@@ -402,3 +402,14 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Final parser repair `d86206475edcd1f8e844cfb0c71c1ba6c6082f75` binds ClaimFee2 and RemoveLiquidity events only by same top-level transaction execution group, exact PositionV2 identity, exact effect kind, and unique unmatched preceding instruction. It does not use loose nearest-event matching.
 - Exact-head CI run `35353440772` passed the complete unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle. Regressions explicitly insert intervening DLMM inner instructions and require claim/removal events to bind correctly.
 - This marker authorizes exactly one final unchanged development batch to validate the repaired event association on live mainnet evidence. Strategy, costs, 16-transaction capacity, 60-second horizon, Alchemy pacing/budgets, paper-only authority, and disabled allocation remain unchanged.
+
+
+## DLMM host-fee transfer attribution repair — live rerun
+
+- Host-attribution repair is pinned at `9e707d36c6da6d68a93f630dceefb8ba0ae351c4`.
+- Hosted swaps now authenticate from the exact ordered SPL Token transfer into the declared `host_fee_in` account when that transfer is present. The source must be the authenticated swap input-side user/reserve account; TransferChecked must name the authenticated input mint; amount must equal the event's host fee.
+- This transfer proof covers the live shapes where the host account is omitted from transaction pre/post token-balance arrays and where unrelated same-transaction movement makes the net host-account delta differ from the swap-owned host fee.
+- Exact transaction token-balance delta remains an allowed fallback only when no attributable ordered host transfer is present. Wrong mint, wrong source, wrong amount, ambiguous token rows, or conflicting attributable transfer evidence remain fail-closed.
+- Strategy, normalized ranges, 35-bps hurdle, 12-second warmup, 60-second outcome horizon, MAX_TRANSACTIONS=16, Alchemy pacing/budgets, paper-only authority, and disabled allocation are unchanged.
+- Exact-head CI run `35366871534` passed the unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
+- This marker authorizes exactly one unchanged development batch to validate the repaired host-fee attribution on natural mainnet traffic.
