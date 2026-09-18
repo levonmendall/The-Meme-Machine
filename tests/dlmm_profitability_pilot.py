@@ -28,7 +28,6 @@ import urllib.request
 from meme_machine import dlmm, pump
 from meme_machine.dlmm_paper import CAPITAL, ENTRY_COST, EXIT_COST
 from meme_machine.dlmm_tape import MAX_TRANSACTIONS, chain_verified_tapes
-from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
 from tests import dlmm_boundary_acquisition as boundary
 from tests import dlmm_dense_acquisition as dense
@@ -46,6 +45,8 @@ ACTIVITY_PAGE_SIZE = 80
 MAX_CANDIDATE_SCAN_MULTIPLIER = 4
 DEFAULT_WARMUP_SECONDS = 12
 OUTCOME_SEGMENT_SECONDS = 12
+DISCOVERY_RPC_LIMIT = 120
+PER_POOL_RPC_LIMIT = 240
 
 run.CHUNK_SECONDS = 2
 run._capture_chunk = boundary.capture_chunk
@@ -76,6 +77,41 @@ def _rpc_metrics(rpc):
 def _metric_delta(before, after):
     return {key: int(after.get(key, 0)) - int(before.get(key, 0))
             for key in ("calls", "http_requests", "failures", "retries")}
+
+
+def _zero_rpc_metrics():
+    return dict(calls=0, http_requests=0, failures=0, retries=0)
+
+
+def _aggregate_rpc_objects(rpcs):
+    totals = dict(
+        calls=0,
+        http_requests=0,
+        failures=0,
+        retries=0,
+        batch_fallbacks=0,
+        batch_fallback_items=0,
+        null_retries=0,
+        cache_hits=0,
+    )
+    failure_kinds = Counter()
+    failure_methods = Counter()
+    for rpc in rpcs:
+        totals["calls"] += int(getattr(rpc, "calls", 0))
+        totals["http_requests"] += int(getattr(rpc, "http_requests", 0))
+        totals["failures"] += int(getattr(rpc, "failures", 0))
+        totals["retries"] += int(getattr(rpc, "retries", 0))
+        totals["batch_fallbacks"] += int(getattr(rpc, "batch_fallbacks", 0))
+        totals["batch_fallback_items"] += int(
+            getattr(rpc, "batch_fallback_items", 0)
+        )
+        totals["null_retries"] += int(getattr(rpc, "null_retries", 0))
+        totals["cache_hits"] += int(getattr(rpc, "cache_hits", 0))
+        failure_kinds.update(getattr(rpc, "failure_kinds", {}) or {})
+        failure_methods.update(getattr(rpc, "failure_methods", {}) or {})
+    totals["failure_kinds"] = dict(sorted(failure_kinds.items()))
+    totals["failure_methods"] = dict(sorted(failure_methods.items()))
+    return totals
 
 
 def _classify_reason(reason):
@@ -600,7 +636,7 @@ def _attempt_candidate(
     rpc_before=None,
     fresh_start_rpc=None,
 ):
-    before = rpc_before or _rpc_metrics(adapter.rpc)
+    before = rpc_before if rpc_before is not None else _rpc_metrics(adapter.rpc)
     address = candidate["address"]
     observation_started = int(time.time())
     attempt = dict(
