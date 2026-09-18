@@ -23,11 +23,11 @@ jobs:
         run: python -m unittest tests.test_dlmm_tape_extensions tests.test_dlmm_strategy_point_in_time tests.test_dlmm_strategy_high_activity -v
       - name: Validate Alchemy Solana route
         env:
-          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL }}
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_alchemy_provider
       - name: Highest-activity finalized DLMM strategy replay
         env:
-          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL }}
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_strategy_high_activity_stonk --cycles 1 --window-seconds 12
       - name: Require clean host-fee warmup and outcome certification
         if: contains(github.event.head_commit.message, '[dlmm-host-fee-certification]')
