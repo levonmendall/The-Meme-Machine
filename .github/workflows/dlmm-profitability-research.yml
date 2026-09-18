@@ -30,7 +30,7 @@ jobs:
       - name: Development sample with real 60-second holding horizon
         env:
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
-        run: python -m tests.dlmm_profitability_pilot --target-completed 6 --max-attempted-pools 12 --warmup-seconds 12 --holding-seconds 60 --study-phase development
+        run: python -m tests.dlmm_profitability_pilot --target-completed 6 --max-attempted-pools 24 --warmup-seconds 12 --holding-seconds 60 --study-phase development
       - name: Preserve development sample
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
