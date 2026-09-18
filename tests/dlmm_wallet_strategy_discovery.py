@@ -276,13 +276,28 @@ def _position_metrics(position,bin_step=None):
     )
 
 
-def _history_features(position_address):
+def _history_features(position_address,sol_side=None):
     payload=_json_get(f"/positions/{position_address}/historical",
                       dict(order_direction="asc"),allow_pnl=True)
     events=payload.get("events") if isinstance(payload,dict) else None
     if not isinstance(events,list):
         raise RuntimeError("dlmm_wallet_history_shape")
     counts=Counter(str(e.get("eventType")) for e in events)
+    adds=[e for e in events if e.get("eventType")=="add"]
+    first_add=adds[0] if adds else None
+    composition=None
+    if first_add is not None:
+        x=_dec(first_add.get("amountX"));y=_dec(first_add.get("amountY"))
+        if x>0 and y>0:
+            composition="two_sided"
+        elif x>0:
+            composition=("sol_only" if sol_side=="x" else "token_only")
+        elif y>0:
+            composition=("sol_only" if sol_side=="y" else "token_only")
+        else:
+            composition="zero"
+    block_times=[int(e["blockTime"]) for e in events
+                 if isinstance(e.get("blockTime"),int)]
     return dict(
         event_count=len(events),event_counts=dict(sorted(counts.items())),
         add_count=counts.get("add",0),remove_count=counts.get("remove",0),
@@ -290,6 +305,13 @@ def _history_features(position_address):
         claim_reward_count=counts.get("claim_reward",0),
         repeated_add=counts.get("add",0)>1,
         repeated_remove=counts.get("remove",0)>1,
+        managed_rebalance_proxy=(
+            counts.get("add",0)>1 or counts.get("remove",0)>1
+        ),
+        first_add_composition=composition,
+        history_span_seconds=(
+            None if len(block_times)<2 else max(block_times)-min(block_times)
+        ),
     )
 
 
@@ -330,6 +352,8 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
                 m["pool"]=address
                 m["pool_token_x"]=pool.get("tokenX")
                 m["pool_token_y"]=pool.get("tokenY")
+                m["pool_token_x_mint"]=pool.get("tokenXMint")
+                m["pool_token_y_mint"]=pool.get("tokenYMint")
                 position_rows.append(m)
 
         usd=[p["pnl_usd"] for p in position_rows]
@@ -362,13 +386,20 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
         for p in ranked[:MAX_HISTORY_POSITIONS_PER_ELIGIBLE_WALLET]:
             if not p.get("position"):
                 continue
-            detailed.append(dict(**p,history=_history_features(p["position"])))
+            sol_side=(
+                "x" if p.get("pool_token_x_mint")==dlmm.WSOL else
+                "y" if p.get("pool_token_y_mint")==dlmm.WSOL else None
+            )
+            detailed.append(dict(
+                **p,history=_history_features(p["position"],sol_side=sol_side)
+            ))
         wallet["detailed_positions"]=detailed
 
     all_detail=[p for w in eligible for p in w.get("detailed_positions",[])]
     hold_buckets=Counter()
     width_buckets=Counter()
     span_buckets=Counter()
+    composition_buckets=Counter()
     rebalance_positions=0
     for p in all_detail:
         h=p.get("hold_seconds")
@@ -388,7 +419,10 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
                    else ">2000")
             span_buckets[label]+=1
         hist=p.get("history") or {}
-        if hist.get("repeated_add") or hist.get("repeated_remove"):
+        comp=hist.get("first_add_composition")
+        if comp:
+            composition_buckets[comp]+=1
+        if hist.get("managed_rebalance_proxy"):
             rebalance_positions+=1
 
     report=dict(
@@ -412,6 +446,7 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
             hold_duration_buckets=dict(sorted(hold_buckets.items())),
             width_bin_buckets=dict(sorted(width_buckets.items())),
             normalized_range_span_bps_buckets=dict(sorted(span_buckets.items())),
+            first_add_composition_buckets=dict(sorted(composition_buckets.items())),
             rebalance_proxy_positions=rebalance_positions,
             rebalance_proxy_rate=(None if not all_detail else rebalance_positions/len(all_detail)),
         ),
