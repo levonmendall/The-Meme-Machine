@@ -86,3 +86,14 @@ The candidate research strategy now uses:
 6. **Development vs holdout:** development outcomes may be used to define the final rule but may not support a profitability claim. Default freeze eligibility is at least 30 completed development observations across at least 5 pools. Rule freezing is never automatic. A reviewed frozen rule must be committed in `DLMM_STRATEGY_RULE_V1.json`. Holdout then requires observations strictly after the freeze timestamp and targets at least 100 completed observations across at least 10 pools. Holdout data cannot retune the rule.
 
 Prospective allocation remains disabled throughout development and holdout. The existing verifier, fees, mechanics, provider finality rules, and paper-only authority remain unchanged.
+
+
+### Development rule proposal search
+
+Once accumulated development artifacts reach the minimum sample, `tests.dlmm_strategy_development_analysis` may propose a rule using only development observations. The search grid is fixed before those outcomes are examined:
+
+- normalized target distance: 100 / 200 / 400 / 800 bps;
+- extra projected range-fee surplus margin above the 35-bps cost hurdle: 0 / 0.5x / 1x / 2x the fixed round-trip cost;
+- flow-into-range and two-way/reversion requirements remain mandatory.
+
+A candidate rule must have at least 5 selected development observations across at least 3 pools. Candidate ordering is predeclared as median after-cost P&L, then mean P&L, then worst observed P&L, then sample count. The analyzer emits `status=proposed` only. It cannot set `status=frozen`, a freeze timestamp, or a development cutoff. Holdout remains fail-closed until that separate reviewed commit exists.
