@@ -1,3 +1,86 @@
+# Robinhood handoff — genuine natural Pons paper lifecycle
+
+## Natural entry → monitor → exit → settlement: PROVEN
+
+Run [35382359016](https://github.com/levonmendall/The-Meme-Machine/actions/runs/35382359016)
+completed successfully after the harness repairs. Artifact `10562377925`, SHA256
+`1e2f2da1d446baa033afce6801fe71f24599ddc3bf66df17469764946cd86df8`.
+The artifact contains both the full report and restart-safe SQLite paper state.
+
+This is a bounded lifecycle proof only. The Robinhood-native qualification policy
+remains unestablished and normal natural allocation remains disabled.
+
+Prospective natural position:
+
+- token: `0x3808b3ce12d40938366dbbc698ce0ba50fa37c8e`;
+- curve: `0x856f6971fe68300dfd182725bfae433a86bb5b7b`;
+- source transaction:
+  `0x62b3bf4c2db53fc4009c0ae8a9049e08d93d2c0485bc687b0be3483492b86bdb`;
+- source block: `66452382`;
+- nomination evidence freshness: **4 seconds**;
+- paper reservation: `0.01` native quote units plus bounded gas budget;
+- delayed entry used a later current block (`66452458`), not the nomination quote;
+- paper entry cost including gas:
+  `0.0100120342544` native units;
+- entry tokens:
+  `1764611531808122961342365`.
+
+The paper state was closed and reopened immediately after entry; reconciliation was
+identical, proving restart-safe open-position recovery.
+
+Monitoring observed an executable full-position curve mark at roughly **-66.71%**,
+triggering the proof-only -10% risk condition. The system then created an exit intent,
+waited the configured execution delay, obtained a new executable quote, and settled
+the entire position.
+
+Settlement:
+
+- exit block: `66452638`;
+- gross exit proceeds: `0.003520345598746922` native units;
+- exit gas: `0.00001222886112` native units;
+- net exit proceeds: `0.003508116737626922` native units;
+- realized paper P&L:
+  `-0.006503917516773078` native units;
+- realized return on paper entry cost: approximately **-64.96%**;
+- final status: `settled`;
+- tokens remaining: `0`;
+- committed paper capital: `0`;
+- final restart/reconciliation preserved the settled state;
+- provider: 63 transport requests, zero failures, zero retries.
+
+The loss is an authentic result of the outcome-blind lifecycle proof and was not
+discarded or replaced. It is **not** evidence that a Robinhood strategy is profitable
+or unprofitable because the experiment deliberately does not yet have a validated
+selection policy.
+
+No graduation occurred during this natural holding period, so the stronger natural
+`Pons V2 → V4 → exit → settlement` proof remains outstanding. The code path for an
+authenticated graduation transition is implemented and already has captured-mainnet
+lineage regressions, but it has not yet been exercised by a naturally held paper
+position.
+
+### Verification
+
+Exact proof-head run 35382359016 passed the deterministic suite (**85 tests**) before
+the natural paper job. The live-job guard was restored at
+`46824abf55d8be436cd0ecf5b76a9c0c91dd46c6`; ordinary commits cannot repeat the
+paper experiment.
+
+### Next causal boundary
+
+Directional mechanics are now proven naturally through:
+discovery → current evidence → reservation → delayed entry → restart recovery →
+monitoring → exit intent → delayed executable exit → settlement → final
+reconciliation.
+
+Remaining directional lifecycle proof: obtain a naturally held position that
+graduates Pons V2 → authenticated Uniswap V4 and is then monitored/exited/settled on
+V4. This should be sought without lowering thresholds or retrospectively selecting a
+winner. A separate profitability study is still required before enabling any
+Robinhood-native allocation policy.
+
+---
+
 # Robinhood handoff — Pons protocol-native milestone
 
 ## Current milestone — 2026-09-18
