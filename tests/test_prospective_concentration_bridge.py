@@ -46,7 +46,7 @@ class ProspectiveConcentrationBridge(unittest.TestCase):
         program = ProgramScanRPC('https://primary.example', limit=40, transport=program_transport)
         adapter._concentration_reader = ConcentrationReader(primary, program_rpc=program)
 
-        value = adapter.concentration(snap['mint'], snap)
+        value = adapter.concentration(snap['mint'], snap, priority=False)
 
         self.assertEqual(value, 1000)
         self.assertEqual(primary_methods, ['getGenesisHash'])

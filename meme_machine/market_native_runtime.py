@@ -115,6 +115,28 @@ class MarketNativeRuntime:
         self.capacity_losses = 0
         self.provider_failures = 0
         self.last_qualified_mint = None
+        # Bounded diagnostic-only evidence for the most recent selected preflight.
+        # It never participates in qualification or order authority.
+        self.last_attempt = None
+        self.last_attempt_sequence = 0
+
+    def _start_attempt(self, candidate, current, stream_events, now):
+        self.last_attempt_sequence += 1
+        self.last_attempt = dict(
+            sequence=self.last_attempt_sequence,
+            mint=candidate['mint'],
+            nomination=dict(candidate['nomination']),
+            stage='stream_feasibility',
+            observed_at=int(now),
+            stream_feasibility=current.to_dict(),
+            stream_events=list(stream_events),
+        )
+
+    def _update_attempt(self, stage, **details):
+        if self.last_attempt is None:
+            return
+        self.last_attempt['stage'] = stage
+        self.last_attempt.update(details)
 
     def _now(self):
         return int(self.clock())
@@ -159,11 +181,16 @@ class MarketNativeRuntime:
         nomination['discovery_source'] = 'market_native'
         now = self._now()
         current = stream_feasibility(candidate, tape, now)
+        stream_events = tape.window(candidate['mint'], now)
+        self._start_attempt(candidate, current, stream_events, now)
         if not current.possible:
             self.preflight_reasons[current.guaranteed_rejection] += 1
+            self._update_attempt('guaranteed_rejection',
+                                 reason=current.guaranteed_rejection)
             return
 
         try:
+            self._update_attempt('preflight_snapshot')
             snap = self.adapter.snapshot(candidate['mint'], now, priority=False)
             now = self._now()
             if not tape.covered(now):
@@ -172,17 +199,35 @@ class MarketNativeRuntime:
             pre_evidence = dict(snapshot=snap, events=events, covered=True,
                                 concentration_bps=0)
             pre = self.authority.vector(nomination, pre_evidence, now)
+            self._update_attempt(
+                'preflight_vector',
+                preflight_snapshot=snap,
+                preflight_events=list(events),
+                preflight_vector=pre,
+            )
             if pre.get('actual_reason') != 'qualified':
-                self.preflight_reasons[pre.get('actual_reason') or 'unknown'] += 1
+                reason = pre.get('actual_reason') or 'unknown'
+                self.preflight_reasons[reason] += 1
+                self._update_attempt('preflight_rejection', reason=reason)
                 return
             self.preflight_reasons['passes_non_concentration'] += 1
             if self.full_evidence_attempted >= self.full_evidence_budget:
                 self.preflight_reasons['full_evidence_budget_exhausted'] += 1
+                self._update_attempt('full_evidence_budget_exhausted')
                 return
 
             self.full_evidence_attempted += 1
+            self._update_attempt(
+                'concentration',
+                full_evidence_attempt=self.full_evidence_attempted,
+            )
             concentration = self.adapter.concentration(
                 candidate['mint'], snap, priority=False)
+            self._update_attempt(
+                'final_snapshot',
+                concentration_bps=concentration,
+                concentration_status=self.adapter.concentration_status(),
+            )
             final = self.adapter.snapshot(candidate['mint'], self._now(), priority=False)
             qualified_at = self._now()
             if not tape.covered(qualified_at):
@@ -193,7 +238,16 @@ class MarketNativeRuntime:
             vector = self.authority.vector(nomination, evidence, qualified_at)
             reason = vector.get('actual_reason') or 'unavailable_executable_evidence'
             self.full_reasons[reason] += 1
+            self._update_attempt(
+                'full_vector',
+                qualified_at=qualified_at,
+                final_snapshot=final,
+                final_events=list(events),
+                final_vector=vector,
+                reason=reason,
+            )
             if reason != 'qualified':
+                self._update_attempt('full_rejection', reason=reason)
                 return
 
             canonical = self.authority.consider(nomination, evidence, qualified_at)
@@ -201,9 +255,28 @@ class MarketNativeRuntime:
                 raise RuntimeError('market_native_qualification_authority_mismatch')
             self.qualified += 1
             self.last_qualified_mint = candidate['mint']
-        except (Unavailable, ValueError, KeyError, TypeError):
+            self._update_attempt(
+                'qualified',
+                canonical_result=canonical,
+                order_id=nomination['id'],
+            )
+        except (Unavailable, ValueError, KeyError, TypeError) as exc:
             self.provider_failures += 1
             self.preflight_reasons['unavailable_executable_evidence'] += 1
+            rpc = self.adapter.rpc
+            self._update_attempt(
+                'failure',
+                failure_class=type(exc).__name__,
+                failure_reason=str(exc),
+                concentration_status=self.adapter.concentration_status(),
+                provider=dict(
+                    logical=getattr(rpc, 'calls', 0),
+                    transport=getattr(rpc, 'http_requests', 0),
+                    failures=getattr(rpc, 'failures', 0),
+                    retries=getattr(rpc, 'retries', 0),
+                    failure_kinds=dict(getattr(rpc, 'failure_kinds', {})),
+                ),
+            )
 
     def _process_slot(self, slot, tape):
         if self.preflight_selected >= self.preflight_budget:
@@ -283,6 +356,7 @@ class MarketNativeRuntime:
             full_reason_distribution=dict(self.full_reasons),
             qualified=self.qualified,
             last_qualified_mint=self.last_qualified_mint,
+            diagnostic_last_attempt=self.last_attempt,
             capacity_losses=self.capacity_losses,
             provider_failures=self.provider_failures,
             slot_seconds=self.slot_seconds,
