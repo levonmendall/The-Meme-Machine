@@ -1,6 +1,6 @@
 """Read-only probe for the exact MET-SOL addLiquidity2 interval from run 35383813365."""
 from __future__ import annotations
-import json, struct
+import json, struct, time, urllib.request
 from pathlib import Path
 
 from meme_machine import dlmm,pump
@@ -61,18 +61,30 @@ def _balances(meta):
                         amount=(r.get("uiTokenAmount") or {}).get("amount")) for r in (meta.get(side) or [])]
     return out
 
+def _direct_rpc(url,method,params):
+    body=json.dumps(dict(jsonrpc="2.0",id=1,method=method,params=params)).encode()
+    req=urllib.request.Request(url,data=body,headers={"Content-Type":"application/json"})
+    with urllib.request.urlopen(req,timeout=20) as response:
+        payload=json.loads(response.read())
+    if payload.get("error"):
+        raise RuntimeError(f"add_liquidity2_probe_rpc:{method}:{payload['error'].get('code')}")
+    return payload.get("result")
+
 def run():
     pacer=alchemy_provider.AlchemyPacer()
+    url=alchemy_provider.rpc_url()
     rpc=alchemy_provider.new_rpc(limit=120,pacer=pacer)
     if rpc.call("getGenesisHash",priority=True)!=pump.MAINNET:
         raise RuntimeError("add_liquidity2_probe_wrong_network")
     telemetry=dict(block_scan_slots=[])
     relevant=[]
     for slot in range(START_SLOT+1,END_SLOT+1):
-        block=rpc.call("getBlock",[slot,dict(
+        if telemetry["block_scan_slots"]:
+            time.sleep(1.0)
+        block=_direct_rpc(url,"getBlock",[slot,dict(
             commitment="finalized",encoding="json",
             transactionDetails="accounts",rewards=False,
-            maxSupportedTransactionVersion=0)],True)
+            maxSupportedTransactionVersion=0)])
         telemetry["block_scan_slots"].append(slot)
         if not block:
             continue
