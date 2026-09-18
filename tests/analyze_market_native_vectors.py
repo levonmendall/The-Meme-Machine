@@ -1,4 +1,4 @@
-"""Aggregate saved prioritized market-native reports without trading authority."""
+"""Aggregate saved market-native reports without trading authority."""
 import argparse
 import json
 import zipfile
