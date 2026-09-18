@@ -126,12 +126,13 @@ def _curve_quote(rpc,candidate,side,amount,gas_units,store,label):
 
 def _wait_curve_quote(rpc,candidate,side,amount,gas_units,store,label,min_event_at,seconds=20):
     deadline=time.monotonic()+seconds
-    last=None
+    last=None;attempt=0
     while time.monotonic()<deadline:
+        scoped_label=f"{label}-{attempt}";attempt+=1
         try:
-            quote,meta=_curve_quote(rpc,candidate,side,amount,gas_units,store,label)
+            quote,meta=_curve_quote(rpc,candidate,side,amount,gas_units,store,scoped_label)
             if quote.stamp.event_at>=min_event_at:
-                return quote,meta,Finality(store,scope="paper-"+label,max_blocks=4)
+                return quote,meta,Finality(store,scope="paper-"+scoped_label,max_blocks=4)
             last="pre_delay_quote"
         except BoundaryError as exc:
             last=str(exc)
