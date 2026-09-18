@@ -83,21 +83,21 @@ def _distance_to_range_bps(placement_state, bin_id, lower, upper):
     if lower <= bin_id <= upper:
         return 0.0
     edge = lower if bin_id < lower else upper
-    p0 = dlmm.price(edge, state["step"])
-    p1 = dlmm.price(bin_id, state["step"])
+    p0 = dlmm.price(edge, placement_state["step"])
+    p1 = dlmm.price(bin_id, placement_state["step"])
     return abs(p1 - p0) * 10_000 / p0
 
 
 def _event_sol_value(history_start, event, key):
     bid = event["observed"]["start"]
-    token = state["x"] if event["for_y"] else state["y"]
-    return pit._to_sol(state, event[key], token, bid)
+    token = history_start["x"] if event["for_y"] else history_start["y"]
+    return pit._to_sol(history_start, event[key], token, bid)
 
 
 def _event_fee_sol(history_start, event):
     bid = event["observed"]["start"]
-    token = state["x"] if event["for_y"] else state["y"]
-    return pit._to_sol(state, event["observed"]["fee"], token, bid)
+    token = history_start["x"] if event["for_y"] else history_start["y"]
+    return pit._to_sol(history_start, event["observed"]["fee"], token, bid)
 
 
 def _range_liquidity_sol(state, ids):
