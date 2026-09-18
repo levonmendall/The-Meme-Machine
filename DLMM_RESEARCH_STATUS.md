@@ -432,3 +432,15 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Strategy, range placement, 35-bps hurdle, 12-second warmup, 60-second outcome horizon, MAX_TRANSACTIONS=16, Alchemy pacing/budgets, paper-only authority, and disabled allocation are unchanged.
 - Exact-head CI run `35368617972` passed the full unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
 - This marker authorizes exactly one unchanged development batch for final natural validation of routed host-fee attribution.
+
+
+## DLMM host-fee terminal-conservation fallback — live validation
+
+- Host-fee reconstruction repair is pinned at `ab4f78d8f5ada03d6048a1bcf8a64bb8cfa3abce`.
+- Standalone host-fee occurrence parsing remains strict: it still requires exact recipient SPL-transfer or token-balance evidence.
+- Complete interval reconstruction may defer recipient-account evidence only when those rows are missing or the net recipient delta is confounded. In that case, the program-authenticated host-fee event plus exact terminal pool reserve/protocol-fee equality is the authoritative conservation proof.
+- Exact attributable SPL transfers remain preferred and contradictory transfer evidence still fails. Wrong token identity still fails immediately. A spoofed host-fee event still fails terminal reconstruction.
+- This removes a metadata-availability veto without weakening pool-state correctness; the separate live JUP recipient-delta occurrence proof remains preserved.
+- Strategy, range placement, 35-bps hurdle, 12-second warmup, 60-second horizon, MAX_TRANSACTIONS=16, Alchemy pacing/budgets, paper-only authority, and disabled allocation remain unchanged.
+- Exact-head CI run `35370152998` passed unit discovery, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
+- This marker authorizes exactly one unchanged development batch for natural validation.
