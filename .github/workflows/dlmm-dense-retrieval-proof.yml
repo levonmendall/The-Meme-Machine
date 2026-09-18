@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     concurrency:
-      group: solana-public-rpc-live
+      group: dlmm-alchemy-solana-live
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -19,9 +19,13 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Validate Alchemy Solana route
+        env:
+          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL || secrets.MM_SOLANA_READ_RPC_URL }}
+        run: python -m tests.dlmm_alchemy_provider
       - name: Recover and serialize exact dense interval
         env:
-          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL || secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_dense_retrieval_probe
       - name: Preserve dense retrieval proof
         if: always()
