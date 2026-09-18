@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     concurrency:
-      group: solana-public-rpc-live
+      group: dlmm-alchemy-solana-live
       cancel-in-progress: false
     env:
       MM_DLMM_STRATEGY_REPORT: dlmm-profitability-development.json
@@ -21,11 +21,15 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Validate Alchemy Solana route
+        env:
+          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL || secrets.MM_SOLANA_READ_RPC_URL }}
+        run: python -m tests.dlmm_alchemy_provider
       - name: Economic strategy research regressions
         run: python -m unittest tests.test_dlmm_strategy_point_in_time tests.test_dlmm_strategy_high_activity tests.test_dlmm_dense_acquisition tests.test_dlmm_strategy_economics tests.test_dlmm_strategy_development_analysis tests.test_dlmm_profitability_pilot -v
       - name: Development sample with real 60-second holding horizon
         env:
-          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL || secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_profitability_pilot --target-completed 6 --max-attempted-pools 12 --warmup-seconds 12 --holding-seconds 60 --study-phase development
       - name: Preserve development sample
         if: always()
@@ -41,7 +45,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     concurrency:
-      group: solana-public-rpc-live
+      group: dlmm-alchemy-solana-live
       cancel-in-progress: false
     env:
       MM_DLMM_STRATEGY_REPORT: dlmm-profitability-holdout.json
@@ -51,11 +55,15 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Validate Alchemy Solana route
+        env:
+          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL || secrets.MM_SOLANA_READ_RPC_URL }}
+        run: python -m tests.dlmm_alchemy_provider
       - name: Frozen-rule holdout regressions
         run: python -m unittest tests.test_dlmm_strategy_economics tests.test_dlmm_profitability_pilot -v
       - name: Holdout sample with frozen rule only
         env:
-          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL || secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_profitability_pilot --target-completed 6 --max-attempted-pools 12 --warmup-seconds 12 --holding-seconds 60 --study-phase holdout
       - name: Preserve holdout sample
         if: always()
