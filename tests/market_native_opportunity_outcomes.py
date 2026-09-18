@@ -32,11 +32,12 @@ from meme_machine.market_native_priority import (
 from meme_machine.market_native_runtime import MarketNativeAuthority
 from meme_machine.market_native_shadow import discover_market_native
 from meme_machine.outcome_research import (
-    DEFAULT_HORIZONS, enable_shadow_exit, liquidity_floor_eligibility,
+    DEFAULT_HORIZONS, enable_shadow_exit, high_density_features, liquidity_floor_eligibility,
     new_tracker, observe_trade, summarize_liquidity_counterfactual,
     summarize_post_exit_tail, summarize_trackers,
 )
 from meme_machine.provider import RPC, PumpAdapter, Unavailable
+from meme_machine.research import CURRENT_THRESHOLDS
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 
@@ -45,12 +46,14 @@ GENESIS_SOL_USD_MICROS=97_840_000
 GENESIS_SOURCE='2026-09-17 market-native opportunity outcome research; no order authority'
 DISCOVERY_SECONDS=max(600,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_DISCOVERY_SECONDS','3300')),3300))
 FOLLOWUP_SECONDS=max(300,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_FOLLOWUP_SECONDS','3600')),3600))
-NATURAL_BUDGET=max(50,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_NATURAL_BUDGET','60')),60))
+NATURAL_BUDGET=max(10,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_NATURAL_BUDGET','60')),60))
 PRIORITY_BUDGET=max(1,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_PRIORITY_BUDGET','90')),90))
+EXTRA_EVIDENCE_BUDGET=max(0,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_EXTRA_EVIDENCE_BUDGET','45')),90))
 NATURAL_SLOT_SECONDS=max(1,math.ceil(DISCOVERY_SECONDS/NATURAL_BUDGET))
 PRIORITY_SLOT_SECONDS=priority_slot_seconds(DISCOVERY_SECONDS,PRIORITY_BUDGET)
 MAX_DISCOVERED=5_000
 ROTATE_AT=205
+CONCENTRATION_ROTATE_AT=32
 
 
 def _save(report):
@@ -91,7 +94,10 @@ class EvidenceSessions:
         self.sessions.append(dict(started=int(time.time()),reason=reason))
 
     def maybe_rotate(self):
-        if self.rpc.calls>=ROTATE_AT:
+        concentration=self.reader.status() if self.reader is not None else {}
+        if int(concentration.get('program_scan_logical_requests',0))>=CONCENTRATION_ROTATE_AT:
+            self.rotate('bounded_concentration_reader_rotation')
+        elif self.rpc.calls>=ROTATE_AT:
             self.rotate('bounded_research_rpc_rotation')
 
     def finish(self):
@@ -148,6 +154,54 @@ def _evaluate_natural(candidate,tape,evidence,authority,engine):
     return row,tracker
 
 
+
+def _evaluate_extra_preflight(candidate,metric,tape,evidence,authority):
+    nomination=dict(candidate['nomination']);nomination['discovery_source']='market_native'
+    row=dict(
+        mint=candidate['mint'],nomination_id=nomination['id'],
+        cohort='feasible_unpreflighted_extra_evidence',
+        research_only=True,order_authority=False,preflight_complete=False,
+        full_evidence_complete=False,stream_feasibility=metric.to_dict(),
+    )
+    try:
+        evidence.maybe_rotate()
+        now=int(time.time())
+        snap=evidence.adapter.snapshot(candidate['mint'],now,priority=True)
+        now=int(time.time())
+        if not tape.covered(now):
+            raise Unavailable('incomplete_market_window')
+        events=tape.window(candidate['mint'],now,max_slot=snap['slot'])
+        pre=authority.vector(
+            nomination,dict(snapshot=snap,events=events,covered=True,concentration_bps=0),now)
+        row.update(
+            preflight_complete=True,
+            preflight_reason=(None if pre.get('actual_reason')=='qualified' else pre.get('actual_reason')),
+            preflight_vector=pre,
+        )
+        if pre.get('actual_reason')!='qualified':
+            return row
+        concentration,meta=evidence.reader.read(candidate['mint'],snap,priority=True)
+        final=evidence.adapter.snapshot(candidate['mint'],int(time.time()),priority=True)
+        qualified_at=int(time.time())
+        if not tape.covered(qualified_at):
+            raise Unavailable('incomplete_market_window')
+        events=tape.window(candidate['mint'],qualified_at,max_slot=final['slot'])
+        vector=authority.vector(
+            nomination,dict(snapshot=final,events=events,covered=True,
+                            concentration_bps=concentration),qualified_at)
+        row.update(
+            full_evidence_complete=True,qualified_at=qualified_at,
+            actual_reason=vector.get('actual_reason'),qualification_vector=vector,
+            concentration_bps=concentration,concentration_source=meta.get('source'),
+        )
+        return row
+    except (Unavailable,ValueError,KeyError,TypeError) as exc:
+        row.update(
+            actual_reason='unavailable_executable_evidence',
+            limitation=str(exc) or type(exc).__name__,
+        )
+        return row
+
 def main():
     started=int(time.time())
     report=dict(
@@ -158,8 +212,10 @@ def main():
         discovery_seconds=DISCOVERY_SECONDS,followup_seconds=FOLLOWUP_SECONDS,
         natural_sample_budget=NATURAL_BUDGET,natural_slot_seconds=NATURAL_SLOT_SECONDS,
         priority_budget=PRIORITY_BUDGET,priority_slot_seconds=PRIORITY_SLOT_SECONDS,
+        extra_evidence_budget=EXTRA_EVIDENCE_BUDGET,
+        frozen_entry_thresholds=dict(CURRENT_THRESHOLDS),entry_thresholds_unchanged=True,
         outcome_horizons=list(DEFAULT_HORIZONS),started=started,limitations=[],
-        natural_results=[],cohort_trackers=[],
+        natural_results=[],extra_evidence_results=[],cohort_trackers=[],
     )
     _save(report)
 
@@ -170,6 +226,7 @@ def main():
 
     discovered=set();slot_rows=defaultdict(list);stream_rejections=Counter()
     high_density_seen=set();natural_slots=set();natural_results=[]
+    extra_evidence_results=[];extra_evidence_attempted=0
     trackers=[];trackers_by_mint=defaultdict(list)
     cursor=None;coverage_ready_at=None;last_priority_flush=-1
     discovery_finished_at=None
@@ -178,6 +235,7 @@ def main():
         trackers.append(row);trackers_by_mint[row['mint']].append(row)
 
     def process_priority_slot(slot,now):
+        nonlocal extra_evidence_attempted
         rows=slot_rows.pop(slot,[])
         refreshed=[]
         for candidate,_old in rows:
@@ -189,19 +247,32 @@ def main():
                 if metric.guaranteed_rejection=='evidence_capacity' and candidate['mint'] not in high_density_seen:
                     high_density_seen.add(candidate['mint'])
                     num,den,_origin=_event_baseline(candidate)
+                    window=tape.window(candidate['mint'],now)
                     add_tracker(new_tracker(candidate['mint'],now,num,den,['high_density'],
                                             nomination_id=candidate['nomination']['id'],
                                             metadata={'evidence_events':metric.evidence_events,
-                                                      'source':'priority_slot_recheck'}))
+                                                      'source':'priority_slot_recheck',
+                                                      'high_density_features':high_density_features(window,now)}))
         chosen=choose_slot_candidate(refreshed)
         chosen_id=None if chosen is None else chosen[0]['nomination']['id']
+        unselected=[]
         for candidate,metric in refreshed:
             num,den,origin=_event_baseline(candidate)
-            cohort='priority_selected' if candidate['nomination']['id']==chosen_id else 'feasible_unpreflighted'
+            selected=candidate['nomination']['id']==chosen_id
+            cohort='priority_selected' if selected else 'feasible_unpreflighted'
             add_tracker(new_tracker(
                 candidate['mint'],origin,num,den,[cohort],
                 nomination_id=candidate['nomination']['id'],
                 metadata={'stream_feasibility':metric.to_dict(),'priority_slot':slot}))
+            if not selected:
+                unselected.append((candidate,metric))
+        if extra_evidence_attempted<EXTRA_EVIDENCE_BUDGET and unselected:
+            candidate,metric=min(unselected,key=lambda row:row[1].priority_key())
+            extra_evidence_attempted+=1
+            result=_evaluate_extra_preflight(candidate,metric,tape,evidence,authority)
+            result['priority_slot']=slot
+            result['extra_evidence_sequence']=extra_evidence_attempted
+            extra_evidence_results.append(result)
 
     with tempfile.TemporaryDirectory() as td:
         store=Store(str(Path(td)/'outcomes.db'),'prospective',GENESIS_SOL_USD_MICROS,GENESIS_SOURCE)
@@ -248,7 +319,8 @@ def main():
                                     base=max(window,key=lambda e:(e['market_time'],e['slot'],e.get('index',0)))
                                     add_tracker(new_tracker(
                                         mint,now,base['amount'],base['tokens'],['high_density'],
-                                        metadata={'evidence_events':len(window),'source':'finalized_stream'}))
+                                        metadata={'evidence_events':len(window),'source':'finalized_stream',
+                                                  'high_density_features':high_density_features(window,now)}))
 
                             native=discover_market_native(fresh,tape,now,discovered)
                             for candidate in native:
@@ -287,7 +359,8 @@ def main():
                             natural_complete=sum(r.get('evidence_stage')=='complete' for r in natural_results),
                             high_density_candidates=len(high_density_seen),
                             stream_guaranteed_rejections=dict(stream_rejections),
-                            tracked_candidates=len(trackers),
+                            tracked_candidates=len(trackers),extra_evidence_attempted=extra_evidence_attempted,
+                            extra_evidence_results=extra_evidence_results,
                         )
                         _save(report)
                     stop.wait(0.25)
@@ -299,6 +372,11 @@ def main():
                     row['future_outcomes']=trackers[idx]
             report.update(
                 ended=ended,discovered=len(discovered),natural_results=natural_results,
+                extra_evidence_results=extra_evidence_results,
+                extra_evidence_attempted=extra_evidence_attempted,
+                extra_preflight_complete=sum(r.get('preflight_complete') for r in extra_evidence_results),
+                extra_full_evidence_complete=sum(r.get('full_evidence_complete') for r in extra_evidence_results),
+                extra_qualified=sum(r.get('actual_reason')=='qualified' for r in extra_evidence_results),
                 natural_complete=sum(r.get('evidence_stage')=='complete' for r in natural_results),
                 natural_sample_ready=sum(r.get('evidence_stage')=='complete' for r in natural_results)>=50,
                 high_density_candidates=len(high_density_seen),
@@ -317,6 +395,10 @@ def main():
         discovered=report['discovered'],natural_complete=report['natural_complete'],
         natural_sample_ready=report['natural_sample_ready'],
         high_density_candidates=report['high_density_candidates'],
+        extra_evidence_attempted=report['extra_evidence_attempted'],
+        extra_preflight_complete=report['extra_preflight_complete'],
+        extra_full_evidence_complete=report['extra_full_evidence_complete'],
+        extra_qualified=report['extra_qualified'],
         cohort_counts={k:v['count'] for k,v in report['cohort_summary'].items()},
         limitations=report['limitations'],
     ),sort_keys=True))
