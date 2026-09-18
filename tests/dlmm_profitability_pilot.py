@@ -20,6 +20,7 @@ import argparse
 from collections import Counter
 import json
 import os
+from pathlib import Path
 import statistics
 import time
 import urllib.error
@@ -48,6 +49,8 @@ DEFAULT_WARMUP_SECONDS = 12
 OUTCOME_SEGMENT_SECONDS = 12
 DISCOVERY_RPC_LIMIT = 120
 PER_POOL_RPC_LIMIT = 240
+DEVELOPMENT_LEDGER_PATH = Path("tests/fixtures/dlmm_development_observation_ledger.json")
+DEVELOPMENT_LEDGER_TARGET = 30
 
 run.CHUNK_SECONDS = 2
 run._capture_chunk = boundary.capture_chunk
@@ -500,6 +503,73 @@ def _fresh_supported_start(adapter, candidate):
     return state
 
 
+def _hurdle_progress(economic_candidates):
+    rows=[]
+    for candidate in economic_candidates or []:
+        features=candidate.get("features") or {}
+        capture=features.get("projected_60s_range_fee_capture_lamports")
+        surplus=features.get("projected_60s_range_fee_surplus_lamports")
+        if capture is None or surplus is None:
+            continue
+        rows.append((float(surplus),float(capture),candidate))
+    if not rows:
+        return None
+    surplus,capture,best=max(rows,key=lambda row:row[0])
+    fixed=float(ENTRY_COST+EXIT_COST)
+    gap=max(0.0,fixed-capture)
+    return dict(
+        best_target_distance_bps=best.get("target_distance_bps"),
+        best_width=best.get("width"),
+        best_actual_distance_bps=best.get("actual_distance_bps"),
+        best_projected_fee_capture_lamports=capture,
+        best_projected_surplus_lamports=surplus,
+        hurdle_gap_lamports=gap,
+        hurdle_gap_bps=gap/CAPITAL*10_000,
+        fee_hurdle_coverage_ratio=(0.0 if fixed<=0 else capture/fixed),
+        fixed_cost_lamports=fixed,
+    )
+
+
+def _load_development_ledger():
+    if not DEVELOPMENT_LEDGER_PATH.exists():
+        return []
+    body=json.loads(DEVELOPMENT_LEDGER_PATH.read_text())
+    if body.get("kind")!="dlmm_development_observation_ledger_v1":
+        raise ValueError("dlmm_development_ledger_kind")
+    if int(body.get("target_completed_observations",0))!=DEVELOPMENT_LEDGER_TARGET:
+        raise ValueError("dlmm_development_ledger_target")
+    rows=body.get("observations")
+    if not isinstance(rows,list):
+        raise ValueError("dlmm_development_ledger_shape")
+    return rows
+
+
+def _observation_key(row):
+    return (row.get("pool"),row.get("entry_slot"),row.get("end_slot"))
+
+
+def _opportunity_ledger_row(opportunity):
+    progress=opportunity.get("economic_hurdle_progress") or {}
+    return dict(
+        run_id=None,
+        pool=opportunity.get("pool"),
+        entry_slot=opportunity.get("entry_slot"),
+        end_slot=opportunity.get("end_slot"),
+        selected=bool(opportunity.get("selected")),
+        **progress,
+    )
+
+
+def _merge_development_observations(prior,current):
+    merged={}
+    for row in list(prior)+list(current):
+        key=_observation_key(row)
+        if not key[0] or type(key[1]) is not int or type(key[2]) is not int:
+            raise ValueError("dlmm_development_ledger_observation_identity")
+        merged[key]=dict(row)
+    return list(merged.values())
+
+
 def _evaluate_completed_window(
     cycle,
     address,
@@ -514,6 +584,7 @@ def _evaluate_completed_window(
 ):
     broad_features = research.regime_features(warm_start, warm)
     legacy_choice = research.select_variant(broad_features)
+    hurdle_progress = _hurdle_progress(economic_candidates)
     opportunity = dict(
         cycle=cycle,
         pool=address,
@@ -537,6 +608,7 @@ def _evaluate_completed_window(
         selected=economic_choice,
         legacy_width8_comparator=legacy_choice,
         economic_candidates=economic_candidates,
+        economic_hurdle_progress=hurdle_progress,
     )
 
     # Existing foundation_spot and sdk_bidask WIDTHS remain untouched shadow
@@ -710,6 +782,7 @@ def _attempt_candidate(
 
     attempt["pre_entry_economic_choice"] = economic_choice
     attempt["pre_entry_economic_candidates"] = economic_candidates
+    attempt["pre_entry_hurdle_progress"] = _hurdle_progress(economic_candidates)
 
     # Development deliberately observes later outcomes even when the provisional
     # economic case rejects entry. Those rejected labels are required to define a
@@ -1047,6 +1120,55 @@ def run_live(
         if phase
     )
     sample_complete = completed >= target_completed
+    current_hurdle_rows=[
+        dict(
+            pool=item["pool"],
+            entry_slot=item["entry_slot"],
+            end_slot=item["end_slot"],
+            **(item.get("economic_hurdle_progress") or {}),
+        )
+        for item in report["opportunities"]
+        if item.get("economic_hurdle_progress")
+    ]
+    prior_development_rows=(
+        _load_development_ledger() if study_phase=="development" else []
+    )
+    current_ledger_rows=(
+        [_opportunity_ledger_row(item) for item in report["opportunities"]]
+        if study_phase=="development" else []
+    )
+    cumulative_development_rows=(
+        _merge_development_observations(prior_development_rows,current_ledger_rows)
+        if study_phase=="development" else []
+    )
+    cumulative_gaps=[
+        float(item["hurdle_gap_lamports"])
+        for item in cumulative_development_rows
+        if item.get("hurdle_gap_lamports") is not None
+    ]
+    cumulative_captures=[
+        float(item["best_projected_fee_capture_lamports"])
+        for item in cumulative_development_rows
+        if item.get("best_projected_fee_capture_lamports") is not None
+    ]
+    closest_hurdle_observation=(
+        None if not cumulative_development_rows else min(
+            (
+                item for item in cumulative_development_rows
+                if item.get("hurdle_gap_lamports") is not None
+            ),
+            key=lambda item:float(item["hurdle_gap_lamports"]),
+            default=None,
+        )
+    )
+    cumulative_development_distinct_pools=len({
+        item["pool"] for item in cumulative_development_rows
+    })
+    cumulative_rule_freeze_review_eligible=(
+        study_phase=="development"
+        and len(cumulative_development_rows)>=economics.DEVELOPMENT_MIN_COMPLETED
+        and cumulative_development_distinct_pools>=economics.DEVELOPMENT_MIN_DISTINCT_POOLS
+    )
     selected_pool_count = len({
         item["pool"] for item in report["selected_results"]
     })
@@ -1075,6 +1197,39 @@ def run_live(
             bool(item.get("completed_window"))
             and not bool(item.get("strategy_selected"))
             for item in report["attempts"]
+        ),
+        development_observation_hurdle_progress=current_hurdle_rows,
+        development_prior_completed_observations=(
+            len(prior_development_rows) if study_phase=="development" else None
+        ),
+        development_cumulative_target=(
+            DEVELOPMENT_LEDGER_TARGET if study_phase=="development" else None
+        ),
+        development_cumulative_completed_observations=(
+            len(cumulative_development_rows) if study_phase=="development" else None
+        ),
+        development_cumulative_remaining_observations=(
+            max(0,DEVELOPMENT_LEDGER_TARGET-len(cumulative_development_rows))
+            if study_phase=="development" else None
+        ),
+        development_cumulative_distinct_pools=(
+            cumulative_development_distinct_pools
+            if study_phase=="development" else None
+        ),
+        development_cumulative_rule_freeze_review_eligible=(
+            cumulative_rule_freeze_review_eligible
+            if study_phase=="development" else None
+        ),
+        development_cumulative_median_hurdle_gap_lamports=(
+            statistics.median(cumulative_gaps)
+            if study_phase=="development" and cumulative_gaps else None
+        ),
+        development_cumulative_best_projected_fee_capture_lamports=(
+            max(cumulative_captures)
+            if study_phase=="development" and cumulative_captures else None
+        ),
+        development_closest_hurdle_observation=(
+            closest_hurdle_observation if study_phase=="development" else None
         ),
         completed_window_count=completed,
         completed_window_target_met=sample_complete,
