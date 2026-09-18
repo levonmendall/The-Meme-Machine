@@ -338,3 +338,15 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Regression coverage proves that a first candidate can exhaust all 240 calls and a second candidate still proceeds and completes under a separate budget.
 - Exact-head CI run `35307817593` passed the full unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
 - This marker authorizes exactly one rerun of the unchanged DLMM economic-strategy development batch to compare provider 429 behavior and obtain complete 60-second labels if available.
+
+
+## DLMM economic strategy development sample 2 result / sample 3 authorization
+
+- Repaired acquisition run `35307948159` completed successfully on `ff5d056e928d0aa8d4f8a7886d7a5580f8db7bc3`.
+- Artifact `10532511355` has SHA256 `198228ec61b504f50fb63a9c69b9983011e64aaac2a23d9761742419b895a119`.
+- The Alchemy pacing repair eliminated HTTP 429s in this batch: `43 -> 0` versus development sample 1. Aggregate retries fell `38 -> 1`; provider failures fell `43 -> 3`.
+- No candidate exhausted its independent 240-call budget; `per_candidate_budget_exhaustion_count=0`. The batch completed 9 supported attempts using 208 logical calls / 202 HTTP requests, proving the old shared-240-call batch bottleneck is removed.
+- Physical pacing telemetry: 1.0-second minimum request interval, 202 paced requests, approximately 98.43 seconds of aggregate throttle sleep.
+- No 60-second development label completed in this particular market sample because the candidate mix was: 3 over-verification-capacity warmups, 4 verified zero-swap warmups, 1 provider-body failure, and 1 fail-closed host-fee balance-delta verification mismatch.
+- These terminal outcomes are not strategy losses and do not re-open the repaired 429/budget issue. Selected trades and completed outcomes remain zero.
+- This marker authorizes exactly one additional unchanged development batch under the repaired acquisition path to seek a naturally occurring certifiable nonzero warmup and prove a full 60-second label can complete.
