@@ -1,1 +1,2 @@
 Rerun identical Ramses frozen state-watch proof from ad1f30d85e2b2cd968864cb5f7b3d9d6463c8af6; variable-state carry fixed and regression-covered. Eight-pool cohort remains frozen pre-outcome; 35-bps hurdle and all identity/finality/state rules unchanged.
+Current-head execution trigger: ad1f30d85e2b2cd968864cb5f7b3d9d6463c8af6.
