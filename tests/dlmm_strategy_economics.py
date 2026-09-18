@@ -79,7 +79,7 @@ def _path_intersects_range(start_bin, end_bin, lower, upper):
     return hi >= lower and lo <= upper
 
 
-def _distance_to_range_bps(state, bin_id, lower, upper):
+def _distance_to_range_bps(placement_state, bin_id, lower, upper):
     if lower <= bin_id <= upper:
         return 0.0
     edge = lower if bin_id < lower else upper
@@ -88,13 +88,13 @@ def _distance_to_range_bps(state, bin_id, lower, upper):
     return abs(p1 - p0) * 10_000 / p0
 
 
-def _event_sol_value(state, event, key):
+def _event_sol_value(history_start, event, key):
     bid = event["observed"]["start"]
     token = state["x"] if event["for_y"] else state["y"]
     return pit._to_sol(state, event[key], token, bid)
 
 
-def _event_fee_sol(state, event):
+def _event_fee_sol(history_start, event):
     bid = event["observed"]["start"]
     token = state["x"] if event["for_y"] else state["y"]
     return pit._to_sol(state, event["observed"]["fee"], token, bid)
@@ -109,16 +109,23 @@ def _range_liquidity_sol(state, ids):
     return total
 
 
-def range_specific_features(state, warmup, strategy, width):
-    """Features known at entry time for exactly the proposed liquidity range."""
+def range_specific_features(history_start, warmup, strategy, width, placement_state=None):
+    """Features known at entry time for exactly the proposed liquidity range.
+
+    The proposed range is anchored to placement_state (the authenticated entry
+    snapshot after warmup). Warmup events remain historical evidence only. The exact
+    same-width warmup counterfactual is evaluated from history_start because only that
+    state can legitimately anchor the verified historical tape.
+    """
     if not isinstance(warmup, VerifiedTape):
         raise TypeError("dlmm_economic_verified_warmup_required")
     if strategy not in pit.STRATEGIES:
         raise ValueError("dlmm_economic_strategy")
-    ids = pit._range_ids(state, width)
+    placement_state = history_start if placement_state is None else placement_state
+    ids = pit._range_ids(placement_state, width)
     lower, upper = min(ids), max(ids)
     events = list(warmup.events)
-    range_liquidity = _range_liquidity_sol(state, ids)
+    range_liquidity = _range_liquidity_sol(placement_state, ids)
 
     touch_swaps = touch_volume = touch_fees = 0
     approach = {
@@ -137,11 +144,11 @@ def range_specific_features(state, warmup, strategy, width):
     for event in events:
         start_bin = event["observed"]["start"]
         end_bin = event["observed"]["end"]
-        volume = _event_sol_value(state, event, "amount")
-        fee = _event_fee_sol(state, event)
+        volume = _event_sol_value(history_start, event, "amount")
+        fee = _event_fee_sol(history_start, event)
         intersects = _path_intersects_range(start_bin, end_bin, lower, upper)
-        d0 = _distance_to_range_bps(state, start_bin, lower, upper)
-        d1 = _distance_to_range_bps(state, end_bin, lower, upper)
+        d0 = _distance_to_range_bps(placement_state, start_bin, lower, upper)
+        d1 = _distance_to_range_bps(placement_state, end_bin, lower, upper)
         min_distance = 0.0 if intersects else min(d0, d1)
 
         if intersects:
@@ -192,13 +199,15 @@ def range_specific_features(state, warmup, strategy, width):
     )
     drift_ratio = 0.0 if near_travel <= 0 else net_drift / near_travel
 
-    warmup_eval = pit.evaluate(state, warmup, strategy, width)
+    warmup_eval = pit.evaluate(history_start, warmup, strategy, width)
     gross_fee = (
         int(warmup_eval.get("gross_fee_value_lamports", 0))
         if warmup_eval.get("resolved")
         else 0
     )
-    observed_seconds = max(1, int(warmup.terminal["time"]) - int(state["time"]))
+    observed_seconds = max(
+        1, int(warmup.terminal["time"]) - int(history_start["time"])
+    )
     projected_60s_fee = gross_fee * HOLD_SECONDS / observed_seconds
     projected_surplus = projected_60s_fee - FIXED_COST
 
@@ -207,7 +216,9 @@ def range_specific_features(state, warmup, strategy, width):
         width=width,
         lower=lower,
         upper=upper,
-        range_distance_bps=width_distance_bps(state, width),
+        range_distance_bps=width_distance_bps(placement_state, width),
+        placement_active_bin=placement_state["active"],
+        warmup_start_active_bin=history_start["active"],
         range_liquidity_sol_lamports=range_liquidity,
         range_touch_swaps=touch_swaps,
         range_touch_volume_sol_lamports=touch_volume,
@@ -262,10 +273,11 @@ def development_economic_case(features):
     )
 
 
-def development_candidates(state, warmup):
+def development_candidates(history_start, warmup, placement_state=None):
+    placement_state = history_start if placement_state is None else placement_state
     rows = []
     seen = set()
-    for placement in normalized_placements(state):
+    for placement in normalized_placements(placement_state):
         key = (placement["strategy"], placement["width"])
         # Multiple target distances can map to the same integer width on coarse pools.
         # Keep the closest declared target once, while preserving actual distance.
@@ -273,15 +285,21 @@ def development_candidates(state, warmup):
             continue
         seen.add(key)
         features = range_specific_features(
-            state, warmup, placement["strategy"], placement["width"]
+            history_start,
+            warmup,
+            placement["strategy"],
+            placement["width"],
+            placement_state=placement_state,
         )
         gate = development_economic_case(features)
         rows.append(dict(**placement, features=features, economic_case=gate))
     return rows
 
 
-def select_development_candidate(state, warmup):
-    rows = development_candidates(state, warmup)
+def select_development_candidate(history_start, warmup, placement_state=None):
+    rows = development_candidates(
+        history_start, warmup, placement_state=placement_state
+    )
     eligible = [row for row in rows if row["economic_case"]["passes"]]
     if not eligible:
         return None, rows
@@ -327,12 +345,23 @@ def load_frozen_rule(path=RULE_PATH):
     return body
 
 
-def select_holdout_candidate(state, warmup, observation_started, rule):
+def select_holdout_candidate(
+    history_start, warmup, observation_started, rule, placement_state=None
+):
     """Apply one already-frozen development rule without fitting on holdout."""
     if observation_started <= int(rule["frozen_at"]):
         raise Unavailable("dlmm_holdout_observation_not_post_freeze")
-    width = normalized_width(state, int(rule["target_distance_bps"]))
-    features = range_specific_features(state, warmup, rule["strategy"], width)
+    placement_state = history_start if placement_state is None else placement_state
+    width = normalized_width(
+        placement_state, int(rule["target_distance_bps"])
+    )
+    features = range_specific_features(
+        history_start,
+        warmup,
+        rule["strategy"],
+        width,
+        placement_state=placement_state,
+    )
     fee_ok = (
         features["projected_60s_fee_surplus_lamports"]
         >= int(rule["min_projected_60s_fee_surplus_lamports"])
@@ -358,7 +387,7 @@ def select_holdout_candidate(state, warmup, observation_started, rule):
         strategy=rule["strategy"],
         width=width,
         target_distance_bps=int(rule["target_distance_bps"]),
-        actual_distance_bps=width_distance_bps(state, width),
+        actual_distance_bps=width_distance_bps(placement_state, width),
         rule="frozen_holdout_rule_v1",
         study_phase="holdout",
         economic_features=features,
