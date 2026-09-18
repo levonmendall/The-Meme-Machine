@@ -2,3 +2,4 @@ Prospective skilled-wallet collector trigger.
 Initial collection pass: run 35350999133, natural_buy_count=0, stage=collecting.
 Manual continuation trigger after initial zero-event pass.
 State-recovery serialization defect repaired in d8547e0396e807841b6acb46abfd88f70b2856c6.
+Pump.fun/PumpSwap-only sample boundary enforced before first processed hour.
