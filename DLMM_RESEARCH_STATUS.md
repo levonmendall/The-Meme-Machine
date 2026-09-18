@@ -171,3 +171,19 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Prior run 35295933429 stopped before any live RPC call because the regression module path was misspelled in the workflow.
 - The regression target is corrected to `tests.test_dlmm_host_fee`; no strategy/core/verifier behavior changed.
 - This marker authorizes the originally intended single 12-second current JUP-SOL host-fee proof. No additional retry is authorized by this marker.
+
+
+## JUP-SOL current host-fee proof result
+
+- Corrected live run `35296043555` reached the current JUP-SOL market with zero provider failures/retries.
+- The initial predictive pressure census observed 17 successful transactions after the authenticated start slot before an endpoint could be captured.
+- The unchanged `MAX_TRANSACTIONS=16` guard correctly failed closed with `dlmm_transaction_pressure_overflow`; no transaction body or host-fee evidence was fabricated or dropped.
+- This is a market-density/acquisition boundary, not a host-fee accounting failure. No retry is launched against JUP-SOL.
+
+## Profitability research batch 1
+
+- Begin the first bounded multi-pool profitability batch using current finalized SOL-paired discovery, up to three supported pools, one 12-second warmup and one 12-second outcome per surviving pool.
+- Existing strategy grid, fixed selected `sdk_bidask` width 8, costs, finality, predictive chunking, `MAX_TRANSACTIONS=16`, and allocation disabled remain unchanged.
+- External LP mutations remain fail-closed in research; no state discontinuity is bridged.
+- A verified nonzero host-fee event in any completed warmup/outcome will also close the remaining live host-fee occurrence sub-proof.
+- This marker authorizes exactly one profitability pilot batch.
