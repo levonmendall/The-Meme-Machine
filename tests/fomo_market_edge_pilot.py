@@ -7,10 +7,10 @@ or changes qualification.
 Design:
 - take the first eligible FOMO feed BUY per unique Solana token in the recent feed;
 - use the next full minute open as the actionable event entry (conservative);
-- measure 5m/15m/60m forward returns and 60m MFE/MAE;
+- measure 1m/5m/15m forward returns and 15m MFE/MAE;
 - for each token, choose an earlier non-FOMO control minute on the SAME TOKEN whose
   preceding 15m return is closest to the event's preceding 15m return;
-- require the control's 60m outcome to finish before the FOMO event vicinity;
+- require the control's 15m outcome to finish before the FOMO event vicinity;
 - compare event vs matched control with an exact paired sign-flip test.
 
 This is an exploratory pilot, not strategy authority or profitability proof.
@@ -34,12 +34,12 @@ FOMO_BASE = "https://api.fomoapi.io"
 GT_BASE = "https://api.geckoterminal.com/api/v2"
 REPORT = Path("fomo-market-edge-pilot.json")
 MAX_EVENTS = 12
-MIN_EVENT_AGE_MINUTES = 75
-MAX_EVENT_AGE_HOURS = 20
-CONTROL_LOOKBACK_HOURS = 7
-CONTROL_GAP_MINUTES = 90
+MIN_EVENT_AGE_MINUTES = 20
+MAX_EVENT_AGE_HOURS = 12
+CONTROL_LOOKBACK_HOURS = 4
+CONTROL_GAP_MINUTES = 30
 FOMO_EXCLUSION_MINUTES = 15
-HORIZONS = (5, 15, 60)
+HORIZONS = (1, 5, 15)
 
 
 def _get_json(url, headers=None, attempts=4):
@@ -100,6 +100,7 @@ def _fetch_fomo_alerts(key, now):
         "chain": "solana",
         "since": _iso(since),
         "limit": 100,
+        "type": "buy",
     })
     status, headers, body = _get_json(
         FOMO_BASE + "/v2/alerts?" + params,
@@ -178,13 +179,13 @@ def _top_pool(mint):
 
 
 def _ohlcv(mint, pool, event_ts):
-    before = event_ts + 65 * 60
+    before = event_ts + 20 * 60
     status, body = _gt_get(
         f"/networks/solana/pools/{pool}/ohlcv/minute",
         {
             "aggregate": 1,
             "before_timestamp": before,
-            "limit": 600,
+            "limit": 360,
             "currency": "usd",
             "token": mint,
         },
@@ -234,7 +235,7 @@ def _return_between(candles, start_ts, end_ts):
     return (e / s - 1.0) * 100.0
 
 
-def _mfe_mae(candles, entry_ts, entry_price, minutes=60):
+def _mfe_mae(candles, entry_ts, entry_price, minutes=15):
     if entry_price is None or entry_price <= 0:
         return None, None
     rows = [
@@ -264,10 +265,10 @@ def _matched_control(candles, event_entry_ts, event_pre15, all_event_times):
             continue
         if _near_fomo_event(ts, all_event_times):
             continue
-        # Need 15m prehistory and 60m forward data.
+        # Need 15m prehistory and 15m forward data.
         pre = _return_between(candles, ts - 15 * 60, ts)
-        fwd60 = _return_between(candles, ts, ts + 60 * 60)
-        if pre is None or fwd60 is None:
+        fwd15 = _return_between(candles, ts, ts + 15 * 60)
+        if pre is None or fwd15 is None:
             continue
         candidates.append((abs(pre - event_pre15), ts, pre))
     if not candidates:
@@ -280,9 +281,9 @@ def _matched_control(candles, event_entry_ts, event_pre15, all_event_times):
     }
     for h in HORIZONS:
         result[f"return_{h}m_pct"] = _return_between(candles, ts, ts + h * 60)
-    mfe, mae = _mfe_mae(candles, ts, entry, 60)
-    result["mfe_60m_pct"] = mfe
-    result["mae_60m_pct"] = mae
+    mfe, mae = _mfe_mae(candles, ts, entry, 15)
+    result["mfe_15m_pct"] = mfe
+    result["mae_15m_pct"] = mae
     return result
 
 
@@ -369,9 +370,9 @@ def main():
             value = _return_between(candles, entry_ts, entry_ts + h * 60)
             event_metrics[f"return_{h}m_pct"] = value
             complete = complete and value is not None
-        mfe, mae = _mfe_mae(candles, entry_ts, entry, 60)
-        event_metrics["mfe_60m_pct"] = mfe
-        event_metrics["mae_60m_pct"] = mae
+        mfe, mae = _mfe_mae(candles, entry_ts, entry, 15)
+        event_metrics["mfe_15m_pct"] = mfe
+        event_metrics["mae_15m_pct"] = mae
         complete = complete and mfe is not None and mae is not None and pre15 is not None
         if not complete:
             skipped.append({"symbol": event["symbol"], "reason": "incomplete_forward_or_pre_event_candles"})
@@ -415,8 +416,8 @@ def main():
             "exact_two_sided_signflip_p": _paired_signflip_p(diffs),
         }
 
-    mfe_diffs = [o["event"]["mfe_60m_pct"] - o["control"]["mfe_60m_pct"] for o in observations]
-    mae_diffs = [o["event"]["mae_60m_pct"] - o["control"]["mae_60m_pct"] for o in observations]
+    mfe_diffs = [o["event"]["mfe_15m_pct"] - o["control"]["mfe_15m_pct"] for o in observations]
+    mae_diffs = [o["event"]["mae_15m_pct"] - o["control"]["mae_15m_pct"] for o in observations]
 
     report = {
         "kind": "fomo_market_edge_pilot_v1",
@@ -438,13 +439,13 @@ def main():
         "matched_pairs": len(observations),
         "skipped": skipped,
         "comparisons": comparisons,
-        "path_metrics_60m": {
-            "event_mean_mfe_pct": _mean([o["event"]["mfe_60m_pct"] for o in observations]),
-            "control_mean_mfe_pct": _mean([o["control"]["mfe_60m_pct"] for o in observations]),
-            "paired_mean_mfe_edge_pct_points": _mean(mfe_diffs),
-            "event_mean_mae_pct": _mean([o["event"]["mae_60m_pct"] for o in observations]),
-            "control_mean_mae_pct": _mean([o["control"]["mae_60m_pct"] for o in observations]),
-            "paired_mean_mae_difference_pct_points": _mean(mae_diffs),
+        "path_metrics_15m": {
+            "event_mean_mfe_15m_pct": _mean([o["event"]["mfe_15m_pct"] for o in observations]),
+            "control_mean_mfe_15m_pct": _mean([o["control"]["mfe_15m_pct"] for o in observations]),
+            "paired_mean_mfe_15m_edge_pct_points": _mean(mfe_diffs),
+            "event_mean_mae_15m_pct": _mean([o["event"]["mae_15m_pct"] for o in observations]),
+            "control_mean_mae_15m_pct": _mean([o["control"]["mae_15m_pct"] for o in observations]),
+            "paired_mean_mae_15m_difference_pct_points": _mean(mae_diffs),
         },
         "observations": observations,
         "interpretation_guard": (
@@ -458,7 +459,7 @@ def main():
         "matched_pairs": report["matched_pairs"],
         "eligible_unique_buys_considered": report["eligible_unique_buys_considered"],
         "comparisons": report["comparisons"],
-        "path_metrics_60m": report["path_metrics_60m"],
+        "path_metrics_15m": report["path_metrics_15m"],
         "skipped": report["skipped"],
     }, indent=2, sort_keys=True))
     return 0 if observations else 3
