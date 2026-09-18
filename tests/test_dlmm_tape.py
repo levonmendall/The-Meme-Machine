@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from meme_machine import dlmm,pump
-from meme_machine.dlmm_tape import (transaction_swap,transaction_swaps,reconstruct,SWAP,SWAP2,EXACT_IN,EVENT_CPI,_un58_data,CLAIM_FEE2_IX,CLAIM_FEE2_EVT,SWAP_EXACT_OUT2_IX,REMOVE_LIQUIDITY_BY_RANGE2_IX,REMOVE_LIQUIDITY_EVT,INITIALIZE_POSITION_IX,MEMO_PROGRAM,apply_terminal_adjustments)
+from meme_machine.dlmm_tape import (transaction_swap,transaction_swaps,reconstruct,SWAP,SWAP2,EXACT_IN,EVENT_CPI,_un58_data,CLAIM_FEE2_IX,CLAIM_FEE2_EVT,SWAP_EXACT_OUT2_IX,REMOVE_LIQUIDITY_BY_RANGE2_IX,REMOVE_LIQUIDITY_EVT,ADD_LIQUIDITY2_IX,ADD_LIQUIDITY_EVT,INITIALIZE_POSITION_IX,MEMO_PROGRAM,apply_terminal_adjustments)
 from meme_machine.dlmm_paper import Replay
 from meme_machine.provider import Unavailable
 from meme_machine.store import Store,digest
@@ -180,6 +180,68 @@ def remove_liquidity_transaction(p,bid=0,share=None,claim_x=0,claim_y=0,
     return post,dict(share=share,x=x,y=y),tx
 
 
+def add_liquidity2_transaction(p,amount_x=1_000_001,amount_y=0,
+                               slot=101,now=101,signature='add2'):
+    if bool(amount_x)==bool(amount_y):
+        raise ValueError('add2 fixture is single-sided')
+    position=pump.b58(bytes([60])*32);sender=pump.b58(bytes([61])*32)
+    bitmap=dlmm.PROGRAM;user_x=pump.b58(bytes([62])*32)
+    user_y=pump.b58(bytes([63])*32);event_authority=pump.b58(bytes([64])*32)
+    if amount_x:
+        bids=[p['active']+1,p['active']+2]
+    else:
+        bids=[p['active']-2,p['active']-1]
+    rows=[(bids[0],5000,5000),(bids[1],5000,5000)]
+    actual_x=sum(amount_x*dx//10000 for _bid,dx,_dy in rows)
+    actual_y=sum(amount_y*dy//10000 for _bid,_dx,dy in rows)
+    post=copy.deepcopy(p)
+    for bid,dx,dy in rows:
+        x=amount_x*dx//10000;y=amount_y*dy//10000
+        b=post['bins'][str(bid)]
+        share=dlmm.deposit_share(b,x,y)
+        b['x']+=x;b['y']+=y;b['supply']+=share
+        post['vault_x_amount']+=x;post['vault_y_amount']+=y
+    keys=[position,POOL,bitmap,user_x,user_y,p['vault_x'],p['vault_y'],
+          p['x'],p['y'],sender,pump.TOKEN_PROGRAM,pump.TOKEN_PROGRAM,
+          event_authority,dlmm.PROGRAM]
+    raw=bytearray(ADD_LIQUIDITY2_IX+struct.pack('<QQI',amount_x,amount_y,len(rows)))
+    for bid,dx,dy in rows:
+        raw.extend(struct.pack('<iHH',bid,dx,dy))
+    # RemainingAccountsInfo: TransferHookX len 0, TransferHookY len 0.
+    raw.extend(struct.pack('<I',2)+bytes([0,0,1,0]))
+    event=(ADD_LIQUIDITY_EVT+pump.un58(POOL)+pump.un58(sender)+
+           pump.un58(position)+struct.pack('<QQi',actual_x,actual_y,p['active']))
+    def transfer(source,mint,destination,amount,decimals):
+        return dict(programIdIndex=10,accounts=[source,mint,destination,9],
+                    data=pump.b58(bytes([12])+int(amount).to_bytes(8,'little')+
+                                  bytes([decimals])))
+    inner=[
+        transfer(3,7,5,actual_x,6),
+        transfer(4,8,6,actual_y,9),
+        dict(programIdIndex=13,accounts=[12],data=pump.b58(EVENT_CPI+event)),
+    ]
+    pre_x=p['vault_x_amount'];pre_y=p['vault_y_amount']
+    tx=dict(
+        slot=slot,blockTime=now,
+        transaction=dict(signatures=[signature],message=dict(
+            accountKeys=keys,instructions=[dict(
+                programIdIndex=13,accounts=list(range(14)),
+                data=pump.b58(bytes(raw)))])),
+        meta=dict(err=None,innerInstructions=[dict(index=0,instructions=inner)],
+                  logMessages=[],
+                  preTokenBalances=[
+                      _balance_row(3,p['x'],10_000_000),
+                      _balance_row(4,p['y'],10_000_000),
+                      _balance_row(5,p['x'],pre_x),
+                      _balance_row(6,p['y'],pre_y)],
+                  postTokenBalances=[
+                      _balance_row(3,p['x'],10_000_000-actual_x),
+                      _balance_row(4,p['y'],10_000_000-actual_y),
+                      _balance_row(5,p['x'],pre_x+actual_x),
+                      _balance_row(6,p['y'],pre_y+actual_y)]))
+    return post,dict(actual_x=actual_x,actual_y=actual_y,bids=bids),tx
+
+
 def interval():
     s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
     post,tx=transaction(p,450_000_000,101,101)
@@ -248,6 +310,48 @@ class Tape(unittest.TestCase):
                  confirmationStatus='finalized')]
         with self.assertRaisesRegex(Unavailable,'external_effect_balance_delta'):
             reconstruct(p,end,sigs,{'claim-fee2':tx},102,[100,2**31-1,2**31-1])
+
+    def test_add_liquidity2_replays_floor_distribution_exactly(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,added,tx=add_liquidity2_transaction(p,amount_x=1_000_001)
+        self.assertEqual(added['actual_x'],1_000_000)
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='add2',slot=101,transactionIndex=7,err=None,
+                 confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'add2':tx},102,[100,2**31-1,2**31-1])
+        self.assertEqual(tape.events,())
+        self.assertEqual(len(tape.terminal_adjustments),1)
+        item=tape.terminal_adjustments[0]
+        self.assertEqual(item['kind'],'add_liquidity2')
+        self.assertEqual(item['amount_x'],1_000_000)
+        self.assertEqual(item['recipient_auth'],'ordered_spl_transfer')
+        adjusted=apply_terminal_adjustments(p,tape.terminal_adjustments)
+        self.assertEqual(adjusted['bins'][str(added['bids'][0])],
+                         post['bins'][str(added['bids'][0])])
+        self.assertEqual(adjusted['vault_x_amount'],post['vault_x_amount'])
+
+    def test_add_liquidity2_wrong_transfer_fails_closed(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,_added,tx=add_liquidity2_transaction(p,amount_y=1_000_001,amount_x=0)
+        bad=copy.deepcopy(tx)
+        ix=bad['meta']['innerInstructions'][0]['instructions'][1]
+        raw=bytearray(_un58_data(ix['data']))
+        raw[1:9]=(int.from_bytes(raw[1:9],'little')+1).to_bytes(8,'little')
+        ix['data']=pump.b58(bytes(raw))
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='add2',slot=101,transactionIndex=7,err=None,
+                 confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        with self.assertRaisesRegex(
+                Unavailable,'add_liquidity2_transfer_amount_mismatch'):
+            reconstruct(
+                p,end,sigs,{'add2':bad},102,[100,2**31-1,2**31-1])
 
     def test_exact_out2_reconstructs_actual_input_output_and_terminal_state(self):
         s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
