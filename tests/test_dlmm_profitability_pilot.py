@@ -378,6 +378,44 @@ class ProfitabilityDensityPreflight(unittest.TestCase):
         self.assertEqual(report["attempted_pool_count"], 2)
         self.assertGreater(report["rpc_calls"], pilot.PER_POOL_RPC_LIMIT)
 
+    def test_hurdle_progress_tracks_best_candidate_gap(self):
+        rows=[
+            dict(target_distance_bps=100,width=2,actual_distance_bps=99.0,
+                 features=dict(
+                     projected_60s_range_fee_capture_lamports=5_000.0,
+                     projected_60s_range_fee_surplus_lamports=-345_000.0)),
+            dict(target_distance_bps=200,width=4,actual_distance_bps=198.0,
+                 features=dict(
+                     projected_60s_range_fee_capture_lamports=20_000.0,
+                     projected_60s_range_fee_surplus_lamports=-330_000.0)),
+        ]
+        result=pilot._hurdle_progress(rows)
+        self.assertEqual(result["best_target_distance_bps"],200)
+        self.assertEqual(result["best_width"],4)
+        self.assertEqual(result["best_projected_fee_capture_lamports"],20_000.0)
+        self.assertEqual(result["hurdle_gap_lamports"],330_000.0)
+        self.assertAlmostEqual(result["hurdle_gap_bps"],33.0)
+        self.assertAlmostEqual(
+            result["fee_hurdle_coverage_ratio"],20_000/350_000)
+
+    def test_development_ledger_is_deduped_and_targets_thirty(self):
+        prior=pilot._load_development_ledger()
+        self.assertEqual(pilot.DEVELOPMENT_LEDGER_TARGET,30)
+        self.assertEqual(len(prior),7)
+        duplicate=dict(prior[0])
+        new=dict(
+            run_id=None,pool="new-pool",entry_slot=1,end_slot=2,
+            selected=False,best_target_distance_bps=100,best_width=2,
+            best_actual_distance_bps=99.0,
+            best_projected_fee_capture_lamports=10_000.0,
+            best_projected_surplus_lamports=-340_000.0,
+            hurdle_gap_lamports=340_000.0,hurdle_gap_bps=34.0,
+            fee_hurdle_coverage_ratio=10_000/350_000,
+            fixed_cost_lamports=350_000.0,
+        )
+        merged=pilot._merge_development_observations(prior,[duplicate,new])
+        self.assertEqual(len(merged),8)
+
     def test_width8_is_retained_as_legacy_comparator(self):
         self.assertEqual(research.SELECTED_STRATEGY, "sdk_bidask")
         self.assertEqual(research.SELECTED_WIDTH, 8)
