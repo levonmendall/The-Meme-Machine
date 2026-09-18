@@ -32,6 +32,32 @@ class ProviderTests(unittest.TestCase):
             rpc.verify_chain()
         self.assertEqual(rpc.used, 1)
 
+    def test_batch_preserves_logical_budget_and_reduces_transport_count(self):
+        rpc = Rpc('https://example.invalid', limit=5, per_scope=5,
+                  transport=lambda method, params: method + ':' + str(params[0] if params else ''))
+        got = rpc.batch([
+            ('eth_getBlockByNumber', ['0x1', False]),
+            ('eth_getBlockByNumber', ['0x2', False]),
+            ('eth_gasPrice', []),
+        ], scope='sample')
+        self.assertEqual(got, ['eth_getBlockByNumber:0x1', 'eth_getBlockByNumber:0x2', 'eth_gasPrice:'])
+        telemetry = rpc.telemetry()
+        self.assertEqual(telemetry['requests'], 3)
+        self.assertEqual(telemetry['logical_requests'], 3)
+        self.assertEqual(telemetry['transport_requests'], 1)
+        with self.assertRaisesRegex(BoundaryError, 'session_budget'):
+            rpc.batch([
+                ('eth_chainId', []),
+                ('eth_chainId', []),
+                ('eth_chainId', []),
+            ], scope='sample')
+
+    def test_batch_rejects_write_method(self):
+        rpc = Rpc('https://example.invalid', transport=lambda *_: '0x1')
+        with self.assertRaisesRegex(BoundaryError, 'not_read_only'):
+            rpc.batch([('eth_sendTransaction', [])])
+        self.assertEqual(rpc.used, 0)
+
     def test_future_missing_secret_does_not_print_url(self):
         from robinhood_research.probe import run
         result = run('secret-only')
