@@ -221,3 +221,14 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Batch 2 keeps the same discovery universe, strategy grid, costs, point-in-time rules, predictive chunking, and allocation disabled, but observes each supported pool sequentially.
 - Warmup may use the already-certified bounded strategy2 snapshot reset per pool; outcome remains fail-closed across external LP mutations.
 - This marker authorizes exactly one sequential profitability pilot batch.
+
+
+## Profitability research batch 2 result
+
+- Sequential batch 2 run `35296801124` completed with artifact `10528463840` (SHA256 `e88a322015df91ed9a0e4a68a0415e63da44b7a88187329d6e4f75661dc4a0f0`).
+- Three current supported pools entered the batch: STONK-SOL, JUP-SOL, and MCAT-SOL.
+- STONK-SOL and MCAT-SOL each showed 17 successful post-start transactions at the first warmup pressure census and were correctly excluded by the unchanged 16-transaction verifier bound.
+- JUP-SOL completed six verified zero-swap warmup chunks, then its outcome observation stopped on a getSignaturesForAddress provider failure after bounded retries.
+- Batch totals: 48 logical RPC calls, 3 HTTP 429 failures, 2 retries, zero completed warmup/outcome opportunities, zero strategy results.
+- No profitability inference is permitted from this batch. Research collection is active, but the next acquisition step is to screen for certifiable transaction density before committing a full warmup/outcome window.
+- Strategy grid, costs, fixed selected sdk_bidask width 8, point-in-time rules, and allocation disabled remain unchanged.
