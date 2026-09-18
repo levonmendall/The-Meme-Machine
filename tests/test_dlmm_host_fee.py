@@ -94,6 +94,44 @@ class HostFeeAccounting(unittest.TestCase):
         with self.assertRaisesRegex(Unavailable,'wrong_token'):
             transaction_swap(bad,POOL)
 
+    def test_shared_host_account_authenticates_transaction_aggregate(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        p1,q1,h1,tx1=host_transaction(
+            p,220_000_000,101,101,signature='multi')
+        p2,q2,h2,tx2=host_transaction(
+            p1,230_000_000,101,101,signature='multi')
+        combined=copy.deepcopy(tx1)
+        combined['transaction']['message']['instructions']=[
+            tx1['transaction']['message']['instructions'][0],
+            tx2['transaction']['message']['instructions'][0],
+        ]
+        combined['meta']['innerInstructions']=[
+            dict(index=0,instructions=tx1['meta']['innerInstructions'][0]['instructions']),
+            dict(index=1,instructions=tx2['meta']['innerInstructions'][0]['instructions']),
+        ]
+        # One transaction-level pre/post delta covers both hosted swaps.
+        before=int(combined['meta']['preTokenBalances'][0]['uiTokenAmount']['amount'])
+        combined['meta']['postTokenBalances'][0]['uiTokenAmount']['amount']=str(
+            before+h1+h2)
+        events=transaction_swaps(combined,POOL)
+        self.assertEqual(len(events),2)
+        self.assertEqual(
+            [e['observed']['host_fee'] for e in events],[h1,h2])
+        end=encode_state(s,p2,102,102)
+        sigs=[
+            dict(signature='multi',slot=101,transactionIndex=7,err=None,
+                 confirmationStatus='finalized'),
+            dict(signature='anchor',slot=100,transactionIndex=1,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'multi':combined},102,[100,2**31-1,2**31-1])
+        self.assertEqual(len(tape.events),2)
+        bad=copy.deepcopy(combined)
+        bad['meta']['postTokenBalances'][0]['uiTokenAmount']['amount']=str(
+            before+h1+h2+1)
+        with self.assertRaisesRegex(Unavailable,'host_fee_balance_delta'):
+            transaction_swaps(bad,POOL)
+
     def test_hosted_swap_reconstructs_exact_terminal_state(self):
         s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
         post,q,host,tx=host_transaction(p,450_000_000,101,101)
