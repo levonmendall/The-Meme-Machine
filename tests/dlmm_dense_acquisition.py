@@ -29,7 +29,8 @@ PRESSURE_RATE_JITTER_TRANSACTIONS = 1
 MAX_VERIFIED_CHUNKS_PER_ADVANCE = 24
 ENDPOINT_CAPTURE_HIGH_WATER = {}
 MAX_WARMUP_STATE_RESETS = 2
-STATE_RESET_PREFIX = 'dlmm_snapshot_reset_required:add_liquidity_by_strategy2:'
+STATE_RESET_PREFIX = 'dlmm_snapshot_reset_required:'
+STATE_RESET_KINDS = {'add_liquidity_by_strategy2','add_liquidity2'}
 
 
 def _pressure_census(rpc, start):
@@ -213,6 +214,14 @@ def pressure_advance(adapter, states, wait_seconds, allow_snapshot_reset=False):
             except (Unavailable, ValueError, KeyError, TypeError) as exc:
                 reason=str(exc)
                 if allow_snapshot_reset and reason.startswith(STATE_RESET_PREFIX):
+                    parts=reason.split(':')
+                    if len(parts)!=3 or parts[1] not in STATE_RESET_KINDS:
+                        errors.append(dict(pool=address,chunk=round_index,
+                            reason='dlmm_snapshot_reset_kind_unsupported',
+                            stage='verified_capture'))
+                        current.pop(address,None)
+                        continue
+                    mutation_kind=parts[1]
                     if reset_counts[address] >= MAX_WARMUP_STATE_RESETS:
                         errors.append(dict(pool=address,chunk=round_index,
                             reason='dlmm_snapshot_reset_count_bound',stage='verified_capture',
@@ -221,7 +230,7 @@ def pressure_advance(adapter, states, wait_seconds, allow_snapshot_reset=False):
                         current.pop(address,None)
                         continue
                     try:
-                        mutation_slot=int(reason.rsplit(':',1)[1])
+                        mutation_slot=int(parts[2])
                         fresh_snapshot=adapter.snapshot(
                             address,int(time.time()),True,fresh=True)
                         fresh=dlmm.validate(
@@ -236,7 +245,7 @@ def pressure_advance(adapter, states, wait_seconds, allow_snapshot_reset=False):
                     discarded=len(chunks[address])
                     reset_counts[address]+=1
                     resets[address].append(dict(
-                        mutation='add_liquidity_by_strategy2',
+                        mutation=mutation_kind,
                         mutation_slot=mutation_slot,
                         prior_origin_slot=origins[address]['slot'],
                         prior_start_slot=start['slot'],
