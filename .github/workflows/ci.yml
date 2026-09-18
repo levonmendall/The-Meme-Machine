@@ -34,6 +34,9 @@ jobs:
   forced-real-data-canary:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[forced-canary]')
     runs-on: ubuntu-24.04
+    concurrency:
+      group: solana-public-rpc-live
+      cancel-in-progress: false
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -46,6 +49,9 @@ jobs:
   postgrad-live:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[postgrad-live]')
     runs-on: ubuntu-24.04
+    concurrency:
+      group: solana-public-rpc-live
+      cancel-in-progress: false
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -72,6 +78,9 @@ jobs:
   live-diagnostic:
     if: github.event_name != 'pull_request' && github.ref_name != 'feat/post-graduation-pumpswap-raydium' && !contains(github.event.head_commit.message, '[forced-canary]') && !contains(github.event.head_commit.message, '[longevity') && !contains(github.event.head_commit.message, '[qualification-build]') && !contains(github.event.head_commit.message, '[postgrad-live]')
     runs-on: ubuntu-24.04
+    concurrency:
+      group: solana-public-rpc-live
+      cancel-in-progress: false
     timeout-minutes: 60
     continue-on-error: true
     env:
