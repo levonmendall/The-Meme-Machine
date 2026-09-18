@@ -16,7 +16,7 @@ from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, p
                      paper_fee_capture, paper_position, paper_removal, price, quote_value, replay, state, unpack, values)
 
 ACTIVITY_POLL_SECONDS=5
-RANK_POOL_COUNT=40
+RANK_POOL_COUNT=96
 WATCH_POOL_COUNT=8
 WATCH_COHORT_COUNT=4
 WATCH_SLOT_SECONDS=20
@@ -299,11 +299,12 @@ def run(endpoint):
             reserves=values(state_rows[2*i]);hooks=int(state_rows[2*i+1],16)
             side=native_meta[row['address']]['native_side']
             native_reserve=reserves[0 if side=='x' else 1]
-            if hooks==0 and any(reserves):
+            if hooks==0 and any(reserves) and native_reserve>0:
                 watchable.append(dict(address=row['address'],last_update=row['last_update'],
                                       native_reserve=native_reserve,native_side=side,
                                       bin_step=native_meta[row['address']]['bin_step']))
         watchable.sort(key=lambda row:(row['last_update'],row['native_reserve'],row['address']),reverse=True)
+        result['watchable_native_pool_count']=len(watchable)
         scheduled=watchable[:WATCH_POOL_COUNT*WATCH_COHORT_COUNT]
         if not scheduled:raise BoundaryError('no_watchable_native_ramses_pool')
         cohorts=[scheduled[i:i+WATCH_POOL_COUNT] for i in range(0,len(scheduled),WATCH_POOL_COUNT)]
