@@ -296,7 +296,8 @@ def main():
 
     # resolve top wallets from swaps in closed archive hours. Use the entire replay index for lookup,
     # but only recent swaps returned by FomoAPI.
-    top_swaps=load_top_swaps(key,top,available)
+    resolve_allowed=set(hours_between(min_feed-3*3600,max_feed,available))
+    top_swaps=load_top_swaps(key,top,resolve_allowed)
     resolve_hours=sorted({hour(e["ts"]) for rows in top_swaps.values() for e in rows})
     resolve_hours+=sorted({hour(c["anchor_alert"]["ts"]) for c in controls})
     resolve_hours=sorted(set(resolve_hours))
@@ -370,6 +371,7 @@ def main():
         "ordinary_controls_selected":len(controls),"ordinary_control_wallets_resolved":len(control_wallets),
         "retained_feed_rows":len(feed_rows),"guarded_first_fomo_mints":len(first_fomo),
         "feed_min_ts":min_feed,"feed_max_ts":max_feed,
+        "wallet_resolution_hours":sorted(resolve_allowed),
         "lifecycle_start":start,"lifecycle_end":end,"archive_hours":lifecycle_hours,
         "top_cohort":cohort_summary(top_rows),"ordinary_active_control":cohort_summary(ctrl_rows),
         "top_positions":top_rows,"control_positions":ctrl_rows,
