@@ -58,6 +58,11 @@ class DenseAcquisition(unittest.TestCase):
         self.assertEqual(boundary['waited_seconds'],2.0)
         self.assertEqual(boundary['polls'],3)
 
+    def test_add_liquidity2_is_an_authorized_warmup_reset_kind(self):
+        self.assertEqual(dense.STATE_RESET_PREFIX,'dlmm_snapshot_reset_required:')
+        self.assertIn('add_liquidity_by_strategy2',dense.STATE_RESET_KINDS)
+        self.assertIn('add_liquidity2',dense.STATE_RESET_KINDS)
+
     def test_hard_cap_visible_never_gets_relabelled_as_valid_chunk(self):
         rpc=_RPC([MAX_TRANSACTIONS+1]);adapter=SimpleNamespace(rpc=rpc)
         state,monotonic,sleep=self._clock()
