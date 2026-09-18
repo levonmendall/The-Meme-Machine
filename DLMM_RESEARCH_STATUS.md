@@ -96,3 +96,11 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - This marker authorizes exactly one bounded one-pool, one-cycle, 12-second live replay.
 - Certification requires: allocation disabled; at least one verified opportunity; nonempty warmup; nonempty outcome; at least one real nonzero host-fee swap; at least one resolved selected after-cost counterfactual; zero interval errors; zero RPC failures.
 - No retry is authorized by this marker.
+
+
+## Host-fee certification retry after excluded LP mutation
+
+- The first gated certification attempt failed closed on pinned-IDL instruction `remove_liquidity_by_range2` (`cc02c391359191cd`), an exogenous liquidity mutation whose exact per-bin effects cannot be reconstructed from the emitted aggregate RemoveLiquidity event without point-in-time external position state.
+- That instruction remains unsupported; no verifier rule or strategy threshold was weakened.
+- This marker authorizes one fresh certification window with the exact unchanged host-fee implementation and hard certification predicates.
+- No further automatic retry is authorized after this attempt.
