@@ -281,6 +281,24 @@ def _position_metrics(position,bin_step=None):
     )
 
 
+def _event_epoch(event):
+    value=event.get("blockTime")
+    if isinstance(value,int):
+        return value//1000 if value>10_000_000_000 else value
+    if isinstance(value,str) and value.isdigit():
+        parsed=int(value)
+        return parsed//1000 if parsed>10_000_000_000 else parsed
+    created=event.get("createdAt")
+    if isinstance(created,str):
+        try:
+            from datetime import datetime
+            return int(datetime.fromisoformat(
+                created.replace("Z","+00:00")).timestamp())
+        except ValueError:
+            return None
+    return None
+
+
 def _history_features(position_address,sol_side=None,cutoff_time=None):
     payload=_json_get(f"/positions/{position_address}/historical",
                       dict(order_direction="asc"),allow_pnl=True)
@@ -290,7 +308,7 @@ def _history_features(position_address,sol_side=None,cutoff_time=None):
     if cutoff_time is not None:
         events=[
             e for e in events
-            if isinstance(e.get("blockTime"),int) and e["blockTime"]<=cutoff_time
+            if _event_epoch(e) is not None and _event_epoch(e)<=cutoff_time
         ]
     counts=Counter(str(e.get("eventType")) for e in events)
     adds=[e for e in events if e.get("eventType")=="add"]
@@ -306,8 +324,7 @@ def _history_features(position_address,sol_side=None,cutoff_time=None):
             composition=("sol_only" if sol_side=="y" else "token_only")
         else:
             composition="zero"
-    block_times=[int(e["blockTime"]) for e in events
-                 if isinstance(e.get("blockTime"),int)]
+    block_times=[_event_epoch(e) for e in events if _event_epoch(e) is not None]
     return dict(
         event_count=len(events),event_counts=dict(sorted(counts.items())),
         add_count=counts.get("add",0),remove_count=counts.get("remove",0),
