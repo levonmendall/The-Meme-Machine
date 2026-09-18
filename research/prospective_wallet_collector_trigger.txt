@@ -1,2 +1,3 @@
 Prospective skilled-wallet collector trigger.
-Last manual trigger: 2026-09-18T13:26:00Z
+Initial collection pass: run 35350999133, natural_buy_count=0, stage=collecting.
+Manual continuation trigger after initial zero-event pass.
