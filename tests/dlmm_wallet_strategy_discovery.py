@@ -34,6 +34,7 @@ POOL_PAGE_SIZE=100
 SIGNATURE_LIMIT=64
 TX_BODY_LIMIT_PER_POOL=24
 TX_BODY_SCAN_LIMIT_PER_POOL=40
+MAX_SUPPORTED_TRANSACTION_VERSION=1
 TARGET_WALLETS=30
 MAX_WALLETS_PER_POOL=5
 MIN_FROZEN_WALLETS=12
@@ -175,7 +176,7 @@ def _read_recent_transactions(rpc,signatures,target=TX_BODY_LIMIT_PER_POOL,
             tx=rpc.call("getTransaction",[
                 sig["signature"],dict(
                     encoding="json",commitment="finalized",
-                    maxSupportedTransactionVersion=0,
+                    maxSupportedTransactionVersion=MAX_SUPPORTED_TRANSACTION_VERSION,
                 )
             ],True)
         except alchemy_provider.Unavailable as exc:
