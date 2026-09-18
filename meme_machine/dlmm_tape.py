@@ -140,95 +140,146 @@ def _token_balance(meta,side,account_index):
     return row['mint'],int(amount)
 
 
-def _claim_fee2_effect(raw,instruction,meta,keys,pool,order):
-    """Authenticate exact pool-vault effect of one pinned-IDL claim_fee2.
-
-    claim_fee2 updates the external PositionV2 and transfers already-accrued fees
-    from the pool reserves to that position owner's token accounts. It does not
-    redistribute bin liquidity. We authenticate the transfer using transaction
-    pre/post SPL balances; terminal equality independently proves no modeled
-    LbPair/bin field changed.
-    """
+def _claim_fee2_record(raw,instruction,keys,pool,order):
     accounts=instruction.get('accounts') or []
     if len(raw)<16 or len(accounts)<14:
         raise Unavailable('dlmm_claim_fee2_identity')
     if any(type(accounts[i]) is not int or not 0<=accounts[i]<len(keys)
            for i in range(14)):
         raise Unavailable('dlmm_claim_fee2_account_index')
-    if keys[accounts[0]]!=pool or keys[accounts[9]]!=pump.TOKEN_PROGRAM \
-            or keys[accounts[10]]!=pump.TOKEN_PROGRAM \
-            or keys[accounts[11]]!=MEMO_PROGRAM \
-            or keys[accounts[13]]!=dlmm.PROGRAM:
+    if (keys[accounts[0]]!=pool or keys[accounts[9]]!=pump.TOKEN_PROGRAM
+            or keys[accounts[10]]!=pump.TOKEN_PROGRAM
+            or keys[accounts[11]]!=MEMO_PROGRAM
+            or keys[accounts[13]]!=dlmm.PROGRAM):
         raise Unavailable('dlmm_claim_fee2_identity')
-    result=dict(kind='claim_fee2',order=list(order),
-                reserve_x=keys[accounts[3]],reserve_y=keys[accounts[4]],
-                token_x_mint=keys[accounts[7]],token_y_mint=keys[accounts[8]])
-    for side,reserve_pos,user_pos,mint_pos in (
-        ('x',3,5,7),('y',4,6,8)):
-        reserve_index=accounts[reserve_pos];user_index=accounts[user_pos]
-        expected_mint=keys[accounts[mint_pos]]
-        pre_mint,pre_reserve=_token_balance(meta,'preTokenBalances',reserve_index)
-        post_mint,post_reserve=_token_balance(meta,'postTokenBalances',reserve_index)
-        user_pre_mint,pre_user=_token_balance(meta,'preTokenBalances',user_index)
-        user_post_mint,post_user=_token_balance(meta,'postTokenBalances',user_index)
-        if any(mint!=expected_mint for mint in
-               (pre_mint,post_mint,user_pre_mint,user_post_mint)):
-            raise Unavailable('dlmm_claim_fee2_wrong_token')
-        reserve_delta=post_reserve-pre_reserve
-        user_delta=post_user-pre_user
-        if reserve_delta>0 or user_delta<0 or user_delta!=-reserve_delta:
-            raise Unavailable('dlmm_claim_fee2_balance_delta_mismatch')
-        result.update({
-            f'pre_reserve_{side}':pre_reserve,
-            f'post_reserve_{side}':post_reserve,
-            f'claimed_{side}':user_delta,
-        })
-    return result
+    min_bin,max_bin=struct.unpack_from('<ii',raw,8)
+    if min_bin>max_bin:
+        raise Unavailable('dlmm_claim_fee2_range')
+    return dict(
+        kind='claim_fee2',order=list(order),events=[],
+        position=keys[accounts[1]],owner=keys[accounts[2]],
+        min_bin=min_bin,max_bin=max_bin,
+        reserve_x=keys[accounts[3]],reserve_y=keys[accounts[4]],
+        token_x_mint=keys[accounts[7]],token_y_mint=keys[accounts[8]],
+        reserve_x_index=accounts[3],reserve_y_index=accounts[4],
+        user_x_index=accounts[5],user_y_index=accounts[6],
+        mint_x_index=accounts[7],mint_y_index=accounts[8],
+    )
 
 
-def apply_terminal_adjustments(state,adjustments):
-    """Apply already-authenticated external claim effects to a virtual pool state."""
-    result=deepcopy(state)
-    for item in adjustments:
-        if item.get('kind')!='claim_fee2':
-            raise Unavailable('dlmm_unknown_terminal_adjustment')
+def _remove_liquidity_record(raw,instruction,keys,pool,order):
+    accounts=instruction.get('accounts') or []
+    if len(raw)<18 or len(accounts)<15:
+        raise Unavailable('dlmm_remove_liquidity_by_range2_identity')
+    if any(type(accounts[i]) is not int or not 0<=accounts[i]<len(keys)
+           for i in range(15)):
+        raise Unavailable('dlmm_remove_liquidity_by_range2_account_index')
+    if (keys[accounts[1]]!=pool or keys[accounts[10]]!=pump.TOKEN_PROGRAM
+            or keys[accounts[11]]!=pump.TOKEN_PROGRAM
+            or keys[accounts[12]]!=MEMO_PROGRAM
+            or keys[accounts[14]]!=dlmm.PROGRAM):
+        raise Unavailable('dlmm_remove_liquidity_by_range2_identity')
+    lower,upper,bps=struct.unpack_from('<iiH',raw,8)
+    if lower>upper or not 1<=bps<=10000:
+        raise Unavailable('dlmm_remove_liquidity_by_range2_range_or_bps')
+    return dict(
+        kind='remove_liquidity_by_range2',order=list(order),events=[],
+        position=keys[accounts[0]],lower=lower,upper=upper,bps=bps,
+        reserve_x=keys[accounts[5]],reserve_y=keys[accounts[6]],
+        token_x_mint=keys[accounts[7]],token_y_mint=keys[accounts[8]],
+        reserve_x_index=accounts[5],reserve_y_index=accounts[6],
+        user_x_index=accounts[3],user_y_index=accounts[4],
+        mint_x_index=accounts[7],mint_y_index=accounts[8],
+    )
+
+
+def _resolve_effect_event(effect,pool):
+    if len(effect.get('events') or [])!=1:
+        raise Unavailable('dlmm_missing_or_ambiguous_liquidity_event')
+    event=effect['events'][0]
+    if effect['kind']=='claim_fee2':
+        if (event['position']!=effect['position']
+                or not effect['min_bin']<=event['active']<=effect['max_bin']):
+            raise Unavailable('dlmm_claim_fee2_event_identity')
+        effect.update(
+            amount_x=event['fee_x'],amount_y=event['fee_y'],
+            active=event['active'],event_owner=event['owner'])
+    elif effect['kind']=='remove_liquidity_by_range2':
+        if event['position']!=effect['position']:
+            raise Unavailable('dlmm_remove_liquidity_event_identity')
+        effect.update(
+            amount_x=event['amount_x'],amount_y=event['amount_y'],
+            active=event['active'])
+    else:
+        raise Unavailable('dlmm_unknown_external_effect')
+    if min(effect['amount_x'],effect['amount_y'])<0:
+        raise Unavailable('dlmm_external_effect_amount')
+    return effect
+
+
+def _authenticate_effect_transfers(effects,meta,keys):
+    """Authenticate aggregate reserve-to-user transfers for claim/removal effects."""
+    expected={}
+    for effect in effects:
         for side in ('x','y'):
-            claimed=item.get(f'claimed_{side}')
-            if type(claimed) is not int or claimed<0:
-                raise Unavailable('dlmm_claim_fee2_adjustment_shape')
-            key=f'vault_{side}_amount'
-            if claimed>result[key]:
-                raise Unavailable('dlmm_claim_fee2_vault_underflow')
-            result[key]-=claimed
-        if type(item.get('slot')) is int:
-            result['slot']=max(result.get('slot',0),item['slot'])
-        if type(item.get('time')) is int:
-            result['time']=max(result.get('time',0),item['time'])
-    return result
+            amount=int(effect[f'amount_{side}'])
+            mint=effect[f'token_{side}_mint']
+            reserve_index=effect[f'reserve_{side}_index']
+            user_index=effect[f'user_{side}_index']
+            for index,delta in ((reserve_index,-amount),(user_index,amount)):
+                prior=expected.get(index)
+                if prior is None:
+                    expected[index]=[mint,delta]
+                elif prior[0]!=mint:
+                    raise Unavailable('dlmm_external_effect_token_alias')
+                else:
+                    prior[1]+=delta
+    for index,(mint,delta) in expected.items():
+        pre_mint,pre_amount=_token_balance(meta,'preTokenBalances',index)
+        post_mint,post_amount=_token_balance(meta,'postTokenBalances',index)
+        if pre_mint!=mint or post_mint!=mint:
+            raise Unavailable('dlmm_external_effect_wrong_token')
+        if post_amount-pre_amount!=delta:
+            raise Unavailable('dlmm_external_effect_balance_delta_mismatch')
 
 
-def _authenticate_host_fee(record,event,meta,keys):
+def _host_binding(record,event,keys):
     host=event['observed'].get('host_fee',0)
     if not host:
-        return
+        return None
     accounts=record.get('accounts') or []
-    # Pinned IDL for both exact-input instructions:
-    # 0 lb_pair, 1 bitmap, 2/3 reserves, 4/5 user token accounts,
-    # 6/7 token mints, 8 oracle, 9 optional host_fee_in.
     if len(accounts)<=9 or any(type(accounts[i]) is not int or not 0<=accounts[i]<len(keys)
-                               for i in (2,3,6,7,9)):
+                               for i in (6,7,9)):
         raise Unavailable('dlmm_host_fee_account_identity')
     host_index=accounts[9]
     host_address=keys[host_index]
     if host_address in (dlmm.PROGRAM,SYSTEM_PROGRAM):
         raise Unavailable('dlmm_host_fee_account_identity')
     input_mint=keys[accounts[6 if event['for_y'] else 7]]
-    pre_mint,pre_amount=_token_balance(meta,'preTokenBalances',host_index)
-    post_mint,post_amount=_token_balance(meta,'postTokenBalances',host_index)
-    if pre_mint!=input_mint or post_mint!=input_mint:
-        raise Unavailable('dlmm_host_fee_wrong_token')
-    if post_amount-pre_amount!=host:
-        raise Unavailable('dlmm_host_fee_balance_delta_mismatch')
+    return host_index,input_mint,int(host)
+
+
+def _authenticate_host_fees(resolved_records,meta,keys):
+    expected={}
+    for record,event in resolved_records:
+        binding=_host_binding(record,event,keys)
+        if binding is None:
+            continue
+        index,mint,host=binding
+        prior=expected.get(index)
+        if prior is None:
+            expected[index]=[mint,host]
+        elif prior[0]!=mint:
+            raise Unavailable('dlmm_host_fee_account_reused_for_multiple_tokens')
+        else:
+            prior[1]+=host
+    for index,(mint,expected_host) in expected.items():
+        pre_mint,pre_amount=_token_balance(meta,'preTokenBalances',index)
+        post_mint,post_amount=_token_balance(meta,'postTokenBalances',index)
+        if pre_mint!=mint or post_mint!=mint:
+            raise Unavailable('dlmm_host_fee_wrong_token')
+        if post_amount-pre_amount!=expected_host:
+            raise Unavailable('dlmm_host_fee_balance_delta_mismatch')
 
 
 def _log_swap_fallback(meta,pool):
@@ -245,24 +296,34 @@ def _log_swap_fallback(meta,pool):
     return events
 
 
+def _resolve_swap_record(record,meta):
+    legacy=record['legacy'];v2=record['v2']
+    if len(legacy)>1 or len(v2)>1 or (not legacy and not v2):
+        raise Unavailable('dlmm_missing_or_ambiguous_swap_event')
+    if record['instruction']=='swap_exact_out2' and len(v2)!=1:
+        raise Unavailable('dlmm_exact_out_requires_swap2_event')
+    event=v2[0] if v2 else legacy[0]
+    if legacy and v2 and legacy[0]!=v2[0]:
+        raise ValueError('dlmm_swap_event_versions_disagree')
+    if record['instruction']=='swap_exact_out2':
+        max_input,requested_output=struct.unpack_from('<QQ',record['call'],8)
+        if event['amount']>max_input or event['observed']['output']!=requested_output:
+            raise ValueError('dlmm_exact_out_instruction_event_mismatch')
+        swap_mode='exact_out'
+    else:
+        amount,minimum=struct.unpack_from('<QQ',record['call'],8)
+        if event['amount']!=amount or event['observed']['output']<minimum:
+            raise ValueError('dlmm_instruction_event_mismatch')
+        swap_mode='exact_in'
+    if meta.get('blockTime') is None:
+        raise Unavailable('dlmm_missing_transaction_time')
+    return dict(
+        **event,time=meta['blockTime'],instruction=record['instruction'],
+        execution_order=record['order'],swap_mode=swap_mode)
+
+
 def transaction_swaps(tx,pool,terminal_adjustments=None):
-    """Return target-pool exact-input swaps in authenticated execution order.
-
-    A routed transaction may invoke Meteora for multiple pools. The pinned IDL puts
-    `lb_pair` at account zero for both `swap` and `swap2`: an exact-input invocation
-    whose account zero is another pool and which does not reference the target pool is
-    unrelated and is ignored. If the target appears elsewhere in that invocation it
-    remains an identity failure. Event CPI records are similarly filtered by their
-    embedded pool pubkey.
-
-    Two observed structural instructions are accepted only with their exact pinned-IDL
-    identities. `initialize_position` has read-only `lb_pair` at account position 2.
-    `initialize_bin_array` has read-only `lb_pair` at position 0 and only creates the
-    deterministic empty bin-array PDA for its signed i64 index. Neither changes the
-    modeled LbPair/vault/existing-bin economics. Any later liquidity/config mutation
-    remains independently fail-closed, and terminal equality still validates that no
-    modeled pool state changed.
-    """
+    """Return authenticated target-pool swaps and external effects in execution order."""
     if not tx or not tx.get('meta') or tx['meta'].get('err'):
         raise Unavailable('dlmm_missing_or_failed_transaction')
     meta=tx['meta'];message=tx['transaction']['message'];keys=_keys(meta,message)
@@ -270,74 +331,108 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
         raise ValueError('dlmm_transaction_pool_identity')
     if meta.get('innerInstructions') is None:
         raise Unavailable('dlmm_missing_inner_instructions')
-    records=[];claims=[];current=None
+    records=[];effects=[];current=None
     for outer,inner,instruction in _ordered_instructions(meta,message):
-        if keys[instruction['programIdIndex']]!=dlmm.PROGRAM:continue
+        if keys[instruction['programIdIndex']]!=dlmm.PROGRAM:
+            continue
         raw=_un58_data(instruction['data'])
         positions=_instruction_pool_positions(instruction,keys,pool)
-        if raw[:8] in EXACT_IN:
+        if raw[:8] in EXACT_SWAP:
             accounts=instruction.get('accounts') or []
-            name=EXACT_IN_NAME[raw[:8]]
-            if len(raw)<24 or not accounts:
-                if positions:raise ValueError(f'dlmm_swap_instruction_identity:{name}:pool_positions={positions}:accounts={len(accounts)}')
-                current=None;continue
-            if keys[accounts[0]]!=pool:
+            name=EXACT_SWAP_NAME[raw[:8]]
+            if len(raw)<24 or not accounts or type(accounts[0]) is not int \
+                    or not 0<=accounts[0]<len(keys):
                 if positions:
-                    pos=','.join(map(str,positions))
-                    raise ValueError(f'dlmm_swap_instruction_identity:{name}:pool_positions={pos}:accounts={len(accounts)}')
+                    raise ValueError(
+                        f'dlmm_swap_instruction_identity:{name}:pool_positions={positions}:accounts={len(accounts)}')
                 current=None;continue
-            current=dict(call=raw,legacy=[],v2=[],order=[outer,inner],instruction=name,
+            call_pool=keys[accounts[0]]
+            if call_pool!=pool and positions:
+                pos=','.join(map(str,positions))
+                raise ValueError(
+                    f'dlmm_swap_instruction_identity:{name}:pool_positions={pos}:accounts={len(accounts)}')
+            current=dict(kind='swap',pool=call_pool,target=call_pool==pool,call=raw,
+                         legacy=[],v2=[],order=[outer,inner],instruction=name,
                          accounts=list(accounts))
             records.append(current)
-        elif raw[:8]==EVENT_CPI and raw[8:16]==SWAP:
-            if _event_pool(raw)!=pool:continue
-            if current is None:raise Unavailable('dlmm_swap_event_without_ordered_call')
-            current['legacy'].append(decode_swap(raw[8:],pool))
-        elif raw[:8]==EVENT_CPI and raw[8:16]==SWAP2:
-            if _event_pool(raw)!=pool:continue
-            if current is None:raise Unavailable('dlmm_swap2_event_without_ordered_call')
-            current['v2'].append(decode_swap2(raw[8:],pool))
+        elif raw[:8]==EVENT_CPI and raw[8:16] in (SWAP,SWAP2):
+            event_pool=_event_pool(raw)
+            if current is None or current.get('kind')!='swap' or current['pool']!=event_pool:
+                if event_pool==pool:
+                    raise Unavailable('dlmm_swap_event_without_ordered_call')
+                continue
+            if raw[8:16]==SWAP:
+                current['legacy'].append(decode_swap(raw[8:],event_pool))
+            else:
+                current['v2'].append(decode_swap2(raw[8:],event_pool))
+        elif raw[:8]==EVENT_CPI and raw[8:16]==REMOVE_LIQUIDITY_EVT:
+            event_pool=_event_pool(raw)
+            if current is None or current.get('kind')!='effect' \
+                    or current['effect']['kind']!='remove_liquidity_by_range2' \
+                    or event_pool!=pool:
+                if event_pool==pool:
+                    raise Unavailable('dlmm_remove_liquidity_event_without_ordered_call')
+                continue
+            current['effect']['events'].append(
+                decode_remove_liquidity(raw[8:],pool))
+        elif raw[:8]==EVENT_CPI and raw[8:16]==CLAIM_FEE2_EVT:
+            event_pool=_event_pool(raw)
+            if current is None or current.get('kind')!='effect' \
+                    or current['effect']['kind']!='claim_fee2' or event_pool!=pool:
+                if event_pool==pool:
+                    raise Unavailable('dlmm_claim_fee2_event_without_ordered_call')
+                continue
+            current['effect']['events'].append(decode_claim_fee2(raw[8:],pool))
         elif raw[:8]==INITIALIZE_POSITION_IX:
             if positions:
                 accounts=instruction.get('accounts') or []
                 if len(accounts)!=8 or positions!=[2]:
                     pos=','.join(map(str,positions))
-                    raise ValueError(f'dlmm_initialize_position_identity:pool_positions={pos}:accounts={len(accounts)}')
-            # Pinned IDL: payer, position, read-only lb_pair, owner, system, rent,
-            # event authority, program. No modeled pool state is mutated.
-            continue
+                    raise ValueError(
+                        f'dlmm_initialize_position_identity:pool_positions={pos}:accounts={len(accounts)}')
+            current=None;continue
         elif raw[:8]==INITIALIZE_BIN_ARRAY_IX:
             if positions:
                 accounts=instruction.get('accounts') or []
                 pos=','.join(map(str,positions))
                 if len(raw)!=16 or len(accounts)!=4 or positions!=[0]:
-                    raise ValueError(f'dlmm_initialize_bin_array_identity:pool_positions={pos}:accounts={len(accounts)}:data={len(raw)}')
+                    raise ValueError(
+                        f'dlmm_initialize_bin_array_identity:pool_positions={pos}:accounts={len(accounts)}:data={len(raw)}')
                 if any(type(i) is not int or not 0<=i<len(keys) for i in accounts):
                     raise ValueError('dlmm_initialize_bin_array_account_index')
                 index=struct.unpack_from('<q',raw,8)[0]
-                expected=pump.pda([b'bin_array',pump.un58(pool),struct.pack('<q',index)],dlmm.PROGRAM)
+                expected=pump.pda(
+                    [b'bin_array',pump.un58(pool),struct.pack('<q',index)],
+                    dlmm.PROGRAM)
                 if keys[accounts[1]]!=expected or keys[accounts[3]]!=SYSTEM_PROGRAM:
                     raise ValueError('dlmm_initialize_bin_array_pda_or_system')
-            # Pinned IDL: read-only lb_pair, newly-created writable bin_array PDA,
-            # writable signer funder, system program. Creation introduces only an
-            # empty structural array. Any instruction that later changes its bins or
-            # pool liquidity is still unsupported and fails closed separately.
-            continue
+            current=None;continue
         elif raw[:8]==CLAIM_FEE2_IX:
             if positions:
                 if positions!=[0]:
                     raise ValueError(
                         f'dlmm_claim_fee2_identity:pool_positions={positions}')
-                claims.append(_claim_fee2_effect(
-                    raw,instruction,meta,keys,pool,[outer,inner]))
+                effect=_claim_fee2_record(
+                    raw,instruction,keys,pool,[outer,inner])
+                effects.append(effect);current=dict(kind='effect',effect=effect)
+            else:
+                current=None
+            continue
+        elif raw[:8]==REMOVE_LIQUIDITY_BY_RANGE2_IX:
+            if positions:
+                if positions!=[1]:
+                    raise ValueError(
+                        f'dlmm_remove_liquidity_by_range2_identity:pool_positions={positions}')
+                effect=_remove_liquidity_record(
+                    raw,instruction,keys,pool,[outer,inner])
+                effects.append(effect);current=dict(kind='effect',effect=effect)
+            else:
+                current=None
             continue
         elif raw[:8]==ADD_LIQUIDITY_BY_STRATEGY2_IX:
             if positions:
                 accounts=instruction.get('accounts') or []
                 pos=','.join(map(str,positions))
-                # Pinned IDL main accounts begin: position, lb_pair, optional bitmap,
-                # user X/Y, reserves X/Y, mints X/Y, sender, token programs,
-                # event authority, program. Remaining bin arrays may follow.
                 if positions!=[1] or len(accounts)<14:
                     raise ValueError(
                         f'dlmm_add_liquidity_by_strategy2_identity:pool_positions={pos}:accounts={len(accounts)}')
@@ -346,46 +441,37 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
                 slot=tx.get('slot')
                 if type(slot) is not int or slot<0:
                     raise Unavailable('dlmm_snapshot_reset_slot_unavailable')
-                # AddLiquidity only reports aggregate X/Y and active bin. Strategy2
-                # can redistribute those amounts across a bin range, so accepting it
-                # as a replayable no-op would corrupt bin inventory/supply. Surface a
-                # precise reset boundary instead; warmup may restart from a fresh
-                # authenticated snapshot, while outcome replay remains fail-closed.
                 raise Unavailable(
                     f'dlmm_snapshot_reset_required:add_liquidity_by_strategy2:{slot}')
-            continue
+            current=None;continue
         else:
-            if positions:raise Unavailable('dlmm_non_swap_mutation_in_interval:'+raw[:8].hex())
-            # An authenticated DLMM instruction for another pool cannot mutate the
-            # target lb_pair/bin state; terminal equality still validates this claim.
-            continue
-    if claims and terminal_adjustments is None:
-        raise Unavailable('dlmm_claim_fee2_requires_reconstruction_context')
-    if len(claims)>1:
-        raise Unavailable('dlmm_claim_fee2_multiple_in_transaction')
-    if claims and records:
-        raise Unavailable('dlmm_claim_fee2_mixed_with_swap_unsupported')
-    if terminal_adjustments is not None:
-        terminal_adjustments.extend(claims)
-    if not records:return []
-    if len(records)==1 and not records[0]['legacy']:
-        records[0]['legacy']=_log_swap_fallback(meta,pool)
-    result=[]
-    for record in records:
-        if len(record['legacy'])!=1 or len(record['v2'])>1:
-            raise Unavailable('dlmm_missing_or_ambiguous_swap_event')
-        e=record['legacy'][0]
-        if record['v2'] and record['v2'][0]!=e:
-            raise ValueError('dlmm_swap_event_versions_disagree')
-        amount,minimum=struct.unpack_from('<QQ',record['call'],8)
-        if e['amount']!=amount or e['observed']['output']<minimum:
-            raise ValueError('dlmm_instruction_event_mismatch')
-        _authenticate_host_fee(record,e,meta,keys)
-        if tx.get('blockTime') is None:raise Unavailable('dlmm_missing_transaction_time')
-        result.append(dict(**e,time=tx['blockTime'],slot=tx['slot'],
-                           instruction=record['instruction'],execution_order=record['order']))
-    return result
+            if positions:
+                raise Unavailable(
+                    'dlmm_non_swap_mutation_in_interval:'+raw[:8].hex())
+            current=None;continue
 
+    resolved=[]
+    for record in records:
+        if record['target'] and record['instruction']!='swap_exact_out2' \
+                and not record['legacy'] and not record['v2'] and len(records)==1:
+            record['legacy']=_log_swap_fallback(meta,record['pool'])
+        event=_resolve_swap_record(record,meta)
+        resolved.append((record,event))
+    _authenticate_host_fees(resolved,meta,keys)
+
+    resolved_effects=[_resolve_effect_event(effect,pool) for effect in effects]
+    if resolved_effects:
+        if any(record['target'] for record,_event in resolved):
+            raise Unavailable('dlmm_swap_mixed_with_external_liquidity_effect')
+        _authenticate_effect_transfers(resolved_effects,meta,keys)
+        if terminal_adjustments is None:
+            raise Unavailable('dlmm_external_effect_requires_reconstruction_context')
+        terminal_adjustments.extend(resolved_effects)
+
+    return [
+        dict(**event,slot=tx['slot'])
+        for record,event in resolved if record['target']
+    ]
 
 def transaction_swap(tx,pool):
     """Backward-compatible single-swap helper used by existing tests/callers."""
