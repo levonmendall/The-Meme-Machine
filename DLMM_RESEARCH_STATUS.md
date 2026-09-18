@@ -232,3 +232,16 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Batch totals: 48 logical RPC calls, 3 HTTP 429 failures, 2 retries, zero completed warmup/outcome opportunities, zero strategy results.
 - No profitability inference is permitted from this batch. Research collection is active, but the next acquisition step is to screen for certifiable transaction density before committing a full warmup/outcome window.
 - Strategy grid, costs, fixed selected sdk_bidask width 8, point-in-time rules, and allocation disabled remain unchanged.
+
+
+## Profitability research batch 3: density-screened completed-window acquisition
+
+- Acquisition implementation is pinned at `0128a5d6cb52050fe01838ca9b26f581075607e8`.
+- Before either warmup or outcome may spend transaction-body/reconstruction work, the runner performs one serialized 0.5-second finalized signature census with a hard observation limit of `MAX_TRANSACTIONS + 1` (17). A visible 17 successful post-start transactions is terminal `over_verification_capacity`; no `getTransaction` reconstruction is attempted for that phase.
+- Terminal acquisition classifications are persisted explicitly. `certifiable`, `over_verification_capacity`, `verified_zero_swap`, `provider_failure`, `provider_budget_exhausted`, and fail-closed `verification_failure` remain distinct. Over-capacity and provider failures are censoring outcomes, never "no opportunity".
+- The runner observes pools sequentially and scans activity-ranked supported candidates until it obtains 6 fully verified warmup+outcome windows, or reaches the bounded 12-pool / 240-logical-RPC safety limits. It no longer stops merely because a fixed first three pools were attempted.
+- Every attempt records its RPC delta. The artifact also reports observation RPC calls per attempted pool and per completed observation.
+- Density exclusions are retained as first-class artifact rows with phase/preflight evidence and an explicit warning that results from the remaining certifiable subset cannot be generalized to excluded high-density pools.
+- Strategy grid, exact costs, fixed selected `sdk_bidask` width 8 rule, finalized point-in-time ordering, `MAX_TRANSACTIONS=16`, DLMM mechanics, and disabled allocation authority are unchanged.
+- New censoring regressions plus the complete repository unit suite, resource check, DLMM resource check, and canonical synthetic lifecycle passed on guarded run `35301101477`; the exact same code then passed again on continuation-branch run `35301218801`. All live jobs were skipped by the qualification guard.
+- This marker authorizes exactly one density-screened profitability pilot batch. No merge, deployment, live allocation, strategy threshold change, or verifier-capacity increase is authorized.
