@@ -273,12 +273,12 @@ def main():
         ap.error('budgeted session must be 1..3600 seconds')
 
     request_limit=int(config.get('request_limit',240 if args.mode=='prospective' else 120))
-    preflight_budget=int(config.get('market_native_preflight_budget',60))
+    preflight_budget=int(config.get('market_native_preflight_budget',90))
     full_evidence_budget=int(config.get('market_native_full_evidence_budget',20))
+    provider_rotation_threshold=int(config.get('market_native_rpc_rotation_threshold',160))
     if args.mode=='prospective':
-        required=40+1+2*preflight_budget+3*full_evidence_budget
-        if request_limit<required:
-            ap.error(f'request_limit must be >= {required} for configured market-native budgets')
+        if not 40 <= provider_rotation_threshold <= request_limit-40:
+            ap.error('market_native_rpc_rotation_threshold must preserve 40 monitoring requests')
 
     store=Store(args.db,args.mode,config['initial_sol_usd_micros'],config['valuation_source'])
     if args.mode=='prospective':
@@ -332,6 +332,7 @@ def main():
             engine,adapter,max(1,args.seconds),
             preflight_budget=preflight_budget,
             full_evidence_budget=full_evidence_budget,
+            provider_rotation_threshold=provider_rotation_threshold,
         )
         if not ready.wait(15) or log_stream.error_kind:
             with store.transaction('stream_start_failure'):
@@ -341,6 +342,12 @@ def main():
         while time.monotonic()<deadline and not stopping.is_set():
             now=int(time.time())
             _monitor_existing(engine,adapter,now,pumpswap_runtime=pumpswap_runtime)
+            if rpc.calls >= provider_rotation_threshold:
+                rpc=RPC(url,limit=request_limit)
+                adapter=PumpAdapter(rpc)
+                postgrad_adapter=PostGraduationAdapter(rpc,scan_rpc=object())
+                pumpswap_runtime=PumpSwapPaperRuntime(store,postgrad_adapter)
+                market_runtime.replace_adapter(adapter)
             cursor=market_runtime.tick(tape,now,cursor)
             published=dict(engine.status(int(time.time())),release=release,
                            discovery_mode='market_native',scout_lane_active=False,
