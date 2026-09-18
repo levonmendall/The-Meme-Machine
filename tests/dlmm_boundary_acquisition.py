@@ -20,6 +20,7 @@ MAX_CENSUS_ROWS = PAGE_LIMIT * MAX_CENSUS_PAGES
 CENSUS_PAGE_DELAY_SECONDS = 1.0
 DENSE_TRANSACTION_SERIAL_THRESHOLD = 8
 DENSE_TRANSACTION_PACE_SECONDS = 1.0
+MAX_SUPPORTED_TRANSACTION_VERSION = 1
 ENDPOINT_DIAGNOSTICS = []
 
 
@@ -176,7 +177,7 @@ def _fetch_transaction_bodies(rpc, relevant, telemetry=None):
     throughput collisions.
     """
     params=[[sig['signature'],dict(encoding='json',commitment='finalized',
-                                  maxSupportedTransactionVersion=0)]
+                                  maxSupportedTransactionVersion=MAX_SUPPORTED_TRANSACTION_VERSION)]
             for sig in relevant]
     if telemetry is None:
         telemetry={}
