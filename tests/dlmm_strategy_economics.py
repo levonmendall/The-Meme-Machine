@@ -294,15 +294,19 @@ def development_economic_case(features):
 
 def development_candidates(history_start, warmup, placement_state=None):
     placement_state = history_start if placement_state is None else placement_state
-    rows = []
-    seen = set()
+    by_width = {}
     for placement in normalized_placements(placement_state):
         key = (placement["strategy"], placement["width"])
-        # Multiple target distances can map to the same integer width on coarse pools.
-        # Keep the closest declared target once, while preserving actual distance.
-        if key in seen:
-            continue
-        seen.add(key)
+        prior = by_width.get(key)
+        miss = abs(
+            placement["actual_distance_bps"] - placement["target_distance_bps"]
+        )
+        if prior is None or miss < prior[0]:
+            by_width[key] = (miss, placement)
+    rows = []
+    for _miss, placement in sorted(
+        by_width.values(), key=lambda item: item[1]["target_distance_bps"]
+    ):
         features = range_specific_features(
             history_start,
             warmup,
