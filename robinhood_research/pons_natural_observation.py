@@ -105,31 +105,20 @@ def _curve_state(rpc,curve,block,auth,report):
     ),header
 
 
-def _simulate_native_buy(rpc,curve,block,record,report):
+def _quote_native_buy(rpc,curve,block,record,state,report):
     if record["pairToken"].lower()!=ZERO:
         raise BoundaryError("natural_non_native_quote_not_supported")
-    exempt=_one_word(_call(
-        rpc,curve,"snipeTaxExempt(address)",(RESEARCH_RECIPIENT,),block,report
-    ),"bool")
-    call=dict(
-        to=curve,from_=RESEARCH_RECIPIENT,
-        data=calldata("buy(uint256,uint256,address)",RESEARCH_BUY_WEI,0,RESEARCH_RECIPIENT),
-        value=hex(RESEARCH_BUY_WEI),
-    )
-    # JSON-RPC field is named "from"; avoid using it as a Python keyword above.
-    call["from"]=call.pop("from_")
-    raw=rpc.call("eth_call",[call,hex(block)],scope="pons_natural")
-    tokens=_one_word(raw)
-    report["reads"].append(dict(
-        address=curve,signature="buy(uint256,uint256,address)",
-        args=[RESEARCH_BUY_WEI,0,RESEARCH_RECIPIENT],block=block,value=raw,
-        observed_at=time.time(),simulation=True,
+    current_snipe=_one_word(_call(
+        rpc,curve,"currentSnipeTaxBps(address)",(RESEARCH_RECIPIENT,),block,report
     ))
-    if tokens<=0:
-        raise BoundaryError("natural_zero_buy_quote")
+    quote=state.buy_with_snipe(RESEARCH_BUY_WEI,current_snipe)
     return dict(
-        quote_in=RESEARCH_BUY_WEI,tokens_out=tokens,recipient=RESEARCH_RECIPIENT,
-        recipient_snipe_exempt=bool(exempt),execution="eth_call_on_deployed_curve",
+        quote_in=RESEARCH_BUY_WEI,tokens_out=quote["tokens_out"],
+        spent=quote["spent"],refund=quote["refund"],fee=quote["fee"],
+        creator_tax=quote["creator_tax"],snipe_tax=quote["snipe_tax"],
+        ready_to_graduate=quote["ready_to_graduate"],
+        current_snipe_bps=current_snipe,recipient=RESEARCH_RECIPIENT,
+        execution="source_verified_arithmetic_plus_onchain_current_snipe",
     )
 
 
@@ -156,7 +145,7 @@ def _authenticate_candidate(rpc,event,report):
     code=rpc.call("eth_getCode",[curve,hex(block)],scope="pons_natural")
     auth=authenticate_curve(curve,code,factory_record=record)
     state,_=_curve_state(rpc,curve,block,auth,report)
-    quote=_simulate_native_buy(rpc,curve,block,record,report)
+    quote=_quote_native_buy(rpc,curve,block,record,state,report)
 
     # The entire executable observation, not merely the first log read, must remain
     # inside the unchanged five-second gate.
@@ -209,6 +198,7 @@ def run(endpoint):
         cursor=int(start_header["number"],16)
         report["start_block"]=cursor
         deadline=time.monotonic()+DISCOVERY_SECONDS
+        attempted_curves=set()
 
         while time.monotonic()<deadline and candidate is None:
             latest=_latest_header(rpc)
@@ -216,6 +206,10 @@ def run(endpoint):
             start=max(cursor+1,end-9)
             if end>=start:
                 for event in _current_curve_events(rpc,start,end):
+                    curve=event.get("address","").lower()
+                    if curve in attempted_curves:
+                        continue
+                    attempted_curves.add(curve)
                     try:
                         item=_authenticate_candidate(rpc,event,report)
                         with tempfile.TemporaryDirectory() as td:
