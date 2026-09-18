@@ -1,0 +1,47 @@
+{
+  "kind": "captured_natural_pons_paper_lifecycle",
+  "source_run": 35382359016,
+  "source_artifact": 10562377925,
+  "source_artifact_sha256": "1e2f2da1d446baa033afce6801fe71f24599ddc3bf66df17469764946cd86df8",
+  "strategy_authority": false,
+  "proof_authority": "bounded_lifecycle_proof_only",
+  "selection_rule": "first_current_authenticated_pons_v2_curve_after_start",
+  "token": "0x3808b3ce12d40938366dbbc698ce0ba50fa37c8e",
+  "curve": "0x856f6971fe68300dfd182725bfae433a86bb5b7b",
+  "source_transaction": "0x62b3bf4c2db53fc4009c0ae8a9049e08d93d2c0485bc687b0be3483492b86bdb",
+  "source_block": 66452382,
+  "decision_freshness_seconds": 4,
+  "paper_amount": 10000000000000000,
+  "entry": {
+    "block": 66452458,
+    "amount_out_tokens": 1764611531808122961342365,
+    "gas_quote": 12034254400000,
+    "cost": 10012034254400000
+  },
+  "monitor": {
+    "block": 66452604,
+    "return_bps": -6671,
+    "exit_reason": "risk"
+  },
+  "exit": {
+    "block": 66452638,
+    "gross_quote_out": 3520345598746922,
+    "gas_quote": 12228861120000,
+    "net_quote_out": 3508116737626922,
+    "realized_pnl": -6503917516773078
+  },
+  "final": {
+    "status": "settled",
+    "tokens": 0,
+    "reserved": 0,
+    "open_exposure": 0,
+    "available_capital": 993496082483226922
+  },
+  "carried_through_graduation": false,
+  "provider": {
+    "requests": 63,
+    "failures": 0,
+    "retries": 0
+  },
+  "profitability_claim": false
+}
