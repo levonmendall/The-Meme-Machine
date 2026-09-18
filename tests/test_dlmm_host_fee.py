@@ -227,6 +227,80 @@ class HostFeeAccounting(unittest.TestCase):
                 [(target_record,target_event),(other_record,other_event)],
                 bad,keys,[])
 
+    def test_reconstruct_defers_missing_recipient_rows_to_terminal_pool_conservation(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,q,host,tx=host_transaction(
+            p,450_000_000,101,101,omit_host_balances=True)
+        with self.assertRaisesRegex(Unavailable,'token_balance_missing'):
+            transaction_swap(tx,POOL)
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='hosted',slot=101,transactionIndex=7,err=None,
+                 confirmationStatus='finalized'),
+            dict(signature='anchor',slot=100,transactionIndex=1,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'hosted':tx},102,[100,2**31-1,2**31-1])
+        self.assertEqual(len(tape.events),1)
+        self.assertEqual(tape.events[0]['observed']['host_fee'],host)
+        self.assertEqual(
+            tape.events[0]['host_fee_recipient_auth'],
+            'terminal_pool_conservation')
+        self.assertEqual(tape.terminal['vault_x_amount'],post['vault_x_amount'])
+
+    def test_reconstruct_can_ignore_confounded_recipient_net_delta_but_not_wrong_mint(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,_,host,tx=host_transaction(
+            p,450_000_000,101,101,host_delta_adjustment=77)
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='hosted',slot=101,transactionIndex=7,err=None,
+                 confirmationStatus='finalized'),
+            dict(signature='anchor',slot=100,transactionIndex=1,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'hosted':tx},102,[100,2**31-1,2**31-1])
+        self.assertEqual(
+            tape.events[0]['host_fee_recipient_auth'],
+            'terminal_pool_conservation')
+        wrong=copy.deepcopy(tx)
+        wrong['meta']['preTokenBalances'][0]['mint']=p['y']
+        wrong['meta']['postTokenBalances'][0]['mint']=p['y']
+        with self.assertRaisesRegex(Unavailable,'wrong_token'):
+            reconstruct(
+                p,end,sigs,{'hosted':wrong},102,
+                [100,2**31-1,2**31-1])
+
+    def test_terminal_conservation_rejects_wrong_host_event_amount(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,_,host,tx=host_transaction(
+            p,450_000_000,101,101,omit_host_balances=True)
+        bad=copy.deepcopy(tx)
+        # Legacy event: EVENT_CPI(8) + Swap event host is final u64.
+        raw=bytearray()
+        from meme_machine.dlmm_tape import _un58_data
+        encoded=_un58_data(
+            bad['meta']['innerInstructions'][0]['instructions'][0]['data'])
+        raw=bytearray(encoded)
+        raw[-8:]=(host+1).to_bytes(8,'little')
+        bad['meta']['innerInstructions'][0]['instructions'][0]['data']=pump.b58(bytes(raw))
+        # Keep companion event aligned so event-version cross-check does not mask
+        # the terminal conservation failure.
+        encoded=_un58_data(
+            bad['meta']['innerInstructions'][0]['instructions'][1]['data'])
+        raw=bytearray(encoded)
+        raw[-10:-2]=(host+1).to_bytes(8,'little')
+        bad['meta']['innerInstructions'][0]['instructions'][1]['data']=pump.b58(bytes(raw))
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='hosted',slot=101,transactionIndex=7,err=None,
+                 confirmationStatus='finalized'),
+            dict(signature='anchor',slot=100,transactionIndex=1,err=None,
+                 confirmationStatus='finalized')]
+        with self.assertRaises(Unavailable):
+            reconstruct(
+                p,end,sigs,{'hosted':bad},102,[100,2**31-1,2**31-1])
+
     def test_hosted_swap_reconstructs_exact_terminal_state(self):
         s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
         post,q,host,tx=host_transaction(p,450_000_000,101,101)
