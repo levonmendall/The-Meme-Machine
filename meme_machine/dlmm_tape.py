@@ -23,6 +23,7 @@ SWAP_IX = bytes([248,198,158,145,225,117,135,200])
 SWAP2_IX = bytes([65,75,63,76,235,91,91,136])
 INITIALIZE_POSITION_IX = bytes.fromhex('dbc0ea47bebf6650')
 INITIALIZE_BIN_ARRAY_IX = bytes.fromhex('235613b94ed44bd3')
+ADD_LIQUIDITY_BY_STRATEGY2_IX = bytes.fromhex('03dd95da6f8d76d5')
 SYSTEM_PROGRAM = '11111111111111111111111111111111'
 EXACT_IN = {SWAP_IX,SWAP2_IX}
 EXACT_IN_NAME = {SWAP_IX:'swap',SWAP2_IX:'swap2'}
@@ -227,6 +228,29 @@ def transaction_swaps(tx,pool):
             # writable signer funder, system program. Creation introduces only an
             # empty structural array. Any instruction that later changes its bins or
             # pool liquidity is still unsupported and fails closed separately.
+            continue
+        elif raw[:8]==ADD_LIQUIDITY_BY_STRATEGY2_IX:
+            if positions:
+                accounts=instruction.get('accounts') or []
+                pos=','.join(map(str,positions))
+                # Pinned IDL main accounts begin: position, lb_pair, optional bitmap,
+                # user X/Y, reserves X/Y, mints X/Y, sender, token programs,
+                # event authority, program. Remaining bin arrays may follow.
+                if positions!=[1] or len(accounts)<14:
+                    raise ValueError(
+                        f'dlmm_add_liquidity_by_strategy2_identity:pool_positions={pos}:accounts={len(accounts)}')
+                if any(type(i) is not int or not 0<=i<len(keys) for i in accounts[:14]):
+                    raise ValueError('dlmm_add_liquidity_by_strategy2_account_index')
+                slot=tx.get('slot')
+                if type(slot) is not int or slot<0:
+                    raise Unavailable('dlmm_snapshot_reset_slot_unavailable')
+                # AddLiquidity only reports aggregate X/Y and active bin. Strategy2
+                # can redistribute those amounts across a bin range, so accepting it
+                # as a replayable no-op would corrupt bin inventory/supply. Surface a
+                # precise reset boundary instead; warmup may restart from a fresh
+                # authenticated snapshot, while outcome replay remains fail-closed.
+                raise Unavailable(
+                    f'dlmm_snapshot_reset_required:add_liquidity_by_strategy2:{slot}')
             continue
         else:
             if positions:raise Unavailable('dlmm_non_swap_mutation_in_interval:'+raw[:8].hex())
