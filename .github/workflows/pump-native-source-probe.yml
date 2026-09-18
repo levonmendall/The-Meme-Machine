@@ -1,0 +1,31 @@
+name: pump-native-source-probe
+on:
+  push:
+    branches: [research/fomo-100-event-study]
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: contains(github.event.head_commit.message, '[source-probe]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      BITQUERY_API_KEY: ${{ secrets.BITQUERY_API_KEY }}
+      BITQUERY_TOKEN: ${{ secrets.BITQUERY_TOKEN }}
+      SHRINE_API_KEY: ${{ secrets.SHRINE_API_KEY }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12.14'}
+      - name: Probe documented Pump-native free data routes
+        run: python -m tests.pump_native_source_probe | tee pump-native-source-probe.log
+      - name: Preserve probe
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pump-native-source-probe-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            pump-native-source-probe.json
+            pump-native-source-probe.log
+          if-no-files-found: warn
+          retention-days: 7
