@@ -7,7 +7,7 @@ import requests,zstandard
 
 FOMO="https://api.fomoapi.io";REPLAY="https://replay.shrine.trade/pump";OUT=Path("fomo-successful-wallet-forward-study.json")
 QUOTE={"So11111111111111111111111111111111111111112","EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v","Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"}
-PROTOCOLS={"PUMPFUN","PUMPSWAP"};TOP_N=8;RECENT_HOURS=36;DEDUP=1800;ANCHOR_TOL=30;ENTRY_DELAY=15;ENTRY_TOL=90;OUTCOME_TOL=180;H=(60,300,900,3600)
+PROTOCOLS={"PUMPFUN","PUMPSWAP"};TOP_N=8;RECENT_HOURS=168;DEDUP=1800;ANCHOR_TOL=30;ENTRY_DELAY=15;ENTRY_TOL=90;OUTCOME_TOL=180;H=(60,300,900,3600)
 
 def api(path,key,params=None):
  q=urllib.parse.urlencode(params or {});req=urllib.request.Request(FOMO+path+(("?"+q) if q else ""),headers={"Authorization":"Bearer "+key,"Accept":"application/json"})
