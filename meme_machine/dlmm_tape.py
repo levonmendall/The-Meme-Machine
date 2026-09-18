@@ -325,7 +325,7 @@ def _host_binding(record,event,keys):
     return dict(
         host_index=host_index,input_mint=input_mint,host=int(host),
         reserve_input=reserve_input,user_input=user_input,
-        order=tuple(record['order']))
+        order=tuple(record['order']),target=bool(record.get('target')))
 
 
 def _host_transfer_amount(binding,ordered,keys,next_swap_order):
@@ -358,25 +358,28 @@ def _authenticate_host_fees(resolved_records,meta,keys,ordered):
         binding=_host_binding(record,event,keys)
         if binding is not None:
             hosted.append((record,event,binding))
-    expected={}
-    for _record,_event,binding in hosted:
-        index=binding['host_index'];mint=binding['input_mint'];host=binding['host']
-        prior=expected.get(index)
-        if prior is None:
-            expected[index]=[mint,host]
-        elif prior[0]!=mint:
-            raise Unavailable('dlmm_host_fee_account_reused_for_multiple_tokens')
-        else:
-            prior[1]+=host
 
-    # Prove each hosted swap from its own ordered execution slice when SPL transfer
-    # evidence is available. This survives omitted balance rows and unrelated host
-    # account movement elsewhere in the transaction.
-    transfer_proven={}
+    # Only target-pool hosted swaps can invalidate target reconstruction. Routed
+    # swaps for other pools are retained only when they share the same host account
+    # and mint, because their fee can legitimately contribute to one transaction-
+    # level host-account balance delta.
+    target_bindings=[binding for _record,_event,binding in hosted if binding['target']]
+    if not target_bindings:
+        return
+
+    grouped={}
+    for _record,_event,binding in hosted:
+        key=(binding['host_index'],binding['input_mint'])
+        grouped.setdefault(key,[]).append(binding)
+
     hosted_orders=sorted(
         (tuple(binding['order']),binding)
         for _record,_event,binding in hosted)
+
+    transfer_proven={}
     for _record,_event,binding in hosted:
+        if not binding['target']:
+            continue
         next_order=None
         for order,_other in hosted_orders:
             if order[0]==binding['order'][0] and order>binding['order']:
@@ -388,12 +391,14 @@ def _authenticate_host_fees(resolved_records,meta,keys,ordered):
             key=(binding['host_index'],binding['input_mint'])
             transfer_proven[key]=transfer_proven.get(key,0)+amount
 
-    for index,(mint,expected_host) in expected.items():
-        key=(index,mint)
-        if transfer_proven.get(key)==expected_host:
-            # If transaction-level balances exist, they must identify the same mint.
-            # Their net delta may include unrelated movement and is therefore only a
-            # mint/consistency cross-check, not the primary amount proof.
+    target_groups={}
+    for binding in target_bindings:
+        key=(binding['host_index'],binding['input_mint'])
+        target_groups.setdefault(key,0)
+        target_groups[key]+=binding['host']
+
+    for (index,mint),target_expected in target_groups.items():
+        if transfer_proven.get((index,mint))==target_expected:
             pre=_maybe_token_balance(meta,'preTokenBalances',index)
             post=_maybe_token_balance(meta,'postTokenBalances',index)
             if pre is not None and pre[0]!=mint:
@@ -409,8 +414,18 @@ def _authenticate_host_fees(resolved_records,meta,keys,ordered):
         pre_mint,pre_amount=pre;post_mint,post_amount=post
         if pre_mint!=mint or post_mint!=mint:
             raise Unavailable('dlmm_host_fee_wrong_token')
-        if post_amount-pre_amount!=expected_host:
+        delta=post_amount-pre_amount
+        if delta==target_expected:
+            continue
+
+        # Routed DLMM swaps can share one host token account. In that case the
+        # transaction-level delta is the aggregate for every DLMM swap using that
+        # exact host account + input mint, even though only one pool is being
+        # reconstructed here.
+        aggregate=sum(binding['host'] for binding in grouped[(index,mint)])
+        if delta!=aggregate:
             raise Unavailable('dlmm_host_fee_balance_delta_mismatch')
+
 
 
 def _log_swap_fallback(meta,pool):
