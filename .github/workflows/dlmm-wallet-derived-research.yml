@@ -86,3 +86,31 @@ jobs:
           path: dlmm-wallet-provider-diagnostic.json
           if-no-files-found: warn
           retention-days: 30
+
+  prospective:
+    if: contains(github.event.head_commit.message, '[dlmm-wallet-cluster-prospective]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    concurrency:
+      group: dlmm-alchemy-solana-live
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Frozen candidate regression gate
+        run: python -m unittest tests.test_dlmm_wallet_cluster_prospective -v
+      - name: Run strictly post-freeze natural prospective wallet-cluster test
+        env:
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+        run: python -m tests.dlmm_wallet_cluster_prospective
+      - name: Preserve prospective result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dlmm-wallet-cluster-prospective-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dlmm-wallet-cluster-prospective.json
+          if-no-files-found: warn
+          retention-days: 90
