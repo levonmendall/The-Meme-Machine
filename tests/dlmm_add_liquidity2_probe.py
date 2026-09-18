@@ -6,7 +6,7 @@ from pathlib import Path
 from meme_machine import dlmm,pump
 from meme_machine.dlmm_tape import _keys,_ordered_instructions,_un58_data,EVENT_CPI
 from tests import dlmm_alchemy_provider as alchemy_provider
-from tests.dlmm_boundary_acquisition import complete_signature_census,_fetch_transaction_bodies
+from tests.dlmm_boundary_acquisition import _fetch_transaction_bodies
 
 POOL="FzA8Fji7xdr9jfN7Y2YCUGLYwBzqP1eicKA4dX4m8BJg"
 START_SLOT=448176914
@@ -66,9 +66,30 @@ def run():
     rpc=alchemy_provider.new_rpc(limit=120,pacer=pacer)
     if rpc.call("getGenesisHash",priority=True)!=pump.MAINNET:
         raise RuntimeError("add_liquidity2_probe_wrong_network")
-    telemetry={}
-    sigs=complete_signature_census(rpc,POOL,START_SLOT,END_SLOT,telemetry=telemetry)
-    relevant=[s for s in sigs if START_SLOT<s["slot"]<=END_SLOT and not s.get("err")]
+    telemetry=dict(block_scan_slots=[])
+    relevant=[]
+    for slot in range(START_SLOT+1,END_SLOT+1):
+        block=rpc.call("getBlock",[slot,dict(
+            commitment="finalized",encoding="json",
+            transactionDetails="accounts",rewards=False,
+            maxSupportedTransactionVersion=0)],True)
+        telemetry["block_scan_slots"].append(slot)
+        if not block:
+            continue
+        for row in block.get("transactions") or []:
+            tx=row.get("transaction") or {}
+            message=tx.get("message") or {}
+            keys=message.get("accountKeys") or []
+            if POOL not in keys:
+                continue
+            sigs=tx.get("signatures") or []
+            if not sigs:
+                raise RuntimeError("add_liquidity2_probe_missing_signature")
+            relevant.append(dict(
+                signature=sigs[0],slot=slot,transactionIndex=len(relevant),
+                err=None,confirmationStatus="finalized"))
+    if len(relevant)!=2:
+        raise RuntimeError(f"add_liquidity2_probe_expected_two:{len(relevant)}")
     txs=_fetch_transaction_bodies(rpc,relevant,telemetry)
     rows=[]
     for sig,tx in zip(relevant,txs):
