@@ -123,3 +123,12 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Logical transaction count, evidence scope, finality, `MAX_TRANSACTIONS=16`, host-fee accounting, strategy2 warmup-reset policy, strategy and costs are unchanged.
 - A single getTransaction JSON-RPC provider error retains exactly one retry but waits at least 1.5 seconds before that retry.
 - This marker authorizes exactly one one-pool / one-cycle / 12-second host-fee certification replay. No retry is authorized by this marker.
+
+
+## Normal live serialized dense retrieval proof
+
+- Current code includes the offline-green dense retrieval repair from `963074d15378efe744e8fd8944907bf3826a4080`.
+- This proof uses only the normal one-pool / one-cycle / 12-second live bounded DLMM flow; it does not use historical `getBlock` recovery.
+- Any naturally occurring interval with 8-16 successful transactions must use serialized single finalized `getTransaction` calls spaced one second apart. Smaller intervals keep bounded batching.
+- Strategy2 handling, host-fee accounting, finality, `MAX_TRANSACTIONS=16`, strategy, costs, and prospective allocation disabled are unchanged.
+- This marker authorizes exactly one live replay. No retry is authorized by this marker.
