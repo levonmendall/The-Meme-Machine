@@ -351,3 +351,22 @@ class RamsesInventoryWatchTests(unittest.TestCase):
         self.assertGreaterEqual(ramses_capture.FORWARD_FINALITY_WAIT_SECONDS,180)
         self.assertEqual(ramses_capture.LOG_BLOCK_CHUNK,10)
         self.assertEqual(ramses_capture.WATCH_POOL_COUNT*ramses_capture.WATCH_COHORT_COUNT,8)
+
+    def test_forced_finality_selects_earliest_finalized_horizon_block(self):
+        class FakeRpc:
+            def __init__(self):
+                self.calls=[]
+            def call(self,method,params,scope='forward'):
+                self.calls.append((method,params,scope))
+                block=int(params[0],16)
+                return dict(number=hex(block),timestamp=hex(1000+(block-100)*2))
+        rpc=FakeRpc()
+        frontier=dict(number=hex(140),timestamp=hex(1080))
+        selected,previous,reads=ramses_capture._first_finalized_block_at_or_after(
+            rpc,100,frontier,1061)
+        self.assertEqual(int(selected['number'],16),131)
+        self.assertEqual(int(selected['timestamp'],16),1062)
+        self.assertEqual(int(previous['number'],16),130)
+        self.assertEqual(int(previous['timestamp'],16),1060)
+        self.assertLessEqual(reads,8)
+
