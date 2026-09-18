@@ -6,7 +6,7 @@ enrollment attempt completes. Complete and incomplete vectors are both retained.
 Thresholds and translation constants are imported read-only from the frozen policy.
 
 The runner targets ten decision-eligible complete vectors within a bounded session.
-It records +60s full-position research marks where available. Missing concentration,
+It records full-position research marks after the +60s minimum horizon where available; exact-delay telemetry is retained. Missing concentration,
 provider limits, stale evidence, graduation, or unavailable exits remain explicit
 sample outcomes; they never cause a candidate replacement.
 """
@@ -333,7 +333,7 @@ def run(endpoint):
     # Outcomes are attached only after enrollment is frozen.
     for row in result["rows"]:
         if row.get("status")=="evaluated":
-            row["forward_60s"]=_forward_mark(endpoint,row)
+            row["forward_after_60s"]=_forward_mark(endpoint,row)
 
     vectors=[r.get("vector") for r in result["rows"] if r.get("vector")]
     result["summary"]=dict(
@@ -343,7 +343,7 @@ def run(endpoint):
         complete_vectors=sum(bool(v.get("complete")) for v in vectors),
         decision_eligible_complete=sum(bool(v.get("complete") and v.get("decision_state_fresh")) for v in vectors),
         qualified=sum(bool(v.get("current_threshold_pass")) for v in vectors),
-        forward_complete=sum((r.get("forward_60s") or {}).get("status")=="complete" for r in result["rows"]),
+        forward_marks_complete=sum((r.get("forward_after_60s") or {}).get("status")=="complete" for r in result["rows"]),
         rejection_counts={},
     )
     counts={}
