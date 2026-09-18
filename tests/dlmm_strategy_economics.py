@@ -211,6 +211,21 @@ def range_specific_features(history_start, warmup, strategy, width, placement_st
     projected_60s_fee = gross_fee * HOLD_SECONDS / observed_seconds
     projected_surplus = projected_60s_fee - FIXED_COST
 
+    # Range-specific fee opportunity at the actual proposed entry range. The pool
+    # event exposes total swap fee, not our hypothetical per-bin claim, so estimate
+    # capture from our capital share of pre-entry range liquidity. This is explicitly
+    # a development feature, not realized P&L or a substitute for the exact outcome
+    # replay.
+    capture_denominator = range_liquidity + CAPITAL
+    estimated_capture_share = (
+        0.0 if capture_denominator <= 0 else CAPITAL / capture_denominator
+    )
+    estimated_warmup_range_fee = touch_fees * estimated_capture_share
+    projected_60s_range_fee = (
+        estimated_warmup_range_fee * HOLD_SECONDS / observed_seconds
+    )
+    projected_60s_range_surplus = projected_60s_range_fee - FIXED_COST
+
     return dict(
         strategy=strategy,
         width=width,
@@ -240,8 +255,12 @@ def range_specific_features(history_start, warmup, strategy, width, placement_st
         warmup_counterfactual_pnl_bps=warmup_eval.get("pnl_bps"),
         warmup_counterfactual_gross_fee_lamports=gross_fee,
         warmup_observed_seconds=observed_seconds,
-        projected_60s_gross_fee_lamports=projected_60s_fee,
-        projected_60s_fee_surplus_lamports=projected_surplus,
+        projected_60s_same_width_gross_fee_lamports=projected_60s_fee,
+        projected_60s_same_width_fee_surplus_lamports=projected_surplus,
+        estimated_range_fee_capture_share=estimated_capture_share,
+        estimated_warmup_range_fee_capture_lamports=estimated_warmup_range_fee,
+        projected_60s_range_fee_capture_lamports=projected_60s_range_fee,
+        projected_60s_range_fee_surplus_lamports=projected_60s_range_surplus,
         fixed_cost_lamports=FIXED_COST,
         fixed_cost_bps=FIXED_COST_BPS,
     )
@@ -253,7 +272,7 @@ def development_economic_case(features):
     This is intentionally only a development rule. The eventual frozen holdout rule
     must be defined from accumulated development observations and committed separately.
     """
-    fee_hurdle = features["projected_60s_fee_surplus_lamports"] >= 0
+    fee_hurdle = features["projected_60s_range_fee_surplus_lamports"] >= 0
     flow_into_bid = features["flow_into_range_volume_sol_lamports"] > 0
     two_way_or_revert = (
         features["away_from_range_volume_sol_lamports"] > 0
@@ -305,7 +324,7 @@ def select_development_candidate(history_start, warmup, placement_state=None):
         return None, rows
     eligible.sort(
         key=lambda row: (
-            row["features"]["projected_60s_fee_surplus_lamports"],
+            row["features"]["projected_60s_range_fee_surplus_lamports"],
             row["features"]["two_way_balance"],
             row["features"]["flow_into_range_volume_sol_lamports"],
             -row["features"]["near_range_drift_ratio"],
@@ -363,7 +382,7 @@ def select_holdout_candidate(
         placement_state=placement_state,
     )
     fee_ok = (
-        features["projected_60s_fee_surplus_lamports"]
+        features["projected_60s_range_fee_surplus_lamports"]
         >= int(rule["min_projected_60s_fee_surplus_lamports"])
     )
     flow_ok = (
