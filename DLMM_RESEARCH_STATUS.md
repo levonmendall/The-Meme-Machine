@@ -155,3 +155,12 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - No nonzero host-fee swap happened naturally in this window, so this run closes predictive chunk-growth / endpoint-capture certification only; it does not add a new live host-fee exercise.
 - Artifact: `dlmm-strategy-replay-35294759878-1`, ID `10527546316`, SHA256 `0fdf375831d1579a9151626b96681e8eb7544ca3b5df4b00549176969e420b18`.
 - No additional replay was triggered.
+
+
+## Current JUP-SOL live host-fee sub-proof
+
+- Core DLMM mechanics/replay are already certified on predictive-closure run `35294759878`.
+- This proof targets only the remaining host-fee coverage gap on JUP-SOL `C8Gr6AUuq9hEdSYJzoEpNcdjpojPZwqG5MtQbeouNNwg`.
+- It uses the normal finalized snapshot -> predictive bounded chunks -> complete signature census -> authenticated transaction bodies -> host token-account delta -> forward reconstruction -> terminal equality path.
+- It does not alter strategy, costs, `MAX_TRANSACTIONS=16`, host-fee math, strategy2 handling, or allocation authority.
+- This marker authorizes exactly one 12-second current live host-fee proof. No retry is authorized by this marker.
