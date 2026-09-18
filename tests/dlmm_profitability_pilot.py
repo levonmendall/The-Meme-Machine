@@ -32,6 +32,7 @@ from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
 from tests import dlmm_boundary_acquisition as boundary
 from tests import dlmm_dense_acquisition as dense
+from tests import dlmm_alchemy_provider as alchemy_provider
 from tests import dlmm_strategy_economics as economics
 from tests import dlmm_strategy_high_activity as research
 from tests import dlmm_strategy_high_activity_batched as run
@@ -748,8 +749,7 @@ def run_live(
     boundary.ENDPOINT_DIAGNOSTICS.clear()
     dense.ENDPOINT_CAPTURE_HIGH_WATER.clear()
 
-    rpc_url = os.environ.get("MM_SOLANA_READ_RPC_URL") or "https://api.mainnet.solana.com"
-    rpc = PoolScanRPC(rpc_url, limit=240)
+    rpc = PoolScanRPC(alchemy_provider.rpc_url(), limit=240)
     adapter = dlmm.Adapter(rpc)
 
     discovery_start = _rpc_metrics(rpc)
@@ -762,6 +762,9 @@ def run_live(
     report = dict(
         kind="dlmm_range_economic_point_in_time_v4",
         base="pr4_verified_simulator",
+        rpc_provider=alchemy_provider.PROVIDER_LABEL,
+        rpc_provider_host=alchemy_provider.ALCHEMY_SOLANA_MAINNET_HOST,
+        rpc_provider_fallback_allowed=False,
         allocation_authority=False,
         prospective_allocation_enabled=False,
         study_phase=study_phase,
