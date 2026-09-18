@@ -23,6 +23,7 @@ from meme_machine.dlmm_tape import (
     REMOVE_LIQUIDITY_BY_RANGE2_IX,
 )
 from tests import dlmm_alchemy_provider as alchemy_provider
+from meme_machine.provider import Unavailable
 
 API_BASE="https://dlmm.datapi.meteora.ag"
 DISCOVERY_OUT=Path("dlmm-wallet-cohort-discovery.json")
@@ -154,24 +155,40 @@ def discover_wallet_cohort():
     all_events=[];pool_telemetry=[]
     for pool in pools:
         rpc=alchemy_provider.new_rpc(limit=PER_POOL_RPC_LIMIT,pacer=pacer)
-        sigs=rpc.call("getSignaturesForAddress",[
-            pool["address"],dict(limit=SIGNATURE_LIMIT,commitment="finalized")
-        ],True)
-        recent=[s for s in sigs if isinstance(s,dict) and not s.get("err")][
-            :TX_BODY_LIMIT_PER_POOL]
-        params=[[s["signature"],dict(
-            encoding="json",commitment="finalized",maxSupportedTransactionVersion=0
-        )] for s in recent]
-        txs=rpc.call_many("getTransaction",params,True,batch_size=4) if params else []
-        found=0
-        for sig,tx in zip(recent,txs):
+        found=0;body_failures=0;recent=[]
+        try:
+            sigs=rpc.call("getSignaturesForAddress",[
+                pool["address"],dict(limit=SIGNATURE_LIMIT,commitment="finalized")
+            ],True)
+            recent=[s for s in sigs if isinstance(s,dict) and not s.get("err")][
+                :TX_BODY_LIMIT_PER_POOL]
+        except Unavailable:
+            pool_telemetry.append(dict(
+                pool=pool["address"],rank=pool["rank"],transactions_examined=0,
+                lp_actor_events=0,body_failures=0,signature_census_failed=True,
+                rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,
+                rpc_failures=rpc.failures,rpc_retries=rpc.retries,
+            ))
+            continue
+        for sig in recent:
+            try:
+                tx=rpc.call("getTransaction",[sig["signature"],dict(
+                    encoding="json",commitment="finalized",
+                    maxSupportedTransactionVersion=0
+                )],True)
+            except Unavailable:
+                body_failures+=1
+                continue
             if not tx or (tx.get("meta") or {}).get("err"):
+                body_failures+=1
                 continue
             rows=_actor_events(tx,pool["address"],pool["rank"],sig)
             all_events.extend(rows);found+=len(rows)
         pool_telemetry.append(dict(
             pool=pool["address"],rank=pool["rank"],transactions_examined=len(recent),
-            lp_actor_events=found,rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,
+            lp_actor_events=found,body_failures=body_failures,
+            signature_census_failed=False,
+            rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,
             rpc_failures=rpc.failures,rpc_retries=rpc.retries,
         ))
 
