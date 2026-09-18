@@ -139,7 +139,13 @@ class RPC:
                 last_error = exc
                 if attempt+1 < attempts:
                     self.retries += 1
-                    self.sleep(self._retry_delay(exc))
+                    delay=self._retry_delay(exc)
+                    # A finalized getTransaction JSON-RPC provider error may be a
+                    # throughput collision returned inside HTTP 200. Keep the same
+                    # single retry, but do not immediately collide again.
+                    if method=='getTransaction' and kind=='provider_error':
+                        delay=max(delay,1.5)
+                    self.sleep(delay)
         if last_error is not None:
             raise Unavailable('provider_request_failed') from None
         self._cache_put(key,result)

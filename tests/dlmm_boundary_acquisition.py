@@ -18,6 +18,8 @@ PAGE_LIMIT = 64
 MAX_CENSUS_PAGES = 16
 MAX_CENSUS_ROWS = PAGE_LIMIT * MAX_CENSUS_PAGES
 CENSUS_PAGE_DELAY_SECONDS = 1.0
+DENSE_TRANSACTION_SERIAL_THRESHOLD = 8
+DENSE_TRANSACTION_PACE_SECONDS = 1.0
 ENDPOINT_DIAGNOSTICS = []
 
 
@@ -164,6 +166,36 @@ def complete_signature_census(rpc, pool, start_slot, end_slot, telemetry=None):
     return proof
 
 
+def _fetch_transaction_bodies(rpc, relevant, telemetry=None):
+    """Fetch immutable finalized transaction bodies without dense batch bursts.
+
+    Small intervals keep the existing <=4-item batching efficiency. Dense intervals
+    (8..16 successful transactions) are serialized as ordinary single JSON-RPC
+    requests with one-second spacing. Logical request count/evidence scope is
+    unchanged; this only changes transport concurrency and avoids batch-item
+    throughput collisions.
+    """
+    params=[[sig['signature'],dict(encoding='json',commitment='finalized',
+                                  maxSupportedTransactionVersion=0)]
+            for sig in relevant]
+    if telemetry is None:
+        telemetry={}
+    if len(params) >= DENSE_TRANSACTION_SERIAL_THRESHOLD:
+        telemetry['transaction_retrieval_mode']='serialized_single_getTransaction'
+        telemetry['transaction_retrieval_pace_seconds']=DENSE_TRANSACTION_PACE_SECONDS
+        values=[]
+        for index,param in enumerate(params):
+            if index:
+                sleeper=getattr(rpc,'sleep',None)
+                if callable(sleeper):
+                    sleeper(DENSE_TRANSACTION_PACE_SECONDS)
+            values.append(rpc.call('getTransaction',param,True))
+        return values
+    telemetry['transaction_retrieval_mode']='bounded_call_many_batch_size_4'
+    telemetry['transaction_retrieval_pace_seconds']=None
+    return rpc.call_many('getTransaction',params,True,batch_size=4)
+
+
 def capture_chunk(adapter, start, cursor):
     """Capture one terminal-verified chunk with bounded start-boundary pagination."""
     rpc = adapter.rpc
@@ -189,10 +221,7 @@ def capture_chunk(adapter, start, cursor):
         telemetry['transaction_count'] = len(relevant)
         if len(relevant) > MAX_TRANSACTIONS:
             raise Unavailable('dlmm_transaction_bound')
-        params = [[sig['signature'], dict(encoding='json', commitment='finalized',
-                                          maxSupportedTransactionVersion=0)]
-                  for sig in relevant]
-        values = rpc.call_many('getTransaction', params, True, batch_size=4)
+        values = _fetch_transaction_bodies(rpc,relevant,telemetry)
         transactions = {sig['signature']: tx for sig, tx in zip(relevant, values)}
         if len(encode(transactions)) > 2_000_000:
             raise Unavailable('dlmm_interval_evidence_bound')

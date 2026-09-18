@@ -144,6 +144,63 @@ class BoundedRetry(unittest.TestCase):
         self.assertEqual((rpc.null_retries,rpc.retries,rpc.failures),(1,1,1))
         self.assertEqual(rpc.failure_methods,{'getTransaction:null_result':1})
 
+    def test_dense_dlmm_bodies_are_serialized_without_batch_transport(self):
+        from tests import dlmm_boundary_acquisition as boundary
+        class Dense:
+            def __init__(self):
+                self.calls=[];self.sleeps=[];self.batch_calls=0
+            def sleep(self,seconds): self.sleeps.append(seconds)
+            def call(self,method,params,priority):
+                self.calls.append((method,params,priority))
+                return {'signature':params[0],'slot':1}
+            def call_many(self,*args,**kwargs):
+                self.batch_calls+=1
+                raise AssertionError('dense interval must not batch transaction bodies')
+        rpc=Dense()
+        relevant=[dict(signature=f'sig-{i}') for i in range(14)]
+        telemetry={}
+        out=boundary._fetch_transaction_bodies(rpc,relevant,telemetry)
+        self.assertEqual(len(out),14)
+        self.assertEqual(rpc.batch_calls,0)
+        self.assertEqual(len(rpc.calls),14)
+        self.assertEqual(rpc.sleeps,[boundary.DENSE_TRANSACTION_PACE_SECONDS]*13)
+        self.assertEqual(telemetry['transaction_retrieval_mode'],'serialized_single_getTransaction')
+
+    def test_small_dlmm_body_set_keeps_bounded_batching(self):
+        from tests import dlmm_boundary_acquisition as boundary
+        class Small:
+            def __init__(self): self.batch=None
+            def call_many(self,method,params,priority,batch_size):
+                self.batch=(method,len(params),priority,batch_size)
+                return [{'signature':p[0]} for p in params]
+        rpc=Small();telemetry={}
+        out=boundary._fetch_transaction_bodies(
+            rpc,[dict(signature=f'sig-{i}') for i in range(3)],telemetry)
+        self.assertEqual(len(out),3)
+        self.assertEqual(rpc.batch,('getTransaction',3,True,4))
+        self.assertEqual(telemetry['transaction_retrieval_mode'],'bounded_call_many_batch_size_4')
+
+    def test_gettransaction_provider_error_retry_uses_longer_backoff(self):
+        sleeps=[]
+        class ProviderErrorOnceRPC(RPC):
+            def __init__(self):
+                self.n=0
+                super().__init__('https://example.invalid',limit=40,clock=lambda:100.0,
+                                 sleeper=lambda seconds:sleeps.append(seconds))
+            def _http(self,request):
+                self.n+=1
+                if self.n==1:
+                    return {'jsonrpc':'2.0','id':request['id'],
+                            'error':{'code':-32005}}
+                return {'jsonrpc':'2.0','id':request['id'],'result':{'slot':1}}
+        rpc=ProviderErrorOnceRPC()
+        value=rpc.call('getTransaction',
+            ['sig',{'encoding':'json','commitment':'finalized',
+                    'maxSupportedTransactionVersion':0}],True)
+        self.assertEqual(value,{'slot':1})
+        self.assertEqual((rpc.failures,rpc.retries),(1,1))
+        self.assertIn(1.5,sleeps)
+
     def test_unknown_signature_time_cannot_claim_complete_window(self):
         calls=[]
         def transport(request):

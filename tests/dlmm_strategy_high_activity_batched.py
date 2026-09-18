@@ -166,7 +166,7 @@ def main():
         research._advance=original_advance;research.fetch_high_activity=original_fetch
         research.discover_and_revalidate=original_discover;research.MAX_POOLS=original_max_pools
     report['research_rpc_provider']='solana_labs_public_mainnet'
-    report['transaction_retrieval']='bounded_call_many_batch_size_4'
+    report['transaction_retrieval']='adaptive_batch_small_serialized_dense_getTransaction'
     report['candidate_prefilter']='single_finalized_getMultipleAccounts_classic_spl_mints'
     report['activity_rank_rows_examined_max']=DEEP_DISCOVERY_PAGE
     report['supported_pool_target']=TARGET_SUPPORTED_POOLS
