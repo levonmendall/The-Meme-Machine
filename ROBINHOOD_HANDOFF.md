@@ -1,3 +1,77 @@
+# Robinhood handoff — latency-repaired continuation-v1 sample
+
+## Evidence acquisition latency: REPAIRED
+
+Frozen policy hash:
+`f363c234daa549365ca00ee5b33247deb1c591a1084b991263233ba9f3870e36`.
+
+No strategy threshold, translation value, selection rule, or five-second freshness
+boundary changed.
+
+The repair:
+- prewarms the global Pons event tape for >60 seconds;
+- removes per-candidate serial historical log rescans;
+- uses bounded JSON-RPC batching for candidate/header/receipt evidence;
+- batches exact holder verification;
+- runs holder concentration and prior-window authentication concurrently;
+- keeps exact point-in-time evidence and logical provider budgets unchanged.
+
+Optimized unbiased rerun:
+[35392529357](https://github.com/levonmendall/The-Meme-Machine/actions/runs/35392529357)
+
+Artifact `10565519564`, SHA256
+`cfc713ab5907a4fa745f4ae9ba57bfa513d2ecfe3fd73b9171935179fc49ee15`.
+
+Results:
+- 19 natural enrollments;
+- 11 fully evaluated;
+- 10 complete frozen-policy vectors;
+- **10/10 complete vectors decision-eligible inside the unchanged 5-second gate**;
+- complete-vector ages: 2–5 seconds;
+- median evaluation latency: 1.59 seconds;
+- max evaluation latency: 4.00 seconds;
+- median candidate-auth latency: ~0.59 seconds;
+- median transport requests/evaluated row: 8, versus 121 for complete rows in the
+  original latency-blocked run;
+- 1 genuine natural frozen-policy qualifier.
+
+Qualified natural candidate:
+- token `0x5b5f72fd56ea273f603f4c68ca6ac89842692aaa`;
+- curve `0x740e1ade8c93bf79dc8b367252d36d5b48c63624`;
+- source tx `0x53d7a040252028896281de65eb19745f4919b78694fd0cb6c0607e58c8741e2a`;
+- complete evidence age: 5s;
+- concentration: 12.41%;
+- real quote liquidity: 0.839048410250868462 ETH;
+- evidence events: 95;
+- independent buyer groups: 5;
+- independent net buy: 0.102585276480156894 ETH;
+- price extension: 105.06%;
+- modeled round-trip loss: 2.99%;
+- no frozen-policy rejection.
+
+The qualifier's exact +60-second executable mark was -16.53% gross and -16.66% net
+after modeled gas. That is one observation only and does not establish expected value.
+
+The optimized runner produced 9 exact +60-second marks total. Rows that failed the
+strategy remain in the sample; no outcome-based replacement occurred.
+
+Eight enrollments were acquisition-incomplete:
+- six invalid current-snipe states;
+- two non-native quote assets outside the frozen ETH translation scope.
+
+The live sample trigger is restored to its explicit push-marker guard.
+
+Exact details:
+`CONTINUATION_V1_ROBINHOOD_SAMPLE_STATUS.md`.
+
+### Next causal boundary
+
+The evidence-latency blocker is closed. Continue the **same frozen sample** until the
+qualified cohort is large enough for meaningful forward-outcome analysis. Do not
+change any threshold based on the current single qualifier.
+
+---
+
 # Robinhood handoff — continuation-v1-robinhood natural sample
 
 ## Unbiased natural sample executed
