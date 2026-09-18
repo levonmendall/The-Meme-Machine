@@ -197,3 +197,11 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - This bounded scan checks up to 12 successful finalized transactions on each of STONK-SOL, JUP-SOL, and USELESS-SOL, paced one second per body read, and stops at the first authenticated hosted swap.
 - No strategy, verifier, cost, threshold, or allocation authority is changed.
 - This marker authorizes exactly one bounded live occurrence scan.
+
+
+## Hardened live host-fee occurrence scan
+
+- The prior occurrence scan aborted on one unrecoverable getTransaction provider error before completing its bounded candidate set.
+- The scanner now records and skips an unrecoverable individual body, continues to the next finalized transaction/pool, prioritizes JUP-SOL, and paces body reads at 1.5 seconds.
+- Maximum scope remains 36 transaction bodies across JUP-SOL, STONK-SOL, and USELESS-SOL; it still stops at the first authenticated nonzero host-fee swap.
+- This marker authorizes exactly one hardened live occurrence scan.
