@@ -449,7 +449,8 @@ def run(endpoint, *, forced_paper=False, forced_db_path=None):
         if forced_paper:
             if not forced_db_path: raise BoundaryError('forced_ramses_paper_db_required')
             from .ramses_paper import RamsesPaper
-            lifecycle=RamsesPaper(forced_db_path,PAPER_NATIVE_CAPITAL)
+            forced_capital=max(PAPER_NATIVE_CAPITAL,paper_position(freeze,0)['initial_cost_basis'])
+            lifecycle=RamsesPaper(forced_db_path,forced_capital)
             forced_identity='forced:'+address.lower()+':'+str(start)+':'+freeze['proposal_hash']
             reserved=lifecycle.reserve(
                 forced_identity,pool=address,freeze=freeze,proposal_index=0,
@@ -457,7 +458,7 @@ def run(endpoint, *, forced_paper=False, forced_db_path=None):
             opened=lifecycle.enter(forced_identity,at=start_ts)
             before_restart=lifecycle.reconcile()
             lifecycle.close()
-            lifecycle=RamsesPaper(forced_db_path,PAPER_NATIVE_CAPITAL)
+            lifecycle=RamsesPaper(forced_db_path,forced_capital)
             after_restart=lifecycle.reconcile()
             if before_restart!=after_restart or lifecycle.position(forced_identity)['status']!='open':
                 raise BoundaryError('forced_ramses_entry_restart_reconciliation')
@@ -549,7 +550,7 @@ def run(endpoint, *, forced_paper=False, forced_db_path=None):
             before_final_restart=lifecycle.reconcile()
             lifecycle.close()
             from .ramses_paper import RamsesPaper
-            lifecycle=RamsesPaper(forced_db_path,PAPER_NATIVE_CAPITAL)
+            lifecycle=RamsesPaper(forced_db_path,forced_capital)
             after_final_restart=lifecycle.reconcile()
             if before_final_restart!=after_final_restart:
                 raise BoundaryError('forced_ramses_final_restart_reconciliation')
