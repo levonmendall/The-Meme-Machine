@@ -140,6 +140,44 @@ def _token_balance(meta,side,account_index):
     return row['mint'],int(amount)
 
 
+def _maybe_token_balance(meta,side,account_index):
+    rows=[row for row in meta.get(side) or [] if row.get('accountIndex')==account_index]
+    if not rows:
+        return None
+    if len(rows)!=1:
+        raise Unavailable('dlmm_host_fee_token_balance_ambiguous')
+    row=rows[0];token=row.get('uiTokenAmount') or {};amount=token.get('amount')
+    if not isinstance(row.get('mint'),str) or not isinstance(amount,str) or not amount.isdigit():
+        raise Unavailable('dlmm_host_fee_token_balance_shape')
+    return row['mint'],int(amount)
+
+
+def _spl_transfer(instruction,keys):
+    """Decode the bounded classic SPL Transfer/TransferChecked subset."""
+    program_index=instruction.get('programIdIndex')
+    if type(program_index) is not int or not 0<=program_index<len(keys)             or keys[program_index]!=pump.TOKEN_PROGRAM:
+        return None
+    accounts=instruction.get('accounts') or []
+    raw=_un58_data(instruction.get('data') or '')
+    if len(raw)==9 and raw[:1]==b'\x03' and len(accounts)>=2:
+        source,destination=accounts[:2]
+        if any(type(i) is not int or not 0<=i<len(keys)
+               for i in (source,destination)):
+            raise Unavailable('dlmm_host_fee_transfer_account_index')
+        return dict(
+            kind='transfer',amount=int.from_bytes(raw[1:9],'little'),
+            source=source,destination=destination,mint=None)
+    if len(raw)==10 and raw[:1]==b'\x0c' and len(accounts)>=3:
+        source,mint,destination=accounts[:3]
+        if any(type(i) is not int or not 0<=i<len(keys)
+               for i in (source,mint,destination)):
+            raise Unavailable('dlmm_host_fee_transfer_account_index')
+        return dict(
+            kind='transfer_checked',amount=int.from_bytes(raw[1:9],'little'),
+            source=source,destination=destination,mint=keys[mint])
+    return None
+
+
 def _claim_fee2_record(raw,instruction,keys,pool,order):
     accounts=instruction.get('accounts') or []
     if len(raw)<16 or len(accounts)<14:
@@ -272,24 +310,57 @@ def _host_binding(record,event,keys):
     if not host:
         return None
     accounts=record.get('accounts') or []
+    required=(2,3,4,6,7,9)
     if len(accounts)<=9 or any(type(accounts[i]) is not int or not 0<=accounts[i]<len(keys)
-                               for i in (6,7,9)):
+                               for i in required):
         raise Unavailable('dlmm_host_fee_account_identity')
     host_index=accounts[9]
     host_address=keys[host_index]
     if host_address in (dlmm.PROGRAM,SYSTEM_PROGRAM):
         raise Unavailable('dlmm_host_fee_account_identity')
-    input_mint=keys[accounts[6 if event['for_y'] else 7]]
-    return host_index,input_mint,int(host)
+    for_y=event['for_y']
+    input_mint=keys[accounts[6 if for_y else 7]]
+    reserve_input=accounts[2 if for_y else 3]
+    user_input=accounts[4]
+    return dict(
+        host_index=host_index,input_mint=input_mint,host=int(host),
+        reserve_input=reserve_input,user_input=user_input,
+        order=tuple(record['order']))
 
 
-def _authenticate_host_fees(resolved_records,meta,keys):
-    expected={}
+def _host_transfer_amount(binding,ordered,keys,next_swap_order):
+    """Sum only attributable SPL transfers in this swap's execution slice."""
+    outer,inner=binding['order'];host_index=binding['host_index']
+    sources={binding['user_input'],binding['reserve_input']}
+    total=0;found=False
+    for order,instruction in ordered:
+        if order[0]!=outer or tuple(order)<=binding['order']:
+            continue
+        if next_swap_order is not None and tuple(order)>=next_swap_order:
+            continue
+        transfer=_spl_transfer(instruction,keys)
+        if transfer is None or transfer['destination']!=host_index:
+            continue
+        # A transfer into the declared host account from another source is not
+        # attributable to this swap and makes transaction-net balance unsuitable,
+        # but it does not invalidate an exact swap-owned transfer.
+        if transfer['source'] not in sources:
+            continue
+        if transfer['mint'] is not None and transfer['mint']!=binding['input_mint']:
+            raise Unavailable('dlmm_host_fee_transfer_wrong_token')
+        found=True;total+=transfer['amount']
+    return found,total
+
+
+def _authenticate_host_fees(resolved_records,meta,keys,ordered):
+    hosted=[]
     for record,event in resolved_records:
         binding=_host_binding(record,event,keys)
-        if binding is None:
-            continue
-        index,mint,host=binding
+        if binding is not None:
+            hosted.append((record,event,binding))
+    expected={}
+    for _record,_event,binding in hosted:
+        index=binding['host_index'];mint=binding['input_mint'];host=binding['host']
         prior=expected.get(index)
         if prior is None:
             expected[index]=[mint,host]
@@ -297,9 +368,45 @@ def _authenticate_host_fees(resolved_records,meta,keys):
             raise Unavailable('dlmm_host_fee_account_reused_for_multiple_tokens')
         else:
             prior[1]+=host
+
+    # Prove each hosted swap from its own ordered execution slice when SPL transfer
+    # evidence is available. This survives omitted balance rows and unrelated host
+    # account movement elsewhere in the transaction.
+    transfer_proven={}
+    hosted_orders=sorted(
+        (tuple(binding['order']),binding)
+        for _record,_event,binding in hosted)
+    for _record,_event,binding in hosted:
+        next_order=None
+        for order,_other in hosted_orders:
+            if order[0]==binding['order'][0] and order>binding['order']:
+                next_order=order;break
+        found,amount=_host_transfer_amount(binding,ordered,keys,next_order)
+        if found:
+            if amount!=binding['host']:
+                raise Unavailable('dlmm_host_fee_transfer_amount_mismatch')
+            key=(binding['host_index'],binding['input_mint'])
+            transfer_proven[key]=transfer_proven.get(key,0)+amount
+
     for index,(mint,expected_host) in expected.items():
-        pre_mint,pre_amount=_token_balance(meta,'preTokenBalances',index)
-        post_mint,post_amount=_token_balance(meta,'postTokenBalances',index)
+        key=(index,mint)
+        if transfer_proven.get(key)==expected_host:
+            # If transaction-level balances exist, they must identify the same mint.
+            # Their net delta may include unrelated movement and is therefore only a
+            # mint/consistency cross-check, not the primary amount proof.
+            pre=_maybe_token_balance(meta,'preTokenBalances',index)
+            post=_maybe_token_balance(meta,'postTokenBalances',index)
+            if pre is not None and pre[0]!=mint:
+                raise Unavailable('dlmm_host_fee_wrong_token')
+            if post is not None and post[0]!=mint:
+                raise Unavailable('dlmm_host_fee_wrong_token')
+            continue
+
+        pre=_maybe_token_balance(meta,'preTokenBalances',index)
+        post=_maybe_token_balance(meta,'postTokenBalances',index)
+        if pre is None or post is None:
+            raise Unavailable('dlmm_host_fee_token_balance_missing')
+        pre_mint,pre_amount=pre;post_mint,post_amount=post
         if pre_mint!=mint or post_mint!=mint:
             raise Unavailable('dlmm_host_fee_wrong_token')
         if post_amount-pre_amount!=expected_host:
@@ -355,8 +462,9 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
         raise ValueError('dlmm_transaction_pool_identity')
     if meta.get('innerInstructions') is None:
         raise Unavailable('dlmm_missing_inner_instructions')
+    ordered=list(_ordered_instructions(meta,message))
     records=[];effects=[];current=None
-    for outer,inner,instruction in _ordered_instructions(meta,message):
+    for (outer,inner),instruction in ordered:
         if keys[instruction['programIdIndex']]!=dlmm.PROGRAM:
             continue
         raw=_un58_data(instruction['data'])
@@ -476,7 +584,7 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
             record['legacy']=_log_swap_fallback(meta,record['pool'])
         event=_resolve_swap_record(record,meta,tx.get('blockTime'))
         resolved.append((record,event))
-    _authenticate_host_fees(resolved,meta,keys)
+    _authenticate_host_fees(resolved,meta,keys,ordered)
 
     resolved_effects=[_resolve_effect_event(effect,pool) for effect in effects]
     if resolved_effects:
