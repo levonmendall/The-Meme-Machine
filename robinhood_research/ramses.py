@@ -324,7 +324,7 @@ def replay(capture):
         seen[ident]=event;events.append(event)
     expected={(e['blockHash'],e['logIndex']):e for r in receipts.values() for e in r['logs'] if e['address'].lower()==pool.lower()}
     if seen!=expected: raise BoundaryError('missing_receipt_events')
-    abi=load('ramses_pool_implementation')['abi'];fee_by_bin={};composition_by_bin={}
+    abi=load('ramses_pool_implementation')['abi'];fee_by_bin={};composition_by_bin={};fee_events=[]
     txs=set();counts=Counter();contexts={};share_transfers=0
     for event in sorted(events,key=lambda e:(int(e['blockNumber'],16),int(e['transactionIndex'],16),int(e['logIndex'],16))):
         h=int(event['blockNumber'],16)
@@ -351,6 +351,7 @@ def replay(capture):
             s['bins'][bid]['reserves']=result['after'];s['reserves']=[r+i-o for r,i,o in zip(s['reserves'],incoming,outgoing)]
             s['protocol']=_add2(s['protocol'],protocol);s['active']=bid
             row=fee_by_bin.setdefault(bid,[0,0]);row[inp]+=result['lp_fee']
+            fee_vec=[0,0];fee_vec[inp]=result['lp_fee'];fee_events.append(dict(kind='swap',bin_id=bid,lp_fee=fee_vec,supply_before=s['bins'][bid]['supply'],event_at=authenticated['event_at']))
         elif name=='CompositionFees':
             ctx['compositions'].append(dict(args=a,event_at=authenticated['event_at']))
         elif name=='TransferBatch':
@@ -385,7 +386,8 @@ def replay(capture):
                     if candidate is None or effect['composition_fees']!=unpack(candidate['args']['totalFees']) or effect['protocol_fees']!=protocol:
                         raise BoundaryError('composition_fee_disagreement')
                     s['variable']=effect['variable_after'];s['protocol']=_add2(s['protocol'],protocol)
-                    lp=_sub2(effect['composition_fees'],protocol);row=composition_by_bin.setdefault(bid,[0,0]);row[0]+=lp[0];row[1]+=lp[1];ci+=1
+                    lp=_sub2(effect['composition_fees'],protocol);row=composition_by_bin.setdefault(bid,[0,0]);row[0]+=lp[0];row[1]+=lp[1]
+                    fee_events.append(dict(kind='composition',bin_id=bid,lp_fee=lp,supply_before=b['supply'],event_at=authenticated['event_at']));ci+=1
                 elif candidate is not None: raise BoundaryError('unexpected_composition_fee_event')
                 b['reserves']=_add2(b['reserves'],deposited);b['supply']+=share;s['reserves']=_add2(s['reserves'],deposited)
             if ci!=len(comps): raise BoundaryError('unpaired_composition_fee_event')
@@ -422,7 +424,7 @@ def replay(capture):
             if 'getPriceFromId(uint24)' in raw and price(int(b),s['step'])!=int(raw['getPriceFromId(uint24)'],16): raise BoundaryError('bin_price_disagreement')
     return dict(pool=pool,implementation=auth['implementation'],events=len(events),transactions=len(txs),start=heights[0],end=heights[1],
         seconds=int(capture['headers'][str(heights[1])]['timestamp'],16)-int(capture['headers'][str(heights[0])]['timestamp'],16),
-        terminal_equality=True,lp_fees_by_bin=fee_by_bin,composition_lp_fees_by_bin=composition_by_bin,
+        terminal_equality=True,lp_fees_by_bin=fee_by_bin,composition_lp_fees_by_bin=composition_by_bin,fee_events=fee_events,
         mutation_counts=dict(counts),share_transfers=share_transfers,
         modeled_components=['bin_reserves','bin_total_supply','pool_reserves','protocol_fees','active_id','static_fee_parameters',
             'variable_fee_parameters','bin_prices','token_order','implementation','factory','no_hooks','mint','burn','flash_loan',
@@ -530,6 +532,19 @@ def paper_removal(position,terminal):
         b=terminal['bins'][bid];out=burn_amounts(_add2(b['reserves'],a['deposited']),b['supply']+a['shares'],a['shares'])
         by_bin[str(bid)]=out;total=_add2(total,out)
     return dict(by_bin=by_bin,amounts=total)
+
+
+def paper_fee_capture(position,replay_result):
+    """Exact paper share of replayed LP fees under the frozen non-impact overlay."""
+    owned={a['bin_id']:a['shares'] for a in position['proposal']['allocations']}
+    totals=[0,0];by_bin={}
+    for event in replay_result.get('fee_events',[]):
+        shares=owned.get(event['bin_id'],0)
+        if not shares: continue
+        denom=event['supply_before']+shares
+        captured=[v*shares//denom for v in event['lp_fee']]
+        totals=_add2(totals,captured);row=by_bin.setdefault(str(event['bin_id']),[0,0]);row[0]+=captured[0];row[1]+=captured[1]
+    return dict(amounts=totals,by_bin=by_bin,quote_value=quote_value(totals,price(replay_result['terminal_state']['active'],replay_result['terminal_state']['step']),position['quote_side']))
 
 
 def paper_outcome(position,terminal,*,unwind=None,costs=None,lp_fees_captured=None):
