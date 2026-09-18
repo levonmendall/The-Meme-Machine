@@ -10,6 +10,7 @@ import argparse
 from collections import Counter, defaultdict
 from decimal import Decimal, InvalidOperation
 import json
+import math
 import os
 from pathlib import Path
 import statistics
@@ -244,19 +245,28 @@ def discover_wallet_cohort():
     return report
 
 
-def _position_metrics(position):
+def _position_metrics(position,bin_step=None):
     created=position.get("createdAt");closed=position.get("closedAt")
     hold=(int(closed)-int(created)
           if isinstance(created,int) and isinstance(closed,int) and closed>=created else None)
     lower=position.get("lowerBinId");upper=position.get("upperBinId")
     width=(int(upper)-int(lower)+1
            if isinstance(lower,int) and isinstance(upper,int) and upper>=lower else None)
+    step=None
+    try:
+        step=int(bin_step) if bin_step is not None else None
+    except (ValueError,TypeError):
+        step=None
+    span_bps=None
+    if width is not None and step is not None and step>0:
+        span_bps=(math.pow(1.0+step/10000.0,max(0,width-1))-1.0)*10000.0
     fees=((position.get("allTimeFees") or {}).get("total") or {})
     deps=((position.get("allTimeDeposits") or {}).get("total") or {})
     fee_usd=_dec(fees.get("usd"));dep_usd=_dec(deps.get("usd"))
     return dict(
         position=position.get("positionAddress"),created_at=created,closed_at=closed,
-        hold_seconds=hold,width_bins=width,pnl_usd=float(_dec(position.get("pnlUsd"))),
+        hold_seconds=hold,width_bins=width,bin_step=step,range_span_bps=span_bps,
+        pnl_usd=float(_dec(position.get("pnlUsd"))),
         pnl_sol=(None if position.get("pnlSol") is None else float(_dec(position.get("pnlSol")))),
         pnl_pct=float(_dec(position.get("pnlPctChange"))),
         pnl_sol_pct=(None if position.get("pnlSolPctChange") is None
@@ -305,6 +315,7 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
         position_rows=[]
         for pool in pools[:MAX_POOLS_PER_WALLET]:
             address=pool.get("poolAddress")
+            bin_step=pool.get("binStep")
             if not isinstance(address,str):
                 continue
             pnl=_json_get(f"/positions/{address}/pnl",dict(
@@ -315,7 +326,10 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
             if not isinstance(positions,list):
                 raise RuntimeError("dlmm_wallet_position_pnl_shape")
             for position in positions:
-                m=_position_metrics(position);m["pool"]=address
+                m=_position_metrics(position,bin_step=bin_step)
+                m["pool"]=address
+                m["pool_token_x"]=pool.get("tokenX")
+                m["pool_token_y"]=pool.get("tokenY")
                 position_rows.append(m)
 
         usd=[p["pnl_usd"] for p in position_rows]
@@ -354,6 +368,7 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
     all_detail=[p for w in eligible for p in w.get("detailed_positions",[])]
     hold_buckets=Counter()
     width_buckets=Counter()
+    span_buckets=Counter()
     rebalance_positions=0
     for p in all_detail:
         h=p.get("hold_seconds")
@@ -366,6 +381,12 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
             label=("<=10" if w<=10 else "11-25" if w<=25 else
                    "26-50" if w<=50 else ">50")
             width_buckets[label]+=1
+        span=p.get("range_span_bps")
+        if span is not None:
+            label=("<=250" if span<=250 else "251-500" if span<=500 else
+                   "501-1000" if span<=1000 else "1001-2000" if span<=2000
+                   else ">2000")
+            span_buckets[label]+=1
         hist=p.get("history") or {}
         if hist.get("repeated_add") or hist.get("repeated_remove"):
             rebalance_positions+=1
@@ -390,6 +411,7 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
             detailed_positions=len(all_detail),
             hold_duration_buckets=dict(sorted(hold_buckets.items())),
             width_bin_buckets=dict(sorted(width_buckets.items())),
+            normalized_range_span_bps_buckets=dict(sorted(span_buckets.items())),
             rebalance_proxy_positions=rebalance_positions,
             rebalance_proxy_rate=(None if not all_detail else rebalance_positions/len(all_detail)),
         ),
