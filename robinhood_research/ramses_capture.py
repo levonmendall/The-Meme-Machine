@@ -22,7 +22,7 @@ LOG_BLOCK_CHUNK=50
 MAX_FACTORY_POOLS=400
 FORWARD_SECONDS=60
 PAPER_NATIVE_CAPITAL=10**16
-INVENTORY_BASELINE=Path(__file__).with_name('verified')/'ramses_native_inventory_baseline.json'
+INVENTORY_BASELINE=Path(__file__).with_name('ramses_native_inventory_baseline.json')
 INVENTORY_NATIVE_SHA='1e6beebd82ae3b87d1f2149374a5efdf6acc089c9cb4f792ae9b32e42b97aee5'
 
 
