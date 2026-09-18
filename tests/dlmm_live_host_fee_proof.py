@@ -15,13 +15,13 @@ from meme_machine.provider import Unavailable
 
 OUT=Path('dlmm-live-host-fee-proof.json')
 POOLS=(
-    ('STONK-SOL','zxTpi4BtaWX3mgdAPoezkMD1hxx8CdeCfrqXMWvSCLX'),
     ('JUP-SOL','C8Gr6AUuq9hEdSYJzoEpNcdjpojPZwqG5MtQbeouNNwg'),
+    ('STONK-SOL','zxTpi4BtaWX3mgdAPoezkMD1hxx8CdeCfrqXMWvSCLX'),
     ('USELESS-SOL','8ztFxjFPfVUtEf4SLSapcFj8GW2dxyUA9no2bLPq7H7V'),
 )
 SIGNATURES_PER_POOL=12
 MAX_BODY_READS=36
-BODY_PACE_SECONDS=1.0
+BODY_PACE_SECONDS=1.5
 
 
 def run():
@@ -30,8 +30,14 @@ def run():
     rpc=PoolScanRPC(url,limit=120)
     scanned=[];found=None;body_reads=0
     for name,pool in POOLS:
-        signatures=rpc.call('getSignaturesForAddress',[
-            pool,dict(limit=SIGNATURES_PER_POOL,commitment='finalized')],True)
+        try:
+            signatures=rpc.call('getSignaturesForAddress',[
+                pool,dict(limit=SIGNATURES_PER_POOL,commitment='finalized')],True)
+        except Unavailable as exc:
+            scanned.append(dict(name=name,pool=pool,signature_rows=0,successful_rows=0,
+                                bodies=[],rejections=[dict(reason=str(exc)[:120],
+                                stage='signature_census')]))
+            continue
         successful=[row for row in signatures
                     if isinstance(row,dict) and not row.get('err')
                     and isinstance(row.get('signature'),str)]
@@ -43,9 +49,15 @@ def run():
             if body_reads:
                 rpc.sleep(BODY_PACE_SECONDS)
             body_reads+=1
-            tx=rpc.call('getTransaction',[row['signature'],dict(
-                encoding='json',commitment='finalized',
-                maxSupportedTransactionVersion=0)],True)
+            try:
+                tx=rpc.call('getTransaction',[row['signature'],dict(
+                    encoding='json',commitment='finalized',
+                    maxSupportedTransactionVersion=0)],True)
+            except Unavailable as exc:
+                pool_row['rejections'].append(dict(
+                    signature=row['signature'],reason=str(exc)[:120],
+                    stage='transaction_body'))
+                continue
             if not tx or not tx.get('meta') or tx['meta'].get('err'):
                 pool_row['rejections'].append(dict(
                     signature=row['signature'],reason='missing_or_failed_transaction'))
