@@ -2,7 +2,7 @@ name: dlmm-wallet-derived-research
 on:
   push:
     branches:
-      - research/dlmm-point-in-time-replay
+      - research/dlmm-wallet-derived-discovery
 permissions:
   contents: read
 
