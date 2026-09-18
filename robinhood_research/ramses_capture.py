@@ -30,8 +30,9 @@ class BoundedMultiRpc:
     telemetry, so complete inventory is possible without changing shared/Pons
     provider behavior or making the budget unbounded.
     """
-    def __init__(self,endpoint,*,max_sessions=4):
-        self.endpoint=endpoint;self.max_sessions=max_sessions;self.sessions=[]
+    def __init__(self,endpoint,*,max_sessions=4,batch_size=20,batch_pause=0.75):
+        self.endpoint=endpoint;self.max_sessions=max_sessions;self.batch_size=batch_size;self.batch_pause=batch_pause
+        self.sessions=[];self.wrapper_retries=0
         self._new()
 
     def _new(self):
@@ -48,15 +49,30 @@ class BoundedMultiRpc:
         return current
 
     def call(self,method,params,*,scope='connectivity'):
-        return self._session(1).call(method,params,scope=scope)
+        for attempt in range(2):
+            try:
+                return self._session(1).call(method,params,scope=scope)
+            except BoundaryError as exc:
+                if str(exc)!='provider_rpc_429' or attempt:
+                    raise
+                self.wrapper_retries+=1;time.sleep(3)
+        raise BoundaryError('provider_rpc_429')
 
     def batch(self,calls,*,scope='connectivity'):
         if not isinstance(calls,list) or not calls:
             raise BoundaryError('provider_batch_shape')
         out=[]
-        for i in range(0,len(calls),50):
-            chunk=calls[i:i+50]
-            out.extend(self._session(len(chunk)).batch(chunk,scope=scope))
+        chunks=[calls[i:i+self.batch_size] for i in range(0,len(calls),self.batch_size)]
+        for index,chunk in enumerate(chunks):
+            if index:time.sleep(self.batch_pause)
+            for attempt in range(2):
+                try:
+                    out.extend(self._session(len(chunk)).batch(chunk,scope=scope))
+                    break
+                except BoundaryError as exc:
+                    if str(exc)!='provider_rpc_429' or attempt:
+                        raise
+                    self.wrapper_retries+=1;time.sleep(3)
         return out
 
     def receipt(self,tx_hash,block_hash,*,scope):
@@ -78,10 +94,11 @@ class BoundedMultiRpc:
             row=session.telemetry()
             requests+=row['requests'];transport+=row['transport_requests'];logical+=row['logical_requests'];retries+=row['retries']
             methods.update(row['methods']);logical_methods.update(row['logical_methods']);scopes.update(row['scopes']);failures.update(row['failures'])
+        retries+=self.wrapper_retries
         return dict(requests=requests,transport_requests=transport,logical_requests=logical,retries=retries,
                     methods=dict(methods),logical_methods=dict(logical_methods),scopes=dict(scopes),
                     failures=dict(failures),sessions=len(self.sessions),max_sessions=self.max_sessions,
-                    program_logical_limit=self.max_sessions*200)
+                    program_logical_limit=self.max_sessions*200,batch_size=self.batch_size,batch_pause_seconds=self.batch_pause)
 
 
 def run(endpoint):
