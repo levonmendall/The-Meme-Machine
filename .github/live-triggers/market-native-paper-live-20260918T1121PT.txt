@@ -1,0 +1,1 @@
+Trigger a fresh natural Pump.fun/PumpSwap active-paper lifecycle on the latest repaired market-native opportunity-outcomes head after the >=50 unbiased sample and runner-up research milestones completed. Preserve continuation-v1 thresholds, paper-only authority, +15%/-10%/900s exits, and existing exit-monitor/PumpSwap continuation behavior. No merge or deploy.
