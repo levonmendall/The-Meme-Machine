@@ -480,3 +480,16 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Provider transport remained healthy: 318 logical RPC calls, 315 HTTP requests, 0 HTTP 429s, 1 retry, 0 per-candidate budget exhaustions.
 - No 60-second window completed in this particular fresh market sample, so no new profitability observation is added. The earlier completed CARDS 60-second observation remains valid.
 - Strategy, costs, `MAX_TRANSACTIONS=16`, Alchemy pacing/budgets, paper-only authority, and disabled allocation remain unchanged.
+
+
+## Expanded DLMM development observation universe
+
+- Observation-cap implementation is pinned at `3e4fea42fea4ef3b9655658b0548c3d9995cdf8e`.
+- Development `max_attempted_pools` is increased from 12 to 24. The target remains 6 complete verified 60-second windows, so the batch still stops early when enough complete evidence is obtained.
+- Candidate discovery remains activity-ranked and deterministic. No pool is retrospectively added or removed based on outcome.
+- `MAX_CANDIDATE_SCAN_MULTIPLIER=4`, activity paging, mint prefiltering, density censoring, per-candidate 240-call RPC budgets, shared Alchemy pacing, and the 16-transaction verifier capacity are unchanged.
+- The development job timeout is increased from 20 to 30 minutes only to prevent the wider scan from being truncated by wall-clock limits; no provider-call budget is increased.
+- Strategy and economics are unchanged: 12-second warmup, 60-second outcome, 35-bps fixed-cost hurdle, normalized ranges, point-in-time separation, paper-only authority, and disabled allocation.
+- Holdout scope remains unchanged and is not activated.
+- Exact-head CI run `35383564774` passed the full unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
+- This marker authorizes exactly one expanded development batch with `--max-attempted-pools 24` and `--target-completed 6`.
