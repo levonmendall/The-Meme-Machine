@@ -215,36 +215,53 @@ def run(endpoint):
         if not native_pools:
             raise BoundaryError('no_factory_registered_native_ramses_pool')
 
-        swap_topic=topic('Swap(address,address,uint24,bytes32,bytes32,uint24,bytes32,bytes32)')
-        # Search only the complete native-pool inventory. If no recent activity exists,
-        # observe new finalized blocks for a short bounded interval and select the first
-        # authentic native swap. Selection is therefore pre-entry and outcome-blind.
+        active_names=frozenset(('Swap','DepositedToBins','WithdrawnFromBins','FlashLoan'))
+        def economically_active(rows):
+            eligible=[]
+            for event in rows:
+                try:
+                    decoded=decode_ramses_event(abi,event)
+                except BoundaryError:
+                    continue
+                if decoded['name'] in active_names:
+                    eligible.append((event,decoded))
+            return eligible
+
+        # Search only the complete native-pool inventory. Liquidity deposits/removals
+        # and flash loans are genuine Ramses pool-state activity too; requiring a swap
+        # here unnecessarily censored otherwise valid prospective observations.
         activity=batched_logs(max(0,discovery_end-DISCOVERY_BLOCKS+1),discovery_end,
-                              address=native_pools,topics=[swap_topic],scope='discovery')
+                              address=native_pools,scope='discovery')
         result['discovery_blocks']=DISCOVERY_BLOCKS
         result['discovery_logs']=activity
-        selection=None
-        if activity:
-            selection=sorted(activity,key=lambda e:(int(e['blockNumber'],16),int(e['transactionIndex'],16),
-                                                    int(e['logIndex'],16),e['address'].lower()))[-1]
-            result['selection_rule']='most_recent_native_swap_before_freeze'
+        result['discovery_event_names']={}
+        for event,decoded in economically_active(activity):
+            result['discovery_event_names'][decoded['name']]=result['discovery_event_names'].get(decoded['name'],0)+1
+        selection=None;selection_decoded=None
+        recent=economically_active(activity)
+        if recent:
+            selection,selection_decoded=sorted(recent,key=lambda row:(int(row[0]['blockNumber'],16),
+                int(row[0]['transactionIndex'],16),int(row[0]['logIndex'],16),row[0]['address'].lower()))[-1]
+            result['selection_rule']='most_recent_native_economic_mutation_before_freeze'
         else:
             watch_started=time.monotonic();cursor=discovery_end
-            result['selection_rule']='first_native_swap_after_watch_start'
+            result['selection_rule']='first_native_economic_mutation_after_watch_start'
             while time.monotonic()-watch_started<ACTIVITY_WAIT_SECONDS and selection is None:
                 time.sleep(ACTIVITY_POLL_SECONDS)
                 frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
                 height=int(frontier['number'],16)
                 if height<=cursor:continue
-                new_activity=batched_logs(cursor+1,height,address=native_pools,topics=[swap_topic],scope='discovery')
-                activity.extend(new_activity);cursor=height
-                if new_activity:
-                    selection=sorted(new_activity,key=lambda e:(int(e['blockNumber'],16),int(e['transactionIndex'],16),
-                                                               int(e['logIndex'],16),e['address'].lower()))[0]
+                new_rows=batched_logs(cursor+1,height,address=native_pools,scope='discovery')
+                activity.extend(new_rows);cursor=height
+                eligible=economically_active(new_rows)
+                if eligible:
+                    selection,selection_decoded=sorted(eligible,key=lambda row:(int(row[0]['blockNumber'],16),
+                        int(row[0]['transactionIndex'],16),int(row[0]['logIndex'],16),row[0]['address'].lower()))[0]
                     break
             result['activity_watch_seconds']=time.monotonic()-watch_started
         if selection is None:
-            raise BoundaryError('no_natural_native_ramses_swap_during_bounded_watch')
+            raise BoundaryError('no_natural_native_ramses_activity_during_bounded_watch')
+        result['selection_event_name']=selection_decoded['name']
         address=selection['address']
         result['selection_event']=selection
         result['factory_checks']={}
