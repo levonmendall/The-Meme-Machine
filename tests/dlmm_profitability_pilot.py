@@ -1,4 +1,4 @@
-"""First bounded multi-pool DLMM profitability research batch."""
+"""First bounded sequential multi-pool DLMM profitability research batch."""
 import sys
 from tests import dlmm_strategy_high_activity_batched as run
 from tests import dlmm_dense_acquisition as dense
@@ -9,13 +9,21 @@ run.CHUNK_SECONDS=2
 run._capture_chunk=boundary.capture_chunk
 run.ENDPOINT_DIAGNOSTICS=boundary.ENDPOINT_DIAGNOSTICS
 
-def _profitability_advance(adapter,states,wait_seconds):
-    # Research batches do not bridge external LP mutations. Affected pools fail
-    # closed and the surviving point-in-time sample continues.
-    return dense.pressure_advance(
-        adapter,states,wait_seconds,allow_snapshot_reset=False)
+_phase={'calls':0}
 
-run.batched_advance=_profitability_advance
+def _sequential_profitability_advance(adapter,states,wait_seconds):
+    """Observe each pool independently so provider load is not multiplied by pool count."""
+    warmup=(_phase['calls'] % 2)==0
+    _phase['calls']+=1
+    advanced={};tapes={};errors=[]
+    for address,state in list(states.items()):
+        a,t,e=dense.pressure_advance(
+            adapter,{address:state},wait_seconds,
+            allow_snapshot_reset=warmup)
+        advanced.update(a);tapes.update(t);errors.extend(e)
+    return advanced,tapes,errors
+
+run.batched_advance=_sequential_profitability_advance
 
 if __name__=='__main__':
     sys.argv[0]='tests.dlmm_profitability_pilot'
