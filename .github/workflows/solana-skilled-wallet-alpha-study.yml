@@ -1,7 +1,7 @@
 name: solana-skilled-wallet-alpha-study
 on:
   push:
-    branches: [research/solana-skilled-wallet-alpha]
+    branches: [research/solana-skilled-wallet-alpha-24h]
 permissions: {contents: read}
 jobs:
   study:
