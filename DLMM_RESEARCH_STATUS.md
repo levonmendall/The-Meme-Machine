@@ -114,3 +114,12 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - During outcome/post-entry replay, the same mutation remains fail-closed.
 - Host-fee accounting, transaction/finality bounds, `MAX_TRANSACTIONS=16`, strategy, costs, and prospective allocation disabled are unchanged.
 - This marker authorizes exactly one final one-pool / one-cycle / 12-second host-fee certification replay. No retry is authorized by this marker.
+
+
+## Dense transaction retrieval certification
+
+- Green repair head `963074d15378efe744e8fd8944907bf3826a4080` passed full offline CI.
+- DLMM intervals with 8-16 successful transactions now fetch finalized transaction bodies as serialized single JSON-RPC requests spaced one second apart; smaller intervals retain bounded <=4-item batches.
+- Logical transaction count, evidence scope, finality, `MAX_TRANSACTIONS=16`, host-fee accounting, strategy2 warmup-reset policy, strategy and costs are unchanged.
+- A single getTransaction JSON-RPC provider error retains exactly one retry but waits at least 1.5 seconds before that retry.
+- This marker authorizes exactly one one-pool / one-cycle / 12-second host-fee certification replay. No retry is authorized by this marker.
