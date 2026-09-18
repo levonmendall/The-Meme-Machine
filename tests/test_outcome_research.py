@@ -1,7 +1,7 @@
 import unittest
 
 from meme_machine.outcome_research import (
-    enable_shadow_exit, liquidity_floor_eligibility, new_tracker,
+    enable_shadow_exit, high_density_features, liquidity_floor_eligibility, new_tracker,
     observe_trade, return_bps, summarize_liquidity_counterfactual,
     summarize_post_exit_tail, summarize_trackers,
 )
@@ -44,6 +44,22 @@ class OutcomeResearchTests(unittest.TestCase):
         self.assertTrue(got['5000000000'])
         self.assertTrue(got['7500000000'])
         self.assertFalse(got['10000000000'])
+
+
+    def test_high_density_features_are_point_in_time_only(self):
+        rows=[
+            dict(mint=MINT,market_time=95,amount=100,tokens=10,wallet='a',buy=True,slot=1,index=1),
+            dict(mint=MINT,market_time=96,amount=50,tokens=5,wallet='b',buy=False,slot=2,index=1),
+            dict(mint=MINT,market_time=101,amount=999,tokens=1,wallet='future',buy=True,slot=3,index=1),
+        ]
+        got=high_density_features(rows,100)
+        self.assertEqual(got['event_count'],2)
+        self.assertEqual(got['unique_buyers'],1)
+        self.assertEqual(got['unique_sellers'],1)
+        self.assertEqual(got['net_buy_lamports'],50)
+        self.assertNotIn('future',str(got))
+        self.assertEqual(got['windows']['5']['events'],2)
+
 
     def test_summaries_do_not_create_authority(self):
         tracker=new_tracker(MINT,100,100,100,['high_density'],horizons=(60,))
