@@ -115,7 +115,30 @@ class MarketNativeRuntime:
         self.capacity_losses = 0
         self.provider_failures = 0
         self.last_qualified_mint = None
-        # Bounded diagnostic-only evidence for the most recent selected preflight.\n        # It never participates in qualification or order authority.\n        self.last_attempt = None\n        self.last_attempt_sequence = 0\n\n    def _start_attempt(self, candidate, current, stream_events, now):\n        self.last_attempt_sequence += 1\n        self.last_attempt = dict(\n            sequence=self.last_attempt_sequence,\n            mint=candidate['mint'],\n            nomination=dict(candidate['nomination']),\n            stage='stream_feasibility',\n            observed_at=int(now),\n            stream_feasibility=current.to_dict(),\n            stream_events=list(stream_events),\n        )\n\n    def _update_attempt(self, stage, **details):\n        if self.last_attempt is None:\n            return\n        self.last_attempt['stage'] = stage\n        self.last_attempt.update(details)\n\n    def _now(self):
+        # Bounded diagnostic-only evidence for the most recent selected preflight.
+        # It never participates in qualification or order authority.
+        self.last_attempt = None
+        self.last_attempt_sequence = 0
+
+    def _start_attempt(self, candidate, current, stream_events, now):
+        self.last_attempt_sequence += 1
+        self.last_attempt = dict(
+            sequence=self.last_attempt_sequence,
+            mint=candidate['mint'],
+            nomination=dict(candidate['nomination']),
+            stage='stream_feasibility',
+            observed_at=int(now),
+            stream_feasibility=current.to_dict(),
+            stream_events=list(stream_events),
+        )
+
+    def _update_attempt(self, stage, **details):
+        if self.last_attempt is None:
+            return
+        self.last_attempt['stage'] = stage
+        self.last_attempt.update(details)
+
+    def _now(self):
         return int(self.clock())
 
     def _reset_signal_generation(self):
