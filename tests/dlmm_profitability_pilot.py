@@ -1022,7 +1022,19 @@ def run_live(
         + item.get("outcome_host_fee_swaps", 0)
         for item in report["opportunities"]
     )
-    observation_rpc_calls = rpc.calls - observation_start_calls
+    provider_totals = _aggregate_rpc_objects(provider_rpcs)
+    discovery_total_rpc_calls = int(discovery_rpc_client.calls)
+    observation_rpc_calls = (
+        int(provider_totals["calls"]) - discovery_total_rpc_calls
+    )
+    attempted_pool_rpc_calls = sum(
+        int(item.get("rpc", {}).get("calls", 0))
+        for item in report["attempts"]
+    )
+    revalidation_rpc_calls = sum(
+        int(item.get("rpc", {}).get("calls", 0))
+        for item in report["candidate_revalidation_rejections"]
+    )
     terminal_counts = Counter(
         item["terminal_classification"] for item in report["attempts"]
     )
@@ -1052,6 +1064,7 @@ def run_live(
         ended=int(time.time()),
         candidate_scanned_count=candidate_scanned,
         attempted_pool_count=attempted,
+        provider_budget_instance_count=budget_instances,
         discovered_supported_pools=sorted(supported_pools),
         zero_activity_warmup_count=sum(
             item["terminal_classification"] == "verified_zero_swap"
@@ -1111,24 +1124,38 @@ def run_live(
                 else "holdout_sample_incomplete"
             )
         ),
-        rpc_calls=rpc.calls,
-        rpc_http_requests=rpc.http_requests,
-        rpc_failures=rpc.failures,
-        rpc_retries=rpc.retries,
-        provider_failure_kinds=rpc.failure_kinds,
-        provider_failure_methods=rpc.failure_methods,
-        rpc_batch_fallbacks=rpc.batch_fallbacks,
-        rpc_batch_fallback_items=rpc.batch_fallback_items,
-        rpc_null_retries=rpc.null_retries,
+        rpc_calls=provider_totals["calls"],
+        rpc_http_requests=provider_totals["http_requests"],
+        rpc_failures=provider_totals["failures"],
+        rpc_retries=provider_totals["retries"],
+        provider_failure_kinds=provider_totals["failure_kinds"],
+        provider_failure_methods=provider_totals["failure_methods"],
+        rpc_batch_fallbacks=provider_totals["batch_fallbacks"],
+        rpc_batch_fallback_items=provider_totals["batch_fallback_items"],
+        rpc_null_retries=provider_totals["null_retries"],
+        rpc_cache_hits=provider_totals["cache_hits"],
+        alchemy_pacer=pacer.telemetry(),
+        discovery_total_rpc_calls=discovery_total_rpc_calls,
         observation_rpc_calls=observation_rpc_calls,
+        attempted_pool_rpc_calls=attempted_pool_rpc_calls,
+        candidate_revalidation_rpc_calls=revalidation_rpc_calls,
+        per_candidate_budget_exhaustion_count=sum(
+            item["terminal_classification"] == "provider_budget_exhausted"
+            for item in report["attempts"]
+        ) + sum(
+            item["terminal_classification"] == "provider_budget_exhausted"
+            for item in report["candidate_revalidation_rejections"]
+        ),
         rpc_calls_per_attempted_pool=(
-            None if not attempted else observation_rpc_calls / attempted
+            None if not attempted else attempted_pool_rpc_calls / attempted
         ),
         rpc_calls_per_completed_observation=(
             None if not completed else observation_rpc_calls / completed
         ),
         total_rpc_calls_per_completed_observation=(
-            None if not completed else rpc.calls / completed
+            None
+            if not completed
+            else provider_totals["calls"] / completed
         ),
         transaction_retrieval="census_gated_serialized_dense_getTransaction",
         candidate_prefilter="single_finalized_getMultipleAccounts_classic_spl_mints",
