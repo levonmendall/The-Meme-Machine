@@ -16,9 +16,11 @@ from meme_machine.dlmm_tape import (
     decode_swap, decode_swap2,
 )
 from tests import dlmm_alchemy_provider as alchemy_provider
-from tests.dlmm_boundary_acquisition import (
-    complete_signature_census, _fetch_transaction_bodies,
-)
+from tests.dlmm_boundary_acquisition import _fetch_transaction_bodies
+
+
+class HistoricalAlchemyRPC(alchemy_provider.AlchemyPoolScanRPC):
+    ALLOWED = alchemy_provider.AlchemyPoolScanRPC.ALLOWED | {"getBlock"}
 
 OUT = Path("dlmm-host-fee-shape-probe.json")
 INTERVALS = (
@@ -118,7 +120,9 @@ def _instruction_summary(order, ix, keys, pool):
 
 def run():
     pacer = alchemy_provider.AlchemyPacer()
-    rpc = alchemy_provider.new_rpc(limit=240, pacer=pacer)
+    rpc = HistoricalAlchemyRPC(
+        alchemy_provider.rpc_url(), limit=240, pacer=pacer
+    )
     if rpc.call("getGenesisHash", priority=True) != pump.MAINNET:
         raise RuntimeError("host_shape_probe_wrong_network")
     report = dict(
@@ -127,19 +131,51 @@ def run():
         intervals=[],
     )
     for interval in INTERVALS:
-        telemetry = {}
-        proof = complete_signature_census(
-            rpc,
-            interval["pool"],
-            interval["start_slot"],
-            interval["end_slot"],
-            telemetry=telemetry,
+        telemetry = dict(
+            method="finalized_getBlock_accounts_exact_slots",
+            blocks=[],
         )
-        relevant = [
-            row for row in proof
-            if interval["start_slot"] < row["slot"] <= interval["end_slot"]
-            and not row.get("err")
-        ]
+        relevant = []
+        for slot in range(interval["start_slot"] + 1, interval["end_slot"] + 1):
+            block = rpc.call("getBlock", [slot, dict(
+                commitment="finalized",
+                encoding="json",
+                transactionDetails="accounts",
+                maxSupportedTransactionVersion=0,
+                rewards=False,
+            )], True)
+            if block is None:
+                telemetry["blocks"].append(dict(slot=slot,missing=True))
+                continue
+            matches = 0
+            for transaction_index, row in enumerate(block.get("transactions") or []):
+                tx = row.get("transaction") or {}
+                keys = []
+                for item in tx.get("accountKeys") or []:
+                    key = item.get("pubkey") if isinstance(item, dict) else item
+                    if isinstance(key, str):
+                        keys.append(key)
+                if interval["pool"] not in keys or (row.get("meta") or {}).get("err"):
+                    continue
+                signatures = tx.get("signatures") or []
+                if not signatures or not isinstance(signatures[0], str):
+                    raise RuntimeError("host_shape_probe_block_signature_shape")
+                relevant.append(dict(
+                    signature=signatures[0],
+                    slot=slot,
+                    transactionIndex=transaction_index,
+                    err=None,
+                    confirmationStatus="finalized",
+                ))
+                matches += 1
+            telemetry["blocks"].append(dict(
+                slot=slot,
+                matching_successful_transactions=matches,
+                transaction_rows=len(block.get("transactions") or []),
+            ))
+        telemetry["transaction_count"] = len(relevant)
+        if not relevant:
+            raise RuntimeError("host_shape_probe_no_matching_transactions")
         txs = _fetch_transaction_bodies(rpc, relevant, telemetry)
         rows = []
         for sig, tx in zip(relevant, txs):
