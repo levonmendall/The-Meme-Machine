@@ -1,8 +1,8 @@
 """Bounded finalized Pons V2->V4 and Pons V1->V3 lineage capture.
 
-This is a certification probe, not discovery authority.  It deliberately targets one
-recent V2 graduation and one historical V1 launch, then authenticates every relevant
-event through its receipt/header and the pinned deployed contract compilations.
+External indexes are used only as locators.  Every accepted fact is re-authenticated
+against the configured Robinhood RPC, pinned deployed bytecode, block headers,
+receipts, factory state and protocol-native pool-creation events.
 """
 import base64
 import json
@@ -14,14 +14,13 @@ import zlib
 from . import BoundaryError
 from .abi import calldata, topic, signature
 from .identity import authenticate, load
-from .pons import (
-    factory_record, raw_event, prove_v4_lineage, prove_v1_v3_lineage,
-)
+from .pons import factory_record, raw_event, prove_v4_lineage, prove_v1_v3_lineage
 from .provider import Rpc
 
-WINDOW=2000
-V2_WINDOWS=40
-V1_WINDOWS=80
+# Locator-only anchors.  They do not enter the proof without full RPC authentication.
+V2_GRADUATION_BLOCK=56882711
+V2_GRADUATION_TX='0x1d49a28a0e27ecdd952094c4aaa9de2105253a2d62924ec36e761c13e43493c9'
+V1_ANCHOR_TOKEN='0xc4cb8a0167c77e36194f6affb6b71d931fab62c0'
 
 
 def _event_topic(role,name):
@@ -31,46 +30,11 @@ def _event_topic(role,name):
     return topic(signature(rows[0]))
 
 
-def _scan_backward(rpc,address,event_topic,end):
-    scans=[]
-    for index in range(V2_WINDOWS):
-        hi=end-index*WINDOW
-        lo=max(0,hi-WINDOW+1)
-        rows=rpc.call('eth_getLogs',[dict(
-            fromBlock=hex(lo),toBlock=hex(hi),address=address,topics=[event_topic]
-        )],scope='pons')
-        scans.append(dict(direction='backward',from_block=lo,to_block=hi,count=len(rows)))
-        if rows:
-            return rows[-1],scans
-        if lo==0:
-            break
-    return None,scans
+def _topic_address(address):
+    return '0x'+'0'*24+address.lower()[2:]
 
 
-def _scan_forward(rpc,address,event_topic,start,end):
-    scans=[]
-    for index in range(V1_WINDOWS):
-        lo=start+index*WINDOW
-        if lo>end:
-            break
-        hi=min(end,lo+WINDOW-1)
-        rows=rpc.call('eth_getLogs',[dict(
-            fromBlock=hex(lo),toBlock=hex(hi),address=address,topics=[event_topic]
-        )],scope='pons')
-        scans.append(dict(direction='forward',from_block=lo,to_block=hi,count=len(rows)))
-        if rows:
-            return rows[0],scans
-    return None,scans
-
-
-def _decode_receipt_events(rpc,raw_log,addresses,role_for,report):
-    receipt=rpc.receipt(raw_log['transactionHash'],raw_log['blockHash'],scope='pons')
-    report['receipts'].append(receipt)
-    bh=raw_log['blockHash']
-    if bh not in report['headers']:
-        block=rpc.call('eth_getBlockByHash',[bh,False],scope='pons')
-        report['headers'][bh]={k:block[k] for k in ('hash','number','timestamp','parentHash')}
-    header=report['headers'][bh]
+def _decode_receipt_events(rpc,receipt,header,addresses,role_for,report):
     decoded=[]
     for event in receipt['logs']:
         role=role_for.get(event['address'].lower())
@@ -102,12 +66,41 @@ def _record(rpc,role,address,token,end,report):
     return factory_record(raw,role)
 
 
+def _first_code_block(rpc,address,low,high,report):
+    """Binary-search deployment height using historical eth_getCode."""
+    if low<0 or low>=high:
+        raise BoundaryError('invalid_code_search_range')
+    before=rpc.call('eth_getCode',[address,hex(low)],scope='pons')
+    if before!='0x':
+        raise BoundaryError('v1_anchor_predates_search_floor')
+    probes=0
+    left,right=low+1,high
+    while left<right:
+        mid=(left+right)//2
+        code=rpc.call('eth_getCode',[address,hex(mid)],scope='pons')
+        probes+=1
+        if code=='0x':
+            left=mid+1
+        else:
+            right=mid
+    code=rpc.call('eth_getCode',[address,hex(left)],scope='pons')
+    probes+=1
+    if code=='0x':
+        raise BoundaryError('v1_anchor_code_not_found')
+    report['code_search']=dict(token=address,low=low,high=high,creation_block=left,probes=probes)
+    return left
+
+
 def run(endpoint):
-    rpc=Rpc(endpoint,limit=200,per_scope=190,retries=0)
+    rpc=Rpc(endpoint,limit=120,per_scope=110,retries=0)
     report=dict(
-        kind='captured_finalized_pons_lineage_v2',
+        kind='captured_finalized_pons_lineage_v3',
         started_at=time.time(),identities={},headers={},receipts=[],events=[],reads=[],
-        scans=[],v2_lineages=[],v1_lineages=[],provider=None,
+        v2_lineages=[],v1_lineages=[],provider=None,
+        locator_sources=dict(
+            v2='public_index_locator_reauthenticated_onchain',
+            v1='published_pons_v1_token_locator_reauthenticated_onchain',
+        ),
     )
     roles=[
         'pons_v2_factory','pons_v2_hook','pons_deployer','pons_executor',
@@ -125,15 +118,19 @@ def run(endpoint):
             code=rpc.call('eth_getCode',[address,hex(end)],scope='pons')
             report['identities'][role]=authenticate(role,address,code)
 
-        # V2: a completed graduation must bind factory PoolGraduated, hook
-        # PoolRegistered and V4 PoolManager Initialize in one authenticated receipt.
-        v2_log,v2_scans=_scan_backward(
-            rpc,addresses['pons_v2_factory'],_event_topic('pons_v2_factory','PoolGraduated'),end,
-        )
-        report['scans'].extend(v2_scans)
-        if v2_log is None:
-            raise BoundaryError('no_v2_graduation_in_bounded_scan')
-        siblings=_decode_receipt_events(rpc,v2_log,addresses,role_for,report)
+        # V2 graduation: the locator supplies only block/tx identity.  The receipt
+        # must independently contain the authenticated Pons factory graduation,
+        # Pons hook registration and V4 PoolManager initialization.
+        v2_block=rpc.call('eth_getBlockByNumber',[hex(V2_GRADUATION_BLOCK),False],scope='pons')
+        if int(v2_block['number'],16)!=V2_GRADUATION_BLOCK:
+            raise BoundaryError('v2_locator_block_disagreement')
+        v2_header={k:v2_block[k] for k in ('hash','number','timestamp','parentHash')}
+        report['headers'][v2_header['hash']]=v2_header
+        v2_receipt=rpc.receipt(V2_GRADUATION_TX,v2_header['hash'],scope='pons')
+        if int(v2_receipt['blockNumber'],16)!=V2_GRADUATION_BLOCK:
+            raise BoundaryError('v2_locator_receipt_disagreement')
+        report['receipts'].append(v2_receipt)
+        siblings=_decode_receipt_events(rpc,v2_receipt,v2_header,addresses,role_for,report)
         graduation=next((e for e in siblings
                          if e['role']=='pons_v2_factory' and e['decoded']['name']=='PoolGraduated'),None)
         if graduation is None:
@@ -141,47 +138,55 @@ def run(endpoint):
         token=graduation['decoded']['args']['token']
         record=_record(rpc,'pons_v2_factory',addresses['pons_v2_factory'],token,end,report)
         registration=next((e for e in siblings
-                           if e['role']=='pons_v2_hook'
-                           and e['decoded']['name']=='PoolRegistered'
+                           if e['role']=='pons_v2_hook' and e['decoded']['name']=='PoolRegistered'
                            and e['decoded']['args']['memecoin']==token),None)
         initialization=next((e for e in siblings
-                             if e['role']=='uniswap_v4_manager'
-                             and e['decoded']['name']=='Initialize'
+                             if e['role']=='uniswap_v4_manager' and e['decoded']['name']=='Initialize'
                              and registration
                              and e['decoded']['args']['id']==registration['decoded']['args']['poolId']),None)
         if registration is None or initialization is None:
             raise BoundaryError('v2_graduation_lineage_event_missing')
         report['v2_lineages'].append(prove_v4_lineage(
             record=record,registration=registration,initialization=initialization,
-            graduation=graduation,hook=addresses['pons_v2_hook'],
-            manager=addresses['uniswap_v4_manager'],
+            graduation=graduation,hook=addresses['pons_v2_hook'],manager=addresses['uniswap_v4_manager'],
         ))
 
-        # V1: use the exact Sourcify deployment block, then require the Pons
-        # TokenLaunched and Uniswap V3 PoolCreated to occur in the same receipt.
-        v1_start=int(load('pons_v1_factory')['deployment']['blockNumber'])
-        v1_log,v1_scans=_scan_forward(
-            rpc,addresses['pons_v1_factory'],_event_topic('pons_v1_factory','TokenLaunched'),
-            v1_start,end,
-        )
-        report['scans'].extend(v1_scans)
-        if v1_log is None:
-            raise BoundaryError('no_v1_launch_in_bounded_scan')
-        siblings=_decode_receipt_events(rpc,v1_log,addresses,role_for,report)
+        # V1: authenticate the public token locator as an actual record in the pinned
+        # V1 factory, discover its deployment block by historical bytecode, then
+        # require Pons TokenLaunched + Uniswap V3 PoolCreated in the same receipt.
+        v1_record=_record(rpc,'pons_v1_factory',addresses['pons_v1_factory'],V1_ANCHOR_TOKEN,end,report)
+        if not v1_record.get('exists') or v1_record.get('token')!=V1_ANCHOR_TOKEN:
+            raise BoundaryError('v1_anchor_factory_record_missing')
+        factory_deploy=int(load('pons_v1_factory')['deployment']['blockNumber'])
+        creation=_first_code_block(rpc,V1_ANCHOR_TOKEN,factory_deploy,end,report)
+        launch_rows=rpc.call('eth_getLogs',[dict(
+            fromBlock=hex(creation),toBlock=hex(creation),
+            address=addresses['pons_v1_factory'],
+            topics=[_event_topic('pons_v1_factory','TokenLaunched'),_topic_address(V1_ANCHOR_TOKEN)],
+        )],scope='pons')
+        if len(launch_rows)!=1:
+            raise BoundaryError('v1_anchor_launch_log_count')
+        raw_launch=launch_rows[0]
+        v1_block=rpc.call('eth_getBlockByNumber',[hex(creation),False],scope='pons')
+        v1_header={k:v1_block[k] for k in ('hash','number','timestamp','parentHash')}
+        if raw_launch['blockHash']!=v1_header['hash']:
+            raise BoundaryError('v1_anchor_block_disagreement')
+        report['headers'][v1_header['hash']]=v1_header
+        v1_receipt=rpc.receipt(raw_launch['transactionHash'],v1_header['hash'],scope='pons')
+        report['receipts'].append(v1_receipt)
+        siblings=_decode_receipt_events(rpc,v1_receipt,v1_header,addresses,role_for,report)
         launch=next((e for e in siblings
-                     if e['role']=='pons_v1_factory' and e['decoded']['name']=='TokenLaunched'),None)
+                     if e['role']=='pons_v1_factory' and e['decoded']['name']=='TokenLaunched'
+                     and e['decoded']['args']['token']==V1_ANCHOR_TOKEN),None)
         if launch is None:
             raise BoundaryError('v1_launch_receipt_missing')
-        token=launch['decoded']['args']['token']
-        record=_record(rpc,'pons_v1_factory',addresses['pons_v1_factory'],token,end,report)
         pool_created=next((e for e in siblings
-                           if e['role']=='uniswap_v3_factory'
-                           and e['decoded']['name']=='PoolCreated'
+                           if e['role']=='uniswap_v3_factory' and e['decoded']['name']=='PoolCreated'
                            and e['decoded']['args']['pool']==launch['decoded']['args']['pool']),None)
         if pool_created is None:
             raise BoundaryError('v1_v3_poolcreated_missing')
         report['v1_lineages'].append(prove_v1_v3_lineage(
-            record=record,launch=launch,pool_created=pool_created,
+            record=v1_record,launch=launch,pool_created=pool_created,
             factory=addresses['pons_v1_factory'],v3_factory=addresses['uniswap_v3_factory'],
         ))
     except BoundaryError as exc:
