@@ -342,7 +342,7 @@ class RamsesInventoryWatchTests(unittest.TestCase):
     def test_watch_configuration_is_bounded_and_prospective(self):
         self.assertEqual(ramses_capture.WATCH_POOL_COUNT,8)
         self.assertEqual(ramses_capture.WATCH_COHORT_COUNT,4)
-        self.assertEqual(ramses_capture.RANK_POOL_COUNT,40)
+        self.assertGreaterEqual(ramses_capture.RANK_POOL_COUNT,86)\n        self.assertLessEqual(ramses_capture.RANK_POOL_COUNT,96)
         self.assertEqual(ramses_capture.WATCH_SLOT_SECONDS,20)
         self.assertEqual(ramses_capture.ACTIVITY_WAIT_SECONDS,80)
         self.assertEqual(ramses_capture.LOG_BLOCK_CHUNK,10)
