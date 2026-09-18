@@ -180,3 +180,48 @@ def prove_v4_lineage(*, record, registration, initialization, graduation, hook, 
     if len({e['transaction_hash'] for e in (registration,initialization,graduation)}) != 1:
         raise BoundaryError('graduation_transaction_disagreement')
     return dict(origin='pons_v2',token=token,curve=record['curve'],pool_id=pool_id,position_id=grad['positionId'])
+
+
+
+def prove_v1_v3_lineage(*, record, launch, pool_created, factory, v3_factory):
+    """Authenticate a Pons V1 launch into the exact Uniswap V3 pool.
+
+    Both events must already have passed raw receipt/header authentication.  The
+    proof binds the Pons factory record, the Pons TokenLaunched event, and the
+    Uniswap V3 PoolCreated event from the same transaction.  Token appearance in
+    a V3 pool without this provenance is intentionally insufficient.
+    """
+    expected_factory=load('pons_v1_factory')['address'].lower()
+    expected_v3=load('uniswap_v3_factory')['address'].lower()
+    if factory.lower()!=expected_factory or v3_factory.lower()!=expected_v3:
+        raise BoundaryError('wrong_v1_v3_deployment')
+    if launch['protocol_address']!=expected_factory or pool_created['protocol_address']!=expected_v3:
+        raise BoundaryError('v1_v3_protocol_identity')
+    if launch['decoded']['name']!='TokenLaunched' or pool_created['decoded']['name']!='PoolCreated':
+        raise BoundaryError('v1_v3_event_identity')
+    if launch['transaction_hash']!=pool_created['transaction_hash']:
+        raise BoundaryError('v1_v3_transaction_disagreement')
+
+    args=launch['decoded']['args'];created=pool_created['decoded']['args']
+    token=args['token'];pair=args['pairToken'];pool=args['pool']
+    if (args['dexFactory']!=expected_v3 or not record.get('exists')
+        or record.get('token')!=token or record.get('pairedToken')!=pair
+        or record.get('positionId')!=args['positionId']
+        or record.get('dexId')!=args['dexId']
+        or record.get('launchConfigId')!=args['launchConfigId']
+        or record.get('restrictionsEndBlock')!=args['restrictionsEndBlock']
+        or record.get('initialBuyAmount')!=args['initialBuyAmount']):
+        raise BoundaryError('v1_factory_record_disagreement')
+
+    tokens=tuple(sorted((token,pair),key=lambda x:int(x,16)))
+    if (created['token0'],created['token1'])!=tokens:
+        raise BoundaryError('v1_v3_currency_disagreement')
+    if created['pool']!=pool or created['fee']!=record.get('poolFee'):
+        raise BoundaryError('v1_v3_pool_disagreement')
+    if bool(record.get('isToken0'))!=(token==created['token0']):
+        raise BoundaryError('v1_v3_token_order_disagreement')
+
+    return dict(origin='pons_v1_v3',token=token,market=pool,pair_token=pair,
+                pool_fee=created['fee'],dex_id=record['dexId'],
+                position_id=record['positionId'],
+                transaction_hash=launch['transaction_hash'])
