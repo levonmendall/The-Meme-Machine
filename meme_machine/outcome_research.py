@@ -1,0 +1,218 @@
+"""Research-only forward outcome labeling for market-native Pump candidates.
+
+Future outcomes are deliberately separate from qualification inputs. Nothing in this
+module can authorize an order or alter continuation-v1. It turns later finalized trade
+observations into labels for cohorts selected strictly from point-in-time evidence.
+"""
+from __future__ import annotations
+
+from statistics import median
+
+DEFAULT_HORIZONS = (60, 180, 300, 600, 900, 1800, 3600)
+POST_EXIT_HORIZONS = (300, 900, 1800, 3600)
+LIQUIDITY_FLOORS = (5_000_000_000, 7_500_000_000, 10_000_000_000)
+
+
+def price_parts(event):
+    amount = int(event.get('amount', 0))
+    tokens = int(event.get('tokens', 0))
+    if amount <= 0 or tokens <= 0:
+        raise ValueError('invalid_trade_price')
+    return amount, tokens
+
+
+def return_bps(base_num, base_den, mark_num, mark_den):
+    base_num, base_den = int(base_num), int(base_den)
+    mark_num, mark_den = int(mark_num), int(mark_den)
+    if min(base_num, base_den, mark_num, mark_den) <= 0:
+        raise ValueError('invalid_price_ratio')
+    return (mark_num * base_den * 10_000 // (mark_den * base_num)) - 10_000
+
+
+def new_tracker(mint, origin_time, baseline_num, baseline_den, cohorts, *,
+                nomination_id=None, horizons=DEFAULT_HORIZONS, metadata=None):
+    return dict(
+        mint=mint,
+        nomination_id=nomination_id,
+        origin_time=int(origin_time),
+        baseline_num=int(baseline_num),
+        baseline_den=int(baseline_den),
+        cohorts=sorted(set(cohorts)),
+        horizons=[int(x) for x in horizons],
+        marks={},
+        max_favorable_bps=None,
+        max_adverse_bps=None,
+        observed_trade_events=0,
+        metadata=dict(metadata or {}),
+        shadow_exit=None,
+    )
+
+
+def enable_shadow_exit(tracker, *, opened_time=None, take_profit_bps=1500,
+                       risk_bps=-1000, timeout_seconds=900):
+    tracker['shadow_exit'] = dict(
+        model='trade-price-proxy-v1',
+        canonical_execution=False,
+        excludes_liquidity_invalidation=True,
+        opened_time=int(opened_time if opened_time is not None else tracker['origin_time']),
+        take_profit_bps=int(take_profit_bps),
+        risk_bps=int(risk_bps),
+        timeout_seconds=int(timeout_seconds),
+        triggered=False,
+        reason=None,
+        exit_time=None,
+        exit_return_bps=None,
+        exit_price_num=None,
+        exit_price_den=None,
+        post_exit_marks={},
+        post_exit_max_entry_return_bps=None,
+        post_exit_min_entry_return_bps=None,
+    )
+    return tracker
+
+
+def observe_trade(tracker, event):
+    if event.get('mint') != tracker.get('mint'):
+        return False
+    event_time = int(event.get('market_time', 0))
+    if event_time < int(tracker['origin_time']):
+        return False
+    mark_num, mark_den = price_parts(event)
+    rbps = return_bps(tracker['baseline_num'], tracker['baseline_den'], mark_num, mark_den)
+    tracker['observed_trade_events'] += 1
+    best = tracker.get('max_favorable_bps')
+    worst = tracker.get('max_adverse_bps')
+    tracker['max_favorable_bps'] = rbps if best is None else max(int(best), rbps)
+    tracker['max_adverse_bps'] = rbps if worst is None else min(int(worst), rbps)
+
+    age = event_time - int(tracker['origin_time'])
+    for horizon in tracker.get('horizons', []):
+        key = str(int(horizon))
+        if key not in tracker['marks'] and age >= int(horizon):
+            tracker['marks'][key] = dict(
+                return_bps=rbps,
+                market_time=event_time,
+                lag_seconds=age-int(horizon),
+                price_num=mark_num,
+                price_den=mark_den,
+            )
+
+    shadow = tracker.get('shadow_exit')
+    if shadow:
+        opened = int(shadow['opened_time'])
+        if event_time >= opened:
+            if not shadow['triggered']:
+                exit_reason = None
+                if rbps <= int(shadow['risk_bps']):
+                    exit_reason = 'risk_proxy'
+                elif rbps >= int(shadow['take_profit_bps']):
+                    exit_reason = 'take_profit_proxy'
+                elif event_time-opened >= int(shadow['timeout_seconds']):
+                    exit_reason = 'timeout_proxy'
+                if exit_reason:
+                    shadow.update(
+                        triggered=True,
+                        reason=exit_reason,
+                        exit_time=event_time,
+                        exit_return_bps=rbps,
+                        exit_price_num=mark_num,
+                        exit_price_den=mark_den,
+                    )
+            else:
+                since_exit = event_time-int(shadow['exit_time'])
+                for horizon in POST_EXIT_HORIZONS:
+                    key = str(horizon)
+                    if key not in shadow['post_exit_marks'] and since_exit >= horizon:
+                        shadow['post_exit_marks'][key] = dict(
+                            entry_return_bps=rbps,
+                            market_time=event_time,
+                            lag_seconds=since_exit-horizon,
+                        )
+                hi = shadow.get('post_exit_max_entry_return_bps')
+                lo = shadow.get('post_exit_min_entry_return_bps')
+                shadow['post_exit_max_entry_return_bps'] = rbps if hi is None else max(int(hi), rbps)
+                shadow['post_exit_min_entry_return_bps'] = rbps if lo is None else min(int(lo), rbps)
+    return True
+
+
+def liquidity_floor_eligibility(vector):
+    grid = (((vector or {}).get('sensitivity') or {}).get('values') or {}).get(
+        'min_real_sol_lamports', {})
+    return {str(x): bool(grid.get(str(x), False)) for x in LIQUIDITY_FLOORS}
+
+
+def _median(values):
+    rows=[int(x) for x in values if x is not None]
+    return None if not rows else median(rows)
+
+
+def summarize_trackers(trackers):
+    by_cohort={}
+    for row in trackers:
+        for cohort in row.get('cohorts', []):
+            by_cohort.setdefault(cohort, []).append(row)
+    result={}
+    for cohort, rows in sorted(by_cohort.items()):
+        horizons={}
+        for horizon in DEFAULT_HORIZONS:
+            vals=[]
+            for row in rows:
+                mark=(row.get('marks') or {}).get(str(horizon))
+                if mark:
+                    vals.append(mark.get('return_bps'))
+            horizons[str(horizon)] = dict(
+                observed=len(vals),
+                median_return_bps=_median(vals),
+                positive=sum(int(x)>0 for x in vals),
+                above_15pct=sum(int(x)>=1500 for x in vals),
+                below_minus_10pct=sum(int(x)<=-1000 for x in vals),
+            )
+        result[cohort]=dict(
+            count=len(rows),
+            with_any_future_trade=sum(bool(r.get('observed_trade_events')) for r in rows),
+            median_mfe_bps=_median(r.get('max_favorable_bps') for r in rows),
+            median_mae_bps=_median(r.get('max_adverse_bps') for r in rows),
+            horizons=horizons,
+        )
+    return result
+
+
+def summarize_liquidity_counterfactual(natural_rows):
+    result={}
+    for floor in LIQUIDITY_FLOORS:
+        key=str(floor)
+        eligible=[r for r in natural_rows if (r.get('liquidity_floor_eligibility') or {}).get(key)]
+        horizons={}
+        for horizon in DEFAULT_HORIZONS:
+            vals=[]
+            for row in eligible:
+                mark=(row.get('future_outcomes') or {}).get('marks',{}).get(str(horizon))
+                if mark:
+                    vals.append(mark.get('return_bps'))
+            horizons[str(horizon)]=dict(observed=len(vals),median_return_bps=_median(vals))
+        result[key]=dict(
+            eligible=len(eligible),
+            horizons=horizons,
+            qualified_under_current_policy=sum(
+                (r.get('qualification_vector') or {}).get('actual_reason')=='qualified'
+                for r in eligible),
+        )
+    return result
+
+
+def summarize_post_exit_tail(natural_rows):
+    rows=[]
+    for row in natural_rows:
+        shadow=(row.get('future_outcomes') or {}).get('shadow_exit')
+        if shadow and shadow.get('triggered'):
+            rows.append(shadow)
+    return dict(
+        shadow_exits=len(rows),
+        take_profit_proxy=sum(r.get('reason')=='take_profit_proxy' for r in rows),
+        risk_proxy=sum(r.get('reason')=='risk_proxy' for r in rows),
+        timeout_proxy=sum(r.get('reason')=='timeout_proxy' for r in rows),
+        median_exit_return_bps=_median(r.get('exit_return_bps') for r in rows),
+        median_post_exit_max_entry_return_bps=_median(
+            r.get('post_exit_max_entry_return_bps') for r in rows),
+        note='trade-price proxy only; canonical paper execution remains unchanged',
+    )
