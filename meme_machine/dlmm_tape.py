@@ -198,8 +198,7 @@ def _resolve_effect_event(effect,pool):
         raise Unavailable('dlmm_missing_or_ambiguous_liquidity_event')
     event=effect['events'][0]
     if effect['kind']=='claim_fee2':
-        if (event['position']!=effect['position']
-                or not effect['min_bin']<=event['active']<=effect['max_bin']):
+        if event['position']!=effect['position']:
             raise Unavailable('dlmm_claim_fee2_event_identity')
         effect.update(
             amount_x=event['fee_x'],amount_y=event['fee_y'],
@@ -473,6 +472,129 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
         for record,event in resolved if record['target']
     ]
 
+
+def _materialize_removal_effects(start,end,effects):
+    removals=[item for item in effects
+              if item.get('kind')=='remove_liquidity_by_range2']
+    if len(removals)>1:
+        raise Unavailable('dlmm_multiple_liquidity_removals_in_interval')
+    if not removals:
+        # No supported liquidity mutation means supply must remain invariant.
+        for bid,b in start['bins'].items():
+            if bid not in end['bins'] or end['bins'][bid]['supply']!=b['supply']:
+                raise Unavailable('dlmm_unmodeled_liquidity_supply_change')
+        return
+    item=removals[0]
+    lower,upper=item['lower'],item['upper']
+    if upper-lower+1>len(start['bins']):
+        raise Unavailable('dlmm_remove_liquidity_range_not_fully_observed')
+    for bid in range(lower,upper+1):
+        if str(bid) not in start['bins'] or str(bid) not in end['bins']:
+            raise Unavailable('dlmm_remove_liquidity_range_not_fully_observed')
+    removed={}
+    for bid,b in start['bins'].items():
+        if bid not in end['bins']:
+            raise Unavailable('dlmm_remove_liquidity_terminal_bin_set')
+        delta=b['supply']-end['bins'][bid]['supply']
+        if delta<0:
+            raise Unavailable('dlmm_liquidity_supply_increase_in_interval')
+        numeric=int(bid)
+        if not lower<=numeric<=upper and delta:
+            raise Unavailable('dlmm_liquidity_supply_change_outside_remove_range')
+        if delta:
+            removed[bid]=delta
+    if not removed and (item['amount_x'] or item['amount_y']):
+        raise Unavailable('dlmm_remove_liquidity_missing_supply_delta')
+    item['removed_shares']=removed
+
+
+def apply_external_adjustment(state,item,counterfactual=False):
+    """Apply one authenticated external LP action to a real or hypothetical pool."""
+    result=deepcopy(state)
+    kind=item.get('kind')
+    active=item.get('active')
+    if type(active) is not int or active!=result['active']:
+        raise Unavailable('dlmm_external_adjustment_active_bin_mismatch')
+    if kind=='claim_fee2':
+        # Claiming another position's accrued fee does not alter bin inventory,
+        # supply, or fee growth. In the real pool the authenticated fee transfer
+        # leaves reserve vaults. Under the hypothetical LP state the other
+        # position's counterfactual claim amount is not assumed from real history,
+        # and it is irrelevant to our bin-level entitlement, so only clock/order
+        # advance is applied.
+        if not counterfactual:
+            for side in ('x','y'):
+                amount=item.get(f'amount_{side}')
+                if type(amount) is not int or amount<0:
+                    raise Unavailable('dlmm_claim_fee2_adjustment_shape')
+                key=f'vault_{side}_amount'
+                if amount>result[key]:
+                    raise Unavailable('dlmm_claim_fee2_vault_underflow')
+                result[key]-=amount
+    elif kind=='remove_liquidity_by_range2':
+        shares=item.get('removed_shares')
+        if not isinstance(shares,dict):
+            raise Unavailable('dlmm_remove_liquidity_share_evidence_missing')
+        totals={'x':0,'y':0}
+        for bid in sorted(shares,key=int):
+            share=shares[bid]
+            b=result['bins'].get(str(bid))
+            if b is None or type(share) is not int or share<=0 or share>b['supply']:
+                raise Unavailable('dlmm_remove_liquidity_share_evidence_invalid')
+            x=dlmm.withdraw_amount(share,b['x'],b['supply'])
+            y=dlmm.withdraw_amount(share,b['y'],b['supply'])
+            b['x']-=x;b['y']-=y;b['supply']-=share
+            result['vault_x_amount']-=x;result['vault_y_amount']-=y
+            totals['x']+=x;totals['y']+=y
+        if not counterfactual and (
+                totals['x']!=item.get('amount_x')
+                or totals['y']!=item.get('amount_y')):
+            raise Unavailable('dlmm_remove_liquidity_event_amount_mismatch')
+    else:
+        raise Unavailable('dlmm_unknown_terminal_adjustment')
+    if type(item.get('time')) is int:
+        result['time']=max(result.get('time',0),item['time'])
+    if type(item.get('slot')) is int:
+        result['slot']=max(result.get('slot',0),item['slot'])
+    return result
+
+
+def apply_terminal_adjustments(state,adjustments,counterfactual=False):
+    result=deepcopy(state)
+    for item in adjustments:
+        result=apply_external_adjustment(
+            result,item,counterfactual=counterfactual)
+    return result
+
+
+def replay_swap_event(state,event):
+    host=event['observed'].get('host_fee',0)
+    if event.get('swap_mode')=='exact_out':
+        return dlmm.swap_exact_out(
+            state,event['observed']['output'],event['for_y'],event['time'],
+            host_fee=host if host else None)
+    return dlmm.swap(
+        state,event['amount'],event['for_y'],event['time'],
+        host_fee=host if host else None)
+
+
+def ordered_tape_actions(tape):
+    if not isinstance(tape,VerifiedTape):
+        raise TypeError('dlmm_verified_tape_required')
+    actions=[]
+    for event in tape.events:
+        actions.append(('swap',event))
+    for item in tape.terminal_adjustments:
+        actions.append(('adjustment',item))
+    def key(pair):
+        item=pair[1]
+        cursor=item.get('cursor') or [item.get('slot',0),
+                                     item.get('transaction_index',0),0]
+        order=item.get('execution_order') or item.get('order') or [0,0]
+        return (cursor[0],cursor[1],order[0],order[1],cursor[2])
+    return tuple(sorted(actions,key=key))
+
+
 def transaction_swap(tx,pool):
     """Backward-compatible single-swap helper used by existing tests/callers."""
     swaps=transaction_swaps(tx,pool)
@@ -516,7 +638,8 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
     if [(s['slot'],s['transactionIndex']) for s in signatures]!=sorted(
             ((s['slot'],s['transactionIndex']) for s in signatures),reverse=True):
         raise Unavailable('dlmm_signature_order')
-    if end_snapshot['available_time']>now:raise ValueError('dlmm_future_endpoint')
+    if end_snapshot['available_time']>now:
+        raise ValueError('dlmm_future_endpoint')
     end=dlmm.validate(end_snapshot,end_snapshot['available_time'],'real')
     if end['pool']!=start['pool'] or end['slot']<=start['slot'] or end['time']-start['time']>60:
         raise Unavailable('dlmm_interval_identity_or_age')
@@ -527,55 +650,80 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
         raise Unavailable('dlmm_transaction_bound_or_duplicates')
     if len({(s['slot'],s['transactionIndex']) for s in selected})!=len(selected):
         raise Unavailable('dlmm_transaction_order_ambiguous')
-    state=deepcopy(start);events=[];adjustments=[];previous=list(cursor)
+
+    parsed={};all_effects=[]
     for sig in sorted(selected,key=lambda s:(s['slot'],s['transactionIndex'])):
         tx=transactions.get(sig['signature'])
         if not tx or tx['transaction']['signatures'][0]!=sig['signature'] or tx['slot']!=sig['slot']:
             raise Unavailable('dlmm_transaction_missing_or_identity')
-        tx_adjustments=[]
+        tx_effects=[]
         swaps=transaction_swaps(
-            tx,start['pool'],terminal_adjustments=tx_adjustments)
-        for swap_index,e in enumerate(swaps):
-            if not state['time']<=e['time']<=end['time']:
-                raise ValueError('dlmm_transaction_time_outside_interval')
-            host=e['observed'].get('host_fee',0)
-            prehash=digest(state);state,quote=dlmm.swap(
-                state,e['amount'],e['for_y'],e['time'],host_fee=host if host else None)
-            keys=('start','end','output','fee','protocol_fee')
-            if any(e['observed'][k]!=quote[k] for k in keys):
-                raise Unavailable('dlmm_observed_swap_cannot_be_reconstructed')
-            if host and quote.get('host_fee')!=host:
-                raise Unavailable('dlmm_observed_host_fee_cannot_be_reconstructed')
-            next_cursor=[e['slot'],sig['transactionIndex'],swap_index];state['slot']=e['slot']
-            events.append(dict(kind='real',commitment='finalized',pool=start['pool'],cursor=next_cursor,
-                previous_cursor=previous,prestate_hash=prehash,amount=e['amount'],for_y=e['for_y'],
-                time=e['time'],available_time=now,observed=e['observed'],signature=sig['signature'],
-                instruction=e['instruction'],execution_order=e['execution_order']))
+            tx,start['pool'],terminal_adjustments=tx_effects)
+        if tx.get('blockTime') is None:
+            raise Unavailable('dlmm_missing_transaction_time')
+        for item in tx_effects:
+            item.update(
+                slot=tx['slot'],time=tx['blockTime'],signature=sig['signature'],
+                transaction_index=sig['transactionIndex'])
+            item.pop('events',None)
+        parsed[sig['signature']]=(swaps,tx_effects)
+        all_effects.extend(tx_effects)
+
+    _materialize_removal_effects(start,end,all_effects)
+
+    state=deepcopy(start);events=[];adjustments=[];previous=list(cursor)
+    for sig in sorted(selected,key=lambda s:(s['slot'],s['transactionIndex'])):
+        swaps,tx_effects=parsed[sig['signature']]
+        actions=[('swap',event,event['execution_order']) for event in swaps]
+        actions.extend(
+            ('adjustment',item,item['order']) for item in tx_effects)
+        actions.sort(key=lambda row:(row[2][0],row[2][1]))
+        for action_index,(kind,item,_order) in enumerate(actions):
+            prehash=digest(state)
+            next_cursor=[sig['slot'],sig['transactionIndex'],action_index]
+            if kind=='swap':
+                event=item
+                if not state['time']<=event['time']<=end['time']:
+                    raise ValueError('dlmm_transaction_time_outside_interval')
+                state,quote=replay_swap_event(state,event)
+                keys=('start','end','output','fee','protocol_fee')
+                if any(event['observed'][k]!=quote[k] for k in keys):
+                    raise Unavailable('dlmm_observed_swap_cannot_be_reconstructed')
+                if event.get('swap_mode')=='exact_out' and event['amount']!=quote['input']:
+                    raise Unavailable('dlmm_observed_exact_out_input_cannot_be_reconstructed')
+                host=event['observed'].get('host_fee',0)
+                if host and quote.get('host_fee')!=host:
+                    raise Unavailable('dlmm_observed_host_fee_cannot_be_reconstructed')
+                state['slot']=sig['slot']
+                enriched=dict(
+                    **event,kind='real',commitment='finalized',pool=start['pool'],
+                    cursor=next_cursor,previous_cursor=previous,
+                    prestate_hash=prehash,available_time=now,
+                    signature=sig['signature'])
+                events.append(enriched)
+            else:
+                item.update(
+                    commitment='finalized',pool=start['pool'],
+                    cursor=next_cursor,previous_cursor=previous,
+                    prestate_hash=prehash,available_time=now,
+                    execution_order=list(item['order']))
+                state=apply_external_adjustment(
+                    state,item,counterfactual=False)
+                adjustments.append(deepcopy(item))
             previous=next_cursor
-        if tx_adjustments:
-            item=tx_adjustments[0]
-            if item['reserve_x']!=state['vault_x'] or item['reserve_y']!=state['vault_y'] \
-                    or item['token_x_mint']!=state['x'] or item['token_y_mint']!=state['y']:
-                raise Unavailable('dlmm_claim_fee2_pool_identity')
-            if item['pre_reserve_x']!=state['vault_x_amount'] \
-                    or item['pre_reserve_y']!=state['vault_y_amount']:
-                raise Unavailable('dlmm_claim_fee2_prestate_mismatch')
-            if tx.get('blockTime') is None:
-                raise Unavailable('dlmm_missing_transaction_time')
-            item.update(slot=tx['slot'],time=tx['blockTime'],
-                        signature=sig['signature'],
-                        transaction_index=sig['transactionIndex'])
-            state=apply_terminal_adjustments(state,[item])
-            adjustments.append(item)
+
     mismatches=[key for key in set(state)-{'time','slot'} if state[key]!=end[key]]
     if mismatches:
         key=mismatches[0];detail=''
         if key=='last_update' and events:
             detail=f':sim={state[key]}:chain={end[key]}:last_instruction={events[-1]["instruction"]}'
-        raise Unavailable('dlmm_terminal_state_disagrees_with_forward_reconstruction:'+key+detail)
-    return VerifiedTape(digest(start),digest(end),tuple(events),end,
-                        digest(dict(start=start,end=end_snapshot,signatures=signatures,transactions=transactions)),
-                        tuple(adjustments))
+        raise Unavailable(
+            'dlmm_terminal_state_disagrees_with_forward_reconstruction:'+key+detail)
+    return VerifiedTape(
+        digest(start),digest(end),tuple(events),end,
+        digest(dict(start=start,end=end_snapshot,signatures=signatures,
+                    transactions=transactions)),
+        tuple(adjustments))
 
 
 def capture(adapter,start,end_snapshot,now,cursor):
