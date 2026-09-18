@@ -19,7 +19,9 @@
     ],
     "target_wallets": 30,
     "max_wallets_per_discovery_pool": 5,
-    "minimum_wallets_to_freeze": 12
+    "minimum_wallets_to_freeze": 12,
+    "max_finalized_transaction_bodies_attempted_per_pool": 40,
+    "unreadable_transaction_policy": "Advance to the next finalized signature in recency order without consulting PnL. A pool is incomplete unless 24 readable transaction bodies are obtained within the first 40 eligible finalized signatures."
   },
   "phase_b_analysis": {
     "requires_committed_frozen_cohort": true,
@@ -45,5 +47,16 @@
     "Freeze exactly one candidate in a later reviewed commit before any prospective test.",
     "Prospective test data must be strictly post-freeze.",
     "No threshold may be lowered merely to manufacture trades."
+  ],
+  "protocol_revision": "1.1",
+  "amendment_history": [
+    {
+      "revision": "1.1",
+      "reason": "Provider-only acquisition repair after pre-PnL discovery run 35403624464 failed on a finalized getTransaction read.",
+      "pnl_observed_before_amendment": false,
+      "strategy_thresholds_changed": false,
+      "pool_universe_changed": false,
+      "wallet_profitability_definition_changed": false
+    }
   ]
 }
