@@ -550,8 +550,10 @@ def _observation_key(row):
 
 def _opportunity_ledger_row(opportunity):
     progress=opportunity.get("economic_hurdle_progress") or {}
+    raw_run_id=os.environ.get("GITHUB_RUN_ID")
+    run_id=int(raw_run_id) if isinstance(raw_run_id,str) and raw_run_id.isdigit() else None
     return dict(
-        run_id=None,
+        run_id=run_id,
         pool=opportunity.get("pool"),
         entry_slot=opportunity.get("entry_slot"),
         end_slot=opportunity.get("end_slot"),
@@ -1218,6 +1220,9 @@ def run_live(
         development_cumulative_remaining_observations=(
             max(0,DEVELOPMENT_LEDGER_TARGET-len(cumulative_development_rows))
             if study_phase=="development" else None
+        ),
+        development_cumulative_observations=(
+            cumulative_development_rows if study_phase=="development" else None
         ),
         development_cumulative_distinct_pools=(
             cumulative_development_distinct_pools
