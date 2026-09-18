@@ -2,7 +2,7 @@ from dataclasses import replace
 import unittest
 
 from robinhood_research.continuation_robinhood import (
-    EXIT_POLICY, POLICY, REFERENCE_ENTRY_WEI, THRESHOLDS, TRANSLATION_SNAPSHOT,
+    EXIT_POLICY, POLICY, POLICY_HASH, REFERENCE_ENTRY_WEI, THRESHOLDS, TRANSLATION_SNAPSHOT,
     qualification_vector,
 )
 from robinhood_research.pons import CurveState
@@ -61,6 +61,7 @@ def vector(**overrides):
 class FrozenRobinhoodContinuationTests(unittest.TestCase):
     def test_translation_and_exit_policy_are_frozen(self):
         self.assertEqual(POLICY,"continuation-v1-robinhood")
+        self.assertEqual(POLICY_HASH,"f363c234daa549365ca00ee5b33247deb1c591a1084b991263233ba9f3870e36")
         self.assertEqual(THRESHOLDS,dict(
             max_concentration_bps=3500,
             min_real_quote_wei=429742223375869849,
