@@ -284,10 +284,19 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - DLMM RPC routing is pinned at `d90b4cd869f028c70f584b9e0b8dbeb233fae153`.
 - All active DLMM live/replay entrypoints now resolve through one canonical validator: `tests.dlmm_alchemy_provider`.
 - The only accepted RPC shape is `https://solana-mainnet.g.alchemy.com/v2/<api-key>`. Solana Labs, PublicNode, devnet, plaintext HTTP, key-only values, query/fragment variants, and any other host fail closed.
-- The old generic `MM_SOLANA_READ_RPC_URL` path is removed from DLMM workflows. The required GitHub Actions secret is `MM_ALCHEMY_SOLANA_RPC_URL`.
+- DLMM uses the existing Meme Machine GitHub secret `MM_SOLANA_READ_RPC_URL`. That existing secret is expected to contain the full Alchemy Solana Mainnet endpoint; no replacement secret is required.
 - All active DLMM workflows use the dedicated `dlmm-alchemy-solana-live` concurrency group and validate the Alchemy route before making a network request.
 - The legacy `tests.dlmm_strategy_high_activity_publicnode` entrypoint is retained only to fail explicitly with `dlmm_publicnode_route_retired_use_alchemy`; it can no longer route traffic.
-- Provider telemetry now reports `alchemy_solana_mainnet` without logging the endpoint or API key.
+- Provider telemetry reports `alchemy_solana_mainnet_existing_secret` without logging the configured URL or API key.
 - Full deterministic CI passed on exact routing head in run `35306102369`: unit discovery, standard resource check, DLMM resource check, and canonical synthetic lifecycle all succeeded.
-- The connected Alchemy app `LeVon's First App` has Solana Mainnet enabled. A direct mainnet RPC health call at this boundary returned `monthly capacity limit exceeded`, so no new DLMM live research run is launched until Alchemy capacity becomes available. This is a provider-capacity blocker only; strategy/mechanics remain unchanged.
+- Correction: the connector-selected Alchemy app and its observed capacity are unrelated to the canonical DLMM credential path and must not be used to infer DLMM provider availability.
 - Prospective DLMM allocation remains disabled. No strategy thresholds, costs, verifier capacity, finality predicates, swap/fee mechanics, Store authority, signing, or submission behavior changed.
+
+
+## DLMM Alchemy secret-name correction
+
+- The canonical provider credential already wired into Meme Machine GitHub is `MM_SOLANA_READ_RPC_URL`.
+- No new `MM_ALCHEMY_SOLANA_RPC_URL` or `SOLANA_ROI_ALCHEMY_API_KEY` secret is required for DLMM.
+- DLMM reads `MM_SOLANA_READ_RPC_URL` and fails closed unless its value is a full `https://solana-mainnet.g.alchemy.com/v2/<key>` endpoint.
+- The previously selected Alchemy connector app is not part of DLMM routing and its usage/capacity must not be attributed to DLMM.
+- Provider fallback remains disabled; no strategy, verifier, cost, mechanics, allocation, signing, or submission behavior changed.
