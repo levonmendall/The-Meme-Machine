@@ -24,6 +24,16 @@ class LiquidityPosition:
     cost_basis_lamports: int
 
 
+def _exit_error_reason(exc):
+    """Return a stable, non-secret reason for exit-monitor telemetry."""
+    if isinstance(exc, KeyError):
+        field=str(exc).strip("'\"") or 'unknown'
+        return f'missing_snapshot_field:{field}'
+    text=(str(exc) or type(exc).__name__).strip()
+    normalized=''.join(ch if ch.isalnum() or ch in '._:-' else '_' for ch in text)
+    return (normalized or type(exc).__name__)[:120]
+
+
 class Allocator:
     def __init__(self, store):
         self.store = store
@@ -273,52 +283,85 @@ class Engine:
                     slot=snap['slot'],market_time=snap['market_time'],available_time=snap['available_time'],time=now),fill_snapshot=snap)
         return o['status']
 
-    def monitor(self,mint,snap,now,failed=False):
+    def monitor(self,mint,snap,now,failed=False,source_error=None):
         p=self.store.state['positions'].get(mint)
         if p is None:
             return 'closed'
         if now<p['next_monitor']:
             return 'not_due'
+
         error=None
-        try:
-            c,rates=self.validate_snapshot(snap,now)
-            if snap['mint']!=mint or snap['slot']<p['entry_slot']:
-                raise ValueError('position_quote_identity')
-            proceeds,fee=pump.sell(c,p['tokens'],rates)
-        except (ValueError,KeyError,TypeError) as exc:
-            error=str(exc)
-        # Missing/invalid exit marks are polled at the normal monitor cadence, but
-        # identical non-economic failures do not need a durable write every five
-        # seconds. Keep one auditable unresolved record per minute. A recovered quote
-        # or a real failed exit attempt still commits immediately.
-        if error and p.get('unresolved') and now-int(p.get('last_unresolved_record',0)) < UNRESOLVED_RECORD_INTERVAL:
+        c=rates=proceeds=fee=None
+        liquidity_invalid=False
+        if source_error is not None:
+            error=_exit_error_reason(source_error)
+        else:
+            try:
+                c,rates=self.validate_snapshot(snap,now)
+                if snap['mint']!=mint or snap['slot']<p['entry_slot']:
+                    raise ValueError('position_quote_identity')
+                if c.complete:
+                    raise ValueError('pump_curve_complete_requires_pumpswap')
+                liquidity_invalid = c.real_sol < 5_000_000_000
+                try:
+                    proceeds,fee=pump.sell(c,p['tokens'],rates)
+                except ValueError as exc:
+                    error=_exit_error_reason(exc)
+                    if error=='insufficient_real_exit_liquidity':
+                        liquidity_invalid=True
+            except (ValueError,KeyError,TypeError) as exc:
+                if error is None:
+                    error=_exit_error_reason(exc)
+
+        prior_error=(p.get('last_exit_error') or {}).get('reason')
+        if (error and p.get('unresolved') and prior_error==error and
+                now-int(p.get('last_unresolved_record',0)) < UNRESOLVED_RECORD_INTERVAL):
             return 'unresolved_coalesced'
+
         with self.store.transaction('monitor'):
             s=self.store.state
+            p=s['positions'].get(mint)
+            if p is None:
+                return 'closed'
             p['next_monitor']=now+5
             if error:
-                p.update(mark=None,mark_time=None,unresolved=True,last_unresolved_record=now)
+                if liquidity_invalid and p.get('exit_due') is None:
+                    p.update(
+                        exit_due=now+DELAY,exit_reason='liquidity_invalidation',
+                        exit_slot=int((snap or {}).get('slot',p.get('entry_slot',0))),
+                    )
+                p.update(
+                    mark=None,mark_time=None,unresolved=True,last_unresolved_record=now,
+                    last_exit_error=dict(reason=error,time=now,stage='pump_exit_quote'),
+                )
                 self.note('unavailable_exit',mint,now)
+                key=f'unavailable_exit:{error}'
+                s['counts'][key]=s['counts'].get(key,0)+1
                 return 'unresolved'
-            p.update(mark=max(0,proceeds-GAS),mark_time=now,unresolved=False,last_unresolved_record=0)
+
+            p.update(
+                mark=max(0,proceeds-GAS),mark_time=now,unresolved=False,
+                last_unresolved_record=0,last_exit_error=None,
+            )
             reason = ('risk' if proceeds-GAS<=p['basis']*9000//10000 else
                       'take_profit' if proceeds-GAS>=p['basis']*11500//10000 else
                       'timeout' if now-p['opened']>=900 else
-                      'liquidity_invalidation' if c.real_sol<5_000_000_000 else None)
+                      'liquidity_invalidation' if liquidity_invalid else None)
             if p['exit_due'] is None and reason:
                 p.update(exit_due=now+DELAY,exit_reason=reason,exit_slot=snap['slot'])
                 return 'exit_intended'
             if p['exit_due'] is None or now<p['exit_due'] or snap['market_time']<p['exit_due'] or snap['slot']<=p['exit_slot']:
                 return 'holding'
             if failed:
-                # Failed exits consume fees but retain the position and its exit intent.
                 if s['cash']<GAS:
                     p['unresolved']=True
+                    p['last_exit_error']=dict(reason='gas_exhausted',time=now,stage='pump_exit_attempt')
                     return 'gas_exhausted'
                 s['cash']-=GAS
                 s['realized']-=GAS
                 s['fees']+=GAS
                 p['unresolved']=True
+                p['last_exit_error']=dict(reason='simulated_exit_attempt_failed',time=now,stage='pump_exit_attempt')
                 return 'exit_failed'
             s['cash']+=proceeds-GAS+p['rent']
             s['rent']-=p['rent']
