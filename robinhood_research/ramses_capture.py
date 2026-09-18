@@ -18,9 +18,12 @@ from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, p
 ACTIVITY_POLL_SECONDS=5
 RANK_POOL_COUNT=96
 WATCH_POOL_COUNT=8
-WATCH_COHORT_COUNT=4
-WATCH_SLOT_SECONDS=20
-ACTIVITY_WAIT_SECONDS=WATCH_COHORT_COUNT*WATCH_SLOT_SECONDS
+WATCH_COHORT_COUNT=1
+WATCH_SLOT_SECONDS=75
+ACTIVITY_WAIT_SECONDS=WATCH_SLOT_SECONDS
+FINALITY_WAIT_SECONDS=180
+FORWARD_HEAD_WAIT_SECONDS=180
+FORWARD_FINALITY_WAIT_SECONDS=240
 LOG_BLOCK_CHUNK=10
 MAX_FACTORY_POOLS=400
 FORWARD_SECONDS=60
@@ -299,14 +302,15 @@ def run(endpoint):
             reserves=values(state_rows[2*i]);hooks=int(state_rows[2*i+1],16)
             side=native_meta[row['address']]['native_side']
             native_reserve=reserves[0 if side=='x' else 1]
-            if hooks==0 and any(reserves) and native_reserve>0:
+            if hooks==0:
                 watchable.append(dict(address=row['address'],last_update=row['last_update'],
                                       native_reserve=native_reserve,native_side=side,
                                       bin_step=native_meta[row['address']]['bin_step']))
         watchable.sort(key=lambda row:(row['last_update'],row['native_reserve'],row['address']),reverse=True)
         result['watchable_native_pool_count']=len(watchable)
         scheduled=watchable[:WATCH_POOL_COUNT*WATCH_COHORT_COUNT]
-        if not scheduled:raise BoundaryError('no_watchable_native_ramses_pool')
+        if len(scheduled)!=WATCH_POOL_COUNT:
+            raise BoundaryError('insufficient_watchable_native_ramses_pools:'+str(len(scheduled)))
         cohorts=[scheduled[i:i+WATCH_POOL_COUNT] for i in range(0,len(scheduled),WATCH_POOL_COUNT)]
         if len(cohorts)>WATCH_COHORT_COUNT:raise BoundaryError('watch_schedule_capacity')
         schedule_public=[]
@@ -325,7 +329,7 @@ def run(endpoint):
         result['watch_slots']=[]
         for slot,cohort in enumerate(cohorts):
             if selection is not None:break
-            slot_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
+            slot_frontier=rpc.call('eth_getBlockByNumber',['latest',False],scope='discovery')
             cursor=int(slot_frontier['number'],16)
             initial_calls=[]
             for row in cohort:
@@ -340,7 +344,7 @@ def run(endpoint):
             slot_started=time.monotonic();slot_end=cursor;polls=0
             while time.monotonic()-slot_started<WATCH_SLOT_SECONDS and selection is None:
                 time.sleep(ACTIVITY_POLL_SECONDS)
-                frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
+                frontier=rpc.call('eth_getBlockByNumber',['latest',False],scope='discovery')
                 height=int(frontier['number'],16)
                 if height<=cursor:continue
                 calls=[]
@@ -372,6 +376,24 @@ def run(endpoint):
         if selection is None:raise BoundaryError('no_natural_native_ramses_activity_on_frozen_watch_schedule')
         result['selection_event_name']=selection_decoded['name']
         address=selection['address'];result['selection_event']=selection
+        selection_block=int(selection['blockNumber'],16)
+        finality_started=time.monotonic()
+        selection_finalized=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
+        while int(selection_finalized['number'],16)<selection_block:
+            if time.monotonic()-finality_started>=FINALITY_WAIT_SECONDS:
+                raise BoundaryError('selection_finality_timeout')
+            time.sleep(10)
+            selection_finalized=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
+        selection_header=rpc.call('eth_getBlockByNumber',[hex(selection_block),False],scope='discovery')
+        if selection_header['hash']!=selection['blockHash']:
+            raise BoundaryError('selection_reorg_before_freeze')
+        selection_receipt=rpc.receipt(selection['transactionHash'],selection['blockHash'],scope='discovery')
+        if (int(selection_receipt['status'],16)!=1
+            or selection_receipt['transactionIndex']!=selection['transactionIndex']
+            or selection not in selection_receipt['logs']):
+            raise BoundaryError('selection_receipt_identity_disagreement')
+        result['selection_finality']=dict(finalized=True,block=selection_block,block_hash=selection['blockHash'],
+                                          waited_seconds=time.monotonic()-finality_started)
         result['factory_checks']={}
         result['pool']=address
         start_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='connectivity')
@@ -406,13 +428,22 @@ def run(endpoint):
         result['range_freeze']=freeze;result['prospective_range']=True;result['quote_side']=quote_side
         result['proposal_hash']=freeze['proposal_hash'];result['prehistory']=prehistory
         # Nothing after this point can alter the frozen proposal definitions.
-        target=start_ts+FORWARD_SECONDS;deadline=time.monotonic()+100
-        end_frontier=start_frontier
-        while int(end_frontier['timestamp'],16)<target:
-            if time.monotonic()>=deadline:raise BoundaryError('insufficient_finalized_forward_window')
+        target=start_ts+FORWARD_SECONDS;head_deadline=time.monotonic()+FORWARD_HEAD_WAIT_SECONDS
+        end_candidate=rpc.call('eth_getBlockByNumber',['latest',False],scope='forward')
+        while int(end_candidate['timestamp'],16)<target:
+            if time.monotonic()>=head_deadline:raise BoundaryError('insufficient_forward_head_window')
+            time.sleep(5)
+            end_candidate=rpc.call('eth_getBlockByNumber',['latest',False],scope='forward')
+        end=int(end_candidate['number'],16);end_ts=int(end_candidate['timestamp'],16)
+        finality_deadline=time.monotonic()+FORWARD_FINALITY_WAIT_SECONDS
+        finalized_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
+        while int(finalized_frontier['number'],16)<end:
+            if time.monotonic()>=finality_deadline:raise BoundaryError('terminal_finality_timeout')
             time.sleep(10)
-            end_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
-        end=int(end_frontier['number'],16);end_ts=int(end_frontier['timestamp'],16)
+            finalized_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
+        end_frontier=rpc.call('eth_getBlockByNumber',[hex(end),False],scope='forward')
+        if end_frontier['hash']!=end_candidate['hash']:
+            raise BoundaryError('terminal_reorg_before_finality')
         result['frontier']={k:end_frontier[k] for k in ('hash','number','timestamp','parentHash')}
         events=batched_logs(start+1,end,address=address,scope='pool')
         result['logs']=events
