@@ -34,6 +34,12 @@ def _exit_error_reason(exc):
     return (normalized or type(exc).__name__)[:120]
 
 
+def _nomination_identity(nomination):
+    """Immutable economic identity; excludes ingestion time/source annotations."""
+    keys=('id','mint','wallet','amount','tokens','buy','market_time','slot','index')
+    return tuple((key,nomination.get(key)) for key in keys)
+
+
 class Allocator:
     def __init__(self, store):
         self.store = store
@@ -212,7 +218,12 @@ class Engine:
     def consider(self, nomination, evidence, now):
         oid=nomination['id']
         if oid in self.store.state['orders']:
-            return self.store.state['orders'][oid]['status']
+            existing=self.store.state['orders'][oid]
+            prior=existing.get('nomination') or {}
+            if (_nomination_identity(prior) != _nomination_identity(nomination) or
+                    existing.get('mint') != nomination.get('mint')):
+                raise ValueError('order_identity_collision')
+            return existing['status']
         try:
             reason=self.qualify(nomination,evidence,now)
         except (ValueError,KeyError,TypeError):
