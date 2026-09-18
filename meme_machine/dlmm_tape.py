@@ -352,20 +352,17 @@ def _host_transfer_amount(binding,ordered,keys,next_swap_order):
     return found,total
 
 
-def _authenticate_host_fees(resolved_records,meta,keys,ordered):
+def _authenticate_host_fees(
+        resolved_records,meta,keys,ordered,allow_terminal_fallback=False):
     hosted=[]
     for record,event in resolved_records:
         binding=_host_binding(record,event,keys)
         if binding is not None:
             hosted.append((record,event,binding))
 
-    # Only target-pool hosted swaps can invalidate target reconstruction. Routed
-    # swaps for other pools are retained only when they share the same host account
-    # and mint, because their fee can legitimately contribute to one transaction-
-    # level host-account balance delta.
     target_bindings=[binding for _record,_event,binding in hosted if binding['target']]
     if not target_bindings:
-        return
+        return {}
 
     grouped={}
     for _record,_event,binding in hosted:
@@ -377,6 +374,7 @@ def _authenticate_host_fees(resolved_records,meta,keys,ordered):
         for _record,_event,binding in hosted)
 
     transfer_proven={}
+    auth={}
     for _record,_event,binding in hosted:
         if not binding['target']:
             continue
@@ -392,39 +390,63 @@ def _authenticate_host_fees(resolved_records,meta,keys,ordered):
             transfer_proven[key]=transfer_proven.get(key,0)+amount
 
     target_groups={}
+    group_orders={}
     for binding in target_bindings:
         key=(binding['host_index'],binding['input_mint'])
         target_groups.setdefault(key,0)
         target_groups[key]+=binding['host']
+        group_orders.setdefault(key,[]).append(tuple(binding['order']))
 
     for (index,mint),target_expected in target_groups.items():
-        if transfer_proven.get((index,mint))==target_expected:
+        key=(index,mint)
+        if transfer_proven.get(key)==target_expected:
             pre=_maybe_token_balance(meta,'preTokenBalances',index)
             post=_maybe_token_balance(meta,'postTokenBalances',index)
             if pre is not None and pre[0]!=mint:
                 raise Unavailable('dlmm_host_fee_wrong_token')
             if post is not None and post[0]!=mint:
                 raise Unavailable('dlmm_host_fee_wrong_token')
+            for order in group_orders[key]:
+                auth[order]='ordered_spl_transfer'
             continue
 
         pre=_maybe_token_balance(meta,'preTokenBalances',index)
         post=_maybe_token_balance(meta,'postTokenBalances',index)
-        if pre is None or post is None:
-            raise Unavailable('dlmm_host_fee_token_balance_missing')
-        pre_mint,pre_amount=pre;post_mint,post_amount=post
-        if pre_mint!=mint or post_mint!=mint:
+        if pre is not None and pre[0]!=mint:
             raise Unavailable('dlmm_host_fee_wrong_token')
-        delta=post_amount-pre_amount
-        if delta==target_expected:
+        if post is not None and post[0]!=mint:
+            raise Unavailable('dlmm_host_fee_wrong_token')
+
+        if pre is None or post is None:
+            if not allow_terminal_fallback:
+                raise Unavailable('dlmm_host_fee_token_balance_missing')
+            for order in group_orders[key]:
+                auth[order]='terminal_pool_conservation'
             continue
 
-        # Routed DLMM swaps can share one host token account. In that case the
-        # transaction-level delta is the aggregate for every DLMM swap using that
-        # exact host account + input mint, even though only one pool is being
-        # reconstructed here.
-        aggregate=sum(binding['host'] for binding in grouped[(index,mint)])
-        if delta!=aggregate:
-            raise Unavailable('dlmm_host_fee_balance_delta_mismatch')
+        delta=post[1]-pre[1]
+        if delta==target_expected:
+            for order in group_orders[key]:
+                auth[order]='token_balance_delta'
+            continue
+
+        aggregate=sum(binding['host'] for binding in grouped[key])
+        if delta==aggregate:
+            for order in group_orders[key]:
+                auth[order]='routed_token_balance_aggregate'
+            continue
+
+        # Transaction-level host-account balance can include unrelated movement.
+        # During complete interval reconstruction, the program-authenticated swap
+        # event and exact terminal reserve/protocol state provide the authoritative
+        # pool-side conservation proof. Standalone occurrence parsing remains strict.
+        if allow_terminal_fallback:
+            for order in group_orders[key]:
+                auth[order]='terminal_pool_conservation'
+            continue
+        raise Unavailable('dlmm_host_fee_balance_delta_mismatch')
+
+    return auth
 
 
 
@@ -602,7 +624,13 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
             record['legacy']=_log_swap_fallback(meta,record['pool'])
         event=_resolve_swap_record(record,meta,tx.get('blockTime'))
         resolved.append((record,event))
-    _authenticate_host_fees(resolved,meta,keys,ordered)
+    host_auth=_authenticate_host_fees(
+        resolved,meta,keys,ordered,
+        allow_terminal_fallback=terminal_adjustments is not None)
+    for record,event in resolved:
+        if record.get('target') and event['observed'].get('host_fee',0):
+            event['host_fee_recipient_auth']=host_auth.get(
+                tuple(record['order']),'unverified')
 
     resolved_effects=[_resolve_effect_event(effect,pool) for effect in effects]
     if resolved_effects:
