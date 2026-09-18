@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from meme_machine import dlmm,pump
-from meme_machine.dlmm_tape import (transaction_swap,transaction_swaps,reconstruct,SWAP,SWAP2,EXACT_IN,EVENT_CPI,_un58_data,CLAIM_FEE2_IX,CLAIM_FEE2_EVT,SWAP_EXACT_OUT2_IX,REMOVE_LIQUIDITY_BY_RANGE2_IX,REMOVE_LIQUIDITY_EVT,MEMO_PROGRAM,apply_terminal_adjustments)
+from meme_machine.dlmm_tape import (transaction_swap,transaction_swaps,reconstruct,SWAP,SWAP2,EXACT_IN,EVENT_CPI,_un58_data,CLAIM_FEE2_IX,CLAIM_FEE2_EVT,SWAP_EXACT_OUT2_IX,REMOVE_LIQUIDITY_BY_RANGE2_IX,REMOVE_LIQUIDITY_EVT,INITIALIZE_POSITION_IX,MEMO_PROGRAM,apply_terminal_adjustments)
 from meme_machine.dlmm_paper import Replay
 from meme_machine.provider import Unavailable
 from meme_machine.store import Store,digest
@@ -214,6 +214,27 @@ class Tape(unittest.TestCase):
         with self.assertRaisesRegex(Unavailable,'external_effect_requires'):
             transaction_swaps(tx,POOL)
 
+    def test_claim_fee2_event_binds_across_intervening_dlmm_inner_instruction(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,tx=claim_fee2_transaction(p,321,654)
+        tx=copy.deepcopy(tx)
+        tx['meta']['innerInstructions'][0]['instructions'].insert(
+            0,dict(
+                programIdIndex=13,
+                accounts=[1,1,1,1,1,1,1,1],
+                data=pump.b58(INITIALIZE_POSITION_IX),
+            ))
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='claim-fee2',slot=101,transactionIndex=7,err=None,
+                 confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'claim-fee2':tx},102,[100,2**31-1,2**31-1])
+        self.assertEqual(len(tape.terminal_adjustments),1)
+        self.assertEqual(tape.terminal_adjustments[0]['kind'],'claim_fee2')
+
     def test_claim_fee2_wrong_user_delta_fails_closed(self):
         s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
         post,tx=claim_fee2_transaction(p,1234,0)
@@ -262,6 +283,13 @@ class Tape(unittest.TestCase):
                  confirmationStatus='finalized'),
             dict(signature='anchor',slot=99,transactionIndex=2,err=None,
                  confirmationStatus='finalized')]
+        tx=copy.deepcopy(tx)
+        tx['meta']['innerInstructions'][0]['instructions'].insert(
+            0,dict(
+                programIdIndex=14,
+                accounts=[0,0,0,0,0,0,0,0],
+                data=pump.b58(INITIALIZE_POSITION_IX),
+            ))
         tape=reconstruct(
             p,end,sigs,{'remove':tx},102,[100,2**31-1,2**31-1])
         self.assertEqual(tape.events,())
