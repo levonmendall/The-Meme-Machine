@@ -25,7 +25,9 @@ def expected_host(quote):
 
 
 def host_transaction(p,amount,slot,now,signature='hosted',instruction=SWAP_IX,companion=True,
-                     host_delta_adjustment=0,host_mint=None):
+                     host_delta_adjustment=0,host_mint=None,transfer_evidence=False,
+                     omit_host_balances=False,transfer_amount_adjustment=0,
+                     transfer_mint=None,unrelated_host_transfer=0):
     _,plain=dlmm.swap(p,amount,True,now)
     host=expected_host(plain)
     if host<=0: raise AssertionError('host fixture needs nonzero host')
@@ -42,17 +44,28 @@ def host_transaction(p,amount,slot,now,signature='hosted',instruction=SWAP_IX,co
                  q['protocol_fee'],0,host,True,True))
         events.append(dict(programIdIndex=1,accounts=[],data=pump.b58(EVENT_CPI+current)))
     keys=[POOL,dlmm.PROGRAM,VAULT_X,VAULT_Y,USER_IN,USER_OUT,p['x'],p['y'],
-          ORACLE,HOST_ACCOUNT,USER,BITMAP]
+          ORACLE,HOST_ACCOUNT,USER,BITMAP,pump.TOKEN_PROGRAM]
     accounts=[0,11,2,3,4,5,6,7,8,9,10]
+    if transfer_evidence:
+        mint_index=6 if transfer_mint in (None,p['x']) else 7
+        transfer=bytes([12])+(host+transfer_amount_adjustment).to_bytes(8,'little')+bytes([9])
+        events.insert(0,dict(
+            programIdIndex=12,accounts=[4,mint_index,9,10],data=pump.b58(transfer)))
+        if unrelated_host_transfer:
+            extra=bytes([12])+int(unrelated_host_transfer).to_bytes(8,'little')+bytes([9])
+            events.insert(1,dict(
+                programIdIndex=12,accounts=[5,6,9,10],data=pump.b58(extra)))
     mint=host_mint or p['x'];before=1_000_000
     balances=lambda amount:[dict(accountIndex=9,mint=mint,owner=USER,
         uiTokenAmount=dict(amount=str(amount),decimals=6,uiAmount=None,uiAmountString=str(amount)))]
+    pre=[] if omit_host_balances else balances(before)
+    post_bal=[] if omit_host_balances else balances(
+        before+host+host_delta_adjustment+unrelated_host_transfer)
     tx=dict(slot=slot,blockTime=now,
         transaction=dict(signatures=[signature],message=dict(accountKeys=keys,
             instructions=[dict(programIdIndex=1,accounts=accounts,data=pump.b58(raw))])),
         meta=dict(err=None,innerInstructions=[dict(index=0,instructions=events)],logMessages=[],
-                  preTokenBalances=balances(before),
-                  postTokenBalances=balances(before+host+host_delta_adjustment)))
+                  preTokenBalances=pre,postTokenBalances=post_bal))
     return post,q,host,tx
 
 
@@ -92,6 +105,40 @@ class HostFeeAccounting(unittest.TestCase):
         wrong=pump.b58(bytes([88])*32)
         _,_,_,bad=host_transaction(p,450_000_000,101,101,host_mint=wrong)
         with self.assertRaisesRegex(Unavailable,'wrong_token'):
+            transaction_swap(bad,POOL)
+
+    def test_ordered_transfer_authenticates_missing_host_balance_rows(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        _,q,host,tx=host_transaction(
+            p,450_000_000,101,101,transfer_evidence=True,
+            omit_host_balances=True)
+        event=transaction_swap(tx,POOL)
+        self.assertEqual(event['observed']['host_fee'],host)
+        self.assertEqual(event['observed']['protocol_fee'],q['protocol_fee'])
+
+    def test_ordered_transfer_survives_unrelated_host_account_movement(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        _,_,host,tx=host_transaction(
+            p,450_000_000,101,101,transfer_evidence=True,
+            unrelated_host_transfer=77)
+        # Net host balance is host+77, but the ordered swap-owned transfer is exact.
+        before=int(tx['meta']['preTokenBalances'][0]['uiTokenAmount']['amount'])
+        after=int(tx['meta']['postTokenBalances'][0]['uiTokenAmount']['amount'])
+        self.assertEqual(after-before,host+77)
+        event=transaction_swap(tx,POOL)
+        self.assertEqual(event['observed']['host_fee'],host)
+
+    def test_ordered_transfer_wrong_amount_or_mint_fails_closed(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        _,_,_,bad=host_transaction(
+            p,450_000_000,101,101,transfer_evidence=True,
+            omit_host_balances=True,transfer_amount_adjustment=1)
+        with self.assertRaisesRegex(Unavailable,'transfer_amount'):
+            transaction_swap(bad,POOL)
+        _,_,_,bad=host_transaction(
+            p,450_000_000,101,101,transfer_evidence=True,
+            omit_host_balances=True,transfer_mint=p['y'])
+        with self.assertRaisesRegex(Unavailable,'transfer_wrong_token'):
             transaction_swap(bad,POOL)
 
     def test_shared_host_account_authenticates_transaction_aggregate(self):
