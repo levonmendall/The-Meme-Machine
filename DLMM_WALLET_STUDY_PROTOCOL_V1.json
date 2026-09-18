@@ -21,7 +21,8 @@
     "max_wallets_per_discovery_pool": 5,
     "minimum_wallets_to_freeze": 12,
     "max_finalized_transaction_bodies_attempted_per_pool": 40,
-    "unreadable_transaction_policy": "Advance to the next finalized signature in recency order without consulting PnL. A pool is incomplete unless 24 readable transaction bodies are obtained within the first 40 eligible finalized signatures."
+    "unreadable_transaction_policy": "Advance to the next finalized signature in recency order without consulting PnL. A pool is incomplete unless 24 readable transaction bodies are obtained within the first 40 eligible finalized signatures.",
+    "max_supported_transaction_version": 1
   },
   "phase_b_analysis": {
     "requires_committed_frozen_cohort": true,
@@ -62,7 +63,7 @@
     "Prospective test data must be strictly post-freeze.",
     "No threshold may be lowered merely to manufacture trades."
   ],
-  "protocol_revision": "1.2",
+  "protocol_revision": "1.3",
   "amendment_history": [
     {
       "revision": "1.1",
@@ -77,6 +78,15 @@
       "reason": "Preregister a mechanical cross-wallet repeatability and exact candidate-parameter derivation rule before any frozen-cohort PnL analysis.",
       "pnl_observed_before_amendment": false,
       "legacy_60_second_results_used": false,
+      "strategy_thresholds_changed": false,
+      "profitable_wallet_definition_changed": false
+    },
+    {
+      "revision": "1.3",
+      "reason": "Solana mainnet v1 transactions are active; recent finalized pool signatures can be v1 and fail when the read cap remains 0. Raise only the RPC decode capability to version 1.",
+      "pnl_observed_before_amendment": false,
+      "pool_selection_changed": false,
+      "wallet_selection_changed": false,
       "strategy_thresholds_changed": false,
       "profitable_wallet_definition_changed": false
     }
