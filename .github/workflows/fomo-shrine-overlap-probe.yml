@@ -1,0 +1,27 @@
+name: fomo-shrine-overlap-probe
+on:
+  push:
+    branches: [research/fomo-100-event-study]
+permissions:
+  contents: read
+jobs:
+  overlap:
+    if: contains(github.event.head_commit.message, '[overlap-probe]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    env:
+      FOMOAPI_KEY: ${{ secrets.FOMOAPI_KEY }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12.14'}
+      - name: Measure Fomo event overlap with closed Shrine archive hours
+        run: python -m tests.fomo_shrine_overlap_probe | tee fomo-shrine-overlap-probe.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: fomo-shrine-overlap-${{ github.run_id }}
+          path: |
+            fomo-shrine-overlap-probe.json
+            fomo-shrine-overlap-probe.log
+          retention-days: 7
