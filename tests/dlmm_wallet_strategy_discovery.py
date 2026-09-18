@@ -46,6 +46,8 @@ MAX_HISTORY_POSITIONS_PER_ELIGIBLE_WALLET=20
 MIN_CLOSED_POSITIONS=5
 MIN_DISTINCT_POOLS=2
 MIN_PROFITABLE_POSITION_RATE=0.55
+MIN_REPEATABLE_PROFITABLE_WALLETS=3
+REPEATABILITY_SUPPORT=2/3
 
 REBALANCE_LIQUIDITY_IX=bytes.fromhex("5c04b0c177b95309")
 LP_ACTOR_INSTRUCTIONS={
@@ -315,6 +317,103 @@ def _position_metrics(position):
     )
 
 
+def _hold_bucket(seconds):
+    if seconds is None:
+        return None
+    return ("<15m" if seconds<900 else "15-60m" if seconds<3600 else
+            "1-4h" if seconds<14400 else "4-24h" if seconds<86400 else ">=24h")
+
+
+def _width_bucket(width):
+    if width is None:
+        return None
+    return "<=10" if width<=10 else "11-25" if width<=25 else "26-50" if width<=50 else ">50"
+
+
+def _dominant(values):
+    values=[v for v in values if v is not None]
+    if not values:
+        return dict(value=None,count=0,total=0,support=None)
+    counts=Counter(values)
+    # Deterministic tie-break: lexical label order, never outcome magnitude.
+    value,count=sorted(counts.items(),key=lambda kv:(-kv[1],str(kv[0])))[0]
+    return dict(value=value,count=count,total=len(values),support=count/len(values))
+
+
+def _wallet_behavior_profile(wallet):
+    positions=wallet.get("positions") or []
+    holds=[p.get("hold_seconds") for p in positions if p.get("hold_seconds") is not None]
+    widths=[p.get("width_bins") for p in positions if p.get("width_bins") is not None]
+    fee_rates=[p.get("fee_to_deposit") for p in positions if p.get("fee_to_deposit") is not None]
+    detail=wallet.get("detailed_positions") or []
+    rebalanced=sum(
+        bool((p.get("history") or {}).get("repeated_add") or
+             (p.get("history") or {}).get("repeated_remove"))
+        for p in detail
+    )
+    return dict(
+        wallet=wallet.get("wallet"),
+        closed_positions=len(positions),
+        dominant_hold_bucket=_dominant([_hold_bucket(v) for v in holds]),
+        dominant_width_bucket=_dominant([_width_bucket(v) for v in widths]),
+        median_hold_seconds=(None if not holds else statistics.median(holds)),
+        median_width_bins=(None if not widths else statistics.median(widths)),
+        median_fee_to_deposit=(None if not fee_rates else statistics.median(fee_rates)),
+        rebalance_proxy_rate=(None if not detail else rebalanced/len(detail)),
+        distinct_closed_pools=wallet.get("distinct_closed_pools"),
+    )
+
+
+def _repeatability(profiles):
+    hold=_dominant([
+        p["dominant_hold_bucket"]["value"] for p in profiles
+        if p["dominant_hold_bucket"]["value"] is not None
+    ])
+    width=_dominant([
+        p["dominant_width_bucket"]["value"] for p in profiles
+        if p["dominant_width_bucket"]["value"] is not None
+    ])
+    rebalance_labels=[]
+    for p in profiles:
+        rate=p.get("rebalance_proxy_rate")
+        if rate is not None:
+            rebalance_labels.append("active" if rate>=0.5 else "passive")
+    rebalance=_dominant(rebalance_labels)
+    sufficient_wallets=len(profiles)>=MIN_REPEATABLE_PROFITABLE_WALLETS
+    repeatable=bool(
+        sufficient_wallets and
+        hold["support"] is not None and hold["support"]>=REPEATABILITY_SUPPORT and
+        width["support"] is not None and width["support"]>=REPEATABILITY_SUPPORT
+    )
+    exact_hold=None;exact_width=None
+    if repeatable:
+        hold_values=[
+            p["median_hold_seconds"] for p in profiles
+            if p["dominant_hold_bucket"]["value"]==hold["value"] and
+               p["median_hold_seconds"] is not None
+        ]
+        width_values=[
+            p["median_width_bins"] for p in profiles
+            if p["dominant_width_bucket"]["value"]==width["value"] and
+               p["median_width_bins"] is not None
+        ]
+        if hold_values:
+            exact_hold=int(round(statistics.median(hold_values)))
+        if width_values:
+            exact_width=max(1,int(round(statistics.median(width_values))))
+    return dict(
+        required_profitable_wallets=MIN_REPEATABLE_PROFITABLE_WALLETS,
+        required_cross_wallet_support=REPEATABILITY_SUPPORT,
+        profitable_wallets=len(profiles),
+        hold_bucket_consensus=hold,
+        width_bucket_consensus=width,
+        rebalance_preference=rebalance,
+        repeatable_behavior_identified=repeatable,
+        derived_hold_seconds=exact_hold,
+        derived_width_bins=exact_width,
+    )
+
+
 def _history_features(position_address):
     payload=_json_get(f"/positions/{position_address}/historical",
                       dict(order_direction="asc"),allow_pnl=True)
@@ -405,19 +504,18 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
     width_buckets=Counter()
     rebalance_positions=0
     for p in all_detail:
-        h=p.get("hold_seconds")
-        if h is not None:
-            label=("<15m" if h<900 else "15-60m" if h<3600 else
-                   "1-4h" if h<14400 else "4-24h" if h<86400 else ">=24h")
+        label=_hold_bucket(p.get("hold_seconds"))
+        if label is not None:
             hold_buckets[label]+=1
-        w=p.get("width_bins")
-        if w is not None:
-            label=("<=10" if w<=10 else "11-25" if w<=25 else
-                   "26-50" if w<=50 else ">50")
+        label=_width_bucket(p.get("width_bins"))
+        if label is not None:
             width_buckets[label]+=1
         hist=p.get("history") or {}
         if hist.get("repeated_add") or hist.get("repeated_remove"):
             rebalance_positions+=1
+
+    behavior_profiles=[_wallet_behavior_profile(w) for w in eligible]
+    repeatability=_repeatability(behavior_profiles)
 
     report=dict(
         kind="dlmm_wallet_derived_analysis_v1",
@@ -441,8 +539,26 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
             width_bin_buckets=dict(sorted(width_buckets.items())),
             rebalance_proxy_positions=rebalance_positions,
             rebalance_proxy_rate=(None if not all_detail else rebalance_positions/len(all_detail)),
+            profitable_wallet_profiles=behavior_profiles,
+            repeatability=repeatability,
         ),
-        strategy_candidate_status="not_frozen",
+        strategy_candidate_status=(
+            "repeatable_behavior_found_candidate_not_frozen"
+            if repeatability["repeatable_behavior_identified"] else
+            "no_repeatable_behavior_candidate_not_permitted"
+        ),
+        prospective_candidate_seed=(
+            None if not repeatability["repeatable_behavior_identified"] else dict(
+                entry_signal="future_onchain_lp_add_by_any_frozen_profitable_wallet",
+                pool_universe="same_preregistered_SOL_paired_universe",
+                range_placement="symmetric_about_current_active_bin",
+                width_bins=repeatability["derived_width_bins"],
+                hold_seconds=repeatability["derived_hold_seconds"],
+                rebalance_preference=repeatability["rebalance_preference"]["value"],
+                allocation_authority=False,
+                paper_only=True,
+            )
+        ),
         strategy_candidate_rule=(
             "Do not create a strategy from the legacy 60-second observations. "
             "Any candidate must be derived only from repeatable patterns in this "
