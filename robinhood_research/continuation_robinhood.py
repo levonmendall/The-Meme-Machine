@@ -20,6 +20,7 @@ from . import BoundaryError
 from .pons_natural_observation import RESEARCH_RECIPIENT
 
 POLICY="continuation-v1-robinhood"
+POLICY_HASH="f363c234daa549365ca00ee5b33247deb1c591a1084b991263233ba9f3870e36"
 TRANSLATION_SNAPSHOT=dict(
     observed_date="2026-09-18",
     price_source="CoinGecko spot snapshot captured before sample",
