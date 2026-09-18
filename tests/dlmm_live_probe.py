@@ -12,6 +12,7 @@ from meme_machine.dlmm_tape import reconstruct,MAX_TRANSACTIONS
 from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
 from meme_machine.store import encode
+from tests import dlmm_alchemy_provider as alchemy_provider
 
 
 def main():
@@ -19,7 +20,7 @@ def main():
     parser.add_argument('--wait-seconds',type=int,default=0)
     parser.add_argument('--output',required=True);args=parser.parse_args()
     if not 0<=args.wait_seconds<=60:parser.error('--wait-seconds must be 0..60')
-    rpc=PoolScanRPC('https://api.mainnet-beta.solana.com',limit=80);adapter=dlmm.Adapter(rpc)
+    rpc=PoolScanRPC(alchemy_provider.rpc_url(),limit=80);adapter=dlmm.Adapter(rpc)
     capture=dict(kind='real_finalized_rpc_capture',allocation_enabled=False,transactions={})
     report=dict(allocation_enabled=False,signing=False,real_swap_count=0,verified_interval=False)
     try:
