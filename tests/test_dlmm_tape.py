@@ -328,6 +328,96 @@ class Tape(unittest.TestCase):
             reconstruct(
                 p,end,sigs,{'remove':bad},102,[100,2**31-1,2**31-1])
 
+    def test_external_effect_new_ata_uses_ordered_transfer_proof(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        claim_x,claim_y=123,456
+        post,removed,tx=remove_liquidity_transaction(
+            p,bid=0,claim_x=claim_x,claim_y=claim_y,
+            signature='new-ata-effects')
+        tx=copy.deepcopy(tx)
+
+        def transfer_checked(source,mint,destination,amount):
+            return dict(
+                programIdIndex=10,
+                accounts=[source,mint,destination,1],
+                data=pump.b58(
+                    bytes([12])+int(amount).to_bytes(8,'little')+bytes([0])),
+            )
+
+        remove_transfers=[]
+        if removed['x']:
+            remove_transfers.append(
+                transfer_checked(5,7,3,removed['x']))
+        if removed['y']:
+            remove_transfers.append(
+                transfer_checked(6,8,4,removed['y']))
+        claim_transfers=[]
+        if claim_x:
+            claim_transfers.append(transfer_checked(5,7,3,claim_x))
+        if claim_y:
+            claim_transfers.append(transfer_checked(6,8,4,claim_y))
+        tx['meta']['innerInstructions'][0]['instructions'][
+            0:0]=remove_transfers
+        tx['meta']['innerInstructions'][1]['instructions'][
+            0:0]=claim_transfers
+
+        # Match the natural PERPSPAD shape: destination ATA is created in the
+        # transaction, so there is no preTokenBalances row for user Y.
+        tx['meta']['preTokenBalances']=[
+            row for row in tx['meta']['preTokenBalances']
+            if row.get('accountIndex')!=4
+        ]
+
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='new-ata-effects',slot=101,transactionIndex=7,
+                 err=None,confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'new-ata-effects':tx},102,
+            [100,2**31-1,2**31-1])
+        self.assertEqual(
+            [item['recipient_auth'] for item in tape.terminal_adjustments],
+            ['ordered_spl_transfer','ordered_spl_transfer'])
+        adjusted=apply_terminal_adjustments(p,tape.terminal_adjustments)
+        self.assertEqual(adjusted['vault_x_amount'],post['vault_x_amount'])
+        self.assertEqual(adjusted['vault_y_amount'],post['vault_y_amount'])
+
+        bad=copy.deepcopy(tx)
+        # Corrupt one authenticated reserve->user transfer by one unit.
+        ix=bad['meta']['innerInstructions'][0]['instructions'][0]
+        raw=bytearray(_un58_data(ix['data']))
+        raw[1:9]=(int.from_bytes(raw[1:9],'little')+1).to_bytes(8,'little')
+        ix['data']=pump.b58(bytes(raw))
+        with self.assertRaisesRegex(
+                Unavailable,'external_effect_transfer_amount_mismatch'):
+            reconstruct(
+                p,end,sigs,{'new-ata-effects':bad},102,
+                [100,2**31-1,2**31-1])
+
+    def test_external_effect_missing_balance_has_external_reason(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,_removed,tx=remove_liquidity_transaction(
+            p,bid=0,claim_x=123,claim_y=456,
+            signature='missing-effect-balance')
+        tx=copy.deepcopy(tx)
+        tx['meta']['preTokenBalances']=[
+            row for row in tx['meta']['preTokenBalances']
+            if row.get('accountIndex')!=4
+        ]
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='missing-effect-balance',slot=101,
+                 transactionIndex=7,err=None,confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        with self.assertRaisesRegex(
+                Unavailable,'dlmm_external_effect_token_balance_missing'):
+            reconstruct(
+                p,end,sigs,{'missing-effect-balance':tx},102,
+                [100,2**31-1,2**31-1])
+
     def test_connected_verified_interval_and_captured_store(self):
         start,p,end,sigs,txs=interval()
         with tempfile.TemporaryDirectory() as d:
