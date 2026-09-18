@@ -501,3 +501,23 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - The exact failed interval is finalized slot `448176914` through `448176933` with two successful transactions.
 - This marker authorizes one read-only bounded probe of those exact transactions to capture the addLiquidity2 payload, per-bin distribution, AddLiquidity event, SPL transfers, and token-balance rows.
 - No verifier acceptance rule, strategy, cost, range, provider budget, allocation authority, signing, or submission behavior changes in this probe.
+
+
+## addLiquidity2 support and cumulative 30-observation collection
+
+- Exact implementation head is `e15e0f22f4f4d3b3b49ec7fbc0f15eb1b7d72323`.
+- Read-only natural-shape probe run `35393738069` completed successfully with artifact `10566442552` (SHA256 `27abf68463fe46c6d58776d40e746770bd16d65fc8821656a0618044e2ff0d22`).
+- The probe captured the exact MET-SOL interval that previously failed on discriminator `e4a24e1c46db7473`, confirming it is Meteora `add_liquidity2`.
+- Natural instruction/event arithmetic is exact and bounded:
+  - slot `448176921`: max X `9,285,399`; 25 explicit bins `557..581`; distribution sums to 10,000 bps; per-bin integer floors sum to actual/event/TransferChecked X `9,285,387`.
+  - slot `448176930`: max Y `735,872,697`; 45 explicit bins `511..555`; distribution sums to 10,000 bps; per-bin integer floors sum to actual/event/TransferChecked Y `735,872,676`.
+  - both events report active bin `556`; X deposits are strictly above active and Y deposits strictly below active, so the supported natural subset avoids active-bin composition-fee ambiguity.
+- Isolated, single-sided `add_liquidity2` is now decoded from the pinned IDL, bound to exactly one AddLiquidity event, authenticated by ordered user→reserve SPL transfers, replayed per bin using the explicit floor distribution and `deposit_share`, then required to match the authenticated terminal pool state.
+- A mixed `remove_liquidity_by_range2` + `add_liquidity2` rebalance is not partially reconstructed. During pre-entry warmup it emits the existing bounded snapshot-reset signal, discards prior warmup chunks, takes a fresh finalized snapshot after the mutation, and restarts the full warmup. During outcome/post-entry it remains fail-closed. This preserves point-in-time correctness.
+- The observed MET-SOL failure was such a mixed rebalance (and one transaction also contained a swap), so the new warmup-reset path directly addresses the natural censoring case without inventing missing PositionV2 share history.
+- Full CI run `35394371286` passed unit discovery, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
+- Development observation tracking is now cumulative and deduped by `(pool, entry_slot, end_slot)`. The preserved baseline contains 7 complete observations across 5 distinct pools, leaving 23 observations to the planned 30-observation development boundary.
+- Every complete observation now records the best projected 60-second fee capture, best projected surplus, exact lamport/bps gap to the unchanged `350,000`-lamport hurdle, and fee-hurdle coverage ratio. The artifact also preserves the full merged cumulative observation ledger for promotion into the next run.
+- The current closest observed case remains JUP-SOL: projected fee capture `5,748.15985295281` lamports, projected surplus `-344,251.8401470472` lamports, hurdle gap `344,251.8401470472` lamports / approximately `34.425184` bps.
+- Strategy, normalized ranges, 12-second warmup, 60-second outcome horizon, 35-bps fixed cost hurdle, `MAX_TRANSACTIONS=16`, 24-pool development observation ceiling, Alchemy pacing/per-pool budgets, paper-only authority, and disabled allocation are unchanged.
+- This marker authorizes exactly one widened development batch (`--max-attempted-pools 24 --target-completed 6`) using the new addLiquidity2 handling and cumulative hurdle-distance reporting.
