@@ -16,6 +16,7 @@ from meme_machine.dlmm_tape import MAX_TRANSACTIONS,chain_verified_tapes,reconst
 from meme_machine.provider import Unavailable
 from meme_machine.store import digest,encode
 from tests import dlmm_strategy_high_activity as research
+from tests import dlmm_alchemy_provider as alchemy_provider
 
 TARGET_SUPPORTED_POOLS=3
 DEEP_DISCOVERY_POOL_MULTIPLIER=12
@@ -165,7 +166,9 @@ def main():
     finally:
         research._advance=original_advance;research.fetch_high_activity=original_fetch
         research.discover_and_revalidate=original_discover;research.MAX_POOLS=original_max_pools
-    report['research_rpc_provider']='solana_labs_public_mainnet'
+    report['research_rpc_provider']=alchemy_provider.PROVIDER_LABEL
+    report['research_rpc_provider_host']=alchemy_provider.ALCHEMY_SOLANA_MAINNET_HOST
+    report['research_rpc_fallback_allowed']=False
     report['transaction_retrieval']='adaptive_batch_small_serialized_dense_getTransaction'
     report['candidate_prefilter']='single_finalized_getMultipleAccounts_classic_spl_mints'
     report['activity_rank_rows_examined_max']=DEEP_DISCOVERY_PAGE
