@@ -31,6 +31,7 @@ class Rpc:
         self.transport = transport or self._http
         self.counts, self.failures, self.cache = Counter(), Counter(), OrderedDict()
         self.used = 0
+        self.transport_used = 0
         self.logical = 0
         self.retry_count = 0
         self.methods, self.logical_methods = Counter(), Counter()
@@ -91,6 +92,7 @@ class Rpc:
             if self.used >= self.limit:
                 raise BoundaryError('provider_session_budget_exhausted')
             self.used += 1
+            self.transport_used += 1
             self.counts[scope] += 1
             self.methods[method] += 1
             self.retry_count += int(attempt > 0)
@@ -110,6 +112,77 @@ class Rpc:
                     raise
                 time.sleep(0.1 * (attempt + 1))
 
+    def _http_batch(self, calls):
+        body=json.dumps([
+            dict(jsonrpc='2.0',id=i+1,method=method,params=params)
+            for i,(method,params) in enumerate(calls)
+        ]).encode()
+        request=Request(self._endpoint,data=body,headers={'Content-Type':'application/json'})
+        try:
+            with urlopen(request,timeout=self.timeout) as response:
+                raw=response.read(self.max_response+1)
+        except HTTPError as exc:
+            raise BoundaryError(f'provider_http_{exc.code}') from None
+        except (URLError,TimeoutError,OSError):
+            raise BoundaryError('provider_transport_failure') from None
+        if len(raw)>self.max_response:
+            raise BoundaryError('provider_response_capacity')
+        try:
+            reply=json.loads(raw)
+            if not isinstance(reply,list) or len(reply)!=len(calls):
+                raise BoundaryError('provider_invalid_batch_envelope')
+            rows={item.get('id'):item for item in reply if isinstance(item,dict)}
+            if set(rows)!=set(range(1,len(calls)+1)):
+                raise BoundaryError('provider_invalid_batch_ids')
+            out=[]
+            for i in range(1,len(calls)+1):
+                item=rows[i]
+                if item.get('error'):
+                    code=item['error'].get('code')
+                    code=code if isinstance(code,int) else 'unknown'
+                    raise BoundaryError(f'provider_rpc_{code}')
+                if 'result' not in item or item['result'] is None:
+                    raise BoundaryError('provider_missing_result')
+                out.append(item['result'])
+            return out
+        except (ValueError,AttributeError,TypeError) as exc:
+            if isinstance(exc,BoundaryError):
+                raise
+            raise BoundaryError('provider_invalid_json') from None
+
+    def batch(self,calls,*,scope='connectivity'):
+        """Bounded JSON-RPC batch: logical budget is unchanged; transport is reduced."""
+        if not isinstance(calls,list) or not calls or len(calls)>50:
+            raise BoundaryError('provider_batch_capacity')
+        if any(not isinstance(row,(list,tuple)) or len(row)!=2 for row in calls):
+            raise BoundaryError('provider_batch_shape')
+        methods=[row[0] for row in calls]
+        if any(method not in READ_METHODS for method in methods):
+            raise BoundaryError('rpc_method_not_read_only')
+        if scope not in self.counts and len(self.counts)>=32:
+            raise BoundaryError('provider_scope_capacity')
+        needed=len(calls)
+        if self.counts[scope]+needed>self.per_scope:
+            raise BoundaryError('provider_pool_budget_exhausted')
+        if self.used+needed>self.limit:
+            raise BoundaryError('provider_session_budget_exhausted')
+        self.logical+=needed
+        self.used+=needed
+        self.transport_used+=1
+        self.counts[scope]+=needed
+        for method in methods:
+            self.logical_methods[method]+=1
+            self.methods[method]+=1
+        try:
+            if self.transport != self._http:
+                # Custom unit-test transports remain deterministic and do not gain
+                # implicit network semantics. Batch through the injected transport.
+                return [self.transport(method,params) for method,params in calls]
+            return self._http_batch(calls)
+        except BoundaryError as exc:
+            self.failures[str(exc)]+=1
+            raise
+
     def verify_chain(self):
         result = self.call('eth_chainId', [])
         if int(result, 16) != CHAIN_ID:
@@ -117,7 +190,7 @@ class Rpc:
         return CHAIN_ID
 
     def telemetry(self):
-        return dict(requests=self.used, transport_requests=self.used,
+        return dict(requests=self.used, transport_requests=self.transport_used,
                     logical_requests=self.logical, retries=self.retry_count,
                     methods=dict(self.methods), logical_methods=dict(self.logical_methods),
                     scopes=dict(self.counts), failures=dict(self.failures))
