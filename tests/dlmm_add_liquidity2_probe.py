@@ -84,14 +84,18 @@ def run():
         block=_direct_rpc(url,"getBlock",[slot,dict(
             commitment="finalized",encoding="json",
             transactionDetails="accounts",rewards=False,
-            maxSupportedTransactionVersion=0)])
+            maxSupportedTransactionVersion=1)])
         telemetry["block_scan_slots"].append(slot)
         if not block:
             continue
         for row in block.get("transactions") or []:
             tx=row.get("transaction") or {}
             message=tx.get("message") or {}
-            keys=message.get("accountKeys") or []
+            raw_keys=message.get("accountKeys") or []
+            keys=[
+                item.get("pubkey") if isinstance(item,dict) else item
+                for item in raw_keys
+            ]
             if POOL not in keys:
                 continue
             sigs=tx.get("signatures") or []
