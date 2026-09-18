@@ -118,7 +118,7 @@ def _instruction_summary(order, ix, keys, pool):
 
 def run():
     pacer = alchemy_provider.AlchemyPacer()
-    rpc = alchemy_provider.new_rpc(limit=320, pacer=pacer)
+    rpc = alchemy_provider.new_rpc(limit=240, pacer=pacer)
     if rpc.call("getGenesisHash", priority=True) != pump.MAINNET:
         raise RuntimeError("host_shape_probe_wrong_network")
     report = dict(
