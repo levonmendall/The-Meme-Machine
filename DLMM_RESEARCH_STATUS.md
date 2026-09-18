@@ -466,3 +466,17 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Exact-head CI run `35377640096` passed unit discovery, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
 - Strategy, normalized ranges, 35-bps hurdle, 12-second warmup, 60-second outcome horizon, `MAX_TRANSACTIONS=16`, Alchemy pacing/budgets, paper-only authority, and disabled allocation are unchanged.
 - This marker authorizes exactly one unchanged development batch to validate the repaired PERPSPAD external-effect path on natural mainnet traffic.
+
+
+## PERPSPAD external-effect repair — live rerun result
+
+- Identical development rerun `35377921901` completed successfully on `c8b4820b81b2a4b78c051f6c3e318bbfa761123f`.
+- Artifact `10561071647` has SHA256 `b3c06a8f9d99b88d0e0b9c2c3d1a0b8157100d0c57cfbf7a9f17cd496ab3f2ab`.
+- The previous misleading `dlmm_host_fee_token_balance_missing` did not recur. No `dlmm_external_effect_token_balance_missing` occurred either.
+- PERPSPAD was not present in this fresh discovery sample, so the exact historical PERPSPAD transaction repair is deterministic/captured-evidence proven but was not naturally re-observed in this batch.
+- The batch attempted 8 supported pools. Terminal classifications: 3 over-verification-capacity, 3 verified-zero-swap, 1 provider failure, and 1 verification failure.
+- The sole verification failure was unrelated to host/external-effect attribution: STONK-SOL completed a 2-swap warmup and the first two 12-second outcome segments, then correctly failed closed on authenticated `add_liquidity_by_strategy2` at slot `448159242`. Outcome coverage reached 24 seconds before that mutation.
+- STONK's economic selector had already rejected entry before outcome: all normalized bid ranges had zero range-touch fee capture / zero flow into range and projected 60-second range-fee surplus of `-350,000` lamports. No strategy threshold changed.
+- Provider transport remained healthy: 318 logical RPC calls, 315 HTTP requests, 0 HTTP 429s, 1 retry, 0 per-candidate budget exhaustions.
+- No 60-second window completed in this particular fresh market sample, so no new profitability observation is added. The earlier completed CARDS 60-second observation remains valid.
+- Strategy, costs, `MAX_TRANSACTIONS=16`, Alchemy pacing/budgets, paper-only authority, and disabled allocation remain unchanged.
