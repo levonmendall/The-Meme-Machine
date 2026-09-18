@@ -34,14 +34,17 @@ class Quote:
 
 
 class Paper:
-    def __init__(self, store, experiment, capital, *, delay=2, natural_proof=False):
+    def __init__(self, store, experiment, capital, *, delay=2, natural_proof=False, natural_policy_hash=None):
         if capital <= 0 or delay < 1:
             raise BoundaryError('invalid_paper_config')
         self.store, self.experiment, self.delay = store, experiment, delay
         self.natural_proof = bool(natural_proof)
+        self.natural_policy_hash = natural_policy_hash
+        if self.natural_proof and self.natural_policy_hash:
+            raise BoundaryError('ambiguous_natural_authority')
         self.store.put('paper_genesis', experiment, dict(capital=capital, delay=delay,
             authority='isolated_robinhood_directional', shared_allocator=False,
-            natural_proof=self.natural_proof))
+            natural_proof=self.natural_proof,natural_policy_hash=self.natural_policy_hash))
 
     def positions(self):
         return [json.loads(r[0]) for r in self.store.db.execute('SELECT body FROM paper')
@@ -75,11 +78,17 @@ class Paper:
         if kind not in ('synthetic','natural'):
             raise BoundaryError('unsupported_paper_evidence_kind')
         if kind == 'natural':
-            if not self.natural_proof:
+            if self.natural_proof:
+                if (features.get('authority') != 'bounded_lifecycle_proof_only' or
+                        features.get('qualification') != 'policy_not_established'):
+                    raise BoundaryError('natural_proof_authority_missing')
+            elif self.natural_policy_hash:
+                if (features.get('authority') != 'frozen_policy_paper' or
+                        features.get('qualification') != 'qualified' or
+                        features.get('policy_hash') != self.natural_policy_hash):
+                    raise BoundaryError('natural_policy_authority_missing')
+            else:
                 raise BoundaryError('native_policy_not_established')
-            if (features.get('authority') != 'bounded_lifecycle_proof_only' or
-                    features.get('qualification') != 'policy_not_established'):
-                raise BoundaryError('natural_proof_authority_missing')
         if features['asof'] != now or features['market'] != market or amount <= 0 or gas_budget < 0:
             raise BoundaryError('invalid_paper_decision')
         self.store.db.execute('BEGIN IMMEDIATE')
