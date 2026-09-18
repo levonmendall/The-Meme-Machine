@@ -546,3 +546,15 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - No PnL endpoint is permitted in Phase A, no wallet can enter based on profitability, and pool/wallet sampling rules are unchanged.
 - Full CI run `35401880174` passed.
 - This marker authorizes exactly one blind Phase A retry.
+
+
+## Frozen pre-PnL wallet cohort
+
+- Blind Phase A run `35401999021` completed successfully.
+- Discovery read no Meteora portfolio/PnL/position endpoint; `pnl_data_read=false` is preserved in artifact `10570948107` (SHA256 `a5dc9764e157f4d543866b34ea925fdfaf6dc05244ee3a46097c9a09f745325b`).
+- The bounded sample observed 49 supported LP actor events across the preregistered 12 SOL-paired pools and produced 23 unique wallets. The target was 30; 23 exceeds the preregistered minimum of 12, so the exact addresses are frozen rather than broadening the sample after seeing outcomes.
+- Frozen cohort file: `DLMM_WALLET_COHORT_V1.json`.
+- Cohort wallet-list SHA256: `95a7cad9e2f7418afde8d9003cc3eb79743ea18b344845640a182faf97db7708`.
+- Phase B may now read Meteora portfolio, closed-position PnL, and position-history endpoints for only these frozen wallets.
+- Profitability classification thresholds remain exactly preregistered; this marker does not permit adding/replacing wallets based on PnL.
+- This marker authorizes one Phase B behavior-analysis run only. It does not authorize strategy freeze or prospective allocation.
