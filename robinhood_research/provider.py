@@ -13,6 +13,7 @@ READ_METHODS = frozenset({
     'eth_getBlockByHash', 'eth_getLogs', 'eth_getTransactionReceipt',
     'eth_getCode', 'eth_call', 'eth_gasPrice', 'eth_getBalance',
     'eth_getStorageAt', 'eth_getTransactionByHash',
+    'alchemy_getAssetTransfers',
 })
 
 
