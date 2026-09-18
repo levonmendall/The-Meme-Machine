@@ -13,7 +13,7 @@ from .provider import Rpc
 from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, paper_outcome,
                      paper_fee_capture, paper_position, paper_removal, price, quote_value, replay, state, unpack, values)
 
-DISCOVERY_BLOCKS=300
+DISCOVERY_BLOCKS=600
 FORWARD_SECONDS=60
 PAPER_NATIVE_CAPITAL=10**16
 
@@ -122,7 +122,7 @@ def run(endpoint):
                 row['native_side']=native_side;row['eligible']=native_side is not None
                 if address is None and native_side is not None:address=candidate
         if address is None:
-            raise BoundaryError('no_factory_validated_native_pool_in_300_block_window')
+            raise BoundaryError('no_factory_validated_native_pool_in_600_block_window')
         result['pool']=address
         start_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='connectivity')
         start=int(start_frontier['number'],16);start_ts=int(start_frontier['timestamp'],16)
