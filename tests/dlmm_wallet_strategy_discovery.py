@@ -245,6 +245,11 @@ def discover_wallet_cohort():
     return report
 
 
+def _closed_by_cutoff(position,cutoff_epoch):
+    closed=position.get("closedAt")
+    return isinstance(closed,int) and closed<=cutoff_epoch
+
+
 def _position_metrics(position,bin_step=None):
     created=position.get("createdAt");closed=position.get("closedAt")
     hold=(int(closed)-int(created)
@@ -359,8 +364,7 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
             if not isinstance(positions,list):
                 raise RuntimeError("dlmm_wallet_position_pnl_shape")
             for position in positions:
-                closed_at=position.get("closedAt")
-                if not isinstance(closed_at,int) or closed_at>freeze_epoch:
+                if not _closed_by_cutoff(position,freeze_epoch):
                     continue
                 m=_position_metrics(position,bin_step=bin_step)
                 m["pool"]=address
