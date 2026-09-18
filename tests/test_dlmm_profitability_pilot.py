@@ -132,11 +132,68 @@ class ProfitabilityDensityPreflight(unittest.TestCase):
             "verification_failure",
         )
 
+    def test_zero_swap_warmup_skips_outcome_and_keeps_scanning(self):
+        rpc = _RPC()
+        adapter = SimpleNamespace(rpc=rpc)
+        start = dict(pool="pool", slot=100)
+        terminal = dict(slot=110)
+        zero = SimpleNamespace(events=[], lineage="warm-lineage")
+        phase = dict(
+            verified=True,
+            terminal_classification="verified_zero_swap",
+            errors=[],
+        )
+        candidate = dict(address="pool", name="QUIET-SOL", rank=1, source="test")
+
+        with patch.object(
+            pilot,
+            "_observe_phase",
+            return_value=(phase, zero, terminal, start),
+        ) as observe:
+            attempt, opportunity, results, selected = pilot._attempt_candidate(
+                adapter, candidate, start, 12, 1
+            )
+
+        self.assertEqual(observe.call_count, 1)
+        self.assertFalse(attempt["completed_window"])
+        self.assertEqual(
+            attempt["terminal_classification"], "verified_zero_swap"
+        )
+        self.assertEqual(
+            attempt["outcome_skipped"],
+            "fixed_selector_requires_nonzero_verified_warmup_activity",
+        )
+        self.assertIsNone(opportunity)
+        self.assertEqual(results, [])
+        self.assertEqual(selected, [])
+
+    def test_fresh_supported_start_is_taken_at_attempt_time(self):
+        snap = dict(pool="pool", available_time=123)
+        adapter = SimpleNamespace(
+            snapshot=lambda address, now, priority, fresh=False: snap
+        )
+        candidate = dict(
+            address="pool",
+            token_x=pilot.dlmm.WSOL,
+            token_y="token",
+        )
+        state = dict(pool="pool", slot=222)
+        with patch.object(pilot.dlmm, "validate", return_value=state) as validate, \
+             patch.object(pilot.dlmm, "scout") as scout, \
+             patch.object(pilot.time, "time", return_value=123):
+            actual = pilot._fresh_supported_start(adapter, candidate)
+
+        self.assertIs(actual, state)
+        validate.assert_called_once_with(snap, 123, "real")
+        scout.assert_called_once()
+
     def test_fixed_strategy_selection_is_unchanged(self):
         self.assertEqual(research.SELECTED_STRATEGY, "sdk_bidask")
         self.assertEqual(research.SELECTED_WIDTH, 8)
         self.assertEqual(pilot.MAX_ATTEMPTED_POOLS, 12)
         self.assertEqual(pilot.TARGET_COMPLETED_WINDOWS, 6)
+        self.assertEqual(pilot.MAX_ACTIVITY_PAGES, 4)
+        self.assertEqual(pilot.ACTIVITY_PAGE_SIZE, 80)
 
 
 if __name__ == "__main__":
