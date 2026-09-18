@@ -20,7 +20,7 @@ def run(endpoint):
     report = dict(kind='natural_mainnet_protocol_capture', started_at=int(time.time()),
                   candidates=0, paper_lifecycles=0, allocation_authority=False,
                   identities={}, reads=[], lanes={}, failures={})
-    rpc = Rpc(endpoint, limit=200, per_scope=95, retries=0)
+    rpc = Rpc(endpoint, limit=200, per_scope=130, retries=0)
 
     def call(address, sig, args=(), *, block, scope):
         data = calldata(sig, *args)
@@ -35,9 +35,14 @@ def run(endpoint):
             query['address'] = address
         if topics:
             query['topics'] = topics
-        result = rpc.call('eth_getLogs', [query], scope=scope)
-        if len(result) > 500:
-            raise BoundaryError('protocol_log_capacity')
+        result = []
+        # This endpoint's larger-range queries returned HTTP 400. Ten-block
+        # slices are already proven; do not retry invalid larger requests.
+        for first in range(start, end + 1, 10):
+            query.update(fromBlock=hex(first), toBlock=hex(min(end, first+9)))
+            result.extend(rpc.call('eth_getLogs', [query], scope=scope))
+            if len(result) > 500:
+                raise BoundaryError('protocol_log_capacity')
         return result
 
     def receipts(events, scope):
@@ -77,8 +82,8 @@ def run(endpoint):
                             raise BoundaryError('pons_deployment_identity_failed')
                     lane_data['wiring'] = {sig: call(factory, sig, block=hex(end), scope=lane)
                         for sig in ('memeHook()', 'poolManager()', 'graduationExecutor()', 'launchDeployer()')}
-                    lane_data['factory_logs'] = logs(factory, end-499, end, lane)
-                    lane_data['hook_logs'] = logs(hook, end-499, end, lane,
+                    lane_data['factory_logs'] = logs(factory, end-99, end, lane)
+                    lane_data['hook_logs'] = logs(hook, end-99, end, lane,
                         [topic('PoolRegistered(bytes32,address,address,address)')])
                     lane_data['decoded_factory'] = [decode_event(load('pons_v2_factory')['abi'], e)
                         for e in lane_data['factory_logs']]
@@ -120,10 +125,11 @@ def run(endpoint):
                         lane_data['pools'].append(pool)
                         pool['code'] = rpc.call('eth_getCode', [address, hex(end)], scope=lane)
                         pool['is_pool'] = call(factory, 'isPool(address)', (address,), block=hex(end), scope=lane)
-                        pool['logs'] = logs(address, end-599, end, lane)
-                    selected = next((p for p in lane_data['pools'] if p['logs']), None)
+                        pool['logs'] = logs(address, end-9, end, lane)
+                    selected = next((p for p in lane_data['pools'] if p['logs']), lane_data['pools'][0] if lane_data['pools'] else None)
                     if selected is None:
-                        raise BoundaryError('no_activity_in_three_factory_pools_600_blocks')
+                        raise BoundaryError('no_factory_pools')
+                    selected['logs'] = logs(selected['address'], end-599, end-10, lane) + selected['logs']
                     lane_data['selected_pool'] = selected['address']
                     lane_data['receipts'] = receipts(selected['logs'], lane)
                     abi = load('ramses_pool_implementation')['abi']

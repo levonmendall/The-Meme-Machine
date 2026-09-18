@@ -42,6 +42,16 @@ class Rpc:
                 raw = response.read(self.max_response + 1)
         except HTTPError as exc:
             # Never include str(exc): a URL can include the full credential.
+            if exc.code == 400:
+                try:
+                    error = json.loads(exc.read(8192)).get('error', {})
+                    message = str(error.get('message', '')).lower()
+                    if 'block' in message and ('range' in message or 'limit' in message):
+                        raise BoundaryError('provider_log_block_range_limit') from None
+                except BoundaryError:
+                    raise
+                except (ValueError, AttributeError):
+                    pass
             raise BoundaryError(f'provider_http_{exc.code}') from None
         except (URLError, TimeoutError, OSError):
             raise BoundaryError('provider_transport_failure') from None
