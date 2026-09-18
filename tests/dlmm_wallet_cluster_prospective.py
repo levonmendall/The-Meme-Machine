@@ -266,101 +266,168 @@ class RPCPool:
 
 
 def _signature_cursors(rpc_pool,wallets):
-    rpc=rpc_pool.current(len(wallets))
-    params=[[w,dict(limit=1,commitment="finalized")] for w in wallets]
-    rows=rpc.call_many("getSignaturesForAddress",params,True,batch_size=7)
+    """Establish a complete post-start boundary without batch bursts."""
     cursors={}
-    for wallet,result in zip(wallets,rows):
-        first=result[0]["signature"] if isinstance(result,list) and result else None
-        cursors[wallet]=first
-    return cursors
-
-
-def _new_wallet_rows(rpc_pool,wallets,cursors):
-    rpc=rpc_pool.current(len(wallets))
-    params=[]
+    failures=[]
     for wallet in wallets:
-        cfg=dict(limit=POLL_LIMIT,commitment="finalized")
-        if cursors.get(wallet):
-            cfg["until"]=cursors[wallet]
-        params.append([wallet,cfg])
-    results=rpc.call_many("getSignaturesForAddress",params,True,batch_size=7)
-    pending=[]
-    for wallet,rows in zip(wallets,results):
-        if not isinstance(rows,list):
-            raise Unavailable("dlmm_wallet_signal_signature_shape")
-        if len(rows)>=POLL_LIMIT:
-            raise Unavailable("dlmm_wallet_signal_signature_overflow")
-        if rows:
-            cursors[wallet]=rows[0]["signature"]
-        for row in reversed(rows):
-            if isinstance(row,dict) and not row.get("err") and isinstance(row.get("signature"),str):
-                pending.append(dict(wallet=wallet,**row))
-    return pending
+        last_error=None
+        for attempt in range(3):
+            try:
+                rpc=rpc_pool.current(1)
+                result=rpc.call(
+                    "getSignaturesForAddress",
+                    [wallet,dict(limit=1,commitment="finalized")],
+                    True,
+                )
+                if not isinstance(result,list):
+                    raise Unavailable("dlmm_wallet_signal_signature_shape")
+                first=result[0]["signature"] if result else None
+                cursors[wallet]=first
+                last_error=None
+                break
+            except Unavailable as exc:
+                last_error=str(exc)
+                failures.append(dict(
+                    stage="initial_cursor",wallet=wallet,attempt=attempt+1,
+                    reason=last_error,
+                ))
+                # Same provider, new bounded budget object, shared pacing clock.
+                rpc_pool.rotate()
+                time.sleep(2.0)
+        if last_error is not None:
+            raise Unavailable("dlmm_wallet_initial_cursor_incomplete")
+    return cursors,failures
+
+
+def _read_wallet_rows(rpc_pool,wallet,cursor):
+    """Read and fully inspect one wallet before advancing its durable cursor.
+
+    If either signature enumeration or any transaction body is unavailable, the
+    cursor is left unchanged. A later poll therefore retries the exact unseen
+    interval instead of silently skipping a potential signal.
+    """
+    rpc=rpc_pool.current(1)
+    cfg=dict(limit=POLL_LIMIT,commitment="finalized")
+    if cursor:
+        cfg["until"]=cursor
+    rows=rpc.call("getSignaturesForAddress",[wallet,cfg],True)
+    if not isinstance(rows,list):
+        raise Unavailable("dlmm_wallet_signal_signature_shape")
+    if len(rows)>=POLL_LIMIT:
+        raise Unavailable("dlmm_wallet_signal_signature_overflow")
+    successful=[
+        row for row in reversed(rows)
+        if isinstance(row,dict) and not row.get("err")
+        and isinstance(row.get("signature"),str)
+    ]
+    inspected=[]
+    for row in successful:
+        rpc=rpc_pool.current(1)
+        tx=rpc.call("getTransaction",[
+            row["signature"],dict(
+                encoding="json",commitment="finalized",
+                maxSupportedTransactionVersion=1,
+            )
+        ],True)
+        if tx is None:
+            raise Unavailable("dlmm_wallet_signal_transaction_unavailable")
+        inspected.append((row,tx))
+    newest=rows[0]["signature"] if rows else cursor
+    return inspected,newest
+
+
+def _inspect_rows(wallet,inspected,pools,observations,rejections,started):
+    for row,tx in inspected:
+        if (tx.get("meta") or {}).get("err"):
+            continue
+        try:
+            adds=_candidate_adds(tx,wallet)
+        except (Unavailable,ValueError,KeyError,TypeError) as exc:
+            rejections.append(dict(
+                signature=row["signature"],wallet=wallet,
+                reason=str(exc)[:140],
+            ))
+            continue
+        for add in adds:
+            info=pools.get(add["pool"])
+            if info is None:
+                rejections.append(dict(
+                    signature=row["signature"],wallet=wallet,
+                    pool=add["pool"],reason="pool_outside_frozen_eligibility",
+                ))
+                continue
+            qualified,reason=_qualify_signal(add,info)
+            if qualified is None:
+                rejections.append(dict(
+                    signature=row["signature"],wallet=wallet,
+                    pool=add["pool"],reason=reason,
+                ))
+                continue
+            return dict(
+                observer_started_unix=started,
+                observed_at_unix=time.time(),
+                wallet=wallet,signature=row["signature"],
+                slot=int(tx.get("slot") or row.get("slot") or 0),
+                block_time=tx.get("blockTime"),
+                pool=add["pool"],position=add["position"],
+                execution_order=add["execution_order"],
+                **qualified,
+                source_effect=dict(
+                    amount_x=add["effect"].get("amount_x"),
+                    amount_y=add["effect"].get("amount_y"),
+                    active=add["effect"].get("active"),
+                    recipient_auth=add["effect"].get("recipient_auth"),
+                ),
+                wallet_rows_observed=observations,
+                rejections_before_signal=rejections[-100:],
+            )
+    return None
 
 
 def watch_for_signal(candidate,pools,rpc_pool):
     wallets=list(candidate["exploratory_cluster"]["trigger_wallets"])
-    cursors=_signature_cursors(rpc_pool,wallets)
+    cursors,cursor_failures=_signature_cursors(rpc_pool,wallets)
     started=time.time();observations=0;rejections=[]
-    while time.time()-started<WATCH_SECONDS:
+    poll_failures=list(cursor_failures)
+    final_pass=False
+    while True:
         if rpc_pool.total_calls()>=MAX_TOTAL_LOGICAL_RPC:
             raise Unavailable("dlmm_wallet_prospective_rpc_bound")
-        pending=_new_wallet_rows(rpc_pool,wallets,cursors)
-        observations+=len(pending)
-        if pending:
-            unique={}
-            for row in pending:
-                unique[(row["wallet"],row["signature"])]=row
-            ordered=sorted(unique.values(),key=lambda r:(int(r.get("slot") or 0),r["signature"],r["wallet"]))
-            rpc=rpc_pool.current(len(ordered))
-            params=[[r["signature"],dict(
-                encoding="json",commitment="finalized",
-                maxSupportedTransactionVersion=1,
-            )] for r in ordered]
-            txs=rpc.call_many("getTransaction",params,True,batch_size=4) if params else []
-            for row,tx in zip(ordered,txs):
-                if not tx or (tx.get("meta") or {}).get("err"):
-                    continue
-                try:
-                    adds=_candidate_adds(tx,row["wallet"])
-                except (Unavailable,ValueError,KeyError,TypeError) as exc:
-                    rejections.append(dict(signature=row["signature"],wallet=row["wallet"],
-                                           reason=str(exc)[:140]))
-                    continue
-                for add in adds:
-                    info=pools.get(add["pool"])
-                    if info is None:
-                        rejections.append(dict(signature=row["signature"],wallet=row["wallet"],
-                                               pool=add["pool"],reason="pool_outside_frozen_eligibility"))
-                        continue
-                    qualified,reason=_qualify_signal(add,info)
-                    if qualified is None:
-                        rejections.append(dict(signature=row["signature"],wallet=row["wallet"],
-                                               pool=add["pool"],reason=reason))
-                        continue
-                    return dict(
-                        observer_started_unix=started,
-                        observed_at_unix=time.time(),
-                        wallet=row["wallet"],signature=row["signature"],
-                        slot=int(tx.get("slot") or row.get("slot") or 0),
-                        block_time=tx.get("blockTime"),
-                        pool=add["pool"],position=add["position"],
-                        execution_order=add["execution_order"],
-                        **qualified,
-                        source_effect=dict(
-                            amount_x=add["effect"].get("amount_x"),
-                            amount_y=add["effect"].get("amount_y"),
-                            active=add["effect"].get("active"),
-                            recipient_auth=add["effect"].get("recipient_auth"),
-                        ),
-                        wallet_rows_observed=observations,
-                        rejections_before_signal=rejections[-100:],
-                    )
+        if time.time()-started>=WATCH_SECONDS:
+            if final_pass:
+                break
+            final_pass=True
+        for wallet in wallets:
+            try:
+                inspected,newest=_read_wallet_rows(
+                    rpc_pool,wallet,cursors.get(wallet))
+            except Unavailable as exc:
+                poll_failures.append(dict(
+                    stage="wallet_poll",wallet=wallet,
+                    reason=str(exc)[:140],at_unix=time.time(),
+                ))
+                # Never advance the cursor on incomplete evidence.
+                rpc_pool.rotate()
+                time.sleep(2.0)
+                continue
+            observations+=len(inspected)
+            signal=_inspect_rows(
+                wallet,inspected,pools,observations,rejections,started)
+            if signal is not None:
+                signal["poll_failures_before_signal"]=poll_failures[-100:]
+                return signal
+            # Commit the cursor only after every returned transaction was readable
+            # and inspected under the frozen policy.
+            cursors[wallet]=newest
+        if final_pass:
+            break
         time.sleep(2.0)
     return None,dict(
         observer_started_unix=started,observer_ended_unix=time.time(),
-        wallet_rows_observed=observations,rejections=rejections[-200:])
+        wallet_rows_observed=observations,rejections=rejections[-200:],
+        poll_failures=poll_failures[-200:],
+        final_catchup_complete=True,
+    )
 
 
 def capture_entry_state(signal,rpc_pool):
