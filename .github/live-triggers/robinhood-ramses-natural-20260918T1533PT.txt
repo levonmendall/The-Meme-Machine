@@ -1,2 +1,1 @@
-Prospective read-only Ramses natural proof using complete 271-pool inventory, 86 authenticated native pools, paced provider access, and economic-mutation activity selection before range freeze.
-No allocation authority, signing, submission, merge, deploy, or threshold changes.
+Prospective Ramses natural proof from af904c2de6aa8e45ffba0b95f8c2ef7314ad0bf4: append-only authenticated inventory baseline, incremental new-pool validation, 3000-block native economic-activity scan, bounded 120-second prospective watch, frozen ranges, exact ~60-second replay. No allocation/signing/merge/deploy/threshold changes.
