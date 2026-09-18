@@ -90,16 +90,24 @@ def top5_concentration_bps(rpc,*,token,curve,block,scope="pons_sample"):
     if sum(balances.values())!=total:
         raise BoundaryError("concentration_supply_disagreement")
 
-    curve_actual=_balance(rpc,token,curve,block,scope)
-    if balances.get(curve,0)!=curve_actual:
-        raise BoundaryError("concentration_curve_balance_disagreement")
-
     eligible=[(v,a) for a,v in balances.items()
               if a not in (curve,ZERO,DEAD) and v>0]
     eligible.sort(reverse=True)
     top=eligible[:5]
-    for expected,holder in top:
-        actual=_balance(rpc,token,holder,block,scope)
+
+    # Verify the curve custody and top-five balances in one bounded transport
+    # roundtrip. Logical request/accounting budgets are unchanged.
+    holders=[curve]+[holder for _,holder in top]
+    calls=[
+        ("eth_call",[dict(to=token,data=calldata("balanceOf(address)",holder)),hex(block)])
+        for holder in holders
+    ]
+    raw_values=rpc.batch(calls,scope=scope)
+    actuals=[_uint(raw) for raw in raw_values]
+    curve_actual=actuals[0]
+    if balances.get(curve,0)!=curve_actual:
+        raise BoundaryError("concentration_curve_balance_disagreement")
+    for (expected,holder),actual in zip(top,actuals[1:]):
         if actual!=expected:
             raise BoundaryError("concentration_holder_balance_disagreement")
 
