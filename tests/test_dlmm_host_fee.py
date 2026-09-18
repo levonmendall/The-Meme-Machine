@@ -6,7 +6,7 @@ import unittest
 
 from meme_machine import dlmm,pump
 from meme_machine.dlmm_tape import (
-    EVENT_CPI,SWAP,SWAP2,SWAP_IX,SWAP2_IX,transaction_swap,reconstruct
+    EVENT_CPI,SWAP,SWAP2,SWAP_IX,SWAP2_IX,transaction_swap,transaction_swaps,reconstruct
 )
 from meme_machine.provider import Unavailable
 from tests.dlmm_support import snapshot,POOL,VAULT_X,VAULT_Y
