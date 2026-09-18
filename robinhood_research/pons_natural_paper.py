@@ -331,7 +331,7 @@ def run(endpoint):
         selection_rule="first_current_authenticated_pons_v2_curve_after_start",
         exit_rule=dict(take_profit_bps=TAKE_PROFIT_BPS,risk_bps=RISK_BPS,
                        timeout_seconds=MAX_HOLD_SECONDS,proof_only=True),
-        paper_amount=PAPER_AMOUNT,monitor=[],provider_sessions=[],
+        paper_amount=PAPER_AMOUNT,monitor=[],provider_sessions=[],reads=[],
     )
     if DB.exists():
         DB.unlink()
