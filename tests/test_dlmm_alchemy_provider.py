@@ -1,8 +1,24 @@
 """Regression coverage for existing-secret Alchemy-only DLMM routing."""
+import urllib.error
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from meme_machine.provider import Unavailable
 from tests import dlmm_alchemy_provider as provider
+
+
+class _Clock:
+    def __init__(self, now=100.0):
+        self.now = float(now)
+        self.sleeps = []
+
+    def time(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.sleeps.append(float(seconds))
+        self.now += float(seconds)
 
 
 class DlmmAlchemyProvider(unittest.TestCase):
@@ -48,6 +64,59 @@ class DlmmAlchemyProvider(unittest.TestCase):
         ):
             with self.subTest(value=value), self.assertRaises(Unavailable):
                 provider.rpc_url({provider.ENV_NAME: value})
+
+    def test_shared_pacer_serializes_independent_pool_rpc_objects(self):
+        clock = _Clock()
+        pacer = provider.AlchemyPacer(minimum_interval=1.0)
+        rpc_a = SimpleNamespace(
+            clock=clock.time, sleep=clock.sleep, last_request=None
+        )
+        rpc_b = SimpleNamespace(
+            clock=clock.time, sleep=clock.sleep, last_request=None
+        )
+        self.assertEqual(pacer.pace(rpc_a, 0.5), 0.0)
+        self.assertAlmostEqual(pacer.pace(rpc_b, 0.5), 1.0)
+        self.assertEqual(clock.sleeps, [1.0])
+        telemetry = pacer.telemetry()
+        self.assertEqual(telemetry["paced_requests"], 2)
+        self.assertAlmostEqual(telemetry["throttle_sleep_seconds"], 1.0)
+
+    def test_429_retry_wait_has_two_second_floor(self):
+        error = urllib.error.HTTPError(
+            "https://example.invalid",
+            429,
+            "rate limited",
+            {},
+            None,
+        )
+        self.assertGreaterEqual(
+            provider.AlchemyPoolScanRPC._retry_delay(error),
+            provider.ALCHEMY_429_MIN_BACKOFF_SECONDS,
+        )
+
+    def test_new_rpc_objects_have_independent_240_call_budgets(self):
+        pacer = provider.AlchemyPacer()
+        with patch.object(
+            provider,
+            "rpc_url",
+            return_value="https://solana-mainnet.g.alchemy.com/v2/example-key",
+        ):
+            first = provider.new_rpc(
+                limit=240,
+                pacer=pacer,
+                transport=lambda _request: {"result": "ok"},
+            )
+            second = provider.new_rpc(
+                limit=240,
+                pacer=pacer,
+                transport=lambda _request: {"result": "ok"},
+            )
+        self.assertIsNot(first, second)
+        self.assertEqual(first.limit, 240)
+        self.assertEqual(second.limit, 240)
+        self.assertEqual(first.calls, 0)
+        self.assertEqual(second.calls, 0)
+        self.assertIs(first.alchemy_pacer, second.alchemy_pacer)
 
 
 if __name__ == "__main__":
