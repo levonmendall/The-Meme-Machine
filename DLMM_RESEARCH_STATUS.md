@@ -521,3 +521,19 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - The current closest observed case remains JUP-SOL: projected fee capture `5,748.15985295281` lamports, projected surplus `-344,251.8401470472` lamports, hurdle gap `344,251.8401470472` lamports / approximately `34.425184` bps.
 - Strategy, normalized ranges, 12-second warmup, 60-second outcome horizon, 35-bps fixed cost hurdle, `MAX_TRANSACTIONS=16`, 24-pool development observation ceiling, Alchemy pacing/per-pool budgets, paper-only authority, and disabled allocation are unchanged.
 - This marker authorizes exactly one widened development batch (`--max-attempted-pools 24 --target-completed 6`) using the new addLiquidity2 handling and cumulative hurdle-distance reporting.
+
+
+## Wallet-derived DLMM strategy discovery
+
+- The legacy 12-second warmup / 60-second holding strategy is on enforced research hold under `DLMM_60S_RESEARCH_HOLD.json`.
+- Its final preserved development record contains 10 complete observations across 5 pools, 0 selected trades, and no economically adequate fee-capture case. The legacy workflow's development and holdout jobs are disabled while this hold is active.
+- New research is governed by `DLMM_WALLET_STUDY_PROTOCOL_V1.json`.
+- Phase A is outcome-blind wallet discovery. It may read current pool metadata and finalized Solana DLMM LP transactions, but the discovery code hard-rejects Meteora portfolio/PnL/position endpoints.
+- Pool sample: first 12 SOL-paired, non-blacklisted pools ranked by 24h fee/TVL, with TVL >= $50,000 and 24h volume >= $25,000.
+- Wallet evidence: recent finalized `add_liquidity2`, `add_liquidity_by_strategy2`, `remove_liquidity_by_range2`, or `rebalance_liquidity` signer activity; at most 5 discovered wallets per pool; target 30 wallets; minimum 12 to freeze.
+- Only after the exact wallet addresses are committed in `DLMM_WALLET_COHORT_V1.json` with `status=frozen_pre_pnl` may Phase B query Meteora portfolio and position PnL/history endpoints.
+- Phase B's preregistered profitable-wallet definition requires at least 5 closed positions, at least 2 distinct closed-position pools, positive aggregate USD PnL, positive aggregate SOL PnL, and at least a 55% positive-position rate in USD.
+- Phase B is behavior discovery only. It cannot freeze a trading strategy automatically.
+- Any candidate strategy must be derived only from repeatable patterns in the frozen wallet cohort, frozen in a later reviewed commit, and tested prospectively on strictly post-freeze data.
+- Full deterministic CI on implementation head `2b3e4dba3ff510f75b35b9945388850f7f5c2fcd` passed unit discovery, standard resource checks, DLMM resource checks, and canonical synthetic lifecycle.
+- This marker authorizes exactly one Phase A wallet-cohort discovery run. It does not authorize PnL analysis, strategy freeze, allocation, signing, submission, or live money.
