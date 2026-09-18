@@ -21,8 +21,11 @@ import json
 import os
 import statistics
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 
-from meme_machine import dlmm
+from meme_machine import dlmm, pump
 from meme_machine.dlmm_paper import CAPITAL, ENTRY_COST, EXIT_COST
 from meme_machine.dlmm_tape import MAX_TRANSACTIONS
 from meme_machine.postgrad import PoolScanRPC
@@ -36,6 +39,9 @@ from tests import dlmm_strategy_high_activity_batched as run
 TARGET_COMPLETED_WINDOWS = 6
 MAX_ATTEMPTED_POOLS = 12
 PREFLIGHT_SECONDS = 0.5
+MAX_ACTIVITY_PAGES = 4
+ACTIVITY_PAGE_SIZE = 80
+MAX_CANDIDATE_SCAN_MULTIPLIER = 4
 
 run.CHUNK_SECONDS = 2
 run._capture_chunk = boundary.capture_chunk
@@ -222,28 +228,156 @@ def _observe_phase(adapter, address, start, window_seconds, allow_snapshot_reset
     return phase, tape, terminal, effective_start
 
 
+def _fetch_activity_page(page):
+    """Fetch one bounded current Meteora activity page without on-chain authority."""
+    if not 1 <= page <= MAX_ACTIVITY_PAGES:
+        raise ValueError("dlmm_profitability_activity_page")
+    query = urllib.parse.urlencode(dict(
+        page=page,
+        page_size=ACTIVITY_PAGE_SIZE,
+        sort_by="volume_30m:desc",
+    ))
+    req = urllib.request.Request(
+        research.DATA_API + "?" + query,
+        headers={
+            "User-Agent": "The-Meme-Machine-DLMM-profitability/1.0",
+            "Accept": "application/json",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=8) as response:
+        raw = response.read(1_000_001)
+    if len(raw) > 1_000_000:
+        raise Unavailable("dlmm_activity_api_response_bound")
+    body = json.loads(raw)
+    rows = body.get("data")
+    if not isinstance(rows, list):
+        raise Unavailable("dlmm_activity_api_shape")
+    selected = []
+    for raw_index, row in enumerate(rows):
+        if not research._sol_pair(row):
+            continue
+        candidate = research._candidate(
+            row,
+            (page - 1) * ACTIVITY_PAGE_SIZE + raw_index + 1,
+            "meteora_data_api_volume_30m",
+        )
+        candidate["activity_page"] = page
+        selected.append(candidate)
+    return selected
+
+
 def _discover_for_scan(adapter, max_attempted_pools):
-    """Reuse the existing activity-ranked discovery and classic-SPL prefilter."""
-    original_target = run.TARGET_SUPPORTED_POOLS
-    original_fetch = research.fetch_high_activity
-    original_max_pools = research.MAX_POOLS
+    """Page activity candidates and apply the existing classic-SPL mint prefilter.
 
-    def deep_fetch(_limit=24):
-        research.MAX_POOLS = run.DEEP_DISCOVERY_POOL_MULTIPLIER
+    Full pool/bin validation is deliberately deferred until immediately before each
+    attempted observation. This prevents later sequential candidates from starting
+    from snapshots that have aged past the verifier's unchanged 60-second interval
+    identity/age bound.
+    """
+    candidate_cap = max_attempted_pools * MAX_CANDIDATE_SCAN_MULTIPLIER
+    candidates = []
+    seen_addresses = set()
+    api_errors = []
+    for page in range(1, MAX_ACTIVITY_PAGES + 1):
         try:
-            return original_fetch(run.DEEP_DISCOVERY_PAGE)
-        finally:
-            research.MAX_POOLS = max_attempted_pools
+            rows = _fetch_activity_page(page)
+        except (
+            urllib.error.URLError,
+            urllib.error.HTTPError,
+            TimeoutError,
+            json.JSONDecodeError,
+            Unavailable,
+            ValueError,
+            KeyError,
+            TypeError,
+        ) as exc:
+            api_errors.append(dict(page=page, reason=type(exc).__name__))
+            if page == 1:
+                fallback, fallback_error = research.discovery_candidates()
+                if fallback_error:
+                    api_errors.append(dict(page=1, fallback_error=fallback_error))
+                rows = fallback
+            else:
+                break
+        if not rows:
+            break
+        for candidate in rows:
+            address = candidate.get("address")
+            if not address or address in seen_addresses:
+                continue
+            seen_addresses.add(address)
+            candidates.append(candidate)
+            if len(candidates) >= candidate_cap:
+                break
+        if len(candidates) >= candidate_cap:
+            break
 
-    run.TARGET_SUPPORTED_POOLS = max_attempted_pools
-    research.MAX_POOLS = max_attempted_pools
-    research.fetch_high_activity = deep_fetch
-    try:
-        return run.efficient_discover_and_revalidate(adapter, int(time.time()))
-    finally:
-        run.TARGET_SUPPORTED_POOLS = original_target
-        research.fetch_high_activity = original_fetch
-        research.MAX_POOLS = original_max_pools
+    mint_by_candidate = []
+    unique_mints = []
+    for candidate in candidates:
+        x, y = candidate.get("token_x"), candidate.get("token_y")
+        token = y if x == dlmm.WSOL else x if y == dlmm.WSOL else None
+        mint_by_candidate.append(token)
+        if token and token not in unique_mints:
+            unique_mints.append(token)
+
+    valid_mints = set()
+    rejections = []
+    for offset in range(0, len(unique_mints), ACTIVITY_PAGE_SIZE):
+        chunk = unique_mints[offset:offset + ACTIVITY_PAGE_SIZE]
+        response = adapter.rpc.call(
+            "getMultipleAccounts",
+            [chunk, dict(encoding="base64", commitment="finalized")],
+            True,
+            fresh=True,
+        )
+        values = response.get("value") if isinstance(response, dict) else None
+        if not isinstance(values, list) or len(values) != len(chunk):
+            raise Unavailable("dlmm_research_mint_prefilter_shape")
+        for mint, account in zip(chunk, values):
+            try:
+                if not account or account.get("owner") != pump.TOKEN_PROGRAM:
+                    raise ValueError("dlmm_unsupported_token_program_or_version")
+                pump.mint_info(account)
+                valid_mints.add(mint)
+            except (ValueError, KeyError, TypeError) as exc:
+                rejections.append(dict(
+                    pool=None,
+                    mint=mint,
+                    reason=str(exc)[:140],
+                    stage="mint_prefilter",
+                ))
+
+    filtered = []
+    for candidate, token in zip(candidates, mint_by_candidate):
+        if token and token in valid_mints:
+            filtered.append(candidate)
+        else:
+            rejections.append(dict(
+                pool=candidate.get("address"),
+                name=candidate.get("name"),
+                reason="mint_prefilter_rejected",
+                stage="mint_prefilter",
+            ))
+    return filtered, rejections, api_errors
+
+
+def _fresh_supported_start(adapter, candidate):
+    """Authenticate a current pool snapshot immediately before observation."""
+    address = candidate["address"]
+    snap = adapter.snapshot(address, int(time.time()), True, fresh=True)
+    state = dlmm.validate(snap, snap["available_time"], "real")
+    if candidate.get("token_x") and candidate.get("token_y"):
+        dlmm.scout(
+            snap,
+            snap["available_time"],
+            dict(
+                pool=address,
+                x=candidate["token_x"],
+                y=candidate["token_y"],
+            ),
+        )
+    return state
 
 
 def _evaluate_completed_window(cycle, address, warm_start, warm, entry, outcome, end_state):
@@ -305,8 +439,16 @@ def _evaluate_completed_window(cycle, address, warm_start, warm, entry, outcome,
     return opportunity, results, selected_results
 
 
-def _attempt_candidate(adapter, candidate, start, window_seconds, attempt_index):
-    before = _rpc_metrics(adapter.rpc)
+def _attempt_candidate(
+    adapter,
+    candidate,
+    start,
+    window_seconds,
+    attempt_index,
+    rpc_before=None,
+    fresh_start_rpc=None,
+):
+    before = rpc_before or _rpc_metrics(adapter.rpc)
     address = candidate["address"]
     attempt = dict(
         attempt=attempt_index,
@@ -316,6 +458,7 @@ def _attempt_candidate(adapter, candidate, start, window_seconds, attempt_index)
         discovery_source=candidate.get("source"),
         candidate_start_slot=start["slot"],
         verification_capacity=MAX_TRANSACTIONS,
+        fresh_start_rpc=dict(fresh_start_rpc or {}),
     )
 
     warm_phase, warm, entry, warm_start = _observe_phase(
@@ -326,6 +469,17 @@ def _attempt_candidate(adapter, candidate, start, window_seconds, attempt_index)
         attempt.update(
             completed_window=False,
             terminal_classification=warm_phase["terminal_classification"],
+            rpc=_metric_delta(before, _rpc_metrics(adapter.rpc)),
+        )
+        return attempt, None, [], []
+
+    if len(warm.events) == 0:
+        attempt.update(
+            completed_window=False,
+            terminal_classification="verified_zero_swap",
+            warmup_swaps=0,
+            outcome_skipped="fixed_selector_requires_nonzero_verified_warmup_activity",
+            strategy_selected=False,
             rpc=_metric_delta(before, _rpc_metrics(adapter.rpc)),
         )
         return attempt, None, [], []
@@ -382,12 +536,11 @@ def run_live(
     adapter = dlmm.Adapter(rpc)
 
     discovery_start = _rpc_metrics(rpc)
-    states, candidates, rejections, api_error = _discover_for_scan(
+    candidates, rejections, api_errors = _discover_for_scan(
         adapter, max_attempted_pools
     )
     discovery_rpc = _metric_delta(discovery_start, _rpc_metrics(rpc))
     observation_start_calls = rpc.calls
-    candidate_by_pool = {item["address"]: item for item in candidates}
 
     report = dict(
         kind="dlmm_profitability_density_screened_point_in_time_v3",
@@ -411,11 +564,16 @@ def run_live(
         window_seconds=window_seconds,
         candidate_scanning_policy="activity_ranked_candidates_until_completed_window_target_or_safety_bound",
         discovery_source="meteora_data_api_current_volume_30m_then_finalized_onchain",
-        discovery_api_error=api_error,
+        discovery_api_errors=api_errors,
         discovery_candidates=candidates,
         discovery_rejections=rejections,
-        discovered_supported_pools=sorted(states),
+        candidate_revalidation_rejections=[],
+        discovered_supported_pools=[],
         discovery_rpc=discovery_rpc,
+        activity_pages_scanned=sorted({
+            int(item.get("activity_page", 1)) for item in candidates
+        }),
+        candidate_scan_cap=max_attempted_pools * MAX_CANDIDATE_SCAN_MULTIPLIER,
         started=int(time.time()),
         attempts=[],
         density_exclusions=[],
@@ -433,13 +591,43 @@ def run_live(
 
     completed = 0
     attempted = 0
-    for address, start in states.items():
+    candidate_scanned = 0
+    supported_pools = []
+    for candidate in candidates:
         if completed >= target_completed or attempted >= max_attempted_pools:
             break
+        candidate_scanned += 1
+        address = candidate["address"]
+        fresh_before = _rpc_metrics(rpc)
+        try:
+            start = _fresh_supported_start(adapter, candidate)
+        except (Unavailable, ValueError, KeyError, TypeError) as exc:
+            reason = str(exc)
+            rejection = dict(
+                candidate_scan=candidate_scanned,
+                pool=address,
+                name=candidate.get("name"),
+                discovery_rank=candidate.get("rank"),
+                reason=reason,
+                terminal_classification=_classify_reason(reason),
+                rpc=_metric_delta(fresh_before, _rpc_metrics(rpc)),
+            )
+            report["candidate_revalidation_rejections"].append(rejection)
+            if rejection["terminal_classification"] == "provider_budget_exhausted":
+                break
+            continue
+
         attempted += 1
-        candidate = candidate_by_pool.get(address, dict(address=address))
+        supported_pools.append(address)
+        fresh_rpc = _metric_delta(fresh_before, _rpc_metrics(rpc))
         attempt, opportunity, results, selected = _attempt_candidate(
-            adapter, candidate, start, window_seconds, attempted
+            adapter,
+            candidate,
+            start,
+            window_seconds,
+            attempted,
+            rpc_before=fresh_before,
+            fresh_start_rpc=fresh_rpc,
         )
         report["attempts"].append(attempt)
         if attempt["terminal_classification"] == "over_verification_capacity":
@@ -514,7 +702,13 @@ def run_live(
 
     report.update(
         ended=int(time.time()),
+        candidate_scanned_count=candidate_scanned,
         attempted_pool_count=attempted,
+        discovered_supported_pools=sorted(supported_pools),
+        zero_activity_warmup_count=sum(
+            item["terminal_classification"] == "verified_zero_swap"
+            for item in report["attempts"]
+        ),
         completed_window_count=completed,
         completed_window_target_met=sample_complete,
         terminal_classification_counts=dict(sorted(terminal_counts.items())),
@@ -571,7 +765,7 @@ def run_live(
         ),
         transaction_retrieval="census_gated_serialized_dense_getTransaction",
         candidate_prefilter="single_finalized_getMultipleAccounts_classic_spl_mints",
-        activity_rank_rows_examined_max=run.DEEP_DISCOVERY_PAGE,
+        activity_rank_rows_examined_max=ACTIVITY_PAGE_SIZE * MAX_ACTIVITY_PAGES,
         evidence_extension_diagnostics=run.ADVANCE_DIAGNOSTICS,
         endpoint_snapshot_diagnostics=boundary.ENDPOINT_DIAGNOSTICS,
         historical_last_update_reference=run.historical_last_update_reference(),
