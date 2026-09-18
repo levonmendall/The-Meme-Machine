@@ -11,7 +11,7 @@ from .abi import calldata, topic
 from .identity import authenticate, load
 from .provider import Rpc
 from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, paper_outcome,
-                     paper_position, paper_removal, price, quote_value, replay, state, unpack, values)
+                     paper_fee_capture, paper_position, paper_removal, price, quote_value, replay, state, unpack, values)
 
 DISCOVERY_BLOCKS=300
 FORWARD_SECONDS=60
@@ -202,7 +202,8 @@ def run(endpoint):
                 expected=quote_value([amount,0] if nonquote==0 else [0,amount],spot,quote_side)
                 unwind=dict(input_side='x' if nonquote==0 else 'y',amount_in=amount,amount_in_left=q[0],
                             amount_out=q[1],fee=q[2],slippage=max(0,expected-q[1]),block=end)
-            outcome=paper_outcome(position,terminal_state,unwind=unwind,costs=None,lp_fees_captured=None)
+            captured_fees=paper_fee_capture(position,result['replay'])
+            outcome=paper_outcome(position,terminal_state,unwind=unwind,costs=None,lp_fees_captured=captured_fees)
             observations.append(dict(proposal_index=index,name=position['proposal']['name'],position=position,outcome=outcome))
         result['observations']=observations
         if any(o['outcome']['unresolved_inventory'] for o in observations):
