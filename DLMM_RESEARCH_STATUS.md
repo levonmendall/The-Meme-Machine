@@ -300,3 +300,12 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - DLMM reads `MM_SOLANA_READ_RPC_URL` and fails closed unless its value is a full `https://solana-mainnet.g.alchemy.com/v2/<key>` endpoint.
 - The previously selected Alchemy connector app is not part of DLMM routing and its usage/capacity must not be attributed to DLMM.
 - Provider fallback remains disabled; no strategy, verifier, cost, mechanics, allocation, signing, or submission behavior changed.
+
+
+## DLMM economic strategy development sample 1
+
+- User authorized a live test of the new range-economic strategy after correcting provider routing to the existing Meme Machine `MM_SOLANA_READ_RPC_URL` Alchemy Solana Mainnet endpoint.
+- This run uses exactly: 12-second verified warmup, 60-second verified outcome horizon, unchanged 350,000-lamport / 35-bps cost hurdle, range-specific economic gate, normalized 100/200/400/800-bps SDK BidAsk candidates, and the existing foundation_spot/sdk_bidask 2/4/8/16/32 grid in shadow.
+- This is development data only. It cannot establish profitability, freeze the strategy rule, enable holdout, or enable allocation.
+- Prospective DLMM allocation remains disabled. No threshold, fee, verifier-capacity, finality, mechanics, signing, or submission change is authorized.
+- This marker authorizes exactly one bounded development batch.
