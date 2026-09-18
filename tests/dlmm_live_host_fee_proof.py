@@ -11,6 +11,7 @@ from pathlib import Path
 
 from meme_machine.dlmm_tape import transaction_swaps
 from meme_machine.postgrad import PoolScanRPC
+from tests import dlmm_alchemy_provider as alchemy_provider
 from meme_machine.provider import Unavailable
 
 OUT=Path('dlmm-live-host-fee-proof.json')
@@ -25,9 +26,7 @@ BODY_PACE_SECONDS=1.5
 
 
 def run():
-    url=os.environ.get('MM_SOLANA_READ_RPC_URL','').strip()
-    if not url: raise SystemExit('MM_SOLANA_READ_RPC_URL missing')
-    rpc=PoolScanRPC(url,limit=120)
+    rpc=PoolScanRPC(alchemy_provider.rpc_url(),limit=120)
     scanned=[];found=None;body_reads=0
     for name,pool in POOLS:
         try:
