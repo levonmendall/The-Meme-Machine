@@ -1,0 +1,56 @@
+{
+  "kind": "dlmm_top_roi_wallet_evaluation_v1",
+  "status": "preregistered_pre_pnl",
+  "scope": "meme_machine_solana_dlmm_only",
+  "allocation_authority": false,
+  "strategy_freeze_permitted": false,
+  "legacy_60_second_strategy_status": "research_hold",
+  "current_wallet_cluster_experiment_modified": false,
+  "discovery": {
+    "pnl_reads_forbidden": true,
+    "pool_universe": "SOL-paired, non-blacklisted, TVL>=50000 USD, 24h volume>=25000 USD",
+    "pool_ranking": "fee_tvl_ratio_24h descending",
+    "pool_sample": 30,
+    "finalized_signatures_per_pool": 96,
+    "readable_transaction_bodies_per_pool": 32,
+    "max_transaction_bodies_attempted_per_pool": 56,
+    "max_supported_transaction_version": 1,
+    "target_wallets": 80,
+    "minimum_wallets_to_freeze": 40,
+    "max_wallets_per_discovery_pool": 4,
+    "selection": "recent finalized DLMM LP actors only; no PnL or outcome data"
+  },
+  "evaluation": {
+    "days_back": 120,
+    "raw_roi": "sum(pnlUsd) / sum(allTimeDeposits.total.usd)",
+    "robust_min_closed_positions": 20,
+    "robust_min_distinct_pools": 3,
+    "robust_require_total_pnl_usd_positive": true,
+    "robust_require_total_pnl_sol_positive": true,
+    "robust_min_profitable_position_rate_usd": 0.55,
+    "additional_diagnostics": [
+      "total deposits USD",
+      "total PnL USD",
+      "total PnL SOL",
+      "closed positions",
+      "distinct pools",
+      "profitable position rate",
+      "median position pnl percent",
+      "profitable pool rate",
+      "worst pool ROI",
+      "largest winning position share of total PnL",
+      "median hold seconds",
+      "median width bins"
+    ],
+    "rank_outputs": [
+      "raw ROI rank for context",
+      "robust ROI rank after preregistered minimum-history gates"
+    ]
+  },
+  "interpretation": [
+    "This is a bounded active-universe evaluation, not a claim to identify every profitable wallet on Solana.",
+    "No strategy may be frozen from discovery data before the cohort is frozen.",
+    "No strategy threshold or ranking rule may be altered after PnL is observed merely to promote a wallet.",
+    "The existing exploratory wallet-cluster prospective experiment remains separate and unchanged."
+  ]
+}
