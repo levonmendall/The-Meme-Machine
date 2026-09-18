@@ -1,0 +1,298 @@
+{
+  "kind": "dlmm_wallet_cohort_v1",
+  "status": "frozen_pre_pnl",
+  "frozen_at": "2026-09-18T22:39:00Z",
+  "pnl_data_read_before_freeze": false,
+  "allocation_authority": false,
+  "prospective_trading_enabled": false,
+  "cohort_hash": "sha256:95a7cad9e2f7418afde8d9003cc3eb79743ea18b344845640a182faf97db7708",
+  "source_run_id": 35401999021,
+  "source_artifact_id": 10570948107,
+  "source_artifact_sha256": "a5dc9764e157f4d543866b34ea925fdfaf6dc05244ee3a46097c9a09f745325b",
+  "discovery_wallet_target": 30,
+  "frozen_wallet_count": 23,
+  "freeze_reason": "Bounded blind discovery produced 23 unique qualifying LP actors, exceeding the preregistered minimum 12. Freeze exact addresses before any PnL lookup.",
+  "wallets": [
+    {
+      "wallet": "66Ty8anQbfzpJfUtqwhGuDqGzS3KM7zLqreRZQ5vfVgP",
+      "discovery_pool": "MCAarFLZ6wexuF4Xivx8kDeeKWdGpFT7WfsWgCBgeaq",
+      "discovery_pool_rank": 12,
+      "discovery_slot": 448220370,
+      "discovery_signature": "RoNGB4wJNvDcygMfFadkzptyE6LYmnLmJZKUYdYvyamGVVQqKxi5m6fKxtNrBtteE2NNLx5UWN9eYC16tVG1EeU",
+      "discovery_action": "remove_liquidity_by_range2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "remove_liquidity_by_range2": 1
+      }
+    },
+    {
+      "wallet": "CG8hftJJQaYR1dPEHrYU64e4HCPCrrYaDVpyTWEU9gMa",
+      "discovery_pool": "6DFDBDKKvYuVz8rSVg7a1zdhZKwZXG95CwH6uKwJUumq",
+      "discovery_pool_rank": 10,
+      "discovery_slot": 448220272,
+      "discovery_signature": "42sZtfnozGYXLrXkoJSTgrMd3xbhQVViMW6BLc2po5yy6A9beggweN9xb9gmJ5JWm1L8EGB53soXmiTRGU3VVcoH",
+      "discovery_action": "add_liquidity_by_strategy2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "add_liquidity_by_strategy2": 1
+      }
+    },
+    {
+      "wallet": "7A9ds4xSHgSs4Twkm4r6usaQtyhHoqmA2mF3XCZoBedu",
+      "discovery_pool": "6DFDBDKKvYuVz8rSVg7a1zdhZKwZXG95CwH6uKwJUumq",
+      "discovery_pool_rank": 10,
+      "discovery_slot": 448220258,
+      "discovery_signature": "5McinE6vZX7smhYFREzbaJLFJaPbREcnTejqg4tmLSUMZEToVrWZ1FZ7Kqys7sqsT3gs4FvDzxqZBdQDZ86RXws7",
+      "discovery_action": "add_liquidity_by_strategy2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "add_liquidity_by_strategy2": 1
+      }
+    },
+    {
+      "wallet": "HaBe1pDfEwqdWdTyj3Kh6LpKu3qNfQvoq2fyCtWk9T8W",
+      "discovery_pool": "55EvHE1dURgFbQcQaedL6FJhx2vj6Biu4ajVZC8MbAB2",
+      "discovery_pool_rank": 11,
+      "discovery_slot": 448219504,
+      "discovery_signature": "43bMMEsmxm7h15CTivZwBKG5pR7eHG4XGt8UVLih3NwVvaXzXbEgdDhzXBBReqywfe2ZAzsQvoUaepHipBJw5jLx",
+      "discovery_action": "remove_liquidity_by_range2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "remove_liquidity_by_range2": 1
+      }
+    },
+    {
+      "wallet": "9cmtUqsH3A3ZrqKXqBNVtUY6suTxRt6gGJBQXX7CFtcW",
+      "discovery_pool": "E76H8HxZMAYES72vm957cwNTqw7rT3Akjp5iXrtUZ675",
+      "discovery_pool_rank": 9,
+      "discovery_slot": 448219475,
+      "discovery_signature": "vShLPjWsVX568yvxGCPETH6pu3HF3NQXsgrbnCSQpSpgpB321MBcSDf8BJvGrngaLgWbS3SowWp2dcV28dBFDbS",
+      "discovery_action": "remove_liquidity_by_range2",
+      "observed_distinct_pools": 2,
+      "observed_lp_actions": {
+        "remove_liquidity_by_range2": 2
+      }
+    },
+    {
+      "wallet": "6u35fSvDAA4hLx8fu6tXUFg1HyLk8ikxjCp2FKtjVKKq",
+      "discovery_pool": "5fjmuEN72LQeo9NjvhLyQTV3ezyNgQqUXzSXskD2SCcy",
+      "discovery_pool_rank": 2,
+      "discovery_slot": 448219417,
+      "discovery_signature": "3rynvEReiNiUPKZNgvZuqBdR6sJqvdvZtJwFYeYYXAdLCWS6chA5PeNbD73b4rxwTyj2Lx8k6Ny1DvN9nxNGhm6a",
+      "discovery_action": "rebalance_liquidity",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "rebalance_liquidity": 1
+      }
+    },
+    {
+      "wallet": "Bdrs3hKcEe4PpM91risoYm5YKceQ7tsaovs4otog6HBz",
+      "discovery_pool": "E76H8HxZMAYES72vm957cwNTqw7rT3Akjp5iXrtUZ675",
+      "discovery_pool_rank": 9,
+      "discovery_slot": 448219355,
+      "discovery_signature": "35H4Mj7sM43pvGWURMNwXFLpFbhJQ41eTwdmKuEjAAWn8zvcMApsvvqRJkPeu3jRYgwUsMYhwUDXVAqp4TJVwt16",
+      "discovery_action": "remove_liquidity_by_range2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "remove_liquidity_by_range2": 2
+      }
+    },
+    {
+      "wallet": "GzdPey5YcQCt2kp3KNGgub778vDFeQB5yRAbn3f3hGUY",
+      "discovery_pool": "6ELicDvGWaSYhUBFDQGckuRWZGP5du8bLuzWw3G7AQxD",
+      "discovery_pool_rank": 5,
+      "discovery_slot": 448219350,
+      "discovery_signature": "4Dm3id2L3iAzAFBTP19g4cTZXVAuPMz6hXwtCoYokiLGsUUeqnUJWemPH1gw4UUhqpQoYbb74pVBLo4whkni5NTc",
+      "discovery_action": "add_liquidity_by_strategy2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "add_liquidity_by_strategy2": 2,
+        "remove_liquidity_by_range2": 1
+      }
+    },
+    {
+      "wallet": "5t2VuCRKAuMUpgjwn7ktVbKU8D7D5xMH4mh8Wb8Cfo2H",
+      "discovery_pool": "5TTHzu39BskPAz2Vdju6txDuKRPjUoPG5LNSkExV5CBt",
+      "discovery_pool_rank": 3,
+      "discovery_slot": 448219338,
+      "discovery_signature": "2hky6HCzRmhso2vXBhK1RJ9gLnqSF2eQ9vngCqZg3hwcti8VPHsu96rPgudhsEssZWzhCYGrm2f6haaesMEseGT3",
+      "discovery_action": "add_liquidity_by_strategy2",
+      "observed_distinct_pools": 2,
+      "observed_lp_actions": {
+        "add_liquidity_by_strategy2": 2
+      }
+    },
+    {
+      "wallet": "ASMsnUL7oDgAYD9PMzr5XBAXr1nwVZa8NsJYF1jfexdc",
+      "discovery_pool": "5TTHzu39BskPAz2Vdju6txDuKRPjUoPG5LNSkExV5CBt",
+      "discovery_pool_rank": 3,
+      "discovery_slot": 448219335,
+      "discovery_signature": "26bnK3rSdSUW3t35iYPfwFk8ADxEksn7SoRcJnHWANHF57rdnkpvGYJ4hETTdxRGZdwU1HarDujyDYWQAAUo7J1r",
+      "discovery_action": "add_liquidity_by_strategy2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "add_liquidity_by_strategy2": 1
+      }
+    },
+    {
+      "wallet": "4u5V7hoc2EehQUCu7KhCYqTULLK5tXVzZQGtvaRY9Chg",
+      "discovery_pool": "7kVqQQs1JuWXxdbNzCEN5uXeqAuH99bx18FBAZaXL3DP",
+      "discovery_pool_rank": 6,
+      "discovery_slot": 448219320,
+      "discovery_signature": "4waRy9K2AcepJkgq37h4cxCxv54znLmGqyYBMsNJVzta2AwPjpVwBdqVVE9viJuHxsKzXbQaDpgihc2e7gy7vV8Q",
+      "discovery_action": "add_liquidity_by_strategy2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "add_liquidity_by_strategy2": 2
+      }
+    },
+    {
+      "wallet": "5QkSo5K5DpZb54bJZj48E9CoHCVsQmMiDpvupB7RVZDH",
+      "discovery_pool": "FB2NwdqNKDqi6D8HA7FwK1VtjL1haHTnzPfScDz9foW3",
+      "discovery_pool_rank": 4,
+      "discovery_slot": 448219281,
+      "discovery_signature": "2tKW2BPCFsdx2Gyu4Zpm9tpES5CSYcDYbZoeDekrVqD8kjxjVdY4PWxHyV4eReh9vYsraABFKqLrAgWWwChCFhX4",
+      "discovery_action": "rebalance_liquidity",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "rebalance_liquidity": 3
+      }
+    },
+    {
+      "wallet": "xPn9i8zA1kBtJgL8wmDtbVRchGwAmcTAFCLc2awcTus",
+      "discovery_pool": "FB2NwdqNKDqi6D8HA7FwK1VtjL1haHTnzPfScDz9foW3",
+      "discovery_pool_rank": 4,
+      "discovery_slot": 448219271,
+      "discovery_signature": "3ZEUq9qhnjfLpacwVsQy2AnvgiAWTxFUNpGCLUGrbQnBjVmqPRqCGg9UPGw35cWbTJnPkJwpuyivU8xec6jBystB",
+      "discovery_action": "rebalance_liquidity",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "rebalance_liquidity": 8
+      }
+    },
+    {
+      "wallet": "53GcxWCoTBL732W1hBiYuctW1hr4oZASA8VZEd6cM92z",
+      "discovery_pool": "5fjmuEN72LQeo9NjvhLyQTV3ezyNgQqUXzSXskD2SCcy",
+      "discovery_pool_rank": 2,
+      "discovery_slot": 448219148,
+      "discovery_signature": "5n7gurkds4YxJFmU5ss6tgNfJ1JCCL7dw3qqbFtAnW9ACo63MmkdGKzEKGHiKAH3Nyt6zoj981HTbM6KZdgi6D3q",
+      "discovery_action": "remove_liquidity_by_range2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "remove_liquidity_by_range2": 1
+      }
+    },
+    {
+      "wallet": "E3evyR72oWzs9HePrRzkf6MeJaG68Xj8jKctfgPL7Emt",
+      "discovery_pool": "E76H8HxZMAYES72vm957cwNTqw7rT3Akjp5iXrtUZ675",
+      "discovery_pool_rank": 9,
+      "discovery_slot": 448219144,
+      "discovery_signature": "57pPwijCq7JmS1Ajz415Y1Kf1f9cY1pw7gASxQDPZXwpsNtEZ1XfhhoR58nks84tjgDxzfB3DyUG5Lb2nLnNG7Pp",
+      "discovery_action": "add_liquidity_by_strategy2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "add_liquidity_by_strategy2": 1,
+        "remove_liquidity_by_range2": 1
+      }
+    },
+    {
+      "wallet": "B61UFgYUiapfYg6Qb4iEEMuEqxRDyhdC4SwkP8jaS2XS",
+      "discovery_pool": "55EvHE1dURgFbQcQaedL6FJhx2vj6Biu4ajVZC8MbAB2",
+      "discovery_pool_rank": 11,
+      "discovery_slot": 448218982,
+      "discovery_signature": "tXQr6vKPU8HNmwDFEuYyeFMooh7SCeG5LbQZWc8XPNd5gqxLr1i7UxjULej9CKuMSfCrkAMNwBTHcdjAjhDJFp6",
+      "discovery_action": "add_liquidity_by_strategy2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "add_liquidity_by_strategy2": 2,
+        "remove_liquidity_by_range2": 2
+      }
+    },
+    {
+      "wallet": "CE259RoStNqrmtTJE4eGxBq4C7mMJ7AGvTTFxhTNsLVu",
+      "discovery_pool": "55EvHE1dURgFbQcQaedL6FJhx2vj6Biu4ajVZC8MbAB2",
+      "discovery_pool_rank": 11,
+      "discovery_slot": 448218692,
+      "discovery_signature": "kF2Ly1zFnjDgCfHDHQd1RwgyhH1oQvuWZ9yYDkJV1jKDwy23KTzFoytFAbmq9ZDBwdfUdWQy8sWcZuEAD9Anrzi",
+      "discovery_action": "rebalance_liquidity",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "rebalance_liquidity": 1
+      }
+    },
+    {
+      "wallet": "7THfHxNypr9xxTDfx4JdSQZcW2MrdqfBaYNGSJdDN6aD",
+      "discovery_pool": "GndPdxFgRU2iwd6CmFzoYZrjad7Ft6bNNzc84cMLcLvQ",
+      "discovery_pool_rank": 7,
+      "discovery_slot": 448217842,
+      "discovery_signature": "4MDCG8TWZBC2aKxRf49R5G9pCAU54T4SXMdPPeRXhJ7FDVgNgv7ArYS4178LvWTqU69FJCPXdrJ5L755smp8DsdZ",
+      "discovery_action": "add_liquidity_by_strategy2",
+      "observed_distinct_pools": 2,
+      "observed_lp_actions": {
+        "add_liquidity_by_strategy2": 2
+      }
+    },
+    {
+      "wallet": "Cq6Ro6NB716NjeTQhy4X8yfhPiBFyBi7h9bimgWR5RNZ",
+      "discovery_pool": "GndPdxFgRU2iwd6CmFzoYZrjad7Ft6bNNzc84cMLcLvQ",
+      "discovery_pool_rank": 7,
+      "discovery_slot": 448217812,
+      "discovery_signature": "2MpWYkeFhgWpxEB2kyKQoK2V5xrcMYgh8HgNfHDyPJZvpUEWVmHFcxzrnVTcAhMB1oGGH4YGbbHW4mviqA9nro4q",
+      "discovery_action": "rebalance_liquidity",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "rebalance_liquidity": 2,
+        "remove_liquidity_by_range2": 2
+      }
+    },
+    {
+      "wallet": "856W7YxYvzj736wKPP2opoRNWNKsYrRUqFPkNd6N4tZ4",
+      "discovery_pool": "GndPdxFgRU2iwd6CmFzoYZrjad7Ft6bNNzc84cMLcLvQ",
+      "discovery_pool_rank": 7,
+      "discovery_slot": 448217804,
+      "discovery_signature": "2AFq16BwMymiTivAZ9Zo8KBHEkkazt9RW88wnerpg3pyyA51j97VNENTFjpMUG1KuxSoTbsMCiB7mvWkojxME7Tg",
+      "discovery_action": "rebalance_liquidity",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "rebalance_liquidity": 2,
+        "remove_liquidity_by_range2": 1
+      }
+    },
+    {
+      "wallet": "EuPt2FBxWGRRf5vyX2UTauXYXYmjFnBqTwC4LkDh4kwK",
+      "discovery_pool": "GndPdxFgRU2iwd6CmFzoYZrjad7Ft6bNNzc84cMLcLvQ",
+      "discovery_pool_rank": 7,
+      "discovery_slot": 448217800,
+      "discovery_signature": "2LnkvZVJHWoDVfLnhreYqsR3UkeAzFD4gueK79uBePdvNc1JSfgQmNeidZ8zGirqWKKc57kmNNEFoH3KeoiVzAa5",
+      "discovery_action": "rebalance_liquidity",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "rebalance_liquidity": 2
+      }
+    },
+    {
+      "wallet": "72NM1qxRzmoTiPkhGGZ8Usgivk4V4qAKWTKPGzHKykcS",
+      "discovery_pool": "7kVqQQs1JuWXxdbNzCEN5uXeqAuH99bx18FBAZaXL3DP",
+      "discovery_pool_rank": 6,
+      "discovery_slot": 448217685,
+      "discovery_signature": "3V918bwQrP6T8wvwdY4VNtW7XyL3nbdKxMnX3BcmN4JRQWrECy56HZeZGvapwYmALysAE3ygcSjaxorMbXV8KHed",
+      "discovery_action": "add_liquidity_by_strategy2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "add_liquidity_by_strategy2": 1
+      }
+    },
+    {
+      "wallet": "A7Wq6wmMyCMa3JwJosbzY2MmQgXhDFnY79T1sNYLWN7T",
+      "discovery_pool": "7kVqQQs1JuWXxdbNzCEN5uXeqAuH99bx18FBAZaXL3DP",
+      "discovery_pool_rank": 6,
+      "discovery_slot": 448217188,
+      "discovery_signature": "mmevwZA9M7H2KpDoaHT5yh8TogKeMq3zNCMnw8VphMMfXLUiZVCkWboFXrDapvCif2FcVj4S9wYPBqKSVbeasND",
+      "discovery_action": "remove_liquidity_by_range2",
+      "observed_distinct_pools": 1,
+      "observed_lp_actions": {
+        "remove_liquidity_by_range2": 1
+      }
+    }
+  ]
+}
