@@ -48,6 +48,23 @@ class NaturalPaperProofTests(unittest.TestCase):
             )
         store.close()
 
+    def test_frozen_policy_reservation_can_cancel_without_residual_exposure(self):
+        store=Store(":memory:")
+        paper=Paper(store,"cancel",10**18,delay=2,natural_policy_hash=POLICY_HASH)
+        decision=dict(
+            asof=100,market=MARKET,authority="frozen_policy_paper",
+            qualification="qualified",policy_hash=POLICY_HASH,
+        )
+        paper.reserve("p",market=MARKET,amount=10**16,gas_budget=10**15,
+                      now=100,features=decision,kind="natural")
+        closed=paper.advance("p",now=101,action="cancel",cancel_reason="entry_slippage")
+        self.assertEqual((closed["status"],closed["reason"],closed["reserved"]),
+                         ("settled","entry_slippage",0))
+        self.assertEqual(paper.reconcile()["committed"],0)
+        with self.assertRaisesRegex(BoundaryError,"invalid_reservation_cancel"):
+            paper.advance("p",now=102,action="cancel",cancel_reason="again")
+        store.close()
+
     def test_explicit_natural_proof_requires_confirmed_ledger_and_settles(self):
         store=Store(":memory:")
         paper=Paper(store,"proof",10**18,natural_proof=True,delay=2)
