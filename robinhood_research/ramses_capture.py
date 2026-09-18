@@ -299,7 +299,7 @@ def run(endpoint):
             native_reserve=reserves[0 if side=='x' else 1]
             if hooks==0 and any(reserves):
                 watchable.append(dict(address=row['address'],last_update=row['last_update'],
-                                      native_reserve=native_reserve,reserves=reserves,
+                                      native_reserve=native_reserve,reserves=reserves,variable=row['variable'],
                                       native_side=side,bin_step=native_meta[row['address']]['bin_step']))
         watchable.sort(key=lambda row:(row['last_update'],row['native_reserve'],row['address']),reverse=True)
         cohort=watchable[:WATCH_POOL_COUNT]
