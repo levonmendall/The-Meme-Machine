@@ -401,7 +401,7 @@ class ProfitabilityDensityPreflight(unittest.TestCase):
     def test_development_ledger_is_deduped_and_targets_thirty(self):
         prior=pilot._load_development_ledger()
         self.assertEqual(pilot.DEVELOPMENT_LEDGER_TARGET,30)
-        self.assertEqual(len(prior),7)
+        self.assertEqual(len(prior),10)
         duplicate=dict(prior[0])
         new=dict(
             run_id=None,pool="new-pool",entry_slot=1,end_slot=2,
@@ -414,7 +414,7 @@ class ProfitabilityDensityPreflight(unittest.TestCase):
             fixed_cost_lamports=350_000.0,
         )
         merged=pilot._merge_development_observations(prior,[duplicate,new])
-        self.assertEqual(len(merged),8)
+        self.assertEqual(len(merged),11)
 
     def test_width8_is_retained_as_legacy_comparator(self):
         self.assertEqual(research.SELECTED_STRATEGY, "sdk_bidask")
