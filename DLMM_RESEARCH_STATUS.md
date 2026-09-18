@@ -421,3 +421,14 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - A read-only diagnostic now captures the exact finalized transaction shapes only for the two known failing slot windows, including ordered DLMM instructions, ordered SPL Token transfers, account identities, and public pre/post token-balance rows.
 - This diagnostic changes no strategy, verifier rule, replay math, costs, provider routing, allocation authority, signing, or submission behavior.
 - This marker authorizes exactly one bounded host-fee shape probe.
+
+
+## DLMM routed host-fee attribution repair — final live rerun
+
+- Routed-host attribution repair is pinned at `402fac6fe5c98096021278303ffbbed6edbd0d39`.
+- Host-fee validation now scopes failure authority to the target pool's hosted swaps. Hosted swaps for other DLMM pools in the same routed transaction cannot independently invalidate the target pool.
+- If another routed DLMM swap shares the same declared host token account and input mint, its authenticated host fee is included only when reconciling the shared transaction-level host-account balance delta.
+- Exact ordered SPL-transfer proof remains preferred when present. Transaction balance delta remains a fallback. Wrong mint, wrong amount, conflicting attributable transfer evidence, or a balance delta matching neither the target nor the exact same-host aggregate remains fail-closed.
+- Strategy, range placement, 35-bps hurdle, 12-second warmup, 60-second outcome horizon, MAX_TRANSACTIONS=16, Alchemy pacing/budgets, paper-only authority, and disabled allocation are unchanged.
+- Exact-head CI run `35368617972` passed the full unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
+- This marker authorizes exactly one unchanged development batch for final natural validation of routed host-fee attribution.
