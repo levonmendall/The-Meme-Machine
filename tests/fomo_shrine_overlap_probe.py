@@ -25,7 +25,11 @@ for x in rows:
     if t and mint:
         hour=datetime.fromtimestamp(t,timezone.utc).strftime("%Y/%m/%d/%H")
         clean.append({"ts":t,"hour":hour,"mint":mint,"token":x.get("token"),"trader":x.get("trader"),"usd":x.get("usdValue")})
-with urllib.request.urlopen("https://replay.shrine.trade/pump/index.json",timeout=20) as r:
+idx_req=urllib.request.Request(
+    "https://replay.shrine.trade/pump/index.json",
+    headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"},
+)
+with urllib.request.urlopen(idx_req,timeout=20) as r:
     idx=json.loads(r.read(2_000_000))
 hours=set(idx.get("hours") or [])
 overlap=[x for x in clean if x["hour"] in hours]
