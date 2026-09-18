@@ -23,6 +23,7 @@ from meme_machine.dlmm_paper import CAPITAL, ENTRY_COST, EXIT_COST
 from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
 from meme_machine.store import digest
+from tests import dlmm_alchemy_provider as alchemy_provider
 from tests.dlmm_strategy_point_in_time import (
     STRATEGIES,
     WIDTHS,
@@ -175,13 +176,15 @@ def select_variant(features):
 def run_live(cycles=MAX_CYCLES, window_seconds=6):
     if not 1 <= cycles <= MAX_CYCLES or not 5 <= window_seconds <= MAX_WINDOW_SECONDS:
         raise ValueError("dlmm_high_activity_live_bounds")
-    rpc_url = os.environ.get("MM_SOLANA_READ_RPC_URL") or "https://api.mainnet.solana.com"
-    rpc = PoolScanRPC(rpc_url, limit=240)
+    rpc = PoolScanRPC(alchemy_provider.rpc_url(), limit=240)
     adapter = dlmm.Adapter(rpc)
     states, candidates, rejections, api_error = discover_and_revalidate(adapter, int(time.time()))
     report = dict(
         kind="dlmm_high_activity_point_in_time_replay_v2",
         base="pr4_verified_simulator",
+        research_rpc_provider=alchemy_provider.PROVIDER_LABEL,
+        research_rpc_provider_host=alchemy_provider.ALCHEMY_SOLANA_MAINNET_HOST,
+        research_rpc_fallback_allowed=False,
         allocation_authority=False,
         prospective_allocation_enabled=False,
         discovery_source="meteora_data_api_current_volume_30m_then_finalized_onchain",
