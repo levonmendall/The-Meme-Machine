@@ -16,9 +16,9 @@ from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, p
                      paper_fee_capture, paper_position, paper_removal, price, quote_value, replay, state, unpack, values)
 
 DISCOVERY_BLOCKS=3000
-ACTIVITY_WAIT_SECONDS=120
+ACTIVITY_WAIT_SECONDS=30
 ACTIVITY_POLL_SECONDS=10
-LOG_BLOCK_CHUNK=50
+LOG_BLOCK_CHUNK=10
 MAX_FACTORY_POOLS=400
 FORWARD_SECONDS=60
 PAPER_NATIVE_CAPITAL=10**16
@@ -252,6 +252,10 @@ def run(endpoint):
             raise BoundaryError('no_factory_registered_native_ramses_pool')
 
         active_names=frozenset(('Swap','DepositedToBins','WithdrawnFromBins','FlashLoan'))
+        economic_topics=[[topic('Swap(address,address,uint24,bytes32,bytes32,uint24,bytes32,bytes32)'),
+                          topic('DepositedToBins(address,address,uint256[],bytes32[])'),
+                          topic('WithdrawnFromBins(address,address,uint256[],bytes32[])'),
+                          topic('FlashLoan(address,address,uint24,bytes32,bytes32,bytes32)')]]
         def economically_active(rows):
             eligible=[]
             for event in rows:
@@ -267,7 +271,7 @@ def run(endpoint):
         # and flash loans are genuine Ramses pool-state activity too; requiring a swap
         # here unnecessarily censored otherwise valid prospective observations.
         activity=batched_logs(max(0,discovery_end-DISCOVERY_BLOCKS+1),discovery_end,
-                              address=native_pools,scope='discovery')
+                              address=native_pools,topics=economic_topics,scope='discovery')
         result['discovery_blocks']=DISCOVERY_BLOCKS
         result['discovery_logs']=activity
         result['discovery_event_names']={}
@@ -287,7 +291,7 @@ def run(endpoint):
                 frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
                 height=int(frontier['number'],16)
                 if height<=cursor:continue
-                new_rows=batched_logs(cursor+1,height,address=native_pools,scope='discovery')
+                new_rows=batched_logs(cursor+1,height,address=native_pools,topics=economic_topics,scope='discovery')
                 activity.extend(new_rows);cursor=height
                 eligible=economically_active(new_rows)
                 if eligible:
