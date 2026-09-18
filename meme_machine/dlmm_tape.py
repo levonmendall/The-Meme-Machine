@@ -21,6 +21,10 @@ SWAP = bytes([81,108,227,190,205,208,10,196])
 SWAP2 = bytes.fromhex('2e7452d7941b544d')
 SWAP_IX = bytes([248,198,158,145,225,117,135,200])
 SWAP2_IX = bytes([65,75,63,76,235,91,91,136])
+SWAP_EXACT_OUT2_IX = bytes.fromhex('2bd7f784893cf351')
+REMOVE_LIQUIDITY_BY_RANGE2_IX = bytes.fromhex('cc02c391359191cd')
+REMOVE_LIQUIDITY_EVT = bytes.fromhex('74f461e8671f983a')
+CLAIM_FEE2_EVT = bytes.fromhex('e8abf2613a4d232d')
 INITIALIZE_POSITION_IX = bytes.fromhex('dbc0ea47bebf6650')
 INITIALIZE_BIN_ARRAY_IX = bytes.fromhex('235613b94ed44bd3')
 ADD_LIQUIDITY_BY_STRATEGY2_IX = bytes.fromhex('03dd95da6f8d76d5')
@@ -28,7 +32,8 @@ CLAIM_FEE2_IX = bytes.fromhex('70bf65ab1c907fbb')
 MEMO_PROGRAM = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'
 SYSTEM_PROGRAM = '11111111111111111111111111111111'
 EXACT_IN = {SWAP_IX,SWAP2_IX}
-EXACT_IN_NAME = {SWAP_IX:'swap',SWAP2_IX:'swap2'}
+EXACT_SWAP = EXACT_IN | {SWAP_EXACT_OUT2_IX}
+EXACT_SWAP_NAME = {SWAP_IX:'swap',SWAP2_IX:'swap2',SWAP_EXACT_OUT2_IX:'swap_exact_out2'}
 EVENT_CPI = bytes.fromhex('e445a52e51cb9a1d')
 MAX_TRANSACTIONS = 16
 
@@ -70,6 +75,26 @@ def decode_swap2(raw,pool):
     if host:
         observed['host_fee']=host
     return dict(amount=amount,for_y=direction,observed=observed)
+
+
+
+def decode_remove_liquidity(raw,pool):
+    if len(raw)!=124 or raw[:8]!=REMOVE_LIQUIDITY_EVT or pump.b58(raw[8:40])!=pool:
+        raise ValueError('dlmm_remove_liquidity_event_layout_or_identity')
+    position=pump.b58(raw[72:104])
+    amount_x,amount_y=struct.unpack_from('<QQ',raw,104)
+    active=struct.unpack_from('<i',raw,120)[0]
+    return dict(position=position,amount_x=amount_x,amount_y=amount_y,active=active)
+
+
+def decode_claim_fee2(raw,pool):
+    if len(raw)!=124 or raw[:8]!=CLAIM_FEE2_EVT or pump.b58(raw[8:40])!=pool:
+        raise ValueError('dlmm_claim_fee2_event_layout_or_identity')
+    position=pump.b58(raw[40:72])
+    owner=pump.b58(raw[72:104])
+    fee_x,fee_y=struct.unpack_from('<QQ',raw,104)
+    active=struct.unpack_from('<i',raw,120)[0]
+    return dict(position=position,owner=owner,fee_x=fee_x,fee_y=fee_y,active=active)
 
 
 def _keys(meta,message):
