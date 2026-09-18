@@ -245,40 +245,80 @@ class Replay:
             p['inventory']=inventory(p)
         return hypothetical
 
+    def _process_adjustment(self,oid,item,now):
+        from .dlmm_tape import apply_external_adjustment
+        _guard(self.store)
+        p=self.store.state['liquidity_positions'][oid]
+        if item.get('commitment')!='finalized' or item.get('pool')!=p['pool']:
+            raise ValueError('dlmm_adjustment_identity')
+        if not item['time']<=item['available_time']<=now or item['time']<p['last_time']:
+            raise ValueError('dlmm_adjustment_time')
+        cursor=item['cursor']
+        if len(cursor)!=3 or any(type(n) is not int or n<0 for n in cursor):
+            raise ValueError('dlmm_invalid_cursor')
+        if cursor<=p['cursor']:
+            raise ValueError('dlmm_duplicate_or_out_of_order')
+        if item['previous_cursor']!=p['cursor'] or item['prestate_hash']!=digest(p['real']):
+            raise Unavailable('dlmm_history_gap_or_unmodeled_mutation')
+        real=apply_external_adjustment(p['real'],item,counterfactual=False)
+        virtual=apply_external_adjustment(p['virtual'],item,counterfactual=True)
+        with self.store.transaction('dlmm_replay_external_adjustment') as s:
+            p=s['liquidity_positions'][oid]
+            real['slot']=virtual['slot']=cursor[0]
+            p.update(
+                real=real,virtual=virtual,cursor=list(cursor),last_time=item['time'],
+                events=p['events']+1,lineage=digest([p['lineage'],item]),
+                last_mark=None,last_authoritative_slot=cursor[0],unresolved=None)
+            p['range_state']='in_range' if p['lower']<=virtual['active']<=p['upper'] else 'out_of_range'
+            p['inventory']=inventory(p)
+
     def process_tape(self,oid,tape,now):
-        from .dlmm_tape import VerifiedTape, apply_terminal_adjustments
+        from .dlmm_tape import VerifiedTape, ordered_tape_actions
         _guard(self.store)
         p=self.store.state['liquidity_positions'][oid]
         if not isinstance(tape,VerifiedTape) or digest(tape.terminal)!=tape.end_hash:
             raise Unavailable('dlmm_tape_anchor_mismatch')
         if self.store.state['mode']!='captured':
             raise ValueError('dlmm_real_tape_requires_captured_store')
-        events=tape.events
+        actions=list(ordered_tape_actions(tape))
         if digest(p['real'])!=tape.start_hash:
-            # Resume a previously verified interval after a crash/lost ack, only
-            # at an exactly matching durable prestate and predecessor cursor.
-            offsets=[i for i,e in enumerate(events) if e['prestate_hash']==digest(p['real']) and e['previous_cursor']==p['cursor']]
+            offsets=[i for i,(_kind,item) in enumerate(actions)
+                     if item['prestate_hash']==digest(p['real'])
+                     and item['previous_cursor']==p['cursor']]
             if offsets:
-                events=events[offsets[0]:]
-            elif events and p['cursor']==events[-1]['cursor']:
-                # All swaps committed; only interval checkpoint remains.
+                actions=actions[offsets[0]:]
+            elif actions and p['cursor']==actions[-1][1]['cursor']:
                 expected=deepcopy(tape.terminal)
                 expected.update(slot=p['real']['slot'],time=p['real']['time'])
-                if expected!=p['real']:raise Unavailable('dlmm_tape_anchor_mismatch')
-                events=()
-            else:raise Unavailable('dlmm_tape_anchor_mismatch')
-        for e in events:
-            self._process(oid,e,now,True)
+                if expected!=p['real']:
+                    raise Unavailable('dlmm_tape_anchor_mismatch')
+                actions=[]
+            else:
+                raise Unavailable('dlmm_tape_anchor_mismatch')
+        for kind,item in actions:
+            if kind=='swap':
+                self._process(oid,item,now,True)
+            else:
+                self._process_adjustment(oid,item,now)
         with self.store.transaction('dlmm_verified_interval_end') as s:
             p=s['liquidity_positions'][oid]
             if tape.terminal['time']<p['last_time']:
                 raise ValueError('dlmm_interval_time_regression')
-            p['virtual']=apply_terminal_adjustments(
-                p['virtual'],tape.terminal_adjustments)
-            p.update(real=deepcopy(tape.terminal),cursor=[tape.terminal['slot'],2**31-1,2**31-1],
-                last_time=tape.terminal['time'],last_authoritative_slot=tape.terminal['slot'],
-                lineage=digest([p['lineage'],tape.lineage]),unresolved=None,last_mark=None)
-            p['virtual']['slot']=tape.terminal['slot'];p['virtual']['time']=tape.terminal['time']
+            mismatches=[key for key in set(p['real'])-{'time','slot'}
+                        if p['real'][key]!=tape.terminal[key]]
+            if mismatches:
+                raise Unavailable(
+                    'dlmm_tape_terminal_checkpoint_mismatch:'+mismatches[0])
+            p.update(
+                real=deepcopy(tape.terminal),
+                cursor=[tape.terminal['slot'],2**31-1,2**31-1],
+                last_time=tape.terminal['time'],
+                last_authoritative_slot=tape.terminal['slot'],
+                lineage=digest([p['lineage'],tape.lineage]),
+                unresolved=None,last_mark=None)
+            p['virtual']['slot']=tape.terminal['slot']
+            p['virtual']['time']=tape.terminal['time']
+
 
     def unresolved(self,oid,reason,now):
         # Coalesce repeated provider gaps without pretending inventory advanced.
