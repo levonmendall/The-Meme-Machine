@@ -6,7 +6,8 @@ import unittest
 
 from meme_machine import dlmm,pump
 from meme_machine.dlmm_tape import (
-    EVENT_CPI,SWAP,SWAP2,SWAP_IX,SWAP2_IX,transaction_swap,transaction_swaps,reconstruct
+    EVENT_CPI,SWAP,SWAP2,SWAP_IX,SWAP2_IX,transaction_swap,transaction_swaps,reconstruct,
+    _authenticate_host_fees
 )
 from meme_machine.provider import Unavailable
 from tests.dlmm_support import snapshot,POOL,VAULT_X,VAULT_Y
@@ -178,6 +179,53 @@ class HostFeeAccounting(unittest.TestCase):
             before+h1+h2+1)
         with self.assertRaisesRegex(Unavailable,'host_fee_balance_delta'):
             transaction_swaps(bad,POOL)
+
+    def test_unrelated_routed_host_account_cannot_poison_target_pool(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        _,q,host,tx=host_transaction(p,450_000_000,101,101)
+        keys=tx['transaction']['message']['accountKeys']+[
+            pump.b58(bytes([81])*32),pump.b58(bytes([82])*32)]
+        target_record=dict(
+            target=True,order=[0,0],
+            accounts=[0,11,2,3,4,5,6,7,8,9,10])
+        target_event=dict(for_y=True,observed=dict(host_fee=host))
+        other_record=dict(
+            target=False,order=[1,0],
+            accounts=[13,11,2,3,4,5,6,7,8,14,10])
+        other_event=dict(for_y=True,observed=dict(host_fee=host+3))
+        # Only the target host account has balance rows. The unrelated routed host
+        # account is intentionally absent and must not fail target reconstruction.
+        _authenticate_host_fees(
+            [(target_record,target_event),(other_record,other_event)],
+            tx['meta'],keys,[])
+
+    def test_shared_routed_host_account_accepts_exact_aggregate_delta(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        _,_,host,tx=host_transaction(p,450_000_000,101,101)
+        other_pool=pump.b58(bytes([81])*32)
+        keys=tx['transaction']['message']['accountKeys']+[other_pool]
+        target_record=dict(
+            target=True,order=[0,0],
+            accounts=[0,11,2,3,4,5,6,7,8,9,10])
+        other_record=dict(
+            target=False,order=[1,0],
+            accounts=[13,11,2,3,4,5,6,7,8,9,10])
+        target_event=dict(for_y=True,observed=dict(host_fee=host))
+        other_host=host+5
+        other_event=dict(for_y=True,observed=dict(host_fee=other_host))
+        before=int(tx['meta']['preTokenBalances'][0]['uiTokenAmount']['amount'])
+        tx['meta']['postTokenBalances'][0]['uiTokenAmount']['amount']=str(
+            before+host+other_host)
+        _authenticate_host_fees(
+            [(target_record,target_event),(other_record,other_event)],
+            tx['meta'],keys,[])
+        bad=copy.deepcopy(tx['meta'])
+        bad['postTokenBalances'][0]['uiTokenAmount']['amount']=str(
+            before+host+other_host+1)
+        with self.assertRaisesRegex(Unavailable,'balance_delta'):
+            _authenticate_host_fees(
+                [(target_record,target_event),(other_record,other_event)],
+                bad,keys,[])
 
     def test_hosted_swap_reconstructs_exact_terminal_state(self):
         s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
