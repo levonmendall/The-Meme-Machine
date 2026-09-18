@@ -423,7 +423,7 @@ def run(endpoint):
             elapsed=int(time.time())-opened_at
             if transition is None:
                 try:
-                    mark,meta,ledger=_curve_quote(
+                    mark,meta=_curve_quote(
                         rpc,candidate,"sell",position["tokens"],gas_units,store,
                         "mark-"+str(len(report["monitor"])),
                     )
