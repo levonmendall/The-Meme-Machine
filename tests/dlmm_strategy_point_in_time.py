@@ -22,7 +22,7 @@ import time
 
 from meme_machine import dlmm
 from meme_machine.dlmm_paper import CAPITAL, ENTRY_COST, EXIT_COST
-from meme_machine.dlmm_tape import VerifiedTape, apply_terminal_adjustments
+from meme_machine.dlmm_tape import (VerifiedTape,apply_external_adjustment,ordered_tape_actions,replay_swap_event)
 from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
 from meme_machine.store import digest
@@ -141,10 +141,12 @@ def _replay(position, tape):
     if not isinstance(tape, VerifiedTape):
         raise TypeError("dlmm_research_verified_tape_required")
     v = deepcopy(position["virtual"])
-    for event in tape.events:
-        v, _ = dlmm.swap(v, event["amount"], event["for_y"], event["time"])
-        v["slot"] = event["cursor"][0]
-    v = apply_terminal_adjustments(v, tape.terminal_adjustments)
+    for kind,item in ordered_tape_actions(tape):
+        if kind=="swap":
+            v,_ = replay_swap_event(v,item)
+        else:
+            v = apply_external_adjustment(v,item,counterfactual=True)
+        v["slot"] = item["cursor"][0]
     v["slot"] = tape.terminal["slot"]
     v["time"] = tape.terminal["time"]
     position = deepcopy(position)
