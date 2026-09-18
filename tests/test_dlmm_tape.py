@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from meme_machine import dlmm,pump
-from meme_machine.dlmm_tape import (transaction_swap,transaction_swaps,reconstruct,SWAP,SWAP2,EXACT_IN,EVENT_CPI,_un58_data,CLAIM_FEE2_IX,MEMO_PROGRAM,apply_terminal_adjustments)
+from meme_machine.dlmm_tape import (transaction_swap,transaction_swaps,reconstruct,SWAP,SWAP2,EXACT_IN,EVENT_CPI,_un58_data,CLAIM_FEE2_IX,CLAIM_FEE2_EVT,SWAP_EXACT_OUT2_IX,REMOVE_LIQUIDITY_BY_RANGE2_IX,REMOVE_LIQUIDITY_EVT,MEMO_PROGRAM,apply_terminal_adjustments)
 from meme_machine.dlmm_paper import Replay
 from meme_machine.provider import Unavailable
 from meme_machine.store import Store,digest
@@ -48,6 +48,11 @@ def transaction(p,amount,slot,now,signature='synthetic-signature',swap2=False):
 
 
 
+def _balance_row(index,mint,amount):
+    return dict(accountIndex=index,mint=mint,
+                uiTokenAmount=dict(amount=str(amount)))
+
+
 def claim_fee2_transaction(p,claimed_x,claimed_y,slot=101,now=101,signature='claim-fee2'):
     position=pump.b58(bytes([31])*32);sender=pump.b58(bytes([32])*32)
     user_x=pump.b58(bytes([33])*32);user_y=pump.b58(bytes([34])*32)
@@ -56,20 +61,25 @@ def claim_fee2_transaction(p,claimed_x,claimed_y,slot=101,now=101,signature='cla
           p['x'],p['y'],pump.TOKEN_PROGRAM,pump.TOKEN_PROGRAM,MEMO_PROGRAM,
           event_authority,dlmm.PROGRAM]
     raw=CLAIM_FEE2_IX+struct.pack('<ii',p['active']-2,p['active']+2)
-    def row(index,mint,amount):
-        return dict(accountIndex=index,mint=mint,
-                    uiTokenAmount=dict(amount=str(amount)))
+    event=(CLAIM_FEE2_EVT+pump.un58(POOL)+pump.un58(position)+
+           pump.un58(sender)+struct.pack('<QQi',claimed_x,claimed_y,p['active']))
     pre_x=p['vault_x_amount'];pre_y=p['vault_y_amount']
     if not 0<=claimed_x<=pre_x or not 0<=claimed_y<=pre_y:
         raise ValueError('claim fixture')
     meta=dict(
-        err=None,innerInstructions=[],logMessages=[],
+        err=None,
+        innerInstructions=[dict(index=0,instructions=[
+            dict(programIdIndex=13,accounts=[],
+                 data=pump.b58(EVENT_CPI+event))])],
+        logMessages=[],
         preTokenBalances=[
-            row(3,p['x'],pre_x),row(4,p['y'],pre_y),
-            row(5,p['x'],0),row(6,p['y'],0)],
+            _balance_row(3,p['x'],pre_x),_balance_row(4,p['y'],pre_y),
+            _balance_row(5,p['x'],0),_balance_row(6,p['y'],0)],
         postTokenBalances=[
-            row(3,p['x'],pre_x-claimed_x),row(4,p['y'],pre_y-claimed_y),
-            row(5,p['x'],claimed_x),row(6,p['y'],claimed_y)],
+            _balance_row(3,p['x'],pre_x-claimed_x),
+            _balance_row(4,p['y'],pre_y-claimed_y),
+            _balance_row(5,p['x'],claimed_x),
+            _balance_row(6,p['y'],claimed_y)],
     )
     tx=dict(slot=slot,blockTime=now,
         transaction=dict(signatures=[signature],message=dict(
@@ -80,6 +90,94 @@ def claim_fee2_transaction(p,claimed_x,claimed_y,slot=101,now=101,signature='cla
     post['vault_x_amount']-=claimed_x
     post['vault_y_amount']-=claimed_y
     return post,tx
+
+
+def exact_out_transaction(p,out_amount,slot=101,now=101,signature='exact-out'):
+    post,q=dlmm.swap_exact_out(p,out_amount,True,now)
+    bitmap=pump.b58(bytes([44])*32);user_in=pump.b58(bytes([45])*32)
+    user_out=pump.b58(bytes([46])*32);oracle=pump.b58(bytes([47])*32)
+    user=pump.b58(bytes([48])*32);event_authority=pump.b58(bytes([49])*32)
+    keys=[POOL,bitmap,p['vault_x'],p['vault_y'],user_in,user_out,p['x'],p['y'],
+          oracle,dlmm.PROGRAM,user,pump.TOKEN_PROGRAM,pump.TOKEN_PROGRAM,
+          MEMO_PROGRAM,event_authority,dlmm.PROGRAM]
+    raw=SWAP_EXACT_OUT2_IX+struct.pack('<QQ',q['input']+1,out_amount)
+    event=(SWAP2+pump.un58(POOL)+bytes(32)+
+           struct.pack('<ii?',q['start'],q['end'],True)+bytes(16)+
+           struct.pack('<QQQQQQQ??',q['input'],0,q['output'],
+                       q['fee']-q['protocol_fee'],q['protocol_fee'],0,0,True,True))
+    tx=dict(
+        slot=slot,blockTime=now,
+        transaction=dict(signatures=[signature],message=dict(
+            accountKeys=keys,instructions=[dict(
+                programIdIndex=15,accounts=list(range(16)),
+                data=pump.b58(raw))])),
+        meta=dict(err=None,innerInstructions=[dict(index=0,instructions=[
+            dict(programIdIndex=15,accounts=[],
+                 data=pump.b58(EVENT_CPI+event))])],
+                  logMessages=[],preTokenBalances=[],postTokenBalances=[]))
+    return post,q,tx
+
+
+def remove_liquidity_transaction(p,bid=0,share=None,claim_x=0,claim_y=0,
+                                 slot=101,now=101,signature='remove'):
+    position=pump.b58(bytes([50])*32);sender=pump.b58(bytes([51])*32)
+    bitmap=dlmm.PROGRAM;user_x=pump.b58(bytes([52])*32)
+    user_y=pump.b58(bytes([53])*32);event_authority=pump.b58(bytes([54])*32)
+    b=p['bins'][str(bid)]
+    share=share or max(1,b['supply']//10)
+    if share>b['supply']:
+        raise ValueError('remove fixture share')
+    x=dlmm.withdraw_amount(share,b['x'],b['supply'])
+    y=dlmm.withdraw_amount(share,b['y'],b['supply'])
+    post=copy.deepcopy(p);pb=post['bins'][str(bid)]
+    pb['x']-=x;pb['y']-=y;pb['supply']-=share
+    post['vault_x_amount']-=x;post['vault_y_amount']-=y
+    main=[position,POOL,bitmap,user_x,user_y,p['vault_x'],p['vault_y'],
+          p['x'],p['y'],sender,pump.TOKEN_PROGRAM,pump.TOKEN_PROGRAM,
+          MEMO_PROGRAM,event_authority,dlmm.PROGRAM]
+    remove_raw=REMOVE_LIQUIDITY_BY_RANGE2_IX+struct.pack('<iiH',bid,bid,10000)
+    remove_event=(REMOVE_LIQUIDITY_EVT+pump.un58(POOL)+pump.un58(sender)+
+                  pump.un58(position)+struct.pack('<QQi',x,y,p['active']))
+    instructions=[dict(programIdIndex=14,accounts=list(range(15)),
+                       data=pump.b58(remove_raw))]
+    inners=[dict(programIdIndex=14,accounts=[],
+                 data=pump.b58(EVENT_CPI+remove_event))]
+    expected_x=x;expected_y=y
+    if claim_x or claim_y:
+        claim_accounts=[1,0,9,5,6,3,4,7,8,10,11,12,13,14]
+        claim_raw=CLAIM_FEE2_IX+struct.pack('<ii',bid,bid)
+        claim_event=(CLAIM_FEE2_EVT+pump.un58(POOL)+pump.un58(position)+
+                     pump.un58(sender)+
+                     struct.pack('<QQi',claim_x,claim_y,p['active']))
+        instructions.append(dict(programIdIndex=14,accounts=claim_accounts,
+                                 data=pump.b58(claim_raw)))
+        # Event belongs to the second top-level instruction.
+        expected_x+=claim_x;expected_y+=claim_y
+        post['vault_x_amount']-=claim_x;post['vault_y_amount']-=claim_y
+        inner_groups=[
+            dict(index=0,instructions=inners),
+            dict(index=1,instructions=[dict(
+                programIdIndex=14,accounts=[],
+                data=pump.b58(EVENT_CPI+claim_event))])]
+    else:
+        inner_groups=[dict(index=0,instructions=inners)]
+    pre_x=p['vault_x_amount'];pre_y=p['vault_y_amount']
+    balances_pre=[
+        _balance_row(5,p['x'],pre_x),_balance_row(6,p['y'],pre_y),
+        _balance_row(3,p['x'],0),_balance_row(4,p['y'],0)]
+    balances_post=[
+        _balance_row(5,p['x'],pre_x-expected_x),
+        _balance_row(6,p['y'],pre_y-expected_y),
+        _balance_row(3,p['x'],expected_x),
+        _balance_row(4,p['y'],expected_y)]
+    tx=dict(
+        slot=slot,blockTime=now,
+        transaction=dict(signatures=[signature],message=dict(
+            accountKeys=main,instructions=instructions)),
+        meta=dict(err=None,innerInstructions=inner_groups,logMessages=[],
+                  preTokenBalances=balances_pre,
+                  postTokenBalances=balances_post))
+    return post,dict(share=share,x=x,y=y),tx
 
 
 def interval():
@@ -107,13 +205,13 @@ class Tape(unittest.TestCase):
         self.assertEqual(len(tape.terminal_adjustments),1)
         adjustment=tape.terminal_adjustments[0]
         self.assertEqual(adjustment['kind'],'claim_fee2')
-        self.assertEqual((adjustment['claimed_x'],adjustment['claimed_y']),(1234,5678))
+        self.assertEqual((adjustment['amount_x'],adjustment['amount_y']),(1234,5678))
         adjusted=apply_terminal_adjustments(p,tape.terminal_adjustments)
         self.assertEqual(adjusted['vault_x_amount'],post['vault_x_amount'])
         self.assertEqual(adjusted['vault_y_amount'],post['vault_y_amount'])
         # Outside reconstruction context, claimFee2 remains explicit rather than
         # silently appearing to be an empty transaction.
-        with self.assertRaisesRegex(Unavailable,'claim_fee2_requires'):
+        with self.assertRaisesRegex(Unavailable,'external_effect_requires'):
             transaction_swaps(tx,POOL)
 
     def test_claim_fee2_wrong_user_delta_fails_closed(self):
@@ -127,8 +225,80 @@ class Tape(unittest.TestCase):
                  confirmationStatus='finalized'),
             dict(signature='anchor',slot=99,transactionIndex=2,err=None,
                  confirmationStatus='finalized')]
-        with self.assertRaisesRegex(Unavailable,'claim_fee2_balance_delta'):
+        with self.assertRaisesRegex(Unavailable,'external_effect_balance_delta'):
             reconstruct(p,end,sigs,{'claim-fee2':tx},102,[100,2**31-1,2**31-1])
+
+    def test_exact_out2_reconstructs_actual_input_output_and_terminal_state(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,q,tx=exact_out_transaction(p,20_000_000)
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='exact-out',slot=101,transactionIndex=7,err=None,
+                 confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'exact-out':tx},102,[100,2**31-1,2**31-1])
+        self.assertEqual(len(tape.events),1)
+        event=tape.events[0]
+        self.assertEqual(event['swap_mode'],'exact_out')
+        self.assertEqual(event['amount'],q['input'])
+        self.assertEqual(event['observed']['output'],20_000_000)
+        bad=copy.deepcopy(tx)
+        raw=bytearray(_un58_data(
+            bad['transaction']['message']['instructions'][0]['data']))
+        raw[16:24]=(20_000_001).to_bytes(8,'little')
+        bad['transaction']['message']['instructions'][0]['data']=pump.b58(bytes(raw))
+        with self.assertRaisesRegex(ValueError,'exact_out_instruction_event'):
+            reconstruct(
+                p,end,sigs,{'exact-out':bad},102,[100,2**31-1,2**31-1])
+
+    def test_remove_liquidity_by_range2_reconstructs_exact_bin_share_delta(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,removed,tx=remove_liquidity_transaction(p,bid=0)
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='remove',slot=101,transactionIndex=7,err=None,
+                 confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'remove':tx},102,[100,2**31-1,2**31-1])
+        self.assertEqual(tape.events,())
+        self.assertEqual(len(tape.terminal_adjustments),1)
+        item=tape.terminal_adjustments[0]
+        self.assertEqual(item['kind'],'remove_liquidity_by_range2')
+        self.assertEqual(item['removed_shares'],{'0':removed['share']})
+        adjusted=apply_terminal_adjustments(p,tape.terminal_adjustments)
+        self.assertEqual(adjusted['bins']['0'],post['bins']['0'])
+        self.assertEqual(adjusted['vault_x_amount'],post['vault_x_amount'])
+        self.assertEqual(adjusted['vault_y_amount'],post['vault_y_amount'])
+
+    def test_remove_plus_claim_uses_aggregate_transaction_balance_delta(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,removed,tx=remove_liquidity_transaction(
+            p,bid=0,claim_x=123,claim_y=456)
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='remove',slot=101,transactionIndex=7,err=None,
+                 confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'remove':tx},102,[100,2**31-1,2**31-1])
+        self.assertEqual(
+            [x['kind'] for x in tape.terminal_adjustments],
+            ['remove_liquidity_by_range2','claim_fee2'])
+        adjusted=apply_terminal_adjustments(p,tape.terminal_adjustments)
+        self.assertEqual(adjusted['vault_x_amount'],post['vault_x_amount'])
+        self.assertEqual(adjusted['vault_y_amount'],post['vault_y_amount'])
+        bad=copy.deepcopy(tx)
+        # Break only the transaction-level aggregate user X receipt.
+        bad['meta']['postTokenBalances'][2]['uiTokenAmount']['amount']=str(
+            removed['x']+123-1)
+        with self.assertRaisesRegex(Unavailable,'external_effect_balance_delta'):
+            reconstruct(
+                p,end,sigs,{'remove':bad},102,[100,2**31-1,2**31-1])
 
     def test_connected_verified_interval_and_captured_store(self):
         start,p,end,sigs,txs=interval()
