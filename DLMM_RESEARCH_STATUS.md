@@ -413,3 +413,11 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Strategy, normalized ranges, 35-bps hurdle, 12-second warmup, 60-second outcome horizon, MAX_TRANSACTIONS=16, Alchemy pacing/budgets, paper-only authority, and disabled allocation are unchanged.
 - Exact-head CI run `35366871534` passed the unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
 - This marker authorizes exactly one unchanged development batch to validate the repaired host-fee attribution on natural mainnet traffic.
+
+
+## Targeted host-fee natural-shape diagnostic
+
+- The previous host-transfer attribution rerun `35367056432` completed successfully but still exposed two natural host-fee verifier failures: STONK-SOL `dlmm_host_fee_token_balance_missing` and USELESS-SOL `dlmm_host_fee_balance_delta_mismatch`.
+- A read-only diagnostic now captures the exact finalized transaction shapes only for the two known failing slot windows, including ordered DLMM instructions, ordered SPL Token transfers, account identities, and public pre/post token-balance rows.
+- This diagnostic changes no strategy, verifier rule, replay math, costs, provider routing, allocation authority, signing, or submission behavior.
+- This marker authorizes exactly one bounded host-fee shape probe.
