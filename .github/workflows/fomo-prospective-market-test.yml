@@ -1,0 +1,29 @@
+name: fomo-prospective-market-test
+on:
+  push:
+    branches: [research/fomo-prospective-market-test]
+permissions:
+  contents: read
+jobs:
+  test:
+    if: contains(github.event.head_commit.message, '[fomo-market-forward]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      FOMOAPI_KEY: ${{ secrets.FOMOAPI_KEY }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12.14'}
+      - name: Freeze matched groups and measure five-minute forward returns
+        run: set -o pipefail; python -m tests.fomo_prospective_market_test | tee fomo-prospective-market-test.log
+      - name: Preserve report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fomo-prospective-market-test-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            fomo-prospective-market-test.json
+            fomo-prospective-market-test.log
+          if-no-files-found: warn
+          retention-days: 30
