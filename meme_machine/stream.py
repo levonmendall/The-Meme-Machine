@@ -12,6 +12,18 @@ from . import pump
 WINDOW_SECONDS = 60
 RETENTION_SECONDS = 75
 MAX_EVENTS = 50_000
+EVENT_ID_VERSION = 'sig-slot-log-mint-v2'
+
+
+def event_identity(signature, slot, event):
+    """Stable live economic-event identity; resists provider signature reuse."""
+    signature=str(signature or '').strip()
+    mint=str((event or {}).get('mint') or '').strip()
+    index=int((event or {})['index'])
+    slot=int(slot)
+    if not signature or not mint or slot < 0 or index < 0:
+        raise ValueError('invalid_live_event_identity')
+    return f'{signature}:{slot}:{index}:{mint}'
 
 
 def websocket_url(http_url):
@@ -93,7 +105,7 @@ class PumpTape:
                     self.loss_until=max(self.loss_until,now+WINDOW_SECONDS)
                     continue
                 event=dict(event)
-                event.update(id=f"{signature}:{event['index']}",available_time=now)
+                event.update(id=event_identity(signature,context['slot'],event),available_time=now)
                 self.sequence += 1
                 if len(self._events) >= self.max_events:
                     self._events.popleft()
@@ -138,7 +150,7 @@ class PumpTape:
                 trade_events=self.trade_events,gaps=self.gaps,capacity_losses=self.capacity_losses,
                 parse_failures=self.parse_failures,last_slot=self.last_slot,
                 loss_until=self.loss_until,max_events=self.max_events,
-                retention_seconds=self.retention)
+                retention_seconds=self.retention,event_id_version=EVENT_ID_VERSION)
 
 
 class PumpLogStream:
