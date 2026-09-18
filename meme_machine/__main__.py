@@ -21,11 +21,13 @@ def tick(engine, adapter, now):
     s=engine.store.state
     for mint,p in list(s['positions'].items()):
         if now>=p['next_monitor']:
+            source_error=None
             try:
                 snap=adapter.snapshot(mint,now,priority=True)
-            except (Unavailable,ValueError):
+            except (Unavailable,ValueError) as exc:
                 snap={}
-            engine.monitor(mint,snap,int(time.time()))
+                source_error=exc
+            engine.monitor(mint,snap,int(time.time()),source_error=source_error)
     for oid,o in list(s['orders'].items()):
         if o['status']=='reserved' and now>=o['due']:
             try:
@@ -77,12 +79,12 @@ def _monitor_existing(engine, adapter, now, pumpswap_runtime=None):
             continue
         try:
             snap=adapter.snapshot(mint,now,priority=True)
-        except (Unavailable,ValueError):
+        except (Unavailable,ValueError) as exc:
             if pumpswap_runtime is not None:
                 result=pumpswap_runtime.monitor_existing_position(mint)
                 if result != 'not_graduated':
                     continue
-            engine.monitor(mint,{},int(time.time()))
+            engine.monitor(mint,{},int(time.time()),source_error=exc)
             continue
         if pumpswap_runtime is not None:
             try:
