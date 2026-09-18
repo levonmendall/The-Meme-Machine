@@ -237,9 +237,11 @@ def capture_chunk(adapter, start, cursor):
             raise Unavailable('dlmm_interval_evidence_bound')
         now = int(time.time())
         tape = reconstruct(start, end_snapshot, signatures, transactions, now, cursor)
-        from meme_machine.dlmm_tape import ordered_tape_actions
-        actions=ordered_tape_actions(tape)
-        next_cursor=list(actions[-1][1]['cursor']) if actions else list(cursor)
+        action_rows=list(getattr(tape,'events',()) or ())
+        action_rows.extend(list(getattr(tape,'terminal_adjustments',()) or ()))
+        action_rows=[item for item in action_rows if isinstance(item,dict) and item.get('cursor')]
+        next_cursor=(list(max(action_rows,key=lambda item:tuple(item['cursor']))['cursor'])
+                     if action_rows else list(cursor))
         telemetry['capture_completed'] = True
         return tape, next_cursor, len(relevant)
     except (Unavailable, ValueError, KeyError, TypeError) as exc:
