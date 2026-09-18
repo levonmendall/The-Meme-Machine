@@ -194,11 +194,11 @@ jobs:
 
   bounded-continuation-robinhood-cohort:
     needs: deterministic
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-continuation-cohort]')
+    if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-continuation-cohort]')) || (github.event_name == 'pull_request' && github.head_ref == 'feat/robinhood-research-foundation')
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    timeout-minutes: 300
     concurrency:
-      group: meme-machine-robinhood-continuation-cohort
+      group: meme-machine-robinhood-continuation-cohort-long-v1
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
