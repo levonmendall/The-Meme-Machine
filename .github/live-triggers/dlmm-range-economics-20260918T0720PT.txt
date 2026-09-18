@@ -1,0 +1,1 @@
+Run one bounded DLMM range-economics profitability batch from the split research branch. Allocation remains disabled.
