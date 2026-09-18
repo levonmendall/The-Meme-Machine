@@ -377,3 +377,14 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Some candidates still expose `dlmm_host_fee_balance_delta_mismatch`; this is a separate host-fee transaction-attribution investigation, not an Alchemy transport failure.
 - No complete 60-second strategy label has yet been produced. The next engineering work, if pursued, should address exact-out replay and the recurring host-fee transaction attribution with exact authenticated semantics rather than weakening verifier rules or continuing identical live reruns.
 - Strategy, costs, 16-transaction verifier capacity, 60-second horizon, allocation authority, signing, and submission remain unchanged.
+
+
+## DLMM protocol coverage v2 — live validation
+
+- Protocol-coverage implementation is pinned at `0bf71bce504662101def207d4d305666928281ac`.
+- `swap_exact_out2` is now parsed and replayed against authenticated `Swap2Evt` evidence using exact-output traversal; actual input, requested output, fee/protocol/host accounting, and terminal state must all agree.
+- `remove_liquidity_by_range2` is now decoded with its authenticated `RemoveLiquidity` event and reserve/user token transfers. Exact per-bin removed shares are derived from authenticated start->terminal liquidity-supply deltas, must occur only inside the declared removal range, and are replayed in transaction execution order. Multiple removals, incomplete observed ranges, supply increases, mismatched event totals, or ambiguous effects remain fail-closed.
+- Host-fee attribution now aggregates the expected host fee by host account and token across all relevant swaps in a transaction before checking the transaction-level SPL balance delta. This repairs the prior false mismatch when multiple hosted swaps share one host account while preserving exact token/account identity.
+- Counterfactual research replay and paper replay both consume ordered swap/effect actions, including exact-out swaps and supported external liquidity effects.
+- Exact-head CI run `35352006568` passed unit discovery, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
+- This marker authorizes exactly one unchanged 12-second warmup / 60-second development batch. Strategy, cost hurdle, verifier capacity, Alchemy routing/pacing, and disabled allocation remain unchanged.
