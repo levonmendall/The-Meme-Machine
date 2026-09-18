@@ -1,0 +1,81 @@
+{
+  "kind": "dlmm_wallet_cluster_candidate_v1",
+  "status": "frozen_exploratory_pre_prospective",
+  "scope": "meme_machine_solana_dlmm_only",
+  "allocation_authority": false,
+  "signing": false,
+  "submission": false,
+  "live_money": false,
+  "legacy_60_second_strategy_status": "research_hold",
+  "source": {
+    "frozen_cohort_commit": "2be40116548186ababd387a1ccec8794adcf291a",
+    "analysis_run_id": 35404941562,
+    "analysis_artifact_id": 10571648111,
+    "analysis_artifact_digest": "sha256:718c76c710b6d564ff94957ecfc30f850b5d2a15d3a75d513b227fc6d7674d93",
+    "analysis_report_sha256": "541cb2435208d15780af82272a987cb285066f987ee7748693a48322a58b4a43",
+    "profitable_wallets": 24,
+    "confirmatory_repeatability_gate": {
+      "passed": false,
+      "required_cross_wallet_support": 0.6666666666666666,
+      "hold_bucket": {
+        "value": "<15m",
+        "count": 15,
+        "total": 24,
+        "support": 0.625
+      },
+      "width_bucket": {
+        "value": ">50",
+        "count": 23,
+        "total": 24,
+        "support": 0.9583333333333334
+      }
+    }
+  },
+  "exploratory_cluster": {
+    "selection_rule": "Select the most common joint pair of per-wallet dominant hold bucket and dominant width bucket among preregistered profitable wallets; ties are lexical and never use PnL magnitude.",
+    "hold_bucket": "<15m",
+    "width_bucket": ">50",
+    "wallet_count": 14,
+    "wallet_support": 0.5833333333333334,
+    "exact_hold_seconds": 491,
+    "exact_width_bins": 70,
+    "trigger_wallets": [
+      "EWNepq5qNRcmY5v44pyH4w5M7dywEsEVPR2Trbdx58t4",
+      "CG8hftJJQaYR1dPEHrYU64e4HCPCrrYaDVpyTWEU9gMa",
+      "7A9ds4xSHgSs4Twkm4r6usaQtyhHoqmA2mF3XCZoBedu",
+      "GTqBcwyZcGKUQp1PwreLaQYh125CpHKwPNehbFN5fRSF",
+      "Eh7TonnqPTyQMFiQkMZag2wxJMXwm3YLo5xkGX8DXQZr",
+      "ALfQF6ing1MBNxwgF6Rq5EP4ZZ3VkXFJsGJCvDJyD4Un",
+      "Gk1Qbirjk2gErh9S9NZBGpkrCAbHYFYrrkQTub6HiZNm",
+      "GgR86eHVxj4Q1XcpTQBjc8zUAEXQMSM3MNVUVPwDjBRd",
+      "A7Wq6wmMyCMa3JwJosbzY2MmQgXhDFnY79T1sNYLWN7T",
+      "3j6EKRQbJKywa2yccqiDnt3kaHfJMSJ4DENgqem9AGNM",
+      "GwNYEmYhuJM3SsqBRny7qiYfBaFg2vfaU1jw6cR6twK9",
+      "66Ty8anQbfzpJfUtqwhGuDqGzS3KM7zLqreRZQ5vfVgP",
+      "F5dVZnrvGtu9ytXe3pfFLdTADNoqn2yni56bfdjeJJwM",
+      "B61UFgYUiapfYg6Qb4iEEMuEqxRDyhdC4SwkP8jaS2XS"
+    ]
+  },
+  "prospective_policy": {
+    "entry_signal": "first strictly post-freeze finalized Meteora DLMM add_liquidity2 by any trigger wallet",
+    "pool_universe": "SOL-paired, non-blacklisted, TVL>=50000 USD, 24h volume>=25000 USD",
+    "source_action_requirements": [
+      "one-sided SOL deposit",
+      "observed source range span exactly 70 bins",
+      "fully authenticated add_liquidity2 instruction/event/transfer evidence"
+    ],
+    "paper_position": "mirror the source wallet's exact 70-bin SOL distribution weights, scaled to 0.1 SOL paper capital on the post-signal finalized pool state",
+    "hold_seconds": 491,
+    "rebalance_policy": "none; later source-wallet actions do not alter the paper position",
+    "exit": "withdraw at 491 seconds and liquidate residual token inventory to SOL using verified market state",
+    "fixed_cost_lamports": 350000,
+    "result_requirements": [
+      "strictly post-freeze signal",
+      "verified finalized entry state after signal",
+      "complete verified forward market evidence through exit",
+      "after-cost paper PnL",
+      "no retrospective signal or threshold changes"
+    ]
+  },
+  "interpretation": "Exploratory only. The preregistered two-thirds repeatability gate failed, so this candidate is not confirmatory evidence; prospective results determine whether the modal wallet behavior merits further study."
+}
