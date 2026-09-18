@@ -89,16 +89,18 @@ class WalletClusterProspective(unittest.TestCase):
                 if method=="getTransaction":
                     return dict(meta=dict(err=None),transaction=dict(message=dict()))
                 raise AssertionError(method)
+        extra_calls_seen=[]
         class Pool:
             def __init__(self):
                 self.rpc=RPC()
             def current(self,extra_calls=0):
-                self.assertEqual(extra_calls,1)
+                extra_calls_seen.append(extra_calls)
                 return self.rpc
         pool=Pool()
         inspected,newest=prospective._read_wallet_rows(pool,"wallet","old")
         self.assertEqual(newest,"s1")
         self.assertEqual(len(inspected),1)
+        self.assertEqual(extra_calls_seen,[1,1])
         self.assertEqual(pool.rpc.calls,["getSignaturesForAddress","getTransaction"])
 
     def test_paper_deposit_mirrors_weights_at_fixed_capital(self):
