@@ -23,13 +23,13 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Validate Alchemy Solana route
         env:
-          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL }}
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_alchemy_provider
       - name: Economic strategy research regressions
         run: python -m unittest tests.test_dlmm_strategy_point_in_time tests.test_dlmm_strategy_high_activity tests.test_dlmm_dense_acquisition tests.test_dlmm_strategy_economics tests.test_dlmm_strategy_development_analysis tests.test_dlmm_profitability_pilot -v
       - name: Development sample with real 60-second holding horizon
         env:
-          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL }}
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_profitability_pilot --target-completed 6 --max-attempted-pools 12 --warmup-seconds 12 --holding-seconds 60 --study-phase development
       - name: Preserve development sample
         if: always()
@@ -57,13 +57,13 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Validate Alchemy Solana route
         env:
-          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL }}
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_alchemy_provider
       - name: Frozen-rule holdout regressions
         run: python -m unittest tests.test_dlmm_strategy_economics tests.test_dlmm_profitability_pilot -v
       - name: Holdout sample with frozen rule only
         env:
-          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL }}
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_profitability_pilot --target-completed 6 --max-attempted-pools 12 --warmup-seconds 12 --holding-seconds 60 --study-phase holdout
       - name: Preserve holdout sample
         if: always()
