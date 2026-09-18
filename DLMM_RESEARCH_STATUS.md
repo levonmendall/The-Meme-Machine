@@ -205,3 +205,19 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - The scanner now records and skips an unrecoverable individual body, continues to the next finalized transaction/pool, prioritizes JUP-SOL, and paces body reads at 1.5 seconds.
 - Maximum scope remains 36 transaction bodies across JUP-SOL, STONK-SOL, and USELESS-SOL; it still stops at the first authenticated nonzero host-fee swap.
 - This marker authorizes exactly one hardened live occurrence scan.
+
+
+## Live host-fee occurrence sub-proof: CLOSED
+
+- Run `35296698185` completed successfully with artifact `10527857658` (SHA256 `f8d9617c8bb7a8f432b2aa6196c0db4400c9128819e4bf46324910bebf4b50b3`).
+- A current finalized JUP-SOL `swap2` was authenticated at slot `447946195`, signature `5jZVtWauYNCuC9sbyvdA1pcmH4Pr8yMPxgcCQrcE3euJ5y6vDFmHaQE8rxmBvoRNCj34d2NaCeJdNuPrEeLSTM5D`.
+- Observed amount in: 29,700,000; total fee: 44,551; protocol fee after host: 3,564; host fee: 890; start bin 107 -> end bin 108.
+- The input-token host account balance delta was authenticated by the production transaction parser. RPC calls: 5; failures: 0; retries: 0.
+- Together with the existing captured/offline exact terminal-reconstruction tests, this closes the remaining live host-fee occurrence coverage gap.
+
+## Profitability research batch 2: sequential provider-safe collection
+
+- Batch 1 established the provider-pressure boundary: three concurrent pools produced 10 provider failures and no complete opportunity, so it is not used as a strategy result.
+- Batch 2 keeps the same discovery universe, strategy grid, costs, point-in-time rules, predictive chunking, and allocation disabled, but observes each supported pool sequentially.
+- Warmup may use the already-certified bounded strategy2 snapshot reset per pool; outcome remains fail-closed across external LP mutations.
+- This marker authorizes exactly one sequential profitability pilot batch.
