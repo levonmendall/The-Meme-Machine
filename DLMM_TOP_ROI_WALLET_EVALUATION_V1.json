@@ -45,12 +45,22 @@
     "rank_outputs": [
       "raw ROI rank for context",
       "robust ROI rank after preregistered minimum-history gates"
-    ]
+    ],
+    "official_all_time_roi_diagnostic": "GET /portfolio/total totalPnlPctChange and totalPnlSolPctChange; diagnostic only, not the primary 120-day ranking"
   },
   "interpretation": [
     "This is a bounded active-universe evaluation, not a claim to identify every profitable wallet on Solana.",
     "No strategy may be frozen from discovery data before the cohort is frozen.",
     "No strategy threshold or ranking rule may be altered after PnL is observed merely to promote a wallet.",
     "The existing exploratory wallet-cluster prospective experiment remains separate and unchanged."
+  ],
+  "protocol_revision": "1.1",
+  "amendment_history": [
+    {
+      "revision": "1.1",
+      "reason": "Add Meteora's official all-time portfolio PnL percentage as a diagnostic before any PnL is observed; primary ranking remains the preregistered 120-day deposit-weighted ROI.",
+      "pnl_observed_before_amendment": false,
+      "ranking_rule_changed": false
+    }
   ]
 }
