@@ -83,5 +83,32 @@ class MarketNativeRuntimeTests(unittest.TestCase):
             store.close()
 
 
+    def test_provider_rotation_allows_90_preflights_without_spending_monitoring_reserve(self):
+        class RPC:
+            def __init__(self):
+                self.limit=240;self.calls=1;self.http_requests=0;self.failures=0;self.cache_hits=0
+                self.url='https://api.mainnet-beta.solana.com'
+        class Adapter:
+            def __init__(self):
+                self.rpc=RPC()
+            def concentration_status(self):
+                return {'initialized':False}
+        with tempfile.TemporaryDirectory() as td:
+            store=Store(str(Path(td)/'state.db'),'synthetic',100_000_000,'test')
+            engine=Engine(store,[])
+            with self.assertRaisesRegex(ValueError,'market_native_budget_exceeds'):
+                MarketNativeRuntime(
+                    engine,Adapter(),3300,preflight_budget=90,full_evidence_budget=20)
+            runtime=MarketNativeRuntime(
+                engine,Adapter(),3300,preflight_budget=90,full_evidence_budget=20,
+                provider_rotation_threshold=160)
+            self.assertEqual(runtime.status()['preflight_budget'],90)
+            self.assertEqual(runtime.status()['provider_rotation_threshold'],160)
+            runtime.replace_adapter(Adapter())
+            self.assertEqual(runtime.status()['provider_rotations'],1)
+            self.assertEqual(len(runtime.status()['prior_provider_sessions']),1)
+            store.close()
+
+
 if __name__=='__main__':
     unittest.main()
