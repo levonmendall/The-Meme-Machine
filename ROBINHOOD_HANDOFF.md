@@ -1,3 +1,62 @@
+# Robinhood handoff — continuation-v1-robinhood natural sample
+
+## Unbiased natural sample executed
+
+Frozen policy hash:
+`f363c234daa549365ca00ee5b33247deb1c591a1084b991263233ba9f3870e36`.
+
+Run:
+[35385242146](https://github.com/levonmendall/The-Meme-Machine/actions/runs/35385242146)
+
+Artifact `10563828142`, SHA256
+`4432632068013420dd55187bd828496fe88332eb321240a2a3e1a01388ff7540`.
+
+The run enrolled the first previously unseen authentic Pons V2 buy after each prior
+enrollment attempt completed. There was no economic ranking, future-outcome selection,
+replacement, or threshold modification.
+
+Results:
+- 21 natural enrollments;
+- 15 fully evaluated;
+- 6 acquisition-incomplete;
+- 13 complete frozen-policy vectors;
+- 0 decision-eligible complete vectors under the existing 5-second Robinhood current-state gate;
+- 0 live-qualified rows;
+- 5/13 complete vectors met every frozen strategy threshold if the separate
+  `stale_state_after_evidence` operational rejection is inspected descriptively.
+
+Complete-vector evidence age was 19–33 seconds (median 22 seconds). Therefore the
+current causal blocker is evidence-acquisition latency, not a reason to weaken
+continuation-v1.
+
+Among the 13 complete vectors, after excluding only the independent freshness
+rejection for descriptive analysis:
+- independent-demand rejection: 6;
+- round-trip-cost rejection: 6;
+- translated real-liquidity rejection: 2;
+- concentration rejection: 0;
+- price-extension rejection: 0.
+
+Five acquisition-incomplete rows used non-native Pons quote tokens outside the frozen
+ETH translation scope; one failed the current-snipe evidence boundary. They remain
+in the sample and were not replaced.
+
+The run also produced 10 executable forward marks, but they were observed 67–350
+seconds after enrollment because the initial runner processed marks sequentially.
+They are **not exact +60s outcomes** and must not be used for +60s expected-return
+inference. The runner has been relabelled to `forward_after_60s` so future artifacts
+retain the actual delay semantics.
+
+No profitability conclusion and no threshold change is authorized from this sample.
+
+Exact details are in `CONTINUATION_V1_ROBINHOOD_SAMPLE_STATUS.md`.
+
+Next: reduce evidence acquisition latency while preserving the exact frozen policy,
+point-in-time evidence, 5-second state gate, and Pons/V4 adapter separation; then rerun
+the identical sample. Do not lower thresholds to create qualifiers.
+
+---
+
 # Robinhood handoff — genuine natural Pons paper lifecycle
 
 ## Current milestone — 2026-09-18
