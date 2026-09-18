@@ -29,7 +29,7 @@ ROLLING_SECONDS = 300
 ACTIVE_MAX_AGE = 60
 ENTRY_TOLERANCE = 90
 OUTCOME_TOLERANCE = 180
-MAX_CATCHUP_HOURS = 4
+MAX_CATCHUP_HOURS = 2
 
 
 def utc_ts(value: str) -> int:
@@ -824,13 +824,44 @@ def main() -> None:
         h for h in hours if h >= freeze_hour and h not in processed
     ][:MAX_CATCHUP_HOURS]
 
+    print(json.dumps({
+        "collector_phase": "catchup_plan",
+        "new_hours": new_hours,
+        "already_processed_hours": len(state["processed_hours"]),
+        "natural_buy_count_before": len(state["events"]),
+    }, sort_keys=True), flush=True)
+
     for h in new_hours:
+        started = time.time()
+        print(json.dumps({
+            "collector_phase": "detection_hour_start",
+            "hour": h,
+            "natural_buy_count_before": len(state["events"]),
+        }, sort_keys=True), flush=True)
         process_detection_hour(state, h, available, contract, cohort_by_wallet)
         state["processed_hours"].append(h)
+        print(json.dumps({
+            "collector_phase": "detection_hour_complete",
+            "hour": h,
+            "elapsed_seconds": round(time.time() - started, 3),
+            "natural_buy_count_after": len(state["events"]),
+        }, sort_keys=True), flush=True)
 
+    label_started = time.time()
+    print(json.dumps({
+        "collector_phase": "label_mature_outcomes_start",
+        "natural_buy_count": len(state["events"]),
+    }, sort_keys=True), flush=True)
     label_mature_outcomes(
         state, latest_archive_end, available, contract
     )
+    print(json.dumps({
+        "collector_phase": "label_mature_outcomes_complete",
+        "elapsed_seconds": round(time.time() - label_started, 3),
+        "completed_outcome_count": sum(
+            1 for event in state["events"] if event["outcome_complete"]
+        ),
+    }, sort_keys=True), flush=True)
     summary = summarize(state, contract)
     write_outputs(state, summary)
     print(json.dumps(summary, indent=2, sort_keys=True))
