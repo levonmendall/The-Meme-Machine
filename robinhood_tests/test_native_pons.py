@@ -6,7 +6,9 @@ import unittest
 
 from robinhood_research import BoundaryError
 from robinhood_research.abi import decode_event
-from robinhood_research.pons import CurveState, authenticate_curve, factory_record, curve_abi
+from robinhood_research.pons import (CurveState, authenticate_curve, factory_record, curve_abi,
+    prove_v1_v3_lineage)
+from robinhood_research.identity import load
 
 CAPTURE=Path(__file__).parent/'fixtures/protocol_capture_35370277849.json'
 
