@@ -1,5 +1,6 @@
 import unittest
 
+from meme_machine import dlmm
 from meme_machine.dlmm_tape import reconstruct
 from meme_machine.dlmm_paper import ENTRY_COST, EXIT_COST
 from tests.dlmm_strategy_point_in_time import (_bidask_bps,_deposit,_replay,evaluate,regime_features)
@@ -27,7 +28,7 @@ class DlmmPointInTimeResearch(unittest.TestCase):
 
     def test_external_removal_preserves_counterfactual_position_share_order(self):
         start=snapshot();start['kind']='real'
-        state=__import__('meme_machine').dlmm.validate(start,100)
+        state=dlmm.validate(start,100)
         post,removed,tx=remove_liquidity_transaction(
             state,bid=-1,slot=101,now=101,signature='remove-research')
         end=encode_state(start,post,102,102)
