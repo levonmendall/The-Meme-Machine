@@ -5,3 +5,4 @@ State-recovery serialization defect repaired in d8547e0396e807841b6acb46abfd88f7
 Pump.fun/PumpSwap-only sample boundary enforced before first processed hour.
 Hourly trigger: 2026-09-18T15:54:08Z
 Manual freshness check requested after sample stalled at 5; trigger collector now.
+Hourly trigger: 2026-09-18T19:06:40Z
