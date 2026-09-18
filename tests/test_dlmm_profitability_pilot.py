@@ -385,7 +385,7 @@ class ProfitabilityDensityPreflight(unittest.TestCase):
         self.assertEqual(
             pilot.economics.NORMALIZED_TARGET_BPS, (100, 200, 400, 800)
         )
-        self.assertEqual(pilot.MAX_ATTEMPTED_POOLS, 12)
+        self.assertEqual(pilot.MAX_ATTEMPTED_POOLS, 24)
         self.assertEqual(pilot.TARGET_COMPLETED_WINDOWS, 6)
         self.assertEqual(pilot.MAX_ACTIVITY_PAGES, 4)
         self.assertEqual(pilot.ACTIVITY_PAGE_SIZE, 80)
