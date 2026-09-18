@@ -7,6 +7,7 @@
   "seed_provenance": "legacy offline/captured compatibility only; unused prospectively",
   "related_groups": {},
   "request_limit": 240,
-  "market_native_preflight_budget": 60,
-  "market_native_full_evidence_budget": 20
+  "market_native_preflight_budget": 90,
+  "market_native_full_evidence_budget": 20,
+  "market_native_rpc_rotation_threshold": 160
 }
