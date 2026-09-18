@@ -45,7 +45,7 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(telemetry['requests'], 3)
         self.assertEqual(telemetry['logical_requests'], 3)
         self.assertEqual(telemetry['transport_requests'], 1)
-        with self.assertRaisesRegex(BoundaryError, 'session_budget'):
+        with self.assertRaisesRegex(BoundaryError, 'budget_exhausted'):
             rpc.batch([
                 ('eth_chainId', []),
                 ('eth_chainId', []),
