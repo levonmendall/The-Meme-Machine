@@ -241,3 +241,13 @@ class NativeRamsesTests(unittest.TestCase):
     def test_flash_and_protocol_fee_helpers_conserve_values(self):
         q=swap_bin([10**9,10**9],bin_id=1<<23,step=10,gross_input=10**6,for_y=True,fee_rate=10**16,protocol_share=500)
         self.assertEqual(q['total_fee'],q['protocol_fee']+q['lp_fee'])
+
+
+    def test_paper_fee_capture_uses_event_time_supply(self):
+        s=self._range_prestate();freeze=freeze_proposals(s,10**15,quote_side='y',entry_timestamp=1040);pos=paper_position(freeze,0)
+        bid=s['active'];shares=int(pos['owned_shares'][str(bid)])
+        event_fee=[1000,0]
+        fake=dict(fee_events=[dict(kind='swap',bin_id=bid,lp_fee=event_fee,supply_before=10**18,event_at=1050)],
+                  terminal_state=s)
+        got=paper_fee_capture(pos,fake)
+        self.assertEqual(got['amounts'][0],event_fee[0]*shares//(10**18+shares))
