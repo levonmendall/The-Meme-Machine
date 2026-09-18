@@ -226,6 +226,12 @@ def run_live(cycles=MAX_CYCLES, window_seconds=6):
                 warmup_lineage=warm.lineage,
                 outcome_lineage=outcome.lineage,
                 outcome_swaps=len(outcome.events),
+                warmup_host_fee_swaps=sum(
+                    int((event.get("observed") or {}).get("host_fee", 0) > 0)
+                    for event in warm.events),
+                outcome_host_fee_swaps=sum(
+                    int((event.get("observed") or {}).get("host_fee", 0) > 0)
+                    for event in outcome.events),
                 features=features,
                 selected=choice,
             )
@@ -261,6 +267,9 @@ def run_live(cycles=MAX_CYCLES, window_seconds=6):
     outcome_nonempty = sum(o["outcome_swaps"] > 0 for o in report["opportunities"])
     selected_resolved = [r for r in report["selected_results"] if r.get("resolved")]
     selected_pnl = [r["pnl_bps"] for r in selected_resolved]
+    host_fee_swaps = sum(
+        o.get("warmup_host_fee_swaps", 0) + o.get("outcome_host_fee_swaps", 0)
+        for o in report["opportunities"])
     pilot_adequate = len(report["opportunities"]) >= 6 and len(pools) >= 3 and outcome_nonempty >= 3
     report.update(
         ended=int(time.time()),
@@ -272,6 +281,7 @@ def run_live(cycles=MAX_CYCLES, window_seconds=6):
         nonempty_outcome_count=outcome_nonempty,
         selected_trade_count=len(report["selected_results"]),
         selected_resolved_count=len(selected_resolved),
+        host_fee_swap_count=host_fee_swaps,
         selected_mean_pnl_bps=None if not selected_pnl else statistics.fmean(selected_pnl),
         selected_median_pnl_bps=None if not selected_pnl else statistics.median(selected_pnl),
         selected_profitable_rate=None if not selected_pnl else sum(x > 0 for x in selected_pnl) / len(selected_pnl),

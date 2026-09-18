@@ -35,6 +35,29 @@ jobs:
         env:
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_strategy_high_activity_stonk --cycles 1 --window-seconds 12
+      - name: Require clean host-fee warmup and outcome certification
+        if: contains(github.event.head_commit.message, '[dlmm-host-fee-certification]')
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('dlmm-strategy-report.json').read_text())
+          checks={
+              'prospective_allocation_disabled': report.get('prospective_allocation_enabled') is False,
+              'one_verified_opportunity': report.get('opportunity_count',0) >= 1,
+              'nonempty_verified_warmup': report.get('nonempty_warmup_count',0) >= 1,
+              'nonempty_verified_outcome': report.get('nonempty_outcome_count',0) >= 1,
+              'host_fee_exercised': report.get('host_fee_swap_count',0) >= 1,
+              'selected_after_cost_resolved': report.get('selected_resolved_count',0) >= 1,
+              'no_interval_errors': not report.get('interval_errors'),
+              'no_rpc_failures': report.get('rpc_failures',1) == 0,
+          }
+          print(json.dumps(checks,sort_keys=True))
+          failed=[name for name,ok in checks.items() if not ok]
+          if failed:
+              raise SystemExit('DLMM_HOST_FEE_CERTIFICATION_FAILED:'+','.join(failed))
+          print('DLMM_HOST_FEE_CERTIFICATION_PASSED')
+          PY
       - name: Preserve research report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
