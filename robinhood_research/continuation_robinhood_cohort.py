@@ -99,15 +99,20 @@ def _recover_discovery(endpoint,rpc,result,cursor,reason):
     raise BoundaryError("provider_transport_recovery_exhausted")
 
 
-def _rotate_discovery(endpoint,rpc,result):
+def _rotate_discovery(endpoint,rpc,result,cursor):
     _record_discovery_session(result,rpc)
-    return _new_discovery(endpoint)
+    try:
+        return _new_discovery(endpoint)
+    except BoundaryError as exc:
+        if not _transport_failure(exc):
+            raise
+        return _recover_discovery(endpoint,None,result,cursor,exc)
 
 
 def _poll(endpoint,rpc,cursor,tape,result):
     """Poll from cursor+1; transient transport failure never advances cursor."""
     if rpc.used>150:
-        rpc=_rotate_discovery(endpoint,rpc,result)
+        rpc=_rotate_discovery(endpoint,rpc,result,cursor)
     recovery_count=0
     while True:
         try:
@@ -441,7 +446,12 @@ def run(endpoint):
         provider_recoveries=[],
     )
 
-    rpc=_new_discovery(endpoint)
+    try:
+        rpc=_new_discovery(endpoint)
+    except BoundaryError as exc:
+        if not _transport_failure(exc):
+            raise
+        rpc=_recover_discovery(endpoint,None,result,0,exc)
     start_header=_latest_header(rpc)
     cursor=int(start_header["number"],16)
     tape=[];seen_tx_logs=set();seen_curves=set()
