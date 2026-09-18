@@ -116,13 +116,18 @@ class State:
         self.last_ts=ts;self.last_price=p;self.protocol=e.get("protocol");self.quote=e.get("quoteMint")
         m=e.get("marketCapQuote")
         if isinstance(m,(int,float)) and m>0:self.mcap=float(m)
-    def feat(self,now):
+    def feat_relaxed(self,now):
         self.purge(now)
         if self.last_ts is None or now-self.last_ts>ACTIVE_AGE or self.count<2 or not self.last_price:return None
         first=self.q[0][1]
-        if first<=0 or not self.mcap:return None
+        if first<=0:return None
         return {"price":self.last_price,"mcap":self.mcap,"pre5":self.last_price/first-1,
-                "vol5":max(self.vol,0),"count5":self.count,"protocol":self.protocol,"quote":self.quote}
+                "vol5":max(self.vol,0),"count5":self.count,"protocol":self.protocol,"quote":self.quote,
+                "last_trade_age":now-self.last_ts}
+    def feat(self,now):
+        x=self.feat_relaxed(now)
+        if not x or not x["mcap"]:return None
+        return x
 
 def distance(a,b):
     if a["protocol"]!=b["protocol"] or a["quote"]!=b["quote"]:return None
@@ -130,6 +135,13 @@ def distance(a,b):
             abs(a["pre5"]-b["pre5"])/0.20+
             0.75*abs(math.log1p(a["vol5"])-math.log1p(b["vol5"]))+
             0.5*abs(math.log1p(a["count5"])-math.log1p(b["count5"])))
+
+def distance_relaxed(a,b):
+    if a["protocol"]!=b["protocol"] or a["quote"]!=b["quote"]:return None
+    return (abs(a["pre5"]-b["pre5"])/0.20+
+            0.75*abs(math.log1p(a["vol5"])-math.log1p(b["vol5"]))+
+            0.5*abs(math.log1p(a["count5"])-math.log1p(b["count5"]))+
+            0.25*abs(a["last_trade_age"]-b["last_trade_age"])/60.0)
 
 def near_target(times,mint,ts):
     arr=times.get(mint) or [];i=bisect.bisect_left(arr,ts)
@@ -222,18 +234,24 @@ def main():
     segments=contiguous(needed)
 
     states={};pairs=[];watch=defaultdict(list);matched=set();control_last={}
+    diagnostics=defaultdict(int)
 
-    def choose_control(tf,ts,target_mint):
+    def choose_control(tf,ts,target_mint,arm):
         choices=[]
+        candidate_count=0
         for mint,s in states.items():
             if mint==target_mint or near_target(target_times,mint,ts):continue
-            if control_last.get(mint,0)>ts-60:continue
-            cf=s.feat(ts)
+            if control_last.get((arm,mint),0)>ts-60:continue
+            cf=s.feat(ts) if arm=="strict_market_cap" else s.feat_relaxed(ts)
             if not cf:continue
-            d=distance(tf,cf)
+            if cf["protocol"]!=tf["protocol"] or cf["quote"]!=tf["quote"]:continue
+            candidate_count+=1
+            d=distance(tf,cf) if arm=="strict_market_cap" else distance_relaxed(tf,cf)
             if d is not None and d<=MATCH_MAX:choices.append((d,mint,cf))
+        diagnostics[f"{arm}_eligible_control_states"]+=candidate_count
         if not choices:return None
-        d,m,cf=min(choices,key=lambda x:(x[0],x[1]));control_last[m]=ts
+        d,m,cf=min(choices,key=lambda x:(x[0],x[1]))
+        control_last[(arm,m)]=ts
         return d,m,cf
 
     headers={"User-Agent":"Mozilla/5.0","Accept":"application/octet-stream"}
@@ -252,19 +270,33 @@ def main():
                 ti,t=seg_targets[pending]; pending+=1
                 if ti in matched: continue
                 event_ts=t["approx_ts"];mint=t["mint"]
-                st=states.get(mint);tf=st.feat(event_ts) if st else None
-                matched.add(ti)
-                if not tf or tf["protocol"] not in PROTOCOLS: continue
-                cc=choose_control(tf,event_ts,mint)
-                if not cc: continue
-                d,cm,cf=cc
-                p={"handle":t["handle"],"wallet":t["wallet"],"mint":mint,
-                   "approx_ts":event_ts,"event_ts":event_ts,"timestamp_delta":0,
-                   "event_definition":"FomoAPI successful-wallet buy timestamp; Pump-native activity independently verified by Shrine immediately before event",
-                   "convergence_wallets_15m":t["convergence_wallets_15m"],
-                   "match_distance":d,"target_features":tf,"control_mint":cm,"control_features":cf,
-                   "target":role(),"control":role(),"target_graduated":False,"control_graduated":False}
-                pi=len(pairs);pairs.append(p);watch[mint].append((pi,"target"));watch[cm].append((pi,"control"))
+                st=states.get(mint)
+                relaxed_tf=st.feat_relaxed(event_ts) if st else None
+                strict_tf=st.feat(event_ts) if st else None
+                matched.add(ti);diagnostics["targets_triggered"]+=1
+                if st is None:diagnostics["target_state_missing"]+=1
+                elif relaxed_tf is None:diagnostics["target_state_inactive_or_thin"]+=1
+                else:
+                    diagnostics["target_relaxed_state_present"]+=1
+                    if relaxed_tf["protocol"] not in PROTOCOLS:diagnostics["target_non_pump_protocol"]+=1
+                    if relaxed_tf["mcap"] is None:diagnostics["target_market_cap_missing"]+=1
+                    if relaxed_tf["quote"] is None:diagnostics["target_quote_missing"]+=1
+                for arm,tf in (("strict_market_cap",strict_tf),("activity_matched",relaxed_tf)):
+                    if not tf or tf["protocol"] not in PROTOCOLS:continue
+                    diagnostics[f"{arm}_targets_eligible"]+=1
+                    cc=choose_control(tf,event_ts,mint,arm)
+                    if not cc:
+                        diagnostics[f"{arm}_no_control_match"]+=1
+                        continue
+                    d,cm,cf=cc
+                    diagnostics[f"{arm}_pairs_created"]+=1
+                    p={"arm":arm,"handle":t["handle"],"wallet":t["wallet"],"mint":mint,
+                       "approx_ts":event_ts,"event_ts":event_ts,"timestamp_delta":0,
+                       "event_definition":"FomoAPI successful-wallet buy timestamp; Pump-native activity independently verified by Shrine immediately before event",
+                       "convergence_wallets_15m":t["convergence_wallets_15m"],
+                       "match_distance":d,"target_features":tf,"control_mint":cm,"control_features":cf,
+                       "target":role(),"control":role(),"target_graduated":False,"control_graduated":False}
+                    pi=len(pairs);pairs.append(p);watch[mint].append((pi,"target"));watch[cm].append((pi,"control"))
 
         for h in seg:
             with requests.get(f"{REPLAY}/{h}.jsonl.zst",headers=headers,stream=True,timeout=60) as resp:
@@ -313,13 +345,19 @@ def main():
                 r[f"target_return_{h}s"]=ar;r[f"control_return_{h}s"]=br;r[f"edge_{h}s"]=ar-br
         if any(f"edge_{h}s" in r for h in HORIZONS):records.append(r)
 
-    summaries={str(h):summarize(records,h) for h in HORIZONS}
+    records_by_arm={arm:[r for r in records if r.get("arm")==arm] for arm in ("strict_market_cap","activity_matched")}
+    summaries_by_arm={
+        arm:{str(h):summarize(rows,h) for h in HORIZONS}
+        for arm,rows in records_by_arm.items()
+    }
     conv={}
-    for level in (1,2,3):
-        subset=[r for r in records if r["convergence_wallets_15m"]>=level]
-        vals=[r.get("edge_300s") for r in subset if r.get("edge_300s") is not None]
-        conv[f"at_least_{level}_wallets"]={"n":len(vals),"mean_5m_edge":statistics.mean(vals) if vals else None,
-            "median_5m_edge":statistics.median(vals) if vals else None}
+    for arm,arm_records in records_by_arm.items():
+        conv[arm]={}
+        for level in (1,2,3):
+            subset=[r for r in arm_records if r["convergence_wallets_15m"]>=level]
+            vals=[r.get("edge_300s") for r in subset if r.get("edge_300s") is not None]
+            conv[arm][f"at_least_{level}_wallets"]={"n":len(vals),"mean_5m_edge":statistics.mean(vals) if vals else None,
+                "median_5m_edge":statistics.median(vals) if vals else None}
 
     report={"kind":"successful_fomo_wallet_pump_alpha_event_study_v1","research_only":True,
         "strategy_data_used":False,"provider_spend_usd":0,
@@ -329,10 +367,13 @@ def main():
         "raw_recent_solana_buys":len(raw),"dedup_independent_buy_targets":len(targets),
         "unique_target_mints":len({x["mint"] for x in targets}),"pump_native_targets_evaluated":len(matched),
         "matched_control_pairs":len(pairs),"complete_records":len(records),"trade_rows_processed":trade_rows,
+        "diagnostics":dict(diagnostics),
         "design":{"dedup":"first wallet/mint buy after >=30m quiet period","entry_delay_seconds":ENTRY_DELAY,
-            "control":"same time/protocol/quote; nearest pre-buy market cap, 5m return, 5m quote volume, trade count; excludes successful-wallet target activity +/-15m","pump_native_gate":"Shrine must show active PUMPFUN/PUMPSWAP trading state immediately before the Fomo buy timestamp",
+            "strict_primary_control":"same time/protocol/quote; nearest pre-buy market cap, 5m return, 5m quote volume, trade count; excludes successful-wallet target activity +/-15m",
+            "activity_matched_robustness_control":"same time/protocol/quote; nearest pre-buy 5m return, 5m quote volume, trade count, and last-trade recency; does not require marketCapQuote; same fixed max-distance 4.0",
+            "pump_native_gate":"Shrine must show active PUMPFUN/PUMPSWAP trading state immediately before the Fomo buy timestamp",
             "horizons_seconds":list(HORIZONS),"primary_horizon_seconds":300},
-        "summaries":summaries,"convergence_5m":conv,"records":records,
+        "summaries_by_arm":summaries_by_arm,"convergence_5m_by_arm":conv,"records":records,
         "limitations":["FomoAPI swap histories are capped for several traders; this study uses the exposed recent swaps only.",
             "Current-winner selection creates survivorship bias and cannot by itself prove these wallets were identifiable as skilled before each historical trade.",
             "Shrine documents occasional collector gaps; unmatched events are excluded rather than imputed.",
@@ -341,8 +382,12 @@ def main():
     print(json.dumps({"raw_recent_solana_buys":report["raw_recent_solana_buys"],
         "dedup_targets":report["dedup_independent_buy_targets"],"unique_target_mints":report["unique_target_mints"],
         "pump_native_targets_evaluated":report["pump_native_targets_evaluated"],"matched_control_pairs":report["matched_control_pairs"],
-        "complete_records":report["complete_records"],"primary_5m":summaries["300"],
-        "one_minute":summaries["60"],"fifteen_minute":summaries["900"],"sixty_minute":summaries["3600"],
-        "convergence_5m":conv},indent=2,sort_keys=True))
+        "complete_records":report["complete_records"],"diagnostics":report["diagnostics"],
+        "strict_primary_5m":summaries_by_arm["strict_market_cap"]["300"],
+        "activity_matched_5m":summaries_by_arm["activity_matched"]["300"],
+        "activity_matched_1m":summaries_by_arm["activity_matched"]["60"],
+        "activity_matched_15m":summaries_by_arm["activity_matched"]["900"],
+        "activity_matched_60m":summaries_by_arm["activity_matched"]["3600"],
+        "convergence_5m_by_arm":conv},indent=2,sort_keys=True))
 
 if __name__=="__main__":main()
