@@ -25,6 +25,9 @@ from pathlib import Path
 
 from meme_machine import pump
 from meme_machine.concentration import ConcentrationReader
+from meme_machine.continuation_economics import (
+    choose_economic_shadow, continuation_economic_features,
+)
 from meme_machine.engine import Engine, GAS
 from meme_machine.market_native_priority import (
     choose_slot_candidate, priority_slot_seconds, stream_feasibility,
@@ -213,6 +216,9 @@ def main():
         natural_sample_budget=NATURAL_BUDGET,natural_slot_seconds=NATURAL_SLOT_SECONDS,
         priority_budget=PRIORITY_BUDGET,priority_slot_seconds=PRIORITY_SLOT_SECONDS,
         extra_evidence_budget=EXTRA_EVIDENCE_BUDGET,
+        economic_shadow_model='continuation_economic_shadow_v1',
+        economic_shadow_authority=False,
+        economic_shadow_uses_future_outcomes=False,
         frozen_entry_thresholds=dict(CURRENT_THRESHOLDS),entry_thresholds_unchanged=True,
         outcome_horizons=list(DEFAULT_HORIZONS),started=started,limitations=[],
         natural_results=[],extra_evidence_results=[],cohort_trackers=[],
@@ -227,6 +233,7 @@ def main():
     discovered=set();slot_rows=defaultdict(list);stream_rejections=Counter()
     high_density_seen=set();natural_slots=set();natural_results=[]
     extra_evidence_results=[];extra_evidence_attempted=0
+    economic_shadow_selections=0;economic_shadow_disagreements=0
     trackers=[];trackers_by_mint=defaultdict(list)
     cursor=None;coverage_ready_at=None;last_priority_flush=-1
     discovery_finished_at=None
@@ -235,7 +242,7 @@ def main():
         trackers.append(row);trackers_by_mint[row['mint']].append(row)
 
     def process_priority_slot(slot,now):
-        nonlocal extra_evidence_attempted
+        nonlocal extra_evidence_attempted,economic_shadow_selections,economic_shadow_disagreements
         rows=slot_rows.pop(slot,[])
         refreshed=[]
         for candidate,_old in rows:
@@ -255,15 +262,29 @@ def main():
                                                       'high_density_features':high_density_features(window,now)}))
         chosen=choose_slot_candidate(refreshed)
         chosen_id=None if chosen is None else chosen[0]['nomination']['id']
+        economic_chosen=choose_economic_shadow(refreshed,tape,now)
+        economic_id=(None if economic_chosen is None
+                     else economic_chosen[0]['nomination']['id'])
+        if economic_id is not None:
+            economic_shadow_selections+=1
+            if chosen_id is not None and economic_id!=chosen_id:
+                economic_shadow_disagreements+=1
         unselected=[]
         for candidate,metric in refreshed:
             num,den,origin=_event_baseline(candidate)
             selected=candidate['nomination']['id']==chosen_id
+            economic_selected=candidate['nomination']['id']==economic_id
             cohort='priority_selected' if selected else 'feasible_unpreflighted'
+            cohorts=[cohort]
+            if economic_selected:
+                cohorts.append('economic_shadow_selected')
+            economic_features=continuation_economic_features(candidate,tape,now)
             add_tracker(new_tracker(
-                candidate['mint'],origin,num,den,[cohort],
+                candidate['mint'],origin,num,den,cohorts,
                 nomination_id=candidate['nomination']['id'],
-                metadata={'stream_feasibility':metric.to_dict(),'priority_slot':slot}))
+                metadata={'stream_feasibility':metric.to_dict(),'priority_slot':slot,
+                          'economic_shadow_selected':economic_selected,
+                          'continuation_economic_features':economic_features}))
             if not selected:
                 unselected.append((candidate,metric))
         if extra_evidence_attempted<EXTRA_EVIDENCE_BUDGET and unselected:
@@ -377,6 +398,8 @@ def main():
                 extra_preflight_complete=sum(r.get('preflight_complete') for r in extra_evidence_results),
                 extra_full_evidence_complete=sum(r.get('full_evidence_complete') for r in extra_evidence_results),
                 extra_qualified=sum(r.get('actual_reason')=='qualified' for r in extra_evidence_results),
+                economic_shadow_selections=economic_shadow_selections,
+                economic_shadow_disagreements=economic_shadow_disagreements,
                 natural_complete=sum(r.get('evidence_stage')=='complete' for r in natural_results),
                 natural_sample_ready=sum(r.get('evidence_stage')=='complete' for r in natural_results)>=50,
                 high_density_candidates=len(high_density_seen),
