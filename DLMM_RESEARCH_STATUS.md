@@ -261,3 +261,19 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Candidate mint prefiltering, finalized point-in-time rules, exact costs, `sdk_bidask` width 8 selection, `MAX_TRANSACTIONS=16`, swap/fee mechanics, and disabled allocation authority remain unchanged.
 - The full repository unit suite, resource check, DLMM resource check, and canonical synthetic lifecycle passed on isolated guarded run `35301727041`. No live proof job ran on that verification.
 - No additional profitability batch is authorized by this marker. The next live batch should use the repaired acquisition-v2 path only when the shared Solana public-RPC lane is free; results must continue to preserve density censoring and must not generalize the certifiable subset to excluded high-density pools.
+
+
+## DLMM economic strategy research v1 implemented
+
+- Research-strategy revision is pinned at `ef344e5f65740d73186b1f7f40712367d5e1a7cb`.
+- The prior `sdk_bidask / width 8 / any nonzero warmup` rule is retained only as a legacy comparator. It is no longer the candidate strategy.
+- Every candidate outcome now uses the real mechanical `HOLD_SECONDS=60` and the unchanged 350,000-lamport / 35-bps modeled round-trip cost hurdle. The 60-second outcome is composed from five chained independently verified <=12-second acquisition segments; per-segment finality, signature census, `MAX_TRANSACTIONS=16`, transaction reconstruction, mutation rules, and terminal equality are unchanged.
+- Pre-entry evidence is range-specific to the proposed liquidity range anchored at the authenticated post-warmup entry state. Recorded features include range liquidity, range-touch volume/fees, 50/100/200-bps approach volume/fees, toward-range volume, actual flow into the range, away/reverting volume, two-way balance, bin travel, net drift, drift ratio, reversal count, and touch-then-revert behavior.
+- The development-only cost gate uses an explicit proposed-range fee-capture estimate based on pre-entry range liquidity and requires: projected 60-second range fee capture to clear the unchanged fixed cost, actual flow into the one-sided SOL bid range, and subsequent two-way/reverting activity. It uses no future outcome data.
+- Candidate SDK BidAsk placements are normalized by price distance rather than fixed bin count, targeting approximately 100/200/400/800 bps with a bounded 2..32-bin width chosen under each pool's actual `bin_step`. Width 8 remains a comparator, not a universal placement.
+- The complete existing `foundation_spot` and `sdk_bidask` grids at widths 2/4/8/16/32 continue to run in shadow on the exact same verified 60-second outcomes.
+- Development and holdout are structurally separate. Development requires at least 30 completed observations across at least 5 pools before rule-freeze review. `tests.dlmm_strategy_development_analysis` searches only a predeclared development grid (100/200/400/800-bps distance; 0/0.5x/1x/2x extra fee-surplus margin) and can emit only `status=proposed`; it cannot freeze a rule.
+- `DLMM_STRATEGY_RULE_V1.json` is intentionally committed with `status=development`. Holdout fails closed until a separately reviewed commit sets a frozen rule, freeze timestamp, and development cutoff. Holdout observations must be strictly post-freeze and target at least 100 completed observations across at least 10 pools. Holdout data cannot retune the rule.
+- Prospective DLMM allocation remains disabled. No Store authority, live-money authority, swap/fee mechanics, cost assumptions, finality rules, verifier capacity, or provider safety predicates changed.
+- Exact-head GitHub Actions run `35305570090` passed the full unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
+- No holdout run is authorized while the rule remains unfrozen.
