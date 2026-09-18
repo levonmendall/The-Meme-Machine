@@ -27,11 +27,12 @@ import urllib.request
 
 from meme_machine import dlmm, pump
 from meme_machine.dlmm_paper import CAPITAL, ENTRY_COST, EXIT_COST
-from meme_machine.dlmm_tape import MAX_TRANSACTIONS
+from meme_machine.dlmm_tape import MAX_TRANSACTIONS, chain_verified_tapes
 from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
 from tests import dlmm_boundary_acquisition as boundary
 from tests import dlmm_dense_acquisition as dense
+from tests import dlmm_strategy_economics as economics
 from tests import dlmm_strategy_high_activity as research
 from tests import dlmm_strategy_high_activity_batched as run
 
@@ -42,6 +43,8 @@ PREFLIGHT_SECONDS = 0.5
 MAX_ACTIVITY_PAGES = 4
 ACTIVITY_PAGE_SIZE = 80
 MAX_CANDIDATE_SCAN_MULTIPLIER = 4
+DEFAULT_WARMUP_SECONDS = 12
+OUTCOME_SEGMENT_SECONDS = 12
 
 run.CHUNK_SECONDS = 2
 run._capture_chunk = boundary.capture_chunk
@@ -228,6 +231,85 @@ def _observe_phase(adapter, address, start, window_seconds, allow_snapshot_reset
     return phase, tape, terminal, effective_start
 
 
+def _observe_horizon(
+    adapter,
+    address,
+    start,
+    total_seconds=economics.HOLD_SECONDS,
+    segment_seconds=OUTCOME_SEGMENT_SECONDS,
+):
+    """Observe the real 60-second holding horizon as chained verified segments.
+
+    Each segment retains the unchanged density preflight, signature census,
+    MAX_TRANSACTIONS bound, transaction reconstruction and terminal equality proof.
+    Chaining changes only the research horizon; it does not widen any per-segment
+    verifier predicate.
+    """
+    if total_seconds != economics.HOLD_SECONDS:
+        raise ValueError("dlmm_profitability_holding_horizon_must_match_mechanical")
+    if not 5 <= segment_seconds <= research.MAX_WINDOW_SECONDS:
+        raise ValueError("dlmm_profitability_outcome_segment_bound")
+    before = _rpc_metrics(adapter.rpc)
+    current = start
+    tapes = []
+    segments = []
+    errors = []
+    remaining = int(total_seconds)
+    segment_index = 0
+    while remaining > 0:
+        duration = min(int(segment_seconds), remaining)
+        phase, tape, terminal, effective_start = _observe_phase(
+            adapter,
+            address,
+            current,
+            duration,
+            allow_snapshot_reset=False,
+        )
+        item = dict(phase)
+        item["segment"] = segment_index
+        item["segment_seconds"] = duration
+        segments.append(item)
+        if phase.get("errors"):
+            errors.extend(
+                dict(segment=segment_index, **error)
+                for error in phase["errors"]
+            )
+        if not phase["verified"]:
+            return dict(
+                verified=False,
+                terminal_classification=phase["terminal_classification"],
+                requested_holding_seconds=total_seconds,
+                verified_holding_seconds=total_seconds - remaining,
+                segments=segments,
+                errors=errors,
+                rpc=_metric_delta(before, _rpc_metrics(adapter.rpc)),
+            ), None, current
+        if effective_start["slot"] != current["slot"]:
+            raise Unavailable("dlmm_outcome_segment_start_changed")
+        tapes.append(tape)
+        current = terminal
+        remaining -= duration
+        segment_index += 1
+
+    combined = chain_verified_tapes(start, tapes)
+    return dict(
+        verified=True,
+        terminal_classification=(
+            "verified_zero_swap" if len(combined.events) == 0 else "certifiable"
+        ),
+        requested_holding_seconds=total_seconds,
+        verified_holding_seconds=total_seconds,
+        segment_seconds=segment_seconds,
+        segment_count=len(segments),
+        segments=segments,
+        errors=errors,
+        swap_count=len(combined.events),
+        end_slot=current["slot"],
+        lineage=combined.lineage,
+        rpc=_metric_delta(before, _rpc_metrics(adapter.rpc)),
+    ), combined, current
+
+
 def _fetch_activity_page(page):
     """Fetch one bounded current Meteora activity page without on-chain authority."""
     if not 1 <= page <= MAX_ACTIVITY_PAGES:
@@ -380,17 +462,30 @@ def _fresh_supported_start(adapter, candidate):
     return state
 
 
-def _evaluate_completed_window(cycle, address, warm_start, warm, entry, outcome, end_state):
-    features = research.regime_features(warm_start, warm)
-    choice = research.select_variant(features)
+def _evaluate_completed_window(
+    cycle,
+    address,
+    warm_start,
+    warm,
+    entry,
+    outcome,
+    end_state,
+    study_phase,
+    economic_choice,
+    economic_candidates,
+):
+    broad_features = research.regime_features(warm_start, warm)
+    legacy_choice = research.select_variant(broad_features)
     opportunity = dict(
         cycle=cycle,
         pool=address,
+        sample_role=study_phase,
         warmup_start_slot=warm_start["slot"],
         entry_slot=entry["slot"],
         end_slot=end_state["slot"],
         warmup_lineage=warm.lineage,
         outcome_lineage=outcome.lineage,
+        holding_seconds=economics.HOLD_SECONDS,
         outcome_swaps=len(outcome.events),
         warmup_host_fee_swaps=sum(
             int((event.get("observed") or {}).get("host_fee", 0) > 0)
@@ -400,11 +495,16 @@ def _evaluate_completed_window(cycle, address, warm_start, warm, entry, outcome,
             int((event.get("observed") or {}).get("host_fee", 0) > 0)
             for event in outcome.events
         ),
-        features=features,
-        selected=choice,
+        features=broad_features,
+        selected=economic_choice,
+        legacy_width8_comparator=legacy_choice,
+        economic_candidates=economic_candidates,
     )
+
+    # Existing foundation_spot and sdk_bidask WIDTHS remain untouched shadow
+    # comparators on the exact same verified 60-second outcome.
     results = []
-    selected_results = []
+    legacy_selected_results = []
     for strategy in research.STRATEGIES:
         for width in research.WIDTHS:
             try:
@@ -419,37 +519,89 @@ def _evaluate_completed_window(cycle, address, warm_start, warm, entry, outcome,
             result.update(
                 cycle=cycle,
                 pool=address,
+                sample_role=study_phase,
                 entry_slot=entry["slot"],
                 end_slot=end_state["slot"],
-                warmup_swaps=features["warmup_swaps"],
+                holding_seconds=economics.HOLD_SECONDS,
+                warmup_swaps=broad_features["warmup_swaps"],
                 outcome_swaps=len(outcome.events),
-                turnover_bps=features["turnover_bps"],
-                fee_density_bps=features["fee_density_bps"],
-                direction_balance=features["direction_balance"],
-                drift_ratio=features["drift_ratio"],
-                selected=bool(
-                    choice
-                    and strategy == choice["strategy"]
-                    and width == choice["width"]
+                turnover_bps=broad_features["turnover_bps"],
+                fee_density_bps=broad_features["fee_density_bps"],
+                direction_balance=broad_features["direction_balance"],
+                drift_ratio=broad_features["drift_ratio"],
+                legacy_width8_selected=bool(
+                    legacy_choice
+                    and strategy == legacy_choice["strategy"]
+                    and width == legacy_choice["width"]
                 ),
             )
             results.append(result)
-            if result["selected"]:
-                selected_results.append(result)
-    return opportunity, results, selected_results
+            if result["legacy_width8_selected"]:
+                legacy_selected_results.append(result)
+
+    normalized_results = []
+    selected_results = []
+    for candidate in economic_candidates:
+        try:
+            result = research.evaluate(
+                entry, outcome, candidate["strategy"], candidate["width"]
+            )
+        except (Unavailable, ValueError, KeyError, TypeError, OverflowError) as exc:
+            result = dict(
+                strategy=candidate["strategy"],
+                width=candidate["width"],
+                resolved=False,
+                reason=str(exc),
+            )
+        selected = bool(
+            economic_choice
+            and result["strategy"] == economic_choice["strategy"]
+            and result["width"] == economic_choice["width"]
+            and candidate["target_distance_bps"]
+                == economic_choice["target_distance_bps"]
+        )
+        result.update(
+            cycle=cycle,
+            pool=address,
+            sample_role=study_phase,
+            target_distance_bps=candidate["target_distance_bps"],
+            actual_distance_bps=candidate["actual_distance_bps"],
+            pre_entry_features=candidate["features"],
+            pre_entry_economic_case=candidate["economic_case"],
+            selected=selected,
+            holding_seconds=economics.HOLD_SECONDS,
+            entry_slot=entry["slot"],
+            end_slot=end_state["slot"],
+            outcome_swaps=len(outcome.events),
+        )
+        normalized_results.append(result)
+        if selected:
+            selected_results.append(result)
+
+    return (
+        opportunity,
+        results,
+        selected_results,
+        normalized_results,
+        legacy_selected_results,
+    )
+
 
 
 def _attempt_candidate(
     adapter,
     candidate,
     start,
-    window_seconds,
+    warmup_seconds,
+    holding_seconds,
+    study_phase,
     attempt_index,
     rpc_before=None,
     fresh_start_rpc=None,
 ):
     before = rpc_before or _rpc_metrics(adapter.rpc)
     address = candidate["address"]
+    observation_started = int(time.time())
     attempt = dict(
         attempt=attempt_index,
         pool=address,
@@ -458,11 +610,14 @@ def _attempt_candidate(
         discovery_source=candidate.get("source"),
         candidate_start_slot=start["slot"],
         verification_capacity=MAX_TRANSACTIONS,
+        warmup_seconds=warmup_seconds,
+        holding_seconds=holding_seconds,
+        study_phase=study_phase,
         fresh_start_rpc=dict(fresh_start_rpc or {}),
     )
 
     warm_phase, warm, entry, warm_start = _observe_phase(
-        adapter, address, start, window_seconds, allow_snapshot_reset=True
+        adapter, address, start, warmup_seconds, allow_snapshot_reset=True
     )
     attempt["warmup"] = warm_phase
     if not warm_phase["verified"]:
@@ -471,21 +626,62 @@ def _attempt_candidate(
             terminal_classification=warm_phase["terminal_classification"],
             rpc=_metric_delta(before, _rpc_metrics(adapter.rpc)),
         )
-        return attempt, None, [], []
+        return attempt, None, [], [], [], []
 
     if len(warm.events) == 0:
         attempt.update(
             completed_window=False,
             terminal_classification="verified_zero_swap",
             warmup_swaps=0,
-            outcome_skipped="fixed_selector_requires_nonzero_verified_warmup_activity",
+            outcome_skipped="no_pre_entry_economic_case_without_verified_flow",
             strategy_selected=False,
             rpc=_metric_delta(before, _rpc_metrics(adapter.rpc)),
         )
-        return attempt, None, [], []
+        return attempt, None, [], [], [], []
 
-    outcome_phase, outcome, end_state, _ = _observe_phase(
-        adapter, address, entry, window_seconds, allow_snapshot_reset=False
+    if study_phase == "development":
+        economic_choice, economic_candidates = economics.select_development_candidate(
+            warm_start, warm, placement_state=entry
+        )
+    elif study_phase == "holdout":
+        rule = economics.load_frozen_rule()
+        economic_choice, holdout_features = economics.select_holdout_candidate(
+            warm_start,
+            warm,
+            observation_started,
+            rule,
+            placement_state=entry,
+        )
+        placement = economics.normalized_placements(entry)
+        target = int(rule["target_distance_bps"])
+        target_row = min(
+            placement,
+            key=lambda item: abs(item["target_distance_bps"] - target),
+        )
+        target_row = dict(target_row)
+        target_row["features"] = holdout_features
+        target_row["economic_case"] = dict(
+            passes=economic_choice is not None,
+            rule="frozen_holdout_rule_v1",
+            fitted_thresholds=True,
+        )
+        economic_candidates = [target_row]
+    else:
+        raise ValueError("dlmm_profitability_study_phase")
+
+    attempt["pre_entry_economic_choice"] = economic_choice
+    attempt["pre_entry_economic_candidates"] = economic_candidates
+
+    # Development deliberately observes later outcomes even when the provisional
+    # economic case rejects entry. Those rejected labels are required to define a
+    # rule without selection bias. Holdout also records the full prespecified cohort;
+    # only selected rows count as strategy trades.
+    outcome_phase, outcome, end_state = _observe_horizon(
+        adapter,
+        address,
+        entry,
+        total_seconds=holding_seconds,
+        segment_seconds=OUTCOME_SEGMENT_SECONDS,
     )
     attempt["outcome"] = outcome_phase
     if not outcome_phase["verified"]:
@@ -494,25 +690,36 @@ def _attempt_candidate(
             terminal_classification=outcome_phase["terminal_classification"],
             rpc=_metric_delta(before, _rpc_metrics(adapter.rpc)),
         )
-        return attempt, None, [], []
+        return attempt, None, [], [], [], []
 
-    overall = (
-        "verified_zero_swap"
-        if len(warm.events) == 0 and len(outcome.events) == 0
-        else "certifiable"
-    )
     attempt.update(
         completed_window=True,
-        terminal_classification=overall,
+        terminal_classification="certifiable",
         warmup_swaps=len(warm.events),
         outcome_swaps=len(outcome.events),
+        strategy_selected=economic_choice is not None,
         rpc=_metric_delta(before, _rpc_metrics(adapter.rpc)),
     )
-    opportunity, results, selected = _evaluate_completed_window(
-        attempt_index - 1, address, warm_start, warm, entry, outcome, end_state
+    (
+        opportunity,
+        results,
+        selected,
+        normalized,
+        legacy,
+    ) = _evaluate_completed_window(
+        attempt_index - 1,
+        address,
+        warm_start,
+        warm,
+        entry,
+        outcome,
+        end_state,
+        study_phase,
+        economic_choice,
+        economic_candidates,
     )
-    attempt["strategy_selected"] = opportunity["selected"] is not None
-    return attempt, opportunity, results, selected
+    return attempt, opportunity, results, selected, normalized, legacy
+
 
 
 def run_live(
