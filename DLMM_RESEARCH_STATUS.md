@@ -568,3 +568,16 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Current analysis code now records pool `binStep`, converts each closed position's bin width to approximate price-span basis points, and classifies first-add composition as SOL-only, token-only, or two-sided from the immutable position event history.
 - This marker authorizes one rerun of Phase B on the exact same frozen cohort to normalize range geometry and composition before any candidate strategy is frozen.
 - It does not authorize cohort replacement, threshold fitting from the legacy 60-second sample, prospective allocation, signing, submission, or live money.
+
+
+## Wallet behavior normalization rerun
+
+- Phase B run `35402587550` identified 18 of the 23 frozen wallets as profitable under the preregistered USD+SOL/repeatability definition.
+- Initial behavior evidence from 342 recent closed positions showed strong differences from the legacy 60-second hypothesis, but raw bin width is not comparable across pools with different bin steps.
+- Enrichment head `2a30635e5c5fbfe8bb4d694b68d856044f4b9446` preserves the exact frozen cohort and exact profitability definition while adding:
+  - pool `binStep` from the already-authorized Meteora portfolio response;
+  - exact range price-span bps using the Meteora geometric bin-price relation;
+  - first-add composition classified as SOL-only, non-SOL-token-only, or two-sided;
+  - managed-rebalance proxy from repeated add/remove history.
+- Full CI run `35403387100` passed.
+- This marker authorizes one analysis-only rerun on the same frozen 23-wallet cohort. No wallet replacement, new wallet discovery, candidate freeze, allocation, or prospective trading is authorized by this marker.
