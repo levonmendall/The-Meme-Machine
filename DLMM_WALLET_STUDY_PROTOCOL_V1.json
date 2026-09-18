@@ -1,0 +1,49 @@
+{
+  "kind": "dlmm_wallet_derived_study_protocol_v1",
+  "status": "preregistered",
+  "allocation_authority": false,
+  "prospective_trading_enabled": false,
+  "legacy_60_second_strategy_status": "research_hold",
+  "phase_a_discovery": {
+    "pnl_reads_forbidden": true,
+    "pool_universe": "SOL-paired, non-blacklisted, TVL>=50000 USD, 24h volume>=25000 USD",
+    "pool_ranking": "fee_tvl_ratio_24h descending",
+    "pool_sample": 12,
+    "recent_finalized_signatures_per_pool": 64,
+    "transaction_bodies_examined_per_pool": 24,
+    "supported_actor_actions": [
+      "add_liquidity2",
+      "add_liquidity_by_strategy2",
+      "remove_liquidity_by_range2",
+      "rebalance_liquidity"
+    ],
+    "target_wallets": 30,
+    "max_wallets_per_discovery_pool": 5,
+    "minimum_wallets_to_freeze": 12
+  },
+  "phase_b_analysis": {
+    "requires_committed_frozen_cohort": true,
+    "days_back": 120,
+    "profitable_wallet_definition": {
+      "min_closed_positions": 5,
+      "min_distinct_closed_pools": 2,
+      "total_pnl_usd_positive": true,
+      "total_pnl_sol_positive": true,
+      "min_profitable_position_rate_usd": 0.55
+    },
+    "behavior_dimensions": [
+      "holding duration",
+      "range width in bins",
+      "fee/deposit ratio",
+      "repeated add/remove activity as rebalance proxy",
+      "cross-pool repeatability"
+    ]
+  },
+  "candidate_strategy_rule": [
+    "Do not use the ten legacy 60-second observations to fit the new candidate.",
+    "Do not freeze a candidate until repeatable behavior is identified in the frozen wallet cohort.",
+    "Freeze exactly one candidate in a later reviewed commit before any prospective test.",
+    "Prospective test data must be strictly post-freeze.",
+    "No threshold may be lowered merely to manufacture trades."
+  ]
+}
