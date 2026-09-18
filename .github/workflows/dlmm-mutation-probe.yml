@@ -21,11 +21,11 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Validate Alchemy Solana route
         env:
-          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL || secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL }}
         run: python -m tests.dlmm_alchemy_provider
       - name: Capture bounded finalized USELESS mutation interval
         env:
-          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL || secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ALCHEMY_SOLANA_RPC_URL: ${{ secrets.MM_ALCHEMY_SOLANA_RPC_URL }}
         run: python -m tests.dlmm_mutation_probe --wait-seconds 20
       - name: Preserve mutation evidence
         if: always()
