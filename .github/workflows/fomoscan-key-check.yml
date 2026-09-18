@@ -1,0 +1,21 @@
+name: fomoscan-key-check
+on:
+  push:
+    branches: [research/fomoscan-three-way-check]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    env:
+      FOMOSCAN_API_KEY: ${{ secrets.FOMOSCAN_API_KEY }}
+    steps:
+      - name: Check historical FomoScan credential availability
+        shell: bash
+        run: |
+          if [ -z "$FOMOSCAN_API_KEY" ]; then
+            echo "FOMOSCAN_API_KEY=missing"
+            exit 2
+          fi
+          echo "FOMOSCAN_API_KEY=present"
