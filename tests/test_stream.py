@@ -8,7 +8,7 @@ from meme_machine import pump
 from meme_machine.__main__ import tick_stream
 from meme_machine.engine import Engine
 from meme_machine.store import Store
-from meme_machine.stream import PumpTape, websocket_url
+from meme_machine.stream import PumpTape, event_identity, websocket_url
 from tests.support import SCOUT, evidence, event, snapshot
 
 
@@ -34,11 +34,22 @@ class StreamTape(unittest.TestCase):
         self.assertTrue(tape.covered(now))
         rows=tape.window(decoded[0]['mint'],now)
         self.assertEqual(len(rows),1)
-        self.assertEqual(rows[0]['id'],f"captured:{decoded[0]['index']}")
+        self.assertEqual(rows[0]['id'],event_identity('captured',tx['slot'],decoded[0]))
         self.assertEqual(rows[0]['available_time'],now)
         fresh,cursor=tape.events_since(0)
         self.assertEqual(fresh,rows)
         self.assertEqual(cursor,1)
+
+    def test_live_event_identity_separates_reused_signature_across_slot_and_mint(self):
+        a=dict(index=45,mint='MintA')
+        b=dict(index=45,mint='MintB')
+        self.assertEqual(event_identity('same-signature',123,a),
+                         event_identity('same-signature',123,a))
+        self.assertNotEqual(event_identity('same-signature',123,a),
+                            event_identity('same-signature',124,a))
+        self.assertNotEqual(event_identity('same-signature',123,a),
+                            event_identity('same-signature',123,b))
+
 
     def test_disconnect_resets_coverage_and_requires_full_rewarm(self):
         tape=PumpTape(clock=lambda:200)
