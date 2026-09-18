@@ -24,6 +24,7 @@ ACTIVITY_WAIT_SECONDS=WATCH_SLOT_SECONDS
 FINALITY_WAIT_SECONDS=180
 FORWARD_HEAD_WAIT_SECONDS=180
 FORWARD_FINALITY_WAIT_SECONDS=240
+FORCED_FORWARD_FINALITY_WAIT_SECONDS=600
 LOG_BLOCK_CHUNK=10
 MAX_FACTORY_POOLS=400
 FORWARD_SECONDS=60
@@ -466,22 +467,34 @@ def run(endpoint, *, forced_paper=False, forced_db_path=None):
                 identity=forced_identity,reservation=reserved,opened=opened,
                 reconciliation=after_restart,restart_proven=True)
         # Nothing after this point can alter the frozen proposal definitions.
-        target=start_ts+FORWARD_SECONDS;head_deadline=time.monotonic()+FORWARD_HEAD_WAIT_SECONDS
-        end_candidate=rpc.call('eth_getBlockByNumber',['latest',False],scope='forward')
-        while int(end_candidate['timestamp'],16)<target:
-            if time.monotonic()>=head_deadline:raise BoundaryError('insufficient_forward_head_window')
-            time.sleep(5)
+        target=start_ts+FORWARD_SECONDS
+        if forced_paper:
+            # Forced machinery proof has no need to anchor an unfinalized head.
+            # Wait directly for finalized chain time to cross the frozen +60s horizon.
+            finality_deadline=time.monotonic()+FORCED_FORWARD_FINALITY_WAIT_SECONDS
+            end_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
+            while int(end_frontier['timestamp'],16)<target:
+                if time.monotonic()>=finality_deadline:raise BoundaryError('forced_terminal_finality_timeout')
+                time.sleep(10)
+                end_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
+            end=int(end_frontier['number'],16);end_ts=int(end_frontier['timestamp'],16)
+        else:
+            head_deadline=time.monotonic()+FORWARD_HEAD_WAIT_SECONDS
             end_candidate=rpc.call('eth_getBlockByNumber',['latest',False],scope='forward')
-        end=int(end_candidate['number'],16);end_ts=int(end_candidate['timestamp'],16)
-        finality_deadline=time.monotonic()+FORWARD_FINALITY_WAIT_SECONDS
-        finalized_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
-        while int(finalized_frontier['number'],16)<end:
-            if time.monotonic()>=finality_deadline:raise BoundaryError('terminal_finality_timeout')
-            time.sleep(10)
+            while int(end_candidate['timestamp'],16)<target:
+                if time.monotonic()>=head_deadline:raise BoundaryError('insufficient_forward_head_window')
+                time.sleep(5)
+                end_candidate=rpc.call('eth_getBlockByNumber',['latest',False],scope='forward')
+            end=int(end_candidate['number'],16);end_ts=int(end_candidate['timestamp'],16)
+            finality_deadline=time.monotonic()+FORWARD_FINALITY_WAIT_SECONDS
             finalized_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
-        end_frontier=rpc.call('eth_getBlockByNumber',[hex(end),False],scope='forward')
-        if end_frontier['hash']!=end_candidate['hash']:
-            raise BoundaryError('terminal_reorg_before_finality')
+            while int(finalized_frontier['number'],16)<end:
+                if time.monotonic()>=finality_deadline:raise BoundaryError('terminal_finality_timeout')
+                time.sleep(10)
+                finalized_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
+            end_frontier=rpc.call('eth_getBlockByNumber',[hex(end),False],scope='forward')
+            if end_frontier['hash']!=end_candidate['hash']:
+                raise BoundaryError('terminal_reorg_before_finality')
         result['frontier']={k:end_frontier[k] for k in ('hash','number','timestamp','parentHash')}
         events=batched_logs(start+1,end,address=address,scope='pool')
         result['logs']=events
