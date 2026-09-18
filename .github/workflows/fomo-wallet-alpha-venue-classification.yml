@@ -1,0 +1,26 @@
+name: fomo-wallet-alpha-venue-classification
+on:
+  push:
+    branches: [research/fomo-wallet-alpha-event-study]
+permissions: {contents: read}
+jobs:
+  classify:
+    if: contains(github.event.head_commit.message, '[wallet-alpha-classify]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      FOMOAPI_KEY: ${{ secrets.FOMOAPI_KEY }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12.14'}
+      - run: python -m pip install --disable-pip-version-check requests zstandard
+      - run: python -m tests.fomo_wallet_alpha_venue_classification | tee fomo-wallet-alpha-venue-classification.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: fomo-wallet-alpha-venue-classification-${{ github.run_id }}
+          path: |
+            fomo-wallet-alpha-venue-classification.json
+            fomo-wallet-alpha-venue-classification.log
+          retention-days: 7
