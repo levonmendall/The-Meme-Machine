@@ -98,6 +98,12 @@ class DlmmEconomicStrategy(unittest.TestCase):
                 key,
             )
 
+    def test_repository_rule_template_is_explicitly_unfrozen(self):
+        body = json.loads(economics.RULE_PATH.read_text())
+        self.assertEqual(body["status"], "development")
+        with self.assertRaisesRegex(Unavailable, "holdout_rule_not_frozen"):
+            economics.load_frozen_rule()
+
     def test_unfrozen_rule_cannot_be_used_for_holdout(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "rule.json"
