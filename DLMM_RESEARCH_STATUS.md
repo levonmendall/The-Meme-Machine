@@ -581,3 +581,13 @@ This commit triggers one bounded revalidation of the exact same repaired code an
   - managed-rebalance proxy from repeated add/remove history.
 - Full CI run `35403387100` passed.
 - This marker authorizes one analysis-only rerun on the same frozen 23-wallet cohort. No wallet replacement, new wallet discovery, candidate freeze, allocation, or prospective trading is authorized by this marker.
+
+
+## Pre-freeze wallet-analysis cutoff correction
+
+- The normalized behavior rerun revealed that a live portfolio endpoint can include positions closed after the cohort freeze timestamp.
+- Candidate-development evidence is now hard-capped to `closedAt <= 2026-09-18T22:39:00Z`, the committed cohort freeze. Position-history events are also capped at each included position's close time.
+- Positions closing after the cohort freeze are excluded from candidate development and reserved for later prospective evaluation.
+- No frozen wallet address, profitability threshold, pool-sampling rule, or legacy result changed.
+- Full CI run `35403866813` passed.
+- This marker authorizes one final Phase B analysis rerun using only pre-freeze closed-position evidence. A candidate may be proposed/frozen only from that corrected artifact.
