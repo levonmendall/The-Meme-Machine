@@ -222,9 +222,6 @@ def main():
     segments=contiguous(needed)
 
     states={};pairs=[];watch=defaultdict(list);matched=set();control_last={}
-    target_index=defaultdict(list)
-    for i,e in enumerate(targets):
-        target_index[hour(e["approx_ts"])].append((i,e))
 
     def choose_control(tf,ts,target_mint):
         choices=[]
@@ -242,7 +239,33 @@ def main():
     headers={"User-Agent":"Mozilla/5.0","Accept":"application/octet-stream"}
     trade_rows=0
     for seg in segments:
-        states={};control_last={}
+        states={};control_last={};watch=defaultdict(list)
+        seg_start=int(datetime.strptime(seg[0],"%Y/%m/%d/%H").replace(tzinfo=timezone.utc).timestamp())
+        seg_end=int((datetime.strptime(seg[-1],"%Y/%m/%d/%H").replace(tzinfo=timezone.utc)+timedelta(hours=1)).timestamp())
+        seg_targets=[(i,t) for i,t in enumerate(targets) if seg_start<=t["approx_ts"]<seg_end]
+        seg_targets.sort(key=lambda x:(x[1]["approx_ts"],x[0]))
+        pending=0
+
+        def trigger_targets(until_ts):
+            nonlocal pending
+            while pending<len(seg_targets) and seg_targets[pending][1]["approx_ts"]<=until_ts:
+                ti,t=seg_targets[pending]; pending+=1
+                if ti in matched: continue
+                event_ts=t["approx_ts"];mint=t["mint"]
+                st=states.get(mint);tf=st.feat(event_ts) if st else None
+                matched.add(ti)
+                if not tf or tf["protocol"] not in PROTOCOLS: continue
+                cc=choose_control(tf,event_ts,mint)
+                if not cc: continue
+                d,cm,cf=cc
+                p={"handle":t["handle"],"wallet":t["wallet"],"mint":mint,
+                   "approx_ts":event_ts,"event_ts":event_ts,"timestamp_delta":0,
+                   "event_definition":"FomoAPI successful-wallet buy timestamp; Pump-native activity independently verified by Shrine immediately before event",
+                   "convergence_wallets_15m":t["convergence_wallets_15m"],
+                   "match_distance":d,"target_features":tf,"control_mint":cm,"control_features":cf,
+                   "target":role(),"control":role(),"target_graduated":False,"control_graduated":False}
+                pi=len(pairs);pairs.append(p);watch[mint].append((pi,"target"));watch[cm].append((pi,"control"))
+
         for h in seg:
             with requests.get(f"{REPLAY}/{h}.jsonl.zst",headers=headers,stream=True,timeout=60) as resp:
                 resp.raise_for_status();reader=zstandard.ZstdDecompressor().stream_reader(resp.raw)
@@ -252,6 +275,9 @@ def main():
                     ts=e.get("timestamp");mint=e.get("mint");action=e.get("action");protocol=e.get("protocol")
                     if not isinstance(ts,(int,float)) or not mint:continue
                     ts=int(ts)
+                    # Freeze the event and control state before consuming any Shrine event
+                    # at or after the Fomo buy timestamp.
+                    trigger_targets(ts)
                     if action=="migrate":
                         for pi,kind in watch.get(mint,[]):
                             p=pairs[pi]
@@ -262,29 +288,12 @@ def main():
                     price=e.get("price")
                     if not isinstance(price,(int,float)) or price<=0:continue
                     trade_rows+=1
-                    # match target buy BEFORE adding this trade to market features
-                    wallets=e.get("tradersInvolved") or []
-                    if action=="buy" and isinstance(wallets,list):
-                        # candidates whose approximate Fomo swap timestamp is within 30s
-                        for ti,t in target_index.get(hour(ts),[]):
-                            if ti in matched or t["mint"]!=mint or t["wallet"] not in wallets or abs(ts-t["approx_ts"])>30:continue
-                            st=states.get(mint);tf=st.feat(ts) if st else None
-                            if not tf: matched.add(ti);continue
-                            cc=choose_control(tf,ts,mint)
-                            matched.add(ti)
-                            if not cc:continue
-                            d,cm,cf=cc
-                            p={"handle":t["handle"],"wallet":t["wallet"],"mint":mint,
-                               "approx_ts":t["approx_ts"],"event_ts":ts,"timestamp_delta":ts-t["approx_ts"],
-                               "convergence_wallets_15m":t["convergence_wallets_15m"],
-                               "match_distance":d,"target_features":tf,"control_mint":cm,"control_features":cf,
-                               "target":role(),"control":role(),"target_graduated":False,"control_graduated":False}
-                            pi=len(pairs);pairs.append(p);watch[mint].append((pi,"target"));watch[cm].append((pi,"control"))
                     st=states.get(mint)
                     if st is None:st=states[mint]=State()
                     st.add(e)
                     for pi,kind in watch.get(mint,[]):
                         update_role(pairs[pi][kind],ts,float(price),pairs[pi]["event_ts"])
+        trigger_targets(seg_end)
 
     records=[]
     for p in pairs:
@@ -314,14 +323,14 @@ def main():
 
     report={"kind":"successful_fomo_wallet_pump_alpha_event_study_v1","research_only":True,
         "strategy_data_used":False,"provider_spend_usd":0,
-        "selection":"current persistent Fomo winners: top-10 in >=2 of 24h/7d/30d, verified Solana wallet",
+        "selection":"current persistent Fomo winners: top-10 in >=2 of 24h/7d/30d, verified Solana wallet; event timestamp comes from that trader's Fomo Solana buy, while Pump-native market state/outcomes come independently from Shrine",
         "survivorship_warning":"Trader selection uses current leaderboard success; results characterize these current winners and are not an ex-ante point-in-time strategy backtest.",
         "traders":traders,"per_trader_source":per,"archive_end":int(end_dt.timestamp()),"recent_hours":RECENT_HOURS,
         "raw_recent_solana_buys":len(raw),"dedup_independent_buy_targets":len(targets),
-        "unique_target_mints":len({x["mint"] for x in targets}),"matched_chain_buys":len(matched),
+        "unique_target_mints":len({x["mint"] for x in targets}),"pump_native_targets_evaluated":len(matched),
         "matched_control_pairs":len(pairs),"complete_records":len(records),"trade_rows_processed":trade_rows,
         "design":{"dedup":"first wallet/mint buy after >=30m quiet period","entry_delay_seconds":ENTRY_DELAY,
-            "control":"same time/protocol/quote; nearest pre-buy market cap, 5m return, 5m quote volume, trade count; excludes successful-wallet target activity +/-15m",
+            "control":"same time/protocol/quote; nearest pre-buy market cap, 5m return, 5m quote volume, trade count; excludes successful-wallet target activity +/-15m","pump_native_gate":"Shrine must show active PUMPFUN/PUMPSWAP trading state immediately before the Fomo buy timestamp",
             "horizons_seconds":list(HORIZONS),"primary_horizon_seconds":300},
         "summaries":summaries,"convergence_5m":conv,"records":records,
         "limitations":["FomoAPI swap histories are capped for several traders; this study uses the exposed recent swaps only.",
@@ -331,7 +340,7 @@ def main():
     OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
     print(json.dumps({"raw_recent_solana_buys":report["raw_recent_solana_buys"],
         "dedup_targets":report["dedup_independent_buy_targets"],"unique_target_mints":report["unique_target_mints"],
-        "matched_chain_buys":report["matched_chain_buys"],"matched_control_pairs":report["matched_control_pairs"],
+        "pump_native_targets_evaluated":report["pump_native_targets_evaluated"],"matched_control_pairs":report["matched_control_pairs"],
         "complete_records":report["complete_records"],"primary_5m":summaries["300"],
         "one_minute":summaries["60"],"fifteen_minute":summaries["900"],"sixty_minute":summaries["3600"],
         "convergence_5m":conv},indent=2,sort_keys=True))
