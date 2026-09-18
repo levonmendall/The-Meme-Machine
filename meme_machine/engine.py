@@ -32,6 +32,12 @@ class Allocator:
         s = self.store.state
         if kind != 'spot':
             return 'dlmm_disabled'
+        # Existing Pump behavior is unchanged when there is no isolated LP replay.
+        # In a shared replay, LP token exposure also occupies the finite portfolio.
+        if any(mint in (p['x'],p['y']) for p in s.get('liquidity_positions',{}).values()):
+            return 'token_exposure'
+        if any(o['status']=='reserved' and mint in (o['x'],o['y']) for o in s.get('liquidity_orders',{}).values()):
+            return 'token_exposure'
         observed_now = s.get('last_time',0) if now is None else now
         if observed_now < s.get('entry_quarantine_until',0):
             return 'unresolved_data_gap'
@@ -44,6 +50,7 @@ class Allocator:
         if any(p['related']==related for p in s['positions'].values()):
             return 'related_exposure'
         active = len(s['positions'])+sum(o['status']=='reserved' for o in s['orders'].values())
+        active += len(s.get('liquidity_positions',{}))+sum(o['status']=='reserved' for o in s.get('liquidity_orders',{}).values())
         if active >= 4 or amount > s['initial']//20:
             return 'aggregate_exposure'
         if s['cash']-amount-GAS-RENT < s['initial']//10:
@@ -346,8 +353,11 @@ class Engine:
             mode=s['mode'],network='solana-mainnet',initial_usd_micros=s['initial_usd_micros'],
             cash_lamports=s['cash'],reserved_lamports=s['reserved'],rent_lamports=s['rent'],
             realized_lamports=s['realized'],fees_lamports=s['fees'],positions=positions,
-            unrealized_lamports=None if any(m is None for m in marks) else sum(marks)-sum(p['basis'] for p in positions.values()),
+            unrealized_lamports=None if s.get('liquidity_positions') or any(m is None for m in marks) else sum(marks)-sum(p['basis'] for p in positions.values()),
             current_usd_value=None,counts=s['counts'],decisions=s['decisions'][-10:],gaps=s['gaps'],
             entry_quarantine_until=s.get('entry_quarantine_until',0),active_entry_quarantine=quarantined,
             funnel=dict(s['funnel']),progress=s['progress'],coverage=s.get('coverage',{}),wallets=s['wallets'],
-            provider=s['provider'],dlmm_enabled=False,pressure=self.store.pressure())
+            provider=s['provider'],dlmm_enabled=False,
+            liquidity_position_count=len(s.get('liquidity_positions',{})),
+            liquidity_basis_lamports=sum(p['basis'] for p in s.get('liquidity_positions',{}).values()),
+            pressure=self.store.pressure())

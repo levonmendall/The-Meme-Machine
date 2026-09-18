@@ -1,6 +1,7 @@
 # Scope and execution rules
 
-- Build only The Meme Machine's first Pump.fun SOL directional paper milestone.
+- Preserve the Pump/PumpSwap contract. The authorized stacked DLMM branch adds only
+  Meteora SOL-paired mechanical paper replay; prospective DLMM allocation stays disabled.
 - Wallet scouting does not grant purchase authority. Preserve independent policy
   gates, point-in-time evidence, integer accounting, one shared $500 genesis and
   disabled DLMM. Never force a trade or change defaults to improve test outcomes.
@@ -13,3 +14,7 @@
 - Keep secrets, .env files, raw private evidence and runtime DBs out of Git/logs.
 - Feature commits and pull requests authorized; main is not implementation authority
   until separately approved. Record exact evidence and next blocking task.
+- For DLMM continuation, read DLMM_STATUS.md. Keep PRs #1/#2/#3 independent; do not
+  merge or deploy. Run the full unit suite and both resource checks. Real swap fee
+  proof requires a verified complete finalized mutation interval; zero swaps and
+  synthetic RPC responses do not establish it. Do not weaken freshness or token gates.
