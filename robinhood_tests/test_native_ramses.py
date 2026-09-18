@@ -336,7 +336,7 @@ class RamsesInventoryWatchTests(unittest.TestCase):
         baseline=json.loads((Path(__file__).parents[1]/'robinhood_research'/'ramses_native_inventory_baseline.json').read_text())
         self.assertEqual(baseline['factory_pool_count'],271)
         self.assertEqual(baseline['native_pool_count'],86)
-        self.assertEqual(baseline['native_entries_sha256'],INVENTORY_NATIVE_SHA)
+        self.assertEqual(baseline['native_entries_sha256'],ramses_capture.INVENTORY_NATIVE_SHA)
         self.assertEqual(len(baseline['native_pools']),86)
 
     def test_watch_configuration_is_bounded_and_prospective(self):
