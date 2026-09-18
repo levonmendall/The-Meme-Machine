@@ -1,9 +1,13 @@
 import unittest
+from unittest.mock import patch
+
+from robinhood_research import BoundaryError
 
 from robinhood_research.continuation_robinhood import POLICY, POLICY_HASH, REFERENCE_ENTRY_WEI
 from robinhood_research.continuation_robinhood_cohort import (
     COHORT_TARGET, ENTRY_DELAY_SECONDS, MAX_HOLD_SECONDS, MONITOR_SECONDS,
     PAPER_AMOUNT, PAPER_CAPITAL, RISK_BPS, TAKE_PROFIT_BPS, _paper_decision,
+    _poll, _recover_discovery,
 )
 
 
@@ -17,6 +21,64 @@ class ContinuationCohortTests(unittest.TestCase):
         self.assertEqual(TAKE_PROFIT_BPS,1500)
         self.assertEqual(RISK_BPS,-1000)
         self.assertEqual(MAX_HOLD_SECONDS,900)
+
+    def test_transport_failure_recovers_without_advancing_cursor(self):
+        class Rpc:
+            used=0
+            def telemetry(self):
+                return {"requests":1}
+        first=Rpc();replacement=Rpc()
+        result={"discovery_sessions":[],"provider_recoveries":[]}
+        with patch("robinhood_research.continuation_robinhood_cohort._latest_header",
+                   side_effect=[BoundaryError("provider_transport_failure"),{"number":"0x10"}]), \
+             patch("robinhood_research.continuation_robinhood_cohort._current_curve_events",
+                   return_value=[]), \
+             patch("robinhood_research.continuation_robinhood_cohort._recover_discovery",
+                   return_value=replacement) as recover:
+            rpc,cursor,fresh,header=_poll(
+                "https://example.invalid",first,10,[],result
+            )
+        self.assertIs(rpc,replacement)
+        self.assertEqual(cursor,16)
+        self.assertEqual(fresh,[])
+        self.assertEqual(header["number"],"0x10")
+        self.assertEqual(recover.call_args.args[3],10)
+
+    def test_nontransport_boundary_does_not_reconnect(self):
+        class Rpc:
+            used=0
+            def telemetry(self):
+                return {}
+        with patch("robinhood_research.continuation_robinhood_cohort._latest_header",
+                   side_effect=BoundaryError("provider_rpc_-32000")), \
+             patch("robinhood_research.continuation_robinhood_cohort._recover_discovery") as recover:
+            with self.assertRaisesRegex(BoundaryError,"provider_rpc_-32000"):
+                _poll("https://example.invalid",Rpc(),77,[],{"discovery_sessions":[]})
+        recover.assert_not_called()
+
+    def test_reconnect_verifies_new_session_before_resume(self):
+        class Fake:
+            used=0
+            def __init__(self,fail=False):
+                self.fail=fail
+            def verify_chain(self):
+                if self.fail:
+                    raise BoundaryError("provider_transport_failure")
+                return 4663
+            def telemetry(self):
+                return {"fail":self.fail}
+        broken=Fake(True);good=Fake(False)
+        result={"discovery_sessions":[],"provider_recoveries":[]}
+        with patch("robinhood_research.continuation_robinhood_cohort.sample_rpc",
+                   side_effect=[broken,good]), \
+             patch("robinhood_research.continuation_robinhood_cohort.time.sleep"):
+            recovered=_recover_discovery(
+                "https://example.invalid",None,result,123,
+                BoundaryError("provider_transport_failure"),
+            )
+        self.assertIs(recovered,good)
+        self.assertEqual(result["provider_recoveries"][0]["cursor"],123)
+        self.assertEqual(result["provider_recoveries"][-1]["attempt"],2)
 
     def test_paper_decision_requires_exact_frozen_policy(self):
         row=dict(
