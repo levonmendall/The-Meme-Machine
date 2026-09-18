@@ -113,18 +113,32 @@ def curve(account):
 
 
 def validate_mint_supply(curve_account, c, mint_supply, decimals):
-    """Validate standard and Mayhem supply semantics without changing reserve math."""
+    """Validate issuance bounds, not immutable equality with creation-time supply.
+
+    BondingCurve.token_total_supply is the curve's creation-time supply parameter.
+    Current SPL mint supply is live state and can legitimately decrease when holders
+    burn tokens. Therefore equality is not an integrity invariant.
+
+    What must remain true for a supported active Pump mint is:
+    - Pump tokens use 6 decimals;
+    - live supply cannot be smaller than tokens the bonding curve still claims as
+      real inventory; and
+    - live supply cannot exceed the protocol's issuance ceiling: the curve's
+      creation-time supply for standard coins, or that supply plus Pump's documented
+      extra one billion Mayhem tokens.
+
+    Mint/freeze authority and Token-2022 extension safety are validated separately
+    by mint_info(). Fee tiers continue to use the actual live mint supply.
+    """
     mode = curve_mode(curve_account)
+    if decimals != 6:
+        raise ValueError('unsupported pump decimals')
+
+    upper = c.supply
     if mode['mayhem']:
-        # Pump documents Mayhem as minting one additional billion tokens. The
-        # unsold portion may later be burned, so observed supply can fall anywhere
-        # between the curve allocation and that documented upper bound.
-        if decimals != 6:
-            raise ValueError('unsupported mayhem decimals')
-        extra = MAYHEM_EXTRA_WHOLE_TOKENS * (10 ** decimals)
-        if not c.supply <= mint_supply <= c.supply + extra:
-            raise ValueError('supply_mismatch')
-    elif mint_supply != c.supply:
+        upper += MAYHEM_EXTRA_WHOLE_TOKENS * (10 ** decimals)
+
+    if not c.real_token <= mint_supply <= upper:
         raise ValueError('supply_mismatch')
     return mode
 

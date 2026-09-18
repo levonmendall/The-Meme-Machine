@@ -54,18 +54,30 @@ class MayhemMode(unittest.TestCase):
         self.assertTrue(pump.validate_mint_supply(account, c, c.supply + extra, 6)['mayhem'])
         self.assertTrue(pump.validate_mint_supply(account, c, c.supply + extra - 1, 6)['mayhem'])
         self.assertTrue(pump.validate_mint_supply(account, c, c.supply, 6)['mayhem'])
+        self.assertTrue(pump.validate_mint_supply(account, c, c.supply - 1, 6)['mayhem'])
+        self.assertTrue(pump.validate_mint_supply(account, c, c.real_token, 6)['mayhem'])
         with self.assertRaisesRegex(ValueError, 'supply_mismatch'):
-            pump.validate_mint_supply(account, c, c.supply - 1, 6)
+            pump.validate_mint_supply(account, c, c.real_token - 1, 6)
         with self.assertRaisesRegex(ValueError, 'supply_mismatch'):
             pump.validate_mint_supply(account, c, c.supply + extra + 1, 6)
-        with self.assertRaisesRegex(ValueError, 'unsupported mayhem decimals'):
+        with self.assertRaisesRegex(ValueError, 'unsupported pump decimals'):
             pump.validate_mint_supply(account, c, c.supply + extra, 9)
 
-    def test_standard_supply_mismatch_remains_fail_closed(self):
+    def test_standard_supply_validation_proves_bounds_not_creation_time_equality(self):
         account = curve_account_with(mayhem=False)
         c = pump.curve(account)
+        # Exact class of state proven by the live smoke: valid holder burns reduce
+        # current mint supply while BondingCurve.token_total_supply stays unchanged.
+        burned_supply = c.supply - 19_345_511_376
+        self.assertGreaterEqual(burned_supply, c.real_token)
+        self.assertFalse(pump.validate_mint_supply(account, c, burned_supply, 6)['mayhem'])
+        self.assertFalse(pump.validate_mint_supply(account, c, c.real_token, 6)['mayhem'])
         with self.assertRaisesRegex(ValueError, 'supply_mismatch'):
-            pump.validate_mint_supply(account, c, c.supply * 2, 6)
+            pump.validate_mint_supply(account, c, c.real_token - 1, 6)
+        with self.assertRaisesRegex(ValueError, 'supply_mismatch'):
+            pump.validate_mint_supply(account, c, c.supply + 1, 6)
+        with self.assertRaisesRegex(ValueError, 'unsupported pump decimals'):
+            pump.validate_mint_supply(account, c, c.supply, 9)
 
     def test_fee_tier_uses_actual_mint_supply(self):
         snap = snapshot()
