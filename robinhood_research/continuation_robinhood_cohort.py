@@ -54,6 +54,8 @@ PAPER_CAPITAL=REFERENCE_ENTRY_WEI*20
 MAX_TAPE_EVENTS=5000
 MAX_DISCOVERY_SESSIONS=1024
 POLL_SECONDS=0.5
+MAX_TRANSPORT_RECOVERY_ATTEMPTS=8
+TRANSPORT_RECOVERY_BACKOFF_SECONDS=0.5
 
 
 def _new_discovery(endpoint):
@@ -62,27 +64,71 @@ def _new_discovery(endpoint):
     return rpc
 
 
-def _rotate_discovery(endpoint,rpc,result):
-    result["discovery_sessions"].append(rpc.telemetry())
+def _transport_failure(exc):
+    return str(exc)=="provider_transport_failure"
+
+
+def _record_discovery_session(result,rpc):
+    if rpc is not None:
+        result["discovery_sessions"].append(rpc.telemetry())
     if len(result["discovery_sessions"])>=MAX_DISCOVERY_SESSIONS:
         raise BoundaryError("cohort_discovery_session_capacity")
+
+
+def _recover_discovery(endpoint,rpc,result,cursor,reason):
+    """Rotate a broken read session without advancing the last proven block cursor."""
+    _record_discovery_session(result,rpc)
+    recoveries=result.setdefault("provider_recoveries",[])
+    last=str(reason)
+    for attempt in range(1,MAX_TRANSPORT_RECOVERY_ATTEMPTS+1):
+        recoveries.append(dict(
+            at=int(time.time()),reason=last,cursor=int(cursor),attempt=attempt,
+        ))
+        time.sleep(TRANSPORT_RECOVERY_BACKOFF_SECONDS)
+        candidate=None
+        try:
+            candidate=sample_rpc(endpoint)
+            candidate.verify_chain()
+            return candidate
+        except BoundaryError as exc:
+            if candidate is not None:
+                _record_discovery_session(result,candidate)
+            if not _transport_failure(exc):
+                raise
+            last=str(exc)
+    raise BoundaryError("provider_transport_recovery_exhausted")
+
+
+def _rotate_discovery(endpoint,rpc,result):
+    _record_discovery_session(result,rpc)
     return _new_discovery(endpoint)
 
 
 def _poll(endpoint,rpc,cursor,tape,result):
+    """Poll from cursor+1; transient transport failure never advances cursor."""
     if rpc.used>150:
         rpc=_rotate_discovery(endpoint,rpc,result)
-    latest_header=_latest_header(rpc)
-    latest=int(latest_header["number"],16)
-    first=max(cursor+1,latest-9)
-    fresh=[]
-    if latest>=first:
-        fresh=_current_curve_events(rpc,first,latest)
-        tape.extend(fresh)
-        if len(tape)>MAX_TAPE_EVENTS:
-            del tape[:-MAX_TAPE_EVENTS]
-        cursor=latest
-    return rpc,cursor,fresh,latest_header
+    recovery_count=0
+    while True:
+        try:
+            latest_header=_latest_header(rpc)
+            latest=int(latest_header["number"],16)
+            first=max(cursor+1,latest-9)
+            fresh=[]
+            if latest>=first:
+                fresh=_current_curve_events(rpc,first,latest)
+                tape.extend(fresh)
+                if len(tape)>MAX_TAPE_EVENTS:
+                    del tape[:-MAX_TAPE_EVENTS]
+                cursor=latest
+            return rpc,cursor,fresh,latest_header
+        except BoundaryError as exc:
+            if not _transport_failure(exc):
+                raise
+            recovery_count+=1
+            if recovery_count>MAX_TRANSPORT_RECOVERY_ATTEMPTS:
+                raise BoundaryError("provider_transport_recovery_exhausted")
+            rpc=_recover_discovery(endpoint,rpc,result,cursor,exc)
 
 
 def _paper_decision(row,now):
@@ -392,6 +438,7 @@ def run(endpoint):
         reranking=False,replacement=False,outcome_blind=True,
         shared_allocator=False,started_at=time.time(),
         enrollments=[],qualifiers=[],lifecycles=[],discovery_sessions=[],
+        provider_recoveries=[],
     )
 
     rpc=_new_discovery(endpoint)
