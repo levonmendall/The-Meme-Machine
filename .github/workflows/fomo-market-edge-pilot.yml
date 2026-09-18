@@ -1,0 +1,34 @@
+name: fomo-market-edge-pilot
+
+on:
+  push:
+    branches:
+      - research/fomo-market-edge-pilot
+
+permissions:
+  contents: read
+
+jobs:
+  pilot:
+    if: contains(github.event.head_commit.message, '[fomo-edge-pilot]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      FOMOAPI_KEY: ${{ secrets.FOMOAPI_KEY }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Run free FOMO vs same-token matched market-data event study
+        run: set -o pipefail; python -m tests.fomo_market_edge_pilot | tee fomo-market-edge-pilot.log
+      - name: Preserve research report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fomo-market-edge-pilot-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            fomo-market-edge-pilot.json
+            fomo-market-edge-pilot.log
+          if-no-files-found: warn
+          retention-days: 30
