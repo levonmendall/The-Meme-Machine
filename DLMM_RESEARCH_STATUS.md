@@ -493,3 +493,11 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Holdout scope remains unchanged and is not activated.
 - Exact-head CI run `35383564774` passed the full unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
 - This marker authorizes exactly one expanded development batch with `--max-attempted-pools 24` and `--target-completed 6`.
+
+
+## addLiquidity2 exact-shape probe
+
+- Expanded-universe run `35383813365` exposed one warmup verifier failure on MET-SOL pool `FzA8Fji7xdr9jfN7Y2YCUGLYwBzqP1eicKA4dX4m8BJg` with discriminator `e4a24e1c46db7473`, identified as Meteora `add_liquidity2`.
+- The exact failed interval is finalized slot `448176914` through `448176933` with two successful transactions.
+- This marker authorizes one read-only bounded probe of those exact transactions to capture the addLiquidity2 payload, per-bin distribution, AddLiquidity event, SPL transfers, and token-balance rows.
+- No verifier acceptance rule, strategy, cost, range, provider budget, allocation authority, signing, or submission behavior changes in this probe.
