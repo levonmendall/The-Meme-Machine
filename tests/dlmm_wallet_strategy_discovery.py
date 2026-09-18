@@ -33,6 +33,7 @@ POOL_SAMPLE=12
 POOL_PAGE_SIZE=100
 SIGNATURE_LIMIT=64
 TX_BODY_LIMIT_PER_POOL=24
+TX_BODY_SCAN_LIMIT_PER_POOL=40
 TARGET_WALLETS=30
 MAX_WALLETS_PER_POOL=5
 MIN_FROZEN_WALLETS=12
@@ -148,31 +149,88 @@ def _actor_events(tx,pool,pool_rank,signature_row):
     return events
 
 
+def _failure_delta(before,after):
+    keys=set(before)|set(after)
+    return {k:int(after.get(k,0))-int(before.get(k,0))
+            for k in sorted(keys) if int(after.get(k,0))-int(before.get(k,0))}
+
+
+def _read_recent_transactions(rpc,signatures,target=TX_BODY_LIMIT_PER_POOL,
+                              scan_limit=TX_BODY_SCAN_LIMIT_PER_POOL):
+    """Read the newest finalized bodies in order, replacing unreadable RPC rows.
+
+    Provider availability must not turn one unreadable transaction into an implicit
+    LP/non-LP classification. Discovery therefore advances to the next finalized
+    signature, records the missing evidence, and requires the same fixed number of
+    readable transaction bodies before a pool is considered complete.
+    """
+    readable=[];failures=[]
+    for sig in list(signatures)[:scan_limit]:
+        if len(readable)>=target:
+            break
+        before=dict(rpc.failure_kinds)
+        try:
+            tx=rpc.call("getTransaction",[
+                sig["signature"],dict(
+                    encoding="json",commitment="finalized",
+                    maxSupportedTransactionVersion=0,
+                )
+            ],True)
+        except alchemy_provider.Unavailable as exc:
+            failures.append(dict(
+                signature=sig.get("signature"),slot=sig.get("slot"),
+                status="provider_unavailable",
+                error=str(exc),failure_kind_delta=_failure_delta(
+                    before,dict(rpc.failure_kinds)),
+            ))
+            continue
+        if not tx:
+            failures.append(dict(
+                signature=sig.get("signature"),slot=sig.get("slot"),
+                status="null_transaction",error="finalized_body_unavailable",
+                failure_kind_delta=_failure_delta(before,dict(rpc.failure_kinds)),
+            ))
+            continue
+        if (tx.get("meta") or {}).get("err"):
+            failures.append(dict(
+                signature=sig.get("signature"),slot=sig.get("slot"),
+                status="transaction_error",error="finalized_transaction_failed",
+                failure_kind_delta=_failure_delta(before,dict(rpc.failure_kinds)),
+            ))
+            continue
+        readable.append((sig,tx))
+    return readable,failures
+
+
 def discover_wallet_cohort():
     pools=discover_pools()
     pacer=alchemy_provider.AlchemyPacer()
-    all_events=[];pool_telemetry=[]
+    all_events=[];pool_telemetry=[];all_pools_complete=True
     for pool in pools:
         rpc=alchemy_provider.new_rpc(limit=PER_POOL_RPC_LIMIT,pacer=pacer)
         sigs=rpc.call("getSignaturesForAddress",[
             pool["address"],dict(limit=SIGNATURE_LIMIT,commitment="finalized")
         ],True)
-        recent=[s for s in sigs if isinstance(s,dict) and not s.get("err")][
-            :TX_BODY_LIMIT_PER_POOL]
-        params=[[s["signature"],dict(
-            encoding="json",commitment="finalized",maxSupportedTransactionVersion=0
-        )] for s in recent]
-        txs=rpc.call_many("getTransaction",params,True,batch_size=4) if params else []
+        recent=[s for s in sigs if isinstance(s,dict) and not s.get("err")]
+        readable,read_failures=_read_recent_transactions(rpc,recent)
+        pool_complete=len(readable)>=TX_BODY_LIMIT_PER_POOL
+        all_pools_complete=all_pools_complete and pool_complete
         found=0
-        for sig,tx in zip(recent,txs):
-            if not tx or (tx.get("meta") or {}).get("err"):
-                continue
+        for sig,tx in readable:
             rows=_actor_events(tx,pool["address"],pool["rank"],sig)
             all_events.extend(rows);found+=len(rows)
         pool_telemetry.append(dict(
-            pool=pool["address"],rank=pool["rank"],transactions_examined=len(recent),
+            pool=pool["address"],rank=pool["rank"],
+            finalized_signatures_available=len(recent),
+            transaction_scan_limit=TX_BODY_SCAN_LIMIT_PER_POOL,
+            readable_transactions=len(readable),
+            transactions_examined=len(readable),
+            pool_complete=pool_complete,
+            unreadable_transactions=read_failures,
             lp_actor_events=found,rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,
             rpc_failures=rpc.failures,rpc_retries=rpc.retries,
+            rpc_failure_kinds=dict(sorted(rpc.failure_kinds.items())),
+            rpc_failure_methods=dict(sorted(rpc.failure_methods.items())),
         ))
 
     all_events.sort(key=lambda x:(-x["slot"],x["pool_rank"],x["signature"] or "",x["execution_order"]))
@@ -202,8 +260,10 @@ def discover_wallet_cohort():
 
     report=dict(
         kind="dlmm_wallet_cohort_discovery_v1",
-        status=("candidate_cohort_ready" if len(selected)>=MIN_FROZEN_WALLETS
-                else "insufficient_candidate_cohort"),
+        status=("candidate_cohort_ready"
+                if all_pools_complete and len(selected)>=MIN_FROZEN_WALLETS else
+                "incomplete_provider_evidence" if not all_pools_complete else
+                "insufficient_candidate_cohort"),
         allocation_authority=False,prospective_trading_enabled=False,
         pnl_data_read=False,pnl_endpoints_forbidden_during_discovery=True,
         cohort_frozen=False,
@@ -213,8 +273,12 @@ def discover_wallet_cohort():
             filter_by="is_blacklisted=false && tvl>=50000 && volume_24h>=25000",
             pool_sample=POOL_SAMPLE,signature_limit=SIGNATURE_LIMIT,
             tx_body_limit_per_pool=TX_BODY_LIMIT_PER_POOL,
+            tx_body_scan_limit_per_pool=TX_BODY_SCAN_LIMIT_PER_POOL,
+            unreadable_signature_policy=(
+                "advance_in_finalized_recency_order_and_fail_pool_if_target_not_met"),
             max_wallets_per_pool=MAX_WALLETS_PER_POOL,target_wallets=TARGET_WALLETS,
         ),
+        all_pools_complete=all_pools_complete,
         pools=pools,wallet_count=len(selected),wallets=selected,
         total_lp_actor_events=len(all_events),pool_telemetry=pool_telemetry,
         alchemy_pacer=pacer.telemetry(),
@@ -222,6 +286,8 @@ def discover_wallet_cohort():
     DISCOVERY_OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
     print(json.dumps(dict(status=report["status"],wallets=len(selected),
                           pools=len(pools),events=len(all_events)),sort_keys=True))
+    if not all_pools_complete:
+        raise RuntimeError("dlmm_wallet_provider_evidence_incomplete")
     if len(selected)<MIN_FROZEN_WALLETS:
         raise RuntimeError("dlmm_wallet_candidate_cohort_too_small")
     return report
