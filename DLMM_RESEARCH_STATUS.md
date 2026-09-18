@@ -361,3 +361,19 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - `remove_liquidity_by_range2` (`cc02c391359191cd`) remains unsupported and censored; no liquidity-removal rule was weakened.
 - Full CI run `35309070266` passed the unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
 - This marker authorizes exactly one unchanged development batch under the already-repaired Alchemy pacing/per-candidate-budget path to seek a complete 60-second label.
+
+
+## DLMM Alchemy pacing/budget repair: PROVEN; remaining 60-second blockers are protocol coverage
+
+- Development sample 4 ran as `35309193244` on `cc7507c128743958dfba5fc0ac4295d4fc419f63`.
+- Artifact `10533310568` has SHA256 `d474a1f3f6cfcfc373a85b2f7a268ecccf5be337b0896c0b81799c401dcf246a`.
+- Provider transport remained healthy: 359 logical calls, 351 HTTP requests, 0 HTTP 429s, 3 provider failures, 1 retry, and 0 per-candidate budget exhaustions.
+- Across repaired development samples, HTTP 429 behavior improved from 43/231 requests (~18.6%) before the repair to 0/202 (0%), 2/345 (~0.58%), and 0/351 (0%). Shared-batch budget exhaustion fell from 1 to 0 in every repaired batch.
+- Therefore the Alchemy pacing and per-candidate-budget assignment is considered proven. Additional identical reruns are not justified merely to test transport.
+- claimFee2 support also passed: discriminator `70bf65ab1c907fbb` is now reconstructed as an exact authenticated reserve-to-user fee transfer and no longer needs to be treated as an unknown pool mutation.
+- Sample 4 produced an active USELESS-SOL warmup with 3 authenticated swaps. The new economic selector rejected every normalized range before outcome: projected 60-second range-fee surplus remained approximately -347,487 to -349,663 lamports versus the unchanged 350,000-lamport cost hurdle, despite observed flow into the proposed range. This is a legitimate economic rejection, not a provider failure.
+- That rejected candidate then accumulated 7 additional authenticated outcome swaps across the first 24 seconds before encountering discriminator `2bd7f784893cf351`, identified as Meteora `swap_exact_out2`. Exact-out swaps are outside the currently certified exact-input replay subset and remain fail-closed.
+- `remove_liquidity_by_range2` (`cc02c391359191cd`) also remains fail-closed because exact per-bin liquidity effects are not currently authenticated.
+- Some candidates still expose `dlmm_host_fee_balance_delta_mismatch`; this is a separate host-fee transaction-attribution investigation, not an Alchemy transport failure.
+- No complete 60-second strategy label has yet been produced. The next engineering work, if pursued, should address exact-out replay and the recurring host-fee transaction attribution with exact authenticated semantics rather than weakening verifier rules or continuing identical live reruns.
+- Strategy, costs, 16-transaction verifier capacity, 60-second horizon, allocation authority, signing, and submission remain unchanged.
