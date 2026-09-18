@@ -114,6 +114,35 @@ class BoundedMultiRpc:
                     program_logical_limit=self.max_sessions*200,batch_size=self.batch_size,batch_pause_seconds=self.batch_pause)
 
 
+def _first_finalized_block_at_or_after(rpc,start_block,finalized_frontier,target_timestamp):
+    """Return the earliest already-finalized block at/after the target time.
+
+    The finalized frontier can lag the head by minutes. Using the frontier
+    itself therefore stretches a +60s experiment into the finality lag. Block
+    timestamps are strictly increasing on this EVM chain, so a bounded binary
+    search recovers the first finalized block crossing the frozen horizon.
+    """
+    high=int(finalized_frontier['number'],16)
+    if high<=start_block or int(finalized_frontier['timestamp'],16)<target_timestamp:
+        raise BoundaryError('forced_finalized_target_not_reached')
+    low=start_block+1;reads=0
+    while low<high:
+        mid=(low+high)//2
+        row=rpc.call('eth_getBlockByNumber',[hex(mid),False],scope='forward');reads+=1
+        if int(row['timestamp'],16)>=target_timestamp:
+            high=mid
+        else:
+            low=mid+1
+    selected=rpc.call('eth_getBlockByNumber',[hex(low),False],scope='forward');reads+=1
+    previous=rpc.call('eth_getBlockByNumber',[hex(low-1),False],scope='forward');reads+=1
+    if (int(selected['timestamp'],16)<target_timestamp
+        or int(previous['timestamp'],16)>=target_timestamp
+        or int(selected['number'],16)!=low
+        or int(previous['number'],16)!=low-1):
+        raise BoundaryError('forced_finalized_horizon_selection_disagreement')
+    return selected,previous,reads
+
+
 def run(endpoint, *, forced_paper=False, forced_db_path=None):
     rpc=BoundedMultiRpc(endpoint,max_sessions=4,rate_retries=(3 if forced_paper else 1))
     lifecycle=None;forced_identity=None
@@ -504,7 +533,19 @@ def run(endpoint, *, forced_paper=False, forced_db_path=None):
                 if time.monotonic()>=finality_deadline:raise BoundaryError('forced_terminal_finality_timeout')
                 time.sleep(10)
                 end_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='forward')
+            finalized_frontier=end_frontier
+            end_frontier,previous_frontier,search_reads=_first_finalized_block_at_or_after(
+                rpc,start,finalized_frontier,target)
             end=int(end_frontier['number'],16);end_ts=int(end_frontier['timestamp'],16)
+            result['forced_finalized_horizon']=dict(
+                target_timestamp=target,
+                finalized_frontier_block=int(finalized_frontier['number'],16),
+                finalized_frontier_timestamp=int(finalized_frontier['timestamp'],16),
+                selected_block=end,selected_timestamp=end_ts,
+                previous_block=int(previous_frontier['number'],16),
+                previous_timestamp=int(previous_frontier['timestamp'],16),
+                search_reads=search_reads,
+                overshoot_seconds=end_ts-target)
         else:
             head_deadline=time.monotonic()+FORWARD_HEAD_WAIT_SECONDS
             end_candidate=rpc.call('eth_getBlockByNumber',['latest',False],scope='forward')
