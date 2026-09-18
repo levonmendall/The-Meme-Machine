@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from meme_machine import dlmm,pump
-from meme_machine.dlmm_tape import transaction_swap,reconstruct,SWAP,SWAP2,EXACT_IN,EVENT_CPI,_un58_data
+from meme_machine.dlmm_tape import (transaction_swap,transaction_swaps,reconstruct,SWAP,SWAP2,EXACT_IN,EVENT_CPI,_un58_data,CLAIM_FEE2_IX,MEMO_PROGRAM,apply_terminal_adjustments)
 from meme_machine.dlmm_paper import Replay
 from meme_machine.provider import Unavailable
 from meme_machine.store import Store,digest
@@ -47,6 +47,41 @@ def transaction(p,amount,slot,now,signature='synthetic-signature',swap2=False):
     return post,tx
 
 
+
+def claim_fee2_transaction(p,claimed_x,claimed_y,slot=101,now=101,signature='claim-fee2'):
+    position=pump.b58(bytes([31])*32);sender=pump.b58(bytes([32])*32)
+    user_x=pump.b58(bytes([33])*32);user_y=pump.b58(bytes([34])*32)
+    event_authority=pump.b58(bytes([35])*32)
+    keys=[POOL,position,sender,p['vault_x'],p['vault_y'],user_x,user_y,
+          p['x'],p['y'],pump.TOKEN_PROGRAM,pump.TOKEN_PROGRAM,MEMO_PROGRAM,
+          event_authority,dlmm.PROGRAM]
+    raw=CLAIM_FEE2_IX+struct.pack('<ii',p['active']-2,p['active']+2)
+    def row(index,mint,amount):
+        return dict(accountIndex=index,mint=mint,
+                    uiTokenAmount=dict(amount=str(amount)))
+    pre_x=p['vault_x_amount'];pre_y=p['vault_y_amount']
+    if not 0<=claimed_x<=pre_x or not 0<=claimed_y<=pre_y:
+        raise ValueError('claim fixture')
+    meta=dict(
+        err=None,innerInstructions=[],logMessages=[],
+        preTokenBalances=[
+            row(3,p['x'],pre_x),row(4,p['y'],pre_y),
+            row(5,p['x'],0),row(6,p['y'],0)],
+        postTokenBalances=[
+            row(3,p['x'],pre_x-claimed_x),row(4,p['y'],pre_y-claimed_y),
+            row(5,p['x'],claimed_x),row(6,p['y'],claimed_y)],
+    )
+    tx=dict(slot=slot,blockTime=now,
+        transaction=dict(signatures=[signature],message=dict(
+            accountKeys=keys,instructions=[dict(
+                programIdIndex=13,accounts=list(range(14)),data=pump.b58(raw))])),
+        meta=meta)
+    post=copy.deepcopy(p)
+    post['vault_x_amount']-=claimed_x
+    post['vault_y_amount']-=claimed_y
+    return post,tx
+
+
 def interval():
     s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
     post,tx=transaction(p,450_000_000,101,101)
@@ -57,6 +92,44 @@ def interval():
 
 
 class Tape(unittest.TestCase):
+    def test_claim_fee2_exact_vault_transfer_is_terminal_adjustment(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,tx=claim_fee2_transaction(p,1234,5678)
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='claim-fee2',slot=101,transactionIndex=7,err=None,
+                 confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'claim-fee2':tx},102,[100,2**31-1,2**31-1])
+        self.assertEqual(tape.events,())
+        self.assertEqual(len(tape.terminal_adjustments),1)
+        adjustment=tape.terminal_adjustments[0]
+        self.assertEqual(adjustment['kind'],'claim_fee2')
+        self.assertEqual((adjustment['claimed_x'],adjustment['claimed_y']),(1234,5678))
+        adjusted=apply_terminal_adjustments(p,tape.terminal_adjustments)
+        self.assertEqual(adjusted['vault_x_amount'],post['vault_x_amount'])
+        self.assertEqual(adjusted['vault_y_amount'],post['vault_y_amount'])
+        # Outside reconstruction context, claimFee2 remains explicit rather than
+        # silently appearing to be an empty transaction.
+        with self.assertRaisesRegex(Unavailable,'claim_fee2_requires'):
+            transaction_swaps(tx,POOL)
+
+    def test_claim_fee2_wrong_user_delta_fails_closed(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,tx=claim_fee2_transaction(p,1234,0)
+        tx=copy.deepcopy(tx)
+        tx['meta']['postTokenBalances'][2]['uiTokenAmount']['amount']='1233'
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='claim-fee2',slot=101,transactionIndex=7,err=None,
+                 confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        with self.assertRaisesRegex(Unavailable,'claim_fee2_balance_delta'):
+            reconstruct(p,end,sigs,{'claim-fee2':tx},102,[100,2**31-1,2**31-1])
+
     def test_connected_verified_interval_and_captured_store(self):
         start,p,end,sigs,txs=interval()
         with tempfile.TemporaryDirectory() as d:
