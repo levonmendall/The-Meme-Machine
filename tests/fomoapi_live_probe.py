@@ -220,7 +220,33 @@ def main():
         else:
             at_behavior = "ambiguous_not_safe_for_replay"
 
-    all_calls = list(responses.values()) + [at_hour, at_epoch]
+    trader_boards = {}
+    trader_calls = []
+    for window in ("24h", "7d", "30d"):
+        response = _request(f"/v2/leaderboard/{window}", {"limit": 10}, key)
+        trader_calls.append(response)
+        data = response["data"] if isinstance(response["data"], dict) else {}
+        rows = data.get("traders") if isinstance(data.get("traders"), list) else []
+        trader_boards[window] = {
+            "http_status": response["status"],
+            "credit_cost": response["credit_cost"],
+            "credits_remaining": response["credits_remaining"],
+            "top": [
+                {
+                    "rank": row.get("rank", index + 1),
+                    "handle": row.get("handle"),
+                    "display_name": row.get("displayName"),
+                    "pnl_usd": row.get("pnlUsd"),
+                    "volume_usd": row.get("volumeUsd"),
+                    "trades": row.get("trades"),
+                    "followers": row.get("followers"),
+                    "verified": bool(row.get("verified")),
+                }
+                for index, row in enumerate(rows[:10])
+            ],
+        }
+
+    all_calls = list(responses.values()) + [at_hour, at_epoch] + trader_calls
     observed_credit_cost = sum(_numeric_credit(x["credit_cost"]) for x in all_calls)
 
     report = {
@@ -233,6 +259,7 @@ def main():
         "order_authority": False,
         "dlmm_authority": False,
         "boards": summaries,
+        "current_trader_leaderboards": trader_boards,
         "historical_at_test": {
             "requested_one_hour_ago_epoch_ms": one_hour_ago_ms,
             "current_status": trending["status"],
@@ -266,6 +293,8 @@ def main():
         return 3
     if any(s["malformed_solana_rows"] for s in summaries.values()):
         return 4
+    if not all(x["http_status"] == 200 for x in trader_boards.values()):
+        return 5
     return 0
 
 
