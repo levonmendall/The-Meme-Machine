@@ -91,6 +91,9 @@ def run(endpoint):
         for role in ('ramses_factory','ramses_pool_implementation','ramses_router'):
             pin=load(role);code=rpc.call('eth_getCode',[pin['address'],hex(discovery_end)],scope='discovery')
             result['identities'][role]=authenticate(role,pin['address'],code)
+        router=load('ramses_router')['address']
+        discovery_wnative='0x'+read(router,'getWNATIVE()',block=discovery_end,scope='discovery')[-40:]
+        result['wnative']=discovery_wnative
         swap_topic=topic('Swap(address,address,uint24,bytes32,bytes32,uint24,bytes32,bytes32)')
         activity=batched_logs(max(0,discovery_end-DISCOVERY_BLOCKS+1),discovery_end,topics=[swap_topic],scope='discovery')
         result['discovery_blocks']=DISCOVERY_BLOCKS
@@ -98,24 +101,36 @@ def run(endpoint):
         ordered=[]
         for event in sorted(activity,key=lambda e:(int(e['blockNumber'],16),int(e['logIndex'],16)),reverse=True):
             if event['address'] not in ordered:ordered.append(event['address'])
-        result['factory_checks']={};address=None
+        result['factory_checks']={};result['candidate_checks']={};address=None
         checks=ordered[:5]
         if checks:
             vals=rpc.batch([('eth_call',[dict(to=factory,data=calldata('isPool(address)',candidate)),hex(discovery_end)]) for candidate in checks],
                            scope='discovery')
             for candidate,value in zip(checks,vals):
                 result['factory_checks'][candidate]=value
-                if address is None and int(value,16)==1:address=candidate
+                row=dict(factory_member=(int(value,16)==1))
+                result['candidate_checks'][candidate]=row
+                if int(value,16)!=1:
+                    row['eligible']=False;row['reason']='not_factory_member';continue
+                code=rpc.call('eth_getCode',[candidate,hex(discovery_end)],scope='discovery')
+                try:
+                    candidate_auth=authenticate_pool(code,factory_member=True)
+                except BoundaryError as exc:
+                    row['eligible']=False;row['reason']=str(exc);continue
+                row.update(token_x=candidate_auth['token_x'],token_y=candidate_auth['token_y'],bin_step=candidate_auth['bin_step'])
+                native_side='x' if candidate_auth['token_x'].lower()==discovery_wnative.lower() else ('y' if candidate_auth['token_y'].lower()==discovery_wnative.lower() else None)
+                row['native_side']=native_side;row['eligible']=native_side is not None
+                if address is None and native_side is not None:address=candidate
         if address is None:
-            raise BoundaryError('no_factory_validated_activity_in_300_block_window')
+            raise BoundaryError('no_factory_validated_native_pool_in_300_block_window')
         result['pool']=address
         start_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='connectivity')
         start=int(start_frontier['number'],16);start_ts=int(start_frontier['timestamp'],16)
         result['start_frontier']={k:start_frontier[k] for k in ('hash','number','timestamp','parentHash')}
         result['pool_code']=rpc.call('eth_getCode',[address,hex(start)],scope='pool')
         clone=authenticate_pool(result['pool_code'],factory_member=int(result['factory_checks'][address],16)==1)
-        router=load('ramses_router')['address']
         wnative='0x'+read(router,'getWNATIVE()',block=start)[-40:]
+        if wnative.lower()!=discovery_wnative.lower():raise BoundaryError('router_native_asset_changed')
         result['wnative']=wnative
 
         pre=base_snapshot(address,start,initial=True)
