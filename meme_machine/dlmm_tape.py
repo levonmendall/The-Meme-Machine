@@ -193,6 +193,31 @@ def _remove_liquidity_record(raw,instruction,keys,pool,order):
     )
 
 
+def _attach_effect_event(effects,kind,event,order):
+    """Bind an EventCpi record to its preceding effect without adjacency assumptions.
+
+    Anchor programs may execute other inner DLMM instructions between the effect call
+    and its event-authority CPI. Bind only inside the same top-level instruction, by
+    exact effect kind and PositionV2 identity, and require one unmatched predecessor.
+    """
+    candidates=[
+        effect for effect in effects
+        if effect.get('kind')==kind
+        and effect.get('position')==event.get('position')
+        and not effect.get('events')
+        and len(effect.get('order') or ())==2
+        and effect['order'][0]==order[0]
+        and tuple(effect['order'])<tuple(order)
+    ]
+    if not candidates:
+        raise Unavailable(f'dlmm_{kind}_event_without_ordered_call')
+    latest=max(tuple(effect['order']) for effect in candidates)
+    matches=[effect for effect in candidates if tuple(effect['order'])==latest]
+    if len(matches)!=1:
+        raise Unavailable(f'dlmm_{kind}_event_ambiguous_order')
+    matches[0]['events'].append(event)
+
+
 def _resolve_effect_event(effect,pool):
     if len(effect.get('events') or [])!=1:
         raise Unavailable('dlmm_missing_or_ambiguous_liquidity_event')
@@ -366,22 +391,17 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
                 current['v2'].append(decode_swap2(raw[8:],event_pool))
         elif raw[:8]==EVENT_CPI and raw[8:16]==REMOVE_LIQUIDITY_EVT:
             event_pool=_event_pool(raw)
-            if current is None or current.get('kind')!='effect' \
-                    or current['effect']['kind']!='remove_liquidity_by_range2' \
-                    or event_pool!=pool:
-                if event_pool==pool:
-                    raise Unavailable('dlmm_remove_liquidity_event_without_ordered_call')
+            if event_pool!=pool:
                 continue
-            current['effect']['events'].append(
-                decode_remove_liquidity(raw[8:],pool))
+            event=decode_remove_liquidity(raw[8:],pool)
+            _attach_effect_event(
+                effects,'remove_liquidity_by_range2',event,[outer,inner])
         elif raw[:8]==EVENT_CPI and raw[8:16]==CLAIM_FEE2_EVT:
             event_pool=_event_pool(raw)
-            if current is None or current.get('kind')!='effect' \
-                    or current['effect']['kind']!='claim_fee2' or event_pool!=pool:
-                if event_pool==pool:
-                    raise Unavailable('dlmm_claim_fee2_event_without_ordered_call')
+            if event_pool!=pool:
                 continue
-            current['effect']['events'].append(decode_claim_fee2(raw[8:],pool))
+            event=decode_claim_fee2(raw[8:],pool)
+            _attach_effect_event(effects,'claim_fee2',event,[outer,inner])
         elif raw[:8]==INITIALIZE_POSITION_IX:
             if positions:
                 accounts=instruction.get('accounts') or []
