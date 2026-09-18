@@ -132,3 +132,12 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Any naturally occurring interval with 8-16 successful transactions must use serialized single finalized `getTransaction` calls spaced one second apart. Smaller intervals keep bounded batching.
 - Strategy2 handling, host-fee accounting, finality, `MAX_TRANSACTIONS=16`, strategy, costs, and prospective allocation disabled are unchanged.
 - This marker authorizes exactly one live replay. No retry is authorized by this marker.
+
+
+## Predictive pressure-closure live proof
+
+- Green repair head `39e7a303bdd3fa4def18c7dd2fe28ff1645c3d52` passed full offline CI.
+- Pressure closure now reserves at least 10 of the 16 transaction slots for endpoint-capture growth, lowers the close threshold further as observed arrival rate and measured endpoint latency rise, and retains the unchanged hard `MAX_TRANSACTIONS=16` verifier.
+- Interval endpoints use one finalized account read derived from the already-authenticated start-state identity, with `minContextSlot=start_slot+1`, reducing the transaction-growth window while remaining fail-closed if the active bin moves outside the bounded three-array neighborhood.
+- Dense body retrieval, host-fee accounting, strategy2 warmup reset, strategy, costs, finality, and allocation authority are unchanged.
+- This marker authorizes exactly one one-pool / one-cycle / 12-second live proof. No retry is authorized by this marker.
