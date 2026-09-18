@@ -323,3 +323,18 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - The run then verified the first 12 seconds of the rejected candidate's future outcome (2 authenticated swaps) but could not finish the 60-second label because the shared research RPC object reached its 240-logical-call safety budget.
 - Batch RPC telemetry: 240 logical calls, 231 HTTP requests, 43 HTTP 429 failures, and 38 retries. The dominant failures were `getSignaturesForAddress` 429s (31). The final stop is therefore an acquisition/pacing-budget boundary, not a strategy loss or qualification rejection.
 - Selected trades: 0. Completed 60-second outcomes: 0. No after-cost profitability conclusion is permitted. Development rule remains unfrozen and allocation remains disabled.
+
+
+## DLMM Alchemy pacing / per-candidate budget repair and development sample 2
+
+- Acquisition repair is pinned at `897b05f5bae6a614163007d6a2b7126f5a7ccb81`.
+- The strategy, 12-second warmup, 60-second holding horizon, 35-bps cost hurdle, normalized range candidates, shadow grids, verifier capacity, finality rules, and disabled allocation are unchanged.
+- Alchemy physical requests are now serialized through one pacing gate with a 1.0-second minimum request interval across discovery and all candidates.
+- HTTP 429 retries retain one bounded retry but now use at least a 2.0-second cooldown.
+- Discovery has its own 120-logical-call budget.
+- Every candidate receives a fresh independent 240-logical-call budget. A candidate exhausting its budget is terminal only for that candidate and no longer stops the whole batch.
+- Independent logical budgets still share the same physical pacing gate, so a budget reset cannot create a request burst.
+- Provider telemetry now reports aggregate HTTP 429 count/rate, pacing sleep, and per-candidate budget exhaustion.
+- Regression coverage proves that a first candidate can exhaust all 240 calls and a second candidate still proceeds and completes under a separate budget.
+- Exact-head CI run `35307817593` passed the full unit suite, standard resource check, DLMM resource check, and canonical synthetic lifecycle.
+- This marker authorizes exactly one rerun of the unchanged DLMM economic-strategy development batch to compare provider 429 behavior and obtain complete 60-second labels if available.
