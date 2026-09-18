@@ -1,6 +1,7 @@
 """Prospective bounded Ramses proof: freeze range first, then observe finalized mainnet."""
 import base64
 from collections import Counter
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -14,12 +15,15 @@ from .provider import Rpc
 from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, paper_outcome,
                      paper_fee_capture, paper_position, paper_removal, price, quote_value, replay, state, unpack, values)
 
-DISCOVERY_BLOCKS=200
-ACTIVITY_WAIT_SECONDS=30
-ACTIVITY_POLL_SECONDS=5
+DISCOVERY_BLOCKS=3000
+ACTIVITY_WAIT_SECONDS=120
+ACTIVITY_POLL_SECONDS=10
+LOG_BLOCK_CHUNK=50
 MAX_FACTORY_POOLS=400
 FORWARD_SECONDS=60
 PAPER_NATIVE_CAPITAL=10**16
+INVENTORY_BASELINE=Path(__file__).with_name('verified')/'ramses_native_inventory_baseline.json'
+INVENTORY_NATIVE_SHA='1e6beebd82ae3b87d1f2149374a5efdf6acc089c9cb4f792ae9b32e42b97aee5'
 
 
 class BoundedMultiRpc:
@@ -126,8 +130,8 @@ def run(endpoint):
     def batched_logs(start,end,*,address=None,topics=None,scope):
         if start>end:return []
         requests=[]
-        for first in range(start,end+1,10):
-            q=dict(fromBlock=hex(first),toBlock=hex(min(end,first+9)))
+        for first in range(start,end+1,LOG_BLOCK_CHUNK):
+            q=dict(fromBlock=hex(first),toBlock=hex(min(end,first+LOG_BLOCK_CHUNK-1)))
             if address:q['address']=address
             if topics:q['topics']=topics
             requests.append(('eth_getLogs',[q]))
@@ -177,41 +181,73 @@ def run(endpoint):
         router=load('ramses_router')['address']
         discovery_wnative='0x'+read(router,'getWNATIVE()',block=discovery_end,scope='discovery')[-40:]
         result['wnative']=discovery_wnative
-        # Inventory the authenticated factory first. The previous implementation
-        # inspected only the five most-recently swapping pool addresses, which could
-        # censor a native pool behind more-active non-native pools.
+        # Use the previously authenticated complete inventory as an immutable
+        # baseline. Verified DLMMFactory source is append-only: createLBPair is
+        # the only _allLBPairs mutation and calls _allLBPairs.push(pair).
+        try:
+            baseline=json.loads(INVENTORY_BASELINE.read_text())
+        except (OSError,ValueError):
+            raise BoundaryError('ramses_inventory_baseline_unreadable') from None
+        if (baseline.get('kind')!='ramses_native_factory_inventory_baseline_v1'
+            or baseline.get('chain_id')!=4663
+            or baseline.get('factory')!=result['identities']['ramses_factory']['address']
+            or baseline.get('factory_runtime_sha256')!=result['identities']['ramses_factory']['runtime_sha256']
+            or baseline.get('pool_implementation')!=result['identities']['ramses_pool_implementation']['address']
+            or baseline.get('pool_implementation_runtime_sha256')!=result['identities']['ramses_pool_implementation']['runtime_sha256']
+            or baseline.get('wnative')!=discovery_wnative.lower()
+            or baseline.get('evidence_artifact_sha256')!='50a8ea15a474822d41b85674ca968227d857dcce8440caef40e252cd45ee3afc'):
+            raise BoundaryError('ramses_inventory_baseline_identity')
+        cached=baseline.get('native_pools')
+        if not isinstance(cached,list) or len(cached)!=baseline.get('native_pool_count'):
+            raise BoundaryError('ramses_inventory_baseline_shape')
+        compact=json.dumps(cached,sort_keys=True,separators=(',',':')).encode()
+        if hashlib.sha256(compact).hexdigest()!=INVENTORY_NATIVE_SHA or baseline.get('native_entries_sha256')!=INVENTORY_NATIVE_SHA:
+            raise BoundaryError('ramses_inventory_baseline_digest')
+        seen_addresses=set();seen_indices=set();native_pools=[]
+        for row in cached:
+            if (set(row)!=set(('a','i','n','s','x','y')) or row['n'] not in ('x','y')
+                or row['i'] in seen_indices or row['a'] in seen_addresses
+                or not 0<=row['i']<baseline['factory_pool_count']):
+                raise BoundaryError('ramses_inventory_baseline_entry')
+            if (row['x']==discovery_wnative.lower())!=(row['n']=='x') or (row['y']==discovery_wnative.lower())!=(row['n']=='y'):
+                raise BoundaryError('ramses_inventory_baseline_native_side')
+            seen_indices.add(row['i']);seen_addresses.add(row['a']);native_pools.append(row['a'])
+
         pool_count=values(read(factory,'getNumberOfLBPairs()',block=discovery_end,scope='discovery'))[0]
         result['factory_pool_count']=pool_count
+        result['inventory_baseline_count']=baseline['factory_pool_count']
+        result['inventory_baseline_artifact']=baseline['evidence_artifact_id']
+        result['inventory_baseline_digest']=baseline['native_entries_sha256']
+        if pool_count<baseline['factory_pool_count']:
+            raise BoundaryError('factory_pool_inventory_regressed')
         if pool_count>MAX_FACTORY_POOLS:
             raise BoundaryError('factory_pool_inventory_capacity:'+str(pool_count))
-        pool_addresses=[]
-        if pool_count:
-            rows=rpc.batch([('eth_call',[dict(to=factory,data=calldata('getLBPairAtIndex(uint256)',i)),hex(discovery_end)])
-                            for i in range(pool_count)],scope='discovery')
-            for i,row in enumerate(rows):
-                address_i='0x'+row[-40:]
-                if int(address_i,16)==0 or address_i in pool_addresses:
-                    raise BoundaryError('invalid_factory_pool_inventory')
-                pool_addresses.append(address_i)
-                result['reads'].append(dict(address=factory,signature='getLBPairAtIndex(uint256)',args=[i],
-                                            block=discovery_end,value=row,observed_at=time.time()))
-        result['factory_pool_addresses']=pool_addresses
 
-        native_pools=[];result['candidate_checks']={}
-        if pool_addresses:
-            codes=rpc.batch([('eth_getCode',[candidate,hex(discovery_end)]) for candidate in pool_addresses],scope='discovery')
-            for candidate,code in zip(pool_addresses,codes):
+        # Only authenticate pools appended after the proven baseline. Existing
+        # native entries are immutable by the verified factory source. The
+        # ultimately selected pool is independently revalidated below.
+        result['new_factory_pools']=[]
+        for first in range(baseline['factory_pool_count'],pool_count,20):
+            indices=list(range(first,min(pool_count,first+20)))
+            rows=rpc.batch([('eth_call',[dict(to=factory,data=calldata('getLBPairAtIndex(uint256)',i)),hex(discovery_end)])
+                            for i in indices],scope='discovery')
+            addresses=['0x'+row[-40:] for row in rows]
+            if any(int(a,16)==0 for a in addresses) or len(set(addresses))!=len(addresses):
+                raise BoundaryError('invalid_factory_pool_inventory')
+            codes=rpc.batch([('eth_getCode',[a,hex(discovery_end)]) for a in addresses],scope='discovery')
+            for index,address_i,code in zip(indices,addresses,codes):
                 try:
-                    candidate_auth=authenticate_pool(code,factory_member=True)
+                    auth=authenticate_pool(code,factory_member=True)
                 except BoundaryError as exc:
                     raise BoundaryError('factory_registered_pool_authentication:'+str(exc)) from None
-                native_side=('x' if candidate_auth['token_x'].lower()==discovery_wnative.lower()
-                             else ('y' if candidate_auth['token_y'].lower()==discovery_wnative.lower() else None))
-                row=dict(factory_registry_member=True,token_x=candidate_auth['token_x'],token_y=candidate_auth['token_y'],
-                         bin_step=candidate_auth['bin_step'],native_side=native_side,eligible=native_side is not None)
-                result['candidate_checks'][candidate]=row
-                if native_side is not None:native_pools.append(candidate)
+                native_side=('x' if auth['token_x'].lower()==discovery_wnative.lower()
+                             else ('y' if auth['token_y'].lower()==discovery_wnative.lower() else None))
+                row=dict(index=index,address=address_i,token_x=auth['token_x'],token_y=auth['token_y'],
+                         bin_step=auth['bin_step'],native_side=native_side)
+                result['new_factory_pools'].append(row)
+                if native_side is not None:native_pools.append(address_i)
         result['native_factory_pools']=native_pools
+        result['native_factory_pool_count']=len(native_pools)
         if not native_pools:
             raise BoundaryError('no_factory_registered_native_ramses_pool')
 
