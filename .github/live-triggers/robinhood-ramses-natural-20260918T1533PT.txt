@@ -1,2 +1,2 @@
-Prospective read-only Ramses natural proof using complete factory inventory and native-pool selection.
+Prospective read-only Ramses natural proof using complete 271-pool factory inventory, authenticated native-pool selection, frozen ranges, and exact forward replay.
 No allocation authority, signing, submission, merge, deploy, or threshold changes.
