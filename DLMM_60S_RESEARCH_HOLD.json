@@ -1,0 +1,41 @@
+{
+  "kind": "dlmm_60_second_research_hold_v1",
+  "status": "research_hold",
+  "effective_at_utc": "2026-09-18T22:00:00Z",
+  "reason": "Ten complete development observations produced zero selected trades and no economically adequate fee capture. Preserve evidence and shift research to wallet-derived strategy discovery rather than retuning the legacy rule.",
+  "legacy_strategy": {
+    "warmup_seconds": 12,
+    "holding_seconds": 60,
+    "fixed_cost_lamports": 350000,
+    "fixed_cost_bps": 35,
+    "normalized_target_bps": [
+      100,
+      200,
+      400,
+      800
+    ],
+    "allocation_authority": false
+  },
+  "preserved_evidence": {
+    "completed_observations": 10,
+    "distinct_pools": 5,
+    "selected_trades": 0,
+    "closest_observation": {
+      "pool": "Eio6hAieGTAmKgfvbEfbnXke6o5kfEd74tqHm2Z9SFjf",
+      "run_id": 35383813365,
+      "projected_fee_capture_lamports": 5748.15985295281,
+      "hurdle_gap_lamports": 344251.8401470472,
+      "hurdle_gap_bps": 34.42518401470472
+    },
+    "final_collection_run_id": 35394559415,
+    "final_collection_artifact_id": 10567114322,
+    "final_collection_artifact_sha256": "a35854ee102e402e52d5058bdd77630e7497e13659b86527ae1ce2f94a31e3e1"
+  },
+  "rules": [
+    "Do not resume 60-second development collection while status is research_hold.",
+    "Do not freeze or tune a rule from the ten legacy observations.",
+    "Do not lower the 350000-lamport cost hurdle to manufacture qualification.",
+    "Wallet-derived research must use a cohort frozen before PnL analysis.",
+    "Any future candidate strategy must be derived from the frozen wallet study and then tested prospectively on post-freeze data."
+  ]
+}
