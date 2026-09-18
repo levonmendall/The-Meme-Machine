@@ -9,6 +9,7 @@ from collections import Counter
 
 from .outcome_research import (
     summarize_liquidity_counterfactual, summarize_post_exit_tail, summarize_trackers,
+    summarize_two_buyer_near_misses,
 )
 
 
@@ -97,5 +98,6 @@ def analyze_market_native_reports(reports, min_sample=50):
     result['one_threshold_sensitivity']=sensitivity
     result['liquidity_entry_outcomes']=summarize_liquidity_counterfactual(rows)
     result['qualified_post_exit_tail']=summarize_post_exit_tail(rows)
+    result['two_buyer_sole_near_miss_outcomes']=summarize_two_buyer_near_misses(rows)
     result['missed_opportunity_cohorts']=summarize_trackers(cohort_trackers)
     return result
