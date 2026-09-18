@@ -9,6 +9,7 @@ from meme_machine.dlmm_tape import (
     _keys, _ordered_instructions, _un58_data,
 )
 from meme_machine.postgrad import PoolScanRPC
+from tests import dlmm_alchemy_provider as alchemy_provider
 
 
 class HistoricalProbeRPC(PoolScanRPC):
@@ -65,9 +66,9 @@ def _token_balances(meta):
 
 
 def run():
-    # Probe-only public endpoint: exact recent slots, paced and read-only. The live
-    # research provider and its secret are not changed or consumed by this probe.
-    url='https://api.mainnet-beta.solana.com'
+    # Historical proof uses the same canonical Alchemy Solana Mainnet route as all
+    # other DLMM acquisition. Provider fallback is intentionally forbidden.
+    url=alchemy_provider.rpc_url()
     # Exact-slot historical diagnostic only. Accounts-only blocks expose signatures
     # and all resolved account keys without heavyweight instructions/logs. This avoids
     # walking the pool's very high-volume signature history. Production/live census is
