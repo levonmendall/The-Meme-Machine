@@ -141,3 +141,17 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Interval endpoints use one finalized account read derived from the already-authenticated start-state identity, with `minContextSlot=start_slot+1`, reducing the transaction-growth window while remaining fail-closed if the active bin moves outside the bounded three-array neighborhood.
 - Dense body retrieval, host-fee accounting, strategy2 warmup reset, strategy, costs, finality, and allocation authority are unchanged.
 - This marker authorizes exactly one one-pool / one-cycle / 12-second live proof. No retry is authorized by this marker.
+
+
+## Predictive pressure-closure proof result
+
+- Live run `35294759878` on marker `3cc4c6a3f1021d584f0cfb64f69c43e11641f029` completed successfully.
+- All 16 authenticated endpoint chunks completed with `capture_completed=true`, complete start-boundary census, and no interval errors.
+- Predictive policy retained `MAX_TRANSACTIONS=16`, reserved at least 10 transaction slots of headroom, and triggered early at preflight counts up to 7. The maximum authenticated interval in this proof contained 2 successful transactions.
+- The one-read authenticated endpoint path was exercised on every chunk; measured endpoint capture was about 0.65-1.03 seconds.
+- Warmup was nonempty (3 reconstructed swaps), outcome was nonempty (3 reconstructed swaps), one opportunity was produced, and the fixed selected `sdk_bidask` width-8 counterfactual resolved.
+- The selected one-observation after-cost result was -35.0008 bps; this is evidence that the machinery executed, not a profitability conclusion.
+- Two `getSignaturesForAddress` HTTP 429s occurred and both recovered through the existing bounded retry path. There were zero interval errors, zero batch fallbacks, and no transaction-body retrieval failure.
+- No nonzero host-fee swap happened naturally in this window, so this run closes predictive chunk-growth / endpoint-capture certification only; it does not add a new live host-fee exercise.
+- Artifact: `dlmm-strategy-replay-35294759878-1`, ID `10527546316`, SHA256 `0fdf375831d1579a9151626b96681e8eb7544ca3b5df4b00549176969e420b18`.
+- No additional replay was triggered.
