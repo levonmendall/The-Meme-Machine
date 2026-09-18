@@ -45,6 +45,31 @@ class WalletDerivedStudy(unittest.TestCase):
         self.assertEqual(
             study._actor_events(tx,pool,1,dict(signature="sig",slot=123)),[])
 
+    def test_unreadable_transaction_is_replaced_without_pnl_or_reordering(self):
+        class FakeRPC:
+            def __init__(self):
+                self.failure_kinds={}
+                self.calls=[]
+            def call(self,method,params,priority):
+                self.calls.append((method,params[0],priority))
+                if params[0]=="bad":
+                    self.failure_kinds["provider_error"]=self.failure_kinds.get("provider_error",0)+1
+                    raise study.alchemy_provider.Unavailable("provider_request_failed")
+                return dict(meta=dict(err=None),transaction=dict(message=dict()))
+
+        rpc=FakeRPC()
+        signatures=[
+            dict(signature="bad",slot=3),
+            dict(signature="good-1",slot=2),
+            dict(signature="good-2",slot=1),
+        ]
+        readable,failures=study._read_recent_transactions(
+            rpc,signatures,target=2,scan_limit=3)
+        self.assertEqual([row[0]["signature"] for row in readable],["good-1","good-2"])
+        self.assertEqual([row["signature"] for row in failures],["bad"])
+        self.assertEqual(failures[0]["failure_kind_delta"],{"provider_error":1})
+        self.assertEqual([call[1] for call in rpc.calls],["bad","good-1","good-2"])
+
     def test_position_metrics_tracks_hold_width_and_fee_efficiency(self):
         row=dict(
             positionAddress="position",
