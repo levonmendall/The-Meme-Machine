@@ -159,7 +159,8 @@ jobs:
           name: market-native-fast-smoke-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             market-native-fast-smoke-report.json
-            market-native-fast-smoke.db
+            market-native-fast-smoke-evidence.json
+            market-native-fast-smoke.db*
           if-no-files-found: warn
           retention-days: 30
   market-native-active-paper:
