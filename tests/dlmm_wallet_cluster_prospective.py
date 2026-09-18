@@ -23,6 +23,7 @@ from meme_machine.dlmm_tape import (
     transaction_swaps,
 )
 from meme_machine.provider import Unavailable
+from meme_machine.store import digest
 from tests import dlmm_alchemy_provider as alchemy_provider
 from tests import dlmm_boundary_acquisition as boundary
 from tests import dlmm_wallet_strategy_discovery as wallet_study
@@ -37,7 +38,7 @@ MAX_POOL_PAGES=5
 TARGET_WIDTH=70
 TARGET_HOLD_SECONDS=491
 MAX_FORWARD_WALL_SECONDS=780
-RPC_ROTATE_AT=200
+RPC_ROTATE_AT=160
 MAX_TOTAL_LOGICAL_RPC=1800
 
 
@@ -243,8 +244,8 @@ class RPCPool:
         self.rpc=alchemy_provider.new_rpc(limit=240,pacer=self.pacer)
         self.instances.append(self.rpc)
         return self.rpc
-    def current(self):
-        if self.rpc.calls>=RPC_ROTATE_AT:
+    def current(self,extra_calls=0):
+        if self.rpc.calls>=RPC_ROTATE_AT or self.rpc.calls+int(extra_calls)>220:
             self.rotate()
         return self.rpc
     def total_calls(self):
@@ -265,7 +266,7 @@ class RPCPool:
 
 
 def _signature_cursors(rpc_pool,wallets):
-    rpc=rpc_pool.current()
+    rpc=rpc_pool.current(len(wallets))
     params=[[w,dict(limit=1,commitment="finalized")] for w in wallets]
     rows=rpc.call_many("getSignaturesForAddress",params,True,batch_size=7)
     cursors={}
@@ -276,7 +277,7 @@ def _signature_cursors(rpc_pool,wallets):
 
 
 def _new_wallet_rows(rpc_pool,wallets,cursors):
-    rpc=rpc_pool.current()
+    rpc=rpc_pool.current(len(wallets))
     params=[]
     for wallet in wallets:
         cfg=dict(limit=POLL_LIMIT,commitment="finalized")
@@ -312,7 +313,7 @@ def watch_for_signal(candidate,pools,rpc_pool):
             for row in pending:
                 unique[(row["wallet"],row["signature"])]=row
             ordered=sorted(unique.values(),key=lambda r:(int(r.get("slot") or 0),r["signature"],r["wallet"]))
-            rpc=rpc_pool.current()
+            rpc=rpc_pool.current(len(ordered))
             params=[[r["signature"],dict(
                 encoding="json",commitment="finalized",
                 maxSupportedTransactionVersion=1,
@@ -455,7 +456,7 @@ def run():
             slot=entry_state["slot"],market_time=entry_state["time"],
             active_bin=entry_state["active"],
             lower=position["lower"],upper=position["upper"],
-            snapshot_hash=wallet_study.digest(snap) if hasattr(wallet_study,"digest") else None,
+            snapshot_hash=digest(snap),
         )
         report["result"]=forward_and_settle(signal,position,entry_state,rpc_pool)
         report["status"]="settled_natural_prospective_paper"
