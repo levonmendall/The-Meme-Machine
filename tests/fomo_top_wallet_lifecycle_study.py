@@ -267,6 +267,40 @@ def lifecycle_for(wallet,first_fomo,market_by_mint,start,end):
         })
     return out
 
+def activity_classification(wallet, first_map, market_by_mint, start, end):
+    rows=[]
+    for mint,fo in first_map.items():
+        evs=market_by_mint.get(mint,[])
+        own=[e for e in evs if wallet in e["wallets"] and start<=e["ts"]<=end]
+        if not own:continue
+        pre=[e for e in own if e["ts"]<fo["ts"]]
+        post=[e for e in own if e["ts"]>=fo["ts"]]
+        pre_buys=[e for e in pre if e["action"]=="buy"]
+        post_buys=[e for e in post if e["action"]=="buy"]
+        post_sells=[e for e in post if e["action"]=="sell"]
+        net_pre=sum(e["token_amount"] if e["action"]=="buy" else -e["token_amount"] for e in pre)
+        rows.append({
+            "mint":mint,"fomo_ts":fo["ts"],
+            "pre_buy_count":len(pre_buys),"pre_event_count":len(pre),
+            "post_buy_count":len(post_buys),"post_sell_count":len(post_sells),
+            "observed_positive_pre_position":bool(pre_buys and net_pre>0),
+            "first_own_ts":min(e["ts"] for e in own),
+            "first_own_relative_seconds":min(e["ts"] for e in own)-fo["ts"],
+        })
+    return rows
+
+def activity_summary(rows):
+    return {
+        "wallet_mint_interactions":len(rows),
+        "unique_mints":len({r["mint"] for r in rows}),
+        "positive_pre_fomo_positions":sum(r["observed_positive_pre_position"] for r in rows),
+        "post_fomo_only_interactions":sum(
+            not r["observed_positive_pre_position"] and (r["post_buy_count"] or r["post_sell_count"])
+            for r in rows
+        ),
+        "any_post_fomo_sell":sum(r["post_sell_count"]>0 for r in rows),
+    }
+
 def cohort_summary(rows):
     leads=[r["lead_seconds"] for r in rows]
     apps=[r["appreciation_before_fomo_pct"] for r in rows if r["appreciation_before_fomo_pct"] is not None]
@@ -339,13 +373,21 @@ def main():
                 market_by_mint[e["mint"]].append(market_event_record(e))
     for m in market_by_mint:market_by_mint[m].sort(key=lambda e:e["ts"])
 
-    top_rows=[];by_top={}
+    all_first_fomo={}
+    for r in feed_rows:
+        all_first_fomo.setdefault(r["mint"],r)
+
+    top_rows=[];by_top={};guarded_activity=[];all_activity=[]
     for t in top:
         w=top_wallets.get(t["handle"])
         if not w:continue
         rows=lifecycle_for(w,first_fomo,market_by_mint,start,end)
         by_top[t["handle"]]=rows
         for x in rows:top_rows.append({"trader":t["handle"],**x})
+        for x in activity_classification(w,first_fomo,market_by_mint,start,end):
+            guarded_activity.append({"trader":t["handle"],**x})
+        for x in activity_classification(w,all_first_fomo,market_by_mint,start,end):
+            all_activity.append({"trader":t["handle"],**x})
     ctrl_rows=[];by_ctrl={}
     for h,w in control_wallets.items():
         rows=lifecycle_for(w,first_fomo,market_by_mint,start,end)
@@ -367,6 +409,10 @@ def main():
         "wallet_resolution_method":"FomoAPI normalized wallets.solana where wallets.verified=true; independently calibrated against Shrine for Unipcs",
         "lifecycle_start":start,"lifecycle_end":end,"archive_hours":lifecycle_hours,
         "top_cohort":cohort_summary(top_rows),"ordinary_active_control":cohort_summary(ctrl_rows),
+        "guarded_top_wallet_activity":activity_summary(guarded_activity),
+        "all_observed_feed_top_wallet_activity_sensitivity":activity_summary(all_activity),
+        "guarded_activity_rows":guarded_activity,
+        "all_observed_activity_rows":all_activity,
         "top_positions":top_rows,"control_positions":ctrl_rows,
         "per_top_trader":{h:cohort_summary(rows) for h,rows in by_top.items()},
         "limitations":[
@@ -384,6 +430,8 @@ def main():
         "ordinary_control_wallets_resolved":len(control_wallets),
         "guarded_first_fomo_mints":len(first_fomo),
         "top_cohort":report["top_cohort"],
+        "guarded_top_wallet_activity":report["guarded_top_wallet_activity"],
+        "all_observed_feed_top_wallet_activity_sensitivity":report["all_observed_feed_top_wallet_activity_sensitivity"],
         "ordinary_active_control":report["ordinary_active_control"],
         "per_top_trader":report["per_top_trader"],
     },indent=2,sort_keys=True))
