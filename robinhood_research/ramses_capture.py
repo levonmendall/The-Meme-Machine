@@ -15,9 +15,10 @@ from .provider import Rpc
 from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, paper_outcome,
                      paper_fee_capture, paper_position, paper_removal, price, quote_value, replay, state, unpack, values)
 
-DISCOVERY_BLOCKS=3000
-ACTIVITY_WAIT_SECONDS=30
-ACTIVITY_POLL_SECONDS=10
+ACTIVITY_WAIT_SECONDS=75
+ACTIVITY_POLL_SECONDS=5
+RANK_POOL_COUNT=16
+WATCH_POOL_COUNT=8
 LOG_BLOCK_CHUNK=10
 MAX_FACTORY_POOLS=400
 FORWARD_SECONDS=60
@@ -203,7 +204,7 @@ def run(endpoint):
         compact=json.dumps(cached,sort_keys=True,separators=(',',':')).encode()
         if hashlib.sha256(compact).hexdigest()!=INVENTORY_NATIVE_SHA or baseline.get('native_entries_sha256')!=INVENTORY_NATIVE_SHA:
             raise BoundaryError('ramses_inventory_baseline_digest')
-        seen_addresses=set();seen_indices=set();native_pools=[]
+        seen_addresses=set();seen_indices=set();native_pools=[];native_meta={}
         for row in cached:
             if (set(row)!=set(('a','i','n','s','x','y')) or row['n'] not in ('x','y')
                 or row['i'] in seen_indices or row['a'] in seen_addresses
@@ -212,6 +213,7 @@ def run(endpoint):
             if (row['x']==discovery_wnative.lower())!=(row['n']=='x') or (row['y']==discovery_wnative.lower())!=(row['n']=='y'):
                 raise BoundaryError('ramses_inventory_baseline_native_side')
             seen_indices.add(row['i']);seen_addresses.add(row['a']);native_pools.append(row['a'])
+            native_meta[row['a']]=dict(native_side=row['n'],token_x=row['x'],token_y=row['y'],bin_step=row['s'],index=row['i'])
 
         pool_count=values(read(factory,'getNumberOfLBPairs()',block=discovery_end,scope='discovery'))[0]
         result['factory_pool_count']=pool_count
@@ -245,7 +247,9 @@ def run(endpoint):
                 row=dict(index=index,address=address_i,token_x=auth['token_x'],token_y=auth['token_y'],
                          bin_step=auth['bin_step'],native_side=native_side)
                 result['new_factory_pools'].append(row)
-                if native_side is not None:native_pools.append(address_i)
+                if native_side is not None:
+                    native_pools.append(address_i)
+                    native_meta[address_i]=dict(native_side=native_side,token_x=auth['token_x'],token_y=auth['token_y'],bin_step=auth['bin_step'],index=index)
         result['native_factory_pools']=native_pools
         result['native_factory_pool_count']=len(native_pools)
         if not native_pools:
@@ -267,54 +271,98 @@ def run(endpoint):
                     eligible.append((event,decoded))
             return eligible
 
-        # Search only the complete native-pool inventory. Liquidity deposits/removals
-        # and flash loans are genuine Ramses pool-state activity too; requiring a swap
-        # here unnecessarily censored otherwise valid prospective observations.
-        activity=batched_logs(max(0,discovery_end-DISCOVERY_BLOCKS+1),discovery_end,
-                              address=native_pools,topics=economic_topics,scope='discovery')
-        result['discovery_blocks']=DISCOVERY_BLOCKS
-        result['discovery_logs']=activity
-        result['discovery_event_names']={}
-        for event,decoded in economically_active(activity):
-            result['discovery_event_names'][decoded['name']]=result['discovery_event_names'].get(decoded['name'],0)+1
-        selection=None;selection_decoded=None
-        recent=economically_active(activity)
-        if recent:
-            selection,selection_decoded=sorted(recent,key=lambda row:(int(row[0]['blockNumber'],16),
-                int(row[0]['transactionIndex'],16),int(row[0]['logIndex'],16),row[0]['address'].lower()))[-1]
-            result['selection_rule']='most_recent_native_economic_mutation_before_freeze'
-        else:
-            watch_started=time.monotonic();cursor=discovery_end
-            result['selection_rule']='first_native_economic_mutation_after_watch_start'
-            while time.monotonic()-watch_started<ACTIVITY_WAIT_SECONDS and selection is None:
-                time.sleep(ACTIVITY_POLL_SECONDS)
-                frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
-                height=int(frontier['number'],16)
-                if height<=cursor:continue
-                new_rows=batched_logs(cursor+1,height,address=native_pools,topics=economic_topics,scope='discovery')
-                activity.extend(new_rows);cursor=height
-                eligible=economically_active(new_rows)
+        # Freeze a small watch cohort using only point-in-time state available
+        # before any future observation. Variable-fee last-update recency ranks
+        # the complete authenticated native universe; current reserves and hooks
+        # then exclude empty/hooked pools and break ties without outcome data.
+        variable_rows=rpc.batch([
+            ('eth_call',[dict(to=a,data=calldata('getVariableFeeParameters()')),hex(discovery_end)])
+            for a in native_pools],scope='discovery')
+        ranked=[]
+        for a,raw in zip(native_pools,variable_rows):
+            variable=values(raw)
+            if len(variable)!=4:raise BoundaryError('native_pool_variable_shape')
+            ranked.append(dict(address=a,last_update=variable[3],variable=variable))
+        ranked.sort(key=lambda row:(row['last_update'],row['address']),reverse=True)
+        rank_candidates=ranked[:RANK_POOL_COUNT]
+        state_calls=[]
+        for row in rank_candidates:
+            state_calls.extend([
+                ('eth_call',[dict(to=row['address'],data=calldata('getReserves()')),hex(discovery_end)]),
+                ('eth_call',[dict(to=row['address'],data=calldata('getLBHooksParameters()')),hex(discovery_end)]),
+            ])
+        state_rows=rpc.batch(state_calls,scope='discovery') if state_calls else []
+        watchable=[]
+        for i,row in enumerate(rank_candidates):
+            reserves=values(state_rows[2*i]);hooks=int(state_rows[2*i+1],16)
+            side=native_meta[row['address']]['native_side']
+            native_reserve=reserves[0 if side=='x' else 1]
+            if hooks==0 and any(reserves):
+                watchable.append(dict(address=row['address'],last_update=row['last_update'],
+                                      native_reserve=native_reserve,reserves=reserves,
+                                      native_side=side,bin_step=native_meta[row['address']]['bin_step']))
+        watchable.sort(key=lambda row:(row['last_update'],row['native_reserve'],row['address']),reverse=True)
+        cohort=watchable[:WATCH_POOL_COUNT]
+        if not cohort:raise BoundaryError('no_watchable_native_ramses_pool')
+        cohort_public=[{k:row[k] for k in ('address','last_update','native_reserve','native_side','bin_step')} for row in cohort]
+        cohort_hash=hashlib.sha256(json.dumps(cohort_public,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+        result['watch_cohort']=cohort_public;result['watch_cohort_hash']=cohort_hash
+        result['selection_rule']='first_authenticated_economic_mutation_on_frozen_preentry_watch_cohort'
+
+        # Add protocol-fee state and then observe only this frozen cohort. State
+        # polling is cheap; exact logs are fetched only for a pool that actually
+        # changed, avoiding repeated large-range log scans.
+        protocol_rows=rpc.batch([
+            ('eth_call',[dict(to=row['address'],data=calldata('getProtocolFees()')),hex(discovery_end)])
+            for row in cohort],scope='discovery')
+        last_state={}
+        for row,protocol_raw in zip(cohort,protocol_rows):
+            last_state[row['address']]=(tuple(row['reserves']),tuple(row['variable']),tuple(values(protocol_raw)))
+        selection=None;selection_decoded=None;activity=[];cursor=discovery_end
+        watch_started=time.monotonic()
+        while time.monotonic()-watch_started<ACTIVITY_WAIT_SECONDS and selection is None:
+            time.sleep(ACTIVITY_POLL_SECONDS)
+            frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
+            height=int(frontier['number'],16)
+            if height<=cursor:continue
+            calls=[]
+            for row in cohort:
+                a=row['address']
+                calls.extend([
+                    ('eth_call',[dict(to=a,data=calldata('getReserves()')),hex(height)]),
+                    ('eth_call',[dict(to=a,data=calldata('getVariableFeeParameters()')),hex(height)]),
+                    ('eth_call',[dict(to=a,data=calldata('getProtocolFees()')),hex(height)]),
+                ])
+            current=rpc.batch(calls,scope='discovery')
+            changed=[];current_state={}
+            for i,row in enumerate(cohort):
+                state_now=(tuple(values(current[3*i])),tuple(values(current[3*i+1])),tuple(values(current[3*i+2])))
+                current_state[row['address']]=state_now
+                if state_now!=last_state[row['address']]:changed.append(row['address'])
+            if changed:
+                interval=batched_logs(cursor+1,height,address=changed,topics=economic_topics,scope='discovery')
+                activity.extend(interval)
+                eligible=economically_active(interval)
                 if eligible:
                     selection,selection_decoded=sorted(eligible,key=lambda row:(int(row[0]['blockNumber'],16),
                         int(row[0]['transactionIndex'],16),int(row[0]['logIndex'],16),row[0]['address'].lower()))[0]
                     break
-            result['activity_watch_seconds']=time.monotonic()-watch_started
-        if selection is None:
-            raise BoundaryError('no_natural_native_ramses_activity_during_bounded_watch')
+            last_state=current_state;cursor=height
+        result['activity_watch_seconds']=time.monotonic()-watch_started
+        result['discovery_logs']=activity
+        if selection is None:raise BoundaryError('no_natural_native_ramses_activity_on_frozen_watch_cohort')
         result['selection_event_name']=selection_decoded['name']
-        address=selection['address']
-        result['selection_event']=selection
+        address=selection['address'];result['selection_event']=selection
         result['factory_checks']={}
-        explicit=read(factory,'isPool(address)',(address,),discovery_end,scope='discovery')
-        result['factory_checks'][address]=explicit
-        if int(explicit,16)!=1:
-            raise BoundaryError('selected_pool_lost_factory_membership')
         result['pool']=address
         start_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='connectivity')
         start=int(start_frontier['number'],16);start_ts=int(start_frontier['timestamp'],16)
         result['start_frontier']={k:start_frontier[k] for k in ('hash','number','timestamp','parentHash')}
+        explicit=read(factory,'isPool(address)',(address,),start,scope='pool')
+        result['factory_checks'][address]=explicit
+        if int(explicit,16)!=1:raise BoundaryError('selected_pool_lost_factory_membership')
         result['pool_code']=rpc.call('eth_getCode',[address,hex(start)],scope='pool')
-        clone=authenticate_pool(result['pool_code'],factory_member=int(result['factory_checks'][address],16)==1)
+        clone=authenticate_pool(result['pool_code'],factory_member=True)
         wnative='0x'+read(router,'getWNATIVE()',block=start)[-40:]
         if wnative.lower()!=discovery_wnative.lower():raise BoundaryError('router_native_asset_changed')
         result['wnative']=wnative
