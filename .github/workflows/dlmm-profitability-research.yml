@@ -22,11 +22,11 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Profitability research regressions
-        run: python -m unittest tests.test_dlmm_strategy_point_in_time tests.test_dlmm_strategy_high_activity tests.test_dlmm_dense_acquisition -v
-      - name: First bounded multi-pool profitability batch
+        run: python -m unittest tests.test_dlmm_strategy_point_in_time tests.test_dlmm_strategy_high_activity tests.test_dlmm_dense_acquisition tests.test_dlmm_profitability_pilot -v
+      - name: Density-screened completed-window profitability batch
         env:
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
-        run: python -m tests.dlmm_profitability_pilot --cycles 1 --window-seconds 12
+        run: python -m tests.dlmm_profitability_pilot --target-completed 6 --max-attempted-pools 12 --window-seconds 12
       - name: Preserve profitability batch
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
