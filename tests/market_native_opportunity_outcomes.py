@@ -32,9 +32,10 @@ from meme_machine.market_native_priority import (
 from meme_machine.market_native_runtime import MarketNativeAuthority
 from meme_machine.market_native_shadow import discover_market_native
 from meme_machine.outcome_research import (
-    DEFAULT_HORIZONS, enable_shadow_exit, high_density_features, liquidity_floor_eligibility,
-    new_tracker, observe_trade, summarize_liquidity_counterfactual,
-    summarize_post_exit_tail, summarize_trackers,
+    DEFAULT_HORIZONS, enable_shadow_exit, high_density_features,
+    is_two_buyer_sole_near_miss, liquidity_floor_eligibility, new_tracker,
+    observe_trade, summarize_liquidity_counterfactual, summarize_post_exit_tail,
+    summarize_trackers, summarize_two_buyer_near_misses,
 )
 from meme_machine.provider import RPC, PumpAdapter, Unavailable
 from meme_machine.research import CURRENT_THRESHOLDS
@@ -146,8 +147,11 @@ def _evaluate_natural(candidate,tape,evidence,authority,engine):
         row.update(evidence_stage='incomplete',actual_reason='unavailable_executable_evidence',
                    limitation=str(exc) or type(exc).__name__)
         baseline_num,baseline_den,origin=_event_baseline(candidate)
+    cohorts=['natural_sample']
+    if is_two_buyer_sole_near_miss(row):
+        cohorts.append('two_buyer_sole_near_miss')
     tracker=new_tracker(
-        candidate['mint'],origin,baseline_num,baseline_den,['natural_sample'],
+        candidate['mint'],origin,baseline_num,baseline_den,cohorts,
         nomination_id=nomination['id'],metadata={'evidence_stage':row['evidence_stage']})
     if row.get('actual_reason')=='qualified' and row.get('evidence_stage')=='complete':
         enable_shadow_exit(tracker,opened_time=origin)
@@ -385,6 +389,7 @@ def main():
                 cohort_summary=summarize_trackers(trackers),
                 liquidity_counterfactual=summarize_liquidity_counterfactual(natural_results),
                 post_exit_tail_summary=summarize_post_exit_tail(natural_results),
+                two_buyer_sole_near_miss_summary=summarize_two_buyer_near_misses(natural_results),
                 provider_sessions=evidence.sessions,
                 stream=tape.status(ended),stream_error_kind=stream.error_kind,
                 future_labels_used_for_selection=False,automatic_threshold_change=False,
