@@ -1,0 +1,1 @@
+Run one forced, paper-only Ramses machinery proof on real finalized mainnet state. Forced admission only; preserve authentication, range freeze, 60-second observation, exact replay, terminal equality, unwind, settlement, restart reconciliation, and no strategy/allocation authority.
