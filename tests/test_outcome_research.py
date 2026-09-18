@@ -1,5 +1,7 @@
 import unittest
 
+from tests.market_native_opportunity_outcomes import CONCENTRATION_ROTATE_AT, EvidenceSessions
+
 from meme_machine.outcome_research import (
     enable_shadow_exit, high_density_features, liquidity_floor_eligibility, new_tracker,
     observe_trade, return_bps, summarize_liquidity_counterfactual,
@@ -59,6 +61,22 @@ class OutcomeResearchTests(unittest.TestCase):
         self.assertEqual(got['net_buy_lamports'],50)
         self.assertNotIn('future',str(got))
         self.assertEqual(got['windows']['5']['events'],2)
+
+
+
+    def test_concentration_reader_rotates_before_hard_cap(self):
+        class Reader:
+            def status(self):
+                return {'program_scan_logical_requests':CONCENTRATION_ROTATE_AT}
+        class RPC:
+            calls=1
+        session=object.__new__(EvidenceSessions)
+        session.reader=Reader()
+        session.rpc=RPC()
+        reasons=[]
+        session.rotate=lambda reason: reasons.append(reason)
+        session.maybe_rotate()
+        self.assertEqual(reasons,['bounded_concentration_reader_rotation'])
 
 
     def test_summaries_do_not_create_authority(self):
