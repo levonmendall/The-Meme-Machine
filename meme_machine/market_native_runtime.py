@@ -282,6 +282,15 @@ class MarketNativeRuntime:
                 order_id=nomination['id'],
             )
         except (Unavailable, ValueError, KeyError, TypeError) as exc:
+            if isinstance(exc, ValueError) and str(exc) == 'order_identity_collision':
+                self.full_reasons['order_identity_collision'] += 1
+                self._update_attempt(
+                    'identity_collision',
+                    reason='order_identity_collision',
+                    order_id=nomination.get('id'),
+                    mint=nomination.get('mint'),
+                )
+                return
             self.provider_failures += 1
             self.preflight_reasons['unavailable_executable_evidence'] += 1
             rpc = self.adapter.rpc
