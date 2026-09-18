@@ -15,11 +15,11 @@ from .provider import Rpc
 from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, paper_outcome,
                      paper_fee_capture, paper_position, paper_removal, price, quote_value, replay, state, unpack, values)
 
-ACTIVITY_POLL_SECONDS=5
+ACTIVITY_POLL_SECONDS=15
 RANK_POOL_COUNT=96
 WATCH_POOL_COUNT=8
 WATCH_COHORT_COUNT=1
-WATCH_SLOT_SECONDS=75
+WATCH_SLOT_SECONDS=300
 ACTIVITY_WAIT_SECONDS=WATCH_SLOT_SECONDS
 FINALITY_WAIT_SECONDS=180
 FORWARD_HEAD_WAIT_SECONDS=180
