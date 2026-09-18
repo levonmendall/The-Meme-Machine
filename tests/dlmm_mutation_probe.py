@@ -16,6 +16,7 @@ from meme_machine import dlmm
 from meme_machine.dlmm_tape import _instruction_pool_positions,_keys,_ordered_instructions,_un58_data
 from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
+from tests import dlmm_alchemy_provider as alchemy_provider
 
 POOL='8ztFxjFPfVUtEf4SLSapcFj8GW2dxyUA9no2bLPq7H7V'  # USELESS-SOL
 OUT=Path('dlmm-mutation-probe.json')
@@ -47,7 +48,7 @@ def _scalar_delta(start,end):
 
 def run(wait_seconds=20):
     if not 5<=wait_seconds<=30:raise ValueError('dlmm_mutation_probe_wait_bound')
-    rpc=PoolScanRPC('https://api.mainnet-beta.solana.com',limit=160)
+    rpc=PoolScanRPC(alchemy_provider.rpc_url(),limit=160)
     adapter=dlmm.Adapter(rpc)
     start_snap=adapter.snapshot(POOL,int(time.time()),True)
     start=dlmm.validate(start_snap,start_snap['available_time'],'real')
