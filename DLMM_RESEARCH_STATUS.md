@@ -164,3 +164,10 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - It uses the normal finalized snapshot -> predictive bounded chunks -> complete signature census -> authenticated transaction bodies -> host token-account delta -> forward reconstruction -> terminal equality path.
 - It does not alter strategy, costs, `MAX_TRANSACTIONS=16`, host-fee math, strategy2 handling, or allocation authority.
 - This marker authorizes exactly one 12-second current live host-fee proof. No retry is authorized by this marker.
+
+
+## JUP-SOL host-fee proof execution after harness correction
+
+- Prior run 35295933429 stopped before any live RPC call because the regression module path was misspelled in the workflow.
+- The regression target is corrected to `tests.test_dlmm_host_fee`; no strategy/core/verifier behavior changed.
+- This marker authorizes the originally intended single 12-second current JUP-SOL host-fee proof. No additional retry is authorized by this marker.
