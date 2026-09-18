@@ -218,7 +218,7 @@ jobs:
           retention-days: 90
   qualified-post-exit-history:
     needs: test
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[post-exit-outcome-live]')
+    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[post-exit-outcome-live]') || contains(github.event.head_commit.message, '[market-native-outcomes-live]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     concurrency:
@@ -241,7 +241,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 90
   market-native-outcome-study:
-    needs: test
+    needs: [test, qualified-post-exit-history]
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[market-native-outcomes-live]')
     runs-on: ubuntu-24.04
     timeout-minutes: 125
