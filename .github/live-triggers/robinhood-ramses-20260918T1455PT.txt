@@ -1,0 +1,2 @@
+Bounded read-only Ramses baseline capture before mutation-complete/range-economics implementation.
+No allocation authority, signing, submission, merge, or deployment.
