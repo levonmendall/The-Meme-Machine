@@ -1,4 +1,4 @@
-"""Regression coverage for DLMM Alchemy-only RPC routing."""
+"""Regression coverage for Solana ROI Alchemy-only DLMM routing."""
 import unittest
 
 from meme_machine.provider import Unavailable
@@ -6,45 +6,45 @@ from tests import dlmm_alchemy_provider as provider
 
 
 class DlmmAlchemyProvider(unittest.TestCase):
-    def test_accepts_only_alchemy_solana_mainnet_full_endpoint(self):
-        env = {
-            provider.ENV_NAME:
-                "https://solana-mainnet.g.alchemy.com/v2/example-key"
-        }
-        self.assertEqual(provider.rpc_url(env), env[provider.ENV_NAME])
+    def test_constructs_solana_mainnet_endpoint_from_sol_roi_key(self):
+        env = {provider.ENV_NAME: "example-solana-roi-key"}
+        self.assertEqual(
+            provider.rpc_url(env),
+            "https://solana-mainnet.g.alchemy.com/v2/example-solana-roi-key",
+        )
         meta = provider.metadata()
-        self.assertEqual(meta["provider"], "alchemy_solana_mainnet")
+        self.assertEqual(
+            meta["provider"], "solana_roi_alchemy_solana_mainnet"
+        )
+        self.assertEqual(meta["credential"], "SOLANA_ROI_ALCHEMY_API_KEY")
+        self.assertEqual(meta["inherited_from"], "solana-roi-convergence")
         self.assertFalse(meta["fallback_allowed"])
         self.assertFalse(meta["signing"])
         self.assertFalse(meta["submission"])
 
-    def test_missing_route_fails_closed(self):
-        with self.assertRaisesRegex(Unavailable, "alchemy_rpc_missing"):
+    def test_missing_key_fails_closed(self):
+        with self.assertRaisesRegex(
+            Unavailable, "solana_roi_alchemy_key_missing"
+        ):
             provider.rpc_url({})
 
-    def test_public_and_non_alchemy_routes_are_rejected(self):
+    def test_full_urls_and_other_provider_shapes_are_rejected(self):
         for value in (
+            "https://solana-mainnet.g.alchemy.com/v2/example-key",
             "https://api.mainnet-beta.solana.com",
-            "https://api.mainnet.solana.com",
             "https://solana-rpc.publicnode.com",
-            "https://example.com/v2/key",
-            "http://solana-mainnet.g.alchemy.com/v2/key",
-            "https://solana-devnet.g.alchemy.com/v2/key",
+            "key/with/slash",
+            "key?query",
+            "key#fragment",
+            "<api-key>",
         ):
             with self.subTest(value=value), self.assertRaisesRegex(
-                Unavailable, "alchemy_rpc_endpoint_required"
+                Unavailable, "solana_roi_alchemy_key_shape"
             ):
                 provider.rpc_url({provider.ENV_NAME: value})
 
-    def test_key_only_placeholder_and_url_extras_are_rejected(self):
-        for value in (
-            "alchemy-key-only",
-            "https://solana-mainnet.g.alchemy.com/v2/",
-            "https://solana-mainnet.g.alchemy.com/v2/<api-key>",
-            "https://solana-mainnet.g.alchemy.com/v2/key?x=1",
-            "https://solana-mainnet.g.alchemy.com/v2/key#fragment",
-            "https://user:pass@solana-mainnet.g.alchemy.com/v2/key",
-        ):
+    def test_short_or_whitespace_key_is_rejected(self):
+        for value in ("short", " leading-key", "trailing-key "):
             with self.subTest(value=value), self.assertRaises(Unavailable):
                 provider.rpc_url({provider.ENV_NAME: value})
 
