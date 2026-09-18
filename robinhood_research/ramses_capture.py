@@ -13,7 +13,10 @@ from .provider import Rpc
 from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, paper_outcome,
                      paper_fee_capture, paper_position, paper_removal, price, quote_value, replay, state, unpack, values)
 
-DISCOVERY_BLOCKS=600
+DISCOVERY_BLOCKS=200
+ACTIVITY_WAIT_SECONDS=30
+ACTIVITY_POLL_SECONDS=5
+MAX_FACTORY_POOLS=40
 FORWARD_SECONDS=60
 PAPER_NATIVE_CAPITAL=10**16
 
@@ -94,35 +97,81 @@ def run(endpoint):
         router=load('ramses_router')['address']
         discovery_wnative='0x'+read(router,'getWNATIVE()',block=discovery_end,scope='discovery')[-40:]
         result['wnative']=discovery_wnative
-        swap_topic=topic('Swap(address,address,uint24,bytes32,bytes32,uint24,bytes32,bytes32)')
-        activity=batched_logs(max(0,discovery_end-DISCOVERY_BLOCKS+1),discovery_end,topics=[swap_topic],scope='discovery')
-        result['discovery_blocks']=DISCOVERY_BLOCKS
-        result['discovery_logs']=activity
-        ordered=[]
-        for event in sorted(activity,key=lambda e:(int(e['blockNumber'],16),int(e['logIndex'],16)),reverse=True):
-            if event['address'] not in ordered:ordered.append(event['address'])
-        result['factory_checks']={};result['candidate_checks']={};address=None
-        checks=ordered[:5]
-        if checks:
-            vals=rpc.batch([('eth_call',[dict(to=factory,data=calldata('isPool(address)',candidate)),hex(discovery_end)]) for candidate in checks],
-                           scope='discovery')
-            for candidate,value in zip(checks,vals):
-                result['factory_checks'][candidate]=value
-                row=dict(factory_member=(int(value,16)==1))
-                result['candidate_checks'][candidate]=row
-                if int(value,16)!=1:
-                    row['eligible']=False;row['reason']='not_factory_member';continue
-                code=rpc.call('eth_getCode',[candidate,hex(discovery_end)],scope='discovery')
+        # Inventory the authenticated factory first. The previous implementation
+        # inspected only the five most-recently swapping pool addresses, which could
+        # censor a native pool behind more-active non-native pools.
+        pool_count=values(read(factory,'getNumberOfLBPairs()',block=discovery_end,scope='discovery'))[0]
+        result['factory_pool_count']=pool_count
+        if pool_count>MAX_FACTORY_POOLS:
+            raise BoundaryError('factory_pool_inventory_capacity:'+str(pool_count))
+        pool_addresses=[]
+        if pool_count:
+            rows=rpc.batch([('eth_call',[dict(to=factory,data=calldata('getLBPairAtIndex(uint256)',i)),hex(discovery_end)])
+                            for i in range(pool_count)],scope='discovery')
+            for i,row in enumerate(rows):
+                address_i='0x'+row[-40:]
+                if int(address_i,16)==0 or address_i in pool_addresses:
+                    raise BoundaryError('invalid_factory_pool_inventory')
+                pool_addresses.append(address_i)
+                result['reads'].append(dict(address=factory,signature='getLBPairAtIndex(uint256)',args=[i],
+                                            block=discovery_end,value=row,observed_at=time.time()))
+        result['factory_pool_addresses']=pool_addresses
+
+        native_pools=[];result['candidate_checks']={}
+        if pool_addresses:
+            codes=rpc.batch([('eth_getCode',[candidate,hex(discovery_end)]) for candidate in pool_addresses],scope='discovery')
+            for candidate,code in zip(pool_addresses,codes):
                 try:
                     candidate_auth=authenticate_pool(code,factory_member=True)
                 except BoundaryError as exc:
-                    row['eligible']=False;row['reason']=str(exc);continue
-                row.update(token_x=candidate_auth['token_x'],token_y=candidate_auth['token_y'],bin_step=candidate_auth['bin_step'])
-                native_side='x' if candidate_auth['token_x'].lower()==discovery_wnative.lower() else ('y' if candidate_auth['token_y'].lower()==discovery_wnative.lower() else None)
-                row['native_side']=native_side;row['eligible']=native_side is not None
-                if address is None and native_side is not None:address=candidate
-        if address is None:
-            raise BoundaryError('no_factory_validated_native_pool_in_600_block_window')
+                    raise BoundaryError('factory_registered_pool_authentication:'+str(exc)) from None
+                native_side=('x' if candidate_auth['token_x'].lower()==discovery_wnative.lower()
+                             else ('y' if candidate_auth['token_y'].lower()==discovery_wnative.lower() else None))
+                row=dict(factory_registry_member=True,token_x=candidate_auth['token_x'],token_y=candidate_auth['token_y'],
+                         bin_step=candidate_auth['bin_step'],native_side=native_side,eligible=native_side is not None)
+                result['candidate_checks'][candidate]=row
+                if native_side is not None:native_pools.append(candidate)
+        result['native_factory_pools']=native_pools
+        if not native_pools:
+            raise BoundaryError('no_factory_registered_native_ramses_pool')
+
+        swap_topic=topic('Swap(address,address,uint24,bytes32,bytes32,uint24,bytes32,bytes32)')
+        # Search only the complete native-pool inventory. If no recent activity exists,
+        # observe new finalized blocks for a short bounded interval and select the first
+        # authentic native swap. Selection is therefore pre-entry and outcome-blind.
+        activity=batched_logs(max(0,discovery_end-DISCOVERY_BLOCKS+1),discovery_end,
+                              address=native_pools,topics=[swap_topic],scope='discovery')
+        result['discovery_blocks']=DISCOVERY_BLOCKS
+        result['discovery_logs']=activity
+        selection=None
+        if activity:
+            selection=sorted(activity,key=lambda e:(int(e['blockNumber'],16),int(e['transactionIndex'],16),
+                                                    int(e['logIndex'],16),e['address'].lower()))[-1]
+            result['selection_rule']='most_recent_native_swap_before_freeze'
+        else:
+            watch_started=time.monotonic();cursor=discovery_end
+            result['selection_rule']='first_native_swap_after_watch_start'
+            while time.monotonic()-watch_started<ACTIVITY_WAIT_SECONDS and selection is None:
+                time.sleep(ACTIVITY_POLL_SECONDS)
+                frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='discovery')
+                height=int(frontier['number'],16)
+                if height<=cursor:continue
+                new_activity=batched_logs(cursor+1,height,address=native_pools,topics=[swap_topic],scope='discovery')
+                activity.extend(new_activity);cursor=height
+                if new_activity:
+                    selection=sorted(new_activity,key=lambda e:(int(e['blockNumber'],16),int(e['transactionIndex'],16),
+                                                               int(e['logIndex'],16),e['address'].lower()))[0]
+                    break
+            result['activity_watch_seconds']=time.monotonic()-watch_started
+        if selection is None:
+            raise BoundaryError('no_natural_native_ramses_swap_during_bounded_watch')
+        address=selection['address']
+        result['selection_event']=selection
+        result['factory_checks']={}
+        explicit=read(factory,'isPool(address)',(address,),discovery_end,scope='discovery')
+        result['factory_checks'][address]=explicit
+        if int(explicit,16)!=1:
+            raise BoundaryError('selected_pool_lost_factory_membership')
         result['pool']=address
         start_frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='connectivity')
         start=int(start_frontier['number'],16);start_ts=int(start_frontier['timestamp'],16)
