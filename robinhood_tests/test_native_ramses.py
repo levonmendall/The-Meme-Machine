@@ -299,8 +299,8 @@ class NativeRamsesTests(unittest.TestCase):
         cap['receipts']=[dict(transactionHash=tx,blockHash=cap['headers'][str(end)]['hash'],transactionIndex='0x0',
                               status='0x1',logs=copy.deepcopy(cap['logs']))]
         terminal=cap['states'][str(end)]
-        self._set_pair(terminal,'getReserves()',_add2(pre['reserves'],effect['deposited']))
-        self._set_bin_pair(terminal,bid,_add2(b['reserves'],effect['deposited']))
+        self._set_pair(terminal,'getReserves()',[pre['reserves'][i]+effect['deposited'][i] for i in range(2)])
+        self._set_bin_pair(terminal,bid,[b['reserves'][i]+effect['deposited'][i] for i in range(2)])
         terminal['bins'][str(bid)]['totalSupply(uint256)']='0x'+f'{b["supply"]+effect["shares"]:064x}'
         result=replay(cap)
         self.assertTrue(result['terminal_equality'])
@@ -319,8 +319,8 @@ class NativeRamsesTests(unittest.TestCase):
         cap['receipts']=[dict(transactionHash=tx,blockHash=cap['headers'][str(end)]['hash'],transactionIndex='0x0',
                               status='0x1',logs=copy.deepcopy(cap['logs']))]
         terminal=cap['states'][str(end)]
-        self._set_pair(terminal,'getReserves()',_sub2(pre['reserves'],out))
-        self._set_bin_pair(terminal,bid,_sub2(b['reserves'],out))
+        self._set_pair(terminal,'getReserves()',[pre['reserves'][i]-out[i] for i in range(2)])
+        self._set_bin_pair(terminal,bid,[b['reserves'][i]-out[i] for i in range(2)])
         terminal['bins'][str(bid)]['totalSupply(uint256)']='0x'+f'{b["supply"]-shares:064x}'
         result=replay(cap)
         self.assertTrue(result['terminal_equality'])
