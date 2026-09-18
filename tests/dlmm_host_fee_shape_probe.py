@@ -1,7 +1,7 @@
 """Targeted read-only probe for natural DLMM hosted-swap transaction shapes.
 
-This exists only to diagnose the two live host-fee attribution failures observed in
-run 35367056432. It uses the same Alchemy route and bounded finalized census as the
+This probe is pinned to the single PERPSPAD transaction that remained unresolved
+after run 35370329650. It uses the same Alchemy route and bounded finalized census as the
 normal verifier, and writes public-chain transaction structure only.
 """
 from __future__ import annotations
@@ -23,16 +23,11 @@ from tests.dlmm_boundary_acquisition import (
 OUT = Path("dlmm-host-fee-shape-probe.json")
 INTERVALS = (
     dict(
-        name="STONK-SOL",
-        pool="zxTpi4BtaWX3mgdAPoezkMD1hxx8CdeCfrqXMWvSCLX",
-        start_slot=448137894,
-        end_slot=448137910,
-    ),
-    dict(
-        name="JUP-SOL",
-        pool="C8Gr6AUuq9hEdSYJzoEpNcdjpojPZwqG5MtQbeouNNwg",
-        start_slot=448138876,
-        end_slot=448138895,
+        name="PERPSPAD-SOL",
+        pool="EHqk4Fw3pTCf9UW75dWoCMf6a2GxyJ8FGYEj2Qmw9rfr",
+        start_slot=448142429,
+        end_slot=448142448,
+        expected_transactions=1,
     ),
 )
 
@@ -140,9 +135,10 @@ def run():
             if interval["start_slot"] < row["slot"] <= interval["end_slot"]
             and not row.get("err")
         ]
-        if len(relevant) != 2:
+        expected = int(interval.get("expected_transactions", 1))
+        if len(relevant) != expected:
             raise RuntimeError(
-                f"host_shape_probe_expected_two_transactions:{interval['name']}:{len(relevant)}"
+                f"host_shape_probe_expected_transactions:{interval['name']}:{expected}:{len(relevant)}"
             )
         txs = _fetch_transaction_bodies(rpc, relevant, telemetry)
         rows = []
