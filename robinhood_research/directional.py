@@ -25,8 +25,8 @@ def features(*, market, origin, asof, launch_at, coverage_start, coverage_end,
              trades, liquidity, previous_liquidity, full_exit_depth,
              entry_cost, round_trip_cost, state_stamp, creator_behavior=None, concentration=None,
              lp_additions=None, lp_removals=None, slippage_bps=None, gas_quote=None,
-             graduation_state=None, pregraduation_source=None):
-    state_stamp.check(asof, 5)
+             graduation_state=None, pregraduation_source=None, finality_ledger=None):
+    state_stamp.check(asof, 5, finality_ledger=finality_ledger)
     if coverage_start > asof-120 or coverage_end < asof or launch_at > asof:
         raise BoundaryError('incomplete_feature_coverage')
     if len(trades) > 10000:
@@ -35,7 +35,7 @@ def features(*, market, origin, asof, launch_at, coverage_start, coverage_end,
         raise BoundaryError('missing_economic_state')
     seen = {}
     for t in trades:
-        t.stamp.check(asof, 120)
+        t.stamp.check(asof, 120, finality_ledger=finality_ledger)
         if t.market != market or t.side not in ('buy', 'sell') or t.quote <= 0 or t.tokens <= 0:
             raise BoundaryError('invalid_trade_evidence')
         if t.identity in seen and seen[t.identity] != t:

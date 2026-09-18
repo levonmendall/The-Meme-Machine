@@ -25,7 +25,9 @@ class Stamp:
     finality: str
     kind: str
 
-    def check(self, asof, max_age=120):
+    def check(self, asof, max_age=120, *, finality_ledger=None):
+        if self.finality == 'confirmed' and finality_ledger is not None:
+            return finality_ledger.check(self, asof, max_age)
         if self.chain_id != CHAIN_ID:
             raise BoundaryError('wrong_chain')
         if self.kind not in ('synthetic', 'captured', 'natural'):
