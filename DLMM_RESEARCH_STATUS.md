@@ -245,3 +245,19 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - Strategy grid, exact costs, fixed selected `sdk_bidask` width 8 rule, finalized point-in-time ordering, `MAX_TRANSACTIONS=16`, DLMM mechanics, and disabled allocation authority are unchanged.
 - New censoring regressions plus the complete repository unit suite, resource check, DLMM resource check, and canonical synthetic lifecycle passed on guarded run `35301101477`; the exact same code then passed again on continuation-branch run `35301218801`. All live jobs were skipped by the qualification guard.
 - This marker authorizes exactly one density-screened profitability pilot batch. No merge, deployment, live allocation, strategy threshold change, or verifier-capacity increase is authorized.
+
+
+## Profitability research batch 3 result and acquisition-v2 repair
+
+- Density-screened batch 3 ran as GitHub Actions run `35301321422` on `44399e03ff13229679cb40752adfbc46c94d5e30`.
+- Artifact `10529782669` (`dlmm-profitability-pilot-35301321422-1`) has SHA256 `1f10bbf847f4d352233711c9fafac35a872d028aca8e60ef30d6cbeb46c618d8`.
+- Seven supported pools were attempted. Terminal classifications were: 3 `over_verification_capacity`, 1 `provider_failure`, 2 `verification_failure`, and 1 `verified_zero_swap`.
+- The density exclusions were STONK-SOL, MCAT-SOL, and JUP-SOL. MCAT-SOL and JUP-SOL were rejected directly by the 17-signature preflight at 17 successful post-start transactions. STONK-SOL passed the first 0.5-second census at 11 successful transactions but crossed the unchanged 16-transaction verifier bound during its first authenticated chunk; it was still classified explicitly as `over_verification_capacity`.
+- USELESS-SOL passed density preflight but failed closed on `provider_request_failed`; it was not recorded as no opportunity.
+- The two generic verification failures, EMBER-SOL pool `5tb9fNLKr2wdJRSTNYRu39kGTjnYVseWo2bGyNgxnLHS` and MET-SOL, were both `dlmm_interval_identity_or_age`. Their pool snapshots had been authenticated during initial discovery and then aged while earlier pools were processed sequentially. This was an acquisition scheduling defect, not a strategy/mechanics failure.
+- EMBER-SOL pool `GbrDAq3RjcVWeroLDUwmnuQ8N5xaaKj2Rk2dJDg64CLY` was the only fully verified warmup+outcome window, but both phases contained zero swaps. The fixed selector therefore selected no trade. Its attempt consumed 57 logical RPC calls, including an outcome phase that could not alter the ex-ante selection decision.
+- Batch totals: 113 logical RPC calls, 90 observation calls, 11 recorded failures, and 10 retries. Failure kinds were 9 HTTP 429s and 2 provider errors. There were zero selected width-8 trades and no P&L observation. Profitability remains unestablished.
+- Acquisition-v2 repairs are now pinned at `9d2107be6702c29e249246aa5b9c5e3fd514fb3f`: each candidate receives a fresh authenticated pool snapshot immediately before its own observation; a verified zero-swap warmup terminates as `verified_zero_swap` without spending an outcome window; and activity discovery can page across up to four current 80-row pages so the scanner is not limited to the first activity page.
+- Candidate mint prefiltering, finalized point-in-time rules, exact costs, `sdk_bidask` width 8 selection, `MAX_TRANSACTIONS=16`, swap/fee mechanics, and disabled allocation authority remain unchanged.
+- The full repository unit suite, resource check, DLMM resource check, and canonical synthetic lifecycle passed on isolated guarded run `35301727041`. No live proof job ran on that verification.
+- No additional profitability batch is authorized by this marker. The next live batch should use the repaired acquisition-v2 path only when the shared Solana public-RPC lane is free; results must continue to preserve density censoring and must not generalize the certifiable subset to excluded high-density pools.
