@@ -141,6 +141,75 @@ def liquidity_floor_eligibility(vector):
     return {str(x): bool(grid.get(str(x), False)) for x in LIQUIDITY_FLOORS}
 
 
+
+def high_density_features(events, now):
+    """Describe a >100-event Pump window without using future information."""
+    now=int(now)
+    rows=[]
+    for event in events:
+        try:
+            if not now-60 <= int(event['market_time']) <= now:
+                continue
+            amount=int(event['amount']);tokens=int(event['tokens'])
+            if amount<=0 or tokens<=0:
+                continue
+            rows.append(event)
+        except (KeyError,TypeError,ValueError):
+            continue
+    rows.sort(key=lambda e:(int(e['market_time']),int(e.get('slot',0)),int(e.get('index',0))))
+    wallets={}
+    buyers=set();sellers=set()
+    gross_buy=gross_sell=0
+    buy_count=sell_count=0
+    for event in rows:
+        amount=int(event['amount']);wallet=event.get('wallet')
+        signed=amount if event.get('buy') else -amount
+        if wallet:
+            wallets[wallet]=wallets.get(wallet,0)+signed
+        if event.get('buy'):
+            buy_count+=1;gross_buy+=amount
+            if wallet: buyers.add(wallet)
+        else:
+            sell_count+=1;gross_sell+=amount
+            if wallet: sellers.add(wallet)
+
+    total_flow=gross_buy+gross_sell
+    abs_wallet_flow=sorted((abs(v) for v in wallets.values()),reverse=True)
+    top_wallet_share_bps=(0 if not total_flow else
+                          (abs_wallet_flow[0]*10_000//total_flow if abs_wallet_flow else 0))
+    windows={}
+    for seconds in (5,10,30,60):
+        subset=[e for e in rows if int(e['market_time'])>=now-seconds]
+        buys=sum(1 for e in subset if e.get('buy'))
+        sells=len(subset)-buys
+        buy_sol=sum(int(e['amount']) for e in subset if e.get('buy'))
+        sell_sol=sum(int(e['amount']) for e in subset if not e.get('buy'))
+        windows[str(seconds)]=dict(
+            events=len(subset),buys=buys,sells=sells,
+            buy_share_bps=(0 if not subset else buys*10_000//len(subset)),
+            net_buy_lamports=buy_sol-sell_sol,
+            gross_buy_lamports=buy_sol,gross_sell_lamports=sell_sol,
+            unique_wallets=len({e.get('wallet') for e in subset if e.get('wallet')}),
+        )
+
+    price_change_bps=None
+    if len(rows)>=2:
+        try:
+            first_num,first_den=price_parts(rows[0])
+            last_num,last_den=price_parts(rows[-1])
+            price_change_bps=return_bps(first_num,first_den,last_num,last_den)
+        except ValueError:
+            pass
+    return dict(
+        observed_at=now,event_count=len(rows),buy_count=buy_count,sell_count=sell_count,
+        unique_buyers=len(buyers),unique_sellers=len(sellers),unique_wallets=len(wallets),
+        gross_buy_lamports=gross_buy,gross_sell_lamports=gross_sell,
+        net_buy_lamports=gross_buy-gross_sell,
+        buy_share_bps=(0 if not rows else buy_count*10_000//len(rows)),
+        top_wallet_abs_flow_share_bps=top_wallet_share_bps,
+        price_change_bps=price_change_bps,windows=windows,
+    )
+
 def _median(values):
     rows=[int(x) for x in values if x is not None]
     return None if not rows else median(rows)
