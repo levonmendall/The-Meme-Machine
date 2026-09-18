@@ -49,8 +49,8 @@ class NativeRamsesTests(unittest.TestCase):
 
     def test_unsupported_mutation_cannot_bridge_terminal(self):
         event=self.capture['logs'][0]
-        event['topics']=[topic('CollectedProtocolFees(address,bytes32)'),event['topics'][1]]
-        event['data']='0x'+'00'*32
+        event['topics']=[topic('HooksParametersSet(address,bytes32)'),event['topics'][1]]
+        event['data']='0x'+f'{1:064x}'
         for receipt in self.capture['receipts']:
             for i,e in enumerate(receipt['logs']):
                 if e['transactionHash']==event['transactionHash'] and e['logIndex']==event['logIndex']:receipt['logs'][i]=copy.deepcopy(event)
@@ -95,3 +95,149 @@ class NativeRamsesTests(unittest.TestCase):
         self.assertEqual(reserves,before)
         after=swap_bin(reserves,bin_id=1<<23,step=10,gross_input=10000,for_y=True,fee_rate=10**16,protocol_share=500)['after']
         self.assertEqual(burn_amounts(after,1000,100),[10999,9010])
+
+
+    def _range_prestate(self):
+        active=1<<23
+        static=[40000,30,600,5000,40000,500,350000]
+        variable=[0,0,active,1000]
+        bins={}
+        for bid in range(active-3,active+4):
+            if bid<active: reserves=[0,10**18]
+            elif bid>active: reserves=[10**18,0]
+            else: reserves=[10**18,10**18]
+            bins[bid]=dict(reserves=reserves,supply=10**18)
+        return dict(active=active,step=10,reserves=[4*10**18,4*10**18],protocol=[0,0],
+                    static=static,variable=variable,bins=bins)
+
+    def test_active_bin_composition_fee_and_protocol_conservation(self):
+        s=self._range_prestate();a=s['active']
+        effect=mint_effect(s['bins'][a]['reserves'],s['bins'][a]['supply'],[10**17,0],
+            bin_id=a,step=s['step'],active_id=a,static=s['static'],variable=s['variable'],timestamp=1040)
+        self.assertGreater(effect['composition_fees'][0],0)
+        self.assertEqual(effect['protocol_fees'][0],effect['composition_fees'][0]*500//10000)
+        self.assertEqual(effect['deposited'][0]+effect['protocol_fees'][0],effect['amounts_in'][0])
+
+    def test_add_liquidity_share_mint_exact(self):
+        s=self._range_prestate();bid=s['active']-1;b=s['bins'][bid]
+        effect=mint_effect(b['reserves'],b['supply'],[0,10**16],bin_id=bid,step=s['step'],
+            active_id=s['active'],static=s['static'],variable=s['variable'],timestamp=1040)
+        shares,effective=mint_shares(b['reserves'],b['supply'],[0,10**16],bin_id=bid,step=s['step'],active_id=s['active'])
+        self.assertEqual((effect['shares'],effect['amounts_in']),(shares,effective))
+        self.assertEqual(effect['composition_fees'],[0,0])
+
+    def test_remove_liquidity_share_burn_exact(self):
+        self.assertEqual(burn_amounts([10**18,2*10**18],10**18,10**17),[10**17,2*10**17])
+
+    def test_dynamic_transfer_batch_event_decoder(self):
+        abi=load('ramses_pool_implementation')['abi']
+        sig='TransferBatch(address,address,address,uint256[],uint256[])'
+        addr=lambda n:'0x'+f'{n:064x}'
+        head=f'{64:064x}{160:064x}'
+        arr1=f'{2:064x}{7:064x}{8:064x}'
+        arr2=f'{2:064x}{11:064x}{12:064x}'
+        event=dict(topics=[topic(sig),addr(1),addr(2),addr(3)],data='0x'+head+arr1+arr2)
+        d=decode_ramses_event(abi,event)
+        self.assertEqual(d['args']['ids'],[7,8])
+        self.assertEqual(d['args']['amounts'],[11,12])
+
+    def test_dynamic_deposit_event_decoder(self):
+        abi=load('ramses_pool_implementation')['abi']
+        sig='DepositedToBins(address,address,uint256[],bytes32[])'
+        addr=lambda n:'0x'+f'{n:064x}'
+        head=f'{64:064x}{160:064x}'
+        arr1=f'{2:064x}{7:064x}{8:064x}'
+        arr2=f'{2:064x}{pack([1,2]):064x}{pack([3,4]):064x}'
+        event=dict(topics=[topic(sig),addr(1),addr(2)],data='0x'+head+arr1+arr2)
+        d=decode_ramses_event(abi,event)
+        self.assertEqual([unpack(x) for x in d['args']['amounts']],[[1,2],[3,4]])
+
+    def test_frozen_ranges_share_identical_prestate(self):
+        s=self._range_prestate();freeze=freeze_proposals(s,10**15,quote_side='y',entry_timestamp=1040)
+        self.assertEqual([p['name'] for p in freeze['proposals']],['narrow','medium','wide'])
+        self.assertTrue(freeze['frozen']);self.assertFalse(freeze['allocation_authority'])
+        active=s['active']
+        for p in freeze['proposals']:
+            self.assertEqual(p['active_bin'],active)
+            for a in p['allocations']:
+                self.assertEqual(a['pre_reserves'],s['bins'][a['bin_id']]['reserves'])
+
+    def test_frozen_range_hash_rejects_hindsight_edit(self):
+        freeze=freeze_proposals(self._range_prestate(),10**15,quote_side='y',entry_timestamp=1040)
+        verify_proposal_hash(freeze)
+        freeze['proposals'][0]['bins'][0]-=1
+        with self.assertRaisesRegex(BoundaryError,'frozen_range_modified'):
+            verify_proposal_hash(freeze)
+
+    def test_exact_paper_share_ownership(self):
+        freeze=freeze_proposals(self._range_prestate(),10**15,quote_side='y',entry_timestamp=1040)
+        pos=paper_position(freeze,0)
+        self.assertEqual(pos['proposal_hash'],freeze['proposal_hash'])
+        self.assertEqual(pos['owned_shares'],{str(a['bin_id']):a['shares'] for a in freeze['proposals'][0]['allocations']})
+        self.assertFalse(pos['allocation_authority'])
+
+    def test_untouched_range_removal(self):
+        s=self._range_prestate();freeze=freeze_proposals(s,10**15,quote_side='y',entry_timestamp=1040)
+        pos=paper_position(freeze,0);rem=paper_removal(pos,s)
+        self.assertTrue(rem['amounts'][0] or rem['amounts'][1])
+        self.assertEqual(set(rem['by_bin']),set(map(str,freeze['proposals'][0]['bins'])))
+
+    def test_partially_touched_range_changes_inventory(self):
+        s=self._range_prestate();freeze=freeze_proposals(s,10**15,quote_side='y',entry_timestamp=1040);pos=paper_position(freeze,0)
+        terminal=copy.deepcopy(s);bid=s['active'];terminal['bins'][bid]['reserves'][0]+=10**17;terminal['bins'][bid]['reserves'][1]-=10**17
+        self.assertNotEqual(paper_removal(pos,terminal),paper_removal(pos,s))
+
+    def test_fully_traversed_range_remains_settleable(self):
+        s=self._range_prestate();freeze=freeze_proposals(s,10**15,quote_side='y',entry_timestamp=1040);pos=paper_position(freeze,0)
+        terminal=copy.deepcopy(s)
+        for bid in freeze['proposals'][0]['bins']:
+            b=terminal['bins'][bid]
+            if bid<=s['active']: b['reserves']=[b['reserves'][0]+b['reserves'][1],0]
+            else: b['reserves']=[0,b['reserves'][0]+b['reserves'][1]]
+        self.assertTrue(any(paper_removal(pos,terminal)['amounts']))
+
+    def test_unavailable_unwind_preserves_unresolved_inventory(self):
+        s=self._range_prestate();pos=paper_position(freeze_proposals(s,10**15,quote_side='y',entry_timestamp=1040),0)
+        out=paper_outcome(pos,s,costs={'remove_gas':0})
+        self.assertIsNone(out['after_cost_result']);self.assertEqual(out['unresolved_inventory'],'unwind_liquidity_unavailable')
+
+    def test_executable_unwind_and_after_cost_calculation(self):
+        s=self._range_prestate();pos=paper_position(freeze_proposals(s,10**15,quote_side='y',entry_timestamp=1040),0)
+        removal=paper_removal(pos,s)['amounts']
+        unwind=dict(input_side='x',amount_in=removal[0],amount_in_left=0,amount_out=removal[0],slippage=0)
+        out=paper_outcome(pos,s,unwind=unwind,costs={'entry_gas':10,'add_liquidity_gas':20,'remove_liquidity_gas':30,'unwind_gas':40})
+        self.assertIsNotNone(out['gross_result']);self.assertEqual(out['total_costs'],100);self.assertIsNotNone(out['after_cost_result'])
+
+    def test_exact_35_bps_hurdle_comparison(self):
+        self.assertEqual(hurdle_comparison(34),'below')
+        self.assertEqual(hurdle_comparison(35),'equal')
+        self.assertEqual(hurdle_comparison(36),'above')
+        self.assertEqual(hurdle_comparison(None),'unresolved')
+
+    def test_preentry_economics_stay_unqualified_without_cost_evidence(self):
+        freeze=freeze_proposals(self._range_prestate(),10**15,quote_side='y',entry_timestamp=1040)
+        for p in freeze['proposals']:
+            self.assertIsNone(p['projected_after_cost_result'])
+            self.assertEqual(p['hurdle_comparison'],'unresolved')
+            self.assertFalse(p['exceeds_hurdle'])
+
+    def test_preentry_fee_metrics_use_only_supplied_history(self):
+        s=self._range_prestate();a=s['active']
+        history=[dict(id=a,amountsIn=hex(pack([10**12,0])),protocolFees=hex(pack([1,0])),totalFees=hex(pack([100,0])))]
+        freeze=freeze_proposals(s,10**15,quote_side='y',entry_timestamp=1040,prehistory=history)
+        self.assertGreater(freeze['proposals'][0]['recent_within_range_volume'],0)
+        self.assertGreaterEqual(freeze['proposals'][0]['estimated_fee_capture'],0)
+
+    def test_wrong_side_range_input_fails_closed(self):
+        s=self._range_prestate();bid=s['active']-1;b=s['bins'][bid]
+        with self.assertRaisesRegex(BoundaryError,'wrong_side'):
+            mint_effect(b['reserves'],b['supply'],[1,0],bin_id=bid,step=s['step'],active_id=s['active'],
+                static=s['static'],variable=s['variable'],timestamp=1040)
+
+    def test_forced_decay_matches_verified_parameter_rule(self):
+        static=[40000,30,600,5000,40000,500,350000];active=100
+        self.assertEqual(forced_decay(static,[20000,10000,90,500],active),[20000,10000,100,500])
+
+    def test_flash_and_protocol_fee_helpers_conserve_values(self):
+        q=swap_bin([10**9,10**9],bin_id=1<<23,step=10,gross_input=10**6,for_y=True,fee_rate=10**16,protocol_share=500)
+        self.assertEqual(q['total_fee'],q['protocol_fee']+q['lp_fee'])
