@@ -579,3 +579,21 @@ history or weaken freshness just to generate observations.
 Ramses needs verified Robinhood mainnet factory/pool identity, ABI/source and
 captured swap/add/remove/claim accounting. Its adapter must remain disabled until
 then. Keep the 35bps research hurdle and freeze range proposals before outcomes.
+
+
+## Ramses DLMM research closeout — 2026-09-18
+
+Ramses research continuation started from `5664863e1e3222edb015910754b059648687e705`.
+The final Ramses implementation/evidence SHA is `832ecccbf4ace323799f8d123e12c2d921b91b9d`.
+
+Mutation reconstruction, deterministic prospective range freezing, paper LP share/fee/inventory accounting, exact terminal equality, bounded prospective mainnet capture and executable-unwind plumbing are now implemented in the research lane. Ramses allocation authority remains disabled; no signing, submission, merge or deployment occurred. Pons / `continuation-v1-robinhood` and Solana strategy/DLMM code were not changed.
+
+Complete `robinhood_tests` evidence passed 121 tests. Final live evidence workflow `35401048880` ended at:
+
+`no_factory_validated_native_pool_in_600_block_window`
+
+The final run used 72 logical RPC requests / 12 transport requests, with zero retries or failures. Because no eligible native Ramses pool existed at the prospective freeze point, no proposal hash, capital deployment, forward outcome, after-cost return or 35-bps qualification was manufactured.
+
+Artifact `10570575863`, SHA-256 `692b5168379677e7009ff488bcf7af320aabe93b0dbe74569c330d40e6ea3ad4`.
+
+See `RAMSES_DLMM_STATUS.md` for exact identities, mutation coverage, tests, provider telemetry and the remaining market boundary.
