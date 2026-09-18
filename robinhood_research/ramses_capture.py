@@ -62,16 +62,8 @@ def run(endpoint):
         return dict(values=read_many(address,[(s,()) for s in sigs],block),bins={})
 
     def add_bins(snapshot,address,block,bins,*,price_anchor=None):
-        specs=[]
-        for bid in bins:
-            specs.extend([('getBin(uint24)',(bid,)),('totalSupply(uint256)',(bid,))])
-        vals=read_many(address,specs,block) if specs else {}
-        for bid in bins:
-            snapshot['bins'][str(bid)]={
-                'getBin(uint24)':vals['getBin(uint24)'] if len(bins)==1 else None,
-                'totalSupply(uint256)':vals['totalSupply(uint256)'] if len(bins)==1 else None,
-            }
-        # Rebuild deterministically because duplicate signatures cannot key a dict.
+        # Duplicate ABI signatures are batched directly and assigned positionally.
+        # This avoids the old redundant read/re-read path.
         if bins:
             calls=[]
             for bid in bins:
