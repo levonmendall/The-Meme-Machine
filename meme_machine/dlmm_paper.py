@@ -231,10 +231,17 @@ class Replay:
             raise Unavailable('dlmm_history_gap_or_unmodeled_mutation')
         if event['pool']!=p['pool'] or event.get('commitment')!='finalized' or event['time']<p['last_time']:
             raise ValueError('dlmm_event_identity_or_time')
-        real,observed=dlmm.swap(p['real'],event['amount'],event['for_y'],event['time'])
-        if any(event['observed'][k]!=observed[k] for k in ('output','fee','protocol_fee','start','end')):
+        from .dlmm_tape import replay_swap_event
+        real,observed=replay_swap_event(p['real'],event)
+        if any(event['observed'][k]!=observed[k]
+               for k in ('output','fee','protocol_fee','start','end')):
             raise ValueError('dlmm_observed_swap_mismatch')
-        virtual,hypothetical=dlmm.swap(p['virtual'],event['amount'],event['for_y'],event['time'])
+        if event.get('swap_mode')=='exact_out' and event['amount']!=observed['input']:
+            raise ValueError('dlmm_observed_exact_out_input_mismatch')
+        host=event['observed'].get('host_fee',0)
+        if host and observed.get('host_fee')!=host:
+            raise ValueError('dlmm_observed_host_fee_mismatch')
+        virtual,hypothetical=replay_swap_event(p['virtual'],event)
         with self.store.transaction('dlmm_replay_swap') as s:
             p=s['liquidity_positions'][oid]
             real['slot']=virtual['slot']=cursor[0]
