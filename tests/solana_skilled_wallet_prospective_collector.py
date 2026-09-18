@@ -686,6 +686,153 @@ def robust_rows(state: dict, delay: str = "15", horizon: str = "300") -> list[di
     return rows
 
 
+def summarize_secondary(state: dict, contract: dict) -> dict:
+    """Post-hoc descriptive views only; never changes admission or authority."""
+    rows = []
+    for event in state["events"]:
+        if not event["outcome_complete"] or not event["outcome"]:
+            continue
+        target = (
+            event["outcome"]
+            .get("entries", {})
+            .get("15", {})
+            .get("target", {})
+            .get("returns_pct", {})
+            .get("300")
+        )
+        if target is None:
+            continue
+        robust = (
+            event["outcome"]
+            .get("robust", {})
+            .get("15", {})
+            .get("300", {})
+        )
+        rows.append(
+            {
+                "event": event,
+                "target_return_pct": float(target),
+                "edge_pp": robust.get("edge_pp"),
+            }
+        )
+
+    def tail_rates(values: list[float]) -> dict[str, float | None]:
+        return {
+            str(t): (
+                sum(value >= float(t) for value in values) / len(values)
+                if values
+                else None
+            )
+            for t in contract["tail_thresholds_pct"]
+        }
+
+    all_returns = [row["target_return_pct"] for row in rows]
+    unmatched = [row for row in rows if row["edge_pp"] is None]
+    unmatched_returns = [row["target_return_pct"] for row in unmatched]
+
+    returns_by_mint: dict[str, list[float]] = defaultdict(list)
+    for row in rows:
+        returns_by_mint[row["event"]["mint"]].append(row["target_return_pct"])
+    mint_median_returns = {
+        mint: statistics.median(values)
+        for mint, values in returns_by_mint.items()
+    }
+    equal_mint_returns = list(mint_median_returns.values())
+
+    robust = [row for row in rows if row["edge_pp"] is not None]
+    robust_edges_by_mint: dict[str, list[float]] = defaultdict(list)
+    robust_returns_by_mint: dict[str, list[float]] = defaultdict(list)
+    for row in robust:
+        mint = row["event"]["mint"]
+        robust_edges_by_mint[mint].append(float(row["edge_pp"]))
+        robust_returns_by_mint[mint].append(row["target_return_pct"])
+    mint_median_edges = {
+        mint: statistics.median(values)
+        for mint, values in robust_edges_by_mint.items()
+    }
+    equal_mint_edges = list(mint_median_edges.values())
+    robust_mint_median_returns = [
+        statistics.median(values)
+        for values in robust_returns_by_mint.values()
+    ]
+
+    largest_robust_mint = None
+    largest_robust_mint_count = 0
+    if robust_edges_by_mint:
+        largest_robust_mint, edge_values = sorted(
+            robust_edges_by_mint.items(),
+            key=lambda item: (-len(item[1]), item[0]),
+        )[0]
+        largest_robust_mint_count = len(edge_values)
+
+    return {
+        "analysis_status": "secondary_post_hoc_research_only",
+        "changes_admission_rules": False,
+        "changes_strategy": False,
+        "changes_authority": False,
+        "purpose": (
+            "prevent repeated observations from one highly matchable mint from "
+            "dominating interpretation while preserving the preregistered robust analysis"
+        ),
+        "absolute_outcomes_all_completed_15s_entry_5m": {
+            "event_n": len(rows),
+            "unique_mint_n": len(returns_by_mint),
+            "mean_target_return_pct": (
+                statistics.mean(all_returns) if all_returns else None
+            ),
+            "median_target_return_pct": (
+                statistics.median(all_returns) if all_returns else None
+            ),
+            "tail_rates": tail_rates(all_returns),
+        },
+        "absolute_outcomes_without_robust_match_15s_entry_5m": {
+            "event_n": len(unmatched),
+            "unique_mint_n": len({row["event"]["mint"] for row in unmatched}),
+            "mean_target_return_pct": (
+                statistics.mean(unmatched_returns) if unmatched_returns else None
+            ),
+            "median_target_return_pct": (
+                statistics.median(unmatched_returns) if unmatched_returns else None
+            ),
+            "tail_rates": tail_rates(unmatched_returns),
+        },
+        "unique_mint_equal_weighted_absolute_15s_entry_5m": {
+            "unique_mint_n": len(equal_mint_returns),
+            "within_mint_aggregation": "median",
+            "across_mint_weighting": "equal",
+            "mean_mint_median_return_pct": (
+                statistics.mean(equal_mint_returns) if equal_mint_returns else None
+            ),
+            "median_mint_median_return_pct": (
+                statistics.median(equal_mint_returns) if equal_mint_returns else None
+            ),
+            "tail_rates_on_mint_medians": tail_rates(equal_mint_returns),
+        },
+        "unique_mint_equal_weighted_robust_15s_entry_5m": {
+            "robust_event_n": len(robust),
+            "unique_mint_n": len(equal_mint_edges),
+            "within_mint_aggregation": "median",
+            "across_mint_weighting": "equal",
+            "mean_mint_median_edge_pp": (
+                statistics.mean(equal_mint_edges) if equal_mint_edges else None
+            ),
+            "median_mint_median_edge_pp": (
+                statistics.median(equal_mint_edges) if equal_mint_edges else None
+            ),
+            "mints_beating_controls": sum(edge > 0 for edge in equal_mint_edges),
+            "mints_losing_controls": sum(edge < 0 for edge in equal_mint_edges),
+            "tail_rates_on_mint_median_target_returns": tail_rates(
+                robust_mint_median_returns
+            ),
+            "largest_robust_mint": largest_robust_mint,
+            "largest_robust_mint_event_count": largest_robust_mint_count,
+            "largest_robust_mint_event_share": (
+                largest_robust_mint_count / len(robust) if robust else None
+            ),
+        },
+    }
+
+
 def summarize(state: dict, contract: dict) -> dict:
     completed = [e for e in state["events"] if e["outcome_complete"]]
     primary = robust_rows(state)
@@ -782,6 +929,7 @@ def summarize(state: dict, contract: dict) -> dict:
         },
         "tail_enrichment_5m": tails,
         "convergence_15m": convergence,
+        "secondary_research_only": summarize_secondary(state, contract),
     }
 
 
