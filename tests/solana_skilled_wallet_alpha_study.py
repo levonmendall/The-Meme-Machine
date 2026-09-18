@@ -96,7 +96,7 @@ def summarize(rows,d,h,persistent_only=False):
   "wallet_mint_cluster_sign_p":signp(sum(x>0 for x in m),sum(x<0 for x in m))}
 def main():
  cohort_rows=cohort(); wallets={x["wallet"]:x for x in cohort_rows}; walletset=set(wallets)
- idx=pub(REPLAY+"/index.json");hours=idx.get("hours") or []
+ idx=pub(REPLAY+"/index.json");hours=(idx.get("hours") or [])[-24:]
  states={};pairs=[];watch=defaultdict(list);lastbuy={};top_times=defaultdict(list);used_ctrl={};last_cleanup=0;trade_rows=0;buy_events=0;target_only=0
  headers={"User-Agent":"Mozilla/5.0","Accept":"application/octet-stream"}
  def contaminated(mint,t):
@@ -198,7 +198,7 @@ def main():
   rr=[r for r in records if r["wallet"]==w]
   vals=[r.get("edge_15s_300s") for r in rr if r.get("edge_15s_300s") is not None]
   per_wallet[w]={"events":len(rr),"paired_5m":len(vals),"mean_5m_edge_pp":statistics.mean(vals) if vals else None}
- report={"kind":"solana_high_roi_wallet_forward_alpha_study_v1","research_only":True,"provider_spend_usd":0,
+ report={"kind":"solana_high_roi_wallet_forward_alpha_study_24h_v1","research_only":True,"provider_spend_usd":0,
   "cohort_source":"MadeOnSol public alpha leaderboard","selection":{"period":"30d","sort":"roi","min_tokens":MIN_TOKENS,"exclude_bots":True,"top_n":COHORT_N},
   "survivorship_warning":"Current 30d winners are selected using outcomes overlapping the archive. This is exploratory association, not an ex-ante walk-forward proof.",
   "cohort":cohort_rows,"archive_hours":len(hours),"trade_rows_processed":trade_rows,"independent_wallet_buy_events":buy_events,"pairs_created":len(pairs),
