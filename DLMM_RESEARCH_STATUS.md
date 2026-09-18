@@ -309,3 +309,17 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - This is development data only. It cannot establish profitability, freeze the strategy rule, enable holdout, or enable allocation.
 - Prospective DLMM allocation remains disabled. No threshold, fee, verifier-capacity, finality, mechanics, signing, or submission change is authorized.
 - This marker authorizes exactly one bounded development batch.
+
+
+## DLMM economic strategy development sample 1 result
+
+- Live development run `35306922171` completed successfully on `4a895938aa52f532de41d427e078f52bb520bcd0`; artifact `10531697313` has SHA256 `98e7967db6eb6df2ad0e7c02632ee963726da5b6803fbb24253cf72b0f5fc6b6`.
+- The existing Meme Machine `MM_SOLANA_READ_RPC_URL` passed the Alchemy Solana Mainnet route validator before acquisition.
+- Six pools were attempted. Terminal classifications: 2 `over_verification_capacity`, 2 `verified_zero_swap`, 1 `provider_failure`, and 1 `provider_budget_exhausted`. No 60-second opportunity completed, so this batch is not a profitability observation.
+- STONK-SOL and JUP-SOL were density-censored by the unchanged 16-transaction verifier. MET-SOL and one EMBER-SOL pool completed verified zero-swap warmups and correctly skipped outcomes. USELESS-SOL failed closed on provider request failure.
+- The second EMBER-SOL pool (`5tb9fNLKr2wdJRSTNYRu39kGTjnYVseWo2bGyNgxnLHS`) produced the first live nonzero warmup under the new economic strategy: 3 authenticated swaps and approximately 4.0897 SOL equivalent warmup input volume.
+- All four price-normalized one-sided SOL bid candidates correctly rejected entry: approximately 99 bps / width 2, 198 bps / width 4, 391 bps / width 8, and 813 bps / width 17. None of the warmup swaps touched the proposed range, verified flow into the range was zero, reversion evidence was zero, estimated range fee capture was zero, and projected 60-second range-fee surplus remained `-350,000` lamports (the unchanged 35-bps cost hurdle).
+- This is a meaningful strategy-control result: the former fixed `sdk_bidask` width-8 rule would have selected solely because warmup activity was nonzero; the new range-economic rule declined the same opportunity because the activity did not occur where the proposed liquidity could earn fees.
+- The run then verified the first 12 seconds of the rejected candidate's future outcome (2 authenticated swaps) but could not finish the 60-second label because the shared research RPC object reached its 240-logical-call safety budget.
+- Batch RPC telemetry: 240 logical calls, 231 HTTP requests, 43 HTTP 429 failures, and 38 retries. The dominant failures were `getSignaturesForAddress` 429s (31). The final stop is therefore an acquisition/pacing-budget boundary, not a strategy loss or qualification rejection.
+- Selected trades: 0. Completed 60-second outcomes: 0. No after-cost profitability conclusion is permitted. Development rule remains unfrozen and allocation remains disabled.
