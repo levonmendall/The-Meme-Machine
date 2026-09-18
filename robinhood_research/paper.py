@@ -21,8 +21,8 @@ class Quote:
     stamp: Stamp
     reason: str | None = None
 
-    def check(self, now, market, side, amount, kind):
-        self.stamp.check(now, 5)
+    def check(self, now, market, side, amount, kind, *, finality_ledger=None):
+        self.stamp.check(now, 5, finality_ledger=finality_ledger)
         if self.market != market or self.side != side or self.amount_in != amount or self.stamp.kind != kind:
             raise BoundaryError('quote_identity_mismatch')
         if min(self.amount_in, self.gas_quote, self.fee_quote) < 0:
@@ -34,12 +34,14 @@ class Quote:
 
 
 class Paper:
-    def __init__(self, store, experiment, capital, *, delay=2):
+    def __init__(self, store, experiment, capital, *, delay=2, natural_proof=False):
         if capital <= 0 or delay < 1:
             raise BoundaryError('invalid_paper_config')
         self.store, self.experiment, self.delay = store, experiment, delay
+        self.natural_proof = bool(natural_proof)
         self.store.put('paper_genesis', experiment, dict(capital=capital, delay=delay,
-            authority='isolated_robinhood_directional', shared_allocator=False))
+            authority='isolated_robinhood_directional', shared_allocator=False,
+            natural_proof=self.natural_proof))
 
     def positions(self):
         return [json.loads(r[0]) for r in self.store.db.execute('SELECT body FROM paper')
@@ -70,8 +72,14 @@ class Paper:
         self.store.db.execute('INSERT OR REPLACE INTO paper VALUES(?,?)', (p['id'], canonical(p)))
 
     def reserve(self, identity, *, market, amount, gas_budget, now, features, kind='synthetic'):
-        if kind != 'synthetic':
-            raise BoundaryError('native_policy_not_established')
+        if kind not in ('synthetic','natural'):
+            raise BoundaryError('unsupported_paper_evidence_kind')
+        if kind == 'natural':
+            if not self.natural_proof:
+                raise BoundaryError('native_policy_not_established')
+            if (features.get('authority') != 'bounded_lifecycle_proof_only' or
+                    features.get('qualification') != 'policy_not_established'):
+                raise BoundaryError('natural_proof_authority_missing')
         if features['asof'] != now or features['market'] != market or amount <= 0 or gas_budget < 0:
             raise BoundaryError('invalid_paper_decision')
         self.store.db.execute('BEGIN IMMEDIATE')
@@ -94,7 +102,7 @@ class Paper:
             raise
         return p
 
-    def advance(self, identity, *, now, action, quote=None, transition=None):
+    def advance(self, identity, *, now, action, quote=None, transition=None, finality_ledger=None):
         self.store.db.execute('BEGIN IMMEDIATE')
         try:
             p = self._get(identity)
@@ -103,7 +111,7 @@ class Paper:
             if action == 'entry':
                 if p['status'] != 'reserved' or now < p['due']:
                     raise BoundaryError('entry_not_due')
-                quote.check(now, p['market'], 'buy', p['amount'], p['kind'])
+                quote.check(now, p['market'], 'buy', p['amount'], p['kind'], finality_ledger=finality_ledger)
                 if quote.stamp.event_at < p['due']:
                     raise BoundaryError('pre_delay_quote')
                 cost = p['amount'] + quote.gas_quote
@@ -118,7 +126,7 @@ class Paper:
                 if p['status'] != 'exit_pending' or now < p['due']:
                     raise BoundaryError('exit_not_due')
                 try:
-                    quote.check(now, p['market'], 'sell', p['tokens'], p['kind'])
+                    quote.check(now, p['market'], 'sell', p['tokens'], p['kind'], finality_ledger=finality_ledger)
                     if quote.stamp.event_at < p['due']:
                         raise BoundaryError('pre_delay_quote')
                 except BoundaryError as exc:
