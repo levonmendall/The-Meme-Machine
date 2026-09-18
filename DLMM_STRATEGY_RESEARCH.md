@@ -70,3 +70,19 @@ Implemented evidence-layer changes:
 Workflow `35264407618` proved that 2-second chunking admits dense STONK activity without raising bounds: six warmup chunks reconstructed **4 authenticated swaps** with zero provider failures/retries. A later diagnostic run proved the prior outcome identity rejection came from a `swap` whose 18-account list contained the target STONK pool in **no position**; it was an unrelated Meteora pool swap in the same routed transaction, not a malformed STONK instruction. The parser now filters that unrelated invocation/event by authenticated pool identity while retaining strict target-pool account-zero validation.
 
 The next workflow reruns the exact same 12-second top-active experiment against these evidence-only repairs. Allocation authority remains disabled. No strategy, sizing, cost, entry threshold or portfolio authority changes are part of this extension.
+
+
+## Economic strategy revision v1 — development/holdout protocol
+
+The prior fixed selected rule `sdk_bidask / width 8 / any nonzero warmup` remains preserved as a legacy comparator only. It no longer defines the candidate strategy for new profitability research.
+
+The candidate research strategy now uses:
+
+1. **Real holding horizon:** every outcome is exactly the mechanical `HOLD_SECONDS=60`; the modeled round-trip hurdle remains `ENTRY_COST + EXIT_COST = 350,000 lamports = 35 bps` on 0.1 SOL. The 60-second horizon is composed from chained independently verified <=12-second acquisition segments. Per-segment finality, signature coverage, `MAX_TRANSACTIONS=16`, ordered transaction evidence, and terminal equality are unchanged.
+2. **Range-specific pre-entry evidence:** proposed liquidity is anchored to the authenticated entry snapshot after warmup. Features include proposed-range liquidity, range-touch volume/fees, 50/100/200-bps approach volume/fees, toward-range volume, flow actually entering the range, away/reverting volume, two-way balance, bin travel, net drift, drift ratio, reversal count, and touch-then-revert evidence.
+3. **Cost-aware development gate:** a provisional development-only case requires projected 60-second gross fee value to clear the unchanged 350,000-lamport hurdle, actual flow into the proposed one-sided SOL bid range, and subsequent two-way/reverting behavior. No fitted numeric profitability threshold is used before the development sample exists.
+4. **Price-normalized placement:** development compares SDK BidAsk placements targeting approximately 100, 200, 400, and 800 bps from the active bin. The integer width is chosen per pool from the bounded 2..32-bin envelope to approximate that price distance under the pool's actual `bin_step`. Fixed width 8 remains a shadow comparator.
+5. **Same-opportunity controls:** the full existing `foundation_spot` and `sdk_bidask` grids at widths 2/4/8/16/32 continue to be evaluated on every completed 60-second outcome, alongside the normalized-placement candidates.
+6. **Development vs holdout:** development outcomes may be used to define the final rule but may not support a profitability claim. Default freeze eligibility is at least 30 completed development observations across at least 5 pools. Rule freezing is never automatic. A reviewed frozen rule must be committed in `DLMM_STRATEGY_RULE_V1.json`. Holdout then requires observations strictly after the freeze timestamp and targets at least 100 completed observations across at least 10 pools. Holdout data cannot retune the rule.
+
+Prospective allocation remains disabled throughout development and holdout. The existing verifier, fees, mechanics, provider finality rules, and paper-only authority remain unchanged.
