@@ -45,6 +45,15 @@ class WalletDerivedStudy(unittest.TestCase):
         self.assertEqual(
             study._actor_events(tx,pool,1,dict(signature="sig",slot=123)),[])
 
+    def test_history_event_epoch_normalizes_seconds_millis_and_iso(self):
+        self.assertEqual(study._event_epoch(dict(blockTime=100)),100)
+        self.assertEqual(study._event_epoch(dict(blockTime=1000000000000)),1000000000)
+        self.assertEqual(study._event_epoch(dict(blockTime="100")),100)
+        self.assertEqual(
+            study._event_epoch(dict(createdAt="2026-09-18T22:39:00Z")),
+            1789771140,
+        )
+
     def test_pre_freeze_cutoff_excludes_future_closes(self):
         self.assertTrue(study._closed_by_cutoff(dict(closedAt=100),100))
         self.assertTrue(study._closed_by_cutoff(dict(closedAt=99),100))
