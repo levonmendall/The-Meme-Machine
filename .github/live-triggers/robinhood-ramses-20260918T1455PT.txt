@@ -4,3 +4,5 @@ No allocation authority, signing, submission, merge, or deployment.
 Prospective rerun from mutation-complete frozen-range implementation at 3f8f8e1cc7c34dc783920d9cde39554447d7296e.
 
 Native-eligible prospective rerun from 926a4861b090b387e6dc5f558be01f2548bc7ac0.
+
+Final bounded same-market 600-block Ramses discovery proof from 512daa2ce952d25e06cbb510174cd8b0c78c1384.
