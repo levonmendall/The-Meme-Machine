@@ -318,6 +318,44 @@ class Tape(unittest.TestCase):
                 self.assertTrue(store.reconcile())
             finally:store.close()
 
+    def test_remove_claim_tape_resumes_after_lost_adjustment_ack(self):
+        start=snapshot();start['kind']='real';p=dlmm.validate(start,100)
+        post,_removed,tx=remove_liquidity_transaction(
+            p,bid=0,claim_x=123,claim_y=456,signature='remove-restart')
+        end=encode_state(start,post,102,102)
+        sigs=[
+            dict(signature='remove-restart',slot=101,transactionIndex=7,
+                 err=None,confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,
+                 err=None,confirmationStatus='finalized')]
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'adjustment-restart.db'
+            store=Store(path,'captured',100_000_000,'adjustment restart')
+            replay=Replay(store)
+            replay.reserve('lp',start,100);replay.deposit('lp',start,100)
+            tape=reconstruct(
+                p,end,sigs,{'remove-restart':tx},102,
+                store.state['liquidity_positions']['lp']['cursor'])
+            fired={'value':False}
+            def lost(stage):
+                if stage=='after_commit' and not fired['value']:
+                    fired['value']=True
+                    raise RuntimeError('lost adjustment ack')
+            store.hook=lost
+            with self.assertRaisesRegex(RuntimeError,'lost adjustment ack'):
+                replay.process_tape('lp',tape,102)
+            store.close()
+            store=Store(path,'captured',100_000_000,'adjustment restart')
+            replay=Replay(store)
+            try:
+                replay.process_tape('lp',tape,102)
+                position=store.state['liquidity_positions']['lp']
+                self.assertEqual(position['real'],tape.terminal)
+                self.assertEqual(position['events'],2)
+                self.assertTrue(store.reconcile())
+            finally:
+                store.close()
+
     def test_terminal_is_validation_only_no_backward_inference(self):
         start,p,end,sigs,txs=interval()
         bad=change_account(end,dlmm.array_address(POOL,0),56,(999).to_bytes(8,'little'))
