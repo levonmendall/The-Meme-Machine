@@ -562,10 +562,17 @@ def _opportunity_ledger_row(opportunity):
 
 def _merge_development_observations(prior,current):
     merged={}
-    for row in list(prior)+list(current):
+    for row in list(prior):
         key=_observation_key(row)
         if not key[0] or type(key[1]) is not int or type(key[2]) is not int:
             raise ValueError("dlmm_development_ledger_observation_identity")
+        merged[key]=dict(row)
+    for row in list(current):
+        key=_observation_key(row)
+        # Runtime/captured observations have exact identity. Unit fixtures and
+        # incomplete synthetic rows are not allowed to become cumulative evidence.
+        if not key[0] or type(key[1]) is not int or type(key[2]) is not int:
+            continue
         merged[key]=dict(row)
     return list(merged.values())
 
