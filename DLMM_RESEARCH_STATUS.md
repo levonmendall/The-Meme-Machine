@@ -591,3 +591,12 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - No frozen wallet address, profitability threshold, pool-sampling rule, or legacy result changed.
 - Full CI run `35403866813` passed.
 - This marker authorizes one final Phase B analysis rerun using only pre-freeze closed-position evidence. A candidate may be proposed/frozen only from that corrected artifact.
+
+
+## Wallet-history timestamp normalization
+
+- The first pre-freeze rerun correctly excluded post-freeze closed positions but exposed an event-time representation mismatch that zeroed the add/remove history features.
+- Event time normalization now accepts seconds, millisecond epoch values, numeric strings, or ISO `createdAt` fallback before applying the same pre-freeze cutoff.
+- PnL position cutoff remains `closedAt <= 2026-09-18T22:39:00Z`.
+- Full CI run `35404386688` passed.
+- This marker authorizes one final corrected Phase B rerun on the unchanged frozen 23-wallet cohort. No new wallets or post-freeze closes may influence candidate development.
