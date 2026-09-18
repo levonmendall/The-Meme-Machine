@@ -90,8 +90,7 @@ def run():
             continue
         for row in block.get("transactions") or []:
             tx=row.get("transaction") or {}
-            message=tx.get("message") or {}
-            raw_keys=message.get("accountKeys") or []
+            raw_keys=tx.get("accountKeys") or []
             keys=[
                 item.get("pubkey") if isinstance(item,dict) else item
                 for item in raw_keys
