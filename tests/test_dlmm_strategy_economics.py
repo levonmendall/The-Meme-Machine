@@ -66,13 +66,15 @@ class DlmmEconomicStrategy(unittest.TestCase):
         self.assertIn("touch_then_revert", features)
         self.assertEqual(features["fixed_cost_lamports"], 350_000)
         self.assertAlmostEqual(
-            features["projected_60s_fee_surplus_lamports"],
-            features["projected_60s_gross_fee_lamports"] - 350_000,
+            features["projected_60s_range_fee_surplus_lamports"],
+            features["projected_60s_range_fee_capture_lamports"] - 350_000,
         )
+        self.assertGreaterEqual(features["estimated_range_fee_capture_share"], 0)
+        self.assertLessEqual(features["estimated_range_fee_capture_share"], 1)
 
     def test_development_gate_requires_cost_flow_and_reversion(self):
         base = dict(
-            projected_60s_fee_surplus_lamports=1,
+            projected_60s_range_fee_surplus_lamports=1,
             flow_into_range_volume_sol_lamports=1,
             away_from_range_volume_sol_lamports=1,
             reversal_count=1,
@@ -81,7 +83,7 @@ class DlmmEconomicStrategy(unittest.TestCase):
         )
         self.assertTrue(economics.development_economic_case(base)["passes"])
         for key, value in (
-            ("projected_60s_fee_surplus_lamports", -1),
+            ("projected_60s_range_fee_surplus_lamports", -1),
             ("flow_into_range_volume_sol_lamports", 0),
             ("away_from_range_volume_sol_lamports", 0),
         ):
