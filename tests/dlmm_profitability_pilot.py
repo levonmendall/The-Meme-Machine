@@ -10,8 +10,9 @@ checks whether transaction density has already made that window uncertifiable un
 the existing verifier capacity. Over-capacity and provider failures remain explicit
 censoring outcomes; neither is converted into "no opportunity".
 
-The batch stops when it has a target number of fully verified warmup+outcome windows,
-subject to bounded candidate and provider budgets.
+The batch stops when it has a target number of fully verified warmup+outcome windows.
+Discovery and every candidate have separate bounded logical-call budgets, while one
+shared Alchemy pacing gate serializes physical requests across the entire batch.
 """
 from __future__ import annotations
 
@@ -1128,6 +1129,15 @@ def run_live(
         rpc_http_requests=provider_totals["http_requests"],
         rpc_failures=provider_totals["failures"],
         rpc_retries=provider_totals["retries"],
+        http_429_count=int(
+            provider_totals["failure_kinds"].get("http_429", 0)
+        ),
+        http_429_rate=(
+            None
+            if not provider_totals["http_requests"]
+            else int(provider_totals["failure_kinds"].get("http_429", 0))
+            / provider_totals["http_requests"]
+        ),
         provider_failure_kinds=provider_totals["failure_kinds"],
         provider_failure_methods=provider_totals["failure_methods"],
         rpc_batch_fallbacks=provider_totals["batch_fallbacks"],
