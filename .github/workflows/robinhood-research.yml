@@ -194,7 +194,7 @@ jobs:
 
   bounded-continuation-robinhood-cohort:
     needs: deterministic
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-continuation-cohort]')
+    if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-continuation-cohort]')) || (github.event_name == 'pull_request' && github.head_ref == 'feat/robinhood-research-foundation')
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     concurrency:
