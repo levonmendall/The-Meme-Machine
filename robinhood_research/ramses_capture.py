@@ -29,6 +29,7 @@ LOG_BLOCK_CHUNK=10
 MAX_FACTORY_POOLS=400
 FORWARD_SECONDS=60
 PAPER_NATIVE_CAPITAL=10**16
+FORCED_PAPER_POOL='0xbc2f7c6ec69341393fd7965dd0bb4d9f42881c63'
 INVENTORY_BASELINE=Path(__file__).with_name('ramses_native_inventory_baseline.json')
 INVENTORY_NATIVE_SHA='1e6beebd82ae3b87d1f2149374a5efdf6acc089c9cb4f792ae9b32e42b97aee5'
 
@@ -41,8 +42,9 @@ class BoundedMultiRpc:
     telemetry, so complete inventory is possible without changing shared/Pons
     provider behavior or making the budget unbounded.
     """
-    def __init__(self,endpoint,*,max_sessions=4,batch_size=20,batch_pause=0.75):
+    def __init__(self,endpoint,*,max_sessions=4,batch_size=20,batch_pause=0.75,rate_retries=1):
         self.endpoint=endpoint;self.max_sessions=max_sessions;self.batch_size=batch_size;self.batch_pause=batch_pause
+        self.rate_retries=rate_retries
         self.sessions=[];self.wrapper_retries=0
         self._new()
 
@@ -60,14 +62,14 @@ class BoundedMultiRpc:
         return current
 
     def call(self,method,params,*,scope='connectivity'):
-        for attempt in range(2):
+        for attempt in range(self.rate_retries+1):
             try:
                 return self._session(1).call(method,params,scope=scope)
             except BoundaryError as exc:
-                if str(exc)!='provider_rpc_429' or attempt:
+                if str(exc) not in ('provider_rpc_429','provider_http_429') or attempt>=self.rate_retries:
                     raise
-                self.wrapper_retries+=1;time.sleep(3)
-        raise BoundaryError('provider_rpc_429')
+                self.wrapper_retries+=1;time.sleep(3*(attempt+1))
+        raise BoundaryError('provider_rate_limit')
 
     def batch(self,calls,*,scope='connectivity'):
         if not isinstance(calls,list) or not calls:
@@ -76,14 +78,14 @@ class BoundedMultiRpc:
         chunks=[calls[i:i+self.batch_size] for i in range(0,len(calls),self.batch_size)]
         for index,chunk in enumerate(chunks):
             if index:time.sleep(self.batch_pause)
-            for attempt in range(2):
+            for attempt in range(self.rate_retries+1):
                 try:
                     out.extend(self._session(len(chunk)).batch(chunk,scope=scope))
                     break
                 except BoundaryError as exc:
-                    if str(exc)!='provider_rpc_429' or attempt:
+                    if str(exc) not in ('provider_rpc_429','provider_http_429') or attempt>=self.rate_retries:
                         raise
-                    self.wrapper_retries+=1;time.sleep(3)
+                    self.wrapper_retries+=1;time.sleep(3*(attempt+1))
         return out
 
     def receipt(self,tx_hash,block_hash,*,scope):
@@ -113,7 +115,7 @@ class BoundedMultiRpc:
 
 
 def run(endpoint, *, forced_paper=False, forced_db_path=None):
-    rpc=BoundedMultiRpc(endpoint,max_sessions=4)
+    rpc=BoundedMultiRpc(endpoint,max_sessions=4,rate_retries=(3 if forced_paper else 1))
     lifecycle=None;forced_identity=None
     result=dict(kind=('forced_ramses_paper_mechanics' if forced_paper else 'prospective_finalized_ramses'),
                 started_at=time.time(),reads=[],allocation_authority=False,
@@ -280,51 +282,76 @@ def run(endpoint, *, forced_paper=False, forced_db_path=None):
                     eligible.append((event,decoded))
             return eligible
 
-        # Freeze a deterministic multi-cohort watch schedule using only
-        # point-in-time state available before any future observation. The
-        # entire schedule is hashed before slot 1; pools are never reranked,
-        # promoted or substituted using outcomes observed during the watch.
-        variable_rows=rpc.batch([
-            ('eth_call',[dict(to=a,data=calldata('getVariableFeeParameters()')),hex(discovery_end)])
-            for a in native_pools],scope='discovery')
-        ranked=[]
-        for a,raw in zip(native_pools,variable_rows):
-            variable=values(raw)
-            if len(variable)!=4:raise BoundaryError('native_pool_variable_shape')
-            ranked.append(dict(address=a,last_update=variable[3],variable=variable))
-        ranked.sort(key=lambda row:(row['last_update'],row['address']),reverse=True)
-        rank_candidates=ranked[:RANK_POOL_COUNT]
-        state_calls=[]
-        for row in rank_candidates:
-            state_calls.extend([
-                ('eth_call',[dict(to=row['address'],data=calldata('getReserves()')),hex(discovery_end)]),
-                ('eth_call',[dict(to=row['address'],data=calldata('getLBHooksParameters()')),hex(discovery_end)]),
-            ])
-        state_rows=rpc.batch(state_calls,scope='discovery') if state_calls else []
-        watchable=[]
-        for i,row in enumerate(rank_candidates):
-            reserves=values(state_rows[2*i]);hooks=int(state_rows[2*i+1],16)
-            side=native_meta[row['address']]['native_side']
-            native_reserve=reserves[0 if side=='x' else 1]
-            if hooks==0:
-                watchable.append(dict(address=row['address'],last_update=row['last_update'],
-                                      native_reserve=native_reserve,native_side=side,
-                                      bin_step=native_meta[row['address']]['bin_step']))
-        watchable.sort(key=lambda row:(row['last_update'],row['native_reserve'],row['address']),reverse=True)
-        result['watchable_native_pool_count']=len(watchable)
-        scheduled=watchable[:WATCH_POOL_COUNT*WATCH_COHORT_COUNT]
-        if len(scheduled)!=WATCH_POOL_COUNT:
-            raise BoundaryError('insufficient_watchable_native_ramses_pools:'+str(len(scheduled)))
-        cohorts=[scheduled[i:i+WATCH_POOL_COUNT] for i in range(0,len(scheduled),WATCH_POOL_COUNT)]
-        if len(cohorts)>WATCH_COHORT_COUNT:raise BoundaryError('watch_schedule_capacity')
-        schedule_public=[]
-        for slot,cohort in enumerate(cohorts):
-            schedule_public.append(dict(slot=slot,pools=[
-                {k:row[k] for k in ('address','last_update','native_reserve','native_side','bin_step')}
-                for row in cohort]))
-        schedule_hash=hashlib.sha256(json.dumps(schedule_public,sort_keys=True,separators=(',',':')).encode()).hexdigest()
-        result['watch_schedule']=schedule_public;result['watch_schedule_hash']=schedule_hash
-        result['selection_rule']='first_authenticated_economic_mutation_on_frozen_preentry_watch_schedule'
+        if forced_paper:
+            if FORCED_PAPER_POOL not in native_pools:
+                raise BoundaryError('forced_ramses_pool_not_in_authenticated_native_inventory')
+            raw=rpc.batch([
+                ('eth_call',[dict(to=FORCED_PAPER_POOL,data=calldata('getReserves()')),hex(discovery_end)]),
+                ('eth_call',[dict(to=FORCED_PAPER_POOL,data=calldata('getLBHooksParameters()')),hex(discovery_end)]),
+                ('eth_call',[dict(to=FORCED_PAPER_POOL,data=calldata('getVariableFeeParameters()')),hex(discovery_end)]),
+            ],scope='discovery')
+            forced_reserves=values(raw[0]);forced_hooks=int(raw[1],16);forced_variable=values(raw[2])
+            if forced_hooks!=0 or not any(forced_reserves) or len(forced_variable)!=4:
+                raise BoundaryError('forced_ramses_pool_not_currently_watchable')
+            meta=native_meta[FORCED_PAPER_POOL]
+            native_reserve=forced_reserves[0 if meta['native_side']=='x' else 1]
+            scheduled=[dict(address=FORCED_PAPER_POOL,last_update=forced_variable[3],
+                            native_reserve=native_reserve,native_side=meta['native_side'],
+                            bin_step=meta['bin_step'])]
+            cohorts=[scheduled]
+            schedule_public=[dict(slot=0,pools=[{k:scheduled[0][k] for k in
+                ('address','last_update','native_reserve','native_side','bin_step')}])]
+            schedule_hash=hashlib.sha256(json.dumps(schedule_public,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+            result['watchable_native_pool_count']=1
+            result['watch_schedule']=schedule_public;result['watch_schedule_hash']=schedule_hash
+            result['forced_pool_source']='previously_authenticated_forced_mechanics_pool'
+            result['selection_rule']='forced_paper_fixed_authenticated_native_pool'
+        else:
+            # Freeze a deterministic multi-cohort watch schedule using only
+            # point-in-time state available before any future observation. The
+            # entire schedule is hashed before slot 1; pools are never reranked,
+            # promoted or substituted using outcomes observed during the watch.
+            variable_rows=rpc.batch([
+                ('eth_call',[dict(to=a,data=calldata('getVariableFeeParameters()')),hex(discovery_end)])
+                for a in native_pools],scope='discovery')
+            ranked=[]
+            for a,raw in zip(native_pools,variable_rows):
+                variable=values(raw)
+                if len(variable)!=4:raise BoundaryError('native_pool_variable_shape')
+                ranked.append(dict(address=a,last_update=variable[3],variable=variable))
+            ranked.sort(key=lambda row:(row['last_update'],row['address']),reverse=True)
+            rank_candidates=ranked[:RANK_POOL_COUNT]
+            state_calls=[]
+            for row in rank_candidates:
+                state_calls.extend([
+                    ('eth_call',[dict(to=row['address'],data=calldata('getReserves()')),hex(discovery_end)]),
+                    ('eth_call',[dict(to=row['address'],data=calldata('getLBHooksParameters()')),hex(discovery_end)]),
+                ])
+            state_rows=rpc.batch(state_calls,scope='discovery') if state_calls else []
+            watchable=[]
+            for i,row in enumerate(rank_candidates):
+                reserves=values(state_rows[2*i]);hooks=int(state_rows[2*i+1],16)
+                side=native_meta[row['address']]['native_side']
+                native_reserve=reserves[0 if side=='x' else 1]
+                if hooks==0:
+                    watchable.append(dict(address=row['address'],last_update=row['last_update'],
+                                          native_reserve=native_reserve,native_side=side,
+                                          bin_step=native_meta[row['address']]['bin_step']))
+            watchable.sort(key=lambda row:(row['last_update'],row['native_reserve'],row['address']),reverse=True)
+            result['watchable_native_pool_count']=len(watchable)
+            scheduled=watchable[:WATCH_POOL_COUNT*WATCH_COHORT_COUNT]
+            if len(scheduled)!=WATCH_POOL_COUNT:
+                raise BoundaryError('insufficient_watchable_native_ramses_pools:'+str(len(scheduled)))
+            cohorts=[scheduled[i:i+WATCH_POOL_COUNT] for i in range(0,len(scheduled),WATCH_POOL_COUNT)]
+            if len(cohorts)>WATCH_COHORT_COUNT:raise BoundaryError('watch_schedule_capacity')
+            schedule_public=[]
+            for slot,cohort in enumerate(cohorts):
+                schedule_public.append(dict(slot=slot,pools=[
+                    {k:row[k] for k in ('address','last_update','native_reserve','native_side','bin_step')}
+                    for row in cohort]))
+            schedule_hash=hashlib.sha256(json.dumps(schedule_public,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+            result['watch_schedule']=schedule_public;result['watch_schedule_hash']=schedule_hash
+            result['selection_rule']='first_authenticated_economic_mutation_on_frozen_preentry_watch_schedule'
 
         if forced_paper:
             result['selection_rule']='forced_paper_first_authenticated_pool_from_frozen_preentry_schedule'
@@ -496,6 +523,12 @@ def run(endpoint, *, forced_paper=False, forced_db_path=None):
             if end_frontier['hash']!=end_candidate['hash']:
                 raise BoundaryError('terminal_reorg_before_finality')
         result['frontier']={k:end_frontier[k] for k in ('hash','number','timestamp','parentHash')}
+        if forced_paper:
+            # The provider only proved 10-block log ranges on this chain. Keep
+            # that exact range bound but pace batches so the ~60s fast-chain
+            # interval does not trip endpoint rate limits.
+            rpc.batch_size=min(rpc.batch_size,10)
+            rpc.batch_pause=max(rpc.batch_pause,1.5)
         events=batched_logs(start+1,end,address=address,scope='pool')
         result['logs']=events
         decoded=[]
