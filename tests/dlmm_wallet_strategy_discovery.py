@@ -276,12 +276,17 @@ def _position_metrics(position,bin_step=None):
     )
 
 
-def _history_features(position_address,sol_side=None):
+def _history_features(position_address,sol_side=None,cutoff_time=None):
     payload=_json_get(f"/positions/{position_address}/historical",
                       dict(order_direction="asc"),allow_pnl=True)
     events=payload.get("events") if isinstance(payload,dict) else None
     if not isinstance(events,list):
         raise RuntimeError("dlmm_wallet_history_shape")
+    if cutoff_time is not None:
+        events=[
+            e for e in events
+            if isinstance(e.get("blockTime"),int) and e["blockTime"]<=cutoff_time
+        ]
     counts=Counter(str(e.get("eventType")) for e in events)
     adds=[e for e in events if e.get("eventType")=="add"]
     first_add=adds[0] if adds else None
@@ -319,6 +324,12 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
     body=json.loads(Path(path).read_text())
     if body.get("kind")!="dlmm_wallet_cohort_v1" or body.get("status")!="frozen_pre_pnl":
         raise RuntimeError("dlmm_wallet_cohort_not_frozen_pre_pnl")
+    frozen_at=body.get("frozen_at")
+    if not isinstance(frozen_at,str) or not frozen_at.endswith("Z"):
+        raise RuntimeError("dlmm_wallet_cohort_freeze_time")
+    from datetime import datetime, timezone
+    freeze_epoch=int(datetime.fromisoformat(
+        frozen_at[:-1]+"+00:00").timestamp())
     if body.get("pnl_data_read_before_freeze") is not False:
         raise RuntimeError("dlmm_wallet_cohort_pnl_leakage")
     wallets=body.get("wallets") or []
@@ -348,6 +359,9 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
             if not isinstance(positions,list):
                 raise RuntimeError("dlmm_wallet_position_pnl_shape")
             for position in positions:
+                closed_at=position.get("closedAt")
+                if not isinstance(closed_at,int) or closed_at>freeze_epoch:
+                    continue
                 m=_position_metrics(position,bin_step=bin_step)
                 m["pool"]=address
                 m["pool_token_x"]=pool.get("tokenX")
@@ -391,7 +405,9 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
                 "y" if p.get("pool_token_y_mint")==dlmm.WSOL else None
             )
             detailed.append(dict(
-                **p,history=_history_features(p["position"],sol_side=sol_side)
+                **p,history=_history_features(
+                    p["position"],sol_side=sol_side,cutoff_time=p.get("closed_at")
+                )
             ))
         wallet["detailed_positions"]=detailed
 
@@ -430,6 +446,8 @@ def analyze_frozen_cohort(path=DEFAULT_COHORT):
         status="behavior_discovery_only_no_strategy_frozen",
         allocation_authority=False,prospective_trading_enabled=False,
         cohort_hash=body.get("cohort_hash"),cohort_frozen_at=body.get("frozen_at"),
+        development_data_cutoff_epoch=freeze_epoch,
+        post_freeze_positions_excluded=True,
         cohort_wallet_count=len(wallets),wallets_analyzed=len(summaries),
         profitable_wallet_definition=dict(
             min_closed_positions=MIN_CLOSED_POSITIONS,
