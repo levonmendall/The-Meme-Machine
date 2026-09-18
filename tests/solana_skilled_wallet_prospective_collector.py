@@ -77,23 +77,33 @@ def restore_latest_state() -> dict | None:
         if not a.get("expired")
         and str((a.get("workflow_run") or {}).get("id")) != run_id
     ]
-    if not artifacts:
-        return None
-
     artifacts.sort(key=lambda a: a.get("created_at") or "", reverse=True)
-    download = requests.get(
-        artifacts[0]["archive_download_url"],
-        headers=github_headers(),
-        timeout=60,
-        allow_redirects=True,
-    )
-    download.raise_for_status()
 
-    with zipfile.ZipFile(io.BytesIO(download.content)) as zf:
+    for artifact in artifacts:
         try:
-            return json.loads(zf.read(STATE_PATH.name))
-        except KeyError:
-            return None
+            download = requests.get(
+                artifact["archive_download_url"],
+                headers=github_headers(),
+                timeout=60,
+                allow_redirects=True,
+            )
+            download.raise_for_status()
+            with zipfile.ZipFile(io.BytesIO(download.content)) as zf:
+                try:
+                    raw = zf.read(STATE_PATH.name)
+                except KeyError:
+                    continue
+            text = raw.decode("utf-8").strip()
+            # Compatibility with the initial collector artifact, which ended
+            # in the two literal characters backslash+n rather than a newline.
+            if text.endswith("\\n"):
+                text = text[:-2].rstrip()
+            state = json.loads(text)
+            if isinstance(state, dict) and state.get("test_name"):
+                return state
+        except Exception:
+            continue
+    return None
 
 
 def public_json(url: str) -> dict:
@@ -774,11 +784,11 @@ def summarize(state: dict, contract: dict) -> dict:
 
 def write_outputs(state: dict, summary: dict) -> None:
     state["updated_at_utc"] = datetime.now(timezone.utc).isoformat()
-    STATE_PATH.write_text(json.dumps(state, indent=2, sort_keys=True) + "\\n")
+    STATE_PATH.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
     with EVENTS_PATH.open("w") as out:
         for event in state["events"]:
-            out.write(json.dumps(event, sort_keys=True) + "\\n")
-    SUMMARY_PATH.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\\n")
+            out.write(json.dumps(event, sort_keys=True) + "\n")
+    SUMMARY_PATH.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
 
 
 def main() -> None:
