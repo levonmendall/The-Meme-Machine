@@ -27,6 +27,7 @@ import urllib.request
 
 from meme_machine import dlmm, pump
 from meme_machine.dlmm_paper import CAPITAL, ENTRY_COST, EXIT_COST
+from meme_machine.dlmm_economics import DEFAULT_HURDLE_BPS, range_economic_case
 from meme_machine.dlmm_tape import MAX_TRANSACTIONS
 from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
@@ -383,6 +384,13 @@ def _fresh_supported_start(adapter, candidate):
 def _evaluate_completed_window(cycle, address, warm_start, warm, entry, outcome, end_state):
     features = research.regime_features(warm_start, warm)
     choice = research.select_variant(features)
+    economic_case = None
+    if choice is not None:
+        observation_seconds = max(1, int(entry['time']) - int(warm_start['time']))
+        economic_case = range_economic_case(
+            entry, warm_start, warm, choice['strategy'], choice['width'],
+            observation_seconds, hurdle_bps=DEFAULT_HURDLE_BPS,
+        )
     opportunity = dict(
         cycle=cycle,
         pool=address,
@@ -402,6 +410,7 @@ def _evaluate_completed_window(cycle, address, warm_start, warm, entry, outcome,
         ),
         features=features,
         selected=choice,
+        pre_entry_range_economic_case=economic_case,
     )
     results = []
     selected_results = []
@@ -431,6 +440,14 @@ def _evaluate_completed_window(cycle, address, warm_start, warm, entry, outcome,
                     choice
                     and strategy == choice["strategy"]
                     and width == choice["width"]
+                ),
+                pre_entry_range_case_pass=(
+                    None if economic_case is None
+                    else bool(economic_case['passes_pre_entry_hurdle'])
+                ),
+                pre_entry_projected_60s_net_bps=(
+                    None if economic_case is None
+                    else economic_case['projected_60s_net_bps']
                 ),
             )
             results.append(result)
@@ -555,6 +572,10 @@ def run_live(
         selected_width=research.SELECTED_WIDTH,
         selector_uses_outcome_data=False,
         selector_rule="nonzero_verified_warmup_activity_only",
+        range_economic_case_model="range_fee_case_v1",
+        range_economic_case_authority=False,
+        range_economic_case_horizon_seconds=60,
+        range_economic_case_hurdle_bps=DEFAULT_HURDLE_BPS,
         point_in_time=True,
         verification_capacity=MAX_TRANSACTIONS,
         density_preflight_seconds=PREFLIGHT_SECONDS,
