@@ -279,8 +279,28 @@ def _resolve_effect_event(effect,pool):
     return effect
 
 
-def _authenticate_effect_transfers(effects,meta,keys):
-    """Authenticate aggregate reserve-to-user transfers for claim/removal effects."""
+def _external_effect_balance(meta,side,index):
+    """Read one SPL balance row using external-effect-specific failure reasons."""
+    rows=[row for row in meta.get(side) or [] if row.get('accountIndex')==index]
+    if not rows:
+        return None
+    if len(rows)!=1:
+        raise Unavailable('dlmm_external_effect_token_balance_ambiguous')
+    row=rows[0];token=row.get('uiTokenAmount') or {};amount=token.get('amount')
+    if not isinstance(row.get('mint'),str) or not isinstance(amount,str) or not amount.isdigit():
+        raise Unavailable('dlmm_external_effect_token_balance_shape')
+    return row['mint'],int(amount)
+
+
+def _authenticate_effect_transfers(effects,meta,keys,ordered):
+    """Authenticate claim/removal reserve->user movement without requiring ATA pre-rows.
+
+    Ordered SPL Transfer/TransferChecked evidence is authoritative when it exactly
+    accounts for the aggregate event amounts from the authenticated pool reserves to
+    the authenticated user token accounts. Transaction balance rows remain a
+    conservation cross-check/fallback, but a newly-created destination ATA is allowed
+    to lack a preTokenBalances row.
+    """
     expected={}
     for effect in effects:
         for side in ('x','y'):
@@ -288,21 +308,59 @@ def _authenticate_effect_transfers(effects,meta,keys):
             mint=effect[f'token_{side}_mint']
             reserve_index=effect[f'reserve_{side}_index']
             user_index=effect[f'user_{side}_index']
-            for index,delta in ((reserve_index,-amount),(user_index,amount)):
-                prior=expected.get(index)
-                if prior is None:
-                    expected[index]=[mint,delta]
-                elif prior[0]!=mint:
-                    raise Unavailable('dlmm_external_effect_token_alias')
-                else:
-                    prior[1]+=delta
-    for index,(mint,delta) in expected.items():
-        pre_mint,pre_amount=_token_balance(meta,'preTokenBalances',index)
-        post_mint,post_amount=_token_balance(meta,'postTokenBalances',index)
-        if pre_mint!=mint or post_mint!=mint:
-            raise Unavailable('dlmm_external_effect_wrong_token')
-        if post_amount-pre_amount!=delta:
+            key=(reserve_index,user_index,mint)
+            expected[key]=expected.get(key,0)+amount
+
+    auth_methods=[]
+    for (reserve_index,user_index,mint),amount in expected.items():
+        transfer_total=0;transfer_seen=False
+        for _order,instruction in ordered:
+            transfer=_spl_transfer(instruction,keys)
+            if transfer is None:
+                continue
+            if transfer['source']!=reserve_index or transfer['destination']!=user_index:
+                continue
+            if transfer['mint'] is not None and transfer['mint']!=mint:
+                raise Unavailable('dlmm_external_effect_transfer_wrong_token')
+            transfer_seen=True
+            transfer_total+=int(transfer['amount'])
+
+        pre_reserve=_external_effect_balance(meta,'preTokenBalances',reserve_index)
+        post_reserve=_external_effect_balance(meta,'postTokenBalances',reserve_index)
+        pre_user=_external_effect_balance(meta,'preTokenBalances',user_index)
+        post_user=_external_effect_balance(meta,'postTokenBalances',user_index)
+
+        for row in (pre_reserve,post_reserve,pre_user,post_user):
+            if row is not None and row[0]!=mint:
+                raise Unavailable('dlmm_external_effect_wrong_token')
+
+        if transfer_seen:
+            if transfer_total!=amount:
+                raise Unavailable('dlmm_external_effect_transfer_amount_mismatch')
+            # Cross-check every complete balance pair that the RPC exposes. A missing
+            # user pre-row is expected when the destination ATA is created in this
+            # same transaction; ordered transfer proof plus terminal pool equality is
+            # sufficient in that case.
+            if pre_reserve is not None and post_reserve is not None                     and post_reserve[1]-pre_reserve[1]!=-amount:
+                raise Unavailable('dlmm_external_effect_reserve_balance_delta_mismatch')
+            if pre_user is not None and post_user is not None                     and post_user[1]-pre_user[1]!=amount:
+                raise Unavailable('dlmm_external_effect_user_balance_delta_mismatch')
+            auth_methods.append('ordered_spl_transfer')
+            continue
+
+        # No attributable ordered transfer: retain the prior strict balance-delta
+        # fallback, but surface external-effect-specific telemetry instead of a
+        # misleading host-fee missing-balance reason.
+        if pre_reserve is None or post_reserve is None                 or pre_user is None or post_user is None:
+            raise Unavailable('dlmm_external_effect_token_balance_missing')
+        if post_reserve[1]-pre_reserve[1]!=-amount                 or post_user[1]-pre_user[1]!=amount:
             raise Unavailable('dlmm_external_effect_balance_delta_mismatch')
+        auth_methods.append('token_balance_delta')
+
+    method='ordered_spl_transfer' if auth_methods and all(
+        x=='ordered_spl_transfer' for x in auth_methods) else 'mixed_transfer_and_balance'
+    for effect in effects:
+        effect['recipient_auth']=method
 
 
 def _host_binding(record,event,keys):
@@ -636,7 +694,7 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
     if resolved_effects:
         if any(record['target'] for record,_event in resolved):
             raise Unavailable('dlmm_swap_mixed_with_external_liquidity_effect')
-        _authenticate_effect_transfers(resolved_effects,meta,keys)
+        _authenticate_effect_transfers(resolved_effects,meta,keys,ordered)
         if terminal_adjustments is None:
             raise Unavailable('dlmm_external_effect_requires_reconstruction_context')
         terminal_adjustments.extend(resolved_effects)
