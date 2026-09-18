@@ -5,6 +5,7 @@ import unittest
 from robinhood_research import BoundaryError
 from robinhood_research.abi import topic
 from robinhood_research.ramses import *
+from robinhood_research import ramses_capture
 
 
 class NativeRamsesTests(unittest.TestCase):
@@ -251,3 +252,80 @@ class NativeRamsesTests(unittest.TestCase):
                   terminal_state=s)
         got=paper_fee_capture(pos,fake)
         self.assertEqual(got['amounts'][0],event_fee[0]*shares//(10**18+shares))
+
+
+    def _topic_address(self,address):
+        return '0x'+'00'*12+address[2:].lower()
+
+    def _two_arrays(self,left,right):
+        second=64+32*(1+len(left))
+        words_=[64,second,len(left),*left,len(right),*right]
+        return '0x'+''.join(f'{x:064x}' for x in words_)
+
+    def _base_mutation_capture(self):
+        cap=copy.deepcopy(self.capture)
+        start,end=sorted(map(int,cap['states']))
+        start_raw=copy.deepcopy(cap['states'][str(start)])
+        cap['states']={str(start):start_raw,str(end):copy.deepcopy(start_raw)}
+        cap['headers']={str(start):copy.deepcopy(self.capture['headers'][str(start)]),
+                        str(end):copy.deepcopy(self.capture['headers'][str(end)])}
+        cap['logs']=[];cap['receipts']=[]
+        return cap,start,end,state(start_raw)
+
+    def _set_pair(self,raw,sig,pair):
+        raw['values'][sig]='0x'+''.join(f'{x:064x}' for x in pair)
+
+    def _set_bin_pair(self,raw,bid,pair):
+        raw['bins'][str(bid)]['getBin(uint24)']='0x'+''.join(f'{x:064x}' for x in pair)
+
+    def _pool_event(self,cap,end,tx,log_index,sig,indexed,data):
+        header=cap['headers'][str(end)]
+        return dict(address=cap['pool'],blockHash=header['hash'],blockNumber=header['number'],
+                    transactionHash=tx,transactionIndex='0x0',logIndex=hex(log_index),removed=False,
+                    topics=[topic(sig)]+[self._topic_address(x) for x in indexed],data=data)
+
+    def test_replay_add_liquidity_and_share_mint_mutation(self):
+        cap,start,end,pre=self._base_mutation_capture();bid=min(pre['bins'])
+        self.assertLess(bid,pre['active'])
+        b=pre['bins'][bid];amount=max(1,b['reserves'][1]//1000)
+        effect=mint_effect(b['reserves'],b['supply'],[0,amount],bin_id=bid,step=pre['step'],active_id=pre['active'],
+            static=pre['static'],variable=pre['variable'],timestamp=int(cap['headers'][str(end)]['timestamp'],16))
+        sender='0x'+'11'*20;to='0x'+'22'*20;tx='0x'+'aa'*32
+        transfer=self._pool_event(cap,end,tx,0,'TransferBatch(address,address,address,uint256[],uint256[])',
+            [sender,'0x'+'00'*20,to],self._two_arrays([bid],[effect['shares']]))
+        deposit=self._pool_event(cap,end,tx,1,'DepositedToBins(address,address,uint256[],bytes32[])',
+            [sender,to],self._two_arrays([bid],[pack(effect['deposited'])]))
+        cap['logs']=[transfer,deposit]
+        cap['receipts']=[dict(transactionHash=tx,blockHash=cap['headers'][str(end)]['hash'],transactionIndex='0x0',
+                              status='0x1',logs=copy.deepcopy(cap['logs']))]
+        terminal=cap['states'][str(end)]
+        self._set_pair(terminal,'getReserves()',_add2(pre['reserves'],effect['deposited']))
+        self._set_bin_pair(terminal,bid,_add2(b['reserves'],effect['deposited']))
+        terminal['bins'][str(bid)]['totalSupply(uint256)']='0x'+f'{b["supply"]+effect["shares"]:064x}'
+        result=replay(cap)
+        self.assertTrue(result['terminal_equality'])
+        self.assertEqual(result['mutation_counts']['TransferBatch'],1)
+        self.assertEqual(result['mutation_counts']['DepositedToBins'],1)
+
+    def test_replay_remove_liquidity_and_share_burn_mutation(self):
+        cap,start,end,pre=self._base_mutation_capture();bid=min(pre['bins']);b=pre['bins'][bid]
+        shares=max(1,b['supply']//1000);out=burn_amounts(b['reserves'],b['supply'],shares)
+        sender='0x'+'33'*20;owner='0x'+'44'*20;to='0x'+'55'*20;tx='0x'+'bb'*32
+        transfer=self._pool_event(cap,end,tx,0,'TransferBatch(address,address,address,uint256[],uint256[])',
+            [sender,owner,'0x'+'00'*20],self._two_arrays([bid],[shares]))
+        withdraw=self._pool_event(cap,end,tx,1,'WithdrawnFromBins(address,address,uint256[],bytes32[])',
+            [sender,to],self._two_arrays([bid],[pack(out)]))
+        cap['logs']=[transfer,withdraw]
+        cap['receipts']=[dict(transactionHash=tx,blockHash=cap['headers'][str(end)]['hash'],transactionIndex='0x0',
+                              status='0x1',logs=copy.deepcopy(cap['logs']))]
+        terminal=cap['states'][str(end)]
+        self._set_pair(terminal,'getReserves()',_sub2(pre['reserves'],out))
+        self._set_bin_pair(terminal,bid,_sub2(b['reserves'],out))
+        terminal['bins'][str(bid)]['totalSupply(uint256)']='0x'+f'{b["supply"]-shares:064x}'
+        result=replay(cap)
+        self.assertTrue(result['terminal_equality'])
+        self.assertEqual(result['mutation_counts']['WithdrawnFromBins'],1)
+
+    def test_prospective_capture_module_is_research_only(self):
+        self.assertEqual(ramses_capture.FORWARD_SECONDS,60)
+        self.assertEqual(ramses_capture.PAPER_NATIVE_CAPITAL,10**16)
