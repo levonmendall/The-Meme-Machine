@@ -41,7 +41,11 @@ REPORT = Path(os.environ.get("MM_DLMM_STRATEGY_REPORT", "dlmm-strategy-report.js
 
 
 def _range_ids(state, width):
-    if width not in WIDTHS:
+    # The legacy shadow grid remains WIDTHS=(2,4,8,16,32), but the economic
+    # research candidate may choose any integer width in the same bounded envelope
+    # so equivalent price-distance placements can be compared across different
+    # bin_step pools.
+    if type(width) is not int or not 2 <= width <= max(WIDTHS):
         raise ValueError("dlmm_research_width")
     sol_y = state["y"] == dlmm.WSOL
     active = state["active"]
