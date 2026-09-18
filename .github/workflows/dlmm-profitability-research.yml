@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   development:
-    if: contains(github.event.head_commit.message, '[dlmm-profitability-development]')
+    if: ${{ false }} # 60-second strategy is on research hold; see DLMM_60S_RESEARCH_HOLD.json
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     concurrency:
@@ -41,7 +41,7 @@ jobs:
           retention-days: 90
 
   holdout:
-    if: contains(github.event.head_commit.message, '[dlmm-profitability-holdout]')
+    if: ${{ false }} # legacy 60-second holdout is also frozen during research hold
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     concurrency:
