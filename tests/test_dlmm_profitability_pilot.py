@@ -150,8 +150,21 @@ class ProfitabilityDensityPreflight(unittest.TestCase):
             "_observe_phase",
             return_value=(phase, zero, terminal, start),
         ) as observe:
-            attempt, opportunity, results, selected = pilot._attempt_candidate(
-                adapter, candidate, start, 12, 1
+            (
+                attempt,
+                opportunity,
+                results,
+                selected,
+                normalized,
+                legacy,
+            ) = pilot._attempt_candidate(
+                adapter,
+                candidate,
+                start,
+                12,
+                60,
+                "development",
+                1,
             )
 
         self.assertEqual(observe.call_count, 1)
@@ -161,11 +174,66 @@ class ProfitabilityDensityPreflight(unittest.TestCase):
         )
         self.assertEqual(
             attempt["outcome_skipped"],
-            "fixed_selector_requires_nonzero_verified_warmup_activity",
+            "no_pre_entry_economic_case_without_verified_flow",
         )
         self.assertIsNone(opportunity)
         self.assertEqual(results, [])
         self.assertEqual(selected, [])
+        self.assertEqual(normalized, [])
+        self.assertEqual(legacy, [])
+
+    def test_sixty_second_outcome_is_chained_from_five_verified_segments(self):
+        rpc = _RPC()
+        adapter = SimpleNamespace(rpc=rpc)
+        start = dict(pool="pool", slot=100)
+        phases = []
+        tapes = []
+        states = [start]
+        for index in range(5):
+            terminal = dict(pool="pool", slot=101 + index)
+            states.append(terminal)
+            phase = dict(
+                verified=True,
+                terminal_classification="certifiable",
+                errors=[],
+                swap_count=1,
+            )
+            tape = SimpleNamespace(events=[dict(i=index)], lineage=f"l{index}")
+            phases.append((phase, tape, terminal, states[index]))
+        calls = iter(phases)
+        combined = SimpleNamespace(
+            events=[dict(i=i) for i in range(5)],
+            lineage="combined",
+        )
+        with patch.object(
+            pilot,
+            "_observe_phase",
+            side_effect=lambda *args, **kwargs: next(calls),
+        ) as observe, patch.object(
+            pilot, "chain_verified_tapes", return_value=combined
+        ) as chain:
+            phase, tape, terminal = pilot._observe_horizon(
+                adapter, "pool", start, total_seconds=60, segment_seconds=12
+            )
+
+        self.assertTrue(phase["verified"])
+        self.assertEqual(phase["verified_holding_seconds"], 60)
+        self.assertEqual(phase["segment_count"], 5)
+        self.assertEqual(observe.call_count, 5)
+        self.assertIs(tape, combined)
+        self.assertEqual(terminal["slot"], 105)
+        chain.assert_called_once()
+
+    def test_non_sixty_second_horizon_is_rejected(self):
+        with self.assertRaisesRegex(
+            ValueError, "holding_horizon_must_match_mechanical"
+        ):
+            pilot._observe_horizon(
+                SimpleNamespace(rpc=_RPC()),
+                "pool",
+                dict(pool="pool", slot=100),
+                total_seconds=12,
+            )
 
     def test_fresh_supported_start_is_taken_at_attempt_time(self):
         snap = dict(pool="pool", available_time=123)
@@ -187,9 +255,13 @@ class ProfitabilityDensityPreflight(unittest.TestCase):
         validate.assert_called_once_with(snap, 123, "real")
         scout.assert_called_once()
 
-    def test_fixed_strategy_selection_is_unchanged(self):
+    def test_width8_is_retained_as_legacy_comparator(self):
         self.assertEqual(research.SELECTED_STRATEGY, "sdk_bidask")
         self.assertEqual(research.SELECTED_WIDTH, 8)
+        self.assertEqual(pilot.economics.HOLD_SECONDS, 60)
+        self.assertEqual(
+            pilot.economics.NORMALIZED_TARGET_BPS, (100, 200, 400, 800)
+        )
         self.assertEqual(pilot.MAX_ATTEMPTED_POOLS, 12)
         self.assertEqual(pilot.TARGET_COMPLETED_WINDOWS, 6)
         self.assertEqual(pilot.MAX_ACTIVITY_PAGES, 4)
