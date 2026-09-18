@@ -45,6 +45,12 @@ class WalletDerivedStudy(unittest.TestCase):
         self.assertEqual(
             study._actor_events(tx,pool,1,dict(signature="sig",slot=123)),[])
 
+    def test_pre_freeze_cutoff_excludes_future_closes(self):
+        self.assertTrue(study._closed_by_cutoff(dict(closedAt=100),100))
+        self.assertTrue(study._closed_by_cutoff(dict(closedAt=99),100))
+        self.assertFalse(study._closed_by_cutoff(dict(closedAt=101),100))
+        self.assertFalse(study._closed_by_cutoff(dict(closedAt=None),100))
+
     def test_position_metrics_tracks_hold_width_and_fee_efficiency(self):
         row=dict(
             positionAddress="position",
