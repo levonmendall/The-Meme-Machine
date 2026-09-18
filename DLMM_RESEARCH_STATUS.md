@@ -104,3 +104,13 @@ This commit triggers one bounded revalidation of the exact same repaired code an
 - That instruction remains unsupported; no verifier rule or strategy threshold was weakened.
 - This marker authorizes one fresh certification window with the exact unchanged host-fee implementation and hard certification predicates.
 - No further automatic retry is authorized after this attempt.
+
+
+## Final strategy2-reset / host-fee certification
+
+- Green implementation head `fd88a7fe76642bc61212608d134e62389dbf94b5` passed full offline CI.
+- Exact `add_liquidity_by_strategy2` is not replayed as a no-op: its AddLiquidity event lacks per-bin distribution/share detail required for exact reconstruction.
+- During pre-entry warmup only, that exact authenticated mutation discards all prior warmup chunks and restarts the full window from a fresh finalized snapshot, bounded to two resets.
+- During outcome/post-entry replay, the same mutation remains fail-closed.
+- Host-fee accounting, transaction/finality bounds, `MAX_TRANSACTIONS=16`, strategy, costs, and prospective allocation disabled are unchanged.
+- This marker authorizes exactly one final one-pool / one-cycle / 12-second host-fee certification replay. No retry is authorized by this marker.
