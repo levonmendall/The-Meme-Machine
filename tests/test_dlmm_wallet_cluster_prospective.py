@@ -1,6 +1,7 @@
 import unittest
 
 from meme_machine import dlmm
+from meme_machine.provider import Unavailable
 from tests import dlmm_wallet_cluster_prospective as prospective
 
 
@@ -45,6 +46,60 @@ class WalletClusterProspective(unittest.TestCase):
             {"effect":self._effect(70,"y")},info)
         self.assertIsNone(rejected)
         self.assertEqual(reason,"source_not_one_sided_sol")
+
+    def test_wallet_cursor_advances_only_after_all_bodies_are_readable(self):
+        class RPC:
+            def __init__(self):
+                self.calls=[]
+            def call(self,method,params,priority):
+                self.calls.append((method,params,priority))
+                if method=="getSignaturesForAddress":
+                    return [
+                        dict(signature="new-2",slot=12,err=None),
+                        dict(signature="new-1",slot=11,err=None),
+                    ]
+                if method=="getTransaction":
+                    if params[0]=="new-2":
+                        raise Unavailable("provider_request_failed")
+                    return dict(meta=dict(err=None),transaction=dict(message=dict()))
+                raise AssertionError(method)
+        class Pool:
+            def __init__(self):
+                self.rpc=RPC()
+            def current(self,extra_calls=0):
+                return self.rpc
+        pool=Pool()
+        with self.assertRaisesRegex(Unavailable,"provider_request_failed"):
+            prospective._read_wallet_rows(pool,"wallet","old")
+        # The function returns no replacement cursor on failure; the caller keeps old.
+        self.assertEqual(
+            pool.rpc.calls[0][1][1]["until"],"old")
+        self.assertEqual(
+            [call[1][0] for call in pool.rpc.calls if call[0]=="getTransaction"],
+            ["new-1","new-2"])
+
+    def test_wallet_scan_uses_serial_provider_calls(self):
+        class RPC:
+            def __init__(self):
+                self.calls=[]
+            def call(self,method,params,priority):
+                self.calls.append(method)
+                if method=="getSignaturesForAddress":
+                    return [dict(signature="s1",slot=11,err=None)]
+                if method=="getTransaction":
+                    return dict(meta=dict(err=None),transaction=dict(message=dict()))
+                raise AssertionError(method)
+        class Pool:
+            def __init__(self):
+                self.rpc=RPC()
+            def current(self,extra_calls=0):
+                self.assertEqual(extra_calls,1)
+                return self.rpc
+        pool=Pool()
+        inspected,newest=prospective._read_wallet_rows(pool,"wallet","old")
+        self.assertEqual(newest,"s1")
+        self.assertEqual(len(inspected),1)
+        self.assertEqual(pool.rpc.calls,["getSignaturesForAddress","getTransaction"])
 
     def test_paper_deposit_mirrors_weights_at_fixed_capital(self):
         bins={}
