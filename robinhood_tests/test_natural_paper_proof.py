@@ -4,6 +4,7 @@ from robinhood_research import BoundaryError
 from robinhood_research.evidence import Stamp, Store
 from robinhood_research.finality import Finality
 from robinhood_research.paper import Paper, Quote
+from robinhood_research.continuation_robinhood import POLICY_HASH
 
 MARKET="0x"+"11"*20
 
@@ -25,6 +26,26 @@ class NaturalPaperProofTests(unittest.TestCase):
         with self.assertRaisesRegex(BoundaryError,"policy_not_established"):
             paper.reserve("p",market=MARKET,amount=10**16,gas_budget=10**15,
                           now=100,features=decision,kind="natural")
+        store.close()
+
+    def test_exact_frozen_policy_can_authorize_natural_paper_but_hash_cannot_drift(self):
+        store=Store(":memory:")
+        paper=Paper(store,"frozen",10**18,delay=2,natural_policy_hash=POLICY_HASH)
+        decision=dict(
+            asof=100,market=MARKET,authority="frozen_policy_paper",
+            qualification="qualified",policy_hash=POLICY_HASH,
+        )
+        reserved=paper.reserve(
+            "p",market=MARKET,amount=10**16,gas_budget=10**15,
+            now=100,features=decision,kind="natural",
+        )
+        self.assertEqual(reserved["status"],"reserved")
+        with self.assertRaisesRegex(BoundaryError,"natural_policy_authority_missing"):
+            other=Paper(store,"wrong",10**18,delay=2,natural_policy_hash=POLICY_HASH)
+            other.reserve(
+                "q",market=MARKET,amount=10**16,gas_budget=10**15,now=100,
+                features=dict(decision,policy_hash="0"*64),kind="natural",
+            )
         store.close()
 
     def test_explicit_natural_proof_requires_confirmed_ledger_and_settles(self):
