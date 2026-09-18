@@ -24,8 +24,26 @@ for url in urls:
         hits.append({"url":url,"status":200,"bytes":len(text.encode()),"matches":chosen})
     except Exception as exc:
         hits.append({"url":url,"error":type(exc).__name__+":"+str(exc)[:300]})
+fomo_alerts_schema={}
+try:
+    req=urllib.request.Request("https://fomoapi.io/openapi.json",headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
+    with urllib.request.urlopen(req,timeout=20) as r:
+        spec=json.loads(r.read(4_000_000))
+    op=((spec.get("paths") or {}).get("/v2/alerts") or {}).get("get") or {}
+    fomo_alerts_schema={
+        "parameters":[
+            {"name":p.get("name"),"in":p.get("in"),"required":p.get("required"),"schema":p.get("schema")}
+            for p in op.get("parameters",[])
+        ],
+        "summary":op.get("summary"),
+        "description":op.get("description"),
+    }
+except Exception as exc:
+    fomo_alerts_schema={"error":type(exc).__name__+":"+str(exc)[:300]}
+
 report={
     "shrine_docs":hits,
+    "fomo_alerts_schema":fomo_alerts_schema,
     "bitquery_api_key_present":bool(os.environ.get("BITQUERY_API_KEY") or os.environ.get("BITQUERY_TOKEN")),
     "shrine_api_key_present":bool(os.environ.get("SHRINE_API_KEY")),
 }
