@@ -54,10 +54,16 @@ ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
 ENTRY_DELAY_SECONDS=2
 ENTRY_FILL_TIMEOUT_SECONDS=20
 FROZEN_POLICY_HASH="b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246"
+ACCOUNTING=None
 
 
 def _save(report):
-    REPORT.write_text(json.dumps(report,indent=2,sort_keys=True))
+    if ACCOUNTING is not None:
+        report["accounting"]=ACCOUNTING.reconcile()
+        report["accounting_replay"]=ACCOUNTING.replay()
+    temporary=REPORT.with_suffix(REPORT.suffix+".tmp")
+    temporary.write_text(json.dumps(report,indent=2,sort_keys=True))
+    os.replace(temporary,REPORT)
 
 
 class Sessions:
@@ -224,9 +230,13 @@ def _reserve_position(report,pending,active,qualification,snapshot,mode,concentr
     if any(x["mint"]==qualification.mint and x["mode"]==mode for x in report["qualifiers"]):
         return
     reserved_at=int(snapshot["available_time"])
-    life=PumpAccelerationPaperLifecycle()
+    import uuid
+    lifecycle_id=(ACCOUNTING.identity["run_id"] if ACCOUNTING else "research")+":"+uuid.uuid4().hex
+    life=PumpAccelerationPaperLifecycle(book=ACCOUNTING,lifecycle_id=lifecycle_id,
+                                       entry_evidence=snapshot)
     life.reserve(qualification,ENTRY_BUDGET+GAS,reserved_at)
     qrow=dict(
+        lifecycle_id=lifecycle_id,
         mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
         score=qualification.score,reasons=list(qualification.reasons),
         confirmations=list(qualification.confirmations),
@@ -280,7 +290,8 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                 entry=dict(tokens=tokens,cost=cost,fee=quote.fee_amount,gas=GAS)
 
             basis=cost+GAS
-            life.fill(tokens,basis,int(snapshot["available_time"]),surface)
+            life.fill(tokens,basis,int(snapshot["available_time"]),surface,
+                      evidence=dict(snapshot=snapshot,entry=entry))
             active[key]=dict(
                 lifecycle=life,opened=int(snapshot["available_time"]),
                 next_monitor=int(snapshot["available_time"])+5,
@@ -330,6 +341,10 @@ def _record_attempt(report,signal,q,stage,extra=None):
     )
     if extra:
         row.update(extra)
+    if ACCOUNTING is not None:
+        with REPORT.with_suffix(".candidates.jsonl").open("a") as sink:
+            sink.write(json.dumps(dict(policy_hash=policy_hash(),**row),sort_keys=True)+"\n")
+            sink.flush();os.fsync(sink.fileno())
     if stage=="full_point_in_time":
         # Full-evidence rows are an append-only experiment ledger and are never
         # removed by the rolling UI/debug attempt buffer.
@@ -339,10 +354,19 @@ def _record_attempt(report,signal,q,stage,extra=None):
 
 
 def main():
+    global ACCOUNTING
+    from meme_machine.paper_accounting import PaperBook
+    import uuid
     actual_policy_hash=policy_hash()
     if actual_policy_hash!=FROZEN_POLICY_HASH:
         raise RuntimeError("frozen_policy_hash_changed")
     confirmations=ConfirmationBook.from_files()
+    run_id=os.environ.get("MM_CERTIFICATION_RUN_ID") or uuid.uuid4().hex
+    accounting_path=REPORT.with_suffix(".accounting.sqlite3")
+    if accounting_path.exists():
+        raise RuntimeError("existing_paper_book_requires_explicit_recovery")
+    ACCOUNTING=PaperBook(str(accounting_path),run_id=run_id,lane=STRATEGY_ID,
+                         policy_hash=actual_policy_hash,initial=INITIAL_LAMPORTS)
     report=dict(
         kind="pump_acceleration_natural_prospective",
         strategy_id=STRATEGY_ID,policy_hash=actual_policy_hash,
@@ -362,6 +386,7 @@ def main():
         entry_delay_seconds=ENTRY_DELAY_SECONDS,entry_fill_timeout_seconds=ENTRY_FILL_TIMEOUT_SECONDS,
         discovery_seconds=DISCOVERY_SECONDS,followup_seconds=FOLLOWUP_SECONDS,
         started=int(time.time()),stream={},sessions=[],counts={},limitations=[],
+        run_id=run_id,accounting_path=str(accounting_path),
         confirmation_evidence=confirmations.status(),
         attempts=[],full_evidence_candidates=[],qualifiers=[],settled=[],
         open_positions=[],postgrad=[],
@@ -609,7 +634,9 @@ def main():
                             state,snapshot,events,MODE_POSTGRAD,concentration,confirmations)
                         cq=qualify(current);demand_score=cq.score;confirmed=cq.qualified
 
-                    mark=life.mark(proceeds,now,demand_score,confirmed)
+                    mark_evidence=dict(snapshot=snapshot,net_proceeds=proceeds,
+                                       network_cost=GAS)
+                    mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
                     age=now-int(row["opened"])
                     for horizon in (15,60,300,900):
                         if age>=horizon and str(horizon) not in row["marks"]:
@@ -617,8 +644,9 @@ def main():
                                 observed_at=now,return_bps=mark["return_bps"],
                                 proceeds=proceeds)
                     if mark["exit_reason"] is not None:
-                        closed=life.settle(proceeds,now)
+                        closed=life.settle(proceeds,now,evidence=mark_evidence)
                         report["settled"].append(dict(
+                            lifecycle_id=life.lifecycle_id,
                             mint=mint,mode=mode,opened=row["opened"],closed=now,
                             exit_reason=closed["exit_reason"],
                             realized_quote_units=closed["realized_quote_units"],
@@ -630,6 +658,8 @@ def main():
                     row["monitor_failures"]=row["monitor_failures"][-20:]
 
             if now-last_save>=15:
+                report["active_provider"]=sessions.rpc.provider_telemetry()
+                report["evidence_broker"]=broker.telemetry()
                 counts=Counter()
                 for attempt in report["attempts"]:
                     counts[f'{attempt.get("mode")}:{attempt.get("stage")}']+=1
@@ -655,6 +685,10 @@ def main():
         report["pumpswap_stream"]=pumpswap_stream.status()
         report["evidence_broker"]=broker.telemetry()
         report["ended"]=int(time.time())
+        report["pending_entries"]=[dict(mint=k[0],mode=k[1],snapshot=v["lifecycle"].snapshot())
+                                    for k,v in pending.items()]
+        report["open_positions"]=[dict(mint=k[0],mode=k[1],snapshot=v["lifecycle"].snapshot())
+                                   for k,v in active.items()]
         report["full_evidence_attempts"]=full_attempts
         report["created_mints_observed"]=len(created)
         report["postgrad_candidates"]=len(postgrad)
@@ -674,6 +708,7 @@ def main():
         report["threshold_changes_made"]=False
         _save(report)
         broker.close()
+        ACCOUNTING.close();ACCOUNTING=None
     print(json.dumps(report,sort_keys=True))
 
 
