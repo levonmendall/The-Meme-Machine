@@ -1,0 +1,35 @@
+name: pump-http-primary-soak
+on:
+  push:
+    branches:
+      - research/market-native-opportunity-outcomes
+permissions:
+  contents: read
+
+jobs:
+  soak:
+    if: contains(github.event.head_commit.message, '[pump-http-primary-soak]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: pump-http-primary-soak
+      cancel-in-progress: false
+    env:
+      MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Canonical authenticated-OnFinality 2-RPS soak
+        run: python -m tests.pump_http_primary_soak
+      - name: Preserve canonical provider soak
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pump-http-primary-soak-${{ github.run_id }}-${{ github.run_attempt }}
+          path: pump-http-primary-soak.json
+          if-no-files-found: warn
+          retention-days: 90
