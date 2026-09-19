@@ -1,3 +1,4 @@
+from collections import Counter
 from dataclasses import replace
 import base64
 import hashlib
@@ -9,12 +10,18 @@ import unittest
 from unittest.mock import patch
 
 from robinhood_research import BoundaryError
+from robinhood_research.abi import calldata
 from robinhood_research.evidence import Stamp, Store
 from robinhood_research.finality import Finality
 from robinhood_research.paper import Quote
 from robinhood_research.pons_natural_paper import LocalFreshQuote, _fresh_stamp
 from robinhood_research.pons_selective_ledger import SelectivePaper, STRATEGY_NAMESPACE
+from robinhood_research.pons_selective_acquisition import (
+    ImmutableEvidenceCache, SelectiveEvidenceContext,
+    _authenticate_window, _trajectory,
+)
 import robinhood_research.pons_selective_cohort as selective_cohort
+import robinhood_research.pons_selective_acquisition as selective_acquisition
 from robinhood_research.sequencer_feed import (
     SequencerBlockClock, SequencerTransportError, _WebSocket,
 )
@@ -224,6 +231,172 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         self.assertTrue(b["candidate"])
         self.assertFalse(b["allocation_authority"])
 
+
+
+
+class SelectiveEvidenceThroughputTests(unittest.TestCase):
+    @staticmethod
+    def _word(value):
+        return "0x"+int(value).to_bytes(32,"big").hex()
+
+    class BatchContext:
+        def __init__(self):
+            self.cache=ImmutableEvidenceCache()
+            self.completed_sessions=[]
+            self.rpc=None
+            self.batches=[]
+        def batch(self,calls,scope):
+            calls=list(calls)
+            self.batches.append((scope,calls))
+            out=[]
+            for method,params in calls:
+                if method=="eth_getBlockByNumber":
+                    block=int(params[0],16)
+                    out.append(dict(
+                        number=hex(block),
+                        hash="0x"+f"{block:064x}",
+                        timestamp=hex(800+block),
+                    ))
+                elif method=="eth_getBlockByHash":
+                    block=int(str(params[0])[-4:],16)
+                    out.append(dict(
+                        number=hex(block),
+                        hash=params[0],
+                        timestamp=hex(block),
+                    ))
+                elif method=="eth_getTransactionReceipt":
+                    tx=params[0]
+                    block=int(tx[-2:],16)
+                    out.append(dict(
+                        transactionHash=tx,
+                        blockHash="0x"+f"{block:064x}",
+                    ))
+                elif method=="eth_call":
+                    data=params[0]["data"]
+                    block=int(params[1],16)
+                    if data==calldata("launchedAt()"):
+                        out.append(
+                            SelectiveEvidenceThroughputTests._word(900)
+                        )
+                    else:
+                        out.append(
+                            SelectiveEvidenceThroughputTests._word(
+                                max(1,block*2)
+                            )
+                        )
+                else:
+                    raise AssertionError(method)
+            return out
+
+    def _candidate(self,block=200):
+        return dict(
+            block=block,
+            curve=CREATOR,
+            header=dict(
+                number=hex(block),
+                hash="0x"+f"{block:064x}",
+                timestamp=hex(800+block),
+            ),
+            state=state(
+                timestamp=800+block,
+                real_quote=800,
+            ),
+            record=dict(graduationThreshold=1000),
+        )
+
+    def test_trajectory_batches_both_anchors_and_reuses_recent_headers(self):
+        ctx=self.BatchContext()
+        first,launch,meta=_trajectory(
+            "https://unused",self._candidate(200),
+            evidence_context=ctx,
+        )
+        self.assertEqual(launch,900)
+        self.assertEqual([x["block"] for x in first[:2]],[185,195])
+        self.assertTrue(meta["batched_recent_headers"])
+        self.assertEqual(len(ctx.batches),2)
+        self.assertEqual(len(ctx.batches[0][1]),50)
+        self.assertEqual(len(ctx.batches[1][1]),2)
+
+        before=len(ctx.batches)
+        second,_,meta2=_trajectory(
+            "https://unused",self._candidate(201),
+            evidence_context=ctx,
+        )
+        self.assertEqual([x["block"] for x in second[:2]],[186,196])
+        self.assertEqual(len(ctx.batches)-before,1)
+        self.assertGreater(meta2["cache"].get("header_number_hit",0),0)
+        self.assertGreater(meta2["cache"].get("launch_hit",0),0)
+
+    def test_market_window_combines_missing_headers_and_receipts_then_hits_cache(self):
+        ctx=self.BatchContext()
+        curve=CREATOR
+        events=[]
+        for block in (190,191):
+            events.append(dict(
+                address=curve,blockNumber=hex(block),
+                blockHash="0x"+f"{block:064x}",
+                transactionHash="0x"+f"{block:064x}",
+                transactionIndex="0x0",logIndex=hex(block-190),
+            ))
+        candidate=dict(
+            block=200,curve=curve,
+            stamp=type("StampLike",(),{"event_at":200})(),
+        )
+        def fake_raw(_abi,event,**kwargs):
+            header=kwargs["header"]
+            return dict(
+                decoded=dict(name="CurveBuy",args={}),
+                block=int(event["blockNumber"],16),
+                transaction_hash=event["transactionHash"],
+                log_index=int(event["logIndex"],16),
+                event_at=int(header["timestamp"],16),
+            )
+        with patch.object(selective_acquisition,"raw_event",side_effect=fake_raw), \
+             patch.object(
+                 selective_acquisition,"normalized_trade",
+                 side_effect=lambda decoded,identity,event_at: dict(
+                     identity=identity,event_at=event_at,decoded=decoded
+                 ),
+             ):
+            rows,_=_authenticate_window(
+                "https://unused",candidate,events,
+                seconds=60,evidence_context=ctx,
+            )
+            self.assertEqual(len(rows),2)
+            self.assertEqual(len(ctx.batches),1)
+            self.assertEqual(len(ctx.batches[0][1]),4)
+            before=len(ctx.batches)
+            rows2,_=_authenticate_window(
+                "https://unused",candidate,events,
+                seconds=60,evidence_context=ctx,
+            )
+        self.assertEqual(len(rows2),2)
+        self.assertEqual(len(ctx.batches),before)
+        tele=ctx.cache.telemetry()
+        self.assertGreaterEqual(tele.get("header_hash_hit",0),2)
+        self.assertGreaterEqual(tele.get("receipt_hit",0),2)
+
+    def test_authoritative_rpc_session_is_reused_until_bounded_rotation(self):
+        created=[]
+        class FakeRpc:
+            def __init__(self):
+                self.used=1
+                self.counts=Counter()
+                self.per_scope=190
+            def batch(self,calls,scope="x"):
+                self.used+=len(calls)
+                self.counts[scope]+=len(calls)
+                return [f"r{i}" for i in range(len(calls))]
+            def telemetry(self):
+                return dict(requests=self.used,scopes=dict(self.counts))
+        def make(_endpoint):
+            rpc=FakeRpc();created.append(rpc);return rpc
+        with patch.object(selective_acquisition,"_rpc",side_effect=make):
+            ctx=SelectiveEvidenceContext("https://unused")
+            ctx.batch([("eth_chainId",[])],"a")
+            ctx.batch([("eth_chainId",[])],"a")
+        self.assertEqual(len(created),1)
+        self.assertIs(ctx.rpc,created[0])
 
 
 class SelectiveDiscoveryFrontierTests(unittest.TestCase):
