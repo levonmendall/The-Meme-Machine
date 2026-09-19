@@ -162,32 +162,33 @@ class RamsesConnectedLifecycleTests(unittest.TestCase):
 
         class Rpc:
             def batch(self,calls,scope="connectivity"):
-                if calls and calls[0][0]=="eth_getTransactionReceipt":
-                    out=[]
-                    for _method,params in calls:
-                        tx=params[0]
-                        e=e1 if tx==tx1 else e2
-                        out.append(dict(
-                            transactionHash=tx,
-                            blockHash=e["blockHash"],
-                            transactionIndex=e["transactionIndex"],
-                            status="0x1",
-                            logs=[e],
-                        ))
-                    return out
-                if calls and calls[0][0]=="eth_getBlockByNumber":
-                    out=[]
-                    for _method,params in calls:
-                        block=int(params[0],16)
-                        e=e1 if block==100 else e2
-                        out.append(dict(
-                            number=hex(block),
-                            hash=e["blockHash"],
-                            timestamp=hex(1000+block),
-                            parentHash="0x"+"00"*32,
-                        ))
-                    return out
                 raise AssertionError(calls)
+            def receipts(self,identities,scope="connectivity"):
+                out=[]
+                for tx,block_hash in identities:
+                    e=e1 if tx==tx1 else e2
+                    self.assert_equal_block = block_hash == e["blockHash"]
+                    if not self.assert_equal_block:
+                        raise AssertionError((block_hash,e["blockHash"]))
+                    out.append(dict(
+                        transactionHash=tx,
+                        blockHash=e["blockHash"],
+                        transactionIndex=e["transactionIndex"],
+                        status="0x1",
+                        logs=[e],
+                    ))
+                return out
+            def blocks(self,blocks,scope="connectivity"):
+                out=[]
+                for block in blocks:
+                    e=e1 if block==100 else e2
+                    out.append(dict(
+                        number=hex(block),
+                        hash=e["blockHash"],
+                        timestamp=hex(1000+block),
+                        parentHash="0x"+"00"*32,
+                    ))
+                return out
 
         row=dict(
             pool=pool,
