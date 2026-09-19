@@ -449,7 +449,7 @@ def main():
                     r.get('full_evidence_complete') and r.get('two_buyer_research_candidate')
                     for r in extra_evidence_results),
                 expanded_two_buyer_sole_near_misses=sum(
-                    r.get('two_buyer_sole_near_miss') for r in extra_evidence_results),
+                    bool(r.get('two_buyer_sole_near_miss')) for r in extra_evidence_results),
                 natural_complete=sum(r.get('evidence_stage')=='complete' for r in natural_results),
                 natural_sample_ready=sum(r.get('evidence_stage')=='complete' for r in natural_results)>=50,
                 high_density_candidates=len(high_density_seen),
