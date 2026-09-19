@@ -13,6 +13,40 @@ class _LogRpc:
         return [[] for _ in calls]
 
 
+class _InventoryRpc:
+    def __init__(self, addresses):
+        self.addresses=list(addresses)
+        self.count_calls=0
+        self.indices_by_scope={}
+
+    @staticmethod
+    def _word(value):
+        return "0x"+f"{int(value):064x}"
+
+    @staticmethod
+    def _address_word(address):
+        return "0x"+f"{int(address,16):064x}"
+
+    def call(self,method,params,scope="connectivity"):
+        if method!="eth_call" or scope!="universe_inventory":
+            raise AssertionError((method,params,scope))
+        self.count_calls+=1
+        return self._word(len(self.addresses))
+
+    def batch(self,calls,scope="connectivity"):
+        indices=[]
+        out=[]
+        for method,params in calls:
+            if method!="eth_call":
+                raise AssertionError((method,params,scope))
+            data=params[0]["data"]
+            index=int(data[-64:],16)
+            indices.append(index)
+            out.append(self._address_word(self.addresses[index]))
+        self.indices_by_scope.setdefault(scope,[]).append(indices)
+        return out
+
+
 class _StateRpc:
     def __init__(self, code, active):
         self.code = code
@@ -46,6 +80,10 @@ class _StateRpc:
 
 
 class RamsesAllPoolUniverseTests(unittest.TestCase):
+    def setUp(self):
+        with ramses_universe._FACTORY_INVENTORY_LOCK:
+            ramses_universe._FACTORY_INVENTORY_CACHE.clear()
+
     def test_all_pool_scanner_is_bounded_and_strategy_only(self):
         self.assertEqual(ramses_universe.LOOKBACK_BLOCKS, 300)
         self.assertEqual(ramses_universe.MAX_RECENT_ACTIVE_POOLS, 32)
@@ -55,6 +93,83 @@ class RamsesAllPoolUniverseTests(unittest.TestCase):
             ramses_universe.PAPER_ACTIVE_LIQUIDITY_BPS,
             1000,
         )
+
+    def test_factory_inventory_cache_reuses_verified_prefix_and_fetches_only_append(self):
+        factory="0x"+"aa"*20
+        rpc=_InventoryRpc([
+            "0x"+"11"*20,
+            "0x"+"22"*20,
+            "0x"+"33"*20,
+        ])
+        first=ramses_universe._enumerate_factory(rpc,factory,100)
+        self.assertEqual(len(first),3)
+        self.assertEqual(
+            rpc.indices_by_scope["universe_inventory"],
+            [[0,1,2]],
+        )
+        self.assertFalse(rpc._roi_factory_inventory_cache_hit)
+        self.assertEqual(rpc._roi_factory_inventory_fetched,3)
+
+        second=ramses_universe._enumerate_factory(rpc,factory,101)
+        self.assertEqual(second,first)
+        self.assertEqual(
+            rpc.indices_by_scope["universe_inventory_verify"][-1],
+            [0,2],
+        )
+        self.assertEqual(
+            rpc.indices_by_scope["universe_inventory"],
+            [[0,1,2]],
+        )
+        self.assertTrue(rpc._roi_factory_inventory_cache_hit)
+        self.assertEqual(rpc._roi_factory_inventory_reused,3)
+        self.assertEqual(rpc._roi_factory_inventory_fetched,0)
+
+        rpc.addresses.append("0x"+"44"*20)
+        third=ramses_universe._enumerate_factory(rpc,factory,102)
+        self.assertEqual(len(third),4)
+        self.assertEqual(
+            rpc.indices_by_scope["universe_inventory"][-1],
+            [3],
+        )
+        self.assertEqual(rpc._roi_factory_inventory_reused,3)
+        self.assertEqual(rpc._roi_factory_inventory_fetched,1)
+        self.assertEqual(rpc.count_calls,3)
+
+    def test_factory_inventory_cache_fails_closed_on_registry_change(self):
+        factory="0x"+"aa"*20
+        rpc=_InventoryRpc([
+            "0x"+"11"*20,
+            "0x"+"22"*20,
+            "0x"+"33"*20,
+        ])
+        ramses_universe._enumerate_factory(rpc,factory,100)
+        rpc.addresses[0]="0x"+"99"*20
+        with self.assertRaisesRegex(
+            ramses_universe.BoundaryError,
+            "ramses_universe_factory_inventory_changed",
+        ):
+            ramses_universe._enumerate_factory(rpc,factory,101)
+
+    def test_factory_inventory_cache_fails_closed_on_count_or_block_regression(self):
+        factory="0x"+"aa"*20
+        rpc=_InventoryRpc([
+            "0x"+"11"*20,
+            "0x"+"22"*20,
+            "0x"+"33"*20,
+        ])
+        ramses_universe._enumerate_factory(rpc,factory,100)
+        with self.assertRaisesRegex(
+            ramses_universe.BoundaryError,
+            "ramses_universe_inventory_block_regression",
+        ):
+            ramses_universe._enumerate_factory(rpc,factory,99)
+
+        rpc.addresses.pop()
+        with self.assertRaisesRegex(
+            ramses_universe.BoundaryError,
+            "ramses_universe_factory_count_regression",
+        ):
+            ramses_universe._enumerate_factory(rpc,factory,101)
 
     def test_log_queries_cover_all_addresses_in_bounded_block_chunks(self):
         rpc = _LogRpc()
