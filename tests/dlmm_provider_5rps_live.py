@@ -1,4 +1,4 @@
-"""Live validation of the Solana DLMM 5 rps primary/read-rescue topology."""
+"""Live validation of DLMM public-discovery / direct-Alchemy HTTP topology."""
 import json
 from pathlib import Path
 import time
@@ -10,16 +10,14 @@ OUT=Path("dlmm-provider-5rps-validation.json")
 
 def run():
     meta=provider.metadata()
-    if meta["primary_provider"]!="onfinality_authenticated_solana_mainnet":
+    if meta["primary_provider"]!="alchemy_solana_mainnet_existing_secret":
         raise RuntimeError("dlmm_primary_provider_drift")
     if meta["dlmm_primary_requests_per_second"]!=5:
         raise RuntimeError("dlmm_primary_rps_drift")
     if abs(meta["dlmm_minimum_request_interval_seconds"]-0.2)>1e-12:
         raise RuntimeError("dlmm_primary_interval_drift")
-    if meta["secondary_provider"]!="alchemy_solana_mainnet_existing_secret":
-        raise RuntimeError("dlmm_secondary_provider_drift")
-    if not meta["secondary_configured"]:
-        raise RuntimeError("dlmm_secondary_not_configured")
+    if meta["secondary_provider"] is not None or meta["secondary_configured"]:
+        raise RuntimeError("dlmm_unexpected_secondary_provider")
 
     pacer=provider.AlchemyPacer()
     rpc=provider.new_rpc(limit=40,pacer=pacer)
@@ -33,11 +31,11 @@ def run():
     elapsed=time.time()-started
     telemetry=rpc.provider_telemetry()
     primary_successes=telemetry["provider_successes"].get(
-        "onfinality_authenticated_solana_mainnet",0)
+        "alchemy_solana_mainnet_existing_secret",0)
     if primary_successes!=5:
-        raise RuntimeError(f"dlmm_authenticated_primary_incomplete:{primary_successes}")
+        raise RuntimeError(f"dlmm_alchemy_primary_incomplete:{primary_successes}")
     if telemetry["failover_count"]!=0:
-        raise RuntimeError(f"dlmm_unexpected_alchemy_failover:{telemetry['failover_count']}")
+        raise RuntimeError(f"dlmm_unexpected_failover:{telemetry['failover_count']}")
     report=dict(
         kind="dlmm_provider_5rps_validation_v1",
         success=True,
@@ -53,12 +51,11 @@ def run():
         logical_reads=len(results),
         elapsed_wall_seconds=elapsed,
         primary_http_requests=telemetry["provider_http_requests"].get(
-            "onfinality_authenticated_solana_mainnet",0),
-        primary_successes=telemetry["provider_successes"].get(
-            "onfinality_authenticated_solana_mainnet",0),
-        failovers=telemetry["failover_count"],
-        secondary_successes=telemetry["provider_successes"].get(
             "alchemy_solana_mainnet_existing_secret",0),
+        primary_successes=telemetry["provider_successes"].get(
+            "alchemy_solana_mainnet_existing_secret",0),
+        failovers=telemetry["failover_count"],
+        secondary_successes=0,
         pacer_minimum_interval_seconds=telemetry["pacing"]["minimum_interval_seconds"],
         pacer_throttle_sleep_seconds=telemetry["pacing"]["throttle_sleep_seconds"],
     ),sort_keys=True))
