@@ -481,6 +481,86 @@ class SelectiveDiscoveryFrontierTests(unittest.TestCase):
 
 
 
+class SelectiveProviderRecoveryTests(unittest.TestCase):
+    def test_curve_range_503_rotates_without_advancing_cursor_first(self):
+        rpc1=SelectiveDiscoveryFrontierTests.Rpc(105)
+        rpc2=SelectiveDiscoveryFrontierTests.Rpc(105)
+        sessions=[];recoveries=[]
+        with patch.object(
+            selective_cohort,"_next_discovery_end",return_value=105
+        ), patch.object(
+            selective_cohort,"_current_curve_events",
+            side_effect=[BoundaryError("provider_http_503"),["covered"]],
+        ) as events, patch.object(
+            selective_cohort,"_recover_discovery",return_value=rpc2
+        ) as recover:
+            new_rpc,cursor,fresh=selective_cohort._poll(
+                "https://unused",rpc1,100,[],object(),sessions,recoveries
+            )
+        self.assertIs(new_rpc,rpc2)
+        self.assertEqual(cursor,105)
+        self.assertEqual(fresh,["covered"])
+        self.assertEqual(
+            [call.args for call in events.call_args_list],
+            [(rpc1,101,105),(rpc2,101,105)],
+        )
+        self.assertEqual(recover.call_args.args[2],100)
+
+    def test_frontier_503_rotates_before_any_cursor_change(self):
+        rpc1=SelectiveDiscoveryFrontierTests.Rpc(105)
+        rpc2=SelectiveDiscoveryFrontierTests.Rpc(105)
+        with patch.object(
+            selective_cohort,"_next_discovery_end",
+            side_effect=[BoundaryError("provider_http_503"),105],
+        ), patch.object(
+            selective_cohort,"_recover_discovery",return_value=rpc2
+        ) as recover, patch.object(
+            selective_cohort,"_current_curve_events",return_value=["covered"]
+        ):
+            new_rpc,cursor,fresh=selective_cohort._poll(
+                "https://unused",rpc1,100,[],object(),[],[]
+            )
+        self.assertIs(new_rpc,rpc2)
+        self.assertEqual(cursor,105)
+        self.assertEqual(fresh,["covered"])
+        self.assertEqual(recover.call_args.args[2],100)
+
+    def test_semantic_rpc_error_is_not_recovered(self):
+        rpc=SelectiveDiscoveryFrontierTests.Rpc(105)
+        with patch.object(
+            selective_cohort,"_next_discovery_end",
+            side_effect=BoundaryError("provider_rpc_-32000"),
+        ), patch.object(selective_cohort,"_recover_discovery") as recover:
+            with self.assertRaisesRegex(BoundaryError,"provider_rpc_-32000"):
+                selective_cohort._poll(
+                    "https://unused",rpc,100,[],object(),[],[]
+                )
+        recover.assert_not_called()
+
+    def test_recovery_record_preserves_canonical_cursor(self):
+        failed=SelectiveDiscoveryFrontierTests.Rpc(105)
+        failed._last_boundary="provider_http_503"
+        replacement=SelectiveDiscoveryFrontierTests.Rpc(105)
+        sessions=[];recoveries=[]
+        with tempfile.TemporaryDirectory() as td:
+            recovery_log=Path(td)/"recoveries.jsonl"
+            provider_log=Path(td)/"providers.jsonl"
+            with patch.object(selective_cohort,"RECOVERY_LOG",recovery_log), \
+                 patch.object(selective_cohort,"PROVIDER_LOG",provider_log), \
+                 patch.object(selective_cohort,"_discovery",return_value=replacement):
+                got=selective_cohort._recover_discovery(
+                    "https://unused",failed,100,sessions,recoveries
+                )
+            persisted=json.loads(recovery_log.read_text().strip())
+        self.assertIs(got,replacement)
+        self.assertEqual(persisted["canonical_cursor_before"],100)
+        self.assertEqual(persisted["catchup_from"],101)
+        self.assertFalse(persisted["canonical_cursor_advanced"])
+        self.assertEqual(sessions[0]["terminal_boundary"],"provider_http_503")
+
+
+
+
 class SequencerFramingTests(unittest.TestCase):
     class CoalescedSocket:
         def __init__(self,frame):
