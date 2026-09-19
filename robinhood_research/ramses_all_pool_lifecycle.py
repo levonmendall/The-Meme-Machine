@@ -343,13 +343,16 @@ def _canonicalize_selected_row(
     context = signals_by_pool.get(canonical["pool"].lower(), {})
     if context and not isinstance(context, dict):
         raise BoundaryError("connected_lifecycle_signal_context")
+    frozen_costs = canonical.get("gas_costs")
+    if frozen_costs is None:
+        frozen_costs = costs_by_pool.get(canonical["pool"].lower())
     decision = classify_pool(
         frozen_prestate,
         history,
         canonical["quote_side"],
         requested_capital=int(canonical["paper_capital_quote_raw"]),
         entry_timestamp=int(screen["finalized_timestamp"]),
-        gas_costs=costs_by_pool.get(canonical["pool"].lower()),
+        gas_costs=frozen_costs,
         universe_features=universe,
         anchor_signal=context.get("anchor"),
         directional_signal=context.get("directional"),
@@ -643,7 +646,11 @@ def _requalify_current_pool(
         row["quote_side"],
         requested_capital=capital,
         entry_timestamp=int(screen["finalized_timestamp"]),
-        gas_costs=(costs_by_pool or {}).get(pool),
+        gas_costs=(
+            row.get("gas_costs")
+            if row.get("gas_costs") is not None
+            else (costs_by_pool or {}).get(pool)
+        ),
         universe_features=features,
         anchor_signal=context.get("anchor"),
         directional_signal=context.get("directional"),
@@ -661,9 +668,11 @@ def run(
     monitor_poll_seconds=MONITOR_POLL_SECONDS,
     rescan_seconds=RESCAN_SECONDS,
     initial_screen=None,
+    cost_state=None,
 ):
     costs_by_pool = _normalize_context(costs_by_pool)
     signals_by_pool = _normalize_context(signals_by_pool)
+    cost_state = {} if cost_state is None else cost_state
     if type(monitor_poll_seconds) not in (int, float) or monitor_poll_seconds <= 0:
         raise BoundaryError("connected_lifecycle_poll")
     if type(rescan_seconds) not in (int, float) or rescan_seconds <= 0:
@@ -695,6 +704,7 @@ def run(
             endpoint,
             gas_costs_by_pool=costs_by_pool,
             signals_by_pool=signals_by_pool,
+            cost_state=cost_state,
         )
     result["initial_screen"] = screen
     scanner_qualifiers = []
@@ -765,12 +775,18 @@ def run(
     pool = chosen["pool"].lower()
     result["qualifier_authentication"] = attempts[-1]["authentication"]
     decision = deepcopy(chosen["decision"])
-    costs = _segment_costs(costs_by_pool.get(pool))
+    costs = _segment_costs(
+        chosen.get("gas_costs")
+        if chosen.get("gas_costs") is not None
+        else costs_by_pool.get(pool)
+    )
     result.update(
         status="qualifier_selected",
         pool=pool,
         quote_asset=chosen["token_y"].lower(),
         qualifier_decision=decision,
+        qualifier_cost_evidence=deepcopy(chosen.get("cost_evidence")),
+        qualifier_gas_costs=dict(costs),
         entry_block=entry_block,
         entry_at=entry_at,
     )
@@ -821,6 +837,7 @@ def run(
                     endpoint,
                     gas_costs_by_pool=costs_by_pool,
                     signals_by_pool=signals_by_pool,
+                    cost_state=cost_state,
                 )
                 last_scan_wall = time.monotonic()
 
@@ -943,6 +960,7 @@ def run(
                 endpoint,
                 gas_costs_by_pool=costs_by_pool,
                 signals_by_pool=signals_by_pool,
+                cost_state=cost_state,
             )
             new_decision = _requalify_current_pool(
                 fresh,
@@ -965,6 +983,20 @@ def run(
                 ))
                 break
             verify_proposal_hash(new_decision["freeze"])
+            fresh_row = next(
+                (
+                    r for r in fresh.get("rows", [])
+                    if r.get("pool", "").lower() == pool
+                ),
+                None,
+            )
+            if fresh_row is None:
+                raise BoundaryError("connected_lifecycle_rebalance_row_missing")
+            costs = _segment_costs(
+                fresh_row.get("gas_costs")
+                if fresh_row.get("gas_costs") is not None
+                else costs_by_pool.get(pool)
+            )
             decision = new_decision
             latest_screen = fresh
             segment_start = int(fresh["finalized_block"])
