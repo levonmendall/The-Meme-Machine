@@ -1,7 +1,7 @@
 import base64
 import unittest
 
-from meme_machine import pump
+from meme_machine import pump, solana_read_rpc
 from meme_machine.concentration import ConcentrationReader, ProgramScanRPC
 from meme_machine.provider import RPC
 from tests.support import snapshot
@@ -121,6 +121,63 @@ class ConcentrationReaderTests(unittest.TestCase):
         self.assertEqual(meta['source'],'primary_largest')
         self.assertEqual(secondary_methods,['getGenesisHash'])
         self.assertEqual(reader.status()['secondary_disabled_reason'],'wrong_network')
+
+    def test_repeated_identical_program_scan_provider_error_opens_first_path_circuit(self):
+        snap=snapshot(slot=100)
+        primary_calls=[]
+        def primary_transport(request):
+            primary_calls.append(request['method'])
+            if request['method']=='getTokenLargestAccounts':
+                return {'result':self._largest(snap,slot=100)}
+            raise AssertionError(request['method'])
+        primary=RPC('https://primary.example',limit=40,transport=primary_transport)
+        env={
+            solana_read_rpc.ALCHEMY_ENV_NAME:
+                'https://solana-mainnet.g.alchemy.com/v2/example-key',
+        }
+        program=solana_read_rpc.new_pool_scan_rpc(
+            limit=40,environ=env,clock=lambda:100.0,sleeper=lambda _seconds:None)
+        program_methods=[]
+        def request(_url,body):
+            program_methods.append(body['method'])
+            if body['method']=='getGenesisHash':
+                return {'jsonrpc':'2.0','id':body['id'],'result':pump.MAINNET}
+            if body['method']=='getProgramAccounts':
+                return {
+                    'jsonrpc':'2.0','id':body['id'],
+                    'error':{'code':-32602,'message':'invalid params'},
+                }
+            raise AssertionError(body['method'])
+        program._request_url=request
+        reader=ConcentrationReader(primary,program_rpc=program)
+
+        value,meta=reader.read(snap['mint'],snap)
+        self.assertEqual(value,1000)
+        self.assertEqual(meta['source'],'primary_largest')
+        first_program_calls=program_methods.count('getProgramAccounts')
+        self.assertEqual(first_program_calls,2)  # normal bounded retry proves identity
+
+        value,meta=reader.read(snap['mint'],snap)
+        self.assertEqual(value,1000)
+        self.assertEqual(meta['source'],'primary_largest')
+        self.assertEqual(program_methods.count('getProgramAccounts'),first_program_calls)
+
+        status=reader.status()
+        self.assertEqual(status['program_scan_first_path_attempts'],1)
+        self.assertEqual(status['program_scan_first_path_failures'],1)
+        self.assertEqual(status['program_scan_first_path_skips'],1)
+        self.assertEqual(
+            status['program_scan_disabled_reason'],
+            'repeated_identical_provider_error',
+        )
+        self.assertTrue(status['program_scan_circuit_open'])
+        self.assertIn('getProgramAccounts|jsonrpc:-32602',
+                      status['program_scan_disabled_fingerprint'])
+        self.assertEqual(
+            sum(status['program_scan_jsonrpc_error_codes'].values()),
+            2,
+        )
+        self.assertEqual(primary_calls,['getTokenLargestAccounts','getTokenLargestAccounts'])
 
     def test_both_sources_unavailable_fail_closed(self):
         snap=snapshot()
