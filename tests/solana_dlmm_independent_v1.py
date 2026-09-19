@@ -54,6 +54,8 @@ PER_RPC_LIMIT=240
 ROTATE_AT_CALLS=190
 CHUNK_SECONDS=2
 MAX_WARMUP_RESETS=2
+SIGNATURE_PAGE_LIMIT=64
+MAX_SIGNATURE_CENSUS_PAGES=16
 METEORA_MIN_INTERVAL_SECONDS=0.10
 
 class _MeteoraPacer:
@@ -233,8 +235,21 @@ def _history_acceleration(candidate,observed_at):
     return out
 
 
-def discover(policy,scan_cap):
-    merged={};errors=[]
+def _iter_acceleration_candidates(policy,telemetry):
+    """Yield each qualifying pool immediately after its history check.
+
+    The order is deterministic: configured sort order, then page, then API row rank.
+    A pool is evaluated only on first sighting so no later source can retroactively
+    improve its priority. Most importantly, a qualifying signal is handed to the
+    caller before the next pool history request is made.
+    """
+    telemetry.setdefault("rejections",[])
+    telemetry.setdefault("errors",[])
+    telemetry.setdefault("qualified",[])
+    telemetry.setdefault("seen",0)
+    telemetry.setdefault("history_reads",0)
+    seen=set()
+    regime=policy["regime"]
     for sort_by in DISCOVERY_SORTS:
         for page in range(1,DISCOVERY_PAGES_PER_SORT+1):
             try:
@@ -243,50 +258,70 @@ def discover(policy,scan_cap):
                     sort_by=sort_by,filter_by="is_blacklisted=false",
                 ))
             except Exception as exc:
-                errors.append(dict(sort=sort_by,page=page,reason=type(exc).__name__))
+                telemetry["errors"].append(dict(
+                    sort=sort_by,page=page,reason=type(exc).__name__))
                 break
             rows=payload.get("data") if isinstance(payload,dict) else None
             if not isinstance(rows,list):
-                errors.append(dict(sort=sort_by,page=page,reason="api_shape"))
+                telemetry["errors"].append(dict(
+                    sort=sort_by,page=page,reason="api_shape"))
                 break
             for raw_rank,row in enumerate(rows,1):
                 if not isinstance(row,dict) or not _sol_pair(row):
                     continue
                 address=row.get("address")
-                if not isinstance(address,str) or not address:
+                if not isinstance(address,str) or not address or address in seen:
                     continue
-                item=merged.get(address)
-                if item is None:
-                    item=_candidate(row);item["sources"]=[];merged[address]=item
-                item["sources"].append(dict(
-                    sort=sort_by,rank=(page-1)*DISCOVERY_PAGE_SIZE+raw_rank))
+                seen.add(address);telemetry["seen"]+=1
+                raw=_candidate(row)
+                raw["sources"]=[dict(
+                    sort=sort_by,rank=(page-1)*DISCOVERY_PAGE_SIZE+raw_rank)]
+                observed_at=int(time.time())
+                try:
+                    telemetry["history_reads"]+=1
+                    item=_history_acceleration(raw,observed_at)
+                except Exception as exc:
+                    telemetry["rejections"].append(dict(
+                        pool=address,
+                        failed=["acceleration_history_unavailable"],
+                        reason=type(exc).__name__,
+                        candidate=raw,
+                    ))
+                    continue
+                failed=[]
+                if item["volume_acceleration"]<float(
+                        regime["min_volume_acceleration"]):
+                    failed.append("volume_acceleration")
+                if item["fee_acceleration"]<float(
+                        regime["min_fee_acceleration"]):
+                    failed.append("fee_acceleration")
+                if failed:
+                    telemetry["rejections"].append(dict(
+                        pool=address,failed=failed,candidate=item))
+                    continue
+                item["signal_observed_at"]=observed_at
+                item["discovery_sort"]=sort_by
+                item["discovery_page"]=page
+                item["discovery_raw_rank"]=raw_rank
+                telemetry["qualified"].append(item)
+                yield item
             if len(rows)<DISCOVERY_PAGE_SIZE:
                 break
 
-    observed_at=int(time.time())
-    regime=policy["regime"];accepted=[];rejected=[]
-    for raw in merged.values():
-        try:
-            item=_history_acceleration(raw,observed_at)
-        except Exception as exc:
-            rejected.append(dict(
-                pool=raw["address"],
-                failed=["acceleration_history_unavailable"],
-                reason=type(exc).__name__,
-                candidate=raw,
-            ))
-            continue
-        failed=[]
-        if item["volume_acceleration"]<float(regime["min_volume_acceleration"]):
-            failed.append("volume_acceleration")
-        if item["fee_acceleration"]<float(regime["min_fee_acceleration"]):
-            failed.append("fee_acceleration")
-        if failed:
-            rejected.append(dict(pool=item["address"],failed=failed,candidate=item))
-        else:
-            accepted.append(item)
-    accepted.sort(key=lambda x:(-x["event_score"],x["address"]))
-    return accepted[:scan_cap],rejected,errors
+
+def discover(policy,scan_cap):
+    """Compatibility collector used by unit tests; live execution streams instead."""
+    telemetry={}
+    accepted=[]
+    for item in _iter_acceleration_candidates(policy,telemetry):
+        accepted.append(item)
+        if len(accepted)>=scan_cap:
+            break
+    return (
+        accepted,
+        telemetry.get("rejections",[]),
+        telemetry.get("errors",[]),
+    )
 
 
 def _rpc_metrics(rpc):
@@ -323,28 +358,96 @@ def _fresh_supported_start(adapter,candidate):
     return state
 
 
+
+def _complete_signature_census(rpc,pool,start_slot,end_slot):
+    """Prove finalized coverage from the authenticated endpoint back to start.
+
+    Pages newer than end_slot are scheduling noise. Every successful transaction in
+    (start_slot,end_slot] is retained. The unchanged MAX_TRANSACTIONS bound applies to
+    that exact interval. One finalized row at or before start_slot is retained as the
+    lower-bound witness passed into reconstruct().
+    """
+    collected=[];seen=set();before=None;boundary=None
+    pages=0;rows_scanned=0
+    for page_index in range(MAX_SIGNATURE_CENSUS_PAGES):
+        params=dict(limit=SIGNATURE_PAGE_LIMIT,commitment="finalized")
+        if before is not None:
+            params["before"]=before
+        page=rpc.call(
+            "getSignaturesForAddress",[pool,params],True)
+        pages+=1
+        if not isinstance(page,list) or len(page)>SIGNATURE_PAGE_LIMIT:
+            raise Unavailable("solana_dlmm_signature_shape")
+        if not page:
+            break
+        for row in page:
+            if not isinstance(row,dict):
+                raise Unavailable("solana_dlmm_signature_shape")
+            signature=row.get("signature");slot=row.get("slot")
+            if not isinstance(signature,str) or not signature:
+                raise Unavailable("solana_dlmm_signature_shape")
+            if type(slot) is not int or slot<0:
+                raise Unavailable("solana_dlmm_signature_shape")
+            if row.get("confirmationStatus")!="finalized":
+                raise Unavailable("solana_dlmm_signature_not_finalized")
+            if signature in seen:
+                raise Unavailable("solana_dlmm_signature_census_duplicate")
+            seen.add(signature);collected.append(row);rows_scanned+=1
+            if slot<=start_slot and boundary is None:
+                boundary=row
+        relevant=[
+            row for row in collected
+            if start_slot<row["slot"]<=end_slot and not row.get("err")
+        ]
+        if len(relevant)>MAX_TRANSACTIONS:
+            raise Unavailable("solana_dlmm_transaction_pressure_overflow")
+        if boundary is not None:
+            break
+        if len(page)<SIGNATURE_PAGE_LIMIT:
+            break
+        before=page[-1]["signature"]
+    if boundary is None:
+        raise Unavailable("solana_dlmm_signature_census_missing_start_boundary")
+    relevant=[
+        row for row in collected
+        if start_slot<row["slot"]<=end_slot and not row.get("err")
+    ]
+    if len(relevant)>MAX_TRANSACTIONS:
+        raise Unavailable("solana_dlmm_transaction_pressure_overflow")
+    witness=dict(boundary)
+    # reconstruct() requires transactionIndex on every supplied row. A boundary
+    # witness is outside the replay interval, so any nonnegative sentinel preserves
+    # ordering without asserting an in-block execution position.
+    if type(witness.get("transactionIndex")) is not int:
+        witness["transactionIndex"]=0
+    selected=[]
+    for row in relevant:
+        item=dict(row)
+        if type(item.get("transactionIndex")) is not int:
+            raise Unavailable("solana_dlmm_transaction_index_unavailable")
+        selected.append(item)
+    selected.append(witness)
+    selected.sort(
+        key=lambda row:(row["slot"],row["transactionIndex"]),reverse=True)
+    return selected,dict(
+        pages=pages,rows_scanned=rows_scanned,
+        relevant_successful=len(relevant),
+        start_boundary_slot=boundary["slot"],
+    )
+
+
 def _capture_chunk(adapter,start,cursor,wait_seconds):
     if wait_seconds<=0:
         raise ValueError("solana_dlmm_chunk_wait")
     time.sleep(wait_seconds)
     end_snapshot=adapter.snapshot_from_state(
         start,int(time.time()),True,fresh=True)
-    signatures=adapter.rpc.call(
-        "getSignaturesForAddress",
-        [start["pool"],dict(limit=64,commitment="finalized")],True)
-    if not isinstance(signatures,list):
-        raise Unavailable("solana_dlmm_signature_shape")
-    if not any(isinstance(s,dict) and isinstance(s.get("slot"),int)
-               and s["slot"]<=start["slot"] for s in signatures):
-        raise Unavailable("solana_dlmm_signature_census_missing_start_boundary")
+    signatures,census=_complete_signature_census(
+        adapter.rpc,start["pool"],start["slot"],end_snapshot["slot"])
     relevant=[
-        s for s in signatures
-        if isinstance(s,dict) and not s.get("err")
-        and isinstance(s.get("slot"),int)
-        and start["slot"]<s["slot"]<=end_snapshot["slot"]
+        row for row in signatures
+        if start["slot"]<row["slot"]<=end_snapshot["slot"] and not row.get("err")
     ]
-    if len(relevant)>MAX_TRANSACTIONS:
-        raise Unavailable("solana_dlmm_transaction_pressure_overflow")
     params=[[
         s["signature"],dict(
             encoding="json",commitment="finalized",
@@ -360,7 +463,7 @@ def _capture_chunk(adapter,start,cursor,wait_seconds):
     actions=ordered_tape_actions(tape)
     next_cursor=(list(actions[-1][1].get("cursor") or cursor)
                  if actions else list(cursor))
-    return tape,next_cursor
+    return tape,next_cursor,census
 
 
 def _observe_window(adapter,address,start,total_seconds,allow_reset,pacer,rpcs):
@@ -371,7 +474,7 @@ def _observe_window(adapter,address,start,total_seconds,allow_reset,pacer,rpcs):
         adapter=_rotate(adapter,pacer,rpcs)
         duration=min(CHUNK_SECONDS,total_seconds-elapsed)
         try:
-            tape,cursor=_capture_chunk(adapter,current,cursor,duration)
+            tape,cursor,census=_capture_chunk(adapter,current,cursor,duration)
         except (Unavailable,ValueError,KeyError,TypeError) as exc:
             reason=str(exc)
             if (allow_reset and reason.startswith("dlmm_snapshot_reset_required:")
@@ -394,6 +497,7 @@ def _observe_window(adapter,address,start,total_seconds,allow_reset,pacer,rpcs):
                 if tape.events else None,
             end_slot=current["slot"],swaps=len(tape.events),
             adjustments=len(tape.terminal_adjustments),
+            signature_census=census,
         ))
     combined=chain_verified_tapes(origin,chunks)
     return dict(
@@ -883,7 +987,8 @@ def run_live(target=None,max_attempted=None):
     if not target<=max_attempted<=int(policy["prospective_test"]["max_attempted_pools"]):
         raise ValueError("solana_dlmm_attempt_bound")
 
-    candidates,api_rejections,api_errors=discover(policy,max_attempted*4)
+    discovery_telemetry=dict(
+        rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
     pacer=provider.AlchemyPacer();rpcs=[]
     report=dict(
         kind="solana_dlmm_independent_v1_prospective",
@@ -891,18 +996,30 @@ def run_live(target=None,max_attempted=None):
         allocation_authority=False,signing=False,submission=False,live_money=False,
         independent_of_robinhood=True,independent_of_all_prior_dlmm_strategies=True,
         selector_uses_outcome_data=False,post_freeze_only=True,
-        discovery_candidates=candidates,discovery_api_rejections=api_rejections,
-        discovery_errors=api_errors,target_complete_lifecycles=target,
+        discovery_mode="streaming_immediate_handoff",
+        discovery_candidates=discovery_telemetry["qualified"],
+        discovery_api_rejections=discovery_telemetry["rejections"],
+        discovery_errors=discovery_telemetry["errors"],
+        target_complete_lifecycles=target,
         max_attempted_pools=max_attempted,started=int(time.time()),
         attempts=[],qualified_lifecycles=[],
     )
     attempted=0;complete=0;failure_counts=Counter()
-    for candidate in candidates:
-        if attempted>=max_attempted or complete>=target:break
+    candidate_stream=_iter_acceleration_candidates(
+        policy,discovery_telemetry)
+    for candidate in candidate_stream:
+        if attempted>=max_attempted or complete>=target:
+            break
         attempted+=1
         candidate_rpcs=[]
         adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
-        attempt=dict(attempt=attempted,pool=candidate["address"],candidate=candidate)
+        handoff_started_at=int(time.time())
+        attempt=dict(
+            attempt=attempted,pool=candidate["address"],candidate=candidate,
+            signal_to_handoff_seconds=max(
+                0,handoff_started_at-int(candidate["signal_observed_at"])),
+            handoff_started_at=handoff_started_at,
+        )
         try:
             alignment,warm,entry,warm_origin,_entry_start,adapter,aligned_candidate=(
                 _aligned_warmup(
@@ -958,6 +1075,10 @@ def run_live(target=None,max_attempted=None):
     exits=Counter(x["exit_reason"] for x in resolved)
     report.update(
         ended=int(time.time()),attempted_pool_count=attempted,
+        discovery_unique_pool_count=int(discovery_telemetry["seen"]),
+        discovery_history_read_count=int(discovery_telemetry["history_reads"]),
+        discovery_qualified_count=len(discovery_telemetry["qualified"]),
+        discovery_rejection_count=len(discovery_telemetry["rejections"]),
         complete_lifecycle_count=complete,target_met=complete>=target,
         qualification_failure_counts=dict(sorted(failure_counts.items())),
         profitable_lifecycle_count=sum(x["final"]["pnl_lamports"]>0 for x in resolved),
