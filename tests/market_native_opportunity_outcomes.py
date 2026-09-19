@@ -44,7 +44,7 @@ from meme_machine.research import CURRENT_THRESHOLDS
 from meme_machine.solana_read_rpc import discovery_ws_url, new_rpc, primary_rpc_url
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
-from tests.rejected_winner_preentry_analysis import HYPOTHESIS as REJECTED_WINNER_HYPOTHESIS, hypothesis_match
+from tests.rejected_winner_preentry_analysis import HYPOTHESIS as REJECTED_WINNER_HYPOTHESIS, hypothesis_match, prospective_validation_summary
 
 REPORT=Path(os.environ.get('MM_MARKET_NATIVE_OUTCOME_REPORT','market-native-opportunity-outcomes.json'))
 GENESIS_SOL_USD_MICROS=97_840_000
@@ -457,6 +457,7 @@ def main():
                 rejected_winner_prospective_matching=len(prospective_matches),
                 rejected_winner_prospective_concentration_controls=len(prospective_concentration_controls),
                 rejected_winner_hypothesis_order_authority=False,
+                rejected_winner_prospective_validation=prospective_validation_summary(natural_results),
                 ended=ended,discovered=len(discovered),natural_results=natural_results,
                 extra_evidence_results=extra_evidence_results,
                 extra_evidence_attempted=extra_evidence_attempted,
