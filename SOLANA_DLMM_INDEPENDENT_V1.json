@@ -8,7 +8,25 @@
     "prior_dlmm_candidate_outputs": false,
     "small_pool_study_outputs": false,
     "capital_efficiency_v1_outputs": false,
-    "reusable_dependencies": "generic Meteora/Solana read-only mechanics, authenticated tape reconstruction, provider pacing only"
+    "reusable_dependencies": "generic Meteora/Solana read-only mechanics, authenticated tape reconstruction, provider pacing only",
+    "robinhood_strategies": false,
+    "pons_strategies": false,
+    "ramses_strategies": false,
+    "robinhood_data": false,
+    "robinhood_provider_config": false,
+    "prohibited_inputs": [
+      "any Robinhood strategy signal, threshold, cohort, score or result",
+      "Pons continuation or launch-curve evidence",
+      "Ramses DLMM pool/LP evidence",
+      "MM_ROBINHOOD_READ_RPC_URL and all MM_ROBINHOOD_* configuration",
+      "Robinhood/Pons/Ramses backtests, paper outcomes or portfolio allocations"
+    ],
+    "allowed_strategy_inputs": [
+      "Solana mainnet Meteora DLMM market state",
+      "Solana mainnet authenticated DLMM swap/liquidity tape",
+      "Meteora Solana public pool metrics",
+      "frozen SOLANA_DLMM_INDEPENDENT_V1.json only"
+    ]
   },
   "authority": {
     "research_only": true,
@@ -145,5 +163,13 @@
     "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
     "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
   },
-  "revision": "1.0"
+  "revision": "1.1",
+  "amendment_history": [
+    {
+      "revision": "1.1",
+      "reason": "Explicitly prohibit all Robinhood/Pons/Ramses strategy, data, provider, cohort and outcome inputs before any prospective Solana DLMM outcome.",
+      "prospective_outcomes_observed_before_amendment": false,
+      "solana_strategy_thresholds_changed": false
+    }
+  ]
 }
