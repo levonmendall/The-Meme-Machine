@@ -26,7 +26,9 @@ from .continuation_robinhood_sample import (
 from .evidence import Store
 from .evidence_queue import DeadlineEvidenceQueue
 from .paper import Paper
-from .pons_natural_observation import _current_curve_events, _latest_header
+from .pons_natural_observation import (
+    _current_curve_events, _latest_header, _next_discovery_end,
+)
 from .pons_natural_paper import (
     _curve_quote, _gas_quote, _gas_units, _graduation_transition,
     _return_bps, _rpc as paper_rpc, _v4_quote, _wait_curve_quote,
@@ -112,20 +114,15 @@ def _rotate_discovery(endpoint,rpc,result,cursor):
 
 
 def _poll(endpoint,rpc,cursor,tape,result,feed):
-    """Sequencer-triggered poll; provider recovery never advances the proven cursor."""
+    """Sequencer-range poll; provider recovery never advances the proven cursor."""
     if rpc.used>150:
         rpc=_rotate_discovery(endpoint,rpc,result,cursor)
-    latest=feed.wait_for_after(cursor,timeout=POLL_SECONDS)
+    latest=_next_discovery_end(feed,cursor,rpc,timeout=POLL_SECONDS)
     if latest is None:
         return rpc,cursor,[],None
     recovery_count=0
     while True:
         try:
-            latest_header=rpc.call(
-                "eth_getBlockByNumber",[hex(latest),False],scope="pons_natural"
-            )
-            if int(latest_header["number"],16)!=latest:
-                raise BoundaryError("sequencer_discovery_block_disagreement")
             first=cursor+1
             fresh=[]
             if latest>=first:
@@ -134,7 +131,12 @@ def _poll(endpoint,rpc,cursor,tape,result,feed):
                 if len(tape)>MAX_TAPE_EVENTS:
                     del tape[:-MAX_TAPE_EVENTS]
                 cursor=latest
-            return rpc,cursor,fresh,latest_header
+            observed_timestamp=feed.state.latest_header_timestamp
+            observation=(
+                None if observed_timestamp is None else
+                dict(number=hex(latest),timestamp=hex(int(observed_timestamp)))
+            )
+            return rpc,cursor,fresh,observation
         except BoundaryError as exc:
             if not _transport_failure(exc):
                 raise
@@ -142,7 +144,6 @@ def _poll(endpoint,rpc,cursor,tape,result,feed):
             if recovery_count>MAX_TRANSPORT_RECOVERY_ATTEMPTS:
                 raise BoundaryError("provider_transport_recovery_exhausted")
             rpc=_recover_discovery(endpoint,rpc,result,cursor,exc)
-
 
 def _paper_decision(row,now):
     vector=row["vector"]
@@ -517,7 +518,7 @@ def run(endpoint):
                 seen_curves.add(curve)
                 evidence_queue.enqueue(event,now=time.time())
             scheduled=evidence_queue.pop(
-                now=time.time(),minimum_remaining_seconds=0.5
+                now=time.time(),minimum_remaining_seconds=1.0
             )
             if scheduled is None:
                 continue
