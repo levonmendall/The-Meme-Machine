@@ -60,10 +60,18 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             dynamic_fee_pct=0.5,
         )
         calls=[]
+        buckets=[
+            dict(timestamp=1000+i*300,volume=(100 if i<5 else 500),
+                 fees=(1 if i<5 else 5))
+            for i in range(6)
+        ]
         def fake(path,params=None):
-            calls.append(dict(params or {}))
+            calls.append((path,dict(params or {})))
+            if path.endswith("/volume/history"):
+                return {"data":buckets}
             return {"data":[row]}
-        with patch.object(strategy,"_api",side_effect=fake):
+        with patch.object(strategy,"_api",side_effect=fake), \
+             patch.object(strategy.time,"time",return_value=2600):
             accepted,rejected,errors=strategy.discover(p,20)
         self.assertEqual(errors,[])
         self.assertEqual(len(accepted),1)
@@ -71,7 +79,28 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertEqual(accepted[0]["address"],"pool")
         self.assertGreaterEqual(accepted[0]["volume_acceleration"],2)
         self.assertGreaterEqual(accepted[0]["fee_acceleration"],1.25)
-        self.assertTrue(all("tvl" not in str(c.get("filter_by","")).lower() for c in calls))
+        pool_calls=[params for path,params in calls if path=="/pools"]
+        self.assertTrue(all("tvl" not in str(c.get("filter_by","")).lower() for c in pool_calls))
+        history_calls=[params for path,params in calls if path.endswith("/volume/history")]
+        self.assertTrue(history_calls)
+        self.assertTrue(all(c.get("timeframe")=="5m" for c in history_calls))
+
+    def test_history_acceleration_requires_six_consecutive_5m_buckets(self):
+        candidate=dict(address="pool",tvl_usd=10000)
+        rows=[
+            dict(timestamp=1000+i*300,volume=(100 if i<5 else 500),
+                 fees=(1 if i<5 else 5))
+            for i in range(6)
+        ]
+        with patch.object(strategy,"_api",return_value={"data":rows}):
+            out=strategy._history_acceleration(candidate,2600)
+        self.assertEqual(out["acceleration_bucket_count"],6)
+        self.assertEqual(out["volume_5m_usd"],500)
+        self.assertEqual(out["volume_30m_usd"],1000)
+        self.assertEqual(out["fee_5m_usd"],5)
+        self.assertEqual(out["fee_30m_usd"],10)
+        self.assertEqual(out["volume_acceleration"],3.0)
+        self.assertEqual(out["fee_acceleration"],3.0)
 
     def test_range_width_expands_with_observed_movement_but_remains_bounded(self):
         p=strategy.load_policy()
