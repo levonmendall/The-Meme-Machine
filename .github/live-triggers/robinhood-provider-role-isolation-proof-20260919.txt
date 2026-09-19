@@ -1,1 +1,1 @@
-Verify the merged provider-role isolation with a bounded live observability proof: discovery and DLMM must remain off the authoritative Alchemy primary; no strategy or authority changes.
+Re-verify the merged provider-role isolation after discovery rerouting: if MM_ROBINHOOD_DISCOVERY_RPC_URL resolves to Alchemy, discovery must use the isolated DLMM provider; authoritative Pons evidence remains on primary; no strategy or authority changes.
