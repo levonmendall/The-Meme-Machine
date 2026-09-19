@@ -12,6 +12,8 @@ from meme_machine.pump_alpha_runtime import (
 )
 from tests.support import MINT, account, event, snapshot
 from tests.test_postgrad import (
+    CREATOR as POST_CREATOR,
+    MINT as POST_MINT,
     complete_pump_snapshot,
     pumpswap_snapshot,
 )
@@ -102,7 +104,7 @@ class PumpAlphaRuntimeTests(unittest.TestCase):
             book.fill_postgrad(oid, pumpswap_snapshot(now=102, slot=102), 102),
             "settled",
         )
-        self.assertEqual(book.state["positions"][MINT]["surface"], "pumpswap")
+        self.assertEqual(book.state["positions"][POST_MINT]["surface"], "pumpswap")
         self.assertEqual(
             book.monitor_postgrad(
                 MINT, pumpswap_snapshot(now=107, slot=107, quote=70_000_000_000),
@@ -127,9 +129,11 @@ class PumpAlphaRuntimeTests(unittest.TestCase):
             "eligible": True,
             "score_bps": 8000,
         }
-        oid = book.reserve_pump(decision, snapshot(now=100, slot=100), 100)
-        self.assertEqual(book.fill_pump(oid, snapshot(now=102, slot=102), 102), "settled")
-        completed = complete_pump_snapshot(now=105, mint=MINT)
+        entry = snapshot(now=100, slot=100, mint=POST_MINT, creator=POST_CREATOR)
+        fill = snapshot(now=102, slot=102, mint=POST_MINT, creator=POST_CREATOR)
+        oid = book.reserve_pump(decision, entry, 100)
+        self.assertEqual(book.fill_pump(oid, fill, 102), "settled")
+        completed = complete_pump_snapshot(now=105)
         post = pumpswap_snapshot(now=108, slot=108)
         carry = {
             "eligible": True,
@@ -137,10 +141,10 @@ class PumpAlphaRuntimeTests(unittest.TestCase):
             "graduated_at": 105,
         }
         self.assertEqual(
-            book.handoff_to_postgrad(MINT, completed, post, carry, 108),
+            book.handoff_to_postgrad(POST_MINT, completed, post, carry, 108),
             "carried",
         )
-        p = book.state["positions"][MINT]
+        p = book.state["positions"][POST_MINT]
         self.assertEqual(p["surface"], "pumpswap")
         self.assertEqual(p["graduation_source_slot"], 105)
 
@@ -151,9 +155,11 @@ class PumpAlphaRuntimeTests(unittest.TestCase):
             "entry_mode": "late_curve_acceleration",
             "eligible": True,
         }
-        oid = book.reserve_pump(decision, snapshot(now=100, slot=100), 100)
-        self.assertEqual(book.fill_pump(oid, snapshot(now=102, slot=102), 102), "settled")
-        completed = complete_pump_snapshot(now=105, mint=MINT)
+        entry = snapshot(now=100, slot=100, mint=POST_MINT, creator=POST_CREATOR)
+        fill = snapshot(now=102, slot=102, mint=POST_MINT, creator=POST_CREATOR)
+        oid = book.reserve_pump(decision, entry, 100)
+        self.assertEqual(book.fill_pump(oid, fill, 102), "settled")
+        completed = complete_pump_snapshot(now=105)
         post = pumpswap_snapshot(now=108, slot=108)
         failed = {
             "eligible": False,
@@ -161,12 +167,12 @@ class PumpAlphaRuntimeTests(unittest.TestCase):
             "graduated_at": 105,
         }
         self.assertEqual(
-            book.handoff_to_postgrad(MINT, completed, post, failed, 108),
+            book.handoff_to_postgrad(POST_MINT, completed, post, failed, 108),
             "exit_intended",
         )
         self.assertEqual(
             book.monitor_postgrad(
-                MINT, pumpswap_snapshot(now=111, slot=111), 111,
+                POST_MINT, pumpswap_snapshot(now=111, slot=111), 111,
                 {"exit": False, "reasons": []},
             ),
             "settled",
