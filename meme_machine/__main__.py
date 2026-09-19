@@ -11,7 +11,7 @@ from .engine import Engine
 from .market_native_runtime import MarketNativeRuntime
 from .postgrad import PostGraduationAdapter
 from .provider import PumpAdapter, Unavailable
-from .solana_read_rpc import new_rpc, primary_rpc_url
+from .solana_read_rpc import new_rpc, primary_rpc_url, primary_ws_url
 from .pumpswap_runtime import POSTGRAD_WAIT_SECONDS, PumpSwapPaperRuntime
 from .store import Store
 from .stream import PumpLogStream, PumpTape, WINDOW_SECONDS
@@ -326,7 +326,7 @@ def main():
         pumpswap_runtime=PumpSwapPaperRuntime(store,postgrad_adapter)
         tape=PumpTape()
         ready=threading.Event()
-        log_stream=PumpLogStream(url,tape)
+        log_stream=PumpLogStream(url,tape,ws_url=primary_ws_url())
         stream_thread=threading.Thread(target=log_stream.run,args=(stopping,ready),daemon=True)
         stream_thread.start()
         market_runtime=MarketNativeRuntime(
