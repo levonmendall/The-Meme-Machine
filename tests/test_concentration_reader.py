@@ -177,7 +177,10 @@ class ConcentrationReaderTests(unittest.TestCase):
             sum(status['program_scan_jsonrpc_error_codes'].values()),
             2,
         )
-        self.assertEqual(primary_calls,['getTokenLargestAccounts','getTokenLargestAccounts'])
+        # The second fallback can use the primary RPC's short safe cache; the
+        # important invariant is that the disabled program-scan path is not retried.
+        self.assertEqual(primary_calls,['getTokenLargestAccounts'])
+        self.assertEqual(status['source_counts']['primary_largest'],2)
 
     def test_both_sources_unavailable_fail_closed(self):
         snap=snapshot()
