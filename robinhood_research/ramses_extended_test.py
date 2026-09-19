@@ -99,6 +99,9 @@ def _screen_summary(screen):
         finalized_block=screen.get("finalized_block"),
         finalized_timestamp=screen.get("finalized_timestamp"),
         factory_pool_count=screen.get("factory_pool_count"),
+        factory_inventory_cache_enabled=screen.get("factory_inventory_cache_enabled"),
+        factory_inventory_reused_entries=screen.get("factory_inventory_reused_entries"),
+        factory_inventory_new_entries=screen.get("factory_inventory_new_entries"),
         pools_with_recent_swaps=screen.get("pools_with_recent_swaps"),
         state_complete_pools=screen.get("state_complete_pools"),
         qualified=[
