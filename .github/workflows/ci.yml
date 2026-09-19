@@ -80,7 +80,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
   live-diagnostic:
-    if: github.event_name != 'pull_request' && github.ref_name != 'feat/post-graduation-pumpswap-raydium' && !contains(github.event.head_commit.message, '[forced-canary]') && !contains(github.event.head_commit.message, '[longevity') && !contains(github.event.head_commit.message, '[qualification-build]') && !contains(github.event.head_commit.message, '[postgrad-live]')
+    if: github.event_name != 'pull_request' && github.ref_name != 'feat/post-graduation-pumpswap-raydium' && !contains(github.event.head_commit.message, '[forced-canary]') && !contains(github.event.head_commit.message, '[longevity') && !contains(github.event.head_commit.message, '[qualification-build]') && !contains(github.event.head_commit.message, '[postgrad-live]') && !contains(github.event.head_commit.message, '[dlmm-structure]') && !contains(github.event.head_commit.message, '[dlmm-adaptive-discovery-live]')
     runs-on: ubuntu-24.04
     concurrency:
       group: solana-public-rpc-live
