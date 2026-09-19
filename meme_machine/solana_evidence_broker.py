@@ -19,6 +19,8 @@ from .provider import Unavailable
 
 
 DEFAULT_BROKER_DB = "solana-evidence-broker.sqlite3"
+STREAM_EVENT_RETENTION_SECONDS = 3600
+JOB_RETENTION_SECONDS = 3600
 
 PRIORITY = {
     "position_monitor": 0,
@@ -220,6 +222,11 @@ class EvidenceBroker:
                      events=events+excluded.events""",
                 (str(stream), observed_at, slot, accepted),
             )
+            self.db.execute(
+                """DELETE FROM stream_events
+                   WHERE stream=? AND observed_at<?""",
+                (str(stream), observed_at-STREAM_EVENT_RETENTION_SECONDS),
+            )
         return bool(accepted)
 
     def recent_events(self, stream, *, since=None, after_slot=None, address=None):
@@ -313,12 +320,22 @@ class EvidenceBroker:
             )
             count = self.db.execute("SELECT COUNT(*) FROM tx_cache").fetchone()[0]
             if count > 20000:
-                self.db.execute(
-                    """DELETE FROM tx_cache WHERE signature IN (
-                       SELECT signature FROM tx_cache ORDER BY cached_at ASC LIMIT ?
-                    )""",
-                    (count - 18000,),
-                )
+                evict=[
+                    row[0] for row in self.db.execute(
+                        """SELECT signature FROM tx_cache
+                           ORDER BY cached_at ASC,signature ASC LIMIT ?""",
+                        (count-18000,),
+                    ).fetchall()
+                ]
+                if evict:
+                    self.db.executemany(
+                        "DELETE FROM tx_cache WHERE signature=?",
+                        [(sig,) for sig in evict],
+                    )
+                    self.db.executemany(
+                        "DELETE FROM jobs WHERE job_key=? AND status='complete'",
+                        [(f"tx:{sig}",) for sig in evict],
+                    )
 
     def _pressure(self):
         with self.lock:
@@ -371,28 +388,40 @@ class EvidenceBroker:
 
     def queue_transaction(self, signature, *, kind, deadline, max_version=1):
         now = float(self.clock())
+        signature=str(signature)
         payload = json.dumps(
-            dict(signature=str(signature), max_supported_transaction_version=int(max_version)),
+            dict(signature=signature, max_supported_transaction_version=int(max_version)),
             sort_keys=True,
         )
         with self.lock, self.db:
+            # hydrate_transactions calls queue only after a cache miss, but recheck
+            # under the same SQLite lock so a concurrent worker that just completed
+            # this immutable transaction cannot be duplicated.
+            if self.db.execute(
+                "SELECT 1 FROM tx_cache WHERE signature=?",
+                (signature,),
+            ).fetchone() is not None:
+                return False
             self.db.execute(
                 """INSERT INTO jobs(
                        job_key,kind,priority,deadline,payload,status,lease_until,
                        created_at,updated_at)
                    VALUES(?,?,?,?,?,'pending',NULL,?,?)
                    ON CONFLICT(job_key) DO UPDATE SET
+                     kind=CASE
+                       WHEN excluded.priority<jobs.priority THEN excluded.kind
+                       ELSE jobs.kind
+                     END,
                      priority=MIN(priority,excluded.priority),
                      deadline=MIN(deadline,excluded.deadline),
+                     payload=excluded.payload,
                      status=CASE
-                       WHEN jobs.status='complete' THEN 'complete'
                        WHEN jobs.status='inflight'
                          AND COALESCE(jobs.lease_until,0)>excluded.created_at
                          THEN 'inflight'
                        ELSE 'pending'
                      END,
                      lease_until=CASE
-                       WHEN jobs.status='complete' THEN jobs.lease_until
                        WHEN jobs.status='inflight'
                          AND COALESCE(jobs.lease_until,0)>excluded.created_at
                          THEN jobs.lease_until
@@ -409,6 +438,7 @@ class EvidenceBroker:
                     now,
                 ),
             )
+            return True
 
     def _claim_jobs(self, limit, now=None, lease_seconds=15.0):
         """Atomically claim global hydration jobs across broker processes."""
@@ -422,6 +452,11 @@ class EvidenceBroker:
                     """UPDATE jobs SET status='expired',lease_until=NULL,updated_at=?
                        WHERE status IN ('pending','inflight') AND deadline<?""",
                     (now,now),
+                )
+                self.db.execute(
+                    """DELETE FROM jobs
+                       WHERE status IN ('complete','expired') AND updated_at<?""",
+                    (now-JOB_RETENTION_SECONDS,),
                 )
                 self.db.execute(
                     """UPDATE jobs SET status='pending',lease_until=NULL,updated_at=?
