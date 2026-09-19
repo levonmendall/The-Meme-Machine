@@ -234,6 +234,58 @@ def sell(c, tokens, rates):
     return gross-fee(gross, rates), fee(gross, rates)
 
 
+
+def create_events(tx):
+    """Decode prospectively observed Pump CreateEvent launch parameters."""
+    if not tx or not tx.get('meta') or tx['meta']['err']:
+        return []
+    stack,out=[],[]
+    for index,line in enumerate(tx['meta'].get('logMessages') or []):
+        if line.startswith('Program ') and ' invoke [' in line:
+            stack.append(line.split()[1])
+        elif line.startswith('Program ') and (' success' in line or ' failed:' in line):
+            if stack:
+                stack.pop()
+        elif line.startswith('Program data: ') and stack and stack[-1] == PROGRAM:
+            raw=base64.b64decode(line[14:],validate=True)
+            if raw[:8] != bytes([27,114,169,77,222,235,99,118]):
+                continue
+            offset=8
+            try:
+                for _ in range(3):
+                    if offset+4>len(raw):
+                        raise ValueError('truncated create event')
+                    size=struct.unpack_from('<I',raw,offset)[0]
+                    offset+=4
+                    if size>4096 or offset+size>len(raw):
+                        raise ValueError('truncated create event')
+                    offset+=size
+                if offset+168>len(raw):
+                    raise ValueError('truncated create event')
+                mint=b58(raw[offset:offset+32]);offset+=32
+                bonding_curve=b58(raw[offset:offset+32]);offset+=32
+                user=b58(raw[offset:offset+32]);offset+=32
+                creator=b58(raw[offset:offset+32]);offset+=32
+                timestamp=struct.unpack_from('<q',raw,offset)[0];offset+=8
+                virtual_token=struct.unpack_from('<Q',raw,offset)[0];offset+=8
+                virtual_quote=struct.unpack_from('<Q',raw,offset)[0];offset+=8
+                real_token=struct.unpack_from('<Q',raw,offset)[0];offset+=8
+                supply=struct.unpack_from('<Q',raw,offset)[0]
+            except (struct.error,IndexError):
+                raise ValueError('truncated create event') from None
+            if min(virtual_token,virtual_quote,real_token,supply)<=0:
+                raise ValueError('invalid create reserves')
+            out.append(dict(
+                mint=mint,bonding_curve=bonding_curve,wallet=user,creator=creator,
+                market_time=int(timestamp),index=index,slot=int(tx['slot']),
+                initial_virtual_token_reserves=int(virtual_token),
+                initial_virtual_quote_reserves=int(virtual_quote),
+                initial_real_token_reserves=int(real_token),
+                token_total_supply=int(supply),
+            ))
+    return out
+
+
 def trade_events(tx):
     """Only successful finalized RPC transactions; verify actual invocation stack."""
     if not tx or not tx.get('meta') or tx['meta']['err']:
@@ -257,5 +309,10 @@ def trade_events(tx):
             timestamp = struct.unpack_from('<q', raw, 89)[0]
             out.append(dict(mint=mint, wallet=user, amount=amount, tokens=tokens,
                             buy=is_buy, market_time=timestamp, index=index, slot=tx['slot'],
+                            virtual_quote_reserves=struct.unpack_from('<Q',raw,97)[0],
+                            virtual_token_reserves=struct.unpack_from('<Q',raw,105)[0],
+                            real_quote_reserves=struct.unpack_from('<Q',raw,113)[0],
+                            real_token_reserves=struct.unpack_from('<Q',raw,121)[0],
+                            creator=b58(raw[177:209]),
                             fees_lamports=struct.unpack_from('<Q',raw,169)[0]+struct.unpack_from('<Q',raw,217)[0]))
     return out

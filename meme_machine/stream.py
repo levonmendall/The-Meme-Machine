@@ -12,6 +12,7 @@ from . import pump
 WINDOW_SECONDS = 60
 RETENTION_SECONDS = 75
 MAX_EVENTS = 50_000
+MAX_CREATIONS = 5_000
 EVENT_ID_VERSION = 'sig-slot-log-mint-v2'
 
 
@@ -43,6 +44,7 @@ class PumpTape:
             raise ValueError('invalid tape bounds')
         self.retention,self.max_events,self.clock=retention,max_events,clock
         self._events=deque()
+        self._creates={}
         self._lock=threading.Lock()
         self.sequence=0
         self.warm_since=None
@@ -50,6 +52,8 @@ class PumpTape:
         self.connected=False
         self.notifications=0
         self.trade_events=0
+        self.creation_events=0
+        self.creation_capacity_losses=0
         self.gaps=0
         self.capacity_losses=0
         self.parse_failures=0
@@ -59,6 +63,7 @@ class PumpTape:
         now=int(self.clock() if now is None else now)
         with self._lock:
             self._events.clear()
+            self._creates.clear()
             self.warm_since=now
             if not preserve_loss:
                 self.loss_until=0
@@ -72,6 +77,7 @@ class PumpTape:
             if parse:
                 self.parse_failures += 1
             self._events.clear()
+            self._creates.clear()
             self.warm_since=None
             self.loss_until=max(self.loss_until,now+WINDOW_SECONDS)
             self.connected=False
@@ -97,11 +103,26 @@ class PumpTape:
         tx={'slot':int(context['slot']),
             'meta':{'err':value.get('err'),'logMessages':value.get('logs') or []}}
         decoded=pump.trade_events(tx)
+        creations=pump.create_events(tx)
         accepted=0
         with self._lock:
             self.notifications += 1
             self.last_slot=max(self.last_slot or 0,int(context['slot']))
             self._prune_locked(now)
+            for event in creations:
+                if int(event['market_time']) > now:
+                    self.loss_until=max(self.loss_until,now+WINDOW_SECONDS)
+                    continue
+                event=dict(event)
+                event.update(
+                    id=f"{signature}:{int(context['slot'])}:{int(event['index'])}:{event['mint']}:create",
+                    available_time=now,
+                )
+                if event['mint'] not in self._creates and len(self._creates)>=MAX_CREATIONS:
+                    self._creates.pop(next(iter(self._creates)))
+                    self.creation_capacity_losses += 1
+                self._creates[event['mint']]=event
+                self.creation_events += 1
             for event in decoded:
                 # A future-dated chain timestamp cannot become point-in-time evidence.
                 # Treat it as a missing observation window instead of rewriting time.
@@ -135,6 +156,11 @@ class PumpTape:
             rows=[dict(event) for seq,event in self._events if seq>sequence]
             return rows,self.sequence
 
+    def creation(self, mint):
+        with self._lock:
+            value=self._creates.get(mint)
+            return None if value is None else dict(value)
+
     def window(self, mint, now=None, max_slot=None):
         now=int(self.clock() if now is None else now)
         cutoff=now-WINDOW_SECONDS
@@ -151,7 +177,9 @@ class PumpTape:
                 now-self.warm_since >= WINDOW_SECONDS and now >= self.loss_until),
                 warm_seconds=0 if self.warm_since is None else max(0,now-self.warm_since),
                 retained_events=len(self._events),notifications=self.notifications,
-                trade_events=self.trade_events,gaps=self.gaps,capacity_losses=self.capacity_losses,
+                trade_events=self.trade_events,creation_events=self.creation_events,
+                creation_records=len(self._creates),creation_capacity_losses=self.creation_capacity_losses,
+                gaps=self.gaps,capacity_losses=self.capacity_losses,
                 parse_failures=self.parse_failures,last_slot=self.last_slot,
                 loss_until=self.loss_until,max_events=self.max_events,
                 retention_seconds=self.retention,event_id_version=EVENT_ID_VERSION)

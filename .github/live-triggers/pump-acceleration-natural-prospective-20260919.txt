@@ -1,0 +1,17 @@
+Run the first natural prospective sample for pump-acceleration-independent-v1.
+
+Frozen implementation baseline before this trigger:
+6184a8ab94f196675ffb8e252c2735a78bc7ee5d
+
+Rules:
+- no threshold or score changes from outcomes;
+- finalized public Pump discovery only;
+- authoritative Alchemy HTTP evidence, no automatic rescue;
+- only prospectively observed Pump CreateEvents may anchor curve progress;
+- exact 70% reserve-depletion progress definition;
+- 30-second trajectory and frozen v1 qualification;
+- 2-second delayed fresh paper fills;
+- no Engine.consider or continuation-v1 order authority;
+- no live money, signing, submission, merge, or deployment;
+- post-graduation and second-leg entries remain independent modes;
+- preserve all rejected/incomplete observations and losses.
