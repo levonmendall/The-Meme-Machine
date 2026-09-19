@@ -2,10 +2,9 @@
 
 Prospective acquisition architecture:
 1. census every observable eligible SOL-paired Meteora DLMM pool from the inventory API;
-2. observe finalized DLMM program activity from the union of public Solana and
-   authenticated OnFinality WebSockets;
-3. deduplicate signatures before any transaction-body read;
-4. reconstruct signatures through a deadline-aware queue using authenticated
+2. observe finalized DLMM program activity from the public Solana WebSocket;
+3. classify notification logs and deduplicate signatures before any body read;
+4. queue only likely/uncertain LP mutations, then reconstruct through authenticated
    OnFinality HTTP at 5 RPS with Alchemy rescue;
 5. extract all observable LP actors in the eligible pool census;
 6. emit a pre-PnL candidate cohort only. No strategy/allocation authority.
@@ -300,7 +299,7 @@ def main():
         pnl_data_read=False,strategy_freeze_permitted=False,
         allocation_authority=False,signing_authority=False,submission_authority=False,
         provider_roles=dict(
-            discovery="union(public_solana_ws,authenticated_onfinality_ws)",
+            discovery="public_solana_ws_full_stream_then_log_relevance_filter",
             reconstruction_primary="authenticated_onfinality_http_5rps",
             reconstruction_rescue="alchemy_http_rescue_only",
         ),
@@ -314,7 +313,7 @@ def main():
     union=collect_program_union(STREAM_SECONDS)
     report.update(stream_union=union);_save(report)
 
-    reconstruction=reconstruct_union(union["signatures"],pools)
+    reconstruction=reconstruct_union(union["lp_candidates"],pools)
     events=reconstruction.pop("events")
     wallets=_wallet_rows(events)
     cohort=wallets[:TARGET_COHORT_WALLETS]
@@ -345,6 +344,8 @@ def main():
     print(json.dumps(dict(
         status=status,pools=len(pools),
         stream_signatures=union["union"]["unique_signatures"],
+        reconstruction_candidates=union["union"]["reconstruction_candidates"],
+        filtered_without_http=union["union"]["filtered_without_http"],
         reconstructed=reconstruction["queue"]["processed"],
         remaining=reconstruction["remaining_queue_depth"],
         events=len(events),wallets=len(wallets),
