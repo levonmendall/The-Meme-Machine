@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch,MagicMock
 
 from meme_machine import dlmm
 from tests import solana_dlmm_independent_v1 as strategy
@@ -163,6 +163,62 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             decision=strategy.qualify(row,p)
             self.assertFalse(decision["passes"],expected)
             self.assertIn(expected,decision["failed"])
+
+    def test_zero_flow_warmup_retries_fresh_12s_window_without_weakening_gates(self):
+        p=strategy.load_policy()
+        candidate=dict(
+            address="pool",volume_acceleration=2.5,fee_acceleration=1.5)
+        adapter=MagicMock();adapter.rpc.calls=0
+        start={"slot":1}
+        class Tape:
+            def __init__(self,events): self.events=events
+        refreshed=[
+            dict(candidate,volume_acceleration=2.5,fee_acceleration=1.5),
+            dict(candidate,volume_acceleration=2.2,fee_acceleration=1.4),
+        ]
+        observe=[
+            ({"verified":True},Tape([]),{"slot":2},{"slot":1},adapter),
+            ({"verified":True},Tape([{"event":"swap"}]),{"slot":3},{"slot":2},adapter),
+        ]
+        with patch.object(strategy,"_history_acceleration",side_effect=refreshed) as hist, \
+             patch.object(strategy,"_fresh_supported_start",return_value=start) as fresh, \
+             patch.object(strategy,"_observe_window",side_effect=observe) as obs:
+            alignment,warm,entry,origin,_entry_start,_adapter,latest=(
+                strategy._aligned_warmup(
+                    adapter,candidate,p,MagicMock(),[]))
+        self.assertTrue(alignment["aligned"])
+        self.assertEqual(alignment["selected_window"],2)
+        self.assertEqual(hist.call_count,2)
+        self.assertEqual(fresh.call_count,2)
+        self.assertEqual(obs.call_count,2)
+        self.assertTrue(all(call.args[3]==12 for call in obs.call_args_list))
+        self.assertEqual(len(warm.events),1)
+        self.assertEqual(latest["volume_acceleration"],2.2)
+
+    def test_zero_flow_retry_stops_if_acceleration_regime_expires(self):
+        p=strategy.load_policy()
+        candidate=dict(
+            address="pool",volume_acceleration=2.5,fee_acceleration=1.5)
+        adapter=MagicMock();adapter.rpc.calls=0
+        class Tape:
+            events=[]
+        refreshed=[
+            dict(candidate,volume_acceleration=2.5,fee_acceleration=1.5),
+            dict(candidate,volume_acceleration=1.9,fee_acceleration=1.5),
+        ]
+        with patch.object(strategy,"_history_acceleration",side_effect=refreshed) as hist, \
+             patch.object(strategy,"_fresh_supported_start",return_value={"slot":1}) as fresh, \
+             patch.object(
+                 strategy,"_observe_window",
+                 return_value=(
+                     {"verified":True},Tape(),{"slot":2},{"slot":1},adapter)) as obs:
+            alignment,*_=strategy._aligned_warmup(
+                adapter,candidate,p,MagicMock(),[])
+        self.assertFalse(alignment["aligned"])
+        self.assertEqual(alignment["reason"],"acceleration_regime_expired")
+        self.assertEqual(hist.call_count,2)
+        self.assertEqual(fresh.call_count,1)
+        self.assertEqual(obs.call_count,1)
 
     def test_centered_range_is_two_sided_and_excludes_active(self):
         bins={str(i):{} for i in range(50,151)}
