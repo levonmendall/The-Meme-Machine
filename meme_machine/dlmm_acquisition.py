@@ -36,10 +36,24 @@ RECONSTRUCTION_DEADLINE_SAFETY_SECONDS=0.5
 # downstream actor extraction can authenticate today. Unknown/truncated DLMM logs are
 # queued conservatively rather than treated as irrelevant.
 LP_INSTRUCTION_LOG_ACTIONS={
+    "AddLiquidity":"add_liquidity",
     "AddLiquidity2":"add_liquidity2",
+    "AddLiquidityByStrategy":"add_liquidity_by_strategy",
     "AddLiquidityByStrategy2":"add_liquidity_by_strategy2",
-    "RemoveLiquidityByRange2":"remove_liquidity_by_range2",
+    "AddLiquidityByStrategyOneSide":"add_liquidity_by_strategy_one_side",
+    "AddLiquidityByWeight":"add_liquidity_by_weight",
+    "AddLiquidityByWeight2":"add_liquidity_by_weight2",
+    "AddLiquidityOneSide":"add_liquidity_one_side",
+    "AddLiquidityOneSidePrecise":"add_liquidity_one_side_precise",
+    "AddLiquidityOneSidePrecise2":"add_liquidity_one_side_precise2",
     "RebalanceLiquidity":"rebalance_liquidity",
+    "RemoveAllLiquidity":"remove_all_liquidity",
+    "RemoveLiquidity":"remove_liquidity",
+    "RemoveLiquidity2":"remove_liquidity2",
+    "RemoveLiquidityByRange":"remove_liquidity_by_range",
+    "RemoveLiquidityByRange2":"remove_liquidity_by_range2",
+    "ClaimFee":"claim_fee",
+    "ClaimFee2":"claim_fee2",
 }
 
 
