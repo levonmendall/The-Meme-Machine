@@ -47,7 +47,7 @@ DISCOVERY_SOURCES=(
     ("volume_30m","volume_30m:desc"),
     ("fee_tvl_ratio_30m","fee_tvl_ratio_30m:desc"),
 )
-PER_POOL_RPC_LIMIT=480
+PER_POOL_RPC_LIMIT=240
 DISCOVERY_RPC_LIMIT=120
 
 
@@ -408,7 +408,24 @@ def _far_edge_escaped(position,state):
     return state["active"]>position["upper"]
 
 
-def _dynamic_lifecycle(adapter,address,entry,rule):
+def _sum_rpc_metrics(rpcs):
+    return dict(
+        calls=sum(int(r.calls) for r in rpcs),
+        http_requests=sum(int(r.http_requests) for r in rpcs),
+        failures=sum(int(r.failures) for r in rpcs),
+        retries=sum(int(r.retries) for r in rpcs),
+    )
+
+
+def _rotate_adapter(adapter,pacer,candidate_rpcs,all_rpcs):
+    if int(adapter.rpc.calls)<200:
+        return adapter
+    rpc=provider.new_rpc(limit=PER_POOL_RPC_LIMIT,pacer=pacer)
+    candidate_rpcs.append(rpc);all_rpcs.append(rpc)
+    return dlmm.Adapter(rpc)
+
+
+def _dynamic_lifecycle(adapter,address,entry,rule,pacer,candidate_rpcs,all_rpcs):
     management=rule["management"]
     max_hold=int(management["maximum_hold_seconds"])
     segment_seconds=int(management["observation_segment_seconds"])
@@ -418,6 +435,8 @@ def _dynamic_lifecycle(adapter,address,entry,rule):
 
     while elapsed<max_hold:
         duration=min(segment_seconds,max_hold-elapsed)
+        adapter=_rotate_adapter(
+            adapter,pacer,candidate_rpcs,all_rpcs)
         phase,tape,terminal,effective_start=pilot._observe_phase(
             adapter,address,current,duration,allow_snapshot_reset=False)
         segment=dict(phase,segment=len(segments),requested_seconds=duration)
@@ -509,7 +528,7 @@ def run_live(target_complete=None,max_attempted=None):
         attempted+=1
         rpc=provider.new_rpc(limit=PER_POOL_RPC_LIMIT,pacer=pacer)
         rpc_objects.append(rpc);adapter=dlmm.Adapter(rpc)
-        before=_rpc_metrics(rpc)
+        candidate_rpcs=[rpc]
         attempt=dict(
             attempt=attempted,pool=candidate["address"],candidate=candidate,
             qualification=None,warmup=None,lifecycle=None,
@@ -522,14 +541,14 @@ def run_live(target_complete=None,max_attempted=None):
             attempt["warmup"]=phase
             if not phase["verified"]:
                 attempt["terminal_classification"]=phase["terminal_classification"]
-                attempt["rpc"]=_delta(before,_rpc_metrics(rpc))
+                attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                 report["attempts"].append(attempt);continue
             if not warm.events:
                 attempt["terminal_classification"]="verified_zero_swap"
                 attempt["qualification"]=dict(
                     passes=False,failed=["no_warmup_flow"],checks={})
                 qualification_counts["no_warmup_flow"]+=1
-                attempt["rpc"]=_delta(before,_rpc_metrics(rpc))
+                attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                 report["attempts"].append(attempt);continue
 
             features=pre_entry_features(warm_start,warm,entry,rule)
@@ -539,15 +558,16 @@ def run_live(target_complete=None,max_attempted=None):
             for failed in decision["failed"]:qualification_counts[failed]+=1
             if not decision["passes"]:
                 attempt["terminal_classification"]="economic_rejection"
-                attempt["rpc"]=_delta(before,_rpc_metrics(rpc))
+                attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                 report["attempts"].append(attempt);continue
 
             lifecycle=_dynamic_lifecycle(
-                adapter,candidate["address"],entry,rule)
+                adapter,candidate["address"],entry,rule,
+                pacer,candidate_rpcs,rpc_objects)
             attempt["lifecycle"]=lifecycle
             attempt["terminal_classification"]=(
                 "complete" if lifecycle["complete"] else lifecycle["reason"])
-            attempt["rpc"]=_delta(before,_rpc_metrics(rpc))
+            attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
             report["attempts"].append(attempt)
             if lifecycle["complete"]:
                 complete+=1
@@ -559,7 +579,7 @@ def run_live(target_complete=None,max_attempted=None):
         except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
             attempt["terminal_classification"]="exception"
             attempt["reason"]=str(exc)[:180]
-            attempt["rpc"]=_delta(before,_rpc_metrics(rpc))
+            attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
             report["attempts"].append(attempt)
 
     resolved=[
