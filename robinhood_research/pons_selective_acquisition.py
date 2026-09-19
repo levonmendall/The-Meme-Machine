@@ -37,6 +37,7 @@ class ImmutableEvidenceCache:
         self.headers_by_number=OrderedDict()
         self.receipts=OrderedDict()
         self.launch_at=OrderedDict()
+        self.real_quote=OrderedDict()
         self.counts=Counter()
 
     @staticmethod
@@ -119,12 +120,28 @@ class ImmutableEvidenceCache:
         self.counts["launch_store"]+=1
         return value
 
+    def real_quote_at(self,curve,block):
+        key=(str(curve).lower(),int(block))
+        value=self.real_quote.get(key)
+        self.counts["real_quote_hit" if value is not None else "real_quote_miss"]+=1
+        return value
+
+    def remember_real_quote(self,curve,block,value):
+        key=(str(curve).lower(),int(block));value=int(value)
+        self._remember(
+            self.real_quote,key,value,CACHE_HEADERS,
+            "selective_cached_real_quote_conflict",
+        )
+        self.counts["real_quote_store"]+=1
+        return value
+
     def telemetry(self):
         return dict(
             header_hashes=len(self.headers_by_hash),
             header_numbers=len(self.headers_by_number),
             receipts=len(self.receipts),
             launches=len(self.launch_at),
+            real_quotes=len(self.real_quote),
             **dict(self.counts),
         )
 
@@ -175,6 +192,9 @@ class SelectiveEvidenceContext:
             candidate["receipt"]["transactionHash"],
             candidate["receipt"]["blockHash"],
             candidate["receipt"],
+        )
+        self.cache.remember_real_quote(
+            candidate["curve"],candidate["block"],candidate["state"].real_quote
         )
 
     def telemetry(self):
@@ -460,20 +480,30 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
     unique_blocks=list(dict.fromkeys(
         int(h["number"],16) for h in prior_headers
     ))
+    reserve_by_block={}
+    missing_blocks=[]
+    for block in unique_blocks:
+        cached=cache.real_quote_at(curve,block)
+        if cached is None:
+            missing_blocks.append(block)
+        else:
+            reserve_by_block[block]=cached
     reads=ctx.batch([
         ("eth_call",[
             dict(to=curve,data=calldata("realQuoteReserve()")),hex(block)
         ])
-        for block in unique_blocks
-    ],"pons_selective_trajectory")
-    reserve_by_block=dict(zip(unique_blocks,reads))
+        for block in missing_blocks
+    ],"pons_selective_trajectory") if missing_blocks else []
+    for block,raw in zip(missing_blocks,reads):
+        reserve_by_block[block]=cache.remember_real_quote(
+            curve,block,_one_word(raw)
+        )
 
     threshold=int(candidate["record"]["graduationThreshold"])
     snapshots=[]
     for header in prior_headers:
         block=int(header["number"],16)
-        raw=reserve_by_block[block]
-        real=_one_word(raw)
+        real=int(reserve_by_block[block])
         snapshots.append(dict(
             at=int(header["timestamp"],16),block=block,
             real_quote=real,
