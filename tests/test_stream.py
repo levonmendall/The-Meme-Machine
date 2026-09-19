@@ -79,6 +79,8 @@ class StreamTape(unittest.TestCase):
                          'wss://api.mainnet-beta.solana.com')
         self.assertEqual(websocket_url('https://example.test/v2/key?x=1'),
                          'wss://example.test/v2/key?x=1')
+        self.assertEqual(websocket_url('https://solana.api.onfinality.io/public'),
+                         'wss://solana.api.onfinality.io/public-ws')
         with self.assertRaisesRegex(ValueError,'HTTPS'):
             websocket_url('http://example.test')
 
