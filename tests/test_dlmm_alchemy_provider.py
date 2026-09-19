@@ -150,6 +150,52 @@ class SolanaReadProviderTopology(unittest.TestCase):
         self.assertEqual(len(clock.sleeps), 1)
         self.assertAlmostEqual(clock.sleeps[0], 0.2)
 
+    def test_dlmm_rpc_call_uses_point_two_second_spacing_not_legacy_half_second(self):
+        clock = _Clock()
+        rpc = provider.new_rpc(
+            limit=40,
+            environ=AUTH_ENV,
+            clock=clock.time,
+            sleeper=clock.sleep,
+        )
+        rpc._request_url = lambda _url, request: {
+            "jsonrpc":"2.0","id":request["id"],"result":"mainnet"
+        }
+        self.assertEqual(
+            rpc.call("getGenesisHash", priority=True, fresh=True), "mainnet"
+        )
+        self.assertEqual(
+            rpc.call("getGenesisHash", priority=True, fresh=True), "mainnet"
+        )
+        self.assertEqual(len(clock.sleeps), 1)
+        self.assertAlmostEqual(clock.sleeps[0], 0.2)
+        self.assertLess(clock.sleeps[0], 0.5)
+
+    def test_dlmm_batch_transport_uses_same_point_two_second_physical_cap(self):
+        clock = _Clock()
+        rpc = provider.new_rpc(
+            limit=40,
+            environ=AUTH_ENV,
+            clock=clock.time,
+            sleeper=clock.sleep,
+        )
+        def request(_url, body):
+            if isinstance(body,list):
+                return [
+                    {"jsonrpc":"2.0","id":item["id"],"result":{"slot":i}}
+                    for i,item in enumerate(body)
+                ]
+            return {"jsonrpc":"2.0","id":body["id"],"result":"mainnet"}
+        rpc._request_url = request
+        params=[[f"sig-{i}",{"encoding":"json","commitment":"finalized"}]
+                for i in range(8)]
+        out=rpc.call_many("getTransaction",params,True,batch_size=4)
+        self.assertEqual(len(out),8)
+        # Two physical batch transports: only one inter-request sleep, at 0.2s.
+        self.assertEqual(len(clock.sleeps),1)
+        self.assertAlmostEqual(clock.sleeps[0],0.2)
+        self.assertLess(clock.sleeps[0],0.5)
+
     def test_shared_pacer_serializes_independent_rpc_objects(self):
         clock = _Clock()
         pacer = provider.AlchemyPacer(minimum_interval=1.0)
