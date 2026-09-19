@@ -39,6 +39,10 @@ MAX_RECENT_ACTIVE_POOLS = 32
 WATCH_COHORT_SIZE = 8
 PAPER_ACTIVE_LIQUIDITY_BPS = 100  # 1%, always below the strategy's 10% ceiling.
 MAX_SWAP_LOGS = 2500
+UNIVERSE_BATCH_SIZE = 8
+UNIVERSE_BATCH_PAUSE_SECONDS = 0.8
+UNIVERSE_RATE_RETRIES = 2
+UNIVERSE_RATE_COOLDOWN_SECONDS = 8.0
 REPORT = Path(os.environ.get(
     "MM_ROBINHOOD_RAMSES_UNIVERSE_REPORT",
     "robinhood-ramses-universe-report.json",
@@ -280,7 +284,15 @@ def scan(
     if not isinstance(gas_costs_by_pool, dict) or not isinstance(signals_by_pool, dict):
         raise BoundaryError("invalid_ramses_universe_context")
 
-    rpc = BoundedMultiRpc(endpoint, max_sessions=7, batch_size=20, batch_pause=0.5, rate_retries=1)
+    rpc = BoundedMultiRpc(
+        endpoint,
+        max_sessions=7,
+        batch_size=UNIVERSE_BATCH_SIZE,
+        batch_pause=UNIVERSE_BATCH_PAUSE_SECONDS,
+        rate_retries=UNIVERSE_RATE_RETRIES,
+        rate_cooldown=UNIVERSE_RATE_COOLDOWN_SECONDS,
+        adaptive_batch_floor=2,
+    )
     started = time.time()
     rpc.verify_chain()
     frontier = rpc.call("eth_getBlockByNumber", ["finalized", False], scope="universe_frontier")

@@ -35,7 +35,7 @@ from .ramses_all_pool_lifecycle import (
     run as run_connected,
     select_qualifier,
 )
-from .ramses_capture import BoundedMultiRpc
+from .ramses_capture import BoundedMultiRpc, _first_finalized_block_at_or_after
 from .ramses_strategy import (
     POLICY_HASH,
     STRATEGY_DOMAIN,
@@ -99,6 +99,7 @@ def _screen_summary(screen):
         finalized_block=screen.get("finalized_block"),
         finalized_timestamp=screen.get("finalized_timestamp"),
         factory_pool_count=screen.get("factory_pool_count"),
+        factory_inventory_cache=screen.get("factory_inventory_cache"),
         pools_with_recent_swaps=screen.get("pools_with_recent_swaps"),
         state_complete_pools=screen.get("state_complete_pools"),
         qualified=[
@@ -119,6 +120,36 @@ def _pick_forced_row(screens):
                 verify_proposal_hash(freeze)
                 return screen,row
     return None,None
+
+
+def _exact_forced_horizon(rpc, entry_block, entry_at, finalized_frontier):
+    """Select the earliest finalized block at or after the frozen +60s target."""
+    target = int(entry_at) + FORCED_FORWARD_SECONDS
+    selected, previous, reads = _first_finalized_block_at_or_after(
+        rpc, int(entry_block), finalized_frontier, target
+    )
+    end_block = int(selected["number"], 16)
+    end_at = int(selected["timestamp"], 16)
+    previous_block = int(previous["number"], 16)
+    previous_at = int(previous["timestamp"], 16)
+    if (
+        end_at < target
+        or previous_at >= target
+        or end_block <= int(entry_block)
+        or previous_block != end_block - 1
+    ):
+        raise BoundaryError("extended_forced_exact_horizon_disagreement")
+    return selected, dict(
+        target_timestamp=target,
+        selected_block=end_block,
+        selected_timestamp=end_at,
+        previous_block=previous_block,
+        previous_timestamp=previous_at,
+        selected_elapsed_seconds=end_at-int(entry_at),
+        previous_elapsed_seconds=previous_at-int(entry_at),
+        binary_search_reads=reads,
+        earliest_finalized_at_or_after_target=True,
+    )
 
 
 def _forced_machinery(endpoint, screen, row, *, db_path):
@@ -213,8 +244,12 @@ def _forced_machinery(endpoint, screen, row, *, db_path):
             frontier=rpc.call(
                 "eth_getBlockByNumber",["finalized",False],scope="extended_forward"
             )
-        end_block=int(frontier["number"],16)
-        end_at=int(frontier["timestamp"],16)
+        selected,horizon=_exact_forced_horizon(
+            rpc,entry_block,entry_at,frontier
+        )
+        end_block=int(selected["number"],16)
+        end_at=int(selected["timestamp"],16)
+        result["horizon"]=horizon
         capture,replay_result=_build_segment_replay(
             rpc,pool,decision,entry_block,end_block
         )
