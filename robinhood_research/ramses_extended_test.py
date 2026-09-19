@@ -121,6 +121,36 @@ def _pick_forced_row(screens):
     return None,None
 
 
+def _exact_forced_horizon(rpc, entry_block, entry_at, finalized_frontier):
+    """Select the earliest finalized block at or after the frozen +60s target."""
+    target = int(entry_at) + FORCED_FORWARD_SECONDS
+    selected, previous, reads = _first_finalized_block_at_or_after(
+        rpc, int(entry_block), finalized_frontier, target
+    )
+    end_block = int(selected["number"], 16)
+    end_at = int(selected["timestamp"], 16)
+    previous_block = int(previous["number"], 16)
+    previous_at = int(previous["timestamp"], 16)
+    if (
+        end_at < target
+        or previous_at >= target
+        or end_block <= int(entry_block)
+        or previous_block != end_block - 1
+    ):
+        raise BoundaryError("extended_forced_exact_horizon_disagreement")
+    return selected, dict(
+        target_timestamp=target,
+        selected_block=end_block,
+        selected_timestamp=end_at,
+        previous_block=previous_block,
+        previous_timestamp=previous_at,
+        selected_elapsed_seconds=end_at-int(entry_at),
+        previous_elapsed_seconds=previous_at-int(entry_at),
+        binary_search_reads=reads,
+        earliest_finalized_at_or_after_target=True,
+    )
+
+
 def _forced_machinery(endpoint, screen, row, *, db_path):
     pool=row["pool"].lower()
     entry_block=int(screen["finalized_block"])
@@ -213,25 +243,12 @@ def _forced_machinery(endpoint, screen, row, *, db_path):
             frontier=rpc.call(
                 "eth_getBlockByNumber",["finalized",False],scope="extended_forward"
             )
-        selected,previous,horizon_reads=_first_finalized_block_at_or_after(
-            rpc,entry_block,frontier,target
+        selected,horizon=_exact_forced_horizon(
+            rpc,entry_block,entry_at,frontier
         )
         end_block=int(selected["number"],16)
         end_at=int(selected["timestamp"],16)
-        previous_at=int(previous["timestamp"],16)
-        if end_at<target or previous_at>=target:
-            raise BoundaryError("extended_forced_exact_horizon_disagreement")
-        result["horizon"]=dict(
-            target_timestamp=target,
-            selected_block=end_block,
-            selected_timestamp=end_at,
-            previous_block=int(previous["number"],16),
-            previous_timestamp=previous_at,
-            selected_elapsed_seconds=end_at-entry_at,
-            previous_elapsed_seconds=previous_at-entry_at,
-            binary_search_reads=horizon_reads,
-            earliest_finalized_at_or_after_target=True,
-        )
+        result["horizon"]=horizon
         capture,replay_result=_build_segment_replay(
             rpc,pool,decision,entry_block,end_block
         )
