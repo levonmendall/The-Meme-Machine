@@ -36,7 +36,7 @@ from meme_machine.pump_acceleration_strategy import (
     SignalVector,flow_metrics,policy_hash,qualify,
 )
 from meme_machine.solana_evidence_broker import (
-    EvidenceBroker,ProgramLogSignatureStream,
+    DynamicAddressLogStream,EvidenceBroker,
 )
 from meme_machine.solana_read_rpc import discovery_ws_url,new_rpc,primary_rpc_url
 from meme_machine.stream import PumpLogStream,PumpTape,WINDOW_SECONDS
@@ -370,9 +370,8 @@ def main():
     broker=EvidenceBroker(broker_path)
     stop=threading.Event();ready=threading.Event();pumpswap_ready=threading.Event()
     stream=PumpLogStream(primary_rpc_url(),tape,ws_url=discovery_ws_url())
-    pumpswap_stream=ProgramLogSignatureStream(
-        discovery_ws_url(),broker,"pumpswap_program",PUMPSWAP_PROGRAM,
-        coverage_seconds=30)
+    pumpswap_stream=DynamicAddressLogStream(
+        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30)
     thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
     pumpswap_thread=threading.Thread(
         target=pumpswap_stream.run,args=(stop,pumpswap_ready),daemon=True)
@@ -412,13 +411,14 @@ def main():
                         event["mint"],int(event.get("available_time") or now))
                     if len(postgrad)<MAX_POSTGRAD_CANDIDATES:
                         pool=pumpswap_pool(event["mint"])
+                        stream_key=pumpswap_stream.add_address(pool)
                         postgrad[event["mint"]]=dict(
                             mint=event["mint"],creation=state["creation"],
                             graduation_time=int(event["market_time"]),
                             pregrad_wallets=set(state["pregrad_wallets"]),pool=pool,
                             history=IncrementalPumpSwapHistory(
                                 pool,int(event["market_time"]),broker=broker,
-                                stream_key="pumpswap_program"),
+                                stream_key=stream_key),
                             history_status={},graduation_price=None,
                         )
 
@@ -647,8 +647,7 @@ def main():
         sessions.finish()
         report["sessions"]=sessions.history
         report["stream"]=tape.status(int(time.time()))
-        report["pumpswap_stream"]=broker.stream_status(
-            "pumpswap_program",int(time.time()),30)
+        report["pumpswap_stream"]=pumpswap_stream.status()
         report["evidence_broker"]=broker.telemetry()
         report["ended"]=int(time.time())
         report["full_evidence_attempts"]=full_attempts
