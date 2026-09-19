@@ -100,7 +100,7 @@ class SolanaReadPacer:
     """
 
     def __init__(self, minimum_interval=SOLANA_MIN_REQUEST_INTERVAL_SECONDS):
-        if minimum_interval < 0.5 or minimum_interval > 5.0:
+        if minimum_interval < 0.2 or minimum_interval > 5.0:
             raise ValueError("solana_read_pace_bound")
         self.minimum_interval = float(minimum_interval)
         self.next_request_at = -float("inf")
