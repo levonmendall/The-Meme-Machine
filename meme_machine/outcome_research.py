@@ -184,6 +184,49 @@ def subclass_research_protocol():
         ),
     )
 
+
+def subclass_development_status(trackers):
+    """Pre-registered readiness only; never freezes or admits a strategy."""
+    protocol=subclass_research_protocol()
+    two={}
+    dense={}
+    for tracker in trackers or []:
+        cohorts=set(tracker.get('cohorts') or [])
+        if cohorts.intersection({'two_buyer_sole_near_miss',
+                                 'two_buyer_sole_near_miss_expanded'}):
+            key=(tracker.get('nomination_id'),tracker.get('mint'))
+            two.setdefault(key,tracker)
+        if 'high_density' in cohorts:
+            dense.setdefault(tracker.get('mint'),tracker)
+    two_complete=len(two)
+    two_labeled=sum(bool(t.get('observed_trade_events')) for t in two.values())
+    dense_candidates=len(dense)
+    dense_labeled=sum(bool(t.get('observed_trade_events')) for t in dense.values())
+    two_min=int(protocol['two_buyer']['minimum_complete_development'])
+    dense_min=int(protocol['high_density']['minimum_labeled_development'])
+    return dict(
+        protocol_version=protocol['version'],
+        authority='research_only',
+        automatic_trading_admission=False,
+        two_buyer=dict(
+            complete_development=two_complete,
+            outcome_labeled=two_labeled,
+            minimum_complete_development=two_min,
+            ready_to_freeze_candidate_rule=two_complete>=two_min,
+            rule_frozen=False,
+            prospective_validation_started=False,
+        ),
+        high_density=dict(
+            development_candidates=dense_candidates,
+            outcome_labeled=dense_labeled,
+            minimum_labeled_development=dense_min,
+            ready_to_freeze_candidate_rule=dense_labeled>=dense_min,
+            rule_frozen=False,
+            prospective_validation_started=False,
+            trading_event_cap_remains=100,
+        ),
+    )
+
 def is_two_buyer_sole_near_miss(row):
     """True only when 3->2 buyer groups alone flips the frozen vector to pass."""
     vector=(row or {}).get('qualification_vector') or {}
