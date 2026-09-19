@@ -8,6 +8,8 @@ from robinhood_research import BoundaryError
 from robinhood_research.ramses_extended_test import (
     _exact_forced_horizon,
     _forced_finality_wait_budget,
+    _frontier_progress,
+    _frontier_scan_gate,
     _pick_forced_row,
     _screen_summary,
     _wait_for_forced_finality,
@@ -239,6 +241,85 @@ class RamsesExtendedMarketTests(unittest.TestCase):
             _wait_for_forced_finality(
                 Rpc(),1000,clock=clock.time,sleeper=clock.sleep
             )
+
+    def test_finalized_frontier_gate_skips_duplicate_state(self):
+        frontier=dict(
+            number=hex(100),
+            hash="0x"+"11"*32,
+            timestamp=hex(1000),
+            parentHash="0x"+"22"*32,
+        )
+        should,reason,identity=_frontier_scan_gate(
+            (100,"0x"+"11"*32),
+            frontier,
+            now=120.0,
+            last_scan_started=0.0,
+            scan_interval=60,
+        )
+        self.assertFalse(should)
+        self.assertEqual(reason,"frontier_unchanged")
+        self.assertEqual(identity,(100,"0x"+"11"*32))
+
+    def test_finalized_frontier_gate_defers_then_admits_advanced_state(self):
+        frontier=dict(
+            number=hex(101),
+            hash="0x"+"33"*32,
+            timestamp=hex(1001),
+            parentHash="0x"+"11"*32,
+        )
+        should,reason,identity=_frontier_scan_gate(
+            (100,"0x"+"11"*32),
+            frontier,
+            now=30.0,
+            last_scan_started=0.0,
+            scan_interval=60,
+        )
+        self.assertFalse(should)
+        self.assertEqual(reason,"cadence_floor")
+        should2,reason2,identity2=_frontier_scan_gate(
+            (100,"0x"+"11"*32),
+            frontier,
+            now=60.0,
+            last_scan_started=0.0,
+            scan_interval=60,
+        )
+        self.assertTrue(should2)
+        self.assertEqual(reason2,"frontier_advanced")
+        self.assertEqual(identity2,identity)
+
+    def test_finalized_frontier_progress_rejects_conflict_and_regression(self):
+        prior=dict(
+            number=hex(100),
+            hash="0x"+"11"*32,
+            timestamp=hex(1000),
+            parentHash="0x"+"22"*32,
+        )
+        same=dict(prior)
+        self.assertEqual(_frontier_progress(prior,same),"unchanged")
+        advanced=dict(
+            number=hex(101),
+            hash="0x"+"33"*32,
+            timestamp=hex(1001),
+            parentHash=prior["hash"],
+        )
+        self.assertEqual(_frontier_progress(prior,advanced),"advanced")
+        conflict=dict(prior,hash="0x"+"44"*32)
+        with self.assertRaisesRegex(
+            BoundaryError,
+            "extended_finalized_frontier_conflict",
+        ):
+            _frontier_progress(prior,conflict)
+        regressed=dict(
+            number=hex(99),
+            hash="0x"+"55"*32,
+            timestamp=hex(999),
+            parentHash="0x"+"66"*32,
+        )
+        with self.assertRaisesRegex(
+            BoundaryError,
+            "extended_finalized_frontier_regression",
+        ):
+            _frontier_progress(prior,regressed)
 
 
 if __name__=="__main__":
