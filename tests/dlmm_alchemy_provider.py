@@ -4,6 +4,8 @@ DLMM now uses the existing authenticated Alchemy endpoint directly for HTTP
 reconstruction. Public Solana WebSocket remains the discovery surface. Existing
 imports remain valid so ongoing research code does not need strategy-layer changes.
 """
+import urllib.error
+
 from meme_machine.provider import Unavailable
 from meme_machine.solana_read_rpc import (
     ALCHEMY_ENV_NAME,
@@ -31,15 +33,75 @@ DLMM_MIN_REQUEST_INTERVAL_SECONDS = 0.2
 DLMM_PRIMARY_REQUESTS_PER_SECOND = 5
 
 class AlchemyPacer(SolanaReadPacer):
-    """Backward-compatible DLMM pacer name; paces direct Alchemy at 5 rps."""
+    """One shared DLMM request clock plus adaptive cross-session 429 cooldown."""
     def __init__(self, minimum_interval=DLMM_MIN_REQUEST_INTERVAL_SECONDS):
         super().__init__(minimum_interval=minimum_interval)
+        self.rate_limit_events=0
+        self.rate_limit_streak=0
+        self.rate_limit_cooldown_seconds=0.0
+        self.rate_limit_successes_since_event=0
+
+    @staticmethod
+    def _retry_after(exc):
+        try:
+            return float(exc.headers.get("Retry-After"))
+        except (TypeError,ValueError,AttributeError):
+            return 0.0
+
+    def note_rate_limit(self,rpc,exc):
+        self.rate_limit_events+=1
+        self.rate_limit_streak=min(5,self.rate_limit_streak+1)
+        self.rate_limit_successes_since_event=0
+        base=max(
+            float(PROVIDER_429_MIN_BACKOFF_SECONDS),
+            self._retry_after(exc),
+        )
+        adaptive=min(30.0,max(base,2.0**self.rate_limit_streak))
+        now=float(rpc.clock())
+        self.next_request_at=max(self.next_request_at,now+adaptive)
+        self.rate_limit_cooldown_seconds+=adaptive
+        return adaptive
+
+    def note_success(self):
+        if self.rate_limit_streak<=0:
+            return
+        self.rate_limit_successes_since_event+=1
+        if self.rate_limit_successes_since_event>=8:
+            self.rate_limit_streak=max(0,self.rate_limit_streak-1)
+            self.rate_limit_successes_since_event=0
+
+    def telemetry(self):
+        data=super().telemetry()
+        data.update(
+            rate_limit_events=int(self.rate_limit_events),
+            rate_limit_streak=int(self.rate_limit_streak),
+            rate_limit_cooldown_seconds=float(
+                self.rate_limit_cooldown_seconds),
+            rate_limit_successes_since_event=int(
+                self.rate_limit_successes_since_event),
+        )
+        return data
 
 class AlchemyPoolScanRPC(ReadOnlyFailoverPoolScanRPC):
-    """DLMM direct-Alchemy read client with a hard 5-rps request ceiling."""
+    """DLMM direct-Alchemy client sharing rate-limit state across sessions."""
     def _pace(self, interval=0.5):
         if self.transport == self._http:
             self.read_pacer.pace(self, DLMM_MIN_REQUEST_INTERVAL_SECONDS)
+
+    def _provider_attempt(self,label,url,request):
+        try:
+            response=super()._provider_attempt(label,url,request)
+        except Exception as exc:
+            if (isinstance(exc,urllib.error.HTTPError)
+                    and int(exc.code)==429):
+                note=getattr(self.read_pacer,"note_rate_limit",None)
+                if callable(note):
+                    note(self,exc)
+            raise
+        success=getattr(self.read_pacer,"note_success",None)
+        if callable(success):
+            success()
+        return response
 
     def provider_telemetry(self):
         data=super().provider_telemetry()
