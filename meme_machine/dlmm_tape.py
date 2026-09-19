@@ -58,8 +58,14 @@ def decode_swap(raw,pool):
     return dict(amount=amount,for_y=direction,observed=observed)
 
 
-def decode_swap2(raw,pool):
-    """Decode the companion current-program swap event."""
+def decode_swap2(raw,pool,trigger_only=False):
+    """Decode current-program swap evidence.
+
+    Full reconstruction still rejects partial-limit/output-fee forms.  The
+    trigger-only path may authenticate their occurrence because the strategy
+    takes a fresh post-transaction pool snapshot before the 12-second warmup.
+    No unsupported event economics are carried into qualification.
+    """
     if len(raw)!=155 or raw[:8]!=SWAP2 or pump.b58(raw[8:40])!=pool or raw[80] not in (0,1):
         raise ValueError('dlmm_swap2_event_layout_or_identity')
     start,end=struct.unpack_from('<ii',raw,72)
@@ -67,16 +73,20 @@ def decode_swap2(raw,pool):
     fees_on_input,fees_on_x=raw[153],raw[154]
     if fees_on_input not in (0,1) or fees_on_x not in (0,1):
         raise ValueError('dlmm_swap2_event_flags')
-    if left or limit_fee or not fees_on_input:
+    unsupported=bool(left or limit_fee or not fees_on_input)
+    if unsupported and not trigger_only:
         raise Unavailable('dlmm_partial_limit_order_or_output_fee_swap_unsupported')
     direction=bool(raw[80])
-    if bool(fees_on_x)!=direction:
+    if not trigger_only and bool(fees_on_x)!=direction:
         raise Unavailable('dlmm_fee_token_direction_unsupported')
     observed=dict(start=start,end=end,output=output,
                   fee=mm_fee+protocol+host,protocol_fee=protocol)
     if host:
         observed['host_fee']=host
-    return dict(amount=amount,for_y=direction,observed=observed)
+    result=dict(amount=amount,for_y=direction,observed=observed)
+    if unsupported or bool(fees_on_x)!=direction:
+        result['trigger_only_economics_unsupported']=True
+    return result
 
 
 
@@ -695,8 +705,8 @@ def _resolve_swap_record(record,meta,block_time):
         execution_order=record['order'],swap_mode=swap_mode)
 
 
-def transaction_swaps(tx,pool,terminal_adjustments=None):
-    """Return authenticated target-pool swaps and external effects in execution order."""
+def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
+    """Return target-pool swaps; trigger_only never authorizes reconstruction economics."""
     if not tx or not tx.get('meta') or tx['meta'].get('err'):
         raise Unavailable('dlmm_missing_or_failed_transaction')
     meta=tx['meta'];message=tx['transaction']['message'];keys=_keys(meta,message)
@@ -741,14 +751,18 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
             if raw[8:16]==SWAP:
                 current['legacy'].append(decode_swap(raw[8:],event_pool))
             else:
-                current['v2'].append(decode_swap2(raw[8:],event_pool))
+                current['v2'].append(decode_swap2(raw[8:],event_pool,trigger_only=trigger_only))
         elif raw[:8]==EVENT_CPI and raw[8:16]==ADD_LIQUIDITY_EVT:
+            if trigger_only:
+                continue
             event_pool=_event_pool(raw)
             if event_pool!=pool:
                 continue
             event=decode_add_liquidity(raw[8:],pool)
             _attach_effect_event(effects,'add_liquidity2',event,[outer,inner])
         elif raw[:8]==EVENT_CPI and raw[8:16]==REMOVE_LIQUIDITY_EVT:
+            if trigger_only:
+                continue
             event_pool=_event_pool(raw)
             if event_pool!=pool:
                 continue
@@ -756,6 +770,8 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
             _attach_effect_event(
                 effects,'remove_liquidity_by_range2',event,[outer,inner])
         elif raw[:8]==EVENT_CPI and raw[8:16]==CLAIM_FEE2_EVT:
+            if trigger_only:
+                continue
             event_pool=_event_pool(raw)
             if event_pool!=pool:
                 continue
@@ -786,6 +802,8 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
                     raise ValueError('dlmm_initialize_bin_array_pda_or_system')
             current=None;continue
         elif raw[:8]==CLAIM_FEE2_IX:
+            if trigger_only:
+                current=None;continue
             if positions:
                 if positions!=[0]:
                     raise ValueError(
@@ -797,6 +815,8 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
                 current=None
             continue
         elif raw[:8]==REMOVE_LIQUIDITY_BY_RANGE2_IX:
+            if trigger_only:
+                current=None;continue
             if positions:
                 if positions!=[1]:
                     raise ValueError(
@@ -808,6 +828,8 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
                 current=None
             continue
         elif raw[:8]==ADD_LIQUIDITY2_IX:
+            if trigger_only:
+                current=None;continue
             if positions:
                 if positions!=[1]:
                     raise ValueError(
@@ -819,6 +841,8 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
                 current=None
             continue
         elif raw[:8]==ADD_LIQUIDITY_BY_STRATEGY2_IX:
+            if trigger_only:
+                current=None;continue
             if positions:
                 accounts=instruction.get('accounts') or []
                 pos=','.join(map(str,positions))
@@ -834,6 +858,8 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
                     f'dlmm_snapshot_reset_required:add_liquidity_by_strategy2:{slot}')
             current=None;continue
         else:
+            if trigger_only:
+                current=None;continue
             if positions:
                 raise Unavailable(
                     'dlmm_non_swap_mutation_in_interval:'+raw[:8].hex())
@@ -846,6 +872,11 @@ def transaction_swaps(tx,pool,terminal_adjustments=None):
             record['legacy']=_log_swap_fallback(meta,record['pool'])
         event=_resolve_swap_record(record,meta,tx.get('blockTime'))
         resolved.append((record,event))
+    if trigger_only:
+        return [
+            dict(**event,slot=tx['slot'],trigger_only=True)
+            for record,event in resolved if record['target']
+        ]
     host_auth=_authenticate_host_fees(
         resolved,meta,keys,ordered,
         allow_terminal_fallback=terminal_adjustments is not None)
