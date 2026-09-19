@@ -56,7 +56,9 @@ DISCOVERY_PAGES_PER_SORT=2
 DISCOVERY_SORTS=("volume_5m:desc","fee_tvl_ratio_5m:desc","volume_30m:desc")
 PER_RPC_LIMIT=240
 ROTATE_AT_CALLS=190
-CHUNK_SECONDS=2
+# One-second verification segments retain the exact 12-second warmup and
+# unchanged 16-transaction verifier bound while reducing density censoring.
+CHUNK_SECONDS=1
 MAX_WARMUP_RESETS=2
 SIGNATURE_PAGE_LIMIT=64
 MAX_SIGNATURE_CENSUS_PAGES=16
@@ -1254,7 +1256,7 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
     for row,tx in zip(valid,values):
         if not tx or (tx.get("meta") or {}).get("err"):
             continue
-        swaps=transaction_swaps(tx,pool)
+        swaps=transaction_swaps(tx,pool,trigger_only=True)
         if swaps:
             out.append(dict(
                 signature=row["signature"],

@@ -275,6 +275,7 @@ class Tape(unittest.TestCase):
         # silently appearing to be an empty transaction.
         with self.assertRaisesRegex(Unavailable,'external_effect_requires'):
             transaction_swaps(tx,POOL)
+        self.assertEqual(transaction_swaps(tx,POOL,trigger_only=True),[])
 
     def test_claim_fee2_event_binds_across_intervening_dlmm_inner_instruction(self):
         s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
