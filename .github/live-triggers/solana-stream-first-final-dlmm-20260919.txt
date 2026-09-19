@@ -1,0 +1,1 @@
+Final verification of the completed Solana stream-first evidence repair: finalized DLMM pool wakeups, targeted authentication, incremental signature ledger, shared durable transaction cache, priority queue, atomic cross-process leases, and global backpressure. Frozen v1.7 strategy unchanged.
