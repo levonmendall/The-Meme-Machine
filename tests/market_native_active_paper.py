@@ -206,7 +206,9 @@ def main():
                         report['provider_sessions'][-1].update(
                             ended=now, logical_requests=rpc.calls,
                             transport_requests=rpc.http_requests,
-                            failures=rpc.failures, retries=rpc.retries)
+                            failures=rpc.failures, retries=rpc.retries,
+                            provider_topology=(rpc.provider_telemetry()
+                                               if hasattr(rpc,'provider_telemetry') else None))
                         rpc = new_rpc(limit=RPC_LIMIT,pacer=(rpc.read_pacer if hasattr(rpc,'read_pacer') else None))
                         adapter = PumpAdapter(rpc)
                         postgrad = PostGraduationAdapter(rpc, scan_rpc=object())
@@ -234,7 +236,9 @@ def main():
             report['provider_sessions'][-1].update(
                 ended=ended, logical_requests=rpc.calls,
                 transport_requests=rpc.http_requests,
-                failures=rpc.failures, retries=rpc.retries)
+                failures=rpc.failures, retries=rpc.retries,
+                provider_topology=(rpc.provider_telemetry()
+                                   if hasattr(rpc,'provider_telemetry') else None))
             try:
                 reconciled = bool(store.reconcile())
                 archive_verified = bool(store.verify_archive())
