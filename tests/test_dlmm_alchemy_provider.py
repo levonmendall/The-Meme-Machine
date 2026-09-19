@@ -33,6 +33,10 @@ class SolanaReadProviderTopology(unittest.TestCase):
         self.assertFalse(meta["secondary_configured"])
         self.assertTrue(meta["fallback_allowed"])
         self.assertFalse(meta["load_balancing"])
+        self.assertEqual(meta["primary_minimum_request_interval_seconds"], 0.25)
+        self.assertEqual(meta["primary_max_requests_per_second"], 4.0)
+        self.assertEqual(meta["alchemy_rescue_minimum_request_interval_seconds"], 1.0)
+        self.assertEqual(meta["alchemy_rescue_max_requests_per_second"], 1.0)
 
     def test_existing_alchemy_secret_is_secondary_rescue(self):
         env = {provider.ENV_NAME: ALCHEMY}
@@ -104,6 +108,55 @@ class SolanaReadProviderTopology(unittest.TestCase):
         telemetry = pacer.telemetry()
         self.assertEqual(telemetry["paced_requests"], 2)
         self.assertAlmostEqual(telemetry["throttle_sleep_seconds"], 1.0)
+
+    def test_default_primary_pacer_runs_at_four_requests_per_second(self):
+        clock = _Clock()
+        pacer = provider.AlchemyPacer()
+        rpc_a = SimpleNamespace(
+            clock=clock.time, sleep=clock.sleep, last_request=None
+        )
+        rpc_b = SimpleNamespace(
+            clock=clock.time, sleep=clock.sleep, last_request=None
+        )
+        self.assertEqual(pacer.pace(rpc_a, 0.25), 0.0)
+        self.assertAlmostEqual(pacer.pace(rpc_b, 0.25), 0.25)
+        self.assertEqual(clock.sleeps, [0.25])
+        self.assertEqual(pacer.telemetry()["minimum_interval_seconds"], 0.25)
+
+    def test_repeated_failover_keeps_alchemy_rescue_at_one_rps(self):
+        clock = _Clock()
+        rpc = provider.new_rpc(
+            limit=40,
+            environ={provider.ENV_NAME: ALCHEMY},
+            clock=clock.time,
+            sleeper=clock.sleep,
+        )
+        secondary_times = []
+
+        def request(url, request):
+            if url == topology.PRIMARY_RPC_URL:
+                raise urllib.error.HTTPError(
+                    url, 429, "rate limited", {}, None
+                )
+            secondary_times.append(clock.time())
+            return {"jsonrpc": "2.0", "id": request["id"], "result": "mainnet"}
+
+        rpc._request_url = request
+        self.assertEqual(
+            rpc.call("getGenesisHash", priority=True, fresh=True), "mainnet"
+        )
+        self.assertEqual(
+            rpc.call("getGenesisHash", priority=True, fresh=True), "mainnet"
+        )
+        self.assertEqual(len(secondary_times), 2)
+        self.assertGreaterEqual(secondary_times[1] - secondary_times[0], 1.0)
+        telemetry = rpc.provider_telemetry()
+        self.assertEqual(
+            telemetry["primary_pacing"]["minimum_interval_seconds"], 0.25
+        )
+        self.assertEqual(
+            telemetry["alchemy_rescue_pacing"]["minimum_interval_seconds"], 1.0
+        )
 
     def test_429_retry_wait_keeps_two_second_floor(self):
         error = urllib.error.HTTPError(
