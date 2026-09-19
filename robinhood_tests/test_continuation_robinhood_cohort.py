@@ -11,6 +11,15 @@ from robinhood_research.continuation_robinhood_cohort import (
 )
 
 
+class _Feed:
+    def __init__(self, value):
+        self.value=value
+    def wait_for_after(self, cursor, timeout):
+        if isinstance(self.value,Exception):
+            raise self.value
+        return self.value
+
+
 class ContinuationCohortTests(unittest.TestCase):
     def test_cohort_keeps_frozen_policy_and_actual_exit_path(self):
         self.assertEqual(COHORT_TARGET,10)
@@ -25,18 +34,21 @@ class ContinuationCohortTests(unittest.TestCase):
     def test_transport_failure_recovers_without_advancing_cursor(self):
         class Rpc:
             used=0
+            def __init__(self,fail=False):
+                self.fail=fail
+            def call(self,method,params,scope):
+                if self.fail:
+                    raise BoundaryError("provider_transport_failure")
+                return {"number":"0x10"}
             def telemetry(self):
                 return {"requests":1}
-        first=Rpc();replacement=Rpc()
+        first=Rpc(True);replacement=Rpc(False)
         result={"discovery_sessions":[],"provider_recoveries":[]}
-        with patch("robinhood_research.continuation_robinhood_cohort._latest_header",
-                   side_effect=[BoundaryError("provider_transport_failure"),{"number":"0x10"}]), \
-             patch("robinhood_research.continuation_robinhood_cohort._current_curve_events",
-                   return_value=[]), \
-             patch("robinhood_research.continuation_robinhood_cohort._recover_discovery",
+        with patch("robinhood_research.continuation_robinhood_cohort._current_curve_events",
+                   return_value=[]),              patch("robinhood_research.continuation_robinhood_cohort._recover_discovery",
                    return_value=replacement) as recover:
             rpc,cursor,fresh,header=_poll(
-                "https://example.invalid",first,10,[],result
+                "https://example.invalid",first,10,[],result,_Feed(16)
             )
         self.assertIs(rpc,replacement)
         self.assertEqual(cursor,16)
@@ -47,13 +59,30 @@ class ContinuationCohortTests(unittest.TestCase):
     def test_nontransport_boundary_does_not_reconnect(self):
         class Rpc:
             used=0
+            def call(self,*_,**__):
+                raise BoundaryError("provider_rpc_-32000")
             def telemetry(self):
                 return {}
-        with patch("robinhood_research.continuation_robinhood_cohort._latest_header",
-                   side_effect=BoundaryError("provider_rpc_-32000")), \
-             patch("robinhood_research.continuation_robinhood_cohort._recover_discovery") as recover:
+        with patch("robinhood_research.continuation_robinhood_cohort._recover_discovery") as recover:
             with self.assertRaisesRegex(BoundaryError,"provider_rpc_-32000"):
-                _poll("https://example.invalid",Rpc(),77,[],{"discovery_sessions":[]})
+                _poll(
+                    "https://example.invalid",Rpc(),77,[],
+                    {"discovery_sessions":[]},_Feed(78)
+                )
+        recover.assert_not_called()
+
+    def test_sequencer_gap_does_not_fallback_to_http_discovery(self):
+        class Rpc:
+            used=0
+            def telemetry(self):
+                return {}
+        with patch("robinhood_research.continuation_robinhood_cohort._recover_discovery") as recover:
+            with self.assertRaisesRegex(BoundaryError,"continuity_lost"):
+                _poll(
+                    "https://example.invalid",Rpc(),77,[],
+                    {"discovery_sessions":[]},
+                    _Feed(BoundaryError("sequencer_discovery_continuity_lost")),
+                )
         recover.assert_not_called()
 
     def test_reconnect_verifies_new_session_before_resume(self):
@@ -69,9 +98,10 @@ class ContinuationCohortTests(unittest.TestCase):
                 return {"fail":self.fail}
         broken=Fake(True);good=Fake(False)
         result={"discovery_sessions":[],"provider_recoveries":[]}
-        with patch("robinhood_research.continuation_robinhood_cohort.sample_rpc",
-                   side_effect=[broken,good]), \
-             patch("robinhood_research.continuation_robinhood_cohort.time.sleep"):
+        with patch(
+            "robinhood_research.continuation_robinhood_cohort.sample_discovery_rpc",
+            side_effect=[broken,good],
+        ), patch("robinhood_research.continuation_robinhood_cohort.time.sleep"):
             recovered=_recover_discovery(
                 "https://example.invalid",None,result,123,
                 BoundaryError("provider_transport_failure"),

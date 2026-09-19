@@ -1,7 +1,7 @@
-"""Bounded multi-source Robinhood observability proof.
+"""Bounded lane-level Robinhood observability proof.
 
-This diagnostic compares independent chain views and samples the official sequencer
-feed. It has no strategy, allocation, signing, submission or execution authority.
+Compares provider roles without granting cross-provider trade authority. It never logs
+endpoint URLs or credentials.
 """
 from __future__ import annotations
 
@@ -11,7 +11,14 @@ from pathlib import Path
 import time
 
 from . import BoundaryError, CHAIN_ID
-from .provider_topology import configured_rpc, public_diagnostic_rpc
+from .provider_topology import (
+    configured_discovery_rpc,
+    configured_dlmm_rpc,
+    configured_rpc,
+    configured_shadow_rpc,
+    public_diagnostic_rpc,
+    topology_metadata,
+)
 from .sequencer_feed import SequencerFeedObserver
 
 
@@ -27,7 +34,9 @@ def _head(rpc, label):
     chain = rpc.verify_chain()
     if chain != CHAIN_ID:
         raise BoundaryError("wrong_chain")
-    latest = rpc.call("eth_getBlockByNumber", ["latest", False], scope="observability")
+    latest = rpc.call(
+        "eth_getBlockByNumber", ["latest", False], scope="observability"
+    )
     if not isinstance(latest, dict):
         raise BoundaryError("observability_head_shape")
     number = int(latest["number"], 16)
@@ -35,13 +44,18 @@ def _head(rpc, label):
     now = int(time.time())
     if timestamp > now + 5:
         raise BoundaryError("observability_future_head")
+    telemetry = rpc.telemetry()
     return dict(
         provider=label,
+        provider_kind=telemetry.get("provider_kind"),
+        role=telemetry.get("role"),
         chain_id=chain,
         number=number,
         hash=latest["hash"],
         timestamp=timestamp,
         age_seconds=max(0, now - timestamp),
+        pacing=telemetry.get("pacing"),
+        automatic_failover=telemetry.get("automatic_failover"),
     )
 
 
@@ -57,10 +71,24 @@ def _comparison(a, b):
     )
 
 
+def _observe(result, key, rpc, label):
+    if rpc is None:
+        result["providers"][key] = None
+        return None
+    try:
+        row = _head(rpc, label)
+        result["providers"][key] = row
+        return row
+    except (BoundaryError, ValueError, KeyError, TypeError) as exc:
+        result["limitations"].append(key + ":" + str(exc))
+        result["providers"][key] = None
+        return None
+
+
 def run(primary_endpoint, *, feed_seconds=5.0):
     started = time.time()
     result = dict(
-        kind="robinhood_multisource_observability_v1",
+        kind="robinhood_lane_observability_v2",
         chain_id=CHAIN_ID,
         authority="observation_only",
         strategy_authority=False,
@@ -75,49 +103,42 @@ def run(primary_endpoint, *, feed_seconds=5.0):
         limitations=[],
     )
 
-    topology = configured_rpc(
+    directional = configured_rpc(
         primary_endpoint,
         limit=40,
         per_scope=20,
         retries=0,
     )
-    primary = topology.primary
-    secondary = topology.secondary
+    discovery = configured_discovery_rpc(
+        primary_endpoint,
+        limit=40,
+        per_scope=20,
+        retries=0,
+    )
+    dlmm = configured_dlmm_rpc(
+        primary_endpoint,
+        limit=40,
+        per_scope=20,
+        retries=0,
+    )
+    shadow = configured_shadow_rpc(
+        limit=20,
+        per_scope=20,
+        retries=0,
+    )
     public = public_diagnostic_rpc(limit=20, per_scope=20, retries=0)
 
-    try:
-        result["providers"]["primary"] = _head(primary, "authenticated_primary")
-    except (BoundaryError, ValueError, KeyError, TypeError) as exc:
-        result["limitations"].append("primary:" + str(exc))
-        result["providers"]["primary"] = None
+    p = _observe(result, "directional_evidence", directional, "directional_evidence")
+    d = _observe(result, "pons_discovery", discovery, "pons_discovery")
+    l = _observe(result, "ramses_dlmm", dlmm, "ramses_dlmm")
+    s = _observe(result, "shadow", shadow, "shadow_diagnostic")
+    u = _observe(result, "robinhood_public", public, "robinhood_public_diagnostic")
 
-    if secondary is None:
-        result["limitations"].append("quicknode_secondary_not_configured")
-        result["providers"]["quicknode"] = None
-    else:
-        try:
-            result["providers"]["quicknode"] = _head(
-                secondary, "quicknode_secondary"
-            )
-        except (BoundaryError, ValueError, KeyError, TypeError) as exc:
-            result["limitations"].append("quicknode:" + str(exc))
-            result["providers"]["quicknode"] = None
-
-    try:
-        result["providers"]["robinhood_public"] = _head(
-            public, "robinhood_public_diagnostic"
-        )
-    except (BoundaryError, ValueError, KeyError, TypeError) as exc:
-        result["limitations"].append("public:" + str(exc))
-        result["providers"]["robinhood_public"] = None
-
-    p = result["providers"].get("primary")
-    q = result["providers"].get("quicknode")
-    u = result["providers"].get("robinhood_public")
     result["comparisons"] = dict(
-        primary_vs_quicknode=_comparison(p, q),
-        primary_vs_public=_comparison(p, u),
-        quicknode_vs_public=_comparison(q, u),
+        directional_vs_discovery=_comparison(p, d),
+        directional_vs_dlmm=_comparison(p, l),
+        directional_vs_shadow=_comparison(p, s),
+        directional_vs_public=_comparison(p, u),
     )
 
     try:
@@ -133,13 +154,20 @@ def run(primary_endpoint, *, feed_seconds=5.0):
             error=str(exc),
         )
 
-    result["topology"] = topology.telemetry()
-    result["public_provider"] = public.telemetry()
+    result["topology"] = topology_metadata()
+    result["primary_is_alchemy"] = (
+        (p or {}).get("provider_kind") == "alchemy"
+    )
+    result["provider_telemetry"] = dict(
+        directional=directional.telemetry(),
+        discovery=discovery.telemetry(),
+        dlmm=dlmm.telemetry(),
+        shadow=(None if shadow is None else shadow.telemetry()),
+        public=public.telemetry(),
+    )
     result["ended_at"] = time.time()
-    result["complete"] = bool(
-        result["providers"].get("primary")
-        and result["providers"].get("quicknode")
-        and result.get("sequencer", {}).get("messages", 0) > 0
+    result["complete_core"] = bool(
+        p and d and l and result.get("sequencer", {}).get("messages", 0) > 0
     )
     return result
 
@@ -148,4 +176,4 @@ if __name__ == "__main__":
     report = run(os.environ.get("MM_ROBINHOOD_READ_RPC_URL", ""))
     REPORT.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(json.dumps(report, sort_keys=True))
-    raise SystemExit(0 if report["providers"].get("primary") else 2)
+    raise SystemExit(0 if report["providers"].get("directional_evidence") else 2)

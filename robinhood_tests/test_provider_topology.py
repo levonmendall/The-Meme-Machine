@@ -1,98 +1,170 @@
 import unittest
 
 from robinhood_research import BoundaryError
-from robinhood_research.provider_topology import MultiSourceRpc
+from robinhood_research.provider_topology import (
+    DLMM_ENV,
+    DISCOVERY_ENV,
+    PRIMARY_ENV,
+    SHADOW_ENV,
+    PacedRpc,
+    ProviderPacer,
+    configured_discovery_rpc,
+    configured_dlmm_rpc,
+    configured_rpc,
+    configured_shadow_rpc,
+    topology_metadata,
+)
 
 
-class MultiSourceProviderTests(unittest.TestCase):
-    def test_primary_success_never_touches_secondary(self):
-        secondary_calls=[]
-        rpc=MultiSourceRpc(
-            "https://primary.invalid",
-            secondary_endpoint="https://secondary.invalid",
-            retries=0,
-            primary_transport=lambda method,params: "0x1237",
-            secondary_transport=lambda method,params: secondary_calls.append((method,params)) or "0x1237",
+class _Clock:
+    def __init__(self):
+        self.now=0.0
+        self.sleeps=[]
+    def time(self):
+        return self.now
+    def sleep(self,seconds):
+        self.sleeps.append(float(seconds))
+        self.now+=float(seconds)
+
+
+class LaneProviderTests(unittest.TestCase):
+    def test_directional_primary_is_two_rps_and_fail_closed(self):
+        calls=[]
+        rpc=PacedRpc(
+            "https://robinhood-mainnet.g.alchemy.com/v2/key",
+            role="directional_evidence_primary",
+            requests_per_second=2.0,
+            transport=lambda method,params: calls.append(method) or "0x1237",
         )
         self.assertEqual(rpc.verify_chain(),4663)
-        self.assertEqual(secondary_calls,[])
         t=rpc.telemetry()
-        self.assertEqual(t["failover_successes"],0)
-        self.assertTrue(t["secondary_configured"])
+        self.assertEqual(t["provider_kind"],"alchemy")
+        self.assertEqual(t["role"],"directional_evidence_primary")
+        self.assertEqual(t["pacing"]["requests_per_second"],2.0)
+        self.assertFalse(t["automatic_failover"])
+        self.assertEqual(calls,["eth_chainId"])
 
-    def test_transport_failure_rescues_to_secondary(self):
-        secondary_calls=[]
-        def primary(*_):
+    def test_configured_directional_does_not_use_shadow_on_failure(self):
+        env={
+            PRIMARY_ENV:"https://primary.invalid/v2/key",
+            SHADOW_ENV:"https://shadow.invalid/key",
+        }
+        def fail(*_):
             raise BoundaryError("provider_transport_failure")
-        def secondary(method,params):
-            secondary_calls.append((method,params))
-            return "0x1237"
-        rpc=MultiSourceRpc(
-            "https://primary.invalid",
-            secondary_endpoint="https://secondary.invalid",
-            retries=0,
-            primary_transport=primary,
-            secondary_transport=secondary,
-        )
-        self.assertEqual(rpc.verify_chain(),4663)
-        self.assertEqual([x[0] for x in secondary_calls],["eth_chainId"])
-        t=rpc.telemetry()
-        self.assertEqual(t["failover_successes"],1)
-        self.assertEqual(t["failovers"],{"provider_transport_failure":1})
-
-    def test_primary_budget_exhaustion_does_not_escape_to_secondary(self):
-        secondary_calls=[]
-        rpc=MultiSourceRpc(
-            "https://primary.invalid",
-            secondary_endpoint="https://secondary.invalid",
-            limit=1,
-            per_scope=1,
-            retries=0,
-            primary_transport=lambda *_:"0x1237",
-            secondary_transport=lambda method,params: secondary_calls.append((method,params)) or "0x1237",
-        )
-        self.assertEqual(rpc.call("eth_chainId",[],scope="one"),"0x1237")
-        with self.assertRaisesRegex(BoundaryError,"budget_exhausted"):
-            rpc.call("eth_chainId",[],scope="one")
-        self.assertEqual(secondary_calls,[])
-
-    def test_alchemy_specific_method_remains_primary_only(self):
-        secondary_calls=[]
-        def primary(*_):
-            raise BoundaryError("provider_transport_failure")
-        rpc=MultiSourceRpc(
-            "https://primary.invalid",
-            secondary_endpoint="https://secondary.invalid",
-            retries=0,
-            primary_transport=primary,
-            secondary_transport=lambda method,params: secondary_calls.append((method,params)) or [],
+        rpc=configured_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,transport=fail
         )
         with self.assertRaisesRegex(BoundaryError,"transport_failure"):
-            rpc.call("alchemy_getAssetTransfers",[{}],scope="history")
-        self.assertEqual(secondary_calls,[])
+            rpc.call("eth_chainId",[],scope="candidate")
+        self.assertFalse(rpc.telemetry()["automatic_failover"])
 
-    def test_batch_can_fail_over_without_widening_logical_scope(self):
-        primary_calls=[];secondary_calls=[]
-        def primary(method,params):
-            primary_calls.append((method,params))
-            raise BoundaryError("provider_http_503")
-        def secondary(method,params):
-            secondary_calls.append((method,params))
-            return "0x1237" if method=="eth_chainId" else "0x1"
-        rpc=MultiSourceRpc(
-            "https://primary.invalid",
-            secondary_endpoint="https://secondary.invalid",
-            limit=10,per_scope=10,retries=0,
-            primary_transport=primary,
-            secondary_transport=secondary,
+    def test_discovery_prefers_dedicated_endpoint_at_five_rps(self):
+        env={
+            PRIMARY_ENV:"https://primary.invalid/v2/key",
+            DISCOVERY_ENV:"https://discovery.validationcloud.io/key",
+        }
+        rpc=configured_discovery_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
         )
-        out=rpc.batch([
-            ("eth_chainId",[]),
-            ("eth_blockNumber",[]),
-        ],scope="sample")
-        self.assertEqual(out,["0x1237","0x1"])
-        self.assertEqual(rpc.telemetry()["logical_requests"],2)
-        self.assertEqual(rpc.telemetry()["failover_successes"],1)
+        self.assertEqual(rpc.verify_chain(),4663)
+        t=rpc.telemetry()
+        self.assertEqual(t["role"],"pons_discovery_primary")
+        self.assertEqual(t["provider_kind"],"validation_cloud")
+        self.assertEqual(t["pacing"]["requests_per_second"],5.0)
+        self.assertFalse(rpc.primary_fallback)
+
+    def test_discovery_can_share_dlmm_endpoint(self):
+        env={
+            PRIMARY_ENV:"https://primary.invalid/v2/key",
+            DLMM_ENV:"https://rpc.validationcloud.io/key",
+        }
+        rpc=configured_discovery_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        self.assertEqual(rpc.telemetry()["provider_kind"],"validation_cloud")
+        self.assertFalse(rpc.primary_fallback)
+
+    def test_discovery_explicitly_falls_back_to_primary_until_configured(self):
+        env={PRIMARY_ENV:"https://primary.invalid/v2/key"}
+        rpc=configured_discovery_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        self.assertTrue(rpc.primary_fallback)
+        self.assertEqual(rpc.telemetry()["role"],"pons_discovery_primary_fallback")
+
+    def test_dlmm_uses_dedicated_five_rps_lane(self):
+        env={
+            PRIMARY_ENV:"https://primary.invalid/v2/key",
+            DLMM_ENV:"https://robinhood.validationcloud.io/key",
+        }
+        rpc=configured_dlmm_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        self.assertEqual(rpc.verify_chain(),4663)
+        t=rpc.telemetry()
+        self.assertEqual(t["role"],"dlmm_reconstruction_primary")
+        self.assertEqual(t["provider_kind"],"validation_cloud")
+        self.assertEqual(t["pacing"]["requests_per_second"],5.0)
+        self.assertFalse(rpc.primary_fallback)
+
+    def test_dlmm_fallback_is_explicit_not_failover(self):
+        env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key"}
+        rpc=configured_dlmm_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        self.assertTrue(rpc.primary_fallback)
+        self.assertEqual(
+            rpc.telemetry()["role"],"dlmm_reconstruction_primary_fallback"
+        )
+        self.assertFalse(rpc.telemetry()["automatic_failover"])
+
+    def test_shadow_is_diagnostic_only(self):
+        env={
+            PRIMARY_ENV:"https://primary.invalid/v2/key",
+            SHADOW_ENV:"https://shadow.quiknode.pro/key",
+        }
+        rpc=configured_shadow_rpc(environ=env)
+        self.assertIsNotNone(rpc)
+        t=rpc.telemetry()
+        self.assertEqual(t["role"],"shadow_diagnostic_only")
+        self.assertEqual(t["provider_kind"],"quicknode")
+        self.assertFalse(t["automatic_failover"])
+
+    def test_non_alchemy_provider_rejects_alchemy_specific_method(self):
+        rpc=PacedRpc(
+            "https://rpc.validationcloud.io/key",
+            role="shadow_diagnostic_only",
+            requests_per_second=5.0,
+            transport=lambda *_:[],
+        )
+        with self.assertRaisesRegex(BoundaryError,"wrong_provider"):
+            rpc.call("alchemy_getAssetTransfers",[{}],scope="history")
+
+    def test_pacer_enforces_physical_rate(self):
+        clock=_Clock()
+        pacer=ProviderPacer(2.0,clock=clock.time,sleeper=clock.sleep)
+        self.assertEqual(pacer.pace(),0.0)
+        self.assertAlmostEqual(pacer.pace(),0.5)
+        self.assertEqual(clock.sleeps,[0.5])
+        self.assertEqual(pacer.telemetry()["paced_requests"],2)
+
+    def test_topology_metadata_never_exposes_endpoint(self):
+        env={
+            PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/secret",
+            DLMM_ENV:"https://rpc.validationcloud.io/secret",
+            SHADOW_ENV:"https://shadow.quiknode.pro/secret",
+        }
+        meta=topology_metadata(environ=env)
+        body=str(meta)
+        self.assertEqual(meta["directional"]["evidence_provider_kind"],"alchemy")
+        self.assertEqual(meta["dlmm"]["provider_kind"],"validation_cloud")
+        self.assertNotIn("/secret",body)
+        self.assertNotIn("https://",body)
 
 
 if __name__=="__main__":
