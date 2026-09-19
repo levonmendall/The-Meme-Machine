@@ -1,0 +1,60 @@
+name: dlmm-adaptive-operator-discovery
+on:
+  push:
+    branches:
+      - research/dlmm-top-roi-wallet-evaluation
+permissions:
+  contents: read
+
+jobs:
+  structure-test:
+    if: contains(github.event.head_commit.message, '[dlmm-structure]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Adaptive acquisition regressions
+        run: |
+          python -m unittest tests.test_dlmm_adaptive_acquisition -v
+          python -m unittest tests.test_dlmm_top_roi_wallet_evaluation -v
+          python -m unittest tests.test_dlmm_wallet_strategy_discovery -v
+
+  live-discovery:
+    if: contains(github.event.head_commit.message, '[dlmm-adaptive-discovery-live]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: dlmm-alchemy-solana-live
+      cancel-in-progress: false
+    env:
+      MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
+      MM_ONFINALITY_SOLANA_WS_URL: ${{ secrets.MM_ONFINALITY_SOLANA_WS_URL }}
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+      MM_DLMM_DISCOVERY_STREAM_SECONDS: '180'
+      MM_DLMM_RECONSTRUCTION_SECONDS: '600'
+      MM_DLMM_RECONSTRUCTION_DEADLINE_SECONDS: '1200'
+      MM_DLMM_RECONSTRUCTION_QUEUE_LIMIT: '25000'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Regression gate
+        run: python -m unittest tests.test_dlmm_adaptive_acquisition -v
+      - name: Validate authenticated 5-RPS HTTP primary / Alchemy rescue
+        run: python -m tests.dlmm_alchemy_provider
+      - name: Full eligible-pool census plus union-stream adaptive reconstruction
+        run: python -m tests.dlmm_adaptive_operator_discovery
+      - name: Preserve adaptive discovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dlmm-adaptive-operator-discovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dlmm-adaptive-operator-discovery.json
+          if-no-files-found: warn
+          retention-days: 90
