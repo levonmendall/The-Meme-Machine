@@ -55,12 +55,13 @@ class PumpTape:
         self.parse_failures=0
         self.last_slot=None
 
-    def begin(self, now=None):
+    def begin(self, now=None, preserve_loss=False):
         now=int(self.clock() if now is None else now)
         with self._lock:
             self._events.clear()
             self.warm_since=now
-            self.loss_until=0
+            if not preserve_loss:
+                self.loss_until=0
             self.connected=True
             self.last_slot=None
 
@@ -156,9 +157,13 @@ class PumpTape:
                 retention_seconds=self.retention,event_id_version=EVENT_ID_VERSION)
 
 
+class _StreamParseFailure(RuntimeError):
+    pass
+
+
 class PumpLogStream:
-    """One finalized logsSubscribe connection; any disconnect resets continuity."""
-    def __init__(self, rpc_url, tape, clock=time.time, ws_url=None):
+    """Finalized logsSubscribe stream with fail-closed reconnect + full rewarm."""
+    def __init__(self, rpc_url, tape, clock=time.time, ws_url=None, reconnect_delay=2.0):
         self.url=str(ws_url or websocket_url(rpc_url))
         parts=urlsplit(self.url)
         if parts.scheme != 'wss' or parts.hostname != 'solana.api.onfinality.io':
@@ -166,41 +171,55 @@ class PumpLogStream:
                 raise ValueError('OnFinality WSS endpoint required')
         self.tape=tape
         self.clock=clock
+        self.reconnect_delay=max(0.0,float(reconnect_delay))
         self.subscription=None
+        # error_kind is terminal/startup-facing only. Transient disconnects are
+        # recorded separately so callers can remain fail-closed while the tape rewarms.
         self.error_kind=None
+        self.last_error_kind=None
+        self.connections=0
+        self.reconnects=0
 
     def run(self, stop_event, ready_event=None):
-        try:
-            with connect(self.url,open_timeout=10,ping_interval=20,ping_timeout=20,
-                         close_timeout=5,max_size=2_000_000,max_queue=128) as websocket:
-                request={'jsonrpc':'2.0','id':1,'method':'logsSubscribe','params':[
-                    {'mentions':[pump.PROGRAM]},{'commitment':'finalized'}]}
-                websocket.send(json.dumps(request))
-                ack=json.loads(websocket.recv(timeout=10))
-                if ack.get('error') or not isinstance(ack.get('result'),int):
-                    raise RuntimeError('subscription_rejected')
-                self.subscription=ack['result']
-                self.tape.begin(int(self.clock()))
-                if ready_event is not None:
-                    ready_event.set()
-                while not stop_event.is_set():
-                    try:
-                        message=websocket.recv(timeout=1)
-                    except TimeoutError:
-                        continue
-                    payload=json.loads(message)
-                    try:
-                        self.tape.ingest_notification(payload,int(self.clock()))
-                    except (ValueError,KeyError,TypeError):
-                        self.error_kind='parse_failure'
-                        self.tape.gap(int(self.clock()),parse=True)
-                        return
-        except Exception as exc:
-            # Never emit URLs or provider response bodies into diagnostics.
-            self.error_kind=type(exc).__name__
-            self.tape.gap(int(self.clock()))
-            if ready_event is not None:
-                ready_event.set()
-        finally:
-            if stop_event.is_set():
-                self.tape.stop()
+        ever_ready=False
+        while not stop_event.is_set():
+            try:
+                with connect(self.url,open_timeout=10,ping_interval=20,ping_timeout=20,
+                             close_timeout=5,max_size=2_000_000,max_queue=128) as websocket:
+                    request={'jsonrpc':'2.0','id':1,'method':'logsSubscribe','params':[
+                        {'mentions':[pump.PROGRAM]},{'commitment':'finalized'}]}
+                    websocket.send(json.dumps(request))
+                    ack=json.loads(websocket.recv(timeout=10))
+                    if ack.get('error') or not isinstance(ack.get('result'),int):
+                        raise RuntimeError('subscription_rejected')
+                    self.subscription=ack['result']
+                    if ever_ready:
+                        self.reconnects += 1
+                    self.connections += 1
+                    self.error_kind=None
+                    self.tape.begin(int(self.clock()),preserve_loss=ever_ready)
+                    ever_ready=True
+                    if ready_event is not None and not ready_event.is_set():
+                        ready_event.set()
+                    while not stop_event.is_set():
+                        try:
+                            message=websocket.recv(timeout=1)
+                        except TimeoutError:
+                            continue
+                        payload=json.loads(message)
+                        try:
+                            self.tape.ingest_notification(payload,int(self.clock()))
+                        except (ValueError,KeyError,TypeError) as exc:
+                            raise _StreamParseFailure() from exc
+            except Exception as exc:
+                if stop_event.is_set():
+                    break
+                kind='parse_failure' if isinstance(exc,_StreamParseFailure) else type(exc).__name__
+                self.last_error_kind=kind
+                # Every disconnect destroys evidence continuity. Reconnect is allowed,
+                # but no candidate can qualify until a complete fresh 60s window exists.
+                self.tape.gap(int(self.clock()),parse=(kind=='parse_failure'))
+                self.subscription=None
+                self.error_kind=None
+                stop_event.wait(self.reconnect_delay)
+        self.tape.stop()
