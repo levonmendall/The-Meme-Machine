@@ -11,6 +11,7 @@ from statistics import median
 DEFAULT_HORIZONS = (60, 180, 300, 600, 900, 1800, 3600)
 POST_EXIT_HORIZONS = (300, 900, 1800, 3600)
 LIQUIDITY_FLOORS = (5_000_000_000, 7_500_000_000, 10_000_000_000)
+SUBCLASS_PROTOCOL_VERSION = 'subclass-development-v1'
 
 
 def price_parts(event):
@@ -142,6 +143,46 @@ def liquidity_floor_eligibility(vector):
 
 
 
+
+
+def two_buyer_research_candidate(vector):
+    """Research-only precursor: buyer-count is the sole known preflight blocker."""
+    vector=vector or {}
+    grid=(((vector.get('sensitivity') or {}).get('values') or {})
+          .get('min_independent_groups') or {})
+    return bool(
+        vector.get('actual_reason')=='independent_demand' and
+        int(vector.get('independent_buyer_groups') or -1)==2 and
+        grid.get('2',False)
+    )
+
+
+def subclass_research_protocol():
+    """Pre-registered development -> freeze -> fresh validation boundary."""
+    return dict(
+        version=SUBCLASS_PROTOCOL_VERSION,
+        authority='research_only',
+        automatic_trading_admission=False,
+        outcome_definition=dict(
+            strong_clean_win='max_favorable_bps>=1500 and max_adverse_bps>-1000',
+            horizons_seconds=list(DEFAULT_HORIZONS),
+        ),
+        two_buyer=dict(
+            development_candidate='exactly_2_independent_groups_and_only_buyer_count_blocks_current_policy',
+            minimum_complete_development=30,
+            maximum_candidate_rule_features=2,
+            prospective_validation_minimum=30,
+            rule_must_be_frozen_before_validation=True,
+        ),
+        high_density=dict(
+            development_candidate='point_in_time_pump_window_event_count>100',
+            minimum_labeled_development=100,
+            maximum_candidate_rule_features=3,
+            prospective_validation_minimum=50,
+            rule_must_be_frozen_before_validation=True,
+            trading_event_cap_remains=100,
+        ),
+    )
 
 def is_two_buyer_sole_near_miss(row):
     """True only when 3->2 buyer groups alone flips the frozen vector to pass."""
