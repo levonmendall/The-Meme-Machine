@@ -1,0 +1,1 @@
+Run merged-head 20-minute Ramses Fee Pulse natural discovery with adaptive finality wait and exact +60s post-window machinery horizon.

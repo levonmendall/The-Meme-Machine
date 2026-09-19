@@ -1,0 +1,1 @@
+Five-minute exact Ramses natural proof from 4c226257909bc019d3bc946a0ca7a072a41f7757: one frozen 8-pool authenticated native cohort, 15-second live-head polling within provider budget, selected mutation finalized before range freeze, ~60-second forward head then terminal finality, exact replay and paper LP unwind. No allocation/signing/threshold/merge/deploy changes.

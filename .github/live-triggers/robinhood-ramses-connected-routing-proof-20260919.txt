@@ -1,0 +1,1 @@
+Run one merged-head routing proof of the connected all-pool Fee Pulse lifecycle. Preserve frozen thresholds and paper-only authority.

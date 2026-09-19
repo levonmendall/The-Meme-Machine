@@ -1,0 +1,277 @@
+name: robinhood-research
+on:
+  push:
+    branches: [feat/robinhood-research-foundation]
+  pull_request:
+    paths: ['robinhood_research/**', 'robinhood_tests/**', '.github/workflows/robinhood-research.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  MM_ROBINHOOD_DISCOVERY_RPC_URL: ${{ secrets.MM_ROBINHOOD_DISCOVERY_RPC_URL }}
+  MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+  MM_ROBINHOOD_SHADOW_RPC_URL: ${{ secrets.MM_ROBINHOOD_SHADOW_RPC_URL }}
+  MM_ROBINHOOD_SEQUENCER_FEED_URL: wss://feed.mainnet.chain.robinhood.com
+jobs:
+  deterministic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m unittest discover -s robinhood_tests -v
+  bounded-read-proof:
+    needs: deterministic
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-read-proof]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: meme-machine-robinhood-read-proof
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Bounded read-only Robinhood provider proof
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+        run: python -m robinhood_research.probe
+      - name: Preserve exact-release read evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: robinhood-read-${{ github.sha }}-${{ github.run_id }}
+          path: robinhood-live-report.json
+          retention-days: 30
+          if-no-files-found: error
+  bounded-protocol-proof:
+    needs: deterministic
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-protocol-proof]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    concurrency:
+      group: meme-machine-robinhood-protocol-proof
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Capture bounded public protocol evidence
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+        run: python -m robinhood_research.protocol_probe
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: robinhood-protocol-${{ github.sha }}-${{ github.run_id }}
+          path: robinhood-protocol-report.json
+          retention-days: 30
+          if-no-files-found: error
+  bounded-ramses-proof:
+    needs: deterministic
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-ramses-proof]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: meme-machine-robinhood-ramses-proof
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Capture bounded public protocol evidence
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+        run: python -m robinhood_research.ramses_capture
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: robinhood-ramses-${{ github.sha }}-${{ github.run_id }}
+          path: robinhood-ramses-report.json
+          retention-days: 30
+          if-no-files-found: error
+  bounded-pons-lineage-proof:
+    needs: deterministic
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-pons-lineage-proof]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    concurrency:
+      group: meme-machine-robinhood-pons-lineage-proof
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Capture bounded public protocol evidence
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+        run: python -m robinhood_research.pons_lineage_capture
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: robinhood-pons-lineage-${{ github.sha }}-${{ github.run_id }}
+          path: robinhood-pons-lineage-report.json
+          retention-days: 30
+          if-no-files-found: error
+
+  bounded-pons-natural-observation:
+    needs: deterministic
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-pons-natural]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: meme-machine-robinhood-pons-natural
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Observe one bounded natural Pons candidate
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+        run: python -m robinhood_research.pons_natural_observation
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: robinhood-pons-natural-${{ github.sha }}-${{ github.run_id }}
+          path: robinhood-pons-natural-report.json
+          retention-days: 30
+          if-no-files-found: error
+
+  bounded-pons-natural-paper:
+    needs: deterministic
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-pons-paper]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    concurrency:
+      group: meme-machine-robinhood-pons-paper
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Run one genuine natural Pons paper lifecycle
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+        run: python -m robinhood_research.pons_natural_paper
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: robinhood-pons-paper-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            robinhood-pons-paper-report.json
+            robinhood-pons-paper.sqlite
+          retention-days: 30
+          if-no-files-found: error
+
+  bounded-continuation-robinhood-sample:
+    needs: deterministic
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-continuation-sample]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    concurrency:
+      group: meme-machine-robinhood-continuation-sample
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Run unbiased continuation-v1-robinhood natural sample
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+        run: python -m robinhood_research.continuation_robinhood_sample
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: robinhood-continuation-sample-${{ github.sha }}-${{ github.run_id }}
+          path: robinhood-continuation-v1-sample.json
+          retention-days: 30
+          if-no-files-found: error
+
+  bounded-continuation-robinhood-cohort:
+    needs: deterministic
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-continuation-cohort]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    concurrency:
+      group: meme-machine-robinhood-continuation-cohort-long-v1
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Run frozen-policy qualified paper cohort
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+        run: python -m robinhood_research.continuation_robinhood_cohort
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: robinhood-continuation-cohort-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            robinhood-continuation-v1-cohort.json
+            robinhood-continuation-cohort/
+          retention-days: 30
+          if-no-files-found: error
+
+  bounded-ramses-forced-paper:
+    needs: deterministic
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-ramses-forced-paper]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: meme-machine-robinhood-ramses-forced-paper
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Run one forced paper-only Ramses lifecycle
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+        run: python -m robinhood_research.ramses_forced_paper
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: robinhood-ramses-forced-paper-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            robinhood-ramses-forced-paper-report.json
+            robinhood-ramses-forced-paper.sqlite
+          retention-days: 30
+          if-no-files-found: error
+  bounded-observability-proof:
+    needs: deterministic
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[robinhood-observability-proof]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: meme-machine-robinhood-observability-proof
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Compare directional, discovery, DLMM, shadow and sequencer planes
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+        run: python -m robinhood_research.observability_probe
+      - name: Preserve multi-source observability evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: robinhood-observability-${{ github.sha }}-${{ github.run_id }}
+          path: robinhood-observability-report.json
+          retention-days: 30
+          if-no-files-found: error

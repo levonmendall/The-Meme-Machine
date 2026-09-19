@@ -1,0 +1,19 @@
+{
+  "chain_id": 4663,
+  "network_source": "https://docs.robinhood.com/chain/connecting/",
+  "deployment_status": "unverified_candidates_no_execution_authority",
+  "candidate_source": "predecessor robinhood_chain_core.py; requires independent onchain and ABI verification",
+  "contracts": {
+    "pons_v1_active_factory": "0xa5aab3f0c6eeadf30ef1d3eb997108e976351feb",
+    "pons_v1_legacy_factory": "0x0c37a24f5d23a486fa692d1500881d698b1f77a4",
+    "pons_v2_factory": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e",
+    "pons_v2_hook": "0xe5e702641ea86f4ae6cc3cdaed2b886f976be044",
+    "uniswap_v3_factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
+    "uniswap_v4_pool_manager": "0x8366a39cc670b4001a1121b8f6a443a643e40951"
+  },
+  "ramses_dlmm": {
+    "enabled": false,
+    "address": null,
+    "boundary": "mainnet_deployment_abi_bin_fee_share_accounting_unverified"
+  }
+}

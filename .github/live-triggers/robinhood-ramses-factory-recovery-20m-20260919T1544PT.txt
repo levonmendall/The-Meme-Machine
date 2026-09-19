@@ -1,0 +1,5 @@
+Purpose: start the exact 20-minute Ramses Fee Pulse test after factory enumeration recovery.
+Owner branch: feat/robinhood-research-foundation
+Strategy: ramses-fee-pulse-v1
+Thresholds changed: false
+Paper only: true

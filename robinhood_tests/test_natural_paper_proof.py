@@ -1,0 +1,100 @@
+import unittest
+
+from robinhood_research import BoundaryError
+from robinhood_research.evidence import Stamp, Store
+from robinhood_research.finality import Finality
+from robinhood_research.paper import Paper, Quote
+from robinhood_research.continuation_robinhood import POLICY_HASH
+
+MARKET="0x"+"11"*20
+
+
+class NaturalPaperProofTests(unittest.TestCase):
+    def _ledger(self,store,scope,block,at):
+        stamp=Stamp(4663,block,f"h{block}",at,at,"confirmed","natural")
+        ledger=Finality(store,scope=scope,max_blocks=4)
+        ledger.observe(stamp,f"p{block}")
+        return stamp,ledger
+
+    def test_default_natural_authority_remains_disabled(self):
+        store=Store(":memory:")
+        paper=Paper(store,"default",10**18)
+        decision=dict(
+            asof=100,market=MARKET,authority="bounded_lifecycle_proof_only",
+            qualification="policy_not_established",
+        )
+        with self.assertRaisesRegex(BoundaryError,"policy_not_established"):
+            paper.reserve("p",market=MARKET,amount=10**16,gas_budget=10**15,
+                          now=100,features=decision,kind="natural")
+        store.close()
+
+    def test_exact_frozen_policy_can_authorize_natural_paper_but_hash_cannot_drift(self):
+        store=Store(":memory:")
+        paper=Paper(store,"frozen",10**18,delay=2,natural_policy_hash=POLICY_HASH)
+        decision=dict(
+            asof=100,market=MARKET,authority="frozen_policy_paper",
+            qualification="qualified",policy_hash=POLICY_HASH,
+        )
+        reserved=paper.reserve(
+            "p",market=MARKET,amount=10**16,gas_budget=10**15,
+            now=100,features=decision,kind="natural",
+        )
+        self.assertEqual(reserved["status"],"reserved")
+        with self.assertRaisesRegex(BoundaryError,"natural_policy_authority_missing"):
+            other=Paper(store,"wrong",10**18,delay=2,natural_policy_hash=POLICY_HASH)
+            other.reserve(
+                "q",market=MARKET,amount=10**16,gas_budget=10**15,now=100,
+                features=dict(decision,policy_hash="0"*64),kind="natural",
+            )
+        store.close()
+
+    def test_frozen_policy_reservation_can_cancel_without_residual_exposure(self):
+        store=Store(":memory:")
+        paper=Paper(store,"cancel",10**18,delay=2,natural_policy_hash=POLICY_HASH)
+        decision=dict(
+            asof=100,market=MARKET,authority="frozen_policy_paper",
+            qualification="qualified",policy_hash=POLICY_HASH,
+        )
+        paper.reserve("p",market=MARKET,amount=10**16,gas_budget=10**15,
+                      now=100,features=decision,kind="natural")
+        closed=paper.advance("p",now=101,action="cancel",cancel_reason="entry_slippage")
+        self.assertEqual((closed["status"],closed["reason"],closed["reserved"]),
+                         ("settled","entry_slippage",0))
+        self.assertEqual(paper.reconcile()["committed"],0)
+        with self.assertRaisesRegex(BoundaryError,"invalid_reservation_cancel"):
+            paper.advance("p",now=102,action="cancel",cancel_reason="again")
+        store.close()
+
+    def test_explicit_natural_proof_requires_confirmed_ledger_and_settles(self):
+        store=Store(":memory:")
+        paper=Paper(store,"proof",10**18,natural_proof=True,delay=2)
+        decision=dict(
+            asof=100,market=MARKET,authority="bounded_lifecycle_proof_only",
+            qualification="policy_not_established",
+            selection_rule="first_current_authenticated_pons_v2_curve_after_start",
+        )
+        paper.reserve("p",market=MARKET,amount=10**16,gas_budget=10**15,
+                      now=100,features=decision,kind="natural")
+
+        entry_stamp,entry_ledger=self._ledger(store,"entry",102,102)
+        entry=Quote(MARKET,"buy",10**16,20_000,100,50,entry_stamp)
+        with self.assertRaisesRegex(BoundaryError,"unfinalized"):
+            paper.advance("p",now=102,action="entry",quote=entry)
+        opened=paper.advance("p",now=102,action="entry",quote=entry,
+                             finality_ledger=entry_ledger)
+        self.assertEqual(opened["status"],"open")
+
+        paper.advance("p",now=110,action="exit_intent")
+        exit_stamp,exit_ledger=self._ledger(store,"exit",112,112)
+        closed=paper.advance(
+            "p",now=112,action="exit",
+            quote=Quote(MARKET,"sell",20_000,11_000_000_000_000_000,100,50,exit_stamp),
+            finality_ledger=exit_ledger,
+        )
+        self.assertEqual(closed["status"],"settled")
+        self.assertEqual(paper.reconcile()["open_exposure"],0)
+        store.close()
+
+
+if __name__=="__main__":
+    unittest.main()
