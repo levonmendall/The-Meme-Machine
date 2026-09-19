@@ -37,6 +37,7 @@ class IncrementalPumpSwapHistory:
         self.tx_failures=0
         self.broker=broker
         self.stream_key=str(stream_key)
+        self.history_scope="pumpswap_history"
         self.stream_pending_transactions=0
         self.stream_events_seen=0
         self.stream_hydrated_transactions=0
@@ -45,6 +46,14 @@ class IncrementalPumpSwapHistory:
         self.decision_bootstrap_pages=0
         self.decision_bootstrap_complete=False
         self.decision_bootstrap_capacity_loss=False
+        self.restored_signature_rows=0
+        if self.broker is not None:
+            restored=self.broker.signature_rows(
+                self.history_scope,self.pool)
+            if restored:
+                self._remember(restored)
+                self._coverage()
+                self.restored_signature_rows=len(restored)
 
     @staticmethod
     def _valid_rows(rows):
@@ -66,6 +75,9 @@ class IncrementalPumpSwapHistory:
     def _remember(self,rows):
         if not rows:
             return
+        if self.broker is not None:
+            self.broker.remember_signatures(
+                self.history_scope,self.pool,rows)
         for row in rows:
             sig=str(row["signature"])
             prior=self.signature_rows.get(sig)
@@ -403,6 +415,12 @@ class IncrementalPumpSwapHistory:
             decision_bootstrap_pages=self.decision_bootstrap_pages,
             decision_bootstrap_complete=self.decision_bootstrap_complete,
             decision_bootstrap_capacity_loss=self.decision_bootstrap_capacity_loss,
+            restored_signature_rows=self.restored_signature_rows,
+            persisted_signature_rows=(
+                0 if self.broker is None else len(
+                    self.broker.signature_rows(
+                        self.history_scope,self.pool))
+            ),
             stream_status=(
                 None if self.broker is None
                 else self.broker.stream_status(self.stream_key,now,30)
