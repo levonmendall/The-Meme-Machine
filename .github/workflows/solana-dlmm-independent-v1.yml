@@ -1,11 +1,14 @@
 name: solana-dlmm-independent-v1
-# measurement-revision: 1.6
+# measurement-revision: 1.7
 # completed-bucket-rule: timestamp+300<=observation_time
 # fixture-timing-fix: 1
 # support-expansion: plain-token2022-and-no-freeze-mint-authority
 # warmup-alignment: max-5-fresh-12s-windows
 # discovery-handoff: streaming-immediate
 # signature-census: paginated-boundary-proof
+# entry-clock: fresh-authenticated-swap
+# compatibility-budget: pre-attempt
+# dynamic-fee-role: context-only
 on:
   push:
     branches:
