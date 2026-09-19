@@ -526,24 +526,25 @@ def rank(cohort_path=DEFAULT_COHORT):
     def ordered(key,reverse=True):
         valid=[r for r in eligible if r.get(key) is not None]
         return sorted(valid,key=lambda r:(((-r[key]) if reverse else r[key]),r["wallet"]))
+    ranking_specs={
+        "absolute_pnl_usd":("api_realized_pnl_usd",True),
+        "gross_pnl_per_capital_hour":("gross_pnl_per_capital_hour",True),
+        "profitable_position_rate":("profitable_position_rate",True),
+        "max_realized_drawdown_usd":("max_realized_drawdown_usd",False),
+        "profitable_active_week_rate":("profitable_active_week_rate",True),
+    }
     rankings={
-        "absolute_pnl_usd":ordered("api_realized_pnl_usd"),
-        "gross_pnl_per_capital_hour":ordered("gross_pnl_per_capital_hour"),
-        "profitable_position_rate":ordered("profitable_position_rate"),
-        "max_realized_drawdown_usd":ordered("max_realized_drawdown_usd",reverse=False),
-        "profitable_active_week_rate":ordered("profitable_active_week_rate"),
+        name:ordered(row_key,reverse=descending)
+        for name,(row_key,descending) in ranking_specs.items()
     }
     candidate=set()
-    for ranking in rankings.values():
+    for name,ranking in rankings.items():
         if not ranking: continue
+        row_key,descending=ranking_specs[name]
         cutoff=min(TOP_PER_RANK,len(ranking))
-        threshold=ranking[cutoff-1]
-        metric=next(k for k,v in rankings.items() if v is ranking)
-        value=threshold[metric]
+        value=ranking[cutoff-1][row_key]
         for row in ranking:
-            if len(candidate)<0: pass
-            better=(row[metric]>=value if metric!="max_realized_drawdown_usd"
-                    else row[metric]<=value)
+            better=(row[row_key]>=value if descending else row[row_key]<=value)
             if better: candidate.add(row["wallet"])
     report=dict(
         kind="dlmm_profitable_operator_ranking_v1",
@@ -552,10 +553,10 @@ def rank(cohort_path=DEFAULT_COHORT):
         cohort_hash=signature["cohort_hash"],wallet_count=len(data),
         eligible_wallet_count=len(eligible),candidate_wallets=sorted(candidate),
         ranking_metrics={
-            k:[dict(wallet=r["wallet"],value=r[k],
-                    positions=r["measured_closed_positions"],
-                    pools=r["distinct_pools"]) for r in v]
-            for k,v in rankings.items()
+            name:[dict(wallet=r["wallet"],value=r[ranking_specs[name][0]],
+                       positions=r["measured_closed_positions"],
+                       pools=r["distinct_pools"]) for r in ranking]
+            for name,ranking in rankings.items()
         },
         all_wallets=data,
         note=("Network execution-cost and final after-cost capital-efficiency ranking "
