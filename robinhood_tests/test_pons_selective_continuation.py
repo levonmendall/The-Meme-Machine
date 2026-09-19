@@ -525,6 +525,37 @@ class SelectiveProviderRecoveryTests(unittest.TestCase):
         self.assertEqual(fresh,["covered"])
         self.assertEqual(recover.call_args.args[2],100)
 
+    def test_http_429_applies_backpressure_and_preserves_cursor(self):
+        class Pacer:
+            def __init__(self):
+                self.requests_per_second=5.0;self.calls=[]
+            def slow_to(self,rps):
+                self.calls.append(float(rps))
+                if rps<self.requests_per_second:
+                    self.requests_per_second=float(rps);return True
+                return False
+        rpc1=SelectiveDiscoveryFrontierTests.Rpc(105)
+        rpc1.pacer=Pacer()
+        rpc1._last_boundary="provider_http_429"
+        rpc2=SelectiveDiscoveryFrontierTests.Rpc(105)
+        sessions=[];recoveries=[]
+        with tempfile.TemporaryDirectory() as td:
+            recovery_log=Path(td)/"recoveries.jsonl"
+            provider_log=Path(td)/"providers.jsonl"
+            with patch.object(selective_cohort,"RECOVERY_LOG",recovery_log), \
+                 patch.object(selective_cohort,"PROVIDER_LOG",provider_log), \
+                 patch.object(selective_cohort,"_discovery",return_value=rpc2), \
+                 patch.object(selective_cohort.time,"sleep",return_value=None):
+                got=selective_cohort._recover_discovery(
+                    "https://unused",rpc1,100,sessions,recoveries
+                )
+        self.assertIs(got,rpc2)
+        self.assertEqual(rpc1.pacer.calls,[2.5])
+        self.assertEqual(recoveries[0]["kind"],"provider_rate_limit_recovery")
+        self.assertEqual(recoveries[0]["canonical_cursor_before"],100)
+        self.assertFalse(recoveries[0]["canonical_cursor_advanced"])
+        self.assertEqual(recoveries[0]["pacer_rps_after"],2.5)
+
     def test_semantic_rpc_error_is_not_recovered(self):
         rpc=SelectiveDiscoveryFrontierTests.Rpc(105)
         with patch.object(
