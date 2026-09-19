@@ -689,11 +689,19 @@ class EvidenceBroker:
             pending = self.db.execute(
                 "SELECT COUNT(*) FROM jobs WHERE status='pending'"
             ).fetchone()[0]
+            inflight = self.db.execute(
+                "SELECT COUNT(*) FROM jobs WHERE status='inflight'"
+            ).fetchone()[0]
+            expired = self.db.execute(
+                "SELECT COUNT(*) FROM jobs WHERE status='expired'"
+            ).fetchone()[0]
             events = self.db.execute("SELECT COUNT(*) FROM stream_events").fetchone()[0]
             signatures = self.db.execute("SELECT COUNT(*) FROM signatures").fetchone()[0]
         return dict(
             transaction_cache_entries=int(tx_count),
             pending_jobs=int(pending),
+            inflight_jobs=int(inflight),
+            expired_jobs=int(expired),
             stream_events=int(events),
             signature_rows=int(signatures),
             pressure=self._pressure(),
