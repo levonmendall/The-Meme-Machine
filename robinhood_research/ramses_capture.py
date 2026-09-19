@@ -35,23 +35,51 @@ INVENTORY_NATIVE_SHA='1e6beebd82ae3b87d1f2149374a5efdf6acc089c9cb4f792ae9b32e42b
 
 
 class BoundedMultiRpc:
-    """Ramses-only bounded multi-session reader for complete factory inventory.
+    """Ramses-only bounded reader with shared pacing and adaptive 429 recovery.
 
-    Each underlying Rpc keeps the existing 200-logical-request hard boundary.
-    This wrapper may open at most four sessions and aggregates all provider
-    telemetry, so complete inventory is possible without changing shared/Pons
-    provider behavior or making the budget unbounded.
+    Logical request budgets remain bounded per underlying session. Physical
+    throughput is governed by the shared DLMM pacer, while rate-limited batches
+    are split into smaller chunks rather than repeatedly replaying the same burst.
+    Exact receipts and numbered block headers are cached across session rotation.
     """
-    def __init__(self,endpoint,*,max_sessions=4,batch_size=20,batch_pause=0.75,rate_retries=1):
-        self.endpoint=endpoint;self.max_sessions=max_sessions;self.batch_size=batch_size;self.batch_pause=batch_pause
+    RATE_ERRORS=frozenset(("provider_rpc_429","provider_http_429"))
+
+    def __init__(
+        self,endpoint,*,max_sessions=4,batch_size=20,batch_pause=0.75,
+        rate_retries=1,rate_cooldown=6.0,adaptive_batch_floor=2,
+    ):
+        if (
+            type(batch_size) is not int or not 1<=batch_size<=50
+            or type(adaptive_batch_floor) is not int
+            or not 1<=adaptive_batch_floor<=batch_size
+            or float(batch_pause)<0
+            or float(rate_cooldown)<0
+        ):
+            raise BoundaryError("invalid_ramses_provider_shape")
+        self.endpoint=endpoint
+        self.max_sessions=max_sessions
+        self.batch_size=batch_size
+        self.batch_pause=float(batch_pause)
         self.rate_retries=rate_retries
-        self.sessions=[];self.wrapper_retries=0
+        self.rate_cooldown=float(rate_cooldown)
+        self.adaptive_batch_floor=adaptive_batch_floor
+        self.sessions=[]
+        self.wrapper_retries=0
+        self.adaptive_batch_splits=0
+        self.rate_limit_events=0
+        self.rate_limit_sleep_seconds=0.0
+        self._receipt_cache={}
+        self._block_cache={}
+        self.receipt_cache_hits=0
+        self.block_cache_hits=0
         self._new()
 
     def _new(self):
         if len(self.sessions)>=self.max_sessions:
-            raise BoundaryError('ramses_provider_program_budget_exhausted')
-        session=configured_dlmm_rpc(self.endpoint,limit=200,per_scope=200,retries=0)
+            raise BoundaryError("ramses_provider_program_budget_exhausted")
+        session=configured_dlmm_rpc(
+            self.endpoint,limit=200,per_scope=200,retries=0
+        )
         self.sessions.append(session)
         return session
 
@@ -61,57 +89,168 @@ class BoundedMultiRpc:
             current=self._new()
         return current
 
-    def call(self,method,params,*,scope='connectivity'):
+    def _rate_wait(self,attempt):
+        delay=self.rate_cooldown*(2**max(0,int(attempt)))
+        self.rate_limit_events+=1
+        if delay:
+            time.sleep(delay)
+            self.rate_limit_sleep_seconds+=delay
+        return delay
+
+    def call(self,method,params,*,scope="connectivity"):
         for attempt in range(self.rate_retries+1):
             try:
                 return self._session(1).call(method,params,scope=scope)
             except BoundaryError as exc:
-                if str(exc) not in ('provider_rpc_429','provider_http_429') or attempt>=self.rate_retries:
+                if str(exc) not in self.RATE_ERRORS or attempt>=self.rate_retries:
                     raise
-                self.wrapper_retries+=1;time.sleep(3*(attempt+1))
-        raise BoundaryError('provider_rate_limit')
+                self.wrapper_retries+=1
+                self._rate_wait(attempt)
+        raise BoundaryError("provider_rate_limit")
 
-    def batch(self,calls,*,scope='connectivity'):
+    def _batch_chunk(self,chunk,scope,depth=0):
+        for attempt in range(self.rate_retries+1):
+            try:
+                return self._session(len(chunk)).batch(chunk,scope=scope)
+            except BoundaryError as exc:
+                if str(exc) not in self.RATE_ERRORS:
+                    raise
+                self.wrapper_retries+=1
+                self._rate_wait(attempt)
+                if len(chunk)>self.adaptive_batch_floor:
+                    mid=max(1,len(chunk)//2)
+                    self.adaptive_batch_splits+=1
+                    left=self._batch_chunk(chunk[:mid],scope,depth+1)
+                    if self.batch_pause:
+                        time.sleep(self.batch_pause)
+                    right=self._batch_chunk(chunk[mid:],scope,depth+1)
+                    return left+right
+                if attempt>=self.rate_retries:
+                    raise
+        raise BoundaryError("provider_rate_limit")
+
+    def batch(self,calls,*,scope="connectivity"):
         if not isinstance(calls,list) or not calls:
-            raise BoundaryError('provider_batch_shape')
+            raise BoundaryError("provider_batch_shape")
         out=[]
-        chunks=[calls[i:i+self.batch_size] for i in range(0,len(calls),self.batch_size)]
+        chunks=[
+            calls[i:i+self.batch_size]
+            for i in range(0,len(calls),self.batch_size)
+        ]
         for index,chunk in enumerate(chunks):
-            if index:time.sleep(self.batch_pause)
-            for attempt in range(self.rate_retries+1):
-                try:
-                    out.extend(self._session(len(chunk)).batch(chunk,scope=scope))
-                    break
-                except BoundaryError as exc:
-                    if str(exc) not in ('provider_rpc_429','provider_http_429') or attempt>=self.rate_retries:
-                        raise
-                    self.wrapper_retries+=1;time.sleep(3*(attempt+1))
+            if index and self.batch_pause:
+                time.sleep(self.batch_pause)
+            out.extend(self._batch_chunk(chunk,scope))
         return out
 
+    def receipts(self,identities,*,scope):
+        """Return receipts for (transaction_hash, block_hash), caching exact identity."""
+        if not isinstance(identities,list):
+            raise BoundaryError("receipt_identity_shape")
+        missing=[]
+        seen=set()
+        for tx_hash,block_hash in identities:
+            key=(tx_hash,block_hash)
+            if key in self._receipt_cache:
+                self.receipt_cache_hits+=1
+            elif key not in seen:
+                seen.add(key);missing.append(key)
+        if missing:
+            rows=self.batch(
+                [("eth_getTransactionReceipt",[tx]) for tx,_bh in missing],
+                scope=scope,
+            )
+            for key,row in zip(missing,rows):
+                tx_hash,block_hash=key
+                if (
+                    row.get("transactionHash")!=tx_hash
+                    or row.get("blockHash")!=block_hash
+                ):
+                    raise BoundaryError("receipt_block_disagreement")
+                self._receipt_cache[key]=row
+        return [self._receipt_cache[(tx,bh)] for tx,bh in identities]
+
     def receipt(self,tx_hash,block_hash,*,scope):
-        result=self.call('eth_getTransactionReceipt',[tx_hash],scope=scope)
-        if result['transactionHash']!=tx_hash or result['blockHash']!=block_hash:
-            raise BoundaryError('receipt_block_disagreement')
-        return result
+        return self.receipts([(tx_hash,block_hash)],scope=scope)[0]
+
+    def blocks(self,block_numbers,*,scope):
+        """Return exact numbered block headers, cached across session rotation."""
+        if not isinstance(block_numbers,list):
+            raise BoundaryError("block_identity_shape")
+        normalized=[int(b) for b in block_numbers]
+        missing=[]
+        seen=set()
+        for block in normalized:
+            if block in self._block_cache:
+                self.block_cache_hits+=1
+            elif block not in seen:
+                seen.add(block);missing.append(block)
+        if missing:
+            rows=self.batch(
+                [
+                    ("eth_getBlockByNumber",[hex(block),False])
+                    for block in missing
+                ],
+                scope=scope,
+            )
+            for block,row in zip(missing,rows):
+                if int(row.get("number","-0x1"),16)!=block:
+                    raise BoundaryError("block_number_disagreement")
+                self._block_cache[block]=row
+        return [self._block_cache[block] for block in normalized]
 
     def verify_chain(self):
-        result=self.call('eth_chainId',[])
+        result=self.call("eth_chainId",[])
         if int(result,16)!=4663:
-            raise BoundaryError('wrong_chain')
+            raise BoundaryError("wrong_chain")
         return 4663
 
     def telemetry(self):
         requests=transport=logical=retries=0
         methods=Counter();logical_methods=Counter();scopes=Counter();failures=Counter()
+        roles=Counter();providers=Counter()
+        pacing=None
         for session in self.sessions:
             row=session.telemetry()
-            requests+=row['requests'];transport+=row['transport_requests'];logical+=row['logical_requests'];retries+=row['retries']
-            methods.update(row['methods']);logical_methods.update(row['logical_methods']);scopes.update(row['scopes']);failures.update(row['failures'])
+            requests+=row["requests"]
+            transport+=row["transport_requests"]
+            logical+=row["logical_requests"]
+            retries+=row["retries"]
+            methods.update(row["methods"])
+            logical_methods.update(row["logical_methods"])
+            scopes.update(row["scopes"])
+            failures.update(row["failures"])
+            if row.get("role"): roles[row["role"]]+=1
+            if row.get("provider_kind"): providers[row["provider_kind"]]+=1
+            pacing=row.get("pacing") or pacing
         retries+=self.wrapper_retries
-        return dict(requests=requests,transport_requests=transport,logical_requests=logical,retries=retries,
-                    methods=dict(methods),logical_methods=dict(logical_methods),scopes=dict(scopes),
-                    failures=dict(failures),sessions=len(self.sessions),max_sessions=self.max_sessions,
-                    program_logical_limit=self.max_sessions*200,batch_size=self.batch_size,batch_pause_seconds=self.batch_pause)
+        return dict(
+            requests=requests,
+            transport_requests=transport,
+            logical_requests=logical,
+            retries=retries,
+            methods=dict(methods),
+            logical_methods=dict(logical_methods),
+            scopes=dict(scopes),
+            failures=dict(failures),
+            sessions=len(self.sessions),
+            max_sessions=self.max_sessions,
+            program_logical_limit=self.max_sessions*200,
+            batch_size=self.batch_size,
+            batch_pause_seconds=self.batch_pause,
+            adaptive_batch_floor=self.adaptive_batch_floor,
+            adaptive_batch_splits=self.adaptive_batch_splits,
+            rate_limit_events=self.rate_limit_events,
+            rate_limit_cooldown_seconds=self.rate_cooldown,
+            rate_limit_sleep_seconds=self.rate_limit_sleep_seconds,
+            receipt_cache_entries=len(self._receipt_cache),
+            receipt_cache_hits=self.receipt_cache_hits,
+            block_cache_entries=len(self._block_cache),
+            block_cache_hits=self.block_cache_hits,
+            provider_roles=dict(roles),
+            provider_kinds=dict(providers),
+            pacing=pacing,
+        )
 
 
 def _first_finalized_block_at_or_after(rpc,start_block,finalized_frontier,target_timestamp):
