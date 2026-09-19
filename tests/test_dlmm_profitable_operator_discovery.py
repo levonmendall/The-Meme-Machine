@@ -90,6 +90,31 @@ class ProfitableOperatorDiscoveryTests(unittest.TestCase):
         ):
             self.assertIn(required,names)
 
+    def test_freeze_requires_complete_matching_no_pnl_census(self):
+        protocol_hash=op._protocol_signature()
+        census={
+            "kind":"dlmm_profitable_operator_census_v1",
+            "status":"candidate_cohort_ready",
+            "protocol_sha256":protocol_hash,
+            "pnl_data_read":False,
+            "pnl_endpoints_forbidden":True,
+            "pool_count":1,"completed_pools":1,
+            "total_lp_actor_events":2,
+            "pool_universe":[{"address":"pool"}],
+            "wallets":[{"wallet":"b"},{"wallet":"a"}],
+        }
+        with tempfile.TemporaryDirectory() as td:
+            source=Path(td)/"census.json";source.write_text(json.dumps(census))
+            output=Path(td)/"cohort.json"
+            frozen=op.freeze_census(source,output)
+            self.assertEqual(frozen["status"],"frozen_pre_pnl")
+            self.assertFalse(frozen["pnl_data_read_before_freeze"])
+            self.assertEqual([x["wallet"] for x in frozen["wallets"]],["a","b"])
+            bad=dict(census);bad["status"]="incomplete_provider_evidence"
+            source.write_text(json.dumps(bad))
+            with self.assertRaisesRegex(RuntimeError,"freeze_census_incomplete"):
+                op.freeze_census(source,output)
+
     def test_protocol_freezes_all_pool_census_and_no_wallet_cap(self):
         body=json.loads(op.PROTOCOL.read_text())
         self.assertIn("exhaust every observable",body["universe"]["pool_census"])
