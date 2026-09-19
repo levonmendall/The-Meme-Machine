@@ -34,7 +34,7 @@ from .pons_natural_observation import (
     _latest_header, _one_word,
 )
 from .protocols import PoolKey
-from .provider import Rpc
+from .provider_topology import configured_rpc
 
 REPORT=Path(os.environ.get("MM_ROBINHOOD_PONS_PAPER_REPORT","robinhood-pons-paper-report.json"))
 DB=Path(os.environ.get("MM_ROBINHOOD_PONS_PAPER_DB","robinhood-pons-paper.sqlite"))
@@ -52,7 +52,7 @@ V4_SELECTOR="aa9d21cb"
 
 
 def _rpc(endpoint):
-    return Rpc(endpoint,limit=200,per_scope=190,retries=0)
+    return configured_rpc(endpoint,limit=200,per_scope=190,retries=0)
 
 
 def _gas_units(receipt):
