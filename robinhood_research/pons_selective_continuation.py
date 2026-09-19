@@ -54,6 +54,7 @@ EXIT_POLICY = dict(
     entry_delay_seconds=2,
     monitor_seconds=5,
     max_pregraduation_thesis_seconds=180,
+    max_total_hold_seconds=900,
 )
 BREAKOUT_THRESHOLDS = dict(
     allocation_authority=False,
