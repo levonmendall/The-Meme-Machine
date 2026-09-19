@@ -1,4 +1,4 @@
-"""Regression coverage for public-primary / Alchemy-rescue Solana routing."""
+"""Regression coverage for authenticated-OnFinality / Alchemy-rescue Solana routing."""
 import urllib.error
 import unittest
 from types import SimpleNamespace
@@ -9,6 +9,13 @@ from tests import dlmm_alchemy_provider as provider
 
 
 ALCHEMY = "https://solana-mainnet.g.alchemy.com/v2/example-key"
+ONFINALITY = "https://solana.api.onfinality.io/rpc?apikey=example-key"
+ONFINALITY_WS = "wss://solana.api.onfinality.io/ws?apikey=example-key"
+AUTH_ENV = {
+    topology.ONFINALITY_RPC_ENV_NAME: ONFINALITY,
+    topology.ONFINALITY_WS_ENV_NAME: ONFINALITY_WS,
+    provider.ENV_NAME: ALCHEMY,
+}
 
 
 class _Clock:
@@ -34,8 +41,23 @@ class SolanaReadProviderTopology(unittest.TestCase):
         self.assertTrue(meta["fallback_allowed"])
         self.assertFalse(meta["load_balancing"])
 
+    def test_authenticated_onfinality_secret_overrides_public_primary(self):
+        self.assertEqual(topology.primary_rpc_url(AUTH_ENV), ONFINALITY)
+        self.assertEqual(topology.primary_ws_url(AUTH_ENV), ONFINALITY_WS)
+        meta = provider.metadata(AUTH_ENV)
+        self.assertEqual(
+            meta["primary_provider"], topology.AUTHENTICATED_PRIMARY_PROVIDER
+        )
+        self.assertFalse(meta["primary_public"])
+        self.assertEqual(
+            meta["primary_credential"], topology.ONFINALITY_RPC_ENV_NAME
+        )
+        self.assertEqual(
+            meta["primary_ws_credential"], topology.ONFINALITY_WS_ENV_NAME
+        )
+
     def test_existing_alchemy_secret_is_secondary_rescue(self):
-        env = {provider.ENV_NAME: ALCHEMY}
+        env = AUTH_ENV
         self.assertEqual(
             provider.alchemy_rpc_url(env, required=True),
             ALCHEMY,
@@ -81,6 +103,27 @@ class SolanaReadProviderTopology(unittest.TestCase):
                     required=True,
                 )
 
+    def test_authenticated_primary_rejects_public_or_wrong_host(self):
+        for value in (
+            topology.PRIMARY_RPC_URL,
+            "https://example.com/rpc?apikey=key",
+            "http://solana.api.onfinality.io/rpc?apikey=key",
+        ):
+            with self.subTest(value=value), self.assertRaises(Unavailable):
+                topology.primary_rpc_url({
+                    topology.ONFINALITY_RPC_ENV_NAME: value
+                }, require_authenticated=True)
+
+    def test_authenticated_primary_is_required_by_live_validation(self):
+        with self.assertRaisesRegex(
+            Unavailable, "onfinality_authenticated_rpc_missing"
+        ):
+            topology.validate_topology(
+                {provider.ENV_NAME: ALCHEMY},
+                require_secondary=True,
+                require_authenticated_primary=True,
+            )
+
     def test_primary_override_cannot_redirect_to_arbitrary_provider(self):
         with self.assertRaisesRegex(
             Unavailable, "onfinality_public_rpc_endpoint_required"
@@ -92,8 +135,10 @@ class SolanaReadProviderTopology(unittest.TestCase):
     def test_dlmm_defaults_to_onfinality_primary_at_five_rps(self):
         pacer = provider.AlchemyPacer()
         self.assertAlmostEqual(pacer.minimum_interval, 0.2)
-        meta = provider.metadata({provider.ENV_NAME: ALCHEMY})
-        self.assertEqual(meta["primary_provider"], topology.PRIMARY_PROVIDER)
+        meta = provider.metadata(AUTH_ENV)
+        self.assertEqual(
+            meta["primary_provider"], topology.AUTHENTICATED_PRIMARY_PROVIDER
+        )
         self.assertEqual(meta["dlmm_primary_requests_per_second"], 5)
         self.assertAlmostEqual(meta["dlmm_minimum_request_interval_seconds"], 0.2)
 
@@ -137,7 +182,7 @@ class SolanaReadProviderTopology(unittest.TestCase):
     def test_healthy_primary_never_touches_alchemy(self):
         rpc = provider.new_rpc(
             limit=40,
-            environ={provider.ENV_NAME: ALCHEMY},
+            environ=AUTH_ENV,
         )
         calls = []
 
@@ -147,7 +192,7 @@ class SolanaReadProviderTopology(unittest.TestCase):
 
         rpc._request_url = request
         self.assertEqual(rpc.call("getGenesisHash", priority=True), "mainnet")
-        self.assertEqual(calls, [topology.PRIMARY_RPC_URL])
+        self.assertEqual(calls, [ONFINALITY])
         self.assertEqual(rpc.calls, 1)
         self.assertEqual(rpc.http_requests, 1)
         self.assertEqual(rpc.failover_count, 0)
@@ -155,13 +200,13 @@ class SolanaReadProviderTopology(unittest.TestCase):
     def test_primary_http_failure_rescues_to_alchemy_without_extra_logical_call(self):
         rpc = provider.new_rpc(
             limit=40,
-            environ={provider.ENV_NAME: ALCHEMY},
+            environ=AUTH_ENV,
         )
         calls = []
 
         def request(url, request):
             calls.append(url)
-            if url == topology.PRIMARY_RPC_URL:
+            if url == ONFINALITY:
                 raise urllib.error.HTTPError(
                     url, 429, "rate limited", {}, None
                 )
@@ -169,13 +214,15 @@ class SolanaReadProviderTopology(unittest.TestCase):
 
         rpc._request_url = request
         self.assertEqual(rpc.call("getGenesisHash", priority=True), "mainnet")
-        self.assertEqual(calls, [topology.PRIMARY_RPC_URL, ALCHEMY])
+        self.assertEqual(calls, [ONFINALITY, ALCHEMY])
         self.assertEqual(rpc.calls, 1)
         self.assertEqual(rpc.http_requests, 2)
         telemetry = rpc.provider_telemetry()
         self.assertEqual(telemetry["failover_count"], 1)
         self.assertEqual(
-            telemetry["provider_http_requests"][topology.PRIMARY_PROVIDER], 1
+            telemetry["provider_http_requests"][
+                topology.AUTHENTICATED_PRIMARY_PROVIDER
+            ], 1
         )
         self.assertEqual(
             telemetry["provider_http_requests"][topology.SECONDARY_PROVIDER], 1
@@ -184,14 +231,14 @@ class SolanaReadProviderTopology(unittest.TestCase):
     def test_null_get_transaction_rescues_to_alchemy(self):
         rpc = provider.new_rpc(
             limit=40,
-            environ={provider.ENV_NAME: ALCHEMY},
+            environ=AUTH_ENV,
         )
         calls = []
         expected = {"slot": 123, "meta": {"err": None}}
 
         def request(url, request):
             calls.append(url)
-            result = None if url == topology.PRIMARY_RPC_URL else expected
+            result = None if url == ONFINALITY else expected
             return {"jsonrpc": "2.0", "id": request["id"], "result": result}
 
         rpc._request_url = request
@@ -202,7 +249,7 @@ class SolanaReadProviderTopology(unittest.TestCase):
             fresh=True,
         )
         self.assertEqual(value, expected)
-        self.assertEqual(calls, [topology.PRIMARY_RPC_URL, ALCHEMY])
+        self.assertEqual(calls, [ONFINALITY, ALCHEMY])
         self.assertEqual(rpc.calls, 1)
         self.assertEqual(rpc.http_requests, 2)
         self.assertEqual(rpc.failover_count, 1)
@@ -210,7 +257,7 @@ class SolanaReadProviderTopology(unittest.TestCase):
     def test_batch_rejection_retries_public_items_before_alchemy(self):
         rpc = provider.new_rpc(
             limit=40,
-            environ={provider.ENV_NAME: ALCHEMY},
+            environ=AUTH_ENV,
         )
         calls = []
 
@@ -232,7 +279,7 @@ class SolanaReadProviderTopology(unittest.TestCase):
         out = rpc.call_many("getTransaction", params, True, batch_size=3)
         self.assertEqual(len(out), 3)
         self.assertEqual(rpc.failover_count, 0)
-        self.assertTrue(all(url == topology.PRIMARY_RPC_URL for url, _ in calls))
+        self.assertTrue(all(url == ONFINALITY for url, _ in calls))
         self.assertEqual(rpc.http_requests, 4)
 
     def test_new_rpc_objects_keep_independent_logical_budgets(self):
