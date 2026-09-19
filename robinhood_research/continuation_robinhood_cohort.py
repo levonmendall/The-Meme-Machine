@@ -21,7 +21,7 @@ from .continuation_robinhood import (
     EXIT_POLICY, POLICY, POLICY_HASH, REFERENCE_ENTRY_WEI,
 )
 from .continuation_robinhood_sample import (
-    TAPE_WARM_SECONDS, _evaluate, _rpc as sample_rpc,
+    TAPE_WARM_SECONDS, _evaluate, _discovery_rpc as sample_discovery_rpc,
 )
 from .evidence import Store
 from .paper import Paper
@@ -31,6 +31,7 @@ from .pons_natural_paper import (
     _return_bps, _rpc as paper_rpc, _v4_quote, _wait_curve_quote,
 )
 from .abi import topic
+from .sequencer_feed import SequencerBlockClock
 
 REPORT=Path(os.environ.get(
     "MM_ROBINHOOD_CONTINUATION_COHORT_REPORT",
@@ -59,7 +60,7 @@ TRANSPORT_RECOVERY_BACKOFF_SECONDS=0.5
 
 
 def _new_discovery(endpoint):
-    rpc=sample_rpc(endpoint)
+    rpc=sample_discovery_rpc(endpoint)
     rpc.verify_chain()
     return rpc
 
@@ -87,7 +88,7 @@ def _recover_discovery(endpoint,rpc,result,cursor,reason):
         time.sleep(TRANSPORT_RECOVERY_BACKOFF_SECONDS)
         candidate=None
         try:
-            candidate=sample_rpc(endpoint)
+            candidate=sample_discovery_rpc(endpoint)
             candidate.verify_chain()
             return candidate
         except BoundaryError as exc:
@@ -109,16 +110,22 @@ def _rotate_discovery(endpoint,rpc,result,cursor):
         return _recover_discovery(endpoint,None,result,cursor,exc)
 
 
-def _poll(endpoint,rpc,cursor,tape,result):
-    """Poll from cursor+1; transient transport failure never advances cursor."""
+def _poll(endpoint,rpc,cursor,tape,result,feed):
+    """Sequencer-triggered poll; provider recovery never advances the proven cursor."""
     if rpc.used>150:
         rpc=_rotate_discovery(endpoint,rpc,result,cursor)
+    latest=feed.wait_for_after(cursor,timeout=POLL_SECONDS)
+    if latest is None:
+        return rpc,cursor,[],None
     recovery_count=0
     while True:
         try:
-            latest_header=_latest_header(rpc)
-            latest=int(latest_header["number"],16)
-            first=max(cursor+1,latest-9)
+            latest_header=rpc.call(
+                "eth_getBlockByNumber",[hex(latest),False],scope="pons_natural"
+            )
+            if int(latest_header["number"],16)!=latest:
+                raise BoundaryError("sequencer_discovery_block_disagreement")
+            first=cursor+1
             fresh=[]
             if latest>=first:
                 fresh=_current_curve_events(rpc,first,latest)
@@ -452,16 +459,26 @@ def run(endpoint):
         if not _transport_failure(exc):
             raise
         rpc=_recover_discovery(endpoint,None,result,0,exc)
-    start_header=_latest_header(rpc)
-    cursor=int(start_header["number"],16)
+    feed=SequencerBlockClock()
+    feed.connect()
+    cursor=feed.wait_for_after(-1,timeout=5.0)
+    if cursor is None:
+        raise BoundaryError("sequencer_discovery_start_timeout")
+    start_header=rpc.call(
+        "eth_getBlockByNumber",[hex(cursor),False],scope="pons_natural"
+    )
+    if int(start_header["number"],16)!=cursor:
+        raise BoundaryError("sequencer_discovery_block_disagreement")
+    latest_header=start_header
     tape=[];seen_tx_logs=set();seen_curves=set()
     warm_start=int(start_header["timestamp"],16)
 
     try:
         warm_deadline=time.monotonic()+TAPE_WARM_SECONDS
         while time.monotonic()<warm_deadline:
-            rpc,cursor,_,latest_header=_poll(endpoint,rpc,cursor,tape,result)
-            time.sleep(POLL_SECONDS)
+            rpc,cursor,_,observed_header=_poll(endpoint,rpc,cursor,tape,result,feed)
+            if observed_header is not None:
+                latest_header=observed_header
         result["warmup"]=dict(
             start_block=int(start_header["number"],16),end_block=cursor,
             start_time=warm_start,end_time=int(latest_header["timestamp"],16),
@@ -479,7 +496,7 @@ def run(endpoint):
             and len(result["enrollments"])<MAX_ENROLLED
             and len(result["qualifiers"])<COHORT_TARGET
         ):
-            rpc,cursor,fresh,_=_poll(endpoint,rpc,cursor,tape,result)
+            rpc,cursor,fresh,_=_poll(endpoint,rpc,cursor,tape,result,feed)
             candidates=[]
             for event in fresh:
                 key=(event["transactionHash"],event["logIndex"])
@@ -498,7 +515,6 @@ def run(endpoint):
                     continue
                 candidates.append(event)
             if not candidates:
-                time.sleep(POLL_SECONDS)
                 continue
             candidates.sort(key=lambda e:(
                 int(e["blockNumber"],16),
@@ -555,6 +571,9 @@ def run(endpoint):
     except BoundaryError as exc:
         result["boundary"]=str(exc)
         result["discovery_sessions"].append(rpc.telemetry())
+    finally:
+        result["sequencer_discovery"]=feed.status()
+        feed.close()
 
     result["lifecycles"].sort(key=lambda x:x.get("index",-1))
     statuses={}
