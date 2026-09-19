@@ -44,9 +44,12 @@ jobs:
   rank:
     if: contains(github.event.head_commit.message, '[dlmm-operator-rank]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 300
     env:
       DLMM_OPERATOR_METEORA_WORKERS: '12'
+      MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
+      MM_ONFINALITY_SOLANA_WS_URL: ${{ secrets.MM_ONFINALITY_SOLANA_WS_URL }}
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -57,7 +60,11 @@ jobs:
         run: python -m unittest tests.test_dlmm_profitable_operator_discovery -v
       - name: Rank only committed frozen operator cohort
         run: python -m tests.dlmm_profitable_operator_discovery rank --cohort DLMM_PROFITABLE_OPERATOR_COHORT_V1.json
-      - name: Preserve ranking and wallet checkpoint
+      - name: Deep reconstruct every eligible operator with authenticated Solana evidence
+        run: python -m tests.dlmm_profitable_operator_deep --ranking dlmm-profitable-operator-ranking.json
+      - name: Derive only preregistered cross-operator rule proposals
+        run: python -m tests.dlmm_profitable_operator_rules --deep dlmm-profitable-operator-deep-reconstruction.json
+      - name: Preserve ranking, deep reconstruction, rule proposals and checkpoints
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -65,5 +72,8 @@ jobs:
           path: |
             dlmm-profitable-operator-ranking.json
             dlmm-profitable-operator-ranking-checkpoint.json
+            dlmm-profitable-operator-deep-reconstruction.json
+            dlmm-profitable-operator-deep-checkpoint.json
+            dlmm-profitable-operator-rule-proposals.json
           if-no-files-found: warn
           retention-days: 90
