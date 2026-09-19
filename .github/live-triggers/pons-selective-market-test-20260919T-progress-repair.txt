@@ -1,0 +1,1 @@
+Run the independent frozen Pons Selective Continuation v1 natural market test. Paper-only; no threshold changes; no shared allocator.\n
