@@ -187,7 +187,9 @@ def _history_acceleration(candidate,observed_at):
         if not isinstance(row,dict):
             continue
         ts=row.get("timestamp")
-        if not isinstance(ts,int) or ts>observed_at:
+        # Meteora timestamps identify the START of each 5-minute bucket.
+        # A bucket is admissible only after its full 300-second interval has ended.
+        if not isinstance(ts,int) or ts+300>observed_at:
             continue
         clean.append(dict(
             timestamp=ts,
@@ -223,6 +225,9 @@ def _history_acceleration(candidate,observed_at):
         ),
         acceleration_window_start=window[0]["timestamp"],
         acceleration_window_end=window[-1]["timestamp"],
+        acceleration_window_end_exclusive=window[-1]["timestamp"]+300,
+        latest_completed_bucket_age_seconds=(
+            int(observed_at)-(window[-1]["timestamp"]+300)),
         acceleration_bucket_count=len(window),
     )
     return out
