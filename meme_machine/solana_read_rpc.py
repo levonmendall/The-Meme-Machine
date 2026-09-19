@@ -1,14 +1,12 @@
 """Canonical read-only Solana RPC topology for Meme Machine.
 
 Provider policy:
-- OnFinality public Solana Mainnet is the default PRIMARY read endpoint.
-- The existing authenticated Alchemy endpoint in MM_SOLANA_READ_RPC_URL is an
-  optional SECONDARY rescue endpoint.
-- Healthy primary reads never spend Alchemy capacity.
-- Rescue is allowed only after a primary transport/HTTP failure, provider error,
-  unusable whole-batch response, or a null getTransaction result.
-- One logical RPC budget remains authoritative. A rescue may add one physical HTTP
-  request, and that extra transport is counted explicitly.
+- Public Solana WebSocket is authoritative Pump discovery.
+- MM_SOLANA_READ_RPC_URL (Alchemy) is the Pump HTTP evidence primary.
+- Authenticated OnFinality is retained only for isolated diagnostics and is not part
+  of Pump evidence acquisition after repeated sustained 429 failures.
+- Pump HTTP evidence has no automatic rescue provider: failures are explicit/fail-closed.
+- One shared 0.5-second primary pacer bounds Alchemy HTTP evidence at 2 RPS.
 - This module never signs or submits transactions.
 """
 from __future__ import annotations
@@ -25,21 +23,26 @@ from .postgrad import PoolScanRPC
 from .provider import RPC, Unavailable
 
 
-PRIMARY_PROVIDER = "onfinality_solana_mainnet"
-PRIMARY_RPC_URL = "https://solana.api.onfinality.io/public"
-PRIMARY_RPC_HOST = "solana.api.onfinality.io"
-AUTHENTICATED_PRIMARY_ENV_NAME = "MM_ONFINALITY_SOLANA_RPC_URL"
+PRIMARY_PROVIDER = "alchemy_solana_mainnet"
+PUBLIC_HTTP_PROVIDER = "solana_public_mainnet_fallback"
+PUBLIC_RPC_URL = "https://api.mainnet-beta.solana.com"
+PUBLIC_RPC_HOST = "api.mainnet-beta.solana.com"
+
+ONFINALITY_PROVIDER = "onfinality_solana_mainnet_diagnostic_only"
+ONFINALITY_RPC_URL = "https://solana.api.onfinality.io/public"
+ONFINALITY_RPC_HOST = "solana.api.onfinality.io"
+AUTHENTICATED_PRIMARY_ENV_NAME = "MM_ONFINALITY_SOLANA_RPC_URL"  # compatibility alias; no longer Pump primary
 AUTHENTICATED_WS_ENV_NAME = "MM_ONFINALITY_SOLANA_WS_URL"
 PUBLIC_OVERRIDE_ENV_NAME = "MM_SOLANA_PUBLIC_RPC_URL"
 
 DISCOVERY_WS_PROVIDER = "solana_public_mainnet"
 DISCOVERY_WS_URL = "wss://api.mainnet-beta.solana.com"
 
-SECONDARY_PROVIDER = "alchemy_solana_mainnet_existing_secret"
 ALCHEMY_ENV_NAME = "MM_SOLANA_READ_RPC_URL"
 ALCHEMY_SOLANA_MAINNET_HOST = "solana-mainnet.g.alchemy.com"
+SECONDARY_PROVIDER = "none"
 
-TOPOLOGY_LABEL = "onfinality_public_primary_alchemy_rescue"
+TOPOLOGY_LABEL = "alchemy_primary_no_rescue_public_ws_discovery"
 SOLANA_MIN_REQUEST_INTERVAL_SECONDS = 0.5
 PROVIDER_429_MIN_BACKOFF_SECONDS = 2.0
 
@@ -53,7 +56,7 @@ def _validate_onfinality_url(value, *, websocket=False, public_only=False):
     expected_scheme = "wss" if websocket else "https"
     if (
         parsed.scheme != expected_scheme
-        or parsed.hostname != PRIMARY_RPC_HOST
+        or parsed.hostname != ONFINALITY_RPC_HOST
         or parsed.port not in (None, 443)
         or parsed.username is not None
         or parsed.password is not None
@@ -70,16 +73,58 @@ def _validate_onfinality_url(value, *, websocket=False, public_only=False):
     return value
 
 
-def primary_rpc_url(environ=None):
-    source = _source(environ)
-    authenticated = str(source.get(AUTHENTICATED_PRIMARY_ENV_NAME, "") or "").strip()
+def _validate_alchemy_url(value):
+    parsed=urlparse(value)
+    if (
+        parsed.scheme!="https"
+        or parsed.hostname!=ALCHEMY_SOLANA_MAINNET_HOST
+        or parsed.port not in (None,443)
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise Unavailable("alchemy_rpc_endpoint_required")
+    parts=[part for part in parsed.path.split("/") if part]
+    if len(parts)!=2 or parts[0]!="v2" or not parts[1] or "<" in parts[1] or ">" in parts[1]:
+        raise Unavailable("alchemy_rpc_endpoint_required")
+    return value
+
+
+def onfinality_rpc_url(environ=None, *, required=False):
+    source=_source(environ)
+    authenticated=str(source.get(AUTHENTICATED_PRIMARY_ENV_NAME,"") or "").strip()
     if authenticated:
         return _validate_onfinality_url(authenticated)
-    public = str(source.get(PUBLIC_OVERRIDE_ENV_NAME, "") or "").strip() or PRIMARY_RPC_URL
-    return _validate_onfinality_url(public, public_only=True)
+    if required:
+        raise Unavailable("onfinality_authenticated_rpc_missing")
+    return ONFINALITY_RPC_URL
+
+
+def primary_rpc_url(environ=None, *, required=False):
+    """Pump HTTP evidence primary: Alchemy when configured, public Solana only as local fallback."""
+    source=_source(environ)
+    value=str(source.get(ALCHEMY_ENV_NAME,"") or "").strip()
+    if value:
+        return _validate_alchemy_url(value)
+    if required:
+        raise Unavailable("alchemy_rpc_missing")
+    override=str(source.get(PUBLIC_OVERRIDE_ENV_NAME,"") or "").strip()
+    if override:
+        parsed=urlparse(override)
+        if parsed.scheme!="https" or parsed.hostname!=PUBLIC_RPC_HOST or parsed.query or parsed.fragment:
+            raise Unavailable("solana_public_rpc_endpoint_required")
+        return override
+    return PUBLIC_RPC_URL
+
+
+def primary_provider(environ=None):
+    source=_source(environ)
+    return PRIMARY_PROVIDER if str(source.get(ALCHEMY_ENV_NAME,"") or "").strip() else PUBLIC_HTTP_PROVIDER
 
 
 def primary_ws_url(environ=None):
+    """Diagnostic-only OnFinality WebSocket helper; never Pump discovery authority."""
     source = _source(environ)
     authenticated = str(source.get(AUTHENTICATED_WS_ENV_NAME, "") or "").strip()
     if authenticated:
@@ -93,33 +138,9 @@ def discovery_ws_url(environ=None):
 
 
 def secondary_rpc_url(environ=None, *, required=False):
-    source = _source(environ)
-    value = str(source.get(ALCHEMY_ENV_NAME, "") or "").strip()
-    if not value:
-        if required:
-            raise Unavailable("alchemy_rpc_missing")
-        return None
-    parsed = urlparse(value)
-    if (
-        parsed.scheme != "https"
-        or parsed.hostname != ALCHEMY_SOLANA_MAINNET_HOST
-        or parsed.port not in (None, 443)
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.query
-        or parsed.fragment
-    ):
-        raise Unavailable("alchemy_rpc_endpoint_required")
-    parts = [part for part in parsed.path.split("/") if part]
-    if (
-        len(parts) != 2
-        or parts[0] != "v2"
-        or not parts[1]
-        or "<" in parts[1]
-        or ">" in parts[1]
-    ):
-        raise Unavailable("alchemy_rpc_endpoint_required")
-    return value
+    if required:
+        raise Unavailable("pump_http_secondary_disabled")
+    return None
 
 
 class SolanaReadPacer:
@@ -164,8 +185,10 @@ class SolanaReadPacer:
 class _ReadOnlyFailoverMixin:
     """HTTP transport mixin with OnFinality-primary / Alchemy-rescue semantics."""
 
-    def _init_failover(self, secondary_url, pacer):
+    def _init_failover(self, secondary_url, pacer, primary_provider=PRIMARY_PROVIDER, secondary_provider=SECONDARY_PROVIDER):
         self.secondary_url = secondary_url
+        self.primary_provider_label = primary_provider
+        self.secondary_provider_label = secondary_provider
         self.read_pacer = pacer or SolanaReadPacer()
         # Compatibility for existing DLMM research code that still reads this name.
         self.alchemy_pacer = self.read_pacer
@@ -254,7 +277,7 @@ class _ReadOnlyFailoverMixin:
 
     def _http(self, request):
         try:
-            return self._provider_attempt(PRIMARY_PROVIDER, self.url, request)
+            return self._provider_attempt(self.primary_provider_label, self.url, request)
         except Exception as primary_exc:
             if not self.secondary_url:
                 raise
@@ -265,7 +288,7 @@ class _ReadOnlyFailoverMixin:
             # Count the rescue transport explicitly so http_requests remains physical.
             self.http_requests += 1
             return self._provider_attempt(
-                SECONDARY_PROVIDER,
+                self.secondary_provider_label,
                 self.secondary_url,
                 request,
             )
@@ -273,8 +296,8 @@ class _ReadOnlyFailoverMixin:
     def provider_telemetry(self):
         return dict(
             topology=TOPOLOGY_LABEL,
-            primary_provider=PRIMARY_PROVIDER,
-            secondary_provider=SECONDARY_PROVIDER,
+            primary_provider=self.primary_provider_label,
+            secondary_provider=self.secondary_provider_label,
             secondary_configured=bool(self.secondary_url),
             logical_calls=int(self.calls),
             physical_http_requests=int(self.http_requests),
@@ -294,11 +317,13 @@ class ReadOnlyFailoverRPC(_ReadOnlyFailoverMixin, RPC):
         primary_url,
         *,
         secondary_url=None,
+        primary_provider=PRIMARY_PROVIDER,
+        secondary_provider=SECONDARY_PROVIDER,
         limit=120,
         pacer=None,
         **kwargs,
     ):
-        self._init_failover(secondary_url, pacer)
+        self._init_failover(secondary_url, pacer, primary_provider, secondary_provider)
         super().__init__(primary_url, limit=limit, **kwargs)
 
 
@@ -312,18 +337,22 @@ class ReadOnlyFailoverPoolScanRPC(_ReadOnlyFailoverMixin, PoolScanRPC):
         primary_url,
         *,
         secondary_url=None,
+        primary_provider=PRIMARY_PROVIDER,
+        secondary_provider=SECONDARY_PROVIDER,
         limit=240,
         pacer=None,
         **kwargs,
     ):
-        self._init_failover(secondary_url, pacer)
+        self._init_failover(secondary_url, pacer, primary_provider, secondary_provider)
         super().__init__(primary_url, limit=limit, **kwargs)
 
 
 def new_rpc(limit=120, pacer=None, environ=None, **kwargs):
     return ReadOnlyFailoverRPC(
         primary_rpc_url(environ),
-        secondary_url=secondary_rpc_url(environ, required=False),
+        secondary_url=None,
+        primary_provider=primary_provider(environ),
+        secondary_provider=SECONDARY_PROVIDER,
         limit=limit,
         pacer=pacer,
         **kwargs,
@@ -333,7 +362,9 @@ def new_rpc(limit=120, pacer=None, environ=None, **kwargs):
 def new_pool_scan_rpc(limit=240, pacer=None, environ=None, **kwargs):
     return ReadOnlyFailoverPoolScanRPC(
         primary_rpc_url(environ),
-        secondary_url=secondary_rpc_url(environ, required=False),
+        secondary_url=None,
+        primary_provider=primary_provider(environ),
+        secondary_provider=SECONDARY_PROVIDER,
         limit=limit,
         pacer=pacer,
         **kwargs,
@@ -341,24 +372,23 @@ def new_pool_scan_rpc(limit=240, pacer=None, environ=None, **kwargs):
 
 
 def metadata(environ=None):
+    source=_source(environ)
+    alchemy=bool(str(source.get(ALCHEMY_ENV_NAME,"") or "").strip())
     return dict(
         topology=TOPOLOGY_LABEL,
-        primary_provider=PRIMARY_PROVIDER,
-        primary_public=not bool(str(_source(environ).get(AUTHENTICATED_PRIMARY_ENV_NAME,"") or "").strip()),
-        primary_credential=(AUTHENTICATED_PRIMARY_ENV_NAME
-                            if str(_source(environ).get(AUTHENTICATED_PRIMARY_ENV_NAME,"") or "").strip()
-                            else None),
+        primary_provider=primary_provider(environ),
+        primary_public=not alchemy,
+        primary_credential=(ALCHEMY_ENV_NAME if alchemy else None),
         secondary_provider=SECONDARY_PROVIDER,
-        secondary_credential=ALCHEMY_ENV_NAME,
-        secondary_configured=secondary_rpc_url(environ, required=False) is not None,
-        fallback_allowed=True,
-        fallback_policy=(
-            "transport_or_http_failure_provider_error_unusable_batch_or_null_getTransaction"
-        ),
+        secondary_credential=None,
+        secondary_configured=False,
+        fallback_allowed=False,
+        fallback_policy="fail_closed_no_automatic_http_rescue",
         load_balancing=False,
         network="solana-mainnet",
         discovery_ws_provider=DISCOVERY_WS_PROVIDER,
         discovery_ws_url=DISCOVERY_WS_URL,
+        onfinality_http_role="diagnostic_only_not_pump_evidence",
         signing=False,
         submission=False,
         minimum_request_interval_seconds=SOLANA_MIN_REQUEST_INTERVAL_SECONDS,
@@ -366,7 +396,8 @@ def metadata(environ=None):
     )
 
 
-def validate_topology(environ=None, *, require_secondary=True):
-    primary_rpc_url(environ)
-    secondary_rpc_url(environ, required=require_secondary)
+def validate_topology(environ=None, *, require_secondary=False):
+    primary_rpc_url(environ,required=True)
+    if require_secondary:
+        raise Unavailable("pump_http_secondary_disabled")
     return metadata(environ)
