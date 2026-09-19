@@ -362,6 +362,73 @@ class _WebSocket:
                         raise BoundaryError("sequencer_feed_non_utf8") from None
 
 
+class SequencerBlockClock:
+    """Persistent observation-only L2 block clock for Pons discovery.
+
+    Nitro broadcast sequenceNumber is the Robinhood L2 sequence/block progression.
+    A gap, conflict, regression or malformed frame fails closed. The clock does not
+    provide transaction/state authority; callers still authenticate exact blocks/logs
+    through the governed directional evidence RPC.
+    """
+
+    def __init__(self, url=None, *, timeout=5.0):
+        self.url=url or feed_url()
+        self.timeout=float(timeout)
+        self.state=SequencerFeedState()
+        self.client=None
+
+    def connect(self):
+        if self.client is None:
+            self.client=_WebSocket(
+                self.url,timeout=self.timeout
+            ).connect()
+        return self
+
+    def close(self):
+        client,self.client=self.client,None
+        if client is not None:
+            client.close()
+
+    def _healthy(self):
+        s=self.state
+        if s.gap_events or s.conflicts or s.regressions or s.malformed:
+            raise BoundaryError("sequencer_discovery_continuity_lost")
+
+    def wait_for_after(self, sequence, *, timeout=1.0):
+        self.connect()
+        deadline=time.monotonic()+max(0.05,float(timeout))
+        while time.monotonic()<deadline:
+            remaining=max(0.05,deadline-time.monotonic())
+            self.client.sock.settimeout(min(1.0,remaining))
+            try:
+                payload=self.client.recv_message()
+            except socket.timeout:
+                continue
+            if payload is None:
+                raise BoundaryError("sequencer_feed_connection_closed")
+            self.state.ingest(payload,received_at=time.time())
+            self._healthy()
+            latest=self.state.last_sequence
+            if latest is not None and latest>int(sequence):
+                return int(latest)
+        return None
+
+    def status(self):
+        row=self.state.summary(now=time.time())
+        row.update(
+            role="pons_discovery_clock",
+            authority="observation_only",
+            canonical_evidence=False,
+        )
+        return row
+
+    def __enter__(self):
+        return self.connect()
+
+    def __exit__(self,*_):
+        self.close()
+
+
 class SequencerFeedObserver:
     def __init__(self, url=None):
         self.url = url or feed_url()
