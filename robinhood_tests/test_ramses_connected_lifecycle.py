@@ -258,6 +258,16 @@ class RamsesConnectedLifecycleTests(unittest.TestCase):
             prestate_block_hash="0x" + "ab" * 32,
             prestate_timestamp=456,
             paper_capital_quote_raw=100,
+            gas_costs=dict(
+                add_liquidity=11,
+                remove_liquidity=12,
+                unwind=13,
+                entry_overhead=14,
+            ),
+            cost_evidence=dict(
+                available=True,
+                source="automatic_onchain",
+            ),
             features=dict(turnover_bps=1, total_fee_rate=1),
         )
         screen = dict(
@@ -303,6 +313,16 @@ class RamsesConnectedLifecycleTests(unittest.TestCase):
         self.assertEqual(canonical["prestate"], state)
         self.assertEqual(canonical["prehistory"], history)
         self.assertEqual(classify.call_args.args[0], state)
+        self.assertEqual(
+            classify.call_args.kwargs["gas_costs"],
+            dict(
+                add_liquidity=11,
+                remove_liquidity=12,
+                unwind=13,
+                entry_overhead=14,
+            ),
+        )
+        self.assertEqual(canonical["gas_costs"]["unwind"], 13)
         self.assertTrue(auth["prestate_reused_from_scanner"])
         self.assertFalse(auth["prestate_rpc_refetch"])
         self.assertEqual(auth["prestate_block"], 123)
