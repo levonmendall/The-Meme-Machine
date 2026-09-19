@@ -97,6 +97,7 @@ class EvidenceBroker:
                     deadline REAL NOT NULL,
                     payload TEXT NOT NULL,
                     status TEXT NOT NULL DEFAULT 'pending',
+                    lease_until REAL,
                     created_at REAL NOT NULL,
                     updated_at REAL NOT NULL
                 );
@@ -136,6 +137,11 @@ class EvidenceBroker:
                 );
                 """
             )
+            columns={
+                row[1] for row in self.db.execute("PRAGMA table_info(jobs)").fetchall()
+            }
+            if "lease_until" not in columns:
+                self.db.execute("ALTER TABLE jobs ADD COLUMN lease_until REAL")
             self.db.execute(
                 """INSERT OR IGNORE INTO pressure
                    (name,batch_size,cooldown_until,rate_events,success_streak,reductions,recoveries)
@@ -371,12 +377,21 @@ class EvidenceBroker:
         )
         with self.lock, self.db:
             self.db.execute(
-                """INSERT INTO jobs(job_key,kind,priority,deadline,payload,status,created_at,updated_at)
-                   VALUES(?,?,?,?,?,'pending',?,?)
+                """INSERT INTO jobs(
+                       job_key,kind,priority,deadline,payload,status,lease_until,
+                       created_at,updated_at)
+                   VALUES(?,?,?,?,?,'pending',NULL,?,?)
                    ON CONFLICT(job_key) DO UPDATE SET
                      priority=MIN(priority,excluded.priority),
                      deadline=MIN(deadline,excluded.deadline),
-                     status=CASE WHEN jobs.status='complete' THEN 'complete' ELSE 'pending' END,
+                     status=CASE
+                       WHEN jobs.status='complete' THEN 'complete'
+                       ELSE 'pending'
+                     END,
+                     lease_until=CASE
+                       WHEN jobs.status='complete' THEN jobs.lease_until
+                       ELSE NULL
+                     END,
                      updated_at=excluded.updated_at""",
                 (
                     f"tx:{signature}",
