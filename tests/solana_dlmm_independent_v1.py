@@ -552,7 +552,16 @@ def pre_entry_features(warm_start,warm,entry,candidate,policy):
     stress=_stress_roundtrip(entry,q["stress_inventory_fraction_of_capital"])
     expected_net=projected-ROUND_TRIP_NETWORK_COST-stress["loss_lamports"]
     hours=float(policy["range"]["intended_holding_seconds"])/3600.0
+    paired_info=(
+        entry["token_y_mint_info"] if entry["x"]==dlmm.WSOL
+        else entry["token_x_mint_info"])
     return dict(
+        paired_token_program=paired_info["program"],
+        paired_token_extensions=list(paired_info.get("extensions") or ()),
+        issuer_mint_authority_present=bool(
+            paired_info.get("mint_authority_present")),
+        freeze_authority_present=bool(
+            paired_info.get("freeze_authority_present")),
         half_width_bins=half,total_width_bins=half*2,
         lower=min(lower),upper=max(upper),
         range_lower_bins=lower,range_upper_bins=upper,
