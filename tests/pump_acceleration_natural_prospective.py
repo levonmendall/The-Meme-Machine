@@ -480,11 +480,13 @@ def main():
                     handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
                     snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
                     events=_refresh_pool_events(state,sessions,now)
-                    if not state["history"].complete(now):
-                        raise Unavailable("incomplete_pumpswap_history")
+                    window_status=state["history"].decision_window_status(now,30)
+                    if not window_status["complete"]:
+                        raise Unavailable("incomplete_pumpswap_decision_window")
+                    decision_events=state["history"].decision_rows(now,30)
                     concentration=_postgrad_concentration(sessions.rpc,snapshot)
                     signal,confirmation=_volume_price_signal(
-                        state,snapshot,events,MODE_POSTGRAD,concentration,confirmations)
+                        state,snapshot,decision_events,MODE_POSTGRAD,concentration,confirmations)
                     q=qualify(signal)
                     _record_attempt(
                         report,signal,q,"full_point_in_time",
@@ -498,6 +500,8 @@ def main():
 
                     if age>=POLICY.min_second_leg_age_s:
                         try:
+                            if not state["history"].complete(now):
+                                raise Unavailable("incomplete_pumpswap_second_leg_history")
                             second,confirmation2=_volume_price_signal(
                                 state,snapshot,events,MODE_SECOND_LEG,concentration,confirmations)
                             q2=qualify(second)
@@ -510,7 +514,7 @@ def main():
                                     for x in report["qualifiers"]):
                                 _reserve_position(
                                     report,pending,active,q2,snapshot,MODE_SECOND_LEG,concentration)
-                        except (ValueError,KeyError,TypeError) as exc:
+                        except (Unavailable,ValueError,KeyError,TypeError) as exc:
                             report["attempts"].append(dict(
                                 mint=mint,mode=MODE_SECOND_LEG,observed_at=now,
                                 stage="shape_incomplete",qualified=False,

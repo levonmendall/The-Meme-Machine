@@ -59,6 +59,39 @@ class PartialBatchRetryTests(unittest.TestCase):
         self.assertEqual(values,list(range(16)))
         self.assertEqual(rpc.batch_sizes,[16])
 
+    def test_jsonrpc_429_shrinks_batch_and_requeues_members(self):
+        class Clock:
+            def __init__(self): self.value=100.0
+            def __call__(self): return self.value
+            def sleep(self,seconds): self.value+=float(seconds)
+        class PressureRPC(RPC):
+            def __init__(self):
+                self.clock_obj=Clock();self.batch_sizes=[];self.round=0
+                super().__init__(
+                    "https://example.invalid",limit=80,
+                    clock=self.clock_obj,sleeper=self.clock_obj.sleep)
+            def _http(self,request):
+                if not isinstance(request,list):
+                    raise AssertionError("no single retry fanout expected")
+                self.batch_sizes.append(len(request));self.round+=1
+                if self.round==1:
+                    return [
+                        {"jsonrpc":"2.0","id":item["id"],"error":{"code":429}}
+                        for item in request
+                    ]
+                return [
+                    {"jsonrpc":"2.0","id":item["id"],"result":{"slot":item["id"]}}
+                    for item in request
+                ]
+        rpc=PressureRPC()
+        params=[[f"s{i}",{"maxSupportedTransactionVersion":1}] for i in range(8)]
+        result=rpc.call_many("getTransaction",params,True,batch_size=8)
+        self.assertEqual(len(result),8)
+        self.assertEqual(rpc.batch_sizes[0],8)
+        self.assertTrue(all(size<=4 for size in rpc.batch_sizes[1:]))
+        self.assertEqual(rpc.gettransaction_batch_size,4)
+        self.assertEqual(rpc.gettransaction_429_events,8)
+        self.assertGreaterEqual(rpc.gettransaction_cooldown_seconds,2.0)
 
 if __name__=="__main__":
     unittest.main()

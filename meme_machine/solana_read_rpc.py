@@ -160,6 +160,15 @@ class SolanaReadPacer:
         self.next_request_at = -float("inf")
         self.paced_requests = 0
         self.sleep_seconds = 0.0
+        # Shared across bounded RPC rotations so 429 pressure adaptations survive
+        # session replacement instead of immediately returning to a hot batch size.
+        self.gettransaction_batch_size = 16
+        self.gettransaction_429_streak = 0
+        self.gettransaction_success_streak = 0
+        self.gettransaction_429_events = 0
+        self.gettransaction_batch_reductions = 0
+        self.gettransaction_batch_recoveries = 0
+        self.gettransaction_cooldown_seconds = 0.0
 
     def pace(self, rpc, requested_interval=0.2):
         interval = max(float(requested_interval), self.minimum_interval)
@@ -181,6 +190,12 @@ class SolanaReadPacer:
             minimum_interval_seconds=self.minimum_interval,
             paced_requests=self.paced_requests,
             throttle_sleep_seconds=self.sleep_seconds,
+            gettransaction_batch_size=int(self.gettransaction_batch_size),
+            gettransaction_429_streak=int(self.gettransaction_429_streak),
+            gettransaction_429_events=int(self.gettransaction_429_events),
+            gettransaction_batch_reductions=int(self.gettransaction_batch_reductions),
+            gettransaction_batch_recoveries=int(self.gettransaction_batch_recoveries),
+            gettransaction_cooldown_seconds=float(self.gettransaction_cooldown_seconds),
         )
 
 

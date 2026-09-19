@@ -120,6 +120,33 @@ class SolanaReadTopologyTests(unittest.TestCase):
         self.assertNotIn('sensitive',str(telemetry))
         self.assertNotIn(ALCHEMY,str(telemetry))
 
+    def test_shared_pacer_preserves_gettransaction_pressure_state(self):
+        clock=Clock();pacer=rpc_topology.SolanaReadPacer()
+        env={rpc_topology.ALCHEMY_ENV_NAME:ALCHEMY}
+        rpc=rpc_topology.new_rpc(
+            limit=80,pacer=pacer,environ=env,clock=clock,sleeper=clock.sleep)
+        rounds={"n":0}
+        def request(_url,request):
+            rounds["n"]+=1
+            if isinstance(request,list) and rounds["n"]==1:
+                return [
+                    {"jsonrpc":"2.0","id":x["id"],"error":{"code":429}}
+                    for x in request
+                ]
+            return [
+                {"jsonrpc":"2.0","id":x["id"],"result":{"slot":1,"meta":{"err":None,"logMessages":[]}}}
+                for x in request
+            ] if isinstance(request,list) else {"jsonrpc":"2.0","id":request["id"],"result":1}
+        rpc._request_url=request
+        params=[[f"s{i}",{"encoding":"json","maxSupportedTransactionVersion":1}] for i in range(8)]
+        rpc.call_many("getTransaction",params,True,batch_size=8)
+        self.assertEqual(pacer.gettransaction_batch_size,4)
+        telemetry=rpc.provider_telemetry()["pacing"]
+        self.assertEqual(telemetry["gettransaction_429_events"],8)
+        second=rpc_topology.new_rpc(
+            limit=80,pacer=pacer,environ=env,clock=clock,sleeper=clock.sleep)
+        self.assertIs(second.read_pacer,pacer)
+        self.assertEqual(second.read_pacer.gettransaction_batch_size,4)
 
 if __name__=='__main__':
     unittest.main()

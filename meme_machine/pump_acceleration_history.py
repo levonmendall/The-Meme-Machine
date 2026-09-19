@@ -129,7 +129,9 @@ class IncrementalPumpSwapHistory:
         self._coverage()
 
     def _decode_pending(self,rpc,now):
-        pending=[]
+        cutoff=int(now)-30
+        recent=[]
+        older=[]
         for row in self.signature_rows.values():
             sig=str(row["signature"])
             if sig in self.processed or row.get("err"):
@@ -142,9 +144,16 @@ class IncrementalPumpSwapHistory:
                 if bt<self.graduation_time:
                     self.processed.add(sig)
                 continue
-            pending.append(row)
-        pending.sort(key=lambda r:(int(r.get("blockTime") or 0),int(r.get("slot") or 0)))
-        pending=pending[:self.max_tx_per_refresh]
+            target=recent if bt>=cutoff else older
+            target.append(row)
+        # Finish the live 30-second decision window first. Older history is useful
+        # for second-leg shape, but must never starve current continuation evidence.
+        recent.sort(key=lambda r:(-int(r.get("blockTime") or 0),-int(r.get("slot") or 0)))
+        older.sort(key=lambda r:(-int(r.get("blockTime") or 0),-int(r.get("slot") or 0)))
+        if recent:
+            pending=recent[:self.max_tx_per_refresh]
+        else:
+            pending=older[:self.max_tx_per_refresh]
         for start in range(0,len(pending),16):
             chunk=pending[start:start+16]
             params=[[r["signature"],{
@@ -167,6 +176,39 @@ class IncrementalPumpSwapHistory:
                         continue
                     event["id"]=f'{sig}:{event["index"]}'
                     self.events[event["id"]]=event
+
+    def decision_window_status(self,now,window_seconds=30):
+        now=int(now);cutoff=now-int(window_seconds)
+        known=[
+            int(r["blockTime"]) for r in self.signature_rows.values()
+            if r.get("blockTime") is not None and int(r["blockTime"])<=now
+        ]
+        signature_complete=bool(
+            self.history_exhausted or (known and min(known)<=cutoff)
+        )
+        pending=0
+        for row in self.signature_rows.values():
+            sig=str(row["signature"]);bt=row.get("blockTime")
+            if sig in self.processed or row.get("err") or bt is None:
+                continue
+            if cutoff<=int(bt)<=now:
+                pending+=1
+        complete=bool(
+            signature_complete and self.unknown_block_times==0 and pending==0)
+        return dict(
+            complete=complete,window_seconds=int(window_seconds),
+            signature_complete=signature_complete,pending_transactions=pending,
+            cutoff=cutoff,
+        )
+
+    def decision_rows(self,now,window_seconds=30):
+        cutoff=int(now)-int(window_seconds)
+        return sorted(
+            (dict(e) for e in self.events.values()
+             if cutoff<=int(e.get("market_time",0))<=int(now)),
+            key=lambda e:(int(e["market_time"]),int(e.get("slot",0)),int(e.get("index",0))),
+        )
+
 
     def refresh(self,rpc,now):
         self.refreshes+=1
@@ -215,4 +257,5 @@ class IncrementalPumpSwapHistory:
             transaction_failures=self.tx_failures,
             newest_signature=self.newest_signature,
             oldest_signature=self.oldest_signature,
+            decision_window=self.decision_window_status(now,30),
         )

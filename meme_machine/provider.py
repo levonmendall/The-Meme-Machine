@@ -27,6 +27,15 @@ class RPC:
         # physical transports so batching cannot silently increase economic scope.
         self.calls = self.http_requests = self.failures = self.cache_hits = self.retries = 0
         self.failure_kinds = {}
+        # Adaptive getTransaction pressure control. Solana-specific RPC objects
+        # share this state through read_pacer; plain RPC tests use the local copy.
+        self.gettransaction_batch_size = 16
+        self.gettransaction_429_streak = 0
+        self.gettransaction_success_streak = 0
+        self.gettransaction_429_events = 0
+        self.gettransaction_batch_reductions = 0
+        self.gettransaction_batch_recoveries = 0
+        self.gettransaction_cooldown_seconds = 0.0
         self.cache = {}
         self.cache_bytes = 0
         self.started = clock()
@@ -67,6 +76,46 @@ class RPC:
             except (TypeError,ValueError,AttributeError):
                 return 1.0
         return 0.5
+
+    def _transaction_controller(self):
+        candidate=getattr(self,'read_pacer',None)
+        if candidate is not None and hasattr(candidate,'gettransaction_batch_size'):
+            return candidate
+        return self
+
+    def _adaptive_batch_size(self, method, requested):
+        if method!='getTransaction':
+            return int(requested)
+        ctrl=self._transaction_controller()
+        return max(1,min(int(requested),int(ctrl.gettransaction_batch_size)))
+
+    def _note_gettransaction_429(self, count):
+        ctrl=self._transaction_controller()
+        count=max(1,int(count))
+        ctrl.gettransaction_429_events += count
+        ctrl.gettransaction_429_streak += 1
+        ctrl.gettransaction_success_streak = 0
+        old=int(ctrl.gettransaction_batch_size)
+        ctrl.gettransaction_batch_size=max(2,old//2)
+        if ctrl.gettransaction_batch_size < old:
+            ctrl.gettransaction_batch_reductions += 1
+        delay=min(16.0,2.0*(2**min(ctrl.gettransaction_429_streak-1,3)))
+        ctrl.gettransaction_cooldown_seconds += delay
+        if ctrl is self:
+            self.sleep(delay)
+        else:
+            now=float(self.clock())
+            ctrl.next_request_at=max(float(ctrl.next_request_at),now+delay)
+        return delay
+
+    def _note_gettransaction_success(self):
+        ctrl=self._transaction_controller()
+        ctrl.gettransaction_429_streak=0
+        ctrl.gettransaction_success_streak += 1
+        if ctrl.gettransaction_success_streak >= 4 and ctrl.gettransaction_batch_size < 16:
+            ctrl.gettransaction_batch_size=min(16,int(ctrl.gettransaction_batch_size)+2)
+            ctrl.gettransaction_batch_recoveries += 1
+            ctrl.gettransaction_success_streak=0
 
     def _cap(self, priority):
         return self.limit if priority else max(0, self.limit-40)
@@ -137,13 +186,13 @@ class RPC:
         return result
 
     def call_many(self, method, params_list, priority=False, batch_size=8):
-        """Batch read-only RPC and retry only failed members.
+        """Batch read-only RPC with adaptive 429 handling.
 
-        Successful batch members are committed to the cache immediately. A semantic
-        JSON-RPC error, missing response, or null getTransaction result retries only
-        that member as a bounded individual request. A transport-level batch failure
-        makes every member failed, so those members are individually retried rather
-        than replaying the entire batch and duplicating successful economic reads.
+        Successful members are cached immediately. getTransaction JSON-RPC/HTTP 429s
+        do not fan out into immediate single-request retries: only the rate-limited
+        members are requeued, the shared batch size is reduced, and a bounded
+        exponential cooldown is scheduled. Non-rate-limit semantic failures retain
+        the existing failed-member-only retry behavior.
         """
         if method not in self.ALLOWED:
             raise ValueError('read-only method allowlist')
@@ -157,6 +206,7 @@ class RPC:
 
         results=[None]*len(params_list)
         missing=[]
+        retry_counts={}
         for index,params in enumerate(params_list):
             params=params or []
             key=self._key(method,params)
@@ -168,8 +218,9 @@ class RPC:
 
         cap=self._cap(priority)
         while missing:
-            chunk=missing[:batch_size]
-            missing=missing[batch_size:]
+            effective=self._adaptive_batch_size(method,batch_size)
+            chunk=missing[:effective]
+            missing=missing[effective:]
             logical=len(chunk)
             if self.calls + logical > cap:
                 raise Unavailable('provider_budget_exhausted')
@@ -182,6 +233,8 @@ class RPC:
             self.calls += logical
             self.http_requests += 1
             failed=[]
+            rate_limited=[]
+            successes=0
             try:
                 response=self.transport(requests)
                 if not isinstance(response,list):
@@ -192,8 +245,13 @@ class RPC:
                 }
                 for i,(index,params,key) in enumerate(chunk):
                     item=by_id.get(first_id+i)
+                    error=item.get('error') if isinstance(item,dict) else None
+                    code=error.get('code') if isinstance(error,dict) else None
+                    if method=='getTransaction' and code in (429,-32005):
+                        rate_limited.append((index,params,key))
+                        continue
                     bad=bool(
-                        not item or item.get('error') or 'result' not in item or
+                        not item or error or 'result' not in item or
                         (method=='getTransaction' and item.get('result') is None)
                     )
                     if bad:
@@ -202,30 +260,50 @@ class RPC:
                     value=item['result']
                     results[index]=value
                     self._cache_put(key,value)
-                if failed:
-                    self.failures += len(failed)
+                    successes+=1
+                if failed or rate_limited:
+                    count=len(failed)+len(rate_limited)
+                    self.failures += count
                     self.failure_kinds['provider_error']=(
-                        self.failure_kinds.get('provider_error',0)+len(failed))
+                        self.failure_kinds.get('provider_error',0)+count)
             except Exception as exc:
-                failed=list(chunk)
-                self.failures += logical
-                kind=self._failure_kind(exc)
-                self.failure_kinds[kind]=self.failure_kinds.get(kind,0)+logical
+                if (method=='getTransaction' and isinstance(exc,urllib.error.HTTPError)
+                        and int(exc.code)==429):
+                    rate_limited=list(chunk)
+                    self.failures += logical
+                    kind=self._failure_kind(exc)
+                    self.failure_kinds[kind]=self.failure_kinds.get(kind,0)+logical
+                else:
+                    failed=list(chunk)
+                    self.failures += logical
+                    kind=self._failure_kind(exc)
+                    self.failure_kinds[kind]=self.failure_kinds.get(kind,0)+logical
 
-            if not failed:
-                continue
+            if method=='getTransaction' and successes and not rate_limited:
+                self._note_gettransaction_success()
 
-            # Every retry below corresponds to one member that actually failed.
-            self.retries += len(failed)
-            for index,params,key in failed:
-                try:
-                    value=self.call(method,params,priority)
-                except Unavailable:
-                    raise Unavailable('provider_request_failed') from None
-                results[index]=value
-                # call() normally populated the cache, but keep this explicit for
-                # subclass transports and future call semantics.
-                self._cache_put(key,value)
+            if rate_limited:
+                retryable=[]
+                for item in rate_limited:
+                    index=item[0]
+                    retry_counts[index]=retry_counts.get(index,0)+1
+                    if retry_counts[index] > 2:
+                        raise Unavailable('provider_request_failed')
+                    retryable.append(item)
+                self.retries += len(retryable)
+                self._note_gettransaction_429(len(retryable))
+                # Retry only rate-limited members, before unrelated older backlog.
+                missing=retryable+missing
+
+            if failed:
+                self.retries += len(failed)
+                for index,params,key in failed:
+                    try:
+                        value=self.call(method,params,priority)
+                    except Unavailable:
+                        raise Unavailable('provider_request_failed') from None
+                    results[index]=value
+                    self._cache_put(key,value)
         return results
 
 

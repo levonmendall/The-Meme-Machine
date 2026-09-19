@@ -59,6 +59,36 @@ class IncrementalHistoryTests(unittest.TestCase):
         self.assertTrue(rpc.tx_configs)
         self.assertTrue(all(x["maxSupportedTransactionVersion"]==1 for x in rpc.tx_configs))
 
+    def test_recent_decision_window_is_decoded_before_older_backlog(self):
+        class R:
+            def __init__(self): self.calls=[]
+            def call_many(self,method,params_list,priority=False,batch_size=8):
+                self.calls.extend(x[0] for x in params_list)
+                return [
+                    {"slot":1,"meta":{"err":None,"logMessages":[]}}
+                    for _ in params_list
+                ]
+        h=IncrementalPumpSwapHistory("pool",100,max_tx_per_refresh=2)
+        h.signature_rows={
+            "old":{"signature":"old","blockTime":110,"slot":1,"err":None},
+            "new1":{"signature":"new1","blockTime":195,"slot":2,"err":None},
+            "new2":{"signature":"new2","blockTime":199,"slot":3,"err":None},
+        }
+        rpc=R();h._decode_pending(rpc,200)
+        self.assertEqual(set(rpc.calls),{"new1","new2"})
+        self.assertNotIn("old",h.processed)
+
+    def test_decision_window_can_be_complete_while_second_leg_backlog_remains(self):
+        h=IncrementalPumpSwapHistory("pool",100)
+        h.signature_rows={
+            "old":{"signature":"old","blockTime":110,"slot":1,"err":None},
+            "boundary":{"signature":"boundary","blockTime":169,"slot":2,"err":None},
+            "new":{"signature":"new","blockTime":195,"slot":3,"err":None},
+        }
+        h.processed={"boundary","new"}
+        status=h.decision_window_status(200,30)
+        self.assertTrue(status["complete"])
+        self.assertFalse(h.complete(200))
 
 if __name__=="__main__":
     unittest.main()
