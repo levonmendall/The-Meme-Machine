@@ -251,7 +251,7 @@ def _capture_chunk(adapter,start,cursor,wait_seconds):
         s for s in signatures
         if isinstance(s,dict) and not s.get("err")
         and isinstance(s.get("slot"),int)
-        and start["slot"]<s["slot"]<=end_snapshot["context"]["slot"]
+        and start["slot"]<s["slot"]<=end_snapshot["slot"]
     ]
     if len(relevant)>MAX_TRANSACTIONS:
         raise Unavailable("solana_dlmm_transaction_pressure_overflow")
@@ -381,10 +381,11 @@ def _range_liquidity_sol(state,ids):
     return total
 
 
-def _range_flow_features(start,tape,lower,upper):
+def _range_flow_features(start,tape,lower,upper,liquidity_state=None):
     lower_edge=min(lower+upper);upper_edge=max(lower+upper)
     ids=lower+upper
-    range_liquidity=_range_liquidity_sol(start,ids)
+    liquidity_state=start if liquidity_state is None else liquidity_state
+    range_liquidity=_range_liquidity_sol(liquidity_state,ids)
     total_volume=total_fee=0
     direction={True:0,False:0}
     movement=[];travel=0
@@ -447,7 +448,8 @@ def _stress_roundtrip(entry,fraction):
 def pre_entry_features(warm_start,warm,entry,candidate,policy):
     half=_movement_half_width(warm,entry,policy)
     lower,upper=_centered_ids(entry,half)
-    flow=_range_flow_features(warm_start,warm,lower,upper)
+    flow=_range_flow_features(
+        warm_start,warm,lower,upper,liquidity_state=entry)
     q=policy["qualification"]
     liquidity=flow["range_liquidity_sol_lamports"]
     capture_share=(
@@ -522,6 +524,8 @@ def _build_position(entry,features,policy):
     sol_is_x=entry["x"]==dlmm.WSOL
     virtual,quote=dlmm.swap(
         deepcopy(entry),conversion,sol_is_x,int(entry["time"]))
+    if int(virtual["active"])!=int(entry["active"]):
+        raise Unavailable("solana_dlmm_entry_conversion_moves_active_bin")
     token=int(quote["output"])
     lower,upper=_centered_ids(virtual,half)
     sol_bins=(upper if sol_is_x else lower)
