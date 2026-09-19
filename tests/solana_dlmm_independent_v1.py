@@ -61,6 +61,9 @@ FRESH_SWAP_TRIGGER_POLL_SECONDS=2
 FRESH_SWAP_TRIGGER_MAX_SECONDS=60
 FRESH_SWAP_TRIGGER_SIGNATURE_LIMIT=16
 FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS=12
+NETWORK_IDENTITY_MAX_ATTEMPTS=3
+NETWORK_IDENTITY_RETRY_SECONDS=1
+DEFAULT_MAX_RUNTIME_SECONDS=1200
 METEORA_MIN_INTERVAL_SECONDS=0.10
 
 class _MeteoraPacer:
@@ -240,7 +243,7 @@ def _history_acceleration(candidate,observed_at):
     return out
 
 
-def _iter_acceleration_candidates(policy,telemetry):
+def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None):
     """Yield each qualifying pool immediately after its history check.
 
     The order is deterministic: configured sort order, then page, then API row rank.
@@ -257,6 +260,9 @@ def _iter_acceleration_candidates(policy,telemetry):
     regime=policy["regime"]
     for sort_by in DISCOVERY_SORTS:
         for page in range(1,DISCOVERY_PAGES_PER_SORT+1):
+            if _runtime_expired(deadline):
+                telemetry["runtime_deadline_reached"]=True
+                return
             try:
                 payload=_api("/pools",dict(
                     page=page,page_size=DISCOVERY_PAGE_SIZE,
@@ -272,6 +278,9 @@ def _iter_acceleration_candidates(policy,telemetry):
                     sort=sort_by,page=page,reason="api_shape"))
                 break
             for raw_rank,row in enumerate(rows,1):
+                if _runtime_expired(deadline):
+                    telemetry["runtime_deadline_reached"]=True
+                    return
                 if not isinstance(row,dict) or not _sol_pair(row):
                     continue
                 address=row.get("address")
@@ -292,6 +301,8 @@ def _iter_acceleration_candidates(policy,telemetry):
                         reason=type(exc).__name__,
                         candidate=raw,
                     ))
+                    if checkpoint is not None:
+                        checkpoint("discovery_history_unavailable")
                     continue
                 failed=[]
                 if item["volume_acceleration"]<float(
@@ -303,12 +314,16 @@ def _iter_acceleration_candidates(policy,telemetry):
                 if failed:
                     telemetry["rejections"].append(dict(
                         pool=address,failed=failed,candidate=item))
+                    if checkpoint is not None:
+                        checkpoint("discovery_rejection")
                     continue
                 item["signal_observed_at"]=observed_at
                 item["discovery_sort"]=sort_by
                 item["discovery_page"]=page
                 item["discovery_raw_rank"]=raw_rank
                 telemetry["qualified"].append(item)
+                if checkpoint is not None:
+                    checkpoint("discovery_signal")
                 yield item
             if len(rows)<DISCOVERY_PAGE_SIZE:
                 break
@@ -330,29 +345,94 @@ def discover(policy,scan_cap):
 
 
 def _rpc_metrics(rpc):
-    return dict(
+    data=dict(
         calls=int(rpc.calls),http_requests=int(rpc.http_requests),
         failures=int(rpc.failures),retries=int(rpc.retries),
+        failure_kinds=dict(getattr(rpc,"failure_kinds",{}) or {}),
+        failure_methods=dict(getattr(rpc,"failure_methods",{}) or {}),
     )
+    telemetry=getattr(rpc,"provider_telemetry",None)
+    if callable(telemetry):
+        try:
+            data["provider"]=telemetry()
+        except Exception:
+            data["provider"]={"telemetry_unavailable":True}
+    return data
 
 
 def _sum_rpc_metrics(rpcs):
+    failure_kinds=Counter()
+    failure_methods=Counter()
+    sessions=[]
+    for rpc in rpcs:
+        failure_kinds.update(getattr(rpc,"failure_kinds",{}) or {})
+        failure_methods.update(getattr(rpc,"failure_methods",{}) or {})
+        sessions.append(_rpc_metrics(rpc))
     return dict(
         calls=sum(int(r.calls) for r in rpcs),
         http_requests=sum(int(r.http_requests) for r in rpcs),
         failures=sum(int(r.failures) for r in rpcs),
         retries=sum(int(r.retries) for r in rpcs),
+        failure_kinds=dict(sorted(failure_kinds.items())),
+        failure_methods=dict(sorted(failure_methods.items())),
+        session_count=len(rpcs),
+        sessions=sessions,
     )
 
 
+def _prove_network_identity(pacer,rpcs):
+    attempts=[]
+    for index in range(1,NETWORK_IDENTITY_MAX_ATTEMPTS+1):
+        rpc=provider.new_rpc(limit=PER_RPC_LIMIT,pacer=pacer)
+        rpcs.append(rpc)
+        try:
+            genesis=rpc.call(
+                "getGenesisHash",priority=True,fresh=True)
+            if genesis!=dlmm.pump.MAINNET:
+                raise Unavailable("unsupported_network")
+            attempts.append(dict(
+                attempt=index,verified=True,rpc=_rpc_metrics(rpc)))
+            return dict(
+                verified=True,genesis_hash=genesis,
+                attempts=attempts,verified_attempt=index)
+        except (Unavailable,ValueError,KeyError,TypeError) as exc:
+            attempts.append(dict(
+                attempt=index,verified=False,reason=str(exc)[:120],
+                rpc=_rpc_metrics(rpc)))
+            if index<NETWORK_IDENTITY_MAX_ATTEMPTS:
+                time.sleep(NETWORK_IDENTITY_RETRY_SECONDS*index)
+    raise Unavailable("solana_network_identity_unavailable")
+
+
 def _new_adapter(pacer,rpcs):
+    # Network identity is proven once per research run. Rotated RPC sessions use
+    # the same authenticated endpoint and do not repeat fragile getGenesisHash.
     rpc=provider.new_rpc(limit=PER_RPC_LIMIT,pacer=pacer)
     rpcs.append(rpc)
-    return dlmm.Adapter(rpc)
+    return dlmm.Adapter(rpc,network_verified=True)
 
 
 def _rotate(adapter,pacer,rpcs):
     return adapter if int(adapter.rpc.calls)<ROTATE_AT_CALLS else _new_adapter(pacer,rpcs)
+
+
+def _atomic_checkpoint(report,stage,rpcs,pacer,**progress):
+    report["checkpoint"]=dict(
+        stage=stage,written_at=int(time.time()),**progress)
+    report["rpc"]=_sum_rpc_metrics(rpcs)
+    report["alchemy_pacer"]=pacer.telemetry()
+    tmp=OUT.with_suffix(OUT.suffix+".tmp")
+    tmp.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
+    os.replace(tmp,OUT)
+
+
+def _runtime_expired(deadline):
+    return deadline is not None and time.monotonic()>=deadline
+
+
+def _runtime_remaining(deadline):
+    return (float("inf") if deadline is None
+            else max(0.0,deadline-time.monotonic()))
 
 
 def _fresh_supported_start(adapter,candidate):
@@ -471,13 +551,25 @@ def _capture_chunk(adapter,start,cursor,wait_seconds):
     return tape,next_cursor,census
 
 
-def _observe_window(adapter,address,start,total_seconds,allow_reset,pacer,rpcs):
+def _observe_window(
+    adapter,address,start,total_seconds,allow_reset,pacer,rpcs,deadline=None
+):
     origin=start;current=start
     cursor=[start["slot"],2**31-1,2**31-1]
     chunks=[];elapsed=0;resets=0;meta=[]
     while elapsed<total_seconds:
+        if _runtime_expired(deadline):
+            return dict(
+                verified=False,reason="experiment_runtime_deadline",
+                elapsed_seconds=elapsed,resets=resets,chunks=meta,
+            ),None,current,origin,adapter
         adapter=_rotate(adapter,pacer,rpcs)
         duration=min(CHUNK_SECONDS,total_seconds-elapsed)
+        if _runtime_remaining(deadline)<duration:
+            return dict(
+                verified=False,reason="experiment_runtime_deadline",
+                elapsed_seconds=elapsed,resets=resets,chunks=meta,
+            ),None,current,origin,adapter
         try:
             tape,cursor,census=_capture_chunk(adapter,current,cursor,duration)
         except (Unavailable,ValueError,KeyError,TypeError) as exc:
@@ -860,7 +952,7 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
     return reasons,recent,mark,fee_uplift
 
 
-def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs):
+def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None):
     position=_build_position(entry,features,policy)
     current=entry;elapsed=0;segments=[];tapes=[]
     max_hold=int(policy["range"]["max_holding_seconds"])
@@ -877,7 +969,7 @@ def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs):
         adapter=_rotate(adapter,pacer,rpcs)
         duration=min(segment_seconds,max_hold-elapsed)
         phase,tape,terminal,effective_start,adapter=_observe_window(
-            adapter,address,current,duration,False,pacer,rpcs)
+            adapter,address,current,duration,False,pacer,rpcs,deadline)
         if not phase["verified"]:
             return dict(
                 complete=False,reason=phase["reason"],segments=segments,
@@ -963,7 +1055,7 @@ def _new_finalized_swaps(rpc,pool,after_slot):
 
 
 def _await_fresh_swap_trigger(
-    adapter,candidate,baseline_state,policy,pacer,rpcs
+    adapter,candidate,baseline_state,policy,pacer,rpcs,deadline=None
 ):
     started=time.monotonic()
     baseline_slot=int(baseline_state["slot"])
@@ -974,6 +1066,13 @@ def _await_fresh_swap_trigger(
     next_refresh=0.0
     while True:
         elapsed=max(0.0,time.monotonic()-started)
+        if _runtime_expired(deadline):
+            return dict(
+                triggered=False,reason="experiment_runtime_deadline",
+                waited_seconds=elapsed,polls=polls,
+                acceleration_refreshes=refreshes,
+                baseline_slot=baseline_slot,
+            ),None,adapter,current_candidate
         if elapsed>=FRESH_SWAP_TRIGGER_MAX_SECONDS:
             return dict(
                 triggered=False,reason="fresh_swap_trigger_timeout",
@@ -1043,19 +1142,21 @@ def _await_fresh_swap_trigger(
         )
         if isinstance(rows,list) and rows and type(rows[0].get("slot")) is int:
             cursor_slot=max(cursor_slot,int(rows[0]["slot"]))
-        remaining=FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
-            0.0,time.monotonic()-started)
+        remaining=min(
+            FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
+                0.0,time.monotonic()-started),
+            _runtime_remaining(deadline))
         if remaining<=0:
             continue
         time.sleep(min(FRESH_SWAP_TRIGGER_POLL_SECONDS,remaining))
 
 
 def _triggered_warmup(
-    adapter,candidate,compatibility_state,policy,pacer,rpcs
+    adapter,candidate,compatibility_state,policy,pacer,rpcs,deadline=None
 ):
     trigger,post_trigger,adapter,current_candidate=(
         _await_fresh_swap_trigger(
-            adapter,candidate,compatibility_state,policy,pacer,rpcs))
+            adapter,candidate,compatibility_state,policy,pacer,rpcs,deadline))
     if not trigger.get("triggered"):
         return dict(
             aligned=False,reason=trigger["reason"],trigger=trigger,
@@ -1063,7 +1164,7 @@ def _triggered_warmup(
     warmup_seconds=int(policy["range"]["warmup_seconds"])
     phase,warm,entry,warm_origin,adapter=_observe_window(
         adapter,current_candidate["address"],post_trigger,
-        warmup_seconds,True,pacer,rpcs)
+        warmup_seconds,True,pacer,rpcs,deadline)
     result=dict(
         aligned=bool(phase.get("verified") and warm is not None and warm.events),
         reason=(
@@ -1155,7 +1256,7 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
     ),None,None,None,None,adapter,current_candidate
 
 
-def run_live(target=None,max_attempted=None):
+def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
     assert_independence()
     policy=load_policy()
     target=int(target or policy["prospective_test"]["target_complete_lifecycles"])
@@ -1164,11 +1265,18 @@ def run_live(target=None,max_attempted=None):
         raise ValueError("solana_dlmm_target_bound")
     if not target<=max_attempted<=int(policy["prospective_test"]["max_attempted_pools"]):
         raise ValueError("solana_dlmm_attempt_bound")
+    max_runtime_seconds=int(
+        max_runtime_seconds or DEFAULT_MAX_RUNTIME_SECONDS)
+    if not 60<=max_runtime_seconds<=7200:
+        raise ValueError("solana_dlmm_runtime_bound")
+    run_started_monotonic=time.monotonic()
+    deadline=run_started_monotonic+max_runtime_seconds
 
     discovery_telemetry=dict(
         rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
     compatibility_rejections=[];compatibility_screened=0
     pacer=provider.AlchemyPacer();rpcs=[]
+    network_identity=_prove_network_identity(pacer,rpcs)
     report=dict(
         kind="solana_dlmm_independent_v1_prospective",
         policy_revision=policy.get("revision"),frozen_policy=policy,
@@ -1183,12 +1291,27 @@ def run_live(target=None,max_attempted=None):
         max_attempted_pools=max_attempted,started=int(time.time()),
         attempts=[],qualified_lifecycles=[],
         compatibility_rejections=compatibility_rejections,
+        network_identity=network_identity,
+        runtime_limit_seconds=max_runtime_seconds,
     )
     attempted=0;complete=0;failure_counts=Counter()
+    def checkpoint(stage):
+        _atomic_checkpoint(
+            report,stage,rpcs,pacer,
+            attempted_pool_count=attempted,
+            complete_lifecycle_count=complete,
+            compatibility_screened_count=compatibility_screened,
+            compatibility_rejection_count=len(compatibility_rejections),
+            qualification_failure_counts=dict(sorted(failure_counts.items())),
+            elapsed_seconds=max(
+                0.0,time.monotonic()-run_started_monotonic),
+        )
+    checkpoint("run_initialized")
     candidate_stream=_iter_acceleration_candidates(
-        policy,discovery_telemetry)
+        policy,discovery_telemetry,deadline,checkpoint)
     for candidate in candidate_stream:
-        if attempted>=max_attempted or complete>=target:
+        if (_runtime_expired(deadline)
+                or attempted>=max_attempted or complete>=target):
             break
         candidate_rpcs=[]
         adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
@@ -1202,6 +1325,7 @@ def run_live(target=None,max_attempted=None):
                 reason=str(exc)[:200],
                 rpc=_sum_rpc_metrics(candidate_rpcs),
             ))
+            checkpoint("compatibility_rejection")
             continue
 
         attempted+=1
@@ -1217,7 +1341,7 @@ def run_live(target=None,max_attempted=None):
             alignment,warm,entry,warm_origin,adapter,aligned_candidate=(
                 _triggered_warmup(
                     adapter,candidate,compatibility_state,
-                    policy,pacer,candidate_rpcs))
+                    policy,pacer,candidate_rpcs,deadline))
             # Any rotated RPCs created inside observation are not yet in global list.
             for rpc in candidate_rpcs:
                 if rpc not in rpcs:rpcs.append(rpc)
@@ -1227,7 +1351,9 @@ def run_live(target=None,max_attempted=None):
                 attempt["terminal_classification"]=reason
                 failure_counts[reason]+=1
                 attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
-                report["attempts"].append(attempt);continue
+                report["attempts"].append(attempt)
+                checkpoint("candidate_terminal")
+                continue
             attempt["candidate_at_warmup"]=aligned_candidate
             features=pre_entry_features(
                 warm_origin,warm,entry,aligned_candidate,policy)
@@ -1238,9 +1364,11 @@ def run_live(target=None,max_attempted=None):
             if not decision["passes"]:
                 attempt["terminal_classification"]="qualification_rejection"
                 attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
-                report["attempts"].append(attempt);continue
+                report["attempts"].append(attempt)
+                checkpoint("qualification_rejection")
+                continue
             lifecycle,adapter=_lifecycle(
-                adapter,candidate["address"],entry,features,policy,pacer,candidate_rpcs)
+                adapter,candidate["address"],entry,features,policy,pacer,candidate_rpcs,deadline)
             for rpc in candidate_rpcs:
                 if rpc not in rpcs:rpcs.append(rpc)
             attempt["lifecycle"]=lifecycle
@@ -1255,12 +1383,14 @@ def run_live(target=None,max_attempted=None):
                     pre_entry_features=features,qualification=decision,**lifecycle))
             else:
                 failure_counts["lifecycle_unverified"]+=1
+            checkpoint("lifecycle_terminal")
         except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
             attempt["terminal_classification"]="exception"
             attempt["reason"]=str(exc)[:200]
             failure_counts["exception"]+=1
             attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
             report["attempts"].append(attempt)
+            checkpoint("candidate_exception")
 
     resolved=[x for x in report["qualified_lifecycles"]
               if (x.get("final") or {}).get("resolved")]
@@ -1288,11 +1418,25 @@ def run_live(target=None,max_attempted=None):
             None if not capital_hour else statistics.fmean(capital_hour)),
         exit_reason_counts=dict(sorted(exits.items())),
         rpc=_sum_rpc_metrics(rpcs),alchemy_pacer=pacer.telemetry(),
+        runtime_limit_reached=_runtime_expired(deadline),
+        elapsed_seconds=max(
+            0.0,time.monotonic()-run_started_monotonic),
         conclusion=(
             "prospective_target_complete"
-            if complete>=target else "prospective_sample_incomplete_no_threshold_change"),
+            if complete>=target else
+            "prospective_20m_window_complete"
+            if _runtime_expired(deadline) else
+            "prospective_sample_incomplete_no_threshold_change"),
     )
-    OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
+    _atomic_checkpoint(
+        report,"final",rpcs,pacer,
+        attempted_pool_count=attempted,
+        complete_lifecycle_count=complete,
+        compatibility_screened_count=compatibility_screened,
+        compatibility_rejection_count=len(compatibility_rejections),
+        qualification_failure_counts=dict(sorted(failure_counts.items())),
+        elapsed_seconds=report["elapsed_seconds"],
+    )
     print(json.dumps(dict(
         conclusion=report["conclusion"],attempted=attempted,complete=complete,
         profitable_rate=report["profitable_rate"],
@@ -1309,16 +1453,34 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument("--target-complete",type=int)
     p.add_argument("--max-attempted",type=int)
+    p.add_argument("--max-runtime-seconds",type=int,default=DEFAULT_MAX_RUNTIME_SECONDS)
     args=p.parse_args()
     try:
-        run_live(args.target_complete,args.max_attempted)
+        run_live(
+            args.target_complete,args.max_attempted,args.max_runtime_seconds)
     except Exception as exc:
-        body=dict(
-            kind="solana_dlmm_independent_v1_prospective",
-            conclusion="experiment_failed_before_valid_terminal_result",
-            allocation_authority=False,error=str(exc)[:200],ended=int(time.time()))
-        OUT.write_text(json.dumps(body,indent=2,sort_keys=True)+"\n")
-        print(json.dumps(body,sort_keys=True))
+        existing={}
+        try:
+            existing=json.loads(OUT.read_text()) if OUT.exists() else {}
+        except Exception:
+            existing={}
+        existing.update(
+            terminal_failure=dict(
+                error=str(exc)[:200],ended=int(time.time()),
+                preserved_partial_evidence=bool(existing),
+            ),
+            conclusion="experiment_failed_partial_evidence_preserved"
+                if existing else "experiment_failed_before_valid_terminal_result",
+            allocation_authority=False,
+        )
+        tmp=OUT.with_suffix(OUT.suffix+".tmp")
+        tmp.write_text(json.dumps(existing,indent=2,sort_keys=True)+"\n")
+        os.replace(tmp,OUT)
+        print(json.dumps(dict(
+            conclusion=existing["conclusion"],
+            error=str(exc)[:200],
+            preserved_partial_evidence=bool(existing.get("checkpoint")),
+        ),sort_keys=True))
         raise
 
 
