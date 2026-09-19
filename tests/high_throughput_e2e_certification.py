@@ -246,7 +246,7 @@ def run_certification(report_path=None):
         if engine.monitor(MINT_B,snapshot(clock(),sol=40_000_000_000,mint=MINT_B,
                                           creator=CREATOR_B,slot=clock()),clock())!='exit_intended':
             raise AssertionError('candidate_b_exit_not_intended')
-        clock.set(192)
+        clock.set(195)
         if engine.monitor(MINT_A,snapshot(clock(),sol=65_000_000_000,mint=MINT_A,
                                           creator=CREATOR_A,slot=clock()),clock())!='settled':
             raise AssertionError('candidate_a_not_settled')
@@ -267,7 +267,7 @@ def run_certification(report_path=None):
         if store.state['positions'][POST_MINT].get('exit_reason')!='timeout':
             raise AssertionError(
                 f"expected_timeout_exit:{store.state['positions'][POST_MINT].get('exit_reason')}")
-        clock.set(1085)
+        clock.set(1088)
         if postgrad.monitor_existing_position(POST_MINT)!='settled':
             raise AssertionError('pumpswap_position_not_settled')
 
