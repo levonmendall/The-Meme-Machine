@@ -78,6 +78,26 @@ class _StateRpc:
             ])
         return out
 
+class _InventoryRpc:
+    def __init__(self, addresses):
+        self.addresses=list(addresses)
+        self.count_calls=0
+        self.batch_calls=[]
+    def call(self, method, params, scope="connectivity"):
+        if method!="eth_call" or scope!="universe_inventory":
+            raise AssertionError((method,params,scope))
+        self.count_calls+=1
+        return "0x" + f"{len(self.addresses):064x}"
+    def batch(self, calls, scope="connectivity"):
+        self.batch_calls.append((scope,list(calls)))
+        out=[]
+        for _method, params in calls:
+            data=params[0]["data"]
+            # getLBPairAtIndex(uint256) ABI puts the uint index in the final word.
+            index=int(data[-64:],16)
+            out.append("0x" + "00"*12 + self.addresses[index][2:])
+        return out
+
 
 class RamsesAllPoolUniverseTests(unittest.TestCase):
     def setUp(self):
@@ -284,6 +304,54 @@ class RamsesAllPoolUniverseTests(unittest.TestCase):
         self.assertEqual(row["prestate_block"], 123)
         self.assertEqual(row["prestate_block_hash"], "0x" + "ab" * 32)
         self.assertFalse(compact["heavy_selector_state_in_artifact"])
+
+    def test_factory_inventory_cache_reuses_existing_indices_and_fetches_only_appends(self):
+        addresses=["0x"+f"{i+1:040x}" for i in range(3)]
+        rpc=_InventoryRpc(addresses)
+        cache={}
+        got,info=ramses_universe._enumerate_factory(
+            rpc,"0x"+"aa"*20,123,inventory_cache=cache
+        )
+        self.assertEqual(got,addresses)
+        self.assertEqual(info["new_entries"],3)
+        self.assertEqual(info["reused_entries"],0)
+        self.assertEqual(len(rpc.batch_calls),1)
+
+        rpc.batch_calls.clear()
+        got2,info2=ramses_universe._enumerate_factory(
+            rpc,"0x"+"aa"*20,124,inventory_cache=cache
+        )
+        self.assertEqual(got2,addresses)
+        self.assertEqual(info2["new_entries"],0)
+        self.assertEqual(info2["reused_entries"],3)
+        self.assertEqual(rpc.batch_calls,[])
+
+        rpc.addresses.append("0x"+f"{4:040x}")
+        got3,info3=ramses_universe._enumerate_factory(
+            rpc,"0x"+"aa"*20,125,inventory_cache=cache
+        )
+        self.assertEqual(got3,rpc.addresses)
+        self.assertEqual(info3["new_entries"],1)
+        self.assertEqual(info3["reused_entries"],3)
+        self.assertEqual(len(rpc.batch_calls),1)
+        self.assertEqual(len(rpc.batch_calls[0][1]),1)
+
+    def test_factory_inventory_cache_fails_closed_on_count_regression(self):
+        addresses=["0x"+f"{i+1:040x}" for i in range(3)]
+        rpc=_InventoryRpc(addresses[:2])
+        cache=dict(
+            factory="0x"+"aa"*20,
+            addresses=addresses,
+            count=3,
+            observed_block=123,
+        )
+        with self.assertRaisesRegex(
+            ramses_universe.BoundaryError,
+            "factory_inventory_regressed",
+        ):
+            ramses_universe._enumerate_factory(
+                rpc,"0x"+"aa"*20,124,inventory_cache=cache
+            )
 
 
 if __name__ == "__main__":
