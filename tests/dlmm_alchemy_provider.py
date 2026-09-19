@@ -18,7 +18,7 @@ from meme_machine.solana_read_rpc import (
     SolanaReadPacer,
     TOPOLOGY_LABEL,
     metadata as _metadata,
-    new_pool_scan_rpc,
+    primary_provider,
     primary_rpc_url,
     secondary_rpc_url,
     validate_topology,
@@ -37,7 +37,19 @@ class AlchemyPacer(SolanaReadPacer):
     def __init__(self, minimum_interval=DLMM_MIN_REQUEST_INTERVAL_SECONDS):
         super().__init__(minimum_interval=minimum_interval)
 
-AlchemyPoolScanRPC = ReadOnlyFailoverPoolScanRPC
+class AlchemyPoolScanRPC(ReadOnlyFailoverPoolScanRPC):
+    """DLMM read client with a hard 5-rps physical-request ceiling.
+
+    Base RPC.call/call_many historically request >=0.5-second pacing. For DLMM
+    acquisition, ignore that legacy requested interval and apply the shared
+    0.2-second pacer directly. Logical budgets, retries, evidence bounds and all
+    strategy thresholds remain unchanged.
+    """
+    def _pace(self, interval=0.5):
+        if self.transport == self._http:
+            self.read_pacer.pace(self, DLMM_MIN_REQUEST_INTERVAL_SECONDS)
+
+
 ALCHEMY_MIN_REQUEST_INTERVAL_SECONDS = DLMM_MIN_REQUEST_INTERVAL_SECONDS
 ALCHEMY_429_MIN_BACKOFF_SECONDS = PROVIDER_429_MIN_BACKOFF_SECONDS
 
@@ -52,13 +64,15 @@ def alchemy_rpc_url(environ=None, *, required=False):
 
 
 def new_rpc(limit=240, pacer=None, environ=None, **kwargs):
-    # OnFinality remains primary. Default DLMM pacing is 0.2s (5 rps);
-    # Alchemy is contacted only through the bounded rescue path.
+    # Authenticated OnFinality remains primary. DLMM physical transports are
+    # paced at 0.2s (5 rps); Alchemy is contacted only through bounded rescue.
     pacer = pacer or AlchemyPacer()
-    return new_pool_scan_rpc(
+    return AlchemyPoolScanRPC(
+        primary_rpc_url(environ),
+        secondary_url=secondary_rpc_url(environ,required=False),
+        primary_provider=primary_provider(environ),
         limit=limit,
         pacer=pacer,
-        environ=environ,
         **kwargs,
     )
 
