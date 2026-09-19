@@ -1,5 +1,6 @@
 name: dlmm-adaptive-operator-discovery
 # Public WS -> LP log filter -> direct Alchemy reconstruction -> checkpointed evidence
+# OnFinality disabled; raw Meteora inventory is audited for pool exclusion reasons.
 on:
   push:
     branches:
