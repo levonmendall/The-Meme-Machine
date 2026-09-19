@@ -1,0 +1,5 @@
+Purpose: start exact repaired 20-minute Solana DLMM v1.7 prospective test.
+Repair: trigger-only swap occurrence authentication plus 1-second verifier segments.
+Warmup remains exactly 12 seconds.
+MAX_TRANSACTIONS remains 16 per verified segment.
+Frozen v1.7 economics unchanged: true
