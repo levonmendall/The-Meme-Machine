@@ -168,6 +168,30 @@ def _delayed_exit(
     return position,meta
 
 
+def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label):
+    pending=paper._get(identity)
+    if pending["status"]!="exit_pending":
+        raise BoundaryError("selective_pending_exit_missing")
+    amount=int(pending.get("pending_exit_tokens") or 0)
+    if amount<=0:
+        raise BoundaryError("selective_pending_exit_amount")
+    deadline=time.monotonic()+20
+    while True:
+        quote,meta,ledger=_v4_quote(
+            rpc,v4_key,pending["market"],amount,gas_units,store,label
+        )
+        if quote.stamp.event_at>=pending["due"]:
+            break
+        if time.monotonic()>=deadline:
+            raise BoundaryError("selective_pending_v4_exit_timeout")
+        time.sleep(0.5)
+    position=paper.advance(
+        identity,now=quote.stamp.observed_at,action="exit",quote=quote,
+        finality_ledger=ledger,
+    )
+    return position,meta
+
+
 def run_lifecycle(endpoint,evaluation,*,db_path):
     vector=evaluation["vector"]
     if not vector.get("current_threshold_pass"):
@@ -275,6 +299,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
         }
         entry_largest=int(vector["demand"]["largest_buyer_flow_bps"])
         seen_v4_buyers=set()
+        pending_transition_exit_reason=None
 
         while True:
             if rpc.used>145:
@@ -287,11 +312,25 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
             elapsed=int(time.time())-opened_at
 
             if elapsed>=EXIT_POLICY["max_total_hold_seconds"]:
-                position,meta=_delayed_exit(
-                    endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
-                    gas_units=gas_units,store=store,transition=transition,v4_key=v4_key,
-                    label="selective-timeout-exit",exit_tokens=position["tokens"],
-                )
+                if position["status"]=="exit_pending" and transition is not None:
+                    position,meta=_complete_pending_v4_exit(
+                        paper=paper,identity=identity,rpc=rpc,v4_key=v4_key,
+                        gas_units=gas_units,store=store,label="selective-timeout-pending-v4-exit",
+                    )
+                elif position["status"]=="open":
+                    try:
+                        position,meta=_delayed_exit(
+                            endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
+                            gas_units=gas_units,store=store,transition=transition,v4_key=v4_key,
+                            label="selective-timeout-exit",exit_tokens=position["tokens"],
+                        )
+                    except BoundaryError as exc:
+                        if str(exc)=="graduated_during_selective_exit":
+                            pending_transition_exit_reason="max_total_hold"
+                            continue
+                        raise
+                else:
+                    continue
                 result["exit"]=dict(reason="max_total_hold",quote=meta,position=position)
                 result["status"]="settled"
                 break
@@ -313,6 +352,23 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                         transition=transition,block=graduation_block,
                         event_at=graduation_at,
                     )
+                    pending=paper._get(identity)
+                    if pending["status"]=="exit_pending":
+                        position,exit_meta=_complete_pending_v4_exit(
+                            paper=paper,identity=identity,rpc=rpc,v4_key=v4_key,
+                            gas_units=gas_units,store=store,
+                            label="selective-transition-pending-exit",
+                        )
+                        exit_row=dict(
+                            reason=(pending_transition_exit_reason or "pregraduation_exit"),
+                            quote=exit_meta,position=position,
+                        )
+                        result.setdefault("exits",[]).append(exit_row)
+                        if position["status"]=="settled":
+                            result["exit"]=exit_row
+                            result["status"]="settled"
+                            break
+                        pending_transition_exit_reason=None
                 last_block=block
 
             position=paper._get(identity)
@@ -344,25 +400,20 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                     trajectory=trajectory,demand=demand,
                     after_cost_return_bps=rbps,
                 )
-                action=runner_action(
-                    tokens=position["tokens"],partial_taken=partial_taken,
-                    after_cost_return_bps=rbps,high_water_return_bps=high_water,
-                    seconds_since_high=max(0,int(time.time())-high_at),
-                    new_buyer_growth=demand["new_independent_groups_15s"],
-                    buy_quote=demand["current_buy_quote"],
-                    sell_quote=demand["current_sell_quote"],
-                )
                 if rbps>high_water:
                     high_water=rbps;high_at=int(time.time())
+                action=(
+                    dict(action="full_exit",reason=reason,exit_tokens=position["tokens"])
+                    if reason is not None else
+                    dict(action="hold",reason=None,exit_tokens=0)
+                )
                 result["monitor"].append(dict(
                     at=mark.stamp.observed_at,market="curve",available=True,
                     return_bps=rbps,trajectory=trajectory,demand=demand,
                     action=action,pregraduation_exit_reason=reason,quote=meta,
+                    profit_taking_deferred_until_post_graduation=True,
                 ))
-                if reason is not None:
-                    action=dict(action="full_exit",reason=reason,
-                                exit_tokens=position["tokens"])
-                if action["action"] in ("partial_exit","full_exit"):
+                if action["action"]=="full_exit":
                     try:
                         position,exit_meta=_delayed_exit(
                             endpoint,paper=paper,identity=identity,rpc=rpc,
@@ -373,14 +424,12 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                         )
                     except BoundaryError as exc:
                         if str(exc)=="graduated_during_selective_exit":
-                            # Exposure remains exit_pending. The next loop must prove
-                            # the authentic graduation before routing it to V4.
+                            pending_transition_exit_reason=action["reason"]
                             continue
                         raise
                     result.setdefault("exits",[]).append(dict(
                         reason=action["reason"],quote=exit_meta,position=position,
                     ))
-                    partial_taken=partial_taken or position["status"]=="open"
                     if position["status"]=="settled":
                         result["exit"]=result["exits"][-1]
                         result["status"]="settled"
