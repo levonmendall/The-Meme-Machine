@@ -1,0 +1,101 @@
+{
+  "kind": "dlmm_small_pool_market_opportunity_v1",
+  "status": "preregistered_before_pool_stratified_market_outcomes",
+  "scope": "meme_machine_solana_dlmm_only",
+  "independence": {
+    "consumes_wallet_review": false,
+    "consumes_wallet_pnl": false,
+    "consumes_profitable_operator_labels": false,
+    "later_comparison": "Compare this frozen pool-first result with the separate 200-wallet operator study only after both are complete."
+  },
+  "authority": {
+    "research_only": true,
+    "allocation_authority": false,
+    "signing": false,
+    "submission": false,
+    "live_money": false,
+    "current_50000_tvl_execution_gate_changed": false
+  },
+  "hypothesis": "Young, volatile, lower-TVL SOL-paired DLMM pools may offer materially greater gross LP revenue density and activity per deployed dollar than the >=$50k universe.",
+  "pool_universe": {
+    "venue": "Meteora DLMM",
+    "network": "solana-mainnet",
+    "exactly_one_wsol_leg": true,
+    "is_blacklisted": false,
+    "no_minimum_tvl": true,
+    "no_minimum_volume": true,
+    "tvl_strata": [
+      {
+        "label": "<10k",
+        "min_inclusive": 0,
+        "max_exclusive": 10000
+      },
+      {
+        "label": "10-25k",
+        "min_inclusive": 10000,
+        "max_exclusive": 25000
+      },
+      {
+        "label": "25-50k",
+        "min_inclusive": 25000,
+        "max_exclusive": 50000
+      },
+      {
+        "label": ">=50k",
+        "min_inclusive": 50000
+      }
+    ],
+    "pagination": "Each TVL stratum is paginated independently so low-TVL pools are not censored by a global TVL-desc page cap.",
+    "max_pages_per_stratum": 100,
+    "page_size": 500
+  },
+  "metrics": {
+    "all_observed_pools": [
+      "pool_count",
+      "active_volume_pool_count",
+      "total_tvl_usd",
+      "total_volume_24h_usd",
+      "total_fees_24h_usd",
+      "median_volume_to_tvl_24h",
+      "median_fee_to_tvl_24h",
+      "p75_fee_to_tvl_24h",
+      "p90_fee_to_tvl_24h",
+      "p95_fee_to_tvl_24h",
+      "profitable_capacity_proxy_fees_per_1000_tvl_24h",
+      "pool_age_distribution",
+      "share_age_lt_1h",
+      "share_age_lt_6h",
+      "share_age_lt_24h"
+    ],
+    "volatility_sample": [
+      "5m_log_return_volatility_60m",
+      "median_volatility",
+      "p75_volatility",
+      "p90_volatility",
+      "share_volatility_ge_3pct",
+      "share_volatility_ge_10pct"
+    ]
+  },
+  "volatility_sampling": {
+    "sample_size_per_tvl_stratum": 60,
+    "selection": "Deterministic SHA256(address) ascending among pools with positive 24h volume; never selected by fee yield, volatility, or later outcome.",
+    "timeframe": "5m",
+    "lookback_seconds": 3600,
+    "minimum_return_count": 2,
+    "missing_ohlcv": "reported unavailable; never imputed"
+  },
+  "interpretation": {
+    "gross_opportunity_not_net_profit": true,
+    "fee_density_is_not_profit_after_inventory_loss": true,
+    "primary_question": "Do lower-TVL strata show materially higher gross fee/activity density and a stronger concentration of young/high-volatility pools?",
+    "later_wallet_confirmation": "Separately test whether final profitable operators from the 200-wallet study deploy into and earn PnL in the same strata.",
+    "no_best_bucket_strategy_selection": true,
+    "no_threshold_change_from_descriptive_result": true
+  },
+  "execution": {
+    "meteora_rps_cap": 12,
+    "checkpoint_volatility_sample": true,
+    "no_solana_rpc_required_for_pool_first_stage": true
+  },
+  "revision": "1.0"
+}
