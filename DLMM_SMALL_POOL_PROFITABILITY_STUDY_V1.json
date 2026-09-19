@@ -91,13 +91,14 @@
   "entry_context": {
     "tvl_definition": "USD value of both DLMM reserve vault pre-balances immediately before entry, using point-in-time prices.",
     "primary_tvl_source": "entry transaction preTokenBalances for both immutable pool reserve vaults",
-    "fallback_tvl_source": "nearest prior finalized pool transaction within 120 seconds, searched newest-first across at most 32 signatures, only if it exposes both immutable reserve vault pre-balances",
+    "fallback_tvl_source": "Immediately prior successful finalized pool transaction only (failed signatures may be skipped), within 120 seconds of entry; it must expose both immutable reserve vault pre-balances. Do not skip past a successful intervening pool transaction that lacks both reserves.",
     "pool_identity_source": "current immutable LbPair mint/vault addresses decoded from the pool account; current balances are never used as historical balances",
     "price_source": "entry historical event USD/amount when nonzero; a missing side may be inferred from the last 5m OHLCV close at or before entry using Meteora pool price orientation",
     "no_current_tvl_substitution": true,
     "unavailable_rule": "If both reserve balances and point-in-time prices cannot be proved, entry TVL is unavailable and the position cannot vote in TVL-stratum comparisons.",
     "pool_age": "entry blockTime minus Meteora pool created_at; negative or missing values unavailable",
-    "volatility": "population standard deviation of 5m log returns from the 60 minutes strictly before entry; requires at least 3 closes"
+    "volatility": "population standard deviation of 5m log returns from the 60 minutes strictly before entry; requires at least 3 closes",
+    "fallback_search_bound": "Inspect at most 32 newest pre-entry signatures only to skip failed transactions and identify the immediately prior successful pool transaction."
   },
   "operator_labels": {
     "provisional": "same frozen cohort; >=20 measured closed positions, >=3 distinct pools, positive total realized API PnL USD",
@@ -136,5 +137,14 @@
     "minimum_positions_per_tvl_stratum": 30,
     "minimum_independent_profitable_operators_per_tvl_stratum": 3
   },
-  "revision": "1.0"
+  "revision": "1.1",
+  "amendment_history": [
+    {
+      "revision": "1.1",
+      "reason": "Tighten entry-TVL fallback before any TVL-stratified outcomes: never skip past a successful intervening pool transaction, because it could mutate reserves.",
+      "tvl_stratified_outcomes_observed_before_amendment": false,
+      "wallet_selection_changed": false,
+      "tvl_bucket_boundaries_changed": false
+    }
+  ]
 }
