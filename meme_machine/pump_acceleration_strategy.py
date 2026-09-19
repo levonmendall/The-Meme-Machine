@@ -326,6 +326,9 @@ def _late_score(s):
 
 def _postgrad_score(s):
     score=0
+    age=int(s.seconds_since_graduation or 0)
+    if 5 <= age <= 60:
+        score+=5
     score+=_points(int(s.independent_buyer_clusters),4,8,20)
     score+=_points(int(s.buyer_growth),1,5,15)
     score+=_points(int(s.net_buy_share_bps),6000,9000,20)
