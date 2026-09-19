@@ -158,6 +158,8 @@ def decode_strategy_one_side(raw):
     amount=struct.unpack_from("<Q",raw,8)[0]
     result=_strategy_fields(
         raw,amount,0,16,"add_liquidity_by_strategy_one_side")
+    result["amount"]=amount
+    result["amount_x"]=None;result["amount_y"]=None
     result["one_sided"]=True;result["two_sided"]=False
     result["single_side_token_from_accounts"]=True
     return result
@@ -271,7 +273,7 @@ def decode_rebalance(raw):
 
 
 def decode_rebalancing_event(raw,pool):
-    if len(raw)<180 or raw[:8]!=REBALANCING_EVT:
+    if len(raw)<188 or raw[:8]!=REBALANCING_EVT:
         raise ValueError("dlmm_operator_rebalancing_event_shape")
     if pump.b58(raw[8:40])!=pool:
         raise ValueError("dlmm_operator_rebalancing_event_pool")
@@ -342,6 +344,11 @@ def transaction_features(tx,pool,position):
         if keys[accounts[pool_i]]!=pool or keys[accounts[position_i]]!=position:
             continue
         detail=dict(action=action,order=[outer,inner],signer=keys[accounts[signer_i]])
+        if action in (
+            "add_liquidity_by_strategy_one_side","add_liquidity_one_side",
+            "add_liquidity_one_side_precise","add_liquidity_one_side_precise2"
+        ) and len(accounts)>5 and type(accounts[5]) is int and 0<=accounts[5]<len(keys):
+            detail["single_side_token_mint"]=keys[accounts[5]]
         try:
             if raw[:8] in (ADD,ADD2):
                 detail.update(decode_add(raw))
