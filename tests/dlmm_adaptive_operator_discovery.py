@@ -181,9 +181,21 @@ def _provider_session(rpc,started,reason):
 
 def reconstruct_union(signature_rows,pool_rows):
     pool_rank={row["address"]:i+1 for i,row in enumerate(pool_rows)}
+    prior_candidates,processed=_load_checkpoint(pool_rows)
+    candidates={str(k):dict(v) for k,v in prior_candidates.items()}
+    for row in signature_rows:
+        candidates[row["signature"]]=dict(row)
+    _write_checkpoint(pool_rows,candidates,processed)
+
     queue=AdaptiveReconstructionQueue(limit=QUEUE_LIMIT)
-    now=time.time()
-    for i,row in enumerate(signature_rows):
+    now=time.time();reused_events=[]
+    ordered=sorted(candidates.values(),key=lambda r:(
+        float(r["first_observed_at"]),int(r["slot"]),r["signature"]))
+    for i,row in enumerate(ordered):
+        prior=processed.get(row["signature"])
+        if isinstance(prior,dict) and prior.get("status")=="success":
+            reused_events.extend(prior.get("events") or [])
+            continue
         queue.enqueue(ReconstructionTask(
             identity=row["signature"],kind="dlmm_program_transaction",
             deadline=max(now+1,float(row["first_observed_at"])+RECONSTRUCTION_DEADLINE_SECONDS),
@@ -193,7 +205,7 @@ def reconstruct_union(signature_rows,pool_rows):
 
     pacer=provider.AlchemyPacer()
     rpc=provider.new_rpc(limit=RPC_LIMIT,pacer=pacer)
-    session_started=int(time.time());sessions=[];failures=[];events=[]
+    session_started=int(time.time());sessions=[];failures=[];events=list(reused_events)
     deadline=time.monotonic()+RECONSTRUCTION_SECONDS
 
     while len(queue) and time.monotonic()<deadline:
@@ -222,16 +234,26 @@ def reconstruct_union(signature_rows,pool_rows):
             ],False)
             if not isinstance(tx,dict):
                 raise RuntimeError("dlmm_v2_transaction_unavailable")
-            events.extend(_actor_events_any_pool(tx,pool_rank,row))
+            extracted=_actor_events_any_pool(tx,pool_rank,row)
+            events.extend(extracted)
+            processed[row["signature"]]=dict(
+                status="success",slot=row["slot"],
+                relevance_actions=row.get("relevance_actions") or [],
+                events=extracted,
+            )
+            _write_checkpoint(pool_rows,candidates,processed)
         except Exception as exc:
             after=dict(rpc.failure_kinds)
             delta={k:int(after.get(k,0))-int(before.get(k,0))
                    for k in set(before)|set(after)
                    if int(after.get(k,0))-int(before.get(k,0))}
-            failures.append(dict(
+            failure=dict(
                 signature=row["signature"],slot=row["slot"],
                 error=type(exc).__name__,failure_kind_delta=dict(sorted(delta.items())),
-            ))
+            )
+            failures.append(failure)
+            processed[row["signature"]]=dict(status="failed",**failure)
+            _write_checkpoint(pool_rows,candidates,processed)
 
     sessions.append(_provider_session(
         rpc,session_started,"queue_complete" if not len(queue) else "wall_clock_end"))
@@ -239,6 +261,9 @@ def reconstruct_union(signature_rows,pool_rows):
         events=events,failures=failures,queue=queue.status(time.time()),
         remaining_queue_depth=len(queue),provider_sessions=sessions,
         shared_pacer=pacer.telemetry(),
+        checkpoint_path=str(CHECKPOINT_OUT),
+        checkpoint_reused_event_count=len(reused_events),
+        checkpoint_processed_signatures=len(processed),
         complete=(not len(queue) and not failures),
     )
 
