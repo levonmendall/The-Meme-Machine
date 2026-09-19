@@ -1,0 +1,8 @@
+Pons Selective Continuation v1 market test
+authorized: 2026-09-19
+branch: feat/pons-selective-continuation-v1
+purpose: bounded natural market test of the isolated pons-selective-continuation-v1 strategy
+authority: paper-only
+threshold changes: none
+shared allocator: false
+live money: false
