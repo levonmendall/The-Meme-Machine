@@ -1,6 +1,7 @@
 import ast
 import json
 import os
+import tempfile
 from pathlib import Path
 import unittest
 from unittest.mock import patch,MagicMock
@@ -77,6 +78,68 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         with patch.dict(os.environ,{"MM_ROBINHOOD_READ_RPC_URL":"forbidden"},clear=False):
             with self.assertRaisesRegex(RuntimeError,"robinhood_config_forbidden"):
                 strategy.assert_independence()
+
+    def test_network_identity_retries_then_succeeds_once(self):
+        bad=MagicMock()
+        bad.call.side_effect=strategy.Unavailable("provider_request_failed")
+        good=MagicMock()
+        good.call.return_value=dlmm.pump.MAINNET
+        for rpc in (bad,good):
+            rpc.calls=rpc.http_requests=rpc.failures=rpc.retries=0
+            rpc.failure_kinds={};rpc.failure_methods={}
+            rpc.provider_telemetry.return_value={"provider":"alchemy"}
+        rpcs=[]
+        with patch.object(
+                strategy.provider,"new_rpc",side_effect=[bad,good]) as make, \
+             patch.object(strategy.time,"sleep") as sleep:
+            proof=strategy._prove_network_identity(MagicMock(),rpcs)
+        self.assertTrue(proof["verified"])
+        self.assertEqual(proof["verified_attempt"],2)
+        self.assertEqual(len(proof["attempts"]),2)
+        self.assertEqual(len(rpcs),2)
+        self.assertEqual(make.call_count,2)
+        self.assertEqual(sleep.call_count,1)
+
+    def test_rotated_adapter_reuses_proven_network_identity(self):
+        rpc=MagicMock()
+        rpc.calls=rpc.http_requests=rpc.failures=rpc.retries=0
+        rpc.failure_kinds={};rpc.failure_methods={}
+        rpcs=[]
+        with patch.object(strategy.provider,"new_rpc",return_value=rpc), \
+             patch.object(strategy.dlmm,"Adapter") as adapter_cls:
+            strategy._new_adapter(MagicMock(),rpcs)
+        adapter_cls.assert_called_once_with(rpc,network_verified=True)
+        rpc.call.assert_not_called()
+        self.assertEqual(rpcs,[rpc])
+
+    def test_atomic_checkpoint_preserves_candidate_and_provider_telemetry(self):
+        rpc=MagicMock()
+        rpc.calls=7;rpc.http_requests=5;rpc.failures=2;rpc.retries=1
+        rpc.failure_kinds={"network_or_timeout":2}
+        rpc.failure_methods={"getTransaction:network_or_timeout":2}
+        rpc.provider_telemetry.return_value={"topology":"test"}
+        pacer=MagicMock();pacer.telemetry.return_value={"waits":3}
+        report={"attempts":[{"pool":"p","terminal_classification":"exception"}]}
+        with tempfile.TemporaryDirectory() as td:
+            out=Path(td)/"checkpoint.json"
+            with patch.object(strategy,"OUT",out):
+                strategy._atomic_checkpoint(
+                    report,"candidate_exception",[rpc],pacer,
+                    attempted_pool_count=1,complete_lifecycle_count=0)
+            saved=json.loads(out.read_text())
+        self.assertEqual(saved["checkpoint"]["stage"],"candidate_exception")
+        self.assertEqual(saved["attempts"][0]["pool"],"p")
+        self.assertEqual(saved["rpc"]["failure_kinds"]["network_or_timeout"],2)
+        self.assertEqual(
+            saved["rpc"]["failure_methods"][
+                "getTransaction:network_or_timeout"],2)
+        self.assertEqual(saved["alchemy_pacer"]["waits"],3)
+
+    def test_adapter_network_verified_skips_genesis_probe(self):
+        rpc=MagicMock()
+        adapter=dlmm.Adapter(rpc,network_verified=True)
+        self.assertIs(adapter.rpc,rpc)
+        rpc.call.assert_not_called()
 
     def test_discovery_uses_acceleration_not_tvl_floor(self):
         p=strategy.load_policy()
