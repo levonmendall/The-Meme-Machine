@@ -1,0 +1,103 @@
+{
+  "kind": "dlmm_capital_efficiency_v1",
+  "status": "frozen_pre_prospective",
+  "scope": "meme_machine_solana_dlmm_only",
+  "authority": {
+    "research_only": true,
+    "allocation": false,
+    "signing": false,
+    "submission": false,
+    "live_money": false
+  },
+  "lineage": {
+    "supersedes_neither": [
+      "DLMM_60S_RESEARCH_HOLD.json",
+      "DLMM_WALLET_CLUSTER_CANDIDATE_V1.json"
+    ],
+    "rationale": [
+      "Replace absolute TVL as the primary opportunity gate with range-local capital efficiency.",
+      "Combine high volume/active-liquidity, realized fee capture, two-way flow, unwindability and inventory containment.",
+      "Preserve one-sided SOL positioning and broad ranges suggested by profitable-wallet research."
+    ]
+  },
+  "discovery": {
+    "network": "solana-mainnet",
+    "venue": "Meteora DLMM",
+    "require_exactly_one_wsol_leg": true,
+    "require_nonblacklisted": true,
+    "minimum_pool_tvl_usd": null,
+    "minimum_absolute_volume": null,
+    "sources": [
+      "current volume_30m descending",
+      "current fee_tvl_ratio_30m descending"
+    ],
+    "discovery_only_metrics_do_not_authorize_entry": true
+  },
+  "position": {
+    "capital_lamports": 100000000,
+    "distribution": "sdk_bidask_one_side_sol",
+    "width_bins": 70,
+    "rebalance": "none_v1",
+    "reason": "Broad asymmetric one-sided SOL baseline; profitable-wallet evidence strongly favored >50-bin ranges."
+  },
+  "warmup": {
+    "seconds": 12,
+    "finalized_verified_only": true,
+    "exact_range_features": true
+  },
+  "qualification": {
+    "min_range_liquidity_to_capital_multiple": 10,
+    "fee_projection_seconds": 60,
+    "min_projected_range_fee_capture_lamports": 700000,
+    "min_projected_range_fee_capture_cost_multiple": 2,
+    "require_flow_into_range": true,
+    "min_two_way_balance": 0.5,
+    "require_reversal_or_touch_then_revert": true,
+    "max_near_range_drift_ratio": 0.5,
+    "stress_inventory_fraction_of_capital": 0.5,
+    "max_stress_unwind_loss_bps": 70,
+    "threshold_basis": {
+      "fee_multiple": "Two full modeled round-trip cost hurdles; fixed round-trip cost is 350,000 lamports.",
+      "two_way_balance": "Minority directional volume must be at least 25% of directional flow.",
+      "drift": "Net displacement may consume at most half of total near-range travel.",
+      "capacity": "Paper capital may be at most 10% of pre-entry liquidity in the proposed range.",
+      "unwind": "50% token-inventory stress unwind may cost no more than two modeled round-trip cost hurdles (70 bps)."
+    }
+  },
+  "management": {
+    "maximum_hold_seconds": 180,
+    "observation_segment_seconds": 12,
+    "early_exit": [
+      "active_bin_outside_position_range",
+      "executable_token_inventory_value_exceeds_50pct_of_initial_capital",
+      "latest_nonempty_segment_is_fully_one_way_and_monotonic"
+    ],
+    "fully_one_way_definition": "direction_balance == 0",
+    "monotonic_definition": "drift_ratio == 1",
+    "no_take_profit_threshold": true,
+    "no_stop_loss_threshold": true,
+    "exit": "withdraw full range and liquidate residual token inventory to SOL using verified market state"
+  },
+  "economics": {
+    "entry_cost_lamports": 150000,
+    "exit_cost_lamports": 200000,
+    "fixed_round_trip_cost_lamports": 350000,
+    "fixed_round_trip_cost_bps": 35,
+    "result": "after-fixed-cost SOL PnL"
+  },
+  "prospective_test": {
+    "post_freeze_only": true,
+    "target_complete_observations": 8,
+    "max_attempted_pools": 32,
+    "record_all_qualification_failures": true,
+    "no_threshold_changes_after_start": true,
+    "no_retroactive_candidate_selection": true,
+    "allocation_authority": false
+  },
+  "interpretation": [
+    "This is a new candidate, not a modification of either previously frozen DLMM experiment.",
+    "Passing discovery ranking alone is never entry authority.",
+    "Failure to produce trades is a valid result; thresholds must not be lowered to manufacture qualification."
+  ],
+  "revision": "1.0"
+}
