@@ -146,6 +146,10 @@ def _token2022_extensions(raw, account_type):
         kind,size=struct.unpack_from('<HH',raw,offset);offset+=4
         if offset+size > len(raw):
             raise ValueError('dlmm_token2022_extension_truncated')
+        if account_type==1 and kind==18 and size!=64:
+            raise ValueError('dlmm_token2022_metadata_pointer_shape')
+        if account_type==2 and kind==7 and size!=0:
+            raise ValueError('dlmm_token2022_immutable_owner_shape')
         extensions.append(kind);offset+=size
     if len(set(extensions)) != len(extensions):
         raise ValueError('dlmm_token2022_duplicate_extension')
