@@ -143,16 +143,17 @@ class RamsesExtendedMarketTests(unittest.TestCase):
         class Rpc:
             def call(self,method,params,scope="forward"):
                 block=int(params[0],16)
-                # 3 second block spacing means there is no exact +60 block.
+                # 7 second block spacing means there is no exact +60 block.
                 return dict(
                     number=hex(block),
-                    timestamp=hex(1000+(block-100)*3),
+                    timestamp=hex(1000+(block-100)*7),
                 )
-        frontier=dict(number=hex(500),timestamp=hex(2200))
+        frontier=dict(number=hex(500),timestamp=hex(3800))
         selected,horizon=_exact_forced_horizon(
             Rpc(),100,1000,frontier
         )
-        self.assertEqual(int(selected["timestamp"],16),1060)
+        self.assertEqual(int(selected["timestamp"],16),1063)
+        self.assertEqual(horizon["previous_timestamp"],1056)
         self.assertLess(horizon["previous_timestamp"],1060)
         self.assertGreaterEqual(horizon["selected_timestamp"],1060)
 
