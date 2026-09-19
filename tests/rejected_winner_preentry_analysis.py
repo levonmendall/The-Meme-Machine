@@ -111,6 +111,46 @@ def _summary(rows):
     )
 
 
+def prospective_validation_summary(rows):
+    eligible=[
+        r for r in rows
+        if r.get("evidence_stage")=="complete" and _outcome_present(r)
+    ]
+    matched=[r for r in eligible if hypothesis_match(r)]
+    controls=[
+        r for r in eligible
+        if r.get("actual_reason")=="concentration" and not hypothesis_match(r)
+    ]
+    match=_summary(matched);control=_summary(controls)
+    lift=(
+        None if not control.get("clean_winner_rate")
+        else match.get("clean_winner_rate",0)/control["clean_winner_rate"]
+    )
+    ready=bool(
+        match["count"]>=HYPOTHESIS["fresh_validation_min_matching"]
+        and control["count"]>=HYPOTHESIS["fresh_validation_min_concentration_controls"]
+    )
+    criteria=HYPOTHESIS["validation_success"]
+    passed=bool(
+        ready
+        and lift is not None
+        and lift>=criteria["clean_winner_rate_lift_vs_concentration_controls_min"]
+        and (match.get("clean_winner_rate") or 0)>=criteria["matching_clean_winner_rate_min"]
+        and isinstance(match.get("median_mae_bps"),(int,float))
+        and match["median_mae_bps"]>criteria["matching_median_mae_bps_gt"]
+        and isinstance(match.get("below_minus_10pct_rate"),(int,float))
+        and match["below_minus_10pct_rate"]<=criteria["matching_below_minus_10pct_rate_max"]
+    )
+    return dict(
+        hypothesis_id=HYPOTHESIS["id"],authority="research_only",
+        order_authority=False,rule_refit_allowed=False,
+        matching=match,concentration_controls=control,
+        clean_winner_rate_lift_vs_controls=lift,
+        sample_ready=ready,validation_passed=passed,
+        trading_authority_granted=False,
+    )
+
+
 def analyze(body):
     natural=[
         r for r in body.get("natural_results") or []
