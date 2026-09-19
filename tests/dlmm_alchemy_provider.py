@@ -36,16 +36,22 @@ class AlchemyPacer(SolanaReadPacer):
         super().__init__(minimum_interval=minimum_interval)
 
 class AlchemyPoolScanRPC(ReadOnlyFailoverPoolScanRPC):
-    """DLMM read client with a hard 5-rps physical-request ceiling.
-
-    Base RPC.call/call_many historically request >=0.5-second pacing. For DLMM
-    acquisition, ignore that legacy requested interval and apply the shared
-    0.2-second pacer directly. Logical budgets, retries, evidence bounds and all
-    strategy thresholds remain unchanged.
-    """
+    """DLMM direct-Alchemy read client with a hard 5-rps request ceiling."""
     def _pace(self, interval=0.5):
         if self.transport == self._http:
             self.read_pacer.pace(self, DLMM_MIN_REQUEST_INTERVAL_SECONDS)
+
+    def provider_telemetry(self):
+        data=super().provider_telemetry()
+        data.update(
+            topology="dlmm_public_ws_alchemy_http",
+            primary_provider=SECONDARY_PROVIDER,
+            secondary_provider=None,
+            secondary_configured=False,
+            failover_count=0,
+            failover_reasons={},
+        )
+        return data
 
 
 ALCHEMY_MIN_REQUEST_INTERVAL_SECONDS = DLMM_MIN_REQUEST_INTERVAL_SECONDS
