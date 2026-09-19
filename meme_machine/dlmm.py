@@ -21,6 +21,13 @@ MAX_BINS = 210
 MAX_AGE = 20
 DLMM_ALLOCATION_ENABLED = False
 
+# Token-2022 is supported only when it is mechanically equivalent to classic SPL
+# for the operations modeled here. Metadata changes representation, not transfer
+# amounts. Every behavioral extension remains fail-closed until its exact economics
+# are implemented.
+TOKEN2022_SAFE_MINT_EXTENSIONS = frozenset((18, 19))  # MetadataPointer, TokenMetadata
+TOKEN2022_SAFE_VAULT_EXTENSIONS = frozenset((7,))     # ImmutableOwner
+
 
 def price(bin_id, step):
     """Reference u64x64_math::pow, including its inversion/rounding behavior."""
@@ -53,6 +60,9 @@ def pool(account):
              'max_bin_id','protocol_share','base_fee_power_factor','function_type','collect_fee_mode')
     static = dict(zip(names, struct.unpack_from('<HHHHIIiiHBBB', raw, 8)))
     vol, ref, index = struct.unpack_from('<IIi', raw, 40)
+    token_x_flag,token_y_flag=raw[880],raw[881]
+    if token_x_flag not in (0,1) or token_y_flag not in (0,1):
+        raise ValueError('dlmm_unsupported_token_program_flag')
     result = dict(parameters=static, volatility_accumulator=vol,
                   volatility_reference=ref,index_reference=index,
                   last_update=struct.unpack_from('<q',raw,56)[0],
@@ -63,11 +73,16 @@ def pool(account):
                   x=pump.b58(raw[88:120]),y=pump.b58(raw[120:152]),
                   vault_x=pump.b58(raw[152:184]),vault_y=pump.b58(raw[184:216]),
                   protocol_fee_x=struct.unpack_from('<Q',raw,216)[0],
-                  protocol_fee_y=struct.unpack_from('<Q',raw,224)[0])
+                  protocol_fee_y=struct.unpack_from('<Q',raw,224)[0],
+                  token_x_program_flag=token_x_flag,
+                  token_y_program_flag=token_y_flag,
+                  token_x_program=(pump.TOKEN_2022 if token_x_flag else pump.TOKEN_PROGRAM),
+                  token_y_program=(pump.TOKEN_2022 if token_y_flag else pump.TOKEN_PROGRAM),
+                  pool_version=raw[882])
     if raw[82] != 0 or raw[75] not in (0,2,3) or raw[86] not in (0,1):
         raise ValueError('dlmm_disabled_or_permissioned_pool')
-    if raw[880:882] != bytes(2) or raw[882] > 1:
-        raise ValueError('dlmm_unsupported_token_program_or_version')
+    if raw[882] > 1 or any(raw[883:904]):
+        raise ValueError('dlmm_unsupported_pool_version_or_reserved')
     if static['collect_fee_mode'] != 0 or static['function_type'] not in (0,1,2):
         raise ValueError('dlmm_unsupported_fee_mode')
     # RewardInfo starts with mint. No farming rewards are modeled or claimed.
@@ -117,6 +132,86 @@ def bin_array(account, address, index, step):
     return result
 
 
+def _token2022_extensions(raw, account_type):
+    if len(raw) <= 165:
+        return ()
+    if raw[165] != account_type:
+        raise ValueError('dlmm_token2022_account_type')
+    offset=166;extensions=[]
+    while offset < len(raw):
+        if not any(raw[offset:]):
+            break
+        if offset+4 > len(raw):
+            raise ValueError('dlmm_token2022_extension_truncated')
+        kind,size=struct.unpack_from('<HH',raw,offset);offset+=4
+        if offset+size > len(raw):
+            raise ValueError('dlmm_token2022_extension_truncated')
+        extensions.append(kind);offset+=size
+    if len(set(extensions)) != len(extensions):
+        raise ValueError('dlmm_token2022_duplicate_extension')
+    return tuple(extensions)
+
+
+def _dlmm_mint_info(account, expected_program):
+    if not account or account.get('owner') != expected_program:
+        raise ValueError('dlmm_token_program_mismatch')
+    raw=pump.raw_account(account,expected_program)
+    if len(raw)<82 or not raw[45]:
+        raise ValueError('dlmm_invalid_mint')
+    mint_authority_option=int.from_bytes(raw[:4],'little')
+    freeze_authority_option=int.from_bytes(raw[46:50],'little')
+    if mint_authority_option not in (0,1) or freeze_authority_option not in (0,1):
+        raise ValueError('dlmm_invalid_mint_authority_option')
+    # Freeze authority can block our eventual exit and therefore remains unsafe.
+    if freeze_authority_option:
+        raise ValueError('dlmm_freeze_authority_unsupported')
+    if expected_program==pump.TOKEN_PROGRAM:
+        if len(raw)!=82:
+            raise ValueError('dlmm_classic_mint_size')
+        extensions=()
+    elif expected_program==pump.TOKEN_2022:
+        extensions=_token2022_extensions(raw,1)
+        unsafe=set(extensions)-set(TOKEN2022_SAFE_MINT_EXTENSIONS)
+        if unsafe:
+            raise ValueError(
+                'dlmm_token2022_behavioral_extension_unsupported:'+
+                ','.join(map(str,sorted(unsafe))))
+    else:
+        raise ValueError('dlmm_token_program_unsupported')
+    return dict(
+        supply=struct.unpack_from('<Q',raw,36)[0],
+        decimals=raw[44],
+        mint_authority_present=bool(mint_authority_option),
+        freeze_authority_present=False,
+        extensions=extensions,
+        program=expected_program,
+    )
+
+
+def _dlmm_vault_amount(account,mint,authority,expected_program):
+    amount=_token_account(
+        account,mint,authority=authority,token_program=expected_program)
+    raw=pump.raw_account(account,expected_program)
+    if len(raw)<165 or raw[108]!=1:
+        raise ValueError('dlmm_vault_layout_or_state')
+    if any(raw[72:76]) or any(raw[129:133]):
+        raise ValueError('dlmm_unsupported_vault_delegate_or_close_authority')
+    if expected_program==pump.TOKEN_PROGRAM:
+        if len(raw)!=165:
+            raise ValueError('dlmm_classic_vault_size')
+        extensions=()
+    elif expected_program==pump.TOKEN_2022:
+        extensions=_token2022_extensions(raw,2) if len(raw)>165 else ()
+        unsafe=set(extensions)-set(TOKEN2022_SAFE_VAULT_EXTENSIONS)
+        if unsafe:
+            raise ValueError(
+                'dlmm_token2022_vault_extension_unsupported:'+
+                ','.join(map(str,sorted(unsafe))))
+    else:
+        raise ValueError('dlmm_token_program_unsupported')
+    return amount,extensions
+
+
 def validate(snapshot, now, kind=None):
     if snapshot.get('network') != 'solana-mainnet' or snapshot.get('commitment') != 'finalized':
         raise ValueError('dlmm_finalized_mainnet_required')
@@ -132,18 +227,15 @@ def validate(snapshot, now, kind=None):
     activation_now=snapshot['slot'] if p['activation_type']==0 else snapshot['market_time']
     if p['pair_type']!=0 and activation_now<p['activation_point']:
         raise ValueError('dlmm_pool_not_activated')
-    for mint in (p['x'],p['y']):
-        if accounts[mint]['owner'] != pump.TOKEN_PROGRAM:
-            raise ValueError('dlmm_unsupported_token_program')
-        _,decimals = pump.mint_info(accounts[mint])
-        if mint == WSOL and decimals != 9:
-            raise ValueError('dlmm_native_decimals')
-    vx = _token_account(accounts[p['vault_x']],p['x'],address,pump.TOKEN_PROGRAM)
-    vy = _token_account(accounts[p['vault_y']],p['y'],address,pump.TOKEN_PROGRAM)
-    for key in ('vault_x','vault_y'):
-        raw=pump.raw_account(accounts[p[key]],pump.TOKEN_PROGRAM)
-        if len(raw)!=165 or any(raw[72:76]) or any(raw[129:133]):
-            raise ValueError('dlmm_unsupported_vault_delegate_or_layout')
+    mint_x=_dlmm_mint_info(accounts[p['x']],p['token_x_program'])
+    mint_y=_dlmm_mint_info(accounts[p['y']],p['token_y_program'])
+    for mint,info in ((p['x'],mint_x),(p['y'],mint_y)):
+        if mint == WSOL and (info['decimals']!=9 or info['program']!=pump.TOKEN_PROGRAM):
+            raise ValueError('dlmm_native_decimals_or_program')
+    vx,vx_ext=_dlmm_vault_amount(
+        accounts[p['vault_x']],p['x'],address,p['token_x_program'])
+    vy,vy_ext=_dlmm_vault_amount(
+        accounts[p['vault_y']],p['y'],address,p['token_y_program'])
     indices = snapshot['array_indices']
     if not 1 <= len(indices) <= 3 or sorted(set(indices)) != indices:
         raise ValueError('dlmm_array_bound')
@@ -154,8 +246,11 @@ def validate(snapshot, now, kind=None):
         raise ValueError('dlmm_missing_active_or_liquidity')
     if sum(b['x'] for b in bins.values()) > vx or sum(b['y'] for b in bins.values()) > vy:
         raise ValueError('dlmm_vault_inventory_mismatch')
-    return dict(pool=address,**p,bins=bins,vault_x_amount=vx,vault_y_amount=vy,
-                slot=snapshot['slot'],time=snapshot['market_time'])
+    return dict(
+        pool=address,**p,bins=bins,vault_x_amount=vx,vault_y_amount=vy,
+        token_x_mint_info=mint_x,token_y_mint_info=mint_y,
+        vault_x_extensions=vx_ext,vault_y_extensions=vy_ext,
+        slot=snapshot['slot'],time=snapshot['market_time'])
 
 
 def total_fee(p):
