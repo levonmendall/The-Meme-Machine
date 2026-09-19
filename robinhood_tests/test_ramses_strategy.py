@@ -5,6 +5,7 @@ from robinhood_research.ramses_strategy import (
     POLICY,
     POLICY_HASH,
     STRATEGY_VERSION,
+    STRATEGY_DOMAIN,
     attach_universe_percentiles,
     build_fee_pulse_freeze,
     build_path_freeze,
@@ -57,6 +58,9 @@ class RamsesStrategyTests(unittest.TestCase):
 
     def test_policy_is_frozen_and_research_only(self):
         self.assertEqual(STRATEGY_VERSION, "ramses-fee-pulse-v1")
+        self.assertEqual(STRATEGY_DOMAIN, "robinhood-ramses-dlmm-independent")
+        self.assertFalse(POLICY["independence"]["shared_allocator"])
+        self.assertFalse(POLICY["independence"]["cross_strategy_signals"])
         self.assertEqual(len(POLICY_HASH), 64)
         self.assertFalse(POLICY["allocation_authority"])
         self.assertTrue(POLICY["paper_only"])
@@ -137,20 +141,20 @@ class RamsesStrategyTests(unittest.TestCase):
     def test_external_signal_modes_fail_closed_when_stale_and_accept_explicit_fresh_signal(self):
         state = self._state()
         history = self._history(True)
-        stale = dict(kind="anchor", observed_at=900, confidence_bps=9000, expected_net_bps=100, direction="up")
+        stale = dict(kind="anchor", source_class="external_reference", observed_at=900, confidence_bps=9000, expected_net_bps=100, direction="up")
         no_trade = classify_pool(
             state, history, "y", requested_capital=10**16, entry_timestamp=1000, now=1000,
             anchor_signal=stale,
         )
         self.assertNotEqual(no_trade["mode"], "anchor_pulse")
-        fresh = dict(kind="anchor", observed_at=995, confidence_bps=9000, expected_net_bps=100, direction="up")
+        fresh = dict(kind="anchor", source_class="external_reference", observed_at=995, confidence_bps=9000, expected_net_bps=100, direction="up")
         anchored = classify_pool(
             state, history, "y", requested_capital=10**16, entry_timestamp=1000, now=1000,
             anchor_signal=fresh,
         )
         self.assertEqual(anchored["mode"], "anchor_pulse")
         self.assertTrue(anchored["qualified"])
-        directional = dict(kind="directional", observed_at=995, confidence_bps=9000,
+        directional = dict(kind="directional", source_class="ramses_independent_model", observed_at=995, confidence_bps=9000,
                            expected_net_bps=100, direction="down", conversion_side="x")
         converted = classify_pool(
             state, history, "y", requested_capital=10**16, entry_timestamp=1000, now=1000,
@@ -161,7 +165,7 @@ class RamsesStrategyTests(unittest.TestCase):
     def test_event_driven_controller_rebalances_then_exits_on_risk_or_limit(self):
         state = self._state()
         history = self._history(True)
-        signal = dict(kind="anchor", observed_at=995, confidence_bps=9000, expected_net_bps=100, direction="up", path_width=2)
+        signal = dict(kind="anchor", source_class="external_reference", observed_at=995, confidence_bps=9000, expected_net_bps=100, direction="up", path_width=2)
         decision = classify_pool(
             state, history, "y", requested_capital=10**16, entry_timestamp=1000, now=1000,
             anchor_signal=signal,
@@ -185,6 +189,50 @@ class RamsesStrategyTests(unittest.TestCase):
             estimated_inventory_loss_quote=1, rebalance_cost_quote=1, unwind_cost_quote=1,
         )
         self.assertEqual((max_hold["action"], max_hold["reason"]), ("exit", "max_holding_period"))
+
+    def test_cross_strategy_signal_provenance_fails_closed(self):
+        state = self._state()
+        history = self._history(True)
+        contaminated = dict(
+            kind="anchor",
+            source_class="external_reference",
+            source_strategy="continuation-v1-robinhood",
+            observed_at=995,
+            confidence_bps=9000,
+            expected_net_bps=100,
+            direction="up",
+        )
+        decision = classify_pool(
+            state, history, "y", requested_capital=10**16,
+            entry_timestamp=1000, now=1000, anchor_signal=contaminated,
+        )
+        self.assertNotEqual(decision["mode"], "anchor_pulse")
+        self.assertIn(
+            "cross_strategy_signal_forbidden",
+            decision["signal_rejections"]["anchor"],
+        )
+
+    def test_wrong_signal_source_class_fails_closed(self):
+        state = self._state()
+        history = self._history(True)
+        borrowed = dict(
+            kind="directional",
+            source_class="external_reference",
+            observed_at=995,
+            confidence_bps=9000,
+            expected_net_bps=100,
+            direction="down",
+            conversion_side="x",
+        )
+        decision = classify_pool(
+            state, history, "y", requested_capital=10**16,
+            entry_timestamp=1000, now=1000, directional_signal=borrowed,
+        )
+        self.assertNotEqual(decision["mode"], "directional_converter")
+        self.assertIn(
+            "directional_signal_source",
+            decision["signal_rejections"]["directional"],
+        )
 
 
 if __name__ == "__main__":
