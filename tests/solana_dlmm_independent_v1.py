@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 import statistics
 import sys
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -53,6 +54,23 @@ PER_RPC_LIMIT=240
 ROTATE_AT_CALLS=190
 CHUNK_SECONDS=2
 MAX_WARMUP_RESETS=2
+METEORA_MIN_INTERVAL_SECONDS=0.10
+
+class _MeteoraPacer:
+    def __init__(self):
+        self.next=0.0
+        self.lock=threading.Lock()
+    def pace(self):
+        with self.lock:
+            now=time.monotonic()
+            wait=max(0.0,self.next-now)
+            if wait:
+                time.sleep(wait)
+                now=time.monotonic()
+            self.next=max(now,self.next)+METEORA_MIN_INTERVAL_SECONDS
+
+METEORA_PACER=_MeteoraPacer()
+
 
 
 def assert_independence():
@@ -95,6 +113,7 @@ def load_policy():
 def _api(path,params=None):
     if not path.startswith("/"):
         raise ValueError("solana_dlmm_api_path")
+    METEORA_PACER.pace()
     url=API_BASE+path
     if params:
         url+="?"+urllib.parse.urlencode(params)
@@ -135,23 +154,78 @@ def _sol_pair(row):
 
 def _candidate(row):
     volume=row.get("volume") or {};fees=row.get("fees") or {}
-    ratio=row.get("fee_tvl_ratio") or {}
-    v5=_num(volume.get("5m"));v30=_num(volume.get("30m"))
-    f5=_num(fees.get("5m"));f30=_num(fees.get("30m"))
-    vacc=_accel(v5,v30,6);facc=_accel(f5,f30,6)
-    density=max(0.0,_num(ratio.get("5m")))
     return dict(
         address=row.get("address"),name=row.get("name"),
         token_x=(row.get("token_x") or {}).get("address"),
         token_y=(row.get("token_y") or {}).get("address"),
         tvl_usd=_num(row.get("tvl")),
+        volume_30m_snapshot_usd=_num(volume.get("30m")),
+        fee_30m_snapshot_usd=_num(fees.get("30m")),
+        dynamic_fee_pct=_num(row.get("dynamic_fee_pct")),
+        volume_5m_usd=None,volume_30m_usd=None,
+        fee_5m_usd=None,fee_30m_usd=None,
+        fee_tvl_ratio_5m=None,
+        volume_acceleration=None,fee_acceleration=None,
+        event_score=None,
+    )
+
+
+def _history_acceleration(candidate,observed_at):
+    payload=_api(
+        f"/pools/{candidate['address']}/volume/history",
+        dict(
+            timeframe="5m",
+            start_time=max(0,int(observed_at)-2100),
+            end_time=int(observed_at),
+        ),
+    )
+    rows=payload.get("data") if isinstance(payload,dict) else None
+    if not isinstance(rows,list):
+        raise RuntimeError("solana_dlmm_volume_history_shape")
+    clean=[]
+    for row in rows:
+        if not isinstance(row,dict):
+            continue
+        ts=row.get("timestamp")
+        if not isinstance(ts,int) or ts>observed_at:
+            continue
+        clean.append(dict(
+            timestamp=ts,
+            volume=max(0.0,_num(row.get("volume"))),
+            fees=max(0.0,_num(row.get("fees"))),
+        ))
+    clean.sort(key=lambda x:x["timestamp"])
+    unique=[];seen=set()
+    for row in clean:
+        if row["timestamp"] in seen:
+            raise RuntimeError("solana_dlmm_volume_history_duplicate_timestamp")
+        seen.add(row["timestamp"]);unique.append(row)
+    if len(unique)<6:
+        raise RuntimeError("solana_dlmm_volume_history_insufficient_5m_buckets")
+    window=unique[-6:]
+    if any(b["timestamp"]-a["timestamp"]!=300
+           for a,b in zip(window,window[1:])):
+        raise RuntimeError("solana_dlmm_volume_history_nonconsecutive_5m_buckets")
+    v5=window[-1]["volume"];f5=window[-1]["fees"]
+    v30=sum(x["volume"] for x in window);f30=sum(x["fees"] for x in window)
+    vacc=_accel(v5,v30,6);facc=_accel(f5,f30,6)
+    tvl=max(0.0,float(candidate.get("tvl_usd") or 0.0))
+    density=0.0 if tvl<=0 else f5/tvl
+    out=dict(candidate)
+    out.update(
         volume_5m_usd=v5,volume_30m_usd=v30,
         fee_5m_usd=f5,fee_30m_usd=f30,
         fee_tvl_ratio_5m=density,
-        dynamic_fee_pct=_num(row.get("dynamic_fee_pct")),
         volume_acceleration=vacc,fee_acceleration=facc,
-        event_score=math.log1p(v5)*max(vacc,0.01)*max(facc,0.01)*max(density,1e-12),
+        event_score=(
+            math.log1p(v5)*max(vacc,0.01)*max(facc,0.01)
+            *max(density,1e-12)
+        ),
+        acceleration_window_start=window[0]["timestamp"],
+        acceleration_window_end=window[-1]["timestamp"],
+        acceleration_bucket_count=len(window),
     )
+    return out
 
 
 def discover(policy,scan_cap):
@@ -184,8 +258,19 @@ def discover(policy,scan_cap):
             if len(rows)<DISCOVERY_PAGE_SIZE:
                 break
 
+    observed_at=int(time.time())
     regime=policy["regime"];accepted=[];rejected=[]
-    for item in merged.values():
+    for raw in merged.values():
+        try:
+            item=_history_acceleration(raw,observed_at)
+        except Exception as exc:
+            rejected.append(dict(
+                pool=raw["address"],
+                failed=["acceleration_history_unavailable"],
+                reason=type(exc).__name__,
+                candidate=raw,
+            ))
+            continue
         failed=[]
         if item["volume_acceleration"]<float(regime["min_volume_acceleration"]):
             failed.append("volume_acceleration")
