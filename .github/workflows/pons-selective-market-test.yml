@@ -24,6 +24,7 @@ jobs:
         env:
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
           MM_ROBINHOOD_DISCOVERY_RPC_URL: ${{ secrets.MM_ROBINHOOD_DISCOVERY_RPC_URL }}
+          MM_PONS_SELECTIVE_DISCOVERY_SECONDS: 1200
         run: python -m robinhood_research.pons_selective_cohort
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
