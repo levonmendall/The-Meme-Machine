@@ -404,6 +404,79 @@ class EvidenceBroker:
                 ),
             )
 
+    def _claim_jobs(self, limit, now=None, lease_seconds=15.0):
+        """Atomically claim global hydration jobs across broker processes."""
+        limit=max(1,int(limit))
+        now=float(self.clock() if now is None else now)
+        lease_until=now+max(1.0,float(lease_seconds))
+        with self.lock:
+            try:
+                self.db.execute("BEGIN IMMEDIATE")
+                self.db.execute(
+                    """UPDATE jobs SET status='expired',lease_until=NULL,updated_at=?
+                       WHERE status IN ('pending','inflight') AND deadline<?""",
+                    (now,now),
+                )
+                self.db.execute(
+                    """UPDATE jobs SET status='pending',lease_until=NULL,updated_at=?
+                       WHERE status='inflight'
+                         AND COALESCE(lease_until,0)<=?
+                         AND deadline>=?""",
+                    (now,now,now),
+                )
+                rows=self.db.execute(
+                    """SELECT job_key,payload FROM jobs
+                       WHERE status='pending' AND deadline>=?
+                       ORDER BY priority ASC,deadline ASC,created_at ASC LIMIT ?""",
+                    (now,limit),
+                ).fetchall()
+                if rows:
+                    self.db.executemany(
+                        """UPDATE jobs SET status='inflight',lease_until=?,updated_at=?
+                           WHERE job_key=? AND status='pending'""",
+                        [(lease_until,now,row[0]) for row in rows],
+                    )
+                    keys=[row[0] for row in rows]
+                    placeholders=",".join("?" for _ in keys)
+                    claimed={
+                        row[0] for row in self.db.execute(
+                            f"""SELECT job_key FROM jobs
+                                WHERE status='inflight'
+                                  AND job_key IN ({placeholders})""",
+                            tuple(keys),
+                        ).fetchall()
+                    }
+                    rows=[row for row in rows if row[0] in claimed]
+                self.db.commit()
+                return rows
+            except Exception:
+                self.db.rollback()
+                raise
+
+    def _release_jobs(self, keys):
+        keys=[str(key) for key in keys]
+        if not keys:
+            return
+        now=float(self.clock())
+        with self.lock,self.db:
+            self.db.executemany(
+                """UPDATE jobs SET status='pending',lease_until=NULL,updated_at=?
+                   WHERE job_key=? AND status='inflight'""",
+                [(now,key) for key in keys],
+            )
+
+    def _complete_jobs(self, keys):
+        keys=[str(key) for key in keys]
+        if not keys:
+            return
+        now=float(self.clock())
+        with self.lock,self.db:
+            self.db.executemany(
+                """UPDATE jobs SET status='complete',lease_until=NULL,updated_at=?
+                   WHERE job_key=?""",
+                [(now,key) for key in keys],
+            )
+
     def hydrate_transactions(
         self, rpc, signatures, *, kind, deadline=None, max_version=1, batch_size=8
     ):
@@ -430,13 +503,10 @@ class EvidenceBroker:
                 if float(self.clock()) + wait >= deadline:
                     break
                 self.sleep(wait)
-            with self.lock:
-                jobs = self.db.execute(
-                    """SELECT job_key,payload FROM jobs
-                       WHERE status='pending' AND deadline>=?
-                       ORDER BY priority ASC,deadline ASC,created_at ASC LIMIT ?""",
-                    (float(self.clock()), max(1, min(int(batch_size), p["batch_size"]))),
-                ).fetchall()
+            jobs=self._claim_jobs(
+                max(1,min(int(batch_size),p["batch_size"])),
+                float(self.clock()),
+            )
             if not jobs:
                 break
             payloads = [json.loads(row[1]) for row in jobs]
@@ -458,6 +528,7 @@ class EvidenceBroker:
                     batch_size=max(1, min(len(params), p["batch_size"], int(batch_size))),
                 )
             except Unavailable:
+                self._release_jobs([row[0] for row in jobs])
                 self._note_pressure_failure()
                 break
             completed = []
@@ -466,13 +537,12 @@ class EvidenceBroker:
                     self.put_transaction(row["signature"], tx)
                     completed.append(job[0])
             if completed:
-                now = float(self.clock())
-                with self.lock, self.db:
-                    self.db.executemany(
-                        "UPDATE jobs SET status='complete',updated_at=? WHERE job_key=?",
-                        [(now, key) for key in completed],
-                    )
+                self._complete_jobs(completed)
                 self._note_pressure_success()
+            completed_set=set(completed)
+            incomplete=[row[0] for row in jobs if row[0] not in completed_set]
+            if incomplete:
+                self._release_jobs(incomplete)
             if not completed:
                 break
 
