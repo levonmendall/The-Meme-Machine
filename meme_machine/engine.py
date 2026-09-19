@@ -10,6 +10,7 @@ DELAY = 2
 MAX_AGE = 20
 SIGNAL_WINDOW = 60
 UNRESOLVED_RECORD_INTERVAL = 60
+EXIT_TIMEOUT_SECONDS = 900
 # Pump's currently disclosed Mayhem trading-agent wallet / Mayhem sol-vault.
 # It is protocol-controlled activity, not an independent scouting wallet or buyer.
 MAYHEM_AGENT_WALLET = 'BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s'
@@ -356,7 +357,7 @@ class Engine:
             )
             reason = ('risk' if proceeds-GAS<=p['basis']*9000//10000 else
                       'take_profit' if proceeds-GAS>=p['basis']*11500//10000 else
-                      'timeout' if now-p['opened']>=900 else
+                      'timeout' if now-p['opened']>=EXIT_TIMEOUT_SECONDS else
                       'liquidity_invalidation' if liquidity_invalid else None)
             if p['exit_due'] is None and reason:
                 p.update(exit_due=now+DELAY,exit_reason=reason,exit_slot=snap['slot'])
