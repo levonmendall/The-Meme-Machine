@@ -219,7 +219,10 @@ def main():
             report.update(
                 ended=ended,cohort_counts=counts,paper_rows=rows,
                 market_native=runtime.status(),stream=tape.status(ended),
-                stream_error_kind=stream.error_kind,reconciled=reconciled,
+                stream_error_kind=stream.error_kind,
+                stream_last_error_kind=getattr(stream,'last_error_kind',None),
+                stream_connections=getattr(stream,'connections',0),
+                stream_reconnects=getattr(stream,'reconnects',0),reconciled=reconciled,
                 archive_verified=archive_verified,cash_lamports=state.get('cash'),
                 reserved_lamports=state.get('reserved'),rent_lamports=state.get('rent'),
                 realized_lamports=state.get('realized'),fees_lamports=state.get('fees'),
