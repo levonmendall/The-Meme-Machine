@@ -130,6 +130,8 @@ def _forced_machinery(endpoint, screen, row, *, db_path):
     )
     row=canonical_row
     decision=deepcopy(row["decision"])
+    if not decision.get("freeze") or not decision["freeze"].get("proposals"):
+        raise BoundaryError("extended_forced_canonical_proposal_unavailable")
     decision["forced_machinery_test"]=True
     decision["strategy_evidence_eligible"]=False
     verify_proposal_hash(decision["freeze"])
