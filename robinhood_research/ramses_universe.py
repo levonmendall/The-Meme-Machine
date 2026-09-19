@@ -27,6 +27,7 @@ from .ramses_capture import BoundedMultiRpc, LOG_BLOCK_CHUNK, MAX_FACTORY_POOLS
 from .ramses_strategy import (
     POLICY_HASH,
     STRATEGY_VERSION,
+    STRATEGY_DOMAIN,
     attach_universe_percentiles,
     classify_pool,
     pool_features,
@@ -278,6 +279,7 @@ def scan(
                 qualified=False,
                 reasons=["strategy_construction:" + str(exc)],
                 strategy_version=STRATEGY_VERSION,
+                strategy_domain=STRATEGY_DOMAIN,
                 policy_hash=POLICY_HASH,
                 allocation_authority=False,
                 freeze=None,
@@ -304,9 +306,12 @@ def scan(
     result = dict(
         kind="ramses_all_pool_universe_screen_v1",
         strategy_version=STRATEGY_VERSION,
+        strategy_domain=STRATEGY_DOMAIN,
         policy_hash=POLICY_HASH,
         paper_only=True,
         allocation_authority=False,
+        shared_allocator=False,
+        cross_strategy_inputs=False,
         screening_only=True,
         chain_id=4663,
         factory=factory_identity,
