@@ -83,7 +83,7 @@ class MarketNativeRuntimeTests(unittest.TestCase):
             store.close()
 
 
-    def test_provider_rotation_allows_90_preflights_without_spending_monitoring_reserve(self):
+    def test_provider_rotation_allows_150_preflights_without_spending_monitoring_reserve(self):
         class RPC:
             def __init__(self):
                 self.limit=240;self.calls=1;self.http_requests=0;self.failures=0;self.cache_hits=0
@@ -98,11 +98,11 @@ class MarketNativeRuntimeTests(unittest.TestCase):
             engine=Engine(store,[])
             with self.assertRaisesRegex(ValueError,'market_native_budget_exceeds'):
                 MarketNativeRuntime(
-                    engine,Adapter(),3300,preflight_budget=90,full_evidence_budget=20)
+                    engine,Adapter(),3300,preflight_budget=150,full_evidence_budget=40)
             runtime=MarketNativeRuntime(
-                engine,Adapter(),3300,preflight_budget=90,full_evidence_budget=20,
+                engine,Adapter(),3300,preflight_budget=150,full_evidence_budget=40,
                 provider_rotation_threshold=160)
-            self.assertEqual(runtime.status()['preflight_budget'],90)
+            self.assertEqual(runtime.status()['preflight_budget'],150)
             self.assertEqual(runtime.status()['provider_rotation_threshold'],160)
             runtime.replace_adapter(Adapter())
             self.assertEqual(runtime.status()['provider_rotations'],1)
