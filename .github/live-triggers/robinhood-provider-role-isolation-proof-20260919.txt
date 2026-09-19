@@ -1,1 +1,1 @@
-Verify exact-endpoint provider-role isolation: discovery and DLMM may use separately provisioned endpoints from the same vendor, but neither may reuse the authoritative primary endpoint. Preserve full observation and unchanged strategy authority.
+Verify bounded shared-primary compatibility after the load repair: discovery remains observable, DLMM remains available at reduced shared-primary rate, authoritative Pons evidence is unchanged, and no strategy or authority rule changes.
