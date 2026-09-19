@@ -140,7 +140,7 @@ def _order_for_mint(store,mint):
 
 def run_certification(report_path=None):
     clock=Clock(100)
-    pacer=SolanaReadPacer(minimum_interval=0.2)
+    pacer=SolanaReadPacer(minimum_interval=0.5)
     creators={MINT_A:CREATOR_A,MINT_B:CREATOR_B,POST_MINT:POST_CREATOR}
     adapters=[]
 
@@ -278,8 +278,8 @@ def run_certification(report_path=None):
         if any((s.get('provider_topology') or {}).get('failover_count')
                for s in runtime_status['prior_provider_sessions']):
             raise AssertionError('unexpected_rescue_during_certification')
-        if pacer.minimum_interval!=0.2 or any(a.rpc.read_pacer is not pacer for a in adapters):
-            raise AssertionError('shared_five_rps_pacer_not_preserved')
+        if pacer.minimum_interval!=0.5 or any(a.rpc.read_pacer is not pacer for a in adapters):
+            raise AssertionError('shared_two_rps_pacer_not_preserved')
 
         reconciled=bool(store.reconcile())
         archive_verified=bool(store.verify_archive())
