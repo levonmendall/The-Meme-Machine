@@ -1,4 +1,5 @@
 name: dlmm-capital-efficiency-v1
+# Bounded RPC sessions rotate without changing frozen strategy criteria.
 on:
   push:
     branches:
