@@ -13,7 +13,8 @@ import json
 import struct
 
 from . import pump
-from .postgrad import (buy_quote, graduation_handoff, sell_quote,\n                       validate_postgrad_snapshot)
+from .postgrad import (buy_quote, graduation_handoff, sell_quote,
+                       validate_postgrad_snapshot)
 from .pump_alpha import (
     POLICY,
     POLICY_HASH,
