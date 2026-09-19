@@ -175,6 +175,27 @@ class SolanaEvidenceBrokerTests(unittest.TestCase):
         got=broker.recent_events("s",since=int(clock())-5000)
         self.assertEqual([row["signature"] for row in got],["new"])
 
+    def test_expired_job_can_be_requeued_with_new_deadline(self):
+        broker,clock=self.make_broker()
+        broker.queue_transaction(
+            "stale",kind="research_history",deadline=clock()+1)
+        clock.value+=2
+        self.assertEqual(broker._claim_jobs(1,clock()),[])
+        self.assertEqual(broker.telemetry()["expired_jobs"],1)
+
+        broker.queue_transaction(
+            "stale",kind="position_monitor",deadline=clock()+20)
+        claimed=broker._claim_jobs(1,clock())
+        self.assertEqual([row[0] for row in claimed],["tx:stale"])
+        with broker.lock:
+            row=broker.db.execute(
+                "SELECT kind,priority,deadline,status FROM jobs WHERE job_key='tx:stale'"
+            ).fetchone()
+        self.assertEqual(row[0],"position_monitor")
+        self.assertEqual(row[1],0)
+        self.assertGreater(row[2],clock())
+        self.assertEqual(row[3],"inflight")
+
     def test_cursor_cannot_regress(self):
         broker,_clock=self.make_broker()
         broker.advance_cursor("pool:x",100,"a")
