@@ -330,6 +330,10 @@ class HostFeeAccounting(unittest.TestCase):
         bad['meta']['innerInstructions'][0]['instructions'][1]['data']=pump.b58(bytes(raw))
         with self.assertRaisesRegex(Unavailable,'partial_limit'):
             transaction_swap(bad,POOL)
+        trigger=transaction_swaps(bad,POOL,trigger_only=True)
+        self.assertEqual(len(trigger),1)
+        self.assertTrue(trigger[0]['trigger_only_economics_unsupported'])
+        self.assertTrue(trigger[0]['trigger_only'])
 
 
 if __name__=='__main__':
