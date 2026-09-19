@@ -76,7 +76,8 @@
     "monotonic_definition": "drift_ratio == 1",
     "no_take_profit_threshold": true,
     "no_stop_loss_threshold": true,
-    "exit": "withdraw full range and liquidate residual token inventory to SOL using verified market state"
+    "exit": "withdraw full range and liquidate residual token inventory to SOL using verified market state",
+    "minimum_swaps_for_one_way_flow_exit": 2
   },
   "economics": {
     "entry_cost_lamports": 150000,
@@ -99,5 +100,13 @@
     "Passing discovery ranking alone is never entry authority.",
     "Failure to produce trades is a valid result; thresholds must not be lowered to manufacture qualification."
   ],
-  "revision": "1.0"
+  "revision": "1.1",
+  "amendment_history": [
+    {
+      "revision": "1.1",
+      "reason": "Clarify before any prospective outcome that one swap is insufficient to diagnose persistent one-way flow; require at least two swaps in the latest verified segment for the flow-risk early exit.",
+      "prospective_outcomes_observed_before_amendment": false,
+      "qualification_thresholds_changed": false
+    }
+  ]
 }
