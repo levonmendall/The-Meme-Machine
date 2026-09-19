@@ -1,6 +1,6 @@
 """Read-only probe for the exact MET-SOL addLiquidity2 interval from run 35383813365."""
 from __future__ import annotations
-import json, struct, time, urllib.request
+import json, struct, time
 from pathlib import Path
 
 from meme_machine import dlmm,pump
@@ -61,18 +61,8 @@ def _balances(meta):
                         amount=(r.get("uiTokenAmount") or {}).get("amount")) for r in (meta.get(side) or [])]
     return out
 
-def _direct_rpc(url,method,params):
-    body=json.dumps(dict(jsonrpc="2.0",id=1,method=method,params=params)).encode()
-    req=urllib.request.Request(url,data=body,headers={"Content-Type":"application/json"})
-    with urllib.request.urlopen(req,timeout=20) as response:
-        payload=json.loads(response.read())
-    if payload.get("error"):
-        raise RuntimeError(f"add_liquidity2_probe_rpc:{method}:{payload['error'].get('code')}")
-    return payload.get("result")
-
 def run():
     pacer=alchemy_provider.AlchemyPacer()
-    url=alchemy_provider.rpc_url()
     rpc=alchemy_provider.new_rpc(limit=120,pacer=pacer)
     if rpc.call("getGenesisHash",priority=True)!=pump.MAINNET:
         raise RuntimeError("add_liquidity2_probe_wrong_network")
@@ -81,10 +71,10 @@ def run():
     for slot in range(START_SLOT+1,END_SLOT+1):
         if telemetry["block_scan_slots"]:
             time.sleep(1.0)
-        block=_direct_rpc(url,"getBlock",[slot,dict(
+        block=rpc.call("getBlock",[slot,dict(
             commitment="finalized",encoding="json",
             transactionDetails="accounts",rewards=False,
-            maxSupportedTransactionVersion=1)])
+            maxSupportedTransactionVersion=1)],True,fresh=True)
         telemetry["block_scan_slots"].append(slot)
         if not block:
             continue
@@ -132,7 +122,8 @@ def run():
     report=dict(kind="dlmm_add_liquidity2_probe_v1",allocation_authority=False,pool=POOL,
                 start_slot=START_SLOT,end_slot=END_SLOT,census=telemetry,transactions=rows,
                 rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,rpc_failures=rpc.failures,
-                rpc_retries=rpc.retries,pacer=pacer.telemetry())
+                rpc_retries=rpc.retries,pacer=pacer.telemetry(),
+                provider_topology=rpc.provider_telemetry())
     OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
     print(json.dumps(dict(transactions=len(rows),rpc_calls=rpc.calls,rpc_failures=rpc.failures),sort_keys=True))
     return report

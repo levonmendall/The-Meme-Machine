@@ -9,7 +9,6 @@ import time
 from pathlib import Path
 from meme_machine import dlmm
 from meme_machine.dlmm_tape import reconstruct,MAX_TRANSACTIONS
-from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
 from meme_machine.store import encode
 from tests import dlmm_alchemy_provider as alchemy_provider
@@ -20,7 +19,7 @@ def main():
     parser.add_argument('--wait-seconds',type=int,default=0)
     parser.add_argument('--output',required=True);args=parser.parse_args()
     if not 0<=args.wait_seconds<=60:parser.error('--wait-seconds must be 0..60')
-    rpc=PoolScanRPC(alchemy_provider.rpc_url(),limit=80);adapter=dlmm.Adapter(rpc)
+    rpc=alchemy_provider.new_rpc(limit=80);adapter=dlmm.Adapter(rpc)
     capture=dict(kind='real_finalized_rpc_capture',allocation_enabled=False,transactions={})
     report=dict(allocation_enabled=False,signing=False,real_swap_count=0,verified_interval=False)
     try:
@@ -53,7 +52,8 @@ def main():
                       executable_evidence_fresh=now-end['market_time']<=dlmm.MAX_AGE)
     except (ValueError,Unavailable,KeyError,TypeError) as exc:
         report['unresolved']=str(exc)
-    report.update(rpc_calls=rpc.calls,provider_failure_kinds=rpc.failure_kinds)
+    report.update(rpc_calls=rpc.calls,provider_failure_kinds=rpc.failure_kinds,
+                  provider_topology=rpc.provider_telemetry())
     capture['report']=report
     Path(args.output).write_text(json.dumps(capture,sort_keys=True,indent=2)+'\n')
     print(json.dumps(report,sort_keys=True))

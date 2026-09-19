@@ -10,7 +10,6 @@ import json, os
 from pathlib import Path
 
 from meme_machine.dlmm_tape import transaction_swaps
-from meme_machine.postgrad import PoolScanRPC
 from tests import dlmm_alchemy_provider as alchemy_provider
 from meme_machine.provider import Unavailable
 
@@ -26,7 +25,7 @@ BODY_PACE_SECONDS=1.5
 
 
 def run():
-    rpc=PoolScanRPC(alchemy_provider.rpc_url(),limit=120)
+    rpc=alchemy_provider.new_rpc(limit=120)
     scanned=[];found=None;body_reads=0
     for name,pool in POOLS:
         try:
@@ -102,6 +101,7 @@ def run():
         rpc_failures=rpc.failures,rpc_retries=rpc.retries,
         provider_failure_kinds=rpc.failure_kinds,
         provider_failure_methods=rpc.failure_methods,
+        provider_topology=rpc.provider_telemetry(),
     )
     OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
     print(json.dumps(dict(

@@ -14,7 +14,6 @@ import time
 
 from meme_machine import dlmm
 from meme_machine.dlmm_tape import _instruction_pool_positions,_keys,_ordered_instructions,_un58_data
-from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
 from tests import dlmm_alchemy_provider as alchemy_provider
 
@@ -48,7 +47,7 @@ def _scalar_delta(start,end):
 
 def run(wait_seconds=20):
     if not 5<=wait_seconds<=30:raise ValueError('dlmm_mutation_probe_wait_bound')
-    rpc=PoolScanRPC(alchemy_provider.rpc_url(),limit=160)
+    rpc=alchemy_provider.new_rpc(limit=160)
     adapter=dlmm.Adapter(rpc)
     start_snap=adapter.snapshot(POOL,int(time.time()),True)
     start=dlmm.validate(start_snap,start_snap['available_time'],'real')
@@ -86,6 +85,7 @@ def run(wait_seconds=20):
         relevant_transactions=len(selected),transactions=transactions,
         rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,rpc_failures=rpc.failures,
         rpc_retries=rpc.retries,provider_failure_kinds=rpc.failure_kinds,
+        provider_topology=rpc.provider_telemetry(),
     )
     OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
     print(json.dumps(dict(pool=POOL,start_slot=start['slot'],end_slot=end['slot'],

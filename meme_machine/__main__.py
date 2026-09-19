@@ -9,7 +9,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .engine import Engine
 from .postgrad import PostGraduationAdapter
-from .provider import RPC, PumpAdapter, Unavailable
+from .provider import PumpAdapter, Unavailable
+from .solana_read_rpc import new_rpc, primary_rpc_url
 from .pumpswap_runtime import POSTGRAD_WAIT_SECONDS, PumpSwapPaperRuntime
 from .store import Store
 from .stream import PumpLogStream, PumpTape, WINDOW_SECONDS
@@ -61,7 +62,7 @@ def tick(engine, adapter, now):
     with engine.store.transaction('heartbeat'):
         s['provider']=dict(requests=adapter.rpc.calls,failures=adapter.rpc.failures,
                            cache_hits=adapter.rpc.cache_hits,limit=adapter.rpc.limit,
-                           infrastructure_spend_usd=0,provider_spend_usd=0 if getattr(adapter.rpc,'url',None)=='https://api.mainnet-beta.solana.com' else None)
+                           infrastructure_spend_usd=0,provider_spend_usd=0 if getattr(adapter.rpc,'failover_count',0)==0 else None)
 
 
 def _monitor_existing(engine, adapter, now, pumpswap_runtime=None):
@@ -207,8 +208,10 @@ def tick_stream(engine, adapter, tape, now, cursor, pumpswap_runtime=None):
         s['provider']=dict(requests=adapter.rpc.calls,http_requests=adapter.rpc.http_requests,
                            failures=adapter.rpc.failures,cache_hits=adapter.rpc.cache_hits,
                            limit=adapter.rpc.limit,stream=tape.status(int(time.time())),
+                           provider_topology=(adapter.rpc.provider_telemetry()
+                                              if hasattr(adapter.rpc,'provider_telemetry') else None),
                            infrastructure_spend_usd=0,
-                           provider_spend_usd=0 if getattr(adapter.rpc,'url',None)=='https://api.mainnet-beta.solana.com' else None)
+                           provider_spend_usd=0 if getattr(adapter.rpc,'failover_count',0)==0 else None)
     return cursor
 
 
@@ -282,8 +285,8 @@ def main():
     signal.signal(signal.SIGINT,lambda *_:stopping.set())
     stream_thread=None
     try:
-        url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
-        rpc=RPC(url,limit=config.get('request_limit',120))
+        url=primary_rpc_url()
+        rpc=new_rpc(limit=config.get('request_limit',120))
         adapter=PumpAdapter(rpc)
         # Current-era graduation continuation is canonical PumpSwap only. Deliberately
         # disable the Raydium program scanner in the prospective runtime: the legacy

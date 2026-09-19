@@ -24,7 +24,8 @@ from pathlib import Path
 
 from meme_machine import pump
 from meme_machine.postgrad import RAYDIUM_AMM_V4
-from meme_machine.provider import RPC, Unavailable
+from meme_machine.provider import Unavailable
+from meme_machine.solana_read_rpc import new_rpc
 
 MINT = '9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump'
 POOL = 'Bzc9NZfMqkXR6fz1DBph7BDf9BroyEf6pnzESP7v5iiw'
@@ -107,8 +108,7 @@ def _analyze(signature_row, tx, target):
 
 def main():
     started = int(time.time())
-    url = os.environ.get('MM_SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.com')
-    rpc = RPC(url, limit=240)
+    rpc = new_rpc(limit=240)
     report = {
         'kind': 'targeted_legacy_pump_raydium_archival_attempt',
         'network': 'solana-mainnet',
@@ -122,7 +122,7 @@ def main():
         'transaction_submission_authority': False,
         'live_money_authority': False,
         'profitability_evidence': False,
-        'provider_spend_usd': 0 if url == 'https://api.mainnet-beta.solana.com' else None,
+        'provider_spend_usd': 0,
         'infrastructure_spend_usd': 0,
         'started': started,
     }
@@ -244,6 +244,8 @@ def main():
             rpc_failures=rpc.failures,
             rpc_retries=rpc.retries,
             rpc_failure_kinds=dict(rpc.failure_kinds),
+            provider_spend_usd=0 if rpc.failover_count==0 else None,
+            provider_topology=rpc.provider_telemetry(),
         )
         REPORT.write_text(json.dumps(report, sort_keys=True))
         CAPTURE.write_text(json.dumps(capture, sort_keys=True))
