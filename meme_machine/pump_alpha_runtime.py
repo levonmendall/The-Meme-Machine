@@ -33,6 +33,16 @@ MAX_SNAPSHOT_AGE_SECONDS = 20
 GLOBAL_PDA = pump.pda([b"global"])
 
 
+def _json_safe(value):
+    if isinstance(value, Fraction):
+        return {"numerator": int(value.numerator), "denominator": int(value.denominator)}
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
 def decode_global_curve_params(account):
     """Decode only immutable/current curve parameters needed by this strategy.
 
@@ -274,7 +284,7 @@ class PumpAlphaPaperBook:
             "surface": "pump.fun", "mint": mint, "budget": budget,
             "reservation": reservation, "min_tokens": tokens * (10_000-MAX_ENTRY_SLIPPAGE_BPS)//10_000,
             "created": int(now), "due": int(now)+ENTRY_DELAY_SECONDS,
-            "slot": int(snapshot["slot"]), "decision": deepcopy(decision),
+            "slot": int(snapshot["slot"]), "decision": _json_safe(decision),
         }
         self._note("paper_reserved", mint, now)
         self.reconcile()
