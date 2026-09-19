@@ -11,7 +11,6 @@ from meme_machine.dlmm_acquisition import (
     ReconstructionTask,
     UnionSignatureLedger,
     PUBLIC_DISCOVERY_PROVIDER,
-    ONFINALITY_DISCOVERY_PROVIDER,
     classify_dlmm_lp_logs,
     discovery_streams,
     valid_solana_signature,
@@ -65,14 +64,13 @@ class DLMMAdaptiveAcquisitionTests(unittest.TestCase):
         a,b,c=_sig(1),_sig(2),_sig(3)
         ledger.observe(PUBLIC_DISCOVERY_PROVIDER,a,1,1.0,neutral)
         ledger.observe(PUBLIC_DISCOVERY_PROVIDER,b,2,2.0,lp)
-        ledger.observe(ONFINALITY_DISCOVERY_PROVIDER,b,2,2.1,lp)
-        ledger.observe(ONFINALITY_DISCOVERY_PROVIDER,c,3,3.0,neutral)
+        ledger.observe(PUBLIC_DISCOVERY_PROVIDER,c,3,3.0,neutral)
         s=ledger.status()
         self.assertEqual(s["unique_signatures"],3)
-        self.assertEqual(s["overlap_signatures"],1)
-        self.assertAlmostEqual(s["jaccard"],1/3)
-        self.assertAlmostEqual(s["public_coverage_of_union"],2/3)
-        self.assertAlmostEqual(s["onfinality_coverage_of_union"],2/3)
+        self.assertEqual(s["overlap_signatures"],0)
+        self.assertAlmostEqual(s["jaccard"],0.0)
+        self.assertAlmostEqual(s["public_coverage_of_union"],1.0)
+        self.assertAlmostEqual(s["onfinality_coverage_of_union"],0.0)
         self.assertEqual(s["reconstruction_candidates"],1)
         self.assertEqual(s["filtered_without_http"],2)
         self.assertEqual([r["signature"] for r in ledger.candidate_rows()],[b])
@@ -92,17 +90,16 @@ class DLMMAdaptiveAcquisitionTests(unittest.TestCase):
         self.assertEqual(ledger.status()["invalid_signature_notifications"],1)
         self.assertEqual(ledger.candidate_rows(),[])
 
-    def test_discovery_streams_default_to_public_and_auth_is_explicit_diagnostic(self):
+    def test_discovery_streams_use_public_solana_only(self):
         rows=discovery_streams({})
-        self.assertEqual(rows[0][0],PUBLIC_DISCOVERY_PROVIDER)
-        self.assertEqual(len(rows),1)
+        self.assertEqual(rows,[(PUBLIC_DISCOVERY_PROVIDER,
+                                "wss://api.mainnet-beta.solana.com")])
         rows=discovery_streams({
-            "MM_DLMM_INCLUDE_ONFINALITY_DISCOVERY_WS":"1",
             "MM_ONFINALITY_SOLANA_WS_URL":
-                "wss://solana.api.onfinality.io/ws?apikey=example"
+                "wss://solana.api.onfinality.io/ws?apikey=ignored"
         })
-        self.assertEqual([row[0] for row in rows],
-                         [PUBLIC_DISCOVERY_PROVIDER,ONFINALITY_DISCOVERY_PROVIDER])
+        self.assertEqual(rows,[(PUBLIC_DISCOVERY_PROVIDER,
+                                "wss://api.mainnet-beta.solana.com")])
 
     def test_log_filter_selects_supported_lp_instruction_without_http(self):
         logs=[
@@ -133,6 +130,42 @@ class DLMMAdaptiveAcquisitionTests(unittest.TestCase):
         ])
         self.assertFalse(row["likely_lp"])
         self.assertTrue(row["uncertain"])
+
+    def test_pool_rejection_diagnostic_classifies_without_changing_rules(self):
+        rows=[
+            dict(address="eligible",name="ok",is_blacklisted=False,tvl=60000,
+                 volume={"24h":30000},
+                 token_x={"address":dlmm.WSOL,"symbol":"SOL"},
+                 token_y={"address":"mint-a","symbol":"A"}),
+            dict(address="nosol",name="x",is_blacklisted=False,tvl=60000,
+                 volume={"24h":30000},
+                 token_x={"address":"mint-b","symbol":"B"},
+                 token_y={"address":"mint-c","symbol":"C"}),
+            dict(address="lowtvl",name="y",is_blacklisted=False,tvl=40000,
+                 volume={"24h":30000},
+                 token_x={"address":dlmm.WSOL,"symbol":"SOL"},
+                 token_y={"address":"mint-d","symbol":"D"}),
+            dict(address="lowvol",name="z",is_blacklisted=False,tvl=60000,
+                 volume={"24h":20000},
+                 token_x={"address":dlmm.WSOL,"symbol":"SOL"},
+                 token_y={"address":"mint-e","symbol":"E"}),
+            dict(address="black",name="b",is_blacklisted=True,tvl=60000,
+                 volume={"24h":30000},
+                 token_x={"address":dlmm.WSOL,"symbol":"SOL"},
+                 token_y={"address":"mint-f","symbol":"F"}),
+        ]
+        def fake(path,params=None,allow_pnl=False):
+            self.assertEqual(path,"/pools")
+            return {"data":rows if params["page"]==1 else []}
+        with patch.object(v2.study,"_json_get",side_effect=fake):
+            d=v2.diagnose_pool_universe()
+        self.assertEqual(d["observable_unique_pools"],5)
+        self.assertEqual(d["eligible_under_current_rules"],1)
+        self.assertEqual(d["primary_classification"]["eligible"],1)
+        self.assertEqual(d["primary_classification"]["not_exactly_one_sol_leg"],1)
+        self.assertEqual(d["primary_classification"]["tvl_below_50000"],1)
+        self.assertEqual(d["primary_classification"]["volume_24h_below_25000"],1)
+        self.assertEqual(d["primary_classification"]["blacklisted"],1)
 
     def test_pool_census_pages_until_inventory_end_without_sample_cap(self):
         eligible=lambda i:dict(
