@@ -1158,7 +1158,7 @@ def _regime_pass(candidate,policy):
     )
 
 
-def _new_finalized_swaps(rpc,pool,after_slot):
+def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
     before429=int((getattr(rpc,"failure_methods",{}) or {}).get(
         "getSignaturesForAddress:http_429",0))
     try:
@@ -1198,6 +1198,10 @@ def _new_finalized_swaps(rpc,pool,after_slot):
                 and slot>after_slot):
             valid.append(row)
     valid.sort(key=lambda row:(row["slot"],row["signature"]))
+    if broker is not None and rows:
+        broker.remember_signatures(
+            "dlmm_fresh",pool,rows,
+            covered_through_slot=max(after_slot,head_slot))
     if not valid:
         return [],dict(
             rate_limited=False,stage=None,
@@ -1206,16 +1210,34 @@ def _new_finalized_swaps(rpc,pool,after_slot):
             fresh_signature_count=0,
         )
 
-    params=[[
-        row["signature"],dict(
-            encoding="json",commitment="finalized",
-            maxSupportedTransactionVersion=1)
-    ] for row in valid]
     before429=int((getattr(rpc,"failure_methods",{}) or {}).get(
         "getTransaction:http_429",0))
     try:
-        values=rpc.call_many(
-            "getTransaction",params,True,batch_size=8)
+        if broker is not None:
+            sigs=[row["signature"] for row in valid]
+            txmap,hydration=broker.hydrate_transactions(
+                rpc,sigs,kind="dlmm_fresh",
+                deadline=time.time()+5.0,max_version=1,batch_size=8)
+            if hydration["pending"]:
+                after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
+                    "getTransaction:http_429",0))
+                return [],dict(
+                    rate_limited=after429>before429,
+                    stage="getTransaction",
+                    head_slot=after_slot,head_signature=None,
+                    fresh_signature_count=len(valid),
+                    hydration=hydration,
+                )
+            values=[txmap.get(sig) for sig in sigs]
+        else:
+            params=[[
+                row["signature"],dict(
+                    encoding="json",commitment="finalized",
+                    maxSupportedTransactionVersion=1)
+            ] for row in valid]
+            values=rpc.call_many(
+                "getTransaction",params,True,batch_size=8)
+            hydration=None
     except Unavailable:
         after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
             "getTransaction:http_429",0))
@@ -1246,6 +1268,7 @@ def _new_finalized_swaps(rpc,pool,after_slot):
         head_slot=max(after_slot,head_slot),
         head_signature=head_signature,
         fresh_signature_count=len(valid),
+        hydration=(None if broker is None else hydration),
     )
 
 
