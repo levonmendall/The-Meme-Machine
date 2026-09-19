@@ -61,6 +61,7 @@ class SequencerFeedState:
         self.gap_events = 0
         self.missing_sequences = 0
         self.malformed = 0
+        self.non_message_envelopes = 0
         self.first_sequence = None
         self.last_sequence = None
         self.latest_header_block_number = None
@@ -89,6 +90,9 @@ class SequencerFeedState:
             envelope = json.loads(payload) if isinstance(payload, str) else payload
             if not isinstance(envelope, dict):
                 raise ValueError("envelope")
+            if "messages" not in envelope:
+                self.non_message_envelopes += 1
+                return 0
             rows = envelope.get("messages")
             if not isinstance(rows, list):
                 raise ValueError("messages")
@@ -164,6 +168,7 @@ class SequencerFeedState:
             gap_events=self.gap_events,
             missing_sequences=self.missing_sequences,
             malformed=self.malformed,
+            non_message_envelopes=self.non_message_envelopes,
             latest_header_block_number=self.latest_header_block_number,
             latest_header_timestamp=self.latest_header_timestamp,
             feed_message_age_seconds=(
@@ -418,48 +423,3 @@ class SequencerBlockClock:
         row.update(
             role="pons_discovery_clock",
             authority="observation_only",
-            canonical_evidence=False,
-        )
-        return row
-
-    def __enter__(self):
-        return self.connect()
-
-    def __exit__(self,*_):
-        self.close()
-
-
-class SequencerFeedObserver:
-    def __init__(self, url=None):
-        self.url = url or feed_url()
-        self.state = SequencerFeedState()
-
-    def sample(self, *, seconds=5.0, max_frames=200):
-        if not 0.5 <= float(seconds) <= 30.0:
-            raise BoundaryError("sequencer_feed_sample_seconds")
-        if not 1 <= int(max_frames) <= 1000:
-            raise BoundaryError("sequencer_feed_frame_bound")
-        started = time.monotonic()
-        client = _WebSocket(self.url, timeout=min(5.0, float(seconds))).connect()
-        frames = 0
-        try:
-            while frames < max_frames and time.monotonic() - started < seconds:
-                remaining = max(0.1, seconds - (time.monotonic() - started))
-                client.sock.settimeout(min(1.0, remaining))
-                try:
-                    payload = client.recv_message()
-                except socket.timeout:
-                    continue
-                if payload is None:
-                    break
-                frames += 1
-                self.state.ingest(payload, received_at=time.time())
-        finally:
-            client.close()
-        result = self.state.summary(now=time.time())
-        result.update(
-            frames=frames,
-            sample_seconds=max(0.0, time.monotonic() - started),
-            feed_url_kind="official_robinhood_mainnet",
-        )
-        return result
