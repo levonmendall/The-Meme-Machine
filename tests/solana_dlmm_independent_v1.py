@@ -39,7 +39,6 @@ from meme_machine.provider import Unavailable
 from meme_machine.solana_evidence_broker import (
     EvidenceBroker,ProgramAccountWakeStream,
 )
-from meme_machine.solana_read_rpc import discovery_ws_url
 from meme_machine.store import encode
 from tests import dlmm_alchemy_provider as provider
 
@@ -70,6 +69,7 @@ NETWORK_IDENTITY_MAX_ATTEMPTS=3
 NETWORK_IDENTITY_RETRY_SECONDS=1
 DEFAULT_MAX_RUNTIME_SECONDS=1200
 METEORA_MIN_INTERVAL_SECONDS=0.10
+DLMM_DISCOVERY_WS_URL="wss://api.mainnet-beta.solana.com"
 DLMM_WAKE_STREAM_KEY="dlmm_pool_wake"
 DLMM_BROKER_DB=Path(os.environ.get(
     "MM_SOLANA_EVIDENCE_BROKER_DB","solana-dlmm-evidence-broker.sqlite3"))
@@ -1643,7 +1643,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
     broker=EvidenceBroker(DLMM_BROKER_DB)
     stream_stop=threading.Event();stream_ready=threading.Event()
     wake_stream=ProgramAccountWakeStream(
-        discovery_ws_url(),broker,DLMM_WAKE_STREAM_KEY,dlmm.PROGRAM,
+        DLMM_DISCOVERY_WS_URL,broker,DLMM_WAKE_STREAM_KEY,dlmm.PROGRAM,
         data_size=904,coverage_seconds=2)
     wake_thread=threading.Thread(
         target=wake_stream.run,args=(stream_stop,stream_ready),daemon=True)
