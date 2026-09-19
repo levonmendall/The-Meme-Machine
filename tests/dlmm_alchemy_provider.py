@@ -1,9 +1,8 @@
 """Compatibility shim for Meme Machine's canonical Solana read topology.
 
-Historically DLMM used an Alchemy-only helper in this module. Authenticated OnFinality
-is now primary and the existing MM_SOLANA_READ_RPC_URL Alchemy secret is a bounded
-rescue path. Existing imports remain valid so ongoing frozen experiments do
-not need strategy-layer changes.
+DLMM now uses the existing authenticated Alchemy endpoint directly for HTTP
+reconstruction. Public Solana WebSocket remains the discovery surface. Existing
+imports remain valid so ongoing research code does not need strategy-layer changes.
 """
 from meme_machine.provider import Unavailable
 from meme_machine.solana_read_rpc import (
@@ -27,13 +26,12 @@ from meme_machine.solana_read_rpc import (
 ENV_NAME = ALCHEMY_ENV_NAME
 PROVIDER_LABEL = TOPOLOGY_LABEL
 
-# DLMM uses authenticated OnFinality primary at 5 requests/second.
-# The branch-wide canonical Solana read topology now uses the same 0.2-second floor.
+# DLMM uses direct Alchemy HTTP reconstruction at a hard 5 requests/second ceiling.
 DLMM_MIN_REQUEST_INTERVAL_SECONDS = 0.2
 DLMM_PRIMARY_REQUESTS_PER_SECOND = 5
 
 class AlchemyPacer(SolanaReadPacer):
-    """Backward-compatible DLMM pacer name; now paces the primary at 5 rps."""
+    """Backward-compatible DLMM pacer name; paces direct Alchemy at 5 rps."""
     def __init__(self, minimum_interval=DLMM_MIN_REQUEST_INTERVAL_SECONDS):
         super().__init__(minimum_interval=minimum_interval)
 
@@ -55,8 +53,8 @@ ALCHEMY_429_MIN_BACKOFF_SECONDS = PROVIDER_429_MIN_BACKOFF_SECONDS
 
 
 def rpc_url(environ=None):
-    """Return the canonical PRIMARY read endpoint (authenticated when configured)."""
-    return primary_rpc_url(environ)
+    """Return the authenticated Alchemy endpoint used directly by DLMM."""
+    return secondary_rpc_url(environ, required=True)
 
 
 def alchemy_rpc_url(environ=None, *, required=False):
@@ -64,13 +62,13 @@ def alchemy_rpc_url(environ=None, *, required=False):
 
 
 def new_rpc(limit=240, pacer=None, environ=None, **kwargs):
-    # Authenticated OnFinality remains primary. DLMM physical transports are
-    # paced at 0.2s (5 rps); Alchemy is contacted only through bounded rescue.
+    # DLMM no longer sends reconstruction traffic to OnFinality. Use the existing
+    # authenticated Alchemy endpoint directly and preserve the same 0.2s ceiling.
     pacer = pacer or AlchemyPacer()
     return AlchemyPoolScanRPC(
-        primary_rpc_url(environ),
-        secondary_url=secondary_rpc_url(environ,required=False),
-        primary_provider=primary_provider(environ),
+        secondary_rpc_url(environ,required=True),
+        secondary_url=None,
+        primary_provider=SECONDARY_PROVIDER,
         limit=limit,
         pacer=pacer,
         **kwargs,
@@ -78,19 +76,26 @@ def new_rpc(limit=240, pacer=None, environ=None, **kwargs):
 
 
 def metadata(environ=None):
-    data=_metadata(environ)
-    data.update(
+    return dict(
+        topology="dlmm_public_ws_alchemy_http",
+        primary_provider=SECONDARY_PROVIDER,
+        primary_credential=ALCHEMY_ENV_NAME,
+        secondary_provider=None,
+        secondary_configured=False,
+        fallback_allowed=False,
+        network="solana-mainnet",
+        signing=False,
+        submission=False,
         dlmm_minimum_request_interval_seconds=DLMM_MIN_REQUEST_INTERVAL_SECONDS,
         dlmm_primary_requests_per_second=DLMM_PRIMARY_REQUESTS_PER_SECOND,
     )
-    return data
 
 
 def main():
-    validate_topology(require_secondary=True,require_authenticated_primary=True)
+    secondary_rpc_url(required=True)
     print(
-        "DLMM Solana read topology validated: authenticated OnFinality primary at 5 rps; "
-        "existing MM_SOLANA_READ_RPC_URL Alchemy endpoint is rescue-only"
+        "DLMM Solana read topology validated: public WebSocket discovery; "
+        "authenticated Alchemy HTTP reconstruction at 5 rps; OnFinality disabled"
     )
 
 
