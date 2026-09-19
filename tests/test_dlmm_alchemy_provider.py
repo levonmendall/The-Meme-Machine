@@ -116,6 +116,34 @@ class DLMMAlchemyTopologyTests(unittest.TestCase):
         self.assertAlmostEqual(pacer.pace(b,0.5),1.0)
         self.assertEqual(clock.sleeps,[1.0])
 
+    def test_429_cooldown_is_shared_across_rpc_sessions(self):
+        clock=_Clock();pacer=provider.AlchemyPacer()
+        first=SimpleNamespace(clock=clock.time,sleep=clock.sleep,last_request=None)
+        second=SimpleNamespace(clock=clock.time,sleep=clock.sleep,last_request=None)
+        error=urllib.error.HTTPError(
+            "https://example.invalid",429,"rate limited",{},None)
+        cooldown=pacer.note_rate_limit(first,error)
+        self.assertGreaterEqual(cooldown,2.0)
+        waited=pacer.pace(second,0.0)
+        self.assertGreaterEqual(waited,2.0)
+        telemetry=pacer.telemetry()
+        self.assertEqual(telemetry["rate_limit_events"],1)
+        self.assertGreaterEqual(
+            telemetry["rate_limit_cooldown_seconds"],2.0)
+
+    def test_repeated_429s_adapt_cooldown_and_successes_decay_streak(self):
+        clock=_Clock();pacer=provider.AlchemyPacer()
+        rpc=SimpleNamespace(clock=clock.time,sleep=clock.sleep,last_request=None)
+        error=urllib.error.HTTPError(
+            "https://example.invalid",429,"rate limited",{},None)
+        first=pacer.note_rate_limit(rpc,error)
+        second=pacer.note_rate_limit(rpc,error)
+        self.assertGreaterEqual(second,first)
+        self.assertGreaterEqual(pacer.rate_limit_streak,2)
+        for _ in range(8):
+            pacer.note_success()
+        self.assertEqual(pacer.rate_limit_streak,1)
+
     def test_429_retry_wait_keeps_two_second_floor(self):
         error=urllib.error.HTTPError(
             "https://example.invalid",429,"rate limited",{},None)
