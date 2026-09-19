@@ -32,6 +32,9 @@ AUTHENTICATED_PRIMARY_ENV_NAME = "MM_ONFINALITY_SOLANA_RPC_URL"
 AUTHENTICATED_WS_ENV_NAME = "MM_ONFINALITY_SOLANA_WS_URL"
 PUBLIC_OVERRIDE_ENV_NAME = "MM_SOLANA_PUBLIC_RPC_URL"
 
+DISCOVERY_WS_PROVIDER = "solana_public_mainnet"
+DISCOVERY_WS_URL = "wss://api.mainnet-beta.solana.com"
+
 SECONDARY_PROVIDER = "alchemy_solana_mainnet_existing_secret"
 ALCHEMY_ENV_NAME = "MM_SOLANA_READ_RPC_URL"
 ALCHEMY_SOLANA_MAINNET_HOST = "solana-mainnet.g.alchemy.com"
@@ -82,6 +85,11 @@ def primary_ws_url(environ=None):
     if authenticated:
         return _validate_onfinality_url(authenticated, websocket=True)
     return "wss://solana.api.onfinality.io/public-ws"
+
+
+def discovery_ws_url(environ=None):
+    """Canonical Pump discovery stream, intentionally separate from HTTP evidence."""
+    return DISCOVERY_WS_URL
 
 
 def secondary_rpc_url(environ=None, *, required=False):
@@ -349,6 +357,8 @@ def metadata(environ=None):
         ),
         load_balancing=False,
         network="solana-mainnet",
+        discovery_ws_provider=DISCOVERY_WS_PROVIDER,
+        discovery_ws_url=DISCOVERY_WS_URL,
         signing=False,
         submission=False,
         minimum_request_interval_seconds=SOLANA_MIN_REQUEST_INTERVAL_SECONDS,
