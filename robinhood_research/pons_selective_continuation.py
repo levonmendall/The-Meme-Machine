@@ -185,6 +185,7 @@ def demand_metrics(events, *, asof, creator_groups=()):
         valid.append(row)
 
     cutoff15 = int(asof) - 15
+    cutoff30 = int(asof) - 30
     groups_before = {
         str(r["group"]).lower() for r in valid
         if int(r["event_at"]) < cutoff15 and r["side"] == "buy"
@@ -213,13 +214,13 @@ def demand_metrics(events, *, asof, creator_groups=()):
             if recent:
                 current_buy += quote
                 current_net_by_group[group] += quote
-            else:
+            elif int(row["event_at"]) >= cutoff30:
                 prior_buy += quote
         else:
             if recent:
                 current_sell += quote
                 current_net_by_group[group] -= quote
-            else:
+            elif int(row["event_at"]) >= cutoff30:
                 prior_sell += quote
 
     total_flow = sum(independent_buy_flow.values())
