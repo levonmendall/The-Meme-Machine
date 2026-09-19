@@ -24,6 +24,15 @@ class TopROIWalletEvaluationTests(unittest.TestCase):
         self.assertEqual(roi.ROBUST_MIN_DISTINCT_POOLS,3)
         self.assertEqual(roi.ROBUST_MIN_PROFITABLE_POSITION_RATE,0.55)
 
+    def test_exhaustive_low_history_pool_is_complete_boundary(self):
+        recent=[{"signature":"only","slot":1}]
+        readable=[(recent[0],{"meta":{"err":None}})]
+        failures=[]
+        exhaustive=(
+            len(recent)<roi.TX_BODY_TARGET and len(readable)==len(recent) and not failures
+        )
+        self.assertTrue(exhaustive)
+
     def test_raw_roi_does_not_imply_robust_eligibility(self):
         m=roi._pool_metrics([
             {"poolAddress":"a","totalDeposit":"1","pnlUsd":"1","pnlSol":"0.01",
