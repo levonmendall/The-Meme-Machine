@@ -1,0 +1,5 @@
+Purpose: start exact repaired 20-minute Pump/PumpSwap natural prospective test.
+Repair: gap-only continuation bootstrap behind candidate-specific PumpSwap stream prefix.
+Discovery: 900 seconds
+Follow-up: 300 seconds
+Frozen policy unchanged: true
