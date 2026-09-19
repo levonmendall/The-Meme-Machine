@@ -151,7 +151,7 @@ def run(endpoint):
         )
 
         seen_buyers=set();peak=None;consolidation_high=None
-        previous_buy=0
+        max_pullback_seen=0;previous_buy=0
         deadline=time.monotonic()+MONITOR_SECONDS
         while time.monotonic()<deadline:
             time.sleep(POLL_SECONDS)
@@ -180,6 +180,7 @@ def run(endpoint):
                 continue
             peak=current if peak is None else max(peak,current)
             pullback=(peak-current)*10_000//max(1,peak)
+            max_pullback_seen=max(max_pullback_seen,pullback)
             new_buyers=len(set(activity["buyer_groups"])-seen_buyers)
             seen_buyers.update(activity["buyer_groups"])
 
@@ -188,7 +189,7 @@ def run(endpoint):
             )
             vector=breakout_vector(
                 seconds_after_graduation=current_at-grad_at,
-                pullback_bps=pullback,current_price_index=current,
+                pullback_bps=max_pullback_seen,current_price_index=current,
                 consolidation_high_index=prior_consolidation_high,
                 new_independent_buyers_15s=new_buyers,
                 buy_quote_15s=activity["buy_quote"],
@@ -198,6 +199,7 @@ def run(endpoint):
             observation=dict(
                 at=current_at,block=current_block,price_index=current,
                 peak_price_index=peak,pullback_bps=pullback,
+                max_pullback_seen_bps=max_pullback_seen,
                 consolidation_high_index=prior_consolidation_high,
                 new_independent_buyers_15s=new_buyers,
                 activity=activity,vector=vector,
@@ -206,7 +208,7 @@ def run(endpoint):
             previous_buy=activity["buy_quote"]
 
             if consolidation_high is None:
-                if pullback>=500:
+                if max_pullback_seen>=500:
                     consolidation_high=current
                 continue
             if vector["candidate"]:
