@@ -217,24 +217,26 @@ def _canonical_preentry_history(rpc, row, screen):
         )
     )
 
-    txs = []
+    tx_blocks = {}
     for event, _decoded in swaps:
-        if event["transactionHash"] not in txs:
-            txs.append(event["transactionHash"])
+        tx = event["transactionHash"]
+        block_hash = event["blockHash"]
+        prior = tx_blocks.get(tx)
+        if prior is not None and prior != block_hash:
+            raise BoundaryError("qualifier_history_transaction_block_conflict")
+        tx_blocks[tx] = block_hash
+    txs = list(tx_blocks)
     if len(txs) > MAX_POOL_TRANSACTIONS:
         raise BoundaryError("qualifier_history_transaction_capacity")
-    receipts = rpc.batch(
-        [("eth_getTransactionReceipt", [tx]) for tx in txs],
+    receipts = rpc.receipts(
+        [(tx, tx_blocks[tx]) for tx in txs],
         scope="qualifier_auth",
     ) if txs else []
     receipt_by_tx = {r["transactionHash"]: r for r in receipts}
     blocks = sorted(set(int(e["blockNumber"], 16) for e, _d in swaps))
     if len(blocks) > MAX_POOL_BLOCKS:
         raise BoundaryError("qualifier_history_block_capacity")
-    headers = rpc.batch(
-        [("eth_getBlockByNumber", [hex(b), False]) for b in blocks],
-        scope="qualifier_auth",
-    ) if blocks else []
+    headers = rpc.blocks(blocks, scope="qualifier_auth") if blocks else []
     header_by_block = {int(h["number"], 16): h for h in headers}
 
     history = []
@@ -349,28 +351,35 @@ def _build_segment_replay(rpc, pool, decision, start_block, end_block):
     bins = _event_bins(events, proposal_bins)
 
     factory = load("ramses_factory")["address"]
-    membership = rpc.call(
-        "eth_call",
-        [dict(to=factory, data=calldata("isPool(address)", pool)), hex(start_block)],
+    membership, pool_code = rpc.batch(
+        [
+            (
+                "eth_call",
+                [dict(to=factory, data=calldata("isPool(address)", pool)), hex(start_block)],
+            ),
+            ("eth_getCode", [pool, hex(start_block)]),
+        ],
         scope="lifecycle_identity",
     )
     if int(membership, 16) != 1:
         raise BoundaryError("connected_lifecycle_factory_membership")
-    pool_code = rpc.call(
-        "eth_getCode", [pool, hex(start_block)], scope="lifecycle_identity"
-    )
 
     start_raw = _snapshot(rpc, pool, start_block, bins, initial=True)
     end_raw = _snapshot(rpc, pool, end_block, bins, initial=False)
 
-    txs = []
+    tx_blocks = {}
     for event in events:
-        if event["transactionHash"] not in txs:
-            txs.append(event["transactionHash"])
+        tx = event["transactionHash"]
+        block_hash = event["blockHash"]
+        prior = tx_blocks.get(tx)
+        if prior is not None and prior != block_hash:
+            raise BoundaryError("connected_lifecycle_transaction_block_conflict")
+        tx_blocks[tx] = block_hash
+    txs = list(tx_blocks)
     if len(txs) > MAX_POOL_TRANSACTIONS:
         raise BoundaryError("connected_lifecycle_transaction_capacity")
-    receipts = rpc.batch(
-        [("eth_getTransactionReceipt", [tx]) for tx in txs],
+    receipts = rpc.receipts(
+        [(tx, tx_blocks[tx]) for tx in txs],
         scope="lifecycle_receipts",
     ) if txs else []
 
@@ -379,10 +388,7 @@ def _build_segment_replay(rpc, pool, decision, start_block, end_block):
     ))
     if len(blocks) > MAX_POOL_BLOCKS:
         raise BoundaryError("connected_lifecycle_block_capacity")
-    header_rows = rpc.batch(
-        [("eth_getBlockByNumber", [hex(b), False]) for b in blocks],
-        scope="lifecycle_headers",
-    )
+    header_rows = rpc.blocks(blocks, scope="lifecycle_headers")
     headers = {
         str(int(h["number"], 16)): {
             k: h[k] for k in ("number", "hash", "timestamp", "parentHash")
@@ -411,32 +417,39 @@ def _build_segment_replay(rpc, pool, decision, start_block, end_block):
 
 
 def _position_state(rpc, pool, decision, block):
+    """Read one monitoring snapshot in a single bounded logical batch."""
     proposal = decision["freeze"]["proposals"][0]
-    active_raw = rpc.call(
-        "eth_call",
-        [dict(to=pool, data=calldata("getActiveId()")), hex(block)],
-        scope="lifecycle_monitor",
-    )
-    active = values(active_raw)[0]
     bins = sorted(set(int(b) for b in proposal["bins"]))
-    calls = []
+    calls = [
+        (
+            "eth_call",
+            [dict(to=pool, data=calldata("getActiveId()")), hex(block)],
+        ),
+        (
+            "eth_call",
+            [dict(to=pool, data=calldata("getBinStep()")), hex(block)],
+        ),
+    ]
     for bid in bins:
         calls.extend([
-            ("eth_call", [dict(to=pool, data=calldata("getBin(uint24)", bid)), hex(block)]),
-            ("eth_call", [dict(to=pool, data=calldata("totalSupply(uint256)", bid)), hex(block)]),
+            (
+                "eth_call",
+                [dict(to=pool, data=calldata("getBin(uint24)", bid)), hex(block)],
+            ),
+            (
+                "eth_call",
+                [dict(to=pool, data=calldata("totalSupply(uint256)", bid)), hex(block)],
+            ),
         ])
     raw = rpc.batch(calls, scope="lifecycle_monitor")
-    step_raw = rpc.call(
-        "eth_call",
-        [dict(to=pool, data=calldata("getBinStep()")), hex(block)],
-        scope="lifecycle_monitor",
-    )
-    step = values(step_raw)[0]
+    active = values(raw[0])[0]
+    step = values(raw[1])[0]
     terminal = dict(active=active, step=step, bins={})
+    payload = raw[2:]
     for i, bid in enumerate(bins):
         terminal["bins"][bid] = dict(
-            reserves=values(raw[2*i]),
-            supply=values(raw[2*i+1])[0],
+            reserves=values(payload[2*i]),
+            supply=values(payload[2*i+1])[0],
         )
     position = paper_position(decision["freeze"], 0)
     removal = paper_removal(position, terminal)
