@@ -582,6 +582,56 @@ def _write_rank_checkpoint(signature,rows,failures,started):
     ))
 
 
+def freeze_census(path=CENSUS_OUT,output=DEFAULT_COHORT):
+    census=json.loads(Path(path).read_text())
+    if census.get("kind")!="dlmm_profitable_operator_census_v1":
+        raise RuntimeError("dlmm_operator_freeze_census_kind")
+    if census.get("status")!="candidate_cohort_ready":
+        raise RuntimeError("dlmm_operator_freeze_census_incomplete")
+    if census.get("pnl_data_read") is not False or census.get("pnl_endpoints_forbidden") is not True:
+        raise RuntimeError("dlmm_operator_freeze_pnl_boundary")
+    protocol_hash=_protocol_signature()
+    if census.get("protocol_sha256")!=protocol_hash:
+        raise RuntimeError("dlmm_operator_freeze_protocol_mismatch")
+    pools=census.get("pool_universe") or []
+    wallets=census.get("wallets") or []
+    if int(census.get("pool_count") or 0)!=len(pools):
+        raise RuntimeError("dlmm_operator_freeze_pool_count")
+    if int(census.get("completed_pools") or 0)!=len(pools):
+        raise RuntimeError("dlmm_operator_freeze_pool_completion")
+    wallet_ids=[x.get("wallet") for x in wallets]
+    if any(not isinstance(w,str) or not w for w in wallet_ids) or len(set(wallet_ids))!=len(wallet_ids):
+        raise RuntimeError("dlmm_operator_freeze_wallet_identity")
+    wallet_ids=sorted(wallet_ids)
+    canonical=json.dumps(dict(
+        protocol_sha256=protocol_hash,
+        pools=sorted(p.get("address") for p in pools),
+        wallets=wallet_ids,
+    ),sort_keys=True,separators=(",",":")).encode()
+    cohort_hash=hashlib.sha256(canonical).hexdigest()
+    by_wallet={x["wallet"]:x for x in wallets}
+    body=dict(
+        kind="dlmm_profitable_operator_cohort_v1",
+        status="frozen_pre_pnl",
+        protocol_sha256=protocol_hash,
+        cohort_hash=cohort_hash,
+        source_census_status=census.get("status"),
+        source_pool_count=len(pools),
+        source_lp_actor_events=census.get("total_lp_actor_events"),
+        wallet_count=len(wallet_ids),
+        pnl_data_read_before_freeze=False,
+        allocation_authority=False,
+        strategy_freeze_permitted=False,
+        wallets=[by_wallet[w] for w in wallet_ids],
+        pool_addresses=sorted(p.get("address") for p in pools),
+    )
+    _atomic_json(Path(output),body)
+    print(json.dumps(dict(
+        status=body["status"],wallets=len(wallet_ids),pools=len(pools),
+        cohort_hash=cohort_hash),sort_keys=True))
+    return body
+
+
 def rank(cohort_path=DEFAULT_COHORT):
     cohort=json.loads(Path(cohort_path).read_text())
     if cohort.get("kind")!="dlmm_profitable_operator_cohort_v1" or cohort.get("status")!="frozen_pre_pnl":
@@ -669,10 +719,11 @@ def rank(cohort_path=DEFAULT_COHORT):
 
 def main():
     p=argparse.ArgumentParser()
-    p.add_argument("phase",choices=("census","rank"))
+    p.add_argument("phase",choices=("census","freeze","rank"))
     p.add_argument("--cohort",default=str(DEFAULT_COHORT))
     args=p.parse_args()
     if args.phase=="census": census()
+    elif args.phase=="freeze": freeze_census(CENSUS_OUT,DEFAULT_COHORT)
     else: rank(Path(args.cohort))
 
 
