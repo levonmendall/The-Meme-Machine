@@ -11,7 +11,7 @@ import time
 from . import BoundaryError
 from .abi import topic
 from .evidence import Store
-from .paper import Paper
+from .pons_selective_ledger import SelectivePaper
 from .pons import CurveState, curve_abi, raw_event
 from .pons_natural_observation import _latest_header
 from .pons_natural_paper import (
@@ -221,7 +221,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
         capital=max(STRATEGY_CAPITAL_QUOTE,amount+gas_budget)
 
         store=Store(str(db_path),max_records=8192)
-        paper=Paper(
+        paper=SelectivePaper(
             store,STRATEGY_NAMESPACE,capital,
             delay=EXIT_POLICY["entry_delay_seconds"],
             natural_policy_hash=POLICY_HASH,
@@ -276,7 +276,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
         # Every strategy-local paper trial must survive restart before monitoring.
         before=paper.reconcile();store.close()
         store=Store(str(db_path),max_records=8192)
-        paper=Paper(
+        paper=SelectivePaper(
             store,STRATEGY_NAMESPACE,capital,
             delay=EXIT_POLICY["entry_delay_seconds"],
             natural_policy_hash=POLICY_HASH,
@@ -548,7 +548,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
 
         reconciliation=paper.reconcile();store.close();store=None
         store=Store(str(db_path),max_records=8192)
-        paper=Paper(
+        paper=SelectivePaper(
             store,STRATEGY_NAMESPACE,capital,
             delay=EXIT_POLICY["entry_delay_seconds"],
             natural_policy_hash=POLICY_HASH,
@@ -565,7 +565,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
         result["boundary"]=str(exc)
         if store is not None:
             try:
-                result["reconciliation"]=Paper(
+                result["reconciliation"]=SelectivePaper(
                     store,STRATEGY_NAMESPACE,
                     max(STRATEGY_CAPITAL_QUOTE,1),
                     delay=EXIT_POLICY["entry_delay_seconds"],
