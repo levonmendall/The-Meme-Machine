@@ -23,6 +23,7 @@ from meme_machine.dlmm_acquisition import (
     DEFAULT_RECONSTRUCTION_DEADLINE_SECONDS,
     ReconstructionTask,
     collect_program_union,
+    valid_solana_signature,
 )
 from tests import dlmm_alchemy_provider as provider
 from tests import dlmm_wallet_strategy_discovery as study
@@ -95,6 +96,14 @@ def _load_checkpoint(pool_rows):
     processed=body.get("processed") or {}
     if not isinstance(candidates,dict) or not isinstance(processed,dict):
         return {},{}
+    candidates={
+        signature:row for signature,row in candidates.items()
+        if valid_solana_signature(signature)
+    }
+    processed={
+        signature:row for signature,row in processed.items()
+        if signature in candidates
+    }
     return candidates,processed
 
 
