@@ -417,6 +417,8 @@ class SequencerBlockClock:
         start=int(sequence)
         buffered=self.state.last_sequence
         if buffered is not None and buffered>start:
+            if start<0:
+                return int(buffered)
             return min(int(buffered),start+int(max_blocks))
 
         deadline=time.monotonic()+max(0.05,float(timeout))
@@ -452,6 +454,8 @@ class SequencerBlockClock:
         latest=self.state.last_sequence
         if latest is None or latest<=start:
             return None
+        if start<0:
+            return int(latest)
         return min(int(latest),start+int(max_blocks))
 
     def wait_for_after(self, sequence, *, timeout=1.0):
