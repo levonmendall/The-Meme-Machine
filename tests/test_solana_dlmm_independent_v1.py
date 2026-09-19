@@ -22,7 +22,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             self.assertIs(independence[key],False,key)
         self.assertIsNone(p["discovery"]["minimum_pool_tvl_usd"])
         self.assertIsNone(p["discovery"]["minimum_absolute_volume_usd"])
-        self.assertEqual(p["revision"],"1.2")
+        self.assertEqual(p["revision"],"1.3")
 
     def test_strategy_import_graph_contains_no_strategy_dependency(self):
         path=Path("tests/solana_dlmm_independent_v1.py")
@@ -101,6 +101,25 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertEqual(out["fee_30m_usd"],10)
         self.assertEqual(out["volume_acceleration"],3.0)
         self.assertEqual(out["fee_acceleration"],3.0)
+
+    def test_partial_current_5m_bucket_is_excluded(self):
+        candidate=dict(address="pool",tvl_usd=10000)
+        # Six completed buckets end by t=2800. The t=2800 bucket ends at 3100
+        # and must be ignored when observed_at=3000.
+        rows=[
+            dict(timestamp=1000+i*300,volume=(100 if i<5 else 500),
+                 fees=(1 if i<5 else 5))
+            for i in range(6)
+        ]
+        rows.append(dict(timestamp=2800,volume=99999,fees=999))
+        with patch.object(strategy,"_api",return_value={"data":rows}):
+            out=strategy._history_acceleration(candidate,3000)
+        self.assertEqual(out["acceleration_bucket_count"],6)
+        self.assertEqual(out["acceleration_window_end"],2500)
+        self.assertEqual(out["acceleration_window_end_exclusive"],2800)
+        self.assertEqual(out["latest_completed_bucket_age_seconds"],200)
+        self.assertEqual(out["volume_5m_usd"],500)
+        self.assertEqual(out["fee_5m_usd"],5)
 
     def test_range_width_expands_with_observed_movement_but_remains_bounded(self):
         p=strategy.load_policy()
