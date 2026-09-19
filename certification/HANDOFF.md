@@ -121,3 +121,60 @@ It is a machinery proof, not a natural Fee Pulse lifecycle.
 
 No full capacity, strategy-performance, capital-hour profitability or natural
 certification claim is supported yet. Raw failures must remain preserved.
+
+
+## Repair integration follow-on (2026-09-19 UTC)
+
+This branch is stacked on PR #66 at `3e0024c328365548e4bb4a9678b57bbb6dbec004`.
+It does not replace that concurrent work or modify main. The source lane heads
+remain unchanged; `sources.json` now distinguishes the original source SHA from
+the exact **execution SHA** containing these prerequisite repairs:
+
+| Lane | Execution SHA | Review |
+|---|---|---|
+| Pump | 2b2af01299ce99b0f036981bfad57107713c68b7 | PR #67 |
+| Meteora | 6a3be3a2d3c3c45fb3068662a23800e2e3768933 | PR #64 |
+| Pons | c96d9092f7645c0def4fb2c237477644280f7041 | PR #68 |
+| Ramses | 3ec74dfa223d3eecae3c3d525ceb27bcdf63d5f6 | PR #69 |
+
+Pump now enforces one lane-wide $500 genesis using an integer SQLite paper book.
+Atomic reservations prevent parallel trials minting capital. The append-only journal
+retains decision/entry evidence, fill basis, marks, exit/settlement and capital-time;
+reopening independently replays booked flows and compares the mutable projection.
+This does not yet establish full quote/cost/economic reconstruction certification.
+The normal frozen policy source and hash are unchanged.
+
+Pons no longer deletes prior trial databases or reports on repeated invocation;
+it refuses reuse without explicit recovery. Completed futures are persisted while
+discovery continues. Its trial ledgers still need a lane-wide atomic capital budget.
+Ramses adds atomic progress checkpoints. Both repair branches also contain an
+optional neutral endpoint admission gate for other concurrent callers; **this
+integration uses PR #66's one network governor only**, so it does not stack two
+extra admission gates.
+
+The supervisor now checks actual four-process overlap, treats unknown exposure as
+unproven, retains terminal reports, bounds and expires admission tickets, checks
+unittest completion summaries, and records method/HTTP status/JSON-RPC error codes
+without endpoint credentials. Source worktrees are clean exact execution commits,
+not an uncontrolled merge or unreviewed runtime patch.
+
+Latest preceding Meteora run 35474758564 completed its 20-minute observation:
+19 attempts, zero complete; 12 fresh-swap timeouts, 3 regime expirations, 2 valid
+zero-swap warmup rejections, 1 unverified warmup, 1 runtime deadline. These counts
+come from job 105981977326's terminal log, not an inferred economic failure.
+The artifact was enumerated, but its download was unavailable in this runtime.
+
+The separate PR #66 smoke run `35476622573` was already running when this integration
+was prepared. It must not be reported as validation of these newer execution SHAs.
+The follow-on workflow uses the same concurrency group and never cancels that run.
+No four-hour or natural E2E certificate exists yet. Continuous runners, complete
+native accounting binding (especially Meteora and Pons), cost decomposition,
+prospective shadow optimization, and complete capacity denominators remain blockers.
+
+
+Follow-on local validation: Pump 241, Meteora 343, Pons 207, Ramses 230 tests;
+all required resource checks passed. Eleven integration regressions also pass,
+including expired/capacity-bound admission, unknown exposure, short overlap,
+terminal report retention, and RPC error-code telemetry. Exact command/log hashes
+and source identities are in `repair-integration-result.json`. This is a
+prerequisite test result, not a live certification result.

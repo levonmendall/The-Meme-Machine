@@ -12,6 +12,7 @@ import gzip
 import importlib
 import json
 import os
+import re
 from pathlib import Path
 import sys
 import threading
@@ -29,8 +30,8 @@ class Observer:
         self.latencies=[];self.errors=Counter();self.started=time.monotonic()
         self.journal=Journal(self.root/'telemetry.sqlite')
         self.raw=gzip.open(self.root/'rpc-evidence.jsonl.gz','ab')
-        self.archive_ns=0;self.requests=0;self.provider_sessions={}
-        self.last_progress=None
+        self.archive_ns=0;self.requests=0;self.raw_records=0;self.provider_sessions={}
+        self.last_progress=None;self.last_report=None
         self.governor=Governor(os.environ["MM_CERT_GOVERNOR_DB"])
         self.context=threading.local()
 
@@ -43,12 +44,13 @@ class Observer:
 
     def checkpoint(self, body, phase):
         # Called by the lane's progress path, never by a timer pretending health.
-        self.last_progress=time.monotonic()
+        self.last_progress=time.monotonic();self.last_report=body
         self.event('checkpoint', dict(phase=phase,report=body,policy_hash=self.policy))
         self.status(phase,body)
 
     def status(self, phase, body=None):
         with self.lock:
+            if body is None:body=self.last_report
             lat=sorted(self.latencies)
             quant=lambda f: None if not lat else lat[min(len(lat)-1,int((len(lat)-1)*f))]
             data=dict(lane=self.lane,pid=os.getpid(),process_nonce=PROCESS_NONCE,
@@ -59,7 +61,8 @@ class Observer:
                       errors=dict(self.errors),provider_session_count=len(self.provider_sessions),
                       rpc_latency_seconds=dict(p50=quant(.5),p95=quant(.95),p99=quant(.99)),
                       telemetry_archive_seconds=self.archive_ns/1e9,
-                      report=body)
+                      report=body,
+                      terminal_monotonic=time.monotonic() if phase in ("returned","failed") else None)
             raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
 
     def prioritize(self, module, name):
@@ -77,11 +80,15 @@ class Observer:
         observer=self
         @functools.wraps(original)
         def observed(instance,*args,**kwargs):
-            started=time.monotonic_ns();result=None;error=None
+            started=time.monotonic_ns();result=None;error=None;http_status=None;rpc_error_codes=[];transport_started=None
             # Use only opaque session identities. Never archive endpoint URLs.
-            session=observer.provider_sessions.setdefault(id(instance),str(uuid.uuid4()))
+            with observer.lock:
+                if not hasattr(instance,'_certification_session_id'):
+                    instance._certification_session_id=str(uuid.uuid4())
+                session=instance._certification_session_id
+                observer.provider_sessions[session]=True
             network="solana" if solana else "robinhood"
-            queue_wait=observer.governor.acquire(network,observer.lane,getattr(observer.context,"priority",50))
+            queue_wait=None
             if solana:
                 request=args[0]
                 calls=request if isinstance(request,list) else [request]
@@ -92,29 +99,50 @@ class Observer:
             else:
                 methods=[args[0]];wire=[(args[0],args[1])]
             try:
+                queue_wait=observer.governor.acquire(network,observer.lane,getattr(observer.context,"priority",50))
+                transport_started=time.monotonic_ns()
                 result=original(instance,*args,**kwargs)
+                http_status=200
+                if solana:
+                    replies=result if isinstance(result,list) else [result]
+                    rpc_error_codes=[x['error'].get('code') for x in replies
+                                     if isinstance(x,dict) and isinstance(x.get('error'),dict)]
                 return result
             except BaseException as exc:
                 message=str(exc)
+                http_status=getattr(exc,'code',None)
+                match=re.fullmatch(r'provider_http_(\d+)',message)
+                if match:http_status=int(match[1])
+                match=re.fullmatch(r'provider_rpc_(-?\d+)',message)
+                if match:rpc_error_codes=[int(match[1])]
                 # Only stable code-shaped errors are emitted; no free-form URLs.
                 error=message if message.replace('_','').replace('-','').isalnum() and len(message)<160 else type(exc).__name__
                 raise
             finally:
                 elapsed=(time.monotonic_ns()-started)/1e9
                 with observer.lock:
-                    observer.requests+=1;observer.methods.update(methods);observer.latencies.append(elapsed)
+                    observer.raw_records+=1
+                    transport_elapsed=None
+                    if transport_started is not None:
+                        transport_elapsed=(time.monotonic_ns()-transport_started)/1e9
+                        observer.requests+=1;observer.methods.update(methods);observer.latencies.append(transport_elapsed)
                     if error:
                         observer.errors[error]+=1
-                        if "429" in error:observer.governor.rate_limited(network)
+                    if http_status==429 or 429 in rpc_error_codes or (error and "429" in error):
+                        observer.governor.rate_limited(network)
                     before=time.monotonic_ns()
-                    record=dict(sequence=observer.requests,lane=observer.lane,session=session,
+                    record=dict(sequence=observer.raw_records,lane=observer.lane,session=session,
+                                transport_attempted=transport_started is not None,transport_duration_seconds=transport_elapsed,
                                 observed_at_ns=time.time_ns(),duration_seconds=elapsed,
                                 request=wire,response=result,error=error,queue_wait_seconds=queue_wait,
+                                http_status=http_status,json_rpc_error_codes=rpc_error_codes,
+                                retry_count=getattr(instance,"retry_count",getattr(instance,"retries",None)),
                                 authentication='raw_transport_response_requires_lane_verification')
                     observer.raw.write((canonical(record)+'\n').encode());observer.raw.flush()
                     observer.archive_ns+=time.monotonic_ns()-before
-                    observer.event('rpc_transport',dict(sequence=observer.requests,session=session,
-                        methods=methods,duration_seconds=elapsed,error=error,queue_wait_seconds=queue_wait,raw_hash=digest(record)))
+                    observer.event('rpc_transport',dict(sequence=observer.raw_records,session=session,transport_attempted=transport_started is not None,
+                        methods=methods,duration_seconds=elapsed,error=error,http_status=http_status,
+                        json_rpc_error_codes=rpc_error_codes,queue_wait_seconds=queue_wait,raw_hash=digest(record)))
         setattr(cls,name,observed)
 
 PROCESS_NONCE=str(uuid.uuid4())

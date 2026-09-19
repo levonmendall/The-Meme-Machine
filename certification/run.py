@@ -39,10 +39,10 @@ def source_integrity(worktrees):
     observed={}
     for lane,row in manifest()['lanes'].items():
         cwd=Path(worktrees)/lane
-        if git('rev-parse','HEAD',cwd=cwd)!=row['source_sha']:raise ValueError('worktree_head_drift:'+lane)
+        if git('rev-parse','HEAD',cwd=cwd)!=row.get('execution_sha',row['source_sha']):raise ValueError('worktree_head_drift:'+lane)
         diff=subprocess.check_output(['git','diff','--binary','HEAD'],cwd=cwd)
         observed[lane]=hashlib.sha256(diff).hexdigest()
-        expected=(ROOT/'certification/patches/meteora-checkpoint.patch').read_bytes() if lane=='meteora' else b''
+        expected=b''
         # Compare git's normalized diff to the pinned overlay applied at preparation.
         if diff.strip()!=expected.strip():raise ValueError('unreviewed_lane_mutation:'+lane)
     return observed
@@ -53,11 +53,11 @@ def prepare(destination):
     spec=manifest()
     for lane,row in spec['lanes'].items():
         work=destination/lane
-        subprocess.run(['git','worktree','add','--detach',str(work),row['source_sha']],cwd=ROOT,check=True)
+        execution=row.get('execution_sha',row['source_sha'])
+        subprocess.run(['git','fetch','origin',execution],cwd=ROOT,check=True)
+        subprocess.run(['git','worktree','add','--detach',str(work),execution],cwd=ROOT,check=True)
         for file,expected in row['file_hashes'].items():
             if hashlib.sha256((work/file).read_bytes()).hexdigest()!=expected:raise ValueError('source_hash_mismatch:'+lane+':'+file)
-        if lane=='meteora':
-            subprocess.run(['git','apply',str(ROOT/'certification/patches/meteora-checkpoint.patch')],cwd=work,check=True)
     atomic(destination/'manifest.json',spec)
     return destination
 
@@ -76,14 +76,15 @@ def verify(worktrees,output):
         for index,cmd in enumerate(commands):
             started=time.time();log=output/f'{lane}-gate-{index}.log'
             with log.open('wb') as f:r=subprocess.run(cmd,cwd=cwd,stdout=f,stderr=subprocess.STDOUT)
-            rows[lane].append(dict(command=cmd,exit_code=r.returncode,started_at=started,ended_at=time.time(),log=log.name,sha256=hashlib.sha256(log.read_bytes()).hexdigest()))
-    result=dict(passed=all(x['exit_code']==0 for lane in rows.values() for x in lane),lanes=rows,
+            complete=index!=0 or ('\nRan ' in log.read_text() and '\nOK' in log.read_text())
+            rows[lane].append(dict(command=cmd,exit_code=r.returncode,summary_complete=complete,started_at=started,ended_at=time.time(),log=log.name,sha256=hashlib.sha256(log.read_bytes()).hexdigest()))
+    result=dict(passed=all(x['exit_code']==0 and x['summary_complete'] for lane in rows.values() for x in lane),lanes=rows,
                 source_manifest_hash=digest(manifest()),integration_sha=git('rev-parse','HEAD'),implementation_hash=implementation_hash(),source_diff_hashes=source_hashes)
     atomic(output/'deterministic.json',result)
     return result
 
 
-def lane_environment(lane,source,run):
+def lane_environment(lane,source,run,run_id=None):
     env={k:v for k,v in os.environ.items() if not k.startswith(('MM_','GITHUB_','GH_')) and not any(x in k.upper() for x in ('TOKEN','SECRET','PRIVATE_KEY'))}
     for key in source['rpc_configuration_variables']:
         if os.environ.get(key):env[key]=os.environ[key]
@@ -92,7 +93,8 @@ def lane_environment(lane,source,run):
         for key in ('MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON','MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON'):
             if key in os.environ:env[key]=os.environ[key]
     env.update(PYTHONPATH=str(ROOT),PYTHONUNBUFFERED='1',MM_CERT_SOURCE_SHA=source['source_sha'],
-               MM_CERT_GOVERNOR_DB=str(run/'shared-provider.sqlite'))
+               MM_CERT_GOVERNOR_DB=str(run/'shared-provider.sqlite'),
+               MM_CERTIFICATION_RUN_ID=run_id or run.name,MM_CERTIFICATION_LANE=lane)
     if lane in ('pump','meteora'):env['MM_SOLANA_EVIDENCE_BROKER_DB']=str(run/'shared-solana-evidence.sqlite')
     return env
 
@@ -101,7 +103,7 @@ def sustained_readiness():
     # These are demonstrated source-level blockers, not configuration overrides.
     # Never bypass a bounded study by looping/restarting it or padding idle uptime.
     return [
-        'pump:runner discovery clamps at 3300s; lifetime evidence cap 120; consolidated ledger not implemented',
+        'pump:runner discovery clamps at 3300s; lifetime evidence cap 120; detailed cost/economic replay still unproven',
         'meteora:runner rejects runtime above 7200s; single finite census and attempt/target early exits; virtual marks lack durable settlement ledger',
         'pons:per-trial capital genesis has no lane-wide atomic reservation; enrollment/qualifier early-stop conditions remain',
         'ramses:runner returns on first natural lifecycle; multi-asset cumulative capital accounting remains unproven',
@@ -125,7 +127,7 @@ def launch(worktrees,output,seconds,phase,gate_file):
         result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
         return result
     for lane,row in spec['lanes'].items():
-        if git('rev-parse','HEAD',cwd=Path(worktrees)/lane)!=row['source_sha']:raise ValueError('worktree_head_drift:'+lane)
+        if git('rev-parse','HEAD',cwd=Path(worktrees)/lane)!=row.get('execution_sha',row['source_sha']):raise ValueError('worktree_head_drift:'+lane)
         for f,h in row['file_hashes'].items():
             if hashlib.sha256((Path(worktrees)/lane/f).read_bytes()).hexdigest()!=h:raise ValueError('policy_or_config_drift:'+lane)
     required=('MM_SOLANA_READ_RPC_URL','MM_ROBINHOOD_READ_RPC_URL')
@@ -138,23 +140,25 @@ def launch(worktrees,output,seconds,phase,gate_file):
         provider_config[lane]={k:dict(configured=bool(os.environ.get(k)),identity=(hashlib.sha256(os.environ[k].encode()).hexdigest()[:16] if os.environ.get(k) else None)) for k in row['rpc_configuration_variables']}
     atomic(run/'provider-identities.json',provider_config)
     journal=Journal(run/'supervisor.sqlite');governor=Governor(run/'shared-provider.sqlite')
-    started=time.monotonic();start_wall=time.time();processes={};files={};rows={};interrupted=False
+    started=time.monotonic();start_wall=time.time();processes={};files={};rows={};interrupted=False;terminal_times={}
+    common_start=started
     try:
         for lane,row in spec['lanes'].items():
             folder=run/lane;folder.mkdir()
             out=(folder/'process.log').open('wb');files[lane]=out
             cmd=[sys.executable,'-m','certification.worker','--lane',lane,'--output',str(folder),'--policy-hash',row['policy_hash'],'--seconds',str(seconds)]
-            proc=subprocess.Popen(cmd,cwd=Path(worktrees)/lane,env=lane_environment(lane,row,run),stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
+            proc=subprocess.Popen(cmd,cwd=Path(worktrees)/lane,env=lane_environment(lane,row,run,run_id),stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
             launched=time.monotonic();processes[lane]=(proc,launched)
             rows[lane]=dict(pid=proc.pid,policy_hash=row['policy_hash'],process_restarts=0,health='starting',natural_settled=0,forced_settled=0,gates={})
             journal.append(lane,'launch','process_launch',dict(pid=proc.pid,command=cmd,source_sha=row['source_sha'],launched_monotonic=launched))
         # Drain lets normal policy-defined exits finish. It is never counted as
         # a replacement for an interrupted observation window.
-        hard_deadline=started+seconds+1800
+        common_start=max(start for _proc,start in processes.values())
+        hard_deadline=common_start+seconds+1800
         while True:
             now=time.monotonic();alive=False
             for lane,(proc,launched) in processes.items():
-                row=rows[lane];code=proc.poll();path=run/lane/'status.json'
+                row=rows[lane];code=proc.poll();path=run/lane/'status.json';status={}
                 if path.exists():
                     try:status=json.loads(path.read_text())
                     except (ValueError,OSError):status={}
@@ -168,7 +172,10 @@ def launch(worktrees,output,seconds,phase,gate_file):
                 if code is None:
                     alive=True;row['continuous_uptime_seconds']=now-launched
                 elif 'exit_code' not in row:
-                    row.update(exit_code=code,ended_at=time.time(),continuous_uptime_seconds=now-launched,unexpected_exit=code!=0 or now-launched<seconds,health='exited')
+                    reported=status.get('terminal_monotonic')
+                    ended=reported if isinstance(reported,(int,float)) and launched<=reported<=now else now
+                    terminal_times[lane]=ended
+                    row.update(exit_code=code,ended_at=time.time(),continuous_uptime_seconds=ended-launched,unexpected_exit=code!=0 or ended-common_start<seconds,health='exited')
                     journal.append(lane,'exit','process_exit',dict(exit_code=code,observed_monotonic=now,unexpected=row['unexpected_exit']))
                     report=Path(worktrees)/lane/REPORTS[lane]
                     if report.exists():
@@ -176,7 +183,7 @@ def launch(worktrees,output,seconds,phase,gate_file):
                         try:row.update(summarize(lane,json.loads(raw)))
                         except ValueError:row['report_parse_error']=True
                 if row.get('open_positions') is None:row['open_positions_unknown']=True
-            result=dict(run_id=run_id,phase=phase,status='RUNNING' if alive else 'FINISHED',started_at=start_wall,observed_at=time.time(),elapsed_seconds=now-started,lanes=rows,shared_provider=governor.status(),source_manifest_hash=digest(spec))
+            result=dict(run_id=run_id,phase=phase,status='RUNNING' if alive else 'FINISHED',started_at=start_wall,observed_at=time.time(),elapsed_seconds=now-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=now)-common_start),lanes=rows,shared_provider=governor.status(),source_manifest_hash=digest(spec))
             result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
             if not alive:break
             if now>=hard_deadline:
@@ -192,7 +199,7 @@ def launch(worktrees,output,seconds,phase,gate_file):
                 rows[lane].update(unexpected_exit=True,exit_code=proc.returncode,health='terminated',shutdown_positions='explicitly_unresolved')
                 journal.append(lane,'supervisor_stop','forced_process_stop',dict(exit_code=proc.returncode))
             files[lane].close()
-        result=dict(run_id=run_id,phase=phase,status='FAILED' if interrupted else 'FINISHED',started_at=start_wall,ended_at=time.time(),elapsed_seconds=time.monotonic()-started,lanes=rows,shared_provider=governor.status())
+        result=dict(run_id=run_id,phase=phase,status='FAILED' if interrupted else 'FINISHED',started_at=start_wall,ended_at=time.time(),elapsed_seconds=time.monotonic()-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=time.monotonic())-common_start),source_manifest_hash=digest(spec),lanes=rows,shared_provider=governor.status())
         result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html');journal.close()
     return result
 

@@ -12,7 +12,7 @@ REQUIRED=('responsive','bounded_queue','provider_limits','no_starvation','teleme
 
 def evaluate(result):
     failures=[];incomplete=[]
-    if result.get('elapsed_seconds',0)<14400:incomplete.append('continuous_four_hour_window_not_completed')
+    if result.get('continuous_overlap_seconds',0)<14400:incomplete.append('continuous_four_hour_window_not_completed')
     for lane in LANES:
         row=result.get('lanes',{}).get(lane,{})
         if row.get('process_restarts',0):failures.append(lane+':process_restart')
@@ -23,7 +23,8 @@ def evaluate(result):
             if value is False:failures.append(lane+':'+gate)
             elif value is not True:incomplete.append(lane+':unproven:'+gate)
         if row.get('natural_settled',0)<1:incomplete.append(lane+':natural_lifecycle_missing')
-        if row.get('open_positions',0):failures.append(lane+':unsettled_position')
+        if row.get('open_positions') is None:incomplete.append(lane+':open_exposure_unknown')
+        elif row['open_positions']:failures.append(lane+':unsettled_position')
     return dict(status='FAIL' if failures else 'INCOMPLETE' if incomplete else 'PASS',
                 failures=failures,incomplete=incomplete,
                 target_three_per_lane_met=all(result.get('lanes',{}).get(k,{}).get('natural_settled',0)>=3 for k in LANES))
@@ -41,7 +42,9 @@ def summarize(lane, report):
         result['open_positions']=len(report.get('open_positions',[]))+len(report.get('pending_entries',[]))
         result['natural_settled']=len(report.get('settled',[]))
         result['terminal_reasons']=dict(Counter(x.get('limitation') or x.get('stage','unknown') for x in report.get('attempts',[])))
-        result['limitations'].append('isolated_research_lifecycles_are_not_consolidated_cash_accounting')
+        result['accounting']=report.get('accounting')
+        result['accounting_journal_replay']=report.get('accounting_replay')
+        result['limitations'].append('integer_book_replay_does_not_yet_prove_complete_cost_decomposition')
     elif lane=='meteora':
         result['funnel']=dict(discovered=report.get('discovery_unique_pool_count'),screened=report.get('compatibility_screened_count'),
                               complete_observations=report.get('complete_lifecycle_count'))
