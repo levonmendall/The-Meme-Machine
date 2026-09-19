@@ -312,6 +312,7 @@ def _late_score(s):
     score+=_points(int(s.curve_progress_bps or 0),7000,9500,20)
     score+=_points(int(s.curve_velocity_bps_per_s or 0),20,100,25)
     score+=_points(int(s.curve_acceleration_bps_per_s2 or 0),0,10,10)
+    score+=_points(int(s.independent_buyer_clusters),3,6,10)
     score+=_points(int(s.buyer_growth),1,5,15)
     score+=_points(int(s.net_buy_share_bps),6000,9000,15)
     score+=_points(int(s.skilled_wallet_clusters),0,3,8)
@@ -333,6 +334,7 @@ def _postgrad_score(s):
     score+=_points(int(s.skilled_wallet_clusters),0,3,8)
     score+=_points(int(s.quote_relative_return_bps),0,2000,5)
     score+=_points(int(s.recovery_bps or 0),0,1500,7)
+    score+=10-_points(int(s.early_holder_sell_share_bps or 0),0,3500,10)
     score-=_points(max(0,int(s.early_holder_sell_share_bps or 0)-2000),0,1500,15)
     score-=_points(max(0,int(s.concentration_bps)-2500),0,1000,10)
     return _clamp(score,0,100)
@@ -341,6 +343,7 @@ def _postgrad_score(s):
 def _second_leg_score(s):
     score=0
     score+=_points(int(s.breakout_bps or 0),500,2500,20)
+    score+=_points(int(s.independent_buyer_clusters),4,8,10)
     score+=_points(int(s.buyer_growth),1,5,15)
     score+=_points(int(s.net_buy_share_bps),6000,9000,15)
     score+=_points(int(s.recovery_bps or 0),500,2500,15)
@@ -348,6 +351,8 @@ def _second_leg_score(s):
     score+=_points(int(s.skilled_wallet_clusters),0,3,10)
     score+=_points(int(s.consolidation_seconds or 0),20,90,5)
     score+=_points(int(s.price_vs_graduation_bps or 0),0,3000,10)
+    pullback_distance=abs(int(s.pullback_depth_bps or 0)-1200)
+    score+=10-_points(pullback_distance,0,2300,10)
     score-=_points(max(0,int(s.early_holder_sell_share_bps or 0)-2000),0,1500,10)
     score-=_points(max(0,int(s.concentration_bps)-2500),0,1000,10)
     return _clamp(score,0,100)
