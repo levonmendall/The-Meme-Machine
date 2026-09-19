@@ -15,13 +15,17 @@ class RPC:
     ALLOWED = {'getGenesisHash', 'getSignaturesForAddress', 'getTransaction',
                'getMultipleAccounts', 'getTokenLargestAccounts', 'getBlockTime'}
 
-    def __init__(self, url, limit=120, transport=None, clock=time.time, sleeper=time.sleep):
+    def __init__(self, url, limit=120, transport=None, clock=time.time, sleeper=time.sleep,
+                 request_interval_seconds=0.5):
         if urlparse(url).scheme != 'https':
             raise ValueError('HTTPS RPC required')
         if not 40 <= limit <= 240:
             raise ValueError('request_limit must be 40..240')
+        if not 0.2 <= float(request_interval_seconds) <= 5.0:
+            raise ValueError('request_interval_seconds must be 0.2..5.0')
         self.last_request = -float('inf')
         self.url, self.limit, self.clock, self.sleep = url, limit, clock, sleeper
+        self.request_interval_seconds = float(request_interval_seconds)
         self.transport = transport or self._http
         # calls is the logical RPC-attempt budget. http_requests separately shows
         # physical transports so batching cannot silently increase economic scope.
@@ -116,7 +120,7 @@ class RPC:
         for attempt in range(attempts):
             if self.calls >= cap:
                 raise Unavailable('provider_budget_exhausted')
-            self._pace(0.5)
+            self._pace(self.request_interval_seconds)
             self.calls += 1
             if self.transport == self._http:
                 self.http_requests += 1
