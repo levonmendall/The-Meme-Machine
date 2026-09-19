@@ -21,6 +21,7 @@ SELECTIVE_FILES=[
     ROOT/"robinhood_research"/"pons_selective_cohort.py",
     ROOT/"robinhood_research"/"pons_breakout_sample.py",
     ROOT/"robinhood_research"/"pons_relative_value.py",
+    ROOT/"robinhood_research"/"pons_relative_sample.py",
 ]
 FORBIDDEN_PREFIXES=(
     "robinhood_research.continuation_robinhood",
