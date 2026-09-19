@@ -158,8 +158,12 @@ class PumpTape:
 
 class PumpLogStream:
     """One finalized logsSubscribe connection; any disconnect resets continuity."""
-    def __init__(self, rpc_url, tape, clock=time.time):
-        self.url=websocket_url(rpc_url)
+    def __init__(self, rpc_url, tape, clock=time.time, ws_url=None):
+        self.url=str(ws_url or websocket_url(rpc_url))
+        parts=urlsplit(self.url)
+        if parts.scheme != 'wss' or parts.hostname != 'solana.api.onfinality.io':
+            if ws_url is not None:
+                raise ValueError('OnFinality WSS endpoint required')
         self.tape=tape
         self.clock=clock
         self.subscription=None
