@@ -218,12 +218,24 @@ def _trajectory(endpoint,candidate):
 def evaluate_candidate(
     endpoint,event,tape,*,strategy_capital_quote,wallet_histories=None,
     creator_history=None,quote_relative_strength_bps=None,
+    evidence_observed_at=None,evidence_observed_monotonic=None,
 ):
     """Freeze one outcome-blind qualification vector from Pons-only evidence."""
     sessions=[]
+    if evidence_observed_monotonic is not None:
+        preflight_latency=time.monotonic()-float(evidence_observed_monotonic)
+        if preflight_latency<0:
+            raise BoundaryError("future_evidence_observation")
+        if preflight_latency>ENTRY_THRESHOLDS["max_state_age_seconds"]:
+            raise BoundaryError("stale_evidence_acquisition")
     rpc=_rpc(endpoint)
     report=dict(reads=[])
-    candidate=_authenticate_candidate(rpc,event,report)
+    candidate=_authenticate_candidate(
+        rpc,event,report,
+        evidence_observed_at=evidence_observed_at,
+        evidence_observed_monotonic=evidence_observed_monotonic,
+        max_evidence_latency_seconds=ENTRY_THRESHOLDS["max_state_age_seconds"],
+    )
     candidate["report"]=report
     sessions.append(rpc.telemetry())
     if candidate["decoded_event"]["decoded"]["name"]!="CurveBuy":
@@ -235,6 +247,12 @@ def evaluate_candidate(
     sessions.append(trajectory_session)
 
     available=int(time.time())
+    completed_monotonic=time.monotonic()
+    acquisition_latency=(
+        float(available-int(candidate["stamp"].event_at))
+        if evidence_observed_monotonic is None
+        else completed_monotonic-float(evidence_observed_monotonic)
+    )
     creator_groups=(
         candidate["record"].get("deployer"),
         candidate["record"].get("creatorFeeRecipient"),
@@ -251,6 +269,8 @@ def evaluate_candidate(
         strategy_capital_quote=int(strategy_capital_quote),
         asof=candidate["stamp"].event_at,
         evidence_available_at=available,
+        evidence_observed_at=evidence_observed_at,
+        evidence_acquisition_latency_seconds=acquisition_latency,
         pair_token=candidate["record"].get("pairToken"),
         wallet_histories=wallet_histories,
         creator_history=creator_history,
@@ -265,6 +285,12 @@ def evaluate_candidate(
         trajectory_snapshots=snapshots,launch_at=launch_at,
         vector=vector,provider_sessions=sessions,
         evaluation_completed_at=available,
+        evidence_observed_at=evidence_observed_at,
+        evidence_acquisition_latency_seconds=acquisition_latency,
+        chain_timestamp_lag_seconds=(
+            None if evidence_observed_at is None
+            else float(evidence_observed_at)-float(candidate["stamp"].event_at)
+        ),
     )
 
 
@@ -280,11 +306,23 @@ def public_evaluation(row):
         trajectory_snapshots=row["trajectory_snapshots"],
         launch_at=row["launch_at"],vector=row["vector"],
         evaluation_completed_at=row["evaluation_completed_at"],
+        evidence_observed_at=row.get("evidence_observed_at"),
+        evidence_acquisition_latency_seconds=row.get(
+            "evidence_acquisition_latency_seconds"
+        ),
+        chain_timestamp_lag_seconds=row.get("chain_timestamp_lag_seconds"),
         candidate=dict(
             token=candidate["token"],curve=candidate["curve"],block=candidate["block"],
             record=candidate["record"],auth=candidate["auth"],
             state=asdict(candidate["state"]),quote=candidate["quote"],
             freshness_seconds=candidate["freshness_seconds"],
+            evidence_observed_at=candidate.get("evidence_observed_at"),
+            evidence_acquisition_latency_seconds=candidate.get(
+                "evidence_acquisition_latency_seconds"
+            ),
+            chain_timestamp_lag_seconds=candidate.get(
+                "chain_timestamp_lag_seconds"
+            ),
             current_snipe_bps=candidate["current_snipe_bps"],
             gas_meta=candidate["gas_meta"],
         ),
