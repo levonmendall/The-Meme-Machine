@@ -105,7 +105,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     concurrency:
-      group: solana-public-rpc-live
+      group: solana-onfinality-auth-pump-live
       cancel-in-progress: false
     env:
       MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
@@ -136,7 +136,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 70
     concurrency:
-      group: solana-public-rpc-live
+      group: solana-onfinality-auth-pump-live
       cancel-in-progress: false
     env:
       MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
@@ -167,7 +167,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     concurrency:
-      group: solana-public-rpc-live
+      group: solana-onfinality-auth-pump-live
       cancel-in-progress: false
     env:
       MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
@@ -202,7 +202,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 85
     concurrency:
-      group: solana-public-rpc-live
+      group: solana-onfinality-auth-pump-live
       cancel-in-progress: false
     env:
       MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
@@ -258,7 +258,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 125
     concurrency:
-      group: solana-public-rpc-live
+      group: solana-onfinality-auth-pump-live
       cancel-in-progress: false
     env:
       MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
@@ -315,7 +315,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 125
     concurrency:
-      group: solana-public-rpc-live
+      group: solana-onfinality-auth-pump-live
       cancel-in-progress: false
     env:
       MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
@@ -349,7 +349,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     concurrency:
-      group: solana-public-rpc-live
+      group: solana-onfinality-auth-pump-live
       cancel-in-progress: false
     env:
       MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
