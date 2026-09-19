@@ -71,7 +71,16 @@
     "min_fee_acceleration": 1.25,
     "min_dynamic_fee_uplift_over_base": 1.25,
     "require_verified_warmup_flow": true,
-    "require_two_way_flow": true
+    "require_two_way_flow": true,
+    "entry_clock": "five-minute acceleration is regime-only; a new finalized authenticated Meteora DLMM swap after compatibility screening starts the entry-observation clock",
+    "fresh_swap_trigger": {
+      "required": true,
+      "max_wait_seconds": 60,
+      "poll_seconds": 2,
+      "acceleration_refresh_seconds": 12,
+      "rule": "While waiting, the same frozen 2.0x volume and 1.25x fee acceleration gates must remain true. On the first authenticated finalized DLMM swap, capture a fresh post-trigger state and begin one exact 12-second warmup."
+    },
+    "dynamic_fee_uplift_role": "context_only_not_entry_veto"
   },
   "position": {
     "capital_lamports": 100000000,
@@ -97,11 +106,9 @@
     ],
     "warmup_alignment": {
       "qualifying_window_seconds": 12,
-      "max_fresh_windows": 5,
-      "max_total_observation_seconds": 60,
-      "retry_only_on": "verified zero-swap warmup",
-      "refresh_acceleration_before_each_window": true,
-      "rule": "Each retry must still pass the same frozen 2.0x volume and 1.25x fee acceleration gates; every qualifying warmup remains exactly 12 seconds."
+      "trigger": "first fresh authenticated finalized DLMM swap while frozen acceleration regime remains true",
+      "retries_after_trigger": 0,
+      "rule": "The qualifying warmup starts only after the fresh swap trigger and remains exactly 12 seconds. A zero-swap post-trigger warmup is a valid rejection."
     }
   },
   "qualification": {
@@ -115,14 +122,25 @@
     "min_expected_net_lamports": 100000,
     "expected_net_definition": "projected exact-range fee capture - 400000 lamports modeled network cost - 50%-inventory stress unwind loss",
     "primary_score": "expected_net_lamports / capital / expected_capital_hours",
-    "ranking_metric": "expected_after_cost_pnl_bps_per_capital_hour"
+    "ranking_metric": "expected_after_cost_pnl_bps_per_capital_hour",
+    "dynamic_fee_uplift_hard_gate": false,
+    "unchanged_hard_risk_gates": [
+      "min_competing_range_liquidity_to_capital_multiple = 10",
+      "min_two_way_balance = 0.50",
+      "max_drift_ratio = 0.50",
+      "require_reversal = true",
+      "max_stress_unwind_loss_bps = 70",
+      "min_expected_net_lamports = 100000"
+    ]
   },
   "fee_model": {
-    "require_dynamic_fee_uplift": true,
+    "require_dynamic_fee_uplift": false,
     "current_fee_source": "authenticated LbPair state",
     "base_fee_source": "authenticated static LbPair parameters",
     "range_fee_capture": "warmup fees crossing the proposed range times estimated capital share of competing range liquidity",
-    "historical_apr_is_not_an_entry_signal": true
+    "historical_apr_is_not_an_entry_signal": true,
+    "dynamic_fee_uplift_role": "recorded context and exit-state feature; not a hard entry gate",
+    "hard_entry_economic_test": "projected exact-range fee capture - 400000 lamports modeled network cost - 50%-inventory stress unwind loss >= min_expected_net_lamports"
   },
   "flow_model": {
     "two_way_balance_definition": "2 * min(direction_A_volume,direction_B_volume) / total_directional_volume",
@@ -178,7 +196,7 @@
     "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
     "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
   },
-  "revision": "1.6",
+  "revision": "1.7",
   "amendment_history": [
     {
       "revision": "1.1",
@@ -223,6 +241,19 @@
       "warmup_seconds_changed": false,
       "support_policy_changed": false,
       "robinhood_independence_changed": false
+    },
+    {
+      "revision": "1.7",
+      "reason": "Implement four prespecified refinements: completed-5m acceleration becomes regime-only; unsupported mechanics are screened before attempt budget; fresh authenticated finalized swap triggers the exact 12s warmup; dynamic-fee uplift becomes context-only while expected net after unwind and costs remains the hard fee/economic gate.",
+      "volume_acceleration_threshold_changed": false,
+      "fee_acceleration_threshold_changed": false,
+      "two_way_threshold_changed": false,
+      "reversal_requirement_changed": false,
+      "drift_threshold_changed": false,
+      "unwind_threshold_changed": false,
+      "expected_net_threshold_changed": false,
+      "capital_changed": false,
+      "robinhood_independence_changed": false
     }
   ],
   "support_layer": {
@@ -236,7 +267,8 @@
     "collect_fee_mode_0_input_only": "supported",
     "collect_fee_mode_1_only_y": "fail_closed until exact fee-growth/swap accounting is implemented",
     "function_types": "unchanged; existing supported function-type set retained",
-    "strategy_thresholds_changed": false
+    "strategy_thresholds_changed": false,
+    "compatibility_budget_rule": "Full structural/token/fee-mode compatibility validation occurs before a pool increments the prospective max_attempted_pools counter. Unsupported configurations are recorded separately and never consume the 48 economic-attempt budget."
   },
   "evidence_acquisition": {
     "signature_census": "Paginate finalized getSignaturesForAddress up to 16 pages of 64 rows until a row at or before the authenticated start slot proves the lower boundary.",
