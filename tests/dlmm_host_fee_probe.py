@@ -8,13 +8,7 @@ from meme_machine.dlmm_tape import (
     EVENT_CPI, SWAP, SWAP2, EXACT_IN, EXACT_IN_NAME,
     _keys, _ordered_instructions, _un58_data,
 )
-from meme_machine.postgrad import PoolScanRPC
 from tests import dlmm_alchemy_provider as alchemy_provider
-
-
-class HistoricalProbeRPC(PoolScanRPC):
-    # Probe-only exact-slot lookup. Production/live RPC allowlists are unchanged.
-    ALLOWED = PoolScanRPC.ALLOWED | {'getBlock'}
 from meme_machine.provider import Unavailable
 
 POOL='C8Gr6AUuq9hEdSYJzoEpNcdjpojPZwqG5MtQbeouNNwg'
@@ -66,14 +60,12 @@ def _token_balances(meta):
 
 
 def run():
-    # Historical proof uses the same canonical Alchemy Solana Mainnet route as all
-    # other DLMM acquisition. Provider fallback is intentionally forbidden.
-    url=alchemy_provider.rpc_url()
+    # Historical proof uses the canonical public-primary / Alchemy-rescue route.
     # Exact-slot historical diagnostic only. Accounts-only blocks expose signatures
     # and all resolved account keys without heavyweight instructions/logs. This avoids
     # walking the pool's very high-volume signature history. Production/live census is
     # unchanged.
-    rpc=HistoricalProbeRPC(url,limit=80)
+    rpc=alchemy_provider.new_rpc(limit=80)
     if rpc.call('getGenesisHash',priority=True)!=pump.MAINNET:
         raise Unavailable('host_probe_wrong_network')
     selected=[]
@@ -183,7 +175,8 @@ def run():
                 signature_census=telemetry,transactions=evidence,
                 rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,
                 rpc_failures=rpc.failures,rpc_retries=rpc.retries,
-                provider_failure_kinds=rpc.failure_kinds)
+                provider_failure_kinds=rpc.failure_kinds,
+                provider_topology=rpc.provider_telemetry())
     OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
     print(json.dumps(dict(transactions=len(evidence),rpc_calls=rpc.calls,
                           rpc_failures=rpc.failures,
