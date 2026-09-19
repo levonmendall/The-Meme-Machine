@@ -38,7 +38,7 @@ SECONDARY_PROVIDER = "alchemy_solana_mainnet_existing_secret"
 ALCHEMY_ENV_NAME = "MM_SOLANA_READ_RPC_URL"
 ALCHEMY_SOLANA_MAINNET_HOST = "solana-mainnet.g.alchemy.com"
 
-TOPOLOGY_LABEL = "onfinality_public_primary_alchemy_rescue"
+TOPOLOGY_LABEL = "onfinality_primary_alchemy_rescue"
 SOLANA_MIN_REQUEST_INTERVAL_SECONDS = 1.0
 PROVIDER_429_MIN_BACKOFF_SECONDS = 2.0
 
