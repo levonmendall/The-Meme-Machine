@@ -24,6 +24,32 @@ class SolanaReadTopologyTests(unittest.TestCase):
         self.assertFalse(meta['load_balancing'])
         self.assertFalse(meta['secondary_configured'])
 
+    def test_authenticated_onfinality_urls_override_public_without_leaking_to_metadata(self):
+        env={
+            rpc_topology.AUTHENTICATED_PRIMARY_ENV_NAME:
+                'https://solana.api.onfinality.io/rpc?apikey=example-secret',
+            rpc_topology.AUTHENTICATED_WS_ENV_NAME:
+                'wss://solana.api.onfinality.io/ws?apikey=example-secret',
+        }
+        self.assertEqual(
+            rpc_topology.primary_rpc_url(env),
+            env[rpc_topology.AUTHENTICATED_PRIMARY_ENV_NAME],
+        )
+        self.assertEqual(
+            rpc_topology.primary_ws_url(env),
+            env[rpc_topology.AUTHENTICATED_WS_ENV_NAME],
+        )
+        meta=rpc_topology.metadata(env)
+        self.assertFalse(meta['primary_public'])
+        self.assertEqual(meta['primary_credential'],
+                         rpc_topology.AUTHENTICATED_PRIMARY_ENV_NAME)
+        self.assertNotIn('example-secret',str(meta))
+        with self.assertRaisesRegex(Exception,'onfinality_rpc_endpoint_required'):
+            rpc_topology.primary_rpc_url({
+                rpc_topology.AUTHENTICATED_PRIMARY_ENV_NAME:
+                    'https://example.com/rpc?apikey=bad',
+            })
+
     def test_shared_primary_pacer_enforces_point_two_seconds_across_rpc_objects(self):
         clock=Clock()
         pacer=rpc_topology.SolanaReadPacer()
