@@ -386,10 +386,16 @@ class EvidenceBroker:
                      deadline=MIN(deadline,excluded.deadline),
                      status=CASE
                        WHEN jobs.status='complete' THEN 'complete'
+                       WHEN jobs.status='inflight'
+                         AND COALESCE(jobs.lease_until,0)>excluded.created_at
+                         THEN 'inflight'
                        ELSE 'pending'
                      END,
                      lease_until=CASE
                        WHEN jobs.status='complete' THEN jobs.lease_until
+                       WHEN jobs.status='inflight'
+                         AND COALESCE(jobs.lease_until,0)>excluded.created_at
+                         THEN jobs.lease_until
                        ELSE NULL
                      END,
                      updated_at=excluded.updated_at""",
