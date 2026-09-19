@@ -37,7 +37,7 @@ from meme_machine.dlmm_tape import (
 )
 from meme_machine.provider import Unavailable
 from meme_machine.solana_evidence_broker import (
-    EvidenceBroker,ProgramAccountWakeStream,
+    DEFAULT_BROKER_DB,EvidenceBroker,ProgramAccountWakeStream,
 )
 from meme_machine.store import encode
 from tests import dlmm_alchemy_provider as provider
@@ -72,7 +72,7 @@ METEORA_MIN_INTERVAL_SECONDS=0.10
 DLMM_DISCOVERY_WS_URL="wss://api.mainnet-beta.solana.com"
 DLMM_WAKE_STREAM_KEY="dlmm_pool_wake"
 DLMM_BROKER_DB=Path(os.environ.get(
-    "MM_SOLANA_EVIDENCE_BROKER_DB","solana-dlmm-evidence-broker.sqlite3"))
+    "MM_SOLANA_EVIDENCE_BROKER_DB",DEFAULT_BROKER_DB))
 
 class _MeteoraPacer:
     def __init__(self):
