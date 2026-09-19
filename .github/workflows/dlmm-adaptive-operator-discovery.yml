@@ -1,5 +1,5 @@
 name: dlmm-adaptive-operator-discovery
-# Public WS -> log filter -> authenticated reconstruction -> checkpointed evidence
+# Public WS -> LP log filter -> direct Alchemy reconstruction -> checkpointed evidence
 on:
   push:
     branches:
@@ -33,8 +33,6 @@ jobs:
       group: dlmm-alchemy-solana-live
       cancel-in-progress: false
     env:
-      MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
-      MM_ONFINALITY_SOLANA_WS_URL: ${{ secrets.MM_ONFINALITY_SOLANA_WS_URL }}
       MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_DLMM_DISCOVERY_STREAM_SECONDS: '180'
       MM_DLMM_RECONSTRUCTION_SECONDS: '600'
@@ -49,7 +47,7 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Regression gate
         run: python -m unittest tests.test_dlmm_adaptive_acquisition -v
-      - name: Validate authenticated 5-RPS HTTP primary / Alchemy rescue
+      - name: Validate direct Alchemy 5-RPS DLMM reconstruction
         run: python -m tests.dlmm_alchemy_provider
       - name: Restore latest adaptive evidence checkpoint
         env:
@@ -75,7 +73,7 @@ jobs:
               fi
             fi
           fi
-      - name: Full eligible-pool census plus filtered adaptive reconstruction
+      - name: Audit pool exclusions plus filtered adaptive reconstruction
         run: python -m tests.dlmm_adaptive_operator_discovery
       - name: Preserve adaptive discovery evidence
         if: always()
