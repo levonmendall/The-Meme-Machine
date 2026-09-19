@@ -1,0 +1,24 @@
+20-minute adaptive getTransaction pressure test.
+
+Frozen strategy policy hash:
+b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246
+
+Repair baseline:
+21cb8ba3606b718358aac1c4c21b81957ed583ff
+
+Market horizon:
+- discovery: 900 seconds
+- follow-up: 300 seconds
+- total: 1200 seconds
+
+Machinery changes only:
+- JSON-RPC/HTTP getTransaction 429s requeue only affected members;
+- actual attempted batch halves on pressure (for example 8 -> 4);
+- bounded exponential cooldown is shared across RPC session rotations;
+- successful transaction batches recover batch size gradually;
+- newest finalized 30-second PumpSwap decision-window bodies decode before older backlog;
+- immediate post-grad decisions require complete 30-second transaction evidence;
+- older full history remains fail-closed for second-leg evaluation;
+- existing maxSupportedTransactionVersion=1 and 20-second fill timeout repairs remain active.
+
+No frozen threshold, score weight, position size, exit rule, allocator authority, signing, transaction submission, or live-money capability changed.
