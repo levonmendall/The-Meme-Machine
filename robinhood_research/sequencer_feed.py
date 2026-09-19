@@ -27,6 +27,14 @@ MAX_FRAME_BYTES = 16 * 1024 * 1024
 MAX_TRACKED_SEQUENCES = 4096
 
 
+class SequencerTransportError(RuntimeError):
+    """Recoverable observation-plane transport loss.
+
+    This is deliberately distinct from BoundaryError. Protocol/continuity failures
+    remain fail-closed; only socket/TLS/clean-close transport loss is reconnectable.
+    """
+
+
 def feed_url(environ=None):
     values = os.environ if environ is None else environ
     value = str(values.get(FEED_ENV, "") or "").strip() or SEQUENCER_FEED_URL
@@ -381,6 +389,9 @@ class SequencerBlockClock:
         self.timeout=float(timeout)
         self.state=SequencerFeedState()
         self.client=None
+        self.transport_failures=0
+        self.reconnects=0
+        self._completed_sessions=[]
 
     def connect(self):
         if self.client is None:
@@ -393,6 +404,28 @@ class SequencerBlockClock:
         client,self.client=self.client,None
         if client is not None:
             client.close()
+
+    def reconnect(self):
+        """Start a fresh observation session without asserting feed continuity.
+
+        The caller must keep its canonical RPC cursor unchanged and authenticate
+        every intervening block before advancing it. Cross-session continuity is
+        therefore proven by RPC coverage, never assumed from the WebSocket.
+        """
+        previous=self.state.summary(now=time.time())
+        previous["ended_reason"]="transport_restart"
+        self._completed_sessions.append(previous)
+        if len(self._completed_sessions)>16:
+            self._completed_sessions=self._completed_sessions[-16:]
+        self.close()
+        self.state=SequencerFeedState()
+        self.reconnects+=1
+        return self.connect()
+
+    def _transport_lost(self, reason):
+        self.transport_failures+=1
+        self.close()
+        raise SequencerTransportError(str(reason))
 
     def _healthy(self):
         s=self.state
@@ -431,15 +464,24 @@ class SequencerBlockClock:
                 remaining=max(0.01,min(deadline,coalesce_deadline)-time.monotonic())
             else:
                 remaining=max(0.05,deadline-time.monotonic())
-            self.client.sock.settimeout(min(1.0,remaining))
             try:
+                self.client.sock.settimeout(min(1.0,remaining))
                 payload=self.client.recv_message()
             except socket.timeout:
                 if first_new_at is not None:
                     break
                 continue
+            except (ssl.SSLError,OSError) as exc:
+                self._transport_lost(type(exc).__name__)
+            except BoundaryError as exc:
+                if str(exc) in (
+                    "sequencer_feed_connection_closed",
+                    "sequencer_feed_not_connected",
+                ):
+                    self._transport_lost(str(exc))
+                raise
             if payload is None:
-                raise BoundaryError("sequencer_feed_connection_closed")
+                self._transport_lost("sequencer_feed_clean_close")
             self.state.ingest(payload,received_at=time.time())
             self._healthy()
             latest=self.state.last_sequence
@@ -464,11 +506,26 @@ class SequencerBlockClock:
         )
 
     def status(self):
-        row=self.state.summary(now=time.time())
+        now=time.time()
+        row=self.state.summary(now=now)
+        sessions=list(self._completed_sessions)
+        current=dict(row)
+        current["ended_reason"]=None
+        sessions.append(current)
         row.update(
             role="pons_discovery_clock",
             authority="observation_only",
             canonical_evidence=False,
+            transport_failures=self.transport_failures,
+            reconnects=self.reconnects,
+            session_count=len(sessions),
+            session_history=sessions,
+            aggregate_messages=sum(int(x.get("messages") or 0) for x in sessions),
+            aggregate_envelopes=sum(int(x.get("envelopes") or 0) for x in sessions),
+            aggregate_gap_events=sum(int(x.get("gap_events") or 0) for x in sessions),
+            aggregate_conflicts=sum(int(x.get("conflicts") or 0) for x in sessions),
+            aggregate_regressions=sum(int(x.get("regressions") or 0) for x in sessions),
+            aggregate_malformed=sum(int(x.get("malformed") or 0) for x in sessions),
         )
         return row
 
