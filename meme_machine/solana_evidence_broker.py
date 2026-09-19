@@ -18,6 +18,8 @@ from websockets.sync.client import connect
 from .provider import Unavailable
 
 
+DEFAULT_BROKER_DB = "solana-evidence-broker.sqlite3"
+
 PRIORITY = {
     "position_monitor": 0,
     "pump_decision": 10,
@@ -37,7 +39,7 @@ class EvidenceBroker:
     def __init__(self, path=None, *, clock=time.time, sleeper=time.sleep):
         value = str(path or os.environ.get(
             "MM_SOLANA_EVIDENCE_BROKER_DB",
-            "solana-evidence-broker.sqlite3",
+            DEFAULT_BROKER_DB,
         ))
         if value != ":memory:":
             Path(value).parent.mkdir(parents=True, exist_ok=True)
