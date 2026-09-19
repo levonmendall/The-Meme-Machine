@@ -19,6 +19,7 @@ from .provider import Unavailable
 
 
 DEFAULT_BROKER_DB = "solana-evidence-broker.sqlite3"
+HYDRATION_MIN_INTERVAL_SECONDS = 0.2
 
 PRIORITY = {
     "position_monitor": 0,
@@ -108,9 +109,12 @@ class EvidenceBroker:
                     batch_size INTEGER NOT NULL,
                     cooldown_until REAL NOT NULL,
                     rate_events INTEGER NOT NULL,
+                    rate_streak INTEGER NOT NULL DEFAULT 0,
                     success_streak INTEGER NOT NULL,
                     reductions INTEGER NOT NULL,
-                    recoveries INTEGER NOT NULL
+                    recoveries INTEGER NOT NULL,
+                    next_transport_at REAL NOT NULL DEFAULT 0,
+                    transport_reservations INTEGER NOT NULL DEFAULT 0
                 );
                 CREATE TABLE IF NOT EXISTS signatures(
                     scope TEXT NOT NULL,
@@ -142,10 +146,24 @@ class EvidenceBroker:
             }
             if "lease_until" not in columns:
                 self.db.execute("ALTER TABLE jobs ADD COLUMN lease_until REAL")
+            pressure_columns={
+                row[1] for row in self.db.execute(
+                    "PRAGMA table_info(pressure)").fetchall()
+            }
+            for name,ddl in (
+                ("rate_streak","INTEGER NOT NULL DEFAULT 0"),
+                ("next_transport_at","REAL NOT NULL DEFAULT 0"),
+                ("transport_reservations","INTEGER NOT NULL DEFAULT 0"),
+            ):
+                if name not in pressure_columns:
+                    self.db.execute(
+                        f"ALTER TABLE pressure ADD COLUMN {name} {ddl}")
             self.db.execute(
-                """INSERT OR IGNORE INTO pressure
-                   (name,batch_size,cooldown_until,rate_events,success_streak,reductions,recoveries)
-                   VALUES('transaction_hydration',8,0,0,0,0,0)"""
+                """INSERT OR IGNORE INTO pressure(
+                       name,batch_size,cooldown_until,rate_events,rate_streak,
+                       success_streak,reductions,recoveries,next_transport_at,
+                       transport_reservations)
+                   VALUES('transaction_hydration',8,0,0,0,0,0,0,0,0)"""
             )
 
     def close(self):
@@ -323,16 +341,24 @@ class EvidenceBroker:
     def _pressure(self):
         with self.lock:
             row = self.db.execute(
-                """SELECT batch_size,cooldown_until,rate_events,success_streak,reductions,recoveries
+                """SELECT batch_size,cooldown_until,rate_events,rate_streak,
+                          success_streak,reductions,recoveries,next_transport_at,
+                          transport_reservations
                    FROM pressure WHERE name='transaction_hydration'"""
             ).fetchone()
+        now=float(self.clock())
         return dict(
             batch_size=int(row[0]),
             cooldown_until=float(row[1]),
             rate_events=int(row[2]),
-            success_streak=int(row[3]),
-            reductions=int(row[4]),
-            recoveries=int(row[5]),
+            rate_streak=int(row[3]),
+            success_streak=int(row[4]),
+            reductions=int(row[5]),
+            recoveries=int(row[6]),
+            next_transport_at=float(row[7]),
+            transport_reservations=int(row[8]),
+            transport_ready_in_seconds=max(
+                0.0,max(float(row[1]),float(row[7]))-now),
         )
 
     def _note_pressure_failure(self):
@@ -340,16 +366,19 @@ class EvidenceBroker:
         old = p["batch_size"]
         new = max(1, old // 2)
         events = p["rate_events"] + 1
-        delay = min(16.0, 2.0 * (2 ** min(events - 1, 3)))
+        streak=min(5,int(p["rate_streak"])+1)
+        delay=min(16.0,2.0*(2**max(0,streak-1)))
         with self.lock, self.db:
             self.db.execute(
                 """UPDATE pressure SET batch_size=?,cooldown_until=?,rate_events=?,
-                   success_streak=0,reductions=reductions+? WHERE name='transaction_hydration'""",
+                   rate_streak=?,success_streak=0,reductions=reductions+?
+                   WHERE name='transaction_hydration'""",
                 (
                     new,
-                    max(float(p["cooldown_until"]), float(self.clock()) + delay),
+                    max(float(p["cooldown_until"]),float(self.clock())+delay),
                     events,
-                    1 if new < old else 0,
+                    streak,
+                    1 if new<old else 0,
                 ),
             )
 
@@ -358,16 +387,52 @@ class EvidenceBroker:
         streak = p["success_streak"] + 1
         batch = p["batch_size"]
         recover = 0
-        if streak >= 8 and batch < 16:
-            batch = min(16, batch + 1)
-            streak = 0
-            recover = 1
+        rate_streak=int(p["rate_streak"])
+        if streak>=8:
+            if batch<16:
+                batch=min(16,batch+1)
+                recover=1
+            rate_streak=max(0,rate_streak-1)
+            streak=0
         with self.lock, self.db:
             self.db.execute(
-                """UPDATE pressure SET batch_size=?,success_streak=?,
+                """UPDATE pressure SET batch_size=?,rate_streak=?,success_streak=?,
                    recoveries=recoveries+? WHERE name='transaction_hydration'""",
-                (batch, streak, recover),
+                (batch,rate_streak,streak,recover),
             )
+
+    def _reserve_hydration_transport(
+        self,deadline,interval=HYDRATION_MIN_INTERVAL_SECONDS
+    ):
+        """Reserve one provider transport slot across all broker processes."""
+        deadline=float(deadline)
+        interval=max(0.05,float(interval))
+        now=float(self.clock())
+        with self.lock:
+            try:
+                self.db.execute("BEGIN IMMEDIATE")
+                row=self.db.execute(
+                    """SELECT cooldown_until,next_transport_at
+                       FROM pressure WHERE name='transaction_hydration'"""
+                ).fetchone()
+                start=max(now,float(row[0]),float(row[1]))
+                if start>=deadline:
+                    self.db.commit()
+                    return None
+                self.db.execute(
+                    """UPDATE pressure SET next_transport_at=?,
+                       transport_reservations=transport_reservations+1
+                       WHERE name='transaction_hydration'""",
+                    (start+interval,),
+                )
+                self.db.commit()
+            except Exception:
+                self.db.rollback()
+                raise
+        wait=max(0.0,start-float(self.clock()))
+        if wait:
+            self.sleep(wait)
+        return wait
 
     def queue_transaction(self, signature, *, kind, deadline, max_version=1):
         now = float(self.clock())
@@ -503,15 +568,16 @@ class EvidenceBroker:
             remaining = [sig for sig in requested if self.get_transaction(sig) is None]
             if not remaining:
                 break
-            p = self._pressure()
-            wait = max(0.0, p["cooldown_until"] - float(self.clock()))
-            if wait:
-                if float(self.clock()) + wait >= deadline:
-                    break
-                self.sleep(wait)
+            p=self._pressure()
+            reserved=self._reserve_hydration_transport(deadline)
+            if reserved is None:
+                break
+            p=self._pressure()
             jobs=self._claim_jobs(
                 max(1,min(int(batch_size),p["batch_size"])),
                 float(self.clock()),
+                lease_seconds=max(
+                    15.0,min(60.0,deadline-float(self.clock())+5.0)),
             )
             if not jobs:
                 break

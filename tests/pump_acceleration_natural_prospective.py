@@ -166,10 +166,13 @@ def _postgrad_concentration(rpc,snapshot):
     return sum(amounts[:5])*10_000//supply
 
 
-def _refresh_pool_events(state,sessions,now,*,research=False):
+def _refresh_pool_events(
+    state,sessions,now,*,research=False,hydration_kind="pump_window"
+):
     sessions.ensure(90)
     history=state["history"]
-    events=history.refresh(sessions.rpc,now,research=research)
+    events=history.refresh(
+        sessions.rpc,now,research=research,hydration_kind=hydration_kind)
     state["history_status"]=history.status(now)
     return events
 
@@ -594,7 +597,8 @@ def main():
                         handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
                         snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
                         events=_refresh_pool_events(
-                            state,sessions,now,research=False)
+                            state,sessions,now,research=False,
+                            hydration_kind="position_monitor")
                         quote=sell_quote(snapshot,life.position.tokens)
                         proceeds=max(0,quote.output_amount-GAS)
                         concentration=_postgrad_concentration(sessions.rpc,snapshot)

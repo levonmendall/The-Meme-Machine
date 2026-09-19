@@ -138,7 +138,9 @@ class IncrementalPumpSwapHistory:
                 break
         self._coverage()
 
-    def _ingest_stream_window(self,rpc,now,window_seconds=30):
+    def _ingest_stream_window(
+        self,rpc,now,window_seconds=30,hydration_kind="pump_window"
+    ):
         if self.broker is None:
             return
         now=int(now);cutoff=now-int(window_seconds)
@@ -157,7 +159,7 @@ class IncrementalPumpSwapHistory:
             self.stream_pending_transactions=0
             return
         txs,meta=self.broker.hydrate_transactions(
-            rpc,signatures,kind="pump_window",
+            rpc,signatures,kind=str(hydration_kind),
             deadline=time.time()+4.0,max_version=1,batch_size=8)
         self.stream_pending_transactions=int(meta["pending"])
         self.stream_hydrated_transactions+=int(meta["hydrated"])
@@ -286,12 +288,15 @@ class IncrementalPumpSwapHistory:
         )
 
 
-    def refresh(self,rpc,now,*,research=False):
+    def refresh(
+        self,rpc,now,*,research=False,hydration_kind="pump_window"
+    ):
         self.refreshes+=1
         if self.broker is not None:
             # Current decision evidence is stream-first. Historical page reads are
             # deferred until second-leg research actually needs them.
-            self._ingest_stream_window(rpc,now,30)
+            self._ingest_stream_window(
+                rpc,now,30,hydration_kind=hydration_kind)
             if research:
                 self._new_head(rpc)
                 self._backfill(rpc)
