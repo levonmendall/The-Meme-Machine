@@ -107,14 +107,14 @@ class PumpAlphaRuntimeTests(unittest.TestCase):
         self.assertEqual(book.state["positions"][POST_MINT]["surface"], "pumpswap")
         self.assertEqual(
             book.monitor_postgrad(
-                MINT, pumpswap_snapshot(now=107, slot=107, quote=70_000_000_000),
+                POST_MINT, pumpswap_snapshot(now=107, slot=107, quote=70_000_000_000),
                 107, {"exit": True, "reasons": ["trailing_drawdown"]},
             ),
             "exit_intended",
         )
         self.assertEqual(
             book.monitor_postgrad(
-                MINT, pumpswap_snapshot(now=110, slot=110, quote=70_000_000_000),
+                POST_MINT, pumpswap_snapshot(now=110, slot=110, quote=70_000_000_000),
                 110, {"exit": False, "reasons": []},
             ),
             "settled",
