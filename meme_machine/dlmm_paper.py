@@ -297,7 +297,10 @@ class Replay:
             elif actions and p['cursor']==actions[-1][1]['cursor']:
                 expected=deepcopy(tape.terminal)
                 expected.update(slot=p['real']['slot'],time=p['real']['time'])
-                if expected!=p['real']:
+                # Store JSON round-trips tuples to lists. Compare the same
+                # canonical representation used by the authenticated tape hashes;
+                # do not discard extension identities or any economic field.
+                if digest(expected)!=digest(p['real']):
                     raise Unavailable('dlmm_tape_anchor_mismatch')
                 actions=[]
             else:
@@ -311,8 +314,10 @@ class Replay:
             p=s['liquidity_positions'][oid]
             if tape.terminal['time']<p['last_time']:
                 raise ValueError('dlmm_interval_time_regression')
-            mismatches=[key for key in set(p['real'])-{'time','slot'}
-                        if p['real'][key]!=tape.terminal[key]]
+            mismatches=[key for key in sorted(set(p['real'])|set(tape.terminal))
+                        if key not in {'time','slot'} and (
+                            key not in p['real'] or key not in tape.terminal
+                            or digest(p['real'][key])!=digest(tape.terminal[key]))]
             if mismatches:
                 raise Unavailable(
                     'dlmm_tape_terminal_checkpoint_mismatch:'+mismatches[0])

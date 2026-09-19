@@ -631,6 +631,23 @@ class Tape(unittest.TestCase):
             reconstruct(p,end,[sigs[1],sigs[0],sigs[2]],{'first':tx1,'second':tx2},102,
                         [100,2**31-1,2**31-1])
 
+    def test_restart_does_not_hide_changed_extension_identity(self):
+        start,p,end,sigs,txs=interval()
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'s.db';s=Store(path,'captured',100_000_000,'synthetic wire')
+            r=Replay(s);r.reserve('lp',start,100);r.deposit('lp',start,100)
+            tape=reconstruct(p,end,sigs,txs,102,s.state['liquidity_positions']['lp']['cursor'])
+            def lost(stage):
+                if stage=='after_commit':raise RuntimeError('lost ack')
+            s.hook=lost
+            with self.assertRaises(RuntimeError):r.process_tape('lp',tape,102)
+            s.close();s=Store(path,'captured',100_000_000,'synthetic wire');r=Replay(s)
+            try:
+                s.state['liquidity_positions']['lp']['real']['vault_x_extensions']=[7]
+                with self.assertRaisesRegex(Unavailable,'anchor_mismatch'):
+                    r.process_tape('lp',tape,102)
+            finally:s.close()
+
     def test_restart_after_real_swap_before_interval_checkpoint(self):
         start,p,end,sigs,txs=interval()
         with tempfile.TemporaryDirectory() as d:
