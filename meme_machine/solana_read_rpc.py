@@ -347,7 +347,6 @@ def new_rpc(limit=120, pacer=None, environ=None, **kwargs):
         primary_rpc_url(environ),
         secondary_url=secondary_rpc_url(environ, required=False),
         primary_provider=primary_provider(environ),
-        primary_provider=primary_provider(environ),
         limit=limit,
         pacer=pacer,
         **kwargs,
@@ -358,6 +357,7 @@ def new_pool_scan_rpc(limit=240, pacer=None, environ=None, **kwargs):
     return ReadOnlyFailoverPoolScanRPC(
         primary_rpc_url(environ),
         secondary_url=secondary_rpc_url(environ, required=False),
+        primary_provider=primary_provider(environ),
         limit=limit,
         pacer=pacer,
         **kwargs,
