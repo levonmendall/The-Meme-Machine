@@ -1,4 +1,5 @@
 name: dlmm-adaptive-operator-discovery
+# Public WS -> log filter -> authenticated reconstruction -> checkpointed evidence
 on:
   push:
     branches:
