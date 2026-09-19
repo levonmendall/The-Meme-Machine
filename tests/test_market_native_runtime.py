@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from meme_machine.__main__ import _retire_scout_state
@@ -71,42 +72,81 @@ class MarketNativeRuntimeTests(unittest.TestCase):
             url='https://api.mainnet-beta.solana.com'
         class Adapter:
             rpc=RPC()
+            def concentration_status(self): return {'initialized':False}
         with tempfile.TemporaryDirectory() as td:
             store=Store(str(Path(td)/'state.db'),'synthetic',100_000_000,'test')
             engine=Engine(store,[])
-            with self.assertRaisesRegex(ValueError,'market_native_budget_exceeds'):
-                MarketNativeRuntime(engine,Adapter(),3300,preflight_budget=60,full_evidence_budget=20)
-            runtime=MarketNativeRuntime(engine,Adapter(),3300,preflight_budget=10,full_evidence_budget=5)
-            self.assertFalse(runtime.status()['scout_lane_active'])
-            self.assertFalse(runtime.status()['scout_storage_active'])
-            self.assertEqual(runtime.status()['configured_scouts'],0)
+            with self.assertRaisesRegex(ValueError,'invalid_market_native_provider_rotation_threshold'):
+                MarketNativeRuntime(engine,Adapter(),3300,provider_rotation_threshold=100)
+            runtime=MarketNativeRuntime(engine,Adapter(),3300,provider_rotation_threshold=80)
+            status=runtime.status()
+            self.assertEqual(status['evidence_scheduler'],'adaptive_deadline_queue_v1')
+            self.assertEqual(status['provider_rotation_threshold'],80)
+            self.assertFalse(status['scout_lane_active'])
+            self.assertFalse(status['scout_storage_active'])
+            self.assertEqual(status['configured_scouts'],0)
             store.close()
 
-
-    def test_provider_rotation_allows_150_preflights_without_spending_monitoring_reserve(self):
+    def test_adaptive_queue_orders_by_deadline_and_defers_for_provider_rotation(self):
+        class Pacer:
+            minimum_interval=0.2
         class RPC:
-            def __init__(self):
-                self.limit=240;self.calls=1;self.http_requests=0;self.failures=0;self.cache_hits=0
+            def __init__(self,calls=1):
+                self.limit=240;self.calls=calls;self.http_requests=0
+                self.failures=0;self.cache_hits=0;self.read_pacer=Pacer()
                 self.url='https://api.mainnet-beta.solana.com'
         class Adapter:
-            def __init__(self):
-                self.rpc=RPC()
-            def concentration_status(self):
-                return {'initialized':False}
+            def __init__(self,calls=1): self.rpc=RPC(calls)
+            def concentration_status(self): return {'initialized':False}
+        class Metric:
+            possible=True
+            guaranteed_rejection=None
+            def __init__(self,rank): self.rank=rank
+            def priority_key(self): return (self.rank,)
         with tempfile.TemporaryDirectory() as td:
             store=Store(str(Path(td)/'state.db'),'synthetic',100_000_000,'test')
             engine=Engine(store,[])
-            with self.assertRaisesRegex(ValueError,'market_native_budget_exceeds'):
-                MarketNativeRuntime(
-                    engine,Adapter(),3300,preflight_budget=150,full_evidence_budget=40)
             runtime=MarketNativeRuntime(
-                engine,Adapter(),3300,preflight_budget=150,full_evidence_budget=40,
-                provider_rotation_threshold=160)
-            self.assertEqual(runtime.status()['preflight_budget'],150)
-            self.assertEqual(runtime.status()['provider_rotation_threshold'],160)
+                engine,Adapter(),3300,provider_rotation_threshold=160,
+                evidence_queue_limit=10)
+            later={'mint':'later','nomination':event(now=120,id='later')}
+            earlier={'mint':'earlier','nomination':event(now=110,id='earlier')}
+            runtime._queue_candidate(later,Metric(0),120)
+            runtime._queue_candidate(earlier,Metric(9),120)
+            chosen=[]
+            runtime._preflight=lambda candidate,tape: chosen.append(candidate['mint'])
+            with patch('meme_machine.market_native_runtime.stream_feasibility',
+                       side_effect=lambda candidate,tape,now: Metric(0)):
+                runtime._process_queue_one(object(),120)
+            self.assertEqual(chosen,['earlier'])
+            self.assertEqual(runtime.status()['evidence_queue_depth'],1)
+
+            runtime.adapter=Adapter(calls=158)
+            runtime._process_queue_one(object(),121)
+            self.assertEqual(chosen,['earlier'])
+            self.assertTrue(runtime.status()['provider_rotation_due'])
+            self.assertEqual(runtime.status()['provider_headroom_deferrals'],1)
+            store.close()
+
+    def test_provider_rotation_preserves_adaptive_queue_and_session_lineage(self):
+        class RPC:
+            def __init__(self):
+                self.limit=240;self.calls=158;self.http_requests=0
+                self.failures=0;self.cache_hits=0
+                self.url='https://api.mainnet-beta.solana.com'
+        class Adapter:
+            def __init__(self): self.rpc=RPC()
+            def concentration_status(self): return {'initialized':False}
+        with tempfile.TemporaryDirectory() as td:
+            store=Store(str(Path(td)/'state.db'),'synthetic',100_000_000,'test')
+            engine=Engine(store,[])
+            runtime=MarketNativeRuntime(
+                engine,Adapter(),3300,provider_rotation_threshold=160)
+            self.assertTrue(runtime.provider_rotation_due())
             runtime.replace_adapter(Adapter())
             self.assertEqual(runtime.status()['provider_rotations'],1)
             self.assertEqual(len(runtime.status()['prior_provider_sessions']),1)
+            self.assertEqual(runtime.status()['evidence_scheduler'],'adaptive_deadline_queue_v1')
             store.close()
 
 
