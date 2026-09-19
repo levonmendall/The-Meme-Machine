@@ -1640,6 +1640,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
     compatibility_rejections=[];compatibility_screened=0
     pacer=provider.AlchemyPacer();rpcs=[]
     network_identity=_prove_network_identity(pacer,rpcs)
+    broker=EvidenceBroker(DLMM_BROKER_DB)
+    stream_stop=threading.Event();stream_ready=threading.Event()
+    wake_stream=ProgramAccountWakeStream(
+        discovery_ws_url(),broker,DLMM_WAKE_STREAM_KEY,dlmm.PROGRAM,
+        data_size=904,coverage_seconds=2)
+    wake_thread=threading.Thread(
+        target=wake_stream.run,args=(stream_stop,stream_ready),daemon=True)
+    wake_thread.start()
+    if not stream_ready.wait(15):
+        broker.close()
+        raise Unavailable("dlmm_wake_stream_start_timeout")
     report=dict(
         kind="solana_dlmm_independent_v1_prospective",
         policy_revision=policy.get("revision"),frozen_policy=policy,
@@ -1656,9 +1667,16 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         compatibility_rejections=compatibility_rejections,
         network_identity=network_identity,
         runtime_limit_seconds=max_runtime_seconds,
+        evidence_acquisition_mode="program_account_wake_stream_plus_incremental_http_auth",
+        wake_stream=broker.stream_status(
+            DLMM_WAKE_STREAM_KEY,int(time.time()),0),
+        evidence_broker=broker.telemetry(),
     )
     attempted=0;complete=0;failure_counts=Counter()
     def checkpoint(stage):
+        report["wake_stream"]=broker.stream_status(
+            DLMM_WAKE_STREAM_KEY,int(time.time()),0)
+        report["evidence_broker"]=broker.telemetry()
         _atomic_checkpoint(
             report,stage,rpcs,pacer,
             attempted_pool_count=attempted,
@@ -1706,7 +1724,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
             alignment,warm,entry,warm_origin,adapter,aligned_candidate=(
                 _triggered_warmup(
                     adapter,candidate,compatibility_state,
-                    policy,pacer,candidate_rpcs,deadline))
+                    policy,pacer,candidate_rpcs,deadline,broker))
             # Any rotated RPCs created inside observation are not yet in global list.
             for rpc in candidate_rpcs:
                 if rpc not in rpcs:rpcs.append(rpc)
@@ -1733,7 +1751,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                 checkpoint("qualification_rejection")
                 continue
             lifecycle,adapter=_lifecycle(
-                adapter,candidate["address"],entry,features,policy,pacer,candidate_rpcs,deadline)
+                adapter,candidate["address"],entry,features,policy,pacer,
+                candidate_rpcs,deadline,broker)
             for rpc in candidate_rpcs:
                 if rpc not in rpcs:rpcs.append(rpc)
             attempt["lifecycle"]=lifecycle
@@ -1783,6 +1802,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
             None if not capital_hour else statistics.fmean(capital_hour)),
         exit_reason_counts=dict(sorted(exits.items())),
         rpc=_sum_rpc_metrics(rpcs),alchemy_pacer=pacer.telemetry(),
+        wake_stream=broker.stream_status(
+            DLMM_WAKE_STREAM_KEY,int(time.time()),0),
+        evidence_broker=broker.telemetry(),
         runtime_limit_reached=_runtime_expired(deadline),
         elapsed_seconds=max(
             0.0,time.monotonic()-run_started_monotonic),
@@ -1802,6 +1824,11 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         qualification_failure_counts=dict(sorted(failure_counts.items())),
         elapsed_seconds=report["elapsed_seconds"],
     )
+    stream_stop.set();wake_thread.join(timeout=5)
+    report["wake_stream"]=broker.stream_status(
+        DLMM_WAKE_STREAM_KEY,int(time.time()),0)
+    report["evidence_broker"]=broker.telemetry()
+    broker.close()
     print(json.dumps(dict(
         conclusion=report["conclusion"],attempted=attempted,complete=complete,
         profitable_rate=report["profitable_rate"],
