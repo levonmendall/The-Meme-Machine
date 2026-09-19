@@ -11,7 +11,7 @@ import time
 import urllib.error
 import urllib.request
 
-from meme_machine.solana_read_rpc import primary_rpc_url
+from meme_machine.solana_read_rpc import onfinality_rpc_url
 
 OUT=Path("onfinality-sustained-rate-probe.json")
 REQUESTS_PER_RATE=12
@@ -57,7 +57,7 @@ def _one(url,request_id):
 
 def main():
     # Deliberately require an authenticated shape and do not configure a secondary.
-    url=primary_rpc_url()
+    url=onfinality_rpc_url(required=True)
     if "onfinality.io" not in url or url.rstrip("/").endswith("/public"):
         raise SystemExit("authenticated_onfinality_required")
 
