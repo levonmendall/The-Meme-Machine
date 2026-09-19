@@ -91,7 +91,15 @@
     "total_width_bound_bins": [
       8,
       70
-    ]
+    ],
+    "warmup_alignment": {
+      "qualifying_window_seconds": 12,
+      "max_fresh_windows": 5,
+      "max_total_observation_seconds": 60,
+      "retry_only_on": "verified zero-swap warmup",
+      "refresh_acceleration_before_each_window": true,
+      "rule": "Each retry must still pass the same frozen 2.0x volume and 1.25x fee acceleration gates; every qualifying warmup remains exactly 12 seconds."
+    }
   },
   "qualification": {
     "min_competing_range_liquidity_to_capital_multiple": 10,
@@ -167,7 +175,7 @@
     "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
     "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
   },
-  "revision": "1.3",
+  "revision": "1.4",
   "amendment_history": [
     {
       "revision": "1.1",
@@ -187,6 +195,13 @@
       "reason": "Exclude incomplete current 5-minute history bucket from acceleration measurement; prior run compared a partial bucket against completed history and made the discovery gate artificially strict.",
       "prospective_onchain_attempts_before_amendment": 0,
       "strategy_thresholds_changed": false,
+      "robinhood_independence_changed": false
+    },
+    {
+      "revision": "1.4",
+      "reason": "Improve warmup synchronization without changing strategy thresholds: retry a fresh 12-second warmup only after a verified zero-swap window, up to five windows, rechecking the same frozen acceleration gates before every retry.",
+      "strategy_thresholds_changed": false,
+      "qualifying_warmup_seconds_changed": false,
       "robinhood_independence_changed": false
     }
   ]
