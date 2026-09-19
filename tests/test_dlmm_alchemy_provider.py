@@ -89,6 +89,21 @@ class SolanaReadProviderTopology(unittest.TestCase):
                 {topology.PUBLIC_OVERRIDE_ENV_NAME: "https://example.com"}
             )
 
+    def test_dlmm_defaults_to_onfinality_primary_at_five_rps(self):
+        pacer = provider.AlchemyPacer()
+        self.assertAlmostEqual(pacer.minimum_interval, 0.2)
+        meta = provider.metadata({provider.ENV_NAME: ALCHEMY})
+        self.assertEqual(meta["primary_provider"], topology.PRIMARY_PROVIDER)
+        self.assertEqual(meta["dlmm_primary_requests_per_second"], 5)
+        self.assertAlmostEqual(meta["dlmm_minimum_request_interval_seconds"], 0.2)
+
+        clock = _Clock()
+        rpc_a = SimpleNamespace(clock=clock.time, sleep=clock.sleep, last_request=None)
+        rpc_b = SimpleNamespace(clock=clock.time, sleep=clock.sleep, last_request=None)
+        self.assertEqual(pacer.pace(rpc_a, 0.0), 0.0)
+        self.assertAlmostEqual(pacer.pace(rpc_b, 0.0), 0.2)
+        self.assertEqual(clock.sleeps, [0.2])
+
     def test_shared_pacer_serializes_independent_rpc_objects(self):
         clock = _Clock()
         pacer = provider.AlchemyPacer(minimum_interval=1.0)
