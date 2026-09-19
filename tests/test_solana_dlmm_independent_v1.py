@@ -22,7 +22,15 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             self.assertIs(independence[key],False,key)
         self.assertIsNone(p["discovery"]["minimum_pool_tvl_usd"])
         self.assertIsNone(p["discovery"]["minimum_absolute_volume_usd"])
-        self.assertEqual(p["revision"],"1.3")
+        self.assertFalse(p["support_layer"]["strategy_thresholds_changed"])
+        self.assertEqual(
+            p["support_layer"]["collect_fee_mode_1_only_y"],
+            "fail_closed until exact fee-growth/swap accounting is implemented")
+        self.assertEqual(
+            p["range"]["warmup_alignment"]["qualifying_window_seconds"],12)
+        self.assertEqual(
+            p["range"]["warmup_alignment"]["max_fresh_windows"],5)
+        self.assertEqual(p["revision"],"1.5")
 
     def test_strategy_import_graph_contains_no_strategy_dependency(self):
         path=Path("tests/solana_dlmm_independent_v1.py")
