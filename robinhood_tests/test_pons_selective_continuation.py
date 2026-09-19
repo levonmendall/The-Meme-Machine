@@ -1,4 +1,6 @@
 from dataclasses import replace
+import base64
+import hashlib
 import json
 from pathlib import Path
 import ssl
@@ -12,7 +14,7 @@ from robinhood_research.paper import Quote
 from robinhood_research.pons_selective_ledger import SelectivePaper, STRATEGY_NAMESPACE
 import robinhood_research.pons_selective_cohort as selective_cohort
 from robinhood_research.sequencer_feed import (
-    SequencerBlockClock, SequencerTransportError,
+    SequencerBlockClock, SequencerTransportError, _WebSocket,
 )
 from robinhood_research.pons import CurveState
 from robinhood_research.pons_selective_continuation import (
@@ -280,6 +282,87 @@ class SelectiveDiscoveryFrontierTests(unittest.TestCase):
                     "https://unused",rpc,100,[],object(),[]
                 )
 
+
+
+
+class SequencerFramingTests(unittest.TestCase):
+    class CoalescedSocket:
+        def __init__(self,frame):
+            self.frame=frame
+            self.buffer=bytearray()
+            self.closed=False
+            self.timeout=None
+        def settimeout(self,value):
+            self.timeout=value
+        def sendall(self,data):
+            if data.startswith(b"GET "):
+                request=data.decode("iso-8859-1")
+                key=[
+                    line.split(":",1)[1].strip()
+                    for line in request.split("\r\n")
+                    if line.lower().startswith("sec-websocket-key:")
+                ][0]
+                accept=base64.b64encode(
+                    hashlib.sha1(
+                        (key+"258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()
+                    ).digest()
+                ).decode()
+                response=(
+                    "HTTP/1.1 101 Switching Protocols\r\n"
+                    "Upgrade: websocket\r\n"
+                    "Connection: Upgrade\r\n"
+                    f"Sec-WebSocket-Accept: {accept}\r\n"
+                    "Sec-WebSocket-Extensions: permessage-deflate\r\n"
+                    "\r\n"
+                ).encode()+self.frame
+                self.buffer.extend(response)
+        def recv(self,size):
+            if not self.buffer:
+                return b""
+            # Deliberately return the entire upgrade response + first frame in
+            # one TCP read when the caller permits it.
+            take=min(int(size),len(self.buffer))
+            out=bytes(self.buffer[:take])
+            del self.buffer[:take]
+            return out
+        def close(self):
+            self.closed=True
+
+    class Context:
+        def __init__(self,sock):
+            self.sock=sock
+        def wrap_socket(self,raw,server_hostname=None):
+            return self.sock
+
+    def test_upgrade_remainder_is_first_websocket_frame_not_discarded(self):
+        payload=b'{"messages":[]}'
+        frame=bytes([0x81,len(payload)])+payload
+        sock=self.CoalescedSocket(frame)
+        ws=_WebSocket("wss://feed.example",timeout=1.0)
+        with patch("robinhood_research.sequencer_feed.socket.create_connection",
+                   return_value=object()), \
+             patch("robinhood_research.sequencer_feed.ssl.create_default_context",
+                   return_value=self.Context(sock)):
+            ws.connect()
+        self.assertEqual(ws.recv_message(),payload.decode())
+        self.assertEqual(bytes(ws._recv_buffer),b"")
+        ws.close()
+
+    def test_genuine_rsv2_and_rsv3_frames_still_fail_closed(self):
+        class Idle:
+            def recv(self,size):
+                return b""
+            def close(self):
+                pass
+        for bit in (0x20,0x10):
+            ws=_WebSocket("wss://feed.example")
+            ws.sock=Idle()
+            ws._recv_buffer=bytearray(bytes([0x80|bit|0x01,0x00]))
+            with self.subTest(bit=bit):
+                with self.assertRaisesRegex(
+                    BoundaryError,"sequencer_feed_reserved_bits"
+                ):
+                    ws.recv_message()
 
 
 class SelectiveSequencerRecoveryTests(unittest.TestCase):
