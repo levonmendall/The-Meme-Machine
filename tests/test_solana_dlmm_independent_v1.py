@@ -473,6 +473,71 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertEqual(meta["stage"],"getTransaction")
         self.assertEqual(meta["head_slot"],10)
 
+    def test_stream_handoff_bootstrap_authenticates_first_unseen_swap_once(self):
+        p=strategy.load_policy()
+        candidate=dict(
+            address="pool",volume_acceleration=2.5,fee_acceleration=1.5,
+            signal_observed_at=1000)
+        adapter=MagicMock();adapter.rpc.calls=0
+        broker=MagicMock()
+        broker.cursor.return_value={"slot":0,"signature":None}
+        broker.stream_status.return_value={"gaps":0}
+        broker.recent_events.return_value=[]
+        swap=dict(signature="sig",slot=11,swap_count=1)
+        poll_meta=dict(
+            rate_limited=False,head_slot=11,head_signature="sig")
+        post={"slot":12}
+        with patch.object(
+                strategy,"_history_acceleration",return_value=candidate), \
+             patch.object(
+                strategy,"_new_finalized_swaps",
+                return_value=([swap],poll_meta)) as auth, \
+             patch.object(
+                strategy,"_fresh_supported_start",return_value=post), \
+             patch.object(strategy.time,"monotonic",return_value=0.0):
+            trigger,observed,_adapter,_latest=strategy._await_fresh_swap_trigger(
+                adapter,candidate,{"slot":10},p,MagicMock(),[],broker=broker)
+        self.assertTrue(trigger["triggered"])
+        self.assertEqual(trigger["wake_source"],"handoff_gap_auth")
+        self.assertEqual(trigger["bootstrap_auth_reads"],1)
+        self.assertEqual(trigger["polls"],1)
+        self.assertEqual(auth.call_count,1)
+        self.assertEqual(observed["slot"],12)
+
+    def test_stream_trigger_does_not_poll_again_until_pool_wakes(self):
+        p=strategy.load_policy()
+        candidate=dict(
+            address="pool",volume_acceleration=2.5,fee_acceleration=1.5,
+            signal_observed_at=1000)
+        adapter=MagicMock();adapter.rpc.calls=0
+        broker=MagicMock()
+        broker.cursor.return_value={"slot":0,"signature":None}
+        broker.stream_status.return_value={"gaps":0}
+        broker.recent_events.side_effect=[
+            [],
+            [dict(signature=None,address="pool",slot=11,observed_at=1001)],
+        ]
+        swap=dict(signature="sig",slot=12,swap_count=1)
+        polls=[
+            ([],dict(rate_limited=False,head_slot=10,head_signature=None)),
+            ([swap],dict(rate_limited=False,head_slot=12,head_signature="sig")),
+        ]
+        with patch.object(
+                strategy,"_history_acceleration",return_value=candidate), \
+             patch.object(
+                strategy,"_new_finalized_swaps",side_effect=polls) as auth, \
+             patch.object(
+                strategy,"_fresh_supported_start",return_value={"slot":13}), \
+             patch.object(strategy.time,"monotonic",return_value=0.0), \
+             patch.object(strategy.time,"sleep"):
+            trigger,_post,_adapter,_latest=strategy._await_fresh_swap_trigger(
+                adapter,candidate,{"slot":10},p,MagicMock(),[],broker=broker)
+        self.assertTrue(trigger["triggered"])
+        self.assertEqual(trigger["wake_source"],"finalized_program_account_stream")
+        self.assertEqual(trigger["bootstrap_auth_reads"],1)
+        self.assertEqual(trigger["wakeups"],1)
+        self.assertEqual(auth.call_count,2)
+
     def test_regime_expiry_stops_fresh_swap_wait(self):
         p=strategy.load_policy()
         candidate=dict(
