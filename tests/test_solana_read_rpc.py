@@ -17,10 +17,10 @@ class Clock:
 
 
 class SolanaReadTopologyTests(unittest.TestCase):
-    def test_public_primary_is_five_requests_per_second_and_no_load_balancing(self):
+    def test_primary_is_two_requests_per_second_and_no_load_balancing(self):
         meta=rpc_topology.metadata({})
         self.assertEqual(meta['primary_provider'],rpc_topology.PRIMARY_PROVIDER)
-        self.assertEqual(meta['minimum_request_interval_seconds'],0.2)
+        self.assertEqual(meta['minimum_request_interval_seconds'],0.5)
         self.assertFalse(meta['load_balancing'])
         self.assertFalse(meta['secondary_configured'])
 
@@ -50,7 +50,7 @@ class SolanaReadTopologyTests(unittest.TestCase):
                     'https://example.com/rpc?apikey=bad',
             })
 
-    def test_shared_primary_pacer_enforces_point_two_seconds_across_rpc_objects(self):
+    def test_shared_primary_pacer_enforces_half_second_across_rpc_objects(self):
         clock=Clock()
         pacer=rpc_topology.SolanaReadPacer()
         env={rpc_topology.ALCHEMY_ENV_NAME:ALCHEMY}
@@ -64,9 +64,9 @@ class SolanaReadTopologyTests(unittest.TestCase):
         second._request_url=request
         self.assertEqual(first.call('getBlockTime',[1],priority=True),123)
         self.assertEqual(second.call('getBlockTime',[2],priority=True),123)
-        self.assertAlmostEqual(clock.value,100.2,places=6)
+        self.assertAlmostEqual(clock.value,100.5,places=6)
         self.assertEqual(urls,[rpc_topology.PRIMARY_RPC_URL,rpc_topology.PRIMARY_RPC_URL])
-        self.assertEqual(pacer.telemetry()['minimum_interval_seconds'],0.2)
+        self.assertEqual(pacer.telemetry()['minimum_interval_seconds'],0.5)
 
     def test_healthy_primary_never_spends_alchemy_and_failure_uses_rescue(self):
         env={rpc_topology.ALCHEMY_ENV_NAME:ALCHEMY}
