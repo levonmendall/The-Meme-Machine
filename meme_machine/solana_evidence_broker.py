@@ -19,6 +19,7 @@ from .provider import Unavailable
 
 
 DEFAULT_BROKER_DB = "solana-evidence-broker.sqlite3"
+HYDRATION_MIN_INTERVAL_SECONDS = 0.2
 
 PRIORITY = {
     "position_monitor": 0,
@@ -108,9 +109,12 @@ class EvidenceBroker:
                     batch_size INTEGER NOT NULL,
                     cooldown_until REAL NOT NULL,
                     rate_events INTEGER NOT NULL,
+                    rate_streak INTEGER NOT NULL DEFAULT 0,
                     success_streak INTEGER NOT NULL,
                     reductions INTEGER NOT NULL,
-                    recoveries INTEGER NOT NULL
+                    recoveries INTEGER NOT NULL,
+                    next_transport_at REAL NOT NULL DEFAULT 0,
+                    transport_reservations INTEGER NOT NULL DEFAULT 0
                 );
                 CREATE TABLE IF NOT EXISTS signatures(
                     scope TEXT NOT NULL,
@@ -142,10 +146,24 @@ class EvidenceBroker:
             }
             if "lease_until" not in columns:
                 self.db.execute("ALTER TABLE jobs ADD COLUMN lease_until REAL")
+            pressure_columns={
+                row[1] for row in self.db.execute(
+                    "PRAGMA table_info(pressure)").fetchall()
+            }
+            for name,ddl in (
+                ("rate_streak","INTEGER NOT NULL DEFAULT 0"),
+                ("next_transport_at","REAL NOT NULL DEFAULT 0"),
+                ("transport_reservations","INTEGER NOT NULL DEFAULT 0"),
+            ):
+                if name not in pressure_columns:
+                    self.db.execute(
+                        f"ALTER TABLE pressure ADD COLUMN {name} {ddl}")
             self.db.execute(
-                """INSERT OR IGNORE INTO pressure
-                   (name,batch_size,cooldown_until,rate_events,success_streak,reductions,recoveries)
-                   VALUES('transaction_hydration',8,0,0,0,0,0)"""
+                """INSERT OR IGNORE INTO pressure(
+                       name,batch_size,cooldown_until,rate_events,rate_streak,
+                       success_streak,reductions,recoveries,next_transport_at,
+                       transport_reservations)
+                   VALUES('transaction_hydration',8,0,0,0,0,0,0,0,0)"""
             )
 
     def close(self):
