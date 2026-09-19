@@ -471,11 +471,21 @@ class EvidenceBroker:
                    VALUES(?,?,?,?,?,'pending',NULL,?,?)
                    ON CONFLICT(job_key) DO UPDATE SET
                      kind=CASE
+                       WHEN jobs.status IN ('complete','expired')
+                         THEN excluded.kind
                        WHEN excluded.priority<jobs.priority THEN excluded.kind
                        ELSE jobs.kind
                      END,
-                     priority=MIN(priority,excluded.priority),
-                     deadline=MIN(deadline,excluded.deadline),
+                     priority=CASE
+                       WHEN jobs.status IN ('complete','expired')
+                         THEN excluded.priority
+                       ELSE MIN(jobs.priority,excluded.priority)
+                     END,
+                     deadline=CASE
+                       WHEN jobs.status IN ('complete','expired')
+                         THEN excluded.deadline
+                       ELSE MIN(jobs.deadline,excluded.deadline)
+                     END,
                      payload=excluded.payload,
                      status=CASE
                        WHEN jobs.status='inflight'
@@ -488,6 +498,11 @@ class EvidenceBroker:
                          AND COALESCE(jobs.lease_until,0)>excluded.created_at
                          THEN jobs.lease_until
                        ELSE NULL
+                     END,
+                     created_at=CASE
+                       WHEN jobs.status IN ('complete','expired')
+                         THEN excluded.created_at
+                       ELSE jobs.created_at
                      END,
                      updated_at=excluded.updated_at""",
                 (

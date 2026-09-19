@@ -353,6 +353,9 @@ def main():
         live_money_authority=False,shared_portfolio_mutation=False,
         discovery_source="finalized_public_pump_logs",
         evidence_source="alchemy_http_primary_no_rescue",
+        evidence_acquisition_mode=(
+            "candidate_pool_finalized_stream_plus_bounded_decision_bootstrap_"
+            "plus_incremental_durable_http_hydration"),
         curve_progress_definition="prospectively observed CreateEvent initial_real_token_reserves -> reserve depletion",
         velocity_window_seconds=30,extension_lookback_seconds=10,
         entry_budget_lamports=ENTRY_BUDGET,entry_fraction_bps=POLICY.entry_fraction_bps,

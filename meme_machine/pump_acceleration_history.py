@@ -37,6 +37,7 @@ class IncrementalPumpSwapHistory:
         self.tx_failures=0
         self.broker=broker
         self.stream_key=str(stream_key)
+        self.history_scope="pumpswap_history"
         self.stream_pending_transactions=0
         self.stream_events_seen=0
         self.stream_hydrated_transactions=0
@@ -45,6 +46,14 @@ class IncrementalPumpSwapHistory:
         self.decision_bootstrap_pages=0
         self.decision_bootstrap_complete=False
         self.decision_bootstrap_capacity_loss=False
+        self.restored_signature_rows=0
+        if self.broker is not None:
+            restored=self.broker.signature_rows(
+                self.history_scope,self.pool)
+            if restored:
+                self._remember(restored)
+                self._coverage()
+                self.restored_signature_rows=len(restored)
 
     @staticmethod
     def _valid_rows(rows):
@@ -66,6 +75,9 @@ class IncrementalPumpSwapHistory:
     def _remember(self,rows):
         if not rows:
             return
+        if self.broker is not None:
+            self.broker.remember_signatures(
+                self.history_scope,self.pool,rows)
         for row in rows:
             sig=str(row["signature"])
             prior=self.signature_rows.get(sig)
@@ -302,8 +314,9 @@ class IncrementalPumpSwapHistory:
             int(r["blockTime"]) for r in self.signature_rows.values()
             if r.get("blockTime") is not None and int(r["blockTime"])<=now
         ]
+        stream_complete=self._stream_window_complete(now,window_seconds)
         signature_complete=bool(
-            self._stream_window_complete(now,window_seconds)
+            stream_complete
             or self.history_exhausted
             or (known and min(known)<=cutoff)
         )
@@ -314,14 +327,21 @@ class IncrementalPumpSwapHistory:
                 continue
             if cutoff<=int(bt)<=now:
                 pending+=1
+        # A fully warmed candidate-specific finalized stream proves the current
+        # decision window independently of older research-history rows. Unknown
+        # block times outside that stream window must not poison a current decision.
+        unknown_safe=bool(stream_complete or self.unknown_block_times==0)
         complete=bool(
             signature_complete
-            and self.unknown_block_times==0
+            and unknown_safe
             and pending==0
             and (self.broker is None or self.stream_pending_transactions==0))
         return dict(
             complete=complete,window_seconds=int(window_seconds),
             signature_complete=signature_complete,pending_transactions=pending,
+            stream_complete=stream_complete,
+            ignored_historical_unknown_block_times=(
+                self.unknown_block_times if stream_complete else 0),
             cutoff=cutoff,
         )
 
@@ -403,6 +423,12 @@ class IncrementalPumpSwapHistory:
             decision_bootstrap_pages=self.decision_bootstrap_pages,
             decision_bootstrap_complete=self.decision_bootstrap_complete,
             decision_bootstrap_capacity_loss=self.decision_bootstrap_capacity_loss,
+            restored_signature_rows=self.restored_signature_rows,
+            persisted_signature_rows=(
+                0 if self.broker is None else len(
+                    self.broker.signature_rows(
+                        self.history_scope,self.pool))
+            ),
             stream_status=(
                 None if self.broker is None
                 else self.broker.stream_status(self.stream_key,now,30)

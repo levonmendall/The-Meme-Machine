@@ -95,6 +95,28 @@ class IncrementalHistoryTests(unittest.TestCase):
             self.assertEqual(history.refresh(rpc,106),[])
             self.assertEqual(len(rpc.signature_calls),1)
 
+    def test_restart_restores_signature_ledger_and_reuses_cached_bodies(self):
+        with tempfile.TemporaryDirectory() as td:
+            broker=EvidenceBroker(os.path.join(td,"broker.sqlite3"))
+            self.addCleanup(broker.close)
+            first_rpc=FakeRPC()
+            first=IncrementalPumpSwapHistory(
+                "pool",100,page_limit=2,max_backfill_pages=2,
+                max_new_pages=2,broker=broker,stream_key="pool:restart")
+            first.refresh(first_rpc,103,research=True)
+            self.assertGreater(len(first_rpc.tx_calls),0)
+            persisted=broker.signature_rows("pumpswap_history","pool")
+            self.assertTrue(persisted)
+
+            second_rpc=FakeRPC()
+            second=IncrementalPumpSwapHistory(
+                "pool",100,page_limit=2,max_backfill_pages=2,
+                max_new_pages=2,broker=broker,stream_key="pool:restart")
+            self.assertGreater(second.restored_signature_rows,0)
+            before=len(second_rpc.tx_calls)
+            second.refresh(second_rpc,103,research=True)
+            self.assertEqual(len(second_rpc.tx_calls),before)
+
     def test_recent_decision_window_is_decoded_before_older_backlog(self):
         class R:
             def __init__(self): self.calls=[]
@@ -113,6 +135,27 @@ class IncrementalHistoryTests(unittest.TestCase):
         rpc=R();h._decode_pending(rpc,200)
         self.assertEqual(set(rpc.calls),{"new1","new2"})
         self.assertNotIn("old",h.processed)
+
+    def test_warm_live_stream_ignores_old_unknown_research_timestamp(self):
+        class B:
+            def signature_rows(self,*_args,**_kwargs): return []
+            def remember_signatures(self,*_args,**_kwargs): return None
+            def stream_status(self,*_args,**_kwargs):
+                return {"covered":True}
+        h=IncrementalPumpSwapHistory(
+            "pool",100,broker=B(),stream_key="pool:live")
+        h.signature_rows={
+            "old-unknown":{
+                "signature":"old-unknown","blockTime":None,
+                "slot":1,"err":None,
+            }
+        }
+        h.unknown_block_times=1
+        h.stream_pending_transactions=0
+        status=h.decision_window_status(200,30)
+        self.assertTrue(status["complete"])
+        self.assertTrue(status["stream_complete"])
+        self.assertEqual(status["ignored_historical_unknown_block_times"],1)
 
     def test_decision_window_can_be_complete_while_second_leg_backlog_remains(self):
         h=IncrementalPumpSwapHistory("pool",100)
