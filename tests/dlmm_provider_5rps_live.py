@@ -45,6 +45,7 @@ def run():
         elapsed_wall_seconds=elapsed,
         provider_metadata=meta,
         provider_topology=telemetry,
+        legacy_half_second_floor_removed=True,
     )
     OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
     print(json.dumps(dict(
@@ -58,6 +59,8 @@ def run():
         failovers=telemetry["failover_count"],
         secondary_successes=telemetry["provider_successes"].get(
             "alchemy_solana_mainnet_existing_secret",0),
+        pacer_minimum_interval_seconds=telemetry["pacing"]["minimum_interval_seconds"],
+        pacer_throttle_sleep_seconds=telemetry["pacing"]["throttle_sleep_seconds"],
     ),sort_keys=True))
     return report
 
