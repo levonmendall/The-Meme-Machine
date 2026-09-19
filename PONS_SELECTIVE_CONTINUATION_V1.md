@@ -78,9 +78,11 @@ authenticated curve qualification
 -> settlement
 -> restart reconciliation.
 
-The generic paper ledger gained backward-compatible partial-exit accounting so the
-runner can be executed rather than approximated. Existing full-exit callers retain
-their old semantics.
+The shared generic paper ledger remains byte-for-byte at its pre-Pons full-exit semantics.
+Partial-exit accounting lives only in `robinhood_research/pons_selective_ledger.py`,
+which uses its own `pons_selective_paper` SQLite table plus strategy-prefixed immutable
+journal/decision categories. Other strategies cannot create or consume these partial
+positions through the generic `Paper` interface.
 
 ## Separate Pons strategies
 
