@@ -56,7 +56,10 @@
       "tvl"
     ],
     "volume_acceleration_definition": "volume_5m / max(volume_30m/6, epsilon)",
-    "fee_acceleration_definition": "fee_5m / max(fee_30m/6, epsilon)"
+    "fee_acceleration_definition": "fee_5m / max(fee_30m/6, epsilon)",
+    "acceleration_measurement_source": "Meteora /pools/{address}/volume/history with timeframe=5m; require six consecutive recent 5m buckets. volume_5m/fee_5m are the most recent bucket, volume_30m/fee_30m are the sum of those six buckets.",
+    "pool_snapshot_5m_fields_authoritative": false,
+    "history_enrichment": "Apply to every unique SOL-paired pool returned by the fixed discovery union before acceleration gating; missing/incomplete six-bucket history fails closed."
   },
   "regime": {
     "kind": "opportunistic_fee_density_event",
@@ -163,13 +166,20 @@
     "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
     "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
   },
-  "revision": "1.1",
+  "revision": "1.2",
   "amendment_history": [
     {
       "revision": "1.1",
       "reason": "Explicitly prohibit all Robinhood/Pons/Ramses strategy, data, provider, cohort and outcome inputs before any prospective Solana DLMM outcome.",
       "prospective_outcomes_observed_before_amendment": false,
       "solana_strategy_thresholds_changed": false
+    },
+    {
+      "revision": "1.2",
+      "reason": "Repair measurement source before any on-chain prospective attempt: /pools TimeWindowData does not expose 5m values; compute the already-frozen 5m/30m acceleration ratios from six dedicated 5m history buckets.",
+      "prospective_onchain_attempts_before_amendment": 0,
+      "strategy_thresholds_changed": false,
+      "robinhood_independence_changed": false
     }
   ]
 }
