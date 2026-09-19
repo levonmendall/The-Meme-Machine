@@ -1,5 +1,6 @@
 name: solana-dlmm-independent-v1
-# measurement-revision: 1.2
+# measurement-revision: 1.3
+# completed-bucket-rule: timestamp+300<=observation_time
 on:
   push:
     branches:
