@@ -41,5 +41,20 @@ class RejectedWinnerStudyTests(unittest.TestCase):
         self.assertEqual(got["frozen_hypothesis"]["authority"],"research_only")
 
 
+    def test_prospective_validation_requires_fresh_sample_and_downside_safety(self):
+        rows=[row(mfe=2000,mae=-500) for _ in range(30)]
+        controls=[row(events=10,mfe=-500,mae=-1500) for _ in range(30)]
+        got=study.prospective_validation_summary(rows+controls)
+        self.assertTrue(got["sample_ready"])
+        self.assertTrue(got["validation_passed"])
+        self.assertFalse(got["trading_authority_granted"])
+
+        risky=[row(mfe=2000,mae=-2000) for _ in range(30)]
+        got=study.prospective_validation_summary(risky+controls)
+        self.assertTrue(got["sample_ready"])
+        self.assertFalse(got["validation_passed"])
+
+
+
 if __name__=="__main__":
     unittest.main()
