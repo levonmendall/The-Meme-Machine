@@ -3,7 +3,8 @@ import unittest
 
 from robinhood_research import BoundaryError
 from robinhood_research.evidence import Stamp, Store
-from robinhood_research.paper import Paper, Quote
+from robinhood_research.paper import Quote
+from robinhood_research.pons_selective_ledger import SelectivePaper, STRATEGY_NAMESPACE
 from robinhood_research.pons import CurveState
 from robinhood_research.pons_selective_continuation import (
     POLICY, POLICY_HASH, ENTRY_THRESHOLDS, POST_GRAD_THRESHOLDS, EXIT_POLICY,
@@ -192,13 +193,25 @@ class PonsSelectivePolicyTests(unittest.TestCase):
 
 class PartialPaperExitTests(unittest.TestCase):
     def _stamp(self,at):
-        return Stamp(4663,at,f"h{at}",at,at,"finalized","synthetic")
+        return Stamp(4663,at,f"h{at}",at,at,"finalized","natural")
+
+    def _features(self,at,market):
+        return dict(
+            asof=at,market=market,authority="frozen_policy_paper",
+            qualification="qualified",policy_hash=POLICY_HASH,
+            strategy_namespace=STRATEGY_NAMESPACE,shared_allocator=False,
+        )
 
     def test_partial_profit_then_runner_settlement_survives_accounting(self):
         s=Store(":memory:")
-        p=Paper(s,"partial",1000,delay=1)
-        features=dict(asof=10,market="market")
-        p.reserve("x",market="market",amount=100,gas_budget=20,now=10,features=features)
+        p=SelectivePaper(
+            s,STRATEGY_NAMESPACE+"-unit-partial",1000,delay=1,
+            natural_policy_hash=POLICY_HASH,
+        )
+        p.reserve(
+            "x",market="market",amount=100,gas_budget=20,now=10,
+            features=self._features(10,"market"),kind="natural",
+        )
         opened=p.advance(
             "x",now=11,action="entry",
             quote=Quote("market","buy",100,1000,2,0,self._stamp(11)),
@@ -228,10 +241,13 @@ class PartialPaperExitTests(unittest.TestCase):
 
     def test_pending_full_exit_survives_proven_market_transition(self):
         s=Store(":memory:")
-        p=Paper(s,"transition-exit",1000,delay=1)
+        p=SelectivePaper(
+            s,STRATEGY_NAMESPACE+"-unit-transition",1000,delay=1,
+            natural_policy_hash=POLICY_HASH,
+        )
         p.reserve(
             "x",market="curve",amount=100,gas_budget=20,now=10,
-            features=dict(asof=10,market="curve"),
+            features=self._features(10,"curve"),kind="natural",
         )
         p.advance(
             "x",now=11,action="entry",
