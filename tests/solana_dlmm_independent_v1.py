@@ -33,6 +33,7 @@ from meme_machine.dlmm_tape import (
     ordered_tape_actions,
     reconstruct,
     replay_swap_event,
+    transaction_swaps,
 )
 from meme_machine.provider import Unavailable
 from meme_machine.store import encode
@@ -56,6 +57,10 @@ CHUNK_SECONDS=2
 MAX_WARMUP_RESETS=2
 SIGNATURE_PAGE_LIMIT=64
 MAX_SIGNATURE_CENSUS_PAGES=16
+FRESH_SWAP_TRIGGER_POLL_SECONDS=2
+FRESH_SWAP_TRIGGER_MAX_SECONDS=60
+FRESH_SWAP_TRIGGER_SIGNATURE_LIMIT=16
+FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS=12
 METEORA_MIN_INTERVAL_SECONDS=0.10
 
 class _MeteoraPacer:
@@ -694,8 +699,6 @@ def qualify(features,policy):
             r["min_volume_acceleration"]),
         fee_acceleration=features["fee_acceleration"]>=float(
             r["min_fee_acceleration"]),
-        dynamic_fee=features["dynamic_fee_uplift"]>=float(
-            r["min_dynamic_fee_uplift_over_base"]),
         capacity=features["competing_liquidity_to_capital_multiple"]>=float(
             q["min_competing_range_liquidity_to_capital_multiple"]),
         two_way=features["two_way_balance"]>=float(q["min_two_way_balance"]),
@@ -903,6 +906,181 @@ def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs):
 
 
 
+
+def _regime_pass(candidate,policy):
+    regime=policy["regime"]
+    return (
+        candidate["volume_acceleration"]>=float(
+            regime["min_volume_acceleration"])
+        and candidate["fee_acceleration"]>=float(
+            regime["min_fee_acceleration"])
+    )
+
+
+def _new_finalized_swaps(rpc,pool,after_slot):
+    rows=rpc.call(
+        "getSignaturesForAddress",
+        [pool,dict(
+            limit=FRESH_SWAP_TRIGGER_SIGNATURE_LIMIT,
+            commitment="finalized")],
+        True,
+    )
+    if not isinstance(rows,list):
+        raise Unavailable("solana_dlmm_trigger_signature_shape")
+    fresh=[
+        row for row in rows
+        if isinstance(row,dict)
+        and not row.get("err")
+        and row.get("confirmationStatus")=="finalized"
+        and type(row.get("slot")) is int
+        and row["slot"]>after_slot
+        and isinstance(row.get("signature"),str)
+    ]
+    fresh.sort(key=lambda row:(row["slot"],row["signature"]))
+    if not fresh:
+        return []
+    params=[[
+        row["signature"],dict(
+            encoding="json",commitment="finalized",
+            maxSupportedTransactionVersion=1)
+    ] for row in fresh]
+    values=rpc.call_many(
+        "getTransaction",params,True,batch_size=8)
+    out=[]
+    for row,tx in zip(fresh,values):
+        if not tx or (tx.get("meta") or {}).get("err"):
+            continue
+        swaps=transaction_swaps(tx,pool)
+        if swaps:
+            out.append(dict(
+                signature=row["signature"],
+                slot=row["slot"],
+                block_time=tx.get("blockTime"),
+                swap_count=len(swaps),
+                swaps=swaps,
+            ))
+    return out
+
+
+def _await_fresh_swap_trigger(
+    adapter,candidate,baseline_state,policy,pacer,rpcs
+):
+    started=time.monotonic()
+    baseline_slot=int(baseline_state["slot"])
+    cursor_slot=baseline_slot
+    polls=0
+    refreshes=0
+    current_candidate=dict(candidate)
+    next_refresh=0.0
+    while True:
+        elapsed=max(0.0,time.monotonic()-started)
+        if elapsed>=FRESH_SWAP_TRIGGER_MAX_SECONDS:
+            return dict(
+                triggered=False,reason="fresh_swap_trigger_timeout",
+                waited_seconds=elapsed,polls=polls,
+                acceleration_refreshes=refreshes,
+                baseline_slot=baseline_slot,
+            ),None,adapter,current_candidate
+        if elapsed>=next_refresh:
+            observed_at=int(time.time())
+            try:
+                current_candidate=_history_acceleration(
+                    current_candidate,observed_at)
+            except Exception as exc:
+                return dict(
+                    triggered=False,
+                    reason="acceleration_refresh_unavailable",
+                    detail=type(exc).__name__,
+                    waited_seconds=elapsed,polls=polls,
+                    acceleration_refreshes=refreshes,
+                    baseline_slot=baseline_slot,
+                ),None,adapter,current_candidate
+            refreshes+=1
+            if not _regime_pass(current_candidate,policy):
+                return dict(
+                    triggered=False,
+                    reason="acceleration_regime_expired",
+                    waited_seconds=elapsed,polls=polls,
+                    acceleration_refreshes=refreshes,
+                    baseline_slot=baseline_slot,
+                    volume_acceleration=current_candidate[
+                        "volume_acceleration"],
+                    fee_acceleration=current_candidate[
+                        "fee_acceleration"],
+                ),None,adapter,current_candidate
+            next_refresh=elapsed+FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS
+
+        adapter=_rotate(adapter,pacer,rpcs)
+        swaps=_new_finalized_swaps(
+            adapter.rpc,candidate["address"],cursor_slot)
+        polls+=1
+        if swaps:
+            trigger=swaps[0]
+            trigger_slot=int(trigger["slot"])
+            adapter=_rotate(adapter,pacer,rpcs)
+            post=_fresh_supported_start(adapter,current_candidate)
+            if int(post["slot"])<trigger_slot:
+                # Finalized pool state must be at or beyond the authenticated swap.
+                time.sleep(FRESH_SWAP_TRIGGER_POLL_SECONDS)
+                continue
+            trigger.update(
+                triggered=True,
+                reason="authenticated_fresh_swap",
+                waited_seconds=max(0.0,time.monotonic()-started),
+                polls=polls,
+                acceleration_refreshes=refreshes,
+                baseline_slot=baseline_slot,
+                post_trigger_slot=int(post["slot"]),
+            )
+            return trigger,post,adapter,current_candidate
+        # Advance the signature cursor only after checking all rows returned so
+        # repeated polling cannot reprocess a non-swap transaction forever.
+        rows=adapter.rpc.call(
+            "getSignaturesForAddress",
+            [candidate["address"],dict(
+                limit=1,commitment="finalized")],
+            True,
+        )
+        if isinstance(rows,list) and rows and type(rows[0].get("slot")) is int:
+            cursor_slot=max(cursor_slot,int(rows[0]["slot"]))
+        remaining=FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
+            0.0,time.monotonic()-started)
+        if remaining<=0:
+            continue
+        time.sleep(min(FRESH_SWAP_TRIGGER_POLL_SECONDS,remaining))
+
+
+def _triggered_warmup(
+    adapter,candidate,compatibility_state,policy,pacer,rpcs
+):
+    trigger,post_trigger,adapter,current_candidate=(
+        _await_fresh_swap_trigger(
+            adapter,candidate,compatibility_state,policy,pacer,rpcs))
+    if not trigger.get("triggered"):
+        return dict(
+            aligned=False,reason=trigger["reason"],trigger=trigger,
+        ),None,None,None,adapter,current_candidate
+    warmup_seconds=int(policy["range"]["warmup_seconds"])
+    phase,warm,entry,warm_origin,adapter=_observe_window(
+        adapter,current_candidate["address"],post_trigger,
+        warmup_seconds,True,pacer,rpcs)
+    result=dict(
+        aligned=bool(phase.get("verified") and warm is not None and warm.events),
+        reason=(
+            "verified_nonzero_warmup"
+            if phase.get("verified") and warm is not None and warm.events
+            else "verified_zero_warmup_after_fresh_swap"
+            if phase.get("verified")
+            else "warmup_unverified"
+        ),
+        trigger=trigger,
+        warmup=phase,
+        qualifying_window_seconds=warmup_seconds,
+        swaps=(None if warm is None else len(warm.events)),
+    )
+    return result,warm,entry,warm_origin,adapter,current_candidate
+
+
 def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
     cfg=(policy.get("range") or {}).get("warmup_alignment") or {}
     windows=int(cfg.get("max_fresh_windows") or 1)
@@ -1003,31 +1181,49 @@ def run_live(target=None,max_attempted=None):
         target_complete_lifecycles=target,
         max_attempted_pools=max_attempted,started=int(time.time()),
         attempts=[],qualified_lifecycles=[],
+        compatibility_rejections=compatibility_rejections
+            if "compatibility_rejections" in locals() else [],
     )
     attempted=0;complete=0;failure_counts=Counter()
+    compatibility_rejections=[];compatibility_screened=0
+    report["compatibility_rejections"]=compatibility_rejections
     candidate_stream=_iter_acceleration_candidates(
         policy,discovery_telemetry)
     for candidate in candidate_stream:
         if attempted>=max_attempted or complete>=target:
             break
-        attempted+=1
         candidate_rpcs=[]
         adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
+        compatibility_screened+=1
+        try:
+            compatibility_state=_fresh_supported_start(
+                adapter,candidate)
+        except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
+            compatibility_rejections.append(dict(
+                pool=candidate["address"],candidate=candidate,
+                reason=str(exc)[:200],
+                rpc=_sum_rpc_metrics(candidate_rpcs),
+            ))
+            continue
+
+        attempted+=1
         handoff_started_at=int(time.time())
         attempt=dict(
             attempt=attempted,pool=candidate["address"],candidate=candidate,
             signal_to_handoff_seconds=max(
                 0,handoff_started_at-int(candidate["signal_observed_at"])),
             handoff_started_at=handoff_started_at,
+            compatibility_passed=True,
         )
         try:
-            alignment,warm,entry,warm_origin,_entry_start,adapter,aligned_candidate=(
-                _aligned_warmup(
-                    adapter,candidate,policy,pacer,candidate_rpcs))
+            alignment,warm,entry,warm_origin,adapter,aligned_candidate=(
+                _triggered_warmup(
+                    adapter,candidate,compatibility_state,
+                    policy,pacer,candidate_rpcs))
             # Any rotated RPCs created inside observation are not yet in global list.
             for rpc in candidate_rpcs:
                 if rpc not in rpcs:rpcs.append(rpc)
-            attempt["warmup_alignment"]=alignment
+            attempt["fresh_swap_trigger_and_warmup"]=alignment
             if not alignment["aligned"]:
                 reason=alignment["reason"]
                 attempt["terminal_classification"]=reason
@@ -1079,6 +1275,8 @@ def run_live(target=None,max_attempted=None):
         discovery_history_read_count=int(discovery_telemetry["history_reads"]),
         discovery_qualified_count=len(discovery_telemetry["qualified"]),
         discovery_rejection_count=len(discovery_telemetry["rejections"]),
+        compatibility_screened_count=compatibility_screened,
+        compatibility_rejection_count=len(compatibility_rejections),
         complete_lifecycle_count=complete,target_met=complete>=target,
         qualification_failure_counts=dict(sorted(failure_counts.items())),
         profitable_lifecycle_count=sum(x["final"]["pnl_lamports"]>0 for x in resolved),
