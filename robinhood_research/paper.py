@@ -2,9 +2,6 @@
 
 No Robinhood-native policy is empirically established. Synthetic decisions exercise
 the lifecycle; natural/captured allocation stays blocked until that separate gate.
-
-The ledger also supports an explicit partial-exit intent. That path is additive:
-legacy callers that omit exit_tokens retain the exact full-position exit behavior.
 """
 from dataclasses import asdict, dataclass
 import json
@@ -64,21 +61,11 @@ class Paper:
         return dict(genesis=genesis, realized=realized, committed=committed, available=available,
                     open_exposure=sum(p['tokens'] for p in rows if p['status'] != 'settled'))
 
-    def _normalize_position(self, p):
-        # Old study databases predate partial exits. Keep them readable and preserve
-        # their prior full-exit behavior without rewriting history on load.
-        p.setdefault('entry_tokens', p.get('tokens', 0))
-        p.setdefault('remaining_cost', p.get('cost', 0))
-        p.setdefault('realized_pnl', p.get('pnl', 0))
-        p.setdefault('realized_proceeds', 0)
-        p.setdefault('pending_exit_tokens', None)
-        return p
-
     def _get(self, identity):
         row = self.store.db.execute('SELECT body FROM paper WHERE id=?', (identity,)).fetchone()
         if not row:
             raise BoundaryError('paper_position_missing')
-        p = self._normalize_position(json.loads(row[0]))
+        p = json.loads(row[0])
         if p['experiment'] != self.experiment:
             raise BoundaryError('cross_experiment_authority')
         return p
@@ -114,9 +101,7 @@ class Paper:
                 raise BoundaryError('paper_position_capacity')
             p = dict(id=identity, experiment=self.experiment, market=market, kind=kind,
                      status='reserved', reserved=amount+gas_budget, amount=amount,
-                     due=now+self.delay, tokens=0, entry_tokens=0, cost=0,
-                     remaining_cost=0, realized_pnl=0, realized_proceeds=0,
-                     pending_exit_tokens=None, pnl=0, version=0,
+                     due=now+self.delay, tokens=0, cost=0, pnl=0, version=0,
                      last_at=now, reason=None)
             self.store.put('paper_decision', identity, features)
             self._save(p, 'reserve', now)
@@ -126,8 +111,7 @@ class Paper:
             raise
         return p
 
-    def advance(self, identity, *, now, action, quote=None, transition=None,
-                finality_ledger=None, cancel_reason=None, exit_tokens=None):
+    def advance(self, identity, *, now, action, quote=None, transition=None, finality_ledger=None, cancel_reason=None):
         self.store.db.execute('BEGIN IMMEDIATE')
         try:
             p = self._get(identity)
@@ -142,28 +126,16 @@ class Paper:
                 cost = p['amount'] + quote.gas_quote
                 if cost > p['reserved']:
                     raise BoundaryError('entry_exceeds_reservation')
-                p.update(tokens=quote.amount_out, entry_tokens=quote.amount_out,
-                         cost=cost, remaining_cost=cost, realized_pnl=0,
-                         realized_proceeds=0, pending_exit_tokens=None,
-                         status='open')
+                p.update(tokens=quote.amount_out, cost=cost, status='open')
             elif action == 'exit_intent':
                 if p['status'] != 'open':
                     raise BoundaryError('position_not_open')
-                requested = p['tokens'] if exit_tokens is None else int(exit_tokens)
-                if requested <= 0 or requested > p['tokens']:
-                    raise BoundaryError('invalid_partial_exit_amount')
-                p.update(status='exit_pending', due=now+self.delay,
-                         pending_exit_tokens=requested)
+                p.update(status='exit_pending', due=now+self.delay)
             elif action == 'exit':
                 if p['status'] != 'exit_pending' or now < p['due']:
                     raise BoundaryError('exit_not_due')
-                amount = p.get('pending_exit_tokens')
-                if amount is None:
-                    amount = p['tokens']
-                if amount <= 0 or amount > p['tokens']:
-                    raise BoundaryError('invalid_partial_exit_amount')
                 try:
-                    quote.check(now, p['market'], 'sell', amount, p['kind'], finality_ledger=finality_ledger)
+                    quote.check(now, p['market'], 'sell', p['tokens'], p['kind'], finality_ledger=finality_ledger)
                     if quote.stamp.event_at < p['due']:
                         raise BoundaryError('pre_delay_quote')
                 except BoundaryError as exc:
@@ -176,21 +148,7 @@ class Paper:
                     net = quote.amount_out - quote.gas_quote
                     if net < 0:
                         raise BoundaryError('exit_gas_exceeds_proceeds')
-                    tokens_before = p['tokens']
-                    remaining_cost = int(p.get('remaining_cost', p['cost']))
-                    sold_cost = (remaining_cost if amount == tokens_before else
-                                 remaining_cost * amount // tokens_before)
-                    p['tokens'] = tokens_before - amount
-                    p['remaining_cost'] = remaining_cost - sold_cost
-                    p['realized_proceeds'] = int(p.get('realized_proceeds', 0)) + net
-                    p['realized_pnl'] = int(p.get('realized_pnl', 0)) + net - sold_cost
-                    p['pnl'] = p['realized_pnl']
-                    p['reason'] = None
-                    p['pending_exit_tokens'] = None
-                    if p['tokens'] == 0:
-                        p.update(status='settled', reserved=0, remaining_cost=0)
-                    else:
-                        p['status'] = 'open'
+                    p.update(status='settled', pnl=net-p['cost'], tokens=0, reserved=0, reason=None)
             elif action == 'cancel':
                 if p['status'] != 'reserved' or not cancel_reason:
                     raise BoundaryError('invalid_reservation_cancel')
