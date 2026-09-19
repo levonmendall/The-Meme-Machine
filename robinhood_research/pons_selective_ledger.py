@@ -13,7 +13,6 @@ import json
 
 from . import BoundaryError
 from .evidence import canonical
-from .paper import Quote
 
 STRATEGY_NAMESPACE="pons-selective-continuation-v1"
 TABLE="pons_selective_paper"
