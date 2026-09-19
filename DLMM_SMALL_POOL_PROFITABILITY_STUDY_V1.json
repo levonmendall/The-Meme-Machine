@@ -101,9 +101,9 @@
     "fallback_search_bound": "Inspect at most 32 newest pre-entry signatures only to skip failed transactions and identify the immediately prior successful pool transaction."
   },
   "operator_labels": {
-    "provisional": "same frozen cohort; >=20 measured closed positions, >=3 distinct pools, positive total realized API PnL USD",
-    "final": "positive after-network-cost operator label from the profitable-operator deep study when available",
-    "rule": "Report provisional and final separately; do not silently promote provisional to final."
+    "current_test_population": "same frozen 200-wallet cohort; provisional gross-profitable operators only: >=20 measured closed positions, >=3 distinct pools, positive total realized API PnL USD",
+    "independent_200_wallet_comparison": "The separate profitable-operator study may later supply after-network-cost/fleet-cluster labels for comparison, but it is not an input or prerequisite for this test.",
+    "rule": "Current small-pool results are explicitly gross/provisional. Do not represent them as after-cost operator results."
   },
   "outcomes": [
     "position_count",
@@ -118,26 +118,29 @@
     "operator_share_with_positive_stratum_pnl"
   ],
   "comparisons": {
-    "primary": "Within the same profitable-operator population, compare outcomes across TVL strata.",
+    "primary": "Within the independently screened gross-profitable operator population, compare outcomes across TVL strata.",
     "secondary": "Cross-classify TVL with pool age and pre-entry volatility.",
     "no_best_bucket_selection_for_strategy": true,
-    "no_threshold_changes_from_this_descriptive_stage": true
+    "no_threshold_changes_from_this_descriptive_stage": true,
+    "later_validation": "After the separate 200-wallet after-cost study completes, compare its independently determined profitable-operator subset against this already-frozen small-pool result. Do not rerun or refit this result using the later labels."
   },
   "execution": {
-    "meteora_request_cap_rps": 20,
+    "meteora_request_cap_rps": 8,
     "solana_http_provider": "alchemy_direct",
     "solana_http_cap_rps": 5,
     "checkpoint_wallet_by_wallet": true,
     "whole_wallet_attempts": 2,
     "bounded_meteora_workers": 8,
-    "bounded_entry_context_workers": 4
+    "bounded_entry_context_workers": 4,
+    "depends_on_profitable_operator_deep_artifact": false,
+    "uses_own_position_history_reads": true
   },
   "next_stage": {
-    "requirement": "A lower-TVL prospective rule may be proposed only after the descriptive study is complete and frozen separately before future outcomes.",
+    "requirement": "This descriptive gross/provisional study may finish independently. Any prospective lower-TVL rule still requires a separate frozen artifact before future outcomes; later after-cost operator results are comparison evidence, not a prerequisite.",
     "minimum_positions_per_tvl_stratum": 30,
     "minimum_independent_profitable_operators_per_tvl_stratum": 3
   },
-  "revision": "1.1",
+  "revision": "1.2",
   "amendment_history": [
     {
       "revision": "1.1",
@@ -145,6 +148,15 @@
       "tvl_stratified_outcomes_observed_before_amendment": false,
       "wallet_selection_changed": false,
       "tvl_bucket_boundaries_changed": false
+    },
+    {
+      "revision": "1.2",
+      "reason": "Decouple the small-pool hypothesis test from the separate 200-wallet after-cost review at user direction. Freeze the current test on its own gross-profitable population and compare studies only after both finish.",
+      "tvl_stratified_outcomes_observed_before_amendment": false,
+      "final_after_cost_operator_labels_observed_before_amendment": false,
+      "tvl_bucket_boundaries_changed": false,
+      "wallet_cohort_changed": false,
+      "current_50000_tvl_execution_gate_changed": false
     }
   ]
 }
