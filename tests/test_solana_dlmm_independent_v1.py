@@ -22,7 +22,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             self.assertIs(independence[key],False,key)
         self.assertIsNone(p["discovery"]["minimum_pool_tvl_usd"])
         self.assertIsNone(p["discovery"]["minimum_absolute_volume_usd"])
-        self.assertEqual(p["revision"],"1.1")
+        self.assertEqual(p["revision"],"1.2")
 
     def test_strategy_import_graph_contains_no_strategy_dependency(self):
         path=Path("tests/solana_dlmm_independent_v1.py")
