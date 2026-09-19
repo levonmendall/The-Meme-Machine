@@ -11,9 +11,11 @@ from .abi import calldata
 from .provider_topology import configured_dlmm_rpc
 from .ramses import paper_position, paper_removal, price, quote_value, values
 from .ramses_capture import PAPER_NATIVE_CAPITAL, run
-from .ramses_strategy import classify_pool, decompose_pnl
+from .ramses_strategy import STRATEGY_DOMAIN, classify_pool, decompose_pnl
+from .ramses_strategy_ledger import RamsesStrategyLedger
 
 REPORT = Path(os.environ.get("MM_ROBINHOOD_RAMSES_STRATEGY_REPORT", "robinhood-ramses-strategy-report.json"))
+DB = Path(os.environ.get("MM_ROBINHOOD_RAMSES_STRATEGY_DB", "robinhood-ramses-strategy.sqlite"))
 
 
 def _json_env(name):
@@ -68,6 +70,8 @@ def main():
         "started_at": time.time(),
         "paper_only": True,
         "allocation_authority": False,
+        "shared_allocator": False,
+        "strategy_domain": STRATEGY_DOMAIN,
     }
     capture = run(endpoint)
     result["capture"] = capture
@@ -93,9 +97,39 @@ def main():
         )
         result["decision"] = decision
         if decision["qualified"]:
-            unwind, telemetry = _terminal_unwind(endpoint, capture, decision)
-            result["strategy_provider"] = telemetry
-            result["pnl"] = decompose_pnl(decision, capture["replay"], unwind=unwind, costs=costs)
+            proposal_capital = decision["freeze"]["proposals"][0]["capital_employed"]
+            if DB.exists():
+                raise BoundaryError("ramses_strategy_db_already_exists")
+            ledger = RamsesStrategyLedger(
+                str(DB),
+                paper_capital=max(PAPER_NATIVE_CAPITAL, proposal_capital),
+                quote_asset=capture.get("quote_asset") or "unknown",
+            )
+            identity = (
+                STRATEGY_DOMAIN + ":" + str(capture["pool"]).lower() + ":"
+                + str(capture["range_freeze"]["pre_entry_block"]) + ":"
+                + decision["freeze"]["proposal_hash"]
+            )
+            try:
+                result["strategy_ledger_reserve"] = ledger.reserve(
+                    identity,
+                    pool=capture["pool"],
+                    decision=decision,
+                    at=entry_timestamp,
+                )
+                result["strategy_ledger_open"] = ledger.open(identity, at=entry_timestamp)
+                unwind, telemetry = _terminal_unwind(endpoint, capture, decision)
+                result["strategy_provider"] = telemetry
+                result["pnl"] = decompose_pnl(
+                    decision, capture["replay"], unwind=unwind, costs=costs
+                )
+                terminal_at = int(capture["frontier"]["timestamp"], 16)
+                result["strategy_ledger_final"] = ledger.settle(
+                    identity, pnl=result["pnl"], at=terminal_at
+                )
+                result["strategy_ledger_reconciliation"] = ledger.reconcile()
+            finally:
+                ledger.close()
         else:
             result["pnl"] = None
         result["boundary"] = None
