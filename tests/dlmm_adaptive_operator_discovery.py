@@ -46,6 +46,27 @@ RPC_ROTATE_AT=200
 TARGET_COHORT_WALLETS=80
 MIN_COHORT_WALLETS=40
 
+LP_MUTATIONS={
+    bytes([181,157,89,67,143,182,52,72]):("add_liquidity",1,0,11),
+    bytes([228,162,78,28,70,219,116,115]):("add_liquidity2",1,0,9),
+    bytes([7,3,150,127,148,40,61,200]):("add_liquidity_by_strategy",1,0,11),
+    bytes([3,221,149,218,111,141,118,213]):("add_liquidity_by_strategy2",1,0,9),
+    bytes([41,5,238,175,100,225,6,205]):("add_liquidity_by_strategy_one_side",1,0,8),
+    bytes([28,140,238,99,231,162,21,149]):("add_liquidity_by_weight",1,0,11),
+    bytes([209,59,63,91,111,200,153,228]):("add_liquidity_by_weight2",1,0,9),
+    bytes([94,155,103,151,70,95,220,165]):("add_liquidity_one_side",1,0,8),
+    bytes([161,194,103,84,171,71,250,154]):("add_liquidity_one_side_precise",1,0,8),
+    bytes([33,51,163,201,117,98,125,231]):("add_liquidity_one_side_precise2",1,0,6),
+    bytes([92,4,176,193,119,185,83,9]):("rebalance_liquidity",1,0,9),
+    bytes([10,51,61,35,112,105,24,85]):("remove_all_liquidity",1,0,11),
+    bytes([80,85,209,72,24,206,177,108]):("remove_liquidity",1,0,11),
+    bytes([230,215,82,127,241,101,227,146]):("remove_liquidity2",1,0,9),
+    bytes([26,82,102,152,240,74,105,26]):("remove_liquidity_by_range",1,0,11),
+    bytes([204,2,195,145,53,145,145,205]):("remove_liquidity_by_range2",1,0,9),
+    bytes([169,32,79,137,136,232,70,137]):("claim_fee",0,1,4),
+    bytes([112,191,101,171,28,144,127,187]):("claim_fee2",0,1,2),
+}
+
 
 def _save(report):
     OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
@@ -143,21 +164,23 @@ def _actor_events_any_pool(tx,pool_rank,signature_row):
         if type(pi) is not int or not 0<=pi<len(keys) or keys[pi]!=dlmm.PROGRAM:
             continue
         raw=study._un58_data(ix.get("data") or "")
-        action=study.LP_ACTOR_INSTRUCTIONS.get(raw[:8])
-        if action is None:
+        spec=LP_MUTATIONS.get(raw[:8])
+        if spec is None:
             continue
+        action,pool_i,position_i,signer_i=spec
         accounts=ix.get("accounts") or []
-        if len(accounts)<=9:
+        needed=max(pool_i,position_i,signer_i)
+        if len(accounts)<=needed:
             continue
-        if any(type(accounts[i]) is not int or not 0<=accounts[i]<len(keys)
-               for i in (0,1,9)):
+        selected=[accounts[pool_i],accounts[position_i],accounts[signer_i]]
+        if any(type(i) is not int or not 0<=i<len(keys) for i in selected):
             continue
-        pool=keys[accounts[1]]
+        pool=keys[accounts[pool_i]]
         rank=pool_rank.get(pool)
-        if rank is None or accounts[9]>=required:
+        if rank is None or accounts[signer_i]>=required:
             continue
         events.append(dict(
-            wallet=keys[accounts[9]],position=keys[accounts[0]],
+            wallet=keys[accounts[signer_i]],position=keys[accounts[position_i]],
             action=action,pool=pool,pool_rank=rank,
             slot=int(tx.get("slot") or signature_row.get("slot") or 0),
             signature=signature_row.get("signature"),
