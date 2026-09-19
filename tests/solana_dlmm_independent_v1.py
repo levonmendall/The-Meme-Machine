@@ -789,6 +789,81 @@ def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs):
     ),adapter
 
 
+
+def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
+    cfg=(policy.get("range") or {}).get("warmup_alignment") or {}
+    windows=int(cfg.get("max_fresh_windows") or 1)
+    warmup_seconds=int(cfg.get("qualifying_window_seconds")
+                       or policy["range"]["warmup_seconds"])
+    regime=policy["regime"]
+    attempts=[]
+    current_candidate=dict(candidate)
+    for index in range(windows):
+        observed_at=int(time.time())
+        try:
+            current_candidate=_history_acceleration(current_candidate,observed_at)
+        except Exception as exc:
+            return dict(
+                aligned=False,reason="acceleration_refresh_unavailable",
+                detail=type(exc).__name__,windows=attempts,
+            ),None,None,None,None,adapter,current_candidate
+        acceleration_pass=(
+            current_candidate["volume_acceleration"]>=float(
+                regime["min_volume_acceleration"])
+            and current_candidate["fee_acceleration"]>=float(
+                regime["min_fee_acceleration"])
+        )
+        attempt=dict(
+            window=index+1,
+            observed_at=observed_at,
+            volume_acceleration=current_candidate["volume_acceleration"],
+            fee_acceleration=current_candidate["fee_acceleration"],
+            acceleration_pass=acceleration_pass,
+        )
+        if not acceleration_pass:
+            attempts.append(attempt)
+            return dict(
+                aligned=False,reason="acceleration_regime_expired",
+                windows=attempts,
+            ),None,None,None,None,adapter,current_candidate
+
+        adapter=_rotate(adapter,pacer,rpcs)
+        try:
+            start=_fresh_supported_start(adapter,current_candidate)
+        except Exception as exc:
+            attempt.update(
+                verified=False,reason=str(exc)[:180],stage="fresh_start")
+            attempts.append(attempt)
+            raise
+
+        phase,warm,entry,warm_origin,adapter=_observe_window(
+            adapter,current_candidate["address"],start,warmup_seconds,
+            True,pacer,rpcs)
+        attempt.update(
+            verified=bool(phase.get("verified")),
+            warmup_reason=phase.get("reason"),
+            swaps=(None if warm is None else len(warm.events)),
+            warmup=phase,
+        )
+        attempts.append(attempt)
+        if not phase.get("verified"):
+            return dict(
+                aligned=False,reason="warmup_unverified",
+                windows=attempts,
+            ),warm,entry,warm_origin,start,adapter,current_candidate
+        if warm is not None and warm.events:
+            return dict(
+                aligned=True,reason="verified_nonzero_warmup",
+                selected_window=index+1,windows=attempts,
+            ),warm,entry,warm_origin,start,adapter,current_candidate
+        # Only a verified zero-swap window is retryable. The next iteration
+        # refreshes acceleration and takes a completely fresh prestate.
+    return dict(
+        aligned=False,reason="verified_zero_flow_after_alignment",
+        windows=attempts,
+    ),None,None,None,None,adapter,current_candidate
+
+
 def run_live(target=None,max_attempted=None):
     assert_independence()
     policy=load_policy()
@@ -820,26 +895,22 @@ def run_live(target=None,max_attempted=None):
         adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
         attempt=dict(attempt=attempted,pool=candidate["address"],candidate=candidate)
         try:
-            entry_start=_fresh_supported_start(adapter,candidate)
-            phase,warm,entry,warm_origin,adapter=_observe_window(
-                adapter,candidate["address"],entry_start,
-                int(policy["range"]["warmup_seconds"]),True,pacer,candidate_rpcs)
+            alignment,warm,entry,warm_origin,_entry_start,adapter,aligned_candidate=(
+                _aligned_warmup(
+                    adapter,candidate,policy,pacer,candidate_rpcs))
             # Any rotated RPCs created inside observation are not yet in global list.
             for rpc in candidate_rpcs:
                 if rpc not in rpcs:rpcs.append(rpc)
-            attempt["warmup"]=phase
-            if not phase["verified"]:
-                attempt["terminal_classification"]="warmup_unverified"
-                attempt["reason"]=phase["reason"]
-                failure_counts["warmup_unverified"]+=1
+            attempt["warmup_alignment"]=alignment
+            if not alignment["aligned"]:
+                reason=alignment["reason"]
+                attempt["terminal_classification"]=reason
+                failure_counts[reason]+=1
                 attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                 report["attempts"].append(attempt);continue
-            if not warm.events:
-                attempt["terminal_classification"]="no_warmup_flow"
-                failure_counts["no_warmup_flow"]+=1
-                attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
-                report["attempts"].append(attempt);continue
-            features=pre_entry_features(warm_origin,warm,entry,candidate,policy)
+            attempt["candidate_at_warmup"]=aligned_candidate
+            features=pre_entry_features(
+                warm_origin,warm,entry,aligned_candidate,policy)
             decision=qualify(features,policy)
             attempt["pre_entry_features"]=features
             attempt["qualification"]=decision
