@@ -4,6 +4,7 @@ on:
     branches:
       - research/dlmm-top-roi-wallet-evaluation
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -48,13 +49,39 @@ jobs:
         run: python -m unittest tests.test_dlmm_adaptive_acquisition -v
       - name: Validate authenticated 5-RPS HTTP primary / Alchemy rescue
         run: python -m tests.dlmm_alchemy_provider
-      - name: Full eligible-pool census plus union-stream adaptive reconstruction
+      - name: Restore latest adaptive evidence checkpoint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f dlmm-adaptive-operator-checkpoint.json
+          artifact_id="$(
+            gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+              --jq '.artifacts[] | select(.expired == false and (.name | startswith("dlmm-adaptive-operator-discovery-"))) | [.created_at, (.id|tostring)] | @tsv' \
+              | sort -r | head -n 1 | cut -f2
+          )"
+          if [ -n "$artifact_id" ]; then
+            rm -rf /tmp/dlmm-adaptive-restore
+            mkdir -p /tmp/dlmm-adaptive-restore
+            if gh api "repos/${{ github.repository }}/actions/artifacts/${artifact_id}/zip" > /tmp/dlmm-adaptive-restore.zip \
+                && unzip -q /tmp/dlmm-adaptive-restore.zip -d /tmp/dlmm-adaptive-restore; then
+              candidate="$(find /tmp/dlmm-adaptive-restore -name dlmm-adaptive-operator-checkpoint.json -type f -print -quit)"
+              if [ -n "$candidate" ]; then
+                cp "$candidate" dlmm-adaptive-operator-checkpoint.json
+                echo "Restored prior adaptive checkpoint artifact ${artifact_id}; code will reuse it only if the pool universe matches exactly."
+              fi
+            fi
+          fi
+      - name: Full eligible-pool census plus filtered adaptive reconstruction
         run: python -m tests.dlmm_adaptive_operator_discovery
       - name: Preserve adaptive discovery evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: dlmm-adaptive-operator-discovery-${{ github.run_id }}-${{ github.run_attempt }}
-          path: dlmm-adaptive-operator-discovery.json
+          path: |
+            dlmm-adaptive-operator-discovery.json
+            dlmm-adaptive-operator-checkpoint.json
           if-no-files-found: warn
           retention-days: 90
