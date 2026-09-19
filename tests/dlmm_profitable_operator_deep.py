@@ -15,6 +15,8 @@ from pathlib import Path
 import statistics
 import time
 
+from meme_machine import pump
+from meme_machine.dlmm_tape import _keys, _ordered_instructions, _un58_data
 from tests import dlmm_alchemy_provider as provider
 from tests import dlmm_profitable_operator_discovery as op
 from tests import dlmm_profitable_operator_reconstruction as rec
@@ -22,6 +24,7 @@ from tests import dlmm_profitable_operator_reconstruction as rec
 DEFAULT_RANKING=Path("dlmm-profitable-operator-ranking.json")
 CHECKPOINT=Path("dlmm-profitable-operator-deep-checkpoint.json")
 OUT=Path("dlmm-profitable-operator-deep-reconstruction.json")
+DERIVATION_PROTOCOL=Path("DLMM_PROFITABLE_OPERATOR_RULE_DERIVATION_V1.json")
 RPC_OBJECT_LOGICAL_LIMIT=200
 
 
@@ -216,7 +219,113 @@ def _after_cost_path(wallet_row,network):
     )
 
 
-def _market_context(pool,entry_time,pool_cache,context_cache):
+def _mint_initialized_in_transaction(tx,mint):
+    if not tx or not isinstance(tx.get("meta"),dict) or tx["meta"].get("err"):
+        return False
+    message=(tx.get("transaction") or {}).get("message") or {}
+    try:
+        keys=_keys(tx["meta"],message)
+    except (KeyError,TypeError):
+        return False
+    for _outer,_inner,ix in _ordered_instructions(tx["meta"],message):
+        pi=ix.get("programIdIndex")
+        if type(pi) is not int or not 0<=pi<len(keys) or keys[pi]!=pump.TOKEN_PROGRAM:
+            continue
+        accounts=ix.get("accounts") or []
+        if not accounts or type(accounts[0]) is not int or not 0<=accounts[0]<len(keys):
+            continue
+        if keys[accounts[0]]!=mint:
+            continue
+        raw=_un58_data(ix.get("data") or "")
+        if raw and raw[0] in (0,20):  # InitializeMint / InitializeMint2
+            return True
+    return False
+
+
+class TokenAgeResolver:
+    def __init__(self,policy=None):
+        if policy is None:
+            body=json.loads(DERIVATION_PROTOCOL.read_text())
+            policy=(body.get("context_resolution") or {}).get("token_age") or {}
+        self.max_pages=int(policy.get("max_signature_pages") or 0)
+        self.page_size=int(policy.get("signatures_per_page") or 0)
+        if not 1<=self.max_pages<=5 or self.page_size!=1000:
+            raise RuntimeError("dlmm_operator_token_age_policy_drift")
+        self.cache={}
+        self.pacer=provider.AlchemyPacer()
+
+    def resolve(self,mint):
+        if mint in self.cache:
+            return self.cache[mint]
+        rpc=provider.new_rpc(limit=240,pacer=self.pacer)
+        rows=[];before=None;exhausted=False
+        for page in range(1,self.max_pages+1):
+            cfg=dict(limit=self.page_size,commitment="finalized")
+            if before is not None:
+                cfg["before"]=before
+            batch=rpc.call("getSignaturesForAddress",[mint,cfg],True)
+            if not isinstance(batch,list):
+                raise RuntimeError("dlmm_operator_token_age_signature_shape")
+            rows.extend(batch)
+            if len(batch)<self.page_size:
+                exhausted=True
+                break
+            last=batch[-1] if batch else None
+            cursor=(last or {}).get("signature") if isinstance(last,dict) else None
+            if not isinstance(cursor,str) or not cursor or cursor==before:
+                raise RuntimeError("dlmm_operator_token_age_cursor")
+            before=cursor
+        if not exhausted:
+            result=dict(
+                exact=False,creation_time=None,creation_signature=None,
+                reason="mint_signature_history_exceeds_preregistered_bound",
+                signatures_scanned=len(rows))
+            self.cache[mint]=result
+            return result
+        successful=[
+            row for row in rows if isinstance(row,dict) and not row.get("err")
+            and isinstance(row.get("signature"),str)
+        ]
+        if not successful:
+            result=dict(
+                exact=False,creation_time=None,creation_signature=None,
+                reason="no_successful_mint_history",signatures_scanned=len(rows))
+            self.cache[mint]=result
+            return result
+        earliest=successful[-1]
+        tx=rpc.call("getTransaction",[
+            earliest["signature"],dict(
+                encoding="json",commitment="finalized",
+                maxSupportedTransactionVersion=1,
+            )
+        ],True)
+        if not tx or not _mint_initialized_in_transaction(tx,mint):
+            result=dict(
+                exact=False,creation_time=None,
+                creation_signature=earliest["signature"],
+                reason="earliest_successful_transaction_not_mint_initialization",
+                signatures_scanned=len(rows))
+            self.cache[mint]=result
+            return result
+        created=tx.get("blockTime")
+        if not isinstance(created,int) or created<=0:
+            result=dict(
+                exact=False,creation_time=None,
+                creation_signature=earliest["signature"],
+                reason="mint_initialization_block_time_unavailable",
+                signatures_scanned=len(rows))
+            self.cache[mint]=result
+            return result
+        result=dict(
+            exact=True,creation_time=created,
+            creation_signature=earliest["signature"],
+            reason=None,signatures_scanned=len(rows),
+            initialization="classic_spl_initialize_mint")
+        self.cache[mint]=result
+        return result
+
+
+def _market_context(pool,entry_time,pool_cache,context_cache,token_age_resolver=None):
     if not isinstance(entry_time,int) or entry_time<=0:
         return dict(status="unavailable",reason="missing_entry_time")
     key=(pool,entry_time//300)
@@ -248,6 +357,20 @@ def _market_context(pool,entry_time,pool_cache,context_cache):
         float(x["close"]) for x in candles
         if isinstance(x,dict) and float(x.get("close") or 0)>0]
     returns=[math.log(b/a) for a,b in zip(closes,closes[1:]) if a>0 and b>0]
+    token_x=(info.get("token_x") or {}).get("address") if isinstance(info,dict) else None
+    token_y=(info.get("token_y") or {}).get("address") if isinstance(info,dict) else None
+    non_sol_mint=(token_y if token_x==rec.dlmm.WSOL else
+                  token_x if token_y==rec.dlmm.WSOL else None)
+    token_creation=None
+    if token_age_resolver is not None and isinstance(non_sol_mint,str):
+        token_creation=token_age_resolver.resolve(non_sol_mint)
+    token_age=None;token_age_reason="exact_token_creation_time_not_proven"
+    if token_creation is not None:
+        if token_creation.get("exact") and token_creation.get("creation_time")<=entry_time:
+            token_age=entry_time-int(token_creation["creation_time"])
+            token_age_reason=None
+        else:
+            token_age_reason=token_creation.get("reason") or "token_creation_after_entry"
     result=dict(
         status=("available" if ohlcv_error is None and volume_error is None else "partial"),
         pool_created_at=created,
@@ -267,14 +390,17 @@ def _market_context(pool,entry_time,pool_cache,context_cache):
         volume_unavailable_reason=volume_error,
         fee_tvl_at_entry=None,
         fee_tvl_at_entry_reason="historical_tvl_not_exposed_by_meteora_data_api",
-        token_age_seconds=None,
-        token_age_reason="exact_token_creation_time_not_yet_proven",
+        non_sol_token_mint=non_sol_mint,
+        token_age_seconds=token_age,
+        token_age_reason=token_age_reason,
+        token_creation=token_creation,
     )
     context_cache[key]=result
     return result
 
 
-def _entry_exit_profiles(wallet_row,by_position,pool_cache=None,context_cache=None):
+def _entry_exit_profiles(wallet_row,by_position,pool_cache=None,context_cache=None,
+                         token_age_resolver=None):
     pool_cache={} if pool_cache is None else pool_cache
     context_cache={} if context_cache is None else context_cache
     profiles=[]
@@ -293,7 +419,9 @@ def _entry_exit_profiles(wallet_row,by_position,pool_cache=None,context_cache=No
             entry_feature=feature.get("entry")
         entry_time=(entry_event or {}).get("block_time")
         pool=(entry_event or {}).get("pool") or (exit_event or {}).get("pool")
-        context=(_market_context(pool,entry_time,pool_cache,context_cache)
+        context=(_market_context(
+            pool,entry_time,pool_cache,context_cache,
+            token_age_resolver=token_age_resolver)
                  if isinstance(pool,str) else
                  dict(status="unavailable",reason="missing_pool"))
         if entry_feature:
@@ -310,6 +438,23 @@ def _entry_exit_profiles(wallet_row,by_position,pool_cache=None,context_cache=No
         for feature in (by_position.get(position) or {}).values():
             rebalances.extend(feature.get("rebalances") or [])
         p=positions.get(position) or {}
+        exit_feature=(
+            {} if exit_event is None else
+            ((by_position.get(position) or {}).get(exit_event.get("signature")) or {})
+        )
+        remove_events=exit_feature.get("remove_events") or []
+        exit_active=(remove_events[-1].get("active") if remove_events else None)
+        lower=p.get("lower_bin_id");upper=p.get("upper_bin_id")
+        exit_relation=None
+        if isinstance(exit_active,int) and isinstance(lower,int) and isinstance(upper,int):
+            exit_relation=dict(
+                active_bin=exit_active,
+                lower_active_offset_bins=lower-exit_active,
+                upper_active_offset_bins=upper-exit_active,
+                center_active_offset_bins=(lower+upper)/2.0-exit_active,
+                active_inside_range=lower<=exit_active<=upper,
+                range_source="meteora_closed_position_lower_upper",
+            )
         profiles.append(dict(
             position=position,pool=pool,
             entry_time=entry_time,exit_time=(exit_event or {}).get("block_time"),
@@ -318,15 +463,18 @@ def _entry_exit_profiles(wallet_row,by_position,pool_cache=None,context_cache=No
             rebalances=sorted(rebalances,key=lambda x:(
                 x.get("active_bin",0),x.get("old_min_bin",0),x.get("new_min_bin",0))),
             rebalance_count=len(rebalances),
-            exit_action=(
-                None if exit_event is None else
-                ((by_position.get(position) or {}).get(exit_event.get("signature")) or {})
-            ).get("actions") if exit_event is not None else None,
+            exit_action=exit_feature.get("actions"),
+            exit_active_bin=exit_active,
+            exit_active_bin_relation=exit_relation,
+            exit_active_bin_reason=(
+                None if exit_active is not None
+                else "authenticated_remove_liquidity_event_unavailable"),
         ))
     return profiles
 
 
-def _deep_wallet(wallet_row,pool_cache=None,context_cache=None):
+def _deep_wallet(wallet_row,pool_cache=None,context_cache=None,
+                 token_age_resolver=None):
     sigmap=_history_signature_map(wallet_row)
     transactions,pacer=_fetch_transactions(sigmap)
     by_position,tx_meta=_features_for_wallet(wallet_row,transactions)
@@ -353,7 +501,8 @@ def _deep_wallet(wallet_row,pool_cache=None,context_cache=None):
         network["position_cost_usd"])
     path=_after_cost_path(wallet_row,network)
     profiles=_entry_exit_profiles(
-        wallet_row,by_position,pool_cache=pool_cache,context_cache=context_cache)
+        wallet_row,by_position,pool_cache=pool_cache,context_cache=context_cache,
+        token_age_resolver=token_age_resolver)
     fee_payers=sorted({
         meta.get("fee_payer") for meta in tx_meta.values()
         if isinstance(meta.get("fee_payer"),str)
@@ -418,12 +567,14 @@ def run(path=DEFAULT_RANKING):
     started=int(time.time())
     _write_checkpoint(signature,rows,failures,started)
     pool_cache={};context_cache={}
+    token_age_resolver=TokenAgeResolver()
     for index,wallet in enumerate(wallets,1):
         if wallet in rows:
             continue
         try:
             rows[wallet]=_deep_wallet(
-                by_wallet[wallet],pool_cache=pool_cache,context_cache=context_cache)
+                by_wallet[wallet],pool_cache=pool_cache,context_cache=context_cache,
+                token_age_resolver=token_age_resolver)
             failures.pop(wallet,None);state="completed"
         except Exception as exc:
             failures[wallet]=dict(error=type(exc).__name__,message=str(exc)[:160])
