@@ -35,7 +35,7 @@ ALCHEMY_ENV_NAME = "MM_SOLANA_READ_RPC_URL"
 ALCHEMY_SOLANA_MAINNET_HOST = "solana-mainnet.g.alchemy.com"
 
 TOPOLOGY_LABEL = "onfinality_public_primary_alchemy_rescue"
-SOLANA_MIN_REQUEST_INTERVAL_SECONDS = 1.0
+SOLANA_MIN_REQUEST_INTERVAL_SECONDS = 0.2
 PROVIDER_429_MIN_BACKOFF_SECONDS = 2.0
 
 
@@ -94,20 +94,20 @@ def secondary_rpc_url(environ=None, *, required=False):
 class SolanaReadPacer:
     """One conservative request clock shared across bounded RPC objects.
 
-    OnFinality currently permits more than this cadence, but Meme Machine retains
-    the existing one-request-per-second pacing by default so a provider change cannot
-    silently broaden evidence acquisition or request volume.
+    OnFinality primary is governed at five physical requests per second. The pacer is
+    shared across bounded RPC objects so provider rotations and concentration reads do
+    not multiply the aggregate primary cadence. Alchemy remains rescue-only.
     """
 
     def __init__(self, minimum_interval=SOLANA_MIN_REQUEST_INTERVAL_SECONDS):
-        if minimum_interval < 0.5 or minimum_interval > 5.0:
+        if minimum_interval < 0.2 or minimum_interval > 5.0:
             raise ValueError("solana_read_pace_bound")
         self.minimum_interval = float(minimum_interval)
         self.next_request_at = -float("inf")
         self.paced_requests = 0
         self.sleep_seconds = 0.0
 
-    def pace(self, rpc, requested_interval=0.5):
+    def pace(self, rpc, requested_interval=0.2):
         interval = max(float(requested_interval), self.minimum_interval)
         now = float(rpc.clock())
         wait = max(0.0, self.next_request_at - now)
@@ -147,7 +147,10 @@ class _ReadOnlyFailoverMixin:
 
     def _pace(self, interval=0.5):
         if self.transport == self._http:
-            self.read_pacer.pace(self, interval)
+            # Base RPC passes legacy logical pacing hints (0.5s and batch-derived
+            # intervals). Provider governance is physical-request based: respect the
+            # shared 5 req/s primary cadence instead of the legacy 1-2 req/s ceiling.
+            self.read_pacer.pace(self, self.read_pacer.minimum_interval)
 
     @staticmethod
     def _retry_delay(exc):
