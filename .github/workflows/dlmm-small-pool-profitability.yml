@@ -22,7 +22,7 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Small-pool regression gate
         run: python -m unittest tests.test_dlmm_small_pool_profitability -v
-      - name: Restore prior compatible screen checkpoint
+      - name: Restore prior screen checkpoint
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -41,12 +41,11 @@ jobs:
               candidate="$(find /tmp/small-pool-screen -name dlmm-small-pool-screen-checkpoint.json -type f -print -quit)"
               if [ -n "$candidate" ]; then
                 cp "$candidate" dlmm-small-pool-screen-checkpoint.json
-                echo "Restored screen checkpoint from artifact ${id}"
                 break
               fi
             fi
           done
-      - name: Screen frozen 200-wallet cohort at reduced Meteora rate
+      - name: Screen frozen cohort for gross-profitable operators
         run: python -m tests.dlmm_small_pool_screen
       - name: Preserve small-pool screen
         if: always()
@@ -62,7 +61,7 @@ jobs:
   context:
     needs: screen
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 240
     env:
       MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       DLMM_SMALL_POOL_WORKERS: '4'
@@ -72,62 +71,14 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Download this run's frozen-cohort screen
+      - name: Download this run's independent screen
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
         run: |
-          set -euo pipefail
           gh run download "${GITHUB_RUN_ID}" \
             -n "dlmm-small-pool-screen-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
             -D .
-      - name: Restore latest complete profitable-operator artifacts
-        id: operator
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          found=0
-          mapfile -t ids < <(
-            gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100" \
-              --jq '.artifacts[] | select(.expired == false and (.name | startswith("dlmm-profitable-operator-ranking-"))) | [.created_at, (.id|tostring)] | @tsv' \
-              | sort -r | cut -f2
-          )
-          for id in "${ids[@]}"; do
-            rm -rf /tmp/operator-artifact && mkdir -p /tmp/operator-artifact
-            if ! gh api "repos/${{ github.repository }}/actions/artifacts/${id}/zip" > /tmp/operator.zip; then
-              continue
-            fi
-            if ! unzip -q /tmp/operator.zip -d /tmp/operator-artifact; then
-              continue
-            fi
-            ranking="$(find /tmp/operator-artifact -name dlmm-profitable-operator-ranking.json -type f -print -quit)"
-            deep="$(find /tmp/operator-artifact -name dlmm-profitable-operator-deep-reconstruction.json -type f -print -quit)"
-            if [ -z "$ranking" ] || [ -z "$deep" ]; then
-              continue
-            fi
-            cp "$ranking" dlmm-profitable-operator-ranking.json
-            cp "$deep" dlmm-profitable-operator-deep-reconstruction.json
-            if python - <<'PY'
-          import json
-          cohort="0f03841ae3f54d2a7cc93567c430e7349b0282a5e13da2fa238975a43405da6b"
-          r=json.load(open("dlmm-profitable-operator-ranking.json"))
-          d=json.load(open("dlmm-profitable-operator-deep-reconstruction.json"))
-          assert r.get("kind")=="dlmm_profitable_operator_ranking_v1"
-          assert d.get("kind")=="dlmm_profitable_operator_deep_reconstruction_v1"
-          assert r.get("cohort_hash")==cohort==d.get("cohort_hash")
-          assert d.get("status")=="deep_reconstruction_complete_rule_derivation_not_yet_frozen"
-          PY
-            then
-              echo "Using complete operator artifact ${id}"
-              found=1
-              break
-            fi
-          done
-          echo "found=${found}" >> "$GITHUB_OUTPUT"
       - name: Restore prior TVL-context checkpoint
-        if: steps.operator.outputs.found == '1'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -150,33 +101,13 @@ jobs:
               fi
             fi
           done
+      - name: Small-pool regression gate
+        run: python -m unittest tests.test_dlmm_small_pool_profitability -v
       - name: Validate direct Alchemy topology
-        if: steps.operator.outputs.found == '1'
         run: python -m tests.dlmm_alchemy_provider
-      - name: Reconstruct entry TVL and stratify final profitable operators
-        if: steps.operator.outputs.found == '1'
-        run: |
-          python -m tests.dlmm_small_pool_profitability \
-            --ranking dlmm-profitable-operator-ranking.json \
-            --deep dlmm-profitable-operator-deep-reconstruction.json
-      - name: Record pending final operator artifact
-        if: steps.operator.outputs.found != '1'
-        run: |
-          python - <<'PY'
-          import json
-          screen=json.load(open("dlmm-small-pool-screen.json"))
-          body={
-            "kind":"dlmm_small_pool_profitability_study_v1",
-            "status":"screen_complete_waiting_for_final_after_cost_operator_artifact",
-            "cohort_hash":screen["cohort_hash"],
-            "provisional_eligible_wallet_count":screen["provisional_eligible_wallet_count"],
-            "current_50000_tvl_execution_gate_changed":False,
-            "note":"No complete deep profitable-operator artifact was available; entry-TVL outcome comparison was not guessed or run on provisional labels."
-          }
-          open("dlmm-small-pool-profitability.json","w").write(json.dumps(body,indent=2)+"\n")
-          print(json.dumps(body,sort_keys=True))
-          PY
-      - name: Preserve small-pool study
+      - name: Reconstruct entry TVL, age and volatility independently
+        run: python -m tests.dlmm_small_pool_profitability --screen dlmm-small-pool-screen.json
+      - name: Preserve independent small-pool study
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
