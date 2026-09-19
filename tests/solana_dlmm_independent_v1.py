@@ -36,6 +36,9 @@ from meme_machine.dlmm_tape import (
     transaction_swaps,
 )
 from meme_machine.provider import Unavailable
+from meme_machine.solana_evidence_broker import (
+    DEFAULT_BROKER_DB,EvidenceBroker,ProgramAccountWakeStream,
+)
 from meme_machine.store import encode
 from tests import dlmm_alchemy_provider as provider
 
@@ -66,6 +69,10 @@ NETWORK_IDENTITY_MAX_ATTEMPTS=3
 NETWORK_IDENTITY_RETRY_SECONDS=1
 DEFAULT_MAX_RUNTIME_SECONDS=1200
 METEORA_MIN_INTERVAL_SECONDS=0.10
+DLMM_DISCOVERY_WS_URL="wss://api.mainnet-beta.solana.com"
+DLMM_WAKE_STREAM_KEY="dlmm_pool_wake"
+DLMM_BROKER_DB=Path(os.environ.get(
+    "MM_SOLANA_EVIDENCE_BROKER_DB",DEFAULT_BROKER_DB))
 
 class _MeteoraPacer:
     def __init__(self):
@@ -486,27 +493,28 @@ def _fresh_supported_start(adapter,candidate):
 
 
 
-def _complete_signature_census(rpc,pool,start_slot,end_slot):
-    """Prove finalized coverage from the authenticated endpoint back to start.
+def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
+    """Prove finalized signature coverage with an incremental per-pool ledger.
 
-    Pages newer than end_slot are scheduling noise. Every successful transaction in
-    (start_slot,end_slot] is retained. The unchanged MAX_TRANSACTIONS bound applies to
-    that exact interval. One finalized row at or before start_slot is retained as the
-    lower-bound witness passed into reconstruct().
+    The first interval performs the bounded boundary proof. Later intervals fetch
+    only signatures newer than the durable head, while the cached lower-bound
+    witness preserves exact interval completeness. This never weakens the unchanged
+    MAX_TRANSACTIONS bound.
     """
-    collected=[];seen=set();before=None;boundary=None
+    scope="dlmm_interval"
     pages=0;rows_scanned=0
-    for page_index in range(MAX_SIGNATURE_CENSUS_PAGES):
+
+    def fetch_page(*,before=None,until=None):
+        nonlocal pages,rows_scanned
         params=dict(limit=SIGNATURE_PAGE_LIMIT,commitment="finalized")
         if before is not None:
             params["before"]=before
-        page=rpc.call(
-            "getSignaturesForAddress",[pool,params],True)
+        if until is not None:
+            params["until"]=until
+        page=rpc.call("getSignaturesForAddress",[pool,params],True)
         pages+=1
         if not isinstance(page,list) or len(page)>SIGNATURE_PAGE_LIMIT:
             raise Unavailable("solana_dlmm_signature_shape")
-        if not page:
-            break
         for row in page:
             if not isinstance(row,dict):
                 raise Unavailable("solana_dlmm_signature_shape")
@@ -517,22 +525,83 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot):
                 raise Unavailable("solana_dlmm_signature_shape")
             if row.get("confirmationStatus")!="finalized":
                 raise Unavailable("solana_dlmm_signature_not_finalized")
-            if signature in seen:
-                raise Unavailable("solana_dlmm_signature_census_duplicate")
-            seen.add(signature);collected.append(row);rows_scanned+=1
-            if slot<=start_slot and boundary is None:
-                boundary=row
-        relevant=[
-            row for row in collected
-            if start_slot<row["slot"]<=end_slot and not row.get("err")
-        ]
-        if len(relevant)>MAX_TRANSACTIONS:
-            raise Unavailable("solana_dlmm_transaction_pressure_overflow")
-        if boundary is not None:
-            break
-        if len(page)<SIGNATURE_PAGE_LIMIT:
-            break
-        before=page[-1]["signature"]
+        rows_scanned+=len(page)
+        return page
+
+    if broker is None:
+        collected=[];seen=set();before=None;boundary=None
+        for _ in range(MAX_SIGNATURE_CENSUS_PAGES):
+            page=fetch_page(before=before)
+            if not page:
+                break
+            for row in page:
+                signature=row["signature"]
+                if signature in seen:
+                    raise Unavailable("solana_dlmm_signature_census_duplicate")
+                seen.add(signature);collected.append(row)
+                if row["slot"]<=start_slot and boundary is None:
+                    boundary=row
+            relevant=[
+                row for row in collected
+                if start_slot<row["slot"]<=end_slot and not row.get("err")
+            ]
+            if len(relevant)>MAX_TRANSACTIONS:
+                raise Unavailable("solana_dlmm_transaction_pressure_overflow")
+            if boundary is not None:
+                break
+            if len(page)<SIGNATURE_PAGE_LIMIT:
+                break
+            before=page[-1]["signature"]
+    else:
+        coverage=broker.signature_coverage(scope,pool)
+        old_head=coverage.get("newest_signature")
+        old_oldest=coverage.get("oldest_slot")
+
+        # Extend the head only once per interval. The "until" cursor avoids
+        # re-reading the already authenticated prefix.
+        if int(coverage.get("covered_through_slot") or 0)<int(end_slot):
+            before=None
+            for _ in range(MAX_SIGNATURE_CENSUS_PAGES):
+                page=fetch_page(before=before,until=old_head)
+                if page:
+                    broker.remember_signatures(scope,pool,page)
+                if not page or len(page)<SIGNATURE_PAGE_LIMIT:
+                    break
+                before=page[-1]["signature"]
+
+        coverage=broker.signature_coverage(scope,pool)
+        # Establish or extend the lower-bound witness only when needed.
+        oldest=coverage.get("oldest_slot")
+        if oldest is None or int(oldest)>int(start_slot):
+            before=None
+            rows=broker.signature_rows(scope,pool)
+            if rows:
+                oldest_row=min(rows,key=lambda row:(row["slot"],row["signature"]))
+                before=oldest_row["signature"]
+            for _ in range(MAX_SIGNATURE_CENSUS_PAGES):
+                page=fetch_page(before=before)
+                if page:
+                    broker.remember_signatures(scope,pool,page)
+                if not page:
+                    break
+                if any(int(row["slot"])<=int(start_slot) for row in page):
+                    break
+                if len(page)<SIGNATURE_PAGE_LIMIT:
+                    break
+                before=page[-1]["signature"]
+
+        # A successful finalized query proves the ledger current through this
+        # authenticated interval end even when no new pool transaction occurred.
+        broker.remember_signatures(
+            scope,pool,[],covered_through_slot=int(end_slot))
+        collected=broker.signature_rows(scope,pool,end_slot=end_slot)
+        boundary_rows=[
+            row for row in collected if int(row["slot"])<=int(start_slot)]
+        boundary=(
+            max(boundary_rows,key=lambda row:(row["slot"],row["signature"]))
+            if boundary_rows else None
+        )
+
     if boundary is None:
         raise Unavailable("solana_dlmm_signature_census_missing_start_boundary")
     relevant=[
@@ -542,9 +611,6 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot):
     if len(relevant)>MAX_TRANSACTIONS:
         raise Unavailable("solana_dlmm_transaction_pressure_overflow")
     witness=dict(boundary)
-    # reconstruct() requires transactionIndex on every supplied row. A boundary
-    # witness is outside the replay interval, so any nonnegative sentinel preserves
-    # ordering without asserting an in-block execution position.
     if type(witness.get("transactionIndex")) is not int:
         witness["transactionIndex"]=0
     selected=[]
@@ -560,29 +626,48 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot):
         pages=pages,rows_scanned=rows_scanned,
         relevant_successful=len(relevant),
         start_boundary_slot=boundary["slot"],
+        cache_enabled=broker is not None,
+        cached_prefix_reused=bool(
+            broker is not None and old_head is not None),
+        prior_oldest_slot=(
+            None if broker is None else old_oldest),
     )
 
-
-def _capture_chunk(adapter,start,cursor,wait_seconds):
+def _capture_chunk(
+    adapter,start,cursor,wait_seconds,broker=None,hydration_kind="dlmm_fresh"
+):
     if wait_seconds<=0:
         raise ValueError("solana_dlmm_chunk_wait")
     time.sleep(wait_seconds)
     end_snapshot=adapter.snapshot_from_state(
         start,int(time.time()),True,fresh=True)
     signatures,census=_complete_signature_census(
-        adapter.rpc,start["pool"],start["slot"],end_snapshot["slot"])
+        adapter.rpc,start["pool"],start["slot"],end_snapshot["slot"],broker)
     relevant=[
         row for row in signatures
         if start["slot"]<row["slot"]<=end_snapshot["slot"] and not row.get("err")
     ]
-    params=[[
-        s["signature"],dict(
-            encoding="json",commitment="finalized",
-            maxSupportedTransactionVersion=1)
-    ] for s in relevant]
-    values=(adapter.rpc.call_many(
-        "getTransaction",params,True,batch_size=8) if params else [])
-    transactions={s["signature"]:tx for s,tx in zip(relevant,values)}
+    if broker is not None and relevant:
+        signatures_to_hydrate=[s["signature"] for s in relevant]
+        txmap,hydration=broker.hydrate_transactions(
+            adapter.rpc,signatures_to_hydrate,kind=hydration_kind,
+            deadline=time.time()+6.0,max_version=1,batch_size=8)
+        if hydration["pending"]:
+            raise Unavailable("solana_dlmm_transaction_hydration_incomplete")
+        transactions={
+            s["signature"]:txmap[s["signature"]]
+            for s in relevant if txmap.get(s["signature"]) is not None
+        }
+        census["transaction_hydration"]=hydration
+    else:
+        params=[[
+            s["signature"],dict(
+                encoding="json",commitment="finalized",
+                maxSupportedTransactionVersion=1)
+        ] for s in relevant]
+        values=(adapter.rpc.call_many(
+            "getTransaction",params,True,batch_size=8) if params else [])
+        transactions={s["signature"]:tx for s,tx in zip(relevant,values)}
     if len(encode(transactions))>2_000_000:
         raise Unavailable("solana_dlmm_interval_evidence_bound")
     tape=reconstruct(
@@ -594,7 +679,8 @@ def _capture_chunk(adapter,start,cursor,wait_seconds):
 
 
 def _observe_window(
-    adapter,address,start,total_seconds,allow_reset,pacer,rpcs,deadline=None
+    adapter,address,start,total_seconds,allow_reset,pacer,rpcs,deadline=None,
+    broker=None,hydration_kind="dlmm_fresh"
 ):
     origin=start;current=start
     cursor=[start["slot"],2**31-1,2**31-1]
@@ -615,7 +701,8 @@ def _observe_window(
             ),None,current,origin,adapter
         rate_limit_before=_rate_limit_failures(rpcs)
         try:
-            tape,cursor,census=_capture_chunk(adapter,current,cursor,duration)
+            tape,cursor,census=_capture_chunk(
+                adapter,current,cursor,duration,broker,hydration_kind)
         except (Unavailable,ValueError,KeyError,TypeError) as exc:
             reason=str(exc)
             if (reason=="provider_request_failed"
@@ -1011,7 +1098,9 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
     return reasons,recent,mark,fee_uplift
 
 
-def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None):
+def _lifecycle(
+    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None
+):
     position=_build_position(entry,features,policy)
     current=entry;elapsed=0;segments=[];tapes=[]
     max_hold=int(policy["range"]["max_holding_seconds"])
@@ -1028,7 +1117,8 @@ def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None):
         adapter=_rotate(adapter,pacer,rpcs)
         duration=min(segment_seconds,max_hold-elapsed)
         phase,tape,terminal,effective_start,adapter=_observe_window(
-            adapter,address,current,duration,False,pacer,rpcs,deadline)
+            adapter,address,current,duration,False,pacer,rpcs,deadline,
+            broker,"position_monitor")
         if not phase["verified"]:
             return dict(
                 complete=False,reason=phase["reason"],segments=segments,
@@ -1068,7 +1158,7 @@ def _regime_pass(candidate,policy):
     )
 
 
-def _new_finalized_swaps(rpc,pool,after_slot):
+def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
     before429=int((getattr(rpc,"failure_methods",{}) or {}).get(
         "getSignaturesForAddress:http_429",0))
     try:
@@ -1108,6 +1198,10 @@ def _new_finalized_swaps(rpc,pool,after_slot):
                 and slot>after_slot):
             valid.append(row)
     valid.sort(key=lambda row:(row["slot"],row["signature"]))
+    if broker is not None and rows:
+        broker.remember_signatures(
+            "dlmm_fresh",pool,rows,
+            covered_through_slot=max(after_slot,head_slot))
     if not valid:
         return [],dict(
             rate_limited=False,stage=None,
@@ -1116,16 +1210,34 @@ def _new_finalized_swaps(rpc,pool,after_slot):
             fresh_signature_count=0,
         )
 
-    params=[[
-        row["signature"],dict(
-            encoding="json",commitment="finalized",
-            maxSupportedTransactionVersion=1)
-    ] for row in valid]
     before429=int((getattr(rpc,"failure_methods",{}) or {}).get(
         "getTransaction:http_429",0))
     try:
-        values=rpc.call_many(
-            "getTransaction",params,True,batch_size=8)
+        if broker is not None:
+            sigs=[row["signature"] for row in valid]
+            txmap,hydration=broker.hydrate_transactions(
+                rpc,sigs,kind="dlmm_fresh",
+                deadline=time.time()+5.0,max_version=1,batch_size=8)
+            if hydration["pending"]:
+                after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
+                    "getTransaction:http_429",0))
+                return [],dict(
+                    rate_limited=after429>before429,
+                    stage="getTransaction",
+                    head_slot=after_slot,head_signature=None,
+                    fresh_signature_count=len(valid),
+                    hydration=hydration,
+                )
+            values=[txmap.get(sig) for sig in sigs]
+        else:
+            params=[[
+                row["signature"],dict(
+                    encoding="json",commitment="finalized",
+                    maxSupportedTransactionVersion=1)
+            ] for row in valid]
+            values=rpc.call_many(
+                "getTransaction",params,True,batch_size=8)
+            hydration=None
     except Unavailable:
         after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
             "getTransaction:http_429",0))
@@ -1156,10 +1268,11 @@ def _new_finalized_swaps(rpc,pool,after_slot):
         head_slot=max(after_slot,head_slot),
         head_signature=head_signature,
         fresh_signature_count=len(valid),
+        hydration=(None if broker is None else hydration),
     )
 
 
-def _await_fresh_swap_trigger(
+def _await_fresh_swap_trigger_polling(
     adapter,candidate,baseline_state,policy,pacer,rpcs,deadline=None
 ):
     started=time.monotonic()
@@ -1264,12 +1377,149 @@ def _await_fresh_swap_trigger(
         time.sleep(min(FRESH_SWAP_TRIGGER_POLL_SECONDS,remaining))
 
 
+def _await_fresh_swap_trigger(
+    adapter,candidate,baseline_state,policy,pacer,rpcs,deadline=None,broker=None
+):
+    """Wait on finalized DLMM pool-account wakeups, then authenticate one exact swap.
+
+    HTTP signature polling is no longer the primary fresh-event detector. A finalized
+    program-account stream wakes only the changed pool. A targeted signature/transaction
+    read then proves that the wake was an actual swap. On a stream gap, one bounded
+    recovery read covers the gap from the last authenticated cursor.
+    """
+    if broker is None:
+        return _await_fresh_swap_trigger_polling(
+            adapter,candidate,baseline_state,policy,pacer,rpcs,deadline)
+
+    started=time.monotonic()
+    baseline_slot=int(baseline_state["slot"])
+    cursor_name="dlmm_fresh:"+str(candidate["address"])
+    durable_cursor=broker.cursor(cursor_name)
+    cursor_slot=max(baseline_slot,int(durable_cursor.get("slot") or 0))
+    polls=0;wakeups=0;gap_recoveries=0;refreshes=0
+    current_candidate=dict(candidate)
+    next_refresh=0.0
+    initial_status=broker.stream_status(
+        DLMM_WAKE_STREAM_KEY,int(time.time()),0)
+    last_gap_count=int(initial_status.get("gaps") or 0)
+
+    while True:
+        elapsed=max(0.0,time.monotonic()-started)
+        if _runtime_expired(deadline):
+            return dict(
+                triggered=False,reason="experiment_runtime_deadline",
+                waited_seconds=elapsed,polls=polls,wakeups=wakeups,
+                gap_recoveries=gap_recoveries,
+                acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
+            ),None,adapter,current_candidate
+        if elapsed>=FRESH_SWAP_TRIGGER_MAX_SECONDS:
+            return dict(
+                triggered=False,reason="fresh_swap_trigger_timeout",
+                waited_seconds=elapsed,polls=polls,wakeups=wakeups,
+                gap_recoveries=gap_recoveries,
+                acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
+            ),None,adapter,current_candidate
+
+        if elapsed>=next_refresh:
+            observed_at=int(time.time())
+            try:
+                current_candidate=_history_acceleration(
+                    current_candidate,observed_at)
+            except Exception as exc:
+                return dict(
+                    triggered=False,reason="acceleration_refresh_unavailable",
+                    detail=type(exc).__name__,waited_seconds=elapsed,
+                    polls=polls,wakeups=wakeups,gap_recoveries=gap_recoveries,
+                    acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
+                ),None,adapter,current_candidate
+            refreshes+=1
+            if not _regime_pass(current_candidate,policy):
+                return dict(
+                    triggered=False,reason="acceleration_regime_expired",
+                    waited_seconds=elapsed,polls=polls,wakeups=wakeups,
+                    gap_recoveries=gap_recoveries,
+                    acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
+                    volume_acceleration=current_candidate["volume_acceleration"],
+                    fee_acceleration=current_candidate["fee_acceleration"],
+                ),None,adapter,current_candidate
+            next_refresh=elapsed+FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS
+
+        now=int(time.time())
+        status=broker.stream_status(DLMM_WAKE_STREAM_KEY,now,0)
+        gap_count=int(status.get("gaps") or 0)
+        events=broker.recent_events(
+            DLMM_WAKE_STREAM_KEY,after_slot=cursor_slot,
+            address=candidate["address"])
+        should_auth=bool(events)
+
+        # A stream gap can hide a wakeup. Recover exactly once per observed gap
+        # using the last authenticated per-pool cursor; normal operation does not poll.
+        if gap_count>last_gap_count:
+            should_auth=True
+            gap_recoveries+=1
+            last_gap_count=gap_count
+
+        if should_auth:
+            wakeups+=len(events)
+            adapter=_rotate(adapter,pacer,rpcs)
+            swaps,poll_meta=_new_finalized_swaps(
+                adapter.rpc,candidate["address"],cursor_slot,broker)
+            polls+=1
+            if poll_meta.get("rate_limited"):
+                remaining=min(
+                    FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
+                        0.0,time.monotonic()-started),
+                    _runtime_remaining(deadline))
+                if remaining>0:
+                    time.sleep(min(0.5,remaining))
+                continue
+            new_cursor=max(
+                cursor_slot,int(poll_meta.get("head_slot") or cursor_slot))
+            if new_cursor>cursor_slot:
+                cursor_slot=new_cursor
+                broker.advance_cursor(
+                    cursor_name,cursor_slot,poll_meta.get("head_signature"))
+            if swaps:
+                trigger=swaps[0]
+                trigger_slot=int(trigger["slot"])
+                adapter=_rotate(adapter,pacer,rpcs)
+                (post,adapter)=_retry_rate_limited_operation(
+                    lambda active:_fresh_supported_start(
+                        active,current_candidate),
+                    adapter,pacer,rpcs,deadline)
+                if int(post["slot"])<trigger_slot:
+                    remaining=min(
+                        FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
+                            0.0,time.monotonic()-started),
+                        _runtime_remaining(deadline))
+                    if remaining>0:
+                        time.sleep(min(0.5,remaining))
+                    continue
+                trigger.update(
+                    triggered=True,reason="authenticated_fresh_swap",
+                    wake_source="finalized_program_account_stream",
+                    waited_seconds=max(0.0,time.monotonic()-started),
+                    polls=polls,wakeups=wakeups,gap_recoveries=gap_recoveries,
+                    acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
+                    post_trigger_slot=int(post["slot"]),
+                )
+                return trigger,post,adapter,current_candidate
+
+        remaining=min(
+            FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
+                0.0,time.monotonic()-started),
+            _runtime_remaining(deadline))
+        if remaining<=0:
+            continue
+        time.sleep(min(0.25,remaining))
+
+
 def _triggered_warmup(
-    adapter,candidate,compatibility_state,policy,pacer,rpcs,deadline=None
+    adapter,candidate,compatibility_state,policy,pacer,rpcs,deadline=None,broker=None
 ):
     trigger,post_trigger,adapter,current_candidate=(
         _await_fresh_swap_trigger(
-            adapter,candidate,compatibility_state,policy,pacer,rpcs,deadline))
+            adapter,candidate,compatibility_state,policy,pacer,rpcs,deadline,broker))
     if not trigger.get("triggered"):
         return dict(
             aligned=False,reason=trigger["reason"],trigger=trigger,
@@ -1277,7 +1527,7 @@ def _triggered_warmup(
     warmup_seconds=int(policy["range"]["warmup_seconds"])
     phase,warm,entry,warm_origin,adapter=_observe_window(
         adapter,current_candidate["address"],post_trigger,
-        warmup_seconds,True,pacer,rpcs,deadline)
+        warmup_seconds,True,pacer,rpcs,deadline,broker,"dlmm_fresh")
     result=dict(
         aligned=bool(phase.get("verified") and warm is not None and warm.events),
         reason=(
@@ -1390,6 +1640,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
     compatibility_rejections=[];compatibility_screened=0
     pacer=provider.AlchemyPacer();rpcs=[]
     network_identity=_prove_network_identity(pacer,rpcs)
+    broker=EvidenceBroker(DLMM_BROKER_DB)
+    stream_stop=threading.Event();stream_ready=threading.Event()
+    wake_stream=ProgramAccountWakeStream(
+        DLMM_DISCOVERY_WS_URL,broker,DLMM_WAKE_STREAM_KEY,dlmm.PROGRAM,
+        data_size=904,coverage_seconds=2)
+    wake_thread=threading.Thread(
+        target=wake_stream.run,args=(stream_stop,stream_ready),daemon=True)
+    wake_thread.start()
+    if not stream_ready.wait(15):
+        broker.close()
+        raise Unavailable("dlmm_wake_stream_start_timeout")
     report=dict(
         kind="solana_dlmm_independent_v1_prospective",
         policy_revision=policy.get("revision"),frozen_policy=policy,
@@ -1406,9 +1667,16 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         compatibility_rejections=compatibility_rejections,
         network_identity=network_identity,
         runtime_limit_seconds=max_runtime_seconds,
+        evidence_acquisition_mode="program_account_wake_stream_plus_incremental_http_auth",
+        wake_stream=broker.stream_status(
+            DLMM_WAKE_STREAM_KEY,int(time.time()),0),
+        evidence_broker=broker.telemetry(),
     )
     attempted=0;complete=0;failure_counts=Counter()
     def checkpoint(stage):
+        report["wake_stream"]=broker.stream_status(
+            DLMM_WAKE_STREAM_KEY,int(time.time()),0)
+        report["evidence_broker"]=broker.telemetry()
         _atomic_checkpoint(
             report,stage,rpcs,pacer,
             attempted_pool_count=attempted,
@@ -1456,7 +1724,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
             alignment,warm,entry,warm_origin,adapter,aligned_candidate=(
                 _triggered_warmup(
                     adapter,candidate,compatibility_state,
-                    policy,pacer,candidate_rpcs,deadline))
+                    policy,pacer,candidate_rpcs,deadline,broker))
             # Any rotated RPCs created inside observation are not yet in global list.
             for rpc in candidate_rpcs:
                 if rpc not in rpcs:rpcs.append(rpc)
@@ -1483,7 +1751,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                 checkpoint("qualification_rejection")
                 continue
             lifecycle,adapter=_lifecycle(
-                adapter,candidate["address"],entry,features,policy,pacer,candidate_rpcs,deadline)
+                adapter,candidate["address"],entry,features,policy,pacer,
+                candidate_rpcs,deadline,broker)
             for rpc in candidate_rpcs:
                 if rpc not in rpcs:rpcs.append(rpc)
             attempt["lifecycle"]=lifecycle
@@ -1533,6 +1802,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
             None if not capital_hour else statistics.fmean(capital_hour)),
         exit_reason_counts=dict(sorted(exits.items())),
         rpc=_sum_rpc_metrics(rpcs),alchemy_pacer=pacer.telemetry(),
+        wake_stream=broker.stream_status(
+            DLMM_WAKE_STREAM_KEY,int(time.time()),0),
+        evidence_broker=broker.telemetry(),
         runtime_limit_reached=_runtime_expired(deadline),
         elapsed_seconds=max(
             0.0,time.monotonic()-run_started_monotonic),
@@ -1552,6 +1824,11 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         qualification_failure_counts=dict(sorted(failure_counts.items())),
         elapsed_seconds=report["elapsed_seconds"],
     )
+    stream_stop.set();wake_thread.join(timeout=5)
+    report["wake_stream"]=broker.stream_status(
+        DLMM_WAKE_STREAM_KEY,int(time.time()),0)
+    report["evidence_broker"]=broker.telemetry()
+    broker.close()
     print(json.dumps(dict(
         conclusion=report["conclusion"],attempted=attempted,complete=complete,
         profitable_rate=report["profitable_rate"],
