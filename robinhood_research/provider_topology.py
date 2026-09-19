@@ -172,6 +172,7 @@ class PacedRpc(Rpc):
         requests_per_second,
         pacer=None,
         transport=None,
+        pace_injected_transport=False,
         **kwargs,
     ):
         self.role = str(role)
@@ -180,11 +181,14 @@ class PacedRpc(Rpc):
         self._injected_transport = transport
         if transport is None:
             super().__init__(endpoint, transport=None, **kwargs)
-        else:
+        elif pace_injected_transport:
             def paced_transport(method, params):
                 self.pacer.pace()
                 return transport(method, params)
             super().__init__(endpoint, transport=paced_transport, **kwargs)
+        else:
+            # Deterministic tests/captured transports retain their original timing.
+            super().__init__(endpoint, transport=transport, **kwargs)
 
     def _http(self, method, params):
         self.pacer.pace()
