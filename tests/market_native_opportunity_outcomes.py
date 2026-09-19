@@ -34,7 +34,8 @@ from meme_machine.market_native_shadow import discover_market_native
 from meme_machine.outcome_research import (
     DEFAULT_HORIZONS, enable_shadow_exit, high_density_features,
     is_two_buyer_sole_near_miss, liquidity_floor_eligibility, new_tracker,
-    observe_trade, subclass_research_protocol, summarize_liquidity_counterfactual,
+    observe_trade, subclass_development_status, subclass_research_protocol,
+    summarize_liquidity_counterfactual,
     summarize_post_exit_tail, summarize_trackers, summarize_two_buyer_near_misses,
     two_buyer_research_candidate,
 )
@@ -457,6 +458,7 @@ def main():
                 liquidity_counterfactual=summarize_liquidity_counterfactual(natural_results),
                 post_exit_tail_summary=summarize_post_exit_tail(natural_results),
                 two_buyer_sole_near_miss_summary=summarize_two_buyer_near_misses(natural_results),
+                subclass_development_status=subclass_development_status(trackers),
                 provider_sessions=evidence.sessions,
                 stream=tape.status(ended),stream_error_kind=stream.error_kind,
                 future_labels_used_for_selection=False,automatic_threshold_change=False,
