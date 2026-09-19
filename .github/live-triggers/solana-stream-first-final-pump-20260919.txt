@@ -1,0 +1,1 @@
+Final verification of the completed Solana stream-first evidence repair: candidate-specific PumpSwap wakeups, shared durable transaction cache, priority queue, incremental evidence, atomic cross-process leases, and global backpressure. Frozen Pump strategy unchanged.
