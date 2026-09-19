@@ -314,8 +314,9 @@ class IncrementalPumpSwapHistory:
             int(r["blockTime"]) for r in self.signature_rows.values()
             if r.get("blockTime") is not None and int(r["blockTime"])<=now
         ]
+        stream_complete=self._stream_window_complete(now,window_seconds)
         signature_complete=bool(
-            self._stream_window_complete(now,window_seconds)
+            stream_complete
             or self.history_exhausted
             or (known and min(known)<=cutoff)
         )
@@ -326,14 +327,21 @@ class IncrementalPumpSwapHistory:
                 continue
             if cutoff<=int(bt)<=now:
                 pending+=1
+        # A fully warmed candidate-specific finalized stream proves the current
+        # decision window independently of older research-history rows. Unknown
+        # block times outside that stream window must not poison a current decision.
+        unknown_safe=bool(stream_complete or self.unknown_block_times==0)
         complete=bool(
             signature_complete
-            and self.unknown_block_times==0
+            and unknown_safe
             and pending==0
             and (self.broker is None or self.stream_pending_transactions==0))
         return dict(
             complete=complete,window_seconds=int(window_seconds),
             signature_complete=signature_complete,pending_transactions=pending,
+            stream_complete=stream_complete,
+            ignored_historical_unknown_block_times=(
+                self.unknown_block_times if stream_complete else 0),
             cutoff=cutoff,
         )
 
