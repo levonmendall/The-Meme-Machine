@@ -11,7 +11,7 @@ import zlib
 from . import BoundaryError
 from .abi import calldata, topic
 from .identity import authenticate, load
-from .provider import Rpc
+from .provider_topology import configured_rpc
 from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, paper_outcome,
                      paper_fee_capture, paper_position, paper_removal, price, quote_value, replay, state, unpack, values)
 
@@ -51,7 +51,7 @@ class BoundedMultiRpc:
     def _new(self):
         if len(self.sessions)>=self.max_sessions:
             raise BoundaryError('ramses_provider_program_budget_exhausted')
-        session=Rpc(self.endpoint,limit=200,per_scope=200,retries=0)
+        session=configured_rpc(self.endpoint,limit=200,per_scope=200,retries=0)
         self.sessions.append(session)
         return session
 

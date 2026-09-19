@@ -7,7 +7,7 @@ import time
 from urllib.request import urlopen
 
 from . import BoundaryError
-from .provider import Rpc
+from .provider_topology import configured_rpc
 
 
 def run(endpoint):
@@ -16,7 +16,7 @@ def run(endpoint):
                   protocol_identity_verified=False, started_at=int(time.time()))
     rpc = None
     try:
-        rpc = Rpc(endpoint, limit=80, per_scope=40, retries=0)
+        rpc = configured_rpc(endpoint, limit=80, per_scope=40, retries=0)
         report['chain_id'] = rpc.verify_chain()
         latest = rpc.call('eth_getBlockByNumber', ['latest', False])
         finalized = rpc.call('eth_getBlockByNumber', ['finalized', False])

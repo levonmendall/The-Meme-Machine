@@ -25,7 +25,7 @@ from .identity import load
 from .pons import (
     CurveState, authenticate_curve, curve_abi, factory_record, raw_event,
 )
-from .provider import Rpc
+from .provider_topology import configured_rpc
 
 REPORT=Path(os.environ.get("MM_ROBINHOOD_PONS_NATURAL_REPORT","robinhood-pons-natural-report.json"))
 OBSERVE_SECONDS=60
@@ -182,7 +182,7 @@ def _final_mark(rpc,candidate,block,report):
 
 
 def run(endpoint):
-    rpc=Rpc(endpoint,limit=180,per_scope=170,retries=0)
+    rpc=configured_rpc(endpoint,limit=180,per_scope=170,retries=0)
     report=dict(
         kind="natural_pons_v2_bounded_observation",
         research_only=True,allocation_authority=False,paper_orders=0,

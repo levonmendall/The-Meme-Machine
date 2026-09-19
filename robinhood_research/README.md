@@ -22,6 +22,28 @@ workflow reads this exact repository secret. There is no schedule. A push bearin
 `[robinhood-read-proof]` to this dedicated branch triggers one bounded read job.
 The workflow has contents-read permission and never calls Solana providers.
 
+## Multi-source Robinhood observability
+
+The read plane now supports independent provider redundancy without changing strategy
+authority:
+
+- `MM_ROBINHOOD_READ_RPC_URL`: existing authenticated primary RPC.
+- `MM_ROBINHOOD_QUICKNODE_RPC_URL`: optional independent QuickNode secondary.
+  Standard read-only `eth_*` requests may fail over only after a provider/capability
+  failure. Provider-specific methods such as `alchemy_getAssetTransfers` remain
+  pinned to the primary.
+- `https://rpc.mainnet.chain.robinhood.com`: official public RPC, diagnostic-only;
+  it is never an automatic evidence or decision fallback.
+- `wss://feed.mainnet.chain.robinhood.com`: official sequencer feed,
+  observation-only. It tracks liveness, sequence gaps/conflicts and feed timestamps
+  but cannot qualify, authorize, fill or settle a paper position.
+
+`python -m robinhood_research.observability_probe` performs one bounded comparison
+of the primary, QuickNode, public RPC and sequencer feed. A push containing
+`[robinhood-observability-proof]` runs the same proof in Actions when the QuickNode
+secret is configured.
+
+
 ## Implemented boundaries
 
 - `provider.py`: read-method allowlist, wrong-chain guard, sanitized errors,

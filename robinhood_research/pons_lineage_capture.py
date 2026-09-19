@@ -15,7 +15,7 @@ from . import BoundaryError
 from .abi import calldata, topic, signature
 from .identity import authenticate, load
 from .pons import factory_record, raw_event, prove_v4_lineage, prove_v1_v3_lineage
-from .provider import Rpc
+from .provider_topology import configured_rpc
 
 # Locator-only anchors.  They do not enter the proof without full RPC authentication.
 V2_GRADUATION_BLOCK=56882711
@@ -92,7 +92,7 @@ def _first_code_block(rpc,address,low,high,report):
 
 
 def run(endpoint):
-    rpc=Rpc(endpoint,limit=120,per_scope=110,retries=0)
+    rpc=configured_rpc(endpoint,limit=120,per_scope=110,retries=0)
     report=dict(
         kind='captured_finalized_pons_lineage_v3',
         started_at=time.time(),identities={},headers={},receipts=[],events=[],reads=[],
