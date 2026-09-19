@@ -1,0 +1,24 @@
+{
+  "strategy_id": "pump-alpha-v1",
+  "status": "frozen_candidate_policy",
+  "independence": {
+    "continuation_v1_dependency": false,
+    "market_native_priority_dependency": false,
+    "fomo_dependency": false,
+    "dlmm_dependency": false,
+    "shared_allocator_authority": false,
+    "live_money_authority": false
+  },
+  "entry_modes": [
+    "late_curve_acceleration",
+    "postgrad_continuation",
+    "second_leg_breakout"
+  ],
+  "confirmation_layers": [
+    "historically_skilled_wallet_convergence",
+    "historically_successful_creator"
+  ],
+  "price_basis": "actual_token_quote_pair",
+  "non_sol_execution": "fail_closed_until_quote_adapter_is_independently_verified",
+  "promotion_rule": "no automatic promotion from score, fixture, or first natural wins"
+}
