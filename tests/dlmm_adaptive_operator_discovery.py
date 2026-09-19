@@ -33,6 +33,7 @@ OUT=Path("dlmm-adaptive-operator-discovery.json")
 CHECKPOINT_OUT=Path("dlmm-adaptive-operator-checkpoint.json")
 POOL_PAGE_SIZE=500
 MAX_POOL_PAGES=20
+MAX_POOL_DIAGNOSTIC_PAGES=100
 MAX_ELIGIBLE_POOLS=5_000
 STREAM_SECONDS=max(60,min(int(os.environ.get("MM_DLMM_DISCOVERY_STREAM_SECONDS","300")),900))
 RECONSTRUCTION_SECONDS=max(
@@ -130,14 +131,16 @@ def diagnose_pool_universe():
     """Audit the unfiltered API-visible pool inventory without changing eligibility."""
     primary=Counter();overlap=Counter();examples=defaultdict(list)
     total=0;sol_pairs=0;complete=False;pages=0;eligible=0
-    seen=set()
-    for page in range(1,MAX_POOL_PAGES+1):
+    seen=set();reported_pages=None
+    for page in range(1,MAX_POOL_DIAGNOSTIC_PAGES+1):
         payload=study._json_get("/pools",dict(
             page=page,page_size=POOL_PAGE_SIZE,sort_by="tvl:desc",
         ))
         data=payload.get("data") if isinstance(payload,dict) else None
         if not isinstance(data,list):
             raise RuntimeError("dlmm_v2_pool_diagnostic_shape")
+        if reported_pages is None and isinstance(payload,dict) and payload.get("pages") is not None:
+            reported_pages=int(payload["pages"])
         pages=page
         for row in data:
             total+=1
@@ -193,11 +196,12 @@ def diagnose_pool_universe():
                 "tvl_below_50000","missing_volume_24h","volume_24h_below_25000"
             )
             primary[next(reason for reason in precedence if reason in reasons)]+=1
-        if len(data)<POOL_PAGE_SIZE:
+        if (reported_pages is not None and page>=reported_pages) or len(data)<POOL_PAGE_SIZE:
             complete=True
             break
     return dict(
         complete=complete,pages=pages,page_size=POOL_PAGE_SIZE,
+        api_reported_pages=reported_pages,max_pages=MAX_POOL_DIAGNOSTIC_PAGES,
         observable_unique_pools=len(seen),raw_rows_seen=total,
         exact_one_sol_leg_pools=sol_pairs,
         eligible_under_current_rules=eligible,
