@@ -55,6 +55,8 @@ PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS=2.0
 RATE_LIMIT_PROVIDER_BOUNDARIES=frozenset((
     "provider_http_429",
     "provider_rpc_429",
+    "provider_shared_admission_deadline",
+    "provider_shared_queue_capacity",
 ))
 RECOVERABLE_PROVIDER_BOUNDARIES=frozenset((
     "provider_http_500",
@@ -341,16 +343,29 @@ def _attach_wallet_overlay(vector,skill_book):
     return overlay
 
 
+def _collect_completed(result,futures):
+    remaining=[]
+    for qindex,future in futures:
+        if not future.done():
+            remaining.append((qindex,future));continue
+        try:
+            life=future.result()
+        except Exception as exc:
+            life=dict(status="unexpected_boundary",boundary=type(exc).__name__)
+        life["index"]=qindex
+        result["lifecycles"].append(life)
+        _append_jsonl(ROOT/"completed-lifecycles.jsonl",life)
+    return remaining
+
+
 def run(endpoint):
     ROOT.mkdir(parents=True,exist_ok=True)
-    # Strategy-local artifacts only. Never delete other lanes' data.
-    for path in ROOT.glob("trial-*.sqlite*"):
-        path.unlink()
-    for path in (PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT):
-        try:
-            path.unlink()
-        except FileNotFoundError:
-            pass
+    # A repeated command must never erase failed evidence or open paper state.
+    occupied=list(ROOT.glob("trial-*.sqlite*"))
+    occupied += [p for p in (PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT)
+                 if p.exists()]
+    if occupied:
+        raise BoundaryError("selective_existing_run_requires_explicit_recovery")
 
     started=time.time()
     result=dict(
@@ -423,6 +438,7 @@ def run(endpoint):
                 result["sequencer_recoveries"],
                 on_provider_failure=_checkpoint_provider_failure,
             )
+            futures=_collect_completed(result,futures)
             now=time.time()
             now_monotonic=time.monotonic()
             for event in fresh:
