@@ -85,13 +85,21 @@ class SequencerFeedTests(unittest.TestCase):
         self.assertEqual(status["authority"],"observation_only")
         self.assertFalse(status["canonical_evidence"])
 
+    def test_informational_envelope_is_not_a_continuity_failure(self):
+        state=SequencerFeedState()
+        self.assertEqual(state.ingest({"version":1,"status":"connected"}),0)
+        summary=state.summary(now=1)
+        self.assertEqual(summary["messages"],0)
+        self.assertEqual(summary["malformed"],0)
+        self.assertEqual(summary["non_message_envelopes"],1)
+
     def test_malformed_feed_frame_is_counted_not_promoted(self):
         state=SequencerFeedState()
         self.assertEqual(state.ingest("not-json"),0)
-        self.assertEqual(state.ingest({"version":1}),0)
         summary=state.summary(now=1)
         self.assertEqual(summary["messages"],0)
-        self.assertEqual(summary["malformed"],2)
+        self.assertEqual(summary["malformed"],1)
+        self.assertEqual(summary["non_message_envelopes"],0)
 
 
 if __name__=="__main__":

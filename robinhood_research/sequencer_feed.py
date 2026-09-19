@@ -61,6 +61,7 @@ class SequencerFeedState:
         self.gap_events = 0
         self.missing_sequences = 0
         self.malformed = 0
+        self.non_message_envelopes = 0
         self.first_sequence = None
         self.last_sequence = None
         self.latest_header_block_number = None
@@ -89,6 +90,9 @@ class SequencerFeedState:
             envelope = json.loads(payload) if isinstance(payload, str) else payload
             if not isinstance(envelope, dict):
                 raise ValueError("envelope")
+            if "messages" not in envelope:
+                self.non_message_envelopes += 1
+                return 0
             rows = envelope.get("messages")
             if not isinstance(rows, list):
                 raise ValueError("messages")
@@ -164,6 +168,7 @@ class SequencerFeedState:
             gap_events=self.gap_events,
             missing_sequences=self.missing_sequences,
             malformed=self.malformed,
+            non_message_envelopes=self.non_message_envelopes,
             latest_header_block_number=self.latest_header_block_number,
             latest_header_timestamp=self.latest_header_timestamp,
             feed_message_age_seconds=(
