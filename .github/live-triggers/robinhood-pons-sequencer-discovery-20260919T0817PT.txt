@@ -1,0 +1,1 @@
+One bounded natural Pons observation to validate sequencer-clock discovery, governed discovery-log reads, and authoritative Alchemy evidence after the Solana-style Robinhood RPC refactor.
