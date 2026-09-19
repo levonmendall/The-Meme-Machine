@@ -110,6 +110,45 @@ class SolanaEvidenceBrokerTests(unittest.TestCase):
         reclaimed=second._claim_jobs(2,clock(),lease_seconds=15)
         self.assertIn("tx:a",[x[0] for x in reclaimed])
 
+    def test_global_transport_pacing_is_shared_across_broker_processes(self):
+        td=tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        clock=_Clock()
+        path=os.path.join(td.name,"shared.sqlite3")
+        first=EvidenceBroker(path,clock=clock,sleeper=clock.sleep)
+        second=EvidenceBroker(path,clock=clock,sleeper=clock.sleep)
+        self.addCleanup(first.close);self.addCleanup(second.close)
+
+        wait1=first._reserve_hydration_transport(clock()+10)
+        wait2=second._reserve_hydration_transport(clock()+10)
+        self.assertEqual(wait1,0.0)
+        self.assertAlmostEqual(wait2,0.2,places=6)
+        pressure=second.telemetry()["pressure"]
+        self.assertEqual(pressure["transport_reservations"],2)
+        self.assertGreaterEqual(pressure["transport_ready_in_seconds"],0.19)
+
+    def test_rate_limit_cooldown_is_global_and_recovers(self):
+        td=tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        clock=_Clock()
+        path=os.path.join(td.name,"shared.sqlite3")
+        first=EvidenceBroker(path,clock=clock,sleeper=clock.sleep)
+        second=EvidenceBroker(path,clock=clock,sleeper=clock.sleep)
+        self.addCleanup(first.close);self.addCleanup(second.close)
+
+        first._note_pressure_failure()
+        before=clock()
+        wait=second._reserve_hydration_transport(clock()+10)
+        self.assertGreaterEqual(wait,2.0)
+        self.assertGreaterEqual(clock()-before,2.0)
+        self.assertEqual(second.telemetry()["pressure"]["rate_streak"],1)
+
+        for _ in range(8):
+            second._note_pressure_success()
+        recovered=first.telemetry()["pressure"]
+        self.assertEqual(recovered["rate_streak"],0)
+        self.assertGreaterEqual(recovered["batch_size"],5)
+
     def test_cursor_cannot_regress(self):
         broker,_clock=self.make_broker()
         broker.advance_cursor("pool:x",100,"a")
