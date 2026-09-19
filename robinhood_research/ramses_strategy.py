@@ -35,6 +35,7 @@ from .ramses import (
 )
 
 STRATEGY_VERSION = "ramses-fee-pulse-v1"
+STRATEGY_DOMAIN = "robinhood-ramses-dlmm-independent"
 
 POLICY = {
     "strategy_version": STRATEGY_VERSION,
@@ -60,6 +61,16 @@ POLICY = {
         "min_confidence_bps": 8000,
         "min_expected_net_bps": HURDLE_BPS + 1,
         "max_path_width": 3,
+    },
+    "independence": {
+        "strategy_domain": STRATEGY_DOMAIN,
+        "shared_allocator": False,
+        "cross_strategy_candidates": False,
+        "cross_strategy_signals": False,
+        "cross_strategy_state": False,
+        "cross_strategy_performance_attribution": False,
+        "anchor_source_class": "external_reference",
+        "directional_source_class": "ramses_independent_model",
     },
     "hurdle_bps": HURDLE_BPS,
     "allocation_authority": False,
@@ -368,6 +379,7 @@ def _freeze(prestate, capital, quote_side, ids, budget_map, *, name, mode,
         "paper_only": True,
         "strategy_evidence_eligible": True,
         "strategy_version": STRATEGY_VERSION,
+        "strategy_domain": STRATEGY_DOMAIN,
         "policy_hash": POLICY_HASH,
         "hurdle_bps": HURDLE_BPS,
         "proposal_hash": digest,
@@ -478,11 +490,29 @@ def evaluate_fee_pulse(features, proposal):
 
 
 def _signal_eligible(signal, *, now, kind):
+    """Require fresh, explicitly independent non-strategy signal provenance."""
     if not isinstance(signal, dict):
         return False, [f"{kind}_signal_missing"]
     reasons = []
     if signal.get("kind") != kind:
         reasons.append(f"{kind}_signal_kind")
+    required_source = (
+        POLICY["independence"]["anchor_source_class"]
+        if kind == "anchor"
+        else POLICY["independence"]["directional_source_class"]
+    )
+    if signal.get("source_class") != required_source:
+        reasons.append(f"{kind}_signal_source")
+    forbidden = {
+        str(signal.get("source_strategy", "")).lower(),
+        str(signal.get("upstream_strategy", "")).lower(),
+        str(signal.get("candidate_source", "")).lower(),
+    }
+    if any(
+        any(token in value for token in ("pons", "pump", "continuation", "solana", "other_strategy"))
+        for value in forbidden if value
+    ):
+        reasons.append("cross_strategy_signal_forbidden")
     observed_at = signal.get("observed_at")
     if type(observed_at) not in (int, float) or now < observed_at:
         reasons.append(f"{kind}_signal_time")
@@ -498,7 +528,6 @@ def _signal_eligible(signal, *, now, kind):
         reasons.append("directional_conversion_side")
     return not reasons, reasons
 
-
 def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
                   entry_timestamp=None, gas_costs=None, universe_features=None,
                   anchor_signal=None, directional_signal=None, now=None, pool=None):
@@ -513,7 +542,7 @@ def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
         return {
             "mode": "no_trade", "qualified": False, "reasons": ["position_cap_zero"],
             "features": features, "freeze": None, "policy_hash": POLICY_HASH,
-            "strategy_version": STRATEGY_VERSION, "allocation_authority": False,
+            "strategy_version": STRATEGY_VERSION, "strategy_domain": STRATEGY_DOMAIN, "allocation_authority": False,
         }
 
     anchor_ok, anchor_reasons = _signal_eligible(anchor_signal, now=now, kind="anchor")
@@ -526,7 +555,7 @@ def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
         return {
             "mode": "anchor_pulse", "qualified": True, "reasons": [], "features": features,
             "freeze": freeze, "signal": deepcopy(anchor_signal), "policy_hash": POLICY_HASH,
-            "strategy_version": STRATEGY_VERSION, "allocation_authority": False,
+            "strategy_version": STRATEGY_VERSION, "strategy_domain": STRATEGY_DOMAIN, "allocation_authority": False,
         }
 
     directional_ok, directional_reasons = _signal_eligible(directional_signal, now=now, kind="directional")
@@ -539,7 +568,7 @@ def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
         return {
             "mode": "directional_converter", "qualified": True, "reasons": [], "features": features,
             "freeze": freeze, "signal": deepcopy(directional_signal), "policy_hash": POLICY_HASH,
-            "strategy_version": STRATEGY_VERSION, "allocation_authority": False,
+            "strategy_version": STRATEGY_VERSION, "strategy_domain": STRATEGY_DOMAIN, "allocation_authority": False,
         }
 
     freeze = build_fee_pulse_freeze(
@@ -551,7 +580,7 @@ def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
         return {
             "mode": "fee_pulse", "qualified": True, "reasons": [], "features": features,
             "freeze": freeze, "evaluation": evaluation, "policy_hash": POLICY_HASH,
-            "strategy_version": STRATEGY_VERSION, "allocation_authority": False,
+            "strategy_version": STRATEGY_VERSION, "strategy_domain": STRATEGY_DOMAIN, "allocation_authority": False,
         }
     return {
         "mode": "no_trade", "qualified": False,
@@ -609,6 +638,7 @@ def decompose_pnl(decision, replay_result, *, unwind=None, costs=None):
     inventory_pnl = gross - fee_pnl if isinstance(gross, int) else None
     return {
         "mode": decision.get("mode"),
+        "strategy_domain": STRATEGY_DOMAIN,
         "fee_pnl_quote": fee_pnl,
         "inventory_or_directional_pnl_quote": inventory_pnl,
         "execution_cost_quote": outcome.get("total_costs"),
