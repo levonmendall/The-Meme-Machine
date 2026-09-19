@@ -191,6 +191,34 @@ class SolanaReadProviderTopology(unittest.TestCase):
         self.assertEqual(rpc.http_requests, 2)
         self.assertEqual(rpc.failover_count, 1)
 
+    def test_batch_rejection_retries_public_items_before_alchemy(self):
+        rpc = provider.new_rpc(
+            limit=40,
+            environ={provider.ENV_NAME: ALCHEMY},
+        )
+        calls = []
+
+        def request(url, request):
+            calls.append((url, isinstance(request, list)))
+            if isinstance(request, list):
+                return {"jsonrpc": "2.0", "id": 1, "error": {"code": -32600}}
+            return {
+                "jsonrpc": "2.0",
+                "id": request["id"],
+                "result": {"slot": 1, "signature": request["params"][0]},
+            }
+
+        rpc._request_url = request
+        params = [
+            [f"sig-{i}", {"encoding": "json", "commitment": "finalized"}]
+            for i in range(3)
+        ]
+        out = rpc.call_many("getTransaction", params, True, batch_size=3)
+        self.assertEqual(len(out), 3)
+        self.assertEqual(rpc.failover_count, 0)
+        self.assertTrue(all(url == topology.PRIMARY_RPC_URL for url, _ in calls))
+        self.assertEqual(rpc.http_requests, 4)
+
     def test_new_rpc_objects_keep_independent_logical_budgets(self):
         pacer = provider.AlchemyPacer()
         env = {provider.ENV_NAME: ALCHEMY}
