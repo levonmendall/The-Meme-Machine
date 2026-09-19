@@ -247,6 +247,9 @@ def demand_metrics(events, *, asof, creator_groups=()):
         top3_buyer_flow_bps=top3,
         creator_sell_quote_15s=creator_sell,
         current_net_by_group=dict(current_net_by_group),
+        recent_buy_groups=sorted(
+            group for group,value in current_net_by_group.items() if value > 0
+        ),
     )
 
 
@@ -369,7 +372,7 @@ def qualification_vector(
     related = set(str(x).lower() for x in creator_groups if x)
     convergence = wallet_convergence(
         wallet_histories,
-        demand["current_net_by_group"].keys(),
+        demand["recent_buy_groups"],
         asof=asof,
         candidate_related_groups=related,
     )
