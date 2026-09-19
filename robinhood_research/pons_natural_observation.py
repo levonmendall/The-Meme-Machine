@@ -20,6 +20,7 @@ import time
 from . import BoundaryError, CHAIN_ID
 from .abi import calldata, decode_event, topic, words, scalar
 from .evidence import Stamp, Store
+from .evidence_queue import DeadlineEvidenceQueue
 from .finality import Finality
 from .identity import load
 from .pons import (
@@ -32,6 +33,9 @@ REPORT=Path(os.environ.get("MM_ROBINHOOD_PONS_NATURAL_REPORT","robinhood-pons-na
 OBSERVE_SECONDS=60
 DISCOVERY_SECONDS=90
 POLL_SECONDS=1.0
+DISCOVERY_MAX_BLOCKS=10
+DISCOVERY_FALLBACK_COALESCE_SECONDS=0.75
+DISCOVERY_DEDICATED_COALESCE_SECONDS=0.20
 RESEARCH_BUY_WEI=10**16
 RESEARCH_RECIPIENT="0x1111111111111111111111111111111111111111"
 ZERO="0x0000000000000000000000000000000000000000"
@@ -66,6 +70,17 @@ def _call(rpc,address,sig,args,block,report):
 
 def _latest_header(rpc):
     return rpc.call("eth_getBlockByNumber",["latest",False],scope="pons_natural")
+
+def _next_discovery_end(feed,cursor,discovery,*,timeout):
+    coalesce=(
+        DISCOVERY_FALLBACK_COALESCE_SECONDS
+        if getattr(discovery,"primary_fallback",False)
+        else DISCOVERY_DEDICATED_COALESCE_SECONDS
+    )
+    return feed.wait_for_range_after(
+        cursor,timeout=timeout,max_blocks=DISCOVERY_MAX_BLOCKS,
+        coalesce_seconds=coalesce,
+    )
 
 
 def _current_curve_events(rpc,start,end):
@@ -124,46 +139,115 @@ def _quote_native_buy(rpc,curve,block,record,state,report):
 
 
 def _authenticate_candidate(rpc,event,report):
+    """Authenticate one current candidate in exactly two HTTP batch transports."""
+    started=time.time()
     block=int(event["blockNumber"],16)
-    header=rpc.call("eth_getBlockByNumber",[hex(block),False],scope="pons_natural")
+    block_hex=hex(block)
+    curve=event["address"].lower()
+    tx=event["transactionHash"]
+
+    first_calls=[
+        ("eth_chainId",[]),
+        ("eth_getBlockByNumber",[block_hex,False]),
+        ("eth_getTransactionReceipt",[tx]),
+        ("eth_call",[dict(to=curve,data=calldata("token()")),block_hex]),
+        ("eth_getCode",[curve,block_hex]),
+        ("eth_call",[dict(to=curve,data=calldata("getReserves()")),block_hex]),
+        ("eth_call",[dict(to=curve,data=calldata("realQuoteReserve()")),block_hex]),
+        ("eth_call",[dict(to=curve,data=calldata("reservedTokens()")),block_hex]),
+        ("eth_call",[dict(to=curve,data=calldata("graduated()")),block_hex]),
+        ("eth_call",[dict(
+            to=curve,
+            data=calldata("currentSnipeTaxBps(address)",RESEARCH_RECIPIENT),
+        ),block_hex]),
+        ("eth_gasPrice",[]),
+    ]
+    first=rpc.batch(first_calls,scope="pons_natural")
+    (chain_raw,header,receipt,token_raw,code,reserves_raw,real_raw,reserved_raw,
+     graduated_raw,snipe_raw,gas_raw)=first
+    if int(chain_raw,16)!=CHAIN_ID:
+        raise BoundaryError("wrong_chain")
+    if (
+        header["hash"]!=event["blockHash"]
+        or header["number"]!=event["blockNumber"]
+        or receipt["transactionHash"]!=tx
+        or receipt["blockHash"]!=event["blockHash"]
+    ):
+        raise BoundaryError("candidate_identity_disagreement")
+
     observed=int(time.time())
     event_at=int(header["timestamp"],16)
     if observed-event_at>5:
         raise BoundaryError("stale_state")
-    receipt=rpc.receipt(event["transactionHash"],event["blockHash"],scope="pons_natural")
-    curve=event["address"].lower()
     decoded=raw_event(
         curve_abi(),event,address=curve,receipt=receipt,header=header,
         observed_at=observed,confirmation="confirmed",
     )
-    token_raw=_call(rpc,curve,"token()",(),block,report)
     token=_one_word(token_raw,"address")
     factory=load("pons_v2_factory")["address"].lower()
-    raw_record=_call(
-        rpc,factory,"getLaunchedToken(address)",(token,),block,report
-    )
-    record=factory_record(raw_record,"pons_v2_factory")
-    code=rpc.call("eth_getCode",[curve,hex(block)],scope="pons_natural")
-    auth=authenticate_curve(curve,code,factory_record=record)
-    state,_=_curve_state(rpc,curve,block,auth,report)
-    quote=_quote_native_buy(rpc,curve,block,record,state,report)
 
-    # The entire executable observation, not merely the first log read, must remain
-    # inside the unchanged five-second gate.
+    second_calls=[
+        ("eth_call",[dict(
+            to=factory,data=calldata("getLaunchedToken(address)",token)
+        ),block_hex]),
+    ]
+    second=rpc.batch(second_calls,scope="pons_natural")
+    record=factory_record(second[0],"pons_v2_factory")
+    auth=authenticate_curve(curve,code,factory_record=record)
+
+    quote_reserve,token_reserve=_two_uints(reserves_raw)
+    state=CurveState(
+        quote_reserve=quote_reserve,token_reserve=token_reserve,
+        real_quote=_one_word(real_raw),reserved_tokens=_one_word(reserved_raw),
+        fee_bps=int(auth["immutables"]["feeBps"]),
+        creator_tax_bps=int(auth["immutables"]["creatorTaxBps"]),
+        graduated=bool(_one_word(graduated_raw,"bool")),
+        launched_at=event_at,snipe_start_bps=0,snipe_seconds=1,timestamp=event_at,
+    )
+    current_snipe=_one_word(snipe_raw)
+    maximum=9900-state.fee_bps-state.creator_tax_bps
+    if not 0<=current_snipe<=maximum:
+        raise BoundaryError("invalid_current_snipe_bps")
+    if record["pairToken"].lower()!=ZERO:
+        raise BoundaryError("natural_non_native_quote_not_supported")
+    quote=state.buy_with_snipe(RESEARCH_BUY_WEI,current_snipe)
+    quote=dict(
+        quote_in=RESEARCH_BUY_WEI,tokens_out=quote["tokens_out"],
+        spent=quote["spent"],refund=quote["refund"],fee=quote["fee"],
+        creator_tax=quote["creator_tax"],snipe_tax=quote["snipe_tax"],
+        ready_to_graduate=quote["ready_to_graduate"],
+        current_snipe_bps=current_snipe,recipient=RESEARCH_RECIPIENT,
+        execution="source_verified_arithmetic_plus_onchain_current_snipe",
+    )
+    gas_units=int(receipt.get("gasUsed","0x0"),16)
+    gas_price=int(gas_raw,16)
+    if not 21_000<=gas_units<=5_000_000:
+        raise BoundaryError("sample_gas_units_bounds")
+    if gas_price<=0:
+        raise BoundaryError("sample_invalid_gas_price")
+
     quote_at=int(time.time())
     stamp=Stamp(
         CHAIN_ID,block,header["hash"],event_at,observed,"confirmed","natural",
     )
     if quote_at-event_at>5:
         raise BoundaryError("stale_state")
-
+    report.setdefault("reads",[]).extend([
+        dict(kind="candidate_batch",round=1,block=block,
+             methods=[method for method,_ in first_calls],observed_at=observed),
+        dict(kind="candidate_batch",round=2,block=block,
+             methods=[method for method,_ in second_calls],observed_at=quote_at),
+    ])
     return dict(
         curve=curve,token=token,block=block,header=header,receipt=receipt,
         source_event=event,decoded_event=decoded,record=record,auth=auth,
         state=state,quote=quote,stamp=stamp,quote_at=quote_at,
-        freshness_seconds=quote_at-event_at,
+        freshness_seconds=quote_at-event_at,current_snipe_bps=current_snipe,
+        roundtrip_gas_wei=2*gas_units*gas_price,
+        gas_meta=dict(units_per_side=gas_units,gas_price=gas_price),
+        auth_latency_ms=round((time.time()-started)*1000,2),
+        auth_transport_rounds=2,
     )
-
 
 def _final_mark(rpc,candidate,block,report):
     try:
@@ -195,9 +279,12 @@ def run(endpoint):
         outcome_used_for_selection=False,freshness_gate_seconds=5,
         discovery_seconds=DISCOVERY_SECONDS,followup_seconds=OBSERVE_SECONDS,
         research_buy_wei=RESEARCH_BUY_WEI,reads=[],events=[],started_at=time.time(),
-        discovery_mode="sequencer_clock_plus_governed_log_rpc",
+        discovery_mode="sequencer_range_batch_plus_deadline_queue_v3",
     )
     candidate=None
+    evidence_queue=DeadlineEvidenceQueue(limit=256,nominal_deadline_seconds=5.0)
+    discovery_ranges=0
+    discovered_events=0
     try:
         rpc.verify_chain()
         discovery.verify_chain()
@@ -215,44 +302,56 @@ def run(endpoint):
         attempted_curves=set()
 
         while time.monotonic()<deadline and candidate is None:
-            end=feed.wait_for_after(cursor,timeout=POLL_SECONDS)
+            end=_next_discovery_end(
+                feed,cursor,discovery,timeout=POLL_SECONDS
+            )
             if end is None:
                 continue
-            latest=discovery.call(
-                "eth_getBlockByNumber",[hex(end),False],scope="pons_natural"
-            )
-            if int(latest["number"],16)!=end:
-                raise BoundaryError("sequencer_discovery_block_disagreement")
             start=cursor+1
             if end>=start:
-                for event in _current_curve_events(discovery,start,end):
+                fresh=_current_curve_events(discovery,start,end)
+                discovery_ranges+=1
+                discovered_events+=len(fresh)
+                cursor=end
+                now=time.time()
+                for event in fresh:
                     curve=event.get("address","").lower()
                     if curve in attempted_curves:
                         continue
                     attempted_curves.add(curve)
-                    try:
-                        item=_authenticate_candidate(rpc,event,report)
-                        with tempfile.TemporaryDirectory() as td:
-                            store=Store(td+"/natural.sqlite",max_records=128)
-                            ledger=Finality(store,scope="pons-natural",max_blocks=16)
-                            ledger.observe(item["stamp"],item["header"]["parentHash"])
-                            item["stamp"].check(item["quote_at"],5,finality_ledger=ledger)
-                            dependency="candidate:"+item["token"]+":"+item["source_event"]["transactionHash"]
-                            ledger.bind(dependency,[item["stamp"]],asof=item["quote_at"])
-                            item["dependency_status_at_quote"]=ledger.check_dependency(dependency)
-                            store.close()
-                        candidate=item
-                        break
-                    except BoundaryError as exc:
-                        report.setdefault("candidate_rejections",[]).append(dict(
-                            address=event.get("address"),block=event.get("blockNumber"),
-                            reason=str(exc),
-                        ))
-                        if len(report["candidate_rejections"])>50:
-                            raise BoundaryError("natural_rejection_capacity")
-                cursor=end
+                    evidence_queue.enqueue(event,now=now)
+
+            while candidate is None:
+                scheduled=evidence_queue.pop(
+                    now=time.time(),minimum_remaining_seconds=1.0
+                )
+                if scheduled is None:
+                    break
+                event=scheduled["event"]
+                try:
+                    item=_authenticate_candidate(rpc,event,report)
+                    with tempfile.TemporaryDirectory() as td:
+                        store=Store(td+"/natural.sqlite",max_records=128)
+                        ledger=Finality(store,scope="pons-natural",max_blocks=16)
+                        ledger.observe(item["stamp"],item["header"]["parentHash"])
+                        item["stamp"].check(item["quote_at"],5,finality_ledger=ledger)
+                        dependency="candidate:"+item["token"]+":"+item["source_event"]["transactionHash"]
+                        ledger.bind(dependency,[item["stamp"]],asof=item["quote_at"])
+                        item["dependency_status_at_quote"]=ledger.check_dependency(dependency)
+                        store.close()
+                    candidate=item
+                except BoundaryError as exc:
+                    report.setdefault("candidate_rejections",[]).append(dict(
+                        address=event.get("address"),block=event.get("blockNumber"),
+                        reason=str(exc),
+                    ))
+                    if len(report["candidate_rejections"])>50:
+                        raise BoundaryError("natural_rejection_capacity")
 
         report["sequencer_discovery"]=feed.status()
+        report["discovery_ranges"]=discovery_ranges
+        report["discovered_events"]=discovered_events
+        report["evidence_queue"]=evidence_queue.telemetry()
         feed.close()
         if candidate is None:
             raise BoundaryError("no_current_authenticated_pons_candidate")
@@ -320,6 +419,9 @@ def run(endpoint):
     report["provider"]=rpc.telemetry()
     report["discovery_provider"]=discovery.telemetry()
     report.setdefault("sequencer_discovery",feed.status())
+    report.setdefault("discovery_ranges",discovery_ranges)
+    report.setdefault("discovered_events",discovered_events)
+    report.setdefault("evidence_queue",evidence_queue.telemetry())
     report["ended_at"]=time.time()
     return report
 

@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from robinhood_research import BoundaryError
@@ -12,9 +13,10 @@ from robinhood_research.continuation_robinhood_cohort import (
 
 
 class _Feed:
-    def __init__(self, value):
+    def __init__(self, value, timestamp=1000):
         self.value=value
-    def wait_for_after(self, cursor, timeout):
+        self.state=SimpleNamespace(latest_header_timestamp=timestamp)
+    def wait_for_range_after(self, cursor, **kwargs):
         if isinstance(self.value,Exception):
             raise self.value
         return self.value
@@ -34,36 +36,37 @@ class ContinuationCohortTests(unittest.TestCase):
     def test_transport_failure_recovers_without_advancing_cursor(self):
         class Rpc:
             used=0
-            def __init__(self,fail=False):
-                self.fail=fail
-            def call(self,method,params,scope):
-                if self.fail:
-                    raise BoundaryError("provider_transport_failure")
-                return {"number":"0x10"}
             def telemetry(self):
                 return {"requests":1}
-        first=Rpc(True);replacement=Rpc(False)
+        first=Rpc();replacement=Rpc()
         result={"discovery_sessions":[],"provider_recoveries":[]}
-        with patch("robinhood_research.continuation_robinhood_cohort._current_curve_events",
-                   return_value=[]),              patch("robinhood_research.continuation_robinhood_cohort._recover_discovery",
-                   return_value=replacement) as recover:
+        with patch(
+            "robinhood_research.continuation_robinhood_cohort._current_curve_events",
+            side_effect=[BoundaryError("provider_transport_failure"),[]],
+        ), patch(
+            "robinhood_research.continuation_robinhood_cohort._recover_discovery",
+            return_value=replacement,
+        ) as recover:
             rpc,cursor,fresh,header=_poll(
                 "https://example.invalid",first,10,[],result,_Feed(16)
             )
         self.assertIs(rpc,replacement)
         self.assertEqual(cursor,16)
         self.assertEqual(fresh,[])
-        self.assertEqual(header["number"],"0x10")
+        self.assertEqual(header["number"],hex(16))
         self.assertEqual(recover.call_args.args[3],10)
 
     def test_nontransport_boundary_does_not_reconnect(self):
         class Rpc:
             used=0
-            def call(self,*_,**__):
-                raise BoundaryError("provider_rpc_-32000")
             def telemetry(self):
                 return {}
-        with patch("robinhood_research.continuation_robinhood_cohort._recover_discovery") as recover:
+        with patch(
+            "robinhood_research.continuation_robinhood_cohort._current_curve_events",
+            side_effect=BoundaryError("provider_rpc_-32000"),
+        ), patch(
+            "robinhood_research.continuation_robinhood_cohort._recover_discovery"
+        ) as recover:
             with self.assertRaisesRegex(BoundaryError,"provider_rpc_-32000"):
                 _poll(
                     "https://example.invalid",Rpc(),77,[],
@@ -76,7 +79,9 @@ class ContinuationCohortTests(unittest.TestCase):
             used=0
             def telemetry(self):
                 return {}
-        with patch("robinhood_research.continuation_robinhood_cohort._recover_discovery") as recover:
+        with patch(
+            "robinhood_research.continuation_robinhood_cohort._recover_discovery"
+        ) as recover:
             with self.assertRaisesRegex(BoundaryError,"continuity_lost"):
                 _poll(
                     "https://example.invalid",Rpc(),77,[],

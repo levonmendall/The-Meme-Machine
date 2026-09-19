@@ -31,8 +31,8 @@ from .pons import (
 )
 from .pons_concentration import top5_concentration_bps
 from .pons_natural_observation import (
-    RESEARCH_RECIPIENT, _current_curve_events, _latest_header,
-    _one_word, _two_uints,
+    RESEARCH_RECIPIENT, _authenticate_candidate, _current_curve_events,
+    _latest_header, _next_discovery_end, _one_word, _two_uints,
 )
 from .provider_topology import configured_discovery_rpc, configured_rpc
 from .sequencer_feed import SequencerBlockClock
@@ -88,98 +88,16 @@ def _aggregate_telemetry(rows):
 
 
 def _fast_candidate(endpoint,event):
-    """Authenticate one current curve candidate in two transport roundtrips."""
+    """Use the shared two-transport authoritative Pons authenticator."""
     rpc=_rpc(endpoint)
     report=dict(reads=[])
-    started=time.time()
-    rpc.verify_chain()
-
-    block=int(event["blockNumber"],16)
-    curve=event["address"].lower()
-    tx=event["transactionHash"]
-    block_hex=hex(block)
-
-    first=rpc.batch([
-        ("eth_getBlockByNumber",[block_hex,False]),
-        ("eth_getTransactionReceipt",[tx]),
-        ("eth_call",[dict(to=curve,data=calldata("token()")),block_hex]),
-        ("eth_getCode",[curve,block_hex]),
-        ("eth_call",[dict(to=curve,data=calldata("getReserves()")),block_hex]),
-        ("eth_call",[dict(to=curve,data=calldata("realQuoteReserve()")),block_hex]),
-        ("eth_call",[dict(to=curve,data=calldata("reservedTokens()")),block_hex]),
-        ("eth_call",[dict(to=curve,data=calldata("graduated()")),block_hex]),
-        ("eth_call",[dict(
-            to=curve,
-            data=calldata("currentSnipeTaxBps(address)",RESEARCH_RECIPIENT),
-        ),block_hex]),
-        ("eth_gasPrice",[]),
-    ],scope="pons_sample")
-
-    header,receipt,token_raw,code,reserves_raw,real_raw,reserved_raw,graduated_raw,snipe_raw,gas_raw=first
-    if (
-        header["hash"]!=event["blockHash"]
-        or header["number"]!=event["blockNumber"]
-        or receipt["transactionHash"]!=tx
-        or receipt["blockHash"]!=event["blockHash"]
-    ):
-        raise BoundaryError("candidate_identity_disagreement")
-
-    observed=int(time.time())
-    decoded=raw_event(
-        curve_abi(),event,address=curve,receipt=receipt,header=header,
-        observed_at=observed,confirmation="confirmed",
+    candidate=_authenticate_candidate(rpc,event,report)
+    candidate.update(
+        authenticated_at=int(time.time()),
+        provider=rpc.telemetry(),
+        report=report,
     )
-    token=_one_word(token_raw,"address")
-    factory=load("pons_v2_factory")["address"].lower()
-
-    second=rpc.batch([
-        ("eth_call",[dict(
-            to=factory,data=calldata("getLaunchedToken(address)",token)
-        ),block_hex]),
-    ],scope="pons_sample")
-    record=factory_record(second[0],"pons_v2_factory")
-    auth=authenticate_curve(curve,code,factory_record=record)
-
-    quote_reserve,token_reserve=_two_uints(reserves_raw)
-    state=CurveState(
-        quote_reserve=quote_reserve,
-        token_reserve=token_reserve,
-        real_quote=_one_word(real_raw),
-        reserved_tokens=_one_word(reserved_raw),
-        fee_bps=int(auth["immutables"]["feeBps"]),
-        creator_tax_bps=int(auth["immutables"]["creatorTaxBps"]),
-        graduated=bool(_one_word(graduated_raw,"bool")),
-        launched_at=int(header["timestamp"],16),
-        snipe_start_bps=0,snipe_seconds=1,
-        timestamp=int(header["timestamp"],16),
-    )
-    current_snipe=_one_word(snipe_raw)
-    maximum=9900-state.fee_bps-state.creator_tax_bps
-    if not 0<=current_snipe<=maximum:
-        raise BoundaryError("invalid_current_snipe_bps")
-
-    units=int(receipt.get("gasUsed","0x0"),16)
-    if not 21_000<=units<=5_000_000:
-        raise BoundaryError("sample_gas_units_bounds")
-    gas_price=int(gas_raw,16)
-    if gas_price<=0:
-        raise BoundaryError("sample_invalid_gas_price")
-
-    stamp=Stamp(
-        CHAIN_ID,block,header["hash"],int(header["timestamp"],16),observed,
-        "confirmed","natural",
-    )
-    return dict(
-        curve=curve,token=token,block=block,header=header,receipt=receipt,
-        source_event=event,decoded_event=decoded,record=record,auth=auth,
-        state=state,current_snipe_bps=current_snipe,
-        roundtrip_gas_wei=2*units*gas_price,
-        gas_meta=dict(units_per_side=units,gas_price=gas_price),
-        stamp=stamp,authenticated_at=int(time.time()),
-        auth_latency_ms=round((time.time()-started)*1000,2),
-        provider=rpc.telemetry(),report=report,
-    )
-
+    return candidate
 
 def _window_from_tape(endpoint,candidate,tape):
     """Authenticate exact prior-60s curve events already present in the live tape."""
@@ -437,14 +355,9 @@ def _rotate_discovery(endpoint,rpc,result):
 def _poll_into_tape(endpoint,rpc,cursor,tape,result,feed):
     if rpc.used>150:
         rpc=_rotate_discovery(endpoint,rpc,result)
-    latest=feed.wait_for_after(cursor,timeout=POLL_SECONDS)
+    latest=_next_discovery_end(feed,cursor,rpc,timeout=POLL_SECONDS)
     if latest is None:
         return rpc,cursor,[],None
-    latest_header=rpc.call(
-        "eth_getBlockByNumber",[hex(latest),False],scope="pons_natural"
-    )
-    if int(latest_header["number"],16)!=latest:
-        raise BoundaryError("sequencer_discovery_block_disagreement")
     first=cursor+1
     fresh=[]
     if latest>=first:
@@ -453,14 +366,19 @@ def _poll_into_tape(endpoint,rpc,cursor,tape,result,feed):
         if len(tape)>MAX_TAPE_EVENTS:
             raise BoundaryError("sample_tape_capacity")
         cursor=latest
-    return rpc,cursor,fresh,latest_header
+    observed_timestamp=feed.state.latest_header_timestamp
+    observation=(
+        None if observed_timestamp is None else
+        dict(number=hex(latest),timestamp=hex(int(observed_timestamp)))
+    )
+    return rpc,cursor,fresh,observation
 
 
 def run(endpoint):
     started=time.time()
     result=dict(
         kind="continuation-v1-robinhood-unbiased-natural-sample",
-        acquisition_version="sequencer_clock_discovery_split_v2",
+        acquisition_version="sequencer_range_batch_two_transport_auth_v3",
         policy=POLICY,thresholds=dict(THRESHOLDS),
         translation_snapshot=dict(TRANSLATION_SNAPSHOT),
         policy_hash=digest(dict(
@@ -538,7 +456,7 @@ def run(endpoint):
                 seen_curves.add(curve)
                 evidence_queue.enqueue(event,now=time.time())
             scheduled=evidence_queue.pop(
-                now=time.time(),minimum_remaining_seconds=0.5
+                now=time.time(),minimum_remaining_seconds=1.0
             )
             if scheduled is None:
                 continue
