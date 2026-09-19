@@ -122,20 +122,28 @@ def prospective_validation_summary(rows):
         if r.get("actual_reason")=="concentration" and not hypothesis_match(r)
     ]
     match=_summary(matched);control=_summary(controls)
+    match_rate=match.get("clean_winner_rate")
+    control_rate=control.get("clean_winner_rate")
     lift=(
-        None if not control.get("clean_winner_rate")
-        else match.get("clean_winner_rate",0)/control["clean_winner_rate"]
+        None if control_rate in (None,0)
+        else (match_rate or 0)/control_rate
     )
     ready=bool(
         match["count"]>=HYPOTHESIS["fresh_validation_min_matching"]
         and control["count"]>=HYPOTHESIS["fresh_validation_min_concentration_controls"]
     )
     criteria=HYPOTHESIS["validation_success"]
+    lift_pass=bool(
+        (control_rate==0 and (match_rate or 0)>0)
+        or (
+            lift is not None
+            and lift>=criteria["clean_winner_rate_lift_vs_concentration_controls_min"]
+        )
+    )
     passed=bool(
         ready
-        and lift is not None
-        and lift>=criteria["clean_winner_rate_lift_vs_concentration_controls_min"]
-        and (match.get("clean_winner_rate") or 0)>=criteria["matching_clean_winner_rate_min"]
+        and lift_pass
+        and (match_rate or 0)>=criteria["matching_clean_winner_rate_min"]
         and isinstance(match.get("median_mae_bps"),(int,float))
         and match["median_mae_bps"]>criteria["matching_median_mae_bps_gt"]
         and isinstance(match.get("below_minus_10pct_rate"),(int,float))
@@ -146,6 +154,8 @@ def prospective_validation_summary(rows):
         order_authority=False,rule_refit_allowed=False,
         matching=match,concentration_controls=control,
         clean_winner_rate_lift_vs_controls=lift,
+        clean_winner_rate_lift_criterion_passed=lift_pass,
+        zero_clean_winner_control_rate=(control_rate==0),
         sample_ready=ready,validation_passed=passed,
         trading_authority_granted=False,
     )
