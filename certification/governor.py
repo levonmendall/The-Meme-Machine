@@ -3,7 +3,7 @@
 A conservative shared ceiling; it never increases a lane's existing local rate.
 Priority-zero position work outranks discovery. Backoff is shared by endpoint.
 """
-import os
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 import time
@@ -14,7 +14,7 @@ class Governor:
         if interval<.5:raise ValueError('certification_rate_increase_forbidden')
         Path(path).parent.mkdir(parents=True,exist_ok=True)
         self.path=str(path);self.interval=interval
-        with sqlite3.connect(self.path,timeout=30) as db:
+        with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
             db.execute('PRAGMA journal_mode=WAL')
             db.executescript('''CREATE TABLE IF NOT EXISTS pressure(
                 provider TEXT PRIMARY KEY,next_at REAL NOT NULL,cooldown REAL NOT NULL,grants INTEGER NOT NULL,rate_errors INTEGER NOT NULL);
@@ -47,10 +47,10 @@ class Governor:
             db.execute('DELETE FROM queue WHERE id=?',(identity,));db.close()
 
     def rate_limited(self,provider):
-        with sqlite3.connect(self.path,timeout=30) as db:
+        with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
             db.execute('UPDATE pressure SET cooldown=MAX(cooldown,?),rate_errors=rate_errors+1 WHERE provider=?',(time.monotonic()+8,provider))
 
     def status(self):
-        with sqlite3.connect(self.path,timeout=30) as db:
+        with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
             return dict(providers=[dict(provider=p,next_at=n,cooldown=c,grants=g,rate_errors=r) for p,n,c,g,r in db.execute('SELECT * FROM pressure')],
                         queues=[dict(lane=l,priority=p,depth=n) for l,p,n in db.execute('SELECT lane,priority,count(*) FROM queue GROUP BY lane,priority')])

@@ -103,12 +103,15 @@ class CertificationTests(unittest.TestCase):
     def test_global_governor_covers_independent_processes(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=str(Path(tmp)/'governor.sqlite');output=str(Path(tmp)/'times');Governor(path)
-            children=[multiprocessing.Process(target=request_slot,args=(path,output,lane)) for lane in LANES]
+            ctx=multiprocessing.get_context("spawn")
+            children=[ctx.Process(target=request_slot,args=(path,output,lane)) for lane in LANES]
             for p in children:p.start()
             for p in children:p.join(10);self.assertEqual(p.exitcode,0)
             times=sorted(float(s) for s in Path(output).read_text().splitlines())
             self.assertEqual(len(times),4)
             self.assertGreaterEqual(times[-1]-times[0],1.4)
-            self.assertEqual(Governor(path).status()['queues'],[])
+            status=Governor(path).status()
+            self.assertEqual(status['queues'],[])
+            self.assertEqual(status['providers'][0]['grants'],4)
 
 if __name__=='__main__':unittest.main()

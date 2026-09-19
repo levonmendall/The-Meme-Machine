@@ -24,7 +24,10 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Supervisor, accounting and cross-process capacity regressions
-        run: python -m unittest certification.tests.test_certification -v
+        run: |
+          mkdir -p certification-gates
+          set -o pipefail
+          python -m unittest certification.tests.test_certification -v 2>&1 | tee certification-gates/supervisor-tests.log
       - name: Create isolated exact-source worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/four-lane-worktrees"
       - name: Full deterministic lane suites and resource gates
