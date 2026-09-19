@@ -388,7 +388,9 @@ def metadata(environ=None):
     )
 
 
-def validate_topology(environ=None, *, require_secondary=True):
-    primary_rpc_url(environ)
-    secondary_rpc_url(environ, required=require_secondary)
+def validate_topology(environ=None, *, require_secondary=True, require_authenticated_primary=False):
+    primary_rpc_url(environ,require_authenticated=require_authenticated_primary)
+    if require_authenticated_primary:
+        primary_ws_url(environ,require_authenticated=True)
+    secondary_rpc_url(environ,required=require_secondary)
     return metadata(environ)
