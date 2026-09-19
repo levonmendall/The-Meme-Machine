@@ -11,7 +11,7 @@ from .engine import Engine
 from .market_native_runtime import MarketNativeRuntime
 from .postgrad import PostGraduationAdapter
 from .provider import PumpAdapter, Unavailable
-from .solana_read_rpc import new_rpc, primary_rpc_url, primary_ws_url
+from .solana_read_rpc import discovery_ws_url, new_rpc, primary_rpc_url
 from .pumpswap_runtime import POSTGRAD_WAIT_SECONDS, PumpSwapPaperRuntime
 from .store import Store
 from .stream import PumpLogStream, PumpTape, WINDOW_SECONDS
@@ -274,8 +274,7 @@ def main():
         ap.error('budgeted session must be 1..3600 seconds')
 
     request_limit=int(config.get('request_limit',240 if args.mode=='prospective' else 120))
-    preflight_budget=int(config.get('market_native_preflight_budget',90))
-    full_evidence_budget=int(config.get('market_native_full_evidence_budget',20))
+    evidence_queue_limit=int(config.get('market_native_evidence_queue_limit',10_000))
     provider_rotation_threshold=int(config.get('market_native_rpc_rotation_threshold',160))
     if args.mode=='prospective':
         if not 40 <= provider_rotation_threshold <= request_limit-40:
@@ -326,14 +325,13 @@ def main():
         pumpswap_runtime=PumpSwapPaperRuntime(store,postgrad_adapter)
         tape=PumpTape()
         ready=threading.Event()
-        log_stream=PumpLogStream(url,tape,ws_url=primary_ws_url())
+        log_stream=PumpLogStream(url,tape,ws_url=discovery_ws_url())
         stream_thread=threading.Thread(target=log_stream.run,args=(stopping,ready),daemon=True)
         stream_thread.start()
         market_runtime=MarketNativeRuntime(
             engine,adapter,max(1,args.seconds),
-            preflight_budget=preflight_budget,
-            full_evidence_budget=full_evidence_budget,
             provider_rotation_threshold=provider_rotation_threshold,
+            evidence_queue_limit=evidence_queue_limit,
         )
         if not ready.wait(15) or log_stream.error_kind:
             with store.transaction('stream_start_failure'):
@@ -343,7 +341,7 @@ def main():
         while time.monotonic()<deadline and not stopping.is_set():
             now=int(time.time())
             _monitor_existing(engine,adapter,now,pumpswap_runtime=pumpswap_runtime)
-            if rpc.calls >= provider_rotation_threshold:
+            if market_runtime.provider_rotation_due():
                 pacer=rpc.read_pacer if hasattr(rpc,'read_pacer') else None
                 rpc=new_rpc(limit=request_limit,pacer=pacer)
                 adapter=PumpAdapter(rpc)
