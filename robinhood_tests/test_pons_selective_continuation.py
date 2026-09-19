@@ -1,10 +1,12 @@
 from dataclasses import replace
 import unittest
+from unittest.mock import patch
 
 from robinhood_research import BoundaryError
 from robinhood_research.evidence import Stamp, Store
 from robinhood_research.paper import Quote
 from robinhood_research.pons_selective_ledger import SelectivePaper, STRATEGY_NAMESPACE
+import robinhood_research.pons_selective_cohort as selective_cohort
 from robinhood_research.pons import CurveState
 from robinhood_research.pons_selective_continuation import (
     POLICY, POLICY_HASH, ENTRY_THRESHOLDS, POST_GRAD_THRESHOLDS, EXIT_POLICY,
@@ -189,6 +191,64 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         )
         self.assertTrue(b["candidate"])
         self.assertFalse(b["allocation_authority"])
+
+
+
+class SelectiveDiscoveryFrontierTests(unittest.TestCase):
+    class Rpc:
+        used=0
+        def __init__(self,frontier):
+            self.frontier=frontier
+            self.last=None
+        def call(self,method,params,scope=None):
+            self.last=(method,params,scope)
+            if method=="eth_blockNumber":
+                return hex(self.frontier)
+            raise AssertionError(method)
+        def telemetry(self):
+            return {}
+
+    def test_provider_frontier_clamps_sequencer_range_without_advancing_past_it(self):
+        rpc=self.Rpc(103)
+        with patch.object(selective_cohort,"_next_discovery_end",return_value=105), \
+             patch.object(
+                 selective_cohort,"_current_curve_events",
+                 side_effect=[BoundaryError("provider_rpc_-32602"),["e"]],
+             ) as events:
+            new_rpc,cursor,fresh=selective_cohort._poll(
+                "https://unused",rpc,100,[],object(),[]
+            )
+        self.assertIs(new_rpc,rpc)
+        self.assertEqual(cursor,103)
+        self.assertEqual(fresh,["e"])
+        self.assertEqual(events.call_args_list[0].args,(rpc,101,105))
+        self.assertEqual(events.call_args_list[1].args,(rpc,101,103))
+        self.assertEqual(rpc.last[0],"eth_blockNumber")
+
+    def test_provider_frontier_behind_start_leaves_cursor_unchanged(self):
+        rpc=self.Rpc(100)
+        with patch.object(selective_cohort,"_next_discovery_end",return_value=105), \
+             patch.object(
+                 selective_cohort,"_current_curve_events",
+                 side_effect=BoundaryError("provider_rpc_-32602"),
+             ):
+            _,cursor,fresh=selective_cohort._poll(
+                "https://unused",rpc,100,[],object(),[]
+            )
+        self.assertEqual(cursor,100)
+        self.assertEqual(fresh,[])
+
+    def test_non_frontier_invalid_params_still_fails_closed(self):
+        rpc=self.Rpc(105)
+        with patch.object(selective_cohort,"_next_discovery_end",return_value=105), \
+             patch.object(
+                 selective_cohort,"_current_curve_events",
+                 side_effect=BoundaryError("provider_rpc_-32602"),
+             ):
+            with self.assertRaisesRegex(BoundaryError,"provider_rpc_-32602"):
+                selective_cohort._poll(
+                    "https://unused",rpc,100,[],object(),[]
+                )
 
 
 class PartialPaperExitTests(unittest.TestCase):
