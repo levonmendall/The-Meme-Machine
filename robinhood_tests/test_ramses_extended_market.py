@@ -3,6 +3,9 @@ import json
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
+
+import robinhood_research.ramses_extended_test as extended
 
 from robinhood_research import BoundaryError
 from robinhood_research.ramses_extended_test import (
@@ -320,6 +323,91 @@ class RamsesExtendedMarketTests(unittest.TestCase):
             "extended_finalized_frontier_regression",
         ):
             _frontier_progress(prior,regressed)
+
+    def test_discovery_scans_only_initial_and_advanced_finalized_frontiers(self):
+        class Clock:
+            def __init__(self):
+                self.now=0.0
+            def monotonic(self):
+                return self.now
+            def sleep(self,seconds):
+                self.now+=float(seconds)
+            def wall(self):
+                return 1000000.0+self.now
+
+        def frontier(block,ts,byte,parent):
+            return dict(
+                number=hex(block),
+                hash="0x"+byte*32,
+                timestamp=hex(ts),
+                parentHash="0x"+parent*32,
+            )
+
+        a=frontier(100,1000,"11","22")
+        b=frontier(101,1001,"33","11")
+
+        class Rpc:
+            def __init__(self):
+                self.rows=[a,a,b,b,b]
+            def verify_chain(self):
+                return 4663
+            def call(self,method,params,scope="connectivity"):
+                self.assert_method=(method,params,scope)
+                if self.rows:
+                    return dict(self.rows.pop(0))
+                return dict(b)
+            def telemetry(self):
+                return dict(logical_requests=5,transport_requests=5)
+
+        scans=[]
+        def fake_scan(endpoint,**kwargs):
+            pinned=kwargs["finalized_frontier"]
+            scans.append((int(pinned["number"],16),pinned["hash"]))
+            return dict(
+                strategy_domain=STRATEGY_DOMAIN,
+                policy_hash=POLICY_HASH,
+                finalized_block=int(pinned["number"],16),
+                finalized_hash=pinned["hash"],
+                finalized_timestamp=int(pinned["timestamp"],16),
+                finalized_frontier_source="pinned_external_finalized_header",
+                rows=[],
+                provider={},
+            )
+
+        clock=Clock()
+        rpc=Rpc()
+        with patch.object(extended,"BoundedMultiRpc",return_value=rpc), \
+             patch.object(extended,"scan",side_effect=fake_scan), \
+             patch.object(extended.time,"monotonic",side_effect=clock.monotonic), \
+             patch.object(extended.time,"sleep",side_effect=clock.sleep), \
+             patch.object(extended.time,"time",side_effect=clock.wall):
+            result=extended.run(
+                "https://example.invalid",
+                discovery_seconds=75,
+                discovery_interval_seconds=60,
+            )
+
+        self.assertEqual(
+            scans,
+            [(100,a["hash"]),(101,b["hash"])],
+        )
+        self.assertEqual(len(result["natural_screens"]),2)
+        self.assertEqual(result["frontier_discovery"]["polls"],5)
+        self.assertEqual(result["frontier_discovery"]["advances"],1)
+        self.assertEqual(result["frontier_discovery"]["expensive_scans"],2)
+        self.assertEqual(
+            result["frontier_discovery"]["duplicate_frontier_polls_skipped"],
+            1,
+        )
+        self.assertEqual(
+            result["frontier_discovery"]["cadence_deferred_polls"],
+            2,
+        )
+        self.assertEqual(clock.now,75.0)
+        self.assertEqual(
+            result["status"],
+            "natural_discovery_complete_no_qualifier",
+        )
 
 
 if __name__=="__main__":
