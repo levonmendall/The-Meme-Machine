@@ -1380,12 +1380,13 @@ def _await_fresh_swap_trigger_polling(
 def _await_fresh_swap_trigger(
     adapter,candidate,baseline_state,policy,pacer,rpcs,deadline=None,broker=None
 ):
-    """Wait on finalized DLMM pool-account wakeups, then authenticate one exact swap.
+    """Wait on finalized pool wakeups and authenticate only when needed.
 
-    HTTP signature polling is no longer the primary fresh-event detector. A finalized
-    program-account stream wakes only the changed pool. A targeted signature/transaction
-    read then proves that the wake was an actual swap. On a stream gap, one bounded
-    recovery read covers the gap from the last authenticated cursor.
+    One bounded authentication read closes the handoff interval between the
+    finalized compatibility snapshot and the moment this candidate begins
+    consuming the shared wake stream. After that, HTTP authentication is
+    wake-driven. Each observed stream gap schedules exactly one additional
+    bounded recovery read from the last authenticated per-pool cursor.
     """
     if broker is None:
         return _await_fresh_swap_trigger_polling(
@@ -1396,29 +1397,30 @@ def _await_fresh_swap_trigger(
     cursor_name="dlmm_fresh:"+str(candidate["address"])
     durable_cursor=broker.cursor(cursor_name)
     cursor_slot=max(baseline_slot,int(durable_cursor.get("slot") or 0))
-    polls=0;wakeups=0;gap_recoveries=0;refreshes=0
+    polls=0;wakeups=0;gap_recoveries=0;bootstrap_auth_reads=0;refreshes=0
     current_candidate=dict(candidate)
     next_refresh=0.0
     initial_status=broker.stream_status(
         DLMM_WAKE_STREAM_KEY,int(time.time()),0)
     last_gap_count=int(initial_status.get("gaps") or 0)
+    bootstrap_recovery_pending=True
+
+    def terminal(reason,elapsed,**extra):
+        row=dict(
+            triggered=False,reason=reason,waited_seconds=elapsed,
+            polls=polls,wakeups=wakeups,gap_recoveries=gap_recoveries,
+            bootstrap_auth_reads=bootstrap_auth_reads,
+            acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
+        )
+        row.update(extra)
+        return row,None,adapter,current_candidate
 
     while True:
         elapsed=max(0.0,time.monotonic()-started)
         if _runtime_expired(deadline):
-            return dict(
-                triggered=False,reason="experiment_runtime_deadline",
-                waited_seconds=elapsed,polls=polls,wakeups=wakeups,
-                gap_recoveries=gap_recoveries,
-                acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
-            ),None,adapter,current_candidate
+            return terminal("experiment_runtime_deadline",elapsed)
         if elapsed>=FRESH_SWAP_TRIGGER_MAX_SECONDS:
-            return dict(
-                triggered=False,reason="fresh_swap_trigger_timeout",
-                waited_seconds=elapsed,polls=polls,wakeups=wakeups,
-                gap_recoveries=gap_recoveries,
-                acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
-            ),None,adapter,current_candidate
+            return terminal("fresh_swap_trigger_timeout",elapsed)
 
         if elapsed>=next_refresh:
             observed_at=int(time.time())
@@ -1426,22 +1428,15 @@ def _await_fresh_swap_trigger(
                 current_candidate=_history_acceleration(
                     current_candidate,observed_at)
             except Exception as exc:
-                return dict(
-                    triggered=False,reason="acceleration_refresh_unavailable",
-                    detail=type(exc).__name__,waited_seconds=elapsed,
-                    polls=polls,wakeups=wakeups,gap_recoveries=gap_recoveries,
-                    acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
-                ),None,adapter,current_candidate
+                return terminal(
+                    "acceleration_refresh_unavailable",elapsed,
+                    detail=type(exc).__name__)
             refreshes+=1
             if not _regime_pass(current_candidate,policy):
-                return dict(
-                    triggered=False,reason="acceleration_regime_expired",
-                    waited_seconds=elapsed,polls=polls,wakeups=wakeups,
-                    gap_recoveries=gap_recoveries,
-                    acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
+                return terminal(
+                    "acceleration_regime_expired",elapsed,
                     volume_acceleration=current_candidate["volume_acceleration"],
-                    fee_acceleration=current_candidate["fee_acceleration"],
-                ),None,adapter,current_candidate
+                    fee_acceleration=current_candidate["fee_acceleration"])
             next_refresh=elapsed+FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS
 
         now=int(time.time())
@@ -1450,7 +1445,7 @@ def _await_fresh_swap_trigger(
         events=broker.recent_events(
             DLMM_WAKE_STREAM_KEY,after_slot=cursor_slot,
             address=candidate["address"])
-        should_auth=bool(events)
+        should_auth=bool(events) or bootstrap_recovery_pending
 
         # A stream gap can hide a wakeup. Recover exactly once per observed gap
         # using the last authenticated per-pool cursor; normal operation does not poll.
@@ -1461,6 +1456,7 @@ def _await_fresh_swap_trigger(
 
         if should_auth:
             wakeups+=len(events)
+            was_bootstrap=bootstrap_recovery_pending
             adapter=_rotate(adapter,pacer,rpcs)
             swaps,poll_meta=_new_finalized_swaps(
                 adapter.rpc,candidate["address"],cursor_slot,broker)
@@ -1473,12 +1469,18 @@ def _await_fresh_swap_trigger(
                 if remaining>0:
                     time.sleep(min(0.5,remaining))
                 continue
+
+            if was_bootstrap:
+                bootstrap_auth_reads+=1
+                bootstrap_recovery_pending=False
+
             new_cursor=max(
                 cursor_slot,int(poll_meta.get("head_slot") or cursor_slot))
             if new_cursor>cursor_slot:
                 cursor_slot=new_cursor
                 broker.advance_cursor(
                     cursor_name,cursor_slot,poll_meta.get("head_signature"))
+
             if swaps:
                 trigger=swaps[0]
                 trigger_slot=int(trigger["slot"])
@@ -1497,9 +1499,14 @@ def _await_fresh_swap_trigger(
                     continue
                 trigger.update(
                     triggered=True,reason="authenticated_fresh_swap",
-                    wake_source="finalized_program_account_stream",
+                    wake_source=(
+                        "handoff_gap_auth"
+                        if was_bootstrap
+                        else "finalized_program_account_stream"
+                    ),
                     waited_seconds=max(0.0,time.monotonic()-started),
                     polls=polls,wakeups=wakeups,gap_recoveries=gap_recoveries,
+                    bootstrap_auth_reads=bootstrap_auth_reads,
                     acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
                     post_trigger_slot=int(post["slot"]),
                 )
@@ -1512,7 +1519,6 @@ def _await_fresh_swap_trigger(
         if remaining<=0:
             continue
         time.sleep(min(0.25,remaining))
-
 
 def _triggered_warmup(
     adapter,candidate,compatibility_state,policy,pacer,rpcs,deadline=None,broker=None
