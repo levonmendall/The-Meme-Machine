@@ -20,7 +20,6 @@ import urllib.request
 
 from meme_machine import dlmm
 from meme_machine.dlmm_paper import CAPITAL, ENTRY_COST, EXIT_COST
-from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
 from meme_machine.store import digest
 from tests import dlmm_alchemy_provider as alchemy_provider
@@ -176,7 +175,7 @@ def select_variant(features):
 def run_live(cycles=MAX_CYCLES, window_seconds=6):
     if not 1 <= cycles <= MAX_CYCLES or not 5 <= window_seconds <= MAX_WINDOW_SECONDS:
         raise ValueError("dlmm_high_activity_live_bounds")
-    rpc = PoolScanRPC(alchemy_provider.rpc_url(), limit=240)
+    rpc = alchemy_provider.new_rpc(limit=240)
     adapter = dlmm.Adapter(rpc)
     states, candidates, rejections, api_error = discover_and_revalidate(adapter, int(time.time()))
     report = dict(
