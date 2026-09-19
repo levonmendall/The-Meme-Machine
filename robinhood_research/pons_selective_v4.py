@@ -48,7 +48,8 @@ def collect_v4_activity(
         return dict(
             swaps=[],new_independent_buyers=0,buy_quote=0,sell_quote=0,net_quote=0,
             preholder_sell_quote=0,largest_buyer_flow_bps=0,buyer_groups=[],
-            provider_sessions=[],
+            price_indices=[],last_price_index=None,high_price_index=None,
+            low_price_index=None,provider_sessions=[],
         )
 
     # Discovery may span more than the provider's 10-block safety convention.
@@ -68,7 +69,8 @@ def collect_v4_activity(
         return dict(
             swaps=[],new_independent_buyers=0,buy_quote=0,sell_quote=0,net_quote=0,
             preholder_sell_quote=0,largest_buyer_flow_bps=0,buyer_groups=[],
-            provider_sessions=sessions,
+            price_indices=[],last_price_index=None,high_price_index=None,
+            low_price_index=None,provider_sessions=sessions,
         )
 
     hashes=list(dict.fromkeys(event["blockHash"] for event in raw))
@@ -132,10 +134,20 @@ def collect_v4_activity(
                 preholder_sell+=quote
         else:
             raise BoundaryError("selective_v4_swap_direction")
+        sqrt_price=int(args["sqrtPriceX96"])
+        if sqrt_price<=0:
+            raise BoundaryError("selective_v4_invalid_price")
+        q192=1<<192
+        price_index=(
+            sqrt_price*sqrt_price*10**18//q192
+            if token_is_0 else
+            q192*10**18//(sqrt_price*sqrt_price)
+        )
         rows.append(dict(
             identity=f'{row["block"]}:{tx}:{row["log_index"]}',
             block=row["block"],event_at=row["event_at"],group=group,
             side=side,quote=int(quote),tokens=int(tokens),
+            sqrt_price_x96=sqrt_price,price_index=price_index,
         ))
 
     total_buy=sum(buyer_flow.values())
@@ -151,5 +163,9 @@ def collect_v4_activity(
         preholder_sell_quote=preholder_sell,
         largest_buyer_flow_bps=largest,
         buyer_groups=sorted(buyers),
+        price_indices=[row["price_index"] for row in rows],
+        last_price_index=(None if not rows else rows[-1]["price_index"]),
+        high_price_index=(None if not rows else max(row["price_index"] for row in rows)),
+        low_price_index=(None if not rows else min(row["price_index"] for row in rows)),
         provider_sessions=sessions,
     )
