@@ -4,8 +4,8 @@ Prospective acquisition architecture:
 1. census every observable eligible SOL-paired Meteora DLMM pool from the inventory API;
 2. observe finalized DLMM program activity from the public Solana WebSocket;
 3. classify notification logs and deduplicate signatures before any body read;
-4. queue only likely/uncertain LP mutations, then reconstruct through authenticated
-   OnFinality HTTP at 5 RPS with Alchemy rescue;
+4. queue only likely/uncertain LP mutations, then reconstruct directly through
+   authenticated Alchemy HTTP at a 5 RPS ceiling;
 5. extract all observable LP actors in the eligible pool census;
 6. emit a pre-PnL candidate cohort only. No strategy/allocation authority.
 """
@@ -117,6 +117,98 @@ def _write_checkpoint(pool_rows,candidates,processed):
         candidates=candidates,
         processed=processed,
     ))
+
+
+def _number(value):
+    try:
+        return float(value)
+    except (TypeError,ValueError):
+        return None
+
+
+def diagnose_pool_universe():
+    """Audit the unfiltered API-visible pool inventory without changing eligibility."""
+    primary=Counter();overlap=Counter();examples=defaultdict(list)
+    total=0;sol_pairs=0;complete=False;pages=0;eligible=0
+    seen=set()
+    for page in range(1,MAX_POOL_PAGES+1):
+        payload=study._json_get("/pools",dict(
+            page=page,page_size=POOL_PAGE_SIZE,sort_by="tvl:desc",
+        ))
+        data=payload.get("data") if isinstance(payload,dict) else None
+        if not isinstance(data,list):
+            raise RuntimeError("dlmm_v2_pool_diagnostic_shape")
+        pages=page
+        for row in data:
+            total+=1
+            if not isinstance(row,dict):
+                primary["malformed_row"]+=1;overlap["malformed_row"]+=1
+                continue
+            address=row.get("address")
+            if not isinstance(address,str) or not address:
+                primary["malformed_address"]+=1;overlap["malformed_address"]+=1
+                continue
+            if address in seen:
+                overlap["duplicate_address"]+=1
+                continue
+            seen.add(address)
+
+            reasons=[]
+            if row.get("is_blacklisted") is True:
+                reasons.append("blacklisted")
+            x=(row.get("token_x") or {}).get("address")
+            y=(row.get("token_y") or {}).get("address")
+            sol_pair=(x==dlmm.WSOL) ^ (y==dlmm.WSOL)
+            if sol_pair:
+                sol_pairs+=1
+            else:
+                reasons.append("not_exactly_one_sol_leg")
+            tvl=_number(row.get("tvl"))
+            volume=_number((row.get("volume") or {}).get("24h"))
+            if tvl is None:
+                reasons.append("missing_tvl")
+            elif tvl<50000:
+                reasons.append("tvl_below_50000")
+            if volume is None:
+                reasons.append("missing_volume_24h")
+            elif volume<25000:
+                reasons.append("volume_24h_below_25000")
+
+            if not reasons:
+                eligible+=1
+                primary["eligible"]+=1
+                continue
+            for reason in reasons:
+                overlap[reason]+=1
+                if len(examples[reason])<10:
+                    examples[reason].append(dict(
+                        address=address,name=row.get("name"),
+                        tvl=row.get("tvl"),
+                        volume_24h=(row.get("volume") or {}).get("24h"),
+                        token_x=(row.get("token_x") or {}).get("symbol"),
+                        token_y=(row.get("token_y") or {}).get("symbol"),
+                    ))
+            precedence=(
+                "blacklisted","not_exactly_one_sol_leg","missing_tvl",
+                "tvl_below_50000","missing_volume_24h","volume_24h_below_25000"
+            )
+            primary[next(reason for reason in precedence if reason in reasons)]+=1
+        if len(data)<POOL_PAGE_SIZE:
+            complete=True
+            break
+    return dict(
+        complete=complete,pages=pages,page_size=POOL_PAGE_SIZE,
+        observable_unique_pools=len(seen),raw_rows_seen=total,
+        exact_one_sol_leg_pools=sol_pairs,
+        eligible_under_current_rules=eligible,
+        primary_classification=dict(sorted(primary.items())),
+        overlapping_rejection_reasons=dict(sorted(overlap.items())),
+        rejection_examples={k:v for k,v in sorted(examples.items())},
+        rules=dict(
+            exactly_one_sol_leg=True,is_blacklisted=False,
+            min_tvl_usd=50000,min_volume_24h_usd=25000,
+        ),
+    )
 
 
 def census_eligible_pools():
@@ -338,12 +430,15 @@ def main():
         allocation_authority=False,signing_authority=False,submission_authority=False,
         provider_roles=dict(
             discovery="public_solana_ws_full_stream_then_log_relevance_filter",
-            reconstruction_primary="authenticated_onfinality_http_5rps",
-            reconstruction_rescue="alchemy_http_rescue_only",
+            reconstruction_primary="authenticated_alchemy_http_5rps",
+            reconstruction_rescue=None,
         ),
         status="started",
     )
     _save(report)
+
+    pool_rejection_diagnostic=diagnose_pool_universe()
+    report.update(pool_rejection_diagnostic=pool_rejection_diagnostic);_save(report)
 
     pools,pool_census=census_eligible_pools()
     report.update(pool_census=pool_census,pools=pools);_save(report)
