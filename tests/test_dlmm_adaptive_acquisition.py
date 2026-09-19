@@ -14,8 +14,13 @@ from meme_machine.dlmm_acquisition import (
     ONFINALITY_DISCOVERY_PROVIDER,
     classify_dlmm_lp_logs,
     discovery_streams,
+    valid_solana_signature,
 )
 from tests import dlmm_adaptive_operator_discovery as v2
+
+
+def _sig(byte):
+    return pump.b58(bytes([byte])*64)
 
 
 class DLMMAdaptiveAcquisitionTests(unittest.TestCase):
@@ -57,10 +62,11 @@ class DLMMAdaptiveAcquisitionTests(unittest.TestCase):
             "Program log: Instruction: AddLiquidity2",
             f"Program {dlmm.PROGRAM} success",
         ]
-        ledger.observe(PUBLIC_DISCOVERY_PROVIDER,"a",1,1.0,neutral)
-        ledger.observe(PUBLIC_DISCOVERY_PROVIDER,"b",2,2.0,lp)
-        ledger.observe(ONFINALITY_DISCOVERY_PROVIDER,"b",2,2.1,lp)
-        ledger.observe(ONFINALITY_DISCOVERY_PROVIDER,"c",3,3.0,neutral)
+        a,b,c=_sig(1),_sig(2),_sig(3)
+        ledger.observe(PUBLIC_DISCOVERY_PROVIDER,a,1,1.0,neutral)
+        ledger.observe(PUBLIC_DISCOVERY_PROVIDER,b,2,2.0,lp)
+        ledger.observe(ONFINALITY_DISCOVERY_PROVIDER,b,2,2.1,lp)
+        ledger.observe(ONFINALITY_DISCOVERY_PROVIDER,c,3,3.0,neutral)
         s=ledger.status()
         self.assertEqual(s["unique_signatures"],3)
         self.assertEqual(s["overlap_signatures"],1)
@@ -69,7 +75,22 @@ class DLMMAdaptiveAcquisitionTests(unittest.TestCase):
         self.assertAlmostEqual(s["onfinality_coverage_of_union"],2/3)
         self.assertEqual(s["reconstruction_candidates"],1)
         self.assertEqual(s["filtered_without_http"],2)
-        self.assertEqual([r["signature"] for r in ledger.candidate_rows()],["b"])
+        self.assertEqual([r["signature"] for r in ledger.candidate_rows()],[b])
+
+    def test_stream_rejects_zero_signature_before_candidate_reconstruction(self):
+        zero="1"*64
+        self.assertFalse(valid_solana_signature(zero))
+        self.assertTrue(valid_solana_signature(_sig(5)))
+        ledger=UnionSignatureLedger()
+        logs=[
+            f"Program {dlmm.PROGRAM} invoke [1]",
+            "Program log: Instruction: AddLiquidity2",
+            f"Program {dlmm.PROGRAM} success",
+        ]
+        ledger.observe(PUBLIC_DISCOVERY_PROVIDER,zero,1,1.0,logs)
+        self.assertEqual(ledger.status()["unique_signatures"],0)
+        self.assertEqual(ledger.status()["invalid_signature_notifications"],1)
+        self.assertEqual(ledger.candidate_rows(),[])
 
     def test_discovery_streams_default_to_public_and_auth_is_explicit_diagnostic(self):
         rows=discovery_streams({})
@@ -165,14 +186,15 @@ class DLMMAdaptiveAcquisitionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             path=Path(td)/"checkpoint.json"
             with patch.object(v2,"CHECKPOINT_OUT",path):
+                sig=_sig(4)
                 v2._write_checkpoint(
                     pools,
-                    {"sig":{"signature":"sig","slot":1,"first_observed_at":1.0}},
-                    {"sig":{"status":"success","events":[]}},
+                    {sig:{"signature":sig,"slot":1,"first_observed_at":1.0}},
+                    {sig:{"status":"success","events":[]}},
                 )
                 candidates,processed=v2._load_checkpoint(pools)
-                self.assertIn("sig",candidates)
-                self.assertEqual(processed["sig"]["status"],"success")
+                self.assertIn(sig,candidates)
+                self.assertEqual(processed[sig]["status"],"success")
                 self.assertEqual(v2._load_checkpoint([{"address":"different"}]),({},{}))
 
     def test_filtered_reconstruction_covers_current_lp_mutation_surface(self):
