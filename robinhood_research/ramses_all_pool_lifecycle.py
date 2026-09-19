@@ -628,18 +628,8 @@ def run(
         return result
 
     pool = chosen["pool"].lower()
-    decision = deepcopy(chosen["decision"])
-    costs = _segment_costs(costs_by_pool.get(pool))
     entry_block = int(screen["finalized_block"])
     entry_at = int(screen["finalized_timestamp"])
-    result.update(
-        status="qualifier_selected",
-        pool=pool,
-        quote_asset=chosen["token_y"].lower(),
-        qualifier_decision=decision,
-        entry_block=entry_block,
-        entry_at=entry_at,
-    )
 
     rpc = BoundedMultiRpc(
         endpoint,
@@ -649,8 +639,36 @@ def run(
         rate_retries=1,
     )
     rpc.verify_chain()
-    result["qualifier_authentication"] = _authenticate_preentry_history(
-        rpc, chosen, screen
+    canonical_chosen, auth = _canonicalize_selected_row(
+        rpc,
+        chosen,
+        screen,
+        costs_by_pool=costs_by_pool,
+        signals_by_pool=signals_by_pool,
+    )
+    result["qualifier_authentication"] = auth
+    if canonical_chosen["decision"].get("qualified") is not True:
+        result.update(
+            status="no_trade",
+            boundary=None,
+            reason="qualifier_invalidated_by_canonical_tape",
+            pool=pool,
+            canonical_decision=canonical_chosen["decision"],
+            provider=rpc.telemetry(),
+            ended_at=time.time(),
+        )
+        return result
+
+    chosen = canonical_chosen
+    decision = deepcopy(chosen["decision"])
+    costs = _segment_costs(costs_by_pool.get(pool))
+    result.update(
+        status="qualifier_selected",
+        pool=pool,
+        quote_asset=chosen["token_y"].lower(),
+        qualifier_decision=decision,
+        entry_block=entry_block,
+        entry_at=entry_at,
     )
 
     db_path = str(db_path or DB)
