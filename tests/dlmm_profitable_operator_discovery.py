@@ -120,7 +120,8 @@ def census_pools():
             if not isinstance(address,str) or address in seen:
                 continue
             seen.add(address);pools.append(_pool_record(row))
-        if (pages is not None and page>=pages) or not rows or len(rows)<POOL_PAGE_SIZE:
+        if (pages is not None and page>=pages) or not rows or (
+                pages is None and len(rows)<POOL_PAGE_SIZE):
             break
         page+=1
         if page>10000:
