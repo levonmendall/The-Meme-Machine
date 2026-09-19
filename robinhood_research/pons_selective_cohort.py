@@ -271,6 +271,7 @@ def run(endpoint):
         skill.close();feed.close()
         raise BoundaryError("selective_sequencer_timestamp_missing")
     tape=[];last_eval={};seen_event=set()
+    first_observed_monotonic={}
     queue=DeadlineEvidenceQueue(limit=4096,nominal_deadline_seconds=5.0)
 
     try:
@@ -302,6 +303,7 @@ def run(endpoint):
                 result["sequencer_recoveries"]
             )
             now=time.time()
+            now_monotonic=time.monotonic()
             for event in fresh:
                 identity=(event["transactionHash"],event["logIndex"])
                 if identity in seen_event:
@@ -318,7 +320,8 @@ def run(endpoint):
                 if now-last_eval.get(curve,0)<MIN_REEVALUATION_SECONDS:
                     continue
                 last_eval[curve]=now
-                queue.enqueue(event,now=now)
+                if queue.enqueue(event,now=now):
+                    first_observed_monotonic[identity]=now_monotonic
 
             if time.monotonic()>=next_checkpoint:
                 _checkpoint(
@@ -330,11 +333,20 @@ def run(endpoint):
                 continue
             event=scheduled["event"]
             sequence=len(result["rows"])
+            observation_key=(event["transactionHash"],event["logIndex"])
+            observed_monotonic=first_observed_monotonic.pop(
+                observation_key,None
+            )
+            if observed_monotonic is None:
+                raise BoundaryError("missing_evidence_observation_clock")
+            observed_at=float(scheduled["queued_at"])
             try:
                 evaluation=evaluate_candidate(
                     endpoint,event,list(tape),
                     strategy_capital_quote=STRATEGY_CAPITAL_QUOTE,
                     wallet_histories=None,creator_history=None,
+                    evidence_observed_at=observed_at,
+                    evidence_observed_monotonic=observed_monotonic,
                 )
                 overlay=_attach_wallet_overlay(evaluation["vector"],skill)
                 public=public_evaluation(evaluation)
