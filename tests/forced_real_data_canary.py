@@ -19,7 +19,8 @@ from pathlib import Path
 from meme_machine import pump
 from meme_machine.concentration import ConcentrationReader
 from meme_machine.engine import DELAY, MAX_AGE, Engine, MAYHEM_AGENT_WALLET
-from meme_machine.provider import PumpAdapter, RPC, Unavailable
+from meme_machine.provider import PumpAdapter, Unavailable
+from meme_machine.solana_read_rpc import new_rpc, primary_rpc_url
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 
@@ -57,7 +58,7 @@ def _report_error(report, stage, exc):
 
 
 def main():
-    url = os.environ.get('MM_SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.com')
+    url = primary_rpc_url()
     report = dict(
         kind='forced_real_data_canary',
         network='solana-mainnet', protocol='pump.fun',
@@ -70,11 +71,11 @@ def main():
         signing_authority=False,
         live_money_authority=False,
         portfolio_performance_claim=False,
-        provider_spend_usd=0 if url == 'https://api.mainnet-beta.solana.com' else None,
+        provider_spend_usd=0,
         infrastructure_spend_usd=0,
         started=int(time.time()),
     )
-    rpc = RPC(url, limit=160)
+    rpc = new_rpc(limit=160)
     adapter = None
     reader = None
     tape = PumpTape()
@@ -302,6 +303,8 @@ def main():
                       http_failures=rpc.failures,
                       http_retries=rpc.retries,
                       http_failure_kinds=rpc.failure_kinds,
+                      provider_spend_usd=0 if rpc.failover_count==0 else None,
+                      provider_topology=rpc.provider_telemetry(),
                       concentration_retrieval={} if reader is None else reader.status())
     print(json.dumps(report, sort_keys=True))
 

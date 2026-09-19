@@ -23,7 +23,6 @@ import time
 from meme_machine import dlmm
 from meme_machine.dlmm_paper import CAPITAL, ENTRY_COST, EXIT_COST
 from meme_machine.dlmm_tape import (VerifiedTape,apply_external_adjustment,ordered_tape_actions,replay_swap_event)
-from meme_machine.postgrad import PoolScanRPC
 from meme_machine.provider import Unavailable
 from meme_machine.store import digest
 from tests import dlmm_alchemy_provider as alchemy_provider
@@ -353,15 +352,15 @@ def _advance(adapter, states, wait_seconds):
 def run_live(cycles=MAX_CYCLES, window_seconds=18):
     if not 1 <= cycles <= MAX_CYCLES or not 5 <= window_seconds <= MAX_WINDOW_SECONDS:
         raise ValueError("dlmm_research_live_bounds")
-    rpc = PoolScanRPC(alchemy_provider.rpc_url(), limit=240)
+    rpc = alchemy_provider.new_rpc(limit=240)
     adapter = dlmm.Adapter(rpc)
     states, discovery_errors, discovery_rejections = _discover(adapter, int(time.time()))
     report = dict(
         kind="dlmm_point_in_time_strategy_replay_v1",
         base="pr4_verified_simulator",
         research_rpc_provider=alchemy_provider.PROVIDER_LABEL,
-        research_rpc_provider_host=alchemy_provider.ALCHEMY_SOLANA_MAINNET_HOST,
-        research_rpc_fallback_allowed=False,
+        research_rpc_provider_host="solana.api.onfinality.io",
+        research_rpc_fallback_allowed=True,
         allocation_authority=False,
         prospective_allocation_enabled=False,
         capital_lamports=CAPITAL,
@@ -447,6 +446,7 @@ def run_live(cycles=MAX_CYCLES, window_seconds=18):
         rpc_failures=rpc.failures,
         rpc_retries=rpc.retries,
         provider_failure_kinds=rpc.failure_kinds,
+        provider_topology=rpc.provider_telemetry(),
     )
     REPORT.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(json.dumps(dict(

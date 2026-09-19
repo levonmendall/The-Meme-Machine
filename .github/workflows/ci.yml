@@ -34,6 +34,8 @@ jobs:
   forced-real-data-canary:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[forced-canary]')
     runs-on: ubuntu-24.04
+    env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
     concurrency:
       group: solana-public-rpc-live
       cancel-in-progress: false
@@ -49,6 +51,8 @@ jobs:
   postgrad-live:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[postgrad-live]')
     runs-on: ubuntu-24.04
+    env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
     concurrency:
       group: solana-public-rpc-live
       cancel-in-progress: false
@@ -84,6 +88,7 @@ jobs:
     timeout-minutes: 60
     continue-on-error: true
     env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_STREAM_OBSERVE_SECONDS: '3300'
       MM_STREAM_MAX_EVIDENCE_CANDIDATES: '20'
     steps:
