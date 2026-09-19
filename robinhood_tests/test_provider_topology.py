@@ -173,6 +173,16 @@ class LaneProviderTests(unittest.TestCase):
         self.assertEqual(clock.sleeps,[0.5])
         self.assertEqual(pacer.telemetry()["paced_requests"],2)
 
+    def test_pacer_backpressure_only_slows_and_is_shared(self):
+        clock=_Clock()
+        pacer=ProviderPacer(5.0,clock=clock.time,sleeper=clock.sleep)
+        self.assertTrue(pacer.slow_to(2.0))
+        self.assertFalse(pacer.slow_to(5.0))
+        self.assertEqual(pacer.requests_per_second,2.0)
+        self.assertEqual(pacer.minimum_interval_seconds,0.5)
+        self.assertEqual(pacer.telemetry()["backpressure_events"],1)
+        self.assertEqual(pacer.pace(),0.5)
+
     def test_topology_metadata_never_exposes_endpoint(self):
         env={
             PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/secret",

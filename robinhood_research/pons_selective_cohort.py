@@ -50,6 +50,12 @@ SEQUENCER_RECONNECT_ATTEMPTS=5
 SEQUENCER_RECONNECT_SLEEP_SECONDS=0.5
 PROVIDER_RECOVERY_ATTEMPTS=3
 PROVIDER_RECOVERY_SLEEP_SECONDS=0.5
+PROVIDER_RATE_LIMIT_ATTEMPTS=5
+PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS=2.0
+RATE_LIMIT_PROVIDER_BOUNDARIES=frozenset((
+    "provider_http_429",
+    "provider_rpc_429",
+))
 RECOVERABLE_PROVIDER_BOUNDARIES=frozenset((
     "provider_http_500",
     "provider_http_502",
@@ -176,7 +182,11 @@ def _discovery(endpoint):
 
 
 def _recoverable_provider_boundary(exc):
-    return str(exc) in RECOVERABLE_PROVIDER_BOUNDARIES
+    boundary=str(exc)
+    return (
+        boundary in RECOVERABLE_PROVIDER_BOUNDARIES
+        or boundary in RATE_LIMIT_PROVIDER_BOUNDARIES
+    )
 
 
 def _recover_discovery(
@@ -191,9 +201,28 @@ def _recover_discovery(
     if on_failure is not None:
         on_failure(rpc,boundary,int(cursor))
 
+    rate_limited=boundary in RATE_LIMIT_PROVIDER_BOUNDARIES
+    pacer=getattr(rpc,"pacer",None)
+    rps_before=(
+        None if pacer is None
+        else float(getattr(pacer,"requests_per_second",0) or 0)
+    )
+    if rate_limited and pacer is not None and rps_before:
+        pacer.slow_to(max(1.0,rps_before/2.0))
+    rps_after=(
+        None if pacer is None
+        else float(getattr(pacer,"requests_per_second",0) or 0)
+    )
+
     last=boundary
-    for attempt in range(1,PROVIDER_RECOVERY_ATTEMPTS+1):
-        if attempt>1:
+    attempts=(
+        PROVIDER_RATE_LIMIT_ATTEMPTS
+        if rate_limited else PROVIDER_RECOVERY_ATTEMPTS
+    )
+    for attempt in range(1,attempts+1):
+        if rate_limited:
+            time.sleep(PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS*attempt)
+        elif attempt>1:
             time.sleep(PROVIDER_RECOVERY_SLEEP_SECONDS)
         try:
             replacement=_discovery(endpoint)
@@ -201,9 +230,12 @@ def _recover_discovery(
             last=str(exc)
             if not _recoverable_provider_boundary(exc):
                 raise
+            if str(exc) in RATE_LIMIT_PROVIDER_BOUNDARIES:
+                rate_limited=True
+                attempts=max(attempts,PROVIDER_RATE_LIMIT_ATTEMPTS)
             continue
         row=dict(
-            kind="provider_recovery",
+            kind=("provider_rate_limit_recovery" if rate_limited else "provider_recovery"),
             recovered_at=time.time(),
             attempt=attempt,
             boundary=boundary,
@@ -211,6 +243,9 @@ def _recover_discovery(
             canonical_cursor_advanced=False,
             catchup_authority="authenticated_discovery_rpc",
             catchup_from=int(cursor)+1,
+            rate_limited=bool(rate_limited),
+            pacer_rps_before=rps_before,
+            pacer_rps_after=rps_after,
         )
         recoveries.append(row)
         _append_jsonl(RECOVERY_LOG,row)
