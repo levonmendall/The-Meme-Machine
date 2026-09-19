@@ -13,7 +13,7 @@ import json
 import struct
 
 from . import pump
-from .postgrad import buy_quote, sell_quote, validate_postgrad_snapshot
+from .postgrad import (buy_quote, graduation_handoff, sell_quote,\n                       validate_postgrad_snapshot)
 from .pump_alpha import (
     POLICY,
     POLICY_HASH,
@@ -410,19 +410,29 @@ class PumpAlphaPaperBook:
         self.reconcile()
         return "settled"
 
-    def handoff_to_postgrad(self, mint, snapshot, decision, now):
+    def handoff_to_postgrad(self, mint, completed_pump_snapshot, snapshot, decision, now):
         p = self.state["positions"].get(mint)
         if p is None or p.get("surface") != "pump.fun":
             return "no_curve_position"
+        # The position cannot jump surfaces merely because a PumpSwap-shaped snapshot
+        # exists. First prove the source bonding curve completed, then bind the
+        # canonical post-graduation snapshot to the same mint/creator lineage.
+        handoff = graduation_handoff(completed_pump_snapshot, int(now))
         mode = "prospective" if snapshot.get("kind") == "real" else snapshot.get("kind")
         validate_postgrad_snapshot(snapshot, now, mode)
-        if snapshot["mint"] != mint:
+        if (
+            handoff.mint != mint
+            or snapshot["mint"] != mint
+            or snapshot.get("creator") != handoff.creator
+        ):
             return "handoff_identity"
         p["surface"] = snapshot["surface"]
         p["entry_slot"] = int(snapshot["slot"])
-        p["graduated_at"] = int(decision.get("graduated_at", now))
+        p["graduated_at"] = int(decision.get("graduated_at", handoff.source_market_time))
+        p["graduation_source_slot"] = int(handoff.source_slot)
         if not decision.get("eligible"):
             p["exit_due"] = int(now) + EXIT_DELAY_SECONDS
+            p["exit_slot"] = int(snapshot["slot"])
             p["exit_reason"] = "failed_postgrad_continuation"
             self._note("paper_graduation_exit_intended", mint, now)
             return "exit_intended"
