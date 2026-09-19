@@ -102,7 +102,8 @@ class SolanaReadProviderTopology(unittest.TestCase):
         rpc_b = SimpleNamespace(clock=clock.time, sleep=clock.sleep, last_request=None)
         self.assertEqual(pacer.pace(rpc_a, 0.0), 0.0)
         self.assertAlmostEqual(pacer.pace(rpc_b, 0.0), 0.2)
-        self.assertEqual(len(clock.sleeps), 1)\n        self.assertAlmostEqual(clock.sleeps[0], 0.2)
+        self.assertEqual(len(clock.sleeps), 1)
+        self.assertAlmostEqual(clock.sleeps[0], 0.2)
 
     def test_shared_pacer_serializes_independent_rpc_objects(self):
         clock = _Clock()
