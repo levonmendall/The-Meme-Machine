@@ -361,12 +361,20 @@ def qualification_vector(
     *, state, graduation_threshold, launch_at, snapshots, events,
     creator_groups, current_snipe_bps, lifecycle_gas_quote,
     strategy_capital_quote, asof, evidence_available_at,
+    evidence_observed_at=None,evidence_acquisition_latency_seconds=None,
     pair_token=ZERO, wallet_histories=None, creator_history=None,
     quote_relative_strength_bps=None,
 ):
     asof = int(asof)
     available = int(evidence_available_at)
-    age = available - int(state.timestamp)
+    if evidence_acquisition_latency_seconds is None:
+        age = float(available - int(state.timestamp))
+    else:
+        age = float(evidence_acquisition_latency_seconds)
+    chain_timestamp_lag = (
+        None if evidence_observed_at is None
+        else float(evidence_observed_at) - float(state.timestamp)
+    )
     progress = curve_progress_bps(state.real_quote, graduation_threshold)
     traj = trajectory_metrics(snapshots, asof)
     demand = demand_metrics(events, asof=asof, creator_groups=creator_groups)
@@ -453,6 +461,11 @@ def qualification_vector(
         qualification_authority=True,
         asof=asof,
         evidence_available_at=available,
+        evidence_observed_at=(
+            None if evidence_observed_at is None else float(evidence_observed_at)
+        ),
+        evidence_acquisition_latency_seconds=age,
+        chain_timestamp_lag_seconds=chain_timestamp_lag,
         decision_state_age_seconds=age,
         thresholds=dict(ENTRY_THRESHOLDS),
         progress_bps=progress,
