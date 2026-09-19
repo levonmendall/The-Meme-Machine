@@ -23,7 +23,7 @@ from meme_machine.market_native_runtime import MarketNativeRuntime
 from meme_machine.postgrad import PostGraduationAdapter
 from meme_machine.provider import PumpAdapter
 from meme_machine.pumpswap_runtime import PumpSwapPaperRuntime
-from meme_machine.solana_read_rpc import new_rpc, primary_rpc_url, primary_ws_url
+from meme_machine.solana_read_rpc import discovery_ws_url, new_rpc, primary_rpc_url
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 
@@ -35,10 +35,6 @@ POST_SECONDS=max(900,min(int(os.environ.get(
     'MM_MARKET_NATIVE_COHORT_POST_SECONDS','1100')),1800))
 TARGET_SETTLED=max(2,min(int(os.environ.get(
     'MM_MARKET_NATIVE_COHORT_TARGET_SETTLED','3')),5))
-PREFLIGHT_BUDGET=max(60,min(int(os.environ.get(
-    'MM_MARKET_NATIVE_COHORT_PREFLIGHT_BUDGET','150')),150))
-FULL_EVIDENCE_BUDGET=max(20,min(int(os.environ.get(
-    'MM_MARKET_NATIVE_COHORT_FULL_EVIDENCE_BUDGET','40')),40))
 RPC_LIMIT=240
 RPC_ROTATE_AT=160
 GENESIS_SOL_USD_MICROS=97_840_000
@@ -111,7 +107,8 @@ def main():
         discovery_mode='market_native',scout_lane_active=False,fomo_authority=False,
         dlmm_enabled=False,target_settled=TARGET_SETTLED,
         discovery_seconds=DISCOVERY_SECONDS,post_seconds=POST_SECONDS,
-        preflight_budget=PREFLIGHT_BUDGET,full_evidence_budget=FULL_EVIDENCE_BUDGET,
+        evidence_scheduler='adaptive_deadline_queue_v1',
+        evidence_queue_limit=10_000,
         rpc_rotation_threshold=RPC_ROTATE_AT,started=started,limitations=[],
         paper_rows=[],provider_sessions=[],
     )
@@ -124,7 +121,7 @@ def main():
         _retire_scout_state(store)
         engine=Engine(store,[])
         tape=PumpTape();stop=threading.Event();ready=threading.Event()
-        stream=PumpLogStream(url,tape,ws_url=primary_ws_url())
+        stream=PumpLogStream(url,tape,ws_url=discovery_ws_url())
         thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True);thread.start()
 
         rpc=new_rpc(limit=RPC_LIMIT)
@@ -132,8 +129,6 @@ def main():
         pumpswap=PumpSwapPaperRuntime(store,PostGraduationAdapter(rpc,scan_rpc=object()))
         runtime=MarketNativeRuntime(
             engine,adapter,DISCOVERY_SECONDS,
-            preflight_budget=PREFLIGHT_BUDGET,
-            full_evidence_budget=FULL_EVIDENCE_BUDGET,
             provider_rotation_threshold=RPC_ROTATE_AT,
         )
         session_started=int(time.time())
@@ -161,7 +156,7 @@ def main():
                 # Monitoring existing capital always outranks discovery/evidence.
                 _monitor_existing(engine,adapter,now,pumpswap_runtime=pumpswap)
 
-                if rpc.calls>=RPC_ROTATE_AT:
+                if runtime.provider_rotation_due():
                     close_provider_session('bounded_rpc_rotation',now)
                     session_started=now
                     rpc=new_rpc(limit=RPC_LIMIT,pacer=(rpc.read_pacer if hasattr(rpc,'read_pacer') else None))
