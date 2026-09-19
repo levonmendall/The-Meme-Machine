@@ -84,6 +84,7 @@ jobs:
       group: solana-public-rpc-live
       cancel-in-progress: false
     env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_DISCOVERY_COMPARE_SECONDS: '3300'
       MM_DISCOVERY_COMPARE_POST_SECONDS: '1000'
       MM_DISCOVERY_COMPARE_MAX_PER_LANE: '20'
@@ -112,6 +113,7 @@ jobs:
       group: solana-public-rpc-live
       cancel-in-progress: false
     env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_MARKET_NATIVE_PRIORITY_SECONDS: '3300'
       MM_MARKET_NATIVE_PREFLIGHT_BUDGET: '90'
       MM_MARKET_NATIVE_FULL_EVIDENCE_BUDGET: '20'
@@ -140,6 +142,7 @@ jobs:
       group: solana-public-rpc-live
       cancel-in-progress: false
     env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_MARKET_NATIVE_SMOKE_SECONDS: '720'
       MM_MARKET_NATIVE_SMOKE_PREFLIGHT_BUDGET: '12'
       MM_MARKET_NATIVE_SMOKE_FULL_EVIDENCE_BUDGET: '4'
@@ -172,6 +175,7 @@ jobs:
       group: solana-public-rpc-live
       cancel-in-progress: false
     env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_MARKET_NATIVE_PAPER_DISCOVERY_SECONDS: '3300'
       MM_MARKET_NATIVE_PAPER_POST_SECONDS: '1000'
       MM_MARKET_NATIVE_PAPER_PREFLIGHT_BUDGET: '60'
@@ -225,6 +229,7 @@ jobs:
       group: solana-public-rpc-live
       cancel-in-progress: false
     env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_MARKET_NATIVE_COHORT_DISCOVERY_SECONDS: '5400'
       MM_MARKET_NATIVE_COHORT_POST_SECONDS: '1100'
       MM_MARKET_NATIVE_COHORT_TARGET_SETTLED: '3'
@@ -279,6 +284,7 @@ jobs:
       group: solana-public-rpc-live
       cancel-in-progress: false
     env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_MARKET_NATIVE_OUTCOME_DISCOVERY_SECONDS: '3300'
       MM_MARKET_NATIVE_OUTCOME_FOLLOWUP_SECONDS: '3600'
       MM_MARKET_NATIVE_OUTCOME_NATURAL_BUDGET: '120'
@@ -310,6 +316,7 @@ jobs:
       group: solana-public-rpc-live
       cancel-in-progress: false
     env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_MARKET_NATIVE_OUTCOME_DISCOVERY_SECONDS: '1200'
       MM_MARKET_NATIVE_OUTCOME_FOLLOWUP_SECONDS: '300'
       MM_MARKET_NATIVE_OUTCOME_NATURAL_BUDGET: '30'
