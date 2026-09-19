@@ -256,6 +256,9 @@ def main():
                 market_native=runtime.status(),
                 stream=tape.status(ended),
                 stream_error_kind=stream.error_kind,
+                stream_last_error_kind=getattr(stream,'last_error_kind',None),
+                stream_connections=getattr(stream,'connections',0),
+                stream_reconnects=getattr(stream,'reconnects',0),
                 reconciled=reconciled,
                 archive_verified=archive_verified,
                 provider_total_logical=sum(int(x.get('logical_requests', 0))
