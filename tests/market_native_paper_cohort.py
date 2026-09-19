@@ -23,7 +23,7 @@ from meme_machine.market_native_runtime import MarketNativeRuntime
 from meme_machine.postgrad import PostGraduationAdapter
 from meme_machine.provider import PumpAdapter
 from meme_machine.pumpswap_runtime import PumpSwapPaperRuntime
-from meme_machine.solana_read_rpc import new_rpc, primary_rpc_url
+from meme_machine.solana_read_rpc import new_rpc, primary_rpc_url, primary_ws_url
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 
@@ -124,7 +124,7 @@ def main():
         _retire_scout_state(store)
         engine=Engine(store,[])
         tape=PumpTape();stop=threading.Event();ready=threading.Event()
-        stream=PumpLogStream(url,tape)
+        stream=PumpLogStream(url,tape,ws_url=primary_ws_url())
         thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True);thread.start()
 
         rpc=new_rpc(limit=RPC_LIMIT)
