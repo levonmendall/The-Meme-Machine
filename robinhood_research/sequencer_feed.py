@@ -399,24 +399,65 @@ class SequencerBlockClock:
         if s.gap_events or s.conflicts or s.regressions or s.malformed:
             raise BoundaryError("sequencer_discovery_continuity_lost")
 
-    def wait_for_after(self, sequence, *, timeout=1.0):
+    def wait_for_range_after(
+        self, sequence, *, timeout=1.0, max_blocks=10, coalesce_seconds=0.0
+    ):
+        """Return a bounded contiguous sequencer range end after sequence.
+
+        Once the first new L2 sequence is observed, optionally keep consuming the
+        feed for a short coalescing window. The returned end never exceeds
+        sequence+max_blocks, so one discovery eth_getLogs request can cover the
+        whole range without widening the existing ten-block provider boundary.
+        """
+        if not 1<=int(max_blocks)<=10:
+            raise BoundaryError("sequencer_discovery_range_bound")
+        if not 0.0<=float(coalesce_seconds)<=2.0:
+            raise BoundaryError("sequencer_discovery_coalesce_bound")
         self.connect()
+        start=int(sequence)
+        buffered=self.state.last_sequence
+        if buffered is not None and buffered>start:
+            return min(int(buffered),start+int(max_blocks))
+
         deadline=time.monotonic()+max(0.05,float(timeout))
+        first_new_at=None
         while time.monotonic()<deadline:
-            remaining=max(0.05,deadline-time.monotonic())
+            if first_new_at is not None:
+                coalesce_deadline=first_new_at+float(coalesce_seconds)
+                if time.monotonic()>=coalesce_deadline:
+                    break
+                remaining=max(0.01,min(deadline,coalesce_deadline)-time.monotonic())
+            else:
+                remaining=max(0.05,deadline-time.monotonic())
             self.client.sock.settimeout(min(1.0,remaining))
             try:
                 payload=self.client.recv_message()
             except socket.timeout:
+                if first_new_at is not None:
+                    break
                 continue
             if payload is None:
                 raise BoundaryError("sequencer_feed_connection_closed")
             self.state.ingest(payload,received_at=time.time())
             self._healthy()
             latest=self.state.last_sequence
-            if latest is not None and latest>int(sequence):
-                return int(latest)
-        return None
+            if latest is None or latest<=start:
+                continue
+            if first_new_at is None:
+                first_new_at=time.monotonic()
+                if float(coalesce_seconds)==0.0:
+                    break
+            if int(latest)>=start+int(max_blocks):
+                break
+        latest=self.state.last_sequence
+        if latest is None or latest<=start:
+            return None
+        return min(int(latest),start+int(max_blocks))
+
+    def wait_for_after(self, sequence, *, timeout=1.0):
+        return self.wait_for_range_after(
+            sequence,timeout=timeout,max_blocks=10,coalesce_seconds=0.0
+        )
 
     def status(self):
         row=self.state.summary(now=time.time())
