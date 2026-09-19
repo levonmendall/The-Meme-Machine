@@ -22,26 +22,39 @@ workflow reads this exact repository secret. There is no schedule. A push bearin
 `[robinhood-read-proof]` to this dedicated branch triggers one bounded read job.
 The workflow has contents-read permission and never calls Solana providers.
 
-## Multi-source Robinhood observability
+## Lane-specific Robinhood RPC governance
 
-The read plane now supports independent provider redundancy without changing strategy
-authority:
+Robinhood now mirrors the current Solana separation between broad discovery,
+scarce decision evidence, and high-throughput reconstruction:
 
-- `MM_ROBINHOOD_READ_RPC_URL`: existing authenticated primary RPC.
-- `MM_ROBINHOOD_QUICKNODE_RPC_URL`: optional independent QuickNode secondary.
-  Standard read-only `eth_*` requests may fail over only after a provider/capability
-  failure. Provider-specific methods such as `alchemy_getAssetTransfers` remain
-  pinned to the primary.
-- `https://rpc.mainnet.chain.robinhood.com`: official public RPC, diagnostic-only;
-  it is never an automatic evidence or decision fallback.
-- `wss://feed.mainnet.chain.robinhood.com`: official sequencer feed,
-  observation-only. It tracks liveness, sequence gaps/conflicts and feed timestamps
-  but cannot qualify, authorize, fill or settle a paper position.
+- `MM_ROBINHOOD_READ_RPC_URL`: authoritative Pons/directional evidence RPC.
+  Real network traffic is paced at **2 RPS**. It fails closed; no shadow or alternate
+  provider may silently replace evidence inside the five-second qualification path.
+  Runtime telemetry classifies the provider host without logging the endpoint/key.
+- Official `wss://feed.mainnet.chain.robinhood.com`: authoritative Pons discovery
+  clock. Sequence gaps/conflicts/regressions fail closed.
+- `MM_ROBINHOOD_DISCOVERY_RPC_URL`: optional **5 RPS** discovery/log RPC used only
+  for sequencer-announced blocks. If absent, `MM_ROBINHOOD_DLMM_RPC_URL` may serve
+  discovery; if both are absent, the primary RPC is an explicit temporary fallback.
+- `MM_ROBINHOOD_DLMM_RPC_URL`: optional dedicated **5 RPS** Ramses reconstruction
+  RPC with bounded sessions and no automatic rescue. Until configured, Ramses uses
+  the authenticated primary under a separate 5 RPS pacer and reports that fallback.
+- `MM_ROBINHOOD_SHADOW_RPC_URL`: optional independent comparison provider.
+  It is diagnostic-only and never trade/evidence authority.
+- `https://rpc.mainnet.chain.robinhood.com`: official public RPC, diagnostic-only.
 
-`python -m robinhood_research.observability_probe` performs one bounded comparison
-of the primary, QuickNode, public RPC and sequencer feed. A push containing
-`[robinhood-observability-proof]` runs the same proof in Actions when the QuickNode
-secret is configured.
+Pons discovery now uses the sequencer as a persistent L2 block clock, fetches logs
+only for newly announced blocks, and places burst candidates in a bounded
+five-second deadline queue. Candidate identity/state/economics are still authenticated
+only through `MM_ROBINHOOD_READ_RPC_URL`; the unchanged five-second freshness gate
+remains authoritative.
+
+Ramses uses its own reconstruction constructor and pacing clock, so bulk DLMM research
+cannot silently change Pons evidence-provider semantics.
+
+`python -m robinhood_research.observability_probe` reports the directional,
+discovery, DLMM, shadow, public-RPC and sequencer planes without exposing credentials.
+A push containing `[robinhood-observability-proof]` runs that bounded proof.
 
 
 ## Implemented boundaries
