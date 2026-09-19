@@ -6,6 +6,7 @@ import unittest
 
 from robinhood_research import BoundaryError
 from robinhood_research.ramses_extended_test import (
+    _exact_forced_horizon,
     _pick_forced_row,
     _screen_summary,
 )
@@ -116,6 +117,44 @@ class RamsesExtendedMarketTests(unittest.TestCase):
                 "forced",pool="0x"+"55"*20,decision=decision,at=1
             )
         ledger.close()
+
+    def test_exact_forced_horizon_uses_earliest_finalized_crossing(self):
+        class Rpc:
+            def call(self,method,params,scope="forward"):
+                if method!="eth_getBlockByNumber":
+                    raise AssertionError((method,params,scope))
+                block=int(params[0],16)
+                return dict(
+                    number=hex(block),
+                    timestamp=hex(1000+(block-100)*2),
+                )
+        frontier=dict(number=hex(500),timestamp=hex(1800))
+        selected,horizon=_exact_forced_horizon(
+            Rpc(),100,1000,frontier
+        )
+        self.assertEqual(int(selected["number"],16),130)
+        self.assertEqual(int(selected["timestamp"],16),1060)
+        self.assertEqual(horizon["selected_elapsed_seconds"],60)
+        self.assertEqual(horizon["previous_elapsed_seconds"],58)
+        self.assertTrue(horizon["earliest_finalized_at_or_after_target"])
+        self.assertLess(horizon["selected_block"],500)
+
+    def test_exact_forced_horizon_accepts_first_block_after_target(self):
+        class Rpc:
+            def call(self,method,params,scope="forward"):
+                block=int(params[0],16)
+                # 3 second block spacing means there is no exact +60 block.
+                return dict(
+                    number=hex(block),
+                    timestamp=hex(1000+(block-100)*3),
+                )
+        frontier=dict(number=hex(500),timestamp=hex(2200))
+        selected,horizon=_exact_forced_horizon(
+            Rpc(),100,1000,frontier
+        )
+        self.assertEqual(int(selected["timestamp"],16),1060)
+        self.assertLess(horizon["previous_timestamp"],1060)
+        self.assertGreaterEqual(horizon["selected_timestamp"],1060)
 
 
 if __name__=="__main__":
