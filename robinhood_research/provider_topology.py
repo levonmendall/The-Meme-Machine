@@ -84,14 +84,14 @@ def primary_endpoint(primary_endpoint=None, *, environ=None):
     )
 
 
-def dlmm_endpoint(*, environ=None):
+def dlmm_endpoint(primary_fallback_endpoint=None, *, environ=None):
     value = _env(DLMM_ENV, environ)
     if value:
         return _require_https(
             value,
             "MM_ROBINHOOD_DLMM_RPC_URL_requires_full_https_url",
         ), False
-    return primary_endpoint(environ=environ), True
+    return primary_endpoint(primary_fallback_endpoint, environ=environ), True
 
 
 def shadow_endpoint(*, environ=None):
@@ -228,9 +228,11 @@ def configured_rpc(primary_endpoint_value=None, *, environ=None, **kwargs):
     )
 
 
-def configured_dlmm_rpc(*, environ=None, **kwargs):
+def configured_dlmm_rpc(primary_fallback_endpoint=None, *, environ=None, **kwargs):
     """Ramses reconstruction RPC: dedicated 5 RPS lane, no automatic rescue."""
-    endpoint, primary_fallback = dlmm_endpoint(environ=environ)
+    endpoint, primary_fallback = dlmm_endpoint(
+        primary_fallback_endpoint, environ=environ
+    )
     pacer = _pacer_for(_DLMM_PACERS, endpoint, DLMM_RPS)
     rpc = PacedRpc(
         endpoint,
