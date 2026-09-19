@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+import tempfile
 import time
 import unittest
 from unittest.mock import patch
@@ -156,6 +159,21 @@ class DLMMAdaptiveAcquisitionTests(unittest.TestCase):
         self.assertEqual(rows[0]["wallet"],wallet)
         self.assertEqual(rows[0]["pool"],pool)
         self.assertEqual(rows[0]["action"],"add_liquidity2")
+
+    def test_adaptive_checkpoint_reuses_only_matching_pool_universe(self):
+        pools=[{"address":"a"},{"address":"b"}]
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/"checkpoint.json"
+            with patch.object(v2,"CHECKPOINT_OUT",path):
+                v2._write_checkpoint(
+                    pools,
+                    {"sig":{"signature":"sig","slot":1,"first_observed_at":1.0}},
+                    {"sig":{"status":"success","events":[]}},
+                )
+                candidates,processed=v2._load_checkpoint(pools)
+                self.assertIn("sig",candidates)
+                self.assertEqual(processed["sig"]["status"],"success")
+                self.assertEqual(v2._load_checkpoint([{"address":"different"}]),({},{}))
 
     def test_v2_has_no_fixed_pool_or_transaction_sample_constants(self):
         self.assertFalse(hasattr(v2,"POOL_SAMPLE"))
