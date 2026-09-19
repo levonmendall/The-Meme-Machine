@@ -7,6 +7,22 @@ from unittest.mock import patch
 from tests import dlmm_profitable_operator_rules as rules
 
 
+def derivation(min_clusters=3):
+    return {
+        "revision":"1.0",
+        "core_family":{
+            "independent_cluster_support_required":2/3,
+            "minimum_independent_clusters":min_clusters,
+        },
+        "context_dimensions":{
+            "pool_age_seconds":[],
+            "pre_entry_60m_volume_usd":[],
+            "pre_entry_5m_log_return_volatility":[],
+            "entry_dynamic_fee_bps_observed":[],
+        },
+    }
+
+
 def wallet(name,family="curve",side="one_sided",width=70,center=0,hold=500,
            rebalance=0,after=10.0,exact=True):
     return {
@@ -47,18 +63,13 @@ class ProfitableOperatorRuleTests(unittest.TestCase):
                 {"cluster_id":"d","wallets":["d"]},
             ],
         }
-        protocol={
-            "protocol_revision":"1.2",
-            "rule_derivation":{"cross_cluster_support":{
-                "categorical_support_required":2/3,
-                "minimum_independent_operator_clusters":3,
-            }}
-        }
+        protocol={"protocol_revision":"1.2"}
         with tempfile.TemporaryDirectory() as td:
             deep_path=Path(td)/"deep.json";deep_path.write_text(json.dumps(deep))
             protocol_path=Path(td)/"protocol.json";protocol_path.write_text(json.dumps(protocol))
+            derivation_path=Path(td)/"derivation.json";derivation_path.write_text(json.dumps(derivation(3)))
             out_path=Path(td)/"out.json"
-            with patch.object(rules,"PROTOCOL",protocol_path),patch.object(rules,"OUT",out_path):
+            with patch.object(rules,"PROTOCOL",protocol_path),patch.object(rules,"DERIVATION_PROTOCOL",derivation_path),patch.object(rules,"OUT",out_path):
                 report=rules.derive(deep_path)
         self.assertEqual(report["qualifying_independent_clusters"],3)
         self.assertEqual(len(report["candidate_rule_proposals"]),1)
@@ -78,18 +89,13 @@ class ProfitableOperatorRuleTests(unittest.TestCase):
                 {"cluster_id":"c","wallets":["c"]},
             ],
         }
-        protocol={
-            "protocol_revision":"1.2",
-            "rule_derivation":{"cross_cluster_support":{
-                "categorical_support_required":2/3,
-                "minimum_independent_operator_clusters":2,
-            }}
-        }
+        protocol={"protocol_revision":"1.2"}
         with tempfile.TemporaryDirectory() as td:
             dp=Path(td)/"d";dp.write_text(json.dumps(deep))
             pp=Path(td)/"p";pp.write_text(json.dumps(protocol))
+            dp2=Path(td)/"dp";dp2.write_text(json.dumps(derivation(2)))
             op=Path(td)/"o"
-            with patch.object(rules,"PROTOCOL",pp),patch.object(rules,"OUT",op):
+            with patch.object(rules,"PROTOCOL",pp),patch.object(rules,"DERIVATION_PROTOCOL",dp2),patch.object(rules,"OUT",op):
                 report=rules.derive(dp)
         self.assertEqual(len(report["candidate_rule_proposals"]),1)
         self.assertEqual(
@@ -106,18 +112,13 @@ class ProfitableOperatorRuleTests(unittest.TestCase):
                 {"cluster_id":"c","wallets":["c"]},
             ],
         }
-        protocol={
-            "protocol_revision":"1.2",
-            "rule_derivation":{"cross_cluster_support":{
-                "categorical_support_required":2/3,
-                "minimum_independent_operator_clusters":3,
-            }}
-        }
+        protocol={"protocol_revision":"1.2"}
         with tempfile.TemporaryDirectory() as td:
             dp=Path(td)/"d";dp.write_text(json.dumps(deep))
             pp=Path(td)/"p";pp.write_text(json.dumps(protocol))
+            dp2=Path(td)/"dp";dp2.write_text(json.dumps(derivation(3)))
             out=Path(td)/"o"
-            with patch.object(rules,"PROTOCOL",pp),patch.object(rules,"OUT",out):
+            with patch.object(rules,"PROTOCOL",pp),patch.object(rules,"DERIVATION_PROTOCOL",dp2),patch.object(rules,"OUT",out):
                 report=rules.derive(dp)
         self.assertEqual(report["qualifying_independent_clusters"],1)
         self.assertEqual(report["candidate_rule_proposals"],[])
