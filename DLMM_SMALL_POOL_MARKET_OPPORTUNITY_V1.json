@@ -47,7 +47,8 @@
     ],
     "pagination": "Each TVL stratum is paginated independently so low-TVL pools are not censored by a global TVL-desc page cap.",
     "max_pages_per_stratum": 100,
-    "page_size": 500
+    "page_size": 1000,
+    "completeness": "Every TVL stratum must reach the API-reported final page within the fixed 100-page bound; otherwise the study fails closed rather than compare a censored stratum."
   },
   "metrics": {
     "all_observed_pools": [
@@ -65,7 +66,8 @@
       "pool_age_distribution",
       "share_age_lt_1h",
       "share_age_lt_6h",
-      "share_age_lt_24h"
+      "share_age_lt_24h",
+      "median_dynamic_fee_pct"
     ],
     "volatility_sample": [
       "5m_log_return_volatility_60m",
@@ -97,5 +99,14 @@
     "checkpoint_volatility_sample": true,
     "no_solana_rpc_required_for_pool_first_stage": true
   },
-  "revision": "1.0"
+  "revision": "1.1",
+  "amendment_history": [
+    {
+      "revision": "1.1",
+      "reason": "Increase page size to the documented API maximum and require complete per-stratum pagination before any pool-first comparison.",
+      "pool_stratified_outcomes_observed_before_amendment": false,
+      "tvl_bucket_boundaries_changed": false,
+      "wallet_inputs_added": false
+    }
+  ]
 }
