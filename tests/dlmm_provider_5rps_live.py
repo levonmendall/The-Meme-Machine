@@ -10,7 +10,7 @@ OUT=Path("dlmm-provider-5rps-validation.json")
 
 def run():
     meta=provider.metadata()
-    if meta["primary_provider"]!="onfinality_public_solana_mainnet":
+    if meta["primary_provider"]!="onfinality_authenticated_solana_mainnet":
         raise RuntimeError("dlmm_primary_provider_drift")
     if meta["dlmm_primary_requests_per_second"]!=5:
         raise RuntimeError("dlmm_primary_rps_drift")
@@ -32,6 +32,12 @@ def run():
         results.append(value)
     elapsed=time.time()-started
     telemetry=rpc.provider_telemetry()
+    primary_successes=telemetry["provider_successes"].get(
+        "onfinality_authenticated_solana_mainnet",0)
+    if primary_successes!=5:
+        raise RuntimeError(f"dlmm_authenticated_primary_incomplete:{primary_successes}")
+    if telemetry["failover_count"]!=0:
+        raise RuntimeError(f"dlmm_unexpected_alchemy_failover:{telemetry['failover_count']}")
     report=dict(
         kind="dlmm_provider_5rps_validation_v1",
         success=True,
@@ -46,9 +52,9 @@ def run():
         logical_reads=len(results),
         elapsed_wall_seconds=elapsed,
         primary_http_requests=telemetry["provider_http_requests"].get(
-            "onfinality_public_solana_mainnet",0),
+            "onfinality_authenticated_solana_mainnet",0),
         primary_successes=telemetry["provider_successes"].get(
-            "onfinality_public_solana_mainnet",0),
+            "onfinality_authenticated_solana_mainnet",0),
         failovers=telemetry["failover_count"],
         secondary_successes=telemetry["provider_successes"].get(
             "alchemy_solana_mainnet_existing_secret",0),
