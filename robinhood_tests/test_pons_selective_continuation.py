@@ -10,7 +10,9 @@ from unittest.mock import patch
 
 from robinhood_research import BoundaryError
 from robinhood_research.evidence import Stamp, Store
+from robinhood_research.finality import Finality
 from robinhood_research.paper import Quote
+from robinhood_research.pons_natural_paper import LocalFreshQuote, _fresh_stamp
 from robinhood_research.pons_selective_ledger import SelectivePaper, STRATEGY_NAMESPACE
 import robinhood_research.pons_selective_cohort as selective_cohort
 from robinhood_research.sequencer_feed import (
@@ -104,6 +106,27 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         self.assertEqual(v["current_snipe_bps"],0)
         self.assertGreater(v["proposed_size"]["amount_quote"],0)
         self.assertLessEqual(v["roundtrip_loss_bps"],500)
+
+    def test_chain_timestamp_lag_is_telemetry_not_selective_freshness(self):
+        v=vector(
+            evidence_available_at=1002,
+            evidence_observed_at=1000.0,
+            evidence_acquisition_latency_seconds=2.0,
+        )
+        self.assertNotIn("stale_state_after_evidence",v["all_rejections"])
+        self.assertEqual(v["evidence_acquisition_latency_seconds"],2.0)
+        self.assertEqual(v["chain_timestamp_lag_seconds"],800.0)
+        self.assertTrue(v["current_threshold_pass"],v["all_rejections"])
+
+    def test_selective_freshness_still_rejects_slow_local_acquisition(self):
+        v=vector(
+            evidence_available_at=1007,
+            evidence_observed_at=1000.0,
+            evidence_acquisition_latency_seconds=6.0,
+        )
+        self.assertIn("stale_state_after_evidence",v["all_rejections"])
+        self.assertEqual(v["chain_timestamp_lag_seconds"],800.0)
+
 
     def test_snipe_tax_must_be_actually_zero(self):
         v=vector(current_snipe_bps=1)
@@ -363,6 +386,49 @@ class SequencerFramingTests(unittest.TestCase):
                     BoundaryError,"sequencer_feed_reserved_bits"
                 ):
                     ws.recv_message()
+
+
+
+class SelectiveLocalFreshQuoteTests(unittest.TestCase):
+    def test_fresh_stamp_local_mode_preserves_large_chain_lag(self):
+        header=dict(number=hex(12),hash="0xabc",timestamp=hex(100))
+        with patch("robinhood_research.pons_natural_paper.time.time",
+                   return_value=320.0):
+            local=_fresh_stamp(
+                header,local_freshness_seconds=2.0,observed_at=320
+            )
+            self.assertEqual(local.event_at,100)
+            self.assertEqual(local.observed_at,320)
+            with self.assertRaisesRegex(BoundaryError,"stale_state"):
+                _fresh_stamp(header,observed_at=320)
+
+    def test_local_fresh_quote_accepts_chain_lag_but_not_slow_acquisition(self):
+        s=Store(":memory:")
+        stamp=Stamp(
+            4663,12,"0xabc",100,320,"confirmed","natural"
+        )
+        ledger=Finality(s,scope="local-fresh",max_blocks=4)
+        ledger.observe(
+            stamp,"0xparent",local_freshness_seconds=2.0,max_local_age=5
+        )
+        good=LocalFreshQuote(
+            "market","buy",100,1000,2,0,stamp,
+            acquisition_latency_seconds=2.0,
+            chain_timestamp_lag_seconds=220.0,
+        )
+        good.check(
+            320,"market","buy",100,"natural",finality_ledger=ledger
+        )
+        slow=LocalFreshQuote(
+            "market","buy",100,1000,2,0,stamp,
+            acquisition_latency_seconds=6.0,
+            chain_timestamp_lag_seconds=220.0,
+        )
+        with self.assertRaisesRegex(BoundaryError,"stale_state"):
+            slow.check(
+                320,"market","buy",100,"natural",finality_ledger=ledger
+            )
+        s.close()
 
 
 class SelectiveSequencerRecoveryTests(unittest.TestCase):
