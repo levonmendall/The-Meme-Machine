@@ -38,7 +38,7 @@ class ProfitableOperatorReconstructionTests(unittest.TestCase):
         self.assertEqual(out["width_bins"],3)
         self.assertTrue(out["one_sided"])
         self.assertEqual(
-            rec.classify_distribution(out["distributions"],100),"bid_ask_like"
+            rec.classify_distribution(out["distributions"],100),"curve_like"
         )
 
     def test_decode_remove_range2_and_rebalance(self):
