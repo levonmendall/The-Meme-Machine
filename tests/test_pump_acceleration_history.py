@@ -1,5 +1,8 @@
+import os
+import tempfile
 import unittest
 
+from meme_machine.solana_evidence_broker import EvidenceBroker
 from meme_machine.pump_acceleration_history import IncrementalPumpSwapHistory
 
 
@@ -58,6 +61,39 @@ class IncrementalHistoryTests(unittest.TestCase):
         self.assertIn("s5",rpc.tx_calls)
         self.assertTrue(rpc.tx_configs)
         self.assertTrue(all(x["maxSupportedTransactionVersion"]==1 for x in rpc.tx_configs))
+
+    def test_new_pool_bootstraps_decision_window_once_then_stays_stream_first(self):
+        class R:
+            def __init__(self):
+                self.signature_calls=[];self.tx_calls=[]
+            def call(self,method,params,priority=False):
+                self.signature_calls.append((method,params,priority))
+                return [
+                    {"signature":"s2","blockTime":105,"slot":2,"err":None},
+                    {"signature":"s1","blockTime":104,"slot":1,"err":None},
+                ]
+            def call_many(self,method,params_list,priority=False,batch_size=8):
+                self.tx_calls.extend(x[0] for x in params_list)
+                return [
+                    {"slot":2 if x[0]=="s2" else 1,
+                     "blockTime":105 if x[0]=="s2" else 104,
+                     "meta":{"err":None,"logMessages":[]},
+                     "transaction":{"message":{"accountKeys":[]}}}
+                    for x in params_list
+                ]
+        with tempfile.TemporaryDirectory() as td:
+            broker=EvidenceBroker(os.path.join(td,"broker.sqlite3"))
+            self.addCleanup(broker.close)
+            rpc=R()
+            history=IncrementalPumpSwapHistory(
+                "pool",100,broker=broker,stream_key="pool:one")
+            self.assertEqual(history.refresh(rpc,105),[])
+            self.assertTrue(history.decision_window_status(105,30)["complete"])
+            self.assertEqual(history.decision_bootstrap_attempts,1)
+            self.assertEqual(len(rpc.signature_calls),1)
+            self.assertEqual(set(rpc.tx_calls),{"s1","s2"})
+            self.assertEqual(history.refresh(rpc,106),[])
+            self.assertEqual(len(rpc.signature_calls),1)
 
     def test_recent_decision_window_is_decoded_before_older_backlog(self):
         class R:
