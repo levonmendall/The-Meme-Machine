@@ -80,8 +80,14 @@ def _optional_primary_endpoint(primary_endpoint_value=None, *, environ=None):
 
 
 def _require_bulk_isolation(endpoint, primary, *, lane):
-    if _provider_kind(endpoint) == "alchemy":
-        raise BoundaryError(f"{lane}_alchemy_endpoint_forbidden")
+    """Prevent bulk lanes from reusing the authoritative primary credential.
+
+    Vendor identity alone is not a sufficient isolation boundary: a separately
+    provisioned endpoint can safely remain a dedicated lane even when the vendor
+    is the same. The exact normalized endpoint fingerprint is the enforcement
+    boundary so observability is preserved while the primary app cannot absorb
+    discovery/DLMM load.
+    """
     if (
         primary
         and _endpoint_fingerprint(endpoint) == _endpoint_fingerprint(primary)
@@ -133,10 +139,11 @@ def primary_endpoint(primary_endpoint=None, *, environ=None):
 def discovery_endpoint(primary_fallback_endpoint=None, *, environ=None):
     """Return a non-primary observation endpoint or fail closed.
 
-    A configured discovery endpoint that resolves to Alchemy/the authoritative
-    primary is treated as unsuitable for bulk observation. When the dedicated
-    DLMM endpoint is independently isolated, discovery transparently shares that
-    provider instead of either losing observability or spilling onto Alchemy.
+    A configured discovery endpoint that reuses the exact authoritative primary
+    endpoint is unsuitable for bulk observation. When the dedicated DLMM endpoint
+    is independently isolated, discovery transparently shares that provider instead
+    of either losing observability or spilling onto the primary app. A separately
+    provisioned endpoint remains valid even when it uses the same RPC vendor.
     """
     primary = _optional_primary_endpoint(
         primary_fallback_endpoint, environ=environ
@@ -444,10 +451,11 @@ def topology_metadata(*, environ=None):
                     else DLMM_ENV
                 )
             ),
-            discovery_alchemy_candidate_bypassed=bool(
+            discovery_primary_candidate_bypassed=bool(
                 discovery
                 and _env(DISCOVERY_ENV, environ)
-                and _provider_kind(_env(DISCOVERY_ENV, environ)) == "alchemy"
+                and _endpoint_fingerprint(_env(DISCOVERY_ENV, environ))
+                == _endpoint_fingerprint(primary)
                 and _endpoint_fingerprint(_env(DISCOVERY_ENV, environ))
                 != _endpoint_fingerprint(discovery)
             ),
