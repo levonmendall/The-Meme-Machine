@@ -203,18 +203,28 @@ class _WebSocket:
         self.permessage_deflate = False
         self.server_no_context_takeover = False
         self._inflater = None
+        self._recv_buffer = bytearray()
 
-    @staticmethod
-    def _read_exact(sock, size):
-        chunks = []
-        remaining = size
-        while remaining:
-            chunk = sock.recv(remaining)
+    def _read_exact(self, size):
+        """Read exactly size bytes, consuming handshake/coalesced bytes first."""
+        size=int(size)
+        if size<0:
+            raise BoundaryError("sequencer_feed_read_size")
+        if size==0:
+            return b""
+        out=bytearray()
+        if self._recv_buffer:
+            take=min(size,len(self._recv_buffer))
+            out.extend(self._recv_buffer[:take])
+            del self._recv_buffer[:take]
+        while len(out)<size:
+            if self.sock is None:
+                raise BoundaryError("sequencer_feed_not_connected")
+            chunk=self.sock.recv(size-len(out))
             if not chunk:
                 raise BoundaryError("sequencer_feed_connection_closed")
-            chunks.append(chunk)
-            remaining -= len(chunk)
-        return b"".join(chunks)
+            out.extend(chunk)
+        return bytes(out)
 
     def connect(self):
         parsed = urlsplit(self.url)
@@ -248,10 +258,12 @@ class _WebSocket:
         while b"\r\n\r\n" not in response:
             if len(response) > 64 * 1024:
                 raise BoundaryError("sequencer_feed_handshake_capacity")
-            response.extend(sock.recv(4096))
-        header = bytes(response).split(b"\r\n\r\n", 1)[0].decode(
-            "iso-8859-1"
-        )
+            chunk=sock.recv(4096)
+            if not chunk:
+                raise BoundaryError("sequencer_feed_connection_closed")
+            response.extend(chunk)
+        header_bytes,remainder=bytes(response).split(b"\r\n\r\n",1)
+        header = header_bytes.decode("iso-8859-1")
         lines = header.split("\r\n")
         if not lines or " 101 " not in lines[0]:
             raise BoundaryError("sequencer_feed_handshake_rejected")
@@ -275,11 +287,15 @@ class _WebSocket:
             "server_no_context_takeover" in extension.lower()
         )
         self._inflater = zlib.decompressobj(wbits=-15)
+        self._recv_buffer=bytearray(remainder)
+        if len(self._recv_buffer)>self.max_frame_bytes:
+            raise BoundaryError("sequencer_feed_handshake_remainder_capacity")
         self.sock = sock
         return self
 
     def close(self):
         sock, self.sock = self.sock, None
+        self._recv_buffer.clear()
         if sock is not None:
             try:
                 sock.close()
@@ -319,7 +335,7 @@ class _WebSocket:
         message_opcode = None
         compressed = False
         while True:
-            first, second = self._read_exact(self.sock, 2)
+            first, second = self._read_exact(2)
             final = bool(first & 0x80)
             rsv1 = bool(first & 0x40)
             if first & 0x30:
@@ -328,13 +344,13 @@ class _WebSocket:
             masked = bool(second & 0x80)
             length = second & 0x7F
             if length == 126:
-                length = struct.unpack("!H", self._read_exact(self.sock, 2))[0]
+                length = struct.unpack("!H", self._read_exact(2))[0]
             elif length == 127:
-                length = struct.unpack("!Q", self._read_exact(self.sock, 8))[0]
+                length = struct.unpack("!Q", self._read_exact(8))[0]
             if length > self.max_frame_bytes:
                 raise BoundaryError("sequencer_feed_frame_capacity")
-            mask = self._read_exact(self.sock, 4) if masked else None
-            payload = self._read_exact(self.sock, length)
+            mask = self._read_exact(4) if masked else None
+            payload = self._read_exact(length)
             if mask is not None:
                 payload = bytes(
                     value ^ mask[i % 4] for i, value in enumerate(payload)
