@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 90
     concurrency:
       group: dlmm-profitable-operator-census
-      cancel-in-progress: false
+      cancel-in-progress: true
     env:
       MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
       MM_ONFINALITY_SOLANA_WS_URL: ${{ secrets.MM_ONFINALITY_SOLANA_WS_URL }}
