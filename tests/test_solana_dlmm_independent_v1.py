@@ -412,12 +412,66 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         with patch.object(
                 strategy,"transaction_swaps",
                 return_value=[dict(observed={"start":1,"end":2})]) as parse:
-            out=strategy._new_finalized_swaps(rpc,"pool",10)
+            out,meta=strategy._new_finalized_swaps(rpc,"pool",10)
         self.assertEqual(len(out),1)
         self.assertEqual(out[0]["signature"],"sig")
         self.assertEqual(out[0]["slot"],11)
         self.assertEqual(out[0]["swap_count"],1)
+        self.assertFalse(meta["rate_limited"])
+        self.assertEqual(meta["head_slot"],11)
         self.assertEqual(parse.call_count,1)
+
+    def test_signature_poll_supplies_head_without_second_rpc_read(self):
+        rpc=MagicMock()
+        rpc.failure_methods={}
+        rpc.call.return_value=[
+            dict(
+                signature="head",slot=12,
+                confirmationStatus="finalized",err=None)
+        ]
+        rpc.call_many.return_value=[dict(
+            meta=dict(err=None),blockTime=123,transaction={})]
+        with patch.object(strategy,"transaction_swaps",return_value=[]):
+            swaps,meta=strategy._new_finalized_swaps(
+                rpc,"pool",10)
+        self.assertEqual(swaps,[])
+        self.assertEqual(meta["head_slot"],12)
+        self.assertEqual(rpc.call.call_count,1)
+        self.assertEqual(rpc.call_many.call_count,1)
+
+    def test_signature_429_is_transient_not_candidate_failure(self):
+        rpc=MagicMock()
+        rpc.failure_methods={}
+        def limited(*_args,**_kwargs):
+            rpc.failure_methods[
+                "getSignaturesForAddress:http_429"]=2
+            raise strategy.Unavailable("provider_request_failed")
+        rpc.call.side_effect=limited
+        swaps,meta=strategy._new_finalized_swaps(
+            rpc,"pool",10)
+        self.assertEqual(swaps,[])
+        self.assertTrue(meta["rate_limited"])
+        self.assertEqual(meta["stage"],"getSignaturesForAddress")
+        self.assertEqual(meta["head_slot"],10)
+
+    def test_transaction_429_does_not_advance_signature_cursor(self):
+        rpc=MagicMock()
+        rpc.failure_methods={}
+        rpc.call.return_value=[
+            dict(
+                signature="sig",slot=11,
+                confirmationStatus="finalized",err=None)
+        ]
+        def limited(*_args,**_kwargs):
+            rpc.failure_methods["getTransaction:http_429"]=3
+            raise strategy.Unavailable("provider_request_failed")
+        rpc.call_many.side_effect=limited
+        swaps,meta=strategy._new_finalized_swaps(
+            rpc,"pool",10)
+        self.assertEqual(swaps,[])
+        self.assertTrue(meta["rate_limited"])
+        self.assertEqual(meta["stage"],"getTransaction")
+        self.assertEqual(meta["head_slot"],10)
 
     def test_regime_expiry_stops_fresh_swap_wait(self):
         p=strategy.load_policy()
