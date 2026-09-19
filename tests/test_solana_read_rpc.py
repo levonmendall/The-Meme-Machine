@@ -28,8 +28,8 @@ class SolanaReadTopologyTests(unittest.TestCase):
         clock=Clock()
         pacer=rpc_topology.SolanaReadPacer()
         env={rpc_topology.ALCHEMY_ENV_NAME:ALCHEMY}
-        first=rpc_topology.new_rpc(limit=20,pacer=pacer,environ=env,clock=clock,sleeper=clock.sleep)
-        second=rpc_topology.new_rpc(limit=20,pacer=pacer,environ=env,clock=clock,sleeper=clock.sleep)
+        first=rpc_topology.new_rpc(limit=40,pacer=pacer,environ=env,clock=clock,sleeper=clock.sleep)
+        second=rpc_topology.new_rpc(limit=40,pacer=pacer,environ=env,clock=clock,sleeper=clock.sleep)
         urls=[]
         def request(url,request):
             urls.append(url)
@@ -44,7 +44,7 @@ class SolanaReadTopologyTests(unittest.TestCase):
 
     def test_healthy_primary_never_spends_alchemy_and_failure_uses_rescue(self):
         env={rpc_topology.ALCHEMY_ENV_NAME:ALCHEMY}
-        rpc=rpc_topology.new_rpc(limit=20,environ=env)
+        rpc=rpc_topology.new_rpc(limit=40,environ=env)
         calls=[]
         def healthy(url,request):
             calls.append(url)
@@ -54,7 +54,7 @@ class SolanaReadTopologyTests(unittest.TestCase):
         self.assertEqual(calls,[rpc_topology.PRIMARY_RPC_URL])
         self.assertEqual(rpc.failover_count,0)
 
-        rpc2=rpc_topology.new_rpc(limit=20,environ=env)
+        rpc2=rpc_topology.new_rpc(limit=40,environ=env)
         calls=[]
         def failover(url,request):
             calls.append(url)
