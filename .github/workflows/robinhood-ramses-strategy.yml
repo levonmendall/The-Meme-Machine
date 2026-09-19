@@ -27,6 +27,5 @@ jobs:
         if: always()
         with:
           name: robinhood-ramses-strategy-${{ github.sha }}-${{ github.run_id }}
-          path: robinhood-ramses-strategy-report.json
-          retention-days: 30
+          path: |\n            robinhood-ramses-strategy-report.json\n            robinhood-ramses-strategy.sqlite\n          retention-days: 30
           if-no-files-found: error
