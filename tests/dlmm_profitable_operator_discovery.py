@@ -53,6 +53,8 @@ METEORA_REQUESTS_PER_SECOND=20
 DEFAULT_METEORA_WORKERS=12
 MAX_METEORA_WORKERS=16
 METEORA_RETRY_ATTEMPTS=3
+WHOLE_WALLET_ATTEMPTS=2
+WHOLE_WALLET_RETRY_SLEEP_SECONDS=1.0
 
 WSOL=dlmm.WSOL
 
@@ -555,6 +557,19 @@ def _wallet_rank_row(wallet):
     )
 
 
+def _wallet_rank_row_with_retry(wallet,analyzer=None):
+    analyzer=analyzer or _wallet_rank_row
+    last=None
+    for attempt in range(1,WHOLE_WALLET_ATTEMPTS+1):
+        try:
+            return analyzer(wallet)
+        except Exception as exc:
+            last=exc
+            if attempt<WHOLE_WALLET_ATTEMPTS:
+                time.sleep(WHOLE_WALLET_RETRY_SLEEP_SECONDS)
+    raise last
+
+
 def _rank_signature(cohort):
     wallets=[x["wallet"] for x in cohort.get("wallets") or []]
     return dict(protocol_sha256=_protocol_signature(),
@@ -562,14 +577,41 @@ def _rank_signature(cohort):
                 days_back=DAYS_BACK)
 
 
+def _validate_rank_checkpoint_body(body,signature):
+    if body.get("kind")!="dlmm_profitable_operator_rank_checkpoint_v1":
+        raise RuntimeError("dlmm_operator_rank_checkpoint_kind")
+    if body.get("signature")!=signature:
+        raise RuntimeError("dlmm_operator_rank_checkpoint_mismatch")
+    rows=body.get("rows") or {}
+    if not isinstance(rows,dict):
+        raise RuntimeError("dlmm_operator_rank_checkpoint_shape")
+    allowed=set(signature["wallets"])
+    for wallet,row in rows.items():
+        if wallet not in allowed or not isinstance(row,dict) or row.get("wallet")!=wallet:
+            raise RuntimeError("dlmm_operator_rank_checkpoint_row_identity")
+    return rows
+
+
 def _load_rank_checkpoint(signature):
     if not RANK_CHECKPOINT.exists(): return {}
     body=json.loads(RANK_CHECKPOINT.read_text())
-    if body.get("kind")!="dlmm_profitable_operator_rank_checkpoint_v1" or body.get("signature")!=signature:
-        raise RuntimeError("dlmm_operator_rank_checkpoint_mismatch")
-    rows=body.get("rows") or {}
-    if not isinstance(rows,dict): raise RuntimeError("dlmm_operator_rank_checkpoint_shape")
-    return rows
+    return _validate_rank_checkpoint_body(body,signature)
+
+
+def check_rank_checkpoint(checkpoint_path,cohort_path=DEFAULT_COHORT):
+    cohort=json.loads(Path(cohort_path).read_text())
+    if cohort.get("kind")!="dlmm_profitable_operator_cohort_v1" or cohort.get("status")!="frozen_pre_pnl":
+        raise RuntimeError("dlmm_operator_cohort_not_frozen")
+    if cohort.get("pnl_data_read_before_freeze") is not False:
+        raise RuntimeError("dlmm_operator_pnl_leakage")
+    signature=_rank_signature(cohort)
+    body=json.loads(Path(checkpoint_path).read_text())
+    rows=_validate_rank_checkpoint_body(body,signature)
+    print(json.dumps(dict(
+        compatible=True,completed_wallets=len(rows),
+        total_wallets=len(signature["wallets"]),
+    ),sort_keys=True))
+    return True
 
 
 def _write_rank_checkpoint(signature,rows,failures,started):
@@ -647,13 +689,17 @@ def rank(cohort_path=DEFAULT_COHORT):
     _write_rank_checkpoint(signature,rows,failures,started)
     with ThreadPoolExecutor(max_workers=min(workers,max(1,len(pending))),
                             thread_name_prefix="dlmm-operator") as executor:
-        future_map={executor.submit(_wallet_rank_row,w):w for w in pending}
+        future_map={executor.submit(_wallet_rank_row_with_retry,w):w for w in pending}
         for future in as_completed(future_map):
             wallet=future_map[future]
             try:
                 rows[wallet]=future.result();state="completed"
             except Exception as exc:
-                failures[wallet]=dict(error=type(exc).__name__);state="failed"
+                failures[wallet]=dict(
+                    error=type(exc).__name__,
+                    whole_wallet_attempts=WHOLE_WALLET_ATTEMPTS,
+                    request_attempts_per_call=METEORA_RETRY_ATTEMPTS,
+                );state="failed"
             _write_rank_checkpoint(signature,rows,failures,started)
             print(json.dumps(dict(phase="wallet_rank",wallet=wallet,state=state,
                                   completed=len(rows),failed=len(failures),
@@ -719,11 +765,14 @@ def rank(cohort_path=DEFAULT_COHORT):
 
 def main():
     p=argparse.ArgumentParser()
-    p.add_argument("phase",choices=("census","freeze","rank"))
+    p.add_argument("phase",choices=("census","freeze","rank","check-rank-checkpoint"))
     p.add_argument("--cohort",default=str(DEFAULT_COHORT))
+    p.add_argument("--checkpoint",default=str(RANK_CHECKPOINT))
     args=p.parse_args()
     if args.phase=="census": census()
     elif args.phase=="freeze": freeze_census(CENSUS_OUT,DEFAULT_COHORT)
+    elif args.phase=="check-rank-checkpoint":
+        check_rank_checkpoint(Path(args.checkpoint),Path(args.cohort))
     else: rank(Path(args.cohort))
 
 
