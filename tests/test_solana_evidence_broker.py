@@ -82,6 +82,34 @@ class SolanaEvidenceBrokerTests(unittest.TestCase):
         self.assertEqual(rpc.batches[0][1][0],"high")
         self.assertIn("high",result)
 
+    def test_shared_queue_claims_are_atomic_and_leases_recover(self):
+        td=tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        clock=_Clock()
+        path=os.path.join(td.name,"shared.sqlite3")
+        first=EvidenceBroker(path,clock=clock,sleeper=clock.sleep)
+        second=EvidenceBroker(path,clock=clock,sleeper=clock.sleep)
+        self.addCleanup(first.close);self.addCleanup(second.close)
+
+        first.queue_transaction(
+            "a",kind="pump_window",deadline=clock()+100)
+        first.queue_transaction(
+            "b",kind="research_history",deadline=clock()+100)
+        claimed_first=first._claim_jobs(1,clock(),lease_seconds=15)
+        self.assertEqual([x[0] for x in claimed_first],["tx:a"])
+
+        # A duplicate request must not clear another process's active lease.
+        second.queue_transaction(
+            "a",kind="position_monitor",deadline=clock()+100)
+        claimed_second=second._claim_jobs(2,clock(),lease_seconds=15)
+        self.assertEqual([x[0] for x in claimed_second],["tx:b"])
+        self.assertEqual(first.telemetry()["inflight_jobs"],2)
+
+        # If the worker disappears, its lease becomes reclaimable.
+        clock.value+=16
+        reclaimed=second._claim_jobs(2,clock(),lease_seconds=15)
+        self.assertIn("tx:a",[x[0] for x in reclaimed])
+
     def test_cursor_cannot_regress(self):
         broker,_clock=self.make_broker()
         broker.advance_cursor("pool:x",100,"a")
