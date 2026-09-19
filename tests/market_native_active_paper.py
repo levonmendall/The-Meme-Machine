@@ -31,11 +31,11 @@ DISCOVERY_SECONDS = max(300, min(int(os.environ.get(
 POST_SECONDS = max(120, min(int(os.environ.get(
     'MM_MARKET_NATIVE_PAPER_POST_SECONDS', '1000')), 1000))
 PREFLIGHT_BUDGET = max(1, min(int(os.environ.get(
-    'MM_MARKET_NATIVE_PAPER_PREFLIGHT_BUDGET', '60')), 60))
+    'MM_MARKET_NATIVE_PAPER_PREFLIGHT_BUDGET', '150')), 150))
 FULL_EVIDENCE_BUDGET = max(1, min(int(os.environ.get(
-    'MM_MARKET_NATIVE_PAPER_FULL_EVIDENCE_BUDGET', '20')), 20))
+    'MM_MARKET_NATIVE_PAPER_FULL_EVIDENCE_BUDGET', '40')), 40))
 RPC_LIMIT = 240
-RPC_ROTATE_AT = 200
+RPC_ROTATE_AT = 160
 # Use the same explicit paper genesis reference as the successful prioritized proof.
 # This is mechanical paper evidence, not a profitability or current-NAV claim.
 GENESIS_SOL_USD_MICROS = 97_840_000
@@ -153,6 +153,7 @@ def main():
             engine, adapter, DISCOVERY_SECONDS,
             preflight_budget=PREFLIGHT_BUDGET,
             full_evidence_budget=FULL_EVIDENCE_BUDGET,
+            provider_rotation_threshold=RPC_ROTATE_AT,
         )
         session_started = int(time.time())
         report['provider_sessions'].append(dict(started=session_started))
