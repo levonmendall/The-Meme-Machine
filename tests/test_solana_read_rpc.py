@@ -36,8 +36,8 @@ class SolanaReadTopologyTests(unittest.TestCase):
             return {'jsonrpc':'2.0','id':request['id'],'result':123}
         first._request_url=request
         second._request_url=request
-        self.assertEqual(first.call('getBlockTime',[1],priority=True,fresh=True),123)
-        self.assertEqual(second.call('getBlockTime',[2],priority=True,fresh=True),123)
+        self.assertEqual(first.call('getBlockTime',[1],priority=True),123)
+        self.assertEqual(second.call('getBlockTime',[2],priority=True),123)
         self.assertAlmostEqual(clock.value,100.2,places=6)
         self.assertEqual(urls,[rpc_topology.PRIMARY_RPC_URL,rpc_topology.PRIMARY_RPC_URL])
         self.assertEqual(pacer.telemetry()['minimum_interval_seconds'],0.2)
@@ -50,7 +50,7 @@ class SolanaReadTopologyTests(unittest.TestCase):
             calls.append(url)
             return {'jsonrpc':'2.0','id':request['id'],'result':'ok'}
         rpc._request_url=healthy
-        self.assertEqual(rpc.call('getGenesisHash',priority=True,fresh=True),'ok')
+        self.assertEqual(rpc.call('getGenesisHash',priority=True),'ok')
         self.assertEqual(calls,[rpc_topology.PRIMARY_RPC_URL])
         self.assertEqual(rpc.failover_count,0)
 
@@ -62,7 +62,7 @@ class SolanaReadTopologyTests(unittest.TestCase):
                 raise urllib.error.HTTPError(url,429,'rate limited',{},None)
             return {'jsonrpc':'2.0','id':request['id'],'result':'rescued'}
         rpc2._request_url=failover
-        self.assertEqual(rpc2.call('getGenesisHash',priority=True,fresh=True),'rescued')
+        self.assertEqual(rpc2.call('getGenesisHash',priority=True),'rescued')
         self.assertEqual(calls,[rpc_topology.PRIMARY_RPC_URL,ALCHEMY])
         self.assertEqual(rpc2.calls,1)
         self.assertEqual(rpc2.http_requests,2)
