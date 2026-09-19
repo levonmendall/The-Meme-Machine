@@ -28,7 +28,7 @@ ENV_NAME = ALCHEMY_ENV_NAME
 PROVIDER_LABEL = TOPOLOGY_LABEL
 
 # DLMM uses authenticated OnFinality primary at 5 requests/second.
-# Other Solana lanes retain the canonical topology's more conservative default.
+# The branch-wide canonical Solana read topology now uses the same 0.2-second floor.
 DLMM_MIN_REQUEST_INTERVAL_SECONDS = 0.2
 DLMM_PRIMARY_REQUESTS_PER_SECOND = 5
 
