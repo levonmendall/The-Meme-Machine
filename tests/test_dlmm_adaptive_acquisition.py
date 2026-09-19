@@ -175,6 +175,20 @@ class DLMMAdaptiveAcquisitionTests(unittest.TestCase):
                 self.assertEqual(processed["sig"]["status"],"success")
                 self.assertEqual(v2._load_checkpoint([{"address":"different"}]),({},{}))
 
+    def test_filtered_reconstruction_covers_current_lp_mutation_surface(self):
+        actions={spec[0] for spec in v2.LP_MUTATIONS.values()}
+        required={
+            "add_liquidity","add_liquidity2","add_liquidity_by_strategy",
+            "add_liquidity_by_strategy2","add_liquidity_by_strategy_one_side",
+            "add_liquidity_by_weight","add_liquidity_by_weight2",
+            "add_liquidity_one_side","add_liquidity_one_side_precise",
+            "add_liquidity_one_side_precise2","rebalance_liquidity",
+            "remove_all_liquidity","remove_liquidity","remove_liquidity2",
+            "remove_liquidity_by_range","remove_liquidity_by_range2",
+            "claim_fee","claim_fee2",
+        }
+        self.assertEqual(actions,required)
+
     def test_v2_has_no_fixed_pool_or_transaction_sample_constants(self):
         self.assertFalse(hasattr(v2,"POOL_SAMPLE"))
         self.assertFalse(hasattr(v2,"SIGNATURE_LIMIT"))
