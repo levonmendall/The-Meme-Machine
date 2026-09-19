@@ -177,9 +177,10 @@ class MarketNativeRuntime:
             cache_hits=rpc.cache_hits,
             limit=rpc.limit,
             concentration=self.adapter.concentration_status(),
+            provider_topology=(rpc.provider_telemetry()
+                               if hasattr(rpc,'provider_telemetry') else None),
             infrastructure_spend_usd=0,
-            provider_spend_usd=(0 if getattr(rpc, 'url', None) ==
-                                'https://api.mainnet-beta.solana.com' else None),
+            provider_spend_usd=(0 if getattr(rpc,'failover_count',0)==0 else None),
         )
 
     def _record_coverage(self, tape, now, fresh_count=0):
