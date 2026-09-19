@@ -29,7 +29,19 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertEqual(
             p["range"]["warmup_alignment"]["qualifying_window_seconds"],12)
         self.assertEqual(
-            p["range"]["warmup_alignment"]["max_fresh_windows"],5)
+            p["range"]["warmup_alignment"]["qualifying_window_seconds"],12)
+        self.assertTrue(p["regime"]["fresh_swap_trigger"]["required"])
+        self.assertEqual(
+            p["regime"]["fresh_swap_trigger"]["max_wait_seconds"],60)
+        self.assertEqual(
+            p["regime"]["dynamic_fee_uplift_role"],
+            "context_only_not_entry_veto")
+        self.assertFalse(p["fee_model"]["require_dynamic_fee_uplift"])
+        self.assertFalse(
+            p["qualification"]["dynamic_fee_uplift_hard_gate"])
+        self.assertIn(
+            "before a pool increments",
+            p["support_layer"]["compatibility_budget_rule"])
         self.assertEqual(
             p["discovery"]["execution_mode"],
             "streaming_first_sighting_immediate_handoff")
@@ -39,7 +51,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             p["evidence_acquisition"]["interval_transaction_bound"],16)
         self.assertFalse(
             p["evidence_acquisition"]["strategy_thresholds_changed"])
-        self.assertEqual(p["revision"],"1.6")
+        self.assertEqual(p["revision"],"1.7")
 
     def test_strategy_import_graph_contains_no_strategy_dependency(self):
         path=Path("tests/solana_dlmm_independent_v1.py")
@@ -252,7 +264,6 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         mutations={
             "volume_acceleration":{"volume_acceleration":1.99},
             "fee_acceleration":{"fee_acceleration":1.24},
-            "dynamic_fee":{"dynamic_fee_uplift":1.24},
             "capacity":{"competing_liquidity_to_capital_multiple":9.99},
             "two_way":{"two_way_balance":0.49},
             "drift":{"drift_ratio":0.5001},
@@ -265,62 +276,100 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             decision=strategy.qualify(row,p)
             self.assertFalse(decision["passes"],expected)
             self.assertIn(expected,decision["failed"])
+        low_dynamic=dict(base)
+        low_dynamic["dynamic_fee_uplift"]=0.10
+        decision=strategy.qualify(low_dynamic,p)
+        self.assertTrue(decision["passes"])
+        self.assertNotIn("dynamic_fee",decision["checks"])
 
-    def test_zero_flow_warmup_retries_fresh_12s_window_without_weakening_gates(self):
+    def test_fresh_authenticated_swap_trigger_starts_exact_12s_warmup(self):
         p=strategy.load_policy()
         candidate=dict(
             address="pool",volume_acceleration=2.5,fee_acceleration=1.5)
         adapter=MagicMock();adapter.rpc.calls=0
-        start={"slot":1}
+        post={"slot":20}
+        trigger=dict(
+            triggered=True,reason="authenticated_fresh_swap",
+            signature="sig",slot=19,swap_count=1)
         class Tape:
-            def __init__(self,events): self.events=events
-        refreshed=[
-            dict(candidate,volume_acceleration=2.5,fee_acceleration=1.5),
-            dict(candidate,volume_acceleration=2.2,fee_acceleration=1.4),
-        ]
-        observe=[
-            ({"verified":True},Tape([]),{"slot":2},{"slot":1},adapter),
-            ({"verified":True},Tape([{"event":"swap"}]),{"slot":3},{"slot":2},adapter),
-        ]
-        with patch.object(strategy,"_history_acceleration",side_effect=refreshed) as hist, \
-             patch.object(strategy,"_fresh_supported_start",return_value=start) as fresh, \
-             patch.object(strategy,"_observe_window",side_effect=observe) as obs:
-            alignment,warm,entry,origin,_entry_start,_adapter,latest=(
-                strategy._aligned_warmup(
-                    adapter,candidate,p,MagicMock(),[]))
-        self.assertTrue(alignment["aligned"])
-        self.assertEqual(alignment["selected_window"],2)
-        self.assertEqual(hist.call_count,2)
-        self.assertEqual(fresh.call_count,2)
-        self.assertEqual(obs.call_count,2)
-        self.assertTrue(all(call.args[3]==12 for call in obs.call_args_list))
+            events=[{"event":"swap"}]
+        with patch.object(
+                strategy,"_await_fresh_swap_trigger",
+                return_value=(trigger,post,adapter,candidate)) as watch, \
+             patch.object(
+                strategy,"_observe_window",
+                return_value=(
+                    {"verified":True},Tape(),{"slot":21},{"slot":20},adapter)
+             ) as observe:
+            result,warm,entry,origin,_adapter,latest=(
+                strategy._triggered_warmup(
+                    adapter,candidate,{"slot":10},p,MagicMock(),[]))
+        self.assertTrue(result["aligned"])
+        self.assertEqual(result["reason"],"verified_nonzero_warmup")
+        self.assertEqual(result["qualifying_window_seconds"],12)
+        self.assertEqual(observe.call_args.args[3],12)
+        self.assertEqual(result["trigger"]["signature"],"sig")
         self.assertEqual(len(warm.events),1)
-        self.assertEqual(latest["volume_acceleration"],2.2)
+        self.assertEqual(latest["volume_acceleration"],2.5)
+        self.assertEqual(watch.call_count,1)
 
-    def test_zero_flow_retry_stops_if_acceleration_regime_expires(self):
+    def test_zero_swap_after_fresh_trigger_is_rejected_not_retried(self):
         p=strategy.load_policy()
         candidate=dict(
             address="pool",volume_acceleration=2.5,fee_acceleration=1.5)
         adapter=MagicMock();adapter.rpc.calls=0
+        trigger=dict(triggered=True,reason="authenticated_fresh_swap",slot=19)
         class Tape:
             events=[]
-        refreshed=[
-            dict(candidate,volume_acceleration=2.5,fee_acceleration=1.5),
-            dict(candidate,volume_acceleration=1.9,fee_acceleration=1.5),
-        ]
-        with patch.object(strategy,"_history_acceleration",side_effect=refreshed) as hist, \
-             patch.object(strategy,"_fresh_supported_start",return_value={"slot":1}) as fresh, \
+        with patch.object(
+                strategy,"_await_fresh_swap_trigger",
+                return_value=(trigger,{"slot":20},adapter,candidate)), \
              patch.object(
-                 strategy,"_observe_window",
-                 return_value=(
-                     {"verified":True},Tape(),{"slot":2},{"slot":1},adapter)) as obs:
-            alignment,*_=strategy._aligned_warmup(
-                adapter,candidate,p,MagicMock(),[])
-        self.assertFalse(alignment["aligned"])
-        self.assertEqual(alignment["reason"],"acceleration_regime_expired")
-        self.assertEqual(hist.call_count,2)
-        self.assertEqual(fresh.call_count,1)
-        self.assertEqual(obs.call_count,1)
+                strategy,"_observe_window",
+                return_value=(
+                    {"verified":True},Tape(),{"slot":21},{"slot":20},adapter)
+             ) as observe:
+            result,*_=strategy._triggered_warmup(
+                adapter,candidate,{"slot":10},p,MagicMock(),[])
+        self.assertFalse(result["aligned"])
+        self.assertEqual(
+            result["reason"],"verified_zero_warmup_after_fresh_swap")
+        self.assertEqual(observe.call_count,1)
+        self.assertEqual(observe.call_args.args[3],12)
+
+    def test_new_finalized_swap_trigger_requires_authenticated_dlmm_swap(self):
+        rpc=MagicMock()
+        rpc.call.return_value=[
+            dict(
+                signature="sig",slot=11,confirmationStatus="finalized",
+                err=None)
+        ]
+        tx=dict(meta=dict(err=None),blockTime=123,transaction={})
+        rpc.call_many.return_value=[tx]
+        with patch.object(
+                strategy,"transaction_swaps",
+                return_value=[dict(observed={"start":1,"end":2})]) as parse:
+            out=strategy._new_finalized_swaps(rpc,"pool",10)
+        self.assertEqual(len(out),1)
+        self.assertEqual(out[0]["signature"],"sig")
+        self.assertEqual(out[0]["slot"],11)
+        self.assertEqual(out[0]["swap_count"],1)
+        self.assertEqual(parse.call_count,1)
+
+    def test_regime_expiry_stops_fresh_swap_wait(self):
+        p=strategy.load_policy()
+        candidate=dict(
+            address="pool",volume_acceleration=2.5,fee_acceleration=1.5)
+        adapter=MagicMock();adapter.rpc.calls=0
+        expired=dict(candidate,volume_acceleration=1.9,fee_acceleration=1.5)
+        with patch.object(
+                strategy,"_history_acceleration",return_value=expired), \
+             patch.object(strategy.time,"monotonic",return_value=0.0):
+            trigger,post,_adapter,_latest=strategy._await_fresh_swap_trigger(
+                adapter,candidate,{"slot":10},p,MagicMock(),[])
+        self.assertFalse(trigger["triggered"])
+        self.assertEqual(trigger["reason"],"acceleration_regime_expired")
+        self.assertIsNone(post)
 
     def test_centered_range_is_two_sided_and_excludes_active(self):
         bins={str(i):{} for i in range(50,151)}
