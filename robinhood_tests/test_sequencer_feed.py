@@ -70,6 +70,23 @@ class SequencerFeedTests(unittest.TestCase):
         decoded=ws._inflate_message(wire)
         self.assertEqual(decoded,raw)
 
+    def test_startup_sentinel_anchors_to_current_sequence_before_range_cap(self):
+        clock=SequencerBlockClock()
+        clock.state.last_sequence=67_198_059
+        clock.connect=lambda: clock
+        self.assertEqual(
+            clock.wait_for_range_after(
+                -1,timeout=1.0,max_blocks=10,coalesce_seconds=0.75
+            ),
+            67_198_059,
+        )
+        self.assertEqual(
+            clock.wait_for_range_after(
+                67_198_050,timeout=1.0,max_blocks=5,coalesce_seconds=0.75
+            ),
+            67_198_055,
+        )
+
     def test_discovery_clock_fails_closed_on_gap(self):
         clock=SequencerBlockClock()
         clock.state.last_sequence=100
