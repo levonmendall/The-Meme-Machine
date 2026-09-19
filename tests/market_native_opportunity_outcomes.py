@@ -41,7 +41,7 @@ from meme_machine.outcome_research import (
 )
 from meme_machine.provider import PumpAdapter, Unavailable
 from meme_machine.research import CURRENT_THRESHOLDS
-from meme_machine.solana_read_rpc import new_rpc, primary_rpc_url, primary_ws_url
+from meme_machine.solana_read_rpc import discovery_ws_url, new_rpc, primary_rpc_url
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 
@@ -278,7 +278,7 @@ def main():
 
     url=primary_rpc_url()
     evidence=EvidenceSessions(url)
-    tape=PumpTape();stop=threading.Event();ready=threading.Event();stream=PumpLogStream(url,tape,ws_url=primary_ws_url())
+    tape=PumpTape();stop=threading.Event();ready=threading.Event();stream=PumpLogStream(url,tape,ws_url=discovery_ws_url())
     thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True);thread.start()
 
     discovered=set();slot_rows=defaultdict(list);stream_rejections=Counter()
