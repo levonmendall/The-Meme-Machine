@@ -1,6 +1,7 @@
 name: solana-dlmm-independent-v1
 # measurement-revision: 1.3
 # completed-bucket-rule: timestamp+300<=observation_time
+# fixture-timing-fix: 1
 on:
   push:
     branches:
