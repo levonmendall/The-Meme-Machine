@@ -68,13 +68,9 @@ def _poll(endpoint,rpc,cursor,tape,feed,sessions):
 
 def _attach_wallet_overlay(vector,skill_book):
     profiles=skill_book.profiles(asof=int(vector["asof"]))
-    creator={
-        str(vector.get("creator_history") or {}).lower()
-        if isinstance(vector.get("creator_history"),str) else ""
-    }
     overlay=wallet_convergence(
         profiles,vector["demand"].get("recent_buy_groups",()),
-        asof=int(vector["asof"]),candidate_related_groups=creator,
+        asof=int(vector["asof"]),candidate_related_groups=(),
     )
     vector["wallet_convergence"]=overlay
     return overlay
