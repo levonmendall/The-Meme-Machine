@@ -17,7 +17,7 @@ class SmallPoolProfitabilityTests(unittest.TestCase):
         self.assertEqual(study._bucket(50000,study.TVL_BUCKETS),">=50k")
 
     def test_reserve_prebalances_require_both_exact_vaults(self):
-        resolver=study.EntryTVLResolver()
+        resolver=study.EntryContextResolver()
         identity=dict(x="x",y="y",vault_x="vx",vault_y="vy")
         tx=dict(
             slot=10,blockTime=100,
@@ -39,7 +39,7 @@ class SmallPoolProfitabilityTests(unittest.TestCase):
         self.assertIsNone(resolver.reserve_balances(tx,identity))
 
     def test_price_inference_uses_sol_plausibility_and_ohlcv_ratio(self):
-        resolver=study.EntryTVLResolver()
+        resolver=study.EntryContextResolver()
         with patch.object(resolver,"ohlcv_close",return_value=2.0):
             prices,reason=resolver.prices(
                 dict(
@@ -98,7 +98,8 @@ class SmallPoolProfitabilityTests(unittest.TestCase):
             [x["label"] for x in body["tvl_strata"]],
             ["<10k","10-25k","25-50k",">=50k"],
         )
-        self.assertEqual(body["revision"],"1.1")
+        self.assertEqual(body["revision"],"1.2")
+        self.assertFalse(body["execution"]["depends_on_profitable_operator_deep_artifact"])
 
 
 if __name__=="__main__":
