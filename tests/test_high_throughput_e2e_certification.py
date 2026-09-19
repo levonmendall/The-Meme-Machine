@@ -8,7 +8,7 @@ class HighThroughputEndToEndCertification(unittest.TestCase):
         report=run_certification()
         self.assertTrue(report['success'])
         self.assertEqual(report['provider']['rotations'],3)
-        self.assertEqual(report['provider']['minimum_interval_seconds'],0.2)
+        self.assertEqual(report['provider']['minimum_interval_seconds'],0.5)
         self.assertEqual(report['evidence']['qualified'],3)
         self.assertTrue(report['stream']['rewarm_proven'])
         self.assertTrue(report['stream']['prewarm_candidate_rejected'])
