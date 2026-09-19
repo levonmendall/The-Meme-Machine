@@ -15,6 +15,7 @@ import socket
 import ssl
 import struct
 import time
+import zlib
 from urllib.parse import urlsplit
 
 from . import BoundaryError
@@ -186,6 +187,9 @@ class _WebSocket:
         self.timeout = float(timeout)
         self.max_frame_bytes = int(max_frame_bytes)
         self.sock = None
+        self.permessage_deflate = False
+        self.server_no_context_takeover = False
+        self._inflater = None
 
     @staticmethod
     def _read_exact(sock, size):
@@ -223,6 +227,7 @@ class _WebSocket:
             "Connection: Upgrade\r\n"
             f"Sec-WebSocket-Key: {key}\r\n"
             "Sec-WebSocket-Version: 13\r\n"
+            "Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n"
             "User-Agent: meme-machine-robinhood-observer/1\r\n\r\n"
         ).encode()
         sock.sendall(request)
@@ -249,6 +254,14 @@ class _WebSocket:
         ).decode()
         if headers.get("sec-websocket-accept") != expected:
             raise BoundaryError("sequencer_feed_handshake_identity")
+        extension = headers.get("sec-websocket-extensions", "")
+        if "permessage-deflate" not in extension.lower():
+            raise BoundaryError("sequencer_feed_compression_required")
+        self.permessage_deflate = True
+        self.server_no_context_takeover = (
+            "server_no_context_takeover" in extension.lower()
+        )
+        self._inflater = zlib.decompressobj(wbits=-15)
         self.sock = sock
         return self
 
@@ -271,14 +284,33 @@ class _WebSocket:
             bytes([0x80 | opcode, 0x80 | len(payload)]) + mask + masked
         )
 
+    def _inflate_message(self, payload):
+        if not self.permessage_deflate:
+            return payload
+        if self._inflater is None or self.server_no_context_takeover:
+            self._inflater = zlib.decompressobj(wbits=-15)
+        try:
+            data = self._inflater.decompress(payload + b"\x00\x00\xff\xff")
+        except zlib.error:
+            raise BoundaryError("sequencer_feed_compression_error") from None
+        if len(data) > self.max_frame_bytes:
+            raise BoundaryError("sequencer_feed_message_capacity")
+        if self.server_no_context_takeover:
+            self._inflater = None
+        return data
+
     def recv_message(self):
         if self.sock is None:
             raise BoundaryError("sequencer_feed_not_connected")
         fragments = bytearray()
         message_opcode = None
+        compressed = False
         while True:
             first, second = self._read_exact(self.sock, 2)
             final = bool(first & 0x80)
+            rsv1 = bool(first & 0x40)
+            if first & 0x30:
+                raise BoundaryError("sequencer_feed_reserved_bits")
             opcode = first & 0x0F
             masked = bool(second & 0x80)
             length = second & 0x7F
@@ -297,17 +329,22 @@ class _WebSocket:
             if opcode == 0x8:
                 return None
             if opcode == 0x9:
+                if rsv1:
+                    raise BoundaryError("sequencer_feed_control_compression")
                 self._send_control(0xA, payload)
                 continue
             if opcode == 0xA:
+                if rsv1:
+                    raise BoundaryError("sequencer_feed_control_compression")
                 continue
             if opcode in (0x1, 0x2):
                 if message_opcode is not None:
                     raise BoundaryError("sequencer_feed_fragment_shape")
                 message_opcode = opcode
+                compressed = rsv1
                 fragments.extend(payload)
             elif opcode == 0x0:
-                if message_opcode is None:
+                if message_opcode is None or rsv1:
                     raise BoundaryError("sequencer_feed_fragment_shape")
                 fragments.extend(payload)
             else:
@@ -316,6 +353,8 @@ class _WebSocket:
                 raise BoundaryError("sequencer_feed_message_capacity")
             if final:
                 data = bytes(fragments)
+                if compressed:
+                    data = self._inflate_message(data)
                 if message_opcode in (0x1, 0x2):
                     try:
                         return data.decode("utf-8")
