@@ -143,6 +143,32 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
         self.assertFalse(qualify(weak).qualified)
         self.assertIn("breakout",qualify(weak).reasons)
 
+    def test_postgrad_zero_values_are_valid_observations(self):
+        signal=SignalVector(
+            mint="M0",observed_at=1000,surface="pumpswap",phase=MODE_POSTGRAD,
+            graduated=True,seconds_since_graduation=25,independent_buyer_clusters=8,
+            buyer_growth=5,net_buy_share_bps=9000,concentration_bps=1000,
+            price_vs_graduation_bps=2000,volume_acceleration_bps=0,
+            early_holder_sell_share_bps=0,recovery_bps=1500,
+            skilled_wallet_clusters=3,quote_relative_return_bps=2000,
+        )
+        result=qualify(signal)
+        self.assertNotIn("volume_acceleration",result.reasons)
+        self.assertNotIn("early_holder_distribution",result.reasons)
+
+    def test_second_leg_zero_early_holder_selling_is_not_missing(self):
+        signal=SignalVector(
+            mint="M1",observed_at=1000,surface="pumpswap",phase=MODE_SECOND_LEG,
+            graduated=True,seconds_since_graduation=120,independent_buyer_clusters=8,
+            buyer_growth=5,net_buy_share_bps=9000,concentration_bps=1000,
+            early_holder_sell_share_bps=0,pullback_depth_bps=1200,
+            recovery_bps=2000,consolidation_seconds=45,breakout_bps=1500,
+            price_vs_graduation_bps=2000,skilled_wallet_clusters=3,
+            quote_relative_return_bps=2000,
+        )
+        result=qualify(signal)
+        self.assertNotIn("early_holder_distribution",result.reasons)
+
     def test_relative_strength_removes_quote_asset_move(self):
         # token/USD +29.6%, quote/USD +8% => token/quote exactly +20%
         self.assertEqual(relative_return_bps(2960,800),2000)

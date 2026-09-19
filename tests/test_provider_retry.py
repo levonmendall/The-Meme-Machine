@@ -65,6 +65,10 @@ class BoundedRetry(unittest.TestCase):
             def _http(self,request):
                 if isinstance(request,list):
                     self.batch_sizes.append(len(request))
+                    if request and request[0]['method']=='getTransaction':
+                        self.assert_v1=all(
+                            item['params'][1]['maxSupportedTransactionVersion']==1
+                            for item in request)
                     # JSON-RPC batch responses need not preserve request order.
                     return list(reversed([
                         {'jsonrpc':'2.0','id':item['id'],
@@ -86,6 +90,7 @@ class BoundedRetry(unittest.TestCase):
         self.assertEqual(rpc.http_requests,10)  # 2 singles + eight <=8-item HTTP batches
         self.assertEqual(rpc.batch_sizes,[8,8,8,8,8,8,8,4])
         self.assertEqual(rpc.failures,0)
+        self.assertTrue(rpc.assert_v1)
 
     def test_unknown_signature_time_cannot_claim_complete_window(self):
         calls=[]

@@ -12,7 +12,7 @@ from .pump_acceleration_evidence import pumpswap_trade_events
 
 class IncrementalPumpSwapHistory:
     def __init__(self,pool,graduation_time,page_limit=96,max_backfill_pages=2,max_new_pages=4,
-                 max_tx_per_refresh=64):
+                 max_tx_per_refresh=128):
         self.pool=str(pool)
         self.graduation_time=int(graduation_time)
         self.page_limit=int(page_limit)
@@ -145,14 +145,14 @@ class IncrementalPumpSwapHistory:
             pending.append(row)
         pending.sort(key=lambda r:(int(r.get("blockTime") or 0),int(r.get("slot") or 0)))
         pending=pending[:self.max_tx_per_refresh]
-        for start in range(0,len(pending),8):
-            chunk=pending[start:start+8]
+        for start in range(0,len(pending),16):
+            chunk=pending[start:start+16]
             params=[[r["signature"],{
                 "encoding":"json","commitment":"finalized",
-                "maxSupportedTransactionVersion":0,
+                "maxSupportedTransactionVersion":1,
             }] for r in chunk]
             try:
-                txs=rpc.call_many("getTransaction",params,True,batch_size=8)
+                txs=rpc.call_many("getTransaction",params,True,batch_size=16)
             except Unavailable:
                 self.tx_failures+=len(chunk)
                 continue

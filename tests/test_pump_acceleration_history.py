@@ -7,6 +7,7 @@ class FakeRPC:
     def __init__(self):
         self.signature_calls=[]
         self.tx_calls=[]
+        self.tx_configs=[]
         self.round=0
 
     def call(self,method,params,priority=False):
@@ -29,6 +30,9 @@ class FakeRPC:
 
     def call_many(self,method,params_list,priority=False,batch_size=8):
         self.tx_calls.extend(x[0] for x in params_list)
+        self.tx_configs.extend(dict(x[1]) for x in params_list)
+        if any(x[1].get("maxSupportedTransactionVersion") != 1 for x in params_list):
+            raise AssertionError("v1 transaction reads must opt in")
         return [
             {"slot":int(x[0][1:]),"meta":{"err":None,"logMessages":[]}}
             for x in params_list
@@ -52,6 +56,8 @@ class IncrementalHistoryTests(unittest.TestCase):
         self.assertEqual(rpc.tx_calls.count("s2"),1)
         self.assertIn("s4",rpc.tx_calls)
         self.assertIn("s5",rpc.tx_calls)
+        self.assertTrue(rpc.tx_configs)
+        self.assertTrue(all(x["maxSupportedTransactionVersion"]==1 for x in rpc.tx_configs))
 
 
 if __name__=="__main__":

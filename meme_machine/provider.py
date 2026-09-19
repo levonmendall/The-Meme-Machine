@@ -147,8 +147,8 @@ class RPC:
         """
         if method not in self.ALLOWED:
             raise ValueError('read-only method allowlist')
-        if not 1 <= batch_size <= 8:
-            raise ValueError('batch_size must be 1..8')
+        if not 1 <= batch_size <= 16:
+            raise ValueError('batch_size must be 1..16')
         params_list=list(params_list)
         if not params_list:
             return []
@@ -266,7 +266,7 @@ class PumpAdapter:
 
         successful=[sig for sig in relevant if not sig.get('err')]
         params=[[sig['signature'], {'encoding':'json','commitment':'finalized',
-                                    'maxSupportedTransactionVersion':0}]
+                                    'maxSupportedTransactionVersion':1}]
                 for sig in successful]
         txs=self.rpc.call_many('getTransaction',params,priority,batch_size=8) if params else []
         events=[]

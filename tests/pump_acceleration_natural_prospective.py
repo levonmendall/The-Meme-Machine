@@ -99,6 +99,14 @@ def _attempt_key(mint,mode,now):
     return f"{mint}:{mode}:{int(now)}"
 
 
+def _assert_fill_deadline(row, observed_now=None):
+    """Fail closed if a blocking provider call returns after the fill deadline."""
+    checked=int(time.time() if observed_now is None else observed_now)
+    if checked-int(row["reserved_at"])>=ENTRY_FILL_TIMEOUT_SECONDS:
+        raise ValueError("entry_fill_timeout")
+    return checked
+
+
 def _confirmation_meta(value):
     return dict(
         skilled_wallets_observed=int(value.get("skilled_wallets_observed",0)),
@@ -239,6 +247,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
             sessions.ensure(20)
             if mode==MODE_LATE_CURVE:
                 snapshot=sessions.pump.snapshot(mint,now,priority=True)
+                _assert_fill_deadline(row)
                 curve=pump.curve(snapshot["accounts"][0])
                 if curve.complete or curve.real_token==0:
                     raise ValueError("graduated_before_delayed_fill")
@@ -257,6 +266,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                 handoff=graduation_handoff(
                     graduation,max(now,int(graduation["available_time"])))
                 snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
+                _assert_fill_deadline(row)
                 if int(snapshot["slot"])<=int(row["decision_slot"]) or int(snapshot["market_time"])<int(row["due"]):
                     raise Unavailable("no_fresh_post_delay_quote")
                 quote=buy_quote(snapshot,ENTRY_BUDGET)
@@ -278,13 +288,15 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
             pending.pop(key,None)
         except (Unavailable,ValueError,KeyError,TypeError) as exc:
             reason=str(exc) or type(exc).__name__
-            if reason=="graduated_before_delayed_fill" or now-int(row["reserved_at"])>=ENTRY_FILL_TIMEOUT_SECONDS:
+            decision_now=int(time.time())
+            if (reason in ("graduated_before_delayed_fill","entry_fill_timeout") or
+                    decision_now-int(row["reserved_at"])>=ENTRY_FILL_TIMEOUT_SECONDS):
                 try:
-                    life.cancel(reason,now)
+                    life.cancel(reason,decision_now)
                 except ValueError:
                     pass
                 row["qualifier_row"].update(
-                    entry_status="cancelled",cancelled_at=now,entry_limitation=reason)
+                    entry_status="cancelled",cancelled_at=decision_now,entry_limitation=reason)
                 pending.pop(key,None)
             else:
                 row["qualifier_row"]["last_fill_limitation"]=reason

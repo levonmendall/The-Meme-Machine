@@ -25,6 +25,11 @@ def _clamp(value, low, high):
     return max(low, min(high, value))
 
 
+def _value_or(value, default):
+    """Preserve legitimate zero values; substitute only for missing evidence."""
+    return default if value is None else value
+
+
 def _points(value, low, high, maximum):
     if value <= low:
         return 0
@@ -399,7 +404,7 @@ def qualify(signal, policy=POLICY):
         threshold=policy.min_late_curve_score
 
     elif signal.phase == MODE_POSTGRAD:
-        age=int(signal.seconds_since_graduation or -1)
+        age=int(_value_or(signal.seconds_since_graduation,-1))
         if not signal.graduated:
             reasons.append("not_graduated")
         if age < policy.min_postgrad_age_s or age > policy.max_postgrad_entry_age_s:
@@ -410,11 +415,11 @@ def qualify(signal, policy=POLICY):
             reasons.append("buyer_growth")
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")
-        if int(signal.price_vs_graduation_bps or 0) < policy.min_postgrad_price_vs_graduation_bps:
+        if int(_value_or(signal.price_vs_graduation_bps,0)) < policy.min_postgrad_price_vs_graduation_bps:
             reasons.append("price_retention")
-        if int(signal.volume_acceleration_bps or -1) < policy.min_postgrad_volume_acceleration_bps:
+        if int(_value_or(signal.volume_acceleration_bps,-1)) < policy.min_postgrad_volume_acceleration_bps:
             reasons.append("volume_acceleration")
-        if int(signal.early_holder_sell_share_bps or 10_000) > policy.max_early_holder_sell_share_bps:
+        if int(_value_or(signal.early_holder_sell_share_bps,10_000)) > policy.max_early_holder_sell_share_bps:
             reasons.append("early_holder_distribution")
         if signal.concentration_bps > policy.max_concentration_bps:
             reasons.append("concentration")
@@ -424,17 +429,17 @@ def qualify(signal, policy=POLICY):
         threshold=policy.min_postgrad_score
 
     else:
-        age=int(signal.seconds_since_graduation or -1)
+        age=int(_value_or(signal.seconds_since_graduation,-1))
         if not signal.graduated:
             reasons.append("not_graduated")
         if age < policy.min_second_leg_age_s:
             reasons.append("second_leg_age")
-        if int(signal.consolidation_seconds or 0) < policy.min_consolidation_s:
+        if int(_value_or(signal.consolidation_seconds,0)) < policy.min_consolidation_s:
             reasons.append("consolidation")
-        pullback=int(signal.pullback_depth_bps or 0)
+        pullback=int(_value_or(signal.pullback_depth_bps,0))
         if not policy.min_pullback_depth_bps <= pullback <= policy.max_pullback_depth_bps:
             reasons.append("pullback_shape")
-        if int(signal.breakout_bps or 0) < policy.min_breakout_bps:
+        if int(_value_or(signal.breakout_bps,0)) < policy.min_breakout_bps:
             reasons.append("breakout")
         if signal.independent_buyer_clusters < policy.min_postgrad_independent_clusters:
             reasons.append("independent_buyers")
@@ -442,7 +447,7 @@ def qualify(signal, policy=POLICY):
             reasons.append("buyer_growth")
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")
-        if int(signal.early_holder_sell_share_bps or 10_000) > policy.max_early_holder_sell_share_bps:
+        if int(_value_or(signal.early_holder_sell_share_bps,10_000)) > policy.max_early_holder_sell_share_bps:
             reasons.append("early_holder_distribution")
         if signal.concentration_bps > policy.max_concentration_bps:
             reasons.append("concentration")

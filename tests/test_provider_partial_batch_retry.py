@@ -38,6 +38,27 @@ class PartialBatchRetryTests(unittest.TestCase):
         self.assertEqual(rpc.calls,4)
         self.assertEqual(rpc.http_requests,2)
 
+    def test_sixteen_member_batch_is_supported(self):
+        class BatchRPC(RPC):
+            def __init__(self):
+                self.batch_sizes=[]
+                super().__init__(
+                    "https://example.invalid",limit=40,
+                    clock=lambda:100.0,sleeper=lambda _seconds:None)
+            def _http(self,request):
+                if not isinstance(request,list):
+                    raise AssertionError("expected batch")
+                self.batch_sizes.append(len(request))
+                return [
+                    {"jsonrpc":"2.0","id":item["id"],"result":item["params"][0]}
+                    for item in request
+                ]
+        rpc=BatchRPC()
+        values=rpc.call_many(
+            "getBlockTime",[[i] for i in range(16)],True,batch_size=16)
+        self.assertEqual(values,list(range(16)))
+        self.assertEqual(rpc.batch_sizes,[16])
+
 
 if __name__=="__main__":
     unittest.main()
