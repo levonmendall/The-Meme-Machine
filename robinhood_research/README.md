@@ -35,10 +35,12 @@ scarce decision evidence, and high-throughput reconstruction:
   clock. Sequence gaps/conflicts/regressions fail closed.
 - `MM_ROBINHOOD_DISCOVERY_RPC_URL`: optional **5 RPS** discovery/log RPC used only
   for sequencer-announced blocks. If absent, `MM_ROBINHOOD_DLMM_RPC_URL` may serve
-  discovery; if both are absent, the primary RPC is an explicit temporary fallback.
+  discovery; if both are absent, the primary RPC is an explicit temporary fallback
+  and shares the same 2 RPS primary pacer.
 - `MM_ROBINHOOD_DLMM_RPC_URL`: optional dedicated **5 RPS** Ramses reconstruction
   RPC with bounded sessions and no automatic rescue. Until configured, Ramses uses
-  the authenticated primary under a separate 5 RPS pacer and reports that fallback.
+  the authenticated primary and shares the same 2 RPS primary pacer, then reports
+  that fallback explicitly.
 - `MM_ROBINHOOD_SHADOW_RPC_URL`: optional independent comparison provider.
   It is diagnostic-only and never trade/evidence authority.
 - `https://rpc.mainnet.chain.robinhood.com`: official public RPC, diagnostic-only.
