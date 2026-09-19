@@ -135,6 +135,9 @@ class RamsesStrategyLedger:
             after_cost_result=None,
             at=at,
             outcome=None,
+            rebalances=0,
+            segments_closed=0,
+            last_controller=None,
         )
         self.db.execute("BEGIN IMMEDIATE")
         try:
@@ -155,6 +158,38 @@ class RamsesStrategyLedger:
                 raise BoundaryError("ramses_strategy_time_regression")
             body.update(status="open", version=body["version"] + 1, at=at)
             self._save(body, "open")
+            self.db.execute("COMMIT")
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
+        return body
+
+    def checkpoint(self, identity, *, action, detail, at):
+        if action not in ("monitor", "segment_close", "rebalance"):
+            raise BoundaryError("ramses_strategy_checkpoint_action")
+        if not isinstance(detail, dict):
+            raise BoundaryError("ramses_strategy_checkpoint_detail")
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            body = self._load(identity)
+            if body["status"] != "open":
+                raise BoundaryError("ramses_strategy_checkpoint_state")
+            if at < body["at"]:
+                raise BoundaryError("ramses_strategy_time_regression")
+            body.update(
+                version=body["version"]+1,
+                at=at,
+                last_controller=detail,
+            )
+            if action=="segment_close":
+                body["segments_closed"]=int(body.get("segments_closed",0))+1
+            elif action=="rebalance":
+                proposal_hash=detail.get("proposal_hash")
+                if not isinstance(proposal_hash,str) or len(proposal_hash)!=64:
+                    raise BoundaryError("ramses_strategy_rebalance_proposal")
+                body["proposal_hash"]=proposal_hash
+                body["rebalances"]=int(body.get("rebalances",0))+1
+            self._save(body,action)
             self.db.execute("COMMIT")
         except Exception:
             self.db.execute("ROLLBACK")
