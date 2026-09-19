@@ -301,6 +301,7 @@ def scan(
     gas_costs_by_pool=None,
     signals_by_pool=None,
     cost_state=None,
+    finalized_frontier=None,
 ):
     """Scan the complete factory and classify the bounded recently-active cohort."""
     if type(lookback_blocks) is not int or not 10 <= lookback_blocks <= 1200:
@@ -328,7 +329,35 @@ def scan(
     )
     started = time.time()
     rpc.verify_chain()
-    frontier = rpc.call("eth_getBlockByNumber", ["finalized", False], scope="universe_frontier")
+    if finalized_frontier is None:
+        frontier = rpc.call(
+            "eth_getBlockByNumber",
+            ["finalized", False],
+            scope="universe_frontier",
+        )
+        frontier_source = "scanner_rpc"
+    else:
+        if not isinstance(finalized_frontier, dict):
+            raise BoundaryError("invalid_ramses_finalized_frontier")
+        required = ("number", "hash", "timestamp", "parentHash")
+        if any(not isinstance(finalized_frontier.get(k), str) for k in required):
+            raise BoundaryError("invalid_ramses_finalized_frontier")
+        try:
+            end_probe = int(finalized_frontier["number"], 16)
+            timestamp_probe = int(finalized_frontier["timestamp"], 16)
+            int(finalized_frontier["hash"], 16)
+            int(finalized_frontier["parentHash"], 16)
+        except (TypeError, ValueError):
+            raise BoundaryError("invalid_ramses_finalized_frontier") from None
+        if (
+            end_probe < 0
+            or timestamp_probe <= 0
+            or len(finalized_frontier["hash"]) != 66
+            or len(finalized_frontier["parentHash"]) != 66
+        ):
+            raise BoundaryError("invalid_ramses_finalized_frontier")
+        frontier = dict(finalized_frontier)
+        frontier_source = "pinned_external_finalized_header"
     end = int(frontier["number"], 16)
     start = max(0, end - lookback_blocks + 1)
 
@@ -503,6 +532,7 @@ def scan(
         finalized_block=end,
         finalized_hash=frontier["hash"],
         finalized_timestamp=int(frontier["timestamp"], 16),
+        finalized_frontier_source=frontier_source,
         lookback_start_block=start,
         lookback_blocks=end - start + 1,
         factory_pool_count=len(addresses),
