@@ -420,7 +420,12 @@ class SequencerBlockClock:
         self.close()
         self.state=SequencerFeedState()
         self.reconnects+=1
-        return self.connect()
+        try:
+            return self.connect()
+        except (ssl.SSLError,OSError) as exc:
+            self.transport_failures+=1
+            self.close()
+            raise SequencerTransportError(type(exc).__name__) from exc
 
     def _transport_lost(self, reason):
         self.transport_failures+=1
