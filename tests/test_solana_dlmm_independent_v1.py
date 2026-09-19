@@ -30,7 +30,16 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             p["range"]["warmup_alignment"]["qualifying_window_seconds"],12)
         self.assertEqual(
             p["range"]["warmup_alignment"]["max_fresh_windows"],5)
-        self.assertEqual(p["revision"],"1.5")
+        self.assertEqual(
+            p["discovery"]["execution_mode"],
+            "streaming_first_sighting_immediate_handoff")
+        self.assertTrue(
+            p["discovery"]["no_full_universe_wait_before_handoff"])
+        self.assertEqual(
+            p["evidence_acquisition"]["interval_transaction_bound"],16)
+        self.assertFalse(
+            p["evidence_acquisition"]["strategy_thresholds_changed"])
+        self.assertEqual(p["revision"],"1.6")
 
     def test_strategy_import_graph_contains_no_strategy_dependency(self):
         path=Path("tests/solana_dlmm_independent_v1.py")
@@ -93,6 +102,45 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertTrue(history_calls)
         self.assertTrue(all(c.get("timeframe")=="5m" for c in history_calls))
 
+    def test_streaming_discovery_yields_before_next_pool_history_read(self):
+        p=strategy.load_policy()
+        rows=[
+            dict(
+                address="first",name="first",tvl=1000,is_blacklisted=False,
+                token_x=dict(address=dlmm.WSOL),token_y=dict(address="token1"),
+                volume={"30m":1000},fees={"30m":10},
+            ),
+            dict(
+                address="second",name="second",tvl=1000,is_blacklisted=False,
+                token_x=dict(address=dlmm.WSOL),token_y=dict(address="token2"),
+                volume={"30m":1000},fees={"30m":10},
+            ),
+        ]
+        history_reads=[]
+        def fake_api(path,params=None):
+            if path=="/pools":
+                return {"data":rows}
+            if path.endswith("/volume/history"):
+                address=path.split("/")[2]
+                history_reads.append(address)
+                return {"data":[
+                    dict(timestamp=1000+i*300,
+                         volume=(100 if i<5 else 500),
+                         fees=(1 if i<5 else 5))
+                    for i in range(6)
+                ]}
+            raise AssertionError(path)
+        telemetry={}
+        with patch.object(strategy,"_api",side_effect=fake_api), \
+             patch.object(strategy.time,"time",return_value=2800):
+            stream=strategy._iter_acceleration_candidates(p,telemetry)
+            first=next(stream)
+            self.assertEqual(first["address"],"first")
+            self.assertEqual(history_reads,["first"])
+            second=next(stream)
+            self.assertEqual(second["address"],"second")
+            self.assertEqual(history_reads,["first","second"])
+
     def test_history_acceleration_requires_six_consecutive_5m_buckets(self):
         candidate=dict(address="pool",tvl_usd=10000)
         rows=[
@@ -128,6 +176,52 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertEqual(out["latest_completed_bucket_age_seconds"],200)
         self.assertEqual(out["volume_5m_usd"],500)
         self.assertEqual(out["fee_5m_usd"],5)
+
+    def test_signature_census_paginates_to_authenticated_start_boundary(self):
+        page1=[
+            dict(
+                signature=f"new-{i}",slot=200-i,transactionIndex=i,
+                confirmationStatus="finalized",err=None)
+            for i in range(64)
+        ]
+        page2=[
+            dict(signature="tx105",slot=105,transactionIndex=2,
+                 confirmationStatus="finalized",err=None),
+            dict(signature="tx104",slot=104,transactionIndex=1,
+                 confirmationStatus="finalized",err=None),
+            dict(signature="boundary",slot=100,transactionIndex=0,
+                 confirmationStatus="finalized",err=None),
+        ]
+        rpc=MagicMock()
+        rpc.call.side_effect=[page1,page2]
+        rows,meta=strategy._complete_signature_census(
+            rpc,"pool",100,105)
+        self.assertEqual(meta["pages"],2)
+        self.assertEqual(meta["relevant_successful"],2)
+        self.assertEqual(meta["start_boundary_slot"],100)
+        self.assertEqual(
+            [row["signature"] for row in rows],
+            ["tx105","tx104","boundary"])
+        self.assertEqual(rpc.call.call_count,2)
+        self.assertEqual(
+            rpc.call.call_args_list[1].args[1][1]["before"],
+            page1[-1]["signature"])
+
+    def test_signature_census_keeps_16_transaction_bound(self):
+        page=[
+            dict(
+                signature=f"tx-{i}",slot=117-i,transactionIndex=i,
+                confirmationStatus="finalized",err=None)
+            for i in range(17)
+        ]
+        page.append(dict(
+            signature="boundary",slot=100,transactionIndex=0,
+            confirmationStatus="finalized",err=None))
+        rpc=MagicMock();rpc.call.return_value=page
+        with self.assertRaisesRegex(
+                Exception,"transaction_pressure_overflow"):
+            strategy._complete_signature_census(
+                rpc,"pool",100,117)
 
     def test_range_width_expands_with_observed_movement_but_remains_bounded(self):
         p=strategy.load_policy()
