@@ -92,7 +92,13 @@ def discover_wallets():
         recent=[s for s in sigs if isinstance(s,dict) and not s.get("err")]
         readable,failures=study._read_recent_transactions(
             rpc,recent,target=TX_BODY_TARGET,scan_limit=TX_BODY_SCAN_LIMIT)
-        complete=len(readable)>=TX_BODY_TARGET
+        exhaustive_low_history=(
+            len(recent)<TX_BODY_TARGET and len(readable)==len(recent) and not failures
+        )
+        complete=len(readable)>=TX_BODY_TARGET or exhaustive_low_history
+        coverage_mode=("target_depth" if len(readable)>=TX_BODY_TARGET
+                       else "exhaustive_low_history" if exhaustive_low_history
+                       else "incomplete")
         all_complete=all_complete and complete
         found=0
         for sig,tx in readable:
@@ -102,7 +108,7 @@ def discover_wallets():
             pool=pool["address"],rank=pool["rank"],
             finalized_signatures_available=len(recent),
             readable_transactions=len(readable),complete=complete,
-            unreadable_transactions=failures,
+            coverage_mode=coverage_mode,unreadable_transactions=failures,
             lp_actor_events=found,
             rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,
             rpc_failures=rpc.failures,rpc_retries=rpc.retries,
