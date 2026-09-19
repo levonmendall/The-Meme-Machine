@@ -71,7 +71,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
                 return {"data":buckets}
             return {"data":[row]}
         with patch.object(strategy,"_api",side_effect=fake), \
-             patch.object(strategy.time,"time",return_value=2600):
+             patch.object(strategy.time,"time",return_value=2800):
             accepted,rejected,errors=strategy.discover(p,20)
         self.assertEqual(errors,[])
         self.assertEqual(len(accepted),1)
@@ -93,7 +93,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             for i in range(6)
         ]
         with patch.object(strategy,"_api",return_value={"data":rows}):
-            out=strategy._history_acceleration(candidate,2600)
+            out=strategy._history_acceleration(candidate,2800)
         self.assertEqual(out["acceleration_bucket_count"],6)
         self.assertEqual(out["volume_5m_usd"],500)
         self.assertEqual(out["volume_30m_usd"],1000)
