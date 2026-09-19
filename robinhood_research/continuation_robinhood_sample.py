@@ -456,7 +456,7 @@ def run(endpoint):
                 seen_curves.add(curve)
                 evidence_queue.enqueue(event,now=time.time())
             scheduled=evidence_queue.pop(
-                now=time.time(),minimum_remaining_seconds=0.5
+                now=time.time(),minimum_remaining_seconds=1.0
             )
             if scheduled is None:
                 continue
