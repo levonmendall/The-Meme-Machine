@@ -113,6 +113,10 @@ def discover_wallets():
             rpc_calls=rpc.calls,rpc_http_requests=rpc.http_requests,
             rpc_failures=rpc.failures,rpc_retries=rpc.retries,
             failure_kinds=dict(sorted(rpc.failure_kinds.items())),
+            provider_topology=(
+                rpc.provider_telemetry()
+                if hasattr(rpc,"provider_telemetry") else None
+            ),
         ))
 
     all_events.sort(key=lambda x:(-x["slot"],x["pool_rank"],
