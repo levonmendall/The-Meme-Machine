@@ -289,6 +289,14 @@
       "strategy_revision_changed": false,
       "requested_window_seconds": 1200,
       "rule": "Stop gracefully at the experiment deadline and preserve partial evidence; do not use a job cancellation as the experiment boundary."
+    },
+    "rpc_429_efficiency": {
+      "strategy_revision_changed": false,
+      "signature_polling": "One getSignaturesForAddress read per fresh-swap poll. The same response supplies both new-signature discovery and the finalized head cursor; the previous second head-only request is removed.",
+      "shared_backoff": "All bounded Alchemy RPC sessions share one adaptive 429 cooldown via the run-scoped pacer. Consecutive 429s increase cooldown up to 30 seconds; sustained successful transports decay the pressure level.",
+      "candidate_semantics": "HTTP 429 during signatures, transactions, fresh pool state, warmup reconstruction, or lifecycle evidence is transport pressure and is retried within bounded recovery/deadline rules. It is not an economic candidate rejection.",
+      "cursor_safety": "If transaction retrieval is rate-limited after signatures are discovered, the cursor is not advanced; those signatures are retried.",
+      "thresholds_changed": false
     }
   }
 }
