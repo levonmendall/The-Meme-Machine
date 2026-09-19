@@ -1,0 +1,1 @@
+Retry repaired multi-position Pump/PumpSwap paper cohort on authenticated OnFinality HTTP+WebSocket primary, capped at 5 rps, with Alchemy rescue-only. continuation-v1 thresholds/exits unchanged; paper-only; natural graduation only.
