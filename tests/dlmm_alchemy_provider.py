@@ -5,6 +5,7 @@ endpoint is now primary and the existing MM_SOLANA_READ_RPC_URL Alchemy secret i
 bounded rescue path. Existing imports remain valid so ongoing frozen experiments do
 not need strategy-layer changes.
 """
+from meme_machine.provider import Unavailable
 from meme_machine.solana_read_rpc import (
     ALCHEMY_ENV_NAME,
     ALCHEMY_SOLANA_MAINNET_HOST,
