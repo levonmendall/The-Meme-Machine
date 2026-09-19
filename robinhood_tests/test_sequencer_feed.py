@@ -3,7 +3,7 @@ import unittest
 import zlib
 
 from robinhood_research import BoundaryError
-from robinhood_research.sequencer_feed import SequencerFeedState,_WebSocket,feed_url
+from robinhood_research.sequencer_feed import SequencerBlockClock,SequencerFeedState,_WebSocket,feed_url
 
 
 def row(sequence,*,block=100,timestamp=1000,payload="AA==",signed=True):
@@ -69,6 +69,21 @@ class SequencerFeedTests(unittest.TestCase):
         ws._inflater=zlib.decompressobj(wbits=-15)
         decoded=ws._inflate_message(wire)
         self.assertEqual(decoded,raw)
+
+    def test_discovery_clock_fails_closed_on_gap(self):
+        clock=SequencerBlockClock()
+        clock.state.last_sequence=100
+        clock.state.gap_events=1
+        with self.assertRaisesRegex(BoundaryError,"continuity_lost"):
+            clock._healthy()
+
+    def test_discovery_clock_status_has_no_evidence_authority(self):
+        clock=SequencerBlockClock()
+        clock.state.ingest(dict(version=1,messages=[row(10)]),received_at=1001)
+        status=clock.status()
+        self.assertEqual(status["role"],"pons_discovery_clock")
+        self.assertEqual(status["authority"],"observation_only")
+        self.assertFalse(status["canonical_evidence"])
 
     def test_malformed_feed_frame_is_counted_not_promoted(self):
         state=SequencerFeedState()
