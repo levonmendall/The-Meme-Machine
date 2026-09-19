@@ -1,6 +1,8 @@
 import unittest
 
-from tests.market_native_opportunity_outcomes import CONCENTRATION_ROTATE_AT, EvidenceSessions
+from tests.market_native_opportunity_outcomes import (
+    CONCENTRATION_ROTATE_AT, EvidenceSessions, _expanded_entry_tracker,
+)
 
 from meme_machine.outcome_research import (
     enable_shadow_exit, high_density_features, is_two_buyer_sole_near_miss,
@@ -49,6 +51,25 @@ class OutcomeResearchTests(unittest.TestCase):
         self.assertTrue(got['7500000000'])
         self.assertFalse(got['10000000000'])
 
+
+
+
+    def test_expanded_tracker_uses_executable_quote_and_shadow_exit(self):
+        candidate={'mint':MINT,'nomination':{'id':'n1'}}
+        result={
+            'full_evidence_complete':True,
+            'qualified_at':200,
+            'actual_reason':'qualified',
+            'entry_quote':{'basis_lamports':125,'tokens':100},
+            'priority_slot':7,
+        }
+        tracker=_expanded_entry_tracker(candidate,result,'extra_full_evidence_qualified')
+        self.assertEqual(tracker['origin_time'],200)
+        self.assertEqual(tracker['baseline_num'],125)
+        self.assertEqual(tracker['baseline_den'],100)
+        self.assertEqual(tracker['metadata']['entry_baseline'],'frozen_5pct_modeled_quote')
+        self.assertIsNotNone(tracker['shadow_exit'])
+        self.assertFalse(tracker['shadow_exit']['canonical_execution'])
 
 
     def test_two_buyer_pre_candidate_requires_buyer_count_to_be_pivotal(self):
