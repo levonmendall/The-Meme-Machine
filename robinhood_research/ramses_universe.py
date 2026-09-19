@@ -25,6 +25,7 @@ from .abi import calldata, topic
 from .identity import authenticate, load
 from .ramses import authenticate_pool, decode_ramses_event, values
 from .ramses_capture import BoundedMultiRpc, LOG_BLOCK_CHUNK, MAX_FACTORY_POOLS
+from .ramses_costs import current_native_cycle, observe_receipt_gas, quote_native_cycle
 from .ramses_strategy import (
     POLICY_HASH,
     STRATEGY_VERSION,
@@ -59,7 +60,11 @@ _FACTORY_INVENTORY_LOCK = threading.Lock()
 def _batched_logs(rpc, start, end, addresses):
     if start > end or not addresses:
         return []
-    sig = topic("Swap(address,address,uint24,bytes32,bytes32,uint24,bytes32,bytes32)")
+    economic_topics = [
+        topic("Swap(address,address,uint24,bytes32,bytes32,uint24,bytes32,bytes32)"),
+        topic("DepositedToBins(address,address,uint256[],bytes32[])"),
+        topic("WithdrawnFromBins(address,address,uint256[],bytes32[])"),
+    ]
     calls = []
     for first in range(start, end + 1, LOG_BLOCK_CHUNK):
         calls.append((
@@ -68,15 +73,15 @@ def _batched_logs(rpc, start, end, addresses):
                 fromBlock=hex(first),
                 toBlock=hex(min(end, first + LOG_BLOCK_CHUNK - 1)),
                 address=list(addresses),
-                topics=[sig],
+                topics=[economic_topics],
             )],
         ))
     found = []
     for i in range(0, len(calls), 20):
         for page in rpc.batch(calls[i:i + 20], scope="universe_logs"):
             found.extend(page)
-            if len(found) > MAX_SWAP_LOGS:
-                raise BoundaryError("ramses_universe_swap_log_capacity")
+            if len(found) > MAX_SWAP_LOGS * 2:
+                raise BoundaryError("ramses_universe_economic_log_capacity")
     return found
 
 
@@ -178,9 +183,15 @@ def _enumerate_factory(rpc, factory, block):
     return addresses
 
 
-def _decode_histories(logs, addresses):
+def _decode_economic_logs(logs, addresses):
     allowed = set(a.lower() for a in addresses)
     by_pool = {}
+    cost_events = []
+    category = {
+        "Swap": "unwind",
+        "DepositedToBins": "add_liquidity",
+        "WithdrawnFromBins": "remove_liquidity",
+    }
     for event in sorted(
         logs,
         key=lambda e: (
@@ -193,8 +204,18 @@ def _decode_histories(logs, addresses):
         if address not in allowed or event.get("removed"):
             raise BoundaryError("ramses_universe_log_identity")
         decoded = decode_ramses_event(load("ramses_pool_implementation")["abi"], event)
-        if decoded["name"] != "Swap":
-            raise BoundaryError("ramses_universe_non_swap_log")
+        name = decoded["name"]
+        if name not in category:
+            raise BoundaryError("ramses_universe_non_economic_log")
+        cost_events.append(dict(
+            pool=address,
+            category=category[name],
+            block=int(event["blockNumber"], 16),
+            block_hash=event["blockHash"],
+            transaction_hash=event["transactionHash"],
+        ))
+        if name != "Swap":
+            continue
         by_pool.setdefault(address, []).append(dict(
             block=int(event["blockNumber"], 16),
             block_hash=event["blockHash"],
@@ -203,7 +224,13 @@ def _decode_histories(logs, addresses):
             log_index=int(event["logIndex"], 16),
             args=decoded["args"],
         ))
-    return by_pool
+    return by_pool, cost_events
+
+
+def _decode_histories(logs, addresses):
+    """Compatibility wrapper returning only strictly pre-entry Swap history."""
+    histories, _cost_events = _decode_economic_logs(logs, addresses)
+    return histories
 
 
 def _prestate(rpc, factory, address, block):
@@ -273,14 +300,20 @@ def scan(
     max_recent_active_pools=MAX_RECENT_ACTIVE_POOLS,
     gas_costs_by_pool=None,
     signals_by_pool=None,
+    cost_state=None,
 ):
     """Scan the complete factory and classify the bounded recently-active cohort."""
     if type(lookback_blocks) is not int or not 10 <= lookback_blocks <= 1200:
         raise BoundaryError("invalid_ramses_universe_lookback")
     if type(max_recent_active_pools) is not int or not 1 <= max_recent_active_pools <= 48:
         raise BoundaryError("invalid_ramses_universe_candidate_cap")
-    gas_costs_by_pool = gas_costs_by_pool or {}
-    signals_by_pool = signals_by_pool or {}
+    gas_costs_by_pool = {
+        str(k).lower(): v for k, v in (gas_costs_by_pool or {}).items()
+    }
+    signals_by_pool = {
+        str(k).lower(): v for k, v in (signals_by_pool or {}).items()
+    }
+    cost_state = {} if cost_state is None else cost_state
     if not isinstance(gas_costs_by_pool, dict) or not isinstance(signals_by_pool, dict):
         raise BoundaryError("invalid_ramses_universe_context")
 
@@ -306,7 +339,8 @@ def scan(
 
     addresses = _enumerate_factory(rpc, factory, end)
     logs = _batched_logs(rpc, start, end, addresses)
-    histories = _decode_histories(logs, addresses)
+    histories, cost_events = _decode_economic_logs(logs, addresses)
+    observe_receipt_gas(rpc, cost_events, cost_state)
 
     # Candidate truncation is pre-entry and outcome-blind: retain the pools with
     # the densest recent finalized swap tape, breaking ties by latest activity.
@@ -349,6 +383,14 @@ def scan(
     for row in rows:
         row["features"] = attach_universe_percentiles(row["features"], features)
 
+    native_costs = None
+    native_cost_meta = dict(
+        available=False,
+        reason="no_active_pool_for_cost_acquisition",
+    )
+    if rows:
+        native_costs, native_cost_meta = current_native_cycle(rpc, cost_state)
+
     classified = []
     for row in rows:
         f = row["features"]
@@ -356,7 +398,42 @@ def scan(
         signal_context = signals_by_pool.get(row["pool"], {})
         if signal_context and not isinstance(signal_context, dict):
             raise BoundaryError("invalid_ramses_pool_signal_context")
-        costs = gas_costs_by_pool.get(row["pool"])
+        manual_costs = gas_costs_by_pool.get(row["pool"])
+        if manual_costs is not None:
+            costs = manual_costs
+            cost_evidence = dict(
+                available=True,
+                source="explicit_manual_override",
+                quote_costs=dict(manual_costs),
+            )
+        elif native_costs is None:
+            costs = None
+            cost_evidence = dict(native_cost_meta)
+            cost_evidence["source"] = "automatic_onchain"
+        else:
+            try:
+                costs, conversion_meta = quote_native_cycle(
+                    rpc, factory, row, end, native_costs, cost_state
+                )
+                cost_evidence = dict(native_cost_meta)
+                cost_evidence.update(
+                    source="automatic_onchain",
+                    conversion=conversion_meta,
+                    available=bool(costs),
+                )
+                if costs is not None:
+                    cost_evidence["quote_costs"] = dict(costs)
+                elif "reason" not in cost_evidence:
+                    cost_evidence["reason"] = conversion_meta.get(
+                        "reason", "quote_conversion_unavailable"
+                    )
+            except BoundaryError as exc:
+                costs = None
+                cost_evidence = dict(
+                    available=False,
+                    source="automatic_onchain",
+                    reason="cost_acquisition_boundary:" + str(exc),
+                )
         try:
             decision = classify_pool(
                 row["prestate"],
@@ -399,6 +476,8 @@ def scan(
             "prestate_block_hash": frontier["hash"],
             "prestate_timestamp": int(frontier["timestamp"], 16),
             "paper_capital_quote_raw": capital,
+            "gas_costs": (dict(costs) if isinstance(costs, dict) else None),
+            "cost_evidence": cost_evidence,
             "decision": decision,
             # Discovery logs are finalized but not individually receipt-authenticated.
             # This scanner ranks; it does not itself create strategy outcome evidence.
@@ -446,7 +525,20 @@ def scan(
         active_state_candidates=len(active_cohort),
         state_complete_pools=len(classified),
         exclusions=dict(exclusions),
-        total_swap_logs=len(logs),
+        total_swap_logs=sum(len(v) for v in histories.values()),
+        total_economic_logs=len(logs),
+        cost_model=dict(
+            available=bool(native_costs),
+            sample_counts=native_cost_meta.get("sample_counts"),
+            proxy_categories=native_cost_meta.get("proxy_categories"),
+            transactions_observed=native_cost_meta.get("transactions_observed"),
+            gas_price_native_raw=native_cost_meta.get("gas_price_native_raw"),
+        ),
+        pools_with_automatic_cost_evidence=sum(
+            1 for r in classified
+            if (r.get("cost_evidence") or {}).get("source") == "automatic_onchain"
+            and (r.get("cost_evidence") or {}).get("available")
+        ),
         watch_cohort=watch,
         watch_cohort_rule=(
             "preentry lexicographic turnover percentile, fee percentile, chop, "
