@@ -1,4 +1,8 @@
 from dataclasses import replace
+import json
+from pathlib import Path
+import ssl
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -7,6 +11,9 @@ from robinhood_research.evidence import Stamp, Store
 from robinhood_research.paper import Quote
 from robinhood_research.pons_selective_ledger import SelectivePaper, STRATEGY_NAMESPACE
 import robinhood_research.pons_selective_cohort as selective_cohort
+from robinhood_research.sequencer_feed import (
+    SequencerBlockClock, SequencerTransportError,
+)
 from robinhood_research.pons import CurveState
 from robinhood_research.pons_selective_continuation import (
     POLICY, POLICY_HASH, ENTRY_THRESHOLDS, POST_GRAD_THRESHOLDS, EXIT_POLICY,
@@ -272,6 +279,111 @@ class SelectiveDiscoveryFrontierTests(unittest.TestCase):
                 selective_cohort._poll(
                     "https://unused",rpc,100,[],object(),[]
                 )
+
+
+
+class SelectiveSequencerRecoveryTests(unittest.TestCase):
+    class Sock:
+        def settimeout(self,value):
+            self.timeout=value
+
+    class FailingClient:
+        def __init__(self):
+            self.sock=SelectiveSequencerRecoveryTests.Sock()
+            self.closed=False
+        def recv_message(self):
+            raise ssl.SSLEOFError(8,"EOF occurred in violation of protocol")
+        def close(self):
+            self.closed=True
+
+    def test_tls_eof_becomes_recoverable_transport_loss(self):
+        clock=SequencerBlockClock(url="wss://example.invalid")
+        client=self.FailingClient()
+        clock.client=client
+        with self.assertRaises(SequencerTransportError):
+            clock.wait_for_range_after(100,timeout=0.1,max_blocks=10)
+        self.assertIsNone(clock.client)
+        self.assertTrue(client.closed)
+        self.assertEqual(clock.transport_failures,1)
+
+    def test_recovery_does_not_advance_cursor_until_rpc_gap_is_read(self):
+        rpc=SelectiveDiscoveryFrontierTests.Rpc(105)
+        recoveries=[]
+        with patch.object(
+            selective_cohort,"_next_discovery_end",
+            side_effect=[SequencerTransportError("SSLEOFError"),105],
+        ), patch.object(
+            selective_cohort,"_recover_sequencer",return_value=105
+        ) as recover, patch.object(
+            selective_cohort,"_current_curve_events",return_value=["covered"]
+        ) as events:
+            _,cursor,fresh=selective_cohort._poll(
+                "https://unused",rpc,100,[],object(),[],recoveries
+            )
+        recover.assert_called_once()
+        self.assertEqual(recover.call_args.args[1],100)
+        self.assertEqual(events.call_args.args,(rpc,101,105))
+        self.assertEqual(cursor,105)
+        self.assertEqual(fresh,["covered"])
+
+    def test_reconnect_records_observation_anchor_without_cursor_authority(self):
+        class Feed:
+            def __init__(self):
+                self.reconnect_calls=0
+            def reconnect(self):
+                self.reconnect_calls+=1
+            def wait_for_after(self,sequence,timeout=1.0):
+                self.sequence=sequence
+                return 120
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/"recoveries.jsonl"
+            recoveries=[]
+            with patch.object(selective_cohort,"RECOVERY_LOG",path):
+                anchor=selective_cohort._recover_sequencer(
+                    Feed(),100,recoveries
+                )
+            self.assertEqual(anchor,120)
+            self.assertEqual(recoveries[0]["canonical_cursor_before"],100)
+            self.assertFalse(recoveries[0]["canonical_cursor_advanced"])
+            self.assertEqual(
+                recoveries[0]["catchup_authority"],
+                "authenticated_discovery_rpc",
+            )
+            persisted=json.loads(path.read_text().strip())
+            self.assertEqual(persisted["catchup_from"],101)
+            self.assertEqual(persisted["catchup_to"],120)
+
+    def test_checkpoint_persists_cursor_summary_provider_and_sequencer(self):
+        class Feed:
+            def status(self):
+                return dict(
+                    authority="observation_only",reconnects=1,
+                    transport_failures=1,
+                )
+        class Rpc:
+            def telemetry(self):
+                return dict(role="pons_discovery",logical_requests=17)
+        result=dict(
+            started_at=10.0,rows=[
+                dict(vector=dict(all_rejections=["curve_progress"]))
+            ],qualifiers=[],lifecycles=[],
+            discovery_sessions=[dict(role="old")],
+            sequencer_recoveries=[dict(canonical_cursor_before=90)],
+        )
+        with tempfile.TemporaryDirectory() as td:
+            progress=Path(td)/"progress.json"
+            with patch.object(selective_cohort,"PROGRESS",progress):
+                selective_cohort._checkpoint(
+                    result,cursor=100,feed=Feed(),rpc=Rpc(),phase="discovery"
+                )
+            saved=json.loads(progress.read_text())
+        self.assertEqual(saved["canonical_discovery_cursor"],100)
+        self.assertEqual(saved["summary"]["enrolled"],1)
+        self.assertEqual(
+            saved["summary"]["rejection_counts"],{"curve_progress":1}
+        )
+        self.assertEqual(saved["active_discovery_provider"]["logical_requests"],17)
+        self.assertEqual(saved["sequencer_discovery"]["reconnects"],1)
 
 
 class PartialPaperExitTests(unittest.TestCase):
