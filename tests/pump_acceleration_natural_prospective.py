@@ -19,8 +19,7 @@ from meme_machine.concentration import ConcentrationReader
 from meme_machine.engine import GAS
 from meme_machine.market_native_shadow import discover_market_native
 from meme_machine.postgrad import (
-    PUMPSWAP_PROGRAM,PostGraduationAdapter,buy_quote,graduation_handoff,
-    pumpswap_pool,sell_quote,
+    PostGraduationAdapter,buy_quote,graduation_handoff,pumpswap_pool,sell_quote,
 )
 from meme_machine.provider import PumpAdapter,Unavailable
 from meme_machine.pump_acceleration_confirmations import ConfirmationBook
