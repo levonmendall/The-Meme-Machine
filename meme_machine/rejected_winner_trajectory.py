@@ -52,24 +52,63 @@ def _group_fraction(vector):
     return float(groups)/float(events)
 
 
+def _confirmation_hard_gates(confirm):
+    """Frozen continuation-v1 gates that can reject without downstream features."""
+    checks={}
+    if _number(confirm.get("real_sol_lamports")):
+        checks["executable_liquidity_floor"]=(
+            int(confirm["real_sol_lamports"]) >= RULE["min_real_sol_lamports"])
+    if _number(confirm.get("price_extension_bps")):
+        checks["price_extension_within_frozen_cap"]=(
+            int(confirm["price_extension_bps"]) <= RULE["max_price_extension_bps"])
+    if _number(confirm.get("roundtrip_loss_bps")):
+        checks["roundtrip_cost_within_frozen_cap"]=(
+            int(confirm["roundtrip_loss_bps"]) <= RULE["max_roundtrip_loss_bps"])
+    return checks
+
+
 def evaluate(initial, confirm):
     """Return frozen trajectory features and pass/fail from point-in-time fields."""
     initial=initial or {}
     confirm=confirm or {}
+
+    # These are absolute frozen economic gates. Once one is observed to fail, no
+    # buyer-growth/fraction/trajectory field can rescue the candidate, so missing
+    # economically irrelevant downstream fields must not relabel a proven reject as
+    # an incomplete observation.
+    hard_checks=_confirmation_hard_gates(confirm)
+    hard_failures=sorted(k for k,v in hard_checks.items() if v is False)
+    if hard_failures:
+        return dict(
+            complete=True,
+            passed=False,
+            reason="trajectory_reject",
+            deterministic_reject=True,
+            hard_gate_reject=True,
+            hard_gate_failures=hard_failures,
+            checks=hard_checks,
+        )
+
     required=(
         "concentration_bps","real_sol_lamports","independent_buyer_groups",
         "independent_net_buy_lamports","price_extension_bps","roundtrip_loss_bps",
         "evidence_event_count",
     )
     if any(not _number(initial.get(k)) for k in required):
-        return dict(complete=False, passed=False, reason="incomplete_initial_vector")
+        return dict(complete=False, passed=False, reason="incomplete_initial_vector",
+                    deterministic_reject=False,hard_gate_reject=False,
+                    hard_gate_failures=[])
     if any(not _number(confirm.get(k)) for k in required):
-        return dict(complete=False, passed=False, reason="incomplete_confirmation_vector")
+        return dict(complete=False, passed=False, reason="incomplete_confirmation_vector",
+                    deterministic_reject=False,hard_gate_reject=False,
+                    hard_gate_failures=[])
 
     initial_fraction=_group_fraction(initial)
     confirm_fraction=_group_fraction(confirm)
     if initial_fraction is None or confirm_fraction is None:
-        return dict(complete=False, passed=False, reason="incomplete_group_fraction")
+        return dict(complete=False, passed=False, reason="incomplete_group_fraction",
+                    deterministic_reject=False,hard_gate_reject=False,
+                    hard_gate_failures=[])
 
     group_delta=int(confirm["independent_buyer_groups"])-int(initial["independent_buyer_groups"])
     net_delta=int(confirm["independent_net_buy_lamports"])-int(initial["independent_net_buy_lamports"])
@@ -91,10 +130,23 @@ def evaluate(initial, confirm):
         independent_group_fraction_not_worsening=fraction_delta >= 0,
         price_extension_supported_by_broadening=(extension_delta <= 0 or fraction_delta > 0),
     )
+    passed=all(checks.values())
     return dict(
         complete=True,
-        passed=all(checks.values()),
-        reason=("trajectory_pass" if all(checks.values()) else "trajectory_reject"),
+        passed=passed,
+        reason=("trajectory_pass" if passed else "trajectory_reject"),
+        deterministic_reject=not passed,
+        hard_gate_reject=bool(
+            not checks["executable_liquidity_floor"]
+            or not checks["price_extension_within_frozen_cap"]
+            or not checks["roundtrip_cost_within_frozen_cap"]
+        ),
+        hard_gate_failures=sorted(
+            key for key in (
+                "executable_liquidity_floor",
+                "price_extension_within_frozen_cap",
+                "roundtrip_cost_within_frozen_cap",
+            ) if not checks[key]),
         checks=checks,
         initial_independent_group_fraction=initial_fraction,
         confirmation_independent_group_fraction=confirm_fraction,
