@@ -446,6 +446,58 @@ def exact_position_capital(position,history,features_by_signature):
                 exposure_segments=segments)
 
 
+def exact_simple_twr(positions,histories,network_cost_by_position=None):
+    """Exact deployed-capital TWR for simple, non-overlapping position lifecycles.
+
+    This is deliberately narrow. Every position must have one add, one terminal
+    remove, no intermediate fee/reward cash flow, positive deposit USD and no temporal
+    overlap with another measured position. Under those conditions each closed
+    position is one external-flow-bounded subperiod and can be chain-linked exactly.
+    More complex portfolios require event-boundary marks and remain unavailable.
+    """
+    network_cost_by_position=network_cost_by_position or {}
+    periods=[]
+    for p in positions:
+        address=p.get("position")
+        rows=sorted(
+            histories.get(address) or [],
+            key=lambda e:(int(e.get("block_time") or 0),
+                          int(e.get("slot") or 0),int(e.get("ix_index") or 0)))
+        flows=[e for e in rows if e.get("event_type") in
+               ("add","remove","claim_fee","claim_reward")]
+        adds=[e for e in flows if e.get("event_type")=="add"]
+        removes=[e for e in flows if e.get("event_type")=="remove"]
+        claims=[e for e in flows if e.get("event_type") in ("claim_fee","claim_reward")]
+        if len(adds)!=1 or len(removes)!=1 or claims:
+            return dict(available=False,reason="complex_external_cash_flow")
+        start=adds[0].get("block_time");end=removes[0].get("block_time")
+        if not isinstance(start,int) or not isinstance(end,int) or end<=start:
+            return dict(available=False,reason="invalid_position_time")
+        deposit=float(p.get("deposit_usd") or 0.0)
+        pnl=float(p.get("pnl_usd") or 0.0)
+        cost=network_cost_by_position.get(address)
+        if cost is None:
+            return dict(available=False,reason="network_cost_usd_unavailable")
+        if deposit<=0:
+            return dict(available=False,reason="nonpositive_deposit")
+        periods.append((start,end,address,(pnl-float(cost))/deposit))
+    periods.sort()
+    for prior,current in zip(periods,periods[1:]):
+        if current[0]<prior[1]:
+            return dict(available=False,reason="overlapping_positions")
+    factor=1.0
+    for _start,_end,_address,r in periods:
+        if r<=-1.0:
+            return dict(available=False,reason="subperiod_return_below_minus_one")
+        factor*=1.0+r
+    return dict(
+        available=True,
+        twr=factor-1.0,
+        subperiods=len(periods),
+        methodology="chain_linked_after_network_cost_simple_nonoverlapping_positions",
+    )
+
+
 def wallet_deep_metrics(wallet_row,tx_features):
     positions=wallet_row.get("positions") or []
     histories=wallet_row.get("histories") or {}
