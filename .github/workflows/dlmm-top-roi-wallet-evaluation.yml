@@ -24,10 +24,14 @@ jobs:
         run: python -m unittest tests.test_dlmm_top_roi_wallet_evaluation -v
       - name: Validate OnFinality-primary / Alchemy-rescue Solana topology
         env:
+          MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
+          MM_ONFINALITY_SOLANA_WS_URL: ${{ secrets.MM_ONFINALITY_SOLANA_WS_URL }}
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_alchemy_provider
       - name: Discover broader active LP wallet cohort without PnL reads
         env:
+          MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
+          MM_ONFINALITY_SOLANA_WS_URL: ${{ secrets.MM_ONFINALITY_SOLANA_WS_URL }}
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_top_roi_wallet_evaluation discover
       - name: Preserve pre-PnL discovery
