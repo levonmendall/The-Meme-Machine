@@ -292,6 +292,14 @@ def scan(
             "swap_count": row["swap_count"],
             "latest_swap_block": row["latest_swap_block"],
             "features": row["features"],
+            # Preserve the exact finalized selector inputs in-memory for the
+            # authenticated lifecycle handoff.  These are deliberately stripped
+            # from public reports by compact_screen() below.
+            "prestate": row["prestate"],
+            "prehistory": row["prehistory"],
+            "prestate_block": end,
+            "prestate_block_hash": frontier["hash"],
+            "prestate_timestamp": int(frontier["timestamp"], 16),
             "paper_capital_quote_raw": capital,
             "decision": decision,
             # Discovery logs are finalized but not individually receipt-authenticated.
@@ -340,6 +348,32 @@ def scan(
     return result
 
 
+def compact_screen(result):
+    """Return a report-safe view without duplicating heavy selector state.
+
+    Exact finalized prestate/prehistory remain in-memory on scan() rows for the
+    lifecycle.  Public artifacts retain only the immutable state identity and
+    concise strategy evidence.
+    """
+    if not isinstance(result, dict):
+        raise BoundaryError("invalid_ramses_universe_report")
+    compact = dict(result)
+    compact_rows = []
+    for row in result.get("rows", []):
+        public = dict(row)
+        prestate = public.pop("prestate", None)
+        prehistory = public.pop("prehistory", None)
+        public["prestate_retained_in_memory"] = prestate is not None
+        public["prehistory_retained_in_memory"] = prehistory is not None
+        public["prehistory_swap_count"] = (
+            len(prehistory) if isinstance(prehistory, list) else None
+        )
+        compact_rows.append(public)
+    compact["rows"] = compact_rows
+    compact["heavy_selector_state_in_artifact"] = False
+    return compact
+
+
 def _json_env(name):
     raw = str(os.environ.get(name, "") or "").strip()
     if not raw:
@@ -357,7 +391,8 @@ def main():
         gas_costs_by_pool=_json_env("MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON"),
         signals_by_pool=_json_env("MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON"),
     )
-    raw = json.dumps(result, sort_keys=True, separators=(",", ":")).encode()
+    public_result = compact_screen(result)
+    raw = json.dumps(public_result, sort_keys=True, separators=(",", ":")).encode()
     if len(raw) > 4_000_000:
         raise BoundaryError("ramses_universe_report_capacity")
     REPORT.write_bytes(raw)
