@@ -21,13 +21,10 @@ import time
 from websockets.sync.client import connect
 
 from . import dlmm,pump
-from .provider import Unavailable
-from .solana_read_rpc import primary_ws_url
 
 
 PUBLIC_SOLANA_WS_URL="wss://api.mainnet-beta.solana.com"
 PUBLIC_DISCOVERY_PROVIDER="solana_public_mainnet"
-ONFINALITY_DISCOVERY_PROVIDER="onfinality_authenticated_solana_mainnet"
 DEFAULT_QUEUE_LIMIT=25_000
 DEFAULT_RECONSTRUCTION_DEADLINE_SECONDS=1_800
 RECONSTRUCTION_DEADLINE_SAFETY_SECONDS=0.5
@@ -298,10 +295,8 @@ class UnionSignatureLedger:
     def status(self):
         public={s for s,r in self._rows.items()
                 if PUBLIC_DISCOVERY_PROVIDER in r["providers"]}
-        onfinality={s for s,r in self._rows.items()
-                    if ONFINALITY_DISCOVERY_PROVIDER in r["providers"]}
-        both=public & onfinality
-        union=public | onfinality
+        union=set(public)
+        both=set()
         return dict(
             unique_signatures=len(self._rows),
             invalid_signature_notifications=self.invalid_signatures,
@@ -320,7 +315,7 @@ class UnionSignatureLedger:
             overlap_signatures=len(both),
             jaccard=(None if not union else len(both)/len(union)),
             public_coverage_of_union=(None if not union else len(public)/len(union)),
-            onfinality_coverage_of_union=(None if not union else len(onfinality)/len(union)),
+            onfinality_coverage_of_union=0.0 if union else None,
         )
 
 
@@ -390,19 +385,8 @@ class _StreamCollector:
 
 
 def discovery_streams(environ=None):
-    """Return public discovery plus an explicitly opt-in authenticated diagnostic."""
-    env=os.environ if environ is None else environ
-    rows=[(PUBLIC_DISCOVERY_PROVIDER,PUBLIC_SOLANA_WS_URL)]
-    include_auth=str(env.get("MM_DLMM_INCLUDE_ONFINALITY_DISCOVERY_WS","")).lower() in (
-        "1","true","yes","on")
-    if include_auth:
-        try:
-            auth=primary_ws_url(env,require_authenticated=True)
-        except (Unavailable,TypeError):
-            auth=None
-        if auth:
-            rows.append((ONFINALITY_DISCOVERY_PROVIDER,auth))
-    return rows
+    """DLMM discovery uses the public Solana WebSocket only."""
+    return [(PUBLIC_DISCOVERY_PROVIDER,PUBLIC_SOLANA_WS_URL)]
 
 
 def collect_program_union(duration_seconds,*,environ=None,require_public=True):
