@@ -10,7 +10,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .engine import Engine
 from .market_native_runtime import MarketNativeRuntime
 from .postgrad import PostGraduationAdapter
-from .provider import RPC, PumpAdapter, Unavailable
+from .provider import PumpAdapter, Unavailable
+from .solana_read_rpc import new_rpc, primary_rpc_url
 from .pumpswap_runtime import POSTGRAD_WAIT_SECONDS, PumpSwapPaperRuntime
 from .store import Store
 from .stream import PumpLogStream, PumpTape, WINDOW_SECONDS
@@ -63,7 +64,7 @@ def tick(engine, adapter, now):
     with engine.store.transaction('heartbeat'):
         s['provider']=dict(requests=adapter.rpc.calls,failures=adapter.rpc.failures,
                            cache_hits=adapter.rpc.cache_hits,limit=adapter.rpc.limit,
-                           infrastructure_spend_usd=0,provider_spend_usd=0 if getattr(adapter.rpc,'url',None)=='https://api.mainnet-beta.solana.com' else None)
+                           infrastructure_spend_usd=0,provider_spend_usd=0 if getattr(adapter.rpc,'failover_count',0)==0 else None)
 
 
 def _monitor_existing(engine, adapter, now, pumpswap_runtime=None):
@@ -318,8 +319,8 @@ def main():
     signal.signal(signal.SIGINT,lambda *_:stopping.set())
     stream_thread=None
     try:
-        url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
-        rpc=RPC(url,limit=request_limit)
+        url=primary_rpc_url()
+        rpc=new_rpc(limit=request_limit)
         adapter=PumpAdapter(rpc)
         postgrad_adapter=PostGraduationAdapter(rpc,scan_rpc=object())
         pumpswap_runtime=PumpSwapPaperRuntime(store,postgrad_adapter)
@@ -343,7 +344,8 @@ def main():
             now=int(time.time())
             _monitor_existing(engine,adapter,now,pumpswap_runtime=pumpswap_runtime)
             if rpc.calls >= provider_rotation_threshold:
-                rpc=RPC(url,limit=request_limit)
+                pacer=rpc.read_pacer if hasattr(rpc,'read_pacer') else None
+                rpc=new_rpc(limit=request_limit,pacer=pacer)
                 adapter=PumpAdapter(rpc)
                 postgrad_adapter=PostGraduationAdapter(rpc,scan_rpc=object())
                 pumpswap_runtime=PumpSwapPaperRuntime(store,postgrad_adapter)
