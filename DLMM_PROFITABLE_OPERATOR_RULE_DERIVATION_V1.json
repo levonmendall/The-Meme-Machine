@@ -134,5 +134,35 @@
     "compare_each_rule_to_matched_eligible_nonentry_controls": true
   },
   "pnl_observed_before_registration": false,
-  "revision": "1.0"
+  "revision": "1.1",
+  "context_resolution": {
+    "token_age": {
+      "network": "solana-mainnet",
+      "token_program": "classic SPL Token only",
+      "max_signature_pages": 5,
+      "signatures_per_page": 1000,
+      "commitment": "finalized",
+      "transaction_version": 1,
+      "exact_only_when": "mint signature history exhausts within the fixed bound and the earliest successful transaction contains authenticated InitializeMint or InitializeMint2 targeting that mint",
+      "age_definition": "entry blockTime minus authenticated mint-initialization transaction blockTime",
+      "failed_or_nonexhaustive_history": "unavailable",
+      "separate_create_then_initialize": "unavailable",
+      "wsol": "not evaluated as the non-SOL pool token",
+      "no_pool_age_substitution": true
+    },
+    "exit_active_bin": {
+      "source": "authenticated Meteora RemoveLiquidity event in the terminal removal transaction",
+      "missing_event": "unavailable",
+      "no_current_active_bin_substitution": true
+    }
+  },
+  "amendment_history": [
+    {
+      "revision": "1.1",
+      "reason": "Freeze exact token-age resolution bounds and authenticated exit-active-bin source before new operator PnL ranking.",
+      "pnl_observed_before_amendment": false,
+      "new_operator_ranking_observed_before_amendment": false,
+      "census_selection_changed": false
+    }
+  ]
 }
