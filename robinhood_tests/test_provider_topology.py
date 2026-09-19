@@ -40,7 +40,6 @@ class LaneProviderTests(unittest.TestCase):
         t=rpc.telemetry()
         self.assertEqual(t["provider_kind"],"alchemy")
         self.assertEqual(t["role"],"directional_evidence_primary")
-        self.assertEqual(t["credential_role"],PRIMARY_ENV)
         self.assertEqual(t["pacing"]["requests_per_second"],2.0)
         self.assertFalse(t["automatic_failover"])
         self.assertEqual(len(t["endpoint_fingerprint"]),16)
@@ -58,7 +57,9 @@ class LaneProviderTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(BoundaryError,"transport_failure"):
             rpc.call("eth_chainId",[],scope="candidate")
-        self.assertFalse(rpc.telemetry()["automatic_failover"])
+        telemetry=rpc.telemetry()
+        self.assertFalse(telemetry["automatic_failover"])
+        self.assertEqual(telemetry["credential_role"],PRIMARY_ENV)
 
     def test_discovery_prefers_dedicated_endpoint_at_five_rps(self):
         env={
