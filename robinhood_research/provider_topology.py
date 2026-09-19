@@ -25,6 +25,7 @@ from .provider import Rpc
 
 
 PRIMARY_ENV = "MM_ROBINHOOD_READ_RPC_URL"
+DISCOVERY_ENV = "MM_ROBINHOOD_DISCOVERY_RPC_URL"
 DLMM_ENV = "MM_ROBINHOOD_DLMM_RPC_URL"
 SHADOW_ENV = "MM_ROBINHOOD_SHADOW_RPC_URL"
 QUICKNODE_ENV = "MM_ROBINHOOD_QUICKNODE_RPC_URL"  # compatibility-only alias
@@ -33,6 +34,7 @@ PUBLIC_DIAGNOSTIC_RPC_URL = "https://rpc.mainnet.chain.robinhood.com"
 SEQUENCER_FEED_URL = "wss://feed.mainnet.chain.robinhood.com"
 
 DIRECTIONAL_RPS = 2.0
+DISCOVERY_RPS = 5.0
 DLMM_RPS = 5.0
 SHADOW_RPS = 5.0
 
@@ -82,6 +84,24 @@ def primary_endpoint(primary_endpoint=None, *, environ=None):
         value,
         "MM_ROBINHOOD_READ_RPC_URL_requires_full_https_url",
     )
+
+
+def discovery_endpoint(primary_fallback_endpoint=None, *, environ=None):
+    value = _env(DISCOVERY_ENV, environ)
+    if value:
+        return _require_https(
+            value,
+            "MM_ROBINHOOD_DISCOVERY_RPC_URL_requires_full_https_url",
+        ), False
+    # A dedicated DLMM/free-market endpoint may safely serve discovery too because
+    # discovery has no decision authority. Otherwise fall back explicitly to primary.
+    shared = _env(DLMM_ENV, environ)
+    if shared:
+        return _require_https(
+            shared,
+            "MM_ROBINHOOD_DLMM_RPC_URL_requires_full_https_url",
+        ), False
+    return primary_endpoint(primary_fallback_endpoint, environ=environ), True
 
 
 def dlmm_endpoint(primary_fallback_endpoint=None, *, environ=None):
@@ -202,6 +222,7 @@ class PacedRpc(Rpc):
 # Shared clocks prevent session rotation or concurrent candidate evaluation from
 # multiplying provider throughput.
 _DIRECTIONAL_PACER = ProviderPacer(DIRECTIONAL_RPS)
+_DISCOVERY_PACERS = {}
 _DLMM_PACERS = {}
 _SHADOW_PACERS = {}
 
@@ -226,6 +247,27 @@ def configured_rpc(primary_endpoint_value=None, *, environ=None, **kwargs):
         pacer=_DIRECTIONAL_PACER,
         **kwargs,
     )
+
+
+def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **kwargs):
+    """Pons discovery/log RPC: 5 RPS, sequencer-triggered, no decision authority."""
+    endpoint, primary_fallback = discovery_endpoint(
+        primary_fallback_endpoint, environ=environ
+    )
+    pacer = _pacer_for(_DISCOVERY_PACERS, endpoint, DISCOVERY_RPS)
+    rpc = PacedRpc(
+        endpoint,
+        role=(
+            "pons_discovery_primary_fallback"
+            if primary_fallback
+            else "pons_discovery_primary"
+        ),
+        requests_per_second=DISCOVERY_RPS,
+        pacer=pacer,
+        **kwargs,
+    )
+    rpc.primary_fallback = bool(primary_fallback)
+    return rpc
 
 
 def configured_dlmm_rpc(primary_fallback_endpoint=None, *, environ=None, **kwargs):
@@ -279,13 +321,20 @@ def public_diagnostic_rpc(*, limit=20, per_scope=20, retries=0):
 
 def topology_metadata(*, environ=None):
     primary = primary_endpoint(environ=environ)
+    discovery, discovery_fallback = discovery_endpoint(environ=environ)
     dlmm, fallback = dlmm_endpoint(environ=environ)
     shadow = shadow_endpoint(environ=environ)
     return dict(
         network="robinhood-mainnet",
         chain_id=CHAIN_ID,
         directional=dict(
-            discovery="official_robinhood_sequencer_feed",
+            discovery="official_robinhood_sequencer_feed_plus_discovery_rpc",
+            discovery_provider_kind=_provider_kind(discovery),
+            discovery_credential=(PRIMARY_ENV if discovery_fallback else (
+                DISCOVERY_ENV if _env(DISCOVERY_ENV,environ) else DLMM_ENV
+            )),
+            discovery_primary_fallback=discovery_fallback,
+            discovery_requests_per_second=DISCOVERY_RPS,
             evidence_provider_kind=_provider_kind(primary),
             evidence_credential=PRIMARY_ENV,
             requests_per_second=DIRECTIONAL_RPS,
