@@ -9,7 +9,7 @@ from robinhood_research.pons_natural_observation import (
     DISCOVERY_MAX_BLOCKS,
     RESEARCH_BUY_WEI,
     ZERO,
-    _authenticate_candidate,
+    _authenticate_candidate, _authenticate_followup_events,
     _current_curve_events,
     _next_discovery_end,
     _one_word,
@@ -116,6 +116,44 @@ class PonsNaturalObservationTests(unittest.TestCase):
         self.assertEqual(len(batches[1][0]),1)
         self.assertEqual(result["auth_transport_rounds"],2)
         self.assertLessEqual(result["freshness_seconds"],5)
+
+
+    def test_followup_auth_batches_headers_and_receipts(self):
+        curve="0x"+"22"*20
+        block_hash="0x"+"44"*32
+        header=dict(hash=block_hash,number="0x7b",timestamp="0x1")
+        events=[
+            dict(
+                address=curve,blockHash=block_hash,blockNumber="0x7b",
+                transactionHash="0x"+f"{i:064x}",
+                transactionIndex=hex(i),logIndex=hex(i),topics=[],data="0x",
+            )
+            for i in (1,2)
+        ]
+        batches=[]
+        class Rpc:
+            def batch(self,calls,scope):
+                batches.append(calls)
+                if calls[0][0]=="eth_getBlockByHash":
+                    return [header for _ in calls]
+                return [
+                    dict(
+                        transactionHash=params[0],blockHash=block_hash,logs=[]
+                    )
+                    for _,params in calls
+                ]
+        candidate=dict(curve=curve)
+        with patch(
+            "robinhood_research.pons_natural_observation.raw_event",
+            side_effect=lambda *args,**kwargs: dict(
+                transaction_hash=kwargs["receipt"]["transactionHash"]
+            ),
+        ):
+            rows=_authenticate_followup_events(Rpc(),candidate,events)
+        self.assertEqual(len(rows),2)
+        self.assertEqual(len(batches),2)
+        self.assertEqual(batches[0][0][0],"eth_getBlockByHash")
+        self.assertTrue(all(call[0]=="eth_getTransactionReceipt" for call in batches[1]))
 
 
 if __name__=="__main__":
