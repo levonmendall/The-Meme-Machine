@@ -66,5 +66,19 @@ class QualificationResearch(unittest.TestCase):
         self.assertEqual(analysis['decision'],'insufficient_sample_for_threshold_revision')
 
 
+    def test_aggregate_keeps_same_legacy_id_for_different_mints_separate(self):
+        vector=qualification_vector(self.engine,event(),evidence(),100)
+        rows=[
+            dict(nomination_id='legacy:45',mint='MintA',evidence_stage='complete',
+                 natural_nomination=True,qualification_vector=vector),
+            dict(nomination_id='legacy:45',mint='MintB',evidence_stage='complete',
+                 natural_nomination=True,qualification_vector=vector),
+        ]
+        analysis=analyze_reports([{'results':rows}],min_sample=2)
+        self.assertEqual(analysis['unique_complete_nominations'],2)
+        self.assertTrue(analysis['sample_sufficient'])
+
+
+
 if __name__=='__main__':
     unittest.main()

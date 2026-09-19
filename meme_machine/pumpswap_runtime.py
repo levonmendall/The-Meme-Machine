@@ -200,11 +200,18 @@ class PumpSwapPaperRuntime:
                 now-int(position.get('last_unresolved_record',0)) < UNRESOLVED_RECORD_INTERVAL):
             return 'unresolved_coalesced'
         with self.store.transaction('pumpswap_monitor_unavailable'):
-            position=self.store.state['positions'].get(mint)
+            s=self.store.state
+            position=s['positions'].get(mint)
             if position is None:
                 return 'closed'
-            position.update(next_monitor=now+5,mark=None,mark_time=None,unresolved=True,
-                            last_unresolved_record=now,postgrad_error=reason)
+            position.update(
+                next_monitor=now+5,mark=None,mark_time=None,unresolved=True,
+                last_unresolved_record=now,postgrad_error=reason,
+                last_exit_error=dict(reason=reason,time=now,stage='pumpswap_exit_quote'),
+            )
+            s['counts']['unavailable_exit']=s['counts'].get('unavailable_exit',0)+1
+            key=f'unavailable_exit:{reason}'
+            s['counts'][key]=s['counts'].get(key,0)+1
         return 'unresolved'
 
     def monitor_existing_position(self, mint, graduation_snapshot=None, failed=False):
@@ -238,7 +245,7 @@ class PumpSwapPaperRuntime:
                 surface='pumpswap',model=PUMPSWAP_MODEL,pool=snapshot['pool'],
                 postgrad_handoff=asdict(handoff),postgrad_target='pumpswap',
                 next_monitor=now+5,mark=max(0,quote.output_amount-GAS),mark_time=now,
-                unresolved=False,last_unresolved_record=0,postgrad_error=None,
+                unresolved=False,last_unresolved_record=0,postgrad_error=None,last_exit_error=None,
             )
             proceeds=quote.output_amount
             reason=(

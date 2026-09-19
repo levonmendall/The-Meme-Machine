@@ -1,0 +1,1 @@
+Run the natural Pump/PumpSwap cohort with public Solana WebSocket discovery, adaptive deadline-aware evidence scheduling with no fixed candidate-count quota, authenticated OnFinality HTTP at 5 rps as primary evidence provider, and Alchemy HTTP rescue-only. continuation-v1 thresholds and 60s/900s timing unchanged; paper-only; natural graduation only.

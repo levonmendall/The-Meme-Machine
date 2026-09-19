@@ -1,0 +1,1 @@
+Run the repaired multi-position natural Pump/PumpSwap paper cohort using the five-request-per-second public primary Solana RPC with Alchemy rescue. continuation-v1 thresholds and exits remain frozen; paper-only; natural graduation only; no merge/deploy.

@@ -1,0 +1,42 @@
+{
+  "kind": "pump_rejected_winner_hypothesis_v1",
+  "source_run_id": 35433611938,
+  "source_artifact": "market-native-opportunity-outcomes-35433611938-1",
+  "authority": "research_only",
+  "automatic_trading_admission": false,
+  "continuation_v1_unchanged": true,
+  "membership": {
+    "actual_reason": "concentration",
+    "min_evidence_events": 25,
+    "min_independent_group_fraction": 0.02
+  },
+  "clean_winner_definition": {
+    "min_mfe_bps": 1500,
+    "mae_must_be_gt_bps": -1000
+  },
+  "historical_development": {
+    "rejected_with_complete_outcomes": 120,
+    "clean_rejected_winners": 8,
+    "concentration_rejected": 61,
+    "concentration_clean_winners": 4,
+    "matching_candidates": 15,
+    "matching_clean_winners": 4,
+    "matching_clean_winner_rate": 0.26666666666666666,
+    "concentration_clean_winner_rate": 0.06557377049180328,
+    "lift_vs_concentration": 4.066666666666666,
+    "matching_below_minus_10pct_rate": 0.7333333333333333,
+    "warning": "Historical enrichment is material but downside remains unacceptable for trading authority."
+  },
+  "fresh_validation": {
+    "min_matching_candidates": 30,
+    "min_concentration_controls": 30,
+    "no_refit_during_validation": true,
+    "success_requires": {
+      "clean_winner_rate_lift_vs_concentration_controls_min": 2,
+      "matching_clean_winner_rate_min": 0.15,
+      "matching_median_mae_bps_gt": -1000,
+      "matching_below_minus_10pct_rate_max": 0.5
+    }
+  },
+  "trading_rule_freeze_permitted": false
+}\n

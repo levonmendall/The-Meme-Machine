@@ -1,0 +1,1 @@
+Re-trigger repaired supplemental unbiased Pump market-native sample on latest exact code after prior queued run was cancelled by branch advancement. continuation-v1 thresholds unchanged; research/paper only; no merge or deployment.

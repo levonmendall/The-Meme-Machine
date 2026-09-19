@@ -1,0 +1,1 @@
+Run a synchronized 300-second read-only Pump program stream comparison: authenticated OnFinality WebSocket versus the historically productive public Solana WebSocket. Measure notifications, decoded Pump trades, unique notification/trade signatures, unique mints, unique trade events, reconnects, and bidirectional overlap. No strategy/order authority.

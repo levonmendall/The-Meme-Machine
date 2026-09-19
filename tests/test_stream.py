@@ -1,5 +1,6 @@
 import json
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -8,7 +9,7 @@ from meme_machine import pump
 from meme_machine.__main__ import tick_stream
 from meme_machine.engine import Engine
 from meme_machine.store import Store
-from meme_machine.stream import PumpTape, websocket_url
+from meme_machine.stream import PumpLogStream, PumpTape, event_identity, websocket_url
 from tests.support import SCOUT, evidence, event, snapshot
 
 
@@ -34,11 +35,68 @@ class StreamTape(unittest.TestCase):
         self.assertTrue(tape.covered(now))
         rows=tape.window(decoded[0]['mint'],now)
         self.assertEqual(len(rows),1)
-        self.assertEqual(rows[0]['id'],f"captured:{decoded[0]['index']}")
+        self.assertEqual(rows[0]['id'],event_identity('captured',tx['slot'],decoded[0]))
         self.assertEqual(rows[0]['available_time'],now)
         fresh,cursor=tape.events_since(0)
         self.assertEqual(fresh,rows)
         self.assertEqual(cursor,1)
+
+    def test_live_event_identity_separates_reused_signature_across_slot_and_mint(self):
+        a=dict(index=45,mint='MintA')
+        b=dict(index=45,mint='MintB')
+        self.assertEqual(event_identity('same-signature',123,a),
+                         event_identity('same-signature',123,a))
+        self.assertNotEqual(event_identity('same-signature',123,a),
+                            event_identity('same-signature',124,a))
+        self.assertNotEqual(event_identity('same-signature',123,a),
+                            event_identity('same-signature',123,b))
+
+    def test_identical_finalized_replay_is_deduplicated_before_tape_admission(self):
+        note=self.notification('duplicate')
+        tx={'slot':note['params']['result']['context']['slot'],
+            'meta':{'err':None,'logMessages':note['params']['result']['value']['logs']}}
+        decoded=pump.trade_events(tx)
+        now=decoded[0]['market_time']+1
+        tape=PumpTape(clock=lambda:now)
+        tape.begin(now-60)
+
+        self.assertEqual(tape.ingest_notification(note,now),1)
+        self.assertEqual(tape.ingest_notification(note,now),0)
+
+        rows=tape.window(decoded[0]['mint'],now)
+        status=tape.status(now)
+        self.assertEqual(len(rows),1)
+        self.assertEqual(tape.latest_sequence(),1)
+        self.assertEqual(status['trade_events'],1)
+        self.assertEqual(status['duplicate_events'],1)
+        self.assertEqual(status['conflicting_duplicate_events'],0)
+        self.assertEqual(status['integrity_losses'],0)
+        self.assertTrue(status['covered'])
+
+    def test_conflicting_duplicate_identity_invalidates_current_evidence_window(self):
+        note=self.notification('conflict')
+        tx={'slot':note['params']['result']['context']['slot'],
+            'meta':{'err':None,'logMessages':note['params']['result']['value']['logs']}}
+        base=pump.trade_events(tx)[0]
+        conflict=dict(base,amount=int(base['amount'])+1)
+        now=base['market_time']+1
+        tape=PumpTape(clock=lambda:now)
+        tape.begin(now-60)
+
+        with patch('meme_machine.stream.pump.trade_events',
+                   side_effect=[[dict(base)],[dict(conflict)]]):
+            self.assertEqual(tape.ingest_notification(note,now),1)
+            self.assertEqual(tape.ingest_notification(note,now),0)
+
+        status=tape.status(now)
+        self.assertEqual(status['retained_events'],0)
+        self.assertEqual(status['trade_events'],1)
+        self.assertEqual(status['duplicate_events'],0)
+        self.assertEqual(status['conflicting_duplicate_events'],1)
+        self.assertEqual(status['integrity_losses'],1)
+        self.assertFalse(status['covered'])
+        self.assertFalse(tape.covered(now+59))
+        self.assertTrue(tape.covered(now+60))
 
     def test_disconnect_resets_coverage_and_requires_full_rewarm(self):
         tape=PumpTape(clock=lambda:200)
@@ -49,6 +107,59 @@ class StreamTape(unittest.TestCase):
         tape.begin(261)
         self.assertFalse(tape.covered(320))
         self.assertTrue(tape.covered(321))
+
+    def test_reconnect_preserves_gap_and_requires_fresh_warmup(self):
+        class Socket:
+            def __init__(self,actions,stop=None):
+                self.actions=list(actions);self.stop=stop
+            def __enter__(self): return self
+            def __exit__(self,*_): return False
+            def send(self,_): pass
+            def recv(self,timeout=None):
+                if self.actions:
+                    value=self.actions.pop(0)
+                    if isinstance(value,BaseException):
+                        raise value
+                    return value
+                if self.stop is not None:
+                    self.stop.set()
+                raise TimeoutError()
+
+        stop=threading.Event();ready=threading.Event()
+        tape=PumpTape(clock=lambda:100)
+        first=Socket([
+            json.dumps({'jsonrpc':'2.0','id':1,'result':11}),
+            RuntimeError('transient_disconnect'),
+        ])
+        second=Socket([
+            json.dumps({'jsonrpc':'2.0','id':1,'result':12}),
+        ],stop=stop)
+        stream=PumpLogStream(
+            'https://solana.api.onfinality.io/public',tape,
+            clock=lambda:100,reconnect_delay=0,
+        )
+        with patch('meme_machine.stream.connect',side_effect=[first,second]):
+            stream.run(stop,ready)
+        status=tape.status(100)
+        self.assertTrue(ready.is_set())
+        self.assertEqual(stream.connections,2)
+        self.assertEqual(stream.reconnects,1)
+        self.assertEqual(stream.last_error_kind,'RuntimeError')
+        self.assertIsNone(stream.error_kind)
+        self.assertEqual(status['gaps'],1)
+        self.assertFalse(status['covered'])
+
+    def test_reconnect_begin_does_not_erase_gap_quarantine(self):
+        now=[200]
+        tape=PumpTape(clock=lambda:now[0])
+        tape.begin(100)
+        tape.gap(200)
+        loss=tape.status(200)['loss_until']
+        now[0]=202
+        tape.begin(202,preserve_loss=True)
+        self.assertEqual(tape.status(202)['loss_until'],loss)
+        self.assertFalse(tape.covered(261))
+        self.assertTrue(tape.covered(262))
 
     def test_capacity_loss_fails_closed_for_complete_window(self):
         note=self.notification('one')
@@ -68,6 +179,8 @@ class StreamTape(unittest.TestCase):
                          'wss://api.mainnet-beta.solana.com')
         self.assertEqual(websocket_url('https://example.test/v2/key?x=1'),
                          'wss://example.test/v2/key?x=1')
+        self.assertEqual(websocket_url('https://solana.api.onfinality.io/public'),
+                         'wss://solana.api.onfinality.io/public-ws')
         with self.assertRaisesRegex(ValueError,'HTTPS'):
             websocket_url('http://example.test')
 

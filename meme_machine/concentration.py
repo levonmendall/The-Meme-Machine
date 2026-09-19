@@ -8,6 +8,7 @@ there is no paid/default external dependency. Every returned context must satisf
 same slot-freshness boundary used before this module existed.
 """
 import base64
+from collections import Counter
 
 from . import pump
 from .provider import RPC, Unavailable
@@ -16,6 +17,7 @@ from .provider import RPC, Unavailable
 # hosted CI observed HTTP 403 during network verification, so repeated automatic
 # use would waste requests without improving evidence.
 FREE_PUBLIC_CONCENTRATION_RPC = 'https://solana-rpc.publicnode.com'
+PROGRAM_SCAN_DISABLE_AFTER_IDENTICAL_PROVIDER_ERRORS = 2
 
 
 class ProgramScanRPC(RPC):
@@ -39,9 +41,23 @@ class ConcentrationReader:
         # tests never escape to the network.
         self.program_rpc = program_rpc
         if self.program_rpc is None and getattr(primary_rpc, 'transport', None) == getattr(primary_rpc, '_http', None):
-            self.program_rpc = ProgramScanRPC(primary_rpc.url, limit=40)
+            if hasattr(primary_rpc, 'read_pacer') and hasattr(primary_rpc, 'provider_telemetry'):
+                # Preserve concentration's isolated logical budget while using
+                # the same OnFinality-primary / Alchemy-rescue transport and pace.
+                from .solana_read_rpc import new_pool_scan_rpc
+                self.program_rpc = new_pool_scan_rpc(
+                    limit=40,
+                    pacer=primary_rpc.read_pacer,
+                )
+            else:
+                self.program_rpc = ProgramScanRPC(primary_rpc.url, limit=40)
         self.program_verified = False
         self.program_disabled_reason = None
+        self.program_disabled_fingerprint = None
+        self.program_first_path_attempts = 0
+        self.program_first_path_failures = 0
+        self.program_first_path_skips = 0
+        self.program_first_path_failure_fingerprints = Counter()
         self.secondary_verified = False
         self.secondary_disabled_reason = None
         self.source_counts = {'program_scan': 0, 'secondary': 0, 'primary_largest': 0}
@@ -141,17 +157,51 @@ class ConcentrationReader:
         return self._decode_program_scan(
             self.program_rpc.call('getProgramAccounts', params, True), mint, snapshot)
 
+    @staticmethod
+    def _provider_error_counts(rpc):
+        values = getattr(rpc, 'provider_error_fingerprints', None)
+        return Counter(values or {})
+
+    def _record_program_first_path_failure(self, before):
+        after = self._provider_error_counts(self.program_rpc)
+        for fingerprint, count in after.items():
+            delta = int(count) - int(before.get(fingerprint, 0))
+            if delta <= 0 or '|getProgramAccounts|' not in fingerprint:
+                continue
+            # Only structured provider failures open the mechanism circuit. Local
+            # decoding/staleness failures remain mint-specific and keep being tested.
+            if '|http:' not in fingerprint and '|jsonrpc:' not in fingerprint:
+                continue
+            self.program_first_path_failure_fingerprints[fingerprint] += delta
+        proven = [
+            fingerprint
+            for fingerprint, count in self.program_first_path_failure_fingerprints.items()
+            if count >= PROGRAM_SCAN_DISABLE_AFTER_IDENTICAL_PROVIDER_ERRORS
+        ]
+        if proven:
+            # Deterministic ordering keeps restart/report behavior stable.
+            fingerprint = sorted(proven)[0]
+            self.program_disabled_reason = 'repeated_identical_provider_error'
+            self.program_disabled_fingerprint = fingerprint
+
     def read(self, mint, snapshot, priority=True):
         # First choice: same authorized provider, one compact account scan. This
         # avoids the getTokenLargestAccounts method-specific pressure observed on
         # the public endpoint while preserving exact finalized account state.
         if self.program_rpc is not None:
-            try:
-                value,slot=self._program_scan(mint,snapshot,priority)
-                self.source_counts['program_scan'] += 1
-                return value,dict(source='program_scan',slot=slot)
-            except (Unavailable, ValueError, KeyError, TypeError):
-                self.failures += 1
+            if self.program_disabled_reason:
+                self.program_first_path_skips += 1
+            else:
+                self.program_first_path_attempts += 1
+                before = self._provider_error_counts(self.program_rpc)
+                try:
+                    value,slot=self._program_scan(mint,snapshot,priority)
+                    self.source_counts['program_scan'] += 1
+                    return value,dict(source='program_scan',slot=slot)
+                except (Unavailable, ValueError, KeyError, TypeError):
+                    self.program_first_path_failures += 1
+                    self.failures += 1
+                    self._record_program_first_path_failure(before)
 
         params = [mint, {'commitment': 'finalized'}]
         # Optional secondary is strictly opt-in. A wrong/stale/unavailable response
@@ -178,16 +228,35 @@ class ConcentrationReader:
     def status(self):
         secondary = self.secondary
         program=self.program_rpc
+        program_provider = (
+            program.provider_telemetry()
+            if program is not None and hasattr(program, 'provider_telemetry')
+            else {}
+        )
         known_free = self.secondary_url == FREE_PUBLIC_CONCENTRATION_RPC
         return dict(
             program_scan_configured=program is not None,
             program_scan_verified=self.program_verified,
             program_scan_disabled_reason=self.program_disabled_reason,
+            program_scan_disabled_fingerprint=self.program_disabled_fingerprint,
+            program_scan_circuit_open=bool(self.program_disabled_reason),
+            program_scan_first_path_attempts=self.program_first_path_attempts,
+            program_scan_first_path_failures=self.program_first_path_failures,
+            program_scan_first_path_skips=self.program_first_path_skips,
+            program_scan_first_path_failure_fingerprints=dict(
+                sorted(self.program_first_path_failure_fingerprints.items())),
             program_scan_logical_requests=getattr(program,'calls',0),
             program_scan_transport_requests=getattr(program,'http_requests',0),
             program_scan_failures=getattr(program,'failures',0),
             program_scan_retries=getattr(program,'retries',0),
             program_scan_failure_kinds=dict(getattr(program,'failure_kinds',{})),
+            program_scan_method_failures=dict(
+                program_provider.get('provider_method_failures') or {}),
+            program_scan_http_status_errors=dict(
+                program_provider.get('provider_http_status_errors') or {}),
+            program_scan_jsonrpc_error_codes=dict(
+                program_provider.get('provider_jsonrpc_error_codes') or {}),
+            program_scan_last_provider_error=program_provider.get('last_provider_error'),
             secondary_configured=secondary is not None,
             secondary_kind='publicnode_free' if known_free else ('configured' if secondary is not None else 'none'),
             secondary_verified=self.secondary_verified,

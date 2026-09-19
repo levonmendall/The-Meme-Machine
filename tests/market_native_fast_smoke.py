@@ -17,8 +17,9 @@ from meme_machine.__main__ import _monitor_existing, _retire_scout_state
 from meme_machine.engine import Engine
 from meme_machine.market_native_runtime import MarketNativeRuntime
 from meme_machine.postgrad import PostGraduationAdapter
-from meme_machine.provider import RPC, PumpAdapter
+from meme_machine.provider import PumpAdapter
 from meme_machine.pumpswap_runtime import PumpSwapPaperRuntime
+from meme_machine.solana_read_rpc import discovery_ws_url, new_rpc, primary_rpc_url
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 
@@ -26,8 +27,6 @@ REPORT = Path("market-native-fast-smoke-report.json")
 EVIDENCE = Path("market-native-fast-smoke-evidence.json")
 DB = Path("market-native-fast-smoke.db")
 DISCOVERY_SECONDS = max(300, min(int(os.environ.get("MM_MARKET_NATIVE_SMOKE_SECONDS", "720")), 900))
-PREFLIGHT_BUDGET = max(1, min(int(os.environ.get("MM_MARKET_NATIVE_SMOKE_PREFLIGHT_BUDGET", "12")), 20))
-FULL_EVIDENCE_BUDGET = max(1, min(int(os.environ.get("MM_MARKET_NATIVE_SMOKE_FULL_EVIDENCE_BUDGET", "4")), 8))
 FILL_WAIT_SECONDS = max(30, min(int(os.environ.get("MM_MARKET_NATIVE_SMOKE_FILL_WAIT_SECONDS", "120")), 180))
 RPC_LIMIT = 240
 GENESIS_SOL_USD_MICROS = 97_840_000
@@ -129,8 +128,7 @@ def main():
         fomo_authority=False,
         dlmm_enabled=False,
         discovery_seconds=DISCOVERY_SECONDS,
-        preflight_budget=PREFLIGHT_BUDGET,
-        full_evidence_budget=FULL_EVIDENCE_BUDGET,
+        evidence_scheduler="adaptive_deadline_queue_v1",
         fill_wait_seconds=FILL_WAIT_SECONDS,
         started=started,
         outcome=None,
@@ -139,25 +137,24 @@ def main():
     )
     _save(report)
 
-    url = os.environ.get("MM_SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
+    url = primary_rpc_url()
     store = Store(str(DB), "prospective", GENESIS_SOL_USD_MICROS, GENESIS_SOURCE)
     _retire_scout_state(store)
     engine = Engine(store, [])
     tape = PumpTape()
     stop = threading.Event()
     ready = threading.Event()
-    stream = PumpLogStream(url, tape)
+    stream = PumpLogStream(url, tape, ws_url=discovery_ws_url())
     thread = threading.Thread(target=stream.run, args=(stop, ready), daemon=True)
     thread.start()
 
-    rpc = RPC(url, limit=RPC_LIMIT)
+    rpc = new_rpc(limit=RPC_LIMIT)
     adapter = PumpAdapter(rpc)
     postgrad = PostGraduationAdapter(rpc, scan_rpc=object())
     pumpswap = PumpSwapPaperRuntime(store, postgrad)
     runtime = MarketNativeRuntime(
         engine, adapter, DISCOVERY_SECONDS,
-        preflight_budget=PREFLIGHT_BUDGET,
-        full_evidence_budget=FULL_EVIDENCE_BUDGET,
+        provider_rotation_threshold=160,
     )
 
     cursor = None
@@ -181,6 +178,13 @@ def main():
                 break
 
             _monitor_existing(engine, adapter, now, pumpswap_runtime=pumpswap)
+            if runtime.provider_rotation_due():
+                pacer=rpc.read_pacer if hasattr(rpc,'read_pacer') else None
+                rpc=new_rpc(limit=RPC_LIMIT,pacer=pacer)
+                adapter=PumpAdapter(rpc)
+                postgrad=PostGraduationAdapter(rpc,scan_rpc=object())
+                pumpswap=PumpSwapPaperRuntime(store,postgrad)
+                runtime.replace_adapter(adapter)
             state = store.state
             status = runtime.status()
 

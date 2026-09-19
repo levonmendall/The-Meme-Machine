@@ -35,7 +35,8 @@ from meme_machine.market_native_priority import (
     stream_feasibility,
 )
 from meme_machine.market_native_shadow import discover_market_native
-from meme_machine.provider import RPC, PumpAdapter, Unavailable
+from meme_machine.provider import PumpAdapter, Unavailable
+from meme_machine.solana_read_rpc import discovery_ws_url, new_rpc, primary_rpc_url
 from meme_machine.research import qualification_vector
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
@@ -44,9 +45,11 @@ REPORT=Path(os.environ.get('MM_MARKET_NATIVE_PRIORITY_REPORT','market-native-pri
 GENESIS_SOL_USD_MICROS=97_840_000
 GENESIS_SOURCE='2026-09-17 market-native evidence prioritization; research only'
 DISCOVERY_SECONDS=max(120,min(int(os.environ.get('MM_MARKET_NATIVE_PRIORITY_SECONDS','3300')),3300))
-PREFLIGHT_BUDGET=max(1,min(int(os.environ.get('MM_MARKET_NATIVE_PREFLIGHT_BUDGET','90')),90))
-FULL_EVIDENCE_BUDGET=max(1,min(int(os.environ.get('MM_MARKET_NATIVE_FULL_EVIDENCE_BUDGET','20')),20))
+PREFLIGHT_BUDGET=max(1,min(int(os.environ.get('MM_MARKET_NATIVE_PREFLIGHT_BUDGET','150')),150))
+FULL_EVIDENCE_BUDGET=max(1,min(int(os.environ.get('MM_MARKET_NATIVE_FULL_EVIDENCE_BUDGET','40')),40))
 SLOT_SECONDS=priority_slot_seconds(DISCOVERY_SECONDS,PREFLIGHT_BUDGET)
+RPC_ROTATE_AT=160
+CONCENTRATION_ROTATE_AT=32
 MAX_DISCOVERY_RECORDS=5000
 
 
@@ -159,11 +162,11 @@ def main():
     )
     _save(report)
 
-    url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
-    rpc=RPC(url,limit=240)
+    url=primary_rpc_url()
+    rpc=new_rpc(limit=240)
     adapter=PumpAdapter(rpc)
     reader=ConcentrationReader(rpc,secondary_url=os.environ.get('MM_SOLANA_CONCENTRATION_RPC_URL','').strip())
-    tape=PumpTape();stop=threading.Event();ready=threading.Event();stream=PumpLogStream(url,tape)
+    tape=PumpTape();stop=threading.Event();ready=threading.Event();stream=PumpLogStream(url,tape,ws_url=discovery_ws_url())
     thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True);thread.start()
 
     discovered={}
@@ -177,7 +180,32 @@ def main():
     last_flushed=-1
 
     with tempfile.TemporaryDirectory() as td:
+        provider_sessions=[]
+        session_started=int(time.time())
+
+        def rotate_provider(reason,now):
+            nonlocal rpc,adapter,reader,session_started
+            provider_sessions.append(dict(
+                started=session_started,ended=now,reason=reason,
+                logical_requests=rpc.calls,transport_requests=rpc.http_requests,
+                failures=rpc.failures,retries=rpc.retries,
+                provider_topology=(rpc.provider_telemetry()
+                                   if hasattr(rpc,'provider_telemetry') else None),
+                concentration=reader.status(),
+            ))
+            pacer=rpc.read_pacer if hasattr(rpc,'read_pacer') else None
+            rpc=new_rpc(limit=240,pacer=pacer)
+            adapter=PumpAdapter(rpc)
+            reader=ConcentrationReader(
+                rpc,secondary_url=os.environ.get('MM_SOLANA_CONCENTRATION_RPC_URL','').strip())
+            session_started=now
+
         def process_slot(slot,now):
+            concentration_status=reader.status()
+            if int(concentration_status.get('program_scan_logical_requests',0))>=CONCENTRATION_ROTATE_AT:
+                rotate_provider('bounded_concentration_reader_rotation',now)
+            elif rpc.calls>=RPC_ROTATE_AT:
+                rotate_provider('bounded_research_rpc_rotation',now)
             nonlocal selected,full_attempts
             if selected>=PREFLIGHT_BUDGET:
                 return
@@ -273,9 +301,12 @@ def main():
                 preflights=preflights,
                 provider=dict(logical_requests=rpc.calls,transport_requests=rpc.http_requests,
                               failures=rpc.failures,retries=rpc.retries,
-                              failure_kinds=rpc.failure_kinds),
+                              failure_kinds=rpc.failure_kinds,
+                              provider_topology=(rpc.provider_telemetry()
+                                                 if hasattr(rpc,'provider_telemetry') else None)),
+                provider_sessions=provider_sessions,
                 concentration_retrieval=reader.status(),
-                provider_spend_usd=0 if url=='https://api.mainnet-beta.solana.com' else None,
+                provider_spend_usd=0 if getattr(rpc,'failover_count',0)==0 else None,
                 infrastructure_spend_usd=0,
             )
             if selected>=PREFLIGHT_BUDGET and len(discovered)>selected:

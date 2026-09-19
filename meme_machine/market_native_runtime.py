@@ -23,23 +23,22 @@ skill or sizing authority.
 from __future__ import annotations
 
 import time
-from collections import Counter, defaultdict
+from collections import Counter
 from contextlib import contextmanager
 
-from .market_native_priority import (
-    choose_slot_candidate,
-    priority_slot_seconds,
-    stream_feasibility,
-)
+from .engine import SIGNAL_WINDOW
+from .market_native_priority import stream_feasibility
 from .market_native_shadow import discover_market_native
 from .provider import Unavailable
 from .research import qualification_vector
 from .stream import WINDOW_SECONDS
 
 
-DEFAULT_PREFLIGHT_BUDGET = 60
-DEFAULT_FULL_EVIDENCE_BUDGET = 20
-MAX_DISCOVERED_MINTS = 5_000
+MAX_DISCOVERED_MINTS = 10_000
+DEFAULT_EVIDENCE_QUEUE_LIMIT = 10_000
+MONITORING_RESERVE_REQUESTS = 40
+FULL_EVIDENCE_WORST_CASE_CALLS = 3
+EVIDENCE_DEADLINE_SAFETY_SECONDS = 0.5
 
 
 class MarketNativeAuthority:
@@ -76,36 +75,38 @@ class MarketNativeAuthority:
 
 
 class MarketNativeRuntime:
-    """Bounded in-memory discovery/evidence scheduler for prospective paper trading."""
+    """Adaptive deadline-aware evidence scheduler for prospective paper trading."""
     def __init__(self, engine, adapter, session_seconds,
-                 preflight_budget=DEFAULT_PREFLIGHT_BUDGET,
-                 full_evidence_budget=DEFAULT_FULL_EVIDENCE_BUDGET,
-                 clock=time.time):
+                 clock=time.time, provider_rotation_threshold=None,
+                 evidence_queue_limit=DEFAULT_EVIDENCE_QUEUE_LIMIT):
         if engine.seeds:
             raise ValueError('scouts_must_be_disabled_for_market_native_runtime')
-        if session_seconds < 1 or preflight_budget < 1 or full_evidence_budget < 1:
-            raise ValueError('invalid_market_native_budget')
+        if session_seconds < 1 or evidence_queue_limit < 1:
+            raise ValueError('invalid_market_native_scheduler')
         self.engine = engine
         self.adapter = adapter
         self.clock = clock
         self.authority = MarketNativeAuthority(engine)
         self.session_seconds = int(session_seconds)
-        self.preflight_budget = int(preflight_budget)
-        self.full_evidence_budget = int(full_evidence_budget)
-        self.slot_seconds = priority_slot_seconds(self.session_seconds, self.preflight_budget)
+        self.evidence_queue_limit = int(evidence_queue_limit)
 
-        # Discovery RPC is deliberately non-priority so at least 40 logical requests
-        # stay reserved for monitoring already-authorized exposure. Include a worst-
-        # case primary concentration fallback for every full-evidence attempt.
-        discovery_cap = max(0, int(adapter.rpc.limit) - 40)
-        worst_case = int(adapter.rpc.calls) + 2*self.preflight_budget + 3*self.full_evidence_budget
-        if worst_case > discovery_cap:
-            raise ValueError('market_native_budget_exceeds_discovery_rpc_reserve')
+        # Adaptive evidence has no fixed candidate-count quota. Safety comes from
+        # a bounded in-memory queue, deadline expiry, and provider-session rotation
+        # that always preserves monitoring capacity.
+        discovery_cap = max(0, int(adapter.rpc.limit) - MONITORING_RESERVE_REQUESTS)
+        threshold = (
+            min(160, discovery_cap) if provider_rotation_threshold is None
+            else int(provider_rotation_threshold)
+        )
+        if not MONITORING_RESERVE_REQUESTS <= threshold <= discovery_cap:
+            raise ValueError('invalid_market_native_provider_rotation_threshold')
+        self.provider_rotation_threshold = threshold
+        self.provider_rotations = 0
+        self.provider_sessions = []
 
         self.coverage_ready_at = None
-        self.last_flushed_slot = -1
         self.discovered = set()
-        self.slot_rows = defaultdict(list)
+        self.evidence_queue = {}
         self.stream_rejections = Counter()
         self.preflight_reasons = Counter()
         self.full_reasons = Counter()
@@ -115,6 +116,16 @@ class MarketNativeRuntime:
         self.capacity_losses = 0
         self.provider_failures = 0
         self.last_qualified_mint = None
+
+        self.evidence_enqueued = 0
+        self.evidence_processed = 0
+        self.evidence_expired_before_preflight = 0
+        self.evidence_deadline_insufficient = 0
+        self.evidence_cancelled_on_gap = 0
+        self.evidence_queue_capacity_skips = 0
+        self.provider_headroom_deferrals = 0
+        self.preflight_rpc_free_rejections = 0
+
         # Bounded diagnostic-only evidence for the most recent selected preflight.
         # It never participates in qualification or order authority.
         self.last_attempt = None
@@ -138,14 +149,27 @@ class MarketNativeRuntime:
         self.last_attempt['stage'] = stage
         self.last_attempt.update(details)
 
+    def replace_adapter(self, adapter):
+        """Rotate only read-only evidence transport; never economic/order authority."""
+        if self.provider_rotation_threshold is None:
+            raise ValueError('market_native_provider_rotation_not_enabled')
+        discovery_cap=max(0,int(adapter.rpc.limit)-40)
+        if self.provider_rotation_threshold>discovery_cap:
+            raise ValueError('invalid_market_native_provider_rotation_threshold')
+        self.provider_sessions.append(self._provider_status())
+        self.provider_sessions=self.provider_sessions[-8:]
+        self.adapter=adapter
+        self.provider_rotations+=1
+
     def _now(self):
         return int(self.clock())
 
     def _reset_signal_generation(self):
         self.coverage_ready_at = None
-        self.last_flushed_slot = -1
         self.discovered.clear()
-        self.slot_rows.clear()
+        if self.evidence_queue:
+            self.evidence_cancelled_on_gap += len(self.evidence_queue)
+            self.evidence_queue.clear()
 
     def _provider_status(self):
         rpc = self.adapter.rpc
@@ -156,9 +180,10 @@ class MarketNativeRuntime:
             cache_hits=rpc.cache_hits,
             limit=rpc.limit,
             concentration=self.adapter.concentration_status(),
+            provider_topology=(rpc.provider_telemetry()
+                               if hasattr(rpc,'provider_telemetry') else None),
             infrastructure_spend_usd=0,
-            provider_spend_usd=(0 if getattr(rpc, 'url', None) ==
-                                'https://api.mainnet-beta.solana.com' else None),
+            provider_spend_usd=(0 if getattr(rpc,'failover_count',0)==0 else None),
         )
 
     def _record_coverage(self, tape, now, fresh_count=0):
@@ -211,11 +236,6 @@ class MarketNativeRuntime:
                 self._update_attempt('preflight_rejection', reason=reason)
                 return
             self.preflight_reasons['passes_non_concentration'] += 1
-            if self.full_evidence_attempted >= self.full_evidence_budget:
-                self.preflight_reasons['full_evidence_budget_exhausted'] += 1
-                self._update_attempt('full_evidence_budget_exhausted')
-                return
-
             self.full_evidence_attempted += 1
             self._update_attempt(
                 'concentration',
@@ -261,6 +281,15 @@ class MarketNativeRuntime:
                 order_id=nomination['id'],
             )
         except (Unavailable, ValueError, KeyError, TypeError) as exc:
+            if isinstance(exc, ValueError) and str(exc) == 'order_identity_collision':
+                self.full_reasons['order_identity_collision'] += 1
+                self._update_attempt(
+                    'identity_collision',
+                    reason='order_identity_collision',
+                    order_id=nomination.get('id'),
+                    mint=nomination.get('mint'),
+                )
+                return
             self.provider_failures += 1
             self.preflight_reasons['unavailable_executable_evidence'] += 1
             rpc = self.adapter.rpc
@@ -278,19 +307,97 @@ class MarketNativeRuntime:
                 ),
             )
 
-    def _process_slot(self, slot, tape):
-        if self.preflight_selected >= self.preflight_budget:
-            self.slot_rows.pop(slot, None)
+    def _candidate_deadline(self, candidate):
+        return int(candidate['nomination']['market_time']) + SIGNAL_WINDOW
+
+    def _queue_key(self, row):
+        return (
+            int(row['deadline']),
+            *tuple(row['metric'].priority_key()),
+        )
+
+    def _estimated_full_evidence_seconds(self):
+        pacer=getattr(self.adapter.rpc,'read_pacer',None)
+        interval=float(getattr(pacer,'minimum_interval',0.2))
+        return max(
+            1.0,
+            FULL_EVIDENCE_WORST_CASE_CALLS*max(0.0,interval)
+            + EVIDENCE_DEADLINE_SAFETY_SECONDS,
+        )
+
+    def provider_rotation_due(self, required_calls=FULL_EVIDENCE_WORST_CASE_CALLS):
+        return (
+            int(getattr(self.adapter.rpc,'calls',0)) + int(required_calls)
+            > int(self.provider_rotation_threshold)
+        )
+
+    def _queue_candidate(self, candidate, metric, now):
+        deadline=self._candidate_deadline(candidate)
+        if deadline <= int(now):
+            self.evidence_expired_before_preflight += 1
             return
-        chosen = choose_slot_candidate(self.slot_rows.pop(slot, []))
-        if chosen is None:
+        row=dict(
+            candidate=candidate,
+            metric=metric,
+            queued_at=int(now),
+            deadline=deadline,
+        )
+        if len(self.evidence_queue) >= self.evidence_queue_limit:
+            worst_mint,worst=max(
+                self.evidence_queue.items(),
+                key=lambda item:self._queue_key(item[1]),
+            )
+            if self._queue_key(row) >= self._queue_key(worst):
+                self.evidence_queue_capacity_skips += 1
+                self.capacity_losses += 1
+                return
+            del self.evidence_queue[worst_mint]
+            self.evidence_queue_capacity_skips += 1
+            self.capacity_losses += 1
+        self.evidence_queue[candidate['mint']]=row
+        self.evidence_enqueued += 1
+
+    def _expire_queue(self, now):
+        expired=[
+            mint for mint,row in self.evidence_queue.items()
+            if int(row['deadline']) <= int(now)
+        ]
+        for mint in expired:
+            del self.evidence_queue[mint]
+        self.evidence_expired_before_preflight += len(expired)
+
+    def _process_queue_one(self, tape, now):
+        self._expire_queue(now)
+        if not self.evidence_queue:
             return
-        candidate, _metric = chosen
+        if self.provider_rotation_due():
+            self.provider_headroom_deferrals += 1
+            return
+        mint,row=min(
+            self.evidence_queue.items(),
+            key=lambda item:self._queue_key(item[1]),
+        )
+        deadline=int(row['deadline'])
+        if deadline-int(now) < self._estimated_full_evidence_seconds():
+            del self.evidence_queue[mint]
+            self.evidence_deadline_insufficient += 1
+            return
+
+        candidate=row['candidate']
+        current=stream_feasibility(candidate,tape,int(now))
+        if not current.possible:
+            del self.evidence_queue[mint]
+            self.preflight_rpc_free_rejections += 1
+            self.preflight_reasons[current.guaranteed_rejection] += 1
+            return
+
+        del self.evidence_queue[mint]
         self.preflight_selected += 1
-        self._preflight(candidate, tape)
+        self.evidence_processed += 1
+        self._preflight(candidate,tape)
 
     def tick(self, tape, now, cursor):
-        """Advance discovery only; existing exposure must be monitored by caller first."""
+        """Advance discovery/evidence once; caller monitors existing exposure first."""
         status = tape.status(now)
         if self.engine.store.pressure():
             return cursor
@@ -313,14 +420,8 @@ class MarketNativeRuntime:
         if cursor is None:
             cursor = tape.latest_sequence()
             self.coverage_ready_at = now
-            self.last_flushed_slot = -1
             self._record_coverage(tape, now, 0)
             return cursor
-
-        current_slot = max(0, (now-int(self.coverage_ready_at)) // self.slot_seconds)
-        while self.last_flushed_slot < current_slot-1:
-            self.last_flushed_slot += 1
-            self._process_slot(self.last_flushed_slot, tape)
 
         fresh, cursor = tape.events_since(cursor)
         if fresh:
@@ -335,23 +436,43 @@ class MarketNativeRuntime:
                 if not metric.possible:
                     self.stream_rejections[metric.guaranteed_rejection] += 1
                 else:
-                    self.slot_rows[current_slot].append((candidate, metric))
+                    self._queue_candidate(candidate,metric,now)
 
-        self._record_coverage(tape, now, len(fresh))
+        # Exactly one evidence candidate per scheduler turn. The caller returns to
+        # monitoring before another candidate can consume provider capacity.
+        self._process_queue_one(tape,now)
+        self._record_coverage(tape,self._now(),len(fresh))
         return cursor
 
     def status(self):
+        now=self._now()
+        next_deadline=(
+            min(int(row['deadline']) for row in self.evidence_queue.values())
+            if self.evidence_queue else None
+        )
         return dict(
             mode='market_native',
             scout_lane_active=False,
             scout_storage_active=False,
             configured_scouts=len(self.engine.seeds),
+            evidence_scheduler='adaptive_deadline_queue_v1',
             discovered=len(self.discovered),
             stream_guaranteed_rejections=dict(self.stream_rejections),
-            preflight_budget=self.preflight_budget,
+            evidence_queue_depth=len(self.evidence_queue),
+            evidence_queue_limit=self.evidence_queue_limit,
+            evidence_enqueued=self.evidence_enqueued,
+            evidence_processed=self.evidence_processed,
+            evidence_expired_before_preflight=self.evidence_expired_before_preflight,
+            evidence_deadline_insufficient=self.evidence_deadline_insufficient,
+            evidence_cancelled_on_gap=self.evidence_cancelled_on_gap,
+            evidence_queue_capacity_skips=self.evidence_queue_capacity_skips,
+            preflight_rpc_free_rejections=self.preflight_rpc_free_rejections,
+            next_evidence_deadline_seconds=(
+                None if next_deadline is None else max(0,next_deadline-now)
+            ),
+            estimated_full_evidence_seconds=self._estimated_full_evidence_seconds(),
             preflight_selected=self.preflight_selected,
             preflight_reason_distribution=dict(self.preflight_reasons),
-            full_evidence_budget=self.full_evidence_budget,
             full_evidence_attempted=self.full_evidence_attempted,
             full_reason_distribution=dict(self.full_reasons),
             qualified=self.qualified,
@@ -359,7 +480,11 @@ class MarketNativeRuntime:
             diagnostic_last_attempt=self.last_attempt,
             capacity_losses=self.capacity_losses,
             provider_failures=self.provider_failures,
-            slot_seconds=self.slot_seconds,
+            provider_rotation_threshold=self.provider_rotation_threshold,
+            provider_rotation_due=self.provider_rotation_due(),
+            provider_headroom_deferrals=self.provider_headroom_deferrals,
+            provider_rotations=self.provider_rotations,
+            prior_provider_sessions=list(self.provider_sessions),
             order_authority='unchanged_engine_after_continuation_v1',
             dlmm_enabled=False,
         )

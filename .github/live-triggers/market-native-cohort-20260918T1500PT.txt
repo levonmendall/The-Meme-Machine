@@ -1,0 +1,1 @@
+Launch bounded multi-position natural Pump/PumpSwap paper cohort on latest repaired head. continuation-v1 thresholds/exits frozen; paper-only; natural graduation only; no merge/deploy.

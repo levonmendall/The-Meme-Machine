@@ -23,6 +23,15 @@ class RetiredPumpAdapter:
         raise Unavailable('retired_bonding_curve')
 
 
+class NotGraduatedPostgradAdapter:
+    def __init__(self, clock):
+        self.clock=clock
+    def graduation_snapshot(self, mint, now, priority=True):
+        raise ValueError('bonding_curve_not_complete')
+    def pumpswap_snapshot(self, handoff, now, priority=True):
+        raise AssertionError('pumpswap must not be queried before graduation')
+
+
 class PostgradAdapter:
     def __init__(self, clock):
         self.clock=clock
@@ -88,6 +97,24 @@ class MainRuntimeRouting(unittest.TestCase):
             self.assertEqual(position['surface'],'pumpswap')
             self.assertIsNotNone(position['mark'])
             self.assertIn('postgrad_handoff',position)
+            self.assertIsNone(position.get('last_exit_error'))
+            self.assertEqual(store.state['counts'].get('unavailable_exit',0),0)
+            self.assertTrue(store.reconcile())
+            store.close()
+
+    def test_pregraduation_pump_read_failure_preserves_exact_reason(self):
+        with tempfile.TemporaryDirectory() as td:
+            store=Store(str(Path(td)/'paper.db'),'prospective',100_000_000,'test')
+            engine=Engine(store,[])
+            upstream_position(store)
+            clock=Clock(100)
+            runtime=PumpSwapPaperRuntime(store,NotGraduatedPostgradAdapter(clock),clock=clock)
+            _monitor_existing(engine,RetiredPumpAdapter(),100,pumpswap_runtime=runtime)
+            position=store.state['positions'][MINT]
+            self.assertEqual(position['last_exit_error']['reason'],'retired_bonding_curve')
+            self.assertEqual(position['last_exit_error']['stage'],'pump_exit_quote')
+            self.assertEqual(store.state['counts']['unavailable_exit:retired_bonding_curve'],1)
+            self.assertNotIn('postgrad_handoff',position)
             self.assertTrue(store.reconcile())
             store.close()
 
