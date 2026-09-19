@@ -40,6 +40,19 @@ class CurveEvidenceTests(unittest.TestCase):
         self.assertEqual(out["extension_bps"],2500)
 
 
+    def test_late_trajectory_accepts_real_backward_progress(self):
+        creation={"initial_real_token_reserves":1_000}
+        events=[
+            dict(market_time=80,real_token_reserves=300,virtual_quote_reserves=150,
+                 virtual_token_reserves=100,slot=1,index=0),
+            dict(market_time=90,real_token_reserves=240,virtual_quote_reserves=160,
+                 virtual_token_reserves=100,slot=2,index=0),
+        ]
+        curve=type("C",(),{"real_token":280,"sol":155,"token":100})()
+        out=late_curve_trajectory(creation,events,curve,100)
+        self.assertEqual(out["curve_progress_bps"],7200)
+        self.assertLess(out["curve_velocity_bps_per_s"],0)
+
 class PumpSwapEvidenceTests(unittest.TestCase):
     def _event_raw(self):
         raw=bytearray(PUMPSWAP_BUY_EVENT)

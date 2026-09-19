@@ -1,0 +1,185 @@
+{
+  "source_run": 35301582766,
+  "source_sha": "5bb7d84aeb5d5d1f7145779e855954f013f4db36",
+  "selection": {
+    "period": "30d",
+    "sort": "roi",
+    "min_tokens": 10,
+    "exclude_bots": true,
+    "cohort_size": 20
+  },
+  "persistent_7d_top100": [
+    "EsN3gDkPhYDcbDLWKKjXG8euB4JauAoZ1qZLmoBK6hs7",
+    "CmZWNXG3Rwq6q9qNAaqM87VWCcQzj2XjZs3LHnhLqT8P",
+    "FpwgTbw7os7SWPCEticrtDPGmCgTRdjnwvL8mFghra4e",
+    "4YrqTrUJ7JMNTPvRJeRN3TGxQ4KiPz7tom83XJN6aUa1",
+    "Tp7DsMwY6mk8hziDybmCgheFNi94bFn46EtMQBD3tH7",
+    "C8eFQTXoU8HjZL9xLbwhgVcgQScW2HwCNu8qvyrvWUwT",
+    "4LbZ4fwn8vnpcsR34ayAEYDWABMGRQxCnbfhCGsWDYmE",
+    "EwJpmXiCuDt6i2AEU9MFwieKnfZ5LD4SzVNzcUyesNDV",
+    "9QvQLVu2o9SYXMJKU7zzjMq9qC2ortzCJA8K8ZcScwcb",
+    "EMfgKBdc8tAfDKsvUpcrKVwV78jHRyV7ScUdauWa1HKU"
+  ],
+  "cohort": [
+    {
+      "wallet": "9k7hbwNhmbWF89racE8GtEfeiwBYvjymYgVyH2neimQu",
+      "rank_30d": 1,
+      "roi_30d": 86.4495,
+      "net_pnl_sol_30d": 123.47819,
+      "tokens_traded_30d": 12,
+      "win_rate_30d": 0.5833
+    },
+    {
+      "wallet": "EsN3gDkPhYDcbDLWKKjXG8euB4JauAoZ1qZLmoBK6hs7",
+      "rank_30d": 2,
+      "roi_30d": 86.0565,
+      "net_pnl_sol_30d": 405.178665,
+      "tokens_traded_30d": 21,
+      "win_rate_30d": 0.1905
+    },
+    {
+      "wallet": "CmZWNXG3Rwq6q9qNAaqM87VWCcQzj2XjZs3LHnhLqT8P",
+      "rank_30d": 3,
+      "roi_30d": 44.5266,
+      "net_pnl_sol_30d": 216.900377,
+      "tokens_traded_30d": 26,
+      "win_rate_30d": 0.2692
+    },
+    {
+      "wallet": "4FKvKXaY3RydPPCHwhBDRg38MJBrSLcTpLNh4kN7exHy",
+      "rank_30d": 4,
+      "roi_30d": 44.3959,
+      "net_pnl_sol_30d": 169.465303,
+      "tokens_traded_30d": 19,
+      "win_rate_30d": 0.5263
+    },
+    {
+      "wallet": "FpwgTbw7os7SWPCEticrtDPGmCgTRdjnwvL8mFghra4e",
+      "rank_30d": 5,
+      "roi_30d": 12.0598,
+      "net_pnl_sol_30d": 65.234396,
+      "tokens_traded_30d": 15,
+      "win_rate_30d": 0.1333
+    },
+    {
+      "wallet": "4YrqTrUJ7JMNTPvRJeRN3TGxQ4KiPz7tom83XJN6aUa1",
+      "rank_30d": 6,
+      "roi_30d": 7.4961,
+      "net_pnl_sol_30d": 37.404632,
+      "tokens_traded_30d": 28,
+      "win_rate_30d": 0.8929
+    },
+    {
+      "wallet": "CYEQcM3nvBdouF9du9kbGqTwwMoDGVBN6c8qzWcvthE2",
+      "rank_30d": 7,
+      "roi_30d": 6.291,
+      "net_pnl_sol_30d": 68.56205,
+      "tokens_traded_30d": 10,
+      "win_rate_30d": 0.4
+    },
+    {
+      "wallet": "Andf9Ad9pmERitw8VVb1wrJmeD7E9Lg2BU6Nt9T1kew9",
+      "rank_30d": 8,
+      "roi_30d": 4.9559,
+      "net_pnl_sol_30d": 3.51826,
+      "tokens_traded_30d": 11,
+      "win_rate_30d": 0.375
+    },
+    {
+      "wallet": "9R52fnsC1RgfsFqdnZq81LN77TChqs9VXa285pmr3YJd",
+      "rank_30d": 9,
+      "roi_30d": 4.7465,
+      "net_pnl_sol_30d": 164.959803,
+      "tokens_traded_30d": 13,
+      "win_rate_30d": 0.2308
+    },
+    {
+      "wallet": "8Zw4cTEjhuVkt1k9KnZCJcV74EWsEJGdwGfhJVzQT9C5",
+      "rank_30d": 10,
+      "roi_30d": 4.7251,
+      "net_pnl_sol_30d": 82.788293,
+      "tokens_traded_30d": 13,
+      "win_rate_30d": 0.4615
+    },
+    {
+      "wallet": "Tp7DsMwY6mk8hziDybmCgheFNi94bFn46EtMQBD3tH7",
+      "rank_30d": 11,
+      "roi_30d": 4.0786,
+      "net_pnl_sol_30d": 15.393784,
+      "tokens_traded_30d": 20,
+      "win_rate_30d": 0.2778
+    },
+    {
+      "wallet": "C8eFQTXoU8HjZL9xLbwhgVcgQScW2HwCNu8qvyrvWUwT",
+      "rank_30d": 12,
+      "roi_30d": 3.5995,
+      "net_pnl_sol_30d": 31.368683,
+      "tokens_traded_30d": 11,
+      "win_rate_30d": 0.2727
+    },
+    {
+      "wallet": "54FksNZgqEWpZXn3okR5sJ7ELZYnwh8xHMAL1N7KqazQ",
+      "rank_30d": 13,
+      "roi_30d": 3.5509,
+      "net_pnl_sol_30d": 141.402545,
+      "tokens_traded_30d": 37,
+      "win_rate_30d": 0.7027
+    },
+    {
+      "wallet": "FjNrRVUytLSq2eqtwCNdwye6M3outjU3MPRMoQ7eEi7B",
+      "rank_30d": 14,
+      "roi_30d": 3.0876,
+      "net_pnl_sol_30d": 35.48122,
+      "tokens_traded_30d": 15,
+      "win_rate_30d": 0.1333
+    },
+    {
+      "wallet": "2fW7GRvnvM8FX9UjsXF7TcnLL98o1AN3xmVd3SQ8KCUS",
+      "rank_30d": 15,
+      "roi_30d": 3.0276,
+      "net_pnl_sol_30d": 95.566488,
+      "tokens_traded_30d": 35,
+      "win_rate_30d": 0.1714
+    },
+    {
+      "wallet": "4LbZ4fwn8vnpcsR34ayAEYDWABMGRQxCnbfhCGsWDYmE",
+      "rank_30d": 16,
+      "roi_30d": 2.8309,
+      "net_pnl_sol_30d": 128.087155,
+      "tokens_traded_30d": 10,
+      "win_rate_30d": 0.5
+    },
+    {
+      "wallet": "EwJpmXiCuDt6i2AEU9MFwieKnfZ5LD4SzVNzcUyesNDV",
+      "rank_30d": 17,
+      "roi_30d": 2.7486,
+      "net_pnl_sol_30d": 6.912606,
+      "tokens_traded_30d": 18,
+      "win_rate_30d": 0.2222
+    },
+    {
+      "wallet": "8L83RZHBnTWD2RzoJZ8qwXix6aiuCh2iAk8vTvGsiAQV",
+      "rank_30d": 18,
+      "roi_30d": 2.6923,
+      "net_pnl_sol_30d": 94.745493,
+      "tokens_traded_30d": 12,
+      "win_rate_30d": 0.5
+    },
+    {
+      "wallet": "9QvQLVu2o9SYXMJKU7zzjMq9qC2ortzCJA8K8ZcScwcb",
+      "rank_30d": 19,
+      "roi_30d": 2.6397,
+      "net_pnl_sol_30d": 7.590362,
+      "tokens_traded_30d": 10,
+      "win_rate_30d": 0.5714
+    },
+    {
+      "wallet": "EMfgKBdc8tAfDKsvUpcrKVwV78jHRyV7ScUdauWa1HKU",
+      "rank_30d": 20,
+      "roi_30d": 2.4817,
+      "net_pnl_sol_30d": 2.458388,
+      "tokens_traded_30d": 10,
+      "win_rate_30d": 0.4
+    }
+  ]
+}

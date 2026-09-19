@@ -22,11 +22,13 @@ from meme_machine.postgrad import (
     PostGraduationAdapter,buy_quote,graduation_handoff,pumpswap_pool,sell_quote,
 )
 from meme_machine.provider import PumpAdapter,Unavailable
+from meme_machine.pump_acceleration_confirmations import ConfirmationBook
 from meme_machine.pump_acceleration_evidence import (
     curve_progress_bps,early_holder_sell_share_bps,late_curve_trajectory,
-    postgrad_volume_acceleration_bps,price_return_bps,pumpswap_trade_events,
+    postgrad_volume_acceleration_bps,price_return_bps,
     reserve_price_parts,second_leg_shape,
 )
+from meme_machine.pump_acceleration_history import IncrementalPumpSwapHistory
 from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
 from meme_machine.pump_acceleration_strategy import (
     MODE_LATE_CURVE,MODE_POSTGRAD,MODE_SECOND_LEG,POLICY,STRATEGY_ID,
@@ -48,6 +50,7 @@ INITIAL_LAMPORTS=INITIAL_USD_MICROS*1_000_000_000//GENESIS_SOL_USD_MICROS
 ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
 ENTRY_DELAY_SECONDS=2
 ENTRY_FILL_TIMEOUT_SECONDS=20
+FROZEN_POLICY_HASH="b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246"
 
 
 def _save(report):
@@ -96,11 +99,27 @@ def _attempt_key(mint,mode,now):
     return f"{mint}:{mode}:{int(now)}"
 
 
-def _late_signal(creation,events,snapshot,concentration_bps):
+def _confirmation_meta(value):
+    return dict(
+        skilled_wallets_observed=int(value.get("skilled_wallets_observed",0)),
+        skilled_wallet_clusters=int(value.get("skilled_wallet_clusters",0)),
+        explicit_funding_groups_observed=int(value.get("explicit_funding_groups_observed",0)),
+        creator_history_launches=int(value.get("creator_history_launches",0)),
+        creator_quality_bps=value.get("creator_quality_bps"),
+        excluded_clusters=sorted(value.get("excluded_clusters") or []),
+    )
+
+
+def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
     now=int(snapshot["market_time"])
     curve=pump.curve(snapshot["accounts"][0])
     trajectory=late_curve_trajectory(creation,events,curve,now)
-    flow=flow_metrics(events,now)
+    creator=str(creation.get("creator") or curve.creator)
+    confirmation=confirmation_book.signal_inputs(
+        events,now,creator,snapshot["mint"])
+    flow=flow_metrics(
+        events,now,cluster_map=confirmation["cluster_map"],
+        excluded_clusters=confirmation["excluded_clusters"])
     return SignalVector(
         mint=snapshot["mint"],observed_at=now,surface="pump.fun",phase=MODE_LATE_CURVE,
         quote_asset="SOL",
@@ -111,9 +130,11 @@ def _late_signal(creation,events,snapshot,concentration_bps):
         buyer_growth=flow["buyer_growth"],net_buy_share_bps=flow["net_buy_share_bps"],
         concentration_bps=int(concentration_bps),
         extension_bps=int(trajectory["extension_bps"]),
-        skilled_wallet_clusters=0,creator_quality_bps=None,creator_history_launches=0,
+        skilled_wallet_clusters=int(confirmation["skilled_wallet_clusters"]),
+        creator_quality_bps=confirmation["creator_quality_bps"],
+        creator_history_launches=int(confirmation["creator_history_launches"]),
         quote_relative_return_bps=int(trajectory["quote_relative_return_bps"]),
-    ),trajectory
+    ),trajectory,confirmation
 
 
 def _postgrad_concentration(rpc,snapshot):
@@ -135,47 +156,21 @@ def _postgrad_concentration(rpc,snapshot):
 
 
 def _refresh_pool_events(state,sessions,now):
-    sessions.ensure(70)
-    pool=state["pool"]
-    rows=sessions.rpc.call(
-        "getSignaturesForAddress",
-        [pool,{"limit":40,"commitment":"finalized"}],True,
-    )
-    if not isinstance(rows,list):
-        raise Unavailable("invalid_pumpswap_history")
-    times=[int(x["blockTime"]) for x in rows if x.get("blockTime") is not None]
-    if any(x.get("blockTime") is None for x in rows):
-        state["history_complete"]=False
-    if len(rows)==40 and times and min(times)>int(state["graduation_time"]):
-        state["history_complete"]=False
-        state["history_capacity_loss"]=True
-    elif len(rows)<40 or (times and min(times)<=int(state["graduation_time"])):
-        state["history_complete"]=True
-
-    new=[x for x in rows if not x.get("err") and x.get("signature") not in state["signatures"]]
-    params=[[x["signature"],{"encoding":"json","commitment":"finalized",
-                            "maxSupportedTransactionVersion":0}] for x in new]
-    txs=sessions.rpc.call_many("getTransaction",params,True,batch_size=8) if params else []
-    for sig,tx in zip(new,txs):
-        state["signatures"].add(sig["signature"])
-        if tx is None:
-            state["history_complete"]=False
-            continue
-        for event in pumpswap_trade_events(tx):
-            if event["pool"]!=pool:
-                continue
-            event["id"]=f'{sig["signature"]}:{event["index"]}'
-            state["events"][event["id"]]=event
-    cutoff=int(now)-300
-    state["events"]={k:v for k,v in state["events"].items()
-                     if int(v["market_time"])>=cutoff}
-    return sorted(state["events"].values(),
-                  key=lambda e:(int(e["market_time"]),int(e["slot"]),int(e["index"])))
+    sessions.ensure(90)
+    history=state["history"]
+    events=history.refresh(sessions.rpc,now)
+    state["history_status"]=history.status(now)
+    return events
 
 
-def _volume_price_signal(state,snapshot,events,mode,concentration):
+def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_book):
     now=int(snapshot["market_time"])
-    flow=flow_metrics(events,now)
+    creator=str((state.get("creation") or {}).get("creator") or snapshot.get("creator") or "")
+    confirmation=confirmation_book.signal_inputs(
+        events,now,creator,snapshot["mint"])
+    flow=flow_metrics(
+        events,now,cluster_map=confirmation["cluster_map"],
+        excluded_clusters=confirmation["excluded_clusters"])
     current=reserve_price_parts(snapshot["state"]["base_reserve"],
                                 snapshot["state"]["quote_reserve"])
     first=state.get("graduation_price")
@@ -187,8 +182,10 @@ def _volume_price_signal(state,snapshot,events,mode,concentration):
         mint=snapshot["mint"],observed_at=now,surface="pumpswap",phase=mode,
         quote_asset="SOL",independent_buyer_clusters=flow["independent_buyer_clusters"],
         buyer_growth=flow["buyer_growth"],net_buy_share_bps=flow["net_buy_share_bps"],
-        concentration_bps=int(concentration),skilled_wallet_clusters=0,
-        creator_quality_bps=None,creator_history_launches=0,
+        concentration_bps=int(concentration),
+        skilled_wallet_clusters=int(confirmation["skilled_wallet_clusters"]),
+        creator_quality_bps=confirmation["creator_quality_bps"],
+        creator_history_launches=int(confirmation["creator_history_launches"]),
         quote_relative_return_bps=int(rel),graduated=True,
         seconds_since_graduation=max(0,now-int(state["graduation_time"])),
         price_vs_graduation_bps=int(rel),
@@ -197,13 +194,13 @@ def _volume_price_signal(state,snapshot,events,mode,concentration):
             events,state["pregrad_wallets"]),
     )
     if mode==MODE_POSTGRAD:
-        return SignalVector(**common)
+        return SignalVector(**common),confirmation
     shape=second_leg_shape(
         events,state["graduation_time"],now,current)
     return SignalVector(**common,**{
         k:shape[k] for k in (
             "pullback_depth_bps","recovery_bps","consolidation_seconds","breakout_bps")
-    })
+    }),confirmation
 
 
 def _reserve_position(report,pending,active,qualification,snapshot,mode,concentration=0):
@@ -315,14 +312,23 @@ def _record_attempt(report,signal,q,stage,extra=None):
     )
     if extra:
         row.update(extra)
+    if stage=="full_point_in_time":
+        # Full-evidence rows are an append-only experiment ledger and are never
+        # removed by the rolling UI/debug attempt buffer.
+        report["full_evidence_candidates"].append(dict(row))
     report["attempts"].append(row)
     report["attempts"]=report["attempts"][-1000:]
 
 
 def main():
+    actual_policy_hash=policy_hash()
+    if actual_policy_hash!=FROZEN_POLICY_HASH:
+        raise RuntimeError("frozen_policy_hash_changed")
+    confirmations=ConfirmationBook.from_files()
     report=dict(
         kind="pump_acceleration_natural_prospective",
-        strategy_id=STRATEGY_ID,policy_hash=policy_hash(),
+        strategy_id=STRATEGY_ID,policy_hash=actual_policy_hash,
+        expected_policy_hash=FROZEN_POLICY_HASH,
         frozen_policy=True,threshold_changes_allowed=False,threshold_changes_made=False,
         selection_uses_future_outcomes=False,outcomes_can_change_policy=False,
         order_authority=False,signing_authority=False,transaction_submission_authority=False,
@@ -335,7 +341,9 @@ def main():
         entry_delay_seconds=ENTRY_DELAY_SECONDS,entry_fill_timeout_seconds=ENTRY_FILL_TIMEOUT_SECONDS,
         discovery_seconds=DISCOVERY_SECONDS,followup_seconds=FOLLOWUP_SECONDS,
         started=int(time.time()),stream={},sessions=[],counts={},limitations=[],
-        attempts=[],qualifiers=[],settled=[],open_positions=[],postgrad=[],
+        confirmation_evidence=confirmations.status(),
+        attempts=[],full_evidence_candidates=[],qualifiers=[],settled=[],
+        open_positions=[],postgrad=[],
     )
     _save(report)
 
@@ -363,19 +371,27 @@ def main():
                 creation=tape.creation(event["mint"])
                 if creation is None:
                     continue
-                state=created.setdefault(event["mint"],dict(
-                    creation=creation,pregrad_wallets=set(),graduated=False))
+                if event["mint"] not in created:
+                    created[event["mint"]]=dict(
+                        creation=creation,pregrad_wallets=set(),graduated=False)
+                    confirmations.observe_creation(creation)
+                state=created[event["mint"]]
                 if len(state["pregrad_wallets"])<500 and event.get("wallet"):
                     state["pregrad_wallets"].add(event["wallet"])
                 if int(event.get("real_token_reserves",-1))==0 and not state["graduated"]:
                     state["graduated"]=True
                     state["graduation_time"]=int(event["market_time"])
+                    confirmations.observe_graduation(
+                        event["mint"],int(event.get("available_time") or now))
                     if len(postgrad)<MAX_POSTGRAD_CANDIDATES:
+                        pool=pumpswap_pool(event["mint"])
                         postgrad[event["mint"]]=dict(
-                            mint=event["mint"],graduation_time=int(event["market_time"]),
-                            pregrad_wallets=set(state["pregrad_wallets"]),pool=pumpswap_pool(event["mint"]),
-                            signatures=set(),events={},history_complete=False,
-                            history_capacity_loss=False,graduation_price=None,
+                            mint=event["mint"],creation=state["creation"],
+                            graduation_time=int(event["market_time"]),
+                            pregrad_wallets=set(state["pregrad_wallets"]),pool=pool,
+                            history=IncrementalPumpSwapHistory(
+                                pool,int(event["market_time"])),
+                            history_status={},graduation_price=None,
                         )
 
             # New late-curve entries stop at discovery_end; follow-up never backfills
@@ -402,24 +418,30 @@ def main():
                         sessions.ensure(25)
                         snapshot=sessions.pump.snapshot(mint,now,priority=True)
                         ev=tape.window(mint,int(snapshot["market_time"]),max_slot=snapshot["slot"])
-                        pre_signal,trajectory=_late_signal(creation,ev,snapshot,0)
+                        pre_signal,trajectory,confirmation=_late_signal(
+                            creation,ev,snapshot,0,confirmations)
                         preq=qualify(pre_signal)
                         # concentration=0 is the optimistic preflight.  If even that
                         # cannot qualify, an expensive holder scan cannot rescue it.
                         if not preq.qualified:
-                            _record_attempt(report,pre_signal,preq,"optimistic_preflight",
-                                            {"trajectory":trajectory})
+                            _record_attempt(
+                                report,pre_signal,preq,"optimistic_preflight",
+                                {"trajectory":trajectory,
+                                 "confirmation_evidence":_confirmation_meta(confirmation)})
                             continue
                         if full_attempts>=MAX_FULL_ATTEMPTS:
                             report["limitations"].append("full_evidence_attempt_cap")
                             continue
                         full_attempts+=1
                         concentration,meta=sessions.reader.read(mint,snapshot,priority=True)
-                        signal,trajectory=_late_signal(creation,ev,snapshot,concentration)
+                        signal,trajectory,confirmation=_late_signal(
+                            creation,ev,snapshot,concentration,confirmations)
                         q=qualify(signal)
-                        _record_attempt(report,signal,q,"full_point_in_time",
-                                        {"concentration_source":meta.get("source"),
-                                         "trajectory":trajectory})
+                        _record_attempt(
+                            report,signal,q,"full_point_in_time",
+                            {"concentration_source":meta.get("source"),
+                             "trajectory":trajectory,
+                             "confirmation_evidence":_confirmation_meta(confirmation)})
                         if q.qualified and not any(
                                 x["mint"]==mint and x["mode"]==MODE_LATE_CURVE
                                 for x in report["qualifiers"]):
@@ -446,12 +468,16 @@ def main():
                     handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
                     snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
                     events=_refresh_pool_events(state,sessions,now)
-                    if not state["history_complete"]:
+                    if not state["history"].complete(now):
                         raise Unavailable("incomplete_pumpswap_history")
                     concentration=_postgrad_concentration(sessions.rpc,snapshot)
-                    signal=_volume_price_signal(state,snapshot,events,MODE_POSTGRAD,concentration)
+                    signal,confirmation=_volume_price_signal(
+                        state,snapshot,events,MODE_POSTGRAD,concentration,confirmations)
                     q=qualify(signal)
-                    _record_attempt(report,signal,q,"full_point_in_time")
+                    _record_attempt(
+                        report,signal,q,"full_point_in_time",
+                        {"history_status":state["history"].status(now),
+                         "confirmation_evidence":_confirmation_meta(confirmation)})
                     if q.qualified and not any(
                             x["mint"]==mint and x["mode"]==MODE_POSTGRAD
                             for x in report["qualifiers"]):
@@ -460,10 +486,13 @@ def main():
 
                     if age>=POLICY.min_second_leg_age_s:
                         try:
-                            second=_volume_price_signal(
-                                state,snapshot,events,MODE_SECOND_LEG,concentration)
+                            second,confirmation2=_volume_price_signal(
+                                state,snapshot,events,MODE_SECOND_LEG,concentration,confirmations)
                             q2=qualify(second)
-                            _record_attempt(report,second,q2,"full_point_in_time")
+                            _record_attempt(
+                                report,second,q2,"full_point_in_time",
+                                {"history_status":state["history"].status(now),
+                                 "confirmation_evidence":_confirmation_meta(confirmation2)})
                             if q2.qualified and not any(
                                     x["mint"]==mint and x["mode"]==MODE_SECOND_LEG
                                     for x in report["qualifiers"]):
@@ -477,7 +506,10 @@ def main():
                 except (Unavailable,ValueError,KeyError,TypeError) as exc:
                     report["postgrad"].append(dict(
                         mint=mint,observed_at=now,age_seconds=age,
-                        complete=False,limitation=str(exc) or type(exc).__name__))
+                        complete=False,limitation=str(exc) or type(exc).__name__,
+                        history_status=(
+                            state["history"].status(now)
+                            if state.get("history") is not None else None)))
                     report["postgrad"]=report["postgrad"][-300:]
 
             # Paper entries use the repository-standard two-second delay and a fresh
@@ -516,8 +548,9 @@ def main():
                             try:
                                 creation=created[mint]["creation"]
                                 ev=tape.window(mint,int(snapshot["market_time"]),max_slot=snapshot["slot"])
-                                current,_=_late_signal(
-                                    creation,ev,snapshot,int(row.get("last_concentration",0)))
+                                current,_trajectory,_confirmation=_late_signal(
+                                    creation,ev,snapshot,
+                                    int(row.get("last_concentration",0)),confirmations)
                                 demand_score=qualify(current).score
                             except Exception:
                                 demand_score=0
@@ -532,8 +565,8 @@ def main():
                         quote=sell_quote(snapshot,life.position.tokens)
                         proceeds=max(0,quote.output_amount-GAS)
                         concentration=_postgrad_concentration(sessions.rpc,snapshot)
-                        current=_volume_price_signal(
-                            state,snapshot,events,MODE_POSTGRAD,concentration)
+                        current,_confirmation=_volume_price_signal(
+                            state,snapshot,events,MODE_POSTGRAD,concentration,confirmations)
                         cq=qualify(current);demand_score=cq.score;confirmed=cq.qualified
 
                     mark=life.mark(proceeds,now,demand_score,confirmed)
@@ -583,6 +616,11 @@ def main():
         report["full_evidence_attempts"]=full_attempts
         report["created_mints_observed"]=len(created)
         report["postgrad_candidates"]=len(postgrad)
+        report["confirmation_evidence"]=confirmations.status()
+        report["postgrad_history_status"]={
+            mint:state["history"].status(int(time.time()))
+            for mint,state in postgrad.items() if state.get("history") is not None
+        }
         report["pending_entries"]=[
             dict(mint=k[0],mode=k[1],reserved_at=v["reserved_at"],
                  due=v["due"],snapshot=v["lifecycle"].snapshot())

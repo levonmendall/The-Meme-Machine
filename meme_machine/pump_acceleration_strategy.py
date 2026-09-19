@@ -215,16 +215,18 @@ def relative_return_bps(token_usd_return_bps, quote_usd_return_bps):
 def trajectory_metrics(points):
     """Compute latest curve velocity/acceleration from point-in-time progress samples.
 
-    points: iterable of (unix_second, curve_progress_bps).  The final sample is the
-    decision-time state.  Progress must be monotonic; a regression fails closed.
+    points: iterable of (unix_second, curve_progress_bps). The final sample is the
+    decision-time state. Backward movement is valid signed market evidence: sells can
+    reduce bonding-curve progress, yielding negative velocity and an ordinary frozen
+    gate rejection rather than an evidence-integrity failure.
     """
     rows=sorted((int(t),int(p)) for t,p in points)
     if len(rows) < 2:
         raise ValueError("insufficient_curve_history")
     if any(t2 <= t1 for (t1,_),(t2,_) in zip(rows,rows[1:])):
         raise ValueError("non_monotonic_curve_time")
-    if any(p2 < p1 for (_,p1),(_,p2) in zip(rows,rows[1:])):
-        raise ValueError("curve_progress_regression")
+    # Progress is deliberately not required to be monotonic. A real sell can move
+    # the curve backward; the frozen positive velocity/acceleration gates decide it.
     velocities=[]
     for (t1,p1),(t2,p2) in zip(rows,rows[1:]):
         velocities.append((p2-p1)//(t2-t1))

@@ -85,6 +85,40 @@ class SolanaReadTopologyTests(unittest.TestCase):
         telemetry=rpc.provider_telemetry()
         self.assertEqual(telemetry['secondary_provider'],'none')
         self.assertFalse(telemetry['secondary_configured'])
+        method_key=f"{rpc_topology.PRIMARY_PROVIDER}:getGenesisHash"
+        status_key=f"{method_key}:429"
+        self.assertEqual(telemetry['provider_method_failures'][method_key],2)
+        self.assertEqual(telemetry['provider_http_status_errors'][status_key],2)
+        self.assertEqual(
+            telemetry['provider_error_fingerprints'][
+                f"{rpc_topology.PRIMARY_PROVIDER}|getGenesisHash|http:429"
+            ],
+            2,
+        )
+        self.assertEqual(telemetry['last_provider_error']['http_status'],429)
+        self.assertEqual(telemetry['last_provider_error']['method'],'getGenesisHash')
+
+    def test_jsonrpc_error_code_is_attributed_to_method_without_message_or_url(self):
+        env={rpc_topology.ALCHEMY_ENV_NAME:ALCHEMY}
+        rpc=rpc_topology.new_rpc(limit=40,environ=env,sleeper=lambda _seconds:None)
+        def fail(_url,request):
+            return {
+                'jsonrpc':'2.0','id':request['id'],
+                'error':{'code':-32602,'message':'deliberately sensitive provider text'},
+            }
+        rpc._request_url=fail
+        with self.assertRaises(Unavailable):
+            rpc.call('getGenesisHash',priority=True)
+        telemetry=rpc.provider_telemetry()
+        method_key=f"{rpc_topology.PRIMARY_PROVIDER}:getGenesisHash"
+        code_key=f"{method_key}:-32602"
+        fingerprint=f"{rpc_topology.PRIMARY_PROVIDER}|getGenesisHash|jsonrpc:-32602"
+        self.assertEqual(telemetry['provider_method_failures'][method_key],2)
+        self.assertEqual(telemetry['provider_jsonrpc_error_codes'][code_key],2)
+        self.assertEqual(telemetry['provider_error_fingerprints'][fingerprint],2)
+        self.assertEqual(telemetry['last_provider_error']['jsonrpc_error_code'],-32602)
+        self.assertNotIn('sensitive',str(telemetry))
+        self.assertNotIn(ALCHEMY,str(telemetry))
 
 
 if __name__=='__main__':

@@ -47,6 +47,18 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
         self.assertEqual(fast["curve_progress_bps"],slow["curve_progress_bps"])
         self.assertGreater(fast["curve_velocity_bps_per_s"],slow["curve_velocity_bps_per_s"])
 
+    def test_backward_curve_movement_is_signed_evidence(self):
+        result=trajectory_metrics([(0,7000),(10,7600),(20,7300)])
+        self.assertEqual(result["curve_progress_bps"],7300)
+        self.assertLess(result["curve_velocity_bps_per_s"],0)
+        decision=qualify(self.strong_late(
+            curve_progress_bps=result["curve_progress_bps"],
+            curve_velocity_bps_per_s=result["curve_velocity_bps_per_s"],
+            curve_acceleration_bps_per_s2=result["curve_acceleration_bps_per_s2"],
+        ))
+        self.assertFalse(decision.qualified)
+        self.assertIn("curve_velocity",decision.reasons)
+
     def test_curve_position_alone_is_not_enough(self):
         result=qualify(self.strong_late(
             curve_velocity_bps_per_s=0,

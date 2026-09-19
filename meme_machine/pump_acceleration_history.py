@@ -1,0 +1,218 @@
+"""Incremental finalized PumpSwap history cache for prospective evidence.
+
+The first read backfills toward graduation. Later reads request only signatures newer
+than the previously observed head and decode only unseen transactions. Signature
+coverage and transaction coverage are tracked separately and both must be complete.
+"""
+from __future__ import annotations
+
+from .provider import Unavailable
+from .pump_acceleration_evidence import pumpswap_trade_events
+
+
+class IncrementalPumpSwapHistory:
+    def __init__(self,pool,graduation_time,page_limit=96,max_backfill_pages=2,max_new_pages=4,
+                 max_tx_per_refresh=64):
+        self.pool=str(pool)
+        self.graduation_time=int(graduation_time)
+        self.page_limit=int(page_limit)
+        self.max_backfill_pages=int(max_backfill_pages)
+        self.max_new_pages=int(max_new_pages)
+        self.max_tx_per_refresh=int(max_tx_per_refresh)
+        self.signature_rows={}
+        self.processed=set()
+        self.events={}
+        self.newest_signature=None
+        self.oldest_signature=None
+        self.signature_coverage_complete=False
+        self.history_exhausted=False
+        self.capacity_loss=False
+        self.unknown_block_times=0
+        self.pages=0
+        self.refreshes=0
+        self.tx_failures=0
+
+    @staticmethod
+    def _valid_rows(rows):
+        if not isinstance(rows,list):
+            raise Unavailable("invalid_pumpswap_history")
+        return [r for r in rows if isinstance(r,dict) and r.get("signature")]
+
+    def _fetch(self,rpc,*,before=None,until=None,limit=None):
+        cfg={"limit":int(limit or self.page_limit),"commitment":"finalized"}
+        if before:
+            cfg["before"]=str(before)
+        if until:
+            cfg["until"]=str(until)
+        rows=self._valid_rows(rpc.call(
+            "getSignaturesForAddress",[self.pool,cfg],True))
+        self.pages+=1
+        return rows
+
+    def _remember(self,rows):
+        if not rows:
+            return
+        for row in rows:
+            sig=str(row["signature"])
+            prior=self.signature_rows.get(sig)
+            self.signature_rows[sig]=dict(row)
+            if prior is None and row.get("blockTime") is None:
+                self.unknown_block_times+=1
+        known=[
+            r for r in self.signature_rows.values()
+            if r.get("blockTime") is not None
+        ]
+        if known:
+            newest=max(
+                known,key=lambda r:(int(r["blockTime"]),int(r.get("slot") or -1)))
+            oldest=min(
+                known,key=lambda r:(int(r["blockTime"]),int(r.get("slot") or -1)))
+            self.newest_signature=str(newest["signature"])
+            self.oldest_signature=str(oldest["signature"])
+
+    def _coverage(self):
+        known=[
+            int(r["blockTime"]) for r in self.signature_rows.values()
+            if r.get("blockTime") is not None
+        ]
+        reached=bool(known and min(known)<=self.graduation_time)
+        self.signature_coverage_complete=bool(reached or self.history_exhausted)
+
+    def _new_head(self,rpc):
+        old_head=self.newest_signature
+        if old_head is None:
+            rows=self._fetch(rpc,limit=self.page_limit)
+            self._remember(rows)
+            if len(rows)<self.page_limit:
+                self.history_exhausted=True
+            return
+        before=None
+        total=0
+        for _ in range(self.max_new_pages):
+            rows=self._fetch(
+                rpc,before=before,until=old_head,
+                limit=min(1000,self.page_limit*4))
+            if not rows:
+                break
+            total+=len(rows)
+            self._remember(rows)
+            before=rows[-1]["signature"]
+            if len(rows)<min(1000,self.page_limit*4):
+                break
+        else:
+            if total:
+                self.capacity_loss=True
+        if self.signature_rows:
+            newest=max(
+                self.signature_rows.values(),
+                key=lambda r:(int(r.get("blockTime") or -1),int(r.get("slot") or -1)))
+            self.newest_signature=str(newest["signature"])
+
+    def _backfill(self,rpc):
+        self._coverage()
+        if self.signature_coverage_complete:
+            return
+        before=self.oldest_signature
+        for _ in range(self.max_backfill_pages):
+            rows=self._fetch(rpc,before=before,limit=self.page_limit)
+            if not rows:
+                self.history_exhausted=True
+                break
+            self._remember(rows)
+            before=rows[-1]["signature"]
+            times=[int(r["blockTime"]) for r in rows if r.get("blockTime") is not None]
+            if times and min(times)<=self.graduation_time:
+                break
+            if len(rows)<self.page_limit:
+                self.history_exhausted=True
+                break
+        self._coverage()
+
+    def _decode_pending(self,rpc,now):
+        pending=[]
+        for row in self.signature_rows.values():
+            sig=str(row["signature"])
+            if sig in self.processed or row.get("err"):
+                continue
+            bt=row.get("blockTime")
+            if bt is None:
+                continue
+            bt=int(bt)
+            if not self.graduation_time<=bt<=int(now):
+                if bt<self.graduation_time:
+                    self.processed.add(sig)
+                continue
+            pending.append(row)
+        pending.sort(key=lambda r:(int(r.get("blockTime") or 0),int(r.get("slot") or 0)))
+        pending=pending[:self.max_tx_per_refresh]
+        for start in range(0,len(pending),8):
+            chunk=pending[start:start+8]
+            params=[[r["signature"],{
+                "encoding":"json","commitment":"finalized",
+                "maxSupportedTransactionVersion":0,
+            }] for r in chunk]
+            try:
+                txs=rpc.call_many("getTransaction",params,True,batch_size=8)
+            except Unavailable:
+                self.tx_failures+=len(chunk)
+                continue
+            for row,tx in zip(chunk,txs):
+                sig=str(row["signature"])
+                if tx is None:
+                    self.tx_failures+=1
+                    continue
+                self.processed.add(sig)
+                for event in pumpswap_trade_events(tx):
+                    if event.get("pool")!=self.pool:
+                        continue
+                    event["id"]=f'{sig}:{event["index"]}'
+                    self.events[event["id"]]=event
+
+    def refresh(self,rpc,now):
+        self.refreshes+=1
+        self._new_head(rpc)
+        self._backfill(rpc)
+        self._decode_pending(rpc,now)
+        return self.rows(now)
+
+    def pending_relevant(self,now):
+        total=0
+        for row in self.signature_rows.values():
+            sig=str(row["signature"])
+            bt=row.get("blockTime")
+            if sig in self.processed or row.get("err") or bt is None:
+                continue
+            if self.graduation_time<=int(bt)<=int(now):
+                total+=1
+        return total
+
+    def complete(self,now):
+        return bool(
+            self.signature_coverage_complete
+            and not self.capacity_loss
+            and self.unknown_block_times==0
+            and self.pending_relevant(now)==0
+        )
+
+    def rows(self,now):
+        return sorted(
+            (dict(e) for e in self.events.values()
+             if self.graduation_time<=int(e.get("market_time",0))<=int(now)),
+            key=lambda e:(int(e["market_time"]),int(e.get("slot",0)),int(e.get("index",0))),
+        )
+
+    def status(self,now):
+        return dict(
+            complete=self.complete(now),
+            signature_coverage_complete=self.signature_coverage_complete,
+            history_exhausted=self.history_exhausted,
+            capacity_loss=self.capacity_loss,
+            signatures=len(self.signature_rows),
+            processed_transactions=len(self.processed),
+            pending_transactions=self.pending_relevant(now),
+            events=len(self.events),pages=self.pages,refreshes=self.refreshes,
+            unknown_block_times=self.unknown_block_times,
+            transaction_failures=self.tx_failures,
+            newest_signature=self.newest_signature,
+            oldest_signature=self.oldest_signature,
+        )

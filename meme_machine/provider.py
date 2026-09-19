@@ -117,7 +117,8 @@ class RPC:
                 self.http_requests += 1
             try:
                 response = self.transport({'jsonrpc':'2.0','id':self.calls,'method':method,'params':params})
-                if response.get('error') or 'result' not in response:
+                if (response.get('error') or 'result' not in response or
+                        (method == 'getTransaction' and response.get('result') is None)):
                     raise Unavailable('provider_error')
                 result = response['result']
                 last_error = None
@@ -136,12 +137,13 @@ class RPC:
         return result
 
     def call_many(self, method, params_list, priority=False, batch_size=8):
-        """Read-only bounded JSON-RPC batching while preserving logical budgets.
+        """Batch read-only RPC and retry only failed members.
 
-        Public Solana RPC can return JSON-RPC batch responses out of order, so ids
-        are verified explicitly. Every subrequest consumes the same logical request
-        budget as an individual call; batching only removes transport/latency waste.
-        Custom/test transports keep the old one-request-at-a-time behavior.
+        Successful batch members are committed to the cache immediately. A semantic
+        JSON-RPC error, missing response, or null getTransaction result retries only
+        that member as a bounded individual request. A transport-level batch failure
+        makes every member failed, so those members are individually retried rather
+        than replaying the entire batch and duplicating successful economic reads.
         """
         if method not in self.ALLOWED:
             raise ValueError('read-only method allowlist')
@@ -169,44 +171,60 @@ class RPC:
             chunk=missing[:batch_size]
             missing=missing[batch_size:]
             logical=len(chunk)
-            last_error=None
-            values=None
-            for attempt in range(2):
-                if self.calls + logical > cap:
-                    raise Unavailable('provider_budget_exhausted')
-                # Eight getTransaction items every ~2 seconds stays at a bounded
-                # four logical requests/sec while completing dense windows quickly.
-                self._pace(max(0.5,logical/4.0))
-                first_id=self.calls+1
-                requests=[{'jsonrpc':'2.0','id':first_id+i,'method':method,'params':params}
-                          for i,(_,params,_) in enumerate(chunk)]
-                self.calls += logical
-                self.http_requests += 1
+            if self.calls + logical > cap:
+                raise Unavailable('provider_budget_exhausted')
+            self._pace(max(0.5,logical/4.0))
+            first_id=self.calls+1
+            requests=[
+                {'jsonrpc':'2.0','id':first_id+i,'method':method,'params':params}
+                for i,(_index,params,_key) in enumerate(chunk)
+            ]
+            self.calls += logical
+            self.http_requests += 1
+            failed=[]
+            try:
+                response=self.transport(requests)
+                if not isinstance(response,list):
+                    raise Unavailable('provider_error')
+                by_id={
+                    item.get('id'):item for item in response
+                    if isinstance(item,dict)
+                }
+                for i,(index,params,key) in enumerate(chunk):
+                    item=by_id.get(first_id+i)
+                    bad=bool(
+                        not item or item.get('error') or 'result' not in item or
+                        (method=='getTransaction' and item.get('result') is None)
+                    )
+                    if bad:
+                        failed.append((index,params,key))
+                        continue
+                    value=item['result']
+                    results[index]=value
+                    self._cache_put(key,value)
+                if failed:
+                    self.failures += len(failed)
+                    self.failure_kinds['provider_error']=(
+                        self.failure_kinds.get('provider_error',0)+len(failed))
+            except Exception as exc:
+                failed=list(chunk)
+                self.failures += logical
+                kind=self._failure_kind(exc)
+                self.failure_kinds[kind]=self.failure_kinds.get(kind,0)+logical
+
+            if not failed:
+                continue
+
+            # Every retry below corresponds to one member that actually failed.
+            self.retries += len(failed)
+            for index,params,key in failed:
                 try:
-                    response=self.transport(requests)
-                    if not isinstance(response,list):
-                        raise Unavailable('provider_error')
-                    by_id={item.get('id'):item for item in response if isinstance(item,dict)}
-                    values=[]
-                    for i in range(logical):
-                        item=by_id.get(first_id+i)
-                        if not item or item.get('error') or 'result' not in item:
-                            raise Unavailable('provider_error')
-                        values.append(item['result'])
-                    last_error=None
-                    break
-                except Exception as exc:
-                    self.failures += logical
-                    kind=self._failure_kind(exc)
-                    self.failure_kinds[kind]=self.failure_kinds.get(kind,0)+logical
-                    last_error=exc
-                    if attempt == 0:
-                        self.retries += logical
-                        self.sleep(self._retry_delay(exc))
-            if last_error is not None:
-                raise Unavailable('provider_request_failed') from None
-            for (index,_params,key),value in zip(chunk,values):
+                    value=self.call(method,params,priority)
+                except Unavailable:
+                    raise Unavailable('provider_request_failed') from None
                 results[index]=value
+                # call() normally populated the cache, but keep this explicit for
+                # subclass transports and future call semantics.
                 self._cache_put(key,value)
         return results
 

@@ -19,6 +19,16 @@ jobs:
       - run: python -m unittest discover -v
       - run: python -m tests.resource_check
       - run: python -m py_compile tests/pump_acceleration_natural_prospective.py
+      - name: Verify exact frozen strategy policy hash
+        run: |
+          python - <<'PY'
+          from meme_machine.pump_acceleration_strategy import policy_hash
+          expected="b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246"
+          actual=policy_hash()
+          print({"expected":expected,"actual":actual})
+          if actual != expected:
+              raise SystemExit("frozen_policy_hash_changed")
+          PY
   natural-prospective:
     needs: verify
     runs-on: ubuntu-24.04
