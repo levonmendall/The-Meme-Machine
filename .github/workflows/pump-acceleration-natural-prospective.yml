@@ -53,6 +53,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: pump-acceleration-natural-prospective-${{ github.run_id }}-${{ github.run_attempt }}
-          path: pump-acceleration-natural-prospective.json
+          path: |
+            pump-acceleration-natural-prospective.json
+            pump-acceleration-evidence-broker.sqlite3
           if-no-files-found: warn
           retention-days: 90
