@@ -34,5 +34,6 @@ jobs:
           path: |
             robinhood-ramses-extended-market-report.json
             robinhood-ramses-extended-market.sqlite
+            robinhood-ramses-all-pool-inventory-cache.json
           retention-days: 30
           if-no-files-found: error
