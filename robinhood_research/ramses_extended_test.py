@@ -62,6 +62,11 @@ FORCED_PROVIDER_COOLDOWN_SECONDS = 8
 FORCED_BATCH_SIZE = 6
 FORCED_BATCH_PAUSE_SECONDS = 1.0
 FORCED_RATE_COOLDOWN_SECONDS = 8.0
+FORCED_FINALITY_MIN_WAIT_SECONDS = 600
+FORCED_FINALITY_MAX_WAIT_SECONDS = 1200
+FORCED_FINALITY_POLL_SECONDS = 15
+FORCED_FINALITY_LAG_MULTIPLIER = 2
+FORCED_FINALITY_HEADROOM_SECONDS = 120
 
 
 def _json_env(name):
@@ -158,6 +163,91 @@ def _exact_forced_horizon(rpc, entry_block, entry_at, finalized_frontier):
     )
 
 
+def _forced_finality_wait_budget(latest_timestamp, finalized_timestamp, target_timestamp):
+    """Bound finality wait from the live head->finalized lag without moving target."""
+    latest_timestamp=int(latest_timestamp)
+    finalized_timestamp=int(finalized_timestamp)
+    target_timestamp=int(target_timestamp)
+    if latest_timestamp < finalized_timestamp:
+        raise BoundaryError("extended_forced_finality_clock_regression")
+    lag=max(0,latest_timestamp-finalized_timestamp)
+    remaining=max(0,target_timestamp-finalized_timestamp)
+    raw=(
+        lag*FORCED_FINALITY_LAG_MULTIPLIER
+        + remaining
+        + FORCED_FINALITY_HEADROOM_SECONDS
+    )
+    return max(
+        FORCED_FINALITY_MIN_WAIT_SECONDS,
+        min(FORCED_FINALITY_MAX_WAIT_SECONDS,raw),
+    )
+
+
+def _wait_for_forced_finality(
+    rpc, entry_at, *,
+    clock=time.monotonic,
+    sleeper=time.sleep,
+):
+    """Wait for finalized chain time to cross entry+60s; never alter that horizon."""
+    target=int(entry_at)+FORCED_FORWARD_SECONDS
+    latest,frontier=rpc.batch(
+        [
+            ("eth_getBlockByNumber",["latest",False]),
+            ("eth_getBlockByNumber",["finalized",False]),
+        ],
+        scope="extended_forward",
+    )
+    latest_ts=int(latest["timestamp"],16)
+    frontier_ts=int(frontier["timestamp"],16)
+    latest_block=int(latest["number"],16)
+    frontier_block=int(frontier["number"],16)
+    initial_frontier_ts=frontier_ts
+    initial_frontier_block=frontier_block
+    if frontier_ts > latest_ts or frontier_block > latest_block:
+        raise BoundaryError("extended_forced_finality_frontier_ahead_of_head")
+    budget=_forced_finality_wait_budget(latest_ts,frontier_ts,target)
+    started=clock()
+    deadline=started+budget
+    polls=1
+    progress_events=0
+    prior_block=frontier_block
+    prior_ts=frontier_ts
+
+    while frontier_ts < target:
+        now=clock()
+        if now>=deadline:
+            raise BoundaryError("extended_forced_finality_timeout")
+        sleeper(min(FORCED_FINALITY_POLL_SECONDS,max(0.0,deadline-now)))
+        frontier=rpc.call(
+            "eth_getBlockByNumber",["finalized",False],scope="extended_forward"
+        )
+        polls+=1
+        frontier_block=int(frontier["number"],16)
+        frontier_ts=int(frontier["timestamp"],16)
+        if frontier_block < prior_block or frontier_ts < prior_ts:
+            raise BoundaryError("extended_forced_finality_regression")
+        if frontier_block > prior_block or frontier_ts > prior_ts:
+            progress_events+=1
+        prior_block=frontier_block
+        prior_ts=frontier_ts
+
+    return frontier,dict(
+        target_timestamp=target,
+        start_latest_block=latest_block,
+        start_latest_timestamp=latest_ts,
+        start_finalized_block=initial_frontier_block,
+        start_finalized_timestamp=initial_frontier_ts,
+        observed_head_finalized_lag_seconds=max(0,latest_ts-initial_frontier_ts),
+        wait_budget_seconds=budget,
+        polls=polls,
+        progress_events=progress_events,
+        waited_seconds=max(0.0,clock()-started),
+        final_finalized_block=frontier_block,
+        final_finalized_timestamp=frontier_ts,
+        horizon_unchanged_seconds=FORCED_FORWARD_SECONDS,
+    )
+
+
 def _forced_machinery(endpoint, screen, row, *, db_path):
     pool=row["pool"].lower()
     entry_block=int(screen["finalized_block"])
@@ -238,18 +328,10 @@ def _forced_machinery(endpoint, screen, row, *, db_path):
             at=entry_at,
         )
 
-        target=entry_at+FORCED_FORWARD_SECONDS
-        deadline=time.monotonic()+300
-        frontier=rpc.call(
-            "eth_getBlockByNumber",["finalized",False],scope="extended_forward"
+        frontier,finality_wait=_wait_for_forced_finality(
+            rpc,entry_at
         )
-        while int(frontier["timestamp"],16)<target:
-            if time.monotonic()>=deadline:
-                raise BoundaryError("extended_forced_finality_timeout")
-            time.sleep(10)
-            frontier=rpc.call(
-                "eth_getBlockByNumber",["finalized",False],scope="extended_forward"
-            )
+        result["finality_wait"]=finality_wait
         selected,horizon=_exact_forced_horizon(
             rpc,entry_block,entry_at,frontier
         )

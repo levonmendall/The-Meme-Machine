@@ -7,8 +7,10 @@ import unittest
 from robinhood_research import BoundaryError
 from robinhood_research.ramses_extended_test import (
     _exact_forced_horizon,
+    _forced_finality_wait_budget,
     _pick_forced_row,
     _screen_summary,
+    _wait_for_forced_finality,
 )
 from robinhood_research.ramses_strategy import (
     POLICY_HASH,
@@ -156,6 +158,87 @@ class RamsesExtendedMarketTests(unittest.TestCase):
         self.assertEqual(horizon["previous_timestamp"],1056)
         self.assertLess(horizon["previous_timestamp"],1060)
         self.assertGreaterEqual(horizon["selected_timestamp"],1060)
+
+    def test_forced_finality_budget_tracks_live_lag_with_bounds(self):
+        self.assertEqual(
+            _forced_finality_wait_budget(1100,1000,1060),
+            600,
+        )
+        self.assertEqual(
+            _forced_finality_wait_budget(1500,1000,1060),
+            1180,
+        )
+        self.assertEqual(
+            _forced_finality_wait_budget(2000,1000,1060),
+            1200,
+        )
+
+    def test_forced_finality_wait_tolerates_slow_progress_without_moving_target(self):
+        class Clock:
+            def __init__(self):
+                self.now=0.0
+            def time(self):
+                return self.now
+            def sleep(self,seconds):
+                self.now+=float(seconds)
+
+        class Rpc:
+            def __init__(self):
+                self.frontiers=[
+                    dict(number=hex(101),timestamp=hex(1040)),
+                    dict(number=hex(102),timestamp=hex(1050)),
+                    dict(number=hex(103),timestamp=hex(1060)),
+                ]
+            def batch(self,calls,scope="connectivity"):
+                self.assert_calls=calls
+                return [
+                    dict(number=hex(200),timestamp=hex(1500)),
+                    dict(number=hex(100),timestamp=hex(1000)),
+                ]
+            def call(self,method,params,scope="connectivity"):
+                if method!="eth_getBlockByNumber" or params!=["finalized",False]:
+                    raise AssertionError((method,params,scope))
+                return self.frontiers.pop(0)
+
+        clock=Clock()
+        frontier,meta=_wait_for_forced_finality(
+            Rpc(),1000,clock=clock.time,sleeper=clock.sleep
+        )
+        self.assertEqual(int(frontier["timestamp"],16),1060)
+        self.assertEqual(meta["target_timestamp"],1060)
+        self.assertEqual(meta["observed_head_finalized_lag_seconds"],500)
+        self.assertEqual(meta["wait_budget_seconds"],1180)
+        self.assertEqual(meta["polls"],4)
+        self.assertEqual(meta["progress_events"],3)
+        self.assertEqual(meta["waited_seconds"],45.0)
+        self.assertEqual(meta["horizon_unchanged_seconds"],60)
+
+    def test_forced_finality_wait_rejects_frontier_regression(self):
+        class Clock:
+            def __init__(self):
+                self.now=0.0
+            def time(self):
+                return self.now
+            def sleep(self,seconds):
+                self.now+=float(seconds)
+
+        class Rpc:
+            def batch(self,calls,scope="connectivity"):
+                return [
+                    dict(number=hex(200),timestamp=hex(1500)),
+                    dict(number=hex(100),timestamp=hex(1000)),
+                ]
+            def call(self,method,params,scope="connectivity"):
+                return dict(number=hex(99),timestamp=hex(999))
+
+        clock=Clock()
+        with self.assertRaisesRegex(
+            BoundaryError,
+            "extended_forced_finality_regression",
+        ):
+            _wait_for_forced_finality(
+                Rpc(),1000,clock=clock.time,sleeper=clock.sleep
+            )
 
 
 if __name__=="__main__":
