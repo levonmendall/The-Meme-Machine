@@ -12,8 +12,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
-      MM_ONFINALITY_SOLANA_WS_URL: ${{ secrets.MM_ONFINALITY_SOLANA_WS_URL }}
       MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
     concurrency:
       group: dlmm-provider-5rps-validation
@@ -24,9 +22,9 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Provider topology regression gate
+      - name: Direct Alchemy topology regression gate
         run: python -m unittest tests.test_dlmm_alchemy_provider -v
-      - name: Live five-read DLMM provider validation
+      - name: Live five-read direct Alchemy validation
         run: python -m tests.dlmm_provider_5rps_live
       - name: Preserve provider validation
         if: always()
