@@ -50,9 +50,9 @@ class ThroughputPolicyTests(unittest.TestCase):
         self.assertEqual(outcomes.EXTRA_EVIDENCE_PER_SLOT,5)
 
 
-    def test_live_workflows_use_authenticated_pump_lane_and_keep_long_windows(self):
+    def test_live_workflows_use_public_discovery_alchemy_http_lane_and_keep_long_windows(self):
         workflow=(Path(__file__).resolve().parents[1]/'.github'/'workflows'/'ci.yml').read_text()
-        self.assertIn('group: solana-onfinality-auth-pump-live',workflow)
+        self.assertIn('group: solana-pump-public-discovery-alchemy-http',workflow)
         self.assertIn("MM_MARKET_NATIVE_COHORT_DISCOVERY_SECONDS: '5400'",workflow)
         self.assertNotIn("MM_MARKET_NATIVE_COHORT_PREFLIGHT_BUDGET",workflow)
         self.assertNotIn("MM_MARKET_NATIVE_COHORT_FULL_EVIDENCE_BUDGET",workflow)
@@ -62,6 +62,7 @@ class ThroughputPolicyTests(unittest.TestCase):
         self.assertIn("MM_MARKET_NATIVE_OUTCOME_PRIORITY_BUDGET: '240'",workflow)
         self.assertIn("MM_MARKET_NATIVE_OUTCOME_EXTRA_EVIDENCE_BUDGET: '240'",workflow)
         self.assertIn("MM_MARKET_NATIVE_OUTCOME_EXTRA_EVIDENCE_PER_SLOT: '5'",workflow)
+        self.assertNotIn("MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}", workflow[workflow.find("  discovery-lane-compare:"):])
 
 
 if __name__=='__main__':
