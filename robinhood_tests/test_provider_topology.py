@@ -163,16 +163,42 @@ class LaneProviderTests(unittest.TestCase):
                 transport=lambda *_:"0x1237",
             )
 
-    def test_dlmm_rejects_primary_endpoint_reuse(self):
-        endpoint="https://rpc.validationcloud.io/key"
+    def test_explicit_primary_alias_uses_bounded_shared_dlmm_mode(self):
+        endpoint="https://robinhood-mainnet.g.alchemy.com/v2/key"
         env={PRIMARY_ENV:endpoint,DLMM_ENV:endpoint}
-        with self.assertRaisesRegex(
-            BoundaryError,"robinhood_dlmm_primary_endpoint_reuse_forbidden"
-        ):
-            configured_dlmm_rpc(
-                environ=env,limit=10,per_scope=10,retries=0,
-                transport=lambda *_:"0x1237",
-            )
+        rpc=configured_dlmm_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        t=rpc.telemetry()
+        self.assertTrue(rpc.primary_shared)
+        self.assertTrue(t["primary_shared"])
+        self.assertEqual(
+            t["role"],"dlmm_reconstruction_primary_shared_observation"
+        )
+        self.assertEqual(t["pacing"]["requests_per_second"],1.0)
+        self.assertFalse(rpc.primary_fallback)
+
+    def test_explicit_primary_alias_preserves_discovery_at_bounded_rate(self):
+        endpoint="https://robinhood-mainnet.g.alchemy.com/v2/key"
+        env={
+            PRIMARY_ENV:endpoint,
+            DISCOVERY_ENV:endpoint,
+            DLMM_ENV:endpoint,
+        }
+        rpc=configured_discovery_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        t=rpc.telemetry()
+        self.assertTrue(rpc.primary_shared)
+        self.assertTrue(t["primary_shared"])
+        self.assertEqual(
+            t["role"],"pons_discovery_primary_shared_observation"
+        )
+        self.assertEqual(t["pacing"]["requests_per_second"],2.0)
+        self.assertEqual(t["credential_role"],DISCOVERY_ENV)
+        self.assertFalse(rpc.primary_fallback)
 
     def test_bulk_lanes_have_independent_pacers_from_directional_primary(self):
         env={
@@ -196,6 +222,8 @@ class LaneProviderTests(unittest.TestCase):
         self.assertIsNot(directional.pacer,dlmm.pacer)
         self.assertFalse(discovery.primary_fallback)
         self.assertFalse(dlmm.primary_fallback)
+        self.assertFalse(discovery.primary_shared)
+        self.assertFalse(dlmm.primary_shared)
         self.assertEqual(discovery.pacer.requests_per_second,5.0)
         self.assertEqual(dlmm.pacer.requests_per_second,5.0)
 
@@ -244,6 +272,8 @@ class LaneProviderTests(unittest.TestCase):
             meta["directional"]["discovery_primary_candidate_bypassed"]
         )
         self.assertTrue(meta["provider_role_isolation"])
+        self.assertTrue(meta["endpoint_isolation_complete"])
+        self.assertFalse(meta["bulk_primary_shared"])
         self.assertFalse(meta["bulk_primary_fallback"])
         self.assertFalse(meta["directional"]["discovery_primary_fallback"])
         self.assertFalse(meta["dlmm"]["primary_fallback"])
@@ -286,6 +316,24 @@ class LaneProviderTests(unittest.TestCase):
         self.assertEqual(t["provider_kind"],"alchemy")
         self.assertEqual(t["credential_role"],DLMM_ENV)
         self.assertFalse(rpc.primary_fallback)
+
+    def test_topology_metadata_exposes_explicit_shared_primary_mode(self):
+        endpoint="https://robinhood-mainnet.g.alchemy.com/v2/shared"
+        env={
+            PRIMARY_ENV:endpoint,
+            DISCOVERY_ENV:endpoint,
+            DLMM_ENV:endpoint,
+        }
+        meta=topology_metadata(environ=env)
+        self.assertTrue(meta["bulk_primary_shared"])
+        self.assertFalse(meta["endpoint_isolation_complete"])
+        self.assertTrue(meta["directional"]["discovery_primary_shared"])
+        self.assertTrue(meta["dlmm"]["primary_shared"])
+        self.assertEqual(
+            meta["directional"]["discovery_requests_per_second"],2.0
+        )
+        self.assertEqual(meta["dlmm"]["requests_per_second"],1.0)
+        self.assertFalse(meta["bulk_primary_fallback"])
 
     def test_topology_metadata_reports_missing_bulk_lanes_without_primary_fallback(self):
         env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/secret"}
