@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
+import os
 from pathlib import Path
 import statistics
 import time
@@ -21,6 +23,7 @@ from tests import dlmm_wallet_strategy_discovery as study
 
 DISCOVERY_OUT=Path("dlmm-top-roi-wallet-discovery.json")
 ANALYSIS_OUT=Path("dlmm-top-roi-wallet-analysis.json")
+CHECKPOINT_OUT=Path("dlmm-top-roi-wallet-checkpoint.json")
 DEFAULT_COHORT=Path("DLMM_TOP_ROI_WALLET_COHORT_V1.json")
 
 POOL_SAMPLE=30
@@ -42,6 +45,11 @@ MAX_POSITION_PAGES=10
 ROBUST_MIN_CLOSED_POSITIONS=20
 ROBUST_MIN_DISTINCT_POOLS=3
 ROBUST_MIN_PROFITABLE_POSITION_RATE=0.55
+
+DEFAULT_ANALYSIS_WORKERS=4
+MAX_ANALYSIS_WORKERS=6
+ANALYSIS_RETRY_ATTEMPTS=2
+ANALYSIS_RETRY_SLEEP_SECONDS=1.0
 
 
 def _dec(v,default=0.0):
@@ -297,6 +305,139 @@ def _analyze_wallet(wallet):
     )
 
 
+def _analysis_rule_signature(cohort_hash,wallets):
+    return dict(
+        cohort_hash=cohort_hash,
+        wallets=list(wallets),
+        evaluation_days=DAYS_BACK,
+        raw_roi="sum(pnlUsd) / sum(allTimeDeposits.total.usd)",
+        robust_min_closed_positions=ROBUST_MIN_CLOSED_POSITIONS,
+        robust_min_distinct_pools=ROBUST_MIN_DISTINCT_POOLS,
+        robust_require_total_pnl_usd_positive=True,
+        robust_require_total_pnl_sol_positive=True,
+        robust_min_profitable_position_rate_usd=ROBUST_MIN_PROFITABLE_POSITION_RATE,
+    )
+
+
+def _safe_analysis_error(exc):
+    text=str(exc)
+    if isinstance(exc,RuntimeError) and text.startswith("dlmm_top_roi_"):
+        return text[:160]
+    return type(exc).__name__
+
+
+def _write_checkpoint(path,signature,rows,failures,started_at):
+    body=dict(
+        kind="dlmm_top_roi_wallet_checkpoint_v1",
+        status=("complete" if len(rows)==len(signature["wallets"]) and not failures
+                else "partial"),
+        rule_signature=signature,
+        started_at=started_at,
+        updated_at=int(time.time()),
+        completed_wallets=len(rows),
+        failed_wallets=len(failures),
+        rows={wallet:rows[wallet] for wallet in signature["wallets"]
+              if wallet in rows},
+        failures={wallet:failures[wallet] for wallet in signature["wallets"]
+                  if wallet in failures},
+    )
+    tmp=path.with_suffix(path.suffix+".tmp")
+    tmp.write_text(json.dumps(body,indent=2,sort_keys=True)+"\n")
+    tmp.replace(path)
+
+
+def _load_checkpoint(path,signature):
+    if not path.exists():
+        return {},{}
+    body=json.loads(path.read_text())
+    if (body.get("kind")!="dlmm_top_roi_wallet_checkpoint_v1" or
+            body.get("rule_signature")!=signature):
+        raise RuntimeError("dlmm_top_roi_checkpoint_mismatch")
+    rows=body.get("rows") or {}
+    failures=body.get("failures") or {}
+    if not isinstance(rows,dict) or not isinstance(failures,dict):
+        raise RuntimeError("dlmm_top_roi_checkpoint_shape")
+    clean={}
+    for order,wallet in enumerate(signature["wallets"],1):
+        row=rows.get(wallet)
+        if row is None:
+            continue
+        if not isinstance(row,dict) or row.get("wallet")!=wallet:
+            raise RuntimeError("dlmm_top_roi_checkpoint_row_identity")
+        row=dict(row);row["cohort_order"]=order
+        clean[wallet]=row
+    return clean,{w:failures[w] for w in signature["wallets"] if w in failures}
+
+
+def _analyze_wallet_with_retry(wallet,analyzer):
+    last=None
+    for attempt in range(1,ANALYSIS_RETRY_ATTEMPTS+1):
+        try:
+            return analyzer(wallet)
+        except Exception as exc:
+            last=exc
+            if attempt<ANALYSIS_RETRY_ATTEMPTS:
+                time.sleep(ANALYSIS_RETRY_SLEEP_SECONDS)
+    raise last
+
+
+def _analysis_workers():
+    value=int(os.environ.get("DLMM_ROI_ANALYSIS_WORKERS",str(DEFAULT_ANALYSIS_WORKERS)))
+    if not 1<=value<=MAX_ANALYSIS_WORKERS:
+        raise RuntimeError("dlmm_top_roi_analysis_worker_bound")
+    return value
+
+
+def _analyze_wallets(wallets,cohort_hash,checkpoint_path=CHECKPOINT_OUT,
+                     workers=None,analyzer=_analyze_wallet):
+    signature=_analysis_rule_signature(cohort_hash,wallets)
+    rows,failures=_load_checkpoint(Path(checkpoint_path),signature)
+    started_at=int(time.time())
+    # A retry reruns only unfinished/failed wallets. Successfully checkpointed rows
+    # remain tied to the identical frozen cohort and exact ranking-rule signature.
+    for wallet in list(failures):
+        if wallet not in rows:
+            failures.pop(wallet,None)
+    pending=[(order,wallet) for order,wallet in enumerate(wallets,1)
+             if wallet not in rows]
+    worker_count=_analysis_workers() if workers is None else int(workers)
+    if not 1<=worker_count<=MAX_ANALYSIS_WORKERS:
+        raise RuntimeError("dlmm_top_roi_analysis_worker_bound")
+    _write_checkpoint(Path(checkpoint_path),signature,rows,failures,started_at)
+    if pending:
+        with ThreadPoolExecutor(max_workers=min(worker_count,len(pending)),
+                                thread_name_prefix="dlmm-roi") as executor:
+            future_map={
+                executor.submit(_analyze_wallet_with_retry,wallet,analyzer):(order,wallet)
+                for order,wallet in pending
+            }
+            for future in as_completed(future_map):
+                order,wallet=future_map[future]
+                try:
+                    row=future.result()
+                    row=dict(row);row["cohort_order"]=order
+                    rows[wallet]=row
+                    failures.pop(wallet,None)
+                    state="completed"
+                except Exception as exc:
+                    failures[wallet]=dict(
+                        error=_safe_analysis_error(exc),
+                        attempts=ANALYSIS_RETRY_ATTEMPTS,
+                    )
+                    state="failed"
+                _write_checkpoint(Path(checkpoint_path),signature,rows,failures,started_at)
+                print(json.dumps(dict(
+                    phase="wallet_checkpoint",wallet=wallet,state=state,
+                    completed_wallets=len(rows),failed_wallets=len(failures),
+                    total_wallets=len(wallets),
+                ),sort_keys=True),flush=True)
+    if failures:
+        raise RuntimeError(f"dlmm_top_roi_wallet_analysis_incomplete:{len(failures)}")
+    if len(rows)!=len(wallets):
+        raise RuntimeError("dlmm_top_roi_wallet_analysis_missing_rows")
+    return [rows[wallet] for wallet in wallets]
+
+
 def analyze(path=DEFAULT_COHORT):
     cohort=json.loads(Path(path).read_text())
     if cohort.get("kind")!="dlmm_top_roi_wallet_cohort_v1" or cohort.get("status")!="frozen_pre_pnl":
@@ -307,11 +448,11 @@ def analyze(path=DEFAULT_COHORT):
     if len(wallets)<MIN_WALLETS:
         raise RuntimeError("dlmm_top_roi_cohort_too_small")
 
-    results=[]
-    for i,wallet in enumerate(wallets,1):
-        row=_analyze_wallet(wallet)
-        row["cohort_order"]=i
-        results.append(row)
+    results=_analyze_wallets(
+        wallets,
+        cohort.get("cohort_hash"),
+        checkpoint_path=CHECKPOINT_OUT,
+    )
 
     raw=[r for r in results if r["recent_roi_pct"] is not None]
     raw.sort(key=lambda r:(-r["recent_roi_pct"],-r["total_positions_api"],r["wallet"]))
@@ -334,6 +475,13 @@ def analyze(path=DEFAULT_COHORT):
             min_profitable_position_rate_usd=ROBUST_MIN_PROFITABLE_POSITION_RATE,
         ),
         robust_wallet_count=len(robust),
+        execution=dict(
+            wallet_checkpointing=True,
+            bounded_concurrent_meteora_reads=True,
+            analysis_workers=_analysis_workers(),
+            retry_attempts_per_wallet=ANALYSIS_RETRY_ATTEMPTS,
+            checkpoint_path=str(CHECKPOINT_OUT),
+        ),
         raw_top_20=raw[:20],robust_top_20=robust[:20],
         all_wallets=results,
         interpretation=(
