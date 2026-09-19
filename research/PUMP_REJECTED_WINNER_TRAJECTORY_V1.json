@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "hypothesis_id": "concentration_dense_activity_15s_trajectory_v1",
+  "status": "FROZEN_FOR_PROSPECTIVE_RESEARCH",
+  "authority": "research_only",
+  "automatic_trading_admission": false,
+  "continuation_v1_unchanged": true,
+  "future_outcomes_used_for_membership": false,
+  "stage_1": {
+    "source_hypothesis": "concentration_dense_activity_v1",
+    "required_actual_reason": "concentration",
+    "min_evidence_events": 25,
+    "min_independent_group_fraction": 0.02
+  },
+  "confirmation": {
+    "seconds": 15,
+    "requirements": {
+      "independent_buyer_groups_delta_min": 1,
+      "independent_net_buy_delta_lamports_min": 1,
+      "concentration_delta_bps_max": 0,
+      "real_sol_delta_lamports_min": 0,
+      "real_sol_lamports_min": 10000000000,
+      "price_extension_bps_max": 12000,
+      "roundtrip_loss_bps_max": 500,
+      "roundtrip_loss_delta_bps_max": 0,
+      "independent_group_fraction_delta_min": 0,
+      "if_price_extension_increases_independent_group_fraction_must_increase": true
+    }
+  },
+  "hypothetical_entry": {
+    "timing": "after_confirmation_only",
+    "position_fraction": 0.05,
+    "entry_basis": "modeled_executable_buy_quote_plus_gas"
+  },
+  "shadow_exit": {
+    "take_profit_bps": 1500,
+    "risk_bps": -1000,
+    "timeout_seconds": 900,
+    "canonical_execution": false
+  },
+  "validation": {
+    "min_confirmed": 30,
+    "min_passes": 10,
+    "rule_refit_allowed": false,
+    "success": {
+      "clean_winner_rate_min": 0.20,
+      "median_mae_bps_gt": -1000,
+      "below_minus_10pct_rate_max": 0.50,
+      "mean_shadow_exit_return_bps_gt": 0
+    }
+  }
+}
