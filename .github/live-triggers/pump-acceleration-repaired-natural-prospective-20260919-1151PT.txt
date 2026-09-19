@@ -1,0 +1,24 @@
+Re-run pump-acceleration-independent-v1 after evidence-machinery repairs.
+
+Frozen strategy policy hash:
+b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246
+
+Verified repair baseline:
+cb47f27f523734c4d59f3b4824b2620a83f6f262
+
+Repairs only; no strategy threshold, score, sizing, or exit changes:
+- backward bonding-curve movement is signed evidence and ordinary rejection;
+- full-evidence rows are append-only in the experiment artifact;
+- frozen skilled-wallet evidence plus point-in-time funding/creator confirmation is fed as confirmation only;
+- PumpSwap history is incremental, cached, finalized, and coverage-proven;
+- provider telemetry includes method/status/JSON-RPC error codes without sensitive payloads;
+- batch retry retries only failed members.
+
+Natural prospective rules remain unchanged:
+- public finalized Pump WebSocket discovery;
+- Alchemy HTTP primary, no automatic rescue;
+- 2-second delayed fresh paper fills;
+- no continuation-v1 authority;
+- no shared portfolio mutation;
+- no signing, submission, live money, merge, or deployment;
+- no outcome-driven threshold changes.
