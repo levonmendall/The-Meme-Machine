@@ -10,6 +10,7 @@ name: solana-dlmm-independent-v1
 # compatibility-budget: pre-attempt
 # dynamic-fee-role: context-only
 # operational-repair: restart-safe-rpc-checkpointed-20m
+# rpc-429-repair: shared-cooldown-deduped-signature-poll
 # operational-repair: shared-429-backoff-dedup-signatures
 # evidence-repair: program-account-wake-stream-incremental-ledger-durable-tx-cache
 on:
