@@ -71,7 +71,7 @@ def run():
     selected=[]
     block_telemetry=[]
     for slot in range(START_SLOT+1,END_SLOT+1):
-        if slot>START_SLOT+1: rpc.sleep(1.0)
+        if slot>START_SLOT+1: rpc.sleep(0.25)
         block=rpc.call('getBlock',[slot,dict(commitment='finalized',encoding='json',
             transactionDetails='accounts',maxSupportedTransactionVersion=0,rewards=False)],True)
         if block is None:

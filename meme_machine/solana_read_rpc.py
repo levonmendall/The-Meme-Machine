@@ -6,7 +6,7 @@ Provider policy:
   optional SECONDARY rescue endpoint.
 - Healthy primary reads never spend Alchemy capacity.
 - Rescue is allowed only after a primary transport/HTTP failure, provider error,
-  unusable whole-batch response, or a null getTransaction result.
+  or a null getTransaction result.
 - One logical RPC budget remains authoritative. A rescue may add one physical HTTP
   request, and that extra transport is counted explicitly.
 - This module never signs or submits transactions.
@@ -35,7 +35,10 @@ ALCHEMY_ENV_NAME = "MM_SOLANA_READ_RPC_URL"
 ALCHEMY_SOLANA_MAINNET_HOST = "solana-mainnet.g.alchemy.com"
 
 TOPOLOGY_LABEL = "onfinality_public_primary_alchemy_rescue"
-SOLANA_MIN_REQUEST_INTERVAL_SECONDS = 1.0
+PRIMARY_MIN_REQUEST_INTERVAL_SECONDS = 0.25
+ALCHEMY_RESCUE_MIN_REQUEST_INTERVAL_SECONDS = 1.0
+# Backward-compatible alias used by existing DLMM research helpers.
+SOLANA_MIN_REQUEST_INTERVAL_SECONDS = PRIMARY_MIN_REQUEST_INTERVAL_SECONDS
 PROVIDER_429_MIN_BACKOFF_SECONDS = 2.0
 
 
@@ -94,13 +97,13 @@ def secondary_rpc_url(environ=None, *, required=False):
 class SolanaReadPacer:
     """One conservative request clock shared across bounded RPC objects.
 
-    OnFinality currently permits more than this cadence, but Meme Machine retains
-    the existing one-request-per-second pacing by default so a provider change cannot
-    silently broaden evidence acquisition or request volume.
+    The OnFinality primary uses a 0.25-second floor (4 RPS), below the provider's
+    advertised 5 RPS public ceiling. Alchemy rescue uses a separate one-second pacer
+    so primary acceleration cannot increase authenticated-provider burn.
     """
 
     def __init__(self, minimum_interval=SOLANA_MIN_REQUEST_INTERVAL_SECONDS):
-        if minimum_interval < 0.5 or minimum_interval > 5.0:
+        if minimum_interval < 0.2 or minimum_interval > 5.0:
             raise ValueError("solana_read_pace_bound")
         self.minimum_interval = float(minimum_interval)
         self.next_request_at = -float("inf")
@@ -135,7 +138,12 @@ class _ReadOnlyFailoverMixin:
 
     def _init_failover(self, secondary_url, pacer):
         self.secondary_url = secondary_url
-        self.read_pacer = pacer or SolanaReadPacer()
+        self.read_pacer = pacer or SolanaReadPacer(PRIMARY_MIN_REQUEST_INTERVAL_SECONDS)
+        rescue_pacer = getattr(self.read_pacer, "_alchemy_rescue_pacer", None)
+        if rescue_pacer is None:
+            rescue_pacer = SolanaReadPacer(ALCHEMY_RESCUE_MIN_REQUEST_INTERVAL_SECONDS)
+            setattr(self.read_pacer, "_alchemy_rescue_pacer", rescue_pacer)
+        self.alchemy_rescue_pacer = rescue_pacer
         # Compatibility for existing DLMM research code that still reads this name.
         self.alchemy_pacer = self.read_pacer
         self.provider_http_requests = Counter()
@@ -227,6 +235,11 @@ class _ReadOnlyFailoverMixin:
             reason = self._exception_reason(primary_exc)
             self.failover_count += 1
             self.failover_reasons[reason] += 1
+            # Keep authenticated rescue on its historical 1 RPS cadence even though
+            # the public primary now runs faster.
+            self.alchemy_rescue_pacer.pace(
+                self, ALCHEMY_RESCUE_MIN_REQUEST_INTERVAL_SECONDS
+            )
             # RPC.call/call_many already counted the primary physical transport.
             # Count the rescue transport explicitly so http_requests remains physical.
             self.http_requests += 1
@@ -251,6 +264,8 @@ class _ReadOnlyFailoverMixin:
             failover_count=int(self.failover_count),
             failover_reasons=dict(sorted(self.failover_reasons.items())),
             pacing=self.read_pacer.telemetry(),
+            primary_pacing=self.read_pacer.telemetry(),
+            alchemy_rescue_pacing=self.alchemy_rescue_pacer.telemetry(),
         )
 
 
@@ -265,6 +280,7 @@ class ReadOnlyFailoverRPC(_ReadOnlyFailoverMixin, RPC):
         **kwargs,
     ):
         self._init_failover(secondary_url, pacer)
+        kwargs.setdefault("request_interval_seconds", PRIMARY_MIN_REQUEST_INTERVAL_SECONDS)
         super().__init__(primary_url, limit=limit, **kwargs)
 
 
@@ -283,6 +299,7 @@ class ReadOnlyFailoverPoolScanRPC(_ReadOnlyFailoverMixin, PoolScanRPC):
         **kwargs,
     ):
         self._init_failover(secondary_url, pacer)
+        kwargs.setdefault("request_interval_seconds", PRIMARY_MIN_REQUEST_INTERVAL_SECONDS)
         super().__init__(primary_url, limit=limit, **kwargs)
 
 
@@ -317,13 +334,17 @@ def metadata(environ=None):
         secondary_configured=secondary_rpc_url(environ, required=False) is not None,
         fallback_allowed=True,
         fallback_policy=(
-            "transport_or_http_failure_provider_error_unusable_batch_or_null_getTransaction"
+            "transport_or_http_failure_provider_error_or_null_getTransaction"
         ),
         load_balancing=False,
         network="solana-mainnet",
         signing=False,
         submission=False,
-        minimum_request_interval_seconds=SOLANA_MIN_REQUEST_INTERVAL_SECONDS,
+        minimum_request_interval_seconds=PRIMARY_MIN_REQUEST_INTERVAL_SECONDS,
+        primary_minimum_request_interval_seconds=PRIMARY_MIN_REQUEST_INTERVAL_SECONDS,
+        primary_max_requests_per_second=1.0 / PRIMARY_MIN_REQUEST_INTERVAL_SECONDS,
+        alchemy_rescue_minimum_request_interval_seconds=ALCHEMY_RESCUE_MIN_REQUEST_INTERVAL_SECONDS,
+        alchemy_rescue_max_requests_per_second=1.0 / ALCHEMY_RESCUE_MIN_REQUEST_INTERVAL_SECONDS,
         minimum_429_backoff_seconds=PROVIDER_429_MIN_BACKOFF_SECONDS,
     )
 

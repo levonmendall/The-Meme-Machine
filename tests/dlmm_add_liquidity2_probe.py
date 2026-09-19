@@ -70,7 +70,7 @@ def run():
     relevant=[]
     for slot in range(START_SLOT+1,END_SLOT+1):
         if telemetry["block_scan_slots"]:
-            time.sleep(1.0)
+            time.sleep(0.25)
         block=rpc.call("getBlock",[slot,dict(
             commitment="finalized",encoding="json",
             transactionDetails="accounts",rewards=False,
