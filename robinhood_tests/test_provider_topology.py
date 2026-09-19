@@ -99,23 +99,32 @@ class LaneProviderTests(unittest.TestCase):
                 transport=lambda *_:"0x1237",
             )
 
-    def test_discovery_rejects_alchemy_when_no_isolated_observer_exists(self):
+    def test_discovery_accepts_distinct_alchemy_endpoint(self):
         env={
             PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/primary",
             DISCOVERY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/discovery",
         }
-        with self.assertRaisesRegex(
-            BoundaryError,"robinhood_discovery_alchemy_endpoint_forbidden"
-        ):
-            configured_discovery_rpc(
+        rpc=configured_discovery_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        t=rpc.telemetry()
+        self.assertEqual(t["provider_kind"],"alchemy")
+        self.assertEqual(t["credential_role"],DISCOVERY_ENV)
+        self.assertFalse(rpc.primary_fallback)
+        self.assertNotEqual(
+            t["endpoint_fingerprint"],
+            configured_rpc(
                 environ=env,limit=10,per_scope=10,retries=0,
                 transport=lambda *_:"0x1237",
-            )
+            ).telemetry()["endpoint_fingerprint"],
+        )
 
-    def test_discovery_bypasses_alchemy_candidate_to_isolated_dlmm_provider(self):
+    def test_discovery_bypasses_exact_primary_to_isolated_dlmm_provider(self):
+        primary="https://robinhood-mainnet.g.alchemy.com/v2/primary"
         env={
-            PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/primary",
-            DISCOVERY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/discovery",
+            PRIMARY_ENV:primary,
+            DISCOVERY_ENV:primary,
             DLMM_ENV:"https://rpc.validationcloud.io/dlmm",
         }
         rpc=configured_discovery_rpc(
@@ -232,7 +241,7 @@ class LaneProviderTests(unittest.TestCase):
         self.assertEqual(meta["dlmm"]["provider_kind"],"validation_cloud")
         self.assertEqual(meta["directional"]["discovery_credential"],DLMM_ENV)
         self.assertFalse(
-            meta["directional"]["discovery_alchemy_candidate_bypassed"]
+            meta["directional"]["discovery_primary_candidate_bypassed"]
         )
         self.assertTrue(meta["provider_role_isolation"])
         self.assertFalse(meta["bulk_primary_fallback"])
@@ -245,10 +254,11 @@ class LaneProviderTests(unittest.TestCase):
         self.assertNotIn("/secret",body)
         self.assertNotIn("https://",body)
 
-    def test_topology_metadata_marks_alchemy_discovery_bypass(self):
+    def test_topology_metadata_marks_exact_primary_discovery_bypass(self):
+        primary="https://robinhood-mainnet.g.alchemy.com/v2/primary"
         env={
-            PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/primary",
-            DISCOVERY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/discovery",
+            PRIMARY_ENV:primary,
+            DISCOVERY_ENV:primary,
             DLMM_ENV:"https://rpc.validationcloud.io/dlmm",
         }
         meta=topology_metadata(environ=env)
@@ -259,9 +269,23 @@ class LaneProviderTests(unittest.TestCase):
         )
         self.assertEqual(meta["directional"]["discovery_credential"],DLMM_ENV)
         self.assertTrue(
-            meta["directional"]["discovery_alchemy_candidate_bypassed"]
+            meta["directional"]["discovery_primary_candidate_bypassed"]
         )
         self.assertFalse(meta["bulk_primary_fallback"])
+
+    def test_dlmm_accepts_distinct_alchemy_endpoint_but_not_primary_reuse(self):
+        env={
+            PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/primary",
+            DLMM_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/dlmm",
+        }
+        rpc=configured_dlmm_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        t=rpc.telemetry()
+        self.assertEqual(t["provider_kind"],"alchemy")
+        self.assertEqual(t["credential_role"],DLMM_ENV)
+        self.assertFalse(rpc.primary_fallback)
 
     def test_topology_metadata_reports_missing_bulk_lanes_without_primary_fallback(self):
         env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/secret"}
