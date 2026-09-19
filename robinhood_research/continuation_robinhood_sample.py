@@ -33,7 +33,8 @@ from .pons_natural_observation import (
     RESEARCH_RECIPIENT, _current_curve_events, _latest_header,
     _one_word, _two_uints,
 )
-from .provider_topology import configured_rpc
+from .provider_topology import configured_discovery_rpc, configured_rpc
+from .sequencer_feed import SequencerBlockClock
 
 REPORT=Path(os.environ.get(
     "MM_ROBINHOOD_CONTINUATION_SAMPLE_REPORT",
@@ -54,6 +55,12 @@ RECEIPT_BATCH=20
 def _rpc(endpoint, *, full=False):
     return configured_rpc(
         endpoint,limit=200,per_scope=(200 if full else 190),retries=0,
+    )
+
+
+def _discovery_rpc(endpoint):
+    return configured_discovery_rpc(
+        endpoint,limit=200,per_scope=190,retries=0,
     )
 
 
@@ -421,17 +428,23 @@ def _rotate_discovery(endpoint,rpc,result):
     result["discovery_sessions"].append(rpc.telemetry())
     if len(result["discovery_sessions"])>=MAX_PROVIDER_SESSIONS:
         raise BoundaryError("discovery_session_capacity")
-    new=_rpc(endpoint)
+    new=_discovery_rpc(endpoint)
     new.verify_chain()
     return new
 
 
-def _poll_into_tape(endpoint,rpc,cursor,tape,result):
+def _poll_into_tape(endpoint,rpc,cursor,tape,result,feed):
     if rpc.used>150:
         rpc=_rotate_discovery(endpoint,rpc,result)
-    latest_header=_latest_header(rpc)
-    latest=int(latest_header["number"],16)
-    first=max(cursor+1,latest-9)
+    latest=feed.wait_for_after(cursor,timeout=POLL_SECONDS)
+    if latest is None:
+        return rpc,cursor,[],None
+    latest_header=rpc.call(
+        "eth_getBlockByNumber",[hex(latest),False],scope="pons_natural"
+    )
+    if int(latest_header["number"],16)!=latest:
+        raise BoundaryError("sequencer_discovery_block_disagreement")
+    first=cursor+1
     fresh=[]
     if latest>=first:
         fresh=_current_curve_events(rpc,first,latest)
@@ -446,7 +459,7 @@ def run(endpoint):
     started=time.time()
     result=dict(
         kind="continuation-v1-robinhood-unbiased-natural-sample",
-        acquisition_version="warmed_tape_batched_parallel_v1",
+        acquisition_version="sequencer_clock_discovery_split_v2",
         policy=POLICY,thresholds=dict(THRESHOLDS),
         translation_snapshot=dict(TRANSLATION_SNAPSHOT),
         policy_hash=digest(dict(
@@ -461,9 +474,18 @@ def run(endpoint):
     )
 
     seen_tx_logs=set();seen_curves=set();complete=0;tape=[]
-    rpc=_rpc(endpoint);rpc.verify_chain()
-    start_header=_latest_header(rpc)
-    cursor=int(start_header["number"],16)
+    rpc=_discovery_rpc(endpoint);rpc.verify_chain()
+    feed=SequencerBlockClock()
+    feed.connect()
+    cursor=feed.wait_for_after(-1,timeout=5.0)
+    if cursor is None:
+        raise BoundaryError("sequencer_discovery_start_timeout")
+    start_header=rpc.call(
+        "eth_getBlockByNumber",[hex(cursor),False],scope="pons_natural"
+    )
+    if int(start_header["number"],16)!=cursor:
+        raise BoundaryError("sequencer_discovery_block_disagreement")
+    latest_header=start_header
     warm_start=int(start_header["timestamp"],16)
     warm_deadline=time.monotonic()+TAPE_WARM_SECONDS
 
@@ -471,10 +493,11 @@ def run(endpoint):
         # Warm continuously so each later nomination has its prior 60-second event
         # history already resident. No candidate is enrolled during warmup.
         while time.monotonic()<warm_deadline:
-            rpc,cursor,_,latest_header=_poll_into_tape(
-                endpoint,rpc,cursor,tape,result
+            rpc,cursor,_,observed_header=_poll_into_tape(
+                endpoint,rpc,cursor,tape,result,feed
             )
-            time.sleep(POLL_SECONDS)
+            if observed_header is not None:
+                latest_header=observed_header
         result["warmup"]=dict(
             start_block=int(start_header["number"],16),end_block=cursor,
             start_time=warm_start,end_time=int(latest_header["timestamp"],16),
@@ -489,9 +512,11 @@ def run(endpoint):
             and len(result["rows"])<MAX_ENROLLED
             and complete<TARGET_COMPLETE
         ):
-            rpc,cursor,fresh,latest_header=_poll_into_tape(
-                endpoint,rpc,cursor,tape,result
+            rpc,cursor,fresh,observed_header=_poll_into_tape(
+                endpoint,rpc,cursor,tape,result,feed
             )
+            if observed_header is not None:
+                latest_header=observed_header
             candidates=[]
             for event in fresh:
                 key=(event["transactionHash"],event["logIndex"])
@@ -510,7 +535,6 @@ def run(endpoint):
                     continue
                 candidates.append(event)
             if not candidates:
-                time.sleep(POLL_SECONDS)
                 continue
             candidates.sort(key=lambda e:(
                 int(e["blockNumber"],16),
@@ -535,6 +559,9 @@ def run(endpoint):
     except BoundaryError as exc:
         result["boundary"]=str(exc)
         result["discovery_sessions"].append(rpc.telemetry())
+    finally:
+        result["sequencer_discovery"]=feed.status()
+        feed.close()
 
     vectors=[r.get("vector") for r in result["rows"] if r.get("vector")]
     complete_ages=[
