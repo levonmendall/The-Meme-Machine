@@ -1515,11 +1515,11 @@ def _await_fresh_swap_trigger(
 
 
 def _triggered_warmup(
-    adapter,candidate,compatibility_state,policy,pacer,rpcs,deadline=None
+    adapter,candidate,compatibility_state,policy,pacer,rpcs,deadline=None,broker=None
 ):
     trigger,post_trigger,adapter,current_candidate=(
         _await_fresh_swap_trigger(
-            adapter,candidate,compatibility_state,policy,pacer,rpcs,deadline))
+            adapter,candidate,compatibility_state,policy,pacer,rpcs,deadline,broker))
     if not trigger.get("triggered"):
         return dict(
             aligned=False,reason=trigger["reason"],trigger=trigger,
@@ -1527,7 +1527,7 @@ def _triggered_warmup(
     warmup_seconds=int(policy["range"]["warmup_seconds"])
     phase,warm,entry,warm_origin,adapter=_observe_window(
         adapter,current_candidate["address"],post_trigger,
-        warmup_seconds,True,pacer,rpcs,deadline)
+        warmup_seconds,True,pacer,rpcs,deadline,broker,"dlmm_fresh")
     result=dict(
         aligned=bool(phase.get("verified") and warm is not None and warm.events),
         reason=(
