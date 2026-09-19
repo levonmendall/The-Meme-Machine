@@ -1,8 +1,8 @@
 """Compatibility shim for Meme Machine's canonical Solana read topology.
 
-Historically DLMM used an Alchemy-only helper in this module. The public OnFinality
-endpoint is now primary and the existing MM_SOLANA_READ_RPC_URL Alchemy secret is a
-bounded rescue path. Existing imports remain valid so ongoing frozen experiments do
+Historically DLMM used an Alchemy-only helper in this module. Authenticated OnFinality
+is now primary and the existing MM_SOLANA_READ_RPC_URL Alchemy secret is a bounded
+rescue path. Existing imports remain valid so ongoing frozen experiments do
 not need strategy-layer changes.
 """
 from meme_machine.provider import Unavailable
@@ -27,7 +27,7 @@ from meme_machine.solana_read_rpc import (
 ENV_NAME = ALCHEMY_ENV_NAME
 PROVIDER_LABEL = TOPOLOGY_LABEL
 
-# DLMM uses the public primary at its declared 5 requests/second capability.
+# DLMM uses authenticated OnFinality primary at 5 requests/second.
 # Other Solana lanes retain the canonical topology's more conservative default.
 DLMM_MIN_REQUEST_INTERVAL_SECONDS = 0.2
 DLMM_PRIMARY_REQUESTS_PER_SECOND = 5
@@ -43,7 +43,7 @@ ALCHEMY_429_MIN_BACKOFF_SECONDS = PROVIDER_429_MIN_BACKOFF_SECONDS
 
 
 def rpc_url(environ=None):
-    """Return the canonical PRIMARY read endpoint (OnFinality public)."""
+    """Return the canonical PRIMARY read endpoint (authenticated when configured)."""
     return primary_rpc_url(environ)
 
 
@@ -73,9 +73,9 @@ def metadata(environ=None):
 
 
 def main():
-    validate_topology(require_secondary=True)
+    validate_topology(require_secondary=True,require_authenticated_primary=True)
     print(
-        "DLMM Solana read topology validated: OnFinality public primary at 5 rps; "
+        "DLMM Solana read topology validated: authenticated OnFinality primary at 5 rps; "
         "existing MM_SOLANA_READ_RPC_URL Alchemy endpoint is rescue-only"
     )
 
