@@ -41,6 +41,10 @@ class IncrementalPumpSwapHistory:
         self.stream_events_seen=0
         self.stream_hydrated_transactions=0
         self.stream_last_slot=0
+        self.decision_bootstrap_attempts=0
+        self.decision_bootstrap_pages=0
+        self.decision_bootstrap_complete=False
+        self.decision_bootstrap_capacity_loss=False
 
     @staticmethod
     def _valid_rows(rows):
@@ -192,7 +196,49 @@ class IncrementalPumpSwapHistory:
             self.stream_key,now,window_seconds)
         return bool(status.get("covered") and self.stream_pending_transactions==0)
 
-    def _decode_pending(self,rpc,now):
+    def _bootstrap_decision_window(self,rpc,now,window_seconds=30):
+        """Bounded HTTP bootstrap while a candidate-specific pool stream warms."""
+        if self.broker is None or self._stream_window_complete(now,window_seconds):
+            self.decision_bootstrap_complete=True
+            return
+        if self.decision_bootstrap_complete or self.decision_bootstrap_capacity_loss:
+            return
+        if self.decision_bootstrap_attempts>=3:
+            return
+
+        self.decision_bootstrap_attempts+=1
+        cutoff=int(now)-int(window_seconds)
+        before=None
+        page_limit=min(96,self.page_limit)
+        pages=0
+        reached=False
+        for _ in range(max(1,self.max_backfill_pages+1)):
+            rows=self._fetch(rpc,before=before,limit=page_limit)
+            pages+=1
+            self._remember(rows)
+            if not rows:
+                self.history_exhausted=True
+                reached=True
+                break
+            times=[
+                int(row["blockTime"]) for row in rows
+                if row.get("blockTime") is not None
+            ]
+            if times and min(times)<=cutoff:
+                reached=True
+                break
+            if len(rows)<page_limit:
+                self.history_exhausted=True
+                reached=True
+                break
+            before=rows[-1]["signature"]
+        self.decision_bootstrap_pages+=pages
+        if reached:
+            self.decision_bootstrap_complete=True
+        elif pages>=max(1,self.max_backfill_pages+1):
+            self.decision_bootstrap_capacity_loss=True
+
+    def _decode_pending(self,rpc,now,kind="research_history"):
         cutoff=int(now)-30
         recent=[]
         older=[]
@@ -223,7 +269,7 @@ class IncrementalPumpSwapHistory:
             signatures=[str(r["signature"]) for r in chunk]
             if self.broker is not None:
                 txmap,meta=self.broker.hydrate_transactions(
-                    rpc,signatures,kind="research_history",
+                    rpc,signatures,kind=str(kind),
                     deadline=time.time()+6.0,max_version=1,batch_size=8)
                 txs=[txmap.get(sig) for sig in signatures]
                 self.tx_failures+=int(meta["pending"])
@@ -297,10 +343,14 @@ class IncrementalPumpSwapHistory:
             # deferred until second-leg research actually needs them.
             self._ingest_stream_window(
                 rpc,now,30,hydration_kind=hydration_kind)
+            if not self._stream_window_complete(now,30):
+                self._bootstrap_decision_window(rpc,now,30)
+                self._decode_pending(
+                    rpc,now,kind=str(hydration_kind))
             if research:
                 self._new_head(rpc)
                 self._backfill(rpc)
-                self._decode_pending(rpc,now)
+                self._decode_pending(rpc,now,kind="research_history")
         else:
             self._new_head(rpc)
             self._backfill(rpc)
@@ -349,6 +399,10 @@ class IncrementalPumpSwapHistory:
             stream_events_seen=self.stream_events_seen,
             stream_hydrated_transactions=self.stream_hydrated_transactions,
             stream_last_slot=self.stream_last_slot,
+            decision_bootstrap_attempts=self.decision_bootstrap_attempts,
+            decision_bootstrap_pages=self.decision_bootstrap_pages,
+            decision_bootstrap_complete=self.decision_bootstrap_complete,
+            decision_bootstrap_capacity_loss=self.decision_bootstrap_capacity_loss,
             stream_status=(
                 None if self.broker is None
                 else self.broker.stream_status(self.stream_key,now,30)
