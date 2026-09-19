@@ -263,6 +263,7 @@ class _ReadOnlyFailoverMixin:
             provider_failure_reasons=dict(sorted(self.provider_failure_reasons.items())),
             failover_count=int(self.failover_count),
             failover_reasons=dict(sorted(self.failover_reasons.items())),
+            pacing=self.read_pacer.telemetry(),
             primary_pacing=self.read_pacer.telemetry(),
             alchemy_rescue_pacing=self.alchemy_rescue_pacer.telemetry(),
         )
@@ -339,6 +340,7 @@ def metadata(environ=None):
         network="solana-mainnet",
         signing=False,
         submission=False,
+        minimum_request_interval_seconds=PRIMARY_MIN_REQUEST_INTERVAL_SECONDS,
         primary_minimum_request_interval_seconds=PRIMARY_MIN_REQUEST_INTERVAL_SECONDS,
         primary_max_requests_per_second=1.0 / PRIMARY_MIN_REQUEST_INTERVAL_SECONDS,
         alchemy_rescue_minimum_request_interval_seconds=ALCHEMY_RESCUE_MIN_REQUEST_INTERVAL_SECONDS,
