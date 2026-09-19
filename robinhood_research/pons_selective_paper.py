@@ -144,7 +144,7 @@ def _delayed_exit(
         try:
             quote,meta,ledger=_wait_curve_quote(
                 rpc,candidate,"sell",amount,gas_units,store,label,
-                pending["due"],seconds=20,
+                pending["due"],seconds=20,local_freshness=True,
             )
         except BoundaryError as exc:
             if str(exc)!="curve_graduated_requires_transition":
@@ -154,9 +154,10 @@ def _delayed_exit(
         deadline=time.monotonic()+20
         while True:
             quote,meta,ledger=_v4_quote(
-                rpc,v4_key,pending["market"],amount,gas_units,store,label
+                rpc,v4_key,pending["market"],amount,gas_units,store,label,
+                local_freshness=True,
             )
-            if quote.stamp.event_at>=pending["due"]:
+            if quote.stamp.observed_at>=pending["due"]:
                 break
             if time.monotonic()>=deadline:
                 raise BoundaryError("selective_v4_delayed_exit_timeout")
@@ -180,7 +181,7 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
         quote,meta,ledger=_v4_quote(
             rpc,v4_key,pending["market"],amount,gas_units,store,label
         )
-        if quote.stamp.event_at>=pending["due"]:
+        if quote.stamp.observed_at>=pending["due"]:
             break
         if time.monotonic()>=deadline:
             raise BoundaryError("selective_pending_v4_exit_timeout")
@@ -255,7 +256,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
         time.sleep(max(0,reserved["due"]-int(time.time())))
         entry,entry_meta,entry_ledger=_wait_curve_quote(
             rpc,candidate,"buy",amount,gas_units,store,"selective-entry",
-            reserved["due"],seconds=30,
+            reserved["due"],seconds=30,local_freshness=True,
         )
         if entry.amount_out<min_tokens:
             paper.advance(
@@ -377,6 +378,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                     mark,meta=_curve_quote(
                         rpc,candidate,"sell",position["tokens"],gas_units,store,
                         "selective-curve-mark-"+str(len(result["monitor"])),
+                        local_freshness=True,
                     )
                 except BoundaryError as exc:
                     if str(exc)=="curve_graduated_requires_transition":
@@ -446,7 +448,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                 position=paper._get(identity)
                 mark,meta,ledger=_v4_quote(
                     rpc,v4_key,position["market"],position["tokens"],gas_units,store,
-                    "selective-postgrad-mark",
+                    "selective-postgrad-mark",local_freshness=True,
                 )
                 activity=collect_v4_activity(
                     endpoint,pool_id=position["market"],key=v4_key,
@@ -496,6 +498,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
             mark,meta,ledger=_v4_quote(
                 rpc,v4_key,position["market"],position["tokens"],gas_units,store,
                 "selective-v4-mark-"+str(len(result["monitor"])),
+                local_freshness=True,
             )
             rbps=_position_return_bps(position,mark)
             current_header=dict(
