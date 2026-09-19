@@ -39,8 +39,9 @@ from meme_machine.outcome_research import (
     summarize_post_exit_tail, summarize_trackers, summarize_two_buyer_near_misses,
     two_buyer_research_candidate,
 )
-from meme_machine.provider import RPC, PumpAdapter, Unavailable
+from meme_machine.provider import PumpAdapter, Unavailable
 from meme_machine.research import CURRENT_THRESHOLDS
+from meme_machine.solana_read_rpc import new_rpc, primary_rpc_url
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 
@@ -91,7 +92,7 @@ class EvidenceSessions:
     def rotate(self,reason):
         if self.rpc is not None:
             self._close_current(reason)
-        self.rpc=RPC(self.url,limit=240)
+        self.rpc=new_rpc(limit=240,pacer=(self.rpc.read_pacer if self.rpc is not None and hasattr(self.rpc,'read_pacer') else None))
         self.adapter=PumpAdapter(self.rpc)
         self.reader=ConcentrationReader(
             self.rpc,secondary_url=os.environ.get('MM_SOLANA_CONCENTRATION_RPC_URL','').strip())
@@ -275,7 +276,7 @@ def main():
     )
     _save(report)
 
-    url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
+    url=primary_rpc_url()
     evidence=EvidenceSessions(url)
     tape=PumpTape();stop=threading.Event();ready=threading.Event();stream=PumpLogStream(url,tape)
     thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True);thread.start()
