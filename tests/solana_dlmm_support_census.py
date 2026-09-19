@@ -112,7 +112,10 @@ def main():
       vault_extensions=Counter(e.get("name") for p in pools for v in p["vaults"] for e in v.get("extensions",[])),
       authority_shapes=Counter((m.get("mint_authority_option"),m.get("freeze_authority_option")) for p in pools for m in p["mints"]),
     )
-    summary={k:(dict(v) if isinstance(v,Counter) else v) for k,v in summary.items()}
+    summary={
+      k:({str(key):value for key,value in v.items()} if isinstance(v,Counter) else v)
+      for k,v in summary.items()
+    }
     report=dict(kind="solana_dlmm_support_census_v1",summary=summary,pools=pools,rpc=dict(calls=rpc.calls,http_requests=rpc.http_requests,failures=rpc.failures,retries=rpc.retries))
     OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
     print(json.dumps(summary,sort_keys=True,default=str))
