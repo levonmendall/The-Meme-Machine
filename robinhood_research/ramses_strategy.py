@@ -588,7 +588,7 @@ def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
         "evaluation": evaluation,
         "signal_rejections": {"anchor": anchor_reasons, "directional": directional_reasons},
         "policy_hash": POLICY_HASH, "strategy_version": STRATEGY_VERSION,
-        "allocation_authority": False,
+        "strategy_domain": STRATEGY_DOMAIN, "allocation_authority": False,
     }
 
 
