@@ -102,6 +102,33 @@ class ProfitableOperatorRuleTests(unittest.TestCase):
             report["candidate_rule_proposals"][0]["family"]["distribution_family"],
             "curve")
 
+    def test_rule_freeze_requires_ready_pre_outcome_proposals(self):
+        protocol={"protocol_revision":"1.2"}
+        deriv={"revision":"1.0","prospective_test":{"paper_only":True}}
+        proposals={
+            "kind":"dlmm_profitable_operator_rule_proposals_v1",
+            "status":"candidate_rules_ready_to_freeze_before_prospective_test",
+            "protocol_revision":"1.2",
+            "derivation_protocol_revision":"1.0",
+            "prospective_outcomes_read":False,
+            "candidate_rule_proposals":[{"family":{"distribution_family":"curve"}}],
+        }
+        with tempfile.TemporaryDirectory() as td:
+            pp=Path(td)/"p";pp.write_text(json.dumps(protocol))
+            dp=Path(td)/"d";dp.write_text(json.dumps(deriv))
+            source=Path(td)/"source";source.write_text(json.dumps(proposals))
+            output=Path(td)/"frozen"
+            with patch.object(rules,"PROTOCOL",pp),patch.object(
+                    rules,"DERIVATION_PROTOCOL",dp):
+                frozen=rules.freeze_proposals(source,output)
+                self.assertEqual(frozen["status"],"frozen_pre_prospective")
+                self.assertFalse(frozen["prospective_outcomes_read_before_freeze"])
+                self.assertEqual(frozen["rule_count"],1)
+                bad=dict(proposals);bad["prospective_outcomes_read"]=True
+                source.write_text(json.dumps(bad))
+                with self.assertRaisesRegex(RuntimeError,"outcome_leakage"):
+                    rules.freeze_proposals(source,output)
+
     def test_negative_or_inexact_wallet_cannot_support_rule(self):
         deep={
             "kind":"dlmm_profitable_operator_deep_reconstruction_v1",
