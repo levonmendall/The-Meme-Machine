@@ -41,6 +41,11 @@ DIRECTIONAL_RPS = 2.0
 DISCOVERY_RPS = 5.0
 DLMM_RPS = 5.0
 SHADOW_RPS = 5.0
+# Compatibility rates only when an explicitly configured bulk credential aliases
+# the authoritative primary endpoint. Discovery keeps enough cadence for the
+# five-second evidence window; DLMM is deliberately slower because it is screening.
+SHARED_PRIMARY_DISCOVERY_RPS = 2.0
+SHARED_PRIMARY_DLMM_RPS = 1.0
 
 ALCHEMY_ONLY_METHODS = frozenset({"alchemy_getAssetTransfers"})
 
@@ -79,21 +84,11 @@ def _optional_primary_endpoint(primary_endpoint_value=None, *, environ=None):
     )
 
 
-def _require_bulk_isolation(endpoint, primary, *, lane):
-    """Prevent bulk lanes from reusing the authoritative primary credential.
-
-    Vendor identity alone is not a sufficient isolation boundary: a separately
-    provisioned endpoint can safely remain a dedicated lane even when the vendor
-    is the same. The exact normalized endpoint fingerprint is the enforcement
-    boundary so observability is preserved while the primary app cannot absorb
-    discovery/DLMM load.
-    """
-    if (
+def _is_primary_endpoint(endpoint, primary):
+    return bool(
         primary
         and _endpoint_fingerprint(endpoint) == _endpoint_fingerprint(primary)
-    ):
-        raise BoundaryError(f"{lane}_primary_endpoint_reuse_forbidden")
-    return endpoint
+    )
 
 
 def _provider_kind(endpoint):
@@ -137,50 +132,47 @@ def primary_endpoint(primary_endpoint=None, *, environ=None):
 
 
 def discovery_endpoint(primary_fallback_endpoint=None, *, environ=None):
-    """Return a non-primary observation endpoint or fail closed.
+    """Return the best explicitly configured observation endpoint.
 
-    A configured discovery endpoint that reuses the exact authoritative primary
-    endpoint is unsuitable for bulk observation. When the dedicated DLMM endpoint
-    is independently isolated, discovery transparently shares that provider instead
-    of either losing observability or spilling onto the primary app. A separately
-    provisioned endpoint remains valid even when it uses the same RPC vendor.
+    Prefer an endpoint that is distinct from the authoritative primary. If the
+    discovery credential aliases primary, an independently configured DLMM endpoint
+    is preferred. When every explicitly configured observation endpoint aliases
+    primary, retain observability in a clearly marked, lower-throughput shared mode
+    rather than silently broadening authority or dropping the market view.
     """
     primary = _optional_primary_endpoint(
         primary_fallback_endpoint, environ=environ
     )
-    rejected = None
+    primary_candidate = None
+
     value = _env(DISCOVERY_ENV, environ)
     if value:
         endpoint = _require_https(
             value,
             "MM_ROBINHOOD_DISCOVERY_RPC_URL_requires_full_https_url",
         )
-        try:
-            return _require_bulk_isolation(
-                endpoint, primary, lane="robinhood_discovery"
-            ), False
-        except BoundaryError as exc:
-            rejected = exc
+        if not _is_primary_endpoint(endpoint, primary):
+            return endpoint, False
+        primary_candidate = endpoint
 
-    # Discovery may share the dedicated DLMM provider because it has no allocation
-    # authority. It must never consume the authoritative primary as a capacity rescue.
     shared = _env(DLMM_ENV, environ)
     if shared:
         endpoint = _require_https(
             shared,
             "MM_ROBINHOOD_DLMM_RPC_URL_requires_full_https_url",
         )
-        return _require_bulk_isolation(
-            endpoint, primary, lane="robinhood_discovery"
-        ), False
+        if not _is_primary_endpoint(endpoint, primary):
+            return endpoint, False
+        if primary_candidate is None:
+            primary_candidate = endpoint
 
-    if rejected is not None:
-        raise rejected
+    if primary_candidate is not None:
+        return primary_candidate, True
     raise BoundaryError("robinhood_discovery_provider_required")
 
 
 def dlmm_endpoint(primary_fallback_endpoint=None, *, environ=None):
-    """Return the dedicated non-primary Ramses transport or fail closed."""
+    """Return the explicitly configured Ramses transport and whether it aliases primary."""
     primary = _optional_primary_endpoint(
         primary_fallback_endpoint, environ=environ
     )
@@ -191,9 +183,7 @@ def dlmm_endpoint(primary_fallback_endpoint=None, *, environ=None):
         value,
         "MM_ROBINHOOD_DLMM_RPC_URL_requires_full_https_url",
     )
-    return _require_bulk_isolation(
-        endpoint, primary, lane="robinhood_dlmm"
-    ), False
+    return endpoint, _is_primary_endpoint(endpoint, primary)
 
 
 def shadow_endpoint(*, environ=None):
@@ -301,6 +291,7 @@ class PacedRpc(Rpc):
             provider_kind=self.provider_kind,
             endpoint_fingerprint=_endpoint_fingerprint(self._endpoint),
             credential_role=getattr(self, "credential_role", None),
+            primary_shared=bool(getattr(self, "primary_shared", False)),
             pacing=self.pacer.telemetry(),
             automatic_failover=False,
         )
@@ -310,6 +301,8 @@ class PacedRpc(Rpc):
 # Shared clocks prevent session rotation or concurrent candidate evaluation from
 # multiplying provider throughput.
 _DIRECTIONAL_PACER = ProviderPacer(DIRECTIONAL_RPS)
+_SHARED_PRIMARY_DISCOVERY_PACER = ProviderPacer(SHARED_PRIMARY_DISCOVERY_RPS)
+_SHARED_PRIMARY_DLMM_PACER = ProviderPacer(SHARED_PRIMARY_DLMM_RPS)
 _DISCOVERY_PACERS = {}
 _DLMM_PACERS = {}
 _SHADOW_PACERS = {}
@@ -340,19 +333,27 @@ def configured_rpc(primary_endpoint_value=None, *, environ=None, **kwargs):
 
 
 def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **kwargs):
-    """Pons discovery/log RPC: 5 RPS, sequencer-triggered, no decision authority."""
-    endpoint, _ = discovery_endpoint(
+    """Pons discovery/log RPC with explicit shared-primary compatibility."""
+    endpoint, primary_shared = discovery_endpoint(
         primary_fallback_endpoint, environ=environ
     )
-    pacer = _pacer_for(_DISCOVERY_PACERS, endpoint, DISCOVERY_RPS)
+    if primary_shared:
+        rps = SHARED_PRIMARY_DISCOVERY_RPS
+        pacer = _SHARED_PRIMARY_DISCOVERY_PACER
+        role = "pons_discovery_primary_shared_observation"
+    else:
+        rps = DISCOVERY_RPS
+        pacer = _pacer_for(_DISCOVERY_PACERS, endpoint, DISCOVERY_RPS)
+        role = "pons_discovery_primary"
     rpc = PacedRpc(
         endpoint,
-        role="pons_discovery_primary",
-        requests_per_second=DISCOVERY_RPS,
+        role=role,
+        requests_per_second=rps,
         pacer=pacer,
         **kwargs,
     )
     rpc.primary_fallback = False
+    rpc.primary_shared = bool(primary_shared)
     dedicated = _env(DISCOVERY_ENV, environ)
     rpc.credential_role = (
         DISCOVERY_ENV
@@ -363,19 +364,27 @@ def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **
 
 
 def configured_dlmm_rpc(primary_fallback_endpoint=None, *, environ=None, **kwargs):
-    """Ramses reconstruction RPC: dedicated 5 RPS lane, no primary rescue."""
-    endpoint, _ = dlmm_endpoint(
+    """Ramses reconstruction RPC with low-rate explicit shared-primary compatibility."""
+    endpoint, primary_shared = dlmm_endpoint(
         primary_fallback_endpoint, environ=environ
     )
-    pacer = _pacer_for(_DLMM_PACERS, endpoint, DLMM_RPS)
+    if primary_shared:
+        rps = SHARED_PRIMARY_DLMM_RPS
+        pacer = _SHARED_PRIMARY_DLMM_PACER
+        role = "dlmm_reconstruction_primary_shared_observation"
+    else:
+        rps = DLMM_RPS
+        pacer = _pacer_for(_DLMM_PACERS, endpoint, DLMM_RPS)
+        role = "dlmm_reconstruction_primary"
     rpc = PacedRpc(
         endpoint,
-        role="dlmm_reconstruction_primary",
-        requests_per_second=DLMM_RPS,
+        role=role,
+        requests_per_second=rps,
         pacer=pacer,
         **kwargs,
     )
     rpc.primary_fallback = False
+    rpc.primary_shared = bool(primary_shared)
     rpc.credential_role = DLMM_ENV
     return rpc
 
@@ -413,19 +422,35 @@ def topology_metadata(*, environ=None):
     shadow = shadow_endpoint(environ=environ)
 
     discovery = None
+    discovery_shared = False
     discovery_error = None
     try:
-        discovery, _ = discovery_endpoint(environ=environ)
+        discovery, discovery_shared = discovery_endpoint(environ=environ)
     except BoundaryError as exc:
         discovery_error = str(exc)
 
     dlmm = None
+    dlmm_shared = False
     dlmm_error = None
     try:
-        dlmm, _ = dlmm_endpoint(environ=environ)
+        dlmm, dlmm_shared = dlmm_endpoint(environ=environ)
     except BoundaryError as exc:
         dlmm_error = str(exc)
 
+    discovery_credential = None
+    if discovery:
+        configured_discovery = _env(DISCOVERY_ENV, environ)
+        discovery_credential = (
+            DISCOVERY_ENV
+            if (
+                configured_discovery
+                and _endpoint_fingerprint(configured_discovery)
+                == _endpoint_fingerprint(discovery)
+            )
+            else DLMM_ENV
+        )
+
+    bulk_primary_shared = bool(discovery_shared or dlmm_shared)
     return dict(
         network="robinhood-mainnet",
         chain_id=CHAIN_ID,
@@ -438,29 +463,22 @@ def topology_metadata(*, environ=None):
             discovery_endpoint_fingerprint=(
                 None if not discovery else _endpoint_fingerprint(discovery)
             ),
-            discovery_credential=(
-                None
-                if not discovery
-                else (
-                    DISCOVERY_ENV
-                    if (
-                        _env(DISCOVERY_ENV, environ)
-                        and _endpoint_fingerprint(_env(DISCOVERY_ENV, environ))
-                        == _endpoint_fingerprint(discovery)
-                    )
-                    else DLMM_ENV
-                )
-            ),
+            discovery_credential=discovery_credential,
             discovery_primary_candidate_bypassed=bool(
                 discovery
                 and _env(DISCOVERY_ENV, environ)
-                and _endpoint_fingerprint(_env(DISCOVERY_ENV, environ))
-                == _endpoint_fingerprint(primary)
+                and _is_primary_endpoint(_env(DISCOVERY_ENV, environ), primary)
+                and not discovery_shared
                 and _endpoint_fingerprint(_env(DISCOVERY_ENV, environ))
                 != _endpoint_fingerprint(discovery)
             ),
+            discovery_primary_shared=bool(discovery_shared),
             discovery_primary_fallback=False,
-            discovery_requests_per_second=DISCOVERY_RPS,
+            discovery_requests_per_second=(
+                SHARED_PRIMARY_DISCOVERY_RPS
+                if discovery_shared
+                else DISCOVERY_RPS
+            ),
             discovery_fail_closed=True,
             discovery_error=discovery_error,
             evidence_provider_kind=_provider_kind(primary),
@@ -477,8 +495,11 @@ def topology_metadata(*, environ=None):
                 None if not dlmm else _endpoint_fingerprint(dlmm)
             ),
             credential=(DLMM_ENV if dlmm else None),
+            primary_shared=bool(dlmm_shared),
             primary_fallback=False,
-            requests_per_second=DLMM_RPS,
+            requests_per_second=(
+                SHARED_PRIMARY_DLMM_RPS if dlmm_shared else DLMM_RPS
+            ),
             automatic_failover=False,
             fail_closed=True,
             error=dlmm_error,
@@ -505,6 +526,8 @@ def topology_metadata(*, environ=None):
             url_kind="official_robinhood_public",
         ),
         provider_role_isolation=True,
+        endpoint_isolation_complete=not bulk_primary_shared,
+        bulk_primary_shared=bulk_primary_shared,
         bulk_primary_fallback=False,
         signing=False,
         submission=False,
