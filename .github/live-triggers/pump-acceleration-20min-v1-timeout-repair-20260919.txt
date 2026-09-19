@@ -1,0 +1,23 @@
+20-minute repaired natural prospective test.
+
+Frozen strategy policy hash:
+b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246
+
+Repair baseline:
+e9193189c98e589052c61ad98f76f2c78b05573d
+
+Test horizon:
+- discovery: 900 seconds
+- follow-up: 300 seconds
+- total market horizon: 1200 seconds
+
+Machinery repairs under test:
+- fill deadline rechecked after blocking RPC return;
+- legitimate numeric zero post-grad fields preserved;
+- Solana getTransaction maxSupportedTransactionVersion=1;
+- transaction-body batch size 16, per-refresh decode cap 128;
+- same 2 physical HTTP requests/sec pacer;
+- failed-member-only retries.
+
+No strategy threshold, score, sizing, or exit changes.
+Paper-only; no shared portfolio mutation, signing, transaction submission, or live money.
