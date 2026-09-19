@@ -45,7 +45,7 @@ class WalletSkillBook:
         asof=int(asof)
         rows=[]
         for body, in self.store.db.execute(
-            "SELECT body FROM records WHERE kind='pons_selective_wallet_trade'"
+            "SELECT body FROM records WHERE category='pons_selective_wallet_trade'"
         ):
             import json
             row=json.loads(body)
