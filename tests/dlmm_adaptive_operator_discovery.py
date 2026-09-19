@@ -279,6 +279,11 @@ def reconstruct_union(signature_rows,pool_rows):
 
     sessions.append(_provider_session(
         rpc,session_started,"queue_complete" if not len(queue) else "wall_clock_end"))
+    unresolved=[
+        signature for signature in candidates
+        if not isinstance(processed.get(signature),dict)
+        or processed[signature].get("status")!="success"
+    ]
     return dict(
         events=events,failures=failures,queue=queue.status(time.time()),
         remaining_queue_depth=len(queue),provider_sessions=sessions,
@@ -286,7 +291,8 @@ def reconstruct_union(signature_rows,pool_rows):
         checkpoint_path=str(CHECKPOINT_OUT),
         checkpoint_reused_event_count=len(reused_events),
         checkpoint_processed_signatures=len(processed),
-        complete=(not len(queue) and not failures),
+        unresolved_candidate_count=len(unresolved),
+        complete=(not len(queue) and not failures and not unresolved),
     )
 
 
