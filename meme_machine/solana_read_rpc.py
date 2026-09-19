@@ -40,7 +40,7 @@ ALCHEMY_ENV_NAME = "MM_SOLANA_READ_RPC_URL"
 ALCHEMY_SOLANA_MAINNET_HOST = "solana-mainnet.g.alchemy.com"
 
 TOPOLOGY_LABEL = "onfinality_public_primary_alchemy_rescue"
-SOLANA_MIN_REQUEST_INTERVAL_SECONDS = 0.2
+SOLANA_MIN_REQUEST_INTERVAL_SECONDS = 0.5
 PROVIDER_429_MIN_BACKOFF_SECONDS = 2.0
 
 
@@ -125,7 +125,7 @@ def secondary_rpc_url(environ=None, *, required=False):
 class SolanaReadPacer:
     """One conservative request clock shared across bounded RPC objects.
 
-    OnFinality primary is governed at five physical requests per second. The pacer is
+    OnFinality primary is governed at two physical requests per second. The pacer is
     shared across bounded RPC objects so provider rotations and concentration reads do
     not multiply the aggregate primary cadence. Alchemy remains rescue-only.
     """
@@ -180,7 +180,7 @@ class _ReadOnlyFailoverMixin:
         if self.transport == self._http:
             # Base RPC passes legacy logical pacing hints (0.5s and batch-derived
             # intervals). Provider governance is physical-request based: respect the
-            # shared 5 req/s primary cadence instead of the legacy 1-2 req/s ceiling.
+            # shared 2 req/s primary cadence instead of the legacy 1-2 req/s ceiling.
             self.read_pacer.pace(self, self.read_pacer.minimum_interval)
 
     @staticmethod
