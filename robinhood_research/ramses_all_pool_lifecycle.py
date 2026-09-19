@@ -616,8 +616,20 @@ def run(
             signals_by_pool=signals_by_pool,
         )
     result["initial_screen"] = screen
-    chosen = select_qualifier(screen)
-    if chosen is None:
+    scanner_qualifiers = []
+    for candidate in screen.get("rows", []):
+        decision0 = candidate.get("decision") or {}
+        if (
+            decision0.get("qualified") is True
+            and decision0.get("strategy_domain") == STRATEGY_DOMAIN
+            and decision0.get("strategy_version") == STRATEGY_VERSION
+            and decision0.get("policy_hash") == POLICY_HASH
+            and decision0.get("allocation_authority") is False
+            and decision0.get("freeze")
+        ):
+            verify_proposal_hash(decision0["freeze"])
+            scanner_qualifiers.append(candidate)
+    if not scanner_qualifiers:
         result.update(
             status="no_trade",
             boundary=None,
@@ -627,10 +639,8 @@ def run(
         )
         return result
 
-    pool = chosen["pool"].lower()
     entry_block = int(screen["finalized_block"])
     entry_at = int(screen["finalized_timestamp"])
-
     rpc = BoundedMultiRpc(
         endpoint,
         max_sessions=16,
@@ -639,27 +649,40 @@ def run(
         rate_retries=1,
     )
     rpc.verify_chain()
-    canonical_chosen, auth = _canonicalize_selected_row(
-        rpc,
-        chosen,
-        screen,
-        costs_by_pool=costs_by_pool,
-        signals_by_pool=signals_by_pool,
-    )
-    result["qualifier_authentication"] = auth
-    if canonical_chosen["decision"].get("qualified") is not True:
+    chosen = None
+    attempts = []
+    for candidate in scanner_qualifiers:
+        canonical_candidate, auth = _canonicalize_selected_row(
+            rpc,
+            candidate,
+            screen,
+            costs_by_pool=costs_by_pool,
+            signals_by_pool=signals_by_pool,
+        )
+        attempts.append(dict(
+            pool=candidate["pool"].lower(),
+            authentication=auth,
+            qualified_after_authentication=bool(
+                canonical_candidate["decision"].get("qualified")
+            ),
+            canonical_reasons=canonical_candidate["decision"].get("reasons"),
+        ))
+        if canonical_candidate["decision"].get("qualified") is True:
+            chosen = canonical_candidate
+            break
+    result["qualifier_authentication_attempts"] = attempts
+    if chosen is None:
         result.update(
             status="no_trade",
             boundary=None,
-            reason="qualifier_invalidated_by_canonical_tape",
-            pool=pool,
-            canonical_decision=canonical_chosen["decision"],
+            reason="no_authenticated_all_pool_qualifier",
             provider=rpc.telemetry(),
             ended_at=time.time(),
         )
         return result
 
-    chosen = canonical_chosen
+    pool = chosen["pool"].lower()
+    result["qualifier_authentication"] = attempts[-1]["authentication"]
     decision = deepcopy(chosen["decision"])
     costs = _segment_costs(costs_by_pool.get(pool))
     result.update(
