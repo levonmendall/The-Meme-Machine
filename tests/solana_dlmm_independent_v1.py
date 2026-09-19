@@ -633,26 +633,41 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
             None if broker is None else old_oldest),
     )
 
-def _capture_chunk(adapter,start,cursor,wait_seconds):
+def _capture_chunk(
+    adapter,start,cursor,wait_seconds,broker=None,hydration_kind="dlmm_fresh"
+):
     if wait_seconds<=0:
         raise ValueError("solana_dlmm_chunk_wait")
     time.sleep(wait_seconds)
     end_snapshot=adapter.snapshot_from_state(
         start,int(time.time()),True,fresh=True)
     signatures,census=_complete_signature_census(
-        adapter.rpc,start["pool"],start["slot"],end_snapshot["slot"])
+        adapter.rpc,start["pool"],start["slot"],end_snapshot["slot"],broker)
     relevant=[
         row for row in signatures
         if start["slot"]<row["slot"]<=end_snapshot["slot"] and not row.get("err")
     ]
-    params=[[
-        s["signature"],dict(
-            encoding="json",commitment="finalized",
-            maxSupportedTransactionVersion=1)
-    ] for s in relevant]
-    values=(adapter.rpc.call_many(
-        "getTransaction",params,True,batch_size=8) if params else [])
-    transactions={s["signature"]:tx for s,tx in zip(relevant,values)}
+    if broker is not None and relevant:
+        signatures_to_hydrate=[s["signature"] for s in relevant]
+        txmap,hydration=broker.hydrate_transactions(
+            adapter.rpc,signatures_to_hydrate,kind=hydration_kind,
+            deadline=time.time()+6.0,max_version=1,batch_size=8)
+        if hydration["pending"]:
+            raise Unavailable("solana_dlmm_transaction_hydration_incomplete")
+        transactions={
+            s["signature"]:txmap[s["signature"]]
+            for s in relevant if txmap.get(s["signature"]) is not None
+        }
+        census["transaction_hydration"]=hydration
+    else:
+        params=[[
+            s["signature"],dict(
+                encoding="json",commitment="finalized",
+                maxSupportedTransactionVersion=1)
+        ] for s in relevant]
+        values=(adapter.rpc.call_many(
+            "getTransaction",params,True,batch_size=8) if params else [])
+        transactions={s["signature"]:tx for s,tx in zip(relevant,values)}
     if len(encode(transactions))>2_000_000:
         raise Unavailable("solana_dlmm_interval_evidence_bound")
     tape=reconstruct(
@@ -664,7 +679,8 @@ def _capture_chunk(adapter,start,cursor,wait_seconds):
 
 
 def _observe_window(
-    adapter,address,start,total_seconds,allow_reset,pacer,rpcs,deadline=None
+    adapter,address,start,total_seconds,allow_reset,pacer,rpcs,deadline=None,
+    broker=None,hydration_kind="dlmm_fresh"
 ):
     origin=start;current=start
     cursor=[start["slot"],2**31-1,2**31-1]
@@ -685,7 +701,8 @@ def _observe_window(
             ),None,current,origin,adapter
         rate_limit_before=_rate_limit_failures(rpcs)
         try:
-            tape,cursor,census=_capture_chunk(adapter,current,cursor,duration)
+            tape,cursor,census=_capture_chunk(
+                adapter,current,cursor,duration,broker,hydration_kind)
         except (Unavailable,ValueError,KeyError,TypeError) as exc:
             reason=str(exc)
             if (reason=="provider_request_failed"
@@ -1081,7 +1098,9 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
     return reasons,recent,mark,fee_uplift
 
 
-def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None):
+def _lifecycle(
+    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None
+):
     position=_build_position(entry,features,policy)
     current=entry;elapsed=0;segments=[];tapes=[]
     max_hold=int(policy["range"]["max_holding_seconds"])
@@ -1098,7 +1117,8 @@ def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None):
         adapter=_rotate(adapter,pacer,rpcs)
         duration=min(segment_seconds,max_hold-elapsed)
         phase,tape,terminal,effective_start,adapter=_observe_window(
-            adapter,address,current,duration,False,pacer,rpcs,deadline)
+            adapter,address,current,duration,False,pacer,rpcs,deadline,
+            broker,"position_monitor")
         if not phase["verified"]:
             return dict(
                 complete=False,reason=phase["reason"],segments=segments,
