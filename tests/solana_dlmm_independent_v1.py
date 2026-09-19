@@ -1167,6 +1167,7 @@ def run_live(target=None,max_attempted=None):
 
     discovery_telemetry=dict(
         rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
+    compatibility_rejections=[];compatibility_screened=0
     pacer=provider.AlchemyPacer();rpcs=[]
     report=dict(
         kind="solana_dlmm_independent_v1_prospective",
@@ -1181,12 +1182,9 @@ def run_live(target=None,max_attempted=None):
         target_complete_lifecycles=target,
         max_attempted_pools=max_attempted,started=int(time.time()),
         attempts=[],qualified_lifecycles=[],
-        compatibility_rejections=compatibility_rejections
-            if "compatibility_rejections" in locals() else [],
+        compatibility_rejections=compatibility_rejections,
     )
     attempted=0;complete=0;failure_counts=Counter()
-    compatibility_rejections=[];compatibility_screened=0
-    report["compatibility_rejections"]=compatibility_rejections
     candidate_stream=_iter_acceleration_candidates(
         policy,discovery_telemetry)
     for candidate in candidate_stream:
