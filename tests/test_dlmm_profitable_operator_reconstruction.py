@@ -113,6 +113,42 @@ class ProfitableOperatorReconstructionTests(unittest.TestCase):
         self.assertTrue(out["exact"])
         self.assertAlmostEqual(out["capital_hours_usd"],100.0)
 
+    def test_exact_simple_twr_chain_links_recycled_nonoverlapping_positions(self):
+        positions=[
+            {"position":"a","deposit_usd":100.0,"pnl_usd":10.0},
+            {"position":"b","deposit_usd":100.0,"pnl_usd":20.0},
+        ]
+        histories={
+            "a":[
+                {"event_type":"add","block_time":100,"slot":1,"ix_index":0},
+                {"event_type":"remove","block_time":200,"slot":2,"ix_index":0},
+            ],
+            "b":[
+                {"event_type":"add","block_time":200,"slot":3,"ix_index":0},
+                {"event_type":"remove","block_time":300,"slot":4,"ix_index":0},
+            ],
+        }
+        out=rec.exact_simple_twr(
+            positions,histories,{"a":1.0,"b":2.0})
+        self.assertTrue(out["available"])
+        self.assertAlmostEqual(out["twr"],(1.09*1.18)-1.0)
+
+    def test_exact_simple_twr_rejects_overlap_or_unpriced_cost(self):
+        positions=[
+            {"position":"a","deposit_usd":100.0,"pnl_usd":10.0},
+            {"position":"b","deposit_usd":100.0,"pnl_usd":10.0},
+        ]
+        histories={
+            "a":[{"event_type":"add","block_time":100},{"event_type":"remove","block_time":300}],
+            "b":[{"event_type":"add","block_time":200},{"event_type":"remove","block_time":400}],
+        }
+        self.assertEqual(
+            rec.exact_simple_twr(positions,histories,{"a":0.0,"b":0.0})["reason"],
+            "overlapping_positions")
+        self.assertEqual(
+            rec.exact_simple_twr([positions[0]],{"a":histories["a"]},{})["reason"],
+            "network_cost_usd_unavailable")
+
     def test_shared_external_fee_payer_merges_wallets_but_self_payer_does_not(self):
         rows=[
             {"wallet":"a","fee_payers":["fleet"]},
