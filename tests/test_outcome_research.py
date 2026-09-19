@@ -2,6 +2,7 @@ import unittest
 
 from tests.market_native_opportunity_outcomes import (
     CONCENTRATION_ROTATE_AT, EvidenceSessions, _expanded_entry_tracker,
+    _rank_extra_evidence,
 )
 
 from meme_machine.outcome_research import (
@@ -52,6 +53,18 @@ class OutcomeResearchTests(unittest.TestCase):
         self.assertFalse(got['10000000000'])
 
 
+
+
+
+    def test_multi_runner_selection_is_ranked_and_bounded(self):
+        class Metric:
+            def __init__(self,value): self.value=value
+            def priority_key(self): return (self.value,)
+        rows=[('c3',Metric(3)),('c1',Metric(1)),('c2',Metric(2)),('c4',Metric(4))]
+        got=_rank_extra_evidence(rows,remaining=3,per_slot=2)
+        self.assertEqual([row[0] for row in got],['c1','c2'])
+        self.assertEqual(_rank_extra_evidence(rows,remaining=1,per_slot=3)[0][0],'c1')
+        self.assertEqual(_rank_extra_evidence(rows,remaining=0,per_slot=3),[])
 
 
     def test_expanded_tracker_uses_executable_quote_and_shadow_exit(self):
