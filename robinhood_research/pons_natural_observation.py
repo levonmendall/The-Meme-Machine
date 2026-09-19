@@ -249,6 +249,65 @@ def _authenticate_candidate(rpc,event,report):
         auth_transport_rounds=2,
     )
 
+
+def _chunks(rows,size):
+    for i in range(0,len(rows),size):
+        yield rows[i:i+size]
+
+
+def _authenticate_followup_events(rpc,candidate,events):
+    """Authenticate fixed follow-up events with bounded immutable batch reads."""
+    selected=[
+        event for event in events
+        if event["address"].lower()==candidate["curve"]
+    ]
+    if len(selected)>200:
+        raise BoundaryError("natural_followup_capacity")
+    if not selected:
+        return []
+
+    block_hashes=list(dict.fromkeys(event["blockHash"] for event in selected))
+    headers={}
+    for group in _chunks(block_hashes,50):
+        values=rpc.batch(
+            [("eth_getBlockByHash",[block_hash,False]) for block_hash in group],
+            scope="pons_natural",
+        )
+        for block_hash,header in zip(group,values):
+            if header["hash"]!=block_hash:
+                raise BoundaryError("followup_block_hash_disagreement")
+            headers[block_hash]=header
+
+    tx_rows=list(dict.fromkeys(
+        (event["transactionHash"],event["blockHash"]) for event in selected
+    ))
+    receipts={}
+    for group in _chunks(tx_rows,50):
+        values=rpc.batch(
+            [("eth_getTransactionReceipt",[tx]) for tx,_ in group],
+            scope="pons_natural",
+        )
+        for (tx,block_hash),receipt in zip(group,values):
+            if (
+                receipt["transactionHash"]!=tx
+                or receipt["blockHash"]!=block_hash
+            ):
+                raise BoundaryError("receipt_block_disagreement")
+            receipts[(tx,block_hash)]=receipt
+
+    observed=int(time.time())
+    authentic=[]
+    for event in selected:
+        block_hash=event["blockHash"]
+        authentic.append(raw_event(
+            curve_abi(),event,address=candidate["curve"],
+            receipt=receipts[(event["transactionHash"],block_hash)],
+            header=headers[block_hash],observed_at=observed,
+            confirmation="confirmed",
+        ))
+    return authentic
+
+
 def _final_mark(rpc,candidate,block,report):
     try:
         state,_=_curve_state(rpc,candidate["curve"],block,candidate["auth"],report)
@@ -282,6 +341,7 @@ def run(endpoint):
         discovery_mode="sequencer_range_batch_plus_deadline_queue_v3",
     )
     candidate=None
+    outcome_rpc=None
     evidence_queue=DeadlineEvidenceQueue(limit=256,nominal_deadline_seconds=5.0)
     discovery_ranges=0
     discovered_events=0
@@ -368,24 +428,17 @@ def run(endpoint):
         final_header=_latest_header(discovery)
         final_block=int(final_header["number"],16)
         follow=_current_curve_events(discovery,candidate["block"],final_block)
-        authentic=[]
-        for event in follow:
-            if event["address"].lower()!=candidate["curve"]:
-                continue
-            block=int(event["blockNumber"],16)
-            header=rpc.call("eth_getBlockByNumber",[hex(block),False],scope="pons_natural")
-            receipt=rpc.receipt(event["transactionHash"],event["blockHash"],scope="pons_natural")
-            authentic.append(raw_event(
-                curve_abi(),event,address=candidate["curve"],receipt=receipt,header=header,
-                observed_at=int(time.time()),confirmation="confirmed",
-            ))
-            if len(authentic)>200:
-                raise BoundaryError("natural_followup_capacity")
+
+        # Outcome reconstruction is after the candidate/quote is frozen. Use a new
+        # bounded logical session on the same authoritative provider and shared 2-RPS
+        # physical pacer so outcome history cannot consume the entry evidence budget.
+        outcome_rpc=configured_rpc(endpoint,limit=200,per_scope=200,retries=0)
+        authentic=_authenticate_followup_events(outcome_rpc,candidate,follow)
         report["events"]=authentic
 
         # Re-fetch the original height. A replacement block invalidates the research
         # observation rather than being silently substituted.
-        canonical=rpc.call(
+        canonical=outcome_rpc.call(
             "eth_getBlockByNumber",[hex(candidate["block"]),False],scope="pons_natural"
         )
         now=int(time.time())
@@ -393,7 +446,9 @@ def run(endpoint):
             report["dependency_status"]="invalidated"
             raise BoundaryError("confirmed_candidate_reorged")
 
-        finalized=rpc.call("eth_getBlockByNumber",["finalized",False],scope="pons_natural")
+        finalized=outcome_rpc.call(
+            "eth_getBlockByNumber",["finalized",False],scope="pons_natural"
+        )
         finalized_number=int(finalized["number"],16)
         report["finalized_frontier"]={
             k:finalized[k] for k in ("number","hash","timestamp","parentHash")
@@ -406,7 +461,7 @@ def run(endpoint):
             "seconds":OBSERVE_SECONDS,
             "end_block":final_block,
             "authenticated_trade_events":len(authentic),
-            "mark":_final_mark(rpc,candidate,final_block,report),
+            "mark":_final_mark(outcome_rpc,candidate,final_block,report),
             "graduated_during_followup":any(
                 row["decoded"]["name"]=="CurveCompleted" for row in authentic
             ),
@@ -417,6 +472,9 @@ def run(endpoint):
     finally:
         feed.close()
     report["provider"]=rpc.telemetry()
+    report["outcome_provider"]=(
+        None if outcome_rpc is None else outcome_rpc.telemetry()
+    )
     report["discovery_provider"]=discovery.telemetry()
     report.setdefault("sequencer_discovery",feed.status())
     report.setdefault("discovery_ranges",discovery_ranges)
