@@ -89,14 +89,16 @@ class RPC:
         ctrl=self._transaction_controller()
         return max(1,min(int(requested),int(ctrl.gettransaction_batch_size)))
 
-    def _note_gettransaction_429(self, count):
+    def _note_gettransaction_429(self, count, attempted_batch_size=None):
         ctrl=self._transaction_controller()
         count=max(1,int(count))
         ctrl.gettransaction_429_events += count
         ctrl.gettransaction_429_streak += 1
         ctrl.gettransaction_success_streak = 0
         old=int(ctrl.gettransaction_batch_size)
-        ctrl.gettransaction_batch_size=max(2,old//2)
+        attempted=old if attempted_batch_size is None else max(1,int(attempted_batch_size))
+        pressure_base=min(old,attempted)
+        ctrl.gettransaction_batch_size=max(2,pressure_base//2)
         if ctrl.gettransaction_batch_size < old:
             ctrl.gettransaction_batch_reductions += 1
         delay=min(16.0,2.0*(2**min(ctrl.gettransaction_429_streak-1,3)))
@@ -291,7 +293,7 @@ class RPC:
                         raise Unavailable('provider_request_failed')
                     retryable.append(item)
                 self.retries += len(retryable)
-                self._note_gettransaction_429(len(retryable))
+                self._note_gettransaction_429(len(retryable),logical)
                 # Retry only rate-limited members, before unrelated older backlog.
                 missing=retryable+missing
 
