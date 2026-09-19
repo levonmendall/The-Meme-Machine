@@ -77,6 +77,6 @@ jobs:
           name: solana-dlmm-independent-v1-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             solana-dlmm-independent-v1-live.json
-            solana-dlmm-evidence-broker.sqlite3
+            solana-evidence-broker.sqlite3
           if-no-files-found: warn
           retention-days: 90
