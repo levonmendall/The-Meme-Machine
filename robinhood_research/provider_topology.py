@@ -258,7 +258,12 @@ def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **
     endpoint, primary_fallback = discovery_endpoint(
         primary_fallback_endpoint, environ=environ
     )
-    pacer = _pacer_for(_DISCOVERY_PACERS, endpoint, DISCOVERY_RPS)
+    effective_rps = DIRECTIONAL_RPS if primary_fallback else DISCOVERY_RPS
+    pacer = (
+        _DIRECTIONAL_PACER
+        if primary_fallback
+        else _pacer_for(_DISCOVERY_PACERS, endpoint, DISCOVERY_RPS)
+    )
     rpc = PacedRpc(
         endpoint,
         role=(
@@ -266,7 +271,7 @@ def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **
             if primary_fallback
             else "pons_discovery_primary"
         ),
-        requests_per_second=DISCOVERY_RPS,
+        requests_per_second=effective_rps,
         pacer=pacer,
         **kwargs,
     )
@@ -279,7 +284,12 @@ def configured_dlmm_rpc(primary_fallback_endpoint=None, *, environ=None, **kwarg
     endpoint, primary_fallback = dlmm_endpoint(
         primary_fallback_endpoint, environ=environ
     )
-    pacer = _pacer_for(_DLMM_PACERS, endpoint, DLMM_RPS)
+    effective_rps = DIRECTIONAL_RPS if primary_fallback else DLMM_RPS
+    pacer = (
+        _DIRECTIONAL_PACER
+        if primary_fallback
+        else _pacer_for(_DLMM_PACERS, endpoint, DLMM_RPS)
+    )
     rpc = PacedRpc(
         endpoint,
         role=(
@@ -287,7 +297,7 @@ def configured_dlmm_rpc(primary_fallback_endpoint=None, *, environ=None, **kwarg
             if primary_fallback
             else "dlmm_reconstruction_primary"
         ),
-        requests_per_second=DLMM_RPS,
+        requests_per_second=effective_rps,
         pacer=pacer,
         **kwargs,
     )
@@ -338,7 +348,9 @@ def topology_metadata(*, environ=None):
                 DISCOVERY_ENV if _env(DISCOVERY_ENV,environ) else DLMM_ENV
             )),
             discovery_primary_fallback=discovery_fallback,
-            discovery_requests_per_second=DISCOVERY_RPS,
+            discovery_requests_per_second=(
+                DIRECTIONAL_RPS if discovery_fallback else DISCOVERY_RPS
+            ),
             evidence_provider_kind=_provider_kind(primary),
             evidence_credential=PRIMARY_ENV,
             requests_per_second=DIRECTIONAL_RPS,
@@ -349,7 +361,9 @@ def topology_metadata(*, environ=None):
             provider_kind=_provider_kind(dlmm),
             credential=(PRIMARY_ENV if fallback else DLMM_ENV),
             primary_fallback=fallback,
-            requests_per_second=DLMM_RPS,
+            requests_per_second=(
+                DIRECTIONAL_RPS if fallback else DLMM_RPS
+            ),
             automatic_failover=False,
         ),
         shadow=dict(
