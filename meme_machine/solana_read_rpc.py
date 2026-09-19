@@ -39,7 +39,7 @@ ALCHEMY_ENV_NAME = "MM_SOLANA_READ_RPC_URL"
 ALCHEMY_SOLANA_MAINNET_HOST = "solana-mainnet.g.alchemy.com"
 
 TOPOLOGY_LABEL = "onfinality_primary_alchemy_rescue"
-SOLANA_MIN_REQUEST_INTERVAL_SECONDS = 1.0
+SOLANA_MIN_REQUEST_INTERVAL_SECONDS = 0.2
 PROVIDER_429_MIN_BACKOFF_SECONDS = 2.0
 
 
@@ -147,9 +147,8 @@ def secondary_rpc_url(environ=None, *, required=False):
 class SolanaReadPacer:
     """One conservative request clock shared across bounded RPC objects.
 
-    OnFinality currently permits more than this cadence, but Meme Machine retains
-    the existing one-request-per-second pacing by default so a provider change cannot
-    silently broaden evidence acquisition or request volume.
+    Authenticated OnFinality is validated for five requests per second on this DLMM
+    research branch. A shared 0.2-second pacer bounds physical primary requests.
     """
 
     def __init__(self, minimum_interval=SOLANA_MIN_REQUEST_INTERVAL_SECONDS):
