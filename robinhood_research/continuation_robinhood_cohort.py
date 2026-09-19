@@ -24,6 +24,7 @@ from .continuation_robinhood_sample import (
     TAPE_WARM_SECONDS, _evaluate, _discovery_rpc as sample_discovery_rpc,
 )
 from .evidence import Store
+from .evidence_queue import DeadlineEvidenceQueue
 from .paper import Paper
 from .pons_natural_observation import _current_curve_events, _latest_header
 from .pons_natural_paper import (
@@ -450,7 +451,7 @@ def run(endpoint):
         reranking=False,replacement=False,outcome_blind=True,
         shared_allocator=False,started_at=time.time(),
         enrollments=[],qualifiers=[],lifecycles=[],discovery_sessions=[],
-        provider_recoveries=[],
+        provider_recoveries=[],evidence_scheduler="deadline_queue_v1",
     )
 
     try:
@@ -471,6 +472,7 @@ def run(endpoint):
         raise BoundaryError("sequencer_discovery_block_disagreement")
     latest_header=start_header
     tape=[];seen_tx_logs=set();seen_curves=set()
+    evidence_queue=DeadlineEvidenceQueue(limit=MAX_TAPE_EVENTS,nominal_deadline_seconds=5.0)
     warm_start=int(start_header["timestamp"],16)
 
     try:
@@ -497,7 +499,6 @@ def run(endpoint):
             and len(result["qualifiers"])<COHORT_TARGET
         ):
             rpc,cursor,fresh,_=_poll(endpoint,rpc,cursor,tape,result,feed)
-            candidates=[]
             for event in fresh:
                 key=(event["transactionHash"],event["logIndex"])
                 if key in seen_tx_logs:
@@ -513,16 +514,14 @@ def run(endpoint):
                 curve=event["address"].lower()
                 if curve in seen_curves:
                     continue
-                candidates.append(event)
-            if not candidates:
+                seen_curves.add(curve)
+                evidence_queue.enqueue(event,now=time.time())
+            scheduled=evidence_queue.pop(
+                now=time.time(),minimum_remaining_seconds=0.5
+            )
+            if scheduled is None:
                 continue
-            candidates.sort(key=lambda e:(
-                int(e["blockNumber"],16),
-                int(e["transactionIndex"],16),
-                int(e["logIndex"],16),
-            ))
-            event=candidates[0]
-            seen_curves.add(event["address"].lower())
+            event=scheduled["event"]
             row=_evaluate(endpoint,event,len(result["enrollments"]),list(tape))
             result["enrollments"].append(row)
             if len(result["enrollments"])%50==0:
@@ -586,6 +585,7 @@ def run(endpoint):
             exits[reason]=exits.get(reason,0)+1
         if life.get("status")=="settled" and life.get("realized_return_bps") is not None:
             realized.append(int(life["realized_return_bps"]))
+    result["evidence_queue"]=evidence_queue.telemetry()
     result["summary"]=dict(
         enrolled=len(result["enrollments"]),
         complete_vectors=sum(bool((r.get("vector") or {}).get("complete")) for r in result["enrollments"]),
