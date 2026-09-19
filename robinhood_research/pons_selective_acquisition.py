@@ -224,6 +224,7 @@ def evaluate_candidate(
     rpc=_rpc(endpoint)
     report=dict(reads=[])
     candidate=_authenticate_candidate(rpc,event,report)
+    candidate["report"]=report
     sessions.append(rpc.telemetry())
     if candidate["decoded_event"]["decoded"]["name"]!="CurveBuy":
         raise BoundaryError("selective_nomination_not_buy")
