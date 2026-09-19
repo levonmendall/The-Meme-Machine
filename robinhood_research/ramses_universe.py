@@ -93,14 +93,7 @@ def _factory_address(raw):
     return address
 
 
-def _enumerate_factory(rpc, factory, block, inventory_cache=None):
-    """Enumerate the factory, reusing an append-only in-memory inventory cache.
-
-    The factory source was previously verified to append new pools rather than
-    mutate existing indices.  Every screen still reads the current pool count
-    and authenticates factory runtime separately.  Cached indices are reused
-    only when the count has not regressed; newly appended indices are fetched.
-    """
+def _enumerate_factory(rpc, factory, block):
     count_raw = rpc.call(
         "eth_call",
         [dict(to=factory, data=calldata("getNumberOfLBPairs()")), hex(block)],
@@ -110,62 +103,79 @@ def _enumerate_factory(rpc, factory, block, inventory_cache=None):
     if count <= 0 or count > MAX_FACTORY_POOLS:
         raise BoundaryError("ramses_universe_factory_count")
 
-    cache = inventory_cache
-    if cache is not None:
-        if not isinstance(cache, dict):
-            raise BoundaryError("ramses_universe_inventory_cache_shape")
-        cached_factory = cache.get("factory")
-        cached_addresses = cache.get("addresses")
-        if cached_factory is not None and cached_factory != factory:
-            raise BoundaryError("ramses_universe_inventory_cache_factory")
-        if cached_addresses is not None and not isinstance(cached_addresses, list):
-            raise BoundaryError("ramses_universe_inventory_cache_shape")
-        addresses = list(cached_addresses or [])
-        if len(addresses) > count:
-            raise BoundaryError("ramses_universe_factory_inventory_regressed")
-    else:
-        addresses = []
+    key = str(factory).lower()
+    with _FACTORY_INVENTORY_LOCK:
+        cached = dict(_FACTORY_INVENTORY_CACHE.get(key) or {})
+        cached_addresses = list(cached.get("addresses") or [])
+        cached_block = cached.get("asof_block")
 
-    start_index = len(addresses)
-    new_entries = count - start_index
-    if new_entries:
-        calls = [
-            (
-                "eth_call",
-                [
-                    dict(
-                        to=factory,
-                        data=calldata("getLBPairAtIndex(uint256)", i),
-                    ),
-                    hex(block),
-                ],
-            )
-            for i in range(start_index, count)
-        ]
-        rows = rpc.batch(calls, scope="universe_inventory")
-        addresses.extend("0x" + raw[-40:].lower() for raw in rows)
+    if cached_block is not None and int(block) < int(cached_block):
+        raise BoundaryError("ramses_universe_inventory_block_regression")
+    if len(cached_addresses) > count:
+        raise BoundaryError("ramses_universe_factory_count_regression")
 
-    if (
-        len(addresses) != count
-        or any(int(a, 16) == 0 for a in addresses)
-        or len(set(addresses)) != len(addresses)
-    ):
+    # Verify two immutable sentinels before trusting the cached prefix. A mismatch
+    # fails closed instead of silently accepting a changed registry.
+    sentinel_indices = []
+    if cached_addresses:
+        sentinel_indices = sorted(set((0, len(cached_addresses) - 1)))
+        sentinel_rows = rpc.batch(
+            [
+                (
+                    "eth_call",
+                    [
+                        dict(
+                            to=factory,
+                            data=calldata("getLBPairAtIndex(uint256)", i),
+                        ),
+                        hex(block),
+                    ],
+                )
+                for i in sentinel_indices
+            ],
+            scope="universe_inventory_verify",
+        )
+        for i, raw in zip(sentinel_indices, sentinel_rows):
+            if _factory_address(raw) != cached_addresses[i]:
+                raise BoundaryError("ramses_universe_factory_inventory_changed")
+
+    start_index = len(cached_addresses)
+    missing_indices = list(range(start_index, count))
+    appended = []
+    if missing_indices:
+        rows = rpc.batch(
+            [
+                (
+                    "eth_call",
+                    [
+                        dict(
+                            to=factory,
+                            data=calldata("getLBPairAtIndex(uint256)", i),
+                        ),
+                        hex(block),
+                    ],
+                )
+                for i in missing_indices
+            ],
+            scope="universe_inventory",
+        )
+        appended = [_factory_address(raw) for raw in rows]
+
+    addresses = cached_addresses + appended
+    if len(addresses) != count or len(set(addresses)) != len(addresses):
         raise BoundaryError("ramses_universe_factory_inventory")
 
-    if cache is not None:
-        cache.clear()
-        cache.update(
-            factory=factory,
-            addresses=list(addresses),
-            count=count,
-            observed_block=int(block),
+    with _FACTORY_INVENTORY_LOCK:
+        _FACTORY_INVENTORY_CACHE[key] = dict(
+            addresses=tuple(addresses),
+            asof_block=int(block),
         )
-    return addresses, dict(
-        reused_entries=start_index,
-        new_entries=new_entries,
-        count=count,
-        cache_enabled=(cache is not None),
-    )
+
+    setattr(rpc, "_roi_factory_inventory_cache_hit", bool(cached_addresses))
+    setattr(rpc, "_roi_factory_inventory_reused", len(cached_addresses))
+    setattr(rpc, "_roi_factory_inventory_fetched", len(appended))
+    setattr(rpc, "_roi_factory_inventory_sentinel_reads", len(sentinel_indices))
+    return addresses
 
 
 def _decode_histories(logs, addresses):
@@ -263,7 +273,6 @@ def scan(
     max_recent_active_pools=MAX_RECENT_ACTIVE_POOLS,
     gas_costs_by_pool=None,
     signals_by_pool=None,
-    inventory_cache=None,
 ):
     """Scan the complete factory and classify the bounded recently-active cohort."""
     if type(lookback_blocks) is not int or not 10 <= lookback_blocks <= 1200:
@@ -295,9 +304,7 @@ def scan(
     factory_code = rpc.call("eth_getCode", [factory, hex(end)], scope="universe_identity")
     factory_identity = authenticate("ramses_factory", factory, factory_code)
 
-    addresses, inventory_info = _enumerate_factory(
-        rpc, factory, end, inventory_cache=inventory_cache
-    )
+    addresses = _enumerate_factory(rpc, factory, end)
     logs = _batched_logs(rpc, start, end, addresses)
     histories = _decode_histories(logs, addresses)
 
@@ -420,9 +427,6 @@ def scan(
         lookback_start_block=start,
         lookback_blocks=end - start + 1,
         factory_pool_count=len(addresses),
-        factory_inventory_cache_enabled=inventory_info["cache_enabled"],
-        factory_inventory_reused_entries=inventory_info["reused_entries"],
-        factory_inventory_new_entries=inventory_info["new_entries"],
         factory_inventory_cache=dict(
             hit=bool(getattr(rpc, "_roi_factory_inventory_cache_hit", False)),
             reused_pool_count=int(
