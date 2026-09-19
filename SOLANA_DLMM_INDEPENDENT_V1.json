@@ -275,5 +275,20 @@
     "interval_transaction_bound": 16,
     "replay_input": "All successful finalized transactions in (start_slot,end_slot] plus one finalized lower-bound witness; newer-than-end rows are scheduling noise.",
     "strategy_thresholds_changed": false
+  },
+  "operational_repairs": {
+    "network_identity": {
+      "strategy_revision_changed": false,
+      "rule": "Prove Solana mainnet identity once per research run with up to 3 bounded session attempts; rotated sessions reuse that proof and do not independently call getGenesisHash."
+    },
+    "checkpointing": {
+      "strategy_revision_changed": false,
+      "rule": "Atomically checkpoint discovery classifications, compatibility rejections, candidate terminal states, qualification decisions, lifecycles, provider telemetry, and final state. Terminal process failures augment rather than replace the last checkpoint."
+    },
+    "prospective_runtime": {
+      "strategy_revision_changed": false,
+      "requested_window_seconds": 1200,
+      "rule": "Stop gracefully at the experiment deadline and preserve partial evidence; do not use a job cancellation as the experiment boundary."
+    }
   }
 }
