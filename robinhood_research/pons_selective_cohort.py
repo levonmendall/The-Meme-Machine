@@ -343,14 +343,14 @@ def _attach_wallet_overlay(vector,skill_book):
 
 def run(endpoint):
     ROOT.mkdir(parents=True,exist_ok=True)
-    # Strategy-local artifacts only. Never delete other lanes' data.
-    for path in ROOT.glob("trial-*.sqlite*"):
-        path.unlink()
-    for path in (PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT):
-        try:
-            path.unlink()
-        except FileNotFoundError:
-            pass
+    # A cohort directory is single-use. Never erase an earlier failed trial or
+    # leave its capital reservation without the native ledger that explains it.
+    protected=list(ROOT.glob("trial-*.sqlite*"))+[
+        PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT,
+        ROOT/"pons-selective-cohort-capital.sqlite",
+    ]
+    if any(path.exists() for path in protected):
+        raise BoundaryError("selective_existing_cohort_requires_fresh_directory")
 
     started=time.time()
     result=dict(
@@ -497,6 +497,7 @@ def run(endpoint):
                         qindex,pool.submit(
                             run_lifecycle,endpoint,evaluation,
                             db_path=ROOT/f"trial-{qindex:03d}.sqlite",
+                            capital_path=ROOT/"pons-selective-cohort-capital.sqlite",
                         )
                     ))
             except BoundaryError as exc:

@@ -10,7 +10,8 @@ import time
 
 from . import BoundaryError
 from .abi import topic
-from .evidence import Store
+from .evidence import Store, digest
+from .pons_selective_capital import CohortCapital
 from .pons_selective_ledger import SelectivePaper
 from .pons import CurveState, curve_abi, raw_event
 from .pons_natural_observation import _latest_header
@@ -193,7 +194,7 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
     return position,meta
 
 
-def run_lifecycle(endpoint,evaluation,*,db_path):
+def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
     vector=evaluation["vector"]
     if not vector.get("current_threshold_pass"):
         raise BoundaryError("selective_unqualified_lifecycle")
@@ -210,7 +211,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
         source_transaction=evaluation["source_transaction"],
         provider_sessions=[],monitor=[],started_at=time.time(),
     )
-    store=None;rpc=None
+    store=None;rpc=None;capital_guard=None;identity=None
     try:
         gas_units=_gas_units(candidate["receipt"])
         rpc=paper_rpc(endpoint);rpc.verify_chain()
@@ -239,6 +240,12 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
             "pons-selective:"+evaluation["token"]+":"+
             evaluation["source_transaction"]
         )
+        if capital_path is not None:
+            capital_guard=CohortCapital(capital_path,STRATEGY_CAPITAL_QUOTE)
+            result["cohort_reservation"]=capital_guard.reserve(
+                identity,amount+gas_budget,at=now,
+                decision_hash=digest(decision),trial_path=db_path,
+            )
         reserved=paper.reserve(
             identity,market=candidate["curve"],amount=amount,gas_budget=gas_budget,
             now=now,features=decision,kind="natural",
@@ -267,6 +274,9 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                 status="entry_failed",entry_failure="entry_slippage",
                 final_position=paper._get(identity),reconciliation=paper.reconcile(),
             )
+            if capital_guard is not None:
+                result["cohort_reconciliation"]=capital_guard.settle(
+                    identity,result["final_position"],at=int(time.time()))
             return result
         opened=paper.advance(
             identity,now=entry.stamp.observed_at,action="entry",quote=entry,
@@ -562,6 +572,12 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
         result["reconciliation"]=reconciliation
         result["realized_pnl_quote"]=result["final_position"]["pnl"]
         result["carried_through_graduation"]=transition is not None
+        if capital_guard is not None:
+            if result["final_position"]["status"]=="settled":
+                result["cohort_reconciliation"]=capital_guard.settle(
+                    identity,result["final_position"],at=int(time.time()))
+            else:
+                result["cohort_reconciliation"]=capital_guard.reconcile()
         return result
     except BoundaryError as exc:
         result["status"]="boundary"
@@ -578,6 +594,9 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                 pass
         return result
     finally:
+        if capital_guard is not None:
+            # Ambiguous native exits keep capital occupied and fail certification.
+            result["cohort_reconciliation"]=capital_guard.reconcile()
         if rpc is not None:
             result["provider_sessions"].append(rpc.telemetry())
         if store is not None:
