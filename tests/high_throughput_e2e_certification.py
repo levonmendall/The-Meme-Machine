@@ -157,11 +157,11 @@ def run_certification(report_path=None):
         adapter=new_adapter()
         runtime=MarketNativeRuntime(
             engine,adapter,session_seconds=12,
-            preflight_budget=3,full_evidence_budget=3,
-            clock=clock,provider_rotation_threshold=40)
+            clock=clock,provider_rotation_threshold=40,
+            evidence_queue_limit=100)
 
         def rotate_if_due():
-            if runtime.adapter.rpc.calls>=runtime.provider_rotation_threshold:
+            if runtime.provider_rotation_due():
                 runtime.replace_adapter(new_adapter())
                 return True
             return False
@@ -211,24 +211,21 @@ def run_certification(report_path=None):
         if STALE_MINT in runtime.discovered:
             raise AssertionError('prewarm_candidate_leaked_into_discovery')
 
-        # Candidate B occupies the first post-rewarm slot.
+        # Candidate B is processed immediately by the adaptive deadline queue.
         clock.set(172);_inject_window(tape,MINT_B,clock(),141)
-        cursor=runtime.tick(tape,clock(),cursor)
-
-        # Candidate C arrives in the next slot while B is processed.
-        clock.set(176);_inject_window(tape,POST_MINT,clock(),151)
         cursor=runtime.tick(tape,clock(),cursor)
         if runtime.qualified!=2:
             raise AssertionError(f'candidate_b_not_qualified:{runtime.status()}')
         if not rotate_if_due():
             raise AssertionError('second_provider_rotation_not_triggered')
         oid_b,_=_order_for_mint(store,MINT_B)
-        clock.set(178)
+        clock.set(174)
         if engine.fill(oid_b,snapshot(clock(),mint=MINT_B,creator=CREATOR_B,slot=clock()),clock())!='settled':
             raise AssertionError('candidate_b_fill_failed')
 
-        # C is processed in the following slot.
-        clock.set(180);cursor=runtime.tick(tape,clock(),cursor)
+        # Candidate C is independently processed on the next scheduler turn.
+        clock.set(176);_inject_window(tape,POST_MINT,clock(),151)
+        cursor=runtime.tick(tape,clock(),cursor)
         if runtime.qualified!=3:
             raise AssertionError(f'candidate_c_not_qualified:{runtime.status()}')
         if not rotate_if_due():
