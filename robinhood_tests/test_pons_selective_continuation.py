@@ -225,5 +225,33 @@ class PartialPaperExitTests(unittest.TestCase):
         s.close()
 
 
+
+    def test_pending_full_exit_survives_proven_market_transition(self):
+        s=Store(":memory:")
+        p=Paper(s,"transition-exit",1000,delay=1)
+        p.reserve(
+            "x",market="curve",amount=100,gas_budget=20,now=10,
+            features=dict(asof=10,market="curve"),
+        )
+        p.advance(
+            "x",now=11,action="entry",
+            quote=Quote("curve","buy",100,1000,2,0,self._stamp(11)),
+        )
+        pending=p.advance("x",now=12,action="exit_intent")
+        self.assertEqual(pending["pending_exit_tokens"],1000)
+        transition=dict(
+            previous_market="curve",market="v4",proof_hash="proof",
+        )
+        s.put("graduation","proof",transition)
+        moved=p.advance("x",now=13,action="transition",transition=transition)
+        self.assertEqual((moved["status"],moved["market"]),("exit_pending","v4"))
+        final=p.advance(
+            "x",now=13,action="exit",
+            quote=Quote("v4","sell",1000,120,2,0,self._stamp(13)),
+        )
+        self.assertEqual(final["status"],"settled")
+        self.assertEqual(final["tokens"],0)
+        s.close()
+
 if __name__=="__main__":
     unittest.main()
