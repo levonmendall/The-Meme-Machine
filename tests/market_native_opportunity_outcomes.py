@@ -448,6 +448,7 @@ def main():
                 expanded_two_buyer_full_evidence=sum(
                     r.get('full_evidence_complete') and r.get('two_buyer_research_candidate')
                     for r in extra_evidence_results),
+                # Some runner-up rows intentionally never receive this research-only optional tag.
                 expanded_two_buyer_sole_near_misses=sum(
                     bool(r.get('two_buyer_sole_near_miss')) for r in extra_evidence_results),
                 natural_complete=sum(r.get('evidence_stage')=='complete' for r in natural_results),
