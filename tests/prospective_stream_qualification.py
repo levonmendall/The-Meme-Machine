@@ -18,7 +18,8 @@ from pathlib import Path
 from meme_machine import pump
 from meme_machine.concentration import ConcentrationReader
 from meme_machine.engine import Engine
-from meme_machine.provider import RPC, PumpAdapter, Unavailable
+from meme_machine.provider import PumpAdapter, Unavailable
+from meme_machine.solana_read_rpc import new_rpc, primary_rpc_url
 from meme_machine.research import qualification_vector
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
@@ -129,12 +130,12 @@ def main():
                 qualification_policy='continuation-v1',qualification_policy_frozen=True,
                 research_authority_only=True,portfolio_performance_claim=False,
                 results=[],limitations=[])
-    url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
+    url=primary_rpc_url()
     # No external service is required by default. An explicitly configured secondary
     # remains available for experiments, but current free proof uses the same primary
     # endpoint with a compact program-account amount slice before the legacy method.
     concentration_url=os.environ.get('MM_SOLANA_CONCENTRATION_RPC_URL','').strip()
-    rpc=RPC(url,limit=120)
+    rpc=new_rpc(limit=120)
     concentration_reader=ConcentrationReader(rpc,secondary_url=concentration_url)
     tape=PumpTape()
     stop=threading.Event();ready=threading.Event()
@@ -226,7 +227,8 @@ def main():
                   http_transport_requests=rpc.http_requests,http_failures=rpc.failures,
                   http_retries=rpc.retries,http_failure_kinds=rpc.failure_kinds,
                   stream_error_kind=stream.error_kind,
-                  provider_spend_usd=0 if url=='https://api.mainnet-beta.solana.com' else None,
+                  provider_spend_usd=0 if rpc.failover_count==0 else None,
+                  provider_topology=rpc.provider_telemetry(),
                   infrastructure_spend_usd=0)
     print(json.dumps(report,sort_keys=True))
 
