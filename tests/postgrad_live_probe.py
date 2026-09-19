@@ -17,7 +17,7 @@ from meme_machine.postgrad import (
     PostGraduationAdapter, _decode_raydium_pool, buy_quote, graduation_handoff,
     pumpswap_pool, sell_quote,
 )
-from meme_machine.provider import RPC
+from meme_machine.solana_read_rpc import new_rpc, new_pool_scan_rpc
 
 PUMPSWAP_SAMPLE_MINT = '7LSsEoJGhLeZzGvDofTdNg7M3JttxQqGWNLo6vWMpump'
 PUMPSWAP_DOCUMENTED_POOL = 'GseMAnNDvntR5uFePZ51yZBXzNSn7GdFPkfHwfr6d77J'
@@ -151,9 +151,9 @@ def _legacy_raydium_lineage(adapter, mint):
 
 
 def main():
-    url = os.environ.get('MM_SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.com')
-    rpc = RPC(url, limit=200)
-    adapter = PostGraduationAdapter(rpc)
+    rpc = new_rpc(limit=200)
+    scan_rpc = new_pool_scan_rpc(limit=40, pacer=rpc.read_pacer)
+    adapter = PostGraduationAdapter(rpc, scan_rpc=scan_rpc)
     report = dict(
         kind='postgrad_read_only_live_probe',
         network='solana-mainnet',
@@ -163,7 +163,7 @@ def main():
         transaction_submission_authority=False,
         live_money_authority=False,
         profitability_evidence=False,
-        provider_spend_usd=0 if url == 'https://api.mainnet-beta.solana.com' else None,
+        provider_spend_usd=0,
         infrastructure_spend_usd=0,
         samples={},
         limitations=[],
@@ -207,6 +207,9 @@ def main():
         http_failures=rpc.failures,
         http_retries=rpc.retries,
         http_failure_kinds=rpc.failure_kinds,
+        provider_spend_usd=0 if (rpc.failover_count + scan_rpc.failover_count)==0 else None,
+        provider_topology=rpc.provider_telemetry(),
+        scan_provider_topology=scan_rpc.provider_telemetry(),
         scan_status=dict(
             configured=adapter.scan_rpc is not None,
             verified=adapter.scan_verified,
