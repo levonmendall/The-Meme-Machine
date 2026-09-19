@@ -472,9 +472,12 @@ class Adapter:
     All final evidence comes from one finalized getMultipleAccounts response; the
     earlier address-discovery read is discarded. Reuses the caller's RPC budget.
     """
-    def __init__(self,rpc):
+    def __init__(self,rpc,network_verified=False):
         self.rpc=rpc
-        if rpc.call('getGenesisHash',priority=True)!=pump.MAINNET:
+        if type(network_verified) is not bool:
+            raise ValueError('dlmm_network_verified_flag')
+        if not network_verified and rpc.call(
+                'getGenesisHash',priority=True,fresh=True)!=pump.MAINNET:
             raise Unavailable('unsupported_network')
 
     def snapshot(self,address,now,priority=False,fresh=False):
