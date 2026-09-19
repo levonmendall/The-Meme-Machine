@@ -61,6 +61,7 @@ FRESH_SWAP_TRIGGER_POLL_SECONDS=2
 FRESH_SWAP_TRIGGER_MAX_SECONDS=60
 FRESH_SWAP_TRIGGER_SIGNATURE_LIMIT=16
 FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS=12
+RATE_LIMIT_RECOVERY_MAX_CONSECUTIVE=8
 NETWORK_IDENTITY_MAX_ATTEMPTS=3
 NETWORK_IDENTITY_RETRY_SECONDS=1
 DEFAULT_MAX_RUNTIME_SECONDS=1200
@@ -435,6 +436,47 @@ def _runtime_remaining(deadline):
             else max(0.0,deadline-time.monotonic()))
 
 
+def _rate_limit_failures(rpcs):
+    return sum(
+        int((getattr(rpc,"failure_methods",{}) or {}).get(
+            method,0))
+        for rpc in rpcs
+        for method in (
+            "getSignaturesForAddress:http_429",
+            "getTransaction:http_429",
+            "getMultipleAccounts:http_429",
+            "getBlockTime:http_429",
+            "getGenesisHash:http_429",
+        )
+    )
+
+
+def _is_new_rate_limit(rpcs,before):
+    return _rate_limit_failures(rpcs)>int(before)
+
+
+def _retry_rate_limited_operation(
+    operation,adapter,pacer,rpcs,deadline=None
+):
+    consecutive=0
+    while True:
+        before=_rate_limit_failures(rpcs)
+        try:
+            return operation(adapter),adapter
+        except Unavailable:
+            if not _is_new_rate_limit(rpcs,before):
+                raise
+            consecutive+=1
+            if consecutive>RATE_LIMIT_RECOVERY_MAX_CONSECUTIVE:
+                raise Unavailable("solana_dlmm_rate_limit_recovery_exhausted")
+            if _runtime_expired(deadline):
+                raise Unavailable("experiment_runtime_deadline")
+            adapter=_rotate(adapter,pacer,rpcs)
+            # Shared pacer already owns the adaptive cooldown. Calling pace on the
+            # next request is sufficient; no independent per-candidate backoff loop.
+            continue
+
+
 def _fresh_supported_start(adapter,candidate):
     snap=adapter.snapshot(candidate["address"],int(time.time()),True,fresh=True)
     state=dlmm.validate(snap,snap["available_time"],"real")
@@ -556,12 +598,13 @@ def _observe_window(
 ):
     origin=start;current=start
     cursor=[start["slot"],2**31-1,2**31-1]
-    chunks=[];elapsed=0;resets=0;meta=[]
+    chunks=[];elapsed=0;resets=0;meta=[];rate_limit_recoveries=0
     while elapsed<total_seconds:
         if _runtime_expired(deadline):
             return dict(
                 verified=False,reason="experiment_runtime_deadline",
                 elapsed_seconds=elapsed,resets=resets,chunks=meta,
+                rate_limit_recoveries=rate_limit_recoveries,
             ),None,current,origin,adapter
         adapter=_rotate(adapter,pacer,rpcs)
         duration=min(CHUNK_SECONDS,total_seconds-elapsed)
@@ -570,10 +613,24 @@ def _observe_window(
                 verified=False,reason="experiment_runtime_deadline",
                 elapsed_seconds=elapsed,resets=resets,chunks=meta,
             ),None,current,origin,adapter
+        rate_limit_before=_rate_limit_failures(rpcs)
         try:
             tape,cursor,census=_capture_chunk(adapter,current,cursor,duration)
         except (Unavailable,ValueError,KeyError,TypeError) as exc:
             reason=str(exc)
+            if (reason=="provider_request_failed"
+                    and _is_new_rate_limit(
+                        rpcs,rate_limit_before)):
+                rate_limit_recoveries+=1
+                if rate_limit_recoveries>RATE_LIMIT_RECOVERY_MAX_CONSECUTIVE:
+                    return dict(
+                        verified=False,
+                        reason="solana_dlmm_rate_limit_recovery_exhausted",
+                        elapsed_seconds=elapsed,resets=resets,chunks=meta,
+                        rate_limit_recoveries=rate_limit_recoveries,
+                    ),None,current,origin,adapter
+                adapter=_rotate(adapter,pacer,rpcs)
+                continue
             if (allow_reset and reason.startswith("dlmm_snapshot_reset_required:")
                     and resets<MAX_WARMUP_RESETS):
                 adapter=_rotate(adapter,pacer,rpcs)
@@ -587,6 +644,7 @@ def _observe_window(
             return dict(
                 verified=False,reason=reason,elapsed_seconds=elapsed,
                 resets=resets,chunks=meta,
+                rate_limit_recoveries=rate_limit_recoveries,
             ),None,current,origin,adapter
         chunks.append(tape);current=tape.terminal;elapsed+=duration
         meta.append(dict(
@@ -599,6 +657,7 @@ def _observe_window(
     combined=chain_verified_tapes(origin,chunks)
     return dict(
         verified=True,elapsed_seconds=elapsed,resets=resets,chunks=meta,
+        rate_limit_recoveries=rate_limit_recoveries,
         swaps=len(combined.events),lineage=combined.lineage,
     ),combined,current,origin,adapter
 
@@ -1010,36 +1069,77 @@ def _regime_pass(candidate,policy):
 
 
 def _new_finalized_swaps(rpc,pool,after_slot):
-    rows=rpc.call(
-        "getSignaturesForAddress",
-        [pool,dict(
-            limit=FRESH_SWAP_TRIGGER_SIGNATURE_LIMIT,
-            commitment="finalized")],
-        True,
-    )
+    before429=int((getattr(rpc,"failure_methods",{}) or {}).get(
+        "getSignaturesForAddress:http_429",0))
+    try:
+        rows=rpc.call(
+            "getSignaturesForAddress",
+            [pool,dict(
+                limit=FRESH_SWAP_TRIGGER_SIGNATURE_LIMIT,
+                commitment="finalized")],
+            True,
+        )
+    except Unavailable:
+        after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
+            "getSignaturesForAddress:http_429",0))
+        if after429>before429:
+            return [],dict(
+                rate_limited=True,stage="getSignaturesForAddress",
+                head_slot=after_slot,head_signature=None,
+                fresh_signature_count=0,
+            )
+        raise
     if not isinstance(rows,list):
         raise Unavailable("solana_dlmm_trigger_signature_shape")
-    fresh=[
-        row for row in rows
-        if isinstance(row,dict)
-        and not row.get("err")
-        and row.get("confirmationStatus")=="finalized"
-        and type(row.get("slot")) is int
-        and row["slot"]>after_slot
-        and isinstance(row.get("signature"),str)
-    ]
-    fresh.sort(key=lambda row:(row["slot"],row["signature"]))
-    if not fresh:
-        return []
+
+    head_slot=after_slot
+    head_signature=None
+    valid=[]
+    for row in rows:
+        if not isinstance(row,dict):
+            continue
+        slot=row.get("slot");signature=row.get("signature")
+        if type(slot) is not int or not isinstance(signature,str):
+            continue
+        if head_signature is None or slot>head_slot:
+            head_slot=slot;head_signature=signature
+        if (not row.get("err")
+                and row.get("confirmationStatus")=="finalized"
+                and slot>after_slot):
+            valid.append(row)
+    valid.sort(key=lambda row:(row["slot"],row["signature"]))
+    if not valid:
+        return [],dict(
+            rate_limited=False,stage=None,
+            head_slot=max(after_slot,head_slot),
+            head_signature=head_signature,
+            fresh_signature_count=0,
+        )
+
     params=[[
         row["signature"],dict(
             encoding="json",commitment="finalized",
             maxSupportedTransactionVersion=1)
-    ] for row in fresh]
-    values=rpc.call_many(
-        "getTransaction",params,True,batch_size=8)
+    ] for row in valid]
+    before429=int((getattr(rpc,"failure_methods",{}) or {}).get(
+        "getTransaction:http_429",0))
+    try:
+        values=rpc.call_many(
+            "getTransaction",params,True,batch_size=8)
+    except Unavailable:
+        after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
+            "getTransaction:http_429",0))
+        if after429>before429:
+            # Do not advance the cursor; these exact signatures must be retried.
+            return [],dict(
+                rate_limited=True,stage="getTransaction",
+                head_slot=after_slot,head_signature=None,
+                fresh_signature_count=len(valid),
+            )
+        raise
+
     out=[]
-    for row,tx in zip(fresh,values):
+    for row,tx in zip(valid,values):
         if not tx or (tx.get("meta") or {}).get("err"):
             continue
         swaps=transaction_swaps(tx,pool)
@@ -1051,7 +1151,12 @@ def _new_finalized_swaps(rpc,pool,after_slot):
                 swap_count=len(swaps),
                 swaps=swaps,
             ))
-    return out
+    return out,dict(
+        rate_limited=False,stage=None,
+        head_slot=max(after_slot,head_slot),
+        head_signature=head_signature,
+        fresh_signature_count=len(valid),
+    )
 
 
 def _await_fresh_swap_trigger(
@@ -1110,14 +1215,29 @@ def _await_fresh_swap_trigger(
             next_refresh=elapsed+FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS
 
         adapter=_rotate(adapter,pacer,rpcs)
-        swaps=_new_finalized_swaps(
+        swaps,poll_meta=_new_finalized_swaps(
             adapter.rpc,candidate["address"],cursor_slot)
         polls+=1
+        if poll_meta.get("rate_limited"):
+            remaining=min(
+                FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
+                    0.0,time.monotonic()-started),
+                _runtime_remaining(deadline))
+            if remaining<=0:
+                continue
+            # The shared Alchemy pacer has already installed the adaptive cooldown.
+            # Yield control without classifying the candidate as failed.
+            time.sleep(min(
+                FRESH_SWAP_TRIGGER_POLL_SECONDS,remaining))
+            continue
         if swaps:
             trigger=swaps[0]
             trigger_slot=int(trigger["slot"])
             adapter=_rotate(adapter,pacer,rpcs)
-            post=_fresh_supported_start(adapter,current_candidate)
+            (post,adapter)=_retry_rate_limited_operation(
+                lambda active:_fresh_supported_start(
+                    active,current_candidate),
+                adapter,pacer,rpcs,deadline)
             if int(post["slot"])<trigger_slot:
                 # Finalized pool state must be at or beyond the authenticated swap.
                 time.sleep(FRESH_SWAP_TRIGGER_POLL_SECONDS)
@@ -1132,16 +1252,9 @@ def _await_fresh_swap_trigger(
                 post_trigger_slot=int(post["slot"]),
             )
             return trigger,post,adapter,current_candidate
-        # Advance the signature cursor only after checking all rows returned so
-        # repeated polling cannot reprocess a non-swap transaction forever.
-        rows=adapter.rpc.call(
-            "getSignaturesForAddress",
-            [candidate["address"],dict(
-                limit=1,commitment="finalized")],
-            True,
-        )
-        if isinstance(rows,list) and rows and type(rows[0].get("slot")) is int:
-            cursor_slot=max(cursor_slot,int(rows[0]["slot"]))
+        # The same signature poll already supplied the finalized head. Advancing
+        # from that response removes the prior duplicate head read per loop.
+        cursor_slot=max(cursor_slot,int(poll_meta.get("head_slot") or cursor_slot))
         remaining=min(
             FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
                 0.0,time.monotonic()-started),
@@ -1317,8 +1430,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
         compatibility_screened+=1
         try:
-            compatibility_state=_fresh_supported_start(
-                adapter,candidate)
+            (compatibility_state,adapter)=_retry_rate_limited_operation(
+                lambda active:_fresh_supported_start(
+                    active,candidate),
+                adapter,pacer,candidate_rpcs,deadline)
         except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
             compatibility_rejections.append(dict(
                 pool=candidate["address"],candidate=candidate,
