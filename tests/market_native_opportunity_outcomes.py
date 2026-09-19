@@ -44,6 +44,7 @@ from meme_machine.research import CURRENT_THRESHOLDS
 from meme_machine.solana_read_rpc import discovery_ws_url, new_rpc, primary_rpc_url
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
+from tests.rejected_winner_preentry_analysis import HYPOTHESIS as REJECTED_WINNER_HYPOTHESIS, hypothesis_match
 
 REPORT=Path(os.environ.get('MM_MARKET_NATIVE_OUTCOME_REPORT','market-native-opportunity-outcomes.json'))
 GENESIS_SOL_USD_MICROS=97_840_000
@@ -410,6 +411,8 @@ def main():
                                 row,tracker=_evaluate_natural(chosen,tape,evidence,authority,engine)
                                 row['sample_slot']=natural_slot
                                 row['tracker_index']=len(trackers)
+                                row['rejected_winner_hypothesis_id']=REJECTED_WINNER_HYPOTHESIS['id']
+                                row['rejected_winner_hypothesis_match']=bool(hypothesis_match(row))
                                 natural_results.append(row);add_tracker(tracker)
 
                         if elapsed>=DISCOVERY_SECONDS:
@@ -438,7 +441,22 @@ def main():
                 idx=row.get('tracker_index')
                 if isinstance(idx,int) and 0<=idx<len(trackers):
                     row['future_outcomes']=trackers[idx]
+            prospective_matches=[
+                row for row in natural_results
+                if row.get('evidence_stage')=='complete'
+                and row.get('rejected_winner_hypothesis_match')
+            ]
+            prospective_concentration_controls=[
+                row for row in natural_results
+                if row.get('evidence_stage')=='complete'
+                and row.get('actual_reason')=='concentration'
+                and not row.get('rejected_winner_hypothesis_match')
+            ]
             report.update(
+                rejected_winner_hypothesis=dict(REJECTED_WINNER_HYPOTHESIS),
+                rejected_winner_prospective_matching=len(prospective_matches),
+                rejected_winner_prospective_concentration_controls=len(prospective_concentration_controls),
+                rejected_winner_hypothesis_order_authority=False,
                 ended=ended,discovered=len(discovered),natural_results=natural_results,
                 extra_evidence_results=extra_evidence_results,
                 extra_evidence_attempted=extra_evidence_attempted,
