@@ -2,9 +2,11 @@ import urllib.error
 import unittest
 
 from meme_machine import solana_read_rpc as rpc_topology
+from meme_machine.provider import Unavailable
 
 
 ALCHEMY='https://solana-mainnet.g.alchemy.com/v2/example-key'
+ONFINALITY='https://solana.api.onfinality.io/rpc?apikey=example-secret'
 
 
 class Clock:
@@ -17,38 +19,37 @@ class Clock:
 
 
 class SolanaReadTopologyTests(unittest.TestCase):
-    def test_primary_is_two_requests_per_second_and_no_load_balancing(self):
+    def test_no_secret_fallback_is_public_but_production_primary_is_alchemy(self):
         meta=rpc_topology.metadata({})
-        self.assertEqual(meta['primary_provider'],rpc_topology.PRIMARY_PROVIDER)
+        self.assertEqual(meta['primary_provider'],rpc_topology.PUBLIC_HTTP_PROVIDER)
+        self.assertTrue(meta['primary_public'])
         self.assertEqual(meta['minimum_request_interval_seconds'],0.5)
-        self.assertFalse(meta['load_balancing'])
         self.assertFalse(meta['secondary_configured'])
+        self.assertFalse(meta['fallback_allowed'])
 
-    def test_authenticated_onfinality_urls_override_public_without_leaking_to_metadata(self):
+        env={rpc_topology.ALCHEMY_ENV_NAME:ALCHEMY}
+        meta=rpc_topology.metadata(env)
+        self.assertEqual(meta['primary_provider'],rpc_topology.PRIMARY_PROVIDER)
+        self.assertFalse(meta['primary_public'])
+        self.assertEqual(meta['primary_credential'],rpc_topology.ALCHEMY_ENV_NAME)
+        self.assertEqual(rpc_topology.primary_rpc_url(env),ALCHEMY)
+
+    def test_onfinality_is_diagnostic_only_and_cannot_override_pump_http_primary(self):
         env={
-            rpc_topology.AUTHENTICATED_PRIMARY_ENV_NAME:
-                'https://solana.api.onfinality.io/rpc?apikey=example-secret',
+            rpc_topology.ALCHEMY_ENV_NAME:ALCHEMY,
+            rpc_topology.AUTHENTICATED_PRIMARY_ENV_NAME:ONFINALITY,
             rpc_topology.AUTHENTICATED_WS_ENV_NAME:
                 'wss://solana.api.onfinality.io/ws?apikey=example-secret',
         }
-        self.assertEqual(
-            rpc_topology.primary_rpc_url(env),
-            env[rpc_topology.AUTHENTICATED_PRIMARY_ENV_NAME],
-        )
+        self.assertEqual(rpc_topology.primary_rpc_url(env),ALCHEMY)
+        self.assertEqual(rpc_topology.onfinality_rpc_url(env,required=True),ONFINALITY)
         self.assertEqual(
             rpc_topology.primary_ws_url(env),
             env[rpc_topology.AUTHENTICATED_WS_ENV_NAME],
         )
         meta=rpc_topology.metadata(env)
-        self.assertFalse(meta['primary_public'])
-        self.assertEqual(meta['primary_credential'],
-                         rpc_topology.AUTHENTICATED_PRIMARY_ENV_NAME)
+        self.assertEqual(meta['onfinality_http_role'],'diagnostic_only_not_pump_evidence')
         self.assertNotIn('example-secret',str(meta))
-        with self.assertRaisesRegex(Exception,'onfinality_rpc_endpoint_required'):
-            rpc_topology.primary_rpc_url({
-                rpc_topology.AUTHENTICATED_PRIMARY_ENV_NAME:
-                    'https://example.com/rpc?apikey=bad',
-            })
 
     def test_shared_primary_pacer_enforces_half_second_across_rpc_objects(self):
         clock=Clock()
@@ -65,34 +66,25 @@ class SolanaReadTopologyTests(unittest.TestCase):
         self.assertEqual(first.call('getBlockTime',[1],priority=True),123)
         self.assertEqual(second.call('getBlockTime',[2],priority=True),123)
         self.assertAlmostEqual(clock.value,100.5,places=6)
-        self.assertEqual(urls,[rpc_topology.PRIMARY_RPC_URL,rpc_topology.PRIMARY_RPC_URL])
+        self.assertEqual(urls,[ALCHEMY,ALCHEMY])
         self.assertEqual(pacer.telemetry()['minimum_interval_seconds'],0.5)
 
-    def test_healthy_primary_never_spends_alchemy_and_failure_uses_rescue(self):
+    def test_alchemy_failure_fails_closed_without_hidden_rescue(self):
         env={rpc_topology.ALCHEMY_ENV_NAME:ALCHEMY}
         rpc=rpc_topology.new_rpc(limit=40,environ=env)
         calls=[]
-        def healthy(url,request):
+        def fail(url,request):
             calls.append(url)
-            return {'jsonrpc':'2.0','id':request['id'],'result':'ok'}
-        rpc._request_url=healthy
-        self.assertEqual(rpc.call('getGenesisHash',priority=True),'ok')
-        self.assertEqual(calls,[rpc_topology.PRIMARY_RPC_URL])
+            raise urllib.error.HTTPError(url,429,'rate limited',{},None)
+        rpc._request_url=fail
+        with self.assertRaises(Unavailable):
+            rpc.call('getGenesisHash',priority=True)
+        self.assertTrue(calls)
+        self.assertTrue(all(url==ALCHEMY for url in calls))
         self.assertEqual(rpc.failover_count,0)
-
-        rpc2=rpc_topology.new_rpc(limit=40,environ=env)
-        calls=[]
-        def failover(url,request):
-            calls.append(url)
-            if url==rpc_topology.PRIMARY_RPC_URL:
-                raise urllib.error.HTTPError(url,429,'rate limited',{},None)
-            return {'jsonrpc':'2.0','id':request['id'],'result':'rescued'}
-        rpc2._request_url=failover
-        self.assertEqual(rpc2.call('getGenesisHash',priority=True),'rescued')
-        self.assertEqual(calls,[rpc_topology.PRIMARY_RPC_URL,ALCHEMY])
-        self.assertEqual(rpc2.calls,1)
-        self.assertEqual(rpc2.http_requests,2)
-        self.assertEqual(rpc2.failover_count,1)
+        telemetry=rpc.provider_telemetry()
+        self.assertEqual(telemetry['secondary_provider'],'none')
+        self.assertFalse(telemetry['secondary_configured'])
 
 
 if __name__=='__main__':
