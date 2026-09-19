@@ -1,6 +1,7 @@
 from dataclasses import replace
 import unittest
 
+from robinhood_research import BoundaryError
 from robinhood_research.evidence import Stamp, Store
 from robinhood_research.paper import Paper, Quote
 from robinhood_research.pons import CurveState
@@ -78,6 +79,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],9200)
         self.assertEqual(ENTRY_THRESHOLDS["capital_size_bps"],25)
         self.assertEqual(EXIT_POLICY["first_profit_bps"],2500)
+        self.assertEqual(EXIT_POLICY["max_total_hold_seconds"],900)
 
     def test_clean_late_curve_acceleration_can_qualify(self):
         v=vector()
@@ -129,7 +131,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         w=wallet_convergence(history,gs,asof=200)
         self.assertTrue(w["converged"])
         self.assertFalse(w["qualification_authority"])
-        with self.assertRaisesRegex(Exception,"future_wallet_skill"):
+        with self.assertRaisesRegex(BoundaryError,"future_wallet_skill"):
             wallet_convergence([dict(history[0],history_asof=201)],gs,asof=200)
 
     def test_post_graduation_second_wave_gate(self):
