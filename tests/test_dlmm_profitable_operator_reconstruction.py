@@ -11,7 +11,7 @@ class ProfitableOperatorReconstructionTests(unittest.TestCase):
         struct.pack_into("<QQ",raw,8,1_000,2_000)
         struct.pack_into("<iiii",raw,24,100,3,90,120)
         raw[40]=4  # CurveBalanced
-        out=rec.decode_strategy2(bytes(raw))
+        out=rec.decode_strategy(bytes(raw))
         self.assertEqual(out["amount_x"],1_000)
         self.assertEqual(out["amount_y"],2_000)
         self.assertEqual(out["observed_active_bin"],100)
@@ -32,7 +32,7 @@ class ProfitableOperatorReconstructionTests(unittest.TestCase):
         for row in rows:
             struct.pack_into("<iHH",raw,offset,*row);offset+=8
         struct.pack_into("<I",raw,offset,0)
-        out=rec.decode_add2(bytes(raw))
+        out=rec.decode_add(bytes(raw))
         self.assertEqual(out["lower_bin_id"],98)
         self.assertEqual(out["upper_bin_id"],100)
         self.assertEqual(out["width_bins"],3)
@@ -40,6 +40,26 @@ class ProfitableOperatorReconstructionTests(unittest.TestCase):
         self.assertEqual(
             rec.classify_distribution(out["distributions"],100),"curve_like"
         )
+
+    def test_decode_weight_and_one_side_ranges(self):
+        weight=bytearray(36+12)
+        weight[:8]=rec.WEIGHT2
+        struct.pack_into("<QQiiI",weight,8,500,600,50,2,2)
+        struct.pack_into("<iH",weight,36,48,4000)
+        struct.pack_into("<iH",weight,42,52,6000)
+        out=rec.decode_weight(bytes(weight))
+        self.assertEqual(out["width_bins"],5)
+        self.assertEqual(out["observed_active_bin"],50)
+        self.assertTrue(out["two_sided"])
+
+        one=bytearray(28+12)
+        one[:8]=rec.ONE_SIDE
+        struct.pack_into("<QiiI",one,8,1000,50,1,2)
+        struct.pack_into("<iH",one,28,51,5000)
+        struct.pack_into("<iH",one,34,52,5000)
+        x=rec.decode_one_side(bytes(one))
+        self.assertTrue(x["one_sided"])
+        self.assertEqual((x["lower_bin_id"],x["upper_bin_id"]),(51,52))
 
     def test_decode_remove_range2_and_rebalance(self):
         remove=bytearray(18);remove[:8]=rec.REMOVE_RANGE2
