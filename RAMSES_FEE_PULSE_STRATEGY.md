@@ -93,3 +93,23 @@ Absent optional evidence does not weaken the gates; it produces `no_trade` where
 ## Authority boundary
 
 The strategy implementation is research/paper infrastructure only. Natural allocation remains disabled until a prospectively collected cohort demonstrates after-cost edge without threshold changes or hindsight range selection.
+
+
+## Hard strategy independence
+
+The Ramses strategy domain is `robinhood-ramses-dlmm-independent`.
+
+The following are enforced rather than assumed:
+
+- no shared Meme Machine allocator;
+- no Pons, Pump/PumpSwap, continuation, Fomo or Solana candidate inheritance;
+- no cross-strategy signal reuse;
+- no shared position/state tables;
+- no cross-strategy P&L attribution;
+- standalone SQLite paper ledger: `robinhood-ramses-strategy.sqlite`;
+- anchor signals must declare `source_class=external_reference`;
+- directional-converter signals must declare `source_class=ramses_independent_model`;
+- fields identifying Pons/Pump/continuation/Solana/other-strategy provenance make the signal ineligible;
+- CI statically checks the Ramses strategy modules for forbidden imports from other strategy modules.
+
+The strategy may use the same underlying authenticated RPC infrastructure when a dedicated DLMM endpoint is not configured. That is transport sharing only: the provider cannot contribute candidates, decisions, capital, state or outcomes from another strategy.
