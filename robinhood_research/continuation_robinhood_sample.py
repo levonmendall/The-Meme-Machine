@@ -33,7 +33,7 @@ from .pons_natural_observation import (
     RESEARCH_RECIPIENT, _current_curve_events, _latest_header,
     _one_word, _two_uints,
 )
-from .provider import Rpc
+from .provider_topology import configured_rpc
 
 REPORT=Path(os.environ.get(
     "MM_ROBINHOOD_CONTINUATION_SAMPLE_REPORT",
@@ -52,7 +52,7 @@ RECEIPT_BATCH=20
 
 
 def _rpc(endpoint, *, full=False):
-    return Rpc(
+    return configured_rpc(
         endpoint,limit=200,per_scope=(200 if full else 190),retries=0,
     )
 
