@@ -35,10 +35,15 @@ class PaperPosition:
 class PumpAccelerationPaperLifecycle:
     """One independent strategy lifecycle; no shared-capital authority."""
 
-    def __init__(self):
+    def __init__(self, *, book=None, lifecycle_id=None, entry_evidence=None):
         self.reservation=None
         self.position=None
         self.history=[]
+        self.book=book
+        self.lifecycle_id=lifecycle_id
+        self.entry_evidence=entry_evidence or {}
+        if book is not None and not lifecycle_id:
+            raise ValueError("durable_lifecycle_id_required")
 
     def reserve(self, qualification: Qualification, budget_quote_units: int, now: int):
         if qualification.strategy_id != STRATEGY_ID:
@@ -49,6 +54,10 @@ class PumpAccelerationPaperLifecycle:
             raise ValueError("invalid_budget")
         if self.reservation is not None or self.position is not None:
             raise ValueError("lifecycle_already_active")
+        if self.book is not None:
+            self.book.reserve(self.lifecycle_id,int(budget_quote_units),int(now),
+                              dict(qualification=asdict(qualification),
+                                   snapshot=self.entry_evidence))
         self.reservation=dict(
             strategy_id=STRATEGY_ID,
             mode=qualification.mode,
@@ -61,7 +70,7 @@ class PumpAccelerationPaperLifecycle:
         self.history.append(dict(event="reserved",**self.reservation))
         return dict(self.reservation)
 
-    def fill(self, tokens: int, cost_quote_units: int, now: int, surface: str):
+    def fill(self, tokens: int, cost_quote_units: int, now: int, surface: str, *, evidence=None):
         if self.reservation is None or self.position is not None:
             raise ValueError("no_active_reservation")
         if tokens <= 0 or cost_quote_units <= 0:
@@ -70,6 +79,10 @@ class PumpAccelerationPaperLifecycle:
             raise ValueError("fill_exceeds_budget")
         if surface not in ("pump.fun","pumpswap"):
             raise ValueError("unsupported_surface")
+        if self.book is not None:
+            self.book.transition(self.lifecycle_id,"filled",int(now),
+                                 amount=int(cost_quote_units),tokens=int(tokens),
+                                 evidence=dict(surface=surface,execution=evidence))
         self.position=PaperPosition(
             strategy_id=STRATEGY_ID,
             mode=self.reservation["mode"],
@@ -86,6 +99,9 @@ class PumpAccelerationPaperLifecycle:
     def cancel(self, reason: str, now: int):
         if self.reservation is None:
             raise ValueError("no_active_reservation")
+        if self.book is not None:
+            self.book.transition(self.lifecycle_id,"cancelled",int(now),
+                                 evidence=dict(reason=str(reason)))
         self.history.append(dict(event="cancelled",reason=str(reason),time=int(now),reservation=dict(self.reservation)))
         self.reservation=None
 
@@ -103,11 +119,17 @@ class PumpAccelerationPaperLifecycle:
         return asdict(self.position)
 
     def mark(self, executable_proceeds_quote_units: int, now: int, demand_score: int,
-             postgrad_demand_confirmed: bool=False):
+             postgrad_demand_confirmed: bool=False, *, evidence=None):
         if self.position is None:
             raise ValueError("no_open_position")
         if executable_proceeds_quote_units < 0:
             raise ValueError("invalid_mark")
+        if self.book is not None:
+            self.book.transition(self.lifecycle_id,"mark",int(now),
+                                 amount=int(executable_proceeds_quote_units),
+                                 evidence=dict(demand_score=int(demand_score),
+                                               postgrad_demand_confirmed=bool(postgrad_demand_confirmed),
+                                               execution=evidence))
         basis=self.position.basis_quote_units
         ret=(int(executable_proceeds_quote_units)-basis)*10_000//basis
         self.position.peak_return_bps=max(self.position.peak_return_bps,ret)
@@ -135,13 +157,17 @@ class PumpAccelerationPaperLifecycle:
         ))
         return dict(return_bps=int(ret),peak_return_bps=int(self.position.peak_return_bps),exit_reason=reason)
 
-    def settle(self, executable_proceeds_quote_units: int, now: int):
+    def settle(self, executable_proceeds_quote_units: int, now: int, *, evidence=None):
         if self.position is None:
             raise ValueError("no_open_position")
         if self.position.exit_reason is None:
             raise ValueError("exit_not_intended")
         if executable_proceeds_quote_units < 0:
             raise ValueError("invalid_settlement")
+        if self.book is not None:
+            self.book.transition(self.lifecycle_id,"settled",int(now),
+                                 amount=int(executable_proceeds_quote_units),
+                                 evidence=dict(exit_reason=self.position.exit_reason,execution=evidence))
         self.position.realized_quote_units=int(executable_proceeds_quote_units)-self.position.basis_quote_units
         self.position.closed_at=int(now)
         closed=asdict(self.position)
@@ -152,6 +178,7 @@ class PumpAccelerationPaperLifecycle:
     def snapshot(self):
         return dict(
             strategy_id=STRATEGY_ID,
+            lifecycle_id=self.lifecycle_id,
             capital_authority=False,
             reservation=None if self.reservation is None else dict(self.reservation),
             position=None if self.position is None else asdict(self.position),
