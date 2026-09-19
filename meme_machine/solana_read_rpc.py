@@ -25,9 +25,11 @@ from .postgrad import PoolScanRPC
 from .provider import RPC, Unavailable
 
 
-PRIMARY_PROVIDER = "onfinality_public_solana_mainnet"
+PRIMARY_PROVIDER = "onfinality_solana_mainnet"
 PRIMARY_RPC_URL = "https://solana.api.onfinality.io/public"
 PRIMARY_RPC_HOST = "solana.api.onfinality.io"
+AUTHENTICATED_PRIMARY_ENV_NAME = "MM_ONFINALITY_SOLANA_RPC_URL"
+AUTHENTICATED_WS_ENV_NAME = "MM_ONFINALITY_SOLANA_WS_URL"
 PUBLIC_OVERRIDE_ENV_NAME = "MM_SOLANA_PUBLIC_RPC_URL"
 
 SECONDARY_PROVIDER = "alchemy_solana_mainnet_existing_secret"
@@ -43,22 +45,43 @@ def _source(environ=None):
     return os.environ if environ is None else environ
 
 
-def primary_rpc_url(environ=None):
-    source = _source(environ)
-    value = str(source.get(PUBLIC_OVERRIDE_ENV_NAME, "") or "").strip() or PRIMARY_RPC_URL
+def _validate_onfinality_url(value, *, websocket=False, public_only=False):
     parsed = urlparse(value)
+    expected_scheme = "wss" if websocket else "https"
     if (
-        parsed.scheme != "https"
+        parsed.scheme != expected_scheme
         or parsed.hostname != PRIMARY_RPC_HOST
         or parsed.port not in (None, 443)
         or parsed.username is not None
         or parsed.password is not None
-        or parsed.query
         or parsed.fragment
-        or parsed.path.rstrip("/") != "/public"
+    ):
+        raise Unavailable("onfinality_rpc_endpoint_required")
+    if public_only and (
+        parsed.query
+        or parsed.path.rstrip("/") != ("/public-ws" if websocket else "/public")
     ):
         raise Unavailable("onfinality_public_rpc_endpoint_required")
+    if not parsed.path or parsed.path == "/":
+        raise Unavailable("onfinality_rpc_endpoint_required")
     return value
+
+
+def primary_rpc_url(environ=None):
+    source = _source(environ)
+    authenticated = str(source.get(AUTHENTICATED_PRIMARY_ENV_NAME, "") or "").strip()
+    if authenticated:
+        return _validate_onfinality_url(authenticated)
+    public = str(source.get(PUBLIC_OVERRIDE_ENV_NAME, "") or "").strip() or PRIMARY_RPC_URL
+    return _validate_onfinality_url(public, public_only=True)
+
+
+def primary_ws_url(environ=None):
+    source = _source(environ)
+    authenticated = str(source.get(AUTHENTICATED_WS_ENV_NAME, "") or "").strip()
+    if authenticated:
+        return _validate_onfinality_url(authenticated, websocket=True)
+    return "wss://solana.api.onfinality.io/public-ws"
 
 
 def secondary_rpc_url(environ=None, *, required=False):
@@ -313,8 +336,10 @@ def metadata(environ=None):
     return dict(
         topology=TOPOLOGY_LABEL,
         primary_provider=PRIMARY_PROVIDER,
-        primary_public=True,
-        primary_credential=None,
+        primary_public=not bool(str(_source(environ).get(AUTHENTICATED_PRIMARY_ENV_NAME,"") or "").strip()),
+        primary_credential=(AUTHENTICATED_PRIMARY_ENV_NAME
+                            if str(_source(environ).get(AUTHENTICATED_PRIMARY_ENV_NAME,"") or "").strip()
+                            else None),
         secondary_provider=SECONDARY_PROVIDER,
         secondary_credential=ALCHEMY_ENV_NAME,
         secondary_configured=secondary_rpc_url(environ, required=False) is not None,
