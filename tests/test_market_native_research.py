@@ -83,5 +83,18 @@ class MarketNativeResearchTests(unittest.TestCase):
         self.assertFalse(result['automatic_threshold_change'])
 
 
+    def test_same_legacy_nomination_id_different_mints_are_distinct(self):
+        rows=[
+            dict(nomination_id='legacy:45',mint='MintA',natural_market_native_sample=True,
+                 evidence_stage='complete',qualification_vector=vector('qualified',[])),
+            dict(nomination_id='legacy:45',mint='MintB',natural_market_native_sample=True,
+                 evidence_stage='complete',qualification_vector=vector('qualified',[])),
+        ]
+        result=analyze_market_native_reports([natural_report(rows)],min_sample=2)
+        self.assertEqual(result['unique_complete_market_native_nominations'],2)
+        self.assertTrue(result['sample_ready'])
+
+
+
 if __name__=='__main__':
     unittest.main()
