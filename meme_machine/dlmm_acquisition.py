@@ -20,7 +20,7 @@ import time
 
 from websockets.sync.client import connect
 
-from . import dlmm
+from . import dlmm,pump
 from .provider import Unavailable
 from .solana_read_rpc import primary_ws_url
 
@@ -105,6 +105,22 @@ def classify_dlmm_lp_logs(logs):
         reason=("supported_lp_instruction" if actions else
                 "ambiguous_dlmm_logs" if uncertain else "no_supported_lp_instruction"),
     )
+
+
+def valid_solana_signature(signature):
+    """Return true only for a nonzero 64-byte base58 Solana transaction signature."""
+    if not isinstance(signature,str) or not signature:
+        return False
+    try:
+        leading=len(signature)-len(signature.lstrip("1"))
+        n=0
+        for ch in signature:
+            n=n*58+pump.ALPHABET.index(ch)
+        raw=(b"\x00"*leading +
+             (n.to_bytes((n.bit_length()+7)//8,"big") if n else b""))
+    except (ValueError,OverflowError):
+        return False
+    return len(raw)==64 and any(raw)
 
 
 @dataclass(frozen=True)
@@ -221,10 +237,14 @@ class UnionSignatureLedger:
         self.provider_notifications=Counter()
         self.provider_signatures=Counter()
         self.provider_lp_candidates=Counter()
+        self.invalid_signatures=0
 
     def observe(self,provider,signature,slot,observed_at,logs=None):
         provider=str(provider);signature=str(signature)
         self.provider_notifications[provider]+=1
+        if not valid_solana_signature(signature):
+            self.invalid_signatures+=1
+            return False
         relevance=classify_dlmm_lp_logs(logs)
         row=self._rows.get(signature)
         if row is None:
@@ -284,6 +304,7 @@ class UnionSignatureLedger:
         union=public | onfinality
         return dict(
             unique_signatures=len(self._rows),
+            invalid_signature_notifications=self.invalid_signatures,
             provider_notifications=dict(sorted(self.provider_notifications.items())),
             provider_unique_signatures=dict(sorted(self.provider_signatures.items())),
             provider_lp_candidate_notifications=dict(
