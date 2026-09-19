@@ -10,6 +10,7 @@ name: solana-dlmm-independent-v1
 # compatibility-budget: pre-attempt
 # dynamic-fee-role: context-only
 # operational-repair: restart-safe-rpc-checkpointed-20m
+# operational-repair: shared-429-backoff-dedup-signatures
 on:
   push:
     branches:
