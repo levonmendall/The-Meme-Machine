@@ -99,9 +99,7 @@ def _screen_summary(screen):
         finalized_block=screen.get("finalized_block"),
         finalized_timestamp=screen.get("finalized_timestamp"),
         factory_pool_count=screen.get("factory_pool_count"),
-        factory_inventory_cache_enabled=screen.get("factory_inventory_cache_enabled"),
-        factory_inventory_reused_entries=screen.get("factory_inventory_reused_entries"),
-        factory_inventory_new_entries=screen.get("factory_inventory_new_entries"),
+        factory_inventory_cache=screen.get("factory_inventory_cache"),
         pools_with_recent_swaps=screen.get("pools_with_recent_swaps"),
         state_complete_pools=screen.get("state_complete_pools"),
         qualified=[
@@ -329,7 +327,6 @@ def run(
     started=time.monotonic()
     screens=[]
     seen_pools=set()
-    inventory_cache={}
     result=dict(
         kind="ramses_fee_pulse_extended_market_test_v1",
         strategy_domain=STRATEGY_DOMAIN,
@@ -349,7 +346,6 @@ def run(
             endpoint,
             gas_costs_by_pool=costs_by_pool,
             signals_by_pool=signals_by_pool,
-            inventory_cache=inventory_cache,
         )
         screens.append(screen)
         for row in screen.get("rows",[]):
@@ -371,10 +367,6 @@ def run(
             result["status"]=result["connected_lifecycle"].get("status")
             result["ended_at"]=time.time()
             result["unique_active_pools"]=len(seen_pools)
-            result["factory_inventory_cache"]=dict(
-                count=len(inventory_cache.get("addresses") or []),
-                observed_block=inventory_cache.get("observed_block"),
-            )
             return result
 
         elapsed=time.monotonic()-started
@@ -389,10 +381,6 @@ def run(
 
     result["natural_qualifier_found"]=False
     result["unique_active_pools"]=len(seen_pools)
-    result["factory_inventory_cache"]=dict(
-        count=len(inventory_cache.get("addresses") or []),
-        observed_block=inventory_cache.get("observed_block"),
-    )
     result["status"]="natural_discovery_complete_no_qualifier"
     screen,row=_pick_forced_row(screens)
     if row is None:
