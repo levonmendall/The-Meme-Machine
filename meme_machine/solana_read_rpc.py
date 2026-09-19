@@ -6,7 +6,7 @@ Provider policy:
   optional SECONDARY rescue endpoint.
 - Healthy primary reads never spend Alchemy capacity.
 - Rescue is allowed only after a primary transport/HTTP failure, provider error,
-  unusable whole-batch response, or a null getTransaction result.
+  or a null getTransaction result.
 - One logical RPC budget remains authoritative. A rescue may add one physical HTTP
   request, and that extra transport is counted explicitly.
 - This module never signs or submits transactions.
@@ -334,7 +334,7 @@ def metadata(environ=None):
         secondary_configured=secondary_rpc_url(environ, required=False) is not None,
         fallback_allowed=True,
         fallback_policy=(
-            "transport_or_http_failure_provider_error_unusable_batch_or_null_getTransaction"
+            "transport_or_http_failure_provider_error_or_null_getTransaction"
         ),
         load_balancing=False,
         network="solana-mainnet",
