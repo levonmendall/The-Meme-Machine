@@ -164,10 +164,15 @@ def _maybe_token_balance(meta,side,account_index):
     return row['mint'],int(amount)
 
 
+def _supported_token_program(program):
+    return program in (pump.TOKEN_PROGRAM,pump.TOKEN_2022)
+
+
 def _spl_transfer(instruction,keys):
     """Decode the bounded classic SPL Transfer/TransferChecked subset."""
     program_index=instruction.get('programIdIndex')
-    if type(program_index) is not int or not 0<=program_index<len(keys)             or keys[program_index]!=pump.TOKEN_PROGRAM:
+    if (type(program_index) is not int or not 0<=program_index<len(keys)
+            or not _supported_token_program(keys[program_index])):
         return None
     accounts=instruction.get('accounts') or []
     raw=_un58_data(instruction.get('data') or '')
@@ -178,7 +183,8 @@ def _spl_transfer(instruction,keys):
             raise Unavailable('dlmm_host_fee_transfer_account_index')
         return dict(
             kind='transfer',amount=int.from_bytes(raw[1:9],'little'),
-            source=source,destination=destination,mint=None)
+            source=source,destination=destination,mint=None,
+            program=keys[program_index])
     if len(raw)==10 and raw[:1]==b'\x0c' and len(accounts)>=3:
         source,mint,destination=accounts[:3]
         if any(type(i) is not int or not 0<=i<len(keys)
@@ -186,7 +192,8 @@ def _spl_transfer(instruction,keys):
             raise Unavailable('dlmm_host_fee_transfer_account_index')
         return dict(
             kind='transfer_checked',amount=int.from_bytes(raw[1:9],'little'),
-            source=source,destination=destination,mint=keys[mint])
+            source=source,destination=destination,mint=keys[mint],
+            program=keys[program_index])
     return None
 
 
@@ -197,8 +204,9 @@ def _claim_fee2_record(raw,instruction,keys,pool,order):
     if any(type(accounts[i]) is not int or not 0<=accounts[i]<len(keys)
            for i in range(14)):
         raise Unavailable('dlmm_claim_fee2_account_index')
-    if (keys[accounts[0]]!=pool or keys[accounts[9]]!=pump.TOKEN_PROGRAM
-            or keys[accounts[10]]!=pump.TOKEN_PROGRAM
+    if (keys[accounts[0]]!=pool
+            or not _supported_token_program(keys[accounts[9]])
+            or not _supported_token_program(keys[accounts[10]])
             or keys[accounts[11]]!=MEMO_PROGRAM
             or keys[accounts[13]]!=dlmm.PROGRAM):
         raise Unavailable('dlmm_claim_fee2_identity')
@@ -224,8 +232,9 @@ def _remove_liquidity_record(raw,instruction,keys,pool,order):
     if any(type(accounts[i]) is not int or not 0<=accounts[i]<len(keys)
            for i in range(15)):
         raise Unavailable('dlmm_remove_liquidity_by_range2_account_index')
-    if (keys[accounts[1]]!=pool or keys[accounts[10]]!=pump.TOKEN_PROGRAM
-            or keys[accounts[11]]!=pump.TOKEN_PROGRAM
+    if (keys[accounts[1]]!=pool
+            or not _supported_token_program(keys[accounts[10]])
+            or not _supported_token_program(keys[accounts[11]])
             or keys[accounts[12]]!=MEMO_PROGRAM
             or keys[accounts[14]]!=dlmm.PROGRAM):
         raise Unavailable('dlmm_remove_liquidity_by_range2_identity')
@@ -274,8 +283,9 @@ def _add_liquidity2_record(raw,instruction,keys,pool,order):
     if any(type(accounts[i]) is not int or not 0<=accounts[i]<len(keys)
            for i in range(14)):
         raise Unavailable('dlmm_add_liquidity2_account_index')
-    if (keys[accounts[1]]!=pool or keys[accounts[10]]!=pump.TOKEN_PROGRAM
-            or keys[accounts[11]]!=pump.TOKEN_PROGRAM
+    if (keys[accounts[1]]!=pool
+            or not _supported_token_program(keys[accounts[10]])
+            or not _supported_token_program(keys[accounts[11]])
             or keys[accounts[13]]!=dlmm.PROGRAM):
         raise Unavailable('dlmm_add_liquidity2_identity')
     amount_x,amount_y,count=struct.unpack_from('<QQI',raw,8)
