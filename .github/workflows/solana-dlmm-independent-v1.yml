@@ -1,7 +1,9 @@
 name: solana-dlmm-independent-v1
-# measurement-revision: 1.3
+# measurement-revision: 1.5
 # completed-bucket-rule: timestamp+300<=observation_time
 # fixture-timing-fix: 1
+# support-expansion: plain-token2022-and-no-freeze-mint-authority
+# warmup-alignment: max-5-fresh-12s-windows
 on:
   push:
     branches:
@@ -50,6 +52,7 @@ jobs:
         run: |
           python -m unittest \
             tests.test_solana_dlmm_independent_v1 \
+            tests.test_dlmm_safe_token2022 \
             tests.test_dlmm_alchemy_provider -v
       - name: Validate Solana Alchemy read route
         run: python -m tests.dlmm_alchemy_provider
