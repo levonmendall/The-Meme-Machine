@@ -7,6 +7,7 @@ qualification, or order authority.
 """
 from collections import Counter
 
+from .research import research_identity
 from .outcome_research import (
     summarize_liquidity_counterfactual, summarize_post_exit_tail, summarize_trackers,
     summarize_two_buyer_near_misses,
@@ -37,17 +38,17 @@ def analyze_market_native_reports(reports, min_sample=50):
                     row.get('evidence_stage')!='complete'):
                 continue
             vector=row.get('qualification_vector')
-            nomination_id=row.get('nomination_id')
-            if nomination_id and vector:
-                natural.setdefault(nomination_id,row)
+            identity=research_identity(row)
+            if identity is not None and vector:
+                natural.setdefault(identity,row)
         if report.get('kind')=='prioritized_market_native_shadow':
             for row in report.get('preflights',[]):
                 if not row.get('full_evidence_complete'):
                     continue
                 vector=row.get('qualification_vector')
-                nomination_id=row.get('nomination_id')
-                if nomination_id and vector:
-                    prioritized.setdefault(nomination_id,vector)
+                identity=research_identity(row)
+                if identity is not None and vector:
+                    prioritized.setdefault(identity,vector)
         if report.get('kind')=='market_native_opportunity_outcome_study':
             cohort_trackers.extend(report.get('cohort_trackers',[]))
 
