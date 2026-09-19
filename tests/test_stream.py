@@ -1,5 +1,6 @@
 import json
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -8,7 +9,7 @@ from meme_machine import pump
 from meme_machine.__main__ import tick_stream
 from meme_machine.engine import Engine
 from meme_machine.store import Store
-from meme_machine.stream import PumpTape, event_identity, websocket_url
+from meme_machine.stream import PumpLogStream, PumpTape, event_identity, websocket_url
 from tests.support import SCOUT, evidence, event, snapshot
 
 
@@ -60,6 +61,59 @@ class StreamTape(unittest.TestCase):
         tape.begin(261)
         self.assertFalse(tape.covered(320))
         self.assertTrue(tape.covered(321))
+
+    def test_reconnect_preserves_gap_and_requires_fresh_warmup(self):
+        class Socket:
+            def __init__(self,actions,stop=None):
+                self.actions=list(actions);self.stop=stop
+            def __enter__(self): return self
+            def __exit__(self,*_): return False
+            def send(self,_): pass
+            def recv(self,timeout=None):
+                if self.actions:
+                    value=self.actions.pop(0)
+                    if isinstance(value,BaseException):
+                        raise value
+                    return value
+                if self.stop is not None:
+                    self.stop.set()
+                raise TimeoutError()
+
+        stop=threading.Event();ready=threading.Event()
+        tape=PumpTape(clock=lambda:100)
+        first=Socket([
+            json.dumps({'jsonrpc':'2.0','id':1,'result':11}),
+            RuntimeError('transient_disconnect'),
+        ])
+        second=Socket([
+            json.dumps({'jsonrpc':'2.0','id':1,'result':12}),
+        ],stop=stop)
+        stream=PumpLogStream(
+            'https://solana.api.onfinality.io/public',tape,
+            clock=lambda:100,reconnect_delay=0,
+        )
+        with patch('meme_machine.stream.connect',side_effect=[first,second]):
+            stream.run(stop,ready)
+        status=tape.status(100)
+        self.assertTrue(ready.is_set())
+        self.assertEqual(stream.connections,2)
+        self.assertEqual(stream.reconnects,1)
+        self.assertEqual(stream.last_error_kind,'RuntimeError')
+        self.assertIsNone(stream.error_kind)
+        self.assertEqual(status['gaps'],1)
+        self.assertFalse(status['covered'])
+
+    def test_reconnect_begin_does_not_erase_gap_quarantine(self):
+        now=[200]
+        tape=PumpTape(clock=lambda:now[0])
+        tape.begin(100)
+        tape.gap(200)
+        loss=tape.status(200)['loss_until']
+        now[0]=202
+        tape.begin(202,preserve_loss=True)
+        self.assertEqual(tape.status(202)['loss_until'],loss)
+        self.assertFalse(tape.covered(261))
+        self.assertTrue(tape.covered(262))
 
     def test_capacity_loss_fails_closed_for_complete_window(self):
         note=self.notification('one')
