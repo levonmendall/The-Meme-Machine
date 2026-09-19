@@ -28,6 +28,7 @@ import time
 from . import BoundaryError
 from .ramses_all_pool_lifecycle import (
     _canonicalize_selected_row,
+    compact_lifecycle_result,
     _build_segment_replay,
     _position_state_from_prestate,
     _unwind,
@@ -387,7 +388,12 @@ def main():
         )),
         db_path=str(DB),
     )
-    raw=json.dumps(result,sort_keys=True,separators=(",",":")).encode()
+    public_result=deepcopy(result)
+    if isinstance(public_result.get("connected_lifecycle"),dict):
+        public_result["connected_lifecycle"]=compact_lifecycle_result(
+            public_result["connected_lifecycle"]
+        )
+    raw=json.dumps(public_result,sort_keys=True,separators=(",",":")).encode()
     if len(raw)>12_000_000:
         raise BoundaryError("extended_market_report_capacity")
     REPORT.write_bytes(raw)

@@ -147,6 +147,29 @@ class RamsesAllPoolUniverseTests(unittest.TestCase):
             [turnover_richer["pool"], fee_richer["pool"], base["pool"]],
         )
 
+    def test_compact_screen_strips_heavy_selector_state_but_keeps_identity(self):
+        screen = dict(
+            rows=[dict(
+                pool="0x" + "11" * 20,
+                prestate=dict(active=7, step=5, bins={7: dict(reserves=[1, 2], supply=3)}),
+                prehistory=[dict(block=1), dict(block=2)],
+                prestate_block=123,
+                prestate_block_hash="0x" + "ab" * 32,
+                prestate_timestamp=456,
+                decision=dict(qualified=False),
+            )],
+        )
+        compact = ramses_universe.compact_screen(screen)
+        row = compact["rows"][0]
+        self.assertNotIn("prestate", row)
+        self.assertNotIn("prehistory", row)
+        self.assertTrue(row["prestate_retained_in_memory"])
+        self.assertTrue(row["prehistory_retained_in_memory"])
+        self.assertEqual(row["prehistory_swap_count"], 2)
+        self.assertEqual(row["prestate_block"], 123)
+        self.assertEqual(row["prestate_block_hash"], "0x" + "ab" * 32)
+        self.assertFalse(compact["heavy_selector_state_in_artifact"])
+
 
 if __name__ == "__main__":
     unittest.main()

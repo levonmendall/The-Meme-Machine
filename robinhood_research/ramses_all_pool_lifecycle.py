@@ -41,7 +41,7 @@ from .ramses_strategy import (
     pool_features,
 )
 from .ramses_strategy_ledger import RamsesStrategyLedger
-from .ramses_universe import scan
+from .ramses_universe import compact_screen, scan
 
 REPORT = Path(os.environ.get(
     "MM_ROBINHOOD_RAMSES_CONNECTED_REPORT",
@@ -297,17 +297,43 @@ def _canonical_preentry_history(rpc, row, screen):
     )
 
 
+def _frozen_prestate(row, screen):
+    """Return the exact finalized state captured by the selector, or fail closed."""
+    prestate = row.get("prestate")
+    if not isinstance(prestate, dict):
+        raise BoundaryError("connected_lifecycle_frozen_prestate_missing")
+    expected_block = int(screen["finalized_block"])
+    expected_hash = screen["finalized_hash"]
+    expected_timestamp = int(screen["finalized_timestamp"])
+    if (
+        int(row.get("prestate_block", -1)) != expected_block
+        or row.get("prestate_block_hash") != expected_hash
+        or int(row.get("prestate_timestamp", -1)) != expected_timestamp
+    ):
+        raise BoundaryError("connected_lifecycle_frozen_prestate_identity")
+    if (
+        type(prestate.get("active")) is not int
+        or type(prestate.get("step")) is not int
+        or not isinstance(prestate.get("bins"), dict)
+        or prestate["active"] not in prestate["bins"]
+    ):
+        raise BoundaryError("connected_lifecycle_frozen_prestate_shape")
+    return deepcopy(prestate)
+
+
 def _canonicalize_selected_row(
     rpc, row, screen, *, costs_by_pool=None, signals_by_pool=None
 ):
     """Reclassify selected pool from authenticated canonical pre-entry evidence."""
     costs_by_pool = costs_by_pool or {}
     signals_by_pool = signals_by_pool or {}
+    frozen_prestate = _frozen_prestate(row, screen)
     history, auth = _canonical_preentry_history(rpc, row, screen)
     canonical = deepcopy(row)
+    canonical["prestate"] = frozen_prestate
     canonical["prehistory"] = history
     canonical_feature = pool_features(
-        canonical["prestate"], history, canonical["quote_side"], pool=canonical["pool"]
+        frozen_prestate, history, canonical["quote_side"], pool=canonical["pool"]
     )
     peers = [
         r["features"] for r in screen.get("rows", [])
@@ -318,7 +344,7 @@ def _canonicalize_selected_row(
     if context and not isinstance(context, dict):
         raise BoundaryError("connected_lifecycle_signal_context")
     decision = classify_pool(
-        canonical["prestate"],
+        frozen_prestate,
         history,
         canonical["quote_side"],
         requested_capital=int(canonical["paper_capital_quote_raw"]),
@@ -335,6 +361,11 @@ def _canonicalize_selected_row(
     canonical["evidence_grade"] = "receipt_header_authenticated"
     auth["reclassified"] = True
     auth["qualified_after_authentication"] = bool(decision.get("qualified"))
+    auth["prestate_reused_from_scanner"] = True
+    auth["prestate_rpc_refetch"] = False
+    auth["prestate_block"] = int(canonical["prestate_block"])
+    auth["prestate_block_hash"] = canonical["prestate_block_hash"]
+    auth["prestate_timestamp"] = int(canonical["prestate_timestamp"])
     return canonical, auth
 
 
@@ -977,6 +1008,17 @@ def run(
     return result
 
 
+def compact_lifecycle_result(result):
+    """Strip heavy selector state from persisted/public lifecycle evidence."""
+    if not isinstance(result, dict):
+        raise BoundaryError("invalid_connected_lifecycle_report")
+    public = deepcopy(result)
+    if isinstance(public.get("initial_screen"), dict):
+        public["initial_screen"] = compact_screen(public["initial_screen"])
+    public["selector_prestate_persisted_in_artifact"] = False
+    return public
+
+
 def main():
     costs = _json_env("MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON") or {}
     signals = _json_env("MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON") or {}
@@ -986,7 +1028,8 @@ def main():
         signals_by_pool=signals,
         db_path=str(DB),
     )
-    raw = json.dumps(result, sort_keys=True, separators=(",", ":")).encode()
+    public_result = compact_lifecycle_result(result)
+    raw = json.dumps(public_result, sort_keys=True, separators=(",", ":")).encode()
     if len(raw) > 8_000_000:
         raise BoundaryError("connected_lifecycle_report_capacity")
     REPORT.write_bytes(raw)
