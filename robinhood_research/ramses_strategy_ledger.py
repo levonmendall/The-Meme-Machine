@@ -148,6 +148,61 @@ class RamsesStrategyLedger:
             raise
         return body
 
+    def reserve_forced_machinery(self, identity, *, pool, decision, at):
+        """Reserve a mechanics-only position without converting it into strategy evidence."""
+        if self.db.execute(
+            "SELECT 1 FROM ramses_strategy_position WHERE id=?", (identity,)
+        ).fetchone():
+            raise BoundaryError("duplicate_ramses_strategy_reservation")
+        if (
+            not isinstance(decision, dict)
+            or decision.get("strategy_domain") != STRATEGY_DOMAIN
+            or decision.get("strategy_version") != STRATEGY_VERSION
+            or decision.get("policy_hash") != POLICY_HASH
+            or decision.get("allocation_authority") is not False
+            or not decision.get("freeze")
+        ):
+            raise BoundaryError("foreign_forced_machinery_decision")
+        proposal = decision["freeze"]["proposals"][0]
+        reserved = proposal.get("capital_employed")
+        if type(reserved) is not int or reserved <= 0:
+            raise BoundaryError("invalid_ramses_strategy_reservation")
+        rec = self.reconcile()
+        if rec["committed"] + reserved > self.paper_capital:
+            raise BoundaryError("ramses_strategy_capital_exhausted")
+        body = dict(
+            id=identity,
+            strategy_domain=STRATEGY_DOMAIN,
+            strategy_version=STRATEGY_VERSION,
+            policy_hash=POLICY_HASH,
+            status="reserved",
+            version=0,
+            paper_only=True,
+            allocation_authority=False,
+            shared_allocator=False,
+            pool=pool.lower(),
+            mode=decision.get("mode"),
+            proposal_hash=decision["freeze"]["proposal_hash"],
+            reserved=reserved,
+            realized=0,
+            after_cost_result=None,
+            at=at,
+            outcome=None,
+            rebalances=0,
+            segments_closed=0,
+            last_controller=None,
+            forced_machinery_test=True,
+            strategy_evidence_eligible=False,
+        )
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            self._save(body, "forced_machinery_reserve")
+            self.db.execute("COMMIT")
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
+        return body
+
     def open(self, identity, *, at):
         self.db.execute("BEGIN IMMEDIATE")
         try:
