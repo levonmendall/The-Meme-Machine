@@ -9,6 +9,7 @@ from meme_machine.dlmm_acquisition import (
     UnionSignatureLedger,
     PUBLIC_DISCOVERY_PROVIDER,
     ONFINALITY_DISCOVERY_PROVIDER,
+    classify_dlmm_lp_logs,
     discovery_streams,
 )
 from tests import dlmm_adaptive_operator_discovery as v2
@@ -43,27 +44,71 @@ class DLMMAdaptiveAcquisitionTests(unittest.TestCase):
 
     def test_union_ledger_deduplicates_and_reports_directional_coverage(self):
         ledger=UnionSignatureLedger()
-        ledger.observe(PUBLIC_DISCOVERY_PROVIDER,"a",1,1.0)
-        ledger.observe(PUBLIC_DISCOVERY_PROVIDER,"b",2,2.0)
-        ledger.observe(ONFINALITY_DISCOVERY_PROVIDER,"b",2,2.1)
-        ledger.observe(ONFINALITY_DISCOVERY_PROVIDER,"c",3,3.0)
+        neutral=[
+            f"Program {dlmm.PROGRAM} invoke [1]",
+            "Program log: Instruction: Swap2",
+            f"Program {dlmm.PROGRAM} success",
+        ]
+        lp=[
+            f"Program {dlmm.PROGRAM} invoke [1]",
+            "Program log: Instruction: AddLiquidity2",
+            f"Program {dlmm.PROGRAM} success",
+        ]
+        ledger.observe(PUBLIC_DISCOVERY_PROVIDER,"a",1,1.0,neutral)
+        ledger.observe(PUBLIC_DISCOVERY_PROVIDER,"b",2,2.0,lp)
+        ledger.observe(ONFINALITY_DISCOVERY_PROVIDER,"b",2,2.1,lp)
+        ledger.observe(ONFINALITY_DISCOVERY_PROVIDER,"c",3,3.0,neutral)
         s=ledger.status()
         self.assertEqual(s["unique_signatures"],3)
         self.assertEqual(s["overlap_signatures"],1)
         self.assertAlmostEqual(s["jaccard"],1/3)
         self.assertAlmostEqual(s["public_coverage_of_union"],2/3)
         self.assertAlmostEqual(s["onfinality_coverage_of_union"],2/3)
+        self.assertEqual(s["reconstruction_candidates"],1)
+        self.assertEqual(s["filtered_without_http"],2)
+        self.assertEqual([r["signature"] for r in ledger.candidate_rows()],["b"])
 
-    def test_discovery_streams_always_include_public_and_optionally_authenticated(self):
+    def test_discovery_streams_default_to_public_and_auth_is_explicit_diagnostic(self):
         rows=discovery_streams({})
         self.assertEqual(rows[0][0],PUBLIC_DISCOVERY_PROVIDER)
         self.assertEqual(len(rows),1)
         rows=discovery_streams({
+            "MM_DLMM_INCLUDE_ONFINALITY_DISCOVERY_WS":"1",
             "MM_ONFINALITY_SOLANA_WS_URL":
                 "wss://solana.api.onfinality.io/ws?apikey=example"
         })
         self.assertEqual([row[0] for row in rows],
                          [PUBLIC_DISCOVERY_PROVIDER,ONFINALITY_DISCOVERY_PROVIDER])
+
+    def test_log_filter_selects_supported_lp_instruction_without_http(self):
+        logs=[
+            f"Program {dlmm.PROGRAM} invoke [1]",
+            "Program log: Instruction: AddLiquidity2",
+            f"Program {dlmm.PROGRAM} success",
+        ]
+        row=classify_dlmm_lp_logs(logs)
+        self.assertTrue(row["likely_lp"])
+        self.assertFalse(row["uncertain"])
+        self.assertEqual(row["actions"],["add_liquidity2"])
+
+    def test_log_filter_rejects_swap_only_transaction(self):
+        logs=[
+            f"Program {dlmm.PROGRAM} invoke [1]",
+            "Program log: Instruction: Swap2",
+            f"Program {dlmm.PROGRAM} success",
+        ]
+        row=classify_dlmm_lp_logs(logs)
+        self.assertFalse(row["likely_lp"])
+        self.assertFalse(row["uncertain"])
+        self.assertEqual(row["actions"],[])
+
+    def test_log_filter_queues_truncated_logs_conservatively(self):
+        row=classify_dlmm_lp_logs([
+            f"Program {dlmm.PROGRAM} invoke [1]",
+            "Log truncated",
+        ])
+        self.assertFalse(row["likely_lp"])
+        self.assertTrue(row["uncertain"])
 
     def test_pool_census_pages_until_inventory_end_without_sample_cap(self):
         eligible=lambda i:dict(
