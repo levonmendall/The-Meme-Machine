@@ -20,7 +20,7 @@ from meme_machine.market_native_runtime import MarketNativeRuntime
 from meme_machine.postgrad import PostGraduationAdapter
 from meme_machine.provider import PumpAdapter
 from meme_machine.pumpswap_runtime import PumpSwapPaperRuntime
-from meme_machine.solana_read_rpc import new_rpc, primary_rpc_url, primary_ws_url
+from meme_machine.solana_read_rpc import discovery_ws_url, new_rpc, primary_rpc_url
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 
@@ -30,10 +30,6 @@ DISCOVERY_SECONDS = max(300, min(int(os.environ.get(
     'MM_MARKET_NATIVE_PAPER_DISCOVERY_SECONDS', '3300')), 3300))
 POST_SECONDS = max(120, min(int(os.environ.get(
     'MM_MARKET_NATIVE_PAPER_POST_SECONDS', '1000')), 1000))
-PREFLIGHT_BUDGET = max(1, min(int(os.environ.get(
-    'MM_MARKET_NATIVE_PAPER_PREFLIGHT_BUDGET', '150')), 150))
-FULL_EVIDENCE_BUDGET = max(1, min(int(os.environ.get(
-    'MM_MARKET_NATIVE_PAPER_FULL_EVIDENCE_BUDGET', '40')), 40))
 RPC_LIMIT = 240
 RPC_ROTATE_AT = 160
 # Use the same explicit paper genesis reference as the successful prioritized proof.
@@ -141,7 +137,7 @@ def main():
         tape = PumpTape()
         stop = threading.Event()
         ready = threading.Event()
-        stream = PumpLogStream(url, tape, ws_url=primary_ws_url())
+        stream = PumpLogStream(url, tape, ws_url=discovery_ws_url())
         thread = threading.Thread(target=stream.run, args=(stop, ready), daemon=True)
         thread.start()
 
@@ -151,8 +147,6 @@ def main():
         pumpswap = PumpSwapPaperRuntime(store, postgrad)
         runtime = MarketNativeRuntime(
             engine, adapter, DISCOVERY_SECONDS,
-            preflight_budget=PREFLIGHT_BUDGET,
-            full_evidence_budget=FULL_EVIDENCE_BUDGET,
             provider_rotation_threshold=RPC_ROTATE_AT,
         )
         session_started = int(time.time())
@@ -174,6 +168,21 @@ def main():
 
                 _monitor_existing(engine, adapter, now, pumpswap_runtime=pumpswap)
                 state = store.state
+
+                if target_id is None and runtime.provider_rotation_due():
+                    report['provider_sessions'][-1].update(
+                        ended=now, logical_requests=rpc.calls,
+                        transport_requests=rpc.http_requests,
+                        failures=rpc.failures, retries=rpc.retries,
+                        provider_topology=(rpc.provider_telemetry()
+                                           if hasattr(rpc,'provider_telemetry') else None))
+                    rpc = new_rpc(limit=RPC_LIMIT,pacer=(rpc.read_pacer if hasattr(rpc,'read_pacer') else None))
+                    adapter = PumpAdapter(rpc)
+                    postgrad = PostGraduationAdapter(rpc, scan_rpc=object())
+                    pumpswap = PumpSwapPaperRuntime(store, postgrad)
+                    runtime.replace_adapter(adapter)
+                    report['provider_sessions'].append(dict(started=now,
+                                                           reason='adaptive_evidence_rotation'))
 
                 if target_id is None:
                     filled = _first_filled_order(state)
