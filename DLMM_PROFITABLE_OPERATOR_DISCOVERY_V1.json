@@ -137,7 +137,23 @@
     "freeze_before_prospective_outcomes": true,
     "no_retrospective_threshold_relaxation": true,
     "outputs": "one or more frozen candidate rules only when repeatable behavior is supported across independent operator clusters",
-    "prospective_test": "natural future DLMM observations using unchanged paper-only authority; no rule editing after prospective outcomes begin"
+    "prospective_test": "natural future DLMM observations using unchanged paper-only authority; no rule editing after prospective outcomes begin",
+    "cross_cluster_support": {
+      "minimum_independent_operator_clusters": 3,
+      "categorical_support_required": 0.6666666666666666,
+      "continuous_parameter_rule": "derive only within a categorical behavior family meeting support; freeze median of cluster-level medians and publish interquartile range as diagnostic, not a threshold",
+      "candidate_family_dimensions": [
+        "strategy_family_or_distribution_shape",
+        "one_sided_vs_two_sided",
+        "range_width_bucket",
+        "active_bin_placement_bucket",
+        "rebalance_behavior_bucket",
+        "hold_time_bucket"
+      ],
+      "family_selection": "Every family meeting >=2/3 support among independently profitable reconstructed clusters is eligible for a separate frozen candidate; no best-family selection by retrospective PnL.",
+      "minimum_cluster_quality": "cluster must have positive after-network-cost PnL and complete capital-at-risk reconstruction; TWR may be unavailable but cannot be imputed",
+      "no_post_outcome_rule_editing": true
+    }
   },
   "execution": {
     "meteora_rate_ceiling_rps": 30,
@@ -148,5 +164,27 @@
     "checkpointing": true,
     "bounded_concurrency": true
   },
-  "protocol_revision": "1.0"
+  "protocol_revision": "1.1",
+  "time_weighted_return": {
+    "name": "exact_event_boundary_time_weighted_return",
+    "eligibility": "available only when every external add/remove cash flow and every required portfolio valuation at that boundary can be reconstructed point-in-time; otherwise unavailable and excluded from this ranking",
+    "external_cash_flows": "authenticated LP adds are contributions; authenticated removals are withdrawals; fee claims remain portfolio value until removed and are not treated as performance-neutral income flows",
+    "subperiod_return": "(ending_portfolio_value - beginning_portfolio_value - net_external_cash_flow) / beginning_portfolio_value",
+    "chaining": "product(1 + subperiod_return) - 1 across chronologically ordered external-cash-flow subperiods",
+    "marks": "point-in-time reconstructed DLMM position inventory plus accrued fee entitlement valued at contemporaneous token prices; current-state substitutions are forbidden",
+    "realized_fallback_forbidden": true,
+    "note": "If exact event-boundary marks cannot be proved, report TWR unavailable rather than substituting cumulative-deposit ROI, Modified Dietz, or position-return chaining."
+  },
+  "amendment_history": [
+    {
+      "revision": "1.1",
+      "reason": "Freeze exact TWR availability/formula and cross-independent-cluster rule-derivation support before any new operator PnL ranking is read.",
+      "pnl_observed_before_amendment": false,
+      "new_operator_ranking_observed_before_amendment": false,
+      "census_may_have_started": true,
+      "census_contains_pnl": false,
+      "wallet_selection_changed": false,
+      "economic_pool_filters_changed": false
+    }
+  ]
 }
