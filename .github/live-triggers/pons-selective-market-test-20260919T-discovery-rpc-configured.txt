@@ -1,0 +1,5 @@
+Rerun exact frozen pons-selective-continuation-v1 market test after MM_ROBINHOOD_DISCOVERY_RPC_URL configuration.
+No strategy threshold changes.
+No shared allocator.
+Paper-only.
+Purpose: isolate acquisition improvement from provider-role separation.

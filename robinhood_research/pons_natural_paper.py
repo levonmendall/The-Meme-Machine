@@ -13,7 +13,7 @@ Robinhood V4Quoter deployment and remain fail-closed.
 
 No signing, submission, live money, shared allocator or profitability claim.
 """
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 import json
 import os
 from pathlib import Path
@@ -51,6 +51,32 @@ V4_QUOTER="0x8dc178efb8111bb0973dd9d722ebeff267c98f94"
 V4_SELECTOR="aa9d21cb"
 
 
+@dataclass(frozen=True)
+class LocalFreshQuote(Quote):
+    acquisition_latency_seconds: float = 0.0
+    chain_timestamp_lag_seconds: float = 0.0
+
+    def check(self, now, market, side, amount, kind, *, finality_ledger=None):
+        if self.market != market or self.side != side or self.amount_in != amount:
+            raise BoundaryError("quote_identity_mismatch")
+        if self.stamp.kind != kind:
+            raise BoundaryError("quote_identity_mismatch")
+        if min(self.amount_in,self.gas_quote,self.fee_quote)<0:
+            raise BoundaryError("negative_quote_accounting")
+        if self.amount_out is None:
+            raise BoundaryError(self.reason or "unavailable_executable_quote")
+        if self.amount_out<=0 or self.reason is not None:
+            raise BoundaryError("invalid_quote")
+        if self.stamp.observed_at>int(now):
+            raise BoundaryError("future_evidence")
+        age=float(self.acquisition_latency_seconds)
+        if age<0 or age>5:
+            raise BoundaryError("stale_state")
+        if finality_ledger is None:
+            raise BoundaryError("local_fresh_quote_requires_finality")
+        finality_ledger.check_identity(self.stamp)
+
+
 def _rpc(endpoint):
     return configured_rpc(endpoint,limit=200,per_scope=190,retries=0)
 
@@ -72,24 +98,45 @@ def _gas_quote(rpc,gas_units):
     return price*int(gas_units),price
 
 
-def _fresh_stamp(header):
-    now=int(time.time()); event_at=int(header["timestamp"],16)
-    if now-event_at>5:
-        raise BoundaryError("stale_state")
+def _fresh_stamp(header, *, local_freshness_seconds=None, observed_at=None):
+    now=int(time.time()) if observed_at is None else int(observed_at)
+    event_at=int(header["timestamp"],16)
+    if event_at>now:
+        raise BoundaryError("future_event")
+    if local_freshness_seconds is None:
+        if now-event_at>5:
+            raise BoundaryError("stale_state")
+    else:
+        age=float(local_freshness_seconds)
+        if age<0 or age>5:
+            raise BoundaryError("stale_state")
     return Stamp(
         CHAIN_ID,int(header["number"],16),header["hash"],event_at,now,
         "confirmed","natural",
     )
 
 
-def _ledger_for_quote(store,stamp,parent_hash,label):
+def _ledger_for_quote(
+    store,stamp,parent_hash,label,*,local_freshness_seconds=None
+):
     ledger=Finality(store,scope="paper-"+label,max_blocks=4)
-    ledger.observe(stamp,parent_hash)
-    stamp.check(stamp.observed_at,5,finality_ledger=ledger)
+    ledger.observe(
+        stamp,parent_hash,
+        local_freshness_seconds=local_freshness_seconds,
+        max_local_age=5,
+    )
+    if local_freshness_seconds is None:
+        stamp.check(stamp.observed_at,5,finality_ledger=ledger)
+    else:
+        ledger.check_identity(stamp)
     return ledger
 
 
-def _curve_quote(rpc,candidate,side,amount,gas_units,store,label):
+def _curve_quote(
+    rpc,candidate,side,amount,gas_units,store,label,*,local_freshness=False
+):
+    freshness_started_wall=time.time()
+    freshness_started_monotonic=time.monotonic()
     header=_latest_header(rpc)
     block=int(header["number"],16)
     state,_=_curve_state(rpc,candidate["curve"],block,candidate["auth"],candidate["report"])
@@ -110,28 +157,57 @@ def _curve_quote(rpc,candidate,side,amount,gas_units,store,label):
     else:
         raise BoundaryError("unsupported_curve_quote_side")
     gas,gas_price=_gas_quote(rpc,gas_units)
-    stamp=_fresh_stamp(header)
-    # Ensure all state reads completed while the same block was still fresh.
-    stamp.check(int(time.time()),5,finality_ledger=_ledger_for_quote(
+    observed_at=int(time.time())
+    acquisition_latency=time.monotonic()-freshness_started_monotonic
+    local_age=acquisition_latency if local_freshness else None
+    stamp=_fresh_stamp(
+        header,local_freshness_seconds=local_age,observed_at=observed_at
+    )
+    ledger=_ledger_for_quote(
         store,stamp,header["parentHash"],label,
-    ))
-    quote=Quote(candidate["curve"],side,amount,amount_out,gas,fee,stamp)
+        local_freshness_seconds=local_age,
+    )
+    if local_freshness:
+        quote=LocalFreshQuote(
+            candidate["curve"],side,amount,amount_out,gas,fee,stamp,
+            acquisition_latency_seconds=acquisition_latency,
+            chain_timestamp_lag_seconds=(
+                freshness_started_wall-float(stamp.event_at)
+            ),
+        )
+    else:
+        stamp.check(int(time.time()),5,finality_ledger=ledger)
+        quote=Quote(candidate["curve"],side,amount,amount_out,gas,fee,stamp)
     return quote,dict(
         venue="pons_v2_curve",block=block,block_hash=header["hash"],
         event_at=stamp.event_at,observed_at=stamp.observed_at,gas_price=gas_price,
         gas_units_proxy=gas_units,gas_quote=gas,amount_in=amount,amount_out=amount_out,
         fee_quote=fee,state=asdict(state),
+        evidence_acquisition_latency_seconds=acquisition_latency,
+        chain_timestamp_lag_seconds=(
+            freshness_started_wall-float(stamp.event_at)
+        ),
     )
 
 
-def _wait_curve_quote(rpc,candidate,side,amount,gas_units,store,label,min_event_at,seconds=20):
+def _wait_curve_quote(
+    rpc,candidate,side,amount,gas_units,store,label,min_event_at,seconds=20,
+    *,local_freshness=False
+):
     deadline=time.monotonic()+seconds
     last=None;attempt=0
     while time.monotonic()<deadline:
         scoped_label=f"{label}-{attempt}";attempt+=1
         try:
-            quote,meta=_curve_quote(rpc,candidate,side,amount,gas_units,store,scoped_label)
-            if quote.stamp.event_at>=min_event_at:
+            quote,meta=_curve_quote(
+                rpc,candidate,side,amount,gas_units,store,scoped_label,
+                local_freshness=local_freshness,
+            )
+            freshness_at=(
+                quote.stamp.observed_at if local_freshness
+                else quote.stamp.event_at
+            )
+            if freshness_at>=min_event_at:
                 return quote,meta,Finality(store,scope="paper-"+scoped_label,max_blocks=4)
             last="pre_delay_quote"
         except BoundaryError as exc:
@@ -253,7 +329,11 @@ def _v4_quoter_calldata(key,zero_for_one,amount):
     return "0x"+selector+body.hex()
 
 
-def _v4_quote(rpc,key,pool_id,tokens,gas_units,store,label):
+def _v4_quote(
+    rpc,key,pool_id,tokens,gas_units,store,label,*,local_freshness=False
+):
+    freshness_started_wall=time.time()
+    freshness_started_monotonic=time.monotonic()
     header=_latest_header(rpc); block=int(header["number"],16)
     manager=load("uniswap_v4_manager")["address"].lower()
     # Authenticate the official deployment's chain wiring before trusting the quote.
@@ -280,15 +360,36 @@ def _v4_quote(rpc,key,pool_id,tokens,gas_units,store,label):
     # larger of the observed curve-tx proxy and 2x quoter estimate.
     units=max(gas_units,quoter_gas*2)
     gas=units*gas_price
-    stamp=_fresh_stamp(header)
-    ledger=_ledger_for_quote(store,stamp,header["parentHash"],label)
-    stamp.check(int(time.time()),5,finality_ledger=ledger)
-    quote=Quote(pool_id,"sell",tokens,amount_out,gas,0,stamp)
+    observed_at=int(time.time())
+    acquisition_latency=time.monotonic()-freshness_started_monotonic
+    local_age=acquisition_latency if local_freshness else None
+    stamp=_fresh_stamp(
+        header,local_freshness_seconds=local_age,observed_at=observed_at
+    )
+    ledger=_ledger_for_quote(
+        store,stamp,header["parentHash"],label,
+        local_freshness_seconds=local_age,
+    )
+    if local_freshness:
+        quote=LocalFreshQuote(
+            pool_id,"sell",tokens,amount_out,gas,0,stamp,
+            acquisition_latency_seconds=acquisition_latency,
+            chain_timestamp_lag_seconds=(
+                freshness_started_wall-float(stamp.event_at)
+            ),
+        )
+    else:
+        stamp.check(int(time.time()),5,finality_ledger=ledger)
+        quote=Quote(pool_id,"sell",tokens,amount_out,gas,0,stamp)
     return quote,dict(
         venue="uniswap_v4",pool_id=pool_id,block=block,block_hash=header["hash"],
         amount_in=tokens,amount_out=amount_out,v4_quoter=V4_QUOTER,
         quoter_gas_estimate=quoter_gas,gas_units_proxy=units,gas_price=gas_price,
         gas_quote=gas,
+        evidence_acquisition_latency_seconds=acquisition_latency,
+        chain_timestamp_lag_seconds=(
+            freshness_started_wall-float(stamp.event_at)
+        ),
     ),ledger
 
 

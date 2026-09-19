@@ -211,6 +211,22 @@ class ProviderPacer:
         self.next_at = -float("inf")
         self.paced_requests = 0
         self.sleep_seconds = 0.0
+        self.backpressure_events = 0
+
+    def slow_to(self, requests_per_second):
+        """Apply run-time provider backpressure without ever increasing rate."""
+        rps=float(requests_per_second)
+        if not 0.2 <= rps <= 25.0:
+            raise BoundaryError("invalid_provider_rps")
+        with self._lock:
+            if rps >= self.requests_per_second:
+                return False
+            self.requests_per_second=rps
+            self.minimum_interval_seconds=1.0/rps
+            now=float(self.clock())
+            self.next_at=max(self.next_at,now+self.minimum_interval_seconds)
+            self.backpressure_events+=1
+            return True
 
     def pace(self):
         with self._lock:
@@ -230,6 +246,7 @@ class ProviderPacer:
             minimum_interval_seconds=self.minimum_interval_seconds,
             paced_requests=self.paced_requests,
             throttle_sleep_seconds=self.sleep_seconds,
+            backpressure_events=self.backpressure_events,
         )
 
 

@@ -1,0 +1,1 @@
+Rerun frozen Pons Selective Continuation v1 after dedicated discovery range fallback repair. No strategy threshold changes. Paper-only.\n

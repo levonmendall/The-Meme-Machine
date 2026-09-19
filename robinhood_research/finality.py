@@ -55,11 +55,22 @@ class Finality:
             if self.status(bh) != 'invalidated':
                 self.store.put('displaced_block', self._id(bh), dict(at=at, reason=reason))
 
-    def observe(self, stamp, parent_hash):
+    def observe(self, stamp, parent_hash, *, local_freshness_seconds=None, max_local_age=5):
         if stamp.finality != 'confirmed':
             raise BoundaryError('expected_confirmed_observation')
         # Validate original availability and chain while retaining non-final status.
-        Stamp(**(asdict(stamp) | {'finality': 'finalized'})).check(stamp.observed_at, 120)
+        if local_freshness_seconds is None:
+            Stamp(**(asdict(stamp) | {'finality': 'finalized'})).check(stamp.observed_at, 120)
+        else:
+            age=float(local_freshness_seconds)
+            if not 0<=age<=float(max_local_age):
+                raise BoundaryError('stale_state')
+            if stamp.chain_id <= 0 or stamp.block < 0 or not stamp.block_hash:
+                raise BoundaryError('invalid_block_identity')
+            if stamp.kind not in ('synthetic','captured','natural'):
+                raise BoundaryError('unknown_evidence_kind')
+            if stamp.event_at > stamp.observed_at:
+                raise BoundaryError('future_evidence')
         body = dict(stamp=asdict(stamp), parent_hash=parent_hash)
         old = self._optional('confirmed_block', self._id(stamp.block_hash))
         if old:
@@ -146,12 +157,16 @@ class Finality:
         if mismatch:
             raise BoundaryError('finalized_hash_disagreement')
 
-    def check(self, stamp, asof, max_age):
+    def check_identity(self, stamp):
         block = self.block(stamp.block_hash)
         if asdict(stamp) != block['stamp']:
             raise BoundaryError('observation_identity_disagreement')
         if self.status(stamp.block_hash) == 'invalidated':
             raise BoundaryError('displaced_evidence')
+        return self.status(stamp.block_hash)
+
+    def check(self, stamp, asof, max_age):
+        self.check_identity(stamp)
         Stamp(**(asdict(stamp) | {'finality': 'finalized'})).check(asof, max_age)
 
     def bind(self, identity, stamps, *, asof):

@@ -1,0 +1,5 @@
+Purpose: start replacement 20-minute Pons Selective Continuation test.
+Repairs: transient provider session recovery + bounded 429 backpressure.
+Canonical cursor authority remains authenticated RPC only.
+Five-second candidate evidence freshness unchanged.
+Frozen policy unchanged: true

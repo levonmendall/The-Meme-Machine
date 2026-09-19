@@ -1,0 +1,37 @@
+name: pons-selective-market-test
+on:
+  pull_request:
+    branches: [feat/robinhood-research-foundation]
+    paths:
+      - '.github/live-triggers/pons-selective-market-test-*.txt'
+permissions:
+  contents: read
+jobs:
+  market-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    concurrency:
+      group: meme-machine-pons-selective-market-test
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Verify isolated Pons deterministic suite
+        run: python -m unittest robinhood_tests.test_pons_selective_continuation robinhood_tests.test_pons_selective_independence -v
+      - name: Run independent Pons selective natural market test
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DISCOVERY_RPC_URL: ${{ secrets.MM_ROBINHOOD_DISCOVERY_RPC_URL }}
+          MM_PONS_SELECTIVE_DISCOVERY_SECONDS: 1200
+        run: python -m robinhood_research.pons_selective_cohort
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: pons-selective-market-test-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            pons-selective-continuation-v1-cohort.json
+            pons-selective-continuation-v1-cohort/
+          retention-days: 90
+          if-no-files-found: warn

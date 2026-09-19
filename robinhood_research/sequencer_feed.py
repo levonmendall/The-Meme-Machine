@@ -27,6 +27,14 @@ MAX_FRAME_BYTES = 16 * 1024 * 1024
 MAX_TRACKED_SEQUENCES = 4096
 
 
+class SequencerTransportError(RuntimeError):
+    """Recoverable observation-plane transport loss.
+
+    This is deliberately distinct from BoundaryError. Protocol/continuity failures
+    remain fail-closed; only socket/TLS/clean-close transport loss is reconnectable.
+    """
+
+
 def feed_url(environ=None):
     values = os.environ if environ is None else environ
     value = str(values.get(FEED_ENV, "") or "").strip() or SEQUENCER_FEED_URL
@@ -195,18 +203,28 @@ class _WebSocket:
         self.permessage_deflate = False
         self.server_no_context_takeover = False
         self._inflater = None
+        self._recv_buffer = bytearray()
 
-    @staticmethod
-    def _read_exact(sock, size):
-        chunks = []
-        remaining = size
-        while remaining:
-            chunk = sock.recv(remaining)
+    def _read_exact(self, size):
+        """Read exactly size bytes, consuming handshake/coalesced bytes first."""
+        size=int(size)
+        if size<0:
+            raise BoundaryError("sequencer_feed_read_size")
+        if size==0:
+            return b""
+        out=bytearray()
+        if self._recv_buffer:
+            take=min(size,len(self._recv_buffer))
+            out.extend(self._recv_buffer[:take])
+            del self._recv_buffer[:take]
+        while len(out)<size:
+            if self.sock is None:
+                raise BoundaryError("sequencer_feed_not_connected")
+            chunk=self.sock.recv(size-len(out))
             if not chunk:
                 raise BoundaryError("sequencer_feed_connection_closed")
-            chunks.append(chunk)
-            remaining -= len(chunk)
-        return b"".join(chunks)
+            out.extend(chunk)
+        return bytes(out)
 
     def connect(self):
         parsed = urlsplit(self.url)
@@ -240,10 +258,12 @@ class _WebSocket:
         while b"\r\n\r\n" not in response:
             if len(response) > 64 * 1024:
                 raise BoundaryError("sequencer_feed_handshake_capacity")
-            response.extend(sock.recv(4096))
-        header = bytes(response).split(b"\r\n\r\n", 1)[0].decode(
-            "iso-8859-1"
-        )
+            chunk=sock.recv(4096)
+            if not chunk:
+                raise BoundaryError("sequencer_feed_connection_closed")
+            response.extend(chunk)
+        header_bytes,remainder=bytes(response).split(b"\r\n\r\n",1)
+        header = header_bytes.decode("iso-8859-1")
         lines = header.split("\r\n")
         if not lines or " 101 " not in lines[0]:
             raise BoundaryError("sequencer_feed_handshake_rejected")
@@ -267,11 +287,15 @@ class _WebSocket:
             "server_no_context_takeover" in extension.lower()
         )
         self._inflater = zlib.decompressobj(wbits=-15)
+        self._recv_buffer=bytearray(remainder)
+        if len(self._recv_buffer)>self.max_frame_bytes:
+            raise BoundaryError("sequencer_feed_handshake_remainder_capacity")
         self.sock = sock
         return self
 
     def close(self):
         sock, self.sock = self.sock, None
+        self._recv_buffer.clear()
         if sock is not None:
             try:
                 sock.close()
@@ -311,7 +335,7 @@ class _WebSocket:
         message_opcode = None
         compressed = False
         while True:
-            first, second = self._read_exact(self.sock, 2)
+            first, second = self._read_exact(2)
             final = bool(first & 0x80)
             rsv1 = bool(first & 0x40)
             if first & 0x30:
@@ -320,13 +344,13 @@ class _WebSocket:
             masked = bool(second & 0x80)
             length = second & 0x7F
             if length == 126:
-                length = struct.unpack("!H", self._read_exact(self.sock, 2))[0]
+                length = struct.unpack("!H", self._read_exact(2))[0]
             elif length == 127:
-                length = struct.unpack("!Q", self._read_exact(self.sock, 8))[0]
+                length = struct.unpack("!Q", self._read_exact(8))[0]
             if length > self.max_frame_bytes:
                 raise BoundaryError("sequencer_feed_frame_capacity")
-            mask = self._read_exact(self.sock, 4) if masked else None
-            payload = self._read_exact(self.sock, length)
+            mask = self._read_exact(4) if masked else None
+            payload = self._read_exact(length)
             if mask is not None:
                 payload = bytes(
                     value ^ mask[i % 4] for i, value in enumerate(payload)
@@ -381,6 +405,9 @@ class SequencerBlockClock:
         self.timeout=float(timeout)
         self.state=SequencerFeedState()
         self.client=None
+        self.transport_failures=0
+        self.reconnects=0
+        self._completed_sessions=[]
 
     def connect(self):
         if self.client is None:
@@ -393,6 +420,33 @@ class SequencerBlockClock:
         client,self.client=self.client,None
         if client is not None:
             client.close()
+
+    def reconnect(self):
+        """Start a fresh observation session without asserting feed continuity.
+
+        The caller must keep its canonical RPC cursor unchanged and authenticate
+        every intervening block before advancing it. Cross-session continuity is
+        therefore proven by RPC coverage, never assumed from the WebSocket.
+        """
+        previous=self.state.summary(now=time.time())
+        previous["ended_reason"]="transport_restart"
+        self._completed_sessions.append(previous)
+        if len(self._completed_sessions)>16:
+            self._completed_sessions=self._completed_sessions[-16:]
+        self.close()
+        self.state=SequencerFeedState()
+        self.reconnects+=1
+        try:
+            return self.connect()
+        except (ssl.SSLError,OSError) as exc:
+            self.transport_failures+=1
+            self.close()
+            raise SequencerTransportError(type(exc).__name__) from exc
+
+    def _transport_lost(self, reason):
+        self.transport_failures+=1
+        self.close()
+        raise SequencerTransportError(str(reason))
 
     def _healthy(self):
         s=self.state
@@ -431,15 +485,24 @@ class SequencerBlockClock:
                 remaining=max(0.01,min(deadline,coalesce_deadline)-time.monotonic())
             else:
                 remaining=max(0.05,deadline-time.monotonic())
-            self.client.sock.settimeout(min(1.0,remaining))
             try:
+                self.client.sock.settimeout(min(1.0,remaining))
                 payload=self.client.recv_message()
             except socket.timeout:
                 if first_new_at is not None:
                     break
                 continue
+            except (ssl.SSLError,OSError) as exc:
+                self._transport_lost(type(exc).__name__)
+            except BoundaryError as exc:
+                if str(exc) in (
+                    "sequencer_feed_connection_closed",
+                    "sequencer_feed_not_connected",
+                ):
+                    self._transport_lost(str(exc))
+                raise
             if payload is None:
-                raise BoundaryError("sequencer_feed_connection_closed")
+                self._transport_lost("sequencer_feed_clean_close")
             self.state.ingest(payload,received_at=time.time())
             self._healthy()
             latest=self.state.last_sequence
@@ -464,11 +527,26 @@ class SequencerBlockClock:
         )
 
     def status(self):
-        row=self.state.summary(now=time.time())
+        now=time.time()
+        row=self.state.summary(now=now)
+        sessions=list(self._completed_sessions)
+        current=dict(row)
+        current["ended_reason"]=None
+        sessions.append(current)
         row.update(
             role="pons_discovery_clock",
             authority="observation_only",
             canonical_evidence=False,
+            transport_failures=self.transport_failures,
+            reconnects=self.reconnects,
+            session_count=len(sessions),
+            session_history=sessions,
+            aggregate_messages=sum(int(x.get("messages") or 0) for x in sessions),
+            aggregate_envelopes=sum(int(x.get("envelopes") or 0) for x in sessions),
+            aggregate_gap_events=sum(int(x.get("gap_events") or 0) for x in sessions),
+            aggregate_conflicts=sum(int(x.get("conflicts") or 0) for x in sessions),
+            aggregate_regressions=sum(int(x.get("regressions") or 0) for x in sessions),
+            aggregate_malformed=sum(int(x.get("malformed") or 0) for x in sessions),
         )
         return row
 
