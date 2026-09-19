@@ -16,6 +16,7 @@ PROTOCOL=Path("DLMM_PROFITABLE_OPERATOR_DISCOVERY_V1.json")
 DERIVATION_PROTOCOL=Path("DLMM_PROFITABLE_OPERATOR_RULE_DERIVATION_V1.json")
 DEFAULT_DEEP=Path("dlmm-profitable-operator-deep-reconstruction.json")
 OUT=Path("dlmm-profitable-operator-rule-proposals.json")
+FROZEN_OUT=Path("DLMM_PROFITABLE_OPERATOR_RULES_V1.json")
 
 
 def _modal(values):
@@ -268,10 +269,51 @@ def derive(path=DEFAULT_DEEP):
     return report
 
 
+def freeze_proposals(path=OUT,output=FROZEN_OUT):
+    proposals=json.loads(Path(path).read_text())
+    if proposals.get("kind")!="dlmm_profitable_operator_rule_proposals_v1":
+        raise RuntimeError("dlmm_operator_rule_freeze_kind")
+    if proposals.get("status")!="candidate_rules_ready_to_freeze_before_prospective_test":
+        raise RuntimeError("dlmm_operator_rule_freeze_no_supported_rule")
+    if proposals.get("prospective_outcomes_read") is not False:
+        raise RuntimeError("dlmm_operator_rule_freeze_outcome_leakage")
+    rules=proposals.get("candidate_rule_proposals") or []
+    if not rules:
+        raise RuntimeError("dlmm_operator_rule_freeze_empty")
+    protocol=json.loads(PROTOCOL.read_text())
+    derivation=json.loads(DERIVATION_PROTOCOL.read_text())
+    if proposals.get("protocol_revision")!=protocol.get("protocol_revision"):
+        raise RuntimeError("dlmm_operator_rule_freeze_protocol_mismatch")
+    if proposals.get("derivation_protocol_revision")!=derivation.get("revision"):
+        raise RuntimeError("dlmm_operator_rule_freeze_derivation_mismatch")
+    canonical=json.dumps(rules,sort_keys=True,separators=(",",":")).encode()
+    import hashlib
+    rule_hash=hashlib.sha256(canonical).hexdigest()
+    body=dict(
+        kind="dlmm_profitable_operator_rules_v1",
+        status="frozen_pre_prospective",
+        protocol_revision=protocol.get("protocol_revision"),
+        derivation_protocol_revision=derivation.get("revision"),
+        rule_hash=rule_hash,
+        prospective_outcomes_read_before_freeze=False,
+        allocation_authority=False,paper_only=True,
+        rule_count=len(rules),rules=rules,
+        prospective_test=derivation.get("prospective_test"),
+    )
+    Path(output).write_text(json.dumps(body,indent=2,sort_keys=True)+"\n")
+    print(json.dumps(dict(
+        status=body["status"],rules=len(rules),rule_hash=rule_hash),sort_keys=True))
+    return body
+
+
 def main():
     p=argparse.ArgumentParser()
+    p.add_argument("phase",nargs="?",choices=("derive","freeze"),default="derive")
     p.add_argument("--deep",default=str(DEFAULT_DEEP))
-    args=p.parse_args();derive(Path(args.deep))
+    p.add_argument("--proposals",default=str(OUT))
+    args=p.parse_args()
+    if args.phase=="derive":derive(Path(args.deep))
+    else:freeze_proposals(Path(args.proposals),FROZEN_OUT)
 
 
 if __name__=="__main__":
