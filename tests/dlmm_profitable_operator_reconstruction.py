@@ -18,9 +18,9 @@ import time
 
 from meme_machine import dlmm, pump
 from meme_machine.dlmm_tape import (
-    EVENT_CPI, ADD_LIQUIDITY_EVT, SWAP, SWAP2,
+    EVENT_CPI, ADD_LIQUIDITY_EVT, REMOVE_LIQUIDITY_EVT, SWAP, SWAP2,
     _keys, _ordered_instructions, _un58_data,
-    decode_add_liquidity,
+    decode_add_liquidity, decode_remove_liquidity,
 )
 from tests import dlmm_alchemy_provider as solana_provider
 from tests import dlmm_profitable_operator_discovery as op
@@ -308,7 +308,8 @@ def transaction_features(tx,pool,position):
     if not keys or required<1:
         raise RuntimeError("dlmm_operator_fee_payer_missing")
     fee_payer=keys[0]
-    actions=[];entry=None;actual_add_active=None;rebalances=[];swap_fees=[]
+    actions=[];entry=None;actual_add_active=None
+    rebalances=[];remove_events=[];swap_fees=[]
     for outer,inner,ix in _ordered_instructions(meta,message):
         pi=ix.get("programIdIndex")
         if type(pi) is not int or not 0<=pi<len(keys) or keys[pi]!=dlmm.PROGRAM:
@@ -322,6 +323,13 @@ def transaction_features(tx,pool,position):
                     ev=decode_add_liquidity(payload,pool)
                     if ev["position"]==position:
                         actual_add_active=ev["active"]
+                except (ValueError,KeyError):
+                    pass
+            elif payload[:8]==REMOVE_LIQUIDITY_EVT:
+                try:
+                    ev=decode_remove_liquidity(payload,pool)
+                    if ev["position"]==position:
+                        remove_events.append(ev)
                 except (ValueError,KeyError):
                     pass
             elif payload[:8]==REBALANCING_EVT:
@@ -391,6 +399,7 @@ def transaction_features(tx,pool,position):
         slot=int(tx.get("slot") or 0),block_time=tx.get("blockTime"),
         network_fee_lamports=int(meta.get("fee") or 0),fee_payer=fee_payer,
         actions=actions,entry=entry,rebalances=rebalances,
+        remove_events=remove_events,
         swap_fee_bps_observed_in_transaction=swap_fees,
     )
 
