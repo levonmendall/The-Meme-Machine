@@ -494,6 +494,7 @@ def run(
     db_path=None,
     monitor_poll_seconds=MONITOR_POLL_SECONDS,
     rescan_seconds=RESCAN_SECONDS,
+    initial_screen=None,
 ):
     costs_by_pool = _normalize_context(costs_by_pool)
     signals_by_pool = _normalize_context(signals_by_pool)
@@ -515,11 +516,20 @@ def run(
         status="screening",
     )
 
-    screen = scan(
-        endpoint,
-        gas_costs_by_pool=costs_by_pool,
-        signals_by_pool=signals_by_pool,
-    )
+    if initial_screen is not None:
+        if (
+            not isinstance(initial_screen, dict)
+            or initial_screen.get("strategy_domain") != STRATEGY_DOMAIN
+            or initial_screen.get("policy_hash") != POLICY_HASH
+        ):
+            raise BoundaryError("foreign_initial_ramses_screen")
+        screen = deepcopy(initial_screen)
+    else:
+        screen = scan(
+            endpoint,
+            gas_costs_by_pool=costs_by_pool,
+            signals_by_pool=signals_by_pool,
+        )
     result["initial_screen"] = screen
     chosen = select_qualifier(screen)
     if chosen is None:
