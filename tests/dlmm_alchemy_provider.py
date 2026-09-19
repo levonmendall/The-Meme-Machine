@@ -27,10 +27,18 @@ from meme_machine.solana_read_rpc import (
 ENV_NAME = ALCHEMY_ENV_NAME
 PROVIDER_LABEL = TOPOLOGY_LABEL
 
-# Backward-compatible names retained for existing DLMM research modules/tests.
-AlchemyPacer = SolanaReadPacer
+# DLMM uses the public primary at its declared 5 requests/second capability.
+# Other Solana lanes retain the canonical topology's more conservative default.
+DLMM_MIN_REQUEST_INTERVAL_SECONDS = 0.2
+DLMM_PRIMARY_REQUESTS_PER_SECOND = 5
+
+class AlchemyPacer(SolanaReadPacer):
+    """Backward-compatible DLMM pacer name; now paces the primary at 5 rps."""
+    def __init__(self, minimum_interval=DLMM_MIN_REQUEST_INTERVAL_SECONDS):
+        super().__init__(minimum_interval=minimum_interval)
+
 AlchemyPoolScanRPC = ReadOnlyFailoverPoolScanRPC
-ALCHEMY_MIN_REQUEST_INTERVAL_SECONDS = SOLANA_MIN_REQUEST_INTERVAL_SECONDS
+ALCHEMY_MIN_REQUEST_INTERVAL_SECONDS = DLMM_MIN_REQUEST_INTERVAL_SECONDS
 ALCHEMY_429_MIN_BACKOFF_SECONDS = PROVIDER_429_MIN_BACKOFF_SECONDS
 
 
@@ -44,6 +52,9 @@ def alchemy_rpc_url(environ=None, *, required=False):
 
 
 def new_rpc(limit=240, pacer=None, environ=None, **kwargs):
+    # OnFinality remains primary. Default DLMM pacing is 0.2s (5 rps);
+    # Alchemy is contacted only through the bounded rescue path.
+    pacer = pacer or AlchemyPacer()
     return new_pool_scan_rpc(
         limit=limit,
         pacer=pacer,
@@ -53,13 +64,18 @@ def new_rpc(limit=240, pacer=None, environ=None, **kwargs):
 
 
 def metadata(environ=None):
-    return _metadata(environ)
+    data=_metadata(environ)
+    data.update(
+        dlmm_minimum_request_interval_seconds=DLMM_MIN_REQUEST_INTERVAL_SECONDS,
+        dlmm_primary_requests_per_second=DLMM_PRIMARY_REQUESTS_PER_SECOND,
+    )
+    return data
 
 
 def main():
     validate_topology(require_secondary=True)
     print(
-        "DLMM Solana read topology validated: OnFinality public primary; "
+        "DLMM Solana read topology validated: OnFinality public primary at 5 rps; "
         "existing MM_SOLANA_READ_RPC_URL Alchemy endpoint is rescue-only"
     )
 
