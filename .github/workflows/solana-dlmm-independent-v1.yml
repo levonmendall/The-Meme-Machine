@@ -11,6 +11,7 @@ name: solana-dlmm-independent-v1
 # dynamic-fee-role: context-only
 # operational-repair: restart-safe-rpc-checkpointed-20m
 # operational-repair: shared-429-backoff-dedup-signatures
+# evidence-repair: program-account-wake-stream-incremental-ledger-durable-tx-cache
 on:
   push:
     branches:
@@ -74,6 +75,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: solana-dlmm-independent-v1-${{ github.run_id }}-${{ github.run_attempt }}
-          path: solana-dlmm-independent-v1-live.json
+          path: |
+            solana-dlmm-independent-v1-live.json
+            solana-dlmm-evidence-broker.sqlite3
           if-no-files-found: warn
           retention-days: 90
