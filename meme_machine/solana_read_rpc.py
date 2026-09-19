@@ -40,6 +40,8 @@ DISCOVERY_WS_URL = "wss://api.mainnet-beta.solana.com"
 
 ALCHEMY_ENV_NAME = "MM_SOLANA_READ_RPC_URL"
 ALCHEMY_SOLANA_MAINNET_HOST = "solana-mainnet.g.alchemy.com"
+PRIMARY_RPC_URL = PUBLIC_RPC_URL  # compatibility: no-secret local fallback only
+PRIMARY_RPC_HOST = ALCHEMY_SOLANA_MAINNET_HOST
 SECONDARY_PROVIDER = "none"
 
 TOPOLOGY_LABEL = "alchemy_primary_no_rescue_public_ws_discovery"
