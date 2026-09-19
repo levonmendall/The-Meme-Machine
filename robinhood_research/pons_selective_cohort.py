@@ -49,6 +49,13 @@ def _discovery(endpoint):
     return rpc
 
 
+def _single_block_range(rpc,start,end):
+    rows=[]
+    for block in range(int(start),int(end)+1):
+        rows.extend(_current_curve_events(rpc,block,block))
+    return rows
+
+
 def _poll(endpoint,rpc,cursor,tape,feed,sessions):
     if rpc.used>150:
         sessions.append(rpc.telemetry())
@@ -74,10 +81,12 @@ def _poll(endpoint,rpc,cursor,tape,feed,sessions):
             if frontier<first:
                 return rpc,cursor,[]
             if frontier>=observed_end:
-                # -32602 was not caused by sequencer/provider frontier skew.
-                raise
-            observed_end=min(observed_end,frontier)
-            fresh=_current_curve_events(rpc,first,observed_end)
+                # The provider has the full range, so isolate a range-specific
+                # rejection without skipping any block or widening evidence scope.
+                fresh=_single_block_range(rpc,first,observed_end)
+            else:
+                observed_end=min(observed_end,frontier)
+                fresh=_current_curve_events(rpc,first,observed_end)
         tape.extend(fresh)
         if len(tape)>MAX_TAPE_EVENTS:
             del tape[:-MAX_TAPE_EVENTS]
