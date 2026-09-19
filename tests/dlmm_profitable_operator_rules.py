@@ -13,6 +13,7 @@ from pathlib import Path
 import statistics
 
 PROTOCOL=Path("DLMM_PROFITABLE_OPERATOR_DISCOVERY_V1.json")
+DERIVATION_PROTOCOL=Path("DLMM_PROFITABLE_OPERATOR_RULE_DERIVATION_V1.json")
 DEFAULT_DEEP=Path("dlmm-profitable-operator-deep-reconstruction.json")
 OUT=Path("dlmm-profitable-operator-rule-proposals.json")
 
@@ -22,6 +23,19 @@ def _modal(values):
     if not values: return None
     c=Counter(values)
     return sorted(c.items(),key=lambda kv:(-kv[1],str(kv[0])))[0][0]
+
+
+def _configured_bucket(value,bounds):
+    if value is None:return None
+    x=float(value)
+    for rule in bounds:
+        if "exact" in rule and x!=float(rule["exact"]):continue
+        if "min_inclusive" in rule and x<float(rule["min_inclusive"]):continue
+        if "min_exclusive" in rule and x<=float(rule["min_exclusive"]):continue
+        if "max_inclusive" in rule and x>float(rule["max_inclusive"]):continue
+        if "max_exclusive" in rule and x>=float(rule["max_exclusive"]):continue
+        return rule["label"]
+    return None
 
 
 def _hold_bucket(v):
@@ -83,10 +97,27 @@ def wallet_behavior(row):
         rebalance_bucket=_rebalance_bucket(rebalance_rate),hold_bucket=_modal(holds),
     )
     complete=all(v is not None for v in vote.values())
+    context_values=dict(
+        pool_age_seconds=[],
+        pre_entry_60m_volume_usd=[],
+        pre_entry_5m_log_return_volatility=[],
+        entry_dynamic_fee_bps_observed=[],
+    )
+    for p in profiles:
+        ctx=p.get("market_context") or {}
+        entry=p.get("entry") or {}
+        for key in (
+            "pool_age_seconds","pre_entry_60m_volume_usd",
+            "pre_entry_5m_log_return_volatility"):
+            if ctx.get(key) is not None:context_values[key].append(ctx[key])
+        if entry.get("entry_dynamic_fee_bps_observed") is not None:
+            context_values["entry_dynamic_fee_bps_observed"].append(
+                entry["entry_dynamic_fee_bps_observed"])
     return dict(
         wallet=row.get("wallet"),vote=vote,vote_complete=complete,
         observed_entry_positions=observed_positions,
         rebalance_position_rate=rebalance_rate,
+        raw_context_values=context_values,
         cluster_parameter_values=dict(
             median_width_bins=(None if not width_values else statistics.median(width_values)),
             median_center_active_offset_bins=(
@@ -113,9 +144,14 @@ def cluster_behavior(cluster,by_wallet):
         values=[m["cluster_parameter_values"].get(key) for m in member
                 if m["cluster_parameter_values"].get(key) is not None]
         params[key]=None if not values else statistics.median(values)
+    context_values=defaultdict(list)
+    for m in member:
+        for key,values in (m.get("raw_context_values") or {}).items():
+            context_values[key].extend(values)
     return dict(
         cluster_id=cluster.get("cluster_id"),wallets=cluster.get("wallets") or [],
         vote=vote,vote_complete=complete,cluster_parameters=params,
+        raw_context_values=dict(context_values),
         member_wallet_profiles=member,
     )
 
@@ -125,10 +161,10 @@ def derive(path=DEFAULT_DEEP):
     if deep.get("kind")!="dlmm_profitable_operator_deep_reconstruction_v1":
         raise RuntimeError("dlmm_operator_rule_deep_kind")
     protocol=json.loads(PROTOCOL.read_text())
+    derivation=json.loads(DERIVATION_PROTOCOL.read_text())
     required_support=float(
-        protocol["rule_derivation"]["cross_cluster_support"]["categorical_support_required"])
-    min_clusters=int(
-        protocol["rule_derivation"]["cross_cluster_support"]["minimum_independent_operator_clusters"])
+        derivation["core_family"]["independent_cluster_support_required"])
+    min_clusters=int(derivation["core_family"]["minimum_independent_clusters"])
     by_wallet={r["wallet"]:r for r in deep.get("wallets") or []}
 
     qualifying=set()
@@ -168,6 +204,27 @@ def derive(path=DEFAULT_DEEP):
             values=[c["cluster_parameters"].get(pkey) for c in matched
                     if c["cluster_parameters"].get(pkey) is not None]
             params[pkey]=None if not values else statistics.median(values)
+        context_gates={}
+        for context_key,bounds in derivation["context_dimensions"].items():
+            votes=[]
+            for cluster in matched:
+                values=(cluster.get("raw_context_values") or {}).get(context_key) or []
+                buckets=[_configured_bucket(v,bounds) for v in values]
+                vote=_modal(buckets)
+                if vote is not None:votes.append((cluster["cluster_id"],vote))
+            if len(votes)<min_clusters:
+                continue
+            counts=Counter(v for _cluster,v in votes)
+            winning,winning_count=sorted(
+                counts.items(),key=lambda kv:(-kv[1],str(kv[0])))[0]
+            support=winning_count/len(votes)
+            if support>=required_support:
+                context_gates[context_key]=dict(
+                    bucket=winning,support=support,
+                    independent_clusters_with_context=len(votes),
+                    supporting_cluster_ids=[
+                        cluster for cluster,vote in votes if vote==winning],
+                )
         proposals.append(dict(
             family=dict(zip((
                 "distribution_family","sidedness","width_bucket",
@@ -175,6 +232,7 @@ def derive(path=DEFAULT_DEEP):
             independent_cluster_count=count,
             independent_cluster_support=support,
             source_cluster_ids=[c["cluster_id"] for c in matched],
+            context_gates=context_gates,
             frozen_parameter_medians=params,
             diagnostic_cluster_parameter_ranges={
                 pkey:(None if not [c["cluster_parameters"].get(pkey) for c in matched
@@ -194,6 +252,7 @@ def derive(path=DEFAULT_DEEP):
         status=("candidate_rules_ready_to_freeze_before_prospective_test"
                 if proposals else "no_repeatable_family_meets_preregistered_support"),
         protocol_revision=protocol.get("protocol_revision"),
+        derivation_protocol_revision=derivation.get("revision"),
         qualifying_independent_clusters=len(clusters),
         complete_voting_clusters=len(voting),
         support_required=required_support,
