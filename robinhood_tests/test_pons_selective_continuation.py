@@ -238,6 +238,29 @@ class SelectiveDiscoveryFrontierTests(unittest.TestCase):
         self.assertEqual(cursor,100)
         self.assertEqual(fresh,[])
 
+    def test_full_frontier_range_rejection_splits_exactly_by_block(self):
+        rpc=self.Rpc(105)
+        responses=[
+            BoundaryError("provider_rpc_-32602"),
+            ["101"],["102"],["103"],["104"],["105"],
+        ]
+        with patch.object(selective_cohort,"_next_discovery_end",return_value=105), \
+             patch.object(
+                 selective_cohort,"_current_curve_events",side_effect=responses
+             ) as events:
+            _,cursor,fresh=selective_cohort._poll(
+                "https://unused",rpc,100,[],object(),[]
+            )
+        self.assertEqual(cursor,105)
+        self.assertEqual(fresh,["101","102","103","104","105"])
+        self.assertEqual(
+            [call.args for call in events.call_args_list],
+            [
+                (rpc,101,105),(rpc,101,101),(rpc,102,102),
+                (rpc,103,103),(rpc,104,104),(rpc,105,105),
+            ],
+        )
+
     def test_non_frontier_invalid_params_still_fails_closed(self):
         rpc=self.Rpc(105)
         with patch.object(selective_cohort,"_next_discovery_end",return_value=105), \
