@@ -76,6 +76,20 @@ class ProfitableOperatorDiscoveryTests(unittest.TestCase):
         self.assertAlmostEqual(out["max_realized_drawdown_usd"],4.0)
         self.assertEqual(out["active_weeks"],1)
 
+    def test_current_liquidity_management_surface_is_in_operator_census(self):
+        names={spec[0] for spec in op.LP_MUTATIONS.values()}
+        for required in (
+            "add_liquidity","add_liquidity2","add_liquidity_by_strategy",
+            "add_liquidity_by_strategy2","add_liquidity_by_strategy_one_side",
+            "add_liquidity_by_weight","add_liquidity_by_weight2",
+            "add_liquidity_one_side","add_liquidity_one_side_precise",
+            "add_liquidity_one_side_precise2","rebalance_liquidity",
+            "remove_all_liquidity","remove_liquidity","remove_liquidity2",
+            "remove_liquidity_by_range","remove_liquidity_by_range2",
+            "claim_fee","claim_fee2",
+        ):
+            self.assertIn(required,names)
+
     def test_protocol_freezes_all_pool_census_and_no_wallet_cap(self):
         body=json.loads(op.PROTOCOL.read_text())
         self.assertIn("exhaust every observable",body["universe"]["pool_census"])
