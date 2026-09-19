@@ -1,4 +1,5 @@
 import ast
+import inspect
 from pathlib import Path
 import tempfile
 import unittest
@@ -6,6 +7,8 @@ import unittest
 from robinhood_research.pons_relative_value import (
     reserve_relative_return_bps, relative_value_vector, STRATEGY as RELATIVE_STRATEGY,
 )
+from robinhood_research.paper import Paper
+from robinhood_research.pons_selective_ledger import SelectivePaper
 from robinhood_research.pons_selective_wallets import (
     WalletSkillBook, NAMESPACE as WALLET_NAMESPACE,
 )
@@ -14,6 +17,7 @@ from robinhood_research.pons_selective_wallets import (
 ROOT=Path(__file__).resolve().parents[1]
 SELECTIVE_FILES=[
     ROOT/"robinhood_research"/"pons_selective_continuation.py",
+    ROOT/"robinhood_research"/"pons_selective_ledger.py",
     ROOT/"robinhood_research"/"pons_selective_acquisition.py",
     ROOT/"robinhood_research"/"pons_selective_wallets.py",
     ROOT/"robinhood_research"/"pons_selective_v4.py",
@@ -51,6 +55,16 @@ class StrategyIndependenceTests(unittest.TestCase):
                     if any(name.startswith(prefix) for prefix in FORBIDDEN_PREFIXES):
                         bad.append((path.name,name))
         self.assertEqual(bad,[])
+
+
+    def test_partial_exit_surface_exists_only_on_selective_ledger(self):
+        generic=inspect.signature(Paper.advance)
+        selective=inspect.signature(SelectivePaper.advance)
+        self.assertNotIn("exit_tokens",generic.parameters)
+        self.assertIn("exit_tokens",selective.parameters)
+        generic_source=inspect.getsource(Paper)
+        self.assertNotIn("pending_exit_tokens",generic_source)
+        self.assertNotIn("pons_selective_paper",generic_source)
 
     def test_strategy_owned_artifact_namespaces_are_distinct(self):
         cohort=(ROOT/"robinhood_research"/"pons_selective_cohort.py").read_text()
