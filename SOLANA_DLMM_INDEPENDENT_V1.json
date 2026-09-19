@@ -297,6 +297,14 @@
       "candidate_semantics": "HTTP 429 during signatures, transactions, fresh pool state, warmup reconstruction, or lifecycle evidence is transport pressure and is retried within bounded recovery/deadline rules. It is not an economic candidate rejection.",
       "cursor_safety": "If transaction retrieval is rate-limited after signatures are discovered, the cursor is not advanced; those signatures are retried.",
       "thresholds_changed": false
+    },
+    "rpc_429_recovery": {
+      "strategy_revision_changed": false,
+      "rule": "Fresh-swap polling uses one getSignaturesForAddress read per poll; the returned finalized head advances the non-swap cursor. A 429 during signature or transaction acquisition is transport pressure, not a candidate failure. All rotated Alchemy sessions share one adaptive cooldown state. A rate-limited getTransaction does not advance the cursor, so the exact signatures are retried.",
+      "shared_across_sessions": true,
+      "duplicate_signature_head_read_removed": true,
+      "candidate_failure_on_429": false,
+      "strategy_thresholds_changed": false
     }
   }
 }
