@@ -87,6 +87,7 @@ jobs:
           git commit -m "Freeze 200-wallet profitable-operator cohort pre-PnL"
           git push origin HEAD:research/dlmm-profitable-operator-discovery
 
+  # Frozen 200-wallet cohort: fd1201139ca6d9e08e202a68024706fe186d794d
   rank:
     if: contains(github.event.head_commit.message, '[dlmm-operator-rank]')
     runs-on: ubuntu-24.04
