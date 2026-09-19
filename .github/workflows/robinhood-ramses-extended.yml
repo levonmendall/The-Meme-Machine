@@ -9,7 +9,7 @@ jobs:
   extended-market-test:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[robinhood-ramses-extended-test]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 40
     concurrency:
       group: meme-machine-robinhood-ramses-extended
       cancel-in-progress: false
@@ -24,7 +24,7 @@ jobs:
           MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
           MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON }}
           MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON }}
-          MM_ROBINHOOD_RAMSES_EXTENDED_DISCOVERY_SECONDS: "600"
+          MM_ROBINHOOD_RAMSES_EXTENDED_DISCOVERY_SECONDS: "1200"
           MM_ROBINHOOD_RAMSES_EXTENDED_INTERVAL_SECONDS: "60"
         run: python -m robinhood_research.ramses_extended_test
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

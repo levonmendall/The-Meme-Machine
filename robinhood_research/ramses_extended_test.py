@@ -94,6 +94,8 @@ def _screen_summary(screen):
             mode=d.get("mode"),
             qualified=d.get("qualified"),
             reasons=d.get("reasons"),
+            gas_costs=row.get("gas_costs"),
+            cost_evidence=row.get("cost_evidence"),
         ))
     return dict(
         finalized_block=screen.get("finalized_block"),
@@ -107,6 +109,10 @@ def _screen_summary(screen):
             if (r.get("decision") or {}).get("qualified")
         ],
         rows=rows,
+        cost_model=screen.get("cost_model"),
+        pools_with_automatic_cost_evidence=screen.get(
+            "pools_with_automatic_cost_evidence"
+        ),
         provider=screen.get("provider"),
     )
 
@@ -327,6 +333,7 @@ def run(
     started=time.monotonic()
     screens=[]
     seen_pools=set()
+    cost_state={}
     result=dict(
         kind="ramses_fee_pulse_extended_market_test_v1",
         strategy_domain=STRATEGY_DOMAIN,
@@ -346,6 +353,7 @@ def run(
             endpoint,
             gas_costs_by_pool=costs_by_pool,
             signals_by_pool=signals_by_pool,
+            cost_state=cost_state,
         )
         screens.append(screen)
         for row in screen.get("rows",[]):
@@ -363,10 +371,18 @@ def run(
                 signals_by_pool=signals_by_pool,
                 db_path=str(db_path or DB),
                 initial_screen=screen,
+                cost_state=cost_state,
             )
             result["status"]=result["connected_lifecycle"].get("status")
             result["ended_at"]=time.time()
             result["unique_active_pools"]=len(seen_pools)
+            result["cost_state_summary"]=dict(
+                transactions_observed=len(cost_state.get("transactions") or {}),
+                sample_counts={
+                    k: len(v)
+                    for k,v in (cost_state.get("samples") or {}).items()
+                },
+            )
             return result
 
         elapsed=time.monotonic()-started
@@ -381,6 +397,13 @@ def run(
 
     result["natural_qualifier_found"]=False
     result["unique_active_pools"]=len(seen_pools)
+    result["cost_state_summary"]=dict(
+        transactions_observed=len(cost_state.get("transactions") or {}),
+        sample_counts={
+            k: len(v)
+            for k,v in (cost_state.get("samples") or {}).items()
+        },
+    )
     result["status"]="natural_discovery_complete_no_qualifier"
     screen,row=_pick_forced_row(screens)
     if row is None:
