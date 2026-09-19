@@ -40,7 +40,6 @@ from .ramses_strategy import (
     STRATEGY_DOMAIN,
     STRATEGY_VERSION,
     decompose_pnl,
-    verify_proposal_hash if False else None,
 )
 from .ramses import verify_proposal_hash
 from .ramses_strategy_ledger import RamsesStrategyLedger
