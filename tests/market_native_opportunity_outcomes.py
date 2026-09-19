@@ -225,6 +225,14 @@ def _evaluate_extra_preflight(candidate,metric,tape,evidence,authority):
         return row
 
 
+
+def _rank_extra_evidence(unselected,remaining,per_slot=EXTRA_EVIDENCE_PER_SLOT):
+    """Bounded deterministic runner-up selection; research only."""
+    if remaining<=0 or per_slot<=0:
+        return []
+    ranked=sorted(unselected,key=lambda row:row[1].priority_key())
+    return ranked[:min(int(per_slot),int(remaining))]
+
 def _expanded_entry_tracker(candidate,result,cohort):
     """Forward labels from the executable 5% quote, never the nomination trade."""
     quote=(result or {}).get('entry_quote') or {}
@@ -314,9 +322,8 @@ def main():
             if not selected:
                 unselected.append((candidate,metric))
         if extra_evidence_attempted<EXTRA_EVIDENCE_BUDGET and unselected:
-            ranked=sorted(unselected,key=lambda row:row[1].priority_key())
             remaining=max(0,EXTRA_EVIDENCE_BUDGET-extra_evidence_attempted)
-            for candidate,metric in ranked[:min(EXTRA_EVIDENCE_PER_SLOT,remaining)]:
+            for candidate,metric in _rank_extra_evidence(unselected,remaining):
                 extra_evidence_attempted+=1
                 result=_evaluate_extra_preflight(candidate,metric,tape,evidence,authority)
                 result['priority_slot']=slot
