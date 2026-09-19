@@ -416,6 +416,43 @@ def _build_segment_replay(rpc, pool, decision, start_block, end_block):
     return capture, replay_result
 
 
+def _position_state_from_prestate(prestate, decision):
+    """Derive the paper overlay state from an already-finalized scanner prestate."""
+    proposal = decision["freeze"]["proposals"][0]
+    bins = sorted(set(int(b) for b in proposal["bins"]))
+    missing=[b for b in bins if b not in prestate.get("bins",{})]
+    if missing:
+        raise BoundaryError("connected_lifecycle_entry_prestate_missing_bin")
+    terminal=dict(
+        active=int(prestate["active"]),
+        step=int(prestate["step"]),
+        bins={
+            b: dict(
+                reserves=list(prestate["bins"][b]["reserves"]),
+                supply=int(prestate["bins"][b]["supply"]),
+            )
+            for b in bins
+        },
+    )
+    position=paper_position(decision["freeze"],0)
+    removal=paper_removal(position,terminal)
+    inventory=quote_value(
+        removal["amounts"],
+        price(terminal["active"],terminal["step"]),
+        position["quote_side"],
+    )
+    loss=max(
+        0,
+        int(position["proposal"]["initial_spot_value"])-int(inventory),
+    )
+    return dict(
+        active=terminal["active"],
+        step=terminal["step"],
+        inventory_value=inventory,
+        inventory_loss_quote=loss,
+    )
+
+
 def _position_state(rpc, pool, decision, block):
     """Read one monitoring snapshot in a single bounded logical batch."""
     proposal = decision["freeze"]["proposals"][0]
