@@ -12,7 +12,7 @@ from pathlib import Path
 
 from meme_machine.legacy_raydium import LegacyRaydiumProvenance, read_explicit_pool
 from meme_machine.postgrad import PostGraduationAdapter, buy_quote, graduation_handoff, sell_quote
-from meme_machine.provider import RPC
+from meme_machine.solana_read_rpc import new_rpc, new_pool_scan_rpc
 
 REGISTRY = Path('evidence/legacy_raydium_pool_registry.json')
 CAPTURE = Path('legacy-raydium-live-capture.json')
@@ -38,9 +38,9 @@ def main():
     if record.get('allocation_eligible') or provenance.allocation_eligible:
         raise ValueError('legacy_registry_cannot_authorize_allocation')
 
-    url = os.environ.get('MM_SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.com')
-    rpc = RPC(url, limit=120)
-    adapter = PostGraduationAdapter(rpc)
+    rpc = new_rpc(limit=120)
+    scan_rpc = new_pool_scan_rpc(limit=40, pacer=rpc.read_pacer)
+    adapter = PostGraduationAdapter(rpc, scan_rpc=scan_rpc)
     started = int(time.time())
     graduation = adapter.graduation_snapshot(provenance.mint, started, priority=True)
     handoff = graduation_handoff(graduation, int(time.time()))
@@ -75,11 +75,13 @@ def main():
         transaction_submission_authority=False,
         live_money_authority=False,
         profitability_evidence=False,
-        provider_spend_usd=0 if url == 'https://api.mainnet-beta.solana.com' else None,
+        provider_spend_usd=0 if (rpc.failover_count + scan_rpc.failover_count)==0 else None,
         infrastructure_spend_usd=0,
         rpc_requests=rpc.calls,
         rpc_failures=rpc.failures,
         rpc_retries=rpc.retries,
+        provider_topology=rpc.provider_telemetry(),
+        scan_provider_topology=scan_rpc.provider_telemetry(),
         started=started,
         ended=int(time.time()),
         limitation=record['verification']['limitation'],
