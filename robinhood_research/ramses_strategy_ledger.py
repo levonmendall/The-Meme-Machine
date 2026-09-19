@@ -171,7 +171,8 @@ class RamsesStrategyLedger:
                 raise BoundaryError("ramses_strategy_time_regression")
             if not isinstance(pnl, dict) or pnl.get("strategy_domain") != STRATEGY_DOMAIN:
                 raise BoundaryError("foreign_strategy_outcome")
-            if pnl.get("unresolved_inventory"):
+            result = pnl.get("net_result_quote")
+            if pnl.get("unresolved_inventory") or type(result) is not int:
                 body.update(
                     status="unresolved",
                     version=body["version"] + 1,
@@ -180,9 +181,6 @@ class RamsesStrategyLedger:
                 )
                 action = "unresolved"
             else:
-                result = pnl.get("net_result_quote")
-                if type(result) is not int:
-                    raise BoundaryError("ramses_strategy_net_result_missing")
                 body.update(
                     status="settled",
                     version=body["version"] + 1,
