@@ -17,9 +17,9 @@ from meme_machine.store import encode
 PAGE_LIMIT = 64
 MAX_CENSUS_PAGES = 16
 MAX_CENSUS_ROWS = PAGE_LIMIT * MAX_CENSUS_PAGES
-CENSUS_PAGE_DELAY_SECONDS = 1.0
+CENSUS_PAGE_DELAY_SECONDS = 0.25
 DENSE_TRANSACTION_SERIAL_THRESHOLD = 8
-DENSE_TRANSACTION_PACE_SECONDS = 1.0
+DENSE_TRANSACTION_PACE_SECONDS = 0.25
 MAX_SUPPORTED_TRANSACTION_VERSION = 1
 ENDPOINT_DIAGNOSTICS = []
 
@@ -172,8 +172,8 @@ def _fetch_transaction_bodies(rpc, relevant, telemetry=None):
 
     Small intervals keep the existing <=4-item batching efficiency. Dense intervals
     (8..16 successful transactions) are serialized as ordinary single JSON-RPC
-    requests with one-second spacing. Logical request count/evidence scope is
-    unchanged; this only changes transport concurrency and avoids batch-item
+    requests at the public-primary 4 RPS cadence. Logical request count/evidence
+    scope is unchanged; this only changes transport cadence and avoids batch-item
     throughput collisions.
     """
     params=[[sig['signature'],dict(encoding='json',commitment='finalized',
