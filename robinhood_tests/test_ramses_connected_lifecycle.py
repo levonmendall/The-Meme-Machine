@@ -8,7 +8,10 @@ from unittest.mock import patch
 
 import robinhood_research.ramses_all_pool_lifecycle as lifecycle
 from robinhood_research.ramses_all_pool_lifecycle import (
+    _canonicalize_selected_row,
+    _frozen_prestate,
     aggregate_segments,
+    compact_lifecycle_result,
     select_qualifier,
 )
 from robinhood_research.ramses_strategy import (
@@ -212,6 +215,119 @@ class RamsesConnectedLifecycleTests(unittest.TestCase):
         self.assertEqual(auth["swap_logs"],2)
         self.assertFalse(auth["identity_match"])
         self.assertEqual(auth["canonical_only"],1)
+
+    def test_frozen_prestate_requires_exact_finalized_identity(self):
+        state = dict(
+            active=7,
+            step=5,
+            bins={7: dict(reserves=[1, 2], supply=3)},
+        )
+        row = dict(
+            prestate=state,
+            prestate_block=123,
+            prestate_block_hash="0x" + "ab" * 32,
+            prestate_timestamp=456,
+        )
+        screen = dict(
+            finalized_block=123,
+            finalized_hash="0x" + "ab" * 32,
+            finalized_timestamp=456,
+        )
+        got = _frozen_prestate(row, screen)
+        self.assertEqual(got, state)
+        self.assertIsNot(got, state)
+        bad = dict(row, prestate_block_hash="0x" + "cd" * 32)
+        with self.assertRaisesRegex(
+            lifecycle.BoundaryError,
+            "frozen_prestate_identity",
+        ):
+            _frozen_prestate(bad, screen)
+
+    def test_canonical_reclassification_reuses_scanner_prestate_without_state_rpc(self):
+        state = dict(
+            active=7,
+            step=5,
+            bins={7: dict(reserves=[10, 20], supply=30)},
+        )
+        row = dict(
+            pool="0x" + "66" * 20,
+            quote_side="y",
+            prestate=state,
+            prehistory=[dict(block=1)],
+            prestate_block=123,
+            prestate_block_hash="0x" + "ab" * 32,
+            prestate_timestamp=456,
+            paper_capital_quote_raw=100,
+            features=dict(turnover_bps=1, total_fee_rate=1),
+        )
+        screen = dict(
+            finalized_block=123,
+            finalized_hash="0x" + "ab" * 32,
+            finalized_timestamp=456,
+            lookback_start_block=100,
+            rows=[row],
+        )
+        history = [dict(
+            block=120,
+            block_hash="0x" + "ef" * 32,
+            transaction_hash="0x" + "11" * 32,
+            transaction_index=0,
+            log_index=0,
+            args=dict(id=7, amountsIn="0x0"),
+        )]
+        decision = dict(
+            mode="no_trade",
+            qualified=False,
+            allocation_authority=False,
+            strategy_domain=STRATEGY_DOMAIN,
+            strategy_version=STRATEGY_VERSION,
+            policy_hash=POLICY_HASH,
+            reasons=["test"],
+        )
+        with patch.object(
+            lifecycle,
+            "_canonical_preentry_history",
+            return_value=(history, dict(authenticated=True)),
+        ), patch.object(
+            lifecycle,
+            "pool_features",
+            return_value=dict(turnover_bps=2, total_fee_rate=2),
+        ), patch.object(
+            lifecycle,
+            "classify_pool",
+            return_value=decision,
+        ) as classify:
+            canonical, auth = _canonicalize_selected_row(
+                object(), row, screen, costs_by_pool={}, signals_by_pool={}
+            )
+        self.assertEqual(canonical["prestate"], state)
+        self.assertEqual(canonical["prehistory"], history)
+        self.assertEqual(classify.call_args.args[0], state)
+        self.assertTrue(auth["prestate_reused_from_scanner"])
+        self.assertFalse(auth["prestate_rpc_refetch"])
+        self.assertEqual(auth["prestate_block"], 123)
+
+    def test_compact_lifecycle_report_strips_selector_prestate(self):
+        result = dict(
+            initial_screen=dict(
+                rows=[dict(
+                    pool="0x" + "77" * 20,
+                    prestate=dict(
+                        active=7,
+                        step=5,
+                        bins={7: dict(reserves=[1, 2], supply=3)},
+                    ),
+                    prehistory=[dict(block=1)],
+                    prestate_block=123,
+                    prestate_block_hash="0x" + "ab" * 32,
+                    prestate_timestamp=456,
+                )],
+            ),
+        )
+        public = compact_lifecycle_result(result)
+        self.assertNotIn("prestate", public["initial_screen"]["rows"][0])
+        self.assertNotIn("prehistory", public["initial_screen"]["rows"][0])
+        self.assertFalse(public["selector_prestate_persisted_in_artifact"])
 
 
 if __name__ == "__main__":
