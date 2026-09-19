@@ -30,6 +30,7 @@ from tests import dlmm_wallet_strategy_discovery as study
 
 
 OUT=Path("dlmm-adaptive-operator-discovery.json")
+CHECKPOINT_OUT=Path("dlmm-adaptive-operator-checkpoint.json")
 POOL_PAGE_SIZE=500
 MAX_POOL_PAGES=20
 MAX_ELIGIBLE_POOLS=5_000
@@ -49,6 +50,44 @@ MIN_COHORT_WALLETS=40
 
 def _save(report):
     OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
+
+
+def _atomic_json(path,body):
+    path=Path(path)
+    tmp=path.with_suffix(path.suffix+".tmp")
+    tmp.write_text(json.dumps(body,indent=2,sort_keys=True)+"\n")
+    tmp.replace(path)
+
+
+def _pool_addresses(pool_rows):
+    return [row["address"] for row in pool_rows]
+
+
+def _load_checkpoint(pool_rows):
+    if not CHECKPOINT_OUT.exists():
+        return {},{}
+    body=json.loads(CHECKPOINT_OUT.read_text())
+    if body.get("kind")!="dlmm_adaptive_operator_checkpoint_v1":
+        return {},{}
+    if body.get("pool_addresses")!=_pool_addresses(pool_rows):
+        return {},{}
+    candidates=body.get("candidates") or {}
+    processed=body.get("processed") or {}
+    if not isinstance(candidates,dict) or not isinstance(processed,dict):
+        return {},{}
+    return candidates,processed
+
+
+def _write_checkpoint(pool_rows,candidates,processed):
+    _atomic_json(CHECKPOINT_OUT,dict(
+        kind="dlmm_adaptive_operator_checkpoint_v1",
+        pool_addresses=_pool_addresses(pool_rows),
+        updated_at=int(time.time()),
+        candidate_count=len(candidates),
+        processed_count=len(processed),
+        candidates=candidates,
+        processed=processed,
+    ))
 
 
 def census_eligible_pools():
