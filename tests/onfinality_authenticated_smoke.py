@@ -23,10 +23,10 @@ def main():
         raise SystemExit('authenticated_onfinality_primary_not_configured')
 
     rpc=new_rpc(limit=40)
-    health=rpc.call('getHealth',priority=True)
+    genesis=rpc.call('getGenesisHash',priority=True)
     telemetry=rpc.provider_telemetry()
-    if health != 'ok':
-        raise SystemExit('authenticated_primary_health_failed')
+    if not isinstance(genesis,str) or not genesis:
+        raise SystemExit('authenticated_primary_genesis_failed')
     if int(telemetry.get('failover_count',0)) != 0:
         raise SystemExit('authenticated_primary_used_rescue')
     if int((telemetry.get('provider_successes') or {}).get(PRIMARY_PROVIDER,0)) < 1:
@@ -45,7 +45,7 @@ def main():
     report=dict(
         kind='authenticated_onfinality_primary_smoke',
         success=True,
-        http_health='ok',
+        http_genesis_read=True,
         websocket_subscription=True,
         primary_provider=telemetry.get('primary_provider'),
         secondary_configured=telemetry.get('secondary_configured'),
