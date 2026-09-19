@@ -198,6 +198,14 @@ class _ReadOnlyFailoverMixin:
         self.provider_successes = Counter()
         self.provider_failures = Counter()
         self.provider_failure_reasons = Counter()
+        # Safe provider diagnostics: method names/status codes only. Never retain
+        # URLs, response bodies, credentials, or provider error messages.
+        self.provider_method_failures = Counter()
+        self.provider_http_status_errors = Counter()
+        self.provider_jsonrpc_error_codes = Counter()
+        self.provider_error_fingerprints = Counter()
+        self.provider_error_sequence = 0
+        self.last_provider_error = None
         self.failover_count = 0
         self.failover_reasons = Counter()
 
@@ -261,10 +269,75 @@ class _ReadOnlyFailoverMixin:
             return str(exc) or "provider_unavailable"
         return type(exc).__name__
 
+    @staticmethod
+    def _request_methods(request):
+        rows = request if isinstance(request, list) else [request]
+        methods = []
+        for row in rows:
+            method = row.get("method") if isinstance(row, dict) else None
+            methods.append(method if isinstance(method, str) and method else "unknown")
+        return methods or ["unknown"]
+
+    def _record_provider_error(
+        self,
+        label,
+        method,
+        *,
+        kind,
+        http_status=None,
+        jsonrpc_error_code=None,
+    ):
+        method = method if isinstance(method, str) and method else "unknown"
+        event = dict(provider=label, method=method, kind=kind)
+        fingerprint_suffix = f"kind:{kind}"
+        if http_status is not None:
+            status = int(http_status)
+            event["http_status"] = status
+            self.provider_http_status_errors[f"{label}:{method}:{status}"] += 1
+            fingerprint_suffix = f"http:{status}"
+        if jsonrpc_error_code is not None:
+            code = str(jsonrpc_error_code)
+            event["jsonrpc_error_code"] = jsonrpc_error_code
+            self.provider_jsonrpc_error_codes[f"{label}:{method}:{code}"] += 1
+            fingerprint_suffix = f"jsonrpc:{code}"
+        self.provider_method_failures[f"{label}:{method}"] += 1
+        fingerprint = f"{label}|{method}|{fingerprint_suffix}"
+        self.provider_error_fingerprints[fingerprint] += 1
+        self.provider_error_sequence += 1
+        event["fingerprint"] = fingerprint
+        event["sequence"] = self.provider_error_sequence
+        self.last_provider_error = event
+
+    def _record_jsonrpc_errors(self, label, request, response):
+        requests = request if isinstance(request, list) else [request]
+        if isinstance(response, list):
+            by_id = {
+                item.get("id"): item
+                for item in response
+                if isinstance(item, dict)
+            }
+            pairs = [(row, by_id.get(row.get("id"))) for row in requests if isinstance(row, dict)]
+        else:
+            pairs = [(row, response) for row in requests if isinstance(row, dict)]
+        for row, item in pairs:
+            if not isinstance(item, dict):
+                continue
+            error = item.get("error")
+            if not isinstance(error, dict):
+                continue
+            self._record_provider_error(
+                label,
+                row.get("method"),
+                kind="jsonrpc_error",
+                jsonrpc_error_code=error.get("code", "unknown"),
+            )
+
     def _provider_attempt(self, label, url, request):
         self.provider_http_requests[label] += 1
+        error_sequence_before = self.provider_error_sequence
         try:
             response = self._request_url(url, request)
+            self._record_jsonrpc_errors(label, request, response)
             issue = self._response_issue(request, response)
             if issue is not None:
                 raise Unavailable(issue)
@@ -272,9 +345,21 @@ class _ReadOnlyFailoverMixin:
             return response
         except Exception as exc:
             self.provider_failures[label] += 1
-            self.provider_failure_reasons[
-                f"{label}:{self._exception_reason(exc)}"
-            ] += 1
+            reason = self._exception_reason(exc)
+            self.provider_failure_reasons[f"{label}:{reason}"] += 1
+            # JSON-RPC errors are recorded from the structured response above. For
+            # transport/HTTP/shape failures, attach the physical failure to each
+            # distinct method in this request without retaining sensitive content.
+            if self.provider_error_sequence == error_sequence_before:
+                methods = list(dict.fromkeys(self._request_methods(request)))
+                status = int(exc.code) if isinstance(exc, urllib.error.HTTPError) else None
+                for method in methods:
+                    self._record_provider_error(
+                        label,
+                        method,
+                        kind=reason,
+                        http_status=status,
+                    )
             raise
 
     def _http(self, request):
@@ -307,6 +392,12 @@ class _ReadOnlyFailoverMixin:
             provider_successes=dict(sorted(self.provider_successes.items())),
             provider_failures=dict(sorted(self.provider_failures.items())),
             provider_failure_reasons=dict(sorted(self.provider_failure_reasons.items())),
+            provider_method_failures=dict(sorted(self.provider_method_failures.items())),
+            provider_http_status_errors=dict(sorted(self.provider_http_status_errors.items())),
+            provider_jsonrpc_error_codes=dict(sorted(self.provider_jsonrpc_error_codes.items())),
+            provider_error_fingerprints=dict(sorted(self.provider_error_fingerprints.items())),
+            provider_error_sequence=int(self.provider_error_sequence),
+            last_provider_error=(dict(self.last_provider_error) if self.last_provider_error else None),
             failover_count=int(self.failover_count),
             failover_reasons=dict(sorted(self.failover_reasons.items())),
             pacing=self.read_pacer.telemetry(),
