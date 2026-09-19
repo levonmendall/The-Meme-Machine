@@ -3,12 +3,12 @@ from pathlib import Path
 
 from meme_machine.engine import EXIT_TIMEOUT_SECONDS, SIGNAL_WINDOW
 from meme_machine.market_native_runtime import (
-    DEFAULT_FULL_EVIDENCE_BUDGET,
-    DEFAULT_PREFLIGHT_BUDGET,
+    DEFAULT_EVIDENCE_QUEUE_LIMIT,
     MAX_DISCOVERED_MINTS,
 )
 from meme_machine.research import CURRENT_THRESHOLDS
 from meme_machine.stream import WINDOW_SECONDS
+from meme_machine.solana_read_rpc import DISCOVERY_WS_URL, PRIMARY_RPC_HOST
 from tests import market_native_active_paper as active
 from tests import market_native_opportunity_outcomes as outcomes
 from tests import market_native_paper_cohort as cohort
@@ -29,20 +29,17 @@ class ThroughputPolicyTests(unittest.TestCase):
             'max_roundtrip_loss_bps':500,
         })
 
-    def test_authenticated_five_rps_capacity_is_used_for_more_evidence_not_shorter_time(self):
-        self.assertEqual(DEFAULT_PREFLIGHT_BUDGET,150)
-        self.assertEqual(DEFAULT_FULL_EVIDENCE_BUDGET,40)
+    def test_adaptive_capacity_is_used_for_more_evidence_not_shorter_time(self):
+        self.assertEqual(DEFAULT_EVIDENCE_QUEUE_LIMIT,10_000)
         self.assertEqual(MAX_DISCOVERED_MINTS,10_000)
+        self.assertEqual(DISCOVERY_WS_URL,'wss://api.mainnet-beta.solana.com')
+        self.assertEqual(PRIMARY_RPC_HOST,'solana.api.onfinality.io')
 
         self.assertEqual(active.DISCOVERY_SECONDS,3300)
-        self.assertEqual(active.PREFLIGHT_BUDGET,150)
-        self.assertEqual(active.FULL_EVIDENCE_BUDGET,40)
         self.assertEqual(active.RPC_ROTATE_AT,160)
 
         self.assertEqual(cohort.DISCOVERY_SECONDS,5400)
         self.assertEqual(cohort.POST_SECONDS,1100)
-        self.assertEqual(cohort.PREFLIGHT_BUDGET,150)
-        self.assertEqual(cohort.FULL_EVIDENCE_BUDGET,40)
 
         self.assertEqual(outcomes.DISCOVERY_SECONDS,3300)
         self.assertEqual(outcomes.FOLLOWUP_SECONDS,3600)
@@ -51,12 +48,13 @@ class ThroughputPolicyTests(unittest.TestCase):
         self.assertEqual(outcomes.EXTRA_EVIDENCE_BUDGET,240)
         self.assertEqual(outcomes.EXTRA_EVIDENCE_PER_SLOT,5)
 
+
     def test_live_workflows_use_authenticated_pump_lane_and_keep_long_windows(self):
         workflow=(Path(__file__).resolve().parents[1]/'.github'/'workflows'/'ci.yml').read_text()
         self.assertIn('group: solana-onfinality-auth-pump-live',workflow)
         self.assertIn("MM_MARKET_NATIVE_COHORT_DISCOVERY_SECONDS: '5400'",workflow)
-        self.assertIn("MM_MARKET_NATIVE_COHORT_PREFLIGHT_BUDGET: '150'",workflow)
-        self.assertIn("MM_MARKET_NATIVE_COHORT_FULL_EVIDENCE_BUDGET: '40'",workflow)
+        self.assertNotIn("MM_MARKET_NATIVE_COHORT_PREFLIGHT_BUDGET",workflow)
+        self.assertNotIn("MM_MARKET_NATIVE_COHORT_FULL_EVIDENCE_BUDGET",workflow)
         self.assertIn("MM_MARKET_NATIVE_OUTCOME_DISCOVERY_SECONDS: '3300'",workflow)
         self.assertIn("MM_MARKET_NATIVE_OUTCOME_FOLLOWUP_SECONDS: '3600'",workflow)
         self.assertIn("MM_MARKET_NATIVE_OUTCOME_NATURAL_BUDGET: '180'",workflow)
