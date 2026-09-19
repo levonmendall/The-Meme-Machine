@@ -6,13 +6,17 @@ coverage and transaction coverage are tracked separately and both must be comple
 """
 from __future__ import annotations
 
+import time
+
 from .provider import Unavailable
 from .pump_acceleration_evidence import pumpswap_trade_events
 
 
 class IncrementalPumpSwapHistory:
-    def __init__(self,pool,graduation_time,page_limit=96,max_backfill_pages=2,max_new_pages=4,
-                 max_tx_per_refresh=128):
+    def __init__(
+        self,pool,graduation_time,page_limit=96,max_backfill_pages=2,max_new_pages=4,
+        max_tx_per_refresh=128,broker=None,stream_key="pumpswap_program",
+    ):
         self.pool=str(pool)
         self.graduation_time=int(graduation_time)
         self.page_limit=int(page_limit)
@@ -31,6 +35,12 @@ class IncrementalPumpSwapHistory:
         self.pages=0
         self.refreshes=0
         self.tx_failures=0
+        self.broker=broker
+        self.stream_key=str(stream_key)
+        self.stream_pending_transactions=0
+        self.stream_events_seen=0
+        self.stream_hydrated_transactions=0
+        self.stream_last_slot=0
 
     @staticmethod
     def _valid_rows(rows):
@@ -128,6 +138,58 @@ class IncrementalPumpSwapHistory:
                 break
         self._coverage()
 
+    def _ingest_stream_window(self,rpc,now,window_seconds=30):
+        if self.broker is None:
+            return
+        now=int(now);cutoff=now-int(window_seconds)
+        rows=self.broker.recent_events(
+            self.stream_key,since=cutoff-2,after_slot=None)
+        self.stream_events_seen+=len(rows)
+        signatures=[];slot_by_sig={}
+        for row in rows:
+            sig=row.get("signature")
+            if not isinstance(sig,str) or not sig:
+                continue
+            signatures.append(sig)
+            slot_by_sig[sig]=int(row["slot"])
+            self.stream_last_slot=max(self.stream_last_slot,int(row["slot"]))
+        if not signatures:
+            self.stream_pending_transactions=0
+            return
+        txs,meta=self.broker.hydrate_transactions(
+            rpc,signatures,kind="pump_window",
+            deadline=time.time()+4.0,max_version=1,batch_size=8)
+        self.stream_pending_transactions=int(meta["pending"])
+        self.stream_hydrated_transactions+=int(meta["hydrated"])
+        for sig in signatures:
+            tx=txs.get(sig)
+            if not isinstance(tx,dict):
+                continue
+            bt=tx.get("blockTime")
+            if type(bt) is not int or not cutoff-2<=int(bt)<=now:
+                continue
+            row=dict(
+                signature=sig,slot=int(tx.get("slot") or slot_by_sig[sig]),
+                blockTime=int(bt),err=(tx.get("meta") or {}).get("err"),
+                confirmationStatus="finalized",
+            )
+            self._remember([row])
+            if sig in self.processed or row.get("err"):
+                continue
+            self.processed.add(sig)
+            for event in pumpswap_trade_events(tx):
+                if event.get("pool")!=self.pool:
+                    continue
+                event["id"]=f'{sig}:{event["index"]}'
+                self.events[event["id"]]=event
+
+    def _stream_window_complete(self,now,window_seconds=30):
+        if self.broker is None:
+            return False
+        status=self.broker.stream_status(
+            self.stream_key,now,window_seconds)
+        return bool(status.get("covered") and self.stream_pending_transactions==0)
+
     def _decode_pending(self,rpc,now):
         cutoff=int(now)-30
         recent=[]
@@ -156,19 +218,28 @@ class IncrementalPumpSwapHistory:
             pending=older[:self.max_tx_per_refresh]
         for start in range(0,len(pending),16):
             chunk=pending[start:start+16]
-            params=[[r["signature"],{
-                "encoding":"json","commitment":"finalized",
-                "maxSupportedTransactionVersion":1,
-            }] for r in chunk]
-            try:
-                txs=rpc.call_many("getTransaction",params,True,batch_size=16)
-            except Unavailable:
-                self.tx_failures+=len(chunk)
-                continue
+            signatures=[str(r["signature"]) for r in chunk]
+            if self.broker is not None:
+                txmap,meta=self.broker.hydrate_transactions(
+                    rpc,signatures,kind="research_history",
+                    deadline=time.time()+6.0,max_version=1,batch_size=8)
+                txs=[txmap.get(sig) for sig in signatures]
+                self.tx_failures+=int(meta["pending"])
+            else:
+                params=[[r["signature"],{
+                    "encoding":"json","commitment":"finalized",
+                    "maxSupportedTransactionVersion":1,
+                }] for r in chunk]
+                try:
+                    txs=rpc.call_many("getTransaction",params,True,batch_size=16)
+                except Unavailable:
+                    self.tx_failures+=len(chunk)
+                    continue
             for row,tx in zip(chunk,txs):
                 sig=str(row["signature"])
                 if tx is None:
-                    self.tx_failures+=1
+                    if self.broker is None:
+                        self.tx_failures+=1
                     continue
                 self.processed.add(sig)
                 for event in pumpswap_trade_events(tx):
@@ -184,7 +255,9 @@ class IncrementalPumpSwapHistory:
             if r.get("blockTime") is not None and int(r["blockTime"])<=now
         ]
         signature_complete=bool(
-            self.history_exhausted or (known and min(known)<=cutoff)
+            self._stream_window_complete(now,window_seconds)
+            or self.history_exhausted
+            or (known and min(known)<=cutoff)
         )
         pending=0
         for row in self.signature_rows.values():
@@ -194,7 +267,10 @@ class IncrementalPumpSwapHistory:
             if cutoff<=int(bt)<=now:
                 pending+=1
         complete=bool(
-            signature_complete and self.unknown_block_times==0 and pending==0)
+            signature_complete
+            and self.unknown_block_times==0
+            and pending==0
+            and (self.broker is None or self.stream_pending_transactions==0))
         return dict(
             complete=complete,window_seconds=int(window_seconds),
             signature_complete=signature_complete,pending_transactions=pending,
@@ -210,11 +286,20 @@ class IncrementalPumpSwapHistory:
         )
 
 
-    def refresh(self,rpc,now):
+    def refresh(self,rpc,now,*,research=False):
         self.refreshes+=1
-        self._new_head(rpc)
-        self._backfill(rpc)
-        self._decode_pending(rpc,now)
+        if self.broker is not None:
+            # Current decision evidence is stream-first. Historical page reads are
+            # deferred until second-leg research actually needs them.
+            self._ingest_stream_window(rpc,now,30)
+            if research:
+                self._new_head(rpc)
+                self._backfill(rpc)
+                self._decode_pending(rpc,now)
+        else:
+            self._new_head(rpc)
+            self._backfill(rpc)
+            self._decode_pending(rpc,now)
         return self.rows(now)
 
     def pending_relevant(self,now):
@@ -255,6 +340,14 @@ class IncrementalPumpSwapHistory:
             events=len(self.events),pages=self.pages,refreshes=self.refreshes,
             unknown_block_times=self.unknown_block_times,
             transaction_failures=self.tx_failures,
+            stream_pending_transactions=self.stream_pending_transactions,
+            stream_events_seen=self.stream_events_seen,
+            stream_hydrated_transactions=self.stream_hydrated_transactions,
+            stream_last_slot=self.stream_last_slot,
+            stream_status=(
+                None if self.broker is None
+                else self.broker.stream_status(self.stream_key,now,30)
+            ),
             newest_signature=self.newest_signature,
             oldest_signature=self.oldest_signature,
             decision_window=self.decision_window_status(now,30),
