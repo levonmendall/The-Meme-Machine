@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 90
     concurrency:
       group: solana-pump-public-discovery-alchemy-http
-      cancel-in-progress: false
+      cancel-in-progress: true
     env:
       MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_PUMP_ACCELERATION_DISCOVERY_SECONDS: '3300'
