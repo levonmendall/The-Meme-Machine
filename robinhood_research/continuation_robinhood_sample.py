@@ -24,6 +24,7 @@ from .continuation_robinhood import (
     normalized_trade, qualification_vector,
 )
 from .evidence import Stamp, digest
+from .evidence_queue import DeadlineEvidenceQueue
 from .identity import load
 from .pons import (
     CurveState, authenticate_curve, curve_abi, factory_record, raw_event,
@@ -471,9 +472,11 @@ def run(endpoint):
         selection_rule="first_previously_unseen_authentic_current_pons_v2_buy_after_prior_enrollment_attempt",
         reranking=False,replacement=False,outcome_blind=True,
         threshold_changes_allowed=False,rows=[],discovery_sessions=[],
+        evidence_scheduler="deadline_queue_v1",
     )
 
     seen_tx_logs=set();seen_curves=set();complete=0;tape=[]
+    evidence_queue=DeadlineEvidenceQueue(limit=MAX_TAPE_EVENTS,nominal_deadline_seconds=5.0)
     rpc=_discovery_rpc(endpoint);rpc.verify_chain()
     feed=SequencerBlockClock()
     feed.connect()
@@ -517,7 +520,6 @@ def run(endpoint):
             )
             if observed_header is not None:
                 latest_header=observed_header
-            candidates=[]
             for event in fresh:
                 key=(event["transactionHash"],event["logIndex"])
                 if key in seen_tx_logs:
@@ -533,16 +535,14 @@ def run(endpoint):
                 curve=event["address"].lower()
                 if curve in seen_curves:
                     continue
-                candidates.append(event)
-            if not candidates:
+                seen_curves.add(curve)
+                evidence_queue.enqueue(event,now=time.time())
+            scheduled=evidence_queue.pop(
+                now=time.time(),minimum_remaining_seconds=0.5
+            )
+            if scheduled is None:
                 continue
-            candidates.sort(key=lambda e:(
-                int(e["blockNumber"],16),
-                int(e["transactionIndex"],16),
-                int(e["logIndex"],16),
-            ))
-            event=candidates[0]
-            seen_curves.add(event["address"].lower())
+            event=scheduled["event"]
             row=_evaluate(endpoint,event,len(result["rows"]),tape)
             result["rows"].append(row)
             vector=row.get("vector") or {}
@@ -568,6 +568,7 @@ def run(endpoint):
         int(v["decision_state_age_seconds"]) for v in vectors
         if v.get("complete") and v.get("decision_state_age_seconds") is not None
     ]
+    result["evidence_queue"]=evidence_queue.telemetry()
     result["summary"]=dict(
         enrolled=len(result["rows"]),
         evaluated=sum(r.get("status")=="evaluated" for r in result["rows"]),
