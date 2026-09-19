@@ -184,24 +184,11 @@ class _ReadOnlyFailoverMixin:
     def _response_issue(cls, request, response):
         if not isinstance(request, list):
             return cls._single_response_issue(request, response)
-        if not isinstance(response, list):
-            return "invalid_jsonrpc_batch_shape"
-        by_id = {
-            item.get("id"): item
-            for item in response
-            if isinstance(item, dict) and item.get("id") is not None
-        }
-        usable = 0
-        for item_request in request:
-            item = by_id.get(item_request.get("id"))
-            if cls._single_response_issue(item_request, item) is None:
-                usable += 1
-        # Preserve successful partial batches. The base call_many() path retries only
-        # the missing/error/null items individually, and those retries can then rescue
-        # to Alchemy without duplicating already-good primary results.
-        if usable:
-            return None
-        return "unusable_jsonrpc_batch"
+        # Do not rescue a semantic batch rejection to Alchemy here. The base
+        # call_many() implementation degrades missing/error/null batch items to
+        # bounded individual logical calls. Those individual calls try OnFinality
+        # again first and use Alchemy only if the same item still fails.
+        return None
 
     @staticmethod
     def _exception_reason(exc):
