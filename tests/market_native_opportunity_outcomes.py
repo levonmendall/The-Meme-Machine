@@ -45,6 +45,7 @@ from meme_machine.solana_read_rpc import discovery_ws_url, new_rpc, primary_rpc_
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 from tests.rejected_winner_preentry_analysis import HYPOTHESIS as REJECTED_WINNER_HYPOTHESIS, hypothesis_match, prospective_validation_summary
+from meme_machine.rejected_winner_trajectory import RULE as REJECTED_WINNER_TRAJECTORY_RULE, evaluate as evaluate_rejected_winner_trajectory, summarize as summarize_rejected_winner_trajectory
 
 REPORT=Path(os.environ.get('MM_MARKET_NATIVE_OUTCOME_REPORT','market-native-opportunity-outcomes.json'))
 GENESIS_SOL_USD_MICROS=97_840_000
@@ -274,6 +275,8 @@ def main():
         frozen_entry_thresholds=dict(CURRENT_THRESHOLDS),entry_thresholds_unchanged=True,
         outcome_horizons=list(DEFAULT_HORIZONS),started=started,limitations=[],
         natural_results=[],extra_evidence_results=[],cohort_trackers=[],
+        rejected_winner_trajectory_rule=dict(REJECTED_WINNER_TRAJECTORY_RULE),
+        rejected_winner_trajectory_results=[],
     )
     _save(report)
 
@@ -286,11 +289,108 @@ def main():
     high_density_seen=set();natural_slots=set();natural_results=[]
     extra_evidence_results=[];extra_evidence_attempted=0
     trackers=[];trackers_by_mint=defaultdict(list)
+    trajectory_pending=[];trajectory_results=[];trajectory_scheduled=set()
     cursor=None;coverage_ready_at=None;last_priority_flush=-1
     discovery_finished_at=None
 
     def add_tracker(row):
         trackers.append(row);trackers_by_mint[row['mint']].append(row)
+
+    def schedule_trajectory_confirmation(candidate,result,source):
+        if not result or not hypothesis_match(result):
+            return
+        identity=(str(candidate['nomination']['id']),str(candidate['mint']))
+        if identity in trajectory_scheduled:
+            return
+        initial_vector=result.get('qualification_vector') or {}
+        initial_at=int(result.get('qualified_at') or 0)
+        if not initial_at or not initial_vector:
+            return
+        trajectory_scheduled.add(identity)
+        trajectory_pending.append(dict(
+            identity=identity,
+            mint=candidate['mint'],
+            candidate=candidate,
+            source=source,
+            initial_at=initial_at,
+            due_at=initial_at+int(REJECTED_WINNER_TRAJECTORY_RULE['confirmation_seconds']),
+            initial_vector=dict(initial_vector),
+            initial_entry_quote=dict(result.get('entry_quote') or {}),
+        ))
+
+    def process_trajectory_confirmations(now):
+        due=[row for row in trajectory_pending if not row.get('done') and int(row['due_at'])<=int(now)]
+        for pending in due:
+            pending['done']=True
+            candidate=pending['candidate']
+            nomination=dict(candidate['nomination']);nomination['discovery_source']='market_native'
+            result=dict(
+                mint=pending['mint'],nomination_id=nomination['id'],
+                source=pending['source'],initial_at=pending['initial_at'],
+                confirmation_target_at=pending['due_at'],
+                confirmation_seconds=REJECTED_WINNER_TRAJECTORY_RULE['confirmation_seconds'],
+                research_only=True,order_authority=False,
+                trajectory_rule_id=REJECTED_WINNER_TRAJECTORY_RULE['id'],
+                initial_vector=pending['initial_vector'],
+                initial_entry_quote=pending['initial_entry_quote'],
+                confirmation_complete=False,
+            )
+            try:
+                evidence.maybe_rotate()
+                observed_at=int(time.time())
+                snap=evidence.adapter.snapshot(candidate['mint'],observed_at,priority=True)
+                observed_at=int(time.time())
+                if not tape.covered(observed_at):
+                    raise Unavailable('incomplete_market_window')
+                concentration,meta=evidence.reader.read(candidate['mint'],snap,priority=True)
+                final=evidence.adapter.snapshot(candidate['mint'],int(time.time()),priority=True)
+                confirmed_at=int(time.time())
+                if not tape.covered(confirmed_at):
+                    raise Unavailable('incomplete_market_window')
+                events=tape.window(candidate['mint'],confirmed_at,max_slot=final['slot'])
+                vector=authority.vector(
+                    nomination,dict(snapshot=final,events=events,covered=True,
+                                    concentration_bps=concentration),confirmed_at)
+                trajectory=evaluate_rejected_winner_trajectory(
+                    pending['initial_vector'],vector)
+                curve,rates=engine.validate_snapshot(final,confirmed_at)
+                amount=engine.store.state['initial']//20
+                tokens,cost,fee=pump.buy(curve,amount,rates)
+                entry_quote=dict(
+                    tokens=tokens,cost_lamports=cost,fee_lamports=fee,
+                    gas_lamports=GAS,basis_lamports=cost+GAS)
+                result.update(
+                    confirmation_complete=True,
+                    confirmed_at=confirmed_at,
+                    confirmation_delay_seconds=confirmed_at-int(pending['initial_at']),
+                    confirmation_vector=vector,
+                    confirmation_concentration_source=meta.get('source'),
+                    trajectory=trajectory,
+                    confirmation_entry_quote=entry_quote,
+                )
+                tracker=new_tracker(
+                    candidate['mint'],confirmed_at,cost+GAS,tokens,
+                    ['rejected_winner_trajectory_confirmed',
+                     ('rejected_winner_trajectory_pass' if trajectory.get('passed')
+                      else 'rejected_winner_trajectory_reject')],
+                    nomination_id=nomination['id'],
+                    metadata=dict(
+                        source=pending['source'],
+                        trajectory_rule_id=REJECTED_WINNER_TRAJECTORY_RULE['id'],
+                        trajectory_pass=bool(trajectory.get('passed')),
+                    ),
+                )
+                if trajectory.get('passed'):
+                    enable_shadow_exit(tracker,opened_time=confirmed_at)
+                result['tracker_index']=len(trackers)
+                add_tracker(tracker)
+            except (Unavailable,ValueError,KeyError,TypeError) as exc:
+                result.update(
+                    trajectory=dict(complete=False,passed=False,
+                                    reason='confirmation_unavailable'),
+                    limitation=str(exc) or type(exc).__name__,
+                )
+            trajectory_results.append(result)
 
     def process_priority_slot(slot,now):
         nonlocal extra_evidence_attempted
@@ -332,6 +432,7 @@ def main():
                 result['priority_slot']=slot
                 result['extra_evidence_sequence']=extra_evidence_attempted
                 extra_evidence_results.append(result)
+                schedule_trajectory_confirmation(candidate,result,'expanded_extra_evidence')
                 if result.get('actual_reason')=='qualified':
                     tracker=_expanded_entry_tracker(
                         candidate,result,'extra_full_evidence_qualified')
@@ -414,6 +515,9 @@ def main():
                                 row['rejected_winner_hypothesis_id']=REJECTED_WINNER_HYPOTHESIS['id']
                                 row['rejected_winner_hypothesis_match']=bool(hypothesis_match(row))
                                 natural_results.append(row);add_tracker(tracker)
+                                schedule_trajectory_confirmation(chosen,row,'natural_fixed_slot')
+
+                        process_trajectory_confirmations(now)
 
                         if elapsed>=DISCOVERY_SECONDS:
                             for slot in sorted(list(slot_rows)):
@@ -422,6 +526,8 @@ def main():
                             report['discovery_finished_at']=now
                     elif now-discovery_finished_at>=FOLLOWUP_SECONDS:
                         break
+
+                    process_trajectory_confirmations(now)
 
                     if now % 15 == 0:
                         report.update(
@@ -432,6 +538,8 @@ def main():
                             stream_guaranteed_rejections=dict(stream_rejections),
                             tracked_candidates=len(trackers),extra_evidence_attempted=extra_evidence_attempted,
                             extra_evidence_results=extra_evidence_results,
+                            rejected_winner_trajectory_results=trajectory_results,
+                            rejected_winner_trajectory_pending=sum(not r.get('done') for r in trajectory_pending),
                         )
                         _save(report)
                     stop.wait(0.25)
@@ -441,6 +549,10 @@ def main():
                 idx=row.get('tracker_index')
                 if isinstance(idx,int) and 0<=idx<len(trackers):
                     row['future_outcomes']=trackers[idx]
+            for trajectory_row in trajectory_results:
+                idx=trajectory_row.get('tracker_index')
+                if isinstance(idx,int) and 0<=idx<len(trackers):
+                    trajectory_row['future_outcomes']=trackers[idx]
             prospective_matches=[
                 row for row in natural_results
                 if row.get('evidence_stage')=='complete'
@@ -458,6 +570,9 @@ def main():
                 rejected_winner_prospective_concentration_controls=len(prospective_concentration_controls),
                 rejected_winner_hypothesis_order_authority=False,
                 rejected_winner_prospective_validation=prospective_validation_summary(natural_results),
+                rejected_winner_trajectory_results=trajectory_results,
+                rejected_winner_trajectory_summary=summarize_rejected_winner_trajectory(trajectory_results),
+                rejected_winner_trajectory_pending=sum(not r.get('done') for r in trajectory_pending),
                 ended=ended,discovered=len(discovered),natural_results=natural_results,
                 extra_evidence_results=extra_evidence_results,
                 extra_evidence_attempted=extra_evidence_attempted,
