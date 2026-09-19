@@ -46,7 +46,7 @@ jobs:
   analysis:
     if: contains(github.event.head_commit.message, '[dlmm-top-roi-analysis]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -56,12 +56,17 @@ jobs:
       - name: ROI evaluation regression gate
         run: python -m unittest tests.test_dlmm_top_roi_wallet_evaluation -v
       - name: Analyze only committed frozen ROI cohort
+        timeout-minutes: 28
+        env:
+          DLMM_ROI_ANALYSIS_WORKERS: '4'
         run: python -m tests.dlmm_top_roi_wallet_evaluation analyze --cohort DLMM_TOP_ROI_WALLET_COHORT_V1.json
-      - name: Preserve ROI analysis
+      - name: Preserve ROI analysis and wallet checkpoint
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: dlmm-top-roi-wallet-analysis-${{ github.run_id }}-${{ github.run_attempt }}
-          path: dlmm-top-roi-wallet-analysis.json
+          path: |
+            dlmm-top-roi-wallet-analysis.json
+            dlmm-top-roi-wallet-checkpoint.json
           if-no-files-found: warn
           retention-days: 90
