@@ -51,6 +51,52 @@ class StreamTape(unittest.TestCase):
         self.assertNotEqual(event_identity('same-signature',123,a),
                             event_identity('same-signature',123,b))
 
+    def test_identical_finalized_replay_is_deduplicated_before_tape_admission(self):
+        note=self.notification('duplicate')
+        tx={'slot':note['params']['result']['context']['slot'],
+            'meta':{'err':None,'logMessages':note['params']['result']['value']['logs']}}
+        decoded=pump.trade_events(tx)
+        now=decoded[0]['market_time']+1
+        tape=PumpTape(clock=lambda:now)
+        tape.begin(now-60)
+
+        self.assertEqual(tape.ingest_notification(note,now),1)
+        self.assertEqual(tape.ingest_notification(note,now),0)
+
+        rows=tape.window(decoded[0]['mint'],now)
+        status=tape.status(now)
+        self.assertEqual(len(rows),1)
+        self.assertEqual(tape.latest_sequence(),1)
+        self.assertEqual(status['trade_events'],1)
+        self.assertEqual(status['duplicate_events'],1)
+        self.assertEqual(status['conflicting_duplicate_events'],0)
+        self.assertEqual(status['integrity_losses'],0)
+        self.assertTrue(status['covered'])
+
+    def test_conflicting_duplicate_identity_invalidates_current_evidence_window(self):
+        note=self.notification('conflict')
+        tx={'slot':note['params']['result']['context']['slot'],
+            'meta':{'err':None,'logMessages':note['params']['result']['value']['logs']}}
+        base=pump.trade_events(tx)[0]
+        conflict=dict(base,amount=int(base['amount'])+1)
+        now=base['market_time']+1
+        tape=PumpTape(clock=lambda:now)
+        tape.begin(now-60)
+
+        with patch('meme_machine.stream.pump.trade_events',
+                   side_effect=[[dict(base)],[dict(conflict)]]):
+            self.assertEqual(tape.ingest_notification(note,now),1)
+            self.assertEqual(tape.ingest_notification(note,now),0)
+
+        status=tape.status(now)
+        self.assertEqual(status['retained_events'],0)
+        self.assertEqual(status['trade_events'],1)
+        self.assertEqual(status['duplicate_events'],0)
+        self.assertEqual(status['conflicting_duplicate_events'],1)
+        self.assertEqual(status['integrity_losses'],1)
+        self.assertFalse(status['covered'])
+        self.assertFalse(tape.covered(now+59))
+        self.assertTrue(tape.covered(now+60))
 
     def test_disconnect_resets_coverage_and_requires_full_rewarm(self):
         tape=PumpTape(clock=lambda:200)

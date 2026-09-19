@@ -49,6 +49,37 @@ class RejectedWinnerTrajectoryTests(TestCase):
         self.assertFalse(result["passed"])
         self.assertFalse(result["checks"]["executable_liquidity_floor"])
 
+    def test_frozen_hard_gate_failure_is_valid_reject_without_downstream_fields(self):
+        cases=(
+            ("executable_liquidity_floor",dict(real_sol_lamports=9_000_000_000)),
+            ("price_extension_within_frozen_cap",dict(price_extension_bps=12_001)),
+            ("roundtrip_cost_within_frozen_cap",dict(roundtrip_loss_bps=501)),
+        )
+        for failed,confirm in cases:
+            with self.subTest(failed=failed):
+                result=evaluate({},confirm)
+                self.assertTrue(result["complete"])
+                self.assertFalse(result["passed"])
+                self.assertEqual(result["reason"],"trajectory_reject")
+                self.assertTrue(result["deterministic_reject"])
+                self.assertTrue(result["hard_gate_reject"])
+                self.assertEqual(result["hard_gate_failures"],[failed])
+                self.assertFalse(result["checks"][failed])
+
+    def test_passing_hard_gates_do_not_hide_missing_trajectory_fields(self):
+        result=evaluate(
+            vector(),
+            dict(
+                real_sol_lamports=12_000_000_000,
+                price_extension_bps=5000,
+                roundtrip_loss_bps=300,
+            ),
+        )
+        self.assertFalse(result["complete"])
+        self.assertFalse(result["passed"])
+        self.assertEqual(result["reason"],"incomplete_confirmation_vector")
+        self.assertFalse(result["hard_gate_reject"])
+
     def test_rule_does_not_relax_continuation_economic_bounds(self):
         self.assertEqual(RULE["min_real_sol_lamports"],10_000_000_000)
         self.assertEqual(RULE["max_price_extension_bps"],12_000)

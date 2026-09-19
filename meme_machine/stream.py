@@ -26,6 +26,29 @@ def event_identity(signature, slot, event):
     return f'{signature}:{slot}:{index}:{mint}'
 
 
+def _economic_event_fingerprint(event):
+    """Exact economic payload for one canonical Pump event identity."""
+    event=event or {}
+    mint=str(event.get('mint') or '').strip()
+    wallet=str(event.get('wallet') or '').strip()
+    buy=event.get('buy')
+    numeric=('amount','tokens','market_time','fees_lamports','slot','index')
+    if not mint or not wallet or type(buy) is not bool:
+        raise ValueError('invalid_live_event_economics')
+    values=[]
+    for key in numeric:
+        value=event.get(key)
+        if type(value) is not int:
+            raise ValueError('invalid_live_event_economics')
+        values.append(value)
+    amount,tokens,market_time,fees_lamports,slot,index=values
+    if min(amount,tokens,fees_lamports,slot,index) < 0:
+        raise ValueError('invalid_live_event_economics')
+    return (
+        mint,wallet,amount,tokens,buy,market_time,fees_lamports,slot,index,
+    )
+
+
 def websocket_url(http_url):
     parts=urlsplit(http_url)
     if parts.scheme != 'https' or not parts.netloc:
@@ -43,6 +66,9 @@ class PumpTape:
             raise ValueError('invalid tape bounds')
         self.retention,self.max_events,self.clock=retention,max_events,clock
         self._events=deque()
+        # Canonical event id -> exact economic payload. This deduplicates provider
+        # replays without collapsing distinct on-chain trades.
+        self._event_fingerprints={}
         self._lock=threading.Lock()
         self.sequence=0
         self.warm_since=None
@@ -50,6 +76,9 @@ class PumpTape:
         self.connected=False
         self.notifications=0
         self.trade_events=0
+        self.duplicate_events=0
+        self.conflicting_duplicate_events=0
+        self.integrity_losses=0
         self.gaps=0
         self.capacity_losses=0
         self.parse_failures=0
@@ -59,6 +88,7 @@ class PumpTape:
         now=int(self.clock() if now is None else now)
         with self._lock:
             self._events.clear()
+            self._event_fingerprints.clear()
             self.warm_since=now
             if not preserve_loss:
                 self.loss_until=0
@@ -72,6 +102,7 @@ class PumpTape:
             if parse:
                 self.parse_failures += 1
             self._events.clear()
+            self._event_fingerprints.clear()
             self.warm_since=None
             self.loss_until=max(self.loss_until,now+WINDOW_SECONDS)
             self.connected=False
@@ -81,10 +112,24 @@ class PumpTape:
         with self._lock:
             self.connected=False
 
+    def _drop_oldest_locked(self):
+        _sequence,event=self._events.popleft()
+        self._event_fingerprints.pop(event.get('id'),None)
+
     def _prune_locked(self, now):
         cutoff=now-self.retention
         while self._events and self._events[0][1]['market_time'] < cutoff:
-            self._events.popleft()
+            self._drop_oldest_locked()
+
+    def _quarantine_conflicting_duplicate_locked(self, now):
+        # A canonical event id with two different economic payloads means the
+        # observation stream is internally inconsistent. Discard the current tape
+        # and require a complete fresh window before qualification can resume.
+        self._events.clear()
+        self._event_fingerprints.clear()
+        self.warm_since=now
+        self.loss_until=max(self.loss_until,now+WINDOW_SECONDS)
+        self.integrity_losses += 1
 
     def ingest_notification(self, payload, available_time=None):
         now=int(self.clock() if available_time is None else available_time)
@@ -110,12 +155,24 @@ class PumpTape:
                     continue
                 event=dict(event)
                 event.update(id=event_identity(signature,context['slot'],event),available_time=now)
+                fingerprint=_economic_event_fingerprint(event)
+                prior=self._event_fingerprints.get(event['id'])
+                if prior is not None:
+                    if prior == fingerprint:
+                        # Provider replay of the same finalized economic event.
+                        # Do not consume tape capacity, sequence, or strategy evidence.
+                        self.duplicate_events += 1
+                        continue
+                    self.conflicting_duplicate_events += 1
+                    self._quarantine_conflicting_duplicate_locked(now)
+                    continue
                 self.sequence += 1
                 if len(self._events) >= self.max_events:
-                    self._events.popleft()
+                    self._drop_oldest_locked()
                     self.capacity_losses += 1
                     self.loss_until=max(self.loss_until,now+WINDOW_SECONDS)
                 self._events.append((self.sequence,event))
+                self._event_fingerprints[event['id']]=fingerprint
                 self.trade_events += 1
                 accepted += 1
         return accepted
@@ -151,7 +208,10 @@ class PumpTape:
                 now-self.warm_since >= WINDOW_SECONDS and now >= self.loss_until),
                 warm_seconds=0 if self.warm_since is None else max(0,now-self.warm_since),
                 retained_events=len(self._events),notifications=self.notifications,
-                trade_events=self.trade_events,gaps=self.gaps,capacity_losses=self.capacity_losses,
+                trade_events=self.trade_events,duplicate_events=self.duplicate_events,
+                conflicting_duplicate_events=self.conflicting_duplicate_events,
+                integrity_losses=self.integrity_losses,
+                gaps=self.gaps,capacity_losses=self.capacity_losses,
                 parse_failures=self.parse_failures,last_slot=self.last_slot,
                 loss_until=self.loss_until,max_events=self.max_events,
                 retention_seconds=self.retention,event_id_version=EVENT_ID_VERSION)
