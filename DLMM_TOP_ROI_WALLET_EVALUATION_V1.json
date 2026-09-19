@@ -18,7 +18,8 @@
     "target_wallets": 80,
     "minimum_wallets_to_freeze": 40,
     "max_wallets_per_discovery_pool": 4,
-    "selection": "recent finalized DLMM LP actors only; no PnL or outcome data"
+    "selection": "recent finalized DLMM LP actors only; no PnL or outcome data",
+    "completeness_rule": "A pool is complete if 32 readable finalized transaction bodies are obtained, OR if fewer than 32 eligible finalized signatures exist and every available eligible signature is read successfully with no unreadable transaction."
   },
   "evaluation": {
     "days_back": 120,
@@ -54,13 +55,21 @@
     "No strategy threshold or ranking rule may be altered after PnL is observed merely to promote a wallet.",
     "The existing exploratory wallet-cluster prospective experiment remains separate and unchanged."
   ],
-  "protocol_revision": "1.1",
+  "protocol_revision": "1.2",
   "amendment_history": [
     {
       "revision": "1.1",
       "reason": "Add Meteora's official all-time portfolio PnL percentage as a diagnostic before any PnL is observed; primary ranking remains the preregistered 120-day deposit-weighted ROI.",
       "pnl_observed_before_amendment": false,
       "ranking_rule_changed": false
+    },
+    {
+      "revision": "1.2",
+      "reason": "One selected pool had only one eligible finalized signature, which was read successfully with zero provider failures. Treat exhaustive low-history coverage as complete rather than misclassifying absent history as provider failure.",
+      "pnl_observed_before_amendment": false,
+      "wallet_selection_changed": false,
+      "ranking_rule_changed": false,
+      "pool_universe_changed": false
     }
   ]
 }
