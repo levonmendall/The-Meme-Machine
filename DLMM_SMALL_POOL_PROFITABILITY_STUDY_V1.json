@@ -1,0 +1,140 @@
+{
+  "kind": "dlmm_small_pool_profitability_study_v1",
+  "status": "preregistered_before_tvl_stratified_operator_outcomes",
+  "scope": "meme_machine_solana_dlmm_only",
+  "source_cohort": {
+    "kind": "dlmm_profitable_operator_cohort_v1",
+    "cohort_hash": "0f03841ae3f54d2a7cc93567c430e7349b0282a5e13da2fa238975a43405da6b",
+    "wallet_count": 200,
+    "frozen_pre_pnl": true,
+    "no_wallet_additions_or_removals": true
+  },
+  "authority": {
+    "research_only": true,
+    "allocation_authority": false,
+    "signing": false,
+    "submission": false,
+    "live_money": false,
+    "current_50000_tvl_execution_gate_changed": false
+  },
+  "hypothesis": "Exceptional DLMM economics may concentrate in young, volatile, lower-TVL SOL-paired pools that the current >=$50k TVL execution screen excludes.",
+  "window": {
+    "days_back": 120,
+    "closed_positions_primary": true
+  },
+  "tvl_strata": [
+    {
+      "label": "<10k",
+      "min_inclusive": 0,
+      "max_exclusive": 10000
+    },
+    {
+      "label": "10-25k",
+      "min_inclusive": 10000,
+      "max_exclusive": 25000
+    },
+    {
+      "label": "25-50k",
+      "min_inclusive": 25000,
+      "max_exclusive": 50000
+    },
+    {
+      "label": ">=50k",
+      "min_inclusive": 50000
+    }
+  ],
+  "pool_age_strata": [
+    {
+      "label": "<1h",
+      "max_exclusive": 3600
+    },
+    {
+      "label": "1-6h",
+      "min_inclusive": 3600,
+      "max_exclusive": 21600
+    },
+    {
+      "label": "6-24h",
+      "min_inclusive": 21600,
+      "max_exclusive": 86400
+    },
+    {
+      "label": "1-7d",
+      "min_inclusive": 86400,
+      "max_exclusive": 604800
+    },
+    {
+      "label": ">=7d",
+      "min_inclusive": 604800
+    }
+  ],
+  "pre_entry_volatility_strata": [
+    {
+      "label": "<1pct",
+      "max_exclusive": 0.01
+    },
+    {
+      "label": "1-3pct",
+      "min_inclusive": 0.01,
+      "max_exclusive": 0.03
+    },
+    {
+      "label": "3-10pct",
+      "min_inclusive": 0.03,
+      "max_exclusive": 0.1
+    },
+    {
+      "label": ">=10pct",
+      "min_inclusive": 0.1
+    }
+  ],
+  "entry_context": {
+    "tvl_definition": "USD value of both DLMM reserve vault pre-balances immediately before entry, using point-in-time prices.",
+    "primary_tvl_source": "entry transaction preTokenBalances for both immutable pool reserve vaults",
+    "fallback_tvl_source": "nearest prior finalized pool transaction within 120 seconds, searched newest-first across at most 32 signatures, only if it exposes both immutable reserve vault pre-balances",
+    "pool_identity_source": "current immutable LbPair mint/vault addresses decoded from the pool account; current balances are never used as historical balances",
+    "price_source": "entry historical event USD/amount when nonzero; a missing side may be inferred from the last 5m OHLCV close at or before entry using Meteora pool price orientation",
+    "no_current_tvl_substitution": true,
+    "unavailable_rule": "If both reserve balances and point-in-time prices cannot be proved, entry TVL is unavailable and the position cannot vote in TVL-stratum comparisons.",
+    "pool_age": "entry blockTime minus Meteora pool created_at; negative or missing values unavailable",
+    "volatility": "population standard deviation of 5m log returns from the 60 minutes strictly before entry; requires at least 3 closes"
+  },
+  "operator_labels": {
+    "provisional": "same frozen cohort; >=20 measured closed positions, >=3 distinct pools, positive total realized API PnL USD",
+    "final": "positive after-network-cost operator label from the profitable-operator deep study when available",
+    "rule": "Report provisional and final separately; do not silently promote provisional to final."
+  },
+  "outcomes": [
+    "position_count",
+    "distinct_operator_count",
+    "deployed_deposit_usd",
+    "realized_pnl_usd",
+    "fee_income_usd",
+    "inventory_token_price_pnl_usd",
+    "profitable_position_rate",
+    "median_position_pnl_pct",
+    "pnl_per_deployed_dollar",
+    "operator_share_with_positive_stratum_pnl"
+  ],
+  "comparisons": {
+    "primary": "Within the same profitable-operator population, compare outcomes across TVL strata.",
+    "secondary": "Cross-classify TVL with pool age and pre-entry volatility.",
+    "no_best_bucket_selection_for_strategy": true,
+    "no_threshold_changes_from_this_descriptive_stage": true
+  },
+  "execution": {
+    "meteora_request_cap_rps": 20,
+    "solana_http_provider": "alchemy_direct",
+    "solana_http_cap_rps": 5,
+    "checkpoint_wallet_by_wallet": true,
+    "whole_wallet_attempts": 2,
+    "bounded_meteora_workers": 8,
+    "bounded_entry_context_workers": 4
+  },
+  "next_stage": {
+    "requirement": "A lower-TVL prospective rule may be proposed only after the descriptive study is complete and frozen separately before future outcomes.",
+    "minimum_positions_per_tvl_stratum": 30,
+    "minimum_independent_profitable_operators_per_tvl_stratum": 3
+  },
+  "revision": "1.0"
+}
