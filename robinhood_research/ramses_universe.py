@@ -14,6 +14,7 @@ evidence.
 from __future__ import annotations
 
 from collections import Counter
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -44,6 +45,11 @@ UNIVERSE_BATCH_SIZE = 8
 UNIVERSE_BATCH_PAUSE_SECONDS = 0.8
 UNIVERSE_RATE_RETRIES = 2
 UNIVERSE_RATE_COOLDOWN_SECONDS = 8.0
+FACTORY_FETCH_CHUNK = 8
+FACTORY_CACHE = Path(os.environ.get(
+    "MM_ROBINHOOD_RAMSES_FACTORY_CACHE",
+    "robinhood-ramses-all-pool-inventory-cache.json",
+))
 REPORT = Path(os.environ.get(
     "MM_ROBINHOOD_RAMSES_UNIVERSE_REPORT",
     "robinhood-ramses-universe-report.json",
@@ -98,7 +104,105 @@ def _factory_address(raw):
     return address
 
 
-def _enumerate_factory(rpc, factory, block):
+def _inventory_digest(addresses):
+    raw=json.dumps(list(addresses),separators=(",",":")).encode()
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _load_durable_inventory(factory,runtime_sha256):
+    try:
+        row=json.loads(FACTORY_CACHE.read_text())
+    except FileNotFoundError:
+        return None
+    except (OSError,ValueError,TypeError):
+        return None
+    addresses=row.get("addresses")
+    if (
+        row.get("kind")!="ramses_all_pool_inventory_cache_v1"
+        or str(row.get("factory","")).lower()!=str(factory).lower()
+        or row.get("factory_runtime_sha256")!=runtime_sha256
+        or not isinstance(addresses,list)
+        or row.get("count")!=len(addresses)
+        or row.get("addresses_sha256")!=_inventory_digest(addresses)
+        or len(set(addresses))!=len(addresses)
+        or any(_factory_address(a)!=a.lower() for a in addresses)
+    ):
+        return None
+    return dict(
+        addresses=list(addresses),
+        asof_block=int(row.get("asof_block") or 0),
+    )
+
+
+def _persist_durable_inventory(factory,runtime_sha256,block,addresses):
+    row=dict(
+        kind="ramses_all_pool_inventory_cache_v1",
+        chain_id=4663,
+        factory=str(factory).lower(),
+        factory_runtime_sha256=runtime_sha256,
+        count=len(addresses),
+        asof_block=int(block),
+        addresses=list(addresses),
+        addresses_sha256=_inventory_digest(addresses),
+    )
+    raw=json.dumps(row,sort_keys=True,separators=(",",":")).encode()
+    tmp=FACTORY_CACHE.with_suffix(FACTORY_CACHE.suffix+".tmp")
+    tmp.write_bytes(raw)
+    os.replace(tmp,FACTORY_CACHE)
+
+
+def _factory_calls(factory,indices,block):
+    return [
+        (
+            "eth_call",
+            [
+                dict(
+                    to=factory,
+                    data=calldata("getLBPairAtIndex(uint256)", i),
+                ),
+                hex(block),
+            ],
+        )
+        for i in indices
+    ]
+
+
+def _factory_rows(rpc,factory,indices,block,scope):
+    """Read exact factory indices in small batches and isolate -32000 failures."""
+    out=[]
+    recoveries=int(getattr(rpc,"_roi_factory_batch_recoveries",0) or 0)
+    for first in range(0,len(indices),FACTORY_FETCH_CHUNK):
+        chunk=indices[first:first+FACTORY_FETCH_CHUNK]
+        calls=_factory_calls(factory,chunk,block)
+        try:
+            rows=rpc.batch(calls,scope=scope)
+        except BoundaryError as exc:
+            if str(exc)!="provider_rpc_-32000":
+                raise
+            recoveries+=1
+            rows=[]
+            for index,call in zip(chunk,calls):
+                try:
+                    rows.append(rpc.call(call[0],call[1],scope=scope+"_isolated"))
+                except BoundaryError as member_exc:
+                    setattr(rpc,"_roi_factory_member_failure",dict(
+                        index=int(index),
+                        block=int(block),
+                        boundary=str(member_exc),
+                        scope=str(scope),
+                    ))
+                    raise BoundaryError(
+                        "ramses_universe_factory_member_"
+                        +str(index)+":"+str(member_exc)
+                    ) from None
+        if len(rows)!=len(chunk):
+            raise BoundaryError("ramses_universe_factory_batch_shape")
+        out.extend(rows)
+    setattr(rpc,"_roi_factory_batch_recoveries",recoveries)
+    return out
+
+
+def _enumerate_factory(rpc, factory, block, *, factory_runtime_sha256=None):
     count_raw = rpc.call(
         "eth_call",
         [dict(to=factory, data=calldata("getNumberOfLBPairs()")), hex(block)],
@@ -111,34 +215,26 @@ def _enumerate_factory(rpc, factory, block):
     key = str(factory).lower()
     with _FACTORY_INVENTORY_LOCK:
         cached = dict(_FACTORY_INVENTORY_CACHE.get(key) or {})
-        cached_addresses = list(cached.get("addresses") or [])
-        cached_block = cached.get("asof_block")
+    durable_hit=False
+    if not cached and factory_runtime_sha256:
+        durable=_load_durable_inventory(factory,factory_runtime_sha256)
+        if durable is not None:
+            cached=durable
+            durable_hit=True
+
+    cached_addresses = list(cached.get("addresses") or [])
+    cached_block = cached.get("asof_block")
 
     if cached_block is not None and int(block) < int(cached_block):
         raise BoundaryError("ramses_universe_inventory_block_regression")
     if len(cached_addresses) > count:
         raise BoundaryError("ramses_universe_factory_count_regression")
 
-    # Verify two immutable sentinels before trusting the cached prefix. A mismatch
-    # fails closed instead of silently accepting a changed registry.
     sentinel_indices = []
     if cached_addresses:
         sentinel_indices = sorted(set((0, len(cached_addresses) - 1)))
-        sentinel_rows = rpc.batch(
-            [
-                (
-                    "eth_call",
-                    [
-                        dict(
-                            to=factory,
-                            data=calldata("getLBPairAtIndex(uint256)", i),
-                        ),
-                        hex(block),
-                    ],
-                )
-                for i in sentinel_indices
-            ],
-            scope="universe_inventory_verify",
+        sentinel_rows = _factory_rows(
+            rpc,factory,sentinel_indices,block,"universe_inventory_verify"
         )
         for i, raw in zip(sentinel_indices, sentinel_rows):
             if _factory_address(raw) != cached_addresses[i]:
@@ -148,21 +244,8 @@ def _enumerate_factory(rpc, factory, block):
     missing_indices = list(range(start_index, count))
     appended = []
     if missing_indices:
-        rows = rpc.batch(
-            [
-                (
-                    "eth_call",
-                    [
-                        dict(
-                            to=factory,
-                            data=calldata("getLBPairAtIndex(uint256)", i),
-                        ),
-                        hex(block),
-                    ],
-                )
-                for i in missing_indices
-            ],
-            scope="universe_inventory",
+        rows = _factory_rows(
+            rpc,factory,missing_indices,block,"universe_inventory"
         )
         appended = [_factory_address(raw) for raw in rows]
 
@@ -175,8 +258,13 @@ def _enumerate_factory(rpc, factory, block):
             addresses=tuple(addresses),
             asof_block=int(block),
         )
+    if factory_runtime_sha256:
+        _persist_durable_inventory(
+            factory,factory_runtime_sha256,block,addresses
+        )
 
     setattr(rpc, "_roi_factory_inventory_cache_hit", bool(cached_addresses))
+    setattr(rpc, "_roi_factory_inventory_durable_hit", bool(durable_hit))
     setattr(rpc, "_roi_factory_inventory_reused", len(cached_addresses))
     setattr(rpc, "_roi_factory_inventory_fetched", len(appended))
     setattr(rpc, "_roi_factory_inventory_sentinel_reads", len(sentinel_indices))
@@ -366,7 +454,10 @@ def scan(
     factory_code = rpc.call("eth_getCode", [factory, hex(end)], scope="universe_identity")
     factory_identity = authenticate("ramses_factory", factory, factory_code)
 
-    addresses = _enumerate_factory(rpc, factory, end)
+    addresses = _enumerate_factory(
+        rpc,factory,end,
+        factory_runtime_sha256=factory_identity["runtime_sha256"],
+    )
     logs = _batched_logs(rpc, start, end, addresses)
     histories, cost_events = _decode_economic_logs(logs, addresses)
     observe_receipt_gas(rpc, cost_events, cost_state)
@@ -538,6 +629,14 @@ def scan(
         factory_pool_count=len(addresses),
         factory_inventory_cache=dict(
             hit=bool(getattr(rpc, "_roi_factory_inventory_cache_hit", False)),
+            durable_hit=bool(
+                getattr(rpc, "_roi_factory_inventory_durable_hit", False)
+            ),
+            durable_cache_path=str(FACTORY_CACHE),
+            batch_recoveries=int(
+                getattr(rpc, "_roi_factory_batch_recoveries", 0) or 0
+            ),
+            member_failure=getattr(rpc, "_roi_factory_member_failure", None),
             reused_pool_count=int(
                 getattr(rpc, "_roi_factory_inventory_reused", 0) or 0
             ),

@@ -1,4 +1,8 @@
+import json
+from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 
 from robinhood_research.identity import load
 from robinhood_research import ramses_universe
@@ -170,6 +174,108 @@ class RamsesAllPoolUniverseTests(unittest.TestCase):
             "ramses_universe_factory_count_regression",
         ):
             ramses_universe._enumerate_factory(rpc,factory,101)
+
+    def test_durable_all_pool_cache_reuses_verified_prefix_after_process_reset(self):
+        factory="0x"+"aa"*20
+        runtime="runtime-sha"
+        addresses=["0x"+"11"*20,"0x"+"22"*20,"0x"+"33"*20]
+        with tempfile.TemporaryDirectory() as td:
+            cache=Path(td)/"inventory.json"
+            with patch.object(ramses_universe,"FACTORY_CACHE",cache):
+                first_rpc=_InventoryRpc(addresses)
+                first=ramses_universe._enumerate_factory(
+                    first_rpc,factory,100,factory_runtime_sha256=runtime
+                )
+                self.assertTrue(cache.exists())
+                with ramses_universe._FACTORY_INVENTORY_LOCK:
+                    ramses_universe._FACTORY_INVENTORY_CACHE.clear()
+                second_rpc=_InventoryRpc(addresses)
+                second=ramses_universe._enumerate_factory(
+                    second_rpc,factory,101,factory_runtime_sha256=runtime
+                )
+        self.assertEqual(second,first)
+        self.assertTrue(second_rpc._roi_factory_inventory_durable_hit)
+        self.assertEqual(second_rpc._roi_factory_inventory_reused,3)
+        self.assertNotIn("universe_inventory",second_rpc.indices_by_scope)
+        self.assertEqual(
+            second_rpc.indices_by_scope["universe_inventory_verify"][-1],[0,2]
+        )
+
+    def test_invalid_durable_cache_is_not_trusted_and_is_reauthenticated(self):
+        factory="0x"+"aa"*20
+        runtime="runtime-sha"
+        addresses=["0x"+"11"*20,"0x"+"22"*20]
+        bad=dict(
+            kind="ramses_all_pool_inventory_cache_v1",chain_id=4663,
+            factory=factory,factory_runtime_sha256=runtime,count=2,
+            asof_block=99,addresses=addresses,addresses_sha256="bad",
+        )
+        with tempfile.TemporaryDirectory() as td:
+            cache=Path(td)/"inventory.json"
+            cache.write_text(json.dumps(bad))
+            with patch.object(ramses_universe,"FACTORY_CACHE",cache):
+                rpc=_InventoryRpc(addresses)
+                got=ramses_universe._enumerate_factory(
+                    rpc,factory,100,factory_runtime_sha256=runtime
+                )
+        self.assertEqual(got,addresses)
+        self.assertFalse(rpc._roi_factory_inventory_durable_hit)
+        self.assertEqual(rpc.indices_by_scope["universe_inventory"],[[0,1]])
+
+    def test_factory_minus_32000_batch_isolated_to_single_members(self):
+        factory="0x"+"aa"*20
+        addresses=["0x"+"11"*20,"0x"+"22"*20,"0x"+"33"*20]
+        class Rpc(_InventoryRpc):
+            def __init__(self,rows):
+                super().__init__(rows);self.failed=False;self.isolated=[]
+            def batch(self,calls,scope="connectivity"):
+                if scope=="universe_inventory" and not self.failed:
+                    self.failed=True
+                    raise ramses_universe.BoundaryError("provider_rpc_-32000")
+                return super().batch(calls,scope=scope)
+            def call(self,method,params,scope="connectivity"):
+                if scope=="universe_inventory_isolated":
+                    index=int(params[0]["data"][-64:],16)
+                    self.isolated.append(index)
+                    return self._address_word(self.addresses[index])
+                return super().call(method,params,scope=scope)
+        rpc=Rpc(addresses)
+        with tempfile.TemporaryDirectory() as td, patch.object(
+            ramses_universe,"FACTORY_CACHE",Path(td)/"inventory.json"
+        ):
+            got=ramses_universe._enumerate_factory(
+                rpc,factory,100,factory_runtime_sha256="runtime-sha"
+            )
+        self.assertEqual(got,addresses)
+        self.assertEqual(rpc.isolated,[0,1,2])
+        self.assertEqual(rpc._roi_factory_batch_recoveries,1)
+
+    def test_persistent_factory_member_error_names_exact_index(self):
+        factory="0x"+"aa"*20
+        addresses=["0x"+"11"*20,"0x"+"22"*20]
+        class Rpc(_InventoryRpc):
+            def batch(self,calls,scope="connectivity"):
+                if scope=="universe_inventory":
+                    raise ramses_universe.BoundaryError("provider_rpc_-32000")
+                return super().batch(calls,scope=scope)
+            def call(self,method,params,scope="connectivity"):
+                if scope=="universe_inventory_isolated":
+                    index=int(params[0]["data"][-64:],16)
+                    if index==1:
+                        raise ramses_universe.BoundaryError("provider_rpc_-32000")
+                    return self._address_word(self.addresses[index])
+                return super().call(method,params,scope=scope)
+        with tempfile.TemporaryDirectory() as td, patch.object(
+            ramses_universe,"FACTORY_CACHE",Path(td)/"inventory.json"
+        ):
+            with self.assertRaisesRegex(
+                ramses_universe.BoundaryError,
+                "ramses_universe_factory_member_1:provider_rpc_-32000",
+            ):
+                ramses_universe._enumerate_factory(
+                    Rpc(addresses),factory,100,
+                    factory_runtime_sha256="runtime-sha",
+                )
 
     def test_log_queries_cover_all_addresses_in_bounded_block_chunks(self):
         rpc = _LogRpc()

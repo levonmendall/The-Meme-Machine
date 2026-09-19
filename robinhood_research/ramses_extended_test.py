@@ -44,7 +44,7 @@ from .ramses_strategy import (
 )
 from .ramses import verify_proposal_hash
 from .ramses_strategy_ledger import RamsesStrategyLedger
-from .ramses_universe import scan
+from .ramses_universe import FACTORY_CACHE, scan
 
 REPORT = Path(os.environ.get(
     "MM_ROBINHOOD_RAMSES_EXTENDED_REPORT",
@@ -662,23 +662,7 @@ def run(
     return result
 
 
-def main():
-    costs=_json_env("MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON")
-    signals=_json_env("MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON")
-    result=run(
-        os.environ.get("MM_ROBINHOOD_READ_RPC_URL",""),
-        costs_by_pool=costs,
-        signals_by_pool=signals,
-        discovery_seconds=float(os.environ.get(
-            "MM_ROBINHOOD_RAMSES_EXTENDED_DISCOVERY_SECONDS",
-            DISCOVERY_SECONDS,
-        )),
-        discovery_interval_seconds=float(os.environ.get(
-            "MM_ROBINHOOD_RAMSES_EXTENDED_INTERVAL_SECONDS",
-            DISCOVERY_INTERVAL_SECONDS,
-        )),
-        db_path=str(DB),
-    )
+def _persist_public_result(result):
     public_result=deepcopy(result)
     if isinstance(public_result.get("connected_lifecycle"),dict):
         public_result["connected_lifecycle"]=compact_lifecycle_result(
@@ -688,6 +672,53 @@ def main():
     if len(raw)>12_000_000:
         raise BoundaryError("extended_market_report_capacity")
     REPORT.write_bytes(raw)
+
+
+def main():
+    costs=_json_env("MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON")
+    signals=_json_env("MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON")
+    started=time.time()
+    try:
+        result=run(
+            os.environ.get("MM_ROBINHOOD_READ_RPC_URL",""),
+            costs_by_pool=costs,
+            signals_by_pool=signals,
+            discovery_seconds=float(os.environ.get(
+                "MM_ROBINHOOD_RAMSES_EXTENDED_DISCOVERY_SECONDS",
+                DISCOVERY_SECONDS,
+            )),
+            discovery_interval_seconds=float(os.environ.get(
+                "MM_ROBINHOOD_RAMSES_EXTENDED_INTERVAL_SECONDS",
+                DISCOVERY_INTERVAL_SECONDS,
+            )),
+            db_path=str(DB),
+        )
+    except BoundaryError as exc:
+        result=dict(
+            kind="ramses_fee_pulse_extended_market_test_v1",
+            strategy_domain=STRATEGY_DOMAIN,
+            strategy_version=STRATEGY_VERSION,
+            policy_hash=POLICY_HASH,
+            paper_only=True,
+            allocation_authority=False,
+            thresholds_changed=False,
+            status="fail_closed",
+            boundary=str(exc),
+            terminal_phase="startup_or_natural_discovery",
+            factory_cache_path=str(FACTORY_CACHE),
+            factory_cache_exists=FACTORY_CACHE.exists(),
+            started_at=started,
+            ended_at=time.time(),
+            natural_screens=[],
+        )
+        _persist_public_result(result)
+        print(json.dumps(dict(
+            status=result["status"],boundary=result["boundary"],
+            terminal_phase=result["terminal_phase"],
+            factory_cache_exists=result["factory_cache_exists"],
+        ),sort_keys=True))
+        raise
+    _persist_public_result(result)
     print(json.dumps(dict(
         status=result.get("status"),
         screens=len(result.get("natural_screens") or []),
