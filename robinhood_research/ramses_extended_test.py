@@ -29,7 +29,7 @@ from . import BoundaryError
 from .ramses_all_pool_lifecycle import (
     _canonicalize_selected_row,
     _build_segment_replay,
-    _position_state,
+    _position_state_from_prestate,
     _unwind,
     run as run_connected,
     select_qualifier,
@@ -57,6 +57,10 @@ DB = Path(os.environ.get(
 DISCOVERY_SECONDS = 600
 DISCOVERY_INTERVAL_SECONDS = 60
 FORCED_FORWARD_SECONDS = 60
+FORCED_PROVIDER_COOLDOWN_SECONDS = 8
+FORCED_BATCH_SIZE = 6
+FORCED_BATCH_PAUSE_SECONDS = 1.0
+FORCED_RATE_COOLDOWN_SECONDS = 8.0
 
 
 def _json_env(name):
@@ -122,7 +126,13 @@ def _forced_machinery(endpoint, screen, row, *, db_path):
     entry_at=int(screen["finalized_timestamp"])
 
     rpc=BoundedMultiRpc(
-        endpoint,max_sessions=10,batch_size=20,batch_pause=0.5,rate_retries=1
+        endpoint,
+        max_sessions=12,
+        batch_size=FORCED_BATCH_SIZE,
+        batch_pause=FORCED_BATCH_PAUSE_SECONDS,
+        rate_retries=3,
+        rate_cooldown=FORCED_RATE_COOLDOWN_SECONDS,
+        adaptive_batch_floor=2,
     )
     rpc.verify_chain()
     canonical_row,auth=_canonicalize_selected_row(
@@ -176,7 +186,7 @@ def _forced_machinery(endpoint, screen, row, *, db_path):
             raise BoundaryError("extended_forced_restart_reconciliation")
         result["entry_restart_proven"]=True
 
-        state_now=_position_state(rpc,pool,decision,entry_block)
+        state_now=_position_state_from_prestate(row["prestate"],decision)
         ledger.checkpoint(
             identity,
             action="monitor",
@@ -344,6 +354,8 @@ def run(
         )
     else:
         try:
+            if FORCED_PROVIDER_COOLDOWN_SECONDS:
+                time.sleep(FORCED_PROVIDER_COOLDOWN_SECONDS)
             result["forced_machinery"]=_forced_machinery(
                 endpoint,screen,row,db_path=str(db_path or DB)
             )
