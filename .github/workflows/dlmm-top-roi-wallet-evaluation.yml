@@ -22,7 +22,7 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: ROI evaluation regression gate
         run: python -m unittest tests.test_dlmm_top_roi_wallet_evaluation -v
-      - name: Validate Alchemy Solana route
+      - name: Validate OnFinality-primary / Alchemy-rescue Solana topology
         env:
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
         run: python -m tests.dlmm_alchemy_provider
