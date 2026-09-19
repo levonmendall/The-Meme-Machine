@@ -5,7 +5,6 @@ from pathlib import Path
 
 from meme_machine import dlmm,pump
 from meme_machine.dlmm_tape import _keys
-from meme_machine.postgrad import PoolScanRPC
 from tests import dlmm_alchemy_provider as alchemy_provider
 from meme_machine.provider import Unavailable
 from meme_machine.store import encode
@@ -18,10 +17,6 @@ EXPECTED=14
 OUT=Path('dlmm-dense-retrieval-proof.json')
 
 
-class HistoricalDenseRPC(PoolScanRPC):
-    ALLOWED=PoolScanRPC.ALLOWED|{'getBlock'}
-
-
 def _account_keys(row):
     tx=(row or {}).get('transaction') or {}
     result=[]
@@ -32,7 +27,7 @@ def _account_keys(row):
 
 
 def run():
-    rpc=HistoricalDenseRPC(alchemy_provider.rpc_url(),limit=100)
+    rpc=alchemy_provider.new_rpc(limit=100)
     if rpc.call('getGenesisHash',priority=True)!=pump.MAINNET:
         raise Unavailable('dense_retrieval_wrong_network')
 
@@ -87,6 +82,7 @@ def run():
         provider_failure_methods=rpc.failure_methods,
         rpc_batch_fallbacks=rpc.batch_fallbacks,
         rpc_batch_fallback_items=rpc.batch_fallback_items,
+        provider_topology=rpc.provider_telemetry(),
     )
     OUT.write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
     print(json.dumps(dict(
