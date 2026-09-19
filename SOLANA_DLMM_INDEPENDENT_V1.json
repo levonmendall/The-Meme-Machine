@@ -175,7 +175,7 @@
     "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
     "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
   },
-  "revision": "1.4",
+  "revision": "1.5",
   "amendment_history": [
     {
       "revision": "1.1",
@@ -203,6 +203,27 @@
       "strategy_thresholds_changed": false,
       "qualifying_warmup_seconds_changed": false,
       "robinhood_independence_changed": false
+    },
+    {
+      "revision": "1.5",
+      "reason": "Expand only mechanically equivalent pool/token support based on exact rejected-pool census: metadata-only Token-2022 plus optional ImmutableOwner vaults, and classic mint authority when freeze authority is absent. Behavioral Token-2022 extensions and OnlyY fee mode remain fail-closed.",
+      "rejected_pool_census_run_id": 35456987497,
+      "strategy_thresholds_changed": false,
+      "qualification_thresholds_changed": false,
+      "robinhood_independence_changed": false
     }
-  ]
+  ],
+  "support_layer": {
+    "safe_token_programs": [
+      "classic SPL",
+      "Token-2022 only when mint extensions are MetadataPointer/TokenMetadata and vault extensions are absent or ImmutableOwner"
+    ],
+    "classic_mint_authority": "allowed mechanically only when freeze authority is absent; issuer mint authority is surfaced in every pre-entry record",
+    "freeze_authority": "fail_closed",
+    "token2022_behavioral_extensions": "fail_closed including TransferFeeConfig/Amount, TransferHook, Pausable, PermanentDelegate, NonTransferable, DefaultAccountState, ConfidentialTransfer and unknown extensions",
+    "collect_fee_mode_0_input_only": "supported",
+    "collect_fee_mode_1_only_y": "fail_closed until exact fee-growth/swap accounting is implemented",
+    "function_types": "unchanged; existing supported function-type set retained",
+    "strategy_thresholds_changed": false
+  }
 }
