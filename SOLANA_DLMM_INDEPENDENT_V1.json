@@ -1,0 +1,149 @@
+{
+  "kind": "solana_dlmm_independent_v1",
+  "status": "frozen_pre_prospective",
+  "scope": "solana_meteora_dlmm_only",
+  "independence": {
+    "wallet_signals": false,
+    "profitable_wallet_labels": false,
+    "prior_dlmm_candidate_outputs": false,
+    "small_pool_study_outputs": false,
+    "capital_efficiency_v1_outputs": false,
+    "reusable_dependencies": "generic Meteora/Solana read-only mechanics, authenticated tape reconstruction, provider pacing only"
+  },
+  "authority": {
+    "research_only": true,
+    "allocation": false,
+    "signing": false,
+    "submission": false,
+    "live_money": false
+  },
+  "objective": "Maximize expected after-cost SOL PnL per capital-hour by supplying short-duration liquidity only during fee-rich, two-way, capital-efficient regimes.",
+  "discovery": {
+    "require_exactly_one_wsol_leg": true,
+    "require_nonblacklisted": true,
+    "minimum_pool_tvl_usd": null,
+    "minimum_absolute_volume_usd": null,
+    "union_sorts": [
+      "volume_5m:desc",
+      "fee_tvl_ratio_5m:desc",
+      "volume_30m:desc"
+    ],
+    "candidate_metrics": [
+      "volume_5m",
+      "volume_30m",
+      "fee_5m",
+      "fee_30m",
+      "fee_tvl_ratio_5m",
+      "dynamic_fee_pct",
+      "tvl"
+    ],
+    "volume_acceleration_definition": "volume_5m / max(volume_30m/6, epsilon)",
+    "fee_acceleration_definition": "fee_5m / max(fee_30m/6, epsilon)"
+  },
+  "regime": {
+    "kind": "opportunistic_fee_density_event",
+    "min_volume_acceleration": 2,
+    "min_fee_acceleration": 1.25,
+    "min_dynamic_fee_uplift_over_base": 1.25,
+    "require_verified_warmup_flow": true,
+    "require_two_way_flow": true
+  },
+  "position": {
+    "capital_lamports": 100000000,
+    "construction": "two_sided_centered_spot",
+    "entry_inventory_conversion": "convert 50% of SOL capital to the non-SOL token on the authenticated virtual entry state, then place SOL below/above active as appropriate and token on the opposite side",
+    "sol_share_before_conversion": 0.5,
+    "distribution": "equal weight within each side of the range",
+    "active_bin_excluded": true,
+    "rebalance": "none_in_v1; withdraw instead when the thesis fails"
+  },
+  "range": {
+    "selection": "narrowest range expected to survive the intended holding horizon",
+    "warmup_seconds": 12,
+    "intended_holding_seconds": 120,
+    "max_holding_seconds": 180,
+    "min_half_width_bins": 4,
+    "max_half_width_bins": 35,
+    "movement_model": "warmup maximum absolute active-bin excursion scaled by sqrt(intended_holding_seconds/warmup_seconds) and multiplied by safety factor",
+    "movement_safety_factor": 1.5,
+    "total_width_bound_bins": [
+      8,
+      70
+    ]
+  },
+  "qualification": {
+    "min_competing_range_liquidity_to_capital_multiple": 10,
+    "min_two_way_balance": 0.5,
+    "max_drift_ratio": 0.5,
+    "require_reversal": true,
+    "stress_inventory_fraction_of_capital": 0.5,
+    "max_stress_unwind_loss_bps": 70,
+    "projected_fee_horizon_seconds": 120,
+    "min_expected_net_lamports": 100000,
+    "expected_net_definition": "projected exact-range fee capture - 400000 lamports modeled network cost - 50%-inventory stress unwind loss",
+    "primary_score": "expected_net_lamports / capital / expected_capital_hours",
+    "ranking_metric": "expected_after_cost_pnl_bps_per_capital_hour"
+  },
+  "fee_model": {
+    "require_dynamic_fee_uplift": true,
+    "current_fee_source": "authenticated LbPair state",
+    "base_fee_source": "authenticated static LbPair parameters",
+    "range_fee_capture": "warmup fees crossing the proposed range times estimated capital share of competing range liquidity",
+    "historical_apr_is_not_an_entry_signal": true
+  },
+  "flow_model": {
+    "two_way_balance_definition": "2 * min(direction_A_volume,direction_B_volume) / total_directional_volume",
+    "min_two_way_balance": 0.5,
+    "adverse_selection_proxy": [
+      "near-range drift ratio",
+      "one-way flow",
+      "stress unwind loss"
+    ]
+  },
+  "exit": {
+    "observation_segment_seconds": 12,
+    "conditions": [
+      "active price reaches within 2 bins of either range boundary",
+      "executable non-SOL inventory value exceeds 60% of initial capital",
+      "recent verified flow has >=2 swaps, two_way_balance <0.25 and drift_ratio >0.75",
+      "recent volume rate falls below 50% of entry warmup volume rate with >=2 swaps",
+      "recent fee density falls below 50% of entry warmup fee density with >=2 swaps",
+      "dynamic fee uplift falls below 1.05 while recent volume rate is below entry warmup",
+      "maximum holding time reached"
+    ],
+    "settlement": "withdraw all liquidity and liquidate residual non-SOL inventory to SOL on the authenticated virtual state"
+  },
+  "costs": {
+    "entry_network_cost_lamports": 200000,
+    "exit_network_cost_lamports": 200000,
+    "round_trip_network_cost_lamports": 400000,
+    "entry_inventory_swap_fee_and_slippage": "modeled directly by the virtual DLMM swap",
+    "rebalance_cost_lamports": 0
+  },
+  "measurement": {
+    "primary": "after-cost PnL bps per capital-hour",
+    "secondary": [
+      "after-cost PnL lamports",
+      "fee capture",
+      "inventory conversion",
+      "realized hold seconds",
+      "range width",
+      "exit reason",
+      "qualification failure reasons"
+    ]
+  },
+  "prospective_test": {
+    "post_freeze_only": true,
+    "target_complete_lifecycles": 6,
+    "max_attempted_pools": 48,
+    "record_every_rejection": true,
+    "no_threshold_changes_after_start": true,
+    "no_retroactive_selection": true
+  },
+  "deferred_modes": {
+    "fee_earning_directional_conversion": "separate future strategy; not mixed into this core market-making rule",
+    "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
+    "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
+  },
+  "revision": "1.0"
+}
