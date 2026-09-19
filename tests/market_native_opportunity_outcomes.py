@@ -224,6 +224,29 @@ def _evaluate_extra_preflight(candidate,metric,tape,evidence,authority):
         )
         return row
 
+
+def _expanded_entry_tracker(candidate,result,cohort):
+    """Forward labels from the executable 5% quote, never the nomination trade."""
+    quote=(result or {}).get('entry_quote') or {}
+    origin=int((result or {}).get('qualified_at') or 0)
+    basis=int(quote.get('basis_lamports') or 0)
+    tokens=int(quote.get('tokens') or 0)
+    if not result.get('full_evidence_complete') or min(origin,basis,tokens)<=0:
+        return None
+    tracker=new_tracker(
+        candidate['mint'],origin,basis,tokens,[cohort],
+        nomination_id=candidate['nomination']['id'],
+        metadata={
+            'priority_slot':result.get('priority_slot'),
+            'source':'expanded_full_evidence',
+            'entry_baseline':'frozen_5pct_modeled_quote',
+            'actual_reason':result.get('actual_reason'),
+        },
+    )
+    if result.get('actual_reason')=='qualified' or result.get('two_buyer_sole_near_miss'):
+        enable_shadow_exit(tracker,opened_time=origin)
+    return tracker
+
 def main():
     started=int(time.time())
     report=dict(
@@ -299,20 +322,16 @@ def main():
                 result['priority_slot']=slot
                 result['extra_evidence_sequence']=extra_evidence_attempted
                 extra_evidence_results.append(result)
+                if result.get('actual_reason')=='qualified':
+                    tracker=_expanded_entry_tracker(
+                        candidate,result,'extra_full_evidence_qualified')
+                    if tracker is not None:
+                        add_tracker(tracker)
                 if result.get('two_buyer_sole_near_miss'):
-                    quote=result.get('entry_quote') or {}
-                    num=int(quote.get('basis_lamports') or 0)
-                    den=int(quote.get('tokens') or 0)
-                    origin=int(result.get('qualified_at') or 0)
-                    if min(num,den,origin)>0:
-                        add_tracker(new_tracker(
-                            candidate['mint'],origin,num,den,
-                            ['two_buyer_sole_near_miss_expanded'],
-                            nomination_id=candidate['nomination']['id'],
-                            metadata={
-                                'priority_slot':slot,'source':'expanded_full_evidence',
-                                'entry_baseline':'frozen_5pct_modeled_quote',
-                            }))
+                    tracker=_expanded_entry_tracker(
+                        candidate,result,'two_buyer_sole_near_miss_expanded')
+                    if tracker is not None:
+                        add_tracker(tracker)
 
     with tempfile.TemporaryDirectory() as td:
         store=Store(str(Path(td)/'outcomes.db'),'prospective',GENESIS_SOL_USD_MICROS,GENESIS_SOURCE)
