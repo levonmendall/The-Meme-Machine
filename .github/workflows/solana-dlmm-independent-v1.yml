@@ -1,4 +1,5 @@
 name: solana-dlmm-independent-v1
+# measurement-revision: 1.2
 on:
   push:
     branches:
