@@ -13,14 +13,14 @@ import zlib
 from . import BoundaryError
 from .abi import calldata, decode_event, topic, words
 from .identity import ROOT, authenticate, load
-from .provider import Rpc
+from .provider_topology import configured_rpc
 
 
 def run(endpoint):
     report = dict(kind='natural_mainnet_protocol_capture', started_at=int(time.time()),
                   candidates=0, paper_lifecycles=0, allocation_authority=False,
                   identities={}, reads=[], lanes={}, failures={})
-    rpc = Rpc(endpoint, limit=200, per_scope=130, retries=0)
+    rpc = configured_rpc(endpoint, limit=200, per_scope=130, retries=0)
 
     def call(address, sig, args=(), *, block, scope):
         data = calldata(sig, *args)
