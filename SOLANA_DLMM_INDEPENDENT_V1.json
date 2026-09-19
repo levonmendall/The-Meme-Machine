@@ -60,7 +60,10 @@
     "acceleration_measurement_source": "Meteora /pools/{address}/volume/history with timeframe=5m; require six consecutive recent 5m buckets. volume_5m/fee_5m are the most recent bucket, volume_30m/fee_30m are the sum of those six buckets.",
     "pool_snapshot_5m_fields_authoritative": false,
     "history_enrichment": "Apply to every unique SOL-paired pool returned by the fixed discovery union before acceleration gating; missing/incomplete six-bucket history fails closed.",
-    "completed_bucket_rule": "A 5m history bucket is eligible only when timestamp + 300 <= observation_time. The current partial bucket is excluded."
+    "completed_bucket_rule": "A 5m history bucket is eligible only when timestamp + 300 <= observation_time. The current partial bucket is excluded.",
+    "execution_mode": "streaming_first_sighting_immediate_handoff",
+    "execution_rule": "Process configured sort/page/row order deterministically. On first sight of each unique SOL pool, compute frozen acceleration; if it passes, hand the pool immediately to fresh on-chain warmup before requesting another pool history.",
+    "no_full_universe_wait_before_handoff": true
   },
   "regime": {
     "kind": "opportunistic_fee_density_event",
@@ -175,7 +178,7 @@
     "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
     "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
   },
-  "revision": "1.5",
+  "revision": "1.6",
   "amendment_history": [
     {
       "revision": "1.1",
@@ -211,6 +214,15 @@
       "strategy_thresholds_changed": false,
       "qualification_thresholds_changed": false,
       "robinhood_independence_changed": false
+    },
+    {
+      "revision": "1.6",
+      "reason": "Remove stale-event latency by streaming each acceleration-qualified pool directly into fresh on-chain warmup, and repair missing-start-boundary evidence with bounded paginated signature census.",
+      "strategy_thresholds_changed": false,
+      "qualification_thresholds_changed": false,
+      "warmup_seconds_changed": false,
+      "support_policy_changed": false,
+      "robinhood_independence_changed": false
     }
   ],
   "support_layer": {
@@ -224,6 +236,12 @@
     "collect_fee_mode_0_input_only": "supported",
     "collect_fee_mode_1_only_y": "fail_closed until exact fee-growth/swap accounting is implemented",
     "function_types": "unchanged; existing supported function-type set retained",
+    "strategy_thresholds_changed": false
+  },
+  "evidence_acquisition": {
+    "signature_census": "Paginate finalized getSignaturesForAddress up to 16 pages of 64 rows until a row at or before the authenticated start slot proves the lower boundary.",
+    "interval_transaction_bound": 16,
+    "replay_input": "All successful finalized transactions in (start_slot,end_slot] plus one finalized lower-bound witness; newer-than-end rows are scheduling noise.",
     "strategy_thresholds_changed": false
   }
 }
