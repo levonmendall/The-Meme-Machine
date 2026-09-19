@@ -32,7 +32,9 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             if isinstance(node,ast.Import):
                 imported.extend(alias.name for alias in node.names)
             elif isinstance(node,ast.ImportFrom):
-                imported.append(node.module or "")
+                base=node.module or ""
+                for alias in node.names:
+                    imported.append(base+"."+alias.name if base else alias.name)
         forbidden=(
             "robinhood","pons","ramses",
             "dlmm_profitability_pilot","dlmm_strategy_",
