@@ -102,6 +102,7 @@ class RamsesStrategyIsolationTests(unittest.TestCase):
             "ramses_strategy_sample.py",
             "ramses_universe.py",
             "ramses_all_pool_lifecycle.py",
+            "ramses_extended_test.py",
         ]
         forbidden = (
             "meme_machine",
