@@ -1,0 +1,38 @@
+diff --git a/meme_machine/dlmm.py b/meme_machine/dlmm.py
+index 205dcb4..f607c7b 100644
+--- a/meme_machine/dlmm.py
++++ b/meme_machine/dlmm.py
+@@ -233,6 +233,11 @@ def validate(snapshot, now, kind=None):
+         raise ValueError('dlmm_pool_not_activated')
+     mint_x=_dlmm_mint_info(accounts[p['x']],p['token_x_program'])
+     mint_y=_dlmm_mint_info(accounts[p['y']],p['token_y_program'])
++    # State crosses the durable JSON boundary. Keep extension identities in the
++    # same representation before and after reload; tuple/list inequality must not
++    # invalidate an otherwise exactly equal authenticated replay checkpoint.
++    mint_x['extensions']=list(mint_x['extensions'])
++    mint_y['extensions']=list(mint_y['extensions'])
+     for mint,info in ((p['x'],mint_x),(p['y'],mint_y)):
+         if mint == WSOL and (info['decimals']!=9 or info['program']!=pump.TOKEN_PROGRAM):
+             raise ValueError('dlmm_native_decimals_or_program')
+@@ -253,7 +258,7 @@ def validate(snapshot, now, kind=None):
+     return dict(
+         pool=address,**p,bins=bins,vault_x_amount=vx,vault_y_amount=vy,
+         token_x_mint_info=mint_x,token_y_mint_info=mint_y,
+-        vault_x_extensions=vx_ext,vault_y_extensions=vy_ext,
++        vault_x_extensions=list(vx_ext),vault_y_extensions=list(vy_ext),
+         slot=snapshot['slot'],time=snapshot['market_time'])
+ 
+ 
+diff --git a/tests/test_dlmm_small_pool_profitability.py b/tests/test_dlmm_small_pool_profitability.py
+index 5981022..7be2d8e 100644
+--- a/tests/test_dlmm_small_pool_profitability.py
++++ b/tests/test_dlmm_small_pool_profitability.py
+@@ -40,7 +40,7 @@ class SmallPoolProfitabilityTests(unittest.TestCase):
+ 
+     def test_price_inference_uses_sol_plausibility_and_ohlcv_ratio(self):
+         resolver=study.EntryContextResolver()
+-        with patch.object(resolver,"ohlcv_close",return_value=2.0):
++        with patch.object(resolver,"_candles",return_value=[(900,2.0)]):
+             prices,reason=resolver.prices(
+                 dict(
+                     token_x=dlmm.WSOL,token_y="token",

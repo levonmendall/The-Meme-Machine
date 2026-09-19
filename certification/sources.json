@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "repository": "levonmendall/The-Meme-Machine",
+  "verified_at": "2026-09-19T23:18:30.237315+00:00",
+  "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
+  "lanes": {
+    "pump": {
+      "source_branch": "feat/pump-acceleration-independent-v1",
+      "source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
+      "strategy_version": "pump-acceleration-independent-v1",
+      "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+      "file_hashes": {
+        "meme_machine/pump_acceleration_strategy.py": "e69b14cd077e35398a253a4a27f29b8b5c7f3a2454bdbcd0330a7b929c505570",
+        "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
+        ".github/workflows/pump-acceleration-natural-prospective.yml": "2d5e27c8d1808d5a84b521b42b6b4cbce70eef9b5ad6bcdfe9c1d412e5a27232"
+      },
+      "rpc_configuration_variables": [
+        "MM_SOLANA_READ_RPC_URL"
+      ],
+      "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment"
+    },
+    "meteora": {
+      "source_branch": "research/solana-dlmm-independent-v1",
+      "source_sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
+      "strategy_version": "solana-dlmm-independent-v1.7",
+      "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+      "file_hashes": {
+        "SOLANA_DLMM_INDEPENDENT_V1.json": "4932d8d9e28f24baccc7917ef59a1fa95218facb8667a9683d6bb41296afee20",
+        ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe"
+      },
+      "rpc_configuration_variables": [
+        "MM_SOLANA_READ_RPC_URL"
+      ],
+      "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment",
+      "repair_commit": "6a3be3a2d3c3c45fb3068662a23800e2e3768933",
+      "repair_pr": 64
+    },
+    "pons": {
+      "source_branch": "feat/pons-selective-continuation-v1",
+      "source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
+      "strategy_version": "pons-selective-continuation-v1",
+      "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+      "file_hashes": {
+        "robinhood_research/pons_selective_continuation.py": "bf872cd83db8d4f187f1abfaacb2537441cee07e38f47b17d73805a23ceb32f8",
+        ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7"
+      },
+      "rpc_configuration_variables": [
+        "MM_ROBINHOOD_READ_RPC_URL",
+        "MM_ROBINHOOD_DISCOVERY_RPC_URL"
+      ],
+      "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment"
+    },
+    "ramses": {
+      "source_branch": "feat/robinhood-research-foundation",
+      "source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
+      "strategy_version": "ramses-fee-pulse-v1",
+      "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+      "file_hashes": {
+        "robinhood_research/ramses_strategy.py": "adefa16bec0a9cb8ebe4de4724ea16be1cd1de90263bc78f976f5ad28bf96fae",
+        ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023"
+      },
+      "rpc_configuration_variables": [
+        "MM_ROBINHOOD_READ_RPC_URL",
+        "MM_ROBINHOOD_DLMM_RPC_URL"
+      ],
+      "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment"
+    }
+  }
+}
