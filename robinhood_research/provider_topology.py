@@ -131,19 +131,30 @@ def primary_endpoint(primary_endpoint=None, *, environ=None):
 
 
 def discovery_endpoint(primary_fallback_endpoint=None, *, environ=None):
-    """Return a non-primary observation endpoint or fail closed."""
+    """Return a non-primary observation endpoint or fail closed.
+
+    A configured discovery endpoint that resolves to Alchemy/the authoritative
+    primary is treated as unsuitable for bulk observation. When the dedicated
+    DLMM endpoint is independently isolated, discovery transparently shares that
+    provider instead of either losing observability or spilling onto Alchemy.
+    """
     primary = _optional_primary_endpoint(
         primary_fallback_endpoint, environ=environ
     )
+    rejected = None
     value = _env(DISCOVERY_ENV, environ)
     if value:
         endpoint = _require_https(
             value,
             "MM_ROBINHOOD_DISCOVERY_RPC_URL_requires_full_https_url",
         )
-        return _require_bulk_isolation(
-            endpoint, primary, lane="robinhood_discovery"
-        ), False
+        try:
+            return _require_bulk_isolation(
+                endpoint, primary, lane="robinhood_discovery"
+            ), False
+        except BoundaryError as exc:
+            rejected = exc
+
     # Discovery may share the dedicated DLMM provider because it has no allocation
     # authority. It must never consume the authoritative primary as a capacity rescue.
     shared = _env(DLMM_ENV, environ)
@@ -155,6 +166,9 @@ def discovery_endpoint(primary_fallback_endpoint=None, *, environ=None):
         return _require_bulk_isolation(
             endpoint, primary, lane="robinhood_discovery"
         ), False
+
+    if rejected is not None:
+        raise rejected
     raise BoundaryError("robinhood_discovery_provider_required")
 
 
@@ -279,6 +293,7 @@ class PacedRpc(Rpc):
             role=self.role,
             provider_kind=self.provider_kind,
             endpoint_fingerprint=_endpoint_fingerprint(self._endpoint),
+            credential_role=getattr(self, "credential_role", None),
             pacing=self.pacer.telemetry(),
             automatic_failover=False,
         )
@@ -306,13 +321,15 @@ def _pacer_for(store, endpoint, rps):
 def configured_rpc(primary_endpoint_value=None, *, environ=None, **kwargs):
     """Authoritative Pons/directional evidence RPC: 2 RPS, no automatic rescue."""
     endpoint = primary_endpoint(primary_endpoint_value, environ=environ)
-    return PacedRpc(
+    rpc = PacedRpc(
         endpoint,
         role="directional_evidence_primary",
         requests_per_second=DIRECTIONAL_RPS,
         pacer=_DIRECTIONAL_PACER,
         **kwargs,
     )
+    rpc.credential_role = PRIMARY_ENV
+    return rpc
 
 
 def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **kwargs):
@@ -329,6 +346,12 @@ def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **
         **kwargs,
     )
     rpc.primary_fallback = False
+    dedicated = _env(DISCOVERY_ENV, environ)
+    rpc.credential_role = (
+        DISCOVERY_ENV
+        if dedicated and _endpoint_fingerprint(dedicated) == _endpoint_fingerprint(endpoint)
+        else DLMM_ENV
+    )
     return rpc
 
 
@@ -346,6 +369,7 @@ def configured_dlmm_rpc(primary_fallback_endpoint=None, *, environ=None, **kwarg
         **kwargs,
     )
     rpc.primary_fallback = False
+    rpc.credential_role = DLMM_ENV
     return rpc
 
 
@@ -408,9 +432,24 @@ def topology_metadata(*, environ=None):
                 None if not discovery else _endpoint_fingerprint(discovery)
             ),
             discovery_credential=(
-                DISCOVERY_ENV
-                if _env(DISCOVERY_ENV, environ)
-                else (DLMM_ENV if discovery else None)
+                None
+                if not discovery
+                else (
+                    DISCOVERY_ENV
+                    if (
+                        _env(DISCOVERY_ENV, environ)
+                        and _endpoint_fingerprint(_env(DISCOVERY_ENV, environ))
+                        == _endpoint_fingerprint(discovery)
+                    )
+                    else DLMM_ENV
+                )
+            ),
+            discovery_alchemy_candidate_bypassed=bool(
+                discovery
+                and _env(DISCOVERY_ENV, environ)
+                and _provider_kind(_env(DISCOVERY_ENV, environ)) == "alchemy"
+                and _endpoint_fingerprint(_env(DISCOVERY_ENV, environ))
+                != _endpoint_fingerprint(discovery)
             ),
             discovery_primary_fallback=False,
             discovery_requests_per_second=DISCOVERY_RPS,
