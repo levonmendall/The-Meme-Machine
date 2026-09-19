@@ -353,37 +353,41 @@ def main():
                                     concentration_bps=concentration),confirmed_at)
                 trajectory=evaluate_rejected_winner_trajectory(
                     pending['initial_vector'],vector)
-                curve,rates=engine.validate_snapshot(final,confirmed_at)
-                amount=engine.store.state['initial']//20
-                tokens,cost,fee=pump.buy(curve,amount,rates)
-                entry_quote=dict(
-                    tokens=tokens,cost_lamports=cost,fee_lamports=fee,
-                    gas_lamports=GAS,basis_lamports=cost+GAS)
                 result.update(
-                    confirmation_complete=True,
+                    confirmation_complete=bool(trajectory.get('complete')),
                     confirmed_at=confirmed_at,
                     confirmation_delay_seconds=confirmed_at-int(pending['initial_at']),
                     confirmation_vector=vector,
                     confirmation_concentration_source=meta.get('source'),
                     trajectory=trajectory,
-                    confirmation_entry_quote=entry_quote,
                 )
-                tracker=new_tracker(
-                    candidate['mint'],confirmed_at,cost+GAS,tokens,
-                    ['rejected_winner_trajectory_confirmed',
-                     ('rejected_winner_trajectory_pass' if trajectory.get('passed')
-                      else 'rejected_winner_trajectory_reject')],
-                    nomination_id=nomination['id'],
-                    metadata=dict(
-                        source=pending['source'],
-                        trajectory_rule_id=REJECTED_WINNER_TRAJECTORY_RULE['id'],
-                        trajectory_pass=bool(trajectory.get('passed')),
-                    ),
-                )
-                if trajectory.get('passed'):
-                    enable_shadow_exit(tracker,opened_time=confirmed_at)
-                result['tracker_index']=len(trackers)
-                add_tracker(tracker)
+                if not trajectory.get('hard_gate_reject'):
+                    # Confirmation entry economics are useful for passed/full-vector
+                    # cohorts, but cannot alter an already-proven frozen hard-gate
+                    # rejection. Do not let an irrelevant quote failure erase it.
+                    curve,rates=engine.validate_snapshot(final,confirmed_at)
+                    amount=engine.store.state['initial']//20
+                    tokens,cost,fee=pump.buy(curve,amount,rates)
+                    entry_quote=dict(
+                        tokens=tokens,cost_lamports=cost,fee_lamports=fee,
+                        gas_lamports=GAS,basis_lamports=cost+GAS)
+                    result['confirmation_entry_quote']=entry_quote
+                    tracker=new_tracker(
+                        candidate['mint'],confirmed_at,cost+GAS,tokens,
+                        ['rejected_winner_trajectory_confirmed',
+                         ('rejected_winner_trajectory_pass' if trajectory.get('passed')
+                          else 'rejected_winner_trajectory_reject')],
+                        nomination_id=nomination['id'],
+                        metadata=dict(
+                            source=pending['source'],
+                            trajectory_rule_id=REJECTED_WINNER_TRAJECTORY_RULE['id'],
+                            trajectory_pass=bool(trajectory.get('passed')),
+                        ),
+                    )
+                    if trajectory.get('passed'):
+                        enable_shadow_exit(tracker,opened_time=confirmed_at)
+                    result['tracker_index']=len(trackers)
+                    add_tracker(tracker)
             except (Unavailable,ValueError,KeyError,TypeError) as exc:
                 result.update(
                     trajectory=dict(complete=False,passed=False,
