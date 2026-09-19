@@ -27,7 +27,7 @@ import time
 
 from . import BoundaryError
 from .ramses_all_pool_lifecycle import (
-    _authenticate_preentry_history,
+    _canonicalize_selected_row,
     _build_segment_replay,
     _position_state,
     _unwind,
@@ -118,21 +118,26 @@ def _pick_forced_row(screens):
 
 def _forced_machinery(endpoint, screen, row, *, db_path):
     pool=row["pool"].lower()
-    decision=deepcopy(row["decision"])
-    decision["forced_machinery_test"]=True
-    decision["strategy_evidence_eligible"]=False
-    verify_proposal_hash(decision["freeze"])
     entry_block=int(screen["finalized_block"])
     entry_at=int(screen["finalized_timestamp"])
-    capital=int(decision["freeze"]["proposals"][0]["capital_employed"])
-    if capital<=0:
-        raise BoundaryError("extended_forced_capital")
 
     rpc=BoundedMultiRpc(
         endpoint,max_sessions=10,batch_size=20,batch_pause=0.5,rate_retries=1
     )
     rpc.verify_chain()
-    auth=_authenticate_preentry_history(rpc,row,screen)
+    canonical_row,auth=_canonicalize_selected_row(
+        rpc,row,screen,costs_by_pool={},signals_by_pool={}
+    )
+    row=canonical_row
+    decision=deepcopy(row["decision"])
+    if not decision.get("freeze") or not decision["freeze"].get("proposals"):
+        raise BoundaryError("extended_forced_canonical_proposal_unavailable")
+    decision["forced_machinery_test"]=True
+    decision["strategy_evidence_eligible"]=False
+    verify_proposal_hash(decision["freeze"])
+    capital=int(decision["freeze"]["proposals"][0]["capital_employed"])
+    if capital<=0:
+        raise BoundaryError("extended_forced_capital")
 
     path=Path(db_path)
     if path.exists():
@@ -338,9 +343,17 @@ def run(
             boundary="no_active_ramses_pool_for_machinery_proof",
         )
     else:
-        result["forced_machinery"]=_forced_machinery(
-            endpoint,screen,row,db_path=str(db_path or DB)
-        )
+        try:
+            result["forced_machinery"]=_forced_machinery(
+                endpoint,screen,row,db_path=str(db_path or DB)
+            )
+        except BoundaryError as exc:
+            result["forced_machinery"]=dict(
+                mechanics_complete=False,
+                boundary=str(exc),
+                paper_only=True,
+                strategy_evidence_eligible=False,
+            )
     result["ended_at"]=time.time()
     return result
 
