@@ -55,6 +55,6 @@ jobs:
           name: pump-acceleration-natural-prospective-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             pump-acceleration-natural-prospective.json
-            pump-acceleration-evidence-broker.sqlite3
+            solana-evidence-broker.sqlite3
           if-no-files-found: warn
           retention-days: 90
