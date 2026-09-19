@@ -138,9 +138,29 @@ def _quote_native_buy(rpc,curve,block,record,state,report):
     )
 
 
-def _authenticate_candidate(rpc,event,report):
-    """Authenticate one current candidate in exactly two HTTP batch transports."""
+def _authenticate_candidate(
+    rpc,event,report,*,evidence_observed_at=None,
+    evidence_observed_monotonic=None,max_evidence_latency_seconds=5,
+):
+    """Authenticate one current candidate in exactly two HTTP batch transports.
+
+    Legacy callers retain chain-timestamp freshness. Selective-continuation callers
+    may supply the instant the log was first observed; for those callers the hard
+    freshness gate measures local evidence-acquisition latency instead of chain clock
+    lag. Chain timestamp lag remains explicit telemetry.
+    """
     started=time.time()
+    started_monotonic=time.monotonic()
+    latency_mode=evidence_observed_monotonic is not None
+    if latency_mode:
+        if evidence_observed_at is None:
+            raise BoundaryError("missing_evidence_observation_wall_time")
+        if float(evidence_observed_monotonic)>started_monotonic:
+            raise BoundaryError("future_evidence_observation")
+        if not 0<float(max_evidence_latency_seconds)<=10:
+            raise BoundaryError("invalid_evidence_latency_limit")
+        if started_monotonic-float(evidence_observed_monotonic)>float(max_evidence_latency_seconds):
+            raise BoundaryError("stale_evidence_acquisition")
     block=int(event["blockNumber"],16)
     block_hex=hex(block)
     curve=event["address"].lower()
@@ -177,7 +197,11 @@ def _authenticate_candidate(rpc,event,report):
 
     observed=int(time.time())
     event_at=int(header["timestamp"],16)
-    if observed-event_at>5:
+    if latency_mode:
+        first_batch_latency=time.monotonic()-float(evidence_observed_monotonic)
+        if first_batch_latency<0 or first_batch_latency>float(max_evidence_latency_seconds):
+            raise BoundaryError("stale_evidence_acquisition")
+    elif observed-event_at>5:
         raise BoundaryError("stale_state")
     decoded=raw_event(
         curve_abi(),event,address=curve,receipt=receipt,header=header,
@@ -227,11 +251,20 @@ def _authenticate_candidate(rpc,event,report):
         raise BoundaryError("sample_invalid_gas_price")
 
     quote_at=int(time.time())
+    quote_monotonic=time.monotonic()
     stamp=Stamp(
         CHAIN_ID,block,header["hash"],event_at,observed,"confirmed","natural",
     )
-    if quote_at-event_at>5:
-        raise BoundaryError("stale_state")
+    if latency_mode:
+        evidence_latency=quote_monotonic-float(evidence_observed_monotonic)
+        if evidence_latency<0 or evidence_latency>float(max_evidence_latency_seconds):
+            raise BoundaryError("stale_evidence_acquisition")
+        chain_lag=float(evidence_observed_at)-float(event_at)
+    else:
+        evidence_latency=float(quote_at-event_at)
+        chain_lag=float(observed-event_at)
+        if quote_at-event_at>5:
+            raise BoundaryError("stale_state")
     report.setdefault("reads",[]).extend([
         dict(kind="candidate_batch",round=1,block=block,
              methods=[method for method,_ in first_calls],observed_at=observed),
@@ -242,7 +275,13 @@ def _authenticate_candidate(rpc,event,report):
         curve=curve,token=token,block=block,header=header,receipt=receipt,
         source_event=event,decoded_event=decoded,record=record,auth=auth,
         state=state,quote=quote,stamp=stamp,quote_at=quote_at,
-        freshness_seconds=quote_at-event_at,current_snipe_bps=current_snipe,
+        freshness_seconds=evidence_latency,
+        evidence_observed_at=(
+            float(evidence_observed_at) if latency_mode else None
+        ),
+        evidence_acquisition_latency_seconds=evidence_latency,
+        chain_timestamp_lag_seconds=chain_lag,
+        current_snipe_bps=current_snipe,
         roundtrip_gas_wei=2*gas_units*gas_price,
         gas_meta=dict(units_per_side=gas_units,gas_price=gas_price),
         auth_latency_ms=round((time.time()-started)*1000,2),
