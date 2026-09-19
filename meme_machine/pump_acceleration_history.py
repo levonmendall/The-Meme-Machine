@@ -46,6 +46,8 @@ class IncrementalPumpSwapHistory:
         self.decision_bootstrap_pages=0
         self.decision_bootstrap_complete=False
         self.decision_bootstrap_capacity_loss=False
+        self.decision_bootstrap_before=None
+        self.decision_bootstrap_oldest_time=None
         self.restored_signature_rows=0
         if self.broker is not None:
             restored=self.broker.signature_rows(
@@ -209,46 +211,83 @@ class IncrementalPumpSwapHistory:
         return bool(status.get("covered") and self.stream_pending_transactions==0)
 
     def _bootstrap_decision_window(self,rpc,now,window_seconds=30):
-        """Bounded HTTP bootstrap while a candidate-specific pool stream warms."""
+        """Fill only the pre-stream gap in the current decision window.
+
+        The candidate-specific finalized stream remains primary.  HTTP bootstrap
+        starts immediately behind the oldest already-known current-window row and
+        continues from its prior cursor on later refreshes.  It never restarts
+        from the newest history page merely because the stream is still warming.
+        """
         if self.broker is None or self._stream_window_complete(now,window_seconds):
             self.decision_bootstrap_complete=True
             return
         if self.decision_bootstrap_complete or self.decision_bootstrap_capacity_loss:
             return
         if self.decision_bootstrap_attempts>=3:
+            self.decision_bootstrap_capacity_loss=True
             return
 
         self.decision_bootstrap_attempts+=1
         cutoff=int(now)-int(window_seconds)
-        before=None
         page_limit=min(96,self.page_limit)
-        pages=0
-        reached=False
+
+        before=self.decision_bootstrap_before
+        if before is None:
+            current=[
+                row for row in self.signature_rows.values()
+                if row.get("blockTime") is not None
+                and cutoff<int(row["blockTime"])<=int(now)
+            ]
+            if current:
+                oldest=min(
+                    current,
+                    key=lambda row:(
+                        int(row["blockTime"]),int(row.get("slot") or -1),
+                        str(row["signature"]),
+                    ),
+                )
+                before=str(oldest["signature"])
+                self.decision_bootstrap_oldest_time=int(oldest["blockTime"])
+
+        pages=0;reached=False
         for _ in range(max(1,self.max_backfill_pages+1)):
-            rows=self._fetch(rpc,before=before,limit=page_limit)
+            rows=self._fetch(
+                rpc,before=before,limit=page_limit)
             pages+=1
             self._remember(rows)
             if not rows:
                 self.history_exhausted=True
                 reached=True
                 break
-            times=[
+            known_times=[
                 int(row["blockTime"]) for row in rows
                 if row.get("blockTime") is not None
             ]
-            if times and min(times)<=cutoff:
+            if known_times:
+                self.decision_bootstrap_oldest_time=(
+                    min(known_times)
+                    if self.decision_bootstrap_oldest_time is None
+                    else min(self.decision_bootstrap_oldest_time,min(known_times))
+                )
+            before=str(rows[-1]["signature"])
+            self.decision_bootstrap_before=before
+            if known_times and min(known_times)<=cutoff:
                 reached=True
                 break
             if len(rows)<page_limit:
                 self.history_exhausted=True
                 reached=True
                 break
-            before=rows[-1]["signature"]
+
         self.decision_bootstrap_pages+=pages
         if reached:
             self.decision_bootstrap_complete=True
-        elif pages>=max(1,self.max_backfill_pages+1):
+            self.decision_bootstrap_capacity_loss=False
+        elif self.decision_bootstrap_attempts>=3:
+            # Three bounded continuation bursts could not authenticate the
+            # 30-second lower boundary.  Fail closed without widening the window.
             self.decision_bootstrap_capacity_loss=True
+
 
     def _decode_pending(self,rpc,now,kind="research_history"):
         cutoff=int(now)-30
@@ -423,6 +462,8 @@ class IncrementalPumpSwapHistory:
             decision_bootstrap_pages=self.decision_bootstrap_pages,
             decision_bootstrap_complete=self.decision_bootstrap_complete,
             decision_bootstrap_capacity_loss=self.decision_bootstrap_capacity_loss,
+            decision_bootstrap_before=self.decision_bootstrap_before,
+            decision_bootstrap_oldest_time=self.decision_bootstrap_oldest_time,
             restored_signature_rows=self.restored_signature_rows,
             persisted_signature_rows=(
                 0 if self.broker is None else len(

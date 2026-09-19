@@ -95,6 +95,83 @@ class IncrementalHistoryTests(unittest.TestCase):
             self.assertEqual(history.refresh(rpc,106),[])
             self.assertEqual(len(rpc.signature_calls),1)
 
+    def test_decision_bootstrap_continues_behind_streamed_prefix_across_attempts(self):
+        class B:
+            def signature_rows(self,*_args,**_kwargs): return []
+            def remember_signatures(self,*_args,**_kwargs): return None
+            def stream_status(self,*_args,**_kwargs): return {"covered":False}
+        class R:
+            def __init__(self): self.befores=[]
+            def call(self,method,params,priority=False):
+                self.befores.append(params[1].get("before"))
+                pages={
+                    "live":[
+                        {"signature":"p1a","blockTime":198,"slot":198,"err":None},
+                        {"signature":"p1b","blockTime":197,"slot":197,"err":None},
+                    ],
+                    "p1b":[
+                        {"signature":"p2a","blockTime":190,"slot":190,"err":None},
+                        {"signature":"p2b","blockTime":180,"slot":180,"err":None},
+                    ],
+                    "p2b":[
+                        {"signature":"p3a","blockTime":169,"slot":169,"err":None},
+                        {"signature":"p3b","blockTime":168,"slot":168,"err":None},
+                    ],
+                }
+                return pages[params[1].get("before")]
+        h=IncrementalPumpSwapHistory(
+            "pool",100,page_limit=2,max_backfill_pages=0,
+            broker=B(),stream_key="pool:gap")
+        h.signature_rows={
+            "live":{"signature":"live","blockTime":200,"slot":200,"err":None},
+        }
+        rpc=R()
+        h._bootstrap_decision_window(rpc,200,30)
+        self.assertFalse(h.decision_bootstrap_complete)
+        self.assertFalse(h.decision_bootstrap_capacity_loss)
+        self.assertEqual(h.decision_bootstrap_before,"p1b")
+        h._bootstrap_decision_window(rpc,200,30)
+        self.assertFalse(h.decision_bootstrap_complete)
+        self.assertFalse(h.decision_bootstrap_capacity_loss)
+        self.assertEqual(h.decision_bootstrap_before,"p2b")
+        h._bootstrap_decision_window(rpc,200,30)
+        self.assertTrue(h.decision_bootstrap_complete)
+        self.assertFalse(h.decision_bootstrap_capacity_loss)
+        self.assertEqual(rpc.befores,["live","p1b","p2b"])
+
+    def test_decision_bootstrap_capacity_loss_only_after_final_continuation(self):
+        class B:
+            def signature_rows(self,*_args,**_kwargs): return []
+            def remember_signatures(self,*_args,**_kwargs): return None
+            def stream_status(self,*_args,**_kwargs): return {"covered":False}
+        class R:
+            def __init__(self): self.n=0;self.befores=[]
+            def call(self,method,params,priority=False):
+                self.befores.append(params[1].get("before"))
+                self.n+=1
+                newest=200-self.n*2
+                return [
+                    {"signature":f"a{self.n}","blockTime":newest,
+                     "slot":newest,"err":None},
+                    {"signature":f"b{self.n}","blockTime":newest-1,
+                     "slot":newest-1,"err":None},
+                ]
+        h=IncrementalPumpSwapHistory(
+            "pool",100,page_limit=2,max_backfill_pages=0,
+            broker=B(),stream_key="pool:bounded")
+        h.signature_rows={
+            "live":{"signature":"live","blockTime":200,"slot":200,"err":None},
+        }
+        rpc=R()
+        h._bootstrap_decision_window(rpc,200,30)
+        self.assertFalse(h.decision_bootstrap_capacity_loss)
+        h._bootstrap_decision_window(rpc,200,30)
+        self.assertFalse(h.decision_bootstrap_capacity_loss)
+        h._bootstrap_decision_window(rpc,200,30)
+        self.assertTrue(h.decision_bootstrap_capacity_loss)
+        self.assertEqual(rpc.befores[0],"live")
+        self.assertEqual(len(set(rpc.befores)),3)
+
     def test_restart_restores_signature_ledger_and_reuses_cached_bodies(self):
         with tempfile.TemporaryDirectory() as td:
             broker=EvidenceBroker(os.path.join(td,"broker.sqlite3"))
