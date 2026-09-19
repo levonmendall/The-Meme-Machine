@@ -97,6 +97,7 @@ class EvidenceBroker:
                     deadline REAL NOT NULL,
                     payload TEXT NOT NULL,
                     status TEXT NOT NULL DEFAULT 'pending',
+                    lease_until REAL,
                     created_at REAL NOT NULL,
                     updated_at REAL NOT NULL
                 );
@@ -136,6 +137,11 @@ class EvidenceBroker:
                 );
                 """
             )
+            columns={
+                row[1] for row in self.db.execute("PRAGMA table_info(jobs)").fetchall()
+            }
+            if "lease_until" not in columns:
+                self.db.execute("ALTER TABLE jobs ADD COLUMN lease_until REAL")
             self.db.execute(
                 """INSERT OR IGNORE INTO pressure
                    (name,batch_size,cooldown_until,rate_events,success_streak,reductions,recoveries)
@@ -371,12 +377,27 @@ class EvidenceBroker:
         )
         with self.lock, self.db:
             self.db.execute(
-                """INSERT INTO jobs(job_key,kind,priority,deadline,payload,status,created_at,updated_at)
-                   VALUES(?,?,?,?,?,'pending',?,?)
+                """INSERT INTO jobs(
+                       job_key,kind,priority,deadline,payload,status,lease_until,
+                       created_at,updated_at)
+                   VALUES(?,?,?,?,?,'pending',NULL,?,?)
                    ON CONFLICT(job_key) DO UPDATE SET
                      priority=MIN(priority,excluded.priority),
                      deadline=MIN(deadline,excluded.deadline),
-                     status=CASE WHEN jobs.status='complete' THEN 'complete' ELSE 'pending' END,
+                     status=CASE
+                       WHEN jobs.status='complete' THEN 'complete'
+                       WHEN jobs.status='inflight'
+                         AND COALESCE(jobs.lease_until,0)>excluded.created_at
+                         THEN 'inflight'
+                       ELSE 'pending'
+                     END,
+                     lease_until=CASE
+                       WHEN jobs.status='complete' THEN jobs.lease_until
+                       WHEN jobs.status='inflight'
+                         AND COALESCE(jobs.lease_until,0)>excluded.created_at
+                         THEN jobs.lease_until
+                       ELSE NULL
+                     END,
                      updated_at=excluded.updated_at""",
                 (
                     f"tx:{signature}",
@@ -387,6 +408,79 @@ class EvidenceBroker:
                     now,
                     now,
                 ),
+            )
+
+    def _claim_jobs(self, limit, now=None, lease_seconds=15.0):
+        """Atomically claim global hydration jobs across broker processes."""
+        limit=max(1,int(limit))
+        now=float(self.clock() if now is None else now)
+        lease_until=now+max(1.0,float(lease_seconds))
+        with self.lock:
+            try:
+                self.db.execute("BEGIN IMMEDIATE")
+                self.db.execute(
+                    """UPDATE jobs SET status='expired',lease_until=NULL,updated_at=?
+                       WHERE status IN ('pending','inflight') AND deadline<?""",
+                    (now,now),
+                )
+                self.db.execute(
+                    """UPDATE jobs SET status='pending',lease_until=NULL,updated_at=?
+                       WHERE status='inflight'
+                         AND COALESCE(lease_until,0)<=?
+                         AND deadline>=?""",
+                    (now,now,now),
+                )
+                rows=self.db.execute(
+                    """SELECT job_key,payload FROM jobs
+                       WHERE status='pending' AND deadline>=?
+                       ORDER BY priority ASC,deadline ASC,created_at ASC LIMIT ?""",
+                    (now,limit),
+                ).fetchall()
+                if rows:
+                    self.db.executemany(
+                        """UPDATE jobs SET status='inflight',lease_until=?,updated_at=?
+                           WHERE job_key=? AND status='pending'""",
+                        [(lease_until,now,row[0]) for row in rows],
+                    )
+                    keys=[row[0] for row in rows]
+                    placeholders=",".join("?" for _ in keys)
+                    claimed={
+                        row[0] for row in self.db.execute(
+                            f"""SELECT job_key FROM jobs
+                                WHERE status='inflight'
+                                  AND job_key IN ({placeholders})""",
+                            tuple(keys),
+                        ).fetchall()
+                    }
+                    rows=[row for row in rows if row[0] in claimed]
+                self.db.commit()
+                return rows
+            except Exception:
+                self.db.rollback()
+                raise
+
+    def _release_jobs(self, keys):
+        keys=[str(key) for key in keys]
+        if not keys:
+            return
+        now=float(self.clock())
+        with self.lock,self.db:
+            self.db.executemany(
+                """UPDATE jobs SET status='pending',lease_until=NULL,updated_at=?
+                   WHERE job_key=? AND status='inflight'""",
+                [(now,key) for key in keys],
+            )
+
+    def _complete_jobs(self, keys):
+        keys=[str(key) for key in keys]
+        if not keys:
+            return
+        now=float(self.clock())
+        with self.lock,self.db:
+            self.db.executemany(
+                """UPDATE jobs SET status='complete',lease_until=NULL,updated_at=?
+                   WHERE job_key=?""",
+                [(now,key) for key in keys],
             )
 
     def hydrate_transactions(
@@ -415,13 +509,10 @@ class EvidenceBroker:
                 if float(self.clock()) + wait >= deadline:
                     break
                 self.sleep(wait)
-            with self.lock:
-                jobs = self.db.execute(
-                    """SELECT job_key,payload FROM jobs
-                       WHERE status='pending' AND deadline>=?
-                       ORDER BY priority ASC,deadline ASC,created_at ASC LIMIT ?""",
-                    (float(self.clock()), max(1, min(int(batch_size), p["batch_size"]))),
-                ).fetchall()
+            jobs=self._claim_jobs(
+                max(1,min(int(batch_size),p["batch_size"])),
+                float(self.clock()),
+            )
             if not jobs:
                 break
             payloads = [json.loads(row[1]) for row in jobs]
@@ -443,6 +534,7 @@ class EvidenceBroker:
                     batch_size=max(1, min(len(params), p["batch_size"], int(batch_size))),
                 )
             except Unavailable:
+                self._release_jobs([row[0] for row in jobs])
                 self._note_pressure_failure()
                 break
             completed = []
@@ -451,13 +543,12 @@ class EvidenceBroker:
                     self.put_transaction(row["signature"], tx)
                     completed.append(job[0])
             if completed:
-                now = float(self.clock())
-                with self.lock, self.db:
-                    self.db.executemany(
-                        "UPDATE jobs SET status='complete',updated_at=? WHERE job_key=?",
-                        [(now, key) for key in completed],
-                    )
+                self._complete_jobs(completed)
                 self._note_pressure_success()
+            completed_set=set(completed)
+            incomplete=[row[0] for row in jobs if row[0] not in completed_set]
+            if incomplete:
+                self._release_jobs(incomplete)
             if not completed:
                 break
 
@@ -604,11 +695,19 @@ class EvidenceBroker:
             pending = self.db.execute(
                 "SELECT COUNT(*) FROM jobs WHERE status='pending'"
             ).fetchone()[0]
+            inflight = self.db.execute(
+                "SELECT COUNT(*) FROM jobs WHERE status='inflight'"
+            ).fetchone()[0]
+            expired = self.db.execute(
+                "SELECT COUNT(*) FROM jobs WHERE status='expired'"
+            ).fetchone()[0]
             events = self.db.execute("SELECT COUNT(*) FROM stream_events").fetchone()[0]
             signatures = self.db.execute("SELECT COUNT(*) FROM signatures").fetchone()[0]
         return dict(
             transaction_cache_entries=int(tx_count),
             pending_jobs=int(pending),
+            inflight_jobs=int(inflight),
+            expired_jobs=int(expired),
             stream_events=int(events),
             signature_rows=int(signatures),
             pressure=self._pressure(),
@@ -744,3 +843,138 @@ class ProgramAccountWakeStream(_BaseStream):
             slot=int(result["context"]["slot"]),
             observed_at=int(self.clock()),
         )
+
+
+class DynamicAddressLogStream:
+    """One finalized WebSocket connection with dynamic per-address log subscriptions.
+
+    Solana logsSubscribe accepts one mentions pubkey per subscription. This class
+    multiplexes many candidate pool subscriptions over one connection so a PumpSwap
+    candidate wakes only on transactions that actually mention that pool.
+    """
+
+    def __init__(
+        self, ws_url, broker, stream_prefix, *, coverage_seconds=30, clock=time.time
+    ):
+        self.ws_url=str(ws_url)
+        self.broker=broker
+        self.stream_prefix=str(stream_prefix)
+        self.coverage_seconds=int(coverage_seconds)
+        self.clock=clock
+        self.lock=threading.RLock()
+        self.addresses=set()
+        self.connections=0
+        self.reconnects=0
+        self.last_error_kind=None
+        self.active_subscriptions=0
+
+    def stream_key(self,address):
+        return self.stream_prefix+":"+str(address)
+
+    def add_address(self,address):
+        address=str(address or "").strip()
+        if not address:
+            raise ValueError("dynamic_log_address_required")
+        with self.lock:
+            self.addresses.add(address)
+        return self.stream_key(address)
+
+    def wanted_addresses(self):
+        with self.lock:
+            return sorted(self.addresses)
+
+    def status(self):
+        return dict(
+            connections=int(self.connections),
+            reconnects=int(self.reconnects),
+            wanted_addresses=len(self.wanted_addresses()),
+            active_subscriptions=int(self.active_subscriptions),
+            last_error_kind=self.last_error_kind,
+        )
+
+    def run(self,stop_event,ready_event=None):
+        ever_ready=False
+        while not stop_event.is_set():
+            active_addresses=[]
+            try:
+                with connect(
+                    self.ws_url,open_timeout=10,ping_interval=20,ping_timeout=20,
+                    close_timeout=5,max_size=2_000_000,max_queue=256,
+                ) as websocket:
+                    pending={}
+                    by_address={}
+                    by_subscription={}
+                    next_id=1
+                    if ever_ready:
+                        self.reconnects+=1
+                    ever_ready=True
+                    self.connections+=1
+                    self.last_error_kind=None
+                    if ready_event is not None and not ready_event.is_set():
+                        ready_event.set()
+
+                    while not stop_event.is_set():
+                        wanted=self.wanted_addresses()
+                        known=set(by_address)|set(pending.values())
+                        for address in [a for a in wanted if a not in known][:16]:
+                            request_id=next_id;next_id+=1
+                            websocket.send(json.dumps({
+                                "jsonrpc":"2.0","id":request_id,
+                                "method":"logsSubscribe",
+                                "params":[
+                                    {"mentions":[address]},
+                                    {"commitment":"finalized"},
+                                ],
+                            }))
+                            pending[request_id]=address
+
+                        try:
+                            message=websocket.recv(timeout=0.25)
+                        except TimeoutError:
+                            continue
+                        payload=json.loads(message)
+                        if "id" in payload:
+                            request_id=payload.get("id")
+                            address=pending.pop(request_id,None)
+                            if address is None:
+                                continue
+                            if payload.get("error") or not isinstance(payload.get("result"),int):
+                                raise RuntimeError("address_log_subscription_rejected")
+                            subscription=int(payload["result"])
+                            by_address[address]=subscription
+                            by_subscription[subscription]=address
+                            active_addresses=list(by_address)
+                            self.active_subscriptions=len(by_address)
+                            self.broker.stream_begin(
+                                self.stream_key(address),int(self.clock()))
+                            continue
+                        if payload.get("method")!="logsNotification":
+                            continue
+                        params=payload.get("params") or {}
+                        address=by_subscription.get(params.get("subscription"))
+                        if address is None:
+                            raise RuntimeError("address_log_unknown_subscription")
+                        result=params["result"];value=result["value"]
+                        if value.get("err"):
+                            continue
+                        self.broker.record_event(
+                            self.stream_key(address),
+                            signature=value["signature"],
+                            address=address,
+                            slot=int(result["context"]["slot"]),
+                            observed_at=int(self.clock()),
+                        )
+            except Exception as exc:
+                if stop_event.is_set():
+                    break
+                self.last_error_kind=type(exc).__name__
+                affected=set(active_addresses)|set(self.wanted_addresses())
+                for address in affected:
+                    self.broker.stream_gap(
+                        self.stream_key(address),int(self.clock()),
+                        self.coverage_seconds)
+                self.active_subscriptions=0
+                stop_event.wait(1.0)
+        for address in self.wanted_addresses():
+            self.broker.stream_stop(self.stream_key(address))
+        self.active_subscriptions=0
