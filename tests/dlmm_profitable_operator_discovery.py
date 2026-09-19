@@ -445,49 +445,83 @@ def _history(position):
 
 
 def _capital_timeline(positions,histories):
-    """Event-time contributed-capital timeline across overlapping positions.
+    """Exact contributed-capital exposure for simple closed-position histories.
 
-    The Meteora historical API gives exact add/remove/claim events and event-time USD
-    values. We maintain contributed capital per position. Removes retire contributed
-    basis but never create negative risk capital; a terminal close retires any residual
-    basis. This avoids cumulative-deposit double counting while staying explicit that
-    the metric is contributed-capital exposure, not continuously marked-to-market TVL.
+    Adds increase contributed capital by the API's event-time USD contribution. For a
+    closed position, only its final remove may retire the remaining contributed basis.
+    Any earlier/partial remove is unresolved here and fails closed; the authenticated
+    transaction-level deep stage may later resolve its exact range/share effect.
     """
     events=[]
-    close_by_position={p.get("position"):p.get("closed_at") for p in positions}
-    for position,rows in histories.items():
-        for e in rows:
-            if e.get("event_type") in ("add","remove"):
-                events.append((int(e.get("block_time") or 0),
-                               int(e.get("slot") or 0),
-                               int(e.get("ix_index") or 0),position,e))
-        closed=close_by_position.get(position)
-        if isinstance(closed,int):
-            events.append((closed,2**63-1,2**31-1,position,{"event_type":"terminal"}))
+    failures=[]
+    for p in positions:
+        position=p.get("position")
+        rows=list(histories.get(position) or [])
+        rows.sort(key=lambda e:(int(e.get("block_time") or 0),
+                                int(e.get("slot") or 0),
+                                int(e.get("ix_index") or 0)))
+        flow=[e for e in rows if e.get("event_type") in ("add","remove")]
+        removes=[i for i,e in enumerate(flow) if e.get("event_type")=="remove"]
+        if not flow or not removes:
+            failures.append(dict(position=position,reason="missing_add_or_terminal_remove"))
+            continue
+        final_remove_index=removes[-1]
+        if final_remove_index!=len(flow)-1:
+            failures.append(dict(position=position,reason="add_after_final_remove"))
+            continue
+        if len(removes)>1:
+            failures.append(dict(position=position,reason="partial_remove_requires_onchain_reconstruction"))
+            continue
+        for i,e in enumerate(flow):
+            ts=e.get("block_time")
+            if not isinstance(ts,int) or ts<=0:
+                failures.append(dict(position=position,reason="missing_event_time"))
+                break
+            events.append((
+                ts,int(e.get("slot") or 0),int(e.get("ix_index") or 0),
+                position,"add" if e.get("event_type")=="add" else "terminal_remove",
+                max(0.0,float(e.get("total_usd") or 0.0)),
+            ))
+    if failures:
+        return dict(
+            exact=False,capital_hours_usd=None,
+            peak_concurrent_contributed_capital_usd=None,
+            exposure_segments=[],
+            residual_contributed_capital_usd=None,
+            unresolved_positions=failures,
+            methodology="exact_event_time_contributed_capital_simple_histories",
+        )
+
     events.sort()
-    basis=defaultdict(float);total=0.0;capital_seconds=0.0;last=None;segments=[]
-    for ts,_slot,_ix,position,e in events:
-        if ts<=0: continue
+    basis=defaultdict(float);total=0.0;capital_seconds=0.0;last=None
+    segments=[];peak=0.0
+    for ts,_slot,_ix,position,kind,amount in events:
         if last is not None and ts>last and total>0:
             capital_seconds+=total*(ts-last)
             segments.append(dict(start=last,end=ts,capital_usd=total))
-        kind=e["event_type"]
         if kind=="add":
-            amount=max(0.0,float(e["total_usd"]))
             basis[position]+=amount;total+=amount
-        elif kind=="remove":
-            amount=min(basis[position],max(0.0,float(e["total_usd"])))
-            basis[position]-=amount;total-=amount
-        elif kind=="terminal":
+        else:
             amount=basis.pop(position,0.0);total-=amount
-        total=max(0.0,total);last=ts
+        total=max(0.0,total);peak=max(peak,total);last=ts
+    residual=sum(basis.values())
+    if residual>1e-9:
+        return dict(
+            exact=False,capital_hours_usd=None,
+            peak_concurrent_contributed_capital_usd=None,
+            exposure_segments=segments,
+            residual_contributed_capital_usd=residual,
+            unresolved_positions=[dict(reason="residual_capital_after_closed_history")],
+            methodology="exact_event_time_contributed_capital_simple_histories",
+        )
     return dict(
+        exact=True,
         capital_hours_usd=capital_seconds/3600.0,
-        peak_concurrent_contributed_capital_usd=max(
-            [x["capital_usd"] for x in segments] or [0.0]),
+        peak_concurrent_contributed_capital_usd=peak,
         exposure_segments=segments,
-        residual_contributed_capital_usd=sum(basis.values()),
-        methodology="event_time_contributed_capital_basis_not_continuous_mark_to_market",
+        residual_contributed_capital_usd=0.0,
+        unresolved_positions=[],
+        methodology="exact_event_time_contributed_capital_simple_histories",
     )
 
 
@@ -504,7 +538,7 @@ def _wallet_rank_row(wallet):
         address=p.get("position")
         if address: histories[address]=_history(address)
     capital=_capital_timeline(positions,histories)
-    ch=capital["capital_hours_usd"]
+    ch=capital["capital_hours_usd"] if capital.get("exact") else None
     # Network execution costs are filled during deep on-chain reconstruction; primary
     # rank is fail-closed for after-cost capital efficiency until that stage completes.
     return dict(
@@ -513,8 +547,9 @@ def _wallet_rank_row(wallet):
         distinct_pools=len({p["pool"] for p in positions}),
         api_realized_pnl_usd=pnl,fee_income_usd=fees,
         inventory_token_price_pnl_usd=pnl-fees,
+        capital_at_risk_exact=bool(capital.get("exact")),
         capital_hours_usd=ch,
-        gross_pnl_per_capital_hour=(None if ch<=0 else pnl/ch),
+        gross_pnl_per_capital_hour=(None if ch is None or ch<=0 else pnl/ch),
         **path,capital_timeline=capital,
         positions=positions,histories=histories,
     )
