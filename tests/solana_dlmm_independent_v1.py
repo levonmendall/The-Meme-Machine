@@ -493,27 +493,28 @@ def _fresh_supported_start(adapter,candidate):
 
 
 
-def _complete_signature_census(rpc,pool,start_slot,end_slot):
-    """Prove finalized coverage from the authenticated endpoint back to start.
+def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
+    """Prove finalized signature coverage with an incremental per-pool ledger.
 
-    Pages newer than end_slot are scheduling noise. Every successful transaction in
-    (start_slot,end_slot] is retained. The unchanged MAX_TRANSACTIONS bound applies to
-    that exact interval. One finalized row at or before start_slot is retained as the
-    lower-bound witness passed into reconstruct().
+    The first interval performs the bounded boundary proof. Later intervals fetch
+    only signatures newer than the durable head, while the cached lower-bound
+    witness preserves exact interval completeness. This never weakens the unchanged
+    MAX_TRANSACTIONS bound.
     """
-    collected=[];seen=set();before=None;boundary=None
+    scope="dlmm_interval"
     pages=0;rows_scanned=0
-    for page_index in range(MAX_SIGNATURE_CENSUS_PAGES):
+
+    def fetch_page(*,before=None,until=None):
+        nonlocal pages,rows_scanned
         params=dict(limit=SIGNATURE_PAGE_LIMIT,commitment="finalized")
         if before is not None:
             params["before"]=before
-        page=rpc.call(
-            "getSignaturesForAddress",[pool,params],True)
+        if until is not None:
+            params["until"]=until
+        page=rpc.call("getSignaturesForAddress",[pool,params],True)
         pages+=1
         if not isinstance(page,list) or len(page)>SIGNATURE_PAGE_LIMIT:
             raise Unavailable("solana_dlmm_signature_shape")
-        if not page:
-            break
         for row in page:
             if not isinstance(row,dict):
                 raise Unavailable("solana_dlmm_signature_shape")
@@ -524,22 +525,83 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot):
                 raise Unavailable("solana_dlmm_signature_shape")
             if row.get("confirmationStatus")!="finalized":
                 raise Unavailable("solana_dlmm_signature_not_finalized")
-            if signature in seen:
-                raise Unavailable("solana_dlmm_signature_census_duplicate")
-            seen.add(signature);collected.append(row);rows_scanned+=1
-            if slot<=start_slot and boundary is None:
-                boundary=row
-        relevant=[
-            row for row in collected
-            if start_slot<row["slot"]<=end_slot and not row.get("err")
-        ]
-        if len(relevant)>MAX_TRANSACTIONS:
-            raise Unavailable("solana_dlmm_transaction_pressure_overflow")
-        if boundary is not None:
-            break
-        if len(page)<SIGNATURE_PAGE_LIMIT:
-            break
-        before=page[-1]["signature"]
+        rows_scanned+=len(page)
+        return page
+
+    if broker is None:
+        collected=[];seen=set();before=None;boundary=None
+        for _ in range(MAX_SIGNATURE_CENSUS_PAGES):
+            page=fetch_page(before=before)
+            if not page:
+                break
+            for row in page:
+                signature=row["signature"]
+                if signature in seen:
+                    raise Unavailable("solana_dlmm_signature_census_duplicate")
+                seen.add(signature);collected.append(row)
+                if row["slot"]<=start_slot and boundary is None:
+                    boundary=row
+            relevant=[
+                row for row in collected
+                if start_slot<row["slot"]<=end_slot and not row.get("err")
+            ]
+            if len(relevant)>MAX_TRANSACTIONS:
+                raise Unavailable("solana_dlmm_transaction_pressure_overflow")
+            if boundary is not None:
+                break
+            if len(page)<SIGNATURE_PAGE_LIMIT:
+                break
+            before=page[-1]["signature"]
+    else:
+        coverage=broker.signature_coverage(scope,pool)
+        old_head=coverage.get("newest_signature")
+        old_oldest=coverage.get("oldest_slot")
+
+        # Extend the head only once per interval. The "until" cursor avoids
+        # re-reading the already authenticated prefix.
+        if int(coverage.get("covered_through_slot") or 0)<int(end_slot):
+            before=None
+            for _ in range(MAX_SIGNATURE_CENSUS_PAGES):
+                page=fetch_page(before=before,until=old_head)
+                if page:
+                    broker.remember_signatures(scope,pool,page)
+                if not page or len(page)<SIGNATURE_PAGE_LIMIT:
+                    break
+                before=page[-1]["signature"]
+
+        coverage=broker.signature_coverage(scope,pool)
+        # Establish or extend the lower-bound witness only when needed.
+        oldest=coverage.get("oldest_slot")
+        if oldest is None or int(oldest)>int(start_slot):
+            before=None
+            rows=broker.signature_rows(scope,pool)
+            if rows:
+                oldest_row=min(rows,key=lambda row:(row["slot"],row["signature"]))
+                before=oldest_row["signature"]
+            for _ in range(MAX_SIGNATURE_CENSUS_PAGES):
+                page=fetch_page(before=before)
+                if page:
+                    broker.remember_signatures(scope,pool,page)
+                if not page:
+                    break
+                if any(int(row["slot"])<=int(start_slot) for row in page):
+                    break
+                if len(page)<SIGNATURE_PAGE_LIMIT:
+                    break
+                before=page[-1]["signature"]
+
+        # A successful finalized query proves the ledger current through this
+        # authenticated interval end even when no new pool transaction occurred.
+        broker.remember_signatures(
+            scope,pool,[],covered_through_slot=int(end_slot))
+        collected=broker.signature_rows(scope,pool,end_slot=end_slot)
+        boundary_rows=[
+            row for row in collected if int(row["slot"])<=int(start_slot)]
+        boundary=(
+            max(boundary_rows,key=lambda row:(row["slot"],row["signature"]))
+            if boundary_rows else None
+        )
+
     if boundary is None:
         raise Unavailable("solana_dlmm_signature_census_missing_start_boundary")
     relevant=[
@@ -549,9 +611,6 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot):
     if len(relevant)>MAX_TRANSACTIONS:
         raise Unavailable("solana_dlmm_transaction_pressure_overflow")
     witness=dict(boundary)
-    # reconstruct() requires transactionIndex on every supplied row. A boundary
-    # witness is outside the replay interval, so any nonnegative sentinel preserves
-    # ordering without asserting an in-block execution position.
     if type(witness.get("transactionIndex")) is not int:
         witness["transactionIndex"]=0
     selected=[]
@@ -567,8 +626,12 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot):
         pages=pages,rows_scanned=rows_scanned,
         relevant_successful=len(relevant),
         start_boundary_slot=boundary["slot"],
+        cache_enabled=broker is not None,
+        cached_prefix_reused=bool(
+            broker is not None and old_head is not None),
+        prior_oldest_slot=(
+            None if broker is None else old_oldest),
     )
-
 
 def _capture_chunk(adapter,start,cursor,wait_seconds):
     if wait_seconds<=0:
