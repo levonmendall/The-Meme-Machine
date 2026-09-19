@@ -58,11 +58,30 @@ def _poll(endpoint,rpc,cursor,tape,feed,sessions):
         return rpc,cursor,[]
     first=cursor+1;fresh=[]
     if latest>=first:
-        fresh=_current_curve_events(rpc,first,latest)
+        observed_end=latest
+        try:
+            fresh=_current_curve_events(rpc,first,observed_end)
+        except BoundaryError as exc:
+            if str(exc)!="provider_rpc_-32602":
+                raise
+            # Robinhood's sequencer can announce L2 blocks slightly ahead of the
+            # authenticated RPC frontier. Do not reinterpret the error or advance
+            # the cursor. Confirm the provider frontier and consume only blocks the
+            # evidence provider can already serve.
+            frontier=int(
+                rpc.call("eth_blockNumber",[],scope="pons_selective_frontier"),16
+            )
+            if frontier<first:
+                return rpc,cursor,[]
+            if frontier>=observed_end:
+                # -32602 was not caused by sequencer/provider frontier skew.
+                raise
+            observed_end=min(observed_end,frontier)
+            fresh=_current_curve_events(rpc,first,observed_end)
         tape.extend(fresh)
         if len(tape)>MAX_TAPE_EVENTS:
             del tape[:-MAX_TAPE_EVENTS]
-        cursor=latest
+        cursor=observed_end
     return rpc,cursor,fresh
 
 
