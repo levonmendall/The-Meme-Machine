@@ -94,8 +94,8 @@ def _screen_summary(screen):
             mode=d.get("mode"),
             qualified=d.get("qualified"),
             reasons=d.get("reasons"),
-            gas_costs=r.get("gas_costs"),
-            cost_evidence=r.get("cost_evidence"),
+            gas_costs=row.get("gas_costs"),
+            cost_evidence=row.get("cost_evidence"),
         ))
     return dict(
         finalized_block=screen.get("finalized_block"),
