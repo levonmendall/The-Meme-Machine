@@ -5,8 +5,9 @@ from tests.market_native_opportunity_outcomes import CONCENTRATION_ROTATE_AT, Ev
 from meme_machine.outcome_research import (
     enable_shadow_exit, high_density_features, is_two_buyer_sole_near_miss,
     liquidity_floor_eligibility, new_tracker, observe_trade, return_bps,
-    summarize_liquidity_counterfactual, summarize_post_exit_tail,
-    summarize_trackers, summarize_two_buyer_near_misses,
+    subclass_research_protocol, summarize_liquidity_counterfactual,
+    summarize_post_exit_tail, summarize_trackers, summarize_two_buyer_near_misses,
+    two_buyer_research_candidate,
 )
 
 MINT='mint'
@@ -48,6 +49,27 @@ class OutcomeResearchTests(unittest.TestCase):
         self.assertTrue(got['7500000000'])
         self.assertFalse(got['10000000000'])
 
+
+
+    def test_two_buyer_pre_candidate_requires_buyer_count_to_be_pivotal(self):
+        pivotal=dict(
+            actual_reason='independent_demand',independent_buyer_groups=2,
+            sensitivity={'values':{'min_independent_groups':{'2':True,'3':False}}},
+        )
+        contaminated=dict(
+            actual_reason='independent_demand',independent_buyer_groups=2,
+            sensitivity={'values':{'min_independent_groups':{'2':False,'3':False}}},
+        )
+        self.assertTrue(two_buyer_research_candidate(pivotal))
+        self.assertFalse(two_buyer_research_candidate(contaminated))
+
+    def test_subclass_protocol_requires_freeze_then_fresh_validation(self):
+        protocol=subclass_research_protocol()
+        self.assertEqual(protocol['authority'],'research_only')
+        self.assertFalse(protocol['automatic_trading_admission'])
+        self.assertTrue(protocol['two_buyer']['rule_must_be_frozen_before_validation'])
+        self.assertTrue(protocol['high_density']['rule_must_be_frozen_before_validation'])
+        self.assertEqual(protocol['high_density']['trading_event_cap_remains'],100)
 
 
     def test_two_buyer_cohort_requires_pivotal_group_rule_only(self):
