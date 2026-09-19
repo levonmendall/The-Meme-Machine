@@ -94,7 +94,8 @@ class DLMMAlchemyTopologyTests(unittest.TestCase):
         rpc._request_url=request
         self.assertEqual(rpc.call("getGenesisHash",priority=True,fresh=True),"mainnet")
         self.assertEqual(rpc.call("getGenesisHash",priority=True,fresh=True),"mainnet")
-        self.assertEqual(clock.sleeps,[0.2])
+        self.assertEqual(len(clock.sleeps),1)
+        self.assertAlmostEqual(clock.sleeps[0],0.2)
 
         clock2=_Clock()
         rpc2=provider.new_rpc(
@@ -104,7 +105,8 @@ class DLMMAlchemyTopologyTests(unittest.TestCase):
                 for i in range(8)]
         self.assertEqual(len(rpc2.call_many(
             "getTransaction",params,True,batch_size=4)),8)
-        self.assertEqual(clock2.sleeps,[0.2])
+        self.assertEqual(len(clock2.sleeps),1)
+        self.assertAlmostEqual(clock2.sleeps[0],0.2)
 
     def test_shared_pacer_serializes_rpc_objects(self):
         clock=_Clock();pacer=provider.AlchemyPacer(minimum_interval=1.0)
