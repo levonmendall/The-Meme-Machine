@@ -17,7 +17,7 @@ from pathlib import Path
 import time
 
 from . import BoundaryError
-from .abi import calldata
+from .abi import calldata, topic
 from .identity import load
 from .ramses import (
     decode_ramses_event,
@@ -38,6 +38,7 @@ from .ramses_strategy import (
     classify_pool,
     controller_action,
     decompose_pnl,
+    pool_features,
 )
 from .ramses_strategy_ledger import RamsesStrategyLedger
 from .ramses_universe import scan
@@ -95,7 +96,7 @@ def select_qualifier(screen):
     return None
 
 
-def _batch_logs(rpc, start, end, address, *, scope="lifecycle_logs"):
+def _batch_logs(rpc, start, end, address, *, scope="lifecycle_logs", topics=None):
     if start > end:
         return []
     calls = []
@@ -106,6 +107,7 @@ def _batch_logs(rpc, start, end, address, *, scope="lifecycle_logs"):
                 fromBlock=hex(first),
                 toBlock=hex(min(end, first + LOG_BLOCK_CHUNK - 1)),
                 address=address,
+                **({"topics": topics} if topics is not None else {}),
             )],
         ))
     found = []
@@ -175,47 +177,48 @@ def _event_bins(events, proposal_bins):
     return sorted(bins)
 
 
-def _authenticate_preentry_history(rpc, row, screen):
-    """Receipt/header authenticate every swap used by the frozen qualifier."""
+def _canonical_preentry_history(rpc, row, screen):
+    """Build one receipt/header-authenticated canonical Swap tape for the pool.
+
+    The all-pool scanner and lifecycle use the exact same Swap topic filter.
+    Provider duplicates are deduplicated by (blockHash, logIndex); conflicting
+    duplicates fail closed.  The returned tape is the only history allowed to
+    authorize entry.
+    """
     pool = row["pool"].lower()
     start = int(screen["lookback_start_block"])
     end = int(screen["finalized_block"])
-    raw = _batch_logs(rpc, start, end, pool, scope="qualifier_auth")
+    swap_topic = topic(
+        "Swap(address,address,uint24,bytes32,bytes32,uint24,bytes32,bytes32)"
+    )
+    raw = _batch_logs(
+        rpc, start, end, pool, scope="qualifier_auth", topics=[swap_topic]
+    )
     abi = load("ramses_pool_implementation")["abi"]
+    seen = {}
     swaps = []
     for event in raw:
-        try:
-            decoded = decode_ramses_event(abi, event)
-        except BoundaryError:
+        identity = (event.get("blockHash"), event.get("logIndex"))
+        prior = seen.get(identity)
+        if prior is not None:
+            if prior != event:
+                raise BoundaryError("qualifier_history_conflicting_duplicate")
             continue
-        if decoded["name"] == "Swap":
-            swaps.append(event)
-    expected = row.get("prehistory") or []
-    if len(swaps) != len(expected):
-        raise BoundaryError("qualifier_history_log_count_disagreement")
-    expected_ids = [
-        (
-            int(x["block"]),
-            x["transaction_hash"],
-            int(x["transaction_index"]),
-            int(x["log_index"]),
+        seen[identity] = event
+        decoded = decode_ramses_event(abi, event)
+        if decoded["name"] != "Swap":
+            raise BoundaryError("qualifier_history_non_swap_topic")
+        swaps.append((event, decoded))
+    swaps.sort(
+        key=lambda pair: (
+            int(pair[0]["blockNumber"], 16),
+            int(pair[0]["transactionIndex"], 16),
+            int(pair[0]["logIndex"], 16),
         )
-        for x in expected
-    ]
-    actual_ids = [
-        (
-            int(e["blockNumber"], 16),
-            e["transactionHash"],
-            int(e["transactionIndex"], 16),
-            int(e["logIndex"], 16),
-        )
-        for e in swaps
-    ]
-    if actual_ids != expected_ids:
-        raise BoundaryError("qualifier_history_identity_disagreement")
+    )
 
     txs = []
-    for event in swaps:
+    for event, _decoded in swaps:
         if event["transactionHash"] not in txs:
             txs.append(event["transactionHash"])
     if len(txs) > MAX_POOL_TRANSACTIONS:
@@ -225,7 +228,7 @@ def _authenticate_preentry_history(rpc, row, screen):
         scope="qualifier_auth",
     ) if txs else []
     receipt_by_tx = {r["transactionHash"]: r for r in receipts}
-    blocks = sorted(set(int(e["blockNumber"], 16) for e in swaps))
+    blocks = sorted(set(int(e["blockNumber"], 16) for e, _d in swaps))
     if len(blocks) > MAX_POOL_BLOCKS:
         raise BoundaryError("qualifier_history_block_capacity")
     headers = rpc.batch(
@@ -233,7 +236,9 @@ def _authenticate_preentry_history(rpc, row, screen):
         scope="qualifier_auth",
     ) if blocks else []
     header_by_block = {int(h["number"], 16): h for h in headers}
-    for event in swaps:
+
+    history = []
+    for event, decoded in swaps:
         receipt = receipt_by_tx.get(event["transactionHash"])
         header = header_by_block.get(int(event["blockNumber"], 16))
         if (
@@ -246,15 +251,95 @@ def _authenticate_preentry_history(rpc, row, screen):
             or event not in receipt["logs"]
         ):
             raise BoundaryError("qualifier_history_receipt_header_disagreement")
-    return dict(
+        history.append(dict(
+            block=int(event["blockNumber"], 16),
+            block_hash=event["blockHash"],
+            transaction_hash=event["transactionHash"],
+            transaction_index=int(event["transactionIndex"], 16),
+            log_index=int(event["logIndex"], 16),
+            args=decoded["args"],
+        ))
+
+    scanner = row.get("prehistory") or []
+    scanner_ids = [
+        (
+            int(x["block"]),
+            x.get("block_hash"),
+            x["transaction_hash"],
+            int(x["transaction_index"]),
+            int(x["log_index"]),
+        )
+        for x in scanner
+    ]
+    canonical_ids = [
+        (
+            int(x["block"]),
+            x["block_hash"],
+            x["transaction_hash"],
+            int(x["transaction_index"]),
+            int(x["log_index"]),
+        )
+        for x in history
+    ]
+    return history, dict(
         authenticated=True,
-        swap_logs=len(swaps),
+        swap_logs=len(history),
         transactions=len(txs),
         blocks=len(blocks),
         start_block=start,
         end_block=end,
+        scanner_swap_logs=len(scanner),
+        identity_match=(scanner_ids == canonical_ids),
+        scanner_only=max(0, len(scanner_ids)-len(canonical_ids)),
+        canonical_only=max(0, len(canonical_ids)-len(scanner_ids)),
     )
 
+
+def _canonicalize_selected_row(
+    rpc, row, screen, *, costs_by_pool=None, signals_by_pool=None
+):
+    """Reclassify selected pool from authenticated canonical pre-entry evidence."""
+    costs_by_pool = costs_by_pool or {}
+    signals_by_pool = signals_by_pool or {}
+    history, auth = _canonical_preentry_history(rpc, row, screen)
+    canonical = deepcopy(row)
+    canonical["prehistory"] = history
+    canonical_feature = pool_features(
+        canonical["prestate"], history, canonical["quote_side"], pool=canonical["pool"]
+    )
+    peers = [
+        r["features"] for r in screen.get("rows", [])
+        if r.get("pool", "").lower() != canonical["pool"].lower()
+    ]
+    universe = peers + [canonical_feature]
+    context = signals_by_pool.get(canonical["pool"].lower(), {})
+    if context and not isinstance(context, dict):
+        raise BoundaryError("connected_lifecycle_signal_context")
+    decision = classify_pool(
+        canonical["prestate"],
+        history,
+        canonical["quote_side"],
+        requested_capital=int(canonical["paper_capital_quote_raw"]),
+        entry_timestamp=int(screen["finalized_timestamp"]),
+        gas_costs=costs_by_pool.get(canonical["pool"].lower()),
+        universe_features=universe,
+        anchor_signal=context.get("anchor"),
+        directional_signal=context.get("directional"),
+        now=int(screen["finalized_timestamp"]),
+        pool=canonical["pool"],
+    )
+    canonical["features"] = decision.get("features") or canonical_feature
+    canonical["decision"] = decision
+    canonical["evidence_grade"] = "receipt_header_authenticated"
+    auth["reclassified"] = True
+    auth["qualified_after_authentication"] = bool(decision.get("qualified"))
+    return canonical, auth
+
+
+def _authenticate_preentry_history(rpc, row, screen):
+    """Compatibility wrapper returning canonical authentication metadata."""
+    _canonical, auth = _canonicalize_selected_row(rpc, row, screen)
+    return auth
 
 def _build_segment_replay(rpc, pool, decision, start_block, end_block):
     if end_block <= start_block:
