@@ -641,10 +641,14 @@ def rank(cohort_path=DEFAULT_COHORT):
             if better: candidate.add(row["wallet"])
     report=dict(
         kind="dlmm_profitable_operator_ranking_v1",
-        status="gross_capital_efficiency_complete_network_cost_pending",
+        status="provisional_rank_complete_deep_reconstruction_required",
         protocol_sha256=signature["protocol_sha256"],
         cohort_hash=signature["cohort_hash"],wallet_count=len(data),
-        eligible_wallet_count=len(eligible),candidate_wallets=sorted(candidate),
+        eligible_wallet_count=len(eligible),
+        exact_capital_history_wallet_count=sum(
+            bool(r.get("capital_at_risk_exact")) for r in eligible),
+        deep_reconstruction_wallets=sorted(r["wallet"] for r in eligible),
+        provisional_candidate_wallets=sorted(candidate),
         ranking_metrics={
             name:[dict(wallet=r["wallet"],value=r[ranking_specs[name][0]],
                        positions=r["measured_closed_positions"],
@@ -652,8 +656,10 @@ def rank(cohort_path=DEFAULT_COHORT):
             for name,ranking in rankings.items()
         },
         all_wallets=data,
-        note=("Network execution-cost and final after-cost capital-efficiency ranking "
-              "are intentionally deferred to authenticated on-chain deep reconstruction."),
+        note=("The provisional top lists do not filter the deep stage. Every eligible "
+              "wallet is carried into authenticated on-chain reconstruction so partial "
+              "capital histories, network costs, fleet links and unavailable exact TWR "
+              "cannot be hidden by this preliminary screen."),
     )
     _atomic_json(RANK_OUT,report)
     print(json.dumps(dict(wallets=len(data),eligible=len(eligible),
