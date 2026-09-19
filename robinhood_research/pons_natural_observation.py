@@ -25,7 +25,8 @@ from .identity import load
 from .pons import (
     CurveState, authenticate_curve, curve_abi, factory_record, raw_event,
 )
-from .provider_topology import configured_rpc
+from .provider_topology import configured_discovery_rpc, configured_rpc
+from .sequencer_feed import SequencerBlockClock
 
 REPORT=Path(os.environ.get("MM_ROBINHOOD_PONS_NATURAL_REPORT","robinhood-pons-natural-report.json"))
 OBSERVE_SECONDS=60
@@ -183,6 +184,10 @@ def _final_mark(rpc,candidate,block,report):
 
 def run(endpoint):
     rpc=configured_rpc(endpoint,limit=180,per_scope=170,retries=0)
+    discovery=configured_discovery_rpc(
+        endpoint,limit=180,per_scope=170,retries=0
+    )
+    feed=SequencerBlockClock()
     report=dict(
         kind="natural_pons_v2_bounded_observation",
         research_only=True,allocation_authority=False,paper_orders=0,
@@ -190,22 +195,37 @@ def run(endpoint):
         outcome_used_for_selection=False,freshness_gate_seconds=5,
         discovery_seconds=DISCOVERY_SECONDS,followup_seconds=OBSERVE_SECONDS,
         research_buy_wei=RESEARCH_BUY_WEI,reads=[],events=[],started_at=time.time(),
+        discovery_mode="sequencer_clock_plus_governed_log_rpc",
     )
     candidate=None
     try:
         rpc.verify_chain()
-        start_header=_latest_header(rpc)
-        cursor=int(start_header["number"],16)
+        discovery.verify_chain()
+        feed.connect()
+        cursor=feed.wait_for_after(-1,timeout=5.0)
+        if cursor is None:
+            raise BoundaryError("sequencer_discovery_start_timeout")
+        start_header=discovery.call(
+            "eth_getBlockByNumber",[hex(cursor),False],scope="pons_natural"
+        )
+        if int(start_header["number"],16)!=cursor:
+            raise BoundaryError("sequencer_discovery_block_disagreement")
         report["start_block"]=cursor
         deadline=time.monotonic()+DISCOVERY_SECONDS
         attempted_curves=set()
 
         while time.monotonic()<deadline and candidate is None:
-            latest=_latest_header(rpc)
-            end=int(latest["number"],16)
-            start=max(cursor+1,end-9)
+            end=feed.wait_for_after(cursor,timeout=POLL_SECONDS)
+            if end is None:
+                continue
+            latest=discovery.call(
+                "eth_getBlockByNumber",[hex(end),False],scope="pons_natural"
+            )
+            if int(latest["number"],16)!=end:
+                raise BoundaryError("sequencer_discovery_block_disagreement")
+            start=cursor+1
             if end>=start:
-                for event in _current_curve_events(rpc,start,end):
+                for event in _current_curve_events(discovery,start,end):
                     curve=event.get("address","").lower()
                     if curve in attempted_curves:
                         continue
@@ -231,9 +251,9 @@ def run(endpoint):
                         if len(report["candidate_rejections"])>50:
                             raise BoundaryError("natural_rejection_capacity")
                 cursor=end
-            if candidate is None:
-                time.sleep(POLL_SECONDS)
 
+        report["sequencer_discovery"]=feed.status()
+        feed.close()
         if candidate is None:
             raise BoundaryError("no_current_authenticated_pons_candidate")
 
@@ -246,9 +266,9 @@ def run(endpoint):
 
         # Outcome clock starts only after the candidate/quote is frozen.
         time.sleep(OBSERVE_SECONDS)
-        final_header=_latest_header(rpc)
+        final_header=_latest_header(discovery)
         final_block=int(final_header["number"],16)
-        follow=_current_curve_events(rpc,candidate["block"],final_block)
+        follow=_current_curve_events(discovery,candidate["block"],final_block)
         authentic=[]
         for event in follow:
             if event["address"].lower()!=candidate["curve"]:
@@ -295,7 +315,11 @@ def run(endpoint):
         }
     except BoundaryError as exc:
         report["boundary"]=str(exc)
+    finally:
+        feed.close()
     report["provider"]=rpc.telemetry()
+    report["discovery_provider"]=discovery.telemetry()
+    report.setdefault("sequencer_discovery",feed.status())
     report["ended_at"]=time.time()
     return report
 
