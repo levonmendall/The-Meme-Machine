@@ -18,7 +18,9 @@ from .pons_natural_observation import (
 )
 from .provider_topology import configured_discovery_rpc
 from .sequencer_feed import SequencerBlockClock, SequencerTransportError
-from .pons_selective_acquisition import evaluate_candidate, public_evaluation
+from .pons_selective_acquisition import (
+    SelectiveEvidenceContext, evaluate_candidate, public_evaluation,
+)
 from .pons_selective_continuation import POLICY, POLICY_HASH, wallet_convergence
 from .pons_selective_paper import (
     STRATEGY_CAPITAL_QUOTE, STRATEGY_NAMESPACE, run_lifecycle,
@@ -255,10 +257,11 @@ def run(endpoint):
         wallet_skill_namespace=STRATEGY_NAMESPACE,
         strategy_capital_quote=STRATEGY_CAPITAL_QUOTE,
         rows=[],qualifiers=[],lifecycles=[],discovery_sessions=[],
-        sequencer_recoveries=[],started_at=started,
+        sequencer_recoveries=[],evidence_acquisition=None,started_at=started,
     )
 
     skill=WalletSkillBook(str(SKILL_DB))
+    evidence_context=SelectiveEvidenceContext(endpoint)
     rpc=_discovery(endpoint)
     feed=SequencerBlockClock();feed.connect()
     cursor=feed.wait_for_after(-1,timeout=5.0)
@@ -347,12 +350,14 @@ def run(endpoint):
                     wallet_histories=None,creator_history=None,
                     evidence_observed_at=observed_at,
                     evidence_observed_monotonic=observed_monotonic,
+                    evidence_context=evidence_context,
                 )
                 overlay=_attach_wallet_overlay(evaluation["vector"],skill)
                 public=public_evaluation(evaluation)
                 public["sequence"]=sequence
                 public["wallet_convergence"]=overlay
                 result["rows"].append(public)
+                result["evidence_acquisition"]=evidence_context.telemetry()
                 _append_jsonl(ROWS_LOG,public)
                 if evaluation["vector"].get("current_threshold_pass"):
                     qindex=len(result["qualifiers"])
@@ -384,6 +389,7 @@ def run(endpoint):
                     boundary=str(exc),
                 )
                 result["rows"].append(incomplete)
+                result["evidence_acquisition"]=evidence_context.telemetry()
                 _append_jsonl(ROWS_LOG,incomplete)
 
         terminal_provider=rpc.telemetry()
@@ -410,6 +416,7 @@ def run(endpoint):
         result["discovery_sessions"].append(terminal_provider)
         _append_jsonl(PROVIDER_LOG,terminal_provider)
     finally:
+        result["evidence_acquisition"]=evidence_context.telemetry()
         result["sequencer_discovery"]=feed.status()
         _checkpoint(
             result,cursor=cursor,feed=feed,rpc=rpc,phase="finalizing"
