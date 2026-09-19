@@ -48,6 +48,15 @@ POLL_SECONDS=0.5
 CHECKPOINT_SECONDS=15.0
 SEQUENCER_RECONNECT_ATTEMPTS=5
 SEQUENCER_RECONNECT_SLEEP_SECONDS=0.5
+PROVIDER_RECOVERY_ATTEMPTS=3
+PROVIDER_RECOVERY_SLEEP_SECONDS=0.5
+RECOVERABLE_PROVIDER_BOUNDARIES=frozenset((
+    "provider_http_500",
+    "provider_http_502",
+    "provider_http_503",
+    "provider_http_504",
+    "provider_transport_failure",
+))
 PROGRESS=ROOT/"cohort-progress.json"
 ROWS_LOG=ROOT/"candidate-rows.jsonl"
 QUALIFIERS_LOG=ROOT/"qualifiers.jsonl"
@@ -166,6 +175,49 @@ def _discovery(endpoint):
     return rpc
 
 
+def _recoverable_provider_boundary(exc):
+    return str(exc) in RECOVERABLE_PROVIDER_BOUNDARIES
+
+
+def _recover_discovery(
+    endpoint,rpc,cursor,sessions,recoveries,*,on_failure=None,
+):
+    """Rotate only after a proven transient provider/session boundary."""
+    boundary=str(getattr(rpc,"_last_boundary","") or "provider_session_failure")
+    telemetry=dict(rpc.telemetry())
+    telemetry["terminal_boundary"]=boundary
+    sessions.append(telemetry)
+    _append_jsonl(PROVIDER_LOG,telemetry)
+    if on_failure is not None:
+        on_failure(rpc,boundary,int(cursor))
+
+    last=boundary
+    for attempt in range(1,PROVIDER_RECOVERY_ATTEMPTS+1):
+        if attempt>1:
+            time.sleep(PROVIDER_RECOVERY_SLEEP_SECONDS)
+        try:
+            replacement=_discovery(endpoint)
+        except BoundaryError as exc:
+            last=str(exc)
+            if not _recoverable_provider_boundary(exc):
+                raise
+            continue
+        row=dict(
+            kind="provider_recovery",
+            recovered_at=time.time(),
+            attempt=attempt,
+            boundary=boundary,
+            canonical_cursor_before=int(cursor),
+            canonical_cursor_advanced=False,
+            catchup_authority="authenticated_discovery_rpc",
+            catchup_from=int(cursor)+1,
+        )
+        recoveries.append(row)
+        _append_jsonl(RECOVERY_LOG,row)
+        return replacement
+    raise BoundaryError("provider_recovery_exhausted:"+str(last))
+
+
 def _single_block_range(rpc,start,end):
     rows=[]
     for block in range(int(start),int(end)+1):
@@ -173,7 +225,27 @@ def _single_block_range(rpc,start,end):
     return rows
 
 
-def _poll(endpoint,rpc,cursor,tape,feed,sessions,recoveries=None):
+def _read_curve_range(rpc,first,observed_end):
+    try:
+        return observed_end,_current_curve_events(rpc,first,observed_end)
+    except BoundaryError as exc:
+        if str(exc)!="provider_rpc_-32602":
+            raise
+        frontier=int(
+            rpc.call("eth_blockNumber",[],scope="pons_selective_frontier"),16
+        )
+        if frontier<first:
+            return first-1,[]
+        if frontier>=observed_end:
+            return observed_end,_single_block_range(rpc,first,observed_end)
+        observed_end=min(observed_end,frontier)
+        return observed_end,_current_curve_events(rpc,first,observed_end)
+
+
+def _poll(
+    endpoint,rpc,cursor,tape,feed,sessions,recoveries=None,
+    on_provider_failure=None,
+):
     if recoveries is None:
         recoveries=[]
     if rpc.used>150:
@@ -181,40 +253,42 @@ def _poll(endpoint,rpc,cursor,tape,feed,sessions,recoveries=None):
         sessions.append(telemetry)
         _append_jsonl(PROVIDER_LOG,telemetry)
         rpc=_discovery(endpoint)
-    try:
-        latest=_next_discovery_end(feed,cursor,rpc,timeout=POLL_SECONDS)
-    except SequencerTransportError:
-        _recover_sequencer(feed,cursor,recoveries)
-        # The canonical cursor is intentionally unchanged. The fresh sequencer
-        # session is only an observation anchor; the normal authenticated RPC path
-        # below must cover every intervening block before cursor advancement.
-        latest=_next_discovery_end(feed,cursor,rpc,timeout=POLL_SECONDS)
+
+    while True:
+        try:
+            latest=_next_discovery_end(feed,cursor,rpc,timeout=POLL_SECONDS)
+            break
+        except SequencerTransportError:
+            _recover_sequencer(feed,cursor,recoveries)
+            continue
+        except BoundaryError as exc:
+            if not _recoverable_provider_boundary(exc):
+                raise
+            rpc._last_boundary=str(exc)
+            rpc=_recover_discovery(
+                endpoint,rpc,cursor,sessions,recoveries,
+                on_failure=on_provider_failure,
+            )
+
     if latest is None:
         return rpc,cursor,[]
     first=cursor+1;fresh=[]
     if latest>=first:
         observed_end=latest
-        try:
-            fresh=_current_curve_events(rpc,first,observed_end)
-        except BoundaryError as exc:
-            if str(exc)!="provider_rpc_-32602":
-                raise
-            # Robinhood's sequencer can announce L2 blocks slightly ahead of the
-            # authenticated RPC frontier. Do not reinterpret the error or advance
-            # the cursor. Confirm the provider frontier and consume only blocks the
-            # evidence provider can already serve.
-            frontier=int(
-                rpc.call("eth_blockNumber",[],scope="pons_selective_frontier"),16
-            )
-            if frontier<first:
-                return rpc,cursor,[]
-            if frontier>=observed_end:
-                # The provider has the full range, so isolate a range-specific
-                # rejection without skipping any block or widening evidence scope.
-                fresh=_single_block_range(rpc,first,observed_end)
-            else:
-                observed_end=min(observed_end,frontier)
-                fresh=_current_curve_events(rpc,first,observed_end)
+        while True:
+            try:
+                observed_end,fresh=_read_curve_range(rpc,first,observed_end)
+                break
+            except BoundaryError as exc:
+                if not _recoverable_provider_boundary(exc):
+                    raise
+                rpc._last_boundary=str(exc)
+                rpc=_recover_discovery(
+                    endpoint,rpc,cursor,sessions,recoveries,
+                    on_failure=on_provider_failure,
+                )
+        if observed_end<first:
+            return rpc,cursor,[]
         tape.extend(fresh)
         if len(tape)>MAX_TAPE_EVENTS:
             del tape[:-MAX_TAPE_EVENTS]
@@ -277,12 +351,20 @@ def run(endpoint):
     first_observed_monotonic={}
     queue=DeadlineEvidenceQueue(limit=4096,nominal_deadline_seconds=5.0)
 
+    def _checkpoint_provider_failure(failed_rpc,boundary,current_cursor):
+        result["last_transient_provider_boundary"]=str(boundary)
+        _checkpoint(
+            result,cursor=current_cursor,feed=feed,rpc=failed_rpc,
+            phase="provider_recovery",
+        )
+
     try:
         warm_deadline=time.monotonic()+TAPE_WARM_SECONDS
         while time.monotonic()<warm_deadline:
             rpc,cursor,_=_poll(
                 endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
-                result["sequencer_recoveries"]
+                result["sequencer_recoveries"],
+                on_provider_failure=_checkpoint_provider_failure,
             )
         covered=int(feed.state.latest_header_timestamp or 0)-int(start_ts)
         result["warmup"]=dict(
@@ -303,7 +385,8 @@ def run(endpoint):
         ):
             rpc,cursor,fresh=_poll(
                 endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
-                result["sequencer_recoveries"]
+                result["sequencer_recoveries"],
+                on_provider_failure=_checkpoint_provider_failure,
             )
             now=time.time()
             now_monotonic=time.monotonic()
