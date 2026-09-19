@@ -145,6 +145,8 @@ def main():
                 started=session_started,ended=now,reason=reason,
                 logical_requests=rpc.calls,transport_requests=rpc.http_requests,
                 failures=rpc.failures,retries=rpc.retries,
+                provider_topology=(rpc.provider_telemetry()
+                                   if hasattr(rpc,'provider_telemetry') else None),
             ))
 
         try:
