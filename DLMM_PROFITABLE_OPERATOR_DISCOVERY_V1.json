@@ -153,6 +153,110 @@
       "family_selection": "Every family meeting >=2/3 support among independently profitable reconstructed clusters is eligible for a separate frozen candidate; no best-family selection by retrospective PnL.",
       "minimum_cluster_quality": "cluster must have positive after-network-cost PnL and complete capital-at-risk reconstruction; TWR may be unavailable but cannot be imputed",
       "no_post_outcome_rule_editing": true
+    },
+    "behavior_buckets": {
+      "hold_time_seconds": [
+        {
+          "label": "<15m",
+          "max_exclusive": 900
+        },
+        {
+          "label": "15-60m",
+          "min_inclusive": 900,
+          "max_exclusive": 3600
+        },
+        {
+          "label": "1-4h",
+          "min_inclusive": 3600,
+          "max_exclusive": 14400
+        },
+        {
+          "label": "4-24h",
+          "min_inclusive": 14400,
+          "max_exclusive": 86400
+        },
+        {
+          "label": ">=24h",
+          "min_inclusive": 86400
+        }
+      ],
+      "width_bins": [
+        {
+          "label": "<=10",
+          "max_inclusive": 10
+        },
+        {
+          "label": "11-25",
+          "min_inclusive": 11,
+          "max_inclusive": 25
+        },
+        {
+          "label": "26-50",
+          "min_inclusive": 26,
+          "max_inclusive": 50
+        },
+        {
+          "label": ">50",
+          "min_inclusive": 51
+        }
+      ],
+      "center_active_offset_bins": [
+        {
+          "label": "below_active",
+          "max_exclusive": -5
+        },
+        {
+          "label": "centered",
+          "min_inclusive": -5,
+          "max_inclusive": 5
+        },
+        {
+          "label": "above_active",
+          "min_exclusive": 5
+        }
+      ],
+      "rebalance_position_rate": [
+        {
+          "label": "none",
+          "exact": 0
+        },
+        {
+          "label": "occasional",
+          "min_exclusive": 0,
+          "max_exclusive": 0.25
+        },
+        {
+          "label": "active",
+          "min_inclusive": 0.25
+        }
+      ],
+      "sidedness": [
+        "one_sided",
+        "two_sided"
+      ],
+      "distribution_family": [
+        "spot",
+        "curve",
+        "bid_ask",
+        "spot_like",
+        "curve_like",
+        "bid_ask_like",
+        "custom"
+      ]
+    },
+    "family_vote": {
+      "per_wallet": "modal observed categorical value; ties resolved lexically, never by PnL",
+      "per_fleet_cluster": "modal member-wallet vote; ties resolved lexically, never by PnL",
+      "joint_family_key": [
+        "distribution_family",
+        "sidedness",
+        "width_bucket",
+        "active_bin_placement_bucket",
+        "rebalance_bucket",
+        "hold_bucket"
+      ],
+      "candidate_requirement": "joint family must be the vote of at least 3 independent profitable reconstructed clusters and at least 2/3 of all qualifying independent cluster votes",
+      "missing_feature_rule": "clusters missing any joint-family dimension cannot vote for a family and remain reported as incomplete; missing values are never imputed"
     }
   },
   "execution": {
@@ -164,7 +268,7 @@
     "checkpointing": true,
     "bounded_concurrency": true
   },
-  "protocol_revision": "1.1",
+  "protocol_revision": "1.2",
   "time_weighted_return": {
     "name": "exact_event_boundary_time_weighted_return",
     "eligibility": "available only when every external add/remove cash flow and every required portfolio valuation at that boundary can be reconstructed point-in-time; otherwise unavailable and excluded from this ranking",
@@ -183,6 +287,14 @@
       "new_operator_ranking_observed_before_amendment": false,
       "census_may_have_started": true,
       "census_contains_pnl": false,
+      "wallet_selection_changed": false,
+      "economic_pool_filters_changed": false
+    },
+    {
+      "revision": "1.2",
+      "reason": "Freeze deterministic behavior bucket boundaries and joint family voting before new operator PnL ranking.",
+      "pnl_observed_before_amendment": false,
+      "new_operator_ranking_observed_before_amendment": false,
       "wallet_selection_changed": false,
       "economic_pool_filters_changed": false
     }
