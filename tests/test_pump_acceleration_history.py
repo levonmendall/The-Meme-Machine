@@ -95,6 +95,28 @@ class IncrementalHistoryTests(unittest.TestCase):
             self.assertEqual(history.refresh(rpc,106),[])
             self.assertEqual(len(rpc.signature_calls),1)
 
+    def test_restart_restores_signature_ledger_and_reuses_cached_bodies(self):
+        with tempfile.TemporaryDirectory() as td:
+            broker=EvidenceBroker(os.path.join(td,"broker.sqlite3"))
+            self.addCleanup(broker.close)
+            first_rpc=FakeRPC()
+            first=IncrementalPumpSwapHistory(
+                "pool",100,page_limit=2,max_backfill_pages=2,
+                max_new_pages=2,broker=broker,stream_key="pool:restart")
+            first.refresh(first_rpc,103,research=True)
+            self.assertGreater(len(first_rpc.tx_calls),0)
+            persisted=broker.signature_rows("pumpswap_history","pool")
+            self.assertTrue(persisted)
+
+            second_rpc=FakeRPC()
+            second=IncrementalPumpSwapHistory(
+                "pool",100,page_limit=2,max_backfill_pages=2,
+                max_new_pages=2,broker=broker,stream_key="pool:restart")
+            self.assertGreater(second.restored_signature_rows,0)
+            before=len(second_rpc.tx_calls)
+            second.refresh(second_rpc,103,research=True)
+            self.assertEqual(len(second_rpc.tx_calls),before)
+
     def test_recent_decision_window_is_decoded_before_older_backlog(self):
         class R:
             def __init__(self): self.calls=[]
