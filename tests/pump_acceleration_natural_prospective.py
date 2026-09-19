@@ -19,7 +19,8 @@ from meme_machine.concentration import ConcentrationReader
 from meme_machine.engine import GAS
 from meme_machine.market_native_shadow import discover_market_native
 from meme_machine.postgrad import (
-    PostGraduationAdapter,buy_quote,graduation_handoff,pumpswap_pool,sell_quote,
+    PUMPSWAP_PROGRAM,PostGraduationAdapter,buy_quote,graduation_handoff,
+    pumpswap_pool,sell_quote,
 )
 from meme_machine.provider import PumpAdapter,Unavailable
 from meme_machine.pump_acceleration_confirmations import ConfirmationBook
@@ -33,6 +34,9 @@ from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
 from meme_machine.pump_acceleration_strategy import (
     MODE_LATE_CURVE,MODE_POSTGRAD,MODE_SECOND_LEG,POLICY,STRATEGY_ID,
     SignalVector,flow_metrics,policy_hash,qualify,
+)
+from meme_machine.solana_evidence_broker import (
+    EvidenceBroker,ProgramLogSignatureStream,
 )
 from meme_machine.solana_read_rpc import discovery_ws_url,new_rpc,primary_rpc_url
 from meme_machine.stream import PumpLogStream,PumpTape,WINDOW_SECONDS
@@ -163,10 +167,10 @@ def _postgrad_concentration(rpc,snapshot):
     return sum(amounts[:5])*10_000//supply
 
 
-def _refresh_pool_events(state,sessions,now):
+def _refresh_pool_events(state,sessions,now,*,research=False):
     sessions.ensure(90)
     history=state["history"]
-    events=history.refresh(sessions.rpc,now)
+    events=history.refresh(sessions.rpc,now,research=research)
     state["history_status"]=history.status(now)
     return events
 
@@ -360,14 +364,25 @@ def main():
     _save(report)
 
     tape=PumpTape()
-    stop=threading.Event();ready=threading.Event()
+    broker_path=os.environ.get(
+        "MM_SOLANA_EVIDENCE_BROKER_DB",
+        "pump-acceleration-evidence-broker.sqlite3")
+    broker=EvidenceBroker(broker_path)
+    stop=threading.Event();ready=threading.Event();pumpswap_ready=threading.Event()
     stream=PumpLogStream(primary_rpc_url(),tape,ws_url=discovery_ws_url())
+    pumpswap_stream=ProgramLogSignatureStream(
+        discovery_ws_url(),broker,"pumpswap_program",PUMPSWAP_PROGRAM,
+        coverage_seconds=30)
     thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
-    thread.start()
+    pumpswap_thread=threading.Thread(
+        target=pumpswap_stream.run,args=(stop,pumpswap_ready),daemon=True)
+    thread.start();pumpswap_thread.start()
     if not ready.wait(15):
         report["limitations"].append("pump_stream_start_timeout")
         _save(report)
         raise SystemExit(1)
+    if not pumpswap_ready.wait(15):
+        report["limitations"].append("pumpswap_stream_start_timeout")
 
     sessions=Sessions()
     cursor=0;created={};postgrad={};pending={};active={};full_attempts=0
@@ -402,7 +417,8 @@ def main():
                             graduation_time=int(event["market_time"]),
                             pregrad_wallets=set(state["pregrad_wallets"]),pool=pool,
                             history=IncrementalPumpSwapHistory(
-                                pool,int(event["market_time"])),
+                                pool,int(event["market_time"]),broker=broker,
+                                stream_key="pumpswap_program"),
                             history_status={},graduation_price=None,
                         )
 
@@ -479,7 +495,9 @@ def main():
                     graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
                     handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
                     snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
-                    events=_refresh_pool_events(state,sessions,now)
+                    events=_refresh_pool_events(
+                        state,sessions,now,
+                        research=(age>=POLICY.min_second_leg_age_s))
                     window_status=state["history"].decision_window_status(now,30)
                     if not window_status["complete"]:
                         raise Unavailable("incomplete_pumpswap_decision_window")
@@ -577,7 +595,8 @@ def main():
                         graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
                         handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
                         snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
-                        events=_refresh_pool_events(state,sessions,now)
+                        events=_refresh_pool_events(
+                            state,sessions,now,research=False)
                         quote=sell_quote(snapshot,life.position.tokens)
                         proceeds=max(0,quote.output_amount-GAS)
                         concentration=_postgrad_concentration(sessions.rpc,snapshot)
@@ -624,10 +643,13 @@ def main():
                 _save(report);last_save=now
             time.sleep(1)
     finally:
-        stop.set();thread.join(timeout=5)
+        stop.set();thread.join(timeout=5);pumpswap_thread.join(timeout=5)
         sessions.finish()
         report["sessions"]=sessions.history
         report["stream"]=tape.status(int(time.time()))
+        report["pumpswap_stream"]=broker.stream_status(
+            "pumpswap_program",int(time.time()),30)
+        report["evidence_broker"]=broker.telemetry()
         report["ended"]=int(time.time())
         report["full_evidence_attempts"]=full_attempts
         report["created_mints_observed"]=len(created)
@@ -647,6 +669,7 @@ def main():
             for k,v in active.items()]
         report["threshold_changes_made"]=False
         _save(report)
+        broker.close()
     print(json.dumps(report,sort_keys=True))
 
 
