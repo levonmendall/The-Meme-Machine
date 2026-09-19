@@ -94,6 +94,7 @@ class LaneProviderTests(unittest.TestCase):
         )
         self.assertTrue(rpc.primary_fallback)
         self.assertEqual(rpc.telemetry()["role"],"pons_discovery_primary_fallback")
+        self.assertEqual(rpc.telemetry()["pacing"]["requests_per_second"],2.0)
 
     def test_dlmm_uses_dedicated_five_rps_lane(self):
         env={
@@ -121,7 +122,26 @@ class LaneProviderTests(unittest.TestCase):
         self.assertEqual(
             rpc.telemetry()["role"],"dlmm_reconstruction_primary_fallback"
         )
+        self.assertEqual(rpc.telemetry()["pacing"]["requests_per_second"],2.0)
         self.assertFalse(rpc.telemetry()["automatic_failover"])
+
+    def test_primary_fallback_lanes_share_directional_pacer(self):
+        env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key"}
+        directional=configured_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        discovery=configured_discovery_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        dlmm=configured_dlmm_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        self.assertIs(directional.pacer,discovery.pacer)
+        self.assertIs(directional.pacer,dlmm.pacer)
+        self.assertEqual(directional.pacer.requests_per_second,2.0)
 
     def test_shadow_is_diagnostic_only(self):
         env={
