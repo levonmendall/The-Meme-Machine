@@ -8,7 +8,8 @@ from tests.market_native_opportunity_outcomes import (
 from meme_machine.outcome_research import (
     enable_shadow_exit, high_density_features, is_two_buyer_sole_near_miss,
     liquidity_floor_eligibility, new_tracker, observe_trade, return_bps,
-    subclass_research_protocol, summarize_liquidity_counterfactual,
+    subclass_development_status, subclass_research_protocol,
+    summarize_liquidity_counterfactual,
     summarize_post_exit_tail, summarize_trackers, summarize_two_buyer_near_misses,
     two_buyer_research_candidate,
 )
@@ -96,6 +97,23 @@ class OutcomeResearchTests(unittest.TestCase):
         )
         self.assertTrue(two_buyer_research_candidate(pivotal))
         self.assertFalse(two_buyer_research_candidate(contaminated))
+
+
+    def test_subclass_development_status_never_grants_authority(self):
+        two=new_tracker(MINT,100,100,100,['two_buyer_sole_near_miss'],nomination_id='n1')
+        dense=new_tracker('dense',100,100,100,['high_density'])
+        observe_trade(two,trade(110,110))
+        observe_trade(dense,trade(110,110,mint='dense'))
+        got=subclass_development_status([two,dense])
+        self.assertEqual(got['authority'],'research_only')
+        self.assertFalse(got['automatic_trading_admission'])
+        self.assertEqual(got['two_buyer']['complete_development'],1)
+        self.assertEqual(got['two_buyer']['outcome_labeled'],1)
+        self.assertFalse(got['two_buyer']['ready_to_freeze_candidate_rule'])
+        self.assertEqual(got['high_density']['outcome_labeled'],1)
+        self.assertEqual(got['high_density']['trading_event_cap_remains'],100)
+        self.assertFalse(got['high_density']['ready_to_freeze_candidate_rule'])
+
 
     def test_subclass_protocol_requires_freeze_then_fresh_validation(self):
         protocol=subclass_research_protocol()
