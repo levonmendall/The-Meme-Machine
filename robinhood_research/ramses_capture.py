@@ -208,7 +208,7 @@ class BoundedMultiRpc:
     def telemetry(self):
         requests=transport=logical=retries=0
         methods=Counter();logical_methods=Counter();scopes=Counter();failures=Counter()
-        roles=Counter();providers=Counter()
+        roles=Counter();providers=Counter();fingerprints=Counter()
         pacing=None
         for session in self.sessions:
             row=session.telemetry()
@@ -222,6 +222,8 @@ class BoundedMultiRpc:
             failures.update(row["failures"])
             if row.get("role"): roles[row["role"]]+=1
             if row.get("provider_kind"): providers[row["provider_kind"]]+=1
+            if row.get("endpoint_fingerprint"):
+                fingerprints[row["endpoint_fingerprint"]]+=1
             pacing=row.get("pacing") or pacing
         retries+=self.wrapper_retries
         return dict(
@@ -249,6 +251,7 @@ class BoundedMultiRpc:
             block_cache_hits=self.block_cache_hits,
             provider_roles=dict(roles),
             provider_kinds=dict(providers),
+            endpoint_fingerprints=dict(fingerprints),
             pacing=pacing,
         )
 

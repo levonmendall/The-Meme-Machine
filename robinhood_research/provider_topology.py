@@ -1,20 +1,24 @@
 """Lane-specific Robinhood RPC governance modeled on current Solana behavior.
 
 Roles:
-- directional/Pons: authenticated primary evidence RPC, 2 RPS, fail closed, no
+- directional/Pons evidence: authenticated primary RPC, 2 RPS, fail closed, no
   automatic alternate-provider evidence;
-- Ramses/DLMM: dedicated bulk/reconstruction RPC, 5 RPS, bounded sessions, no
-  automatic rescue. Until MM_ROBINHOOD_DLMM_RPC_URL is configured it explicitly
-  falls back to the authenticated primary while preserving separate pacing;
+- Pons discovery: dedicated discovery RPC (or the dedicated DLMM RPC when the
+  discovery credential is absent), 5 RPS, observation-only, never primary fallback;
+- Ramses/DLMM: dedicated bulk/reconstruction RPC, 5 RPS, bounded sessions, never
+  primary fallback;
 - shadow: optional independent provider for disagreement/diagnostic reads only;
 - official Robinhood public RPC: diagnostic-only;
 - official sequencer feed: discovery/observation plane, never trade authority.
 
+Broad observation can degrade or pause when its dedicated transport is unavailable,
+but bulk discovery/research never silently spills onto the authoritative primary.
 This module never signs or submits transactions and never changes strategy rules.
 """
 from __future__ import annotations
 
 from collections import Counter
+import hashlib
 import os
 import threading
 import time
@@ -44,6 +48,46 @@ ALCHEMY_ONLY_METHODS = frozenset({"alchemy_getAssetTransfers"})
 def _env(name, environ=None):
     source = os.environ if environ is None else environ
     return str(source.get(name, "") or "").strip()
+
+
+def _normalized_endpoint(endpoint):
+    value = str(endpoint or "").strip()
+    if not value:
+        return ""
+    parsed = urlsplit(value)
+    host = (parsed.hostname or "").lower()
+    port = "" if parsed.port is None else f":{parsed.port}"
+    path = parsed.path.rstrip("/")
+    query = "" if not parsed.query else "?" + parsed.query
+    return f"{parsed.scheme.lower()}://{host}{port}{path}{query}"
+
+
+def _endpoint_fingerprint(endpoint):
+    normalized = _normalized_endpoint(endpoint)
+    if not normalized:
+        return None
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
+
+
+def _optional_primary_endpoint(primary_endpoint_value=None, *, environ=None):
+    value = str(primary_endpoint_value or "").strip() or _env(PRIMARY_ENV, environ)
+    if not value:
+        return None
+    return _require_https(
+        value,
+        "MM_ROBINHOOD_READ_RPC_URL_requires_full_https_url",
+    )
+
+
+def _require_bulk_isolation(endpoint, primary, *, lane):
+    if _provider_kind(endpoint) == "alchemy":
+        raise BoundaryError(f"{lane}_alchemy_endpoint_forbidden")
+    if (
+        primary
+        and _endpoint_fingerprint(endpoint) == _endpoint_fingerprint(primary)
+    ):
+        raise BoundaryError(f"{lane}_primary_endpoint_reuse_forbidden")
+    return endpoint
 
 
 def _provider_kind(endpoint):
@@ -87,31 +131,48 @@ def primary_endpoint(primary_endpoint=None, *, environ=None):
 
 
 def discovery_endpoint(primary_fallback_endpoint=None, *, environ=None):
+    """Return a non-primary observation endpoint or fail closed."""
+    primary = _optional_primary_endpoint(
+        primary_fallback_endpoint, environ=environ
+    )
     value = _env(DISCOVERY_ENV, environ)
     if value:
-        return _require_https(
+        endpoint = _require_https(
             value,
             "MM_ROBINHOOD_DISCOVERY_RPC_URL_requires_full_https_url",
+        )
+        return _require_bulk_isolation(
+            endpoint, primary, lane="robinhood_discovery"
         ), False
-    # A dedicated DLMM/free-market endpoint may safely serve discovery too because
-    # discovery has no decision authority. Otherwise fall back explicitly to primary.
+    # Discovery may share the dedicated DLMM provider because it has no allocation
+    # authority. It must never consume the authoritative primary as a capacity rescue.
     shared = _env(DLMM_ENV, environ)
     if shared:
-        return _require_https(
+        endpoint = _require_https(
             shared,
             "MM_ROBINHOOD_DLMM_RPC_URL_requires_full_https_url",
+        )
+        return _require_bulk_isolation(
+            endpoint, primary, lane="robinhood_discovery"
         ), False
-    return primary_endpoint(primary_fallback_endpoint, environ=environ), True
+    raise BoundaryError("robinhood_discovery_provider_required")
 
 
 def dlmm_endpoint(primary_fallback_endpoint=None, *, environ=None):
+    """Return the dedicated non-primary Ramses transport or fail closed."""
+    primary = _optional_primary_endpoint(
+        primary_fallback_endpoint, environ=environ
+    )
     value = _env(DLMM_ENV, environ)
-    if value:
-        return _require_https(
-            value,
-            "MM_ROBINHOOD_DLMM_RPC_URL_requires_full_https_url",
-        ), False
-    return primary_endpoint(primary_fallback_endpoint, environ=environ), True
+    if not value:
+        raise BoundaryError("robinhood_dlmm_provider_required")
+    endpoint = _require_https(
+        value,
+        "MM_ROBINHOOD_DLMM_RPC_URL_requires_full_https_url",
+    )
+    return _require_bulk_isolation(
+        endpoint, primary, lane="robinhood_dlmm"
+    ), False
 
 
 def shadow_endpoint(*, environ=None):
@@ -217,6 +278,7 @@ class PacedRpc(Rpc):
         data.update(
             role=self.role,
             provider_kind=self.provider_kind,
+            endpoint_fingerprint=_endpoint_fingerprint(self._endpoint),
             pacing=self.pacer.telemetry(),
             automatic_failover=False,
         )
@@ -255,53 +317,35 @@ def configured_rpc(primary_endpoint_value=None, *, environ=None, **kwargs):
 
 def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **kwargs):
     """Pons discovery/log RPC: 5 RPS, sequencer-triggered, no decision authority."""
-    endpoint, primary_fallback = discovery_endpoint(
+    endpoint, _ = discovery_endpoint(
         primary_fallback_endpoint, environ=environ
     )
-    effective_rps = DIRECTIONAL_RPS if primary_fallback else DISCOVERY_RPS
-    pacer = (
-        _DIRECTIONAL_PACER
-        if primary_fallback
-        else _pacer_for(_DISCOVERY_PACERS, endpoint, DISCOVERY_RPS)
-    )
+    pacer = _pacer_for(_DISCOVERY_PACERS, endpoint, DISCOVERY_RPS)
     rpc = PacedRpc(
         endpoint,
-        role=(
-            "pons_discovery_primary_fallback"
-            if primary_fallback
-            else "pons_discovery_primary"
-        ),
-        requests_per_second=effective_rps,
+        role="pons_discovery_primary",
+        requests_per_second=DISCOVERY_RPS,
         pacer=pacer,
         **kwargs,
     )
-    rpc.primary_fallback = bool(primary_fallback)
+    rpc.primary_fallback = False
     return rpc
 
 
 def configured_dlmm_rpc(primary_fallback_endpoint=None, *, environ=None, **kwargs):
-    """Ramses reconstruction RPC: dedicated 5 RPS lane, no automatic rescue."""
-    endpoint, primary_fallback = dlmm_endpoint(
+    """Ramses reconstruction RPC: dedicated 5 RPS lane, no primary rescue."""
+    endpoint, _ = dlmm_endpoint(
         primary_fallback_endpoint, environ=environ
     )
-    effective_rps = DIRECTIONAL_RPS if primary_fallback else DLMM_RPS
-    pacer = (
-        _DIRECTIONAL_PACER
-        if primary_fallback
-        else _pacer_for(_DLMM_PACERS, endpoint, DLMM_RPS)
-    )
+    pacer = _pacer_for(_DLMM_PACERS, endpoint, DLMM_RPS)
     rpc = PacedRpc(
         endpoint,
-        role=(
-            "dlmm_reconstruction_primary_fallback"
-            if primary_fallback
-            else "dlmm_reconstruction_primary"
-        ),
-        requests_per_second=effective_rps,
+        role="dlmm_reconstruction_primary",
+        requests_per_second=DLMM_RPS,
         pacer=pacer,
         **kwargs,
     )
-    rpc.primary_fallback = bool(primary_fallback)
+    rpc.primary_fallback = False
     return rpc
 
 
@@ -335,40 +379,69 @@ def public_diagnostic_rpc(*, limit=20, per_scope=20, retries=0):
 
 def topology_metadata(*, environ=None):
     primary = primary_endpoint(environ=environ)
-    discovery, discovery_fallback = discovery_endpoint(environ=environ)
-    dlmm, fallback = dlmm_endpoint(environ=environ)
     shadow = shadow_endpoint(environ=environ)
+
+    discovery = None
+    discovery_error = None
+    try:
+        discovery, _ = discovery_endpoint(environ=environ)
+    except BoundaryError as exc:
+        discovery_error = str(exc)
+
+    dlmm = None
+    dlmm_error = None
+    try:
+        dlmm, _ = dlmm_endpoint(environ=environ)
+    except BoundaryError as exc:
+        dlmm_error = str(exc)
+
     return dict(
         network="robinhood-mainnet",
         chain_id=CHAIN_ID,
         directional=dict(
             discovery="official_robinhood_sequencer_feed_plus_discovery_rpc",
-            discovery_provider_kind=_provider_kind(discovery),
-            discovery_credential=(PRIMARY_ENV if discovery_fallback else (
-                DISCOVERY_ENV if _env(DISCOVERY_ENV,environ) else DLMM_ENV
-            )),
-            discovery_primary_fallback=discovery_fallback,
-            discovery_requests_per_second=(
-                DIRECTIONAL_RPS if discovery_fallback else DISCOVERY_RPS
+            discovery_configured=bool(discovery),
+            discovery_provider_kind=(
+                None if not discovery else _provider_kind(discovery)
             ),
+            discovery_endpoint_fingerprint=(
+                None if not discovery else _endpoint_fingerprint(discovery)
+            ),
+            discovery_credential=(
+                DISCOVERY_ENV
+                if _env(DISCOVERY_ENV, environ)
+                else (DLMM_ENV if discovery else None)
+            ),
+            discovery_primary_fallback=False,
+            discovery_requests_per_second=DISCOVERY_RPS,
+            discovery_fail_closed=True,
+            discovery_error=discovery_error,
             evidence_provider_kind=_provider_kind(primary),
+            evidence_endpoint_fingerprint=_endpoint_fingerprint(primary),
             evidence_credential=PRIMARY_ENV,
             requests_per_second=DIRECTIONAL_RPS,
             automatic_failover=False,
             fail_closed=True,
         ),
         dlmm=dict(
-            provider_kind=_provider_kind(dlmm),
-            credential=(PRIMARY_ENV if fallback else DLMM_ENV),
-            primary_fallback=fallback,
-            requests_per_second=(
-                DIRECTIONAL_RPS if fallback else DLMM_RPS
+            configured=bool(dlmm),
+            provider_kind=(None if not dlmm else _provider_kind(dlmm)),
+            endpoint_fingerprint=(
+                None if not dlmm else _endpoint_fingerprint(dlmm)
             ),
+            credential=(DLMM_ENV if dlmm else None),
+            primary_fallback=False,
+            requests_per_second=DLMM_RPS,
             automatic_failover=False,
+            fail_closed=True,
+            error=dlmm_error,
         ),
         shadow=dict(
             configured=bool(shadow),
             provider_kind=(None if not shadow else _provider_kind(shadow)),
+            endpoint_fingerprint=(
+                None if not shadow else _endpoint_fingerprint(shadow)
+            ),
             credential=(
                 None
                 if not shadow
@@ -384,6 +457,8 @@ def topology_metadata(*, environ=None):
             role="diagnostic_only",
             url_kind="official_robinhood_public",
         ),
+        provider_role_isolation=True,
+        bulk_primary_fallback=False,
         signing=False,
         submission=False,
     )

@@ -42,6 +42,7 @@ class LaneProviderTests(unittest.TestCase):
         self.assertEqual(t["role"],"directional_evidence_primary")
         self.assertEqual(t["pacing"]["requests_per_second"],2.0)
         self.assertFalse(t["automatic_failover"])
+        self.assertEqual(len(t["endpoint_fingerprint"]),16)
         self.assertEqual(calls,["eth_chainId"])
 
     def test_configured_directional_does_not_use_shadow_on_failure(self):
@@ -86,15 +87,28 @@ class LaneProviderTests(unittest.TestCase):
         self.assertEqual(rpc.telemetry()["provider_kind"],"validation_cloud")
         self.assertFalse(rpc.primary_fallback)
 
-    def test_discovery_explicitly_falls_back_to_primary_until_configured(self):
+    def test_discovery_fails_closed_instead_of_using_primary(self):
         env={PRIMARY_ENV:"https://primary.invalid/v2/key"}
-        rpc=configured_discovery_rpc(
-            environ=env,limit=10,per_scope=10,retries=0,
-            transport=lambda *_:"0x1237",
-        )
-        self.assertTrue(rpc.primary_fallback)
-        self.assertEqual(rpc.telemetry()["role"],"pons_discovery_primary_fallback")
-        self.assertEqual(rpc.telemetry()["pacing"]["requests_per_second"],2.0)
+        with self.assertRaisesRegex(
+            BoundaryError,"robinhood_discovery_provider_required"
+        ):
+            configured_discovery_rpc(
+                environ=env,limit=10,per_scope=10,retries=0,
+                transport=lambda *_:"0x1237",
+            )
+
+    def test_discovery_rejects_alchemy_even_with_distinct_endpoint(self):
+        env={
+            PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/primary",
+            DISCOVERY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/discovery",
+        }
+        with self.assertRaisesRegex(
+            BoundaryError,"robinhood_discovery_alchemy_endpoint_forbidden"
+        ):
+            configured_discovery_rpc(
+                environ=env,limit=10,per_scope=10,retries=0,
+                transport=lambda *_:"0x1237",
+            )
 
     def test_dlmm_uses_dedicated_five_rps_lane(self):
         env={
@@ -112,21 +126,33 @@ class LaneProviderTests(unittest.TestCase):
         self.assertEqual(t["pacing"]["requests_per_second"],5.0)
         self.assertFalse(rpc.primary_fallback)
 
-    def test_dlmm_fallback_is_explicit_not_failover(self):
+    def test_dlmm_fails_closed_instead_of_using_primary(self):
         env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key"}
-        rpc=configured_dlmm_rpc(
-            environ=env,limit=10,per_scope=10,retries=0,
-            transport=lambda *_:"0x1237",
-        )
-        self.assertTrue(rpc.primary_fallback)
-        self.assertEqual(
-            rpc.telemetry()["role"],"dlmm_reconstruction_primary_fallback"
-        )
-        self.assertEqual(rpc.telemetry()["pacing"]["requests_per_second"],2.0)
-        self.assertFalse(rpc.telemetry()["automatic_failover"])
+        with self.assertRaisesRegex(
+            BoundaryError,"robinhood_dlmm_provider_required"
+        ):
+            configured_dlmm_rpc(
+                environ=env,limit=10,per_scope=10,retries=0,
+                transport=lambda *_:"0x1237",
+            )
 
-    def test_primary_fallback_lanes_share_directional_pacer(self):
-        env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key"}
+    def test_dlmm_rejects_primary_endpoint_reuse(self):
+        endpoint="https://rpc.validationcloud.io/key"
+        env={PRIMARY_ENV:endpoint,DLMM_ENV:endpoint}
+        with self.assertRaisesRegex(
+            BoundaryError,"robinhood_dlmm_primary_endpoint_reuse_forbidden"
+        ):
+            configured_dlmm_rpc(
+                environ=env,limit=10,per_scope=10,retries=0,
+                transport=lambda *_:"0x1237",
+            )
+
+    def test_bulk_lanes_have_independent_pacers_from_directional_primary(self):
+        env={
+            PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key",
+            DISCOVERY_ENV:"https://discovery.validationcloud.io/key",
+            DLMM_ENV:"https://dlmm.validationcloud.io/key",
+        }
         directional=configured_rpc(
             environ=env,limit=10,per_scope=10,retries=0,
             transport=lambda *_:"0x1237",
@@ -139,9 +165,12 @@ class LaneProviderTests(unittest.TestCase):
             environ=env,limit=10,per_scope=10,retries=0,
             transport=lambda *_:"0x1237",
         )
-        self.assertIs(directional.pacer,discovery.pacer)
-        self.assertIs(directional.pacer,dlmm.pacer)
-        self.assertEqual(directional.pacer.requests_per_second,2.0)
+        self.assertIsNot(directional.pacer,discovery.pacer)
+        self.assertIsNot(directional.pacer,dlmm.pacer)
+        self.assertFalse(discovery.primary_fallback)
+        self.assertFalse(dlmm.primary_fallback)
+        self.assertEqual(discovery.pacer.requests_per_second,5.0)
+        self.assertEqual(dlmm.pacer.requests_per_second,5.0)
 
     def test_shadow_is_diagnostic_only(self):
         env={
@@ -183,8 +212,28 @@ class LaneProviderTests(unittest.TestCase):
         body=str(meta)
         self.assertEqual(meta["directional"]["evidence_provider_kind"],"alchemy")
         self.assertEqual(meta["dlmm"]["provider_kind"],"validation_cloud")
+        self.assertTrue(meta["provider_role_isolation"])
+        self.assertFalse(meta["bulk_primary_fallback"])
+        self.assertFalse(meta["directional"]["discovery_primary_fallback"])
+        self.assertFalse(meta["dlmm"]["primary_fallback"])
+        self.assertEqual(
+            len(meta["directional"]["evidence_endpoint_fingerprint"]),16
+        )
+        self.assertEqual(len(meta["dlmm"]["endpoint_fingerprint"]),16)
         self.assertNotIn("/secret",body)
         self.assertNotIn("https://",body)
+
+    def test_topology_metadata_reports_missing_bulk_lanes_without_primary_fallback(self):
+        env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/secret"}
+        meta=topology_metadata(environ=env)
+        self.assertFalse(meta["directional"]["discovery_configured"])
+        self.assertEqual(
+            meta["directional"]["discovery_error"],
+            "robinhood_discovery_provider_required",
+        )
+        self.assertFalse(meta["dlmm"]["configured"])
+        self.assertEqual(meta["dlmm"]["error"],"robinhood_dlmm_provider_required")
+        self.assertFalse(meta["bulk_primary_fallback"])
 
 
 if __name__=="__main__":

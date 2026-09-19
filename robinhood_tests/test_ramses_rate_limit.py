@@ -61,6 +61,7 @@ class _FakeSession:
             failures=dict(self.failures),
             role="dlmm_reconstruction_primary",
             provider_kind="validation_cloud",
+            endpoint_fingerprint="0123456789abcdef",
             pacing=dict(requests_per_second=5.0),
         )
 
@@ -88,6 +89,10 @@ class RamsesRateLimitTests(unittest.TestCase):
         self.assertGreaterEqual(t["adaptive_batch_splits"],2)
         self.assertGreaterEqual(t["rate_limit_events"],2)
         self.assertGreaterEqual(t["failures"].get("provider_http_429",0),2)
+        self.assertEqual(
+            t["endpoint_fingerprints"],
+            {"0123456789abcdef":1},
+        )
 
     def test_exact_receipts_and_numbered_blocks_are_cached_across_reuse(self):
         session=_FakeSession(max_batch=6)
