@@ -227,35 +227,44 @@ def _market_context(pool,entry_time,pool_cache,context_cache):
     info=pool_cache[pool]
     created=info.get("created_at") if isinstance(info,dict) else None
     start=max(0,entry_time-3600)
+    ohlcv_error=None;volume_error=None
     try:
         ohlcv=op._api(f"/pools/{pool}/ohlcv",dict(
             timeframe="5m",start_time=start,end_time=entry_time))
         candles=ohlcv.get("data") if isinstance(ohlcv,dict) else None
-        candles=candles if isinstance(candles,list) else []
-    except Exception:
-        candles=[]
+        if not isinstance(candles,list):
+            raise RuntimeError("dlmm_operator_ohlcv_shape")
+    except Exception as exc:
+        candles=None;ohlcv_error=type(exc).__name__
     try:
         vol=op._api(f"/pools/{pool}/volume/history",dict(
             timeframe="5m",start_time=start,end_time=entry_time))
         volumes=vol.get("data") if isinstance(vol,dict) else None
-        volumes=volumes if isinstance(volumes,list) else []
-    except Exception:
-        volumes=[]
-    closes=[float(x["close"]) for x in candles
-            if isinstance(x,dict) and float(x.get("close") or 0)>0]
+        if not isinstance(volumes,list):
+            raise RuntimeError("dlmm_operator_volume_shape")
+    except Exception as exc:
+        volumes=None;volume_error=type(exc).__name__
+    closes=[] if candles is None else [
+        float(x["close"]) for x in candles
+        if isinstance(x,dict) and float(x.get("close") or 0)>0]
     returns=[math.log(b/a) for a,b in zip(closes,closes[1:]) if a>0 and b>0]
     result=dict(
-        status="available",
+        status=("available" if ohlcv_error is None and volume_error is None else "partial"),
         pool_created_at=created,
         pool_age_seconds=(None if not isinstance(created,int)
                           else max(0,entry_time-created)),
-        pre_entry_60m_volume_usd=sum(float(x.get("volume") or 0.0) for x in volumes
-                                     if isinstance(x,dict)),
-        pre_entry_60m_fees_usd=sum(float(x.get("fees") or 0.0) for x in volumes
-                                   if isinstance(x,dict)),
+        pre_entry_60m_volume_usd=(
+            None if volumes is None else
+            sum(float(x.get("volume") or 0.0) for x in volumes if isinstance(x,dict))),
+        pre_entry_60m_fees_usd=(
+            None if volumes is None else
+            sum(float(x.get("fees") or 0.0) for x in volumes if isinstance(x,dict))),
         pre_entry_5m_log_return_volatility=(
-            None if len(returns)<2 else statistics.pstdev(returns)),
-        ohlcv_candles=len(candles),volume_buckets=len(volumes),
+            None if candles is None or len(returns)<2 else statistics.pstdev(returns)),
+        ohlcv_candles=(None if candles is None else len(candles)),
+        volume_buckets=(None if volumes is None else len(volumes)),
+        ohlcv_unavailable_reason=ohlcv_error,
+        volume_unavailable_reason=volume_error,
         fee_tvl_at_entry=None,
         fee_tvl_at_entry_reason="historical_tvl_not_exposed_by_meteora_data_api",
         token_age_seconds=None,
@@ -265,8 +274,10 @@ def _market_context(pool,entry_time,pool_cache,context_cache):
     return result
 
 
-def _entry_exit_profiles(wallet_row,by_position):
-    pool_cache={};context_cache={};profiles=[]
+def _entry_exit_profiles(wallet_row,by_position,pool_cache=None,context_cache=None):
+    pool_cache={} if pool_cache is None else pool_cache
+    context_cache={} if context_cache is None else context_cache
+    profiles=[]
     positions={p.get("position"):p for p in wallet_row.get("positions") or []}
     for position,events in (wallet_row.get("histories") or {}).items():
         events=sorted(events,key=lambda e:(int(e.get("block_time") or 0),
@@ -315,7 +326,7 @@ def _entry_exit_profiles(wallet_row,by_position):
     return profiles
 
 
-def _deep_wallet(wallet_row):
+def _deep_wallet(wallet_row,pool_cache=None,context_cache=None):
     sigmap=_history_signature_map(wallet_row)
     transactions,pacer=_fetch_transactions(sigmap)
     by_position,tx_meta=_features_for_wallet(wallet_row,transactions)
@@ -341,7 +352,8 @@ def _deep_wallet(wallet_row):
         wallet_row.get("histories") or {},
         network["position_cost_usd"])
     path=_after_cost_path(wallet_row,network)
-    profiles=_entry_exit_profiles(wallet_row,by_position)
+    profiles=_entry_exit_profiles(
+        wallet_row,by_position,pool_cache=pool_cache,context_cache=context_cache)
     fee_payers=sorted({
         meta.get("fee_payer") for meta in tx_meta.values()
         if isinstance(meta.get("fee_payer"),str)
@@ -405,11 +417,13 @@ def run(path=DEFAULT_RANKING):
     signature=_signature(ranking);rows,failures=_load_checkpoint(signature)
     started=int(time.time())
     _write_checkpoint(signature,rows,failures,started)
+    pool_cache={};context_cache={}
     for index,wallet in enumerate(wallets,1):
         if wallet in rows:
             continue
         try:
-            rows[wallet]=_deep_wallet(by_wallet[wallet])
+            rows[wallet]=_deep_wallet(
+                by_wallet[wallet],pool_cache=pool_cache,context_cache=context_cache)
             failures.pop(wallet,None);state="completed"
         except Exception as exc:
             failures[wallet]=dict(error=type(exc).__name__,message=str(exc)[:160])
