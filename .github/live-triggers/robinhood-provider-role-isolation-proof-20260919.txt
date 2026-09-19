@@ -1,0 +1,1 @@
+Verify the merged provider-role isolation with a bounded live observability proof: discovery and DLMM must remain off the authoritative Alchemy primary; no strategy or authority changes.
