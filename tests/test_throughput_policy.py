@@ -8,7 +8,7 @@ from meme_machine.market_native_runtime import (
 )
 from meme_machine.research import CURRENT_THRESHOLDS
 from meme_machine.stream import WINDOW_SECONDS
-from meme_machine.solana_read_rpc import DISCOVERY_WS_URL, PRIMARY_RPC_HOST
+from meme_machine.solana_read_rpc import ALCHEMY_SOLANA_MAINNET_HOST, DISCOVERY_WS_URL, SOLANA_MIN_REQUEST_INTERVAL_SECONDS
 from tests import market_native_active_paper as active
 from tests import market_native_opportunity_outcomes as outcomes
 from tests import market_native_paper_cohort as cohort
@@ -33,7 +33,8 @@ class ThroughputPolicyTests(unittest.TestCase):
         self.assertEqual(DEFAULT_EVIDENCE_QUEUE_LIMIT,10_000)
         self.assertEqual(MAX_DISCOVERED_MINTS,10_000)
         self.assertEqual(DISCOVERY_WS_URL,'wss://api.mainnet-beta.solana.com')
-        self.assertEqual(PRIMARY_RPC_HOST,'solana.api.onfinality.io')
+        self.assertEqual(ALCHEMY_SOLANA_MAINNET_HOST,'solana-mainnet.g.alchemy.com')
+        self.assertEqual(SOLANA_MIN_REQUEST_INTERVAL_SECONDS,0.5)
 
         self.assertEqual(active.DISCOVERY_SECONDS,3300)
         self.assertEqual(active.RPC_ROTATE_AT,160)
