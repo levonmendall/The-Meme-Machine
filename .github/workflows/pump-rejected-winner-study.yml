@@ -1,0 +1,36 @@
+name: pump-rejected-winner-study
+on:
+  push:
+    branches:
+      - research/market-native-opportunity-outcomes
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  analyze:
+    if: contains(github.event.head_commit.message, '[pump-rejected-winner-study]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Regression gate
+        run: python -m unittest tests.test_rejected_winner_preentry_analysis -v
+      - name: Download completed outcome artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download 35433611938 -n market-native-opportunity-outcomes-35433611938-1
+      - name: Analyze pre-entry characteristics and frozen research hypothesis
+        run: python -m tests.rejected_winner_preentry_analysis market-native-opportunity-outcomes.json
+      - name: Preserve analysis
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pump-rejected-winner-study-${{ github.run_id }}-${{ github.run_attempt }}
+          path: pump-rejected-winner-preentry-analysis.json
+          if-no-files-found: warn
+          retention-days: 90

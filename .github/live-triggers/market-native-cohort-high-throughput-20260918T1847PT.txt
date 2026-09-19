@@ -1,0 +1,1 @@
+Run the repaired authenticated Pump/PumpSwap multi-position paper cohort with higher evidence throughput only: 150 preflights, 40 full-evidence attempts, same 5400s discovery window, same 60s evidence window, same continuation-v1 thresholds, same +15/-10/900s/liquidity exits, 5rps authenticated OnFinality primary, Alchemy rescue-only.

@@ -1,0 +1,1 @@
+Validate the canonical Pump HTTP topology at the raw-proven sustainable OnFinality cadence: 30 uncached finalized reads at 2 RPS through production new_rpc(), with Alchemy configured but requiring zero rescue. If this fails, remove OnFinality from Pump evidence rather than masking failure through fallback.

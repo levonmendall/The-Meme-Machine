@@ -33,6 +33,15 @@ SENSITIVITY_GRID = dict(
 )
 
 
+def research_identity(row):
+    """Dedup key for research observations; mint prevents legacy ID aliasing."""
+    nomination_id=(row or {}).get('nomination_id')
+    mint=(row or {}).get('mint')
+    if not nomination_id:
+        return None
+    return (str(nomination_id),str(mint or ''))
+
+
 def _ordered_add(rows, value):
     if value and value not in rows:
         rows.append(value)
@@ -246,16 +255,16 @@ def sensitivity(vector):
 
 
 def analyze_reports(reports, min_sample=50):
-    """Aggregate natural vectors, deduplicating repeated observations by nomination id."""
+    """Aggregate natural vectors, deduplicating by nomination id + mint."""
     dedup = {}
     for report in reports:
         for row in report.get('results', []):
             vector = row.get('qualification_vector')
-            nomination_id = row.get('nomination_id')
-            if (not vector or not nomination_id or row.get('evidence_stage') != 'complete' or
+            identity = research_identity(row)
+            if (not vector or identity is None or row.get('evidence_stage') != 'complete' or
                     row.get('natural_nomination') is not True):
                 continue
-            dedup.setdefault(nomination_id, vector)
+            dedup.setdefault(identity, vector)
     vectors = list(dedup.values())
     first = Counter(v.get('actual_reason') for v in vectors)
     all_rejections = Counter()

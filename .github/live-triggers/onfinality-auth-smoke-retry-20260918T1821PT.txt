@@ -1,0 +1,1 @@
+Retry authenticated OnFinality primary smoke with allowlisted getGenesisHash plus authenticated WebSocket subscription. Require zero Alchemy rescue.

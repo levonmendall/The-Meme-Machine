@@ -1,0 +1,34 @@
+name: onfinality-sustained-rate-probe
+on:
+  push:
+    branches:
+      - research/market-native-opportunity-outcomes
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: contains(github.event.head_commit.message, '[onfinality-sustained-probe]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: onfinality-sustained-rate-probe
+      cancel-in-progress: false
+    env:
+      MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Probe authenticated OnFinality without rescue
+        run: python -m tests.onfinality_sustained_rate_probe
+      - name: Preserve sustained-rate evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: onfinality-sustained-rate-probe-${{ github.run_id }}-${{ github.run_attempt }}
+          path: onfinality-sustained-rate-probe.json
+          if-no-files-found: warn
+          retention-days: 90

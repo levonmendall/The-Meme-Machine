@@ -25,7 +25,8 @@ from meme_machine.concentration import ConcentrationReader
 from meme_machine.engine import Engine
 from meme_machine.market_native_shadow import classify_buckets, discover_market_native
 from meme_machine.postgrad import PostGraduationAdapter
-from meme_machine.provider import RPC, PumpAdapter, Unavailable
+from meme_machine.solana_read_rpc import discovery_ws_url, new_rpc, primary_rpc_url
+from meme_machine.provider import PumpAdapter, Unavailable
 from meme_machine.pumpswap_runtime import PumpSwapPaperRuntime
 from meme_machine.research import qualification_vector
 from meme_machine.store import Store
@@ -235,12 +236,12 @@ def main():
     )
     _save(report)
 
-    url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
-    rpc=RPC(url,limit=240)
+    url=primary_rpc_url()
+    rpc=new_rpc(limit=240)
     adapter=PumpAdapter(rpc)
     reader=ConcentrationReader(rpc,secondary_url=os.environ.get('MM_SOLANA_CONCENTRATION_RPC_URL','').strip())
     postgrad_adapter=PostGraduationAdapter(rpc,scan_rpc=object())
-    tape=PumpTape();stop=threading.Event();ready=threading.Event();stream=PumpLogStream(url,tape)
+    tape=PumpTape();stop=threading.Event();ready=threading.Event();stream=PumpLogStream(url,tape,ws_url=discovery_ws_url())
     thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True);thread.start()
 
     with tempfile.TemporaryDirectory() as td:

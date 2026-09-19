@@ -1,0 +1,1 @@
+Execute deterministic high-throughput certification: automatic evidence-provider rotations, stream gap/reconnect rewarm, three market-native qualifications/fills, two Pump settlements, one PumpSwap continuation/settlement, final reconciliation and archive verification. No live money or strategy changes.

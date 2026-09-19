@@ -75,15 +75,89 @@ jobs:
             legacy-raydium-live-capture.json
           if-no-files-found: warn
           retention-days: 30
+  onfinality-auth-smoke:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[onfinality-auth-smoke]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
+      MM_ONFINALITY_SOLANA_WS_URL: ${{ secrets.MM_ONFINALITY_SOLANA_WS_URL }}
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Authenticated OnFinality HTTP and WebSocket smoke
+        run: python -m tests.onfinality_authenticated_smoke
+      - name: Preserve authenticated primary smoke
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: onfinality-auth-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: onfinality-auth-smoke.json
+          if-no-files-found: warn
+          retention-days: 30
+  pump-stream-parallel-compare:
+    needs: test
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[stream-compare-live]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    concurrency:
+      group: pump-stream-parallel-compare
+      cancel-in-progress: false
+    env:
+      MM_ONFINALITY_SOLANA_WS_URL: ${{ secrets.MM_ONFINALITY_SOLANA_WS_URL }}
+      MM_STREAM_COMPARE_SECONDS: '300'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Parallel authenticated OnFinality vs public Solana Pump stream comparison
+        run: python -m tests.parallel_pump_stream_comparison
+      - name: Preserve parallel stream comparison
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pump-stream-parallel-compare-${{ github.run_id }}-${{ github.run_attempt }}
+          path: pump-stream-parallel-comparison.json
+          if-no-files-found: warn
+          retention-days: 90
+
+  high-throughput-e2e-certification:
+    needs: test
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[high-throughput-e2e-cert]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Connected high-throughput deterministic certification
+        run: python -m tests.high_throughput_e2e_certification
+      - name: Preserve high-throughput certification
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: high-throughput-e2e-certification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: high-throughput-e2e-certification.json
+          if-no-files-found: warn
+          retention-days: 90
   discovery-lane-compare:
     needs: test
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[discovery-compare-live]')
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     concurrency:
-      group: solana-public-rpc-live
+      group: solana-pump-public-discovery-alchemy-http
       cancel-in-progress: false
     env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_DISCOVERY_COMPARE_SECONDS: '3300'
       MM_DISCOVERY_COMPARE_POST_SECONDS: '1000'
       MM_DISCOVERY_COMPARE_MAX_PER_LANE: '20'
@@ -109,12 +183,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 70
     concurrency:
-      group: solana-public-rpc-live
+      group: solana-pump-public-discovery-alchemy-http
       cancel-in-progress: false
     env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_MARKET_NATIVE_PRIORITY_SECONDS: '3300'
-      MM_MARKET_NATIVE_PREFLIGHT_BUDGET: '90'
-      MM_MARKET_NATIVE_FULL_EVIDENCE_BUDGET: '20'
+      MM_MARKET_NATIVE_PREFLIGHT_BUDGET: '150'
+      MM_MARKET_NATIVE_FULL_EVIDENCE_BUDGET: '40'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -137,12 +212,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     concurrency:
-      group: solana-public-rpc-live
+      group: solana-pump-public-discovery-alchemy-http
       cancel-in-progress: false
     env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_MARKET_NATIVE_SMOKE_SECONDS: '720'
-      MM_MARKET_NATIVE_SMOKE_PREFLIGHT_BUDGET: '12'
-      MM_MARKET_NATIVE_SMOKE_FULL_EVIDENCE_BUDGET: '4'
       MM_MARKET_NATIVE_SMOKE_FILL_WAIT_SECONDS: '120'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -169,13 +243,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 85
     concurrency:
-      group: solana-public-rpc-live
+      group: solana-pump-public-discovery-alchemy-http
       cancel-in-progress: false
     env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
       MM_MARKET_NATIVE_PAPER_DISCOVERY_SECONDS: '3300'
       MM_MARKET_NATIVE_PAPER_POST_SECONDS: '1000'
-      MM_MARKET_NATIVE_PAPER_PREFLIGHT_BUDGET: '60'
-      MM_MARKET_NATIVE_PAPER_FULL_EVIDENCE_BUDGET: '20'
       PRIOR_PUBLIC_RPC_RUN_ID: '35272214900'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -216,8 +289,124 @@ jobs:
           path: market-native-active-paper-report.json
           if-no-files-found: warn
           retention-days: 90
+  market-native-paper-cohort:
+    needs: test
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[market-native-cohort-live]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 125
+    concurrency:
+      group: solana-pump-public-discovery-alchemy-http
+      cancel-in-progress: false
+    env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+      MM_MARKET_NATIVE_COHORT_DISCOVERY_SECONDS: '5400'
+      MM_MARKET_NATIVE_COHORT_POST_SECONDS: '1100'
+      MM_MARKET_NATIVE_COHORT_TARGET_SETTLED: '3'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Multi-position natural Pump/PumpSwap paper cohort
+        run: python -m tests.market_native_paper_cohort
+      - name: Preserve natural paper cohort evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: market-native-paper-cohort-${{ github.run_id }}-${{ github.run_attempt }}
+          path: market-native-paper-cohort-report.json
+          if-no-files-found: warn
+          retention-days: 90
+  qualified-post-exit-history:
+    needs: test
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[post-exit-outcome-live]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: solana-public-rpc-live
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Counterfactual follow-up after proven +15% paper exit
+        run: python -m tests.qualified_post_exit_history --seed research/post_exit_35301686960.json
+      - name: Preserve post-exit outcome evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: qualified-post-exit-history-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qualified-post-exit-history.json
+          if-no-files-found: warn
+          retention-days: 90
+  market-native-outcome-study:
+    needs: test
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[market-native-outcomes-live]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 125
+    concurrency:
+      group: solana-pump-public-discovery-alchemy-http
+      cancel-in-progress: true
+    env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+      MM_MARKET_NATIVE_OUTCOME_DISCOVERY_SECONDS: '3300'
+      MM_MARKET_NATIVE_OUTCOME_FOLLOWUP_SECONDS: '3600'
+      MM_MARKET_NATIVE_OUTCOME_NATURAL_BUDGET: '180'
+      MM_MARKET_NATIVE_OUTCOME_PRIORITY_BUDGET: '240'
+      MM_MARKET_NATIVE_OUTCOME_EXTRA_EVIDENCE_BUDGET: '240'
+      MM_MARKET_NATIVE_OUTCOME_EXTRA_EVIDENCE_PER_SLOT: '5'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Unbiased and missed-opportunity forward outcome study
+        run: python -m tests.market_native_opportunity_outcomes
+      - name: Preserve strategy outcome research
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: market-native-opportunity-outcomes-${{ github.run_id }}-${{ github.run_attempt }}
+          path: market-native-opportunity-outcomes.json
+          if-no-files-found: warn
+          retention-days: 90
+  market-native-sample-supplement:
+    needs: test
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[market-native-sample-supplement-live]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    concurrency:
+      group: solana-pump-public-discovery-alchemy-http
+      cancel-in-progress: false
+    env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+      MM_MARKET_NATIVE_OUTCOME_DISCOVERY_SECONDS: '1200'
+      MM_MARKET_NATIVE_OUTCOME_FOLLOWUP_SECONDS: '300'
+      MM_MARKET_NATIVE_OUTCOME_NATURAL_BUDGET: '30'
+      MM_MARKET_NATIVE_OUTCOME_PRIORITY_BUDGET: '40'
+      MM_MARKET_NATIVE_OUTCOME_EXTRA_EVIDENCE_BUDGET: '20'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Supplemental unbiased sample and missed-opportunity evidence
+        run: python -m tests.market_native_opportunity_outcomes
+      - name: Preserve supplemental market-native sample
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: market-native-sample-supplement-${{ github.run_id }}-${{ github.run_attempt }}
+          path: market-native-opportunity-outcomes.json
+          if-no-files-found: warn
+          retention-days: 90
   live-diagnostic:
-    if: github.event_name != 'pull_request' && github.ref_name != 'feat/post-graduation-pumpswap-raydium' && !contains(github.event.head_commit.message, '[forced-canary]') && !contains(github.event.head_commit.message, '[longevity') && !contains(github.event.head_commit.message, '[qualification-build]') && !contains(github.event.head_commit.message, '[postgrad-live]') && !contains(github.event.head_commit.message, '[shadow-discovery-build]') && !contains(github.event.head_commit.message, '[discovery-compare-live]') && !contains(github.event.head_commit.message, '[market-native-priority-live]') && !contains(github.event.head_commit.message, '[market-native-paper-live]') && !contains(github.event.head_commit.message, '[market-native-smoke-live]')
+    if: github.event_name != 'pull_request' && github.ref_name != 'feat/post-graduation-pumpswap-raydium' && !contains(github.event.head_commit.message, '[forced-canary]') && !contains(github.event.head_commit.message, '[longevity') && !contains(github.event.head_commit.message, '[qualification-build]') && !contains(github.event.head_commit.message, '[postgrad-live]') && !contains(github.event.head_commit.message, '[shadow-discovery-build]') && !contains(github.event.head_commit.message, '[discovery-compare-live]') && !contains(github.event.head_commit.message, '[market-native-priority-live]') && !contains(github.event.head_commit.message, '[market-native-paper-live]') && !contains(github.event.head_commit.message, '[market-native-smoke-live]') && !contains(github.event.head_commit.message, '[post-exit-outcome-live]') && !contains(github.event.head_commit.message, '[market-native-outcomes-live]') && !contains(github.event.head_commit.message, '[market-native-sample-supplement-live]') && !contains(github.event.head_commit.message, '[market-native-cohort-live]') && !contains(github.event.head_commit.message, '[onfinality-auth-smoke]') && !contains(github.event.head_commit.message, '[high-throughput-e2e-cert]') && !contains(github.event.head_commit.message, '[stream-compare-live]') && !contains(github.event.head_commit.message, '[pump-research]') && !contains(github.event.head_commit.message, '[pump-provider]') && !contains(github.event.head_commit.message, '[pump-rejected-winner-study]') && !contains(github.event.head_commit.message, '[onfinality-sustained-probe]')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     continue-on-error: true

@@ -150,6 +150,10 @@ class DurablePumpSwapRuntime(unittest.TestCase):
             self.assertIn(MINT,store.state['positions'])
             self.assertEqual(store.state['positions'][MINT]['surface'],'graduating-pumpswap')
             self.assertTrue(store.state['positions'][MINT]['unresolved'])
+            self.assertEqual(
+                store.state['positions'][MINT]['last_exit_error']['reason'],
+                'pumpswap_quote_unavailable')
+            self.assertEqual(store.state['counts']['unavailable_exit:pumpswap_quote_unavailable'],1)
 
             clock.value=161
             self.assertEqual(runtime.fill_existing_order(oid),'cancelled')

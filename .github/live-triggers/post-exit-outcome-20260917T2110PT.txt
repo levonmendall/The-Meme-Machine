@@ -1,0 +1,1 @@
+Research-only trigger for the counterfactual post-exit follow-up of the proven continuation-v1 paper trade. No strategy, order authority, merge, or deployment change.

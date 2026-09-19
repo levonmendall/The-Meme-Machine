@@ -1,0 +1,15 @@
+{
+  "kind": "qualified_post_exit_seed",
+  "source_run": 35301686960,
+  "policy": "continuation-v1",
+  "network": "solana-mainnet",
+  "mint": "EV4ZzTsC5gezyVctVBHxDWtf5av3LHuvhKGGMS4W3eR8",
+  "qualification_time": 1789700987,
+  "fill_time": 1789701001,
+  "exit_time": 1789701199,
+  "exit_reason": "take_profit",
+  "tokens": 4284831058978,
+  "exit_proceeds_lamports": 305501195,
+  "realized_lamports": 49881980,
+  "research_only": true
+}

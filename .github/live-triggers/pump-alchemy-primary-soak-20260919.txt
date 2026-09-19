@@ -1,0 +1,1 @@
+Validate the replacement Pump HTTP topology: public Solana WebSocket discovery plus Alchemy HTTP primary at 2 RPS, no automatic HTTP rescue, 30 uncached finalized reads, fail closed on any provider failure.

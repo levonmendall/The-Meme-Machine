@@ -10,7 +10,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .engine import Engine
 from .market_native_runtime import MarketNativeRuntime
 from .postgrad import PostGraduationAdapter
-from .provider import RPC, PumpAdapter, Unavailable
+from .provider import PumpAdapter, Unavailable
+from .solana_read_rpc import discovery_ws_url, new_rpc, primary_rpc_url
 from .pumpswap_runtime import POSTGRAD_WAIT_SECONDS, PumpSwapPaperRuntime
 from .store import Store
 from .stream import PumpLogStream, PumpTape, WINDOW_SECONDS
@@ -21,11 +22,13 @@ def tick(engine, adapter, now):
     s=engine.store.state
     for mint,p in list(s['positions'].items()):
         if now>=p['next_monitor']:
+            source_error=None
             try:
                 snap=adapter.snapshot(mint,now,priority=True)
-            except (Unavailable,ValueError):
+            except (Unavailable,ValueError) as exc:
                 snap={}
-            engine.monitor(mint,snap,int(time.time()))
+                source_error=exc
+            engine.monitor(mint,snap,int(time.time()),source_error=source_error)
     for oid,o in list(s['orders'].items()):
         if o['status']=='reserved' and now>=o['due']:
             try:
@@ -61,7 +64,7 @@ def tick(engine, adapter, now):
     with engine.store.transaction('heartbeat'):
         s['provider']=dict(requests=adapter.rpc.calls,failures=adapter.rpc.failures,
                            cache_hits=adapter.rpc.cache_hits,limit=adapter.rpc.limit,
-                           infrastructure_spend_usd=0,provider_spend_usd=0 if getattr(adapter.rpc,'url',None)=='https://api.mainnet-beta.solana.com' else None)
+                           infrastructure_spend_usd=0,provider_spend_usd=0 if getattr(adapter.rpc,'failover_count',0)==0 else None)
 
 
 def _monitor_existing(engine, adapter, now, pumpswap_runtime=None):
@@ -77,12 +80,12 @@ def _monitor_existing(engine, adapter, now, pumpswap_runtime=None):
             continue
         try:
             snap=adapter.snapshot(mint,now,priority=True)
-        except (Unavailable,ValueError):
+        except (Unavailable,ValueError) as exc:
             if pumpswap_runtime is not None:
                 result=pumpswap_runtime.monitor_existing_position(mint)
                 if result != 'not_graduated':
                     continue
-            engine.monitor(mint,{},int(time.time()))
+            engine.monitor(mint,{},int(time.time()),source_error=exc)
             continue
         if pumpswap_runtime is not None:
             try:
@@ -271,12 +274,11 @@ def main():
         ap.error('budgeted session must be 1..3600 seconds')
 
     request_limit=int(config.get('request_limit',240 if args.mode=='prospective' else 120))
-    preflight_budget=int(config.get('market_native_preflight_budget',60))
-    full_evidence_budget=int(config.get('market_native_full_evidence_budget',20))
+    evidence_queue_limit=int(config.get('market_native_evidence_queue_limit',10_000))
+    provider_rotation_threshold=int(config.get('market_native_rpc_rotation_threshold',160))
     if args.mode=='prospective':
-        required=40+1+2*preflight_budget+3*full_evidence_budget
-        if request_limit<required:
-            ap.error(f'request_limit must be >= {required} for configured market-native budgets')
+        if not 40 <= provider_rotation_threshold <= request_limit-40:
+            ap.error('market_native_rpc_rotation_threshold must preserve 40 monitoring requests')
 
     store=Store(args.db,args.mode,config['initial_sol_usd_micros'],config['valuation_source'])
     if args.mode=='prospective':
@@ -316,20 +318,20 @@ def main():
     signal.signal(signal.SIGINT,lambda *_:stopping.set())
     stream_thread=None
     try:
-        url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
-        rpc=RPC(url,limit=request_limit)
+        url=primary_rpc_url()
+        rpc=new_rpc(limit=request_limit)
         adapter=PumpAdapter(rpc)
         postgrad_adapter=PostGraduationAdapter(rpc,scan_rpc=object())
         pumpswap_runtime=PumpSwapPaperRuntime(store,postgrad_adapter)
         tape=PumpTape()
         ready=threading.Event()
-        log_stream=PumpLogStream(url,tape)
+        log_stream=PumpLogStream(url,tape,ws_url=discovery_ws_url())
         stream_thread=threading.Thread(target=log_stream.run,args=(stopping,ready),daemon=True)
         stream_thread.start()
         market_runtime=MarketNativeRuntime(
             engine,adapter,max(1,args.seconds),
-            preflight_budget=preflight_budget,
-            full_evidence_budget=full_evidence_budget,
+            provider_rotation_threshold=provider_rotation_threshold,
+            evidence_queue_limit=evidence_queue_limit,
         )
         if not ready.wait(15) or log_stream.error_kind:
             with store.transaction('stream_start_failure'):
@@ -339,6 +341,13 @@ def main():
         while time.monotonic()<deadline and not stopping.is_set():
             now=int(time.time())
             _monitor_existing(engine,adapter,now,pumpswap_runtime=pumpswap_runtime)
+            if market_runtime.provider_rotation_due():
+                pacer=rpc.read_pacer if hasattr(rpc,'read_pacer') else None
+                rpc=new_rpc(limit=request_limit,pacer=pacer)
+                adapter=PumpAdapter(rpc)
+                postgrad_adapter=PostGraduationAdapter(rpc,scan_rpc=object())
+                pumpswap_runtime=PumpSwapPaperRuntime(store,postgrad_adapter)
+                market_runtime.replace_adapter(adapter)
             cursor=market_runtime.tick(tape,now,cursor)
             published=dict(engine.status(int(time.time())),release=release,
                            discovery_mode='market_native',scout_lane_active=False,
