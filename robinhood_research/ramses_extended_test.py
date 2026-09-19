@@ -35,7 +35,7 @@ from .ramses_all_pool_lifecycle import (
     run as run_connected,
     select_qualifier,
 )
-from .ramses_capture import BoundedMultiRpc
+from .ramses_capture import BoundedMultiRpc, _first_finalized_block_at_or_after
 from .ramses_strategy import (
     POLICY_HASH,
     STRATEGY_DOMAIN,
@@ -213,8 +213,25 @@ def _forced_machinery(endpoint, screen, row, *, db_path):
             frontier=rpc.call(
                 "eth_getBlockByNumber",["finalized",False],scope="extended_forward"
             )
-        end_block=int(frontier["number"],16)
-        end_at=int(frontier["timestamp"],16)
+        selected,previous,horizon_reads=_first_finalized_block_at_or_after(
+            rpc,entry_block,frontier,target
+        )
+        end_block=int(selected["number"],16)
+        end_at=int(selected["timestamp"],16)
+        previous_at=int(previous["timestamp"],16)
+        if end_at<target or previous_at>=target:
+            raise BoundaryError("extended_forced_exact_horizon_disagreement")
+        result["horizon"]=dict(
+            target_timestamp=target,
+            selected_block=end_block,
+            selected_timestamp=end_at,
+            previous_block=int(previous["number"],16),
+            previous_timestamp=previous_at,
+            selected_elapsed_seconds=end_at-entry_at,
+            previous_elapsed_seconds=previous_at-entry_at,
+            binary_search_reads=horizon_reads,
+            earliest_finalized_at_or_after_target=True,
+        )
         capture,replay_result=_build_segment_replay(
             rpc,pool,decision,entry_block,end_block
         )
@@ -292,6 +309,7 @@ def run(
     started=time.monotonic()
     screens=[]
     seen_pools=set()
+    inventory_cache={}
     result=dict(
         kind="ramses_fee_pulse_extended_market_test_v1",
         strategy_domain=STRATEGY_DOMAIN,
@@ -311,6 +329,7 @@ def run(
             endpoint,
             gas_costs_by_pool=costs_by_pool,
             signals_by_pool=signals_by_pool,
+            inventory_cache=inventory_cache,
         )
         screens.append(screen)
         for row in screen.get("rows",[]):
@@ -332,6 +351,10 @@ def run(
             result["status"]=result["connected_lifecycle"].get("status")
             result["ended_at"]=time.time()
             result["unique_active_pools"]=len(seen_pools)
+            result["factory_inventory_cache"]=dict(
+                count=len(inventory_cache.get("addresses") or []),
+                observed_block=inventory_cache.get("observed_block"),
+            )
             return result
 
         elapsed=time.monotonic()-started
@@ -346,6 +369,10 @@ def run(
 
     result["natural_qualifier_found"]=False
     result["unique_active_pools"]=len(seen_pools)
+    result["factory_inventory_cache"]=dict(
+        count=len(inventory_cache.get("addresses") or []),
+        observed_block=inventory_cache.get("observed_block"),
+    )
     result["status"]="natural_discovery_complete_no_qualifier"
     screen,row=_pick_forced_row(screens)
     if row is None:
