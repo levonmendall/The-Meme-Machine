@@ -34,8 +34,9 @@ from meme_machine.market_native_shadow import discover_market_native
 from meme_machine.outcome_research import (
     DEFAULT_HORIZONS, enable_shadow_exit, high_density_features,
     is_two_buyer_sole_near_miss, liquidity_floor_eligibility, new_tracker,
-    observe_trade, summarize_liquidity_counterfactual, summarize_post_exit_tail,
-    summarize_trackers, summarize_two_buyer_near_misses,
+    observe_trade, subclass_research_protocol, summarize_liquidity_counterfactual,
+    summarize_post_exit_tail, summarize_trackers, summarize_two_buyer_near_misses,
+    two_buyer_research_candidate,
 )
 from meme_machine.provider import RPC, PumpAdapter, Unavailable
 from meme_machine.research import CURRENT_THRESHOLDS
@@ -47,12 +48,13 @@ GENESIS_SOL_USD_MICROS=97_840_000
 GENESIS_SOURCE='2026-09-17 market-native opportunity outcome research; no order authority'
 DISCOVERY_SECONDS=max(600,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_DISCOVERY_SECONDS','3300')),3300))
 FOLLOWUP_SECONDS=max(300,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_FOLLOWUP_SECONDS','3600')),3600))
-NATURAL_BUDGET=max(10,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_NATURAL_BUDGET','60')),60))
-PRIORITY_BUDGET=max(1,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_PRIORITY_BUDGET','90')),90))
-EXTRA_EVIDENCE_BUDGET=max(0,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_EXTRA_EVIDENCE_BUDGET','45')),90))
+NATURAL_BUDGET=max(10,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_NATURAL_BUDGET','120')),120))
+PRIORITY_BUDGET=max(1,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_PRIORITY_BUDGET','180')),180))
+EXTRA_EVIDENCE_BUDGET=max(0,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_EXTRA_EVIDENCE_BUDGET','180')),240))
+EXTRA_EVIDENCE_PER_SLOT=max(1,min(int(os.environ.get('MM_MARKET_NATIVE_OUTCOME_EXTRA_EVIDENCE_PER_SLOT','3')),5))
 NATURAL_SLOT_SECONDS=max(1,math.ceil(DISCOVERY_SECONDS/NATURAL_BUDGET))
 PRIORITY_SLOT_SECONDS=priority_slot_seconds(DISCOVERY_SECONDS,PRIORITY_BUDGET)
-MAX_DISCOVERED=5_000
+MAX_DISCOVERED=10_000
 ROTATE_AT=205
 CONCENTRATION_ROTATE_AT=32
 
@@ -177,12 +179,14 @@ def _evaluate_extra_preflight(candidate,metric,tape,evidence,authority):
         events=tape.window(candidate['mint'],now,max_slot=snap['slot'])
         pre=authority.vector(
             nomination,dict(snapshot=snap,events=events,covered=True,concentration_bps=0),now)
+        pre_two_buyer=two_buyer_research_candidate(pre)
         row.update(
             preflight_complete=True,
             preflight_reason=(None if pre.get('actual_reason')=='qualified' else pre.get('actual_reason')),
             preflight_vector=pre,
+            two_buyer_research_candidate=pre_two_buyer,
         )
-        if pre.get('actual_reason')!='qualified':
+        if pre.get('actual_reason')!='qualified' and not pre_two_buyer:
             return row
         concentration,meta=evidence.reader.read(candidate['mint'],snap,priority=True)
         final=evidence.adapter.snapshot(candidate['mint'],int(time.time()),priority=True)
@@ -193,10 +197,17 @@ def _evaluate_extra_preflight(candidate,metric,tape,evidence,authority):
         vector=authority.vector(
             nomination,dict(snapshot=final,events=events,covered=True,
                             concentration_bps=concentration),qualified_at)
+        sole_two=bool(
+            int(vector.get('independent_buyer_groups') or -1)==2 and
+            (((vector.get('sensitivity') or {}).get('values') or {})
+             .get('min_independent_groups') or {}).get('2',False) and
+            not bool(vector.get('current_threshold_pass'))
+        )
         row.update(
             full_evidence_complete=True,qualified_at=qualified_at,
             actual_reason=vector.get('actual_reason'),qualification_vector=vector,
             concentration_bps=concentration,concentration_source=meta.get('source'),
+            two_buyer_sole_near_miss=sole_two,
         )
         return row
     except (Unavailable,ValueError,KeyError,TypeError) as exc:
@@ -217,6 +228,8 @@ def main():
         natural_sample_budget=NATURAL_BUDGET,natural_slot_seconds=NATURAL_SLOT_SECONDS,
         priority_budget=PRIORITY_BUDGET,priority_slot_seconds=PRIORITY_SLOT_SECONDS,
         extra_evidence_budget=EXTRA_EVIDENCE_BUDGET,
+        extra_evidence_per_slot=EXTRA_EVIDENCE_PER_SLOT,
+        subclass_research_protocol=subclass_research_protocol(),
         frozen_entry_thresholds=dict(CURRENT_THRESHOLDS),entry_thresholds_unchanged=True,
         outcome_horizons=list(DEFAULT_HORIZONS),started=started,limitations=[],
         natural_results=[],extra_evidence_results=[],cohort_trackers=[],
@@ -271,12 +284,20 @@ def main():
             if not selected:
                 unselected.append((candidate,metric))
         if extra_evidence_attempted<EXTRA_EVIDENCE_BUDGET and unselected:
-            candidate,metric=min(unselected,key=lambda row:row[1].priority_key())
-            extra_evidence_attempted+=1
-            result=_evaluate_extra_preflight(candidate,metric,tape,evidence,authority)
-            result['priority_slot']=slot
-            result['extra_evidence_sequence']=extra_evidence_attempted
-            extra_evidence_results.append(result)
+            ranked=sorted(unselected,key=lambda row:row[1].priority_key())
+            remaining=max(0,EXTRA_EVIDENCE_BUDGET-extra_evidence_attempted)
+            for candidate,metric in ranked[:min(EXTRA_EVIDENCE_PER_SLOT,remaining)]:
+                extra_evidence_attempted+=1
+                result=_evaluate_extra_preflight(candidate,metric,tape,evidence,authority)
+                result['priority_slot']=slot
+                result['extra_evidence_sequence']=extra_evidence_attempted
+                extra_evidence_results.append(result)
+                if result.get('two_buyer_sole_near_miss'):
+                    num,den,origin=_event_baseline(candidate)
+                    add_tracker(new_tracker(
+                        candidate['mint'],origin,num,den,['two_buyer_sole_near_miss_expanded'],
+                        nomination_id=candidate['nomination']['id'],
+                        metadata={'priority_slot':slot,'source':'expanded_full_evidence'}))
 
     with tempfile.TemporaryDirectory() as td:
         store=Store(str(Path(td)/'outcomes.db'),'prospective',GENESIS_SOL_USD_MICROS,GENESIS_SOURCE)
@@ -381,6 +402,11 @@ def main():
                 extra_preflight_complete=sum(r.get('preflight_complete') for r in extra_evidence_results),
                 extra_full_evidence_complete=sum(r.get('full_evidence_complete') for r in extra_evidence_results),
                 extra_qualified=sum(r.get('actual_reason')=='qualified' for r in extra_evidence_results),
+                expanded_two_buyer_full_evidence=sum(
+                    r.get('full_evidence_complete') and r.get('two_buyer_research_candidate')
+                    for r in extra_evidence_results),
+                expanded_two_buyer_sole_near_misses=sum(
+                    r.get('two_buyer_sole_near_miss') for r in extra_evidence_results),
                 natural_complete=sum(r.get('evidence_stage')=='complete' for r in natural_results),
                 natural_sample_ready=sum(r.get('evidence_stage')=='complete' for r in natural_results)>=50,
                 high_density_candidates=len(high_density_seen),
