@@ -1,0 +1,138 @@
+{
+  "kind": "dlmm_profitable_operator_rule_derivation_protocol_v1",
+  "status": "preregistered_before_new_operator_pnl_ranking",
+  "source_operator_protocol_revision": "1.2",
+  "authority": {
+    "research_only": true,
+    "allocation_authority": false,
+    "signing": false,
+    "submission": false,
+    "live_money": false
+  },
+  "core_family": {
+    "dimensions": [
+      "distribution_family",
+      "sidedness",
+      "width_bucket",
+      "active_bin_placement_bucket",
+      "rebalance_bucket",
+      "hold_bucket"
+    ],
+    "independent_cluster_support_required": 0.6666666666666666,
+    "minimum_independent_clusters": 3,
+    "missing_values": "cannot vote; never imputed"
+  },
+  "context_dimensions": {
+    "pool_age_seconds": [
+      {
+        "label": "<1h",
+        "max_exclusive": 3600
+      },
+      {
+        "label": "1-6h",
+        "min_inclusive": 3600,
+        "max_exclusive": 21600
+      },
+      {
+        "label": "6-24h",
+        "min_inclusive": 21600,
+        "max_exclusive": 86400
+      },
+      {
+        "label": "1-7d",
+        "min_inclusive": 86400,
+        "max_exclusive": 604800
+      },
+      {
+        "label": ">=7d",
+        "min_inclusive": 604800
+      }
+    ],
+    "pre_entry_60m_volume_usd": [
+      {
+        "label": "<10k",
+        "max_exclusive": 10000
+      },
+      {
+        "label": "10-50k",
+        "min_inclusive": 10000,
+        "max_exclusive": 50000
+      },
+      {
+        "label": "50-250k",
+        "min_inclusive": 50000,
+        "max_exclusive": 250000
+      },
+      {
+        "label": ">=250k",
+        "min_inclusive": 250000
+      }
+    ],
+    "pre_entry_5m_log_return_volatility": [
+      {
+        "label": "<1pct",
+        "max_exclusive": 0.01
+      },
+      {
+        "label": "1-3pct",
+        "min_inclusive": 0.01,
+        "max_exclusive": 0.03
+      },
+      {
+        "label": "3-10pct",
+        "min_inclusive": 0.03,
+        "max_exclusive": 0.1
+      },
+      {
+        "label": ">=10pct",
+        "min_inclusive": 0.1
+      }
+    ],
+    "entry_dynamic_fee_bps_observed": [
+      {
+        "label": "<=5",
+        "max_inclusive": 5
+      },
+      {
+        "label": "6-20",
+        "min_inclusive": 6,
+        "max_inclusive": 20
+      },
+      {
+        "label": "21-100",
+        "min_inclusive": 21,
+        "max_inclusive": 100
+      },
+      {
+        "label": ">100",
+        "min_inclusive": 101
+      }
+    ]
+  },
+  "context_rule": {
+    "per_cluster_vote": "modal bucket among exact entry observations; lexical tie-break",
+    "attach_to_candidate_only_if": "same bucket has >=2/3 support among at least 3 qualifying independent clusters with that context available",
+    "missing_context": "does not block core family but cannot become a prospective gate",
+    "historical_fee_tvl": "unavailable unless a point-in-time source is proven; current fee/TVL substitution forbidden",
+    "token_age": "unavailable unless exact creation time is proven; pool age may not substitute for token age"
+  },
+  "continuous_parameters": {
+    "range_width_bins": "median of cluster-level medians within supported core family",
+    "center_active_offset_bins": "median of cluster-level medians within supported core family",
+    "hold_seconds": "median of cluster-level medians within supported core family",
+    "rebalance_position_rate": "median of cluster-level rates within supported core family",
+    "medians_are_frozen_values_not_posthoc_search_centers": true
+  },
+  "prospective_test": {
+    "freeze_rule_artifact_before_first_outcome": true,
+    "natural_observations_only": true,
+    "minimum_complete_observations_per_rule": 30,
+    "paper_only": true,
+    "use_derived_hold_time": true,
+    "no_threshold_or_bucket_changes_after_start": true,
+    "no_retrospective_best_rule_selection": true,
+    "compare_each_rule_to_matched_eligible_nonentry_controls": true
+  },
+  "pnl_observed_before_registration": false,
+  "revision": "1.0"
+}
