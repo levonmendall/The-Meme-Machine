@@ -203,11 +203,18 @@ def _evaluate_extra_preflight(candidate,metric,tape,evidence,authority):
              .get('min_independent_groups') or {}).get('2',False) and
             not bool(vector.get('current_threshold_pass'))
         )
+        engine=authority.engine
+        curve,rates=engine.validate_snapshot(final,qualified_at)
+        amount=engine.store.state['initial']//20
+        tokens,cost,fee=pump.buy(curve,amount,rates)
         row.update(
             full_evidence_complete=True,qualified_at=qualified_at,
             actual_reason=vector.get('actual_reason'),qualification_vector=vector,
             concentration_bps=concentration,concentration_source=meta.get('source'),
             two_buyer_sole_near_miss=sole_two,
+            entry_quote=dict(
+                tokens=tokens,cost_lamports=cost,fee_lamports=fee,
+                gas_lamports=GAS,basis_lamports=cost+GAS),
         )
         return row
     except (Unavailable,ValueError,KeyError,TypeError) as exc:
@@ -293,11 +300,19 @@ def main():
                 result['extra_evidence_sequence']=extra_evidence_attempted
                 extra_evidence_results.append(result)
                 if result.get('two_buyer_sole_near_miss'):
-                    num,den,origin=_event_baseline(candidate)
-                    add_tracker(new_tracker(
-                        candidate['mint'],origin,num,den,['two_buyer_sole_near_miss_expanded'],
-                        nomination_id=candidate['nomination']['id'],
-                        metadata={'priority_slot':slot,'source':'expanded_full_evidence'}))
+                    quote=result.get('entry_quote') or {}
+                    num=int(quote.get('basis_lamports') or 0)
+                    den=int(quote.get('tokens') or 0)
+                    origin=int(result.get('qualified_at') or 0)
+                    if min(num,den,origin)>0:
+                        add_tracker(new_tracker(
+                            candidate['mint'],origin,num,den,
+                            ['two_buyer_sole_near_miss_expanded'],
+                            nomination_id=candidate['nomination']['id'],
+                            metadata={
+                                'priority_slot':slot,'source':'expanded_full_evidence',
+                                'entry_baseline':'frozen_5pct_modeled_quote',
+                            }))
 
     with tempfile.TemporaryDirectory() as td:
         store=Store(str(Path(td)/'outcomes.db'),'prospective',GENESIS_SOL_USD_MICROS,GENESIS_SOURCE)
