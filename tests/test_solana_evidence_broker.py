@@ -110,6 +110,32 @@ class SolanaEvidenceBrokerTests(unittest.TestCase):
         reclaimed=second._claim_jobs(2,clock(),lease_seconds=15)
         self.assertIn("tx:a",[x[0] for x in reclaimed])
 
+    def test_missing_cache_entry_requeues_formerly_complete_job(self):
+        broker,clock=self.make_broker()
+        rpc=_Rpc()
+        first,meta=broker.hydrate_transactions(
+            rpc,["a"],kind="pump_window",deadline=clock()+10,batch_size=1)
+        self.assertEqual(meta["pending"],0)
+        self.assertIsNotNone(first["a"])
+        self.assertEqual(len(rpc.batches),1)
+        with broker.lock,broker.db:
+            broker.db.execute("DELETE FROM tx_cache WHERE signature='a'")
+        second,meta2=broker.hydrate_transactions(
+            rpc,["a"],kind="position_monitor",deadline=clock()+10,batch_size=1)
+        self.assertEqual(meta2["pending"],0)
+        self.assertIsNotNone(second["a"])
+        self.assertEqual(len(rpc.batches),2)
+
+    def test_stream_events_prune_only_old_cache_rows(self):
+        broker,clock=self.make_broker()
+        broker.stream_begin("s",int(clock()))
+        broker.record_event(
+            "s",signature="old",slot=1,observed_at=int(clock())-4000)
+        broker.record_event(
+            "s",signature="new",slot=2,observed_at=int(clock()))
+        got=broker.recent_events("s",since=int(clock())-5000)
+        self.assertEqual([row["signature"] for row in got],["new"])
+
     def test_cursor_cannot_regress(self):
         broker,_clock=self.make_broker()
         broker.advance_cursor("pool:x",100,"a")
