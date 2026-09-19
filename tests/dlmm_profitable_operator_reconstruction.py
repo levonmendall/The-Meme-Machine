@@ -28,8 +28,16 @@ from tests import dlmm_profitable_operator_discovery as op
 DEFAULT_RANKING=Path("DLMM_PROFITABLE_OPERATOR_RANKING_V1.json")
 OUT=Path("dlmm-profitable-operator-deep-reconstruction.json")
 
+ADD=bytes([181,157,89,67,143,182,52,72])
 ADD2=bytes([228,162,78,28,70,219,116,115])
+STRATEGY=bytes([7,3,150,127,148,40,61,200])
 STRATEGY2=bytes([3,221,149,218,111,141,118,213])
+STRATEGY_ONE_SIDE=bytes([41,5,238,175,100,225,6,205])
+WEIGHT=bytes([28,140,238,99,231,162,21,149])
+WEIGHT2=bytes([209,59,63,91,111,200,153,228])
+ONE_SIDE=bytes([94,155,103,151,70,95,220,165])
+PRECISE_ONE_SIDE=bytes([161,194,103,84,171,71,250,154])
+PRECISE_ONE_SIDE2=bytes([33,51,163,201,117,98,125,231])
 REBALANCE=bytes([92,4,176,193,119,185,83,9])
 REMOVE_RANGE2=bytes([204,2,195,145,53,145,145,205])
 REMOVE_ALL=bytes([10,51,61,35,112,105,24,85])
@@ -76,9 +84,9 @@ def classify_distribution(distributions,active_bin):
     return "custom"
 
 
-def decode_strategy2(raw):
-    if len(raw)<105 or raw[:8]!=STRATEGY2:
-        raise ValueError("dlmm_operator_strategy2_shape")
+def decode_strategy(raw):
+    if len(raw)<105 or raw[:8] not in (STRATEGY,STRATEGY2):
+        raise ValueError("dlmm_operator_strategy_shape")
     amount_x,amount_y=struct.unpack_from("<QQ",raw,8)
     active,max_slippage,min_bin,max_bin=struct.unpack_from("<iiii",raw,24)
     strategy_index=raw[40]
@@ -86,7 +94,8 @@ def decode_strategy2(raw):
         raise ValueError("dlmm_operator_strategy2_values")
     name=STRATEGY_TYPES[strategy_index]
     return dict(
-        instruction="add_liquidity_by_strategy2",
+        instruction=("add_liquidity_by_strategy2" if raw[:8]==STRATEGY2
+                     else "add_liquidity_by_strategy"),
         amount_x=amount_x,amount_y=amount_y,
         observed_active_bin=active,max_active_bin_slippage=max_slippage,
         lower_bin_id=min_bin,upper_bin_id=max_bin,
@@ -99,9 +108,9 @@ def decode_strategy2(raw):
     )
 
 
-def decode_add2(raw):
-    if len(raw)<32 or raw[:8]!=ADD2:
-        raise ValueError("dlmm_operator_add2_shape")
+def decode_add(raw):
+    if len(raw)<32 or raw[:8] not in (ADD,ADD2):
+        raise ValueError("dlmm_operator_add_shape")
     amount_x,amount_y,count=struct.unpack_from("<QQI",raw,8)
     if not 1<=count<=70 or len(raw)<28+8*count:
         raise ValueError("dlmm_operator_add2_distribution")
@@ -114,13 +123,123 @@ def decode_add2(raw):
                          weight=dx+dy))
     bins=[r["bin_id"] for r in rows if r["weight"]>0]
     return dict(
-        instruction="add_liquidity2",amount_x=amount_x,amount_y=amount_y,
+        instruction=("add_liquidity2" if raw[:8]==ADD2 else "add_liquidity"),
+        amount_x=amount_x,amount_y=amount_y,
         lower_bin_id=(None if not bins else min(bins)),
         upper_bin_id=(None if not bins else max(bins)),
         width_bins=(None if not bins else max(bins)-min(bins)+1),
         one_sided=(amount_x==0)!=(amount_y==0),
         two_sided=amount_x>0 and amount_y>0,
         distributions=rows,
+    )
+
+
+def _strategy_fields(raw,amount_x,amount_y,base_offset,instruction):
+    active,max_slippage,min_bin,max_bin=struct.unpack_from("<iiii",raw,base_offset)
+    strategy_index=raw[base_offset+16]
+    if min_bin>max_bin or strategy_index>=len(STRATEGY_TYPES):
+        raise ValueError("dlmm_operator_strategy_values")
+    name=STRATEGY_TYPES[strategy_index]
+    return dict(
+        instruction=instruction,amount_x=amount_x,amount_y=amount_y,
+        observed_active_bin=active,max_active_bin_slippage=max_slippage,
+        lower_bin_id=min_bin,upper_bin_id=max_bin,width_bins=max_bin-min_bin+1,
+        strategy_type=name,
+        strategy_family=("spot" if name.startswith("spot") else
+                         "curve" if name.startswith("curve") else "bid_ask"),
+        one_sided=(amount_x==0)!=(amount_y==0),
+        two_sided=amount_x>0 and amount_y>0,
+    )
+
+
+def decode_strategy_one_side(raw):
+    if len(raw)<97 or raw[:8]!=STRATEGY_ONE_SIDE:
+        raise ValueError("dlmm_operator_strategy_one_side_shape")
+    amount=struct.unpack_from("<Q",raw,8)[0]
+    result=_strategy_fields(
+        raw,amount,0,16,"add_liquidity_by_strategy_one_side")
+    result["one_sided"]=True;result["two_sided"]=False
+    result["single_side_token_from_accounts"]=True
+    return result
+
+
+def decode_weight(raw):
+    if len(raw)<36 or raw[:8] not in (WEIGHT,WEIGHT2):
+        raise ValueError("dlmm_operator_weight_shape")
+    amount_x,amount_y=struct.unpack_from("<QQ",raw,8)
+    active,max_slippage=struct.unpack_from("<ii",raw,24)
+    count=struct.unpack_from("<I",raw,32)[0]
+    if not 1<=count<=70 or len(raw)<36+6*count:
+        raise ValueError("dlmm_operator_weight_distribution")
+    rows=[];offset=36
+    for _ in range(count):
+        bid,weight=struct.unpack_from("<iH",raw,offset);offset+=6
+        rows.append(dict(bin_id=bid,weight=weight))
+    bins=[r["bin_id"] for r in rows if r["weight"]>0]
+    return dict(
+        instruction=("add_liquidity_by_weight2" if raw[:8]==WEIGHT2
+                     else "add_liquidity_by_weight"),
+        amount_x=amount_x,amount_y=amount_y,observed_active_bin=active,
+        max_active_bin_slippage=max_slippage,
+        lower_bin_id=(None if not bins else min(bins)),
+        upper_bin_id=(None if not bins else max(bins)),
+        width_bins=(None if not bins else max(bins)-min(bins)+1),
+        one_sided=(amount_x==0)!=(amount_y==0),
+        two_sided=amount_x>0 and amount_y>0,distributions=rows,
+    )
+
+
+def decode_one_side(raw):
+    if len(raw)<28 or raw[:8]!=ONE_SIDE:
+        raise ValueError("dlmm_operator_one_side_shape")
+    amount=struct.unpack_from("<Q",raw,8)[0]
+    active,max_slippage=struct.unpack_from("<ii",raw,16)
+    count=struct.unpack_from("<I",raw,24)[0]
+    if not 1<=count<=70 or len(raw)<28+6*count:
+        raise ValueError("dlmm_operator_one_side_distribution")
+    rows=[];offset=28
+    for _ in range(count):
+        bid,weight=struct.unpack_from("<iH",raw,offset);offset+=6
+        rows.append(dict(bin_id=bid,weight=weight))
+    bins=[r["bin_id"] for r in rows if r["weight"]>0]
+    return dict(
+        instruction="add_liquidity_one_side",amount=amount,
+        observed_active_bin=active,max_active_bin_slippage=max_slippage,
+        lower_bin_id=(None if not bins else min(bins)),
+        upper_bin_id=(None if not bins else max(bins)),
+        width_bins=(None if not bins else max(bins)-min(bins)+1),
+        one_sided=True,two_sided=False,distributions=rows,
+        single_side_token_from_accounts=True,
+    )
+
+
+def decode_precise_one_side(raw):
+    if len(raw)<20 or raw[:8] not in (PRECISE_ONE_SIDE,PRECISE_ONE_SIDE2):
+        raise ValueError("dlmm_operator_precise_one_side_shape")
+    count=struct.unpack_from("<I",raw,8)[0]
+    if not 1<=count<=70 or len(raw)<12+8*count+8:
+        raise ValueError("dlmm_operator_precise_one_side_bins")
+    rows=[];offset=12
+    for _ in range(count):
+        bid,amount=struct.unpack_from("<iI",raw,offset);offset+=8
+        rows.append(dict(bin_id=bid,compressed_amount=amount,weight=amount))
+    multiplier=struct.unpack_from("<Q",raw,offset)[0];offset+=8
+    max_amount=None
+    if raw[:8]==PRECISE_ONE_SIDE2:
+        if len(raw)<offset+8:
+            raise ValueError("dlmm_operator_precise_one_side2_max_amount")
+        max_amount=struct.unpack_from("<Q",raw,offset)[0]
+    bins=[r["bin_id"] for r in rows if r["weight"]>0]
+    return dict(
+        instruction=("add_liquidity_one_side_precise2"
+                     if raw[:8]==PRECISE_ONE_SIDE2
+                     else "add_liquidity_one_side_precise"),
+        decompress_multiplier=multiplier,max_amount=max_amount,
+        lower_bin_id=(None if not bins else min(bins)),
+        upper_bin_id=(None if not bins else max(bins)),
+        width_bins=(None if not bins else max(bins)-min(bins)+1),
+        one_sided=True,two_sided=False,distributions=rows,
+        single_side_token_from_accounts=True,
     )
 
 
@@ -224,10 +343,18 @@ def transaction_features(tx,pool,position):
             continue
         detail=dict(action=action,order=[outer,inner],signer=keys[accounts[signer_i]])
         try:
-            if raw[:8]==ADD2:
-                detail.update(decode_add2(raw))
-            elif raw[:8]==STRATEGY2:
-                detail.update(decode_strategy2(raw))
+            if raw[:8] in (ADD,ADD2):
+                detail.update(decode_add(raw))
+            elif raw[:8] in (STRATEGY,STRATEGY2):
+                detail.update(decode_strategy(raw))
+            elif raw[:8]==STRATEGY_ONE_SIDE:
+                detail.update(decode_strategy_one_side(raw))
+            elif raw[:8] in (WEIGHT,WEIGHT2):
+                detail.update(decode_weight(raw))
+            elif raw[:8]==ONE_SIDE:
+                detail.update(decode_one_side(raw))
+            elif raw[:8] in (PRECISE_ONE_SIDE,PRECISE_ONE_SIDE2):
+                detail.update(decode_precise_one_side(raw))
             elif raw[:8]==REBALANCE:
                 detail.update(decode_rebalance(raw))
             elif raw[:8]==REMOVE_RANGE2:
