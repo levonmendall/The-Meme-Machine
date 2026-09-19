@@ -1,0 +1,1 @@
+Retry repaired Pump/PumpSwap multi-position paper cohort on authenticated OnFinality primary after adding fail-closed WebSocket reconnect/rewarm. 5 rps cap, Alchemy rescue-only, continuation-v1 unchanged.
