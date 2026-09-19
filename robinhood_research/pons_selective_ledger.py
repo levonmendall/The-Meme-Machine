@@ -169,7 +169,7 @@ class SelectivePaper:
                     now,p["market"],"buy",p["amount"],p["kind"],
                     finality_ledger=finality_ledger,
                 )
-                if quote.stamp.event_at<int(p["due"]):
+                if quote.stamp.observed_at<int(p["due"]):
                     raise BoundaryError("selective_pre_delay_quote")
                 cost=int(p["amount"])+int(quote.gas_quote)
                 if cost>int(p["reserved"]):
@@ -204,7 +204,7 @@ class SelectivePaper:
                         now,p["market"],"sell",amount,p["kind"],
                         finality_ledger=finality_ledger,
                     )
-                    if quote.stamp.event_at<int(p["due"]):
+                    if quote.stamp.observed_at<int(p["due"]):
                         raise BoundaryError("selective_pre_delay_quote")
                 except BoundaryError as exc:
                     if p.get("reason")==str(exc):
