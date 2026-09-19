@@ -679,13 +679,19 @@ def _log_swap_fallback(meta,pool):
     return events
 
 
-def _resolve_swap_record(record,meta,block_time):
+def _resolve_swap_record(record,meta,block_time,trigger_only=False):
     legacy=record['legacy'];v2=record['v2']
     if len(legacy)>1 or len(v2)>1 or (not legacy and not v2):
         raise Unavailable('dlmm_missing_or_ambiguous_swap_event')
     if record['instruction']=='swap_exact_out2' and len(v2)!=1:
         raise Unavailable('dlmm_exact_out_requires_swap2_event')
     event=v2[0] if v2 else legacy[0]
+    if trigger_only:
+        if block_time is None:
+            raise Unavailable('dlmm_missing_transaction_time')
+        return dict(
+            **event,time=block_time,instruction=record['instruction'],
+            execution_order=record['order'],swap_mode='trigger_only')
     if legacy and v2 and legacy[0]!=v2[0]:
         raise ValueError('dlmm_swap_event_versions_disagree')
     if record['instruction']=='swap_exact_out2':
@@ -870,7 +876,7 @@ def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
         if record['target'] and record['instruction']!='swap_exact_out2' \
                 and not record['legacy'] and not record['v2'] and len(records)==1:
             record['legacy']=_log_swap_fallback(meta,record['pool'])
-        event=_resolve_swap_record(record,meta,tx.get('blockTime'))
+        event=_resolve_swap_record(record,meta,tx.get('blockTime'),trigger_only=trigger_only)
         resolved.append((record,event))
     if trigger_only:
         return [
