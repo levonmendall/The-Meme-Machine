@@ -19,3 +19,10 @@ The ranking is screening only. Finalized discovery logs are not treated as recei
 For arbitrary token pairs the scanner uses token Y as the canonical accounting quote for dimensionless turnover and return calculations. Any gas-cost input must already be converted into that pool's quote-token raw units. External anchor/directional signals must express direction as Ramses bin direction (`up` or `down`) and remain subject to the frozen signal freshness/confidence/edge gates.
 
 Natural allocation remains disabled.
+
+
+## Independence boundary
+
+The all-pool scanner belongs exclusively to `robinhood-ramses-dlmm-independent`. Its universe is reconstructed from the authenticated Ramses factory itself; it does not accept another strategy's candidate list or ranking.
+
+The scanner's watch cohort, percentiles and no-trade decisions are derived solely from Ramses state/log evidence plus explicitly permitted Ramses inputs. It has no shared allocator and no allocation authority. External anchor and directional context must satisfy the strategy-domain provenance contract before it can influence a Ramses decision.
