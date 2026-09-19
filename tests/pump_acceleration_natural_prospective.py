@@ -35,7 +35,7 @@ from meme_machine.pump_acceleration_strategy import (
     SignalVector,flow_metrics,policy_hash,qualify,
 )
 from meme_machine.solana_evidence_broker import (
-    DynamicAddressLogStream,EvidenceBroker,
+    DEFAULT_BROKER_DB,DynamicAddressLogStream,EvidenceBroker,
 )
 from meme_machine.solana_read_rpc import discovery_ws_url,new_rpc,primary_rpc_url
 from meme_machine.stream import PumpLogStream,PumpTape,WINDOW_SECONDS
@@ -364,8 +364,7 @@ def main():
 
     tape=PumpTape()
     broker_path=os.environ.get(
-        "MM_SOLANA_EVIDENCE_BROKER_DB",
-        "pump-acceleration-evidence-broker.sqlite3")
+        "MM_SOLANA_EVIDENCE_BROKER_DB",DEFAULT_BROKER_DB)
     broker=EvidenceBroker(broker_path)
     stop=threading.Event();ready=threading.Event();pumpswap_ready=threading.Event()
     stream=PumpLogStream(primary_rpc_url(),tape,ws_url=discovery_ws_url())
