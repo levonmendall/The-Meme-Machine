@@ -503,6 +503,12 @@ def run(
     )
 
     while True:
+        if os.environ.get("MM_CERTIFICATION_RUN_ID"):
+            result["checkpoint_at"]=time.time()
+            result["frontier_discovery"]=dict(
+                polls=frontier_polls,advances=frontier_advances,
+                expensive_scans=len(screens),provider=frontier_rpc.telemetry())
+            _persist_public_result(result)
         now=time.monotonic()
         elapsed=now-started
         if elapsed>=discovery_seconds:
@@ -671,7 +677,9 @@ def _persist_public_result(result):
     raw=json.dumps(public_result,sort_keys=True,separators=(",",":")).encode()
     if len(raw)>12_000_000:
         raise BoundaryError("extended_market_report_capacity")
-    REPORT.write_bytes(raw)
+    temporary=REPORT.with_suffix(REPORT.suffix+".tmp")
+    temporary.write_bytes(raw)
+    os.replace(temporary,REPORT)
 
 
 def main():
