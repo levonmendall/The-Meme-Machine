@@ -46,6 +46,8 @@ GENESIS_SOL_USD_MICROS=97_840_000
 INITIAL_USD_MICROS=500_000_000
 INITIAL_LAMPORTS=INITIAL_USD_MICROS*1_000_000_000//GENESIS_SOL_USD_MICROS
 ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
+ENTRY_DELAY_SECONDS=2
+ENTRY_FILL_TIMEOUT_SECONDS=20
 
 
 def _save(report):
@@ -204,36 +206,91 @@ def _volume_price_signal(state,snapshot,events,mode,concentration):
     })
 
 
-def _open_position(report,active,qualification,snapshot,mode):
-    if (qualification.mint,mode) in active:
-        return
-    life=PumpAccelerationPaperLifecycle()
-    life.reserve(qualification,ENTRY_BUDGET+GAS,int(snapshot["available_time"]))
-    if snapshot.get("protocol")=="pump.fun":
-        curve=pump.curve(snapshot["accounts"][0])
-        supply,_=pump.mint_info(snapshot["accounts"][1])
-        rates=pump.fees(snapshot["accounts"][2],curve,supply)
-        tokens,cost,fee=pump.buy(curve,ENTRY_BUDGET,rates)
-        surface="pump.fun"
-        entry=dict(tokens=tokens,cost=cost,fee=fee,gas=GAS)
-    else:
-        quote=buy_quote(snapshot,ENTRY_BUDGET)
-        tokens=quote.output_amount;cost=quote.input_amount;surface="pumpswap"
-        entry=dict(tokens=tokens,cost=cost,fee=quote.fee_amount,gas=GAS)
-    basis=cost+GAS
-    life.fill(tokens,basis,int(snapshot["available_time"]),surface)
+def _reserve_position(report,pending,active,qualification,snapshot,mode,concentration=0):
     key=(qualification.mint,mode)
-    active[key]=dict(
-        lifecycle=life,opened=int(snapshot["available_time"]),next_monitor=int(snapshot["available_time"])+5,
-        entry=entry,marks={},last_concentration=0,
-    )
-    report["qualifiers"].append(dict(
+    if key in pending or key in active:
+        return
+    if any(x["mint"]==qualification.mint and x["mode"]==mode for x in report["qualifiers"]):
+        return
+    reserved_at=int(snapshot["available_time"])
+    life=PumpAccelerationPaperLifecycle()
+    life.reserve(qualification,ENTRY_BUDGET+GAS,reserved_at)
+    qrow=dict(
         mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
         score=qualification.score,reasons=list(qualification.reasons),
-        confirmations=list(qualification.confirmations),entry=entry,
+        confirmations=list(qualification.confirmations),
         policy_hash=qualification.policy_hash,
-    ))
+        entry_status="reserved",reserved_at=reserved_at,
+        fill_due=reserved_at+ENTRY_DELAY_SECONDS,
+        decision_slot=int(snapshot["slot"]),
+    )
+    report["qualifiers"].append(qrow)
+    pending[key]=dict(
+        lifecycle=life,reserved_at=reserved_at,due=reserved_at+ENTRY_DELAY_SECONDS,
+        decision_slot=int(snapshot["slot"]),qualifier_row=qrow,
+        last_concentration=int(concentration),
+    )
 
+
+def _fill_pending(report,pending,active,sessions,postgrad,now):
+    for key,row in list(pending.items()):
+        if now<int(row["due"]):
+            continue
+        mint,mode=key
+        life=row["lifecycle"]
+        try:
+            sessions.ensure(20)
+            if mode==MODE_LATE_CURVE:
+                snapshot=sessions.pump.snapshot(mint,now,priority=True)
+                curve=pump.curve(snapshot["accounts"][0])
+                if curve.complete or curve.real_token==0:
+                    raise ValueError("graduated_before_delayed_fill")
+                if int(snapshot["slot"])<=int(row["decision_slot"]) or int(snapshot["market_time"])<int(row["due"]):
+                    raise Unavailable("no_fresh_post_delay_quote")
+                supply,_=pump.mint_info(snapshot["accounts"][1])
+                rates=pump.fees(snapshot["accounts"][2],curve,supply)
+                tokens,cost,fee=pump.buy(curve,ENTRY_BUDGET,rates)
+                surface="pump.fun"
+                entry=dict(tokens=tokens,cost=cost,fee=fee,gas=GAS)
+            else:
+                state=postgrad.get(mint)
+                if state is None:
+                    raise Unavailable("missing_postgrad_state")
+                graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
+                handoff=graduation_handoff(
+                    graduation,max(now,int(graduation["available_time"])))
+                snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
+                if int(snapshot["slot"])<=int(row["decision_slot"]) or int(snapshot["market_time"])<int(row["due"]):
+                    raise Unavailable("no_fresh_post_delay_quote")
+                quote=buy_quote(snapshot,ENTRY_BUDGET)
+                tokens=quote.output_amount;cost=quote.input_amount;surface="pumpswap"
+                entry=dict(tokens=tokens,cost=cost,fee=quote.fee_amount,gas=GAS)
+
+            basis=cost+GAS
+            life.fill(tokens,basis,int(snapshot["available_time"]),surface)
+            active[key]=dict(
+                lifecycle=life,opened=int(snapshot["available_time"]),
+                next_monitor=int(snapshot["available_time"])+5,
+                entry=entry,marks={},
+                last_concentration=int(row.get("last_concentration",0)),
+            )
+            row["qualifier_row"].update(
+                entry_status="filled",filled_at=int(snapshot["available_time"]),
+                fill_slot=int(snapshot["slot"]),entry=entry,
+            )
+            pending.pop(key,None)
+        except (Unavailable,ValueError,KeyError,TypeError) as exc:
+            reason=str(exc) or type(exc).__name__
+            if reason=="graduated_before_delayed_fill" or now-int(row["reserved_at"])>=ENTRY_FILL_TIMEOUT_SECONDS:
+                try:
+                    life.cancel(reason,now)
+                except ValueError:
+                    pass
+                row["qualifier_row"].update(
+                    entry_status="cancelled",cancelled_at=now,entry_limitation=reason)
+                pending.pop(key,None)
+            else:
+                row["qualifier_row"]["last_fill_limitation"]=reason
 
 def _record_attempt(report,signal,q,stage,extra=None):
     row=dict(
@@ -275,6 +332,7 @@ def main():
         curve_progress_definition="prospectively observed CreateEvent initial_real_token_reserves -> reserve depletion",
         velocity_window_seconds=30,extension_lookback_seconds=10,
         entry_budget_lamports=ENTRY_BUDGET,entry_fraction_bps=POLICY.entry_fraction_bps,
+        entry_delay_seconds=ENTRY_DELAY_SECONDS,entry_fill_timeout_seconds=ENTRY_FILL_TIMEOUT_SECONDS,
         discovery_seconds=DISCOVERY_SECONDS,followup_seconds=FOLLOWUP_SECONDS,
         started=int(time.time()),stream={},sessions=[],counts={},limitations=[],
         attempts=[],qualifiers=[],settled=[],open_positions=[],postgrad=[],
@@ -292,7 +350,7 @@ def main():
         raise SystemExit(1)
 
     sessions=Sessions()
-    cursor=0;created={};postgrad={};active={};full_attempts=0
+    cursor=0;created={};postgrad={};pending={};active={};full_attempts=0
     last_eval={};last_postgrad_eval={};last_save=0
     discovery_end=int(time.time())+DISCOVERY_SECONDS
     end=discovery_end+FOLLOWUP_SECONDS
@@ -365,7 +423,8 @@ def main():
                         if q.qualified and not any(
                                 x["mint"]==mint and x["mode"]==MODE_LATE_CURVE
                                 for x in report["qualifiers"]):
-                            _open_position(report,active,q,snapshot,MODE_LATE_CURVE)
+                            _reserve_position(
+                                report,pending,active,q,snapshot,MODE_LATE_CURVE,concentration)
                     except (Unavailable,ValueError,KeyError,TypeError) as exc:
                         report["attempts"].append(dict(
                             mint=mint,mode=MODE_LATE_CURVE,observed_at=now,
@@ -396,7 +455,8 @@ def main():
                     if q.qualified and not any(
                             x["mint"]==mint and x["mode"]==MODE_POSTGRAD
                             for x in report["qualifiers"]):
-                        _open_position(report,active,q,snapshot,MODE_POSTGRAD)
+                        _reserve_position(
+                            report,pending,active,q,snapshot,MODE_POSTGRAD,concentration)
 
                     if age>=POLICY.min_second_leg_age_s:
                         try:
@@ -407,7 +467,8 @@ def main():
                             if q2.qualified and not any(
                                     x["mint"]==mint and x["mode"]==MODE_SECOND_LEG
                                     for x in report["qualifiers"]):
-                                _open_position(report,active,q2,snapshot,MODE_SECOND_LEG)
+                                _reserve_position(
+                                    report,pending,active,q2,snapshot,MODE_SECOND_LEG,concentration)
                         except (ValueError,KeyError,TypeError) as exc:
                             report["attempts"].append(dict(
                                 mint=mint,mode=MODE_SECOND_LEG,observed_at=now,
@@ -418,6 +479,10 @@ def main():
                         mint=mint,observed_at=now,age_seconds=age,
                         complete=False,limitation=str(exc) or type(exc).__name__))
                     report["postgrad"]=report["postgrad"][-300:]
+
+            # Paper entries use the repository-standard two-second delay and a fresh
+            # executable quote. This is execution realism, not a strategy threshold.
+            _fill_pending(report,pending,active,sessions,postgrad,now)
 
             # Exact frozen exit controller on natural qualifiers.  Each qualifier is
             # an isolated research lifecycle; no shared Store capital is mutated.
@@ -499,6 +564,10 @@ def main():
                         counts[f'{attempt.get("mode")}:qualified']+=1
                 report["counts"]=dict(counts)
                 report["stream"]=tape.status(now)
+                report["pending_entries"]=[
+                    dict(mint=k[0],mode=k[1],reserved_at=v["reserved_at"],
+                         due=v["due"],snapshot=v["lifecycle"].snapshot())
+                    for k,v in pending.items()]
                 report["open_positions"]=[
                     dict(mint=k[0],mode=k[1],opened=v["opened"],
                          marks=dict(v["marks"]),snapshot=v["lifecycle"].snapshot())
@@ -514,6 +583,10 @@ def main():
         report["full_evidence_attempts"]=full_attempts
         report["created_mints_observed"]=len(created)
         report["postgrad_candidates"]=len(postgrad)
+        report["pending_entries"]=[
+            dict(mint=k[0],mode=k[1],reserved_at=v["reserved_at"],
+                 due=v["due"],snapshot=v["lifecycle"].snapshot())
+            for k,v in pending.items()]
         report["open_positions"]=[
             dict(mint=k[0],mode=k[1],opened=v["opened"],
                  marks=dict(v["marks"]),snapshot=v["lifecycle"].snapshot())
