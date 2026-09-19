@@ -1,0 +1,65 @@
+name: solana-dlmm-independent-v1
+on:
+  push:
+    branches:
+      - research/solana-dlmm-independent-v1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[solana-dlmm-independent-live]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    concurrency:
+      group: solana-dlmm-independent-live
+      cancel-in-progress: false
+    env:
+      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Verify Solana-only strategy boundary
+        run: |
+          python - <<'PY'
+          import json, os
+          p=json.load(open("SOLANA_DLMM_INDEPENDENT_V1.json"))
+          assert p["kind"]=="solana_dlmm_independent_v1"
+          assert p["status"]=="frozen_pre_prospective"
+          assert p["authority"]["allocation"] is False
+          i=p["independence"]
+          for k in (
+              "wallet_signals","profitable_wallet_labels","prior_dlmm_candidate_outputs",
+              "small_pool_study_outputs","capital_efficiency_v1_outputs",
+              "robinhood_strategies","pons_strategies","ramses_strategies",
+              "robinhood_data","robinhood_provider_config",
+          ):
+              assert i[k] is False, k
+          assert not any(k.startswith("MM_ROBINHOOD_") for k in os.environ)
+          print({"revision":p["revision"],"scope":p["scope"],"robinhood_independent":True})
+          PY
+      - name: Independent Solana DLMM regression gate
+        run: |
+          python -m unittest \
+            tests.test_solana_dlmm_independent_v1 \
+            tests.test_dlmm_alchemy_provider -v
+      - name: Validate Solana Alchemy read route
+        run: python -m tests.dlmm_alchemy_provider
+      - name: Prospective Solana-only DLMM sample
+        run: |
+          python -m tests.solana_dlmm_independent_v1 \
+            --target-complete 6 \
+            --max-attempted 48
+      - name: Preserve independent Solana DLMM evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: solana-dlmm-independent-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          path: solana-dlmm-independent-v1-live.json
+          if-no-files-found: warn
+          retention-days: 90
