@@ -21,8 +21,9 @@ from meme_machine.__main__ import _monitor_existing, _retire_scout_state
 from meme_machine.engine import Engine
 from meme_machine.market_native_runtime import MarketNativeRuntime
 from meme_machine.postgrad import PostGraduationAdapter
-from meme_machine.provider import RPC, PumpAdapter
+from meme_machine.provider import PumpAdapter
 from meme_machine.pumpswap_runtime import PumpSwapPaperRuntime
+from meme_machine.solana_read_rpc import new_rpc, primary_rpc_url
 from meme_machine.store import Store
 from meme_machine.stream import PumpLogStream, PumpTape, WINDOW_SECONDS
 
@@ -116,7 +117,7 @@ def main():
     )
     _save(report)
 
-    url=os.environ.get('MM_SOLANA_RPC_URL','https://api.mainnet-beta.solana.com')
+    url=primary_rpc_url()
     with tempfile.TemporaryDirectory() as td:
         store=Store(str(Path(td)/'market-native-paper-cohort.db'),'prospective',
                     GENESIS_SOL_USD_MICROS,GENESIS_SOURCE)
@@ -126,7 +127,7 @@ def main():
         stream=PumpLogStream(url,tape)
         thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True);thread.start()
 
-        rpc=RPC(url,limit=RPC_LIMIT)
+        rpc=new_rpc(limit=RPC_LIMIT)
         adapter=PumpAdapter(rpc)
         pumpswap=PumpSwapPaperRuntime(store,PostGraduationAdapter(rpc,scan_rpc=object()))
         runtime=MarketNativeRuntime(
@@ -161,7 +162,7 @@ def main():
                 if rpc.calls>=RPC_ROTATE_AT:
                     close_provider_session('bounded_rpc_rotation',now)
                     session_started=now
-                    rpc=RPC(url,limit=RPC_LIMIT)
+                    rpc=new_rpc(limit=RPC_LIMIT,pacer=(rpc.read_pacer if hasattr(rpc,'read_pacer') else None))
                     adapter=PumpAdapter(rpc)
                     pumpswap=PumpSwapPaperRuntime(
                         store,PostGraduationAdapter(rpc,scan_rpc=object()))
