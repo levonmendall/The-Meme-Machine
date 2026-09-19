@@ -115,6 +115,46 @@ class ProfitableOperatorDiscoveryTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,"freeze_census_incomplete"):
                 op.freeze_census(source,output)
 
+    def test_whole_wallet_retry_wraps_existing_request_retries(self):
+        calls=[]
+        def analyzer(wallet):
+            calls.append(wallet)
+            if len(calls)==1:
+                raise RuntimeError("transient")
+            return {"wallet":wallet}
+        with patch.object(op.time,"sleep",return_value=None):
+            out=op._wallet_rank_row_with_retry("wallet",analyzer=analyzer)
+        self.assertEqual(out,{"wallet":"wallet"})
+        self.assertEqual(calls,["wallet","wallet"])
+        self.assertEqual(op.WHOLE_WALLET_ATTEMPTS,2)
+        self.assertEqual(op.METEORA_RETRY_ATTEMPTS,3)
+
+    def test_rank_checkpoint_compatibility_requires_exact_signature(self):
+        cohort={
+            "kind":"dlmm_profitable_operator_cohort_v1",
+            "status":"frozen_pre_pnl",
+            "pnl_data_read_before_freeze":False,
+            "cohort_hash":"cohort",
+            "wallets":[{"wallet":"a"},{"wallet":"b"}],
+        }
+        signature=op._rank_signature(cohort)
+        body={
+            "kind":"dlmm_profitable_operator_rank_checkpoint_v1",
+            "signature":signature,
+            "rows":{"a":{"wallet":"a"}},
+            "failures":{},
+        }
+        with tempfile.TemporaryDirectory() as td:
+            cohort_path=Path(td)/"cohort.json"
+            checkpoint=Path(td)/"checkpoint.json"
+            cohort_path.write_text(json.dumps(cohort))
+            checkpoint.write_text(json.dumps(body))
+            self.assertTrue(op.check_rank_checkpoint(checkpoint,cohort_path))
+            bad=dict(body);bad["signature"]=dict(signature,days_back=119)
+            checkpoint.write_text(json.dumps(bad))
+            with self.assertRaisesRegex(RuntimeError,"checkpoint_mismatch"):
+                op.check_rank_checkpoint(checkpoint,cohort_path)
+
     def test_protocol_freezes_all_pool_census_and_no_wallet_cap(self):
         body=json.loads(op.PROTOCOL.read_text())
         self.assertIn("exhaust every observable",body["universe"]["pool_census"])
