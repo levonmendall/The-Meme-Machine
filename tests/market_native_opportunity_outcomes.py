@@ -462,6 +462,9 @@ def main():
                 subclass_development_status=subclass_development_status(trackers),
                 provider_sessions=evidence.sessions,
                 stream=tape.status(ended),stream_error_kind=stream.error_kind,
+                stream_last_error_kind=getattr(stream,'last_error_kind',None),
+                stream_connections=getattr(stream,'connections',0),
+                stream_reconnects=getattr(stream,'reconnects',0),
                 future_labels_used_for_selection=False,automatic_threshold_change=False,
             )
             _save(report);store.close()
