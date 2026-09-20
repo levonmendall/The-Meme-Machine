@@ -1,0 +1,20 @@
+name: four-lane-evidence-review
+on:
+  push:
+    branches: [cert/four-lane-sustained-v1]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  inspect-retained-failure:
+    if: contains(github.event.head_commit.message, '[four-lane-evidence]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Extract retained smoke evidence without market access
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m certification.inspect_artifact --artifact-id 10594448071
