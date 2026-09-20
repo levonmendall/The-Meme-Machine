@@ -37,7 +37,7 @@
     },
     "meteora": {
       "source_branch": "cert/meteora-execution-cert-v1",
-      "source_sha": "226c3fceb9bac5f497ed969ef4c18baeeaaa944f",
+      "source_sha": "29d050b218969e4c7761346737d082bf1db382ec",
       "strategy_version": "solana-dlmm-independent-v1.8-execution-certification-v1",
       "policy_hash": "b1de19ed974faf3c92261fe7f4f6cb47570e4890c49e9547d7f4fcc50c7179b8",
       "file_hashes": {
@@ -62,7 +62,8 @@
         "9ba576ec66c1dd69936a051c15cf371e3b0c1831",
         "2e25ed26600697ad8bf094b443631d222f2a2250",
         "0d9176c46e95cb758cdbada1ea4756f3fc3c09c0",
-        "226c3fceb9bac5f497ed969ef4c18baeeaaa944f"
+        "226c3fceb9bac5f497ed969ef4c18baeeaaa944f",
+        "29d050b218969e4c7761346737d082bf1db382ec"
       ],
       "paper_starting_capital_lamports": 1000000000,
       "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
