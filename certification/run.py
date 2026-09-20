@@ -116,6 +116,49 @@ def observe_checkpoint_report(lane,row,status,process_code):
         row.update(summarize(lane,status['report']))
 
 
+def finish_lanes(processes,files,rows,terminal_times,journal,run):
+    """Stop/reap every child before auditing any lane's possibly damaged evidence."""
+    stopped=set()
+    # SIGINT lets the worker's BaseException/finally path seal its raw archive.
+    # This is still an interrupted lifecycle, never a normal policy exit.
+    for lane,(proc,launched) in processes.items():
+        if proc.poll() is None:
+            stopped.add(lane)
+            try:os.killpg(proc.pid,signal.SIGINT)
+            except ProcessLookupError:pass
+    deadline=time.monotonic()+10
+    for lane,(proc,launched) in processes.items():
+        if lane in stopped:
+            try:proc.wait(timeout=max(.01,deadline-time.monotonic()))
+            except subprocess.TimeoutExpired:
+                try:os.killpg(proc.pid,signal.SIGKILL)
+                except ProcessLookupError:pass
+                proc.wait()
+            ended=time.monotonic();terminal_times[lane]=ended
+            rows[lane].update(unexpected_exit=True,exit_code=proc.returncode,health='terminated',
+                ended_at=time.time(),continuous_uptime_seconds=ended-launched,
+                shutdown_positions='explicitly_unresolved',accounting_reconciled=False)
+        files[lane].close()
+    # One corrupt/truncated archive must fail that lane's control, without
+    # suppressing the other three audits or the aggregate terminal result.
+    for lane,(proc,launched) in processes.items():
+        row=rows[lane]
+        if lane in stopped:
+            try:journal.append(lane,'supervisor_stop','forced_process_stop',dict(exit_code=proc.returncode))
+            except Exception as exc:row['shutdown_journal_error']=type(exc).__name__
+        try:
+            audit=audit_telemetry(run/lane,lane,row['policy_hash'])
+            row['telemetry_audit']=audit
+            row['gates'].update(telemetry_complete=True,paper_only=audit['read_only'])
+            row['gates'].setdefault('policy_unchanged',True)
+        except Exception as exc:
+            row['telemetry_audit']=dict(verified=False,error_type=type(exc).__name__)
+            row['gates']['telemetry_complete']=False
+        if row.get('shutdown_journal_error'):row['gates']['telemetry_complete']=False
+        row['gates']['accounting_reconciled']=row.get('accounting_reconciled') is True
+    return bool(stopped)
+
+
 def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     if phase=='sustained' and seconds<14400:raise ValueError('four_hour_minimum')
     gate=json.loads(Path(gate_file).read_text())
@@ -151,7 +194,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     pressure=PressureView(run/'shared-robinhood-admission.sqlite')
     started=time.monotonic();start_wall=time.time();processes={};files={};rows={};interrupted=False;terminal_times={}
     common_start=started
-    last_console=0;last_sample=0;max_broker_active=0;broker_terminal=None
+    last_console=0;last_sample=0;max_broker_active=0;broker_terminal=None;supervisor_error=None
     lane_roots=[str((Path(worktrees)/lane).resolve()) for lane in LANES]
     if len(set(lane_roots))!=len(LANES):raise ValueError('lane_state_roots_not_isolated')
     try:
@@ -243,25 +286,11 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
             if now>=hard_deadline:
                 result['shutdown_reason']='bounded_drain_deadline';interrupted=True;break
             time.sleep(2)
+    except BaseException as exc:
+        interrupted=True;supervisor_error=dict(error_type=type(exc).__name__)
+        raise
     finally:
-        # A terminated lane is a failure and its unresolved positions stay visible.
-        for lane,(proc,launched) in processes.items():
-            if proc.poll() is None:
-                interrupted=True;os.killpg(proc.pid,signal.SIGTERM)
-                try:proc.wait(timeout=10)
-                except subprocess.TimeoutExpired:os.killpg(proc.pid,signal.SIGKILL);proc.wait()
-                rows[lane].update(unexpected_exit=True,exit_code=proc.returncode,health='terminated',shutdown_positions='explicitly_unresolved')
-                journal.append(lane,'supervisor_stop','forced_process_stop',dict(exit_code=proc.returncode))
-            files[lane].close()
-            try:
-                audit=audit_telemetry(run/lane,lane,rows[lane]['policy_hash'])
-                rows[lane]['telemetry_audit']=audit
-                rows[lane]['gates'].update(telemetry_complete=True,paper_only=audit['read_only'])
-                rows[lane]['gates'].setdefault('policy_unchanged',True)
-            except (OSError,ValueError,KeyError,sqlite3.Error) as exc:
-                rows[lane]['telemetry_audit']=dict(verified=False,error_type=type(exc).__name__)
-                rows[lane]['gates']['telemetry_complete']=False
-            rows[lane]['gates']['accounting_reconciled']=rows[lane].get('accounting_reconciled') is True
+        interrupted=finish_lanes(processes,files,rows,terminal_times,journal,run) or interrupted
         broker_terminal=record_unfinished_broker_jobs(run/'shared-solana-evidence.sqlite',journal,time.time())
         try:source_unchanged=source_integrity(worktrees)==gate['source_diff_hashes']
         except (ValueError,OSError,subprocess.CalledProcessError):source_unchanged=False
@@ -269,11 +298,12 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
             row['gates']['freshness_finality_unchanged']=source_unchanged
             if not source_unchanged:row['gates']['policy_unchanged']=False
         result=dict(run_id=run_id,phase=phase,status='FAILED' if interrupted else 'FINISHED',started_at=start_wall,ended_at=time.time(),elapsed_seconds=time.monotonic()-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=time.monotonic())-common_start),source_manifest_hash=digest(spec),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot()))
-        result.update(integration_sha=git('rev-parse','HEAD'),implementation_hash=implementation_hash(),
+        result.update(supervisor_error=supervisor_error,integration_sha=git('rev-parse','HEAD'),implementation_hash=implementation_hash(),
             maximum_sampled_active_broker_jobs=max_broker_active,broker_shutdown_terminals=broker_terminal,
             source_diff_hashes=gate['source_diff_hashes'])
         if phase=='smoke':result['smoke_engineering']=smoke_engineering(result)
-        result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html');journal.close()
+        result['certification']=evaluate(result);atomic(run/'result.json',result);journal.close()
+        dashboard(result,run/'status.html')
         from certification.analysis import report
         report(run)
     return result

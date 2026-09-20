@@ -44,6 +44,8 @@ class LiveStatusTests(unittest.TestCase):
         self.assertEqual(v['shared_provider']['solana']['queues'][0]['depth'],14)
         self.assertEqual(v['certification_status'],'INCOMPLETE')
         self.assertIsNone(numeric_tree(float('inf')))
+        failed=snapshot(dict(result,supervisor_exit_code=1,supervisor_failed=True),now=101)
+        self.assertTrue(failed['supervisor_failed']);self.assertEqual(failed['supervisor_exit_code'],1)
 
     def test_publisher_starts_before_child_and_does_not_restart_it(self):
         with tempfile.TemporaryDirectory() as temp:

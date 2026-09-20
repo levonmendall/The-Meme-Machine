@@ -43,7 +43,9 @@ def snapshot(result, now=None):
         elapsed_seconds=result.get('elapsed_seconds'),
         continuous_overlap_seconds=result.get('continuous_overlap_seconds'),lanes={},
         shared_provider=numeric_tree(result.get('shared_provider')),
-        certification_status=result.get('certification',{}).get('status','INCOMPLETE'))
+        certification_status=result.get('certification',{}).get('status','INCOMPLETE'),
+        supervisor_exit_code=result.get('supervisor_exit_code'),
+        supervisor_failed=result.get('supervisor_failed',False))
     for lane in LANES:
         row=result.get('lanes',{}).get(lane,{})
         health=row.get('health')
@@ -130,6 +132,10 @@ def main():
             try:
                 path=folder/'result.json'
                 if path.exists():result=json.loads(path.read_text())
+                if code is not None:
+                    result=dict(result,supervisor_exit_code=code,supervisor_failed=bool(code))
+                    if code:
+                        result['certification']=dict(result.get('certification') or {},status='FAIL')
                 body=dict(output=output(result))
                 if code is not None:
                     body.update(status='completed',conclusion='cancelled' if interrupted else 'failure' if code or broken else 'neutral',

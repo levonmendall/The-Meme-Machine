@@ -1,0 +1,46 @@
+{
+  "recorded_at": "2026-09-20T04:00:08.497274+00:00",
+  "previous_integration_sha": "c4fce48f4918467d99cacd558f223c2b61fdf6cb",
+  "failed_workflow_run": 35487539639,
+  "failed_check_id": 106016774812,
+  "failed_artifact": {
+    "id": 10597761719,
+    "sha256": "5e8f79c03a5ff40260205389f7b1561f2f8a3459c6dd37d3fbe2a8b1946d667a"
+  },
+  "failures": [
+    "dashboard_integer_finality_cursor",
+    "truncated_archive_aborts_remaining_lane_cleanup"
+  ],
+  "source_lanes": {
+    "pump": {
+      "source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
+      "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+      "strategy_version": "pump-acceleration-independent-v1"
+    },
+    "meteora": {
+      "source_sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
+      "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+      "strategy_version": "solana-dlmm-independent-v1.7"
+    },
+    "pons": {
+      "source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
+      "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+      "strategy_version": "pons-selective-continuation-v1"
+    },
+    "ramses": {
+      "source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
+      "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+      "strategy_version": "ramses-fee-pulse-v1"
+    }
+  },
+  "local_validation": {
+    "tests": 36,
+    "passed": true,
+    "log_sha256": "312a42c75b33cdbc241d67b3701d041090780a21810bb0b481bfe72c634fbcee"
+  },
+  "strategy_policy_changed": false,
+  "previous_run_status": "FAIL",
+  "previous_natural_settled": 0,
+  "four_hour_window_started": false,
+  "next_run": "fresh exact-revision full gates, smoke, then sustained only on smoke success"
+}

@@ -12,6 +12,7 @@ REQUIRED=('responsive','bounded_queue','provider_limits','no_starvation','teleme
 
 def evaluate(result):
     failures=[];incomplete=[]
+    if result.get('status')=='FAILED':failures.append('supervisor_failed')
     if result.get('continuous_overlap_seconds',0)<14400:incomplete.append('continuous_four_hour_window_not_completed')
     for lane in LANES:
         row=result.get('lanes',{}).get(lane,{})
@@ -172,12 +173,16 @@ body{font:14px system-ui;background:#101820;color:#e7eef4;padding:24px;max-width
             'last strategy progress age seconds':r.get('progress_age_seconds'),
             'last transport activity age seconds':r.get('transport_activity_age_seconds')})
         html+='<h3>Opportunity funnel</h3>'+mapping(r.get('funnel'))
-        evidence=r.get('evidence_state') or {};stream=r.get('stream_state') or {};finality=r.get('finality_state') or {}
+        evidence=r.get('evidence_state') or {};stream=r.get('stream_state') or {}
+        native_finality=r.get('finality_state')
+        finality=native_finality if isinstance(native_finality,dict) else {}
         html+='<h3>Evidence and continuity</h3>'+mapping({
             'pending jobs':evidence.get('pending_jobs'),'inflight jobs':evidence.get('inflight_jobs'),
             'expired jobs retained':evidence.get('expired_jobs'),'connected':stream.get('connected'),
             'covered':stream.get('covered'),'stream gaps':stream.get('gaps'),
-            'last slot':stream.get('last_slot'),'frontier polls':finality.get('polls'),
+            'last slot':stream.get('last_slot'),
+            'canonical cursor':native_finality if isinstance(native_finality,int) and not isinstance(native_finality,bool) else None,
+            'frontier polls':finality.get('polls'),
             'frontier advances':finality.get('advances')})
         reasons=sorted((r.get('terminal_reasons') or {}).items(),key=lambda x:(-x[1],x[0]))
         html+='<h3>Latest terminal reasons</h3>'+table(('Reason','Count'),reasons[:6])

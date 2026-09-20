@@ -60,3 +60,31 @@ null; process health, forced machinery and natural settled counts stay distinct.
 Do not label this campaign started, naturally certified or profitable until the
 corresponding live/runtime evidence is observed. Runtime IDs and subsequent results
 belong in a separate handoff update without mutating the frozen running revision.
+
+
+## Terminal-reporting repair after failed replacement smoke
+
+Run 35487539639 at c4fce48f4918467d99cacd558f223c2b61fdf6cb passed all
+hosted deterministic suites/resource gates and contention preflight, then failed
+at 03:51:44 UTC after 68 seconds of smoke. The sustained job was skipped.
+Check 106016774812 proved remotely readable live snapshots. All four lanes had
+zero natural/forced settlements; the pre-failure snapshot is not terminal reconciliation.
+Artifact 10597761719 preserves the failure (SHA256
+5e8f79c03a5ff40260205389f7b1561f2f8a3459c6dd37d3fbe2a8b1946d667a).
+
+The dashboard now renders Pons's native integer cursor separately from Ramses's
+frontier dictionary. No strategy data is coerced or modified. Shutdown interrupts
+and reaps every child before any archive audit, giving workers an opportunity to
+seal their archives. A damaged archive fails that lane's telemetry control; the
+remaining lane audits and aggregate FAILED result still persist. Interrupted
+accounting is explicitly unresolved, never reported as final reconciled accounting.
+The live check also reports the supervisor exit code and failure flag, so an old
+responsive snapshot cannot be mistaken for a still-running successful supervisor.
+
+Regression coverage includes the exact integer cursor shape, a real truncated gzip
+archive alongside three valid archives, and an injected supervisor exception proving
+all four children are reaped and the four-lane terminal failure JSON is retained.
+All 36 combined supervisor/research/monitor tests passed locally. Hosted full lane
+suites and resource gates repeat on the new revision before fresh market work.
+The failed window is never resumed or spliced. No lane strategy, policy, evidence
+horizon, provider rate, or accounting economics changed.
