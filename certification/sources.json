@@ -63,7 +63,7 @@
     },
     "pons": {
       "source_branch": "cert/pons-execution-cert-v1",
-      "source_sha": "7797c71024e443ec4a330bd4341be1fc604d9088",
+      "source_sha": "c692fe446bdee4ea1179da27a3f0c9f2f281f118",
       "strategy_version": "pons-selective-continuation-v1/execution-certification-v1",
       "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
       "file_hashes": {
