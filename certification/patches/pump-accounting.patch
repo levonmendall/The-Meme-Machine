@@ -372,7 +372,7 @@ index 0a774b1..c53fc14 100644
          txs,meta=self.broker.hydrate_transactions(
              rpc,signatures,kind=str(hydration_kind),
 -            deadline=time.time()+4.0,max_version=1,batch_size=8)
-+            deadline=time.time()+4.0,max_version=1,batch_size=16,
++            deadline=time.time()+4.0,max_version=1,batch_size=8,
 +            # One durable acquisition interest per pool/signature/kind. Repeated
 +            # overlapping evaluations keep their own strategy attempt records but
 +            # must not multiply identical provider-work consumers or rejuvenate the
@@ -448,7 +448,7 @@ index 0a774b1..c53fc14 100644
                  txmap,meta=self.broker.hydrate_transactions(
                      rpc,signatures,kind=str(kind),
 -                    deadline=time.time()+6.0,max_version=1,batch_size=8)
-+                    deadline=hydration_deadline,max_version=1,batch_size=16,
++                    deadline=hydration_deadline,max_version=1,batch_size=8,
 +                    owner=f'pump:{self.pool}:history:{kind}',candidate_id=self.pool)
                  txs=[txmap.get(sig) for sig in signatures]
                  self.tx_failures+=int(meta["pending"])
@@ -1391,7 +1391,7 @@ index 0000000..4dc1ee0
 +        self.broker.hydrate_transactions(
 +            self.rpc, [s for s,_ in rows], kind='stream_prefetch',
 +            deadline=min(float(self.broker.clock()) + 4, min(d for _,d in rows)),
-+            batch_size=16, max_batches=1, owner=False)
++            batch_size=8, max_batches=1, owner=False)
 +        self.broker.consumers.settle()
 +        return True
 +
