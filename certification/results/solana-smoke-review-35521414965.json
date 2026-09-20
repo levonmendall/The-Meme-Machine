@@ -1,0 +1,1061 @@
+{
+  "artifact": {
+    "id": 10608788041,
+    "raw_evidence_preserved": true,
+    "sha256": "eb72373a2f0d2213d10358395a90600e8ba07ce45bc2fbbf555c4a0aa6ec3b53"
+  },
+  "campaign_run_id": "3ee5dc5a-0657-4297-9c30-4809b6d27de6",
+  "continuous_overlap_seconds": 600.132638073,
+  "defects": [
+    {
+      "cause": "Unbounded completed Pons provider-session rows exceeded 60000-byte public check guard",
+      "code": "live_status_payload_capacity",
+      "raw_history_unchanged": true,
+      "reproduction": "59569-byte captured view plus two session rows exceeds guard; bounded aggregate repair yields approximately 38KB"
+    },
+    {
+      "cause": "Post-entry refresh error escaped lifecycle monitor and left filled cohort exposure reserved",
+      "code": "pons_filled_position_abandoned_on_transient_provider_429",
+      "repair": "Retry allowlisted provider errors on same ledger and original hold clock; resume original pending exit amount/due; bounded failures retain exposure and fail certification"
+    }
+  ],
+  "elapsed_including_normal_drain_seconds": 1604.24685751,
+  "ended_at": 1789921833.411627,
+  "hourly_started": false,
+  "integration_sha": "450ef83c71fa8fdeac5734bb9ac5b8755fc92e9e",
+  "lanes": {
+    "meteora": {
+      "accounting_reconciled": true,
+      "accounting_replay": {
+        "authentication": "existing_lane_verified_tapes",
+        "checked_economic_events": 0,
+        "raw_chain_reauthentication": false,
+        "verified": true
+      },
+      "cohort_accounting": null,
+      "continuous_uptime_seconds": 600.4820847049999,
+      "estimated_alchemy": {
+        "billing_estimate_only": true,
+        "estimated_cu": 19990,
+        "estimated_cu_by_method": {
+          "getBlockTime": 1760,
+          "getGenesisHash": 10,
+          "getMultipleAccounts": 2460,
+          "getSignaturesForAddress": 2720,
+          "getTransaction": 13040
+        },
+        "known_estimated_cu": 19990,
+        "logical_calls": 606,
+        "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "unpriced_methods": {}
+      },
+      "exit_code": 0,
+      "forced_settled": 0,
+      "funnel": {
+        "complete_economic_vectors": 4,
+        "complete_lifecycles": 0,
+        "complete_observations": 4,
+        "discovered": 43,
+        "screened": 20,
+        "unique_admitted": 10,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 1,
+        "unique_deployed": 0,
+        "unique_discovered": 43,
+        "unique_economic_vector": 4,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 4,
+        "unique_evidence_complete": 4,
+        "unique_evidence_requested": 10,
+        "unique_forward_observation": 5,
+        "unique_fresh_state": 5,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 4,
+        "unique_prospective_range": 4,
+        "unique_provider_failed": 0,
+        "unique_qualified": 0,
+        "unique_reconstruction_complete": 5,
+        "unique_reconstruction_incomplete": 15,
+        "unique_reconstruction_started": 5,
+        "unique_rejected": 4,
+        "unique_screened": 20,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 0,
+        "unique_stale_before_evidence": 0,
+        "unique_stale_during_evidence": 0,
+        "unique_strategy_rejection": 4,
+        "unique_terminal": 20,
+        "unique_trigger_authenticated": 9,
+        "unique_trigger_observed": 9,
+        "unique_trigger_terminal": 9,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 4,
+        "unique_warmup_started": 5
+      },
+      "method_counts": {
+        "getBlockTime": 88,
+        "getGenesisHash": 1,
+        "getMultipleAccounts": 123,
+        "getSignaturesForAddress": 68,
+        "getTransaction": 326
+      },
+      "natural_settled": 0,
+      "open_positions": 0,
+      "open_positions_unknown": false,
+      "opportunity_coverage": {
+        "authenticated_triggers": 13,
+        "identity_scope": "native_candidate_identity; stages and classes overlap; never sum as losses",
+        "lane": "meteora",
+        "last_transition": {
+          "at": 1789920829.3386037,
+          "candidate": "E3KKUkSFyNowRvqnTUu42wLnkjSwq446vidHrnC18fAE",
+          "monotonic": 800.461543911,
+          "stage": "terminal"
+        },
+        "raw_records": 355,
+        "schema": "lane-opportunity-coverage-v1",
+        "stages": {
+          "admitted": 10,
+          "deployed": 0,
+          "discovered": 43,
+          "economic_vector": 4,
+          "entry_cancelled": 0,
+          "entry_filled": 0,
+          "entry_reserved": 0,
+          "evaluated": 4,
+          "evidence_complete": 4,
+          "evidence_requested": 10,
+          "forward_observation": 5,
+          "fresh_state": 5,
+          "prospective_range": 4,
+          "qualified": 0,
+          "reconstruction_complete": 5,
+          "reconstruction_started": 5,
+          "rejected": 4,
+          "screened": 20,
+          "settled": 0,
+          "terminal": 20,
+          "trigger_authenticated": 9,
+          "trigger_observed": 9,
+          "trigger_terminal": 9,
+          "unwind": 0,
+          "warmup_complete": 4,
+          "warmup_started": 5
+        },
+        "stale_stage_counts": {
+          "stale_after_complete_evidence": 0,
+          "stale_during_evidence": 0,
+          "stale_in_queue": 0,
+          "stale_on_arrival": 0
+        },
+        "terminally_classified_triggers": 9,
+        "unique_classes": {
+          "capacity_censored": 0,
+          "consumer_deadline": 1,
+          "local_budget_exhausted": 0,
+          "no_authentic_activity": 4,
+          "provider_failed": 0,
+          "reconstruction_incomplete": 15,
+          "stale_after_complete_evidence": 0,
+          "stale_before_evidence": 0,
+          "stale_during_evidence": 0,
+          "strategy_rejection": 4
+        },
+        "unique_terminal_reasons": {
+          "dlmm_freeze_authority_unsupported": 3,
+          "dlmm_token2022_behavioral_extension_unsupported:1": 5,
+          "dlmm_token2022_behavioral_extension_unsupported:14": 2,
+          "experiment_runtime_deadline": 1,
+          "fresh_swap_trigger_timeout": 8,
+          "qualification_rejection": 4,
+          "solana_dlmm_transaction_pressure_overflow": 2,
+          "stale_after_complete_evidence": 0,
+          "stale_during_evidence": 0,
+          "stale_in_queue": 0,
+          "stale_on_arrival": 0,
+          "superseded_before_fresh_state": 4
+        },
+        "unresolved_triggers": 4
+      },
+      "policy_hash": "b1de19ed974faf3c92261fe7f4f6cb47570e4890c49e9547d7f4fcc50c7179b8",
+      "process_restarts": 0,
+      "provider_requests": 337,
+      "rpc_efficiency": {
+        "cache": {
+          "immutable_read_events": [
+            {
+              "count": 2,
+              "kind": "cross_lane_hit",
+              "method": "getBlockTime"
+            },
+            {
+              "count": 88,
+              "kind": "miss",
+              "method": "getBlockTime"
+            },
+            {
+              "count": 1,
+              "kind": "miss",
+              "method": "getGenesisHash"
+            }
+          ],
+          "reuse": {
+            "signature_history_hit": 52,
+            "signature_history_miss": 5,
+            "transaction_consumer_hits": 6
+          },
+          "unique_bodies_hydrated": 326,
+          "unique_signatures_requested": 326
+        },
+        "complete_evidence_vectors": 4,
+        "denominator_status": "measured",
+        "estimated_cu": {
+          "billing_estimate_only": true,
+          "estimated_cu": 19990,
+          "estimated_cu_by_method": {
+            "getBlockTime": 1760,
+            "getGenesisHash": 10,
+            "getMultipleAccounts": 2460,
+            "getSignaturesForAddress": 2720,
+            "getTransaction": 13040
+          },
+          "known_estimated_cu": 19990,
+          "logical_calls": 606,
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "unpriced_methods": {}
+        },
+        "logical_per_complete": 151.5,
+        "logical_rpc_members": 606,
+        "methods": {
+          "getBlockTime": 88,
+          "getGenesisHash": 1,
+          "getMultipleAccounts": 123,
+          "getSignaturesForAddress": 68,
+          "getTransaction": 326
+        },
+        "physical_http_transports": 337,
+        "physical_per_complete": 84.25
+      },
+      "rpc_latency_seconds": {
+        "p50": 0.087869262,
+        "p95": 0.215827483,
+        "p99": 0.234040283
+      },
+      "scan_progress": null,
+      "terminal_reasons": {
+        "drift": 2,
+        "expected_net": 4,
+        "experiment_runtime_deadline": 1,
+        "fresh_swap_trigger_timeout": 4,
+        "two_way": 4,
+        "warmup_unverified": 1
+      },
+      "unexpected_exit": false
+    },
+    "pons": {
+      "accounting_reconciled": true,
+      "accounting_replay": null,
+      "cohort_accounting": {
+        "available": 996432359881211905,
+        "booked_realized": -67640118788095,
+        "capital_at_risk_unit_nanoseconds": 213395469234375403793350000,
+        "capital_integral_complete": false,
+        "cash": 997427908333461905,
+        "cash_basis_conservation": true,
+        "conservation": true,
+        "genesis": 1000000000000000000,
+        "namespace": "pons-selective-continuation-v1",
+        "native_execution_cost": 15165614556000,
+        "native_observation_complete": true,
+        "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+        "positions": 2,
+        "realized": -67640118788095,
+        "remaining_cost_basis": 2504451547750000,
+        "reserved": 3500000000000000,
+        "unobserved_native_positions": [],
+        "unsettled": 1
+      },
+      "continuous_uptime_seconds": 668.415712511,
+      "estimated_alchemy": {
+        "billing_estimate_only": true,
+        "estimated_cu": 187188,
+        "estimated_cu_by_method": {
+          "eth_call": 53768,
+          "eth_chainId": 0,
+          "eth_gasPrice": 4820,
+          "eth_getBlockByHash": 12280,
+          "eth_getBlockByNumber": 34980,
+          "eth_getCode": 4840,
+          "eth_getLogs": 29520,
+          "eth_getTransactionReceipt": 46980
+        },
+        "known_estimated_cu": 187188,
+        "logical_calls": 7811,
+        "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "unpriced_methods": {}
+      },
+      "exit_code": 0,
+      "forced_settled": 0,
+      "funnel": {
+        "complete_evidence_vectors": 173,
+        "evaluated": 243,
+        "qualified": 2,
+        "unique_admitted": 624,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 27,
+        "unique_deployed": 0,
+        "unique_discovered": 2706,
+        "unique_economic_vector": 0,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 173,
+        "unique_evidence_complete": 173,
+        "unique_evidence_requested": 243,
+        "unique_forward_observation": 0,
+        "unique_fresh_state": 0,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 0,
+        "unique_prospective_range": 0,
+        "unique_provider_failed": 0,
+        "unique_qualified": 2,
+        "unique_reconstruction_complete": 0,
+        "unique_reconstruction_incomplete": 32,
+        "unique_reconstruction_started": 0,
+        "unique_rejected": 131,
+        "unique_screened": 624,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 40,
+        "unique_stale_before_evidence": 381,
+        "unique_stale_during_evidence": 11,
+        "unique_strategy_rejection": 131,
+        "unique_terminal": 491,
+        "unique_trigger_authenticated": 0,
+        "unique_trigger_observed": 0,
+        "unique_trigger_terminal": 0,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 0,
+        "unique_warmup_started": 0
+      },
+      "method_counts": {
+        "eth_call": 2068,
+        "eth_chainId": 56,
+        "eth_gasPrice": 241,
+        "eth_getBlockByHash": 614,
+        "eth_getBlockByNumber": 1749,
+        "eth_getCode": 242,
+        "eth_getLogs": 492,
+        "eth_getTransactionReceipt": 2349
+      },
+      "natural_settled": 1,
+      "open_positions": 1,
+      "open_positions_unknown": false,
+      "opportunity_coverage": {
+        "authenticated_triggers": 0,
+        "identity_scope": "native_candidate_identity; stages and classes overlap; never sum as losses",
+        "lane": "pons",
+        "last_transition": {
+          "at": 1789920896.0773396,
+          "candidate": "0xbca0e476d2aeca7e112ba7440c344f9737ccbdb37a26e88bc0f3a08a3959c1b8:0x1b",
+          "monotonic": 867.200279703,
+          "stage": "rejected"
+        },
+        "raw_records": 5167,
+        "schema": "lane-opportunity-coverage-v1",
+        "stages": {
+          "admitted": 624,
+          "deployed": 0,
+          "discovered": 2706,
+          "economic_vector": 0,
+          "entry_cancelled": 0,
+          "entry_filled": 0,
+          "entry_reserved": 0,
+          "evaluated": 173,
+          "evidence_complete": 173,
+          "evidence_requested": 243,
+          "forward_observation": 0,
+          "fresh_state": 0,
+          "prospective_range": 0,
+          "qualified": 2,
+          "reconstruction_complete": 0,
+          "reconstruction_started": 0,
+          "rejected": 131,
+          "screened": 624,
+          "settled": 0,
+          "terminal": 491,
+          "trigger_authenticated": 0,
+          "trigger_observed": 0,
+          "trigger_terminal": 0,
+          "unwind": 0,
+          "warmup_complete": 0,
+          "warmup_started": 0
+        },
+        "stale_stage_counts": {
+          "stale_after_complete_evidence": 40,
+          "stale_during_evidence": 11,
+          "stale_in_queue": 381,
+          "stale_on_arrival": 0
+        },
+        "terminally_classified_triggers": 0,
+        "unique_classes": {
+          "capacity_censored": 0,
+          "consumer_deadline": 27,
+          "local_budget_exhausted": 0,
+          "no_authentic_activity": 0,
+          "provider_failed": 0,
+          "reconstruction_incomplete": 32,
+          "stale_after_complete_evidence": 40,
+          "stale_before_evidence": 381,
+          "stale_during_evidence": 11,
+          "strategy_rejection": 131
+        },
+        "unique_terminal_reasons": {
+          "evidence_deadline_before_transport": 27,
+          "invalid_current_snipe_bps": 14,
+          "natural_non_native_quote_not_supported": 18,
+          "stale_after_complete_evidence": 40,
+          "stale_during_evidence": 11,
+          "stale_in_queue": 381,
+          "stale_on_arrival": 0,
+          "strategy_rejection": 131
+        },
+        "unresolved_triggers": 0
+      },
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "process_restarts": 0,
+      "provider_requests": 1170,
+      "rpc_efficiency": {
+        "cache": {
+          "coalesced": {},
+          "hits": {
+            "eth_gasPrice": 8,
+            "eth_getBlockByHash": 80,
+            "eth_getBlockByNumber": 4,
+            "eth_getTransactionReceipt": 358
+          },
+          "misses": {
+            "eth_call": 2114,
+            "eth_chainId": 56,
+            "eth_gasPrice": 241,
+            "eth_getBlockByHash": 682,
+            "eth_getBlockByNumber": 1776,
+            "eth_getCode": 242,
+            "eth_getLogs": 492,
+            "eth_getTransactionReceipt": 2866
+          },
+          "session_hits": {
+            "eth_chainId": 242
+          }
+        },
+        "complete_vectors": 173,
+        "cu_per_complete_vector": 1082.0115606936415,
+        "cu_per_evaluated": 770.320987654321,
+        "cu_per_scan": null,
+        "estimated_cu": 187188,
+        "evaluated": 243,
+        "logical_wire_calls": 7811,
+        "physical_http_requests": 1170,
+        "scans": null
+      },
+      "rpc_latency_seconds": {
+        "p50": 0.074143026,
+        "p95": 0.112410583,
+        "p99": 0.141749244
+      },
+      "scan_progress": null,
+      "terminal_reasons": {
+        "buy_sell_flow": 61,
+        "buyer_growth": 23,
+        "creator_distribution": 3,
+        "creator_tax": 7,
+        "curve_progress": 94,
+        "curve_velocity": 106,
+        "graduation_eta": 81,
+        "independent_breadth": 33,
+        "largest_buyer_concentration": 77,
+        "net_demand_nonpositive": 51,
+        "position_size_zero": 51,
+        "roundtrip_cost": 29,
+        "roundtrip_cost_unavailable": 51,
+        "snipe_tax_nonzero": 1,
+        "stale_state_after_evidence": 40,
+        "token_age": 42,
+        "top3_buyer_concentration": 55,
+        "trajectory_history": 11
+      },
+      "unexpected_exit": false
+    },
+    "pump": {
+      "accounting_reconciled": true,
+      "accounting_replay": {
+        "cash": 5110384300,
+        "events": 0,
+        "final_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "verified": true
+      },
+      "cohort_accounting": null,
+      "continuous_uptime_seconds": 1600.642418162,
+      "estimated_alchemy": {
+        "billing_estimate_only": true,
+        "estimated_cu": 199740,
+        "estimated_cu_by_method": {
+          "getBlockTime": 3060,
+          "getMultipleAccounts": 3820,
+          "getProgramAccounts": 40,
+          "getSignaturesForAddress": 880,
+          "getTokenLargestAccounts": 260,
+          "getTransaction": 191680
+        },
+        "known_estimated_cu": 199740,
+        "logical_calls": 5173,
+        "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "unpriced_methods": {}
+      },
+      "exit_code": 0,
+      "forced_settled": 0,
+      "funnel": {
+        "discovered": 618,
+        "entry_cancelled": 0,
+        "entry_filled": 0,
+        "entry_reserved": 0,
+        "evidence_complete": 14,
+        "qualified": 0,
+        "settled": 0,
+        "unique_admitted": 20,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 0,
+        "unique_deployed": 0,
+        "unique_discovered": 618,
+        "unique_economic_vector": 0,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 18,
+        "unique_evidence_complete": 4,
+        "unique_evidence_requested": 20,
+        "unique_forward_observation": 0,
+        "unique_fresh_state": 0,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 0,
+        "unique_prospective_range": 0,
+        "unique_provider_failed": 0,
+        "unique_qualified": 0,
+        "unique_reconstruction_complete": 0,
+        "unique_reconstruction_incomplete": 10,
+        "unique_reconstruction_started": 0,
+        "unique_rejected": 18,
+        "unique_screened": 16,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 0,
+        "unique_stale_before_evidence": 0,
+        "unique_stale_during_evidence": 0,
+        "unique_strategy_rejection": 0,
+        "unique_terminal": 10,
+        "unique_trigger_authenticated": 0,
+        "unique_trigger_observed": 0,
+        "unique_trigger_terminal": 0,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 0,
+        "unique_warmup_started": 0
+      },
+      "method_counts": {
+        "getBlockTime": 153,
+        "getMultipleAccounts": 191,
+        "getProgramAccounts": 2,
+        "getSignaturesForAddress": 22,
+        "getTokenLargestAccounts": 13,
+        "getTransaction": 4792
+      },
+      "natural_settled": 0,
+      "open_positions": 0,
+      "open_positions_unknown": false,
+      "opportunity_coverage": {
+        "authenticated_triggers": 0,
+        "identity_scope": "native_candidate_identity; stages and classes overlap; never sum as losses",
+        "lane": "pump",
+        "last_transition": {
+          "at": 1789921819.618402,
+          "candidate": "63dVpyawcuDYDf83einWGjRfnM9ndHB6GJe254gopump",
+          "monotonic": 1790.741342568,
+          "stage": "discovered"
+        },
+        "raw_records": 1201,
+        "schema": "lane-opportunity-coverage-v1",
+        "stages": {
+          "admitted": 20,
+          "deployed": 0,
+          "discovered": 618,
+          "economic_vector": 0,
+          "entry_cancelled": 0,
+          "entry_filled": 0,
+          "entry_reserved": 0,
+          "evaluated": 18,
+          "evidence_complete": 4,
+          "evidence_requested": 20,
+          "forward_observation": 0,
+          "fresh_state": 0,
+          "prospective_range": 0,
+          "qualified": 0,
+          "reconstruction_complete": 0,
+          "reconstruction_started": 0,
+          "rejected": 18,
+          "screened": 16,
+          "settled": 0,
+          "terminal": 10,
+          "trigger_authenticated": 0,
+          "trigger_observed": 0,
+          "trigger_terminal": 0,
+          "unwind": 0,
+          "warmup_complete": 0,
+          "warmup_started": 0
+        },
+        "stale_stage_counts": {
+          "stale_after_complete_evidence": 0,
+          "stale_during_evidence": 0,
+          "stale_in_queue": 0,
+          "stale_on_arrival": 0
+        },
+        "terminally_classified_triggers": 0,
+        "unique_classes": {
+          "capacity_censored": 0,
+          "consumer_deadline": 0,
+          "local_budget_exhausted": 0,
+          "no_authentic_activity": 0,
+          "provider_failed": 0,
+          "reconstruction_incomplete": 10,
+          "stale_after_complete_evidence": 0,
+          "stale_before_evidence": 0,
+          "stale_during_evidence": 0,
+          "strategy_rejection": 0
+        },
+        "unique_terminal_reasons": {
+          "incomplete_pumpswap_decision_window": 4,
+          "incomplete_pumpswap_second_leg_history": 1,
+          "invalid reserves": 1,
+          "postgrad_entry_horizon_expired": 9,
+          "stale_after_complete_evidence": 0,
+          "stale_during_evidence": 0,
+          "stale_in_queue": 0,
+          "stale_on_arrival": 0,
+          "unsupported cashback or quote asset": 1
+        },
+        "unresolved_triggers": 0
+      },
+      "policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e",
+      "process_restarts": 0,
+      "provider_requests": 1228,
+      "rpc_efficiency": {
+        "cache": {
+          "immutable_read_events": [
+            {
+              "count": 3,
+              "kind": "hit",
+              "method": "getBlockTime"
+            },
+            {
+              "count": 153,
+              "kind": "miss",
+              "method": "getBlockTime"
+            },
+            {
+              "count": 31,
+              "kind": "cross_lane_hit",
+              "method": "getGenesisHash"
+            }
+          ],
+          "reuse": {
+            "signature_history_hit": 88,
+            "signature_history_miss": 23,
+            "speculative_prefetch_deferred": 30752,
+            "transaction_consumer_hits": 236
+          },
+          "unique_bodies_hydrated": 4784,
+          "unique_signatures_requested": 8611
+        },
+        "complete_evidence_vectors": 14,
+        "denominator_status": "measured",
+        "estimated_cu": {
+          "billing_estimate_only": true,
+          "estimated_cu": 199740,
+          "estimated_cu_by_method": {
+            "getBlockTime": 3060,
+            "getMultipleAccounts": 3820,
+            "getProgramAccounts": 40,
+            "getSignaturesForAddress": 880,
+            "getTokenLargestAccounts": 260,
+            "getTransaction": 191680
+          },
+          "known_estimated_cu": 199740,
+          "logical_calls": 5173,
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "unpriced_methods": {}
+        },
+        "logical_per_complete": 369.5,
+        "logical_rpc_members": 5173,
+        "methods": {
+          "getBlockTime": 153,
+          "getMultipleAccounts": 191,
+          "getProgramAccounts": 2,
+          "getSignaturesForAddress": 22,
+          "getTokenLargestAccounts": 13,
+          "getTransaction": 4792
+        },
+        "physical_http_transports": 1228,
+        "physical_per_complete": 87.71428571428571
+      },
+      "rpc_latency_seconds": {
+        "p50": 0.098396017,
+        "p95": 0.138257875,
+        "p99": 0.195867735
+      },
+      "scan_progress": null,
+      "terminal_reasons": {
+        "full_point_in_time": 14,
+        "incomplete_pumpswap_second_leg_history": 10,
+        "invalid reserves": 1,
+        "optimistic_preflight": 83,
+        "unsupported cashback or quote asset": 1
+      },
+      "unexpected_exit": false
+    },
+    "ramses": {
+      "accounting_reconciled": true,
+      "accounting_replay": null,
+      "cohort_accounting": null,
+      "continuous_uptime_seconds": 600.132638073,
+      "estimated_alchemy": {
+        "billing_estimate_only": true,
+        "estimated_cu": 15566,
+        "estimated_cu_by_method": {
+          "eth_call": 10946,
+          "eth_chainId": 0,
+          "eth_gasPrice": 40,
+          "eth_getBlockByNumber": 400,
+          "eth_getCode": 440,
+          "eth_getLogs": 3600,
+          "eth_getTransactionReceipt": 140
+        },
+        "known_estimated_cu": 15566,
+        "logical_calls": 535,
+        "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "unpriced_methods": {}
+      },
+      "exit_code": 0,
+      "forced_settled": 0,
+      "funnel": {
+        "active_pools": 4,
+        "scans": 2,
+        "unique_admitted": 4,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 0,
+        "unique_deployed": 0,
+        "unique_discovered": 4,
+        "unique_economic_vector": 0,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 4,
+        "unique_evidence_complete": 0,
+        "unique_evidence_requested": 4,
+        "unique_forward_observation": 0,
+        "unique_fresh_state": 0,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 0,
+        "unique_prospective_range": 0,
+        "unique_provider_failed": 0,
+        "unique_qualified": 0,
+        "unique_reconstruction_complete": 0,
+        "unique_reconstruction_incomplete": 0,
+        "unique_reconstruction_started": 0,
+        "unique_rejected": 4,
+        "unique_screened": 4,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 0,
+        "unique_stale_before_evidence": 0,
+        "unique_stale_during_evidence": 0,
+        "unique_strategy_rejection": 4,
+        "unique_terminal": 0,
+        "unique_trigger_authenticated": 0,
+        "unique_trigger_observed": 0,
+        "unique_trigger_terminal": 0,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 0,
+        "unique_warmup_started": 0
+      },
+      "method_counts": {
+        "eth_call": 421,
+        "eth_chainId": 3,
+        "eth_gasPrice": 2,
+        "eth_getBlockByNumber": 20,
+        "eth_getCode": 22,
+        "eth_getLogs": 60,
+        "eth_getTransactionReceipt": 7
+      },
+      "natural_settled": 0,
+      "open_positions": 0,
+      "open_positions_unknown": false,
+      "opportunity_coverage": {
+        "authenticated_triggers": 0,
+        "identity_scope": "native_candidate_identity; stages and classes overlap; never sum as losses",
+        "lane": "ramses",
+        "last_transition": {
+          "at": 1789920713.242455,
+          "candidate": "0xcf507f940d7b58c46efaaa7d307e98c1be27f12f",
+          "monotonic": 684.365395197,
+          "stage": "rejected"
+        },
+        "raw_records": 30,
+        "schema": "lane-opportunity-coverage-v1",
+        "stages": {
+          "admitted": 4,
+          "deployed": 0,
+          "discovered": 4,
+          "economic_vector": 0,
+          "entry_cancelled": 0,
+          "entry_filled": 0,
+          "entry_reserved": 0,
+          "evaluated": 4,
+          "evidence_complete": 0,
+          "evidence_requested": 4,
+          "forward_observation": 0,
+          "fresh_state": 0,
+          "prospective_range": 0,
+          "qualified": 0,
+          "reconstruction_complete": 0,
+          "reconstruction_started": 0,
+          "rejected": 4,
+          "screened": 4,
+          "settled": 0,
+          "terminal": 0,
+          "trigger_authenticated": 0,
+          "trigger_observed": 0,
+          "trigger_terminal": 0,
+          "unwind": 0,
+          "warmup_complete": 0,
+          "warmup_started": 0
+        },
+        "stale_stage_counts": {
+          "stale_after_complete_evidence": 0,
+          "stale_during_evidence": 0,
+          "stale_in_queue": 0,
+          "stale_on_arrival": 0
+        },
+        "terminally_classified_triggers": 0,
+        "unique_classes": {
+          "capacity_censored": 0,
+          "consumer_deadline": 0,
+          "local_budget_exhausted": 0,
+          "no_authentic_activity": 0,
+          "provider_failed": 0,
+          "reconstruction_incomplete": 0,
+          "stale_after_complete_evidence": 0,
+          "stale_before_evidence": 0,
+          "stale_during_evidence": 0,
+          "strategy_rejection": 4
+        },
+        "unique_terminal_reasons": {
+          "screening_strategy_rejection": 4,
+          "stale_after_complete_evidence": 0,
+          "stale_during_evidence": 0,
+          "stale_in_queue": 0,
+          "stale_on_arrival": 0
+        },
+        "unresolved_triggers": 0
+      },
+      "policy_hash": "50d928914df10568a7bc9679f0887ac7786fe17d67f1c57171c17a5a95fc6766",
+      "process_restarts": 0,
+      "provider_requests": 104,
+      "rpc_efficiency": {
+        "cache": {
+          "coalesced": {},
+          "hits": {
+            "eth_call": 15,
+            "eth_getCode": 7
+          },
+          "misses": {
+            "eth_call": 421,
+            "eth_chainId": 3,
+            "eth_gasPrice": 2,
+            "eth_getBlockByNumber": 20,
+            "eth_getCode": 22,
+            "eth_getLogs": 60,
+            "eth_getTransactionReceipt": 7
+          },
+          "session_hits": {}
+        },
+        "complete_vectors": null,
+        "cu_per_complete_vector": null,
+        "cu_per_evaluated": null,
+        "cu_per_scan": 7783.0,
+        "estimated_cu": 15566,
+        "evaluated": null,
+        "logical_wire_calls": 535,
+        "physical_http_requests": 104,
+        "scans": 2
+      },
+      "rpc_latency_seconds": {
+        "p50": 0.068486224,
+        "p95": 0.114112503,
+        "p99": 0.118445752
+      },
+      "scan_progress": {
+        "active_cohort_size": 3,
+        "completed_at": 1789920713.227396,
+        "current_pool": "0xcf507f940d7b58c46efaaa7d307e98c1be27f12f",
+        "frontier_block": 68062795,
+        "frontier_hash": "0x94974f015f92052ee5bbdddcf885319076f049da88c4f8ffe837030a4d871bbd",
+        "frontier_timestamp": 1789919798,
+        "inactive_pools": 276,
+        "pools_attempted": 3,
+        "pools_completed": 3,
+        "pools_failed": 0,
+        "pools_total": 279,
+        "stage": "complete",
+        "started_at": 1789920629.8385272,
+        "state": "complete",
+        "updated_at": 1789920713.2273977
+      },
+      "terminal_reasons": {
+        "cash_hurdle": 5,
+        "fee_to_inventory": 2,
+        "flow_imbalance": 5,
+        "insufficient_two_way_chop": 4,
+        "volume_acceleration": 4
+      },
+      "unexpected_exit": false
+    }
+  },
+  "limitations": [
+    "Smoke plus normal drain is not an hourly validation",
+    "Cycle4 uses older strategies; strategy cohort and interval comparisons are confounded",
+    "Pons opportunity journal entry counters lag native paper ledger; native ledger is authoritative",
+    "No 40-percent live efficiency or full natural certification claim"
+  ],
+  "natural_settlement": {
+    "capital_integral_complete": true,
+    "cash_basis_conservation": true,
+    "count": 1,
+    "execution_cost_quote_native": 10714066806000,
+    "forced": 0,
+    "lane": "pons",
+    "profitable": false,
+    "realized_net_quote_native": -67640118788095,
+    "replay_verified": true
+  },
+  "phase": "smoke",
+  "schema": "combined-smoke-review-v1",
+  "smoke_engineering": {
+    "failures": [
+      "pons:accounting_or_exposure"
+    ],
+    "scope": "ten_minute_engineering_preflight_only; not natural or sustained certification",
+    "status": "FAIL"
+  },
+  "started_at": 1789920229.1647723,
+  "status": "ENGINEERING_FAIL",
+  "supervisor_error": null,
+  "unresolved_exposure": {
+    "filled_positions": 1,
+    "historical_ledger_unchanged": true,
+    "lane": "pons",
+    "remaining_cost_quote_native": 2504451547750000,
+    "reserved_quote_native": 3500000000000000
+  },
+  "wire_work": {
+    "meteora": {
+      "errors_by_kind_priority_method": {},
+      "local_rejections": 0,
+      "logical": 606,
+      "methods": {
+        "getBlockTime": 88,
+        "getGenesisHash": 1,
+        "getMultipleAccounts": 123,
+        "getSignaturesForAddress": 68,
+        "getTransaction": 326
+      },
+      "physical": 337,
+      "physical_by_kind_priority": {
+        "('dlmm_fresh', 30)": 57,
+        "(None, 10)": 280
+      }
+    },
+    "pons": {
+      "errors_by_kind_priority_method": {
+        "('provider_rpc_429', None, 0, ('eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt', 'eth_getTransactionReceipt'), None)": 1
+      },
+      "local_rejections": 0,
+      "logical": 7811,
+      "methods": {
+        "eth_call": 2068,
+        "eth_chainId": 56,
+        "eth_gasPrice": 241,
+        "eth_getBlockByHash": 614,
+        "eth_getBlockByNumber": 1749,
+        "eth_getCode": 242,
+        "eth_getLogs": 492,
+        "eth_getTransactionReceipt": 2349
+      },
+      "physical": 1170,
+      "physical_by_kind_priority": {
+        "(None, 0)": 95,
+        "(None, 50)": 1075
+      }
+    },
+    "pump": {
+      "errors_by_kind_priority_method": {
+        "('HTTPError', None, 50, ('getProgramAccounts',), 429)": 2,
+        "('certification_provider_queue_deadline', 'stream_prefetch', 90, ('getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction'), None)": 2,
+        "('certification_provider_queue_deadline', 'stream_prefetch', 90, ('getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction'), None)": 1,
+        "('certification_provider_queue_deadline', 'stream_prefetch', 90, ('getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction'), None)": 82,
+        "('certification_provider_queue_deadline', 'stream_prefetch', 90, ('getTransaction',), None)": 1,
+        "('evidence_deadline_before_transport', 'pump_window', 20, ('getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction', 'getTransaction'), None)": 1,
+        "('evidence_deadline_before_transport', 'pump_window', 20, ('getTransaction',), None)": 2,
+        "('evidence_deadline_before_transport', 'stream_prefetch', 90, ('getTransaction',), None)": 174
+      },
+      "local_rejections": 263,
+      "logical": 5173,
+      "methods": {
+        "getBlockTime": 153,
+        "getMultipleAccounts": 191,
+        "getProgramAccounts": 2,
+        "getSignaturesForAddress": 22,
+        "getTokenLargestAccounts": 13,
+        "getTransaction": 4792
+      },
+      "physical": 1228,
+      "physical_by_kind_priority": {
+        "('pump_window', 20)": 247,
+        "('research_history', 90)": 18,
+        "('stream_prefetch', 90)": 582,
+        "(None, 50)": 381
+      }
+    },
+    "ramses": {
+      "errors_by_kind_priority_method": {},
+      "local_rejections": 0,
+      "logical": 535,
+      "methods": {
+        "eth_call": 421,
+        "eth_chainId": 3,
+        "eth_gasPrice": 2,
+        "eth_getBlockByNumber": 20,
+        "eth_getCode": 22,
+        "eth_getLogs": 60,
+        "eth_getTransactionReceipt": 7
+      },
+      "physical": 104,
+      "physical_by_kind_priority": {
+        "(None, 50)": 104
+      }
+    }
+  },
+  "workflow_run_id": 35521414965
+}

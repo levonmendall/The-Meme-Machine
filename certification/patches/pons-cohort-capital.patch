@@ -1619,7 +1619,7 @@ index 94c48d6..95def7d 100644
 +        if self.on_commit:self.on_commit(self,p)
 +        return p
 diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
-index 36ef0b3..b596ff5 100644
+index 36ef0b3..208db1b 100644
 --- a/robinhood_research/pons_selective_paper.py
 +++ b/robinhood_research/pons_selective_paper.py
 @@ -7,16 +7,20 @@ other strategy signal/threshold/state is imported.
@@ -1647,10 +1647,18 @@ index 36ef0b3..b596ff5 100644
  )
  from .pons_selective_acquisition import (
      _batched, _header_search, _rpc as evidence_rpc, _trajectory,
-@@ -34,6 +38,62 @@ ENTRY_SLIPPAGE_BPS=100
+@@ -32,6 +36,68 @@ STRATEGY_NAMESPACE="pons-selective-continuation-v1"
+ STRATEGY_CAPITAL_QUOTE=10**18
+ ENTRY_SLIPPAGE_BPS=100
  POST_GRAD_OBSERVE_SECONDS=10
- 
- 
++POSITION_TRANSIENT_BOUNDARIES=frozenset((
++    "provider_rpc_429","provider_http_429","provider_http_500",
++    "provider_http_502","provider_http_503","provider_http_504",
++    "provider_transport_failure","provider_shared_admission_deadline",
++    "provider_shared_queue_capacity",
++))
++
++
 +class _PinnedQuoteReads:
 +    """One fresh head plus one batch of the identical pinned execution reads.
 +
@@ -1705,12 +1713,30 @@ index 36ef0b3..b596ff5 100644
 +    cancelled=paper.advance(identity,now=now,action='cancel',cancel_reason=reason)
 +    if capital_guard is not None:capital_guard.settle(identity,cancelled,at=now)
 +    return cancelled
-+
-+
+ 
+ 
  def _position_return_bps(position,quote):
-     basis=int(position.get("remaining_cost",position["cost"]))
-     if basis<=0:
-@@ -193,7 +253,7 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
+@@ -134,10 +200,16 @@ def _delayed_exit(
+     endpoint,*,paper,identity,rpc,candidate,gas_units,store,
+     transition,v4_key,label,exit_tokens,
+ ):
+-    paper.advance(
+-        identity,now=int(time.time()),action="exit_intent",exit_tokens=int(exit_tokens)
+-    )
+     pending=paper._get(identity)
++    if pending["status"]=="open":
++        paper.advance(
++            identity,now=int(time.time()),action="exit_intent",exit_tokens=int(exit_tokens)
++        )
++        pending=paper._get(identity)
++    elif (pending["status"]!="exit_pending" or
++          int(pending.get("pending_exit_tokens") or 0)!=int(exit_tokens)):
++        raise BoundaryError("selective_pending_exit_identity")
++    # A retry resumes the existing intent, amount and due time; never a new exit.
+     time.sleep(max(0,pending["due"]-int(time.time())))
+     amount=int(pending["pending_exit_tokens"])
+     if transition is None:
+@@ -193,7 +265,7 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
      return position,meta
  
  
@@ -1719,7 +1745,7 @@ index 36ef0b3..b596ff5 100644
      vector=evaluation["vector"]
      if not vector.get("current_threshold_pass"):
          raise BoundaryError("selective_unqualified_lifecycle")
-@@ -210,7 +270,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -210,7 +282,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
          source_transaction=evaluation["source_transaction"],
          provider_sessions=[],monitor=[],started_at=time.time(),
      )
@@ -1728,7 +1754,7 @@ index 36ef0b3..b596ff5 100644
      try:
          gas_units=_gas_units(candidate["receipt"])
          rpc=paper_rpc(endpoint);rpc.verify_chain()
-@@ -236,9 +296,17 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -236,9 +308,17 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
              token=evaluation["token"],outcome_used_for_selection=False,
          )
          identity=(
@@ -1747,7 +1773,7 @@ index 36ef0b3..b596ff5 100644
          reserved=paper.reserve(
              identity,market=candidate["curve"],amount=amount,gas_budget=gas_budget,
              now=now,features=decision,kind="natural",
-@@ -267,6 +335,9 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -267,6 +347,9 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                  status="entry_failed",entry_failure="entry_slippage",
                  final_position=paper._get(identity),reconciliation=paper.reconcile(),
              )
@@ -1757,7 +1783,7 @@ index 36ef0b3..b596ff5 100644
              return result
          opened=paper.advance(
              identity,now=entry.stamp.observed_at,action="entry",quote=entry,
-@@ -281,6 +352,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -281,6 +364,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
              store,STRATEGY_NAMESPACE,capital,
              delay=EXIT_POLICY["entry_delay_seconds"],
              natural_policy_hash=POLICY_HASH,
@@ -1765,32 +1791,525 @@ index 36ef0b3..b596ff5 100644
          )
          if paper.reconcile()!=before:
              raise BoundaryError("selective_restart_reconciliation")
-@@ -389,6 +461,8 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
-                     ))
+@@ -301,253 +385,306 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+         entry_largest=int(vector["demand"]["largest_buyer_flow_bps"])
+         seen_v4_buyers=set()
+         pending_transition_exit_reason=None
++        recovery_exit_reason=None
++        recovery_streak=0
+ 
+         while True:
+-            if rpc.used>145:
+-                result["provider_sessions"].append(rpc.telemetry())
+-                rpc=paper_rpc(endpoint);rpc.verify_chain()
+-            time.sleep(EXIT_POLICY["monitor_seconds"])
+-            header=_latest_header(rpc)
+-            block=int(header["number"],16)
+-            position=paper._get(identity)
+-            elapsed=int(time.time())-opened_at
+-
+-            if elapsed>=EXIT_POLICY["max_total_hold_seconds"]:
+-                if position["status"]=="exit_pending" and transition is not None:
+-                    position,meta=_complete_pending_v4_exit(
+-                        paper=paper,identity=identity,rpc=rpc,v4_key=v4_key,
+-                        gas_units=gas_units,store=store,label="selective-timeout-pending-v4-exit",
++            try:
++                if rpc.used>145:
++                    result["provider_sessions"].append(rpc.telemetry())
++                    rpc=paper_rpc(endpoint);rpc.verify_chain()
++                time.sleep(EXIT_POLICY["monitor_seconds"])
++                header=_latest_header(rpc)
++                block=int(header["number"],16)
++                position=paper._get(identity)
++                elapsed=int(time.time())-opened_at
++
++                if (elapsed>=EXIT_POLICY["max_total_hold_seconds"] and
++                        not (position["status"]=="exit_pending" and transition is None)):
++                    if position["status"]=="exit_pending" and transition is not None:
++                        position,meta=_complete_pending_v4_exit(
++                            paper=paper,identity=identity,rpc=rpc,v4_key=v4_key,
++                            gas_units=gas_units,store=store,label="selective-timeout-pending-v4-exit",
++                        )
++                    elif position["status"]=="open":
++                        try:
++                            recovery_exit_reason="max_total_hold"
++                            position,meta=_delayed_exit(
++                                endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
++                                gas_units=gas_units,store=store,transition=transition,v4_key=v4_key,
++                                label="selective-timeout-exit",exit_tokens=position["tokens"],
++                            )
++                        except BoundaryError as exc:
++                            if str(exc)=="graduated_during_selective_exit":
++                                pending_transition_exit_reason="max_total_hold"
++                                continue
++                            raise
++                    else:
++                        continue
++                    result["exit"]=dict(reason="max_total_hold",quote=meta,position=position)
++                    result["status"]="settled"
++                    break
++
++                if transition is None:
++                    maybe=_graduation_transition(
++                        rpc,candidate,last_block,block,candidate["report"]
+                     )
+-                elif position["status"]=="open":
++                    if maybe is not None:
++                        transition,v4_key,grad_header,_=maybe
++                        store.put("graduation",transition["proof_hash"],transition)
++                        paper.advance(
++                            identity,now=int(time.time()),action="transition",
++                            transition=transition,
++                        )
++                        graduation_at=int(grad_header["timestamp"],16)
++                        graduation_block=int(grad_header["number"],16)
++                        result["graduation_transition"]=dict(
++                            transition=transition,block=graduation_block,
++                            event_at=graduation_at,
++                        )
++                        pending=paper._get(identity)
++                        if pending["status"]=="exit_pending":
++                            position,exit_meta=_complete_pending_v4_exit(
++                                paper=paper,identity=identity,rpc=rpc,v4_key=v4_key,
++                                gas_units=gas_units,store=store,
++                                label="selective-transition-pending-exit",
++                            )
++                            exit_row=dict(
++                                reason=(pending_transition_exit_reason or "pregraduation_exit"),
++                                quote=exit_meta,position=position,
++                            )
++                            result.setdefault("exits",[]).append(exit_row)
++                            if position["status"]=="settled":
++                                result["exit"]=exit_row
++                                result["status"]="settled"
++                                break
++                            pending_transition_exit_reason=None
++                    last_block=block
++
++                position=paper._get(identity)
++                if position["status"]=="exit_pending":
+                     try:
+-                        position,meta=_delayed_exit(
++                        position,exit_meta=_delayed_exit(
+                             endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
+                             gas_units=gas_units,store=store,transition=transition,v4_key=v4_key,
+-                            label="selective-timeout-exit",exit_tokens=position["tokens"],
++                            label="selective-provider-recovery-exit",
++                            exit_tokens=position["pending_exit_tokens"],
+                         )
+                     except BoundaryError as exc:
+                         if str(exc)=="graduated_during_selective_exit":
+-                            pending_transition_exit_reason="max_total_hold"
++                            pending_transition_exit_reason=recovery_exit_reason
+                             continue
+                         raise
+-                else:
++                    exit_row=dict(reason=recovery_exit_reason,quote=exit_meta,position=position)
++                    result.setdefault("exits",[]).append(exit_row)
++                    if position["status"]=="settled":
++                        result["exit"]=exit_row;result["status"]="settled"
++                        break
++                    partial_taken=True;recovery_streak=0
                      continue
-                 rbps=_position_return_bps(position,mark)
-+                paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,
-+                    finality_ledger=Finality(store,scope="paper-selective-curve-mark-"+str(len(result["monitor"])),max_blocks=4))
-                 last_curve_reference=dict(
-                     tokens=position["tokens"],amount_out=mark.amount_out,
-                     gas_quote=mark.gas_quote,at=mark.stamp.observed_at,
-@@ -450,6 +524,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+-                result["exit"]=dict(reason="max_total_hold",quote=meta,position=position)
+-                result["status"]="settled"
+-                break
+-
+-            if transition is None:
+-                maybe=_graduation_transition(
+-                    rpc,candidate,last_block,block,candidate["report"]
+-                )
+-                if maybe is not None:
+-                    transition,v4_key,grad_header,_=maybe
+-                    store.put("graduation",transition["proof_hash"],transition)
+-                    paper.advance(
+-                        identity,now=int(time.time()),action="transition",
+-                        transition=transition,
++                if transition is None:
++                    try:
++                        mark,meta=_curve_quote(
++                            rpc,candidate,"sell",position["tokens"],gas_units,store,
++                            "selective-curve-mark-"+str(len(result["monitor"])),
++                            local_freshness=True,
++                        )
++                    except BoundaryError as exc:
++                        if str(exc)=="curve_graduated_requires_transition":
++                            continue
++                        result["monitor"].append(dict(
++                            at=int(time.time()),market="curve",available=False,
++                            reason=str(exc),elapsed_seconds=elapsed,
++                        ))
++                        continue
++                    rbps=_position_return_bps(position,mark)
++                    paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,
++                        finality_ledger=Finality(store,scope="paper-selective-curve-mark-"+str(len(result["monitor"])),max_blocks=4))
++                    last_curve_reference=dict(
++                        tokens=position["tokens"],amount_out=mark.amount_out,
++                        gas_quote=mark.gas_quote,at=mark.stamp.observed_at,
+                     )
+-                    graduation_at=int(grad_header["timestamp"],16)
+-                    graduation_block=int(grad_header["number"],16)
+-                    result["graduation_transition"]=dict(
+-                        transition=transition,block=graduation_block,
+-                        event_at=graduation_at,
++                    trajectory,demand,sessions=_refresh_curve_signal(
++                        endpoint,candidate,meta
+                     )
+-                    pending=paper._get(identity)
+-                    if pending["status"]=="exit_pending":
+-                        position,exit_meta=_complete_pending_v4_exit(
+-                            paper=paper,identity=identity,rpc=rpc,v4_key=v4_key,
+-                            gas_units=gas_units,store=store,
+-                            label="selective-transition-pending-exit",
+-                        )
+-                        exit_row=dict(
+-                            reason=(pending_transition_exit_reason or "pregraduation_exit"),
+-                            quote=exit_meta,position=position,
+-                        )
+-                        result.setdefault("exits",[]).append(exit_row)
+-                        if position["status"]=="settled":
+-                            result["exit"]=exit_row
+-                            result["status"]="settled"
+-                            break
+-                        pending_transition_exit_reason=None
+-                last_block=block
+-
+-            position=paper._get(identity)
+-            if transition is None:
+-                try:
+-                    mark,meta=_curve_quote(
+-                        rpc,candidate,"sell",position["tokens"],gas_units,store,
+-                        "selective-curve-mark-"+str(len(result["monitor"])),
+-                        local_freshness=True,
++                    result["provider_sessions"].extend(sessions)
++                    reason=pregraduation_exit_reason(
++                        elapsed_seconds=elapsed,frozen_eta_seconds=frozen_eta,
++                        trajectory=trajectory,demand=demand,
++                        after_cost_return_bps=rbps,
++                    )
++                    if rbps>high_water:
++                        high_water=rbps;high_at=int(time.time())
++                    action=(
++                        dict(action="full_exit",reason=reason,exit_tokens=position["tokens"])
++                        if reason is not None else
++                        dict(action="hold",reason=None,exit_tokens=0)
+                     )
+-                except BoundaryError as exc:
+-                    if str(exc)=="curve_graduated_requires_transition":
+-                        continue
+                     result["monitor"].append(dict(
+-                        at=int(time.time()),market="curve",available=False,
+-                        reason=str(exc),elapsed_seconds=elapsed,
++                        at=mark.stamp.observed_at,market="curve",available=True,
++                        return_bps=rbps,trajectory=trajectory,demand=demand,
++                        action=action,pregraduation_exit_reason=reason,quote=meta,
++                        profit_taking_deferred_until_post_graduation=True,
+                     ))
++                    if action["action"]=="full_exit":
++                        try:
++                            recovery_exit_reason=action["reason"]
++                            position,exit_meta=_delayed_exit(
++                                endpoint,paper=paper,identity=identity,rpc=rpc,
++                                candidate=candidate,gas_units=gas_units,store=store,
++                                transition=None,v4_key=None,
++                                label="selective-curve-exit",
++                                exit_tokens=action["exit_tokens"],
++                            )
++                        except BoundaryError as exc:
++                            if str(exc)=="graduated_during_selective_exit":
++                                pending_transition_exit_reason=action["reason"]
++                                continue
++                            raise
++                        result.setdefault("exits",[]).append(dict(
++                            reason=action["reason"],quote=exit_meta,position=position,
++                        ))
++                        if position["status"]=="settled":
++                            result["exit"]=result["exits"][-1]
++                            result["status"]="settled"
++                            break
++                    recovery_streak=0
+                     continue
+-                rbps=_position_return_bps(position,mark)
+-                last_curve_reference=dict(
+-                    tokens=position["tokens"],amount_out=mark.amount_out,
+-                    gas_quote=mark.gas_quote,at=mark.stamp.observed_at,
+-                )
+-                trajectory,demand,sessions=_refresh_curve_signal(
+-                    endpoint,candidate,meta
+-                )
+-                result["provider_sessions"].extend(sessions)
+-                reason=pregraduation_exit_reason(
+-                    elapsed_seconds=elapsed,frozen_eta_seconds=frozen_eta,
+-                    trajectory=trajectory,demand=demand,
+-                    after_cost_return_bps=rbps,
+-                )
+-                if rbps>high_water:
+-                    high_water=rbps;high_at=int(time.time())
+-                action=(
+-                    dict(action="full_exit",reason=reason,exit_tokens=position["tokens"])
+-                    if reason is not None else
+-                    dict(action="hold",reason=None,exit_tokens=0)
+-                )
+-                result["monitor"].append(dict(
+-                    at=mark.stamp.observed_at,market="curve",available=True,
+-                    return_bps=rbps,trajectory=trajectory,demand=demand,
+-                    action=action,pregraduation_exit_reason=reason,quote=meta,
+-                    profit_taking_deferred_until_post_graduation=True,
+-                ))
+-                if action["action"]=="full_exit":
+-                    try:
++
++                # Authenticated Pons V2 -> V4 transition has occurred.
++                if not post_grad_checked:
++                    wait=max(
++                        0,(graduation_at+POST_GRAD_OBSERVE_SECONDS)-int(time.time())
++                    )
++                    time.sleep(wait)
++                    header=_latest_header(rpc);block=int(header["number"],16)
++                    position=paper._get(identity)
++                    mark,meta,ledger=_v4_quote(
++                        rpc,v4_key,position["market"],position["tokens"],gas_units,store,
++                        "selective-postgrad-mark",local_freshness=True,
++                    )
++                    paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,finality_ledger=ledger)
++                    activity=collect_v4_activity(
++                        endpoint,pool_id=position["market"],key=v4_key,
++                        token=evaluation["token"],start_block=graduation_block,
++                        end_block=block,preholder_groups=preholders,
++                    )
++                    result["provider_sessions"].extend(activity.pop("provider_sessions"))
++                    if not last_curve_reference or (
++                        int(last_curve_reference["tokens"])!=int(position["tokens"])
++                    ):
++                        retention=0
++                    else:
++                        retention=int(mark.amount_out)*10_000//max(
++                            1,int(last_curve_reference["amount_out"])
++                        )
++                    post=post_graduation_vector(
++                        observed_seconds=max(0,mark.stamp.event_at-graduation_at),
++                        price_retention_bps=retention,
++                        new_independent_buyers=activity["new_independent_buyers"],
++                        buy_quote=activity["buy_quote"],sell_quote=activity["sell_quote"],
++                        net_quote=activity["net_quote"],
++                        preholder_sell_quote=activity["preholder_sell_quote"],
++                        largest_buyer_flow_bps_before=entry_largest,
++                        largest_buyer_flow_bps_now=activity["largest_buyer_flow_bps"],
++                    )
++                    result["post_graduation"]=dict(
++                        vector=post,activity=activity,quote=meta
++                    )
++                    seen_v4_buyers.update(activity["buyer_groups"])
++                    post_grad_checked=True
++                    if not post["continuation_pass"]:
++                        recovery_exit_reason="post_graduation_failure"
+                         position,exit_meta=_delayed_exit(
+                             endpoint,paper=paper,identity=identity,rpc=rpc,
+                             candidate=candidate,gas_units=gas_units,store=store,
+-                            transition=None,v4_key=None,
+-                            label="selective-curve-exit",
+-                            exit_tokens=action["exit_tokens"],
++                            transition=transition,v4_key=v4_key,
++                            label="selective-postgrad-failure-exit",
++                            exit_tokens=position["tokens"],
++                        )
++                        result["exit"]=dict(
++                            reason="post_graduation_failure",quote=exit_meta,
++                            position=position,
+                         )
+-                    except BoundaryError as exc:
+-                        if str(exc)=="graduated_during_selective_exit":
+-                            pending_transition_exit_reason=action["reason"]
+-                            continue
+-                        raise
+-                    result.setdefault("exits",[]).append(dict(
+-                        reason=action["reason"],quote=exit_meta,position=position,
+-                    ))
+-                    if position["status"]=="settled":
+-                        result["exit"]=result["exits"][-1]
+                         result["status"]="settled"
+                         break
+-                continue
+ 
+-            # Authenticated Pons V2 -> V4 transition has occurred.
+-            if not post_grad_checked:
+-                wait=max(
+-                    0,(graduation_at+POST_GRAD_OBSERVE_SECONDS)-int(time.time())
+-                )
+-                time.sleep(wait)
+-                header=_latest_header(rpc);block=int(header["number"],16)
+                 position=paper._get(identity)
+                 mark,meta,ledger=_v4_quote(
                      rpc,v4_key,position["market"],position["tokens"],gas_units,store,
-                     "selective-postgrad-mark",local_freshness=True,
+-                    "selective-postgrad-mark",local_freshness=True,
++                    "selective-v4-mark-"+str(len(result["monitor"])),
++                    local_freshness=True,
                  )
 +                paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,finality_ledger=ledger)
++                rbps=_position_return_bps(position,mark)
++                current_header=dict(
++                    number=hex(int(meta["block"])),hash=meta["block_hash"],
++                    timestamp=hex(int(mark.stamp.event_at)),
++                )
++                locator=evidence_rpc(endpoint);cache={int(meta["block"]):current_header}
++                start_header=_header_search(
++                    locator,int(meta["block"]),mark.stamp.event_at,
++                    max(graduation_at,mark.stamp.event_at-15),cache,
++                )
++                result["provider_sessions"].append(locator.telemetry())
                  activity=collect_v4_activity(
                      endpoint,pool_id=position["market"],key=v4_key,
-                     token=evaluation["token"],start_block=graduation_block,
-@@ -500,6 +575,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
-                 "selective-v4-mark-"+str(len(result["monitor"])),
-                 local_freshness=True,
-             )
-+            paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,finality_ledger=ledger)
-             rbps=_position_return_bps(position,mark)
-             current_header=dict(
-                 number=hex(int(meta["block"])),hash=meta["block_hash"],
-@@ -562,22 +638,36 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+-                    token=evaluation["token"],start_block=graduation_block,
+-                    end_block=block,preholder_groups=preholders,
++                    token=evaluation["token"],
++                    start_block=int(start_header["number"],16),end_block=int(meta["block"]),
++                    preholder_groups=preholders,
+                 )
+                 result["provider_sessions"].extend(activity.pop("provider_sessions"))
+-                if not last_curve_reference or (
+-                    int(last_curve_reference["tokens"])!=int(position["tokens"])
+-                ):
+-                    retention=0
+-                else:
+-                    retention=int(mark.amount_out)*10_000//max(
+-                        1,int(last_curve_reference["amount_out"])
+-                    )
+-                post=post_graduation_vector(
+-                    observed_seconds=max(0,mark.stamp.event_at-graduation_at),
+-                    price_retention_bps=retention,
+-                    new_independent_buyers=activity["new_independent_buyers"],
+-                    buy_quote=activity["buy_quote"],sell_quote=activity["sell_quote"],
+-                    net_quote=activity["net_quote"],
+-                    preholder_sell_quote=activity["preholder_sell_quote"],
+-                    largest_buyer_flow_bps_before=entry_largest,
+-                    largest_buyer_flow_bps_now=activity["largest_buyer_flow_bps"],
+-                )
+-                result["post_graduation"]=dict(
+-                    vector=post,activity=activity,quote=meta
++                buyers=set(activity["buyer_groups"])
++                growth=len(buyers-seen_v4_buyers)
++                seen_v4_buyers.update(buyers)
++                if rbps>high_water:
++                    high_water=rbps;high_at=int(time.time())
++                action=runner_action(
++                    tokens=position["tokens"],partial_taken=partial_taken,
++                    after_cost_return_bps=rbps,high_water_return_bps=high_water,
++                    seconds_since_high=max(0,int(time.time())-high_at),
++                    new_buyer_growth=growth,buy_quote=activity["buy_quote"],
++                    sell_quote=activity["sell_quote"],
+                 )
+-                seen_v4_buyers.update(activity["buyer_groups"])
+-                post_grad_checked=True
+-                if not post["continuation_pass"]:
++                result["monitor"].append(dict(
++                    at=mark.stamp.observed_at,market="v4",available=True,
++                    return_bps=rbps,activity=activity,action=action,quote=meta,
++                ))
++                if action["action"] in ("partial_exit","full_exit"):
++                    recovery_exit_reason=action["reason"]
+                     position,exit_meta=_delayed_exit(
+-                        endpoint,paper=paper,identity=identity,rpc=rpc,
+-                        candidate=candidate,gas_units=gas_units,store=store,
+-                        transition=transition,v4_key=v4_key,
+-                        label="selective-postgrad-failure-exit",
+-                        exit_tokens=position["tokens"],
+-                    )
+-                    result["exit"]=dict(
+-                        reason="post_graduation_failure",quote=exit_meta,
+-                        position=position,
++                        endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
++                        gas_units=gas_units,store=store,transition=transition,v4_key=v4_key,
++                        label="selective-v4-exit",exit_tokens=action["exit_tokens"],
+                     )
+-                    result["status"]="settled"
+-                    break
+-
+-            position=paper._get(identity)
+-            mark,meta,ledger=_v4_quote(
+-                rpc,v4_key,position["market"],position["tokens"],gas_units,store,
+-                "selective-v4-mark-"+str(len(result["monitor"])),
+-                local_freshness=True,
+-            )
+-            rbps=_position_return_bps(position,mark)
+-            current_header=dict(
+-                number=hex(int(meta["block"])),hash=meta["block_hash"],
+-                timestamp=hex(int(mark.stamp.event_at)),
+-            )
+-            locator=evidence_rpc(endpoint);cache={int(meta["block"]):current_header}
+-            start_header=_header_search(
+-                locator,int(meta["block"]),mark.stamp.event_at,
+-                max(graduation_at,mark.stamp.event_at-15),cache,
+-            )
+-            result["provider_sessions"].append(locator.telemetry())
+-            activity=collect_v4_activity(
+-                endpoint,pool_id=position["market"],key=v4_key,
+-                token=evaluation["token"],
+-                start_block=int(start_header["number"],16),end_block=int(meta["block"]),
+-                preholder_groups=preholders,
+-            )
+-            result["provider_sessions"].extend(activity.pop("provider_sessions"))
+-            buyers=set(activity["buyer_groups"])
+-            growth=len(buyers-seen_v4_buyers)
+-            seen_v4_buyers.update(buyers)
+-            if rbps>high_water:
+-                high_water=rbps;high_at=int(time.time())
+-            action=runner_action(
+-                tokens=position["tokens"],partial_taken=partial_taken,
+-                after_cost_return_bps=rbps,high_water_return_bps=high_water,
+-                seconds_since_high=max(0,int(time.time())-high_at),
+-                new_buyer_growth=growth,buy_quote=activity["buy_quote"],
+-                sell_quote=activity["sell_quote"],
+-            )
+-            result["monitor"].append(dict(
+-                at=mark.stamp.observed_at,market="v4",available=True,
+-                return_bps=rbps,activity=activity,action=action,quote=meta,
+-            ))
+-            if action["action"] in ("partial_exit","full_exit"):
+-                position,exit_meta=_delayed_exit(
+-                    endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
+-                    gas_units=gas_units,store=store,transition=transition,v4_key=v4_key,
+-                    label="selective-v4-exit",exit_tokens=action["exit_tokens"],
+-                )
+-                result.setdefault("exits",[]).append(dict(
+-                    reason=action["reason"],quote=exit_meta,position=position,
+-                ))
+-                partial_taken=partial_taken or position["status"]=="open"
+-                if position["status"]=="settled":
+-                    result["exit"]=result["exits"][-1]
+-                    result["status"]="settled"
+-                    break
++                    result.setdefault("exits",[]).append(dict(
++                        reason=action["reason"],quote=exit_meta,position=position,
++                    ))
++                    partial_taken=partial_taken or position["status"]=="open"
++                    if position["status"]=="settled":
++                        result["exit"]=result["exits"][-1]
++                        result["status"]="settled"
++                        break
++                recovery_streak=0
++            except BoundaryError as exc:
++                # A provider outage after a fill is not a terminal strategy event.
++                # Retry a fresh observation on the SAME ledger and original hold
++                # clock. Any pending exit keeps its original intent/amount/due.
++                position=paper._get(identity)
++                if (str(exc) not in POSITION_TRANSIENT_BOUNDARIES or
++                        position["status"] not in ("open","exit_pending")):
++                    raise
++                recovery_streak+=1
++                if recovery_streak>5:
++                    raise BoundaryError("selective_position_provider_recovery_exhausted") from None
++                row=dict(at=time.time(),reason=str(exc),position_status=position["status"],
++                    opened_at=opened_at,elapsed_seconds=int(time.time())-opened_at,
++                    attempt=recovery_streak,pending_exit_tokens=position.get("pending_exit_tokens"),
++                    pending_due=position.get("due"),process_restart=False)
++                recoveries=result.setdefault("provider_recoveries",[]);recoveries.append(row)
++                store.put("selective_provider_recovery",identity+":"+str(len(recoveries)),row)
++                result["monitor"].append(dict(available=False,reason=str(exc),provider_recovery=True))
++                time.sleep(min(8,2**recovery_streak))
+ 
+         reconciliation=paper.reconcile();store.close();store=None
+         store=Store(str(db_path),max_records=8192)
+@@ -562,22 +699,36 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
          result["reconciliation"]=reconciliation
          result["realized_pnl_quote"]=result["final_position"]["pnl"]
          result["carried_through_graduation"]=transition is not None
@@ -2816,6 +3335,102 @@ index 0000000..2401955
 +
 +
 +if __name__=='__main__':unittest.main()
+diff --git a/robinhood_tests/test_pons_position_provider_recovery.py b/robinhood_tests/test_pons_position_provider_recovery.py
+new file mode 100644
+index 0000000..9d85f68
+--- /dev/null
++++ b/robinhood_tests/test_pons_position_provider_recovery.py
+@@ -0,0 +1,90 @@
++"""A transport failure after a real paper fill must not abandon its lifecycle."""
++import json,tempfile,unittest
++from contextlib import ExitStack
++from pathlib import Path
++from unittest.mock import MagicMock,patch
++from robinhood_research import BoundaryError
++from robinhood_research.evidence import Store
++from robinhood_research.pons_selective_capital import CohortCapital
++from robinhood_research.pons_selective_continuation import POLICY_HASH
++from robinhood_research.pons_selective_ledger import JOURNAL_CATEGORY
++from robinhood_research.pons_selective_paper import run_lifecycle,STRATEGY_CAPITAL_QUOTE
++from robinhood_tests import test_pons_partial_accounting as accounting_fixture
++
++MODULE='robinhood_research.pons_selective_paper.'
++class PositionRecoveryTests(unittest.TestCase):
++    def run_case(self,folder,fail_at):
++        clock=[100];fixture=accounting_fixture.PartialAccountingTests();sell_calls=[];signal_times=[]
++        state=MagicMock();state.buy_with_snipe.return_value=dict(refund=0,ready_to_graduate=False,tokens_out=1000)
++        evaluation=dict(vector=dict(current_threshold_pass=True,policy_hash=POLICY_HASH,
++            proposed_size={'amount_quote':100},evidence_available_at=100,
++            trajectory={'graduation_eta_seconds':100},demand={'largest_buyer_flow_bps':100}),
++            candidate=dict(receipt={'gasUsed':hex(21000)},curve='m',state=state,report={}),
++            token='token',curve='m',source_transaction='source',market_events=[])
++        rpc=MagicMock();rpc.used=0;rpc.telemetry.return_value={}
++        def sleep(seconds):clock[0]+=max(0,seconds)
++        def meta():return dict(block=int(clock[0]),block_hash='h'+str(int(clock[0])),event_at=int(clock[0]))
++        def quote(_rpc,_candidate,side,amount,*args,**kwargs):
++            return fixture.quote(int(clock[0]),side,amount,1000 if side=='buy' else 98),meta()
++        def wait_quote(_rpc,_candidate,side,amount,*args,**kwargs):
++            if side=='sell':
++                sell_calls.append(int(clock[0]))
++                if fail_at=='exit' and len(sell_calls)==1:raise BoundaryError('provider_rpc_429')
++            q,m=quote(_rpc,_candidate,side,amount,*args,**kwargs);return q,m,None
++        def signal(*args):
++            signal_times.append(int(clock[0]))
++            if fail_at=='signal' and len(signal_times)==1:raise BoundaryError('provider_rpc_429')
++            if fail_at=='permanent':raise BoundaryError('provider_rpc_429')
++            if fail_at=='authentication':raise BoundaryError('header_hash_mismatch')
++            return {},{},[]
++        db=Path(folder)/'trial.sqlite';capital=Path(folder)/'capital.sqlite'
++        patches={'paper_rpc':lambda *a:rpc,'_gas_quote':lambda *a:(2,1),
++            '_wait_curve_quote':wait_quote,'_curve_quote':quote,
++            '_latest_header':lambda *a:dict(number=hex(int(clock[0]))),
++            '_graduation_transition':lambda *a:None,'_refresh_curve_signal':signal,
++            'pregraduation_exit_reason':lambda **kw:'test_authenticated_exit',
++            'time.time':lambda:clock[0],'time.sleep':sleep}
++        with ExitStack() as stack:
++            for name,value in patches.items():stack.enter_context(patch(MODULE+name,side_effect=value))
++            result=run_lifecycle('unused',evaluation,db_path=db,capital_path=capital)
++        store=Store(db)
++        events=[json.loads(r[0]) for r in store.db.execute('SELECT body FROM records WHERE category=?',(JOURNAL_CATEGORY,))]
++        store.close()
++        book=CohortCapital(capital,STRATEGY_CAPITAL_QUOTE).reconcile()
++        return result,book,events,signal_times,sell_calls
++
++    def test_post_entry_429_refreshes_evidence_on_same_lifecycle_then_settles(self):
++        with tempfile.TemporaryDirectory() as d:r,b,events,times,_=self.run_case(d,'signal')
++        self.assertEqual(r['status'],'settled',r.get('boundary'))
++        self.assertEqual(len(r['provider_recoveries']),1)
++        self.assertGreater(times[1],times[0])
++        self.assertEqual(r['provider_recoveries'][0]['opened_at'],r['entry']['position']['last_at'])
++        self.assertEqual(r['qualification_vector']['evidence_available_at'],100)
++        self.assertEqual(b['unsettled'],0);self.assertEqual(b['reserved'],0)
++        self.assertTrue(b['capital_integral_complete']);self.assertTrue(b['cash_basis_conservation'])
++        self.assertEqual(sum(e['action']=='entry' for e in events),1)
++
++    def test_pending_exit_429_keeps_original_intent_amount_and_due(self):
++        with tempfile.TemporaryDirectory() as d:r,b,events,_,times=self.run_case(d,'exit')
++        self.assertEqual(r['status'],'settled',r.get('boundary'))
++        self.assertEqual(sum(e['action']=='exit_intent' for e in events),1)
++        self.assertEqual(sum(e['action']=='exit' for e in events),1)
++        recovery=r['provider_recoveries'][0]
++        self.assertEqual(recovery['position_status'],'exit_pending')
++        self.assertEqual(recovery['pending_exit_tokens'],1000)
++        self.assertEqual(recovery['pending_due'],times[0])
++        self.assertGreater(times[1],times[0]);self.assertEqual(b['unsettled'],0)
++        self.assertEqual(r['exit']['reason'],'test_authenticated_exit')
++
++    def test_persistent_pressure_is_bounded_and_filled_exposure_never_cancelled(self):
++        with tempfile.TemporaryDirectory() as d:r,b,events,_,_=self.run_case(d,'permanent')
++        self.assertEqual(r['boundary'],'selective_position_provider_recovery_exhausted')
++        self.assertEqual(len(r['provider_recoveries']),5)
++        self.assertEqual(b['unsettled'],1);self.assertGreater(b['reserved'],0)
++        self.assertFalse(any(e['action']=='cancel' for e in events))
++
++    def test_authentication_failure_is_not_retried_as_rate_pressure(self):
++        with tempfile.TemporaryDirectory() as d:r,b,events,times,_=self.run_case(d,'authentication')
++        self.assertEqual(r['boundary'],'header_hash_mismatch')
++        self.assertNotIn('provider_recoveries',r);self.assertEqual(len(times),1)
++        self.assertEqual(b['unsettled'],1)
 diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
 index d8d0a88..9b22cbb 100644
 --- a/robinhood_tests/test_pons_selective_continuation.py

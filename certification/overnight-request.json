@@ -1,6 +1,6 @@
 {
   "schema": "four-lane-overnight-request-v1",
-  "sequence": 9,
+  "sequence": 10,
   "phase": "hourly",
   "observation_seconds": 3600,
   "smoke_seconds": 600,
@@ -17,9 +17,9 @@
   "meteora_repair_branch_sha": "00ebf7ffb3e13911d6c842898c98312c98d4e628",
   "normal_policy_drain_required": true,
   "new_strategy_promotion_authorized": false,
-  "result_status": "COMBINED_SOLANA_ROBINHOOD_VALIDATION_PREPARATION",
-  "local_lane_test_count": 1181,
-  "local_supervisor_test_count": 60,
+  "result_status": "COMBINED_REPAIR_READY_FOR_FRESH_SMOKE",
+  "local_lane_test_count": 1185,
+  "local_supervisor_test_count": 64,
   "repair_summary": [
     "Lane-attributed durable opportunity/consumer evidence and stage liveness",
     "Preserve complete Ramses checkpoint and expose pinned scan progress/accounting",
@@ -38,5 +38,7 @@
   "superseded_combined_preflight": 35520048920,
   "supersession_review": "certification/results/solana-preflight-review-35520048920.json",
   "failed_combined_preflight": 35520877325,
-  "failed_preflight_review": "certification/results/solana-hosted-gate-review-35520877325.json"
+  "failed_preflight_review": "certification/results/solana-hosted-gate-review-35520877325.json",
+  "failed_combined_smoke": 35521414965,
+  "failed_smoke_review": "certification/results/solana-smoke-review-35521414965.json"
 }

@@ -1,4 +1,5 @@
 import json
+import copy
 import os
 import unittest
 import tempfile
@@ -64,3 +65,48 @@ class LiveStatusTests(unittest.TestCase):
             with patch.dict(os.environ,env,clear=True),patch('sys.argv',argv),patch('certification.live_status.request',side_effect=RuntimeError('not_authorized')),patch('certification.live_status.subprocess.Popen') as launch:
                 with self.assertRaises(RuntimeError):main()
                 launch.assert_not_called()
+
+    def test_many_sessions_keep_publication_bounded_and_all_totals_exact(self):
+        session=dict(logical_requests=162,transport_requests=6,requests=162,retries=1,
+            methods={'eth_call':8,'eth_chainId':1,'eth_getBlockByNumber':150},
+            logical_methods={'eth_call':8,'eth_chainId':1,'eth_getBlockByNumber':150},
+            failures={'provider_rpc_429':1},immutable_reuse={'eth_call:hit':3},
+            pacing={'throttle_sleep_seconds':1})
+        result={'observed_at':100,'lanes':{lane:{'health':'responsive',
+            'evidence_state':{'completed_sessions':[copy.deepcopy(session) for _ in range(1000)]},
+            'open_positions':1,'accounting_reconciled':True,'natural_settled':2,
+            'policy_hash':'a'*64} for lane in ('pump','meteora','pons','ramses')}}
+        original=copy.deepcopy(result)
+        body=output(result);self.assertLess(len(body['text'].encode()),60000)
+        view=snapshot(result,now=101)
+        for lane in view['lanes'].values():
+            state=lane['evidence_state'];summary=state['completed_session_summary']
+            self.assertEqual(summary['session_count'],1000)
+            self.assertEqual(summary['totals']['transport_requests'],6000)
+            self.assertEqual(summary['totals']['logical_requests'],162000)
+            self.assertEqual(summary['logical_methods']['eth_getBlockByNumber'],150000)
+            self.assertEqual(summary['failures']['provider_rpc_429'],1000)
+            self.assertEqual(summary['immutable_reuse']['eth_call:hit'],3000)
+            self.assertEqual(len(state['completed_sessions']),2)
+            self.assertEqual(lane['open_positions'],1)
+            self.assertTrue(lane['accounting_reconciled'])
+        self.assertEqual(result,original) # no raw history removal or mutation
+
+    def test_missing_session_counters_remain_unknown(self):
+        v=snapshot({'lanes':{'pons':{'evidence_state':{'completed_sessions':[{}]}}}})
+        totals=v['lanes']['pons']['evidence_state']['completed_session_summary']['totals']
+        self.assertIsNone(totals['logical_requests'])
+        self.assertIsNone(totals['transport_requests'])
+
+    def test_smoke_scope_does_not_inherit_four_hour_certification_label(self):
+        v=snapshot({'phase':'smoke','certification':{'scope':'four_hour_certification','required_observation_seconds':14400}})
+        self.assertEqual(v['certification_scope'],'ten_minute_engineering_smoke')
+        self.assertEqual(v['required_observation_seconds'],600)
+        self.assertEqual(v['certification_status'],'INCOMPLETE')
+
+    def test_immutable_cache_labels_survive_without_allowing_arbitrary_strings(self):
+        value={'method':'getGenesisHash','kind':'cross_lane_hit','count':3}
+        self.assertEqual(numeric_tree(value),value)
+        self.assertIsNone(numeric_tree({'method':'secretvalue'})['method'])
+        self.assertIsNone(numeric_tree({'kind':'secretvalue'})['kind'])
+        self.assertEqual(numeric_tree({'denominator_status':'zero_or_unmeasured_no_efficiency_claim'})['denominator_status'],'zero_or_unmeasured_no_efficiency_claim')

@@ -5,6 +5,7 @@ published. The supervisor retains authoritative JSON, journals and accounting.
 The publisher runs outside the supervisor; its network waits cannot delay exits.
 """
 import argparse
+from collections import Counter
 from datetime import datetime, timezone
 import json
 import math
@@ -30,10 +31,51 @@ def numeric_tree(value, depth=0, field=None):
                 if re.fullmatch(r'[A-Za-z0-9_:. -]{1,100}',str(k))
                 and not any(s in str(k).lower() for s in ('token','secret','url','authorization','private_key'))}
     if isinstance(value, list):return [numeric_tree(v,depth+1) for v in value[:100]]
+    if isinstance(value,str) and field=='method' and value in ('getGenesisHash','getBlockTime'):
+        return value
+    if isinstance(value,str) and field=='kind' and value in (
+            'hit','miss','cross_lane_hit','pump_window','dlmm_fresh','dlmm_window',
+            'stream_prefetch','research_history','position_monitor','position_exit'):
+        return value
+    if isinstance(value,str) and field=='denominator_status' and value in ('measured','zero_or_unmeasured_no_efficiency_claim'):
+        return value
     if isinstance(value,str) and field in ('stage','state','last_gate_reason','next_scan_eligibility',
             'finalized_hash','frontier_hash','lane','scope','reason','terminal_reason','funding_state'):
         if re.fullmatch(r'[A-Za-z0-9_: .;-]{1,180}',value):return value
     return None
+
+
+
+def compact_evidence_state(value):
+    """Bound the public view, never the native session/evidence archive.
+
+    Session totals cover the full list, not just the recent display sample.
+    Physical transports and logical methods remain independent denominators.
+    """
+    if not isinstance(value,dict):return value
+    sessions=value.get('completed_sessions')
+    if not isinstance(sessions,list):return value
+    result=dict(value)
+    totals={k:0 for k in ('logical_requests','transport_requests','requests','retries')}
+    present={k:False for k in totals}
+    counters={k:Counter() for k in ('methods','logical_methods','failures','immutable_reuse')}
+    for row in sessions:
+        if not isinstance(row,dict):continue
+        for key in totals:
+            val=row.get(key)
+            if isinstance(val,(int,float)) and not isinstance(val,bool):
+                totals[key]+=val;present[key]=True
+        for key in counters:
+            for method,count in (row.get(key) or {}).items():
+                if isinstance(count,(int,float)) and not isinstance(count,bool):counters[key][method]+=count
+    result['completed_session_summary']=dict(
+        session_count=len(sessions),
+        totals={k:totals[k] if present[k] else None for k in totals},
+        **{k:dict(v) for k,v in counters.items()},
+        displayed_recent_sessions=min(2,len(sessions)),
+        full_history_retained_in_raw_artifacts=True)
+    result['completed_sessions']=sessions[-2:]
+    return result
 
 
 def snapshot(result, now=None):
@@ -43,8 +85,8 @@ def snapshot(result, now=None):
     out=dict(schema='four-lane-live-v1',published_at=now,observed_at=observed,
         snapshot_age_seconds=age,stale=age is None or age>120,
         phase=result.get('phase') if result.get('phase') in ('smoke','sustained','hourly') else None,
-        certification_scope=result.get('certification',{}).get('scope'),
-        required_observation_seconds=result.get('certification',{}).get('required_observation_seconds'),
+        certification_scope=('ten_minute_engineering_smoke' if result.get('phase')=='smoke' else result.get('certification',{}).get('scope')),
+        required_observation_seconds=(600 if result.get('phase')=='smoke' else result.get('certification',{}).get('required_observation_seconds')),
         elapsed_seconds=result.get('elapsed_seconds'),
         continuous_overlap_seconds=result.get('continuous_overlap_seconds'),lanes={},
         shared_provider=numeric_tree(result.get('shared_provider')),
@@ -62,7 +104,7 @@ def snapshot(result, now=None):
             'accounting_reconciled','native_accounting','cohort_accounting','pnl_decomposition',
             'stream_state','finality_state','evidence_state','runtime_resources','telemetry_cost','gates',
             'opportunity_coverage','pipeline_health','scan_progress','last_completed_scan')
-        public={k:numeric_tree(row.get(k)) for k in fields}
+        public={k:numeric_tree(compact_evidence_state(row.get(k)) if k=='evidence_state' else row.get(k)) for k in fields}
         public['health']=health if health in ('starting','responsive','responsive_but_strategy_stalled','progress_stalled','exited','terminated') else 'unknown'
         policy=row.get('policy_hash','');public['policy_hash']=policy if re.fullmatch('[a-f0-9]{64}',policy) else None
         version=row.get('strategy_version','');public['strategy_version']=version if re.fullmatch(r'[A-Za-z0-9_. /-]{1,100}',version) else None
