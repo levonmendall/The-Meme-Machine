@@ -11,7 +11,7 @@ import time
 
 
 class DeadlineEvidenceQueue:
-    def __init__(self, *, limit=10_000, nominal_deadline_seconds=5.0):
+    def __init__(self, *, limit=10_000, nominal_deadline_seconds=5.0,on_terminal=None):
         if not 1 <= int(limit) <= 100_000:
             raise ValueError("invalid_evidence_queue_limit")
         if not 1.0 <= float(nominal_deadline_seconds) <= 10.0:
@@ -20,6 +20,11 @@ class DeadlineEvidenceQueue:
         self.nominal_deadline_seconds=float(nominal_deadline_seconds)
         self.rows={}
         self.counts=Counter()
+        self.on_terminal=on_terminal
+        self.max_depth=0
+
+    def _terminal(self,row,reason):
+        if self.on_terminal is not None:self.on_terminal(row,reason)
 
     @staticmethod
     def _key(event):
@@ -57,11 +62,14 @@ class DeadlineEvidenceQueue:
                 self.rows.items(),key=lambda item:self._order(item[1])
             )
             if self._order(row)>=self._order(worst):
+                self._terminal(row,"capacity_skipped")
                 self.counts["capacity_skipped"]+=1
                 return False
+            self._terminal(worst,"capacity_evicted")
             del self.rows[worst_key]
             self.counts["capacity_evicted"]+=1
         self.rows[key]=row
+        self.max_depth=max(self.max_depth,len(self.rows))
         self.counts["enqueued"]+=1
         return True
 
@@ -69,6 +77,7 @@ class DeadlineEvidenceQueue:
         observed=time.time() if now is None else float(now)
         expired=[k for k,row in self.rows.items() if row["deadline"]<=observed]
         for key in expired:
+            self._terminal(self.rows[key],"expired_before_evidence")
             del self.rows[key]
         self.counts["expired_before_evidence"]+=len(expired)
         return len(expired)
@@ -83,6 +92,7 @@ class DeadlineEvidenceQueue:
             del self.rows[key]
             remaining=float(row["deadline"])-observed
             if remaining < float(minimum_remaining_seconds):
+                self._terminal(row,"deadline_insufficient")
                 self.counts["deadline_insufficient"]+=1
                 continue
             self.counts["processed"]+=1
@@ -92,7 +102,7 @@ class DeadlineEvidenceQueue:
 
     def telemetry(self):
         return dict(
-            depth=len(self.rows),limit=self.limit,
+            depth=len(self.rows),limit=self.limit,max_depth=self.max_depth,
             nominal_deadline_seconds=self.nominal_deadline_seconds,
             **dict(self.counts),
         )
