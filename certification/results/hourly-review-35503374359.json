@@ -1,0 +1,116 @@
+{
+  "schema": "four-lane-hourly-review-v1",
+  "reviewed_at": "2026-09-20T11:45:00Z",
+  "workflow_run_id": 35503374359,
+  "workflow_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/35503374359",
+  "integration_sha": "1d8dcc1994200016754dfcddc9add39a9581444d",
+  "observation": {
+    "required_seconds": 3600,
+    "continuous_overlap_seconds": 3600.1261150580003,
+    "elapsed_seconds_including_drain": 4623.916885052,
+    "process_restarts": 0,
+    "supervisor_error": null,
+    "supervisor_exit_code": 0,
+    "engineering_result": "PASS",
+    "natural_certification_result": "INCOMPLETE",
+    "workflow_conclusion": "success"
+  },
+  "artifacts": {
+    "hourly": {
+      "id": 10603898287,
+      "size_bytes": 305948537,
+      "digest": "sha256:9e06e2a8d402caaba2d14d1e8a8e62b06efb323210994539cdf6a2f927869020"
+    },
+    "smoke": {
+      "id": 10602904265,
+      "size_bytes": 96036041,
+      "digest": "sha256:cd3c16df716794a7a2490126c42803380d9781d767379b66a7dd51c24fc2ba2d"
+    }
+  },
+  "provider": {
+    "final_queue_depth": {"solana": 0, "robinhood": 0},
+    "solana_grants": 8023,
+    "solana_rate_errors": 6,
+    "robinhood_requests": 6665,
+    "robinhood_max_queue_depth": 2,
+    "pons_rpc_errors": {"-32000": 1, "-32602": 1, "3": 1},
+    "unbounded_backlog": false,
+    "provider_change_required": false
+  },
+  "lanes": {
+    "pump": {
+      "uptime_seconds": 4602.131574208,
+      "exit_code": 0,
+      "unexpected_exit": false,
+      "restarts": 0,
+      "requests": 7299,
+      "discovered": 1103,
+      "evidence_complete": 189,
+      "qualified": 1,
+      "settled": 0,
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "accounting_reconciled": true,
+      "accounting_replay_verified": true,
+      "zero_fill_reservation_released": true,
+      "compact_terminal_reason_missing": true,
+      "primary_blocker": "One frozen-policy qualification reserved and released capital without a fill or settlement, but the compact certification surface omitted the qualifier entry status and cancellation reason. This is an observability defect, not a trade."
+    },
+    "meteora": {
+      "uptime_seconds": 3600.555800576,
+      "exit_code": 0,
+      "unexpected_exit": false,
+      "restarts": 0,
+      "requests": 724,
+      "discovered": 627,
+      "screened": 111,
+      "economic_observations_complete": 0,
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "accounting_reconciled": true,
+      "primary_blocker": "No complete economic vector: 31 fresh-swap trigger timeouts, 6 verified zero-warmup outcomes, and 2 unverified warmups."
+    },
+    "pons": {
+      "uptime_seconds": 3678.492295925,
+      "exit_code": 0,
+      "unexpected_exit": false,
+      "restarts": 0,
+      "requests": 6241,
+      "evaluated": 1204,
+      "qualified": 0,
+      "stale_after_evidence": 412,
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "accounting_reconciled": true,
+      "reservation_leak": false,
+      "primary_blocker": "Five-second evidence freshness censored 412 observations; complete candidates did not qualify under the frozen policy."
+    },
+    "ramses": {
+      "uptime_seconds": 3600.1261150580003,
+      "exit_code": 0,
+      "unexpected_exit": false,
+      "restarts": 0,
+      "requests": 424,
+      "finalized_scans": 10,
+      "finality_advances": 9,
+      "active_pools": 8,
+      "qualified": 0,
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "accounting_reconciled": true,
+      "primary_blocker": "Observed pools failed frozen cost, flow, acceleration, two-way-chop and related economic gates."
+    }
+  },
+  "natural_lifecycles": 0,
+  "forced_lifecycles": 0,
+  "profitability_claimed": false,
+  "repairs_selected": [
+    "Expose Pump qualifier entry-filled, entry-cancelled and still-reserved counts in the compact funnel.",
+    "Expose each zero-fill cancellation reason as an explicit terminal reason without counting it as a natural settlement."
+  ],
+  "provider_change_reason": "Both shared provider queues drained, no starvation or unbounded backlog appeared, and six Solana rate events did not prevent the clean hour. The demonstrated issue is lifecycle observability, not proof of missing provider capacity."
+}

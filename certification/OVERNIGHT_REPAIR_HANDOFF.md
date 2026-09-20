@@ -154,3 +154,31 @@ This is not an implementation defect and the guard must not be weakened. A new
 independent workflow may now rerun exact-revision gates and begin a fresh smoke;
 future repair-branch pushes during this campaign must carry the qualification
 marker so legacy live diagnostics do not start alongside certification.
+
+## Cycle 3 review and cycle 4 repair
+
+Run [35503374359](https://github.com/levonmendall/The-Meme-Machine/actions/runs/35503374359)
+at exact integration `1d8dcc1994200016754dfcddc9add39a9581444d`
+completed 3,600.126 uninterrupted shared seconds with zero restarts, zero
+unexpected exits, bounded provider queues, reconciled accounting and no open
+positions. Engineering integrity passed; natural certification remained
+**INCOMPLETE** with zero natural and zero forced settlements. The exact review is
+`results/hourly-review-35503374359.json`; hourly artifact 10603898287 has digest
+`sha256:9e06e2a8d402caaba2d14d1e8a8e62b06efb323210994539cdf6a2f927869020`.
+
+Pump improved to 189 complete evidence observations from 1,103 discovered and
+produced one frozen-policy qualification. Its durable accounting returned to
+zero reserved/open exposure with verified replay and unchanged cash, so the
+candidate did not fill and is not a trade. The compact result reported only
+`qualified=1`, however, and omitted the qualifier's cancelled entry status and
+reason. Cycle 4 repairs that certification-surface defect by publishing filled,
+cancelled and reserved entry counts and explicit `entry_cancelled:<reason>`
+terminal evidence. It does not alter entry timing, evidence, policy or economics.
+
+Meteora screened 111 of 627 discoveries but produced no complete economic vector;
+Pons evaluated 1,204 candidates with 412 stale after evidence and no qualifier;
+Ramses completed ten finalized scans over eight active pools and rejected them on
+the unchanged economic gates. Solana and Robinhood queues ended empty. Six
+Solana rate events and a maximum Robinhood queue depth of two do not justify a
+new provider. Current frozen source heads were reverified before the Cycle 4
+observability edit.

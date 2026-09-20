@@ -54,12 +54,19 @@ def summarize(lane, report):
     result['provider_state']=report.get('active_provider') or report.get('active_discovery_provider') or report.get('provider')
     result['finality_state']=report.get('frontier_discovery') or report.get('canonical_discovery_cursor')
     if lane=='pump':
+        qualifiers=report.get('qualifiers',[])
+        entry_status=Counter(x.get('entry_status','unknown') for x in qualifiers)
+        entry_terminals=Counter('entry_cancelled:'+(x.get('entry_limitation') or 'unknown')
+            for x in qualifiers if x.get('entry_status')=='cancelled')
         result['funnel']=dict(discovered=report.get('created_mints_observed'),
-            evidence_complete=len(report.get('full_evidence_candidates',[])),qualified=len(report.get('qualifiers',[])),
-            settled=len(report.get('settled',[])))
+            evidence_complete=len(report.get('full_evidence_candidates',[])),qualified=len(qualifiers),
+            entry_filled=entry_status['filled'],entry_cancelled=entry_status['cancelled'],
+            entry_reserved=entry_status['reserved'],settled=len(report.get('settled',[])))
         result['open_positions']=len(report.get('open_positions',[]))+len(report.get('pending_entries',[]))
         result['natural_settled']=len(report.get('settled',[]))
-        result['terminal_reasons']=dict(Counter(x.get('limitation') or x.get('stage','unknown') for x in report.get('attempts',[])))
+        terminals=Counter(x.get('limitation') or x.get('stage','unknown') for x in report.get('attempts',[]))
+        terminals.update(entry_terminals)
+        result['terminal_reasons']=dict(terminals)
         result['native_accounting']=report.get('accounting')
         result['accounting_replay']=report.get('accounting_replay')
         if (report.get('accounting') or {}).get('reconciled') is True and (report.get('accounting_replay') or {}).get('verified') is True:

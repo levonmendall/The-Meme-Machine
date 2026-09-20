@@ -122,6 +122,16 @@ class CertificationTests(unittest.TestCase):
         x=summarize('pons',dict(lifecycles=[dict(final_position=dict(status='settled',entry_tokens=0))]))
         self.assertEqual(x['natural_settled'],0)
 
+    def test_pump_cancelled_qualification_is_visible_but_not_a_trade(self):
+        report=dict(qualifiers=[dict(entry_status='cancelled',entry_limitation='entry_fill_timeout')],
+            full_evidence_candidates=[{}],settled=[],attempts=[],open_positions=[],pending_entries=[])
+        result=summarize('pump',report)
+        self.assertEqual(result['funnel']['qualified'],1)
+        self.assertEqual(result['funnel']['entry_cancelled'],1)
+        self.assertEqual(result['funnel']['entry_filled'],0)
+        self.assertEqual(result['natural_settled'],0)
+        self.assertEqual(result['terminal_reasons']['entry_cancelled:entry_fill_timeout'],1)
+
     def test_ramses_natural_uses_native_ledger_fields_and_terminal_equality(self):
         report=dict(policy_hash='frozen',natural_qualifier_found=True,connected_lifecycle=dict(
             ledger_final=dict(status='settled',policy_hash='frozen'),ledger_reconciliation=dict(open_positions=0),
