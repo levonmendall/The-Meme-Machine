@@ -30,6 +30,9 @@ class Observer:
         self.lane,self.policy=lane,policy
         self.lock=threading.RLock();self.sequence=0;self.methods=Counter()
         self.latencies=[];self.errors=Counter();self.started=time.monotonic()
+        self.provider_method_errors=Counter()
+        self.provider_http_status_errors=Counter()
+        self.provider_rpc_error_codes=Counter()
         self.journal=Journal(self.root/'telemetry.sqlite')
         self.raw=gzip.open(self.root/'rpc-evidence.jsonl.gz','ab')
         self.archive_ns=0;self.journal_ns=0;self.snapshot_ns=0
@@ -57,7 +60,10 @@ class Observer:
         value=dict(lane=self.lane,pid=os.getpid(),process_nonce=PROCESS_NONCE,
             at_monotonic=now,provider_requests=self.requests,method_counts=dict(self.methods),
             estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods) if self.lane in ('pump','meteora','pons','ramses') else None),
-            errors=dict(self.errors),provider_session_count=len(self.provider_sessions),
+            errors=dict(self.errors),provider_method_errors=dict(self.provider_method_errors),
+            provider_http_status_errors=dict(self.provider_http_status_errors),
+            provider_rpc_error_codes=dict(self.provider_rpc_error_codes),
+            provider_session_count=len(self.provider_sessions),
             evidence_qualification_inferred=False)
         before=time.monotonic_ns()
         temporary=self.root/'activity.json.tmp';temporary.write_text(canonical(value))
@@ -108,7 +114,10 @@ class Observer:
                       uptime_seconds=time.monotonic()-self.started,
                       last_progress_monotonic=self.last_progress,
                       provider_requests=self.requests,method_counts=dict(self.methods),
-                      errors=dict(self.errors),provider_session_count=len(self.provider_sessions),
+                      errors=dict(self.errors),provider_method_errors=dict(self.provider_method_errors),
+                      provider_http_status_errors=dict(self.provider_http_status_errors),
+                      provider_rpc_error_codes=dict(self.provider_rpc_error_codes),
+                      provider_session_count=len(self.provider_sessions),
                       rpc_latency_seconds=dict(p50=quant(.5),p95=quant(.95),p99=quant(.99)),
                       telemetry_archive_seconds=self.archive_ns/1e9,
                       telemetry_cost=dict(raw_archive_seconds=self.archive_ns/1e9,
@@ -175,7 +184,9 @@ class Observer:
                 evidence_deadline=getattr(instance,'evidence_deadline',None)
                 remaining=30 if evidence_deadline is None else min(30,evidence_deadline-(time.time() if solana else time.monotonic()))
                 if remaining<=0:raise TimeoutError('evidence_deadline_before_transport')
-                queue_wait=(observer.governor.acquire(network,observer.lane,priority,deadline_seconds=remaining)
+                queue_wait=(observer.governor.acquire(
+                    network,observer.lane,priority,deadline_seconds=remaining,
+                    methods=methods)
                             if solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB") else None)
                 callback=getattr(instance,'evidence_transport_callback',None)
                 if callback is not None:callback()
@@ -205,10 +216,31 @@ class Observer:
                     if transport_started is not None:
                         transport_elapsed=(time.monotonic_ns()-transport_started)/1e9
                         observer.requests+=1;observer.methods.update(methods);observer.latencies.append(transport_elapsed)
+                    unique_methods=list(dict.fromkeys(methods))
                     if error:
                         observer.errors[error]+=1
-                    if (http_status==429 or 429 in rpc_error_codes or (error and "429" in error)) and (solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB")):
-                        observer.governor.rate_limited(network)
+                        for method in unique_methods:
+                            observer.provider_method_errors[f"{method}:{error}"]+=1
+                    if http_status is not None and http_status!=200:
+                        for method in unique_methods:
+                            observer.provider_http_status_errors[
+                                f"{method}:{int(http_status)}"]+=1
+                            if int(http_status)==429:
+                                observer.errors[f"{method}:http_429"]+=1
+                    for code in rpc_error_codes:
+                        for method in unique_methods:
+                            observer.provider_rpc_error_codes[
+                                f"{method}:{code}"]+=1
+                            if code in (429,-32005):
+                                observer.errors[f"{method}:rpc_{code}"]+=1
+                    limited=(http_status==429 or 429 in rpc_error_codes or -32005 in rpc_error_codes
+                             or (error and "429" in error))
+                    if limited and (solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB")):
+                        observer.governor.rate_limited(network,unique_methods)
+                    elif (transport_started is not None and error is None
+                          and not rpc_error_codes
+                          and (solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB"))):
+                        observer.governor.succeeded(network,unique_methods)
                     before=time.monotonic_ns()
                     record=dict(sequence=observer.raw_records,lane=observer.lane,session=session,
                                 transport_attempted=transport_started is not None,transport_duration_seconds=transport_elapsed,
