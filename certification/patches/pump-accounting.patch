@@ -1208,13 +1208,15 @@ new file mode 100644
 index 0000000..f96d983
 --- /dev/null
 +++ b/meme_machine/solana_evidence_consumers.py
-@@ -0,0 +1,211 @@
+@@ -0,0 +1,244 @@
 +"""Consumer ownership for immutable evidence; never strategy or freshness authority."""
 +from __future__ import annotations
 +
 +import os
 +import json
++import sqlite3
 +import threading
++import time
 +
 +
 +class EvidenceConsumers:
@@ -1365,7 +1367,7 @@ index 0000000..f96d983
 +
 +
 +class StreamEvidenceService:
-+    """One incremental reader; provider pacing and foreground priority still apply."""
++    """Sparse cache warmer; foreground evidence never depends on prefetch success."""
 +    def __init__(self, broker, rpc_factory):
 +        self.broker, self.rpc_factory = broker, rpc_factory
 +        self.pacer = None
@@ -1374,11 +1376,41 @@ index 0000000..f96d983
 +        self.error = None
 +        self.rpc = None
 +        self.sessions = []
++        self.prefetch_interval_seconds = 2.0
++        self.next_prefetch_at = -float('inf')
++        self.provider_busy_deferrals = 0
++        self.interval_deferrals = 0
++        self.prefetch_batches = 0
++
++    def _shared_provider_idle(self):
++        path=os.environ.get('MM_CERT_GOVERNOR_DB')
++        if not path:
++            return True
++        if not os.path.exists(path):
++            return False
++        try:
++            db=sqlite3.connect(path,timeout=.1)
++            try:
++                row=db.execute("SELECT next_at,cooldown FROM pressure WHERE provider='solana'").fetchone()
++                queued=db.execute("SELECT COUNT(*) FROM queue WHERE provider='solana'").fetchone()[0]
++            finally:
++                db.close()
++        except sqlite3.Error:
++            return False
++        return bool(row and not queued and time.monotonic()>=max(float(row[0]),float(row[1])))
 +
 +    def step(self):
++        now=float(self.broker.clock())
++        if now<self.next_prefetch_at:
++            self.interval_deferrals+=1
++            return False
++        if not self._shared_provider_idle():
++            self.provider_busy_deferrals+=1
++            return False
 +        rows = self.broker.consumers.batch()
 +        if not rows:
 +            return False
++        self.next_prefetch_at=now+self.prefetch_interval_seconds
 +        if self.rpc is None or self.rpc.calls + len(rows) + 8 > self.rpc.limit:
 +            if self.rpc is not None:
 +                self.sessions.append(self.rpc.provider_telemetry())
@@ -1390,9 +1422,10 @@ index 0000000..f96d983
 +            self.rpc.evidence_priority = 90
 +        self.broker.hydrate_transactions(
 +            self.rpc, [s for s,_ in rows], kind='stream_prefetch',
-+            deadline=min(float(self.broker.clock()) + 4, min(d for _,d in rows)),
++            deadline=min(float(self.broker.clock()) + 8, min(d for _,d in rows)),
 +            batch_size=8, max_batches=1, owner=False)
 +        self.broker.consumers.settle()
++        self.prefetch_batches+=1
 +        return True
 +
 +    def start(self):
@@ -2175,9 +2208,13 @@ new file mode 100644
 index 0000000..93546a2
 --- /dev/null
 +++ b/tests/test_evidence_consumers.py
-@@ -0,0 +1,148 @@
+@@ -0,0 +1,165 @@
++import os
++import sqlite3
 +import tempfile
++import time
 +import unittest
++from unittest.mock import patch
 +
 +from meme_machine.provider import Unavailable
 +from meme_machine.solana_evidence_broker import EvidenceBroker, DynamicAddressLogStream
@@ -2203,26 +2240,39 @@ index 0000000..93546a2
 +        self.addCleanup(b.close)
 +        return b,clock
 +
-+    def test_incremental_completes_same_window_where_burst_censors_at_same_rate(self):
-+        burst,clock=self.broker()
-+        rpc=PacedRpc(clock)
-+        signatures=[f's-{i}' for i in range(80)]
-+        _,meta=burst.hydrate_transactions(rpc,signatures,kind='pump_window',deadline=clock()+4)
-+        self.assertEqual(meta['hydrated'],64)
++    def test_sparse_prefetch_warms_cache_without_competing_with_foreground(self):
 +        incremental,tick=self.broker()
 +        ahead=PacedRpc(tick)
 +        service=StreamEvidenceService(incremental,lambda:ahead)
-+        for i in range(10):
-+            incremental.consumers.register('pump:pool',signatures[i*8:(i+1)*8],
-+                                           'stream_prefetch',tick()+32)
-+            service.step()
++        signatures=[f's-{i}' for i in range(16)]
++        incremental.consumers.register(
++            'pump:pool',signatures,'stream_prefetch',tick()+32)
++        self.assertTrue(service.step())
++        for _ in range(3):
 +            tick.sleep(.5)
-+        before=len(ahead.batches)
-+        _,complete=incremental.hydrate_transactions(ahead,signatures,kind='pump_window',
-+                                                     deadline=tick()+4)
-+        self.assertEqual(complete['hydrated'],80)
-+        self.assertEqual(len(ahead.batches),before)
-+        self.assertEqual(before,10)
++            self.assertFalse(service.step())
++        self.assertEqual(len(ahead.batches),1)
++        _,complete=incremental.hydrate_transactions(
++            ahead,signatures,kind='pump_window',deadline=tick()+4)
++        self.assertEqual(complete['hydrated'],16)
++        self.assertEqual(len(ahead.batches),2)
++        self.assertEqual(service.prefetch_batches,1)
++
++    def test_prefetch_defers_while_shared_solana_provider_is_busy(self):
++        b,c=self.broker();rpc=PacedRpc(c);service=StreamEvidenceService(b,lambda:rpc)
++        b.consumers.register('pump:pool',['s'],'stream_prefetch',c()+32)
++        with tempfile.TemporaryDirectory() as td:
++            path=os.path.join(td,'governor.sqlite')
++            db=sqlite3.connect(path)
++            db.execute('CREATE TABLE pressure(provider TEXT PRIMARY KEY,next_at REAL,cooldown REAL,grants INTEGER,rate_errors INTEGER)')
++            db.execute('CREATE TABLE queue(id TEXT,provider TEXT,lane TEXT,priority INTEGER,created REAL,deadline REAL)')
++            db.execute('INSERT INTO pressure VALUES(?,?,?,?,?)',
++                       ('solana',time.monotonic()+10,0,0,0))
++            db.commit();db.close()
++            with patch.dict(os.environ,{'MM_CERT_GOVERNOR_DB':path}):
++                self.assertFalse(service.step())
++        self.assertEqual(len(rpc.batches),0)
++        self.assertEqual(service.provider_busy_deferrals,1)
 +
 +    def test_burst_keeps_all_censoring_but_admits_only_serviceable_jobs(self):
 +        b,c=self.broker()
