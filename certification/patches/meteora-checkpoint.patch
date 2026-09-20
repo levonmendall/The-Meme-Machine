@@ -1901,7 +1901,7 @@ index 0000000..1ab6620
 +    def test_incomplete_warm_bridge_does_not_advance_or_poison_cached_head(self):
 +        self.broker.remember_signatures('dlmm_interval','pool',[row('head',100),row('bound',99)],covered_through_slot=100)
 +        before=self.broker.signature_coverage('dlmm_interval','pool')
-+        rpc=MagicMock();rpc.call.return_value=[row('future-'+str(i),300-i) for i in range(64)]
++        rpc=MagicMock();rpc.call.return_value=[row('future-'+str(i),500-i) for i in range(strategy.SIGNATURE_PAGE_LIMIT)]
 +        with patch.object(strategy,'MAX_SIGNATURE_CENSUS_PAGES',1):
 +            with self.assertRaisesRegex(Exception,'census_head_incomplete'):
 +                strategy._complete_signature_census(rpc,'pool',100,102,self.broker)
