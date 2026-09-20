@@ -257,9 +257,9 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
     def test_signature_census_paginates_to_authenticated_start_boundary(self):
         page1=[
             dict(
-                signature=f"new-{i}",slot=200-i,transactionIndex=i,
+                signature=f"new-{i}",slot=400-i,transactionIndex=i,
                 confirmationStatus="finalized",err=None)
-            for i in range(64)
+            for i in range(strategy.SIGNATURE_PAGE_LIMIT)
         ]
         page2=[
             dict(signature="tx105",slot=105,transactionIndex=2,
@@ -283,6 +283,11 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertEqual(
             rpc.call.call_args_list[1].args[1][1]["before"],
             page1[-1]["signature"])
+
+    def test_signature_census_reduces_requests_without_expanding_scan_capacity(self):
+        self.assertEqual(strategy.SIGNATURE_PAGE_LIMIT,256)
+        self.assertEqual(strategy.MAX_SIGNATURE_CENSUS_PAGES,4)
+        self.assertEqual(strategy.SIGNATURE_CENSUS_MAX_ROWS,1024)
 
     def test_signature_census_keeps_16_transaction_bound(self):
         page=[
