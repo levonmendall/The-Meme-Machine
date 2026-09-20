@@ -11,7 +11,8 @@
       "policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e",
       "file_hashes": {
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
-        ".github/workflows/pump-acceleration-natural-prospective.yml": "2d5e27c8d1808d5a84b521b42b6b4cbce70eef9b5ad6bcdfe9c1d412e5a27232"
+        ".github/workflows/pump-acceleration-natural-prospective.yml": "2d5e27c8d1808d5a84b521b42b6b4cbce70eef9b5ad6bcdfe9c1d412e5a27232",
+        "meme_machine/pump_acceleration_strategy.py": "ab5f149e315b438d959f623d051b394a44509b7a8af892ba8ad5f9bf197fe9d4"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -37,7 +38,8 @@
       "strategy_version": "solana-dlmm-independent-v1.8-execution-certification-v1",
       "policy_hash": "b1de19ed974faf3c92261fe7f4f6cb47570e4890c49e9547d7f4fcc50c7179b8",
       "file_hashes": {
-        ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe"
+        ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
+        "SOLANA_DLMM_INDEPENDENT_V1.json": "775b982c1110f982c1eed900a327c611a841a7d9e3ce14812a67141df4f50686"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -67,7 +69,8 @@
       "strategy_version": "pons-selective-continuation-v1/execution-certification-v1",
       "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
       "file_hashes": {
-        ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7"
+        ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
+        "robinhood_research/pons_selective_continuation.py": "b2ef248ddcda0c446381fcb307b6115a8bd10c3b84d092366356b60be764adc7"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
@@ -96,7 +99,8 @@
       "strategy_version": "ramses-fee-pulse-v1/execution-certification-v1",
       "policy_hash": "50d928914df10568a7bc9679f0887ac7786fe17d67f1c57171c17a5a95fc6766",
       "file_hashes": {
-        ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023"
+        ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
+        "robinhood_research/ramses_strategy.py": "02cfad8c8153bdcef104d7a92be4a65e5e36c67a4067194168b9e798f8f7c2b8"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
@@ -116,5 +120,13 @@
         "original_source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15"
       }
     }
+  },
+  "execution_certification": {
+    "revision": "execution-certification-v1",
+    "purpose": "prove natural paper lifecycle execution before profitability tightening",
+    "profitability_authority": false,
+    "target_strategy_restrictiveness": "approximately 5/10 per lane",
+    "validation_status": "deferred_pending_alchemy_repairs",
+    "validation_run_requested": false
   }
 }
