@@ -37,7 +37,7 @@
     },
     "meteora": {
       "source_branch": "cert/meteora-execution-cert-v1",
-      "source_sha": "0f01c79a4994224bf79b8c365b34f9f58cf3904e",
+      "source_sha": "226c3fceb9bac5f497ed969ef4c18baeeaaa944f",
       "strategy_version": "solana-dlmm-independent-v1.8-execution-certification-v1",
       "policy_hash": "b1de19ed974faf3c92261fe7f4f6cb47570e4890c49e9547d7f4fcc50c7179b8",
       "file_hashes": {
@@ -56,7 +56,13 @@
         "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
         "45041de0669c9f0db2dc27793ab2da2a77e72a25",
         "686e1938da1ba1a275b65fe1e7be0694ce697a04",
-        "00ebf7ffb3e13911d6c842898c98312c98d4e628"
+        "00ebf7ffb3e13911d6c842898c98312c98d4e628",
+        "abb276d4ab01be596110c93616ac683f4064f128",
+        "d670e7881863ff74f4a11c74f372d7874397ab30",
+        "9ba576ec66c1dd69936a051c15cf371e3b0c1831",
+        "2e25ed26600697ad8bf094b443631d222f2a2250",
+        "0d9176c46e95cb758cdbada1ea4756f3fc3c09c0",
+        "226c3fceb9bac5f497ed969ef4c18baeeaaa944f"
       ],
       "paper_starting_capital_lamports": 1000000000,
       "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
