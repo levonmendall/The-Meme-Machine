@@ -1572,10 +1572,10 @@ index 0000000..64c5cc3
 +                if self._body_params(p) and isinstance(v,dict):shared.finalized(v.get('slot'))
 +        return values
 diff --git a/meme_machine/solana_read_rpc.py b/meme_machine/solana_read_rpc.py
-index 31856c2..62af316 100644
+index ac23ca3..4e1679a 100644
 --- a/meme_machine/solana_read_rpc.py
 +++ b/meme_machine/solana_read_rpc.py
-@@ -199,7 +199,10 @@ class SolanaReadPacer:
+@@ -261,7 +261,10 @@ class SolanaReadPacer:
          )
  
  
