@@ -1,0 +1,163 @@
+{
+  "schema": "one-hour-campaign-launch-v1",
+  "recorded_at": "2026-09-20T06:21:28.194Z",
+  "integration_sha": "93d9b35fd01f119f14e3562baa0f78a60f51df21",
+  "workflow_run_id": 35493891947,
+  "pr": 90,
+  "phase": "hourly",
+  "required_seconds": 3600,
+  "smoke_seconds": 600,
+  "policy_normal_drain": true,
+  "status": "SMOKE_RUNNING_NOT_YET_ONE_HOUR_CERTIFIED",
+  "supervisor_tests": 41,
+  "lane_test_counts": {
+    "pump": 259,
+    "meteora": 364,
+    "pons": 226,
+    "ramses": 238
+  },
+  "exact_local_gate": {
+    "implementation_hash": "e4a371f83aee26e5225a2b3060f24a2f4c14d4d3abd090773db036e1a5349845",
+    "integration_sha": "93d9b35fd01f119f14e3562baa0f78a60f51df21",
+    "lanes": {
+      "meteora": [
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "unittest",
+            "discover",
+            "-v"
+          ],
+          "ended_at": 1789885150.5675147,
+          "exit_code": 0,
+          "log": "meteora-gate-0.log",
+          "sha256": "dcb17e2ab6a3fb994356ed7490953abd2922475b6f5e8152d15ccc246e2fd93d",
+          "started_at": 1789885147.2640874,
+          "summary_complete": true
+        },
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "tests.resource_check"
+          ],
+          "ended_at": 1789885162.068094,
+          "exit_code": 0,
+          "log": "meteora-gate-1.log",
+          "sha256": "a333a69488341dc1fcf2495913d434f443b2a51f04916fac373728e51d76ce2e",
+          "started_at": 1789885150.5675716,
+          "summary_complete": true
+        },
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "tests.dlmm_resource_check"
+          ],
+          "ended_at": 1789885184.8775148,
+          "exit_code": 0,
+          "log": "meteora-gate-2.log",
+          "sha256": "86e25ae27c2b7796204969b80b0a4ab9b398623f6fca503ce7892cc413e55e75",
+          "started_at": 1789885162.0681608,
+          "summary_complete": true
+        }
+      ],
+      "pons": [
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "robinhood_tests",
+            "-v"
+          ],
+          "ended_at": 1789885185.9350202,
+          "exit_code": 0,
+          "log": "pons-gate-0.log",
+          "sha256": "c230069731bd140a3c9f9cf1f67a591a6388b35a869f3e18e18177bd4c0cf024",
+          "started_at": 1789885184.877603,
+          "summary_complete": true
+        }
+      ],
+      "pump": [
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "unittest",
+            "discover",
+            "-v"
+          ],
+          "ended_at": 1789885135.4769704,
+          "exit_code": 0,
+          "log": "pump-gate-0.log",
+          "sha256": "df04584a31aaf7728338be4b9b1b8df19e1282d18ea71b2d21ffc90948b0b0eb",
+          "started_at": 1789885132.8095303,
+          "summary_complete": true
+        },
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "tests.resource_check"
+          ],
+          "ended_at": 1789885147.2639966,
+          "exit_code": 0,
+          "log": "pump-gate-1.log",
+          "sha256": "ccaa0495cea5ed1a2aeccdaa9f19ba65e7d9bd572417d62c611faf5f4c5ad418",
+          "started_at": 1789885135.47703,
+          "summary_complete": true
+        }
+      ],
+      "ramses": [
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "robinhood_tests",
+            "-v"
+          ],
+          "ended_at": 1789885186.879733,
+          "exit_code": 0,
+          "log": "ramses-gate-0.log",
+          "sha256": "96aa9575c133c042c1d13798e44db6c19172b37e1b04c5a56e1468f974208779",
+          "started_at": 1789885185.9350882,
+          "summary_complete": true
+        }
+      ]
+    },
+    "passed": true,
+    "source_diff_hashes": {
+      "meteora": "6f043c34802539836e71dfbcc033afb6679185f82b02ecdc0c08437c10066431",
+      "pons": "0c5cc26eb1ac4e6bfba4d83fab073bbb24c3f8bb326b6e8b0e3f3d100dae5adc",
+      "pump": "116a5815b09498c4c388f08299ff07e60ea4aa3d526506ee516be17a55c7aa3c",
+      "ramses": "1279ab734ab8a4f72cef8324cdfa8c46c1082f77b64f377d7c0d999901ccdc79"
+    },
+    "source_manifest_hash": "a99f92470ccc01152379ce2bb425b2248246753be1f7bc949298ffa49950e092"
+  },
+  "remote_full_gates": "passed_before_smoke",
+  "cancelled_runs": [
+    35489724704,
+    35492642861,
+    35492870801
+  ],
+  "preserved_predecessor_artifact_ids": [
+    10600256244,
+    10598762766
+  ],
+  "overnight": {
+    "watch_id": "6aaf5814e1088191bfe1b939419c13fb",
+    "enabled": true,
+    "check_interval_seconds": 3600,
+    "launch_cutoff_utc": "2026-09-20T15:00:00Z",
+    "post_cutoff": "monitor_active_drain_then_pause"
+  },
+  "natural_lifecycles_for_new_run": "not_yet_established",
+  "forced_lifecycles_for_new_run": "not_yet_established"
+}
