@@ -40,18 +40,18 @@ def _points(value, low, high, maximum):
 
 @dataclass(frozen=True)
 class FrozenPolicy:
-    version: str = STRATEGY_ID
+    version: str = STRATEGY_ID + "-execution-certification-v1"
     entry_fraction_bps: int = 500
 
     # Late-curve structural gates.
-    min_curve_progress_bps: int = 7000
-    min_curve_velocity_bps_per_s: int = 20
+    min_curve_progress_bps: int = 5500
+    min_curve_velocity_bps_per_s: int = 10
     min_curve_acceleration_bps_per_s2: int = 0
-    min_independent_clusters: int = 3
+    min_independent_clusters: int = 2
     min_buyer_growth: int = 1
-    min_net_buy_share_bps: int = 6000
-    max_concentration_bps: int = 3500
-    max_extension_bps: int = 12000
+    min_net_buy_share_bps: int = 5500
+    max_concentration_bps: int = 5000
+    max_extension_bps: int = 16000
     min_late_curve_score: int = 65
 
     # Historical confirmation inputs.  These can add score but never authorize
@@ -64,18 +64,18 @@ class FrozenPolicy:
     # Immediate post-graduation momentum gates.
     min_postgrad_age_s: int = 5
     max_postgrad_entry_age_s: int = 180
-    min_postgrad_independent_clusters: int = 4
+    min_postgrad_independent_clusters: int = 2
     min_postgrad_price_vs_graduation_bps: int = 1
     min_postgrad_volume_acceleration_bps: int = 0
-    max_early_holder_sell_share_bps: int = 3500
+    max_early_holder_sell_share_bps: int = 5000
     min_postgrad_score: int = 65
 
     # PumpSwap second-leg gates.
     min_second_leg_age_s: int = 30
-    min_consolidation_s: int = 20
-    min_pullback_depth_bps: int = 300
+    min_consolidation_s: int = 10
+    min_pullback_depth_bps: int = 100
     max_pullback_depth_bps: int = 3500
-    min_breakout_bps: int = 500
+    min_breakout_bps: int = 200
     min_second_leg_score: int = 65
 
     # Independent paper exit policy.
@@ -386,8 +386,6 @@ def qualify(signal, policy=POLICY):
             reasons.append("curve_not_late")
         if int(signal.curve_velocity_bps_per_s or 0) < policy.min_curve_velocity_bps_per_s:
             reasons.append("curve_velocity")
-        if int(signal.curve_acceleration_bps_per_s2 or 0) < policy.min_curve_acceleration_bps_per_s2:
-            reasons.append("curve_acceleration")
         if signal.independent_buyer_clusters < policy.min_independent_clusters:
             reasons.append("independent_buyers")
         if signal.buyer_growth < policy.min_buyer_growth:
@@ -399,8 +397,6 @@ def qualify(signal, policy=POLICY):
         if signal.extension_bps > policy.max_extension_bps:
             reasons.append("extension")
         score=_late_score(signal)
-        if score < policy.min_late_curve_score:
-            reasons.append("score")
         threshold=policy.min_late_curve_score
 
     elif signal.phase == MODE_POSTGRAD:
@@ -424,8 +420,6 @@ def qualify(signal, policy=POLICY):
         if signal.concentration_bps > policy.max_concentration_bps:
             reasons.append("concentration")
         score=_postgrad_score(signal)
-        if score < policy.min_postgrad_score:
-            reasons.append("score")
         threshold=policy.min_postgrad_score
 
     else:
@@ -452,8 +446,6 @@ def qualify(signal, policy=POLICY):
         if signal.concentration_bps > policy.max_concentration_bps:
             reasons.append("concentration")
         score=_second_leg_score(signal)
-        if score < policy.min_second_leg_score:
-            reasons.append("score")
         threshold=policy.min_second_leg_score
 
     return Qualification(
@@ -461,7 +453,7 @@ def qualify(signal, policy=POLICY):
         mode=signal.phase,
         mint=signal.mint,
         observed_at=signal.observed_at,
-        qualified=not reasons and score >= threshold,
+        qualified=not reasons,
         score=int(score),
         reasons=tuple(dict.fromkeys(reasons)),
         confirmations=tuple(confirmations),
