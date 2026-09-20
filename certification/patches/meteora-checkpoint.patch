@@ -1315,7 +1315,7 @@ index f81cf53..5af8098 100644
  
      def _init_failover(self, secondary_url, pacer, primary_label=PRIMARY_PROVIDER):
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
-index 0a4acc7..1225d42 100644
+index c1aef79..046427f 100644
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
 @@ -12,8 +12,10 @@ transport.
@@ -1340,7 +1340,7 @@ index 0a4acc7..1225d42 100644
  from tests import dlmm_alchemy_provider as provider
  
  POLICY_PATH=Path("SOLANA_DLMM_INDEPENDENT_V1.json")
-@@ -93,6 +96,11 @@ METEORA_PACER=_MeteoraPacer()
+@@ -94,6 +97,11 @@ METEORA_PACER=_MeteoraPacer()
  
  
  
@@ -1352,7 +1352,7 @@ index 0a4acc7..1225d42 100644
  def assert_independence():
      bad_env=sorted(k for k in os.environ if k.startswith("MM_ROBINHOOD_"))
      if bad_env:
-@@ -253,7 +261,7 @@ def _history_acceleration(candidate,observed_at):
+@@ -254,7 +262,7 @@ def _history_acceleration(candidate,observed_at):
      return out
  
  
@@ -1361,7 +1361,7 @@ index 0a4acc7..1225d42 100644
      """Yield each qualifying pool immediately after its history check.
  
      The order is deterministic: configured sort order, then page, then API row rank.
-@@ -266,7 +274,7 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
+@@ -267,7 +275,7 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
      telemetry.setdefault("qualified",[])
      telemetry.setdefault("seen",0)
      telemetry.setdefault("history_reads",0)
@@ -1370,7 +1370,7 @@ index 0a4acc7..1225d42 100644
      regime=policy["regime"]
      for sort_by in DISCOVERY_SORTS:
          for page in range(1,DISCOVERY_PAGES_PER_SORT+1):
-@@ -297,6 +305,7 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
+@@ -298,6 +306,7 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
                  if not isinstance(address,str) or not address or address in seen:
                      continue
                  seen.add(address);telemetry["seen"]+=1
@@ -1378,7 +1378,7 @@ index 0a4acc7..1225d42 100644
                  raw=_candidate(row)
                  raw["sources"]=[dict(
                      sort=sort_by,rank=(page-1)*DISCOVERY_PAGE_SIZE+raw_rank)]
-@@ -339,6 +348,29 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
+@@ -340,6 +349,29 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
                  break
  
  
@@ -1408,7 +1408,7 @@ index 0a4acc7..1225d42 100644
  def discover(policy,scan_cap):
      """Compatibility collector used by unit tests; live execution streams instead."""
      telemetry={}
-@@ -427,6 +459,7 @@ def _rotate(adapter,pacer,rpcs):
+@@ -428,6 +460,7 @@ def _rotate(adapter,pacer,rpcs):
  
  
  def _atomic_checkpoint(report,stage,rpcs,pacer,**progress):
@@ -1416,7 +1416,7 @@ index 0a4acc7..1225d42 100644
      report["checkpoint"]=dict(
          stage=stage,written_at=int(time.time()),**progress)
      report["rpc"]=_sum_rpc_metrics(rpcs)
-@@ -556,53 +589,41 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
+@@ -557,53 +590,41 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
              before=page[-1]["signature"]
      else:
          coverage=broker.signature_coverage(scope,pool)
@@ -1498,7 +1498,7 @@ index 0a4acc7..1225d42 100644
  
      if boundary is None:
          raise Unavailable("solana_dlmm_signature_census_missing_start_boundary")
-@@ -621,6 +642,8 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
+@@ -622,6 +643,8 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
          if type(item.get("transactionIndex")) is not int:
              raise Unavailable("solana_dlmm_transaction_index_unavailable")
          selected.append(item)
@@ -1507,7 +1507,7 @@ index 0a4acc7..1225d42 100644
      selected.append(witness)
      selected.sort(
          key=lambda row:(row["slot"],row["transactionIndex"]),reverse=True)
-@@ -640,7 +663,9 @@ def _capture_chunk(
+@@ -641,7 +664,9 @@ def _capture_chunk(
  ):
      if wait_seconds<=0:
          raise ValueError("solana_dlmm_chunk_wait")
@@ -1517,7 +1517,7 @@ index 0a4acc7..1225d42 100644
      end_snapshot=adapter.snapshot_from_state(
          start,int(time.time()),True,fresh=True)
      signatures,census=_complete_signature_census(
-@@ -653,7 +678,8 @@ def _capture_chunk(
+@@ -654,7 +679,8 @@ def _capture_chunk(
          signatures_to_hydrate=[s["signature"] for s in relevant]
          txmap,hydration=broker.hydrate_transactions(
              adapter.rpc,signatures_to_hydrate,kind=hydration_kind,
@@ -1527,7 +1527,7 @@ index 0a4acc7..1225d42 100644
          if hydration["pending"]:
              raise Unavailable("solana_dlmm_transaction_hydration_incomplete")
          transactions={
-@@ -674,6 +700,7 @@ def _capture_chunk(
+@@ -675,6 +701,7 @@ def _capture_chunk(
          raise Unavailable("solana_dlmm_interval_evidence_bound")
      tape=reconstruct(
          start,end_snapshot,signatures,transactions,int(time.time()),cursor)
@@ -1535,7 +1535,7 @@ index 0a4acc7..1225d42 100644
      actions=ordered_tape_actions(tape)
      next_cursor=(list(actions[-1][1].get("cursor") or cursor)
                   if actions else list(cursor))
-@@ -1006,6 +1033,7 @@ def _build_position(entry,features,policy):
+@@ -1007,6 +1034,7 @@ def _build_position(entry,features,policy):
          entry_active=virtual["active"],entry_slot=entry["slot"],
          entry_time=entry["time"],entry_conversion_sol_lamports=conversion,
          entry_conversion_token_raw=token,deposits=deposits,
@@ -1543,7 +1543,7 @@ index 0a4acc7..1225d42 100644
      )
  
  
-@@ -1045,14 +1073,30 @@ def _mark(position):
+@@ -1046,14 +1074,30 @@ def _mark(position):
      token_side="y" if sol_side=="x" else "x"
      sol=assets[sol_side]+assets["fee_"+sol_side]
      tokens=assets[token_side]+assets["fee_"+token_side]
@@ -1575,7 +1575,7 @@ index 0a4acc7..1225d42 100644
          pnl_bps=pnl*10000/CAPITAL,
          non_sol_inventory_raw=tokens,
          non_sol_inventory_liquidation_lamports=liquidation,
-@@ -1100,10 +1144,29 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
+@@ -1101,10 +1145,29 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
      return reasons,recent,mark,fee_uplift
  
  
@@ -1607,7 +1607,7 @@ index 0a4acc7..1225d42 100644
      current=entry;elapsed=0;segments=[];tapes=[]
      max_hold=int(policy["range"]["max_holding_seconds"])
      segment_seconds=int(policy["exit"]["observation_segment_seconds"])
-@@ -1122,13 +1185,16 @@ def _lifecycle(
+@@ -1123,13 +1186,16 @@ def _lifecycle(
              adapter,address,current,duration,False,pacer,rpcs,deadline,
              broker,"position_monitor")
          if not phase["verified"]:
@@ -1625,7 +1625,7 @@ index 0a4acc7..1225d42 100644
          elapsed+=duration;tapes.append(tape)
          segments.append(dict(
              elapsed_seconds=elapsed,lineage=tape.lineage,
-@@ -1138,12 +1204,15 @@ def _lifecycle(
+@@ -1139,12 +1205,15 @@ def _lifecycle(
          current=terminal
          if reasons:
              exit_reason=reasons[0];break
@@ -1642,7 +1642,7 @@ index 0a4acc7..1225d42 100644
          segments=segments,lineage=combined.lineage,final=final,
      ),adapter
  
-@@ -1219,7 +1288,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
+@@ -1220,7 +1289,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
              sigs=[row["signature"] for row in valid]
              txmap,hydration=broker.hydrate_transactions(
                  rpc,sigs,kind="dlmm_fresh",
@@ -1652,7 +1652,7 @@ index 0a4acc7..1225d42 100644
              if hydration["pending"]:
                  after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
                      "getTransaction:http_429",0))
-@@ -1486,6 +1556,8 @@ def _await_fresh_swap_trigger(
+@@ -1487,6 +1557,8 @@ def _await_fresh_swap_trigger(
              if swaps:
                  trigger=swaps[0]
                  trigger_slot=int(trigger["slot"])
@@ -1661,7 +1661,7 @@ index 0a4acc7..1225d42 100644
                  adapter=_rotate(adapter,pacer,rpcs)
                  (post,adapter)=_retry_rate_limited_operation(
                      lambda active:_fresh_supported_start(
-@@ -1532,6 +1604,8 @@ def _triggered_warmup(
+@@ -1533,6 +1605,8 @@ def _triggered_warmup(
          return dict(
              aligned=False,reason=trigger["reason"],trigger=trigger,
          ),None,None,None,adapter,current_candidate
@@ -1670,7 +1670,7 @@ index 0a4acc7..1225d42 100644
      warmup_seconds=int(policy["range"]["warmup_seconds"])
      phase,warm,entry,warm_origin,adapter=_observe_window(
          adapter,current_candidate["address"],post_trigger,
-@@ -1550,6 +1624,7 @@ def _triggered_warmup(
+@@ -1551,6 +1625,7 @@ def _triggered_warmup(
          qualifying_window_seconds=warmup_seconds,
          swaps=(None if warm is None else len(warm.events)),
      )
@@ -1678,7 +1678,7 @@ index 0a4acc7..1225d42 100644
      return result,warm,entry,warm_origin,adapter,current_candidate
  
  
-@@ -1627,7 +1702,9 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
+@@ -1628,7 +1703,9 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
      ),None,None,None,None,adapter,current_candidate
  
  
@@ -1689,7 +1689,7 @@ index 0a4acc7..1225d42 100644
      assert_independence()
      policy=load_policy()
      target=int(target or policy["prospective_test"]["target_complete_lifecycles"])
-@@ -1638,11 +1715,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1639,11 +1716,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          raise ValueError("solana_dlmm_attempt_bound")
      max_runtime_seconds=int(
          max_runtime_seconds or DEFAULT_MAX_RUNTIME_SECONDS)
@@ -1706,7 +1706,7 @@ index 0a4acc7..1225d42 100644
      discovery_telemetry=dict(
          rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
      compatibility_rejections=[];compatibility_screened=0
-@@ -1681,7 +1762,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1682,7 +1763,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          evidence_broker=broker.telemetry(),
      )
      attempted=0;complete=0;failure_counts=Counter()
@@ -1727,7 +1727,7 @@ index 0a4acc7..1225d42 100644
          report["wake_stream"]=broker.stream_status(
              DLMM_WAKE_STREAM_KEY,int(time.time()),0)
          report["evidence_broker"]=broker.telemetry()
-@@ -1695,16 +1789,36 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1696,16 +1790,36 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
              elapsed_seconds=max(
                  0.0,time.monotonic()-run_started_monotonic),
          )
@@ -1767,7 +1767,7 @@ index 0a4acc7..1225d42 100644
          try:
              (compatibility_state,adapter)=_retry_rate_limited_operation(
                  lambda active:_fresh_supported_start(
-@@ -1716,10 +1830,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1717,10 +1831,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  reason=str(exc)[:200],
                  rpc=_sum_rpc_metrics(candidate_rpcs),
              ))
@@ -1788,7 +1788,7 @@ index 0a4acc7..1225d42 100644
          handoff_started_at=int(time.time())
          attempt=dict(
              attempt=attempted,pool=candidate["address"],candidate=candidate,
-@@ -1743,12 +1867,18 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1744,12 +1868,18 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  failure_counts[reason]+=1
                  attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                  report["attempts"].append(attempt)
@@ -1807,7 +1807,7 @@ index 0a4acc7..1225d42 100644
              attempt["pre_entry_features"]=features
              attempt["qualification"]=decision
              for failed in decision["failed"]:failure_counts[failed]+=1
-@@ -1756,11 +1886,13 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1757,11 +1887,13 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  attempt["terminal_classification"]="qualification_rejection"
                  attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                  report["attempts"].append(attempt)
@@ -1822,7 +1822,7 @@ index 0a4acc7..1225d42 100644
              for rpc in candidate_rpcs:
                  if rpc not in rpcs:rpcs.append(rpc)
              attempt["lifecycle"]=lifecycle
-@@ -1775,13 +1907,16 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1776,13 +1908,16 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                      pre_entry_features=features,qualification=decision,**lifecycle))
              else:
                  failure_counts["lifecycle_unverified"]+=1
@@ -1841,7 +1841,7 @@ index 0a4acc7..1225d42 100644
              checkpoint("candidate_exception")
  
      resolved=[x for x in report["qualified_lifecycles"]
-@@ -1817,12 +1952,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1818,12 +1953,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          elapsed_seconds=max(
              0.0,time.monotonic()-run_started_monotonic),
          conclusion=(
@@ -1857,7 +1857,7 @@ index 0a4acc7..1225d42 100644
      _atomic_checkpoint(
          report,"final",rpcs,pacer,
          attempted_pool_count=attempted,
-@@ -1837,6 +1975,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1838,6 +1976,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          DLMM_WAKE_STREAM_KEY,int(time.time()),0)
      report["evidence_broker"]=broker.telemetry()
      broker.close()
