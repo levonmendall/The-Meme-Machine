@@ -669,7 +669,8 @@ def _capture_chunk(
         signatures_to_hydrate=[s["signature"] for s in relevant]
         txmap,hydration=broker.hydrate_transactions(
             adapter.rpc,signatures_to_hydrate,kind=hydration_kind,
-            deadline=time.time()+6.0,max_version=1,batch_size=8)
+            deadline=time.time()+6.0,max_version=1,batch_size=8,
+            owner=f'meteora:{start["pool"]}:interval:{start["slot"]}:{end_snapshot["slot"]}')
         if hydration["pending"]:
             raise Unavailable("solana_dlmm_transaction_hydration_incomplete")
         transactions={
@@ -1273,7 +1274,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
             sigs=[row["signature"] for row in valid]
             txmap,hydration=broker.hydrate_transactions(
                 rpc,sigs,kind="dlmm_fresh",
-                deadline=time.time()+5.0,max_version=1,batch_size=8)
+                deadline=time.time()+5.0,max_version=1,batch_size=8,
+                owner=f'meteora:{pool}:trigger:{after_slot}:{head_slot}')
             if hydration["pending"]:
                 after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
                     "getTransaction:http_429",0))
