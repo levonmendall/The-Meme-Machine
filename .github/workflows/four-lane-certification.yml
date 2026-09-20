@@ -1,7 +1,7 @@
 name: four-lane-certification
 on:
   push:
-    branches: [cert/one-hour-repair-campaign]
+    branches: [cert/one-hour-repair-campaign, cert/execution-certification-v1]
   workflow_dispatch:
     inputs:
       phase:
