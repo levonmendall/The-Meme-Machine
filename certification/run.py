@@ -110,7 +110,7 @@ def sustained_readiness():
     # Never bypass a bounded study by looping/restarting it or padding idle uptime.
     return [
         'pump:runner discovery clamps at 3300s; lifetime evidence cap 120; detailed cost decomposition and full economic replay remain incomplete',
-        'meteora:runner rejects runtime above 7200s; single finite census and attempt/target early exits; virtual marks lack durable settlement ledger',
+        'meteora:runner rejects runtime above 7200s; single finite census and attempt/target early exits; native journal integrated; continuous census and raw-chain replay validation remain',
         'pons:cohort capital guard implemented; unresolved trials require recovery/reconciliation; enrollment/qualifier early-stop conditions remain',
         'ramses:runner returns on first natural lifecycle; multi-asset cumulative capital accounting remains unproven',
     ]
@@ -173,7 +173,7 @@ def launch(worktrees,output,seconds,phase,gate_file):
                     row.update({k:status[k] for k in ('phase','provider_requests','method_counts','errors','rpc_latency_seconds','telemetry_archive_seconds') if k in status})
                     progress=status.get('last_progress_monotonic')
                     row['progress_age_seconds']=None if progress is None else now-progress
-                    row['health']='responsive' if progress is not None and now-progress<300 else 'progress_stalled'
+                    if 'exit_code' not in row:row['health']='responsive' if progress is not None and now-progress<300 else 'progress_stalled'
                     if status.get('report') is not None:
                         row.update(summarize(lane,status['report']))
                     if status.get('policy_hash')!=row['policy_hash']:row['gates']['policy_unchanged']=False
@@ -190,7 +190,7 @@ def launch(worktrees,output,seconds,phase,gate_file):
                         raw=report.read_bytes();(run/lane/REPORTS[lane]).write_bytes(raw)
                         try:row.update(summarize(lane,json.loads(raw)))
                         except ValueError:row['report_parse_error']=True
-                if row.get('open_positions') is None:row['open_positions_unknown']=True
+                row['open_positions_unknown']=row.get('open_positions') is None
             result=dict(run_id=run_id,phase=phase,status='RUNNING' if alive else 'FINISHED',started_at=start_wall,observed_at=time.time(),elapsed_seconds=now-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=now)-common_start),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot()),source_manifest_hash=digest(spec))
             result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
             if now-last_console>=60:

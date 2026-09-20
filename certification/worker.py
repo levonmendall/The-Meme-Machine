@@ -155,6 +155,17 @@ class Observer:
 
 PROCESS_NONCE=str(uuid.uuid4())
 
+
+def persist_pons_terminal(path,result):
+    # Native cohort __main__ uses 12 MB for its final report. Its _atomic_json
+    # helper is a different, 4 MB progress-checkpoint contract.
+    raw=json.dumps(result,sort_keys=True,separators=(',',':')).encode()
+    if len(raw)>12_000_000:raise ValueError('selective_cohort_report_capacity')
+    path=Path(path);temporary=path.with_suffix(path.suffix+'.tmp')
+    with temporary.open('wb') as handle:
+        handle.write(raw);handle.flush();os.fsync(handle.fileno())
+    os.replace(temporary,path)
+
 def policy_for(lane):
     if lane=='pump':
         from meme_machine.pump_acceleration_strategy import policy_hash
@@ -209,7 +220,7 @@ def main():
                 value=original(result,**kw);observer.checkpoint(result,kw['phase']);return value
             module._checkpoint=checkpoint
             result=module.run(os.environ.get('MM_ROBINHOOD_READ_RPC_URL',''))
-            module._atomic_json(module.REPORT,result)
+            persist_pons_terminal(module.REPORT,result)
             observer.checkpoint(result,'lane_result')
         else:
             module=importlib.import_module('robinhood_research.ramses_extended_test')

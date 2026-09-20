@@ -23,6 +23,407 @@ index 205dcb4..f607c7b 100644
          slot=snapshot['slot'],time=snapshot['market_time'])
  
  
+diff --git a/meme_machine/dlmm_independent_accounting.py b/meme_machine/dlmm_independent_accounting.py
+new file mode 100644
+index 0000000..8f200e6
+--- /dev/null
++++ b/meme_machine/dlmm_independent_accounting.py
+@@ -0,0 +1,154 @@
++"""Append-only, integer SOL paper accounting for independent Meteora lifecycles.
++
++The journal is the state. Failed evidence leaves inventory and capital occupied.
++Captured tapes support deterministic economic replay; capture itself is not proof
++of chain authentication. Only the existing authenticated lifecycle writes them.
++"""
++from contextlib import closing
++import json
++from pathlib import Path
++import sqlite3
++import time
++import uuid
++from .store import digest,encode
++
++NAMESPACE='solana_meteora_independent_v1'
++
++
++def integer(value):
++    if type(value) is not int or value<0:raise ValueError('dlmm_accounting_native_integer')
++    return value
++
++
++class PaperBook:
++    def __init__(self,path,*,run_id,policy_hash,capital):
++        self.path=Path(path);self.run_id=run_id;self.policy_hash=policy_hash
++        self.genesis=dict(namespace=NAMESPACE,asset='SOL_lamports',run_id=run_id,
++                          policy_hash=policy_hash,capital=integer(capital),paper_only=True)
++        self.path.parent.mkdir(parents=True,exist_ok=True)
++        with closing(self.connect()) as db:
++            db.executescript('''CREATE TABLE IF NOT EXISTS events(seq INTEGER PRIMARY KEY,body TEXT NOT NULL,hash TEXT NOT NULL);
++                CREATE TRIGGER IF NOT EXISTS no_update BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT,'append_only'); END;
++                CREATE TRIGGER IF NOT EXISTS no_delete BEFORE DELETE ON events BEGIN SELECT RAISE(ABORT,'append_only'); END;''')
++            db.execute('BEGIN IMMEDIATE')
++            if not db.execute('SELECT 1 FROM events LIMIT 1').fetchone():
++                body=dict(action='genesis',data=self.genesis,previous='0'*64,at_ns=0,identity=None)
++                db.execute('INSERT INTO events VALUES(1,?,?)',(encode(body),digest(body)))
++            self._replay(db);db.commit()
++
++    def connect(self):
++        db=sqlite3.connect(self.path,timeout=30,isolation_level=None)
++        db.execute('PRAGMA journal_mode=WAL');db.execute('PRAGMA synchronous=FULL')
++        return db
++
++    def identity(self):return NAMESPACE+':'+self.run_id+':'+str(uuid.uuid4())
++
++    def _replay(self,db):
++        state=dict(cash=self.genesis['capital'],positions={},realized=0,net_cash_flows=0,
++                   capital_unit_nanoseconds=0,last_at_ns=0,hash='0'*64,events=0)
++        for seq,raw,checksum in db.execute('SELECT seq,body,hash FROM events ORDER BY seq'):
++            body=json.loads(raw)
++            if seq!=state['events']+1 or digest(body)!=checksum or body['previous']!=state['hash']:
++                raise ValueError('dlmm_accounting_journal_integrity')
++            if seq==1:
++                if body['action']!='genesis' or body['data']!=self.genesis:raise ValueError('dlmm_accounting_genesis_mismatch')
++            else:self._apply(state,body)
++            state.update(hash=checksum,events=seq)
++        return state
++
++    def _apply(self,state,event):
++        action=event['action'];data=event['data'];identity=event['identity'];at=integer(event['at_ns'])
++        if not identity.startswith(NAMESPACE+':'+self.run_id+':'):raise ValueError('dlmm_accounting_foreign_lifecycle')
++        if at<state['last_at_ns']:raise ValueError('dlmm_accounting_clock_regression')
++        positions=state['positions'];risk=sum(p['reserved']+p.get('basis',0) for p in positions.values())
++        state['capital_unit_nanoseconds']+=risk*(at-state['last_at_ns']);state['last_at_ns']=at
++        if action=='reserve':
++            amount=integer(data['amount'])
++            if identity in positions or amount<=0:raise ValueError('dlmm_accounting_duplicate_reservation')
++            if amount>state['cash']-sum(p['reserved'] for p in positions.values()):raise ValueError('dlmm_accounting_capital_exhausted')
++            positions[identity]=dict(status='reserved',reserved=amount,basis=0,entry_cost=0,mark=None,entry=None)
++            return
++        if identity not in positions:raise ValueError('dlmm_accounting_reservation_missing')
++        p=positions[identity]
++        if action=='cancel':
++            if p['status']!='reserved':raise ValueError('dlmm_accounting_cancel_after_fill')
++            p.update(status='cancelled',reserved=0);return
++        if action=='entry':
++            capital=integer(data['capital']);entry_cost=integer(data['entry_cost']);exit_cost=integer(data['exit_cost'])
++            if p['status']!='reserved' or p['reserved']!=capital+entry_cost+exit_cost:raise ValueError('dlmm_accounting_entry_reservation')
++            if digest(data['policy'])!=self.policy_hash:raise ValueError('dlmm_accounting_policy_drift')
++            if not isinstance(data.get('position'),dict) or not isinstance(data.get('entry_state'),dict):raise ValueError('dlmm_accounting_entry_evidence')
++            state['cash']-=capital+entry_cost;state['net_cash_flows']-=capital+entry_cost
++            if type(data['mark']['pnl_lamports']) is not int or data['mark']['pnl_lamports']!=integer(data['mark']['ending_sol_lamports'])-capital-entry_cost-exit_cost:raise ValueError('dlmm_accounting_entry_mark')
++            p.update(status='open',reserved=exit_cost,basis=capital,entry_cost=entry_cost,exit_cost=exit_cost,entry=data,mark=data['mark'])
++        elif action in ('mark','unresolved','settle'):
++            if p['status'] not in ('open','unresolved'):raise ValueError('dlmm_accounting_position_not_open')
++            if action=='unresolved':p['status']='unresolved';p['reason']=data['reason'];return
++            mark=data['mark'];ending=integer(mark['ending_sol_lamports'])
++            if mark['pnl_lamports']!=ending-p['basis']-p['entry_cost']-p['exit_cost']:raise ValueError('dlmm_accounting_mark_cost_disagreement')
++            p['mark']=mark
++            if action=='mark':
++                if not isinstance(data.get('tape'),dict) or not data['tape'].get('lineage'):raise ValueError('dlmm_accounting_tape_missing')
++                p['status']='open'
++            else:
++                proceeds=ending-p['exit_cost'];state['cash']+=proceeds;state['net_cash_flows']+=proceeds
++                state['realized']+=mark['pnl_lamports'];p.update(status='settled',reserved=0,basis=0)
++        else:raise ValueError('dlmm_accounting_unknown_action')
++        if state['cash']<sum(p['reserved'] for p in positions.values()):raise ValueError('dlmm_accounting_negative_available')
++
++    def append(self,identity,action,data,*,at_ns=None):
++        with closing(self.connect()) as db:
++            db.execute('BEGIN IMMEDIATE');state=self._replay(db)
++            event=dict(action=action,identity=identity,data=data,previous=state['hash'],at_ns=time.time_ns() if at_ns is None else at_ns)
++            self._apply(state,event)
++            db.execute('INSERT INTO events VALUES(?,?,?)',(state['events']+1,encode(event),digest(event)));db.commit()
++        return self.reconcile()
++
++    def fail(self,identity,reason):
++        with closing(self.connect()) as db:
++            db.execute('BEGIN');state=self._replay(db)
++        row=state['positions'].get(identity)
++        if row and row['status'] in ('reserved','open','unresolved'):
++            self.append(identity,'cancel' if row['status']=='reserved' else 'unresolved',dict(reason=reason))
++
++    def reconcile(self):
++        with closing(self.connect()) as db:
++            db.execute('BEGIN');s=self._replay(db)
++        open_rows=[p for p in s['positions'].values() if p['status'] in ('open','unresolved')]
++        marked=sum(p['mark']['ending_sol_lamports']-p['exit_cost'] for p in open_rows)
++        unrealized=sum(p['mark']['pnl_lamports'] for p in open_rows)
++        reserved=sum(p['reserved'] for p in s['positions'].values())
++        equity=s['cash']+marked
++        if self.genesis['capital']+s['net_cash_flows']!=s['cash'] or self.genesis['capital']+s['realized']+unrealized!=equity:
++            raise ValueError('dlmm_accounting_conservation')
++        return dict(genesis=self.genesis,cash=s['cash'],reserved=reserved,available=s['cash']-reserved,
++                    open_positions=len(open_rows),pending=sum(p['status']=='reserved' for p in s['positions'].values()),
++                    unsettled=sum(p['status'] in ('open','unresolved','reserved') for p in s['positions'].values()),
++                    settled=sum(p['status']=='settled' for p in s['positions'].values()),
++                    realized_pnl_lamports=s['realized'],unrealized_pnl_lamports=unrealized,marked_equity=equity,
++                    capital_unit_nanoseconds=s['capital_unit_nanoseconds'],capital_time_through_ns=s['last_at_ns'],
++                    net_cash_flows=s['net_cash_flows'],journal_hash=s['hash'],journal_events=s['events'],reconciled=True,
++                    stale_marks=sum(p['status']=='unresolved' for p in open_rows),economic_replay_verified=False)
++
++    def replay_economics(self,build,advance,mark):
++        from .dlmm_tape import VerifiedTape
++        positions={};real_hashes={};checked=0
++        with closing(self.connect()) as db:
++            db.execute('BEGIN');self._replay(db)
++            for (raw,) in db.execute('SELECT body FROM events ORDER BY seq'):
++                event=json.loads(raw);data=event['data'];identity=event['identity']
++                if event['action']=='entry':
++                    position=build(data['entry_state'],data['features'],data['policy'])
++                    if digest(position)!=digest(data['position']) or digest(mark(position))!=digest(data['mark']):raise ValueError('dlmm_accounting_entry_replay')
++                    positions[identity]=position;real_hashes[identity]=digest(data['entry_state']);checked+=1
++                elif event['action']=='mark':
++                    t=data['tape'];tape=VerifiedTape(t['start_hash'],t['end_hash'],tuple(t['events']),t['terminal'],t['lineage'],tuple(t.get('terminal_adjustments',())))
++                    if tape.start_hash!=real_hashes[identity] or tape.end_hash!=digest(tape.terminal):raise ValueError('dlmm_accounting_tape_chain_gap')
++                    real_hashes[identity]=tape.end_hash
++                    positions[identity]=advance(positions[identity],tape)
++                    if digest(positions[identity])!=data['position_hash'] or digest(mark(positions[identity]))!=digest(data['mark']):raise ValueError('dlmm_accounting_monitor_replay')
++                    checked+=1
++                elif event['action']=='settle':
++                    if digest(mark(positions[identity]))!=digest(data['mark']):raise ValueError('dlmm_accounting_settlement_replay')
++                    checked+=1
++        return dict(verified=True,checked_economic_events=checked,authentication='existing_lane_verified_tapes',raw_chain_reauthentication=False)
+diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
+index 0a4acc7..3430213 100644
+--- a/tests/solana_dlmm_independent_v1.py
++++ b/tests/solana_dlmm_independent_v1.py
+@@ -14,6 +14,8 @@ from __future__ import annotations
+ import argparse
+ from collections import Counter
+ from copy import deepcopy
++from dataclasses import asdict
++import uuid
+ import json
+ import math
+ import os
+@@ -39,7 +41,8 @@ from meme_machine.provider import Unavailable
+ from meme_machine.solana_evidence_broker import (
+     DEFAULT_BROKER_DB,EvidenceBroker,ProgramAccountWakeStream,
+ )
+-from meme_machine.store import encode
++from meme_machine.store import encode,digest
++from meme_machine.dlmm_independent_accounting import PaperBook
+ from tests import dlmm_alchemy_provider as provider
+ 
+ POLICY_PATH=Path("SOLANA_DLMM_INDEPENDENT_V1.json")
+@@ -1006,6 +1009,7 @@ def _build_position(entry,features,policy):
+         entry_active=virtual["active"],entry_slot=entry["slot"],
+         entry_time=entry["time"],entry_conversion_sol_lamports=conversion,
+         entry_conversion_token_raw=token,deposits=deposits,
++        entry_conversion_quote=quote,
+     )
+ 
+ 
+@@ -1045,14 +1049,30 @@ def _mark(position):
+     token_side="y" if sol_side=="x" else "x"
+     sol=assets[sol_side]+assets["fee_"+sol_side]
+     tokens=assets[token_side]+assets["fee_"+token_side]
+-    liquidation=0
++    liquidation=0;quote=None
+     if tokens:
+         _,quote=dlmm.swap(
+             deepcopy(state),tokens,sol_side=="y",int(state["time"]))
+         liquidation=int(quote["output"]);sol+=liquidation
++    # Allocate the one executable unwind proportionally. A separate dust-size
++    # hypothetical swap must never censor an otherwise executable real unwind.
++    inventory_liquidation=liquidation*assets[token_side]//tokens if tokens else 0
++    inventory_sol=assets[sol_side]+inventory_liquidation
++    fee_value=sol-inventory_sol
++    inventory_spot=assets[sol_side]+_to_sol(state,assets[token_side],state[token_side],state['active'])
++    fee_spot=assets['fee_'+sol_side]+_to_sol(state,assets['fee_'+token_side],state[token_side],state['active'])
++    unwind_cost=inventory_spot+fee_spot-sol
+     pnl=sol-CAPITAL-ROUND_TRIP_NETWORK_COST
+     return dict(
+         resolved=True,ending_sol_lamports=sol,pnl_lamports=pnl,
++        withdrawn_assets_raw=assets,unwind_quote=quote,
++        fee_pnl_lamports=fee_value,inventory_pnl_lamports=inventory_sol-CAPITAL,
++        fee_income_mark_lamports=fee_spot,inventory_mark_pnl_lamports=inventory_spot-CAPITAL,
++        unwind_cost_lamports=unwind_cost,
++        network_cost_lamports=ROUND_TRIP_NETWORK_COST,
++        fee_valuation_method='pro_rata_combined_executable_unwind_output',
++        execution_cost_accounting='swap_and_protocol_fees_embedded_in_executable_quotes_network_cost_separate',
++        unwind_input_token=state[token_side],
+         pnl_bps=pnl*10000/CAPITAL,
+         non_sol_inventory_raw=tokens,
+         non_sol_inventory_liquidation_lamports=liquidation,
+@@ -1100,10 +1120,26 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
+     return reasons,recent,mark,fee_uplift
+ 
+ 
+-def _lifecycle(
+-    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None
++def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None):
++    identity=book.identity() if book is not None else None
++    if book is not None:
++        book.append(identity,'reserve',dict(amount=CAPITAL+ROUND_TRIP_NETWORK_COST,
++            pool=address,policy_hash=digest(policy),strategy_evidence_hash=digest(dict(entry=entry,features=features))))
++    try:
++        return _position_lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline,broker,book,identity)
++    except BaseException as exc:
++        if book is not None:book.fail(identity,type(exc).__name__+':'+str(exc)[:200])
++        raise
++
++
++def _position_lifecycle(
++    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None,identity=None
+ ):
+     position=_build_position(entry,features,policy)
++    if book is not None:
++        book.append(identity,'entry',dict(capital=CAPITAL,entry_cost=ENTRY_NETWORK_COST,
++            exit_cost=EXIT_NETWORK_COST,entry_state=entry,position=position,features=features,
++            policy=policy,mark=_mark(position)))
+     current=entry;elapsed=0;segments=[];tapes=[]
+     max_hold=int(policy["range"]["max_holding_seconds"])
+     segment_seconds=int(policy["exit"]["observation_segment_seconds"])
+@@ -1122,13 +1158,16 @@ def _lifecycle(
+             adapter,address,current,duration,False,pacer,rpcs,deadline,
+             broker,"position_monitor")
+         if not phase["verified"]:
+-            return dict(
++            if book is not None:book.append(identity,'unresolved',dict(reason=phase['reason']))
++            return dict(lifecycle_id=identity,
+                 complete=False,reason=phase["reason"],segments=segments,
+                 verified_hold_seconds=elapsed,
+             ),adapter
+         position=_advance_position(position,tape)
+         reasons,recent,mark,uplift=_segment_exit(
+             position,effective_start,tape,terminal,entry_flow,policy)
++        if book is not None:
++            book.append(identity,'mark',dict(tape=asdict(tape),position_hash=digest(position),mark=mark))
+         elapsed+=duration;tapes.append(tape)
+         segments.append(dict(
+             elapsed_seconds=elapsed,lineage=tape.lineage,
+@@ -1140,10 +1179,12 @@ def _lifecycle(
+             exit_reason=reasons[0];break
+     combined=chain_verified_tapes(entry,tapes)
+     final=_mark(position)
++    if book is not None:
++        book.append(identity,'settle',dict(mark=final,exit_reason=exit_reason,lineage=combined.lineage))
+     hours=max(elapsed/3600.0,1/3600.0)
+     final["pnl_bps_per_capital_hour"]=final["pnl_bps"]/hours
+     return dict(
+-        complete=True,exit_reason=exit_reason,realized_hold_seconds=elapsed,
++        complete=True,lifecycle_id=identity,exit_reason=exit_reason,realized_hold_seconds=elapsed,
+         segments=segments,lineage=combined.lineage,final=final,
+     ),adapter
+ 
+@@ -1643,6 +1684,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+     run_started_monotonic=time.monotonic()
+     deadline=run_started_monotonic+max_runtime_seconds
+ 
++    book=PaperBook(OUT.with_suffix('.accounting.sqlite3'),
++        run_id=os.environ.get('MM_CERTIFICATION_RUN_ID') or str(uuid.uuid4()),
++        policy_hash=digest(policy),capital=1_000_000_000)
+     discovery_telemetry=dict(
+         rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
+     compatibility_rejections=[];compatibility_screened=0
+@@ -1682,6 +1726,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+     )
+     attempted=0;complete=0;failure_counts=Counter()
+     def checkpoint(stage):
++        report["accounting"]=book.reconcile()
+         report["wake_stream"]=broker.stream_status(
+             DLMM_WAKE_STREAM_KEY,int(time.time()),0)
+         report["evidence_broker"]=broker.telemetry()
+@@ -1760,7 +1805,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+                 continue
+             lifecycle,adapter=_lifecycle(
+                 adapter,candidate["address"],entry,features,policy,pacer,
+-                candidate_rpcs,deadline,broker)
++                candidate_rpcs,deadline,broker,book)
+             for rpc in candidate_rpcs:
+                 if rpc not in rpcs:rpcs.append(rpc)
+             attempt["lifecycle"]=lifecycle
+@@ -1823,6 +1868,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+             if _runtime_expired(deadline) else
+             "prospective_sample_incomplete_no_threshold_change"),
+     )
++    report["accounting"]=book.reconcile()
++    report["accounting_replay"]=book.replay_economics(_build_position,_advance_position,_mark)
+     _atomic_checkpoint(
+         report,"final",rpcs,pacer,
+         attempted_pool_count=attempted,
+diff --git a/tests/test_dlmm_independent_accounting.py b/tests/test_dlmm_independent_accounting.py
+new file mode 100644
+index 0000000..fa0c84e
+--- /dev/null
++++ b/tests/test_dlmm_independent_accounting.py
+@@ -0,0 +1,75 @@
++"""Synthetic mechanics only: these tests never claim natural qualification."""
++from copy import deepcopy
++from pathlib import Path
++import sqlite3
++import tempfile
++import unittest
++from unittest.mock import patch
++from meme_machine import dlmm
++from meme_machine.dlmm_independent_accounting import PaperBook
++from meme_machine.dlmm_tape import VerifiedTape
++from meme_machine.store import digest
++from tests.dlmm_support import snapshot
++from tests import solana_dlmm_independent_v1 as strategy
++
++
++class DurableIndependentAccounting(unittest.TestCase):
++    def setUp(self):
++        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
++        self.policy=strategy.load_policy();self.entry=dlmm.validate(snapshot(),100)
++        self.features=dict(half_width_bins=4,lower=-4,upper=4,volume_rate_sol_lamports_per_second=1,fee_density=1)
++        self.path=Path(self.tmp.name)/'paper.sqlite'
++        self.book=self.reopen()
++
++    def reopen(self):return PaperBook(self.path,run_id='test',policy_hash=digest(self.policy),capital=1_000_000_000)
++
++    def observe(self,adapter,address,current,duration,*args):
++        end=deepcopy(current);end.update(time=current['time']+duration,slot=current['slot']+1)
++        tape=VerifiedTape(digest(current),digest(end),(),end,digest(dict(synthetic=True,start=current['slot'],end=end['slot'])))
++        return dict(verified=True),tape,end,current,adapter
++
++    def run_lifecycle(self):
++        with patch.object(strategy,'_rotate',side_effect=lambda a,*args:a),patch.object(strategy,'_observe_window',side_effect=self.observe):
++            return strategy._lifecycle(None,self.entry['pool'],self.entry,self.features,self.policy,None,[],book=self.book)[0]
++
++    def test_full_lifecycle_reopens_replays_and_recycles_only_actual_cash(self):
++        first=self.run_lifecycle();self.assertTrue(first['complete'])
++        final=first['final'];rec=self.reopen().reconcile()
++        self.assertEqual(rec['cash'],1_000_000_000+final['pnl_lamports'])
++        self.assertEqual((rec['settled'],rec['unsettled']),(1,0))
++        self.assertGreater(rec['capital_unit_nanoseconds'],0)
++        self.assertEqual(final['pnl_lamports'],final['inventory_mark_pnl_lamports']+final['fee_income_mark_lamports']-final['unwind_cost_lamports']-final['network_cost_lamports'])
++        replay=self.reopen().replay_economics(strategy._build_position,strategy._advance_position,strategy._mark)
++        self.assertTrue(replay['verified']);self.assertGreaterEqual(replay['checked_economic_events'],3)
++        self.book=self.reopen();second=self.run_lifecycle();rec=self.book.reconcile()
++        self.assertNotEqual(first['lifecycle_id'],second['lifecycle_id'])
++        self.assertEqual(rec['cash'],1_000_000_000+first['final']['pnl_lamports']+second['final']['pnl_lamports'])
++        with self.assertRaisesRegex(ValueError,'position_not_open'):
++            self.book.append(first['lifecycle_id'],'settle',dict(mark=first['final']))
++        self.assertEqual(rec,self.book.reconcile())
++
++    def test_failed_monitor_keeps_position_and_cost_reserve(self):
++        def fail(*args):return dict(verified=False,reason='synthetic_evidence_missing'),None,None,None,None
++        with patch.object(strategy,'_rotate',side_effect=lambda a,*args:a),patch.object(strategy,'_observe_window',side_effect=fail):
++            result=strategy._lifecycle(None,self.entry['pool'],self.entry,self.features,self.policy,None,[],book=self.book)[0]
++        self.assertFalse(result['complete']);r=self.reopen().reconcile()
++        self.assertEqual((r['open_positions'],r['stale_marks'],r['reserved']),(1,1,strategy.EXIT_NETWORK_COST))
++        self.assertEqual(r['cash'],1_000_000_000-strategy.CAPITAL-strategy.ENTRY_NETWORK_COST)
++        self.assertEqual(r['settled'],0)
++
++    def test_failed_build_cancels_without_minting_capital_and_namespace_is_fixed(self):
++        with patch.object(strategy,'_build_position',side_effect=ValueError('synthetic_bad_entry')):
++            with self.assertRaisesRegex(ValueError,'synthetic_bad_entry'):
++                strategy._lifecycle(None,'pool',self.entry,self.features,self.policy,None,[],book=self.book)
++        r=self.reopen().reconcile();self.assertEqual((r['cash'],r['unsettled']),(1_000_000_000,0))
++        with self.assertRaisesRegex(ValueError,'foreign_lifecycle'):
++            self.book.append('pons:foreign','reserve',dict(amount=1))
++        with self.assertRaisesRegex(ValueError,'capital_exhausted'):
++            self.book.append(self.book.identity(),'reserve',dict(amount=1_000_000_001))
++        with sqlite3.connect(self.path) as db:
++            with self.assertRaisesRegex(sqlite3.IntegrityError,'append_only'):db.execute('DELETE FROM events')
++
++    def test_replay_rejects_different_economic_result(self):
++        self.run_lifecycle()
++        def wrong(position):return dict(strategy._mark(position),ending_sol_lamports=1)
++        with self.assertRaisesRegex(ValueError,'entry_replay'):self.book.replay_economics(strategy._build_position,strategy._advance_position,wrong)
 diff --git a/tests/test_dlmm_small_pool_profitability.py b/tests/test_dlmm_small_pool_profitability.py
 index 5981022..7be2d8e 100644
 --- a/tests/test_dlmm_small_pool_profitability.py

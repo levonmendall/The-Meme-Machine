@@ -153,6 +153,26 @@ class IntegrationRegressionTests(unittest.TestCase):
             self.assertEqual(raw['json_rpc_error_codes'],[429])
             self.assertTrue(raw['transport_attempted'])
 
+class ContentionPreflightTests(unittest.TestCase):
+    def test_mixed_ci_live_job_is_not_hidden_by_workflow_name(self):
+        from certification.guard import active_market_job
+        self.assertTrue(active_market_job('paper-milestone',dict(name='live-diagnostic',status='in_progress')))
+        self.assertFalse(active_market_job('paper-milestone',dict(name='test',status='in_progress')))
+        self.assertFalse(active_market_job('paper-milestone',dict(name='live-diagnostic',status='completed')))
+        self.assertTrue(active_market_job('unrecognized',dict(name='unknown-market-task',status='in_progress')))
+        self.assertTrue(active_market_job('robinhood-ramses-extended',dict(name='probe',status='in_progress')))
+
+class TerminalReportRegressionTests(unittest.TestCase):
+    def test_pons_final_report_keeps_native_12mb_contract(self):
+        from certification.worker import persist_pons_terminal
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'terminal.json';result=dict(evidence='a'*5_000_000)
+            persist_pons_terminal(path,result)
+            self.assertEqual(json.loads(path.read_bytes()),result)
+            with self.assertRaisesRegex(ValueError,'cohort_report_capacity'):
+                persist_pons_terminal(path,dict(evidence='b'*12_000_000))
+            self.assertEqual(json.loads(path.read_bytes()),result)
+
 class PressureViewTests(unittest.TestCase):
     def test_incremental_observation_never_rebooks_or_mutates_admission(self):
         from certification.pressure import PressureView

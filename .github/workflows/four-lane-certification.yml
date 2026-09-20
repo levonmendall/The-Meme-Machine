@@ -1,7 +1,7 @@
 name: four-lane-certification
 on:
   push:
-    branches: [certification/four-lane-repair-integration-20260920]
+    branches: [cert/four-lane-sustained-v1, certification/four-lane-repair-integration-20260920]
   workflow_dispatch:
 permissions:
   contents: read
@@ -57,7 +57,7 @@ jobs:
             ${{ runner.temp }}/four-lane-worktrees/pump/pump-acceleration-natural-prospective*
             ${{ runner.temp }}/four-lane-worktrees/pump/pump-acceleration-natural-prospective.accounting.sqlite3*
             ${{ runner.temp }}/four-lane-worktrees/pump/pump-acceleration-natural-prospective.candidates.jsonl
-            ${{ runner.temp }}/four-lane-worktrees/meteora/solana-dlmm-independent-v1-live.json
+            ${{ runner.temp }}/four-lane-worktrees/meteora/solana-dlmm-independent-v1-live*
             ${{ runner.temp }}/four-lane-worktrees/pons/pons-selective-continuation-v1-cohort.json
             ${{ runner.temp }}/four-lane-worktrees/pons/pons-selective-continuation-v1-cohort/
             ${{ runner.temp }}/four-lane-worktrees/ramses/robinhood-ramses-extended-market-report.json

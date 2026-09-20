@@ -48,9 +48,17 @@ def summarize(lane, report):
     elif lane=='meteora':
         result['funnel']=dict(discovered=report.get('discovery_unique_pool_count'),screened=report.get('compatibility_screened_count'),
                               complete_observations=report.get('complete_lifecycle_count'))
-        # A virtual final mark does not prove durable reservation/settlement.
         result['terminal_reasons']=report.get('qualification_failure_counts',{})
-        result['limitations'].append('virtual_lifecycle_mark_requires_durable_ledger_and_full_replay_evidence')
+        book=report.get('accounting') or {};replay=report.get('accounting_replay') or {}
+        result['native_accounting']=book;result['accounting_replay']=replay
+        if book:
+            result['open_positions']=book.get('unsettled')
+            settled=report.get('qualified_lifecycles',[])
+            identities={x.get('lifecycle_id') for x in settled if x.get('complete') and x.get('lifecycle_id')}
+            if book.get('reconciled') is True and book.get('settled')==len(identities):
+                result['natural_settled']=len(identities)
+                result['accounting_reconciled']=True
+        result['limitations'].append('economic_replay_uses_authenticated_lane_tapes_raw_chain_reauthentication_is_separate')
     elif lane=='pons':
         result['funnel']=dict(evaluated=len(report.get('rows',[])),qualified=len(report.get('qualifiers',[])))
         for life in report.get('lifecycles',[]):

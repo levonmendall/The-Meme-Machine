@@ -36,7 +36,12 @@
       ],
       "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment",
       "repair_commit": "6a3be3a2d3c3c45fb3068662a23800e2e3768933",
-      "repair_pr": 64
+      "repair_pr": 64,
+      "repair_commits": [
+        "6a3be3a2d3c3c45fb3068662a23800e2e3768933",
+        "1b04eca2984f85c9a47d262dc7ea84796a21754e"
+      ],
+      "paper_starting_capital_lamports": 1000000000
     },
     "pons": {
       "source_branch": "feat/pons-selective-continuation-v1",

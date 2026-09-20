@@ -170,3 +170,38 @@ and full cost decomposition/economic replay remain incomplete.
 Current descriptive reporting preserves missing measurements as null. It distinguishes physical transport from admission failure and measures each lane over its own actual uptime. Shared Robinhood pressure is read incrementally without re-reading the whole transport journal on every refresh.
 
 PR #70 follow-up `40bc4c4d1fb81900645fcbce109b4be0341320aa` reconstructs the complete reservation journal before trusting the mutable projection. A missing reservation projection now fails closed rather than releasing capital. Native Pons tests: 209; with #68 composed: 211.
+
+## First completed concurrent smoke and repair
+
+Run `35476622573`, certification ID `e9d8c94b-99f0-421a-a8fe-28065fb6e19f`,
+ran from 2026-09-19 23:39:08 UTC through 2026-09-20 00:05:55 UTC, without a
+process restart. It FAILED because the certification wrapper used Pons's 4 MB
+checkpoint writer for its native 12 MB final report. Pons terminated after 671
+seconds with `selective_checkpoint_capacity`. This is an integration defect, not
+an economic rejection or failed provider recovery. The wrapper now honors the
+native 12 MB terminal bound, writes atomically, and has a >4 MB regression test.
+The original 4 MB checkpoint bound remains intact.
+
+| Lane | Observed uptime seconds | Funnel | Natural / forced settled |
+|---|---:|---|---:|
+| Pump | 1606.56 | 545 discovered, 14 full evidence, 0 qualified | 0 / 0 |
+| Meteora | 601.08 | 71 discovered, 11 screened, 0 completed | 0 / 0 |
+| Pons | 671.01 | 156 evaluated, 0 qualified | 0 / 0 |
+| Ramses | 753.12 | 2 active pools, 2 screens | 0 / 1 |
+
+The original result, timestamps, exact integration SHA, artifact digest and diagnosis
+are in `results/smoke-35476622573.json`. Artifact `10594448071` retains the raw
+journals and logs. Read-only review workflow `35477969230` retrieved its contents
+without making market requests. The original observer did not retain final status
+reports reliably or distinguish HTTP errors completely; these limitations prevent
+retroactive certification claims and are corrected for the next run.
+
+PR #72 (`1b04eca2984f85c9a47d262dc7ea84796a21754e`) now adds Meteora's native
+durable integer journal, actual capital-time, unresolved exposure retention,
+fee/inventory/unwind/network decomposition, and deterministic economic replay.
+It starts an explicitly recorded 1 SOL paper account, keeping the strategy's
+0.1 SOL deployment and all policy thresholds unchanged. Tests: 347 plus both
+resource gates; all four new accounting lifecycle regressions pass. Full chain
+reauthentication and continuous discovery remain separate unfinished prerequisites.
+
+The first smoke also overlapped external live-diagnostic job `105986654094` in mixed CI workflow `35476545177`. Preflight previously checked selected workflow names only. It now inspects active jobs and fails closed on unrecognized activity. The smoke throughput is descriptive under external contention, not a sustainable-capacity benchmark. The older #71 smoke `35476889114` was already running at discovery; it is not changed in place.
