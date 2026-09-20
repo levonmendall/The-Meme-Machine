@@ -1,0 +1,315 @@
+{
+  "workflow_run_id": 35476622573,
+  "artifact_id": 10594448071,
+  "artifact_sha256": "ec94b9078b2e20ba207bbe12caf32d1c3f0a9bd309bd36123850af91351014cc",
+  "integration_sha": "3e0024c328365548e4bb4a9678b57bbb6dbec004",
+  "evidence_review_run_id": 35477969230,
+  "result": {
+    "certification": {
+      "failures": [
+        "pons:unexpected_exit"
+      ],
+      "incomplete": [
+        "continuous_four_hour_window_not_completed",
+        "pump:continuous_uptime_short",
+        "pump:unproven:responsive",
+        "pump:unproven:bounded_queue",
+        "pump:unproven:provider_limits",
+        "pump:unproven:no_starvation",
+        "pump:unproven:telemetry_complete",
+        "pump:unproven:accounting_reconciled",
+        "pump:unproven:policy_unchanged",
+        "pump:unproven:freshness_finality_unchanged",
+        "pump:unproven:paper_only",
+        "pump:unproven:state_isolated",
+        "pump:unproven:durable_replay",
+        "pump:natural_lifecycle_missing",
+        "meteora:continuous_uptime_short",
+        "meteora:unproven:responsive",
+        "meteora:unproven:bounded_queue",
+        "meteora:unproven:provider_limits",
+        "meteora:unproven:no_starvation",
+        "meteora:unproven:telemetry_complete",
+        "meteora:unproven:accounting_reconciled",
+        "meteora:unproven:policy_unchanged",
+        "meteora:unproven:freshness_finality_unchanged",
+        "meteora:unproven:paper_only",
+        "meteora:unproven:state_isolated",
+        "meteora:unproven:durable_replay",
+        "meteora:natural_lifecycle_missing",
+        "pons:continuous_uptime_short",
+        "pons:unproven:responsive",
+        "pons:unproven:bounded_queue",
+        "pons:unproven:provider_limits",
+        "pons:unproven:no_starvation",
+        "pons:unproven:telemetry_complete",
+        "pons:unproven:accounting_reconciled",
+        "pons:unproven:policy_unchanged",
+        "pons:unproven:freshness_finality_unchanged",
+        "pons:unproven:paper_only",
+        "pons:unproven:state_isolated",
+        "pons:unproven:durable_replay",
+        "pons:natural_lifecycle_missing",
+        "ramses:continuous_uptime_short",
+        "ramses:unproven:responsive",
+        "ramses:unproven:bounded_queue",
+        "ramses:unproven:provider_limits",
+        "ramses:unproven:no_starvation",
+        "ramses:unproven:telemetry_complete",
+        "ramses:unproven:accounting_reconciled",
+        "ramses:unproven:policy_unchanged",
+        "ramses:unproven:freshness_finality_unchanged",
+        "ramses:unproven:paper_only",
+        "ramses:unproven:state_isolated",
+        "ramses:unproven:durable_replay",
+        "ramses:natural_lifecycle_missing"
+      ],
+      "status": "FAIL",
+      "target_three_per_lane_met": false
+    },
+    "elapsed_seconds": 1606.561788996,
+    "ended_at": 1789862755.0977933,
+    "lanes": {
+      "meteora": {
+        "accounting_reconciled": null,
+        "continuous_uptime_seconds": 601.076649178,
+        "ended_at": 1789861749.6156697,
+        "errors": {
+          "HTTPError": 18
+        },
+        "exit_code": 0,
+        "forced_settled": 0,
+        "funnel": {
+          "complete_observations": 0,
+          "discovered": 71,
+          "screened": 11
+        },
+        "gates": {},
+        "health": "progress_stalled",
+        "limitations": [
+          "virtual_lifecycle_mark_requires_durable_ledger_and_full_replay_evidence"
+        ],
+        "method_counts": {
+          "getBlockTime": 59,
+          "getGenesisHash": 1,
+          "getMultipleAccounts": 80,
+          "getSignaturesForAddress": 166,
+          "getTransaction": 145
+        },
+        "natural_settled": 0,
+        "open_positions": null,
+        "open_positions_unknown": true,
+        "phase": "returned",
+        "pid": 2414,
+        "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+        "process_restarts": 0,
+        "progress_age_seconds": 1006.3467135820001,
+        "provider_requests": 343,
+        "rpc_latency_seconds": {
+          "p50": 0.525126816,
+          "p95": 1.01883219,
+          "p99": 1.050029461
+        },
+        "telemetry_archive_seconds": 0.440108312,
+        "terminal_reasons": {
+          "expected_net": 1,
+          "experiment_runtime_deadline": 1,
+          "fresh_swap_trigger_timeout": 1,
+          "reversal": 1,
+          "two_way": 1,
+          "verified_zero_warmup_after_fresh_swap": 1,
+          "warmup_unverified": 4
+        },
+        "unexpected_exit": false
+      },
+      "pons": {
+        "accounting_reconciled": null,
+        "continuous_uptime_seconds": 671.0070561140001,
+        "ended_at": 1789861819.5478497,
+        "errors": {
+          "provider_rpc_429": 1
+        },
+        "exit_code": 1,
+        "forced_settled": 0,
+        "funnel": {
+          "evaluated": 156,
+          "qualified": 0
+        },
+        "gates": {},
+        "health": "progress_stalled",
+        "limitations": [
+          "per_trial_genesis_requires_lane_level_capital_reservation_proof"
+        ],
+        "method_counts": {
+          "eth_call": 1386,
+          "eth_chainId": 196,
+          "eth_gasPrice": 161,
+          "eth_getBlockByHash": 221,
+          "eth_getBlockByNumber": 2118,
+          "eth_getCode": 161,
+          "eth_getLogs": 273,
+          "eth_getTransactionReceipt": 1334
+        },
+        "natural_settled": 0,
+        "open_positions": 0,
+        "open_positions_unknown": true,
+        "phase": "failed",
+        "pid": 2415,
+        "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+        "process_restarts": 0,
+        "progress_age_seconds": 937.3069439120001,
+        "provider_requests": 1032,
+        "rpc_latency_seconds": {
+          "p50": 0.436904137,
+          "p95": 0.980767559,
+          "p99": 1.247443264
+        },
+        "telemetry_archive_seconds": 1.922559508,
+        "terminal_reasons": {},
+        "unexpected_exit": true
+      },
+      "pump": {
+        "accounting_reconciled": null,
+        "continuous_uptime_seconds": 1606.555716406,
+        "ended_at": 1789862755.0926766,
+        "errors": {
+          "HTTPError": 10
+        },
+        "exit_code": 0,
+        "forced_settled": 0,
+        "funnel": {
+          "discovered": 545,
+          "evidence_complete": 14,
+          "qualified": 0,
+          "settled": 0
+        },
+        "gates": {},
+        "health": "exited",
+        "limitations": [
+          "isolated_research_lifecycles_are_not_consolidated_cash_accounting"
+        ],
+        "method_counts": {
+          "getBlockTime": 157,
+          "getGenesisHash": 45,
+          "getMultipleAccounts": 218,
+          "getProgramAccounts": 2,
+          "getSignaturesForAddress": 158,
+          "getTokenLargestAccounts": 12,
+          "getTransaction": 8603
+        },
+        "natural_settled": 0,
+        "open_positions": 0,
+        "open_positions_unknown": true,
+        "phase": "returned",
+        "pid": 2413,
+        "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+        "process_restarts": 0,
+        "progress_age_seconds": 1.173377586000015,
+        "provider_requests": 2296,
+        "rpc_latency_seconds": {
+          "p50": 0.128911429,
+          "p95": 0.970815241,
+          "p99": 1.010093217
+        },
+        "telemetry_archive_seconds": 3.537447252,
+        "terminal_reasons": {
+          "full_point_in_time": 14,
+          "incomplete_pumpswap_second_leg_history": 7,
+          "invalid reserves": 1,
+          "optimistic_preflight": 36
+        },
+        "unexpected_exit": false
+      },
+      "ramses": {
+        "accounting_reconciled": null,
+        "continuous_uptime_seconds": 753.1222400070001,
+        "ended_at": 1789861901.6655343,
+        "errors": {},
+        "exit_code": 0,
+        "forced_settled": 1,
+        "funnel": {
+          "active_pools": 2,
+          "scans": 2
+        },
+        "gates": {},
+        "health": "progress_stalled",
+        "limitations": [
+          "quote_assets_require_separate_balances_and_authenticated_valuation_before_consolidation"
+        ],
+        "method_counts": {
+          "eth_call": 410,
+          "eth_chainId": 4,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 58,
+          "eth_getCode": 22,
+          "eth_getLogs": 150,
+          "eth_getTransactionReceipt": 4
+        },
+        "natural_settled": 0,
+        "open_positions": null,
+        "open_positions_unknown": true,
+        "phase": "returned",
+        "pid": 2416,
+        "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+        "process_restarts": 0,
+        "progress_age_seconds": 1009.3343585090001,
+        "provider_requests": 162,
+        "rpc_latency_seconds": {
+          "p50": 0.65487935,
+          "p95": 1.165463779,
+          "p99": 1.269011185
+        },
+        "telemetry_archive_seconds": 0.057866241,
+        "terminal_reasons": {
+          "cash_hurdle": 3,
+          "fee_percentile": 1,
+          "fee_to_inventory": 1,
+          "flow_imbalance": 3,
+          "insufficient_two_way_chop": 3,
+          "net_to_cost": 3,
+          "turnover_percentile": 1,
+          "volume_acceleration": 2
+        },
+        "unexpected_exit": false
+      }
+    },
+    "phase": "smoke",
+    "run_id": "e9d8c94b-99f0-421a-a8fe-28065fb6e19f",
+    "shared_provider": {
+      "providers": [
+        {
+          "cooldown": 349.90056121,
+          "grants": 1194,
+          "next_at": 1002.924076041,
+          "provider": "robinhood",
+          "rate_errors": 1
+        },
+        {
+          "cooldown": 0,
+          "grants": 2639,
+          "next_at": 1855.358649134,
+          "provider": "solana",
+          "rate_errors": 0
+        }
+      ],
+      "queues": []
+    },
+    "started_at": 1789861148.536007,
+    "status": "FINISHED"
+  },
+  "diagnosis": {
+    "lane": "pons",
+    "exception": "selective_checkpoint_capacity",
+    "cause": "certification wrapper incorrectly applied native 4 MB checkpoint bound to native 12 MB final report",
+    "natural_lifecycles": 0,
+    "forced_lifecycles": 1,
+    "continuous_four_hour_certification": false,
+    "external_contention": {
+      "workflow_run": 35476545177,
+      "job_id": 105986654094,
+      "workflow": "paper-milestone",
+      "job": "live-diagnostic",
+      "limitation": "original preflight missed live jobs inside mixed CI; throughput is not an isolated sustainable-capacity benchmark"
+    }
+  }
+}

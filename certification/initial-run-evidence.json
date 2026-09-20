@@ -1,0 +1,168 @@
+{
+  "retrieved_at": "2026-09-19T23:30:42.360Z",
+  "runs": [
+    {
+      "id": 35475177422,
+      "name": "pons-selective-market-test",
+      "sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
+      "status": "in_progress",
+      "conclusion": null,
+      "created_at": "2026-09-19T23:06:23Z"
+    },
+    {
+      "id": 35475177419,
+      "name": "robinhood-research",
+      "sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-09-19T23:06:23Z"
+    },
+    {
+      "id": 35475175995,
+      "name": "robinhood-research",
+      "sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-09-19T23:06:22Z"
+    },
+    {
+      "id": 35475173948,
+      "name": "robinhood-research",
+      "sha": "828e9b280beb376a698d8bc4a8a69e06f1468189",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-09-19T23:06:19Z"
+    },
+    {
+      "id": 35474758580,
+      "name": "paper-milestone",
+      "sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-09-19T22:57:18Z"
+    },
+    {
+      "id": 35474758577,
+      "name": "solana-dlmm-support-census",
+      "sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
+      "status": "completed",
+      "conclusion": "skipped",
+      "created_at": "2026-09-19T22:57:18Z"
+    },
+    {
+      "id": 35474758564,
+      "name": "solana-dlmm-independent-v1",
+      "sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
+      "status": "in_progress",
+      "conclusion": null,
+      "created_at": "2026-09-19T22:57:18Z"
+    },
+    {
+      "id": 35474756444,
+      "name": "paper-milestone",
+      "sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "created_at": "2026-09-19T22:57:15Z"
+    },
+    {
+      "id": 35474756391,
+      "name": "pump-acceleration-natural-prospective",
+      "sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
+      "status": "in_progress",
+      "conclusion": null,
+      "created_at": "2026-09-19T22:57:15Z"
+    },
+    {
+      "id": 35474747995,
+      "name": "solana-dlmm-independent-v1",
+      "sha": "ee82bab42e8f46fcf75b7e3b4c248bdb107e9c76",
+      "status": "completed",
+      "conclusion": "skipped",
+      "created_at": "2026-09-19T22:57:03Z"
+    },
+    {
+      "id": 35474747991,
+      "name": "solana-dlmm-support-census",
+      "sha": "ee82bab42e8f46fcf75b7e3b4c248bdb107e9c76",
+      "status": "completed",
+      "conclusion": "skipped",
+      "created_at": "2026-09-19T22:57:03Z"
+    },
+    {
+      "id": 35474747982,
+      "name": "paper-milestone",
+      "sha": "ee82bab42e8f46fcf75b7e3b4c248bdb107e9c76",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-09-19T22:57:03Z"
+    }
+  ],
+  "ramses": [
+    {
+      "id": 35474733886,
+      "name": "robinhood-research",
+      "sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 35474731235,
+      "name": "robinhood-ramses-strategy",
+      "sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 35474731318,
+      "name": "robinhood-research",
+      "sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 35474731224,
+      "name": "robinhood-ramses-universe",
+      "sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 35474731258,
+      "name": "robinhood-ramses-extended-test",
+      "sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
+      "status": "in_progress",
+      "conclusion": null
+    }
+  ],
+  "baseline_failure": {
+    "run_id": 35474758580,
+    "job_id": 105981977336,
+    "errors": [
+      "dlmm_tape_terminal_checkpoint_mismatch:vault_x_extensions",
+      "stale_ohlcv_close_mock",
+      "dlmm_tape_anchor_mismatch"
+    ],
+    "suite_tests": 343,
+    "error_count": 4
+  },
+  "artifact": {
+    "id": 10594005105,
+    "name": "solana-dlmm-independent-v1-35471297641-1",
+    "size_in_bytes": 1959259,
+    "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10594005105",
+    "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10594005105/zip",
+    "expired": false,
+    "created_at": "2026-09-19T22:06:32Z",
+    "expires_at": "2026-12-18T21:44:17Z",
+    "updated_at": "2026-09-19T22:06:32Z",
+    "digest": "sha256:8fc32ad54d97c76b8e658a44f4d8edd3f636ff5ddf47b4372ff4fdb449d5ae13",
+    "workflow_run": {
+      "id": 35471297641,
+      "repository_id": 1373661451,
+      "head_repository_id": 1373661451,
+      "head_branch": "research/solana-dlmm-independent-v1",
+      "head_sha": "ca86ad89061b5099e6e2f9b5828ce1f80dcc9062"
+    }
+  }
+}

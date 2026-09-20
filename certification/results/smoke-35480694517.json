@@ -1,0 +1,2302 @@
+{
+  "workflow_run": 35480694517,
+  "commit": "0ffe8ffc52e29890e9e68443888ade6c2e07b6e6",
+  "artifact_id": 10595953662,
+  "interpretation": "Ten-minute concurrent smoke only. Zero process restarts; four-hour and natural-opportunity certification incomplete. Preserve native result; no gate relaxation.",
+  "result": {
+    "certification": {
+      "failures": [],
+      "incomplete": [
+        "continuous_four_hour_window_not_completed",
+        "pump:continuous_uptime_short",
+        "pump:unproven:responsive",
+        "pump:unproven:bounded_queue",
+        "pump:unproven:provider_limits",
+        "pump:unproven:no_starvation",
+        "pump:unproven:telemetry_complete",
+        "pump:unproven:accounting_reconciled",
+        "pump:unproven:policy_unchanged",
+        "pump:unproven:freshness_finality_unchanged",
+        "pump:unproven:paper_only",
+        "pump:unproven:state_isolated",
+        "pump:unproven:durable_replay",
+        "pump:natural_lifecycle_missing",
+        "meteora:continuous_uptime_short",
+        "meteora:unproven:responsive",
+        "meteora:unproven:bounded_queue",
+        "meteora:unproven:provider_limits",
+        "meteora:unproven:no_starvation",
+        "meteora:unproven:telemetry_complete",
+        "meteora:unproven:accounting_reconciled",
+        "meteora:unproven:policy_unchanged",
+        "meteora:unproven:freshness_finality_unchanged",
+        "meteora:unproven:paper_only",
+        "meteora:unproven:state_isolated",
+        "meteora:unproven:durable_replay",
+        "meteora:natural_lifecycle_missing",
+        "pons:continuous_uptime_short",
+        "pons:unproven:responsive",
+        "pons:unproven:bounded_queue",
+        "pons:unproven:provider_limits",
+        "pons:unproven:no_starvation",
+        "pons:unproven:telemetry_complete",
+        "pons:unproven:accounting_reconciled",
+        "pons:unproven:policy_unchanged",
+        "pons:unproven:freshness_finality_unchanged",
+        "pons:unproven:paper_only",
+        "pons:unproven:state_isolated",
+        "pons:unproven:durable_replay",
+        "pons:natural_lifecycle_missing",
+        "ramses:continuous_uptime_short",
+        "ramses:unproven:responsive",
+        "ramses:unproven:bounded_queue",
+        "ramses:unproven:provider_limits",
+        "ramses:unproven:no_starvation",
+        "ramses:unproven:telemetry_complete",
+        "ramses:unproven:accounting_reconciled",
+        "ramses:unproven:policy_unchanged",
+        "ramses:unproven:freshness_finality_unchanged",
+        "ramses:unproven:paper_only",
+        "ramses:unproven:state_isolated",
+        "ramses:unproven:durable_replay",
+        "ramses:natural_lifecycle_missing"
+      ],
+      "status": "INCOMPLETE",
+      "target_three_per_lane_met": false
+    },
+    "continuous_overlap_seconds": 600.1612400019999,
+    "elapsed_seconds": 1607.088296372,
+    "ended_at": 1789868341.3116815,
+    "lanes": {
+      "meteora": {
+        "accounting_reconciled": true,
+        "accounting_replay": {
+          "authentication": "existing_lane_verified_tapes",
+          "checked_economic_events": 0,
+          "raw_chain_reauthentication": false,
+          "verified": true
+        },
+        "continuous_uptime_seconds": 600.738496357,
+        "ended_at": 1789867336.7694712,
+        "errors": {
+          "HTTPError": 2
+        },
+        "evidence_state": {
+          "expired_jobs": 4966,
+          "inflight_jobs": 5,
+          "pending_jobs": 1,
+          "pressure": {
+            "batch_size": 5,
+            "cooldown_until": 1789867312.363229,
+            "next_transport_at": 1789867334.6696148,
+            "rate_events": 8,
+            "rate_streak": 0,
+            "recoveries": 29,
+            "reductions": 8,
+            "success_streak": 6,
+            "transport_ready_in_seconds": 0.19577288627624512,
+            "transport_reservations": 356
+          },
+          "signature_rows": 10783,
+          "stream_events": 18985,
+          "transaction_cache_entries": 1850
+        },
+        "exit_code": 0,
+        "finality_state": null,
+        "forced_settled": 0,
+        "funnel": {
+          "complete_observations": 0,
+          "discovered": 88,
+          "screened": 20
+        },
+        "gates": {},
+        "health": "exited",
+        "limitations": [
+          "economic_replay_uses_authenticated_lane_tapes_raw_chain_reauthentication_is_separate"
+        ],
+        "method_counts": {
+          "getBlockTime": 22,
+          "getGenesisHash": 1,
+          "getMultipleAccounts": 43,
+          "getSignaturesForAddress": 33,
+          "getTransaction": 38
+        },
+        "native_accounting": {
+          "available": 1000000000,
+          "capital_time_through_ns": 0,
+          "capital_unit_nanoseconds": 0,
+          "cash": 1000000000,
+          "economic_replay_verified": false,
+          "genesis": {
+            "asset": "SOL_lamports",
+            "capital": 1000000000,
+            "namespace": "solana_meteora_independent_v1",
+            "paper_only": true,
+            "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+            "run_id": "7389409f-708f-4a81-8ec6-c498c20294f7"
+          },
+          "journal_events": 1,
+          "journal_hash": "26667b1b22057e2e760c1ce5b26764f8244ae4ac2f25b210a347e237cd15416f",
+          "marked_equity": 1000000000,
+          "net_cash_flows": 0,
+          "open_positions": 0,
+          "pending": 0,
+          "realized_pnl_lamports": 0,
+          "reconciled": true,
+          "reserved": 0,
+          "settled": 0,
+          "stale_marks": 0,
+          "unrealized_pnl_lamports": 0,
+          "unsettled": 0
+        },
+        "natural_settled": 0,
+        "open_positions": 0,
+        "open_positions_unknown": false,
+        "phase": "returned",
+        "pid": 2572,
+        "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+        "process_restarts": 0,
+        "progress_age_seconds": 1006.8117951870001,
+        "provider_requests": 105,
+        "provider_session_count": 21,
+        "provider_state": null,
+        "rpc_latency_seconds": {
+          "p50": 0.086470619,
+          "p95": 0.202061449,
+          "p99": 0.223298587
+        },
+        "strategy_version": "solana-dlmm-independent-v1.7",
+        "stream_state": {
+          "connected": true,
+          "covered": true,
+          "events": 9459,
+          "gaps": 0,
+          "last_slot": 448581495,
+          "loss_until": 0,
+          "warm_seconds": 598
+        },
+        "telemetry_archive_seconds": 0.208901612,
+        "terminal_reasons": {
+          "acceleration_regime_expired": 1,
+          "experiment_runtime_deadline": 1,
+          "fresh_swap_trigger_timeout": 7,
+          "warmup_unverified": 1
+        },
+        "transport_activity_age_seconds": 13.222924651000085,
+        "unexpected_exit": false
+      },
+      "pons": {
+        "accounting_reconciled": true,
+        "cohort_accounting": {
+          "available": 1000000000000000000,
+          "conservation": true,
+          "genesis": 1000000000000000000,
+          "namespace": "pons-selective-continuation-v1",
+          "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+          "positions": 0,
+          "realized": 0,
+          "reserved": 0,
+          "unsettled": 0
+        },
+        "continuous_uptime_seconds": 667.9503540630001,
+        "ended_at": 1789867403.2315342,
+        "errors": {},
+        "evidence_state": {
+          "cache": {
+            "header_hash_hit": 8551,
+            "header_hash_miss": 68,
+            "header_hashes": 2565,
+            "header_number_hit": 44905,
+            "header_number_miss": 2333,
+            "header_numbers": 2565,
+            "header_store": 2733,
+            "launch_hit": 135,
+            "launch_miss": 31,
+            "launch_store": 31,
+            "launches": 31,
+            "real_quote_hit": 41,
+            "real_quote_miss": 278,
+            "real_quote_store": 444,
+            "real_quotes": 444,
+            "receipt_hit": 10078,
+            "receipt_miss": 675,
+            "receipt_store": 841,
+            "receipts": 841
+          },
+          "completed_sessions": [
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 37,
+                "eth_chainId": 5,
+                "eth_gasPrice": 4,
+                "eth_getBlockByHash": 35,
+                "eth_getBlockByNumber": 30,
+                "eth_getCode": 4,
+                "eth_getTransactionReceipt": 51
+              },
+              "logical_requests": 166,
+              "methods": {
+                "eth_call": 37,
+                "eth_chainId": 5,
+                "eth_gasPrice": 4,
+                "eth_getBlockByHash": 35,
+                "eth_getBlockByNumber": 30,
+                "eth_getCode": 4,
+                "eth_getTransactionReceipt": 51
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 27,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 0.3085329589999901
+              },
+              "provider_kind": "alchemy",
+              "requests": 166,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 48,
+                "pons_selective_trajectory": 35,
+                "pons_selective_window": 82
+              },
+              "transport_requests": 19
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 61,
+                "eth_chainId": 8,
+                "eth_gasPrice": 7,
+                "eth_getBlockByHash": 5,
+                "eth_getBlockByNumber": 77,
+                "eth_getCode": 7,
+                "eth_getTransactionReceipt": 12
+              },
+              "logical_requests": 177,
+              "methods": {
+                "eth_call": 61,
+                "eth_chainId": 8,
+                "eth_gasPrice": 7,
+                "eth_getBlockByHash": 5,
+                "eth_getBlockByNumber": 77,
+                "eth_getCode": 7,
+                "eth_getTransactionReceipt": 12
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 54,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 0.581954597000049
+              },
+              "provider_kind": "alchemy",
+              "requests": 177,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 84,
+                "pons_selective_trajectory": 82,
+                "pons_selective_window": 10
+              },
+              "transport_requests": 27
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 51,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByHash": 12,
+                "eth_getBlockByNumber": 57,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 41
+              },
+              "logical_requests": 180,
+              "methods": {
+                "eth_call": 51,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByHash": 12,
+                "eth_getBlockByNumber": 57,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 41
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 81,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 0.9200165949997654
+              },
+              "provider_kind": "alchemy",
+              "requests": 180,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 60,
+                "pons_selective_window": 47
+              },
+              "transport_requests": 27
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByHash": 5,
+                "eth_getBlockByNumber": 71,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 30
+              },
+              "logical_requests": 175,
+              "methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByHash": 5,
+                "eth_getBlockByNumber": 71,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 30
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 105,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 1.1037208749996807
+              },
+              "provider_kind": "alchemy",
+              "requests": 175,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 73,
+                "pons_selective_window": 29
+              },
+              "transport_requests": 24
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 44,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 99,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 10
+              },
+              "logical_requests": 169,
+              "methods": {
+                "eth_call": 44,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 99,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 10
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 126,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 1.3337918589995752
+              },
+              "provider_kind": "alchemy",
+              "requests": 169,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 60,
+                "pons_selective_trajectory": 103,
+                "pons_selective_window": 5
+              },
+              "transport_requests": 21
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 49,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 102,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 10
+              },
+              "logical_requests": 177,
+              "methods": {
+                "eth_call": 49,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 102,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 10
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 153,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 1.6209773719994018
+              },
+              "provider_kind": "alchemy",
+              "requests": 177,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 60,
+                "pons_selective_trajectory": 111,
+                "pons_selective_window": 5
+              },
+              "transport_requests": 27
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 84,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 14
+              },
+              "logical_requests": 167,
+              "methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 84,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 14
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 178,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 1.9255483519991685
+              },
+              "provider_kind": "alchemy",
+              "requests": 167,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 86,
+                "pons_selective_window": 8
+              },
+              "transport_requests": 25
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 51,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 92,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 10
+              },
+              "logical_requests": 172,
+              "methods": {
+                "eth_call": 51,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 92,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 10
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 204,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 2.1727736319992346
+              },
+              "provider_kind": "alchemy",
+              "requests": 172,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 95,
+                "pons_selective_window": 4
+              },
+              "transport_requests": 26
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 55,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 70,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 10
+              },
+              "logical_requests": 154,
+              "methods": {
+                "eth_call": 55,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 70,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 10
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 228,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 2.437232426999003
+              },
+              "provider_kind": "alchemy",
+              "requests": 154,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 77,
+                "pons_selective_window": 4
+              },
+              "transport_requests": 24
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 46,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 77,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 22
+              },
+              "logical_requests": 161,
+              "methods": {
+                "eth_call": 46,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 77,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 22
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 251,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 2.696278402998928
+              },
+              "provider_kind": "alchemy",
+              "requests": 161,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 60,
+                "pons_selective_trajectory": 83,
+                "pons_selective_window": 17
+              },
+              "transport_requests": 23
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 51,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 97,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 9
+              },
+              "logical_requests": 176,
+              "methods": {
+                "eth_call": 51,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 97,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 9
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 275,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 2.962892523998903
+              },
+              "provider_kind": "alchemy",
+              "requests": 176,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 100,
+                "pons_selective_window": 3
+              },
+              "transport_requests": 24
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 41,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 87,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 33
+              },
+              "logical_requests": 177,
+              "methods": {
+                "eth_call": 41,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 87,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 33
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 303,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 3.4507545949987843
+              },
+              "provider_kind": "alchemy",
+              "requests": 177,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 60,
+                "pons_selective_trajectory": 88,
+                "pons_selective_window": 28
+              },
+              "transport_requests": 28
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 57,
+                "eth_chainId": 8,
+                "eth_gasPrice": 7,
+                "eth_getBlockByNumber": 69,
+                "eth_getCode": 7,
+                "eth_getTransactionReceipt": 30
+              },
+              "logical_requests": 178,
+              "methods": {
+                "eth_call": 57,
+                "eth_chainId": 8,
+                "eth_gasPrice": 7,
+                "eth_getBlockByNumber": 69,
+                "eth_getCode": 7,
+                "eth_getTransactionReceipt": 30
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 337,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 3.7639418289985542
+              },
+              "provider_kind": "alchemy",
+              "requests": 178,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 84,
+                "pons_selective_trajectory": 70,
+                "pons_selective_window": 23
+              },
+              "transport_requests": 34
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 55,
+                "eth_chainId": 8,
+                "eth_gasPrice": 7,
+                "eth_getBlockByNumber": 71,
+                "eth_getCode": 7,
+                "eth_getTransactionReceipt": 31
+              },
+              "logical_requests": 179,
+              "methods": {
+                "eth_call": 55,
+                "eth_chainId": 8,
+                "eth_gasPrice": 7,
+                "eth_getBlockByNumber": 71,
+                "eth_getCode": 7,
+                "eth_getTransactionReceipt": 31
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 368,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 4.1418381969987195
+              },
+              "provider_kind": "alchemy",
+              "requests": 179,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 84,
+                "pons_selective_trajectory": 70,
+                "pons_selective_window": 24
+              },
+              "transport_requests": 31
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 59,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 44
+              },
+              "logical_requests": 172,
+              "methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 59,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 44
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 395,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 4.438497555998879
+              },
+              "provider_kind": "alchemy",
+              "requests": 172,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 61,
+                "pons_selective_window": 38
+              },
+              "transport_requests": 27
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 63,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 47
+              },
+              "logical_requests": 179,
+              "methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 63,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 47
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 427,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 4.982679195998685
+              },
+              "provider_kind": "alchemy",
+              "requests": 179,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 65,
+                "pons_selective_window": 41
+              },
+              "transport_requests": 32
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 52,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 62,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 26
+              },
+              "logical_requests": 159,
+              "methods": {
+                "eth_call": 52,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 62,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 26
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 457,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 5.429928646998974
+              },
+              "provider_kind": "alchemy",
+              "requests": 159,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 66,
+                "pons_selective_window": 20
+              },
+              "transport_requests": 30
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 43,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 50,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 56
+              },
+              "logical_requests": 165,
+              "methods": {
+                "eth_call": 43,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 50,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 56
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 481,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 5.811395686999049
+              },
+              "provider_kind": "alchemy",
+              "requests": 165,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 60,
+                "pons_selective_trajectory": 53,
+                "pons_selective_window": 51
+              },
+              "transport_requests": 24
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 49,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 59,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 50
+              },
+              "logical_requests": 177,
+              "methods": {
+                "eth_call": 49,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 59,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 50
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 508,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 6.123171882998804
+              },
+              "provider_kind": "alchemy",
+              "requests": 177,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 60,
+                "pons_selective_window": 44
+              },
+              "transport_requests": 27
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 64,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 35
+              },
+              "logical_requests": 168,
+              "methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 64,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 35
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 533,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 6.382082769999101
+              },
+              "provider_kind": "alchemy",
+              "requests": 168,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 66,
+                "pons_selective_window": 29
+              },
+              "transport_requests": 25
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 41,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByHash": 6,
+                "eth_getBlockByNumber": 56,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 55
+              },
+              "logical_requests": 174,
+              "methods": {
+                "eth_call": 41,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByHash": 6,
+                "eth_getBlockByNumber": 56,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 55
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 556,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 6.580964128999199
+              },
+              "provider_kind": "alchemy",
+              "requests": 174,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 60,
+                "pons_selective_trajectory": 57,
+                "pons_selective_window": 56
+              },
+              "transport_requests": 23
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 59,
+                "eth_chainId": 8,
+                "eth_gasPrice": 7,
+                "eth_getBlockByNumber": 64,
+                "eth_getCode": 7,
+                "eth_getTransactionReceipt": 34
+              },
+              "logical_requests": 179,
+              "methods": {
+                "eth_call": 59,
+                "eth_chainId": 8,
+                "eth_gasPrice": 7,
+                "eth_getBlockByNumber": 64,
+                "eth_getCode": 7,
+                "eth_getTransactionReceipt": 34
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 587,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 6.971017189999429
+              },
+              "provider_kind": "alchemy",
+              "requests": 179,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 84,
+                "pons_selective_trajectory": 67,
+                "pons_selective_window": 27
+              },
+              "transport_requests": 31
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 51,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 75,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 22
+              },
+              "logical_requests": 167,
+              "methods": {
+                "eth_call": 51,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 75,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 22
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 615,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 7.490447200999597
+              },
+              "provider_kind": "alchemy",
+              "requests": 167,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 78,
+                "pons_selective_window": 16
+              },
+              "transport_requests": 28
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 46,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByHash": 2,
+                "eth_getBlockByNumber": 82,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 21
+              },
+              "logical_requests": 167,
+              "methods": {
+                "eth_call": 46,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByHash": 2,
+                "eth_getBlockByNumber": 82,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 21
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 639,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 7.835757641999521
+              },
+              "provider_kind": "alchemy",
+              "requests": 167,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 60,
+                "pons_selective_trajectory": 88,
+                "pons_selective_window": 18
+              },
+              "transport_requests": 24
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 61,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 44
+              },
+              "logical_requests": 174,
+              "methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 61,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 44
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 662,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 7.932531287999723
+              },
+              "provider_kind": "alchemy",
+              "requests": 174,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 63,
+                "pons_selective_window": 38
+              },
+              "transport_requests": 23
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 52,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 69,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 20
+              },
+              "logical_requests": 160,
+              "methods": {
+                "eth_call": 52,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 69,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 20
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 689,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 8.09731984299981
+              },
+              "provider_kind": "alchemy",
+              "requests": 160,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 73,
+                "pons_selective_window": 14
+              },
+              "transport_requests": 27
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 45,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 81,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 21
+              },
+              "logical_requests": 163,
+              "methods": {
+                "eth_call": 45,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 81,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 21
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 714,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 8.545686231000104
+              },
+              "provider_kind": "alchemy",
+              "requests": 163,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 60,
+                "pons_selective_trajectory": 86,
+                "pons_selective_window": 16
+              },
+              "transport_requests": 25
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 46,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 104,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 9
+              },
+              "logical_requests": 175,
+              "methods": {
+                "eth_call": 46,
+                "eth_chainId": 6,
+                "eth_gasPrice": 5,
+                "eth_getBlockByNumber": 104,
+                "eth_getCode": 5,
+                "eth_getTransactionReceipt": 9
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 737,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 8.81013225500044
+              },
+              "provider_kind": "alchemy",
+              "requests": 175,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 60,
+                "pons_selective_trajectory": 110,
+                "pons_selective_window": 4
+              },
+              "transport_requests": 23
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 88,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 11
+              },
+              "logical_requests": 168,
+              "methods": {
+                "eth_call": 50,
+                "eth_chainId": 7,
+                "eth_gasPrice": 6,
+                "eth_getBlockByNumber": 88,
+                "eth_getCode": 6,
+                "eth_getTransactionReceipt": 11
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 760,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 8.994092896000097
+              },
+              "provider_kind": "alchemy",
+              "requests": 168,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 72,
+                "pons_selective_trajectory": 90,
+                "pons_selective_window": 5
+              },
+              "transport_requests": 23
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 64,
+                "eth_chainId": 8,
+                "eth_gasPrice": 7,
+                "eth_getBlockByNumber": 80,
+                "eth_getCode": 7,
+                "eth_getTransactionReceipt": 13
+              },
+              "logical_requests": 179,
+              "methods": {
+                "eth_call": 64,
+                "eth_chainId": 8,
+                "eth_gasPrice": 7,
+                "eth_getBlockByNumber": 80,
+                "eth_getCode": 7,
+                "eth_getTransactionReceipt": 13
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 790,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 9.26833016799958
+              },
+              "provider_kind": "alchemy",
+              "requests": 179,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 84,
+                "pons_selective_trajectory": 88,
+                "pons_selective_window": 6
+              },
+              "transport_requests": 30
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 60,
+                "eth_chainId": 8,
+                "eth_gasPrice": 7,
+                "eth_getBlockByNumber": 63,
+                "eth_getCode": 7,
+                "eth_getTransactionReceipt": 26
+              },
+              "logical_requests": 171,
+              "methods": {
+                "eth_call": 60,
+                "eth_chainId": 8,
+                "eth_gasPrice": 7,
+                "eth_getBlockByNumber": 63,
+                "eth_getCode": 7,
+                "eth_getTransactionReceipt": 26
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 821,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 9.819499640000117
+              },
+              "provider_kind": "alchemy",
+              "requests": 171,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 84,
+                "pons_selective_trajectory": 67,
+                "pons_selective_window": 19
+              },
+              "transport_requests": 31
+            },
+            {
+              "automatic_failover": false,
+              "failures": {},
+              "logical_methods": {
+                "eth_call": 70,
+                "eth_chainId": 9,
+                "eth_gasPrice": 8,
+                "eth_getBlockByNumber": 75,
+                "eth_getCode": 8,
+                "eth_getTransactionReceipt": 10
+              },
+              "logical_requests": 180,
+              "methods": {
+                "eth_call": 70,
+                "eth_chainId": 9,
+                "eth_gasPrice": 8,
+                "eth_getBlockByNumber": 75,
+                "eth_getCode": 8,
+                "eth_getTransactionReceipt": 10
+              },
+              "pacing": {
+                "backpressure_events": 0,
+                "minimum_interval_seconds": 0.5,
+                "paced_requests": 855,
+                "requests_per_second": 2,
+                "throttle_sleep_seconds": 10.191370857999686
+              },
+              "provider_kind": "alchemy",
+              "requests": 180,
+              "retries": 0,
+              "role": "directional_evidence_primary",
+              "scopes": {
+                "connectivity": 1,
+                "pons_natural": 96,
+                "pons_selective_trajectory": 81,
+                "pons_selective_window": 2
+              },
+              "transport_requests": 34
+            }
+          ],
+          "current_session": {
+            "automatic_failover": false,
+            "failures": {},
+            "logical_methods": {
+              "eth_call": 17,
+              "eth_chainId": 3,
+              "eth_gasPrice": 2,
+              "eth_getBlockByNumber": 37,
+              "eth_getCode": 2,
+              "eth_getTransactionReceipt": 4
+            },
+            "logical_requests": 65,
+            "methods": {
+              "eth_call": 17,
+              "eth_chainId": 3,
+              "eth_gasPrice": 2,
+              "eth_getBlockByNumber": 37,
+              "eth_getCode": 2,
+              "eth_getTransactionReceipt": 4
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 863,
+              "requests_per_second": 2,
+              "throttle_sleep_seconds": 10.289221503999556
+            },
+            "provider_kind": "alchemy",
+            "requests": 65,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 24,
+              "pons_selective_trajectory": 38,
+              "pons_selective_window": 2
+            },
+            "transport_requests": 8
+          }
+        },
+        "exit_code": 0,
+        "finality_state": null,
+        "forced_settled": 0,
+        "funnel": {
+          "evaluated": 192,
+          "qualified": 0
+        },
+        "gates": {},
+        "health": "exited",
+        "limitations": [
+          "partial_exit_capital_time_and_detailed_cost_decomposition_require_verification"
+        ],
+        "method_counts": {
+          "eth_call": 1653,
+          "eth_chainId": 229,
+          "eth_gasPrice": 192,
+          "eth_getBlockByHash": 68,
+          "eth_getBlockByNumber": 2525,
+          "eth_getCode": 192,
+          "eth_getLogs": 332,
+          "eth_getTransactionReceipt": 867
+        },
+        "natural_settled": 0,
+        "open_positions": 0,
+        "open_positions_unknown": false,
+        "phase": "returned",
+        "pid": 2573,
+        "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+        "process_restarts": 0,
+        "progress_age_seconds": 939.119940285,
+        "provider_requests": 1198,
+        "provider_session_count": 36,
+        "provider_state": null,
+        "rpc_latency_seconds": {
+          "p50": 0.065220619,
+          "p95": 0.096834291,
+          "p99": 0.116004999
+        },
+        "strategy_version": "pons-selective-continuation-v1",
+        "stream_state": {
+          "aggregate_conflicts": 0,
+          "aggregate_envelopes": 3034,
+          "aggregate_gap_events": 0,
+          "aggregate_malformed": 0,
+          "aggregate_messages": 3034,
+          "aggregate_regressions": 0,
+          "authority": "observation_only",
+          "canonical_evidence": false,
+          "conflicts": 0,
+          "duplicates": 0,
+          "envelopes": 3034,
+          "feed_message_age_seconds": 358.32494258880615,
+          "first_sequence": 67537724,
+          "gap_events": 0,
+          "last_sequence": 67540757,
+          "latest_header_block_number": 26015381,
+          "latest_header_timestamp": 1789867043,
+          "malformed": 0,
+          "messages": 3034,
+          "missing_sequences": 0,
+          "non_message_envelopes": 7,
+          "reconnects": 0,
+          "regressions": 0,
+          "role": "pons_discovery_clock",
+          "seconds_since_receive": 3.0435712337493896,
+          "session_count": 1,
+          "session_history": [
+            {
+              "authority": "observation_only",
+              "conflicts": 0,
+              "duplicates": 0,
+              "ended_reason": null,
+              "envelopes": 3034,
+              "feed_message_age_seconds": 358.32494258880615,
+              "first_sequence": 67537724,
+              "gap_events": 0,
+              "last_sequence": 67540757,
+              "latest_header_block_number": 26015381,
+              "latest_header_timestamp": 1789867043,
+              "malformed": 0,
+              "messages": 3034,
+              "missing_sequences": 0,
+              "non_message_envelopes": 7,
+              "regressions": 0,
+              "seconds_since_receive": 3.0435712337493896,
+              "signature_presence_rate": 1,
+              "signed_messages": 3034
+            }
+          ],
+          "signature_presence_rate": 1,
+          "signed_messages": 3034,
+          "transport_failures": 0
+        },
+        "telemetry_archive_seconds": 2.586895373,
+        "terminal_reasons": {
+          "buy_sell_flow": 66,
+          "buyer_growth": 104,
+          "creator_distribution": 10,
+          "creator_tax": 1,
+          "curve_acceleration": 44,
+          "curve_progress": 159,
+          "curve_velocity": 134,
+          "graduation_eta": 123,
+          "independent_breadth": 60,
+          "largest_buyer_concentration": 84,
+          "net_demand_acceleration": 61,
+          "position_size_zero": 31,
+          "roundtrip_cost": 55,
+          "roundtrip_cost_unavailable": 31,
+          "snipe_tax_nonzero": 6,
+          "stale_state_after_evidence": 83,
+          "token_age": 51,
+          "top3_buyer_concentration": 84,
+          "trajectory_history": 26
+        },
+        "transport_activity_age_seconds": 4.452529109999887,
+        "unexpected_exit": false
+      },
+      "pump": {
+        "accounting_reconciled": true,
+        "accounting_replay": {
+          "cash": 5110384300,
+          "events": 0,
+          "final_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "verified": true
+        },
+        "continuous_uptime_seconds": 1606.3872216950003,
+        "ended_at": 1789868341.297758,
+        "errors": {},
+        "evidence_state": {
+          "expired_jobs": 4966,
+          "inflight_jobs": 0,
+          "pending_jobs": 8,
+          "pressure": {
+            "batch_size": 4,
+            "cooldown_until": 1789867350.004544,
+            "next_transport_at": 1789867348.2023926,
+            "rate_events": 9,
+            "rate_streak": 1,
+            "recoveries": 32,
+            "reductions": 9,
+            "success_streak": 0,
+            "transport_ready_in_seconds": 0,
+            "transport_reservations": 379
+          },
+          "signature_rows": 12319,
+          "stream_events": 54293,
+          "transaction_cache_entries": 1976
+        },
+        "exit_code": 0,
+        "finality_state": null,
+        "forced_settled": 0,
+        "funnel": {
+          "discovered": 516,
+          "evidence_complete": 62,
+          "qualified": 0,
+          "settled": 0
+        },
+        "gates": {},
+        "health": "exited",
+        "limitations": [
+          "detailed_cost_decomposition_and_complete_economic_replay_require_verification"
+        ],
+        "method_counts": {
+          "getBlockTime": 116,
+          "getGenesisHash": 14,
+          "getMultipleAccounts": 164,
+          "getSignaturesForAddress": 65,
+          "getTokenLargestAccounts": 33,
+          "getTransaction": 1938
+        },
+        "native_accounting": {
+          "basis": 0,
+          "capital_hour_denominator": 3600,
+          "capital_unit_seconds": 0,
+          "cash": 5110384300,
+          "initial": 5110384300,
+          "lane": "pump-acceleration-independent-v1",
+          "marked_equity": 5110384300,
+          "open_positions": 0,
+          "pending": 0,
+          "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+          "realized": 0,
+          "reconciled": true,
+          "reserved": 0,
+          "run_id": "7389409f-708f-4a81-8ec6-c498c20294f7",
+          "settled": 0,
+          "unrealized": 0
+        },
+        "natural_settled": 0,
+        "open_positions": 0,
+        "open_positions_unknown": false,
+        "phase": "returned",
+        "pid": 2571,
+        "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+        "process_restarts": 0,
+        "progress_age_seconds": 0.7054206490001889,
+        "provider_requests": 749,
+        "provider_session_count": 14,
+        "provider_state": {
+          "failover_count": 0,
+          "failover_reasons": {},
+          "last_provider_error": null,
+          "logical_calls": 240,
+          "pacing": {
+            "gettransaction_429_events": 0,
+            "gettransaction_429_streak": 0,
+            "gettransaction_batch_recoveries": 0,
+            "gettransaction_batch_reductions": 0,
+            "gettransaction_batch_size": 16,
+            "gettransaction_cooldown_seconds": 0,
+            "minimum_interval_seconds": 0.5,
+            "paced_requests": 749,
+            "throttle_sleep_seconds": 194.30804705619812
+          },
+          "physical_http_requests": 71,
+          "primary_provider": "alchemy_solana_mainnet",
+          "provider_error_fingerprints": {},
+          "provider_error_sequence": 0,
+          "provider_failure_reasons": {},
+          "provider_failures": {},
+          "provider_http_requests": {
+            "alchemy_solana_mainnet": 71
+          },
+          "provider_http_status_errors": {},
+          "provider_jsonrpc_error_codes": {},
+          "provider_method_failures": {},
+          "provider_successes": {
+            "alchemy_solana_mainnet": 71
+          },
+          "secondary_configured": false,
+          "secondary_provider": "none",
+          "topology": "alchemy_primary_no_rescue_public_ws_discovery"
+        },
+        "rpc_latency_seconds": {
+          "p50": 0.07924546,
+          "p95": 0.220689991,
+          "p99": 0.274182398
+        },
+        "strategy_version": "pump-acceleration-independent-v1",
+        "stream_state": {
+          "capacity_losses": 0,
+          "connected": true,
+          "covered": true,
+          "creation_capacity_losses": 0,
+          "creation_events": 530,
+          "creation_records": 522,
+          "event_id_version": "sig-slot-log-mint-v2",
+          "gaps": 0,
+          "last_slot": 448585248,
+          "loss_until": 0,
+          "max_events": 50000,
+          "notifications": 233724,
+          "parse_failures": 0,
+          "retained_events": 2748,
+          "retention_seconds": 75,
+          "trade_events": 59697,
+          "warm_seconds": 1606
+        },
+        "telemetry_archive_seconds": 1.522434994,
+        "terminal_reasons": {
+          "full_point_in_time": 62,
+          "incomplete_pumpswap_second_leg_history": 2,
+          "insufficient_curve_trajectory": 2,
+          "optimistic_preflight": 24,
+          "unsupported cashback or quote asset": 3
+        },
+        "transport_activity_age_seconds": 298.77728521099993,
+        "unexpected_exit": false
+      },
+      "ramses": {
+        "accounting_by_scope": {
+          "forced": null,
+          "natural": null
+        },
+        "accounting_reconciled": true,
+        "continuous_uptime_seconds": 600.1612400019999,
+        "ended_at": 1789867334.7553713,
+        "errors": {},
+        "evidence_state": null,
+        "exit_code": 0,
+        "finality_state": {
+          "advances": 2,
+          "cadence_deferred_polls": 0,
+          "duplicate_frontier_polls_skipped": 29,
+          "expensive_scans": 3,
+          "observations": [
+            {
+              "elapsed_seconds": 0.2150016310000069,
+              "expensive_scan": true,
+              "finalized_block": 67526943,
+              "finalized_hash": "0x7c5a0b98bd5679983a4100edcd7779b4ffd6e7dc6adc11a079015dd15b953f17",
+              "finalized_timestamp": 1789865646,
+              "gate_reason": "initial_frontier",
+              "progress": "initial"
+            },
+            {
+              "elapsed_seconds": 61.24683350599997,
+              "expensive_scan": false,
+              "finalized_block": 67526943,
+              "finalized_hash": "0x7c5a0b98bd5679983a4100edcd7779b4ffd6e7dc6adc11a079015dd15b953f17",
+              "finalized_timestamp": 1789865646,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 76.744779112,
+              "expensive_scan": false,
+              "finalized_block": 67526943,
+              "finalized_hash": "0x7c5a0b98bd5679983a4100edcd7779b4ffd6e7dc6adc11a079015dd15b953f17",
+              "finalized_timestamp": 1789865646,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 92.23767898499995,
+              "expensive_scan": false,
+              "finalized_block": 67526943,
+              "finalized_hash": "0x7c5a0b98bd5679983a4100edcd7779b4ffd6e7dc6adc11a079015dd15b953f17",
+              "finalized_timestamp": 1789865646,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 108.75163999099999,
+              "expensive_scan": false,
+              "finalized_block": 67526943,
+              "finalized_hash": "0x7c5a0b98bd5679983a4100edcd7779b4ffd6e7dc6adc11a079015dd15b953f17",
+              "finalized_timestamp": 1789865646,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 124.25006527600004,
+              "expensive_scan": true,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_advanced",
+              "progress": "advanced"
+            },
+            {
+              "elapsed_seconds": 167.779843342,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 183.78322342300004,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 199.28610860099997,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 214.78116379099998,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 230.28334503399998,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 245.79527800299996,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 261.301437957,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 276.805914609,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 292.836259828,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 308.81983919199996,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 324.33597430599997,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 340.332374581,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 355.88783167799994,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 371.527850751,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 386.68826879700003,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 403.33320890500005,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 419.198499689,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 434.56906936499996,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 451.174477364,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 466.867541957,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 482.386159812,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 499.066448911,
+              "expensive_scan": false,
+              "finalized_block": 67530649,
+              "finalized_hash": "0xee7ecf179b2173c00d67c2ee26e47cfe0ddd5dec27d8474b5869921509865e7a",
+              "finalized_timestamp": 1789866019,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 514.5930254540001,
+              "expensive_scan": true,
+              "finalized_block": 67534628,
+              "finalized_hash": "0x3c412e58ccc43f45e7c9f561dd4f387b2ad49f3249fec9355d06810e1df98f62",
+              "finalized_timestamp": 1789866421,
+              "gate_reason": "frontier_advanced",
+              "progress": "advanced"
+            },
+            {
+              "elapsed_seconds": 563.6273078699999,
+              "expensive_scan": false,
+              "finalized_block": 67534628,
+              "finalized_hash": "0x3c412e58ccc43f45e7c9f561dd4f387b2ad49f3249fec9355d06810e1df98f62",
+              "finalized_timestamp": 1789866421,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 580.6238882099999,
+              "expensive_scan": false,
+              "finalized_block": 67534628,
+              "finalized_hash": "0x3c412e58ccc43f45e7c9f561dd4f387b2ad49f3249fec9355d06810e1df98f62",
+              "finalized_timestamp": 1789866421,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            },
+            {
+              "elapsed_seconds": 597.343881564,
+              "expensive_scan": false,
+              "finalized_block": 67534628,
+              "finalized_hash": "0x3c412e58ccc43f45e7c9f561dd4f387b2ad49f3249fec9355d06810e1df98f62",
+              "finalized_timestamp": 1789866421,
+              "gate_reason": "frontier_unchanged",
+              "progress": "unchanged"
+            }
+          ],
+          "polls": 32,
+          "provider": {
+            "adaptive_batch_floor": 1,
+            "adaptive_batch_splits": 0,
+            "batch_pause_seconds": 0,
+            "batch_size": 1,
+            "block_cache_entries": 0,
+            "block_cache_hits": 0,
+            "endpoint_fingerprints": {
+              "c8ad534ecbec5adc": 1
+            },
+            "failures": {},
+            "logical_methods": {
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 32
+            },
+            "logical_requests": 33,
+            "max_sessions": 2,
+            "methods": {
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 32
+            },
+            "pacing": {
+              "minimum_interval_seconds": 1,
+              "paced_requests": 117,
+              "requests_per_second": 1,
+              "throttle_sleep_seconds": 16.700332406999735
+            },
+            "program_logical_limit": 400,
+            "provider_kinds": {
+              "alchemy": 1
+            },
+            "provider_roles": {
+              "dlmm_reconstruction_primary_shared_observation": 1
+            },
+            "rate_limit_cooldown_seconds": 8,
+            "rate_limit_events": 0,
+            "rate_limit_sleep_seconds": 0,
+            "receipt_cache_entries": 0,
+            "receipt_cache_hits": 0,
+            "requests": 33,
+            "retries": 0,
+            "scopes": {
+              "connectivity": 1,
+              "extended_frontier": 32
+            },
+            "sessions": 1,
+            "transport_requests": 33
+          }
+        },
+        "forced_settled": 0,
+        "funnel": {
+          "active_pools": 3,
+          "scans": 3
+        },
+        "gates": {},
+        "health": "exited",
+        "limitations": [
+          "quote_assets_require_separate_balances_and_authenticated_valuation_before_consolidation"
+        ],
+        "method_counts": {
+          "eth_call": 375,
+          "eth_chainId": 4,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 32,
+          "eth_getCode": 19,
+          "eth_getLogs": 90,
+          "eth_getTransactionReceipt": 4
+        },
+        "native_accounting": {
+          "by_quote_asset": {},
+          "conservation": true,
+          "manifest": {
+            "cross_asset_conversion": false,
+            "funding_rule": "one_maximum_frozen_scanner_size_per_quote_asset_from_initial_screen",
+            "genesis_by_quote_asset": {},
+            "later_assets": "unfunded_capacity_censoring",
+            "paper_only": true,
+            "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+            "run_id": "1fd19247f934468e86561f4dd51f2914",
+            "source_finalized_block": 67526943,
+            "source_finalized_hash": "0x7c5a0b98bd5679983a4100edcd7779b4ffd6e7dc6adc11a079015dd15b953f17",
+            "source_screen_hash": "45a58387c413197f2e78ef9ef6c0224353255bfd397e0c4fe0b01adb92aaedd3"
+          },
+          "open_positions": 0,
+          "position_count": 0,
+          "unlike_quote_units_summed": false
+        },
+        "natural_settled": 0,
+        "open_positions": 0,
+        "open_positions_unknown": false,
+        "phase": "returned",
+        "pid": 2574,
+        "pnl_decomposition": null,
+        "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+        "process_restarts": 0,
+        "progress_age_seconds": 1006.903267702,
+        "provider_requests": 117,
+        "provider_session_count": 5,
+        "provider_state": null,
+        "rpc_latency_seconds": {
+          "p50": 0.068407401,
+          "p95": 0.116618193,
+          "p99": 0.132100882
+        },
+        "strategy_version": "ramses-fee-pulse-v1",
+        "stream_state": null,
+        "telemetry_archive_seconds": 0.111879841,
+        "terminal_reasons": {
+          "cash_hurdle": 3,
+          "fee_percentile": 1,
+          "flow_imbalance": 2,
+          "insufficient_two_way_chop": 3,
+          "net_to_cost": 3,
+          "turnover_percentile": 1,
+          "volume_acceleration": 2
+        },
+        "transport_activity_age_seconds": 0.4975662250001278,
+        "unexpected_exit": false
+      }
+    },
+    "phase": "smoke",
+    "run_id": "7389409f-708f-4a81-8ec6-c498c20294f7",
+    "shared_provider": {
+      "robinhood": {
+        "endpoints": [
+          {
+            "cooldown_remaining_seconds": 0,
+            "identity": "c8ad534ecbec5adc2f841df38b7f5723aac7785077467364a356ce3fd6eafeb5",
+            "interval_seconds": 0.5,
+            "requests": 1315
+          }
+        ],
+        "lanes": {
+          "pons": {
+            "http_status": {
+              "200": 1198
+            },
+            "max_queue_depth": 2,
+            "methods": {
+              "eth_call": 1653,
+              "eth_chainId": 229,
+              "eth_gasPrice": 192,
+              "eth_getBlockByHash": 68,
+              "eth_getBlockByNumber": 2525,
+              "eth_getCode": 192,
+              "eth_getLogs": 332,
+              "eth_getTransactionReceipt": 867
+            },
+            "queue_wait_seconds": 498.8021201300052,
+            "requests": 1198,
+            "retries": 0,
+            "rpc_errors": {},
+            "transport_seconds": 87.7179766349991
+          },
+          "ramses": {
+            "http_status": {
+              "200": 117
+            },
+            "max_queue_depth": 2,
+            "methods": {
+              "eth_call": 375,
+              "eth_chainId": 4,
+              "eth_gasPrice": 2,
+              "eth_getBlockByNumber": 32,
+              "eth_getCode": 19,
+              "eth_getLogs": 90,
+              "eth_getTransactionReceipt": 4
+            },
+            "queue_wait_seconds": 95.26877805699911,
+            "requests": 117,
+            "retries": 0,
+            "rpc_errors": {},
+            "transport_seconds": 8.957409095000344
+          }
+        },
+        "last_sequence": 1315,
+        "queues": [],
+        "state": "observed"
+      },
+      "solana": {
+        "providers": [
+          {
+            "cooldown": 809.490963527,
+            "grants": 854,
+            "next_at": 1112.913832902,
+            "provider": "solana",
+            "rate_errors": 2
+          }
+        ],
+        "queues": []
+      }
+    },
+    "source_manifest_hash": "ab516dc790abf75dc997f2c7985eb16c690bef998682ce248ac96476da9acfbf",
+    "started_at": 1789866734.2234192,
+    "status": "FINISHED"
+  },
+  "artifact_sha256": "d97f3d5c732c60127a4fa2c0a1cd692c127741069a1116709a9a15107589517b"
+}

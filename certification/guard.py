@@ -1,0 +1,54 @@
+"""Read-only preflight: do not overlap existing market jobs or stale lane heads."""
+import json
+import os
+from pathlib import Path
+import subprocess
+from urllib.request import Request,urlopen
+from certification.run import manifest,ROOT,atomic
+
+LIVE_NAMES={'pons-selective-market-test','solana-dlmm-independent-v1',
+            'pump-acceleration-natural-prospective','robinhood-ramses-extended-test','robinhood-ramses-extended',
+            'four-lane-certification'}
+
+READ_ONLY_JOBS={'test','tests','lint','build','inspect-retained-failure'}
+
+
+def active_market_job(workflow,job):
+    if job.get('status')!='in_progress':return False
+    if workflow in LIVE_NAMES:return True
+    # Mixed CI workflows also contain live jobs. Unknown active jobs are not
+    # silently assumed to be provider-free. Completed/skipped tests never block.
+    return job.get('name') not in READ_ONLY_JOBS
+
+
+def fetch_json(url,token):
+    req=Request(url,headers={'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'})
+    with urlopen(req,timeout=30) as response:return json.load(response)
+
+def main():
+    output=Path('certification-preflight.json')
+    spec=manifest();lines=subprocess.check_output(['git','ls-remote','origin','refs/heads/*'],cwd=ROOT,text=True).splitlines()
+    heads={ref.removeprefix('refs/heads/'):sha for sha,ref in (line.split() for line in lines)}
+    changed=[lane for lane,row in spec['lanes'].items() if heads.get(row['source_branch'])!=row['source_sha']]
+    active=[]
+    token=os.environ.get('GITHUB_TOKEN')
+    if not token:raise RuntimeError('github_read_token_required_for_contention_preflight')
+    for state in ('in_progress',):
+        for page in range(1,11):
+            url=f'https://api.github.com/repos/{spec["repository"]}/actions/runs?status={state}&per_page=100&page={page}'
+            data=fetch_json(url,token)
+            runs=data.get('workflow_runs',[])
+            for row in runs:
+                if str(row['id'])==os.environ.get('GITHUB_RUN_ID'):continue
+                for job_page in range(1,11):
+                    jobs=fetch_json(f'https://api.github.com/repos/{spec["repository"]}/actions/runs/{row["id"]}/jobs?filter=latest&per_page=100&page={job_page}',token).get('jobs',[])
+                    active.extend(dict(id=row['id'],name=row['name'],job_id=job['id'],job_name=job['name'],status=job['status']) for job in jobs if active_market_job(row['name'],job))
+                    if len(jobs)<100:break
+                else:raise RuntimeError('active_job_pagination_bound')
+            if len(runs)<100:break
+        else:raise RuntimeError('active_run_pagination_bound')
+    result=dict(lane_heads_changed=changed,conflicting_market_runs=active,passed=not changed and not active)
+    atomic(output,result);print(json.dumps(result))
+    if not result['passed']:raise SystemExit(1)
+
+if __name__=='__main__':main()

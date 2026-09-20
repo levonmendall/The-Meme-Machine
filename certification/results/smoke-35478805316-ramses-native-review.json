@@ -1,0 +1,981 @@
+{
+  "workflow_run": 35478805316,
+  "review_workflow_run": 35480694472,
+  "artifact_id": 10595876501,
+  "correction": "Original supervisor view was overwritten by stale frontier checkpoint. Preserved separately; this native report corrects it. Forced machinery uses placeholder costs, is not strategy eligible, and does not count as a natural lifecycle or profitability evidence.",
+  "native_report": {
+    "boundary": null,
+    "forced_machinery": {
+      "boundary": null,
+      "final_position": {
+        "after_cost_result": -2965,
+        "allocation_authority": false,
+        "at": 1789864180,
+        "forced_machinery_test": true,
+        "id": "forced-connected:0x2dc1fd0b0685ab8d1f5f30668e59df4632e5e87c:67511772:0bc5b1bd1b414af90069f16578497bd656661e03e1a31bc314a4d77c3b033e3b",
+        "last_controller": {
+          "end_block": 67512384,
+          "forced_machinery_test": true,
+          "net_result_quote": -2965,
+          "terminal_equality": true
+        },
+        "mode": "no_trade",
+        "outcome": {
+          "after_cost_return_bps": -2,
+          "economic_cost_evidence": false,
+          "execution_cost_quote": 0,
+          "fee_pnl_quote": 692,
+          "forced_machinery_test": true,
+          "gross_result_quote": -2965,
+          "inventory_or_directional_pnl_quote": -3657,
+          "mode": "no_trade",
+          "net_result_quote": -2965,
+          "outcome": {
+            "after_cost_result": -2965,
+            "after_cost_return_bps": -2,
+            "costs": {
+              "mechanics_only_placeholder": 0
+            },
+            "exceeds_hurdle": false,
+            "executable_slippage": 3657,
+            "gross_result": -2965,
+            "hurdle_bps": 35,
+            "hurdle_comparison": "below",
+            "inventory_effect": 692,
+            "inventory_value": 22103056,
+            "lp_fees_captured": {
+              "amounts": [
+                218850096948,
+                659
+              ],
+              "by_bin": {
+                "8343390": [
+                  218850096948,
+                  659
+                ]
+              },
+              "quote_value": 692
+            },
+            "removal_amounts": [
+              58667771961320520,
+              13151685
+            ],
+            "removal_by_bin": {
+              "8343389": [
+                0,
+                7368682
+              ],
+              "8343390": [
+                10397167191480968,
+                5783003
+              ],
+              "8343391": [
+                48270604769839550,
+                0
+              ]
+            },
+            "total_costs": 0,
+            "unresolved_inventory": null,
+            "unwind": {
+              "amount_in": 58667771961320520,
+              "amount_in_left": 0,
+              "amount_out": 8947714,
+              "block": 67512384,
+              "fee": 23968305727026,
+              "input_side": "x",
+              "slippage": 3657
+            }
+          },
+          "strategy_domain": "robinhood-ramses-dlmm-independent",
+          "strategy_evidence_eligible": false,
+          "unresolved_inventory": null
+        },
+        "paper_only": true,
+        "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+        "pool": "0x2dc1fd0b0685ab8d1f5f30668e59df4632e5e87c",
+        "proposal_hash": "0bc5b1bd1b414af90069f16578497bd656661e03e1a31bc314a4d77c3b033e3b",
+        "realized": -2965,
+        "rebalances": 0,
+        "reserved": 0,
+        "segments_closed": 1,
+        "shared_allocator": false,
+        "status": "settled",
+        "strategy_domain": "robinhood-ramses-dlmm-independent",
+        "strategy_evidence_eligible": false,
+        "strategy_version": "ramses-fee-pulse-v1",
+        "version": 4
+      },
+      "mechanics_complete": true,
+      "pool": "0x2dc1fd0b0685ab8d1f5f30668e59df4632e5e87c",
+      "reconciliation": {
+        "allocation_authority": false,
+        "available": 22099399,
+        "committed": 0,
+        "open_positions": 0,
+        "paper_capital": 22102364,
+        "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+        "positions": 1,
+        "quote_asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "realized": -2965,
+        "shared_allocator": false,
+        "strategy_domain": "robinhood-ramses-dlmm-independent",
+        "strategy_version": "ramses-fee-pulse-v1"
+      }
+    },
+    "frontier_discovery": {
+      "advances": 1,
+      "cadence_deferred_polls": 0,
+      "duplicate_frontier_polls_skipped": 30,
+      "expensive_scans": 2,
+      "observations": [
+        {
+          "elapsed_seconds": 0.19103576300000213,
+          "expensive_scan": true,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "initial_frontier",
+          "progress": "initial"
+        },
+        {
+          "elapsed_seconds": 82.52902005800001,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 98.95820040000001,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 114.25858075100001,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 130.198137621,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 146.16405098300004,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 161.32515684700002,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 177.40597254300002,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 193.272775856,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 208.99422380200002,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 224.64028998000003,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 241.24015465600002,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 256.999559778,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 272.93290826500004,
+          "expensive_scan": false,
+          "finalized_block": 67507882,
+          "finalized_hash": "0xd5e44af8286115e9d30e97cb624454f4ebadfa409279188f030c810cb32ef601",
+          "finalized_timestamp": 1789863730,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 288.717923736,
+          "expensive_scan": true,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_advanced",
+          "progress": "advanced"
+        },
+        {
+          "elapsed_seconds": 338.86243858200004,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 354.48131122,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 369.97883742600004,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 385.479655024,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 401.377389757,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 417.828178779,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 433.74125197100005,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 449.48346928100005,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 465.265824978,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 481.506604977,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 496.794076923,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 512.405972602,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 528.465715838,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 543.9630256580001,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 560.693414368,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 575.872421007,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        },
+        {
+          "elapsed_seconds": 591.441308915,
+          "expensive_scan": false,
+          "finalized_block": 67511772,
+          "finalized_hash": "0x16a2820d314768aed286b3ba4b94f68fc94447021444cb47cf0ad80b379ea45f",
+          "finalized_timestamp": 1789864120,
+          "gate_reason": "frontier_unchanged",
+          "progress": "unchanged"
+        }
+      ],
+      "polls": 32,
+      "provider": {
+        "adaptive_batch_floor": 1,
+        "adaptive_batch_splits": 0,
+        "batch_pause_seconds": 0,
+        "batch_size": 1,
+        "block_cache_entries": 0,
+        "block_cache_hits": 0,
+        "endpoint_fingerprints": {
+          "c8ad534ecbec5adc": 1
+        },
+        "failures": {},
+        "logical_methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 32
+        },
+        "logical_requests": 33,
+        "max_sessions": 2,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 32
+        },
+        "pacing": {
+          "minimum_interval_seconds": 1,
+          "paced_requests": 118,
+          "requests_per_second": 1,
+          "throttle_sleep_seconds": 19.037215737999986
+        },
+        "program_logical_limit": 400,
+        "provider_kinds": {
+          "alchemy": 1
+        },
+        "provider_roles": {
+          "dlmm_reconstruction_primary_shared_observation": 1
+        },
+        "rate_limit_cooldown_seconds": 8,
+        "rate_limit_events": 0,
+        "rate_limit_sleep_seconds": 0,
+        "receipt_cache_entries": 0,
+        "receipt_cache_hits": 0,
+        "requests": 33,
+        "retries": 0,
+        "scopes": {
+          "connectivity": 1,
+          "extended_frontier": 32
+        },
+        "sessions": 1,
+        "transport_requests": 33
+      }
+    },
+    "natural_lifecycle": {
+      "boundary": null,
+      "ledger_final": null,
+      "ledger_reconciliation": null,
+      "status": null
+    },
+    "natural_qualifier_found": false,
+    "natural_screens": [
+      {
+        "cost_model": {
+          "available": true,
+          "gas_price_native_raw": 67416000,
+          "proxy_categories": [
+            "add_liquidity",
+            "remove_liquidity"
+          ],
+          "sample_counts": {
+            "add_liquidity": 0,
+            "remove_liquidity": 0,
+            "unwind": 2
+          },
+          "transactions_observed": 2
+        },
+        "elapsed_seconds": 67.528315488,
+        "factory_inventory_cache": {
+          "batch_recoveries": 0,
+          "cached_prefix_sentinel_verified": true,
+          "count_verified_each_scan": true,
+          "durable_cache_path": "robinhood-ramses-all-pool-inventory-cache.json",
+          "durable_hit": false,
+          "fetched_pool_count": 277,
+          "hit": false,
+          "member_failure": null,
+          "reused_pool_count": 0,
+          "sentinel_reads": 0
+        },
+        "factory_pool_count": 277,
+        "finalized_block": 67507882,
+        "finalized_timestamp": 1789863730,
+        "frontier_poll_index": 1,
+        "pools_with_automatic_cost_evidence": 2,
+        "pools_with_recent_swaps": 2,
+        "provider": {
+          "adaptive_batch_floor": 2,
+          "adaptive_batch_splits": 0,
+          "batch_pause_seconds": 0.8,
+          "batch_size": 8,
+          "block_cache_entries": 0,
+          "block_cache_hits": 0,
+          "endpoint_fingerprints": {
+            "c8ad534ecbec5adc": 3
+          },
+          "failures": {},
+          "logical_methods": {
+            "eth_call": 347,
+            "eth_chainId": 1,
+            "eth_gasPrice": 1,
+            "eth_getCode": 16,
+            "eth_getLogs": 30,
+            "eth_getTransactionReceipt": 2
+          },
+          "logical_requests": 397,
+          "max_sessions": 7,
+          "methods": {
+            "eth_call": 347,
+            "eth_chainId": 1,
+            "eth_gasPrice": 1,
+            "eth_getCode": 16,
+            "eth_getLogs": 30,
+            "eth_getTransactionReceipt": 2
+          },
+          "pacing": {
+            "minimum_interval_seconds": 1,
+            "paced_requests": 62,
+            "requests_per_second": 1,
+            "throttle_sleep_seconds": 15.133650755999952
+          },
+          "program_logical_limit": 1400,
+          "provider_kinds": {
+            "alchemy": 3
+          },
+          "provider_roles": {
+            "dlmm_reconstruction_primary_shared_observation": 3
+          },
+          "rate_limit_cooldown_seconds": 8,
+          "rate_limit_events": 0,
+          "rate_limit_sleep_seconds": 0,
+          "receipt_cache_entries": 2,
+          "receipt_cache_hits": 0,
+          "requests": 397,
+          "retries": 0,
+          "scopes": {
+            "connectivity": 1,
+            "universe_bins": 28,
+            "universe_cost_conversion": 12,
+            "universe_cost_identity": 2,
+            "universe_cost_price": 1,
+            "universe_cost_receipts": 2,
+            "universe_cost_route": 26,
+            "universe_identity": 1,
+            "universe_inventory": 278,
+            "universe_logs": 30,
+            "universe_state": 16
+          },
+          "sessions": 3,
+          "transport_requests": 60
+        },
+        "qualified": [],
+        "rows": [
+          {
+            "chop_ratio_milli": 0,
+            "cost_evidence": {
+              "available": true,
+              "conversion": {
+                "available": true,
+                "conversion": {
+                  "amount_out": 1044794,
+                  "route_bin_step": 50,
+                  "route_fee_raw": 1995024834000,
+                  "route_kind": "direct_wnative_quote_pool",
+                  "route_pool": "0xbc2f7c6ec69341393fd7965dd0bb4d9f42881c63",
+                  "swap_for_y": true
+                },
+                "conversion_is_executable_get_swap_out": true,
+                "model_version": "ramses-receipt-cost-v1",
+                "native_cycle_cost_raw": 399004966800000,
+                "quote_cycle_cost_raw": 1044794,
+                "quote_token": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "wnative": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+              },
+              "gas_price_native_raw": 67416000,
+              "gas_units": {
+                "add_liquidity": 1972850,
+                "entry_overhead": 986425,
+                "remove_liquidity": 1972850,
+                "unwind": 986425
+              },
+              "model_version": "ramses-receipt-cost-v1",
+              "native_cycle_cost_raw": 399004966800000,
+              "proxy_categories": [
+                "add_liquidity",
+                "remove_liquidity"
+              ],
+              "proxy_multiplier_bps": 20000,
+              "quote_costs": {
+                "add_liquidity": 348264,
+                "entry_overhead": 174134,
+                "remove_liquidity": 348264,
+                "unwind": 174132
+              },
+              "sample_counts": {
+                "add_liquidity": 0,
+                "remove_liquidity": 0,
+                "unwind": 2
+              },
+              "source": "automatic_onchain",
+              "transactions_observed": 2
+            },
+            "fee_percentile_bps": 10000,
+            "flow_imbalance_bps": 10000,
+            "gas_costs": {
+              "add_liquidity": 348264,
+              "entry_overhead": 174134,
+              "remove_liquidity": 348264,
+              "unwind": 174132
+            },
+            "mode": "no_trade",
+            "pool": "0x43c70df87d7448ec5b605d1139d9e4fafaecc9ab",
+            "qualified": false,
+            "reasons": [
+              "volume_acceleration",
+              "insufficient_two_way_chop",
+              "flow_imbalance",
+              "cash_hurdle",
+              "net_to_cost"
+            ],
+            "swaps": 1,
+            "turnover_bps": 152,
+            "turnover_percentile_bps": 10000,
+            "volume_acceleration_milli": 0
+          },
+          {
+            "chop_ratio_milli": 0,
+            "cost_evidence": {
+              "available": true,
+              "conversion": {
+                "available": true,
+                "conversion": {
+                  "amount_out": 1044794,
+                  "route_bin_step": 50,
+                  "route_fee_raw": 1995024834000,
+                  "route_kind": "direct_wnative_quote_pool",
+                  "route_pool": "0xbc2f7c6ec69341393fd7965dd0bb4d9f42881c63",
+                  "swap_for_y": true
+                },
+                "conversion_is_executable_get_swap_out": true,
+                "model_version": "ramses-receipt-cost-v1",
+                "native_cycle_cost_raw": 399004966800000,
+                "quote_cycle_cost_raw": 1044794,
+                "quote_token": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "wnative": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+              },
+              "gas_price_native_raw": 67416000,
+              "gas_units": {
+                "add_liquidity": 1972850,
+                "entry_overhead": 986425,
+                "remove_liquidity": 1972850,
+                "unwind": 986425
+              },
+              "model_version": "ramses-receipt-cost-v1",
+              "native_cycle_cost_raw": 399004966800000,
+              "proxy_categories": [
+                "add_liquidity",
+                "remove_liquidity"
+              ],
+              "proxy_multiplier_bps": 20000,
+              "quote_costs": {
+                "add_liquidity": 348264,
+                "entry_overhead": 174134,
+                "remove_liquidity": 348264,
+                "unwind": 174132
+              },
+              "sample_counts": {
+                "add_liquidity": 0,
+                "remove_liquidity": 0,
+                "unwind": 2
+              },
+              "source": "automatic_onchain",
+              "transactions_observed": 2
+            },
+            "fee_percentile_bps": 5000,
+            "flow_imbalance_bps": 10000,
+            "gas_costs": {
+              "add_liquidity": 348264,
+              "entry_overhead": 174134,
+              "remove_liquidity": 348264,
+              "unwind": 174132
+            },
+            "mode": "no_trade",
+            "pool": "0x2dc1fd0b0685ab8d1f5f30668e59df4632e5e87c",
+            "qualified": false,
+            "reasons": [
+              "turnover_percentile",
+              "fee_percentile",
+              "volume_acceleration",
+              "insufficient_two_way_chop",
+              "flow_imbalance",
+              "fee_to_inventory",
+              "cash_hurdle",
+              "net_to_cost"
+            ],
+            "swaps": 1,
+            "turnover_bps": 0,
+            "turnover_percentile_bps": 5000,
+            "volume_acceleration_milli": 0
+          }
+        ],
+        "state_complete_pools": 2
+      },
+      {
+        "cost_model": {
+          "available": true,
+          "gas_price_native_raw": 65944000,
+          "proxy_categories": [
+            "add_liquidity",
+            "remove_liquidity"
+          ],
+          "sample_counts": {
+            "add_liquidity": 0,
+            "remove_liquidity": 0,
+            "unwind": 6
+          },
+          "transactions_observed": 6
+        },
+        "elapsed_seconds": 323.861296885,
+        "factory_inventory_cache": {
+          "batch_recoveries": 0,
+          "cached_prefix_sentinel_verified": true,
+          "count_verified_each_scan": true,
+          "durable_cache_path": "robinhood-ramses-all-pool-inventory-cache.json",
+          "durable_hit": false,
+          "fetched_pool_count": 0,
+          "hit": true,
+          "member_failure": null,
+          "reused_pool_count": 277,
+          "sentinel_reads": 2
+        },
+        "factory_pool_count": 277,
+        "finalized_block": 67511772,
+        "finalized_timestamp": 1789864120,
+        "frontier_poll_index": 15,
+        "pools_with_automatic_cost_evidence": 2,
+        "pools_with_recent_swaps": 2,
+        "provider": {
+          "adaptive_batch_floor": 2,
+          "adaptive_batch_splits": 0,
+          "batch_pause_seconds": 0.8,
+          "batch_size": 8,
+          "block_cache_entries": 0,
+          "block_cache_hits": 0,
+          "endpoint_fingerprints": {
+            "c8ad534ecbec5adc": 1
+          },
+          "failures": {},
+          "logical_methods": {
+            "eth_call": 71,
+            "eth_chainId": 1,
+            "eth_gasPrice": 1,
+            "eth_getCode": 15,
+            "eth_getLogs": 30,
+            "eth_getTransactionReceipt": 4
+          },
+          "logical_requests": 122,
+          "max_sessions": 7,
+          "methods": {
+            "eth_call": 71,
+            "eth_chainId": 1,
+            "eth_gasPrice": 1,
+            "eth_getCode": 15,
+            "eth_getLogs": 30,
+            "eth_getTransactionReceipt": 4
+          },
+          "pacing": {
+            "minimum_interval_seconds": 1,
+            "paced_requests": 101,
+            "requests_per_second": 1,
+            "throttle_sleep_seconds": 19.037215737999986
+          },
+          "program_logical_limit": 1400,
+          "provider_kinds": {
+            "alchemy": 1
+          },
+          "provider_roles": {
+            "dlmm_reconstruction_primary_shared_observation": 1
+          },
+          "rate_limit_cooldown_seconds": 8,
+          "rate_limit_events": 0,
+          "rate_limit_sleep_seconds": 0,
+          "receipt_cache_entries": 4,
+          "receipt_cache_hits": 0,
+          "requests": 122,
+          "retries": 0,
+          "scopes": {
+            "connectivity": 1,
+            "universe_bins": 28,
+            "universe_cost_conversion": 12,
+            "universe_cost_price": 1,
+            "universe_cost_receipts": 4,
+            "universe_cost_route": 26,
+            "universe_identity": 1,
+            "universe_inventory": 1,
+            "universe_inventory_verify": 2,
+            "universe_logs": 30,
+            "universe_state": 16
+          },
+          "sessions": 1,
+          "transport_requests": 25
+        },
+        "qualified": [],
+        "rows": [
+          {
+            "chop_ratio_milli": 0,
+            "cost_evidence": {
+              "available": true,
+              "conversion": {
+                "available": true,
+                "conversion": {
+                  "amount_out": 5227388,
+                  "route_bin_step": 50,
+                  "route_fee_raw": 9981649499480,
+                  "route_kind": "direct_wnative_quote_pool",
+                  "route_pool": "0xbc2f7c6ec69341393fd7965dd0bb4d9f42881c63",
+                  "swap_for_y": true
+                },
+                "conversion_is_executable_get_swap_out": true,
+                "model_version": "ramses-receipt-cost-v1",
+                "native_cycle_cost_raw": 1996329899896000,
+                "quote_cycle_cost_raw": 5227388,
+                "quote_token": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "wnative": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+              },
+              "gas_price_native_raw": 65944000,
+              "gas_units": {
+                "add_liquidity": 10214888,
+                "entry_overhead": 5107444,
+                "remove_liquidity": 10214888,
+                "unwind": 4735889
+              },
+              "model_version": "ramses-receipt-cost-v1",
+              "native_cycle_cost_raw": 1996329899896000,
+              "proxy_categories": [
+                "add_liquidity",
+                "remove_liquidity"
+              ],
+              "proxy_multiplier_bps": 20000,
+              "quote_costs": {
+                "add_liquidity": 1763848,
+                "entry_overhead": 881926,
+                "remove_liquidity": 1763848,
+                "unwind": 817766
+              },
+              "sample_counts": {
+                "add_liquidity": 0,
+                "remove_liquidity": 0,
+                "unwind": 6
+              },
+              "source": "automatic_onchain",
+              "transactions_observed": 6
+            },
+            "fee_percentile_bps": 5000,
+            "flow_imbalance_bps": 2428,
+            "gas_costs": {
+              "add_liquidity": 1763848,
+              "entry_overhead": 881926,
+              "remove_liquidity": 1763848,
+              "unwind": 817766
+            },
+            "mode": "no_trade",
+            "pool": "0x2dc1fd0b0685ab8d1f5f30668e59df4632e5e87c",
+            "qualified": false,
+            "reasons": [
+              "fee_percentile",
+              "insufficient_two_way_chop",
+              "cash_hurdle",
+              "net_to_cost"
+            ],
+            "swaps": 3,
+            "turnover_bps": 1093,
+            "turnover_percentile_bps": 10000,
+            "volume_acceleration_milli": 33751
+          },
+          {
+            "chop_ratio_milli": 0,
+            "cost_evidence": {
+              "available": true,
+              "conversion": {
+                "available": true,
+                "conversion": {
+                  "amount_out": 5227388,
+                  "route_bin_step": 50,
+                  "route_fee_raw": 9981649499480,
+                  "route_kind": "direct_wnative_quote_pool",
+                  "route_pool": "0xbc2f7c6ec69341393fd7965dd0bb4d9f42881c63",
+                  "swap_for_y": true
+                },
+                "conversion_is_executable_get_swap_out": true,
+                "model_version": "ramses-receipt-cost-v1",
+                "native_cycle_cost_raw": 1996329899896000,
+                "quote_cycle_cost_raw": 5227388,
+                "quote_token": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "wnative": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+              },
+              "gas_price_native_raw": 65944000,
+              "gas_units": {
+                "add_liquidity": 10214888,
+                "entry_overhead": 5107444,
+                "remove_liquidity": 10214888,
+                "unwind": 4735889
+              },
+              "model_version": "ramses-receipt-cost-v1",
+              "native_cycle_cost_raw": 1996329899896000,
+              "proxy_categories": [
+                "add_liquidity",
+                "remove_liquidity"
+              ],
+              "proxy_multiplier_bps": 20000,
+              "quote_costs": {
+                "add_liquidity": 1763848,
+                "entry_overhead": 881926,
+                "remove_liquidity": 1763848,
+                "unwind": 817766
+              },
+              "sample_counts": {
+                "add_liquidity": 0,
+                "remove_liquidity": 0,
+                "unwind": 6
+              },
+              "source": "automatic_onchain",
+              "transactions_observed": 6
+            },
+            "fee_percentile_bps": 10000,
+            "flow_imbalance_bps": 10000,
+            "gas_costs": {
+              "add_liquidity": 1763848,
+              "entry_overhead": 881926,
+              "remove_liquidity": 1763848,
+              "unwind": 817766
+            },
+            "mode": "no_trade",
+            "pool": "0x64d852011abd1be6636b04983b472439a4380b79",
+            "qualified": false,
+            "reasons": [
+              "turnover_percentile",
+              "volume_acceleration",
+              "insufficient_two_way_chop",
+              "flow_imbalance",
+              "cash_hurdle",
+              "net_to_cost"
+            ],
+            "swaps": 1,
+            "turnover_bps": 89,
+            "turnover_percentile_bps": 5000,
+            "volume_acceleration_milli": 0
+          }
+        ],
+        "state_complete_pools": 2
+      }
+    ],
+    "status": "natural_discovery_complete_no_qualifier",
+    "unique_active_pools": 3
+  }
+}

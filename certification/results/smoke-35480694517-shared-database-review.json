@@ -1,0 +1,209 @@
+{
+  "workflow_run": 35480694517,
+  "review_workflow_run": 35482981489,
+  "artifact_id": 10595953662,
+  "artifact_sha256": "d97f3d5c732c60127a4fa2c0a1cd692c127741069a1116709a9a15107589517b",
+  "interpretation": "Provider queues drained. Shared evidence broker retains eight priority-90 research jobs; future supervisors explicitly journal uncompleted shutdown work without mutating source evidence. 4966 expired broker jobs are evidence censoring, not economic rejection. Most expiry was priority 20. No natural qualification inferred.",
+  "databases": [
+    {
+      "file": "The-Meme-Machine/The-Meme-Machine/certification-smoke/shared-provider.sqlite",
+      "tables": {
+        "pressure": {
+          "columns": [
+            "provider",
+            "next_at",
+            "cooldown",
+            "grants",
+            "rate_errors"
+          ],
+          "rows": 1
+        },
+        "queue": {
+          "columns": [
+            "id",
+            "provider",
+            "lane",
+            "priority",
+            "created"
+          ],
+          "rows": 0
+        }
+      }
+    },
+    {
+      "file": "The-Meme-Machine/The-Meme-Machine/certification-smoke/shared-robinhood-admission.sqlite",
+      "tables": {
+        "limits": {
+          "columns": [
+            "endpoint",
+            "next_at",
+            "cooldown",
+            "interval"
+          ],
+          "rows": 1
+        },
+        "queue": {
+          "columns": [
+            "id",
+            "endpoint",
+            "priority",
+            "created",
+            "deadline"
+          ],
+          "rows": 0
+        },
+        "transports": {
+          "columns": [
+            "seq",
+            "body"
+          ],
+          "rows": 1315
+        }
+      }
+    },
+    {
+      "file": "The-Meme-Machine/The-Meme-Machine/certification-smoke/shared-solana-evidence.sqlite",
+      "tables": {
+        "cursors": {
+          "columns": [
+            "name",
+            "slot",
+            "signature",
+            "updated_at"
+          ],
+          "rows": 5
+        },
+        "jobs": {
+          "columns": [
+            "job_key",
+            "kind",
+            "priority",
+            "deadline",
+            "payload",
+            "status",
+            "lease_until",
+            "created_at",
+            "updated_at"
+          ],
+          "priority_status_counts": [
+            [
+              20,
+              "complete",
+              977
+            ],
+            [
+              30,
+              "complete",
+              36
+            ],
+            [
+              90,
+              "complete",
+              963
+            ],
+            [
+              20,
+              "expired",
+              4768
+            ],
+            [
+              30,
+              "expired",
+              1
+            ],
+            [
+              90,
+              "expired",
+              197
+            ],
+            [
+              90,
+              "pending",
+              8
+            ]
+          ],
+          "rows": 6950,
+          "status_counts": {
+            "complete": 1976,
+            "expired": 4966,
+            "pending": 8
+          }
+        },
+        "pressure": {
+          "columns": [
+            "name",
+            "batch_size",
+            "cooldown_until",
+            "rate_events",
+            "rate_streak",
+            "success_streak",
+            "reductions",
+            "recoveries",
+            "next_transport_at",
+            "transport_reservations"
+          ],
+          "rows": 1
+        },
+        "signature_coverage": {
+          "columns": [
+            "scope",
+            "address",
+            "newest_signature",
+            "newest_slot",
+            "oldest_slot",
+            "covered_through_slot"
+          ],
+          "rows": 14
+        },
+        "signatures": {
+          "columns": [
+            "scope",
+            "address",
+            "signature",
+            "slot",
+            "block_time",
+            "err",
+            "confirmation_status",
+            "transaction_index",
+            "payload"
+          ],
+          "rows": 12319
+        },
+        "stream_events": {
+          "columns": [
+            "stream",
+            "event_key",
+            "signature",
+            "address",
+            "slot",
+            "observed_at",
+            "payload"
+          ],
+          "rows": 54293
+        },
+        "stream_state": {
+          "columns": [
+            "stream",
+            "connected",
+            "warm_since",
+            "loss_until",
+            "last_slot",
+            "gaps",
+            "events"
+          ],
+          "rows": 14
+        },
+        "tx_cache": {
+          "columns": [
+            "signature",
+            "slot",
+            "block_time",
+            "payload",
+            "cached_at"
+          ],
+          "rows": 1976
+        }
+      }
+    }
+  ]
+}
