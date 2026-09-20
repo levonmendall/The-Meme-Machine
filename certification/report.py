@@ -147,7 +147,7 @@ def summarize(lane, report):
         result['limitations'].append('quote_assets_require_separate_balances_and_authenticated_valuation_before_consolidation')
     coverage=result.get('opportunity_coverage') or {}
     if lane=='pons' and coverage:
-        result['funnel']['complete_evidence_vectors']=coverage.get('stages',{}).get('economic_vector',0)
+        result['funnel']['complete_evidence_vectors']=coverage.get('stages',{}).get('evidence_complete',0)
     if coverage:
         result['funnel'].update({'unique_'+k:v for k,v in coverage.get('stages',{}).items()})
         result['funnel'].update({'unique_'+k:v for k,v in coverage.get('unique_classes',{}).items()})

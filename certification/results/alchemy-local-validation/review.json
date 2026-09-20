@@ -22,9 +22,10 @@
     "pump-gate-0.log": "e0e9e63035518798d19db15cbfb3637a75de6fe726166aa76aa78ce74ca67119",
     "pump-gate-1.log": "05b75f83778fd2cfd36afc566d18548530ec05cacc4461e679708eff8a5d37eb",
     "ramses-gate-0.log": "8e97cc28d24a16d70154c6651d54291c157bfdae412289deb34ff1822664a574",
-    "supervisor-tests.log": "7b70f02dd812ddff228e50dafc2b1a5fc3be13255d22ac797a4af7ac89e27e56"
+    "supervisor-tests.log": "fd8fbf56403d893c9ccbd8551a7299476ff293ac921eb297c3770ab7e0f31e0b"
   },
   "passed": true,
+  "published_commit_verified": "07b5a38549a61a5b70566c56d8d67d7373a8b2a7",
   "resource_checks": 3,
   "schema_version": 1,
   "scope": "local deterministic evidence; hosted exact-commit gates still mandatory",
@@ -138,5 +139,5 @@
     "schema_version": 1,
     "verified_at": "2026-09-20T08:43:00Z"
   },
-  "supervisor_tests": 54
+  "supervisor_tests": 55
 }

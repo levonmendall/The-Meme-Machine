@@ -33,6 +33,7 @@ test_unresolved_immutable_work_fails_smoke_and_hourly_readiness (test_controls.C
 test_batched_members_are_not_discounted (test_cu.CuTests.test_batched_members_are_not_discounted) ... ok
 test_capability_probe_fallback_and_census_identity (test_cu.CuTests.test_capability_probe_fallback_and_census_identity) ... ok
 test_cu_efficiency_keeps_missing_denominators_unknown (test_cu.CuTests.test_cu_efficiency_keeps_missing_denominators_unknown) ... ok
+test_pons_vector_denominator_uses_its_actual_native_complete_stage (test_cu.CuTests.test_pons_vector_denominator_uses_its_actual_native_complete_stage) ... ok
 test_reduced_spend_with_reduced_coverage_is_not_success (test_cu.CuTests.test_reduced_spend_with_reduced_coverage_is_not_success) ... ok
 test_reuse_snapshot_is_incremental_not_double_counted (test_cu.CuTests.test_reuse_snapshot_is_incremental_not_double_counted) ... ok
 test_unknown_cost_is_unknown_not_free (test_cu.CuTests.test_unknown_cost_is_unknown_not_free) ... ok
@@ -54,6 +55,6 @@ test_live_native_cursor_and_frontier_shapes_render_without_mutation (test_shutdo
 test_supervisor_exception_persists_four_lane_failed_terminal_result (test_shutdown.ShutdownTests.test_supervisor_exception_persists_four_lane_failed_terminal_result) ... ok
 
 ----------------------------------------------------------------------
-Ran 54 tests in 1.724s
+Ran 55 tests in 1.734s
 
 OK

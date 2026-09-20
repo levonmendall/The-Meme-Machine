@@ -58,3 +58,8 @@ class CuTests(unittest.TestCase):
         self.assertTrue(result['measured_checks']['estimated_cu_reduction_at_least_40pct'])
         self.assertFalse(result['measured_checks']['evaluated_volume_not_lower'])
         self.assertEqual(result['acceptance'],'NOT_ESTABLISHED')
+
+    def test_pons_vector_denominator_uses_its_actual_native_complete_stage(self):
+        from certification.report import summarize
+        row=summarize('pons',{'summary':{'enrolled':5},'opportunity_coverage':{'stages':{'evidence_complete':3,'economic_vector':0}}})
+        self.assertEqual(row['funnel']['complete_evidence_vectors'],3)

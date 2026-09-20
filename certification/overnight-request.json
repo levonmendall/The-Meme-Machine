@@ -19,7 +19,7 @@
   "new_strategy_promotion_authorized": false,
   "result_status": "ALCHEMY_COMPARISON_PREPARATION",
   "local_lane_test_count": 1146,
-  "local_supervisor_test_count": 54,
+  "local_supervisor_test_count": 55,
   "repair_summary": [
     "Lane-attributed durable opportunity/consumer evidence and stage liveness",
     "Preserve complete Ramses checkpoint and expose pinned scan progress/accounting",

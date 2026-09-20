@@ -132,7 +132,7 @@ lifecycles, even if engineering controls pass.
 ## Deterministic release validation
 
 Full unchanged/composed suites passed: Pump 264, Meteora 369, Pons 256, Ramses
-257 (1,146 total), plus 54 supervisor/accounting/capacity tests and three Solana
+257 (1,146 total), plus 55 supervisor/accounting/capacity tests and three Solana
 resource checks. Exact overlays and all frozen source/policy/config hashes verify.
 Raw logs, hashes, and source manifest are in `results/alchemy-local-validation/`.
 Two earlier local Pump subprocess transcripts were truncated without a unittest
@@ -150,3 +150,8 @@ For comparison, extract the completed artifact and run `rpc_baseline` with its
 explicit `--run-id`, `--artifact-id` and `--artifact-sha256`; compare with
 `python -m certification.compare_cu --before certification/results/alchemy-cycle4-baseline.json --after comparison.json --output comparison-result.json`.
 The comparator deliberately cannot declare PASS from lower spend alone.
+
+Repair commit: `07b5a38549a61a5b70566c56d8d67d7373a8b2a7`, draft PR92.
+A final reporting regression verifies Pons CU/vector uses its native
+`evidence_complete` stage (its `economic_vector` counter is DLMM-specific).
+A clean prepare from the published commit reproduces all four overlay hashes.
