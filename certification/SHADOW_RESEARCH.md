@@ -102,3 +102,30 @@ cumulative per-session counter, so sum positive session deltas, not repeated
 counter values. The read-only method audit now includes the source allowlisted
 `alchemy_getAssetTransfers` while still rejecting transaction submission. These
 observer-only changes have regression coverage and do not alter live authority.
+
+## Campaign checkpoint, 2026-09-20 02:55 UTC
+
+PR #82 publishes repaired integration 0b996823162cb614b64b85fe36d4eb93e704fa20.
+Fresh campaign workflow 35485166791 is pending behind the original four-hour
+observation (35483374004, stage started 02:42:32 UTC), with no cancellation or
+process restart. The new run repeats full deterministic gates, smoke, then its
+own uninterrupted four-hour window. Its 1,084 local tests and all three Solana
+resource gates passed. The original smoke gate's acceptance of an empty frozen
+Ramses book is now explicitly a reviewed FAIL, preserving the original artifact.
+
+Read-only review 35485166749 succeeded against the latest smoke without market
+access. Reports are in results/smoke-35483374004-*.json; exact campaign, commit
+and artifact identities are in results/campaign-handoff-20260920T0255Z.json.
+Pons has 49 complete/fresh vectors from 161 observations, 112 censored/incomplete;
+88 of 139 timed returns met five seconds (63.31%), p95 7.008 seconds. Pump has
+only two complete vectors, 338 physical requests per complete observation;
+18 window-acquisition calls have p50 19.08 and p95 54.39 seconds. Meteora has
+eight incomplete attempts and zero complete economic vectors. Ramses has four
+finalized screening vectors, no natural lifecycle and the confirmed empty-start
+capacity defect. No lane has a natural settled outcome in this smoke.
+
+One Pons feature observation passes the preregistered prospective boundary;
+there are still zero joined forward outcomes. This is not statistical evidence
+of improved discrimination, returns or optimal thresholds. The ongoing and
+queued live campaigns retain their exact frozen implementations; this reporting
+commit changes neither and must not replace the queued integration head.
