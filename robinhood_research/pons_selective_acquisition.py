@@ -228,6 +228,39 @@ def _batched(endpoint,calls,scope,*,evidence_context=None):
     return out,telemetry
 
 
+def _window_events(candidate,tape):
+    end_block=int(candidate['block']);curve=candidate['curve'].lower()
+    raw=[event for event in tape if event.get('address','').lower()==curve
+         and int(event['blockNumber'],16)<=end_block]
+    return raw[-ENTRY_THRESHOLDS['max_market_events']*4:]
+
+
+def _window_prefetch(cache,candidate,tape,limit):
+    """Only fill spare slots of an already-required immutable state batch.
+
+    Authentication/normalization still runs in _authenticate_window. Cached
+    receipts must match both transaction and block identity before reuse.
+    """
+    if tape is None or limit<=0:return [],[]
+    raw=_window_events(candidate,tape);calls=[];labels=[]
+    for block_hash in dict.fromkeys(event['blockHash'] for event in raw):
+        if cache.header_by_hash(block_hash) is None:
+            calls.append(('eth_getBlockByHash',[block_hash,False]));labels.append(('header',block_hash))
+    for tx,block_hash in dict.fromkeys((event['transactionHash'],event['blockHash']) for event in raw):
+        if cache.receipt(tx,block_hash) is None:
+            calls.append(('eth_getTransactionReceipt',[tx]));labels.append(('receipt',(tx,block_hash)))
+    return calls[:limit],labels[:limit]
+
+
+def _remember_window_prefetch(cache,labels,values):
+    for (kind,key),value in zip(labels,values):
+        if kind=='header':
+            if value['hash']!=key:raise BoundaryError('selective_window_header_disagreement')
+            cache.remember_header(value)
+        else:
+            tx,block_hash=key;cache.remember_receipt(tx,block_hash,value)
+
+
 def _authenticate_window(
     endpoint,candidate,tape,seconds=60,*,evidence_context=None
 ):
@@ -243,13 +276,7 @@ def _authenticate_window(
     end_time=int(candidate["stamp"].event_at)
     end_block=int(candidate["block"])
     curve=candidate["curve"].lower()
-    raw=[
-        event for event in tape
-        if event.get("address","").lower()==curve
-        and int(event["blockNumber"],16)<=end_block
-    ]
-    if len(raw)>ENTRY_THRESHOLDS["max_market_events"]*4:
-        raw=raw[-ENTRY_THRESHOLDS["max_market_events"]*4:]
+    raw=_window_events(candidate,tape)
 
     hashes=list(dict.fromkeys(event["blockHash"] for event in raw))
     tx_rows=list(dict.fromkeys(
@@ -379,7 +406,7 @@ def _header_search(rpc,current_block,current_at,target_at,cache):
     return read(low)
 
 
-def _trajectory(endpoint,candidate,*,evidence_context=None):
+def _trajectory(endpoint,candidate,*,evidence_context=None,window_tape=None):
     """Resolve 5s/15s trajectory anchors from dense batched recent headers.
 
     The old binary search serialized one request per probe. This path walks recent
@@ -488,12 +515,18 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
             missing_blocks.append(block)
         else:
             reserve_by_block[block]=cached
-    reads=ctx.batch([
+    reserve_calls=[
         ("eth_call",[
             dict(to=curve,data=calldata("realQuoteReserve()")),hex(block)
         ])
         for block in missing_blocks
-    ],"pons_selective_trajectory") if missing_blocks else []
+    ]
+    extra_calls,extra_labels=_window_prefetch(cache,candidate,window_tape,
+        50-len(reserve_calls) if reserve_calls else 0)
+    combined=reserve_calls+extra_calls
+    reads=ctx.batch(combined,"pons_selective_trajectory") if combined else []
+    _remember_window_prefetch(cache,extra_labels,reads[len(reserve_calls):])
+    reads=reads[:len(reserve_calls)]
     for block,raw in zip(missing_blocks,reads):
         reserve_by_block[block]=cache.remember_real_quote(
             curve,block,_one_word(raw)
@@ -562,8 +595,9 @@ def evaluate_candidate(
     if candidate["decoded_event"]["decoded"]["name"]!="CurveBuy":
         raise BoundaryError("selective_nomination_not_buy")
 
+    tape=list(tape)
     snapshots,launch_at,trajectory_session=_trajectory(
-        endpoint,candidate,evidence_context=ctx
+        endpoint,candidate,evidence_context=ctx,window_tape=tape
     )
     sessions.append(trajectory_session)
     market,market_sessions=_authenticate_window(
