@@ -327,7 +327,7 @@ index 0000000..274abdb
 +    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
 +    return 'reconstruction_incomplete'
 diff --git a/meme_machine/pump_acceleration_history.py b/meme_machine/pump_acceleration_history.py
-index 0a774b1..c53fc14 100644
+index 0a774b1..23ccebe 100644
 --- a/meme_machine/pump_acceleration_history.py
 +++ b/meme_machine/pump_acceleration_history.py
 @@ -9,7 +9,7 @@ from __future__ import annotations
@@ -1205,7 +1205,7 @@ index 05dd96f..d73816f 100644
                      break
 diff --git a/meme_machine/solana_evidence_consumers.py b/meme_machine/solana_evidence_consumers.py
 new file mode 100644
-index 0000000..4dc1ee0
+index 0000000..f96d983
 --- /dev/null
 +++ b/meme_machine/solana_evidence_consumers.py
 @@ -0,0 +1,211 @@
