@@ -108,3 +108,25 @@ replay-compatible activity frequency; Pons stale fraction at comparable evaluate
 throughput; Ramses live completed scan/accounting publication and grant fairness.
 Lifecycle counters still require actual cost-complete durable settlement. An
 engineering result does not prove natural strategy execution or profitability.
+
+## Published handoff
+
+Repair commit: `ea019b381609c766afe1bb6a8e222928aef98252`.
+Exact reviewed tree: `7e5812f67bf00efed0a8e0bfd8cd0287faf4c568`.
+Draft PR91 targets `cert/one-hour-repair-campaign`; main and campaign head remain
+unchanged. The machine-readable handoff lists changed integration and operational
+overlay files, all four source SHAs, policy hashes, baseline and test evidence.
+
+| Lane | Baseline | Repaired live result |
+|---|---|---|
+| Pump | 1138 discovered / 235 complete / 0 qualified | Not measured; validation withheld |
+| Meteora | 559 discovered / 99 screened / 2 economic vectors / 0 qualified | Not measured; validation withheld |
+| Pons | 1189 evaluated / 836 vectors / 498 complete stale + 131 acquisition stale | Not measured; validation withheld |
+| Ramses | 10 completed scans / 5 active pools / 0 qualified | Not measured; validation withheld |
+
+No replacement workflow/run ID exists. Repository-triggered `paper-milestone`
+CI is offline (unit/resource/synthetic checks); its live diagnostics, auth smoke,
+postgrad live, longevity and forced-real-data jobs were confirmed skipped.
+No performance improvement, new sustainable capacity or natural lifecycle is
+claimed without the withheld prospective run. The next operator must preserve
+this pause and obtain renewed authorization before live validation.

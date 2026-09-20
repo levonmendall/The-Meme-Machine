@@ -113,6 +113,7 @@
     "certification/patches/ramses-admission.patch",
     "certification/pressure.py",
     "certification/report.py",
+    "certification/results/current-state-repair-handoff.json",
     "certification/results/current-state-repair-tests.json",
     "certification/results/hourly-review-35508695288.json",
     "certification/run.py",
@@ -164,5 +165,96 @@
     "lower frozen strategy/evidence gates",
     "sign or submit transactions",
     "merge to main"
-  ]
+  ],
+  "repair_commit_sha": "ea019b381609c766afe1bb6a8e222928aef98252",
+  "repair_tree_sha": "7e5812f67bf00efed0a8e0bfd8cd0287faf4c568",
+  "pull_request": 91,
+  "operational_overlay_changed_files": {
+    "pump": [
+      "meme_machine/pipeline.py",
+      "meme_machine/pump_acceleration_history.py",
+      "meme_machine/solana_evidence_broker.py",
+      "meme_machine/solana_evidence_consumers.py",
+      "tests/pump_acceleration_natural_prospective.py",
+      "tests/test_evidence_attribution.py",
+      "tests/test_opportunity_coverage.py"
+    ],
+    "meteora": [
+      "meme_machine/pipeline.py",
+      "meme_machine/solana_evidence_broker.py",
+      "meme_machine/solana_evidence_consumers.py",
+      "tests/solana_dlmm_independent_v1.py",
+      "tests/test_evidence_attribution.py",
+      "tests/test_opportunity_coverage.py"
+    ],
+    "pons": [
+      "robinhood_research/pipeline.py",
+      "robinhood_research/pons_natural_observation.py",
+      "robinhood_research/pons_selective_acquisition.py",
+      "robinhood_research/pons_selective_cohort.py",
+      "robinhood_research/provider_admission.py",
+      "robinhood_research/provider_topology.py",
+      "robinhood_tests/test_opportunity_coverage.py",
+      "robinhood_tests/test_provider_admission.py",
+      "robinhood_tests/test_selective_block_cache.py"
+    ],
+    "ramses": [
+      "robinhood_research/pipeline.py",
+      "robinhood_research/provider_admission.py",
+      "robinhood_research/provider_topology.py",
+      "robinhood_research/ramses_extended_test.py",
+      "robinhood_research/ramses_universe.py",
+      "robinhood_tests/test_opportunity_coverage.py",
+      "robinhood_tests/test_provider_admission.py",
+      "robinhood_tests/test_ramses_extended_market.py"
+    ]
+  },
+  "before_after": {
+    "pump": {
+      "before": {
+        "discovered": 1138,
+        "complete_observations": 235,
+        "qualified": 0,
+        "incomplete_second_leg_history": 54
+      },
+      "after_live": null,
+      "reason": "user_withheld_live_validation"
+    },
+    "meteora": {
+      "before": {
+        "discovered": 559,
+        "screened": 99,
+        "attempts": 52,
+        "complete_economic_vectors": 2,
+        "qualified": 0,
+        "trigger_timeouts": 36,
+        "acceleration_expired": 6,
+        "verified_zero_warmup": 5,
+        "warmup_unverified": 2,
+        "experiment_deadline": 1
+      },
+      "after_live": null,
+      "reason": "user_withheld_live_validation"
+    },
+    "pons": {
+      "before": {
+        "evaluated": 1189,
+        "complete_vectors": 836,
+        "distinct_stale_complete_observations": 498,
+        "stale_acquisition_failures": 131,
+        "nomination_denominator_unmeasured": true
+      },
+      "after_live": null,
+      "reason": "user_withheld_live_validation"
+    },
+    "ramses": {
+      "before": {
+        "completed_finalized_scans": 10,
+        "active_pools": 5,
+        "qualified": 0
+      },
+      "after_live": null,
+      "reason": "user_withheld_live_validation"
+    }
+  }
 }
