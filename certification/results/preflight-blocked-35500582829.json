@@ -1,0 +1,51 @@
+{
+  "schema": "four-lane-preflight-review-v1",
+  "reviewed_at": "2026-09-20T09:48:00Z",
+  "workflow_run_id": 35500582829,
+  "workflow_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/35500582829",
+  "integration_sha": "26511c5858fc47cb8ae2f1f6a547e451a7de135e",
+  "started_at": "2026-09-20T08:48:41Z",
+  "completed_at": "2026-09-20T08:50:42Z",
+  "result": "PREFLIGHT_BLOCKED_NO_MARKET_PROCESS_LAUNCHED",
+  "deterministic_gates": {
+    "passed": true,
+    "supervisor_tests": 42,
+    "lane_tests": 1091,
+    "resource_gates": 3,
+    "implementation_hash": "d00f774354c81501c986be899f383ce8d4a4a7593b8fc17e39189646a61bcaaa",
+    "source_manifest_hash": "68006c75fb58ec6562b8b1745f0c4d9cf0819ad6e039fc627721761b4907f34a"
+  },
+  "contention_preflight": {
+    "passed": false,
+    "lane_heads_changed": [],
+    "conflicting_run_id": 35500216681,
+    "conflicting_job_id": 106050553206,
+    "conflicting_job_name": "live-diagnostic",
+    "conflicting_branch": "repair/solana-consumer-scheduling",
+    "conflicting_sha": "110dbf34b054daf7a35c72d94196ec7ff0c2c331",
+    "conflicting_run_terminal_at": "2026-09-20T09:37:04Z",
+    "conflicting_run_terminal_result": "success"
+  },
+  "smoke": {
+    "launched": false,
+    "live_check_published": false
+  },
+  "hourly": {
+    "launched": false,
+    "live_check_published": false
+  },
+  "lane_uptime": null,
+  "lane_restarts": null,
+  "natural_settled": null,
+  "forced_settled": null,
+  "accounting": null,
+  "note": "Unknown is retained because no lane process launched; this run provides deterministic gate evidence only and is not a smoke or one-hour observation.",
+  "artifact": {
+    "id": 10602655308,
+    "size_bytes": 36431,
+    "digest": "sha256:b09903313ef83f7a0ccb9a90618cc3fe6e6162c1b24943a80c0706bc05a71950"
+  },
+  "repair_required": false,
+  "relaunch_allowed": true,
+  "relaunch_reason": "The contention guard behaved correctly and the conflicting market job has now ended."
+}

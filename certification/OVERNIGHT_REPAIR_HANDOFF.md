@@ -136,3 +136,21 @@ exact-revision gates passed 261 Pump, 366 Meteora, 226 Pons and 238 Ramses
 tests (1,091 total), 42 supervisor tests, and all three resource gates. The
 hosted workflow must independently repeat those gates and pass its own
 600-second smoke before cycle 2's one-hour clock begins.
+
+## Cycle 2 preflight block
+
+Run [35500582829](https://github.com/levonmendall/The-Meme-Machine/actions/runs/35500582829)
+at exact integration `26511c5858fc47cb8ae2f1f6a547e451a7de135e`
+passed all 42 supervisor tests, 1,091 lane tests and three resource gates. The
+contention guard then correctly stopped it before smoke because repair-branch
+run 35500216681 still had live-diagnostic job 106050553206 in progress. No lane
+process launched, so uptime, settlements and accounting are unknown/not
+applicable—not zero or successful. Artifact 10602655308 preserves the gates and
+preflight record; its digest is
+`sha256:b09903313ef83f7a0ccb9a90618cc3fe6e6162c1b24943a80c0706bc05a71950`.
+
+The conflicting diagnostic completed successfully at 2026-09-20T09:37:04Z.
+This is not an implementation defect and the guard must not be weakened. A new
+independent workflow may now rerun exact-revision gates and begin a fresh smoke;
+future repair-branch pushes during this campaign must carry the qualification
+marker so legacy live diagnostics do not start alongside certification.
