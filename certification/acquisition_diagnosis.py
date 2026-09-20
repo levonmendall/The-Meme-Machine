@@ -10,7 +10,7 @@ def inspect(root):
     for lane,file,fields in (
         ('pump','pump-acceleration-natural-prospective.json',('postgrad','attempts','pumpswap_stream','limitations')),
         ('meteora','solana-dlmm-independent-v1-live.json',('attempts','qualification_failure_counts','limitations')),
-        ('pons','pons-selective-continuation-v1-cohort.json',('summary',))):
+        ('pons','pons-selective-continuation-v1-cohort.json',('summary','lifecycles','cohort_accounting','limitations'))):
         path=root/lane/file
         if not path.exists():continue
         report=json.loads(path.read_text());out[lane]={k:report.get(k) for k in fields}
