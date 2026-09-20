@@ -35,10 +35,13 @@ class IncrementalPumpSwapHistory:
         self.pages=0
         self.refreshes=0
         self.tx_failures=0
+        self.hydration_budget_exhaustions=0
+        self.research_deferred_refreshes=0
         self.broker=broker
         self.stream_key=str(stream_key)
         self.history_scope="pumpswap_history"
         self.stream_pending_transactions=0
+        self._pending_stream_slots={}
         self.stream_events_seen=0
         self.stream_hydrated_transactions=0
         self.stream_last_slot=0
@@ -174,6 +177,7 @@ class IncrementalPumpSwapHistory:
             slot_by_sig[sig]=int(row["slot"])
             self.stream_last_slot=max(self.stream_last_slot,int(row["slot"]))
         if not signatures:
+            self._pending_stream_slots={}
             self.stream_pending_transactions=0
             return
         txs,meta=self.broker.hydrate_transactions(
@@ -181,27 +185,36 @@ class IncrementalPumpSwapHistory:
             deadline=time.time()+4.0,max_version=1,batch_size=8)
         self.stream_pending_transactions=int(meta["pending"])
         self.stream_hydrated_transactions+=int(meta["hydrated"])
+        self._pending_stream_slots={sig:slot_by_sig[sig] for sig in signatures
+                                    if not isinstance(txs.get(sig),dict)}
         for sig in signatures:
-            tx=txs.get(sig)
-            if not isinstance(tx,dict):
-                continue
-            bt=tx.get("blockTime")
-            if type(bt) is not int or not cutoff-2<=int(bt)<=now:
-                continue
-            row=dict(
-                signature=sig,slot=int(tx.get("slot") or slot_by_sig[sig]),
-                blockTime=int(bt),err=(tx.get("meta") or {}).get("err"),
-                confirmationStatus="finalized",
-            )
-            self._remember([row])
-            if sig in self.processed or row.get("err"):
-                continue
-            self.processed.add(sig)
-            for event in pumpswap_trade_events(tx):
-                if event.get("pool")!=self.pool:
-                    continue
-                event["id"]=f'{sig}:{event["index"]}'
-                self.events[event["id"]]=event
+            self._accept_stream_transaction(sig,slot_by_sig[sig],txs.get(sig),now,window_seconds)
+
+    def _accept_stream_transaction(self,sig,slot,tx,now,window_seconds=30):
+        if not isinstance(tx,dict):return
+        bt=tx.get("blockTime");cutoff=int(now)-int(window_seconds)
+        if type(bt) is not int or not cutoff-2<=int(bt)<=int(now):return
+        row=dict(signature=sig,slot=int(tx.get("slot") or slot),blockTime=int(bt),
+                 err=(tx.get("meta") or {}).get("err"),confirmationStatus="finalized")
+        self._remember([row])
+        if sig in self.processed or row.get("err"):return
+        self.processed.add(sig)
+        for event in pumpswap_trade_events(tx):
+            if event.get("pool")!=self.pool:continue
+            event["id"]=f'{sig}:{event["index"]}'
+            self.events[event["id"]]=event
+
+    def _refresh_cached_stream(self,now):
+        # Another chunk/lane may have completed the exact same immutable body.
+        # Reconcile captured misses before failing the window; never issue an RPC
+        # or infer missing economics merely because a signature is known.
+        for sig,slot in list(self._pending_stream_slots.items()):
+            tx=self.broker.get_transaction(sig)
+            if not isinstance(tx,dict):continue
+            self._accept_stream_transaction(sig,slot,tx,now)
+            del self._pending_stream_slots[sig]
+            self.stream_hydrated_transactions+=1
+        self.stream_pending_transactions=len(self._pending_stream_slots)
 
     def _stream_window_complete(self,now,window_seconds=30):
         if self.broker is None:
@@ -315,13 +328,17 @@ class IncrementalPumpSwapHistory:
             pending=recent[:self.max_tx_per_refresh]
         else:
             pending=older[:self.max_tx_per_refresh]
+        hydration_deadline=time.time()+6.0
         for start in range(0,len(pending),16):
+            if self.broker is not None and time.time()>=hydration_deadline:
+                self.hydration_budget_exhaustions+=1
+                break
             chunk=pending[start:start+16]
             signatures=[str(r["signature"]) for r in chunk]
             if self.broker is not None:
                 txmap,meta=self.broker.hydrate_transactions(
                     rpc,signatures,kind=str(kind),
-                    deadline=time.time()+6.0,max_version=1,batch_size=8)
+                    deadline=hydration_deadline,max_version=1,batch_size=8)
                 txs=[txmap.get(sig) for sig in signatures]
                 self.tx_failures+=int(meta["pending"])
             else:
@@ -406,10 +423,14 @@ class IncrementalPumpSwapHistory:
                 self._bootstrap_decision_window(rpc,now,30)
                 self._decode_pending(
                     rpc,now,kind=str(hydration_kind))
-            if research:
+            self._refresh_cached_stream(now)
+            if research and not self.decision_window_status(now,30)["complete"]:
+                self.research_deferred_refreshes+=1
+            if research and self.decision_window_status(now,30)["complete"]:
                 self._new_head(rpc)
                 self._backfill(rpc)
                 self._decode_pending(rpc,now,kind="research_history")
+                self._refresh_cached_stream(now)
         else:
             self._new_head(rpc)
             self._backfill(rpc)
@@ -454,6 +475,8 @@ class IncrementalPumpSwapHistory:
             events=len(self.events),pages=self.pages,refreshes=self.refreshes,
             unknown_block_times=self.unknown_block_times,
             transaction_failures=self.tx_failures,
+            hydration_budget_exhaustions=self.hydration_budget_exhaustions,
+            research_deferred_refreshes=self.research_deferred_refreshes,
             stream_pending_transactions=self.stream_pending_transactions,
             stream_events_seen=self.stream_events_seen,
             stream_hydrated_transactions=self.stream_hydrated_transactions,
