@@ -38,6 +38,16 @@ jobs:
           git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/meteora-checkpoint.patch"
           (cd "$WORKTREE" && python -m unittest tests.test_dlmm_alchemy_provider tests.test_solana_dlmm_independent_v1 -v)
           (cd "$WORKTREE" && python -m tests.dlmm_resource_check)
+      - name: Validate qualification Pons overlay
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
+        run: |
+          PONS_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["pons"]["source_sha"])')"
+          WORKTREE="$(mktemp -d)/pons"
+          git fetch origin "$PONS_SHA"
+          git worktree add --detach "$WORKTREE" "$PONS_SHA"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/pons-cohort-capital.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/pons-cohort-capital.patch"
+          (cd "$WORKTREE" && python -m unittest             robinhood_tests.test_pons_partial_accounting             robinhood_tests.test_pons_position_provider_recovery             robinhood_tests.test_pons_cohort_capital             robinhood_tests.test_pons_selective_continuation -v)
       - run: python -m unittest discover -v
       - run: python -m tests.resource_check
       - run: python -m tests.make_tape && python -m meme_machine --mode synthetic --config config.synthetic.json --db /tmp/meme-ci.db --tape tests/fixtures/synthetic_lifecycle.jsonl
