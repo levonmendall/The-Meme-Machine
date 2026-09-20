@@ -33,7 +33,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             p["range"]["warmup_alignment"]["qualifying_window_seconds"],12)
         self.assertTrue(p["regime"]["fresh_swap_trigger"]["required"])
         self.assertEqual(
-            p["regime"]["fresh_swap_trigger"]["max_wait_seconds"],60)
+            p["regime"]["fresh_swap_trigger"]["max_wait_seconds"],120)
         self.assertEqual(
             p["regime"]["dynamic_fee_uplift_role"],
             "context_only_not_entry_veto")
@@ -52,7 +52,9 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             p["evidence_acquisition"]["interval_transaction_bound"],16)
         self.assertFalse(
             p["evidence_acquisition"]["strategy_thresholds_changed"])
-        self.assertEqual(p["revision"],"1.7")
+        self.assertEqual(p["revision"],"1.8-execution-certification-v1")
+        self.assertFalse(p["execution_certification"]["profitability_authority"])
+        self.assertTrue(p["execution_certification"]["freshness_finality_unchanged"])
 
     def test_strategy_import_graph_contains_no_strategy_dependency(self):
         path=Path("tests/solana_dlmm_independent_v1.py")
@@ -313,26 +315,25 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
     def test_qualification_requires_fee_event_flow_capacity_and_unwind(self):
         p=strategy.load_policy()
         base=dict(
-            volume_acceleration=2.0,
-            fee_acceleration=1.25,
-            dynamic_fee_uplift=1.25,
-            competing_liquidity_to_capital_multiple=10.0,
-            two_way_balance=0.50,
-            drift_ratio=0.50,
-            reversal_count=1,
-            stress_inventory_roundtrip={"loss_bps":70.0},
-            expected_net_lamports=100000,
+            volume_acceleration=1.25,
+            fee_acceleration=1.0,
+            dynamic_fee_uplift=1.0,
+            competing_liquidity_to_capital_multiple=5.0,
+            two_way_balance=0.25,
+            drift_ratio=0.75,
+            reversal_count=0,
+            stress_inventory_roundtrip={"loss_bps":150.0},
+            expected_net_lamports=-200000,
         )
         self.assertTrue(strategy.qualify(base,p)["passes"])
         mutations={
-            "volume_acceleration":{"volume_acceleration":1.99},
-            "fee_acceleration":{"fee_acceleration":1.24},
-            "capacity":{"competing_liquidity_to_capital_multiple":9.99},
-            "two_way":{"two_way_balance":0.49},
-            "drift":{"drift_ratio":0.5001},
-            "reversal":{"reversal_count":0},
-            "unwind":{"stress_inventory_roundtrip":{"loss_bps":70.01}},
-            "expected_net":{"expected_net_lamports":99999},
+            "volume_acceleration":{"volume_acceleration":1.24},
+            "fee_acceleration":{"fee_acceleration":0.99},
+            "capacity":{"competing_liquidity_to_capital_multiple":4.99},
+            "two_way":{"two_way_balance":0.24},
+            "drift":{"drift_ratio":0.7501},
+            "unwind":{"stress_inventory_roundtrip":{"loss_bps":150.01}},
+            "expected_net":{"expected_net_lamports":-200001},
         }
         for expected,change in mutations.items():
             row=dict(base);row.update(change)
@@ -343,6 +344,9 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         low_dynamic["dynamic_fee_uplift"]=0.10
         decision=strategy.qualify(low_dynamic,p)
         self.assertTrue(decision["passes"])
+        no_reversal=dict(base)
+        no_reversal["reversal_count"]=0
+        self.assertTrue(strategy.qualify(no_reversal,p)["passes"])
         self.assertNotIn("dynamic_fee",decision["checks"])
 
     def test_fresh_authenticated_swap_trigger_starts_exact_12s_warmup(self):
