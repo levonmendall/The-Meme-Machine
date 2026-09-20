@@ -1,0 +1,28 @@
+{
+  "schema": "evidence-scheduling-candidate-v1",
+  "status": "DETERMINISTIC_VERIFIED_LIVE_VALIDATION_PENDING",
+  "paper_only": true,
+  "running_revision_unchanged": "f7ee2b13036abb0171e0001608d589b51d28947e",
+  "running_workflow_unchanged": 35489724704,
+  "pump_repair": "4d094388b3101f1e8ff11357ac8a044b0ef75c63",
+  "meteora_repair": "686e1938da1ba1a275b65fe1e7be0694ce697a04",
+  "tests": {"pump": 259, "meteora": 364, "supervisor": 38, "solana_resource_gates_passed": 3},
+  "comparison": {
+    "kind": "synthetic_no_provider_requests",
+    "transport_cap_per_second": 2,
+    "signatures": 80,
+    "arrival_window_seconds": 10,
+    "decision_acquisition_seconds": 4,
+    "burst_hydrated": 64,
+    "incremental_hydrated": 80,
+    "incremental_decision_transports": 0,
+    "burst_total_batches": 8,
+    "incremental_total_batches": 10,
+    "rpc_efficiency_improvement_claimed": false
+  },
+  "overload": {"signatures": 2000, "explicitly_censored": 1936, "maximum_admitted_job_rows": 72},
+  "new_provider_added": false,
+  "new_live_run_started": false,
+  "natural_settlement_or_profitability_claimed": false,
+  "limitations": ["live_throughput_comparison_pending", "new_consumer_trail_live_resource_ceiling_unproven", "no_new_natural_execution_proof"]
+}

@@ -166,7 +166,9 @@ class Observer:
             else:
                 methods=[args[0]];wire=[(args[0],args[1])]
             try:
-                queue_wait=(observer.governor.acquire(network,observer.lane,getattr(observer.context,"priority",50))
+                priority=getattr(observer.context,"priority",50)
+                if priority!=0:priority=getattr(instance,'evidence_priority',priority)
+                queue_wait=(observer.governor.acquire(network,observer.lane,priority)
                             if solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB") else None)
                 transport_started=time.monotonic_ns()
                 result=original(instance,*args,**kwargs)

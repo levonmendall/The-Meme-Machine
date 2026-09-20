@@ -232,10 +232,43 @@ index 0000000..8f200e6
 +                    checked+=1
 +        return dict(verified=True,checked_economic_events=checked,authentication='existing_lane_verified_tapes',raw_chain_reauthentication=False)
 diff --git a/meme_machine/solana_evidence_broker.py b/meme_machine/solana_evidence_broker.py
-index 05dd96f..830f367 100644
+index 05dd96f..17dccd9 100644
 --- a/meme_machine/solana_evidence_broker.py
 +++ b/meme_machine/solana_evidence_broker.py
-@@ -472,17 +472,26 @@ class EvidenceBroker:
+@@ -16,6 +16,7 @@ from pathlib import Path
+ from websockets.sync.client import connect
+ 
+ from .provider import Unavailable
++from .solana_evidence_consumers import EvidenceConsumers
+ 
+ 
+ DEFAULT_BROKER_DB = "solana-evidence-broker.sqlite3"
+@@ -29,6 +30,7 @@ PRIORITY = {
+     "pump_window": 20,
+     "dlmm_fresh": 30,
+     "research_history": 90,
++    "stream_prefetch": 90,
+ }
+ 
+ 
+@@ -54,6 +56,7 @@ class EvidenceBroker:
+         self.db.execute("PRAGMA journal_mode=WAL")
+         self.db.execute("PRAGMA synchronous=NORMAL")
+         self._init_schema()
++        self.consumers = EvidenceConsumers(self)
+ 
+     def _init_schema(self):
+         with self.lock, self.db:
+@@ -333,7 +336,7 @@ class EvidenceBroker:
+                     None if type(slot) is not int else int(slot),
+                     None if type(block_time) is not int else int(block_time),
+                     body,
+-                    int(self.clock()),
++                    float(self.clock()),
+                 ),
+             )
+             count = self.db.execute("SELECT COUNT(*) FROM tx_cache").fetchone()[0]
+@@ -472,17 +475,26 @@ class EvidenceBroker:
                     ON CONFLICT(job_key) DO UPDATE SET
                       kind=CASE
                         WHEN jobs.status IN ('complete','expired')
@@ -262,7 +295,7 @@ index 05dd96f..830f367 100644
                           THEN excluded.deadline
                         ELSE MIN(jobs.deadline,excluded.deadline)
                       END,
-@@ -501,6 +510,9 @@ class EvidenceBroker:
+@@ -501,6 +513,9 @@ class EvidenceBroker:
                       END,
                       created_at=CASE
                         WHEN jobs.status IN ('complete','expired')
@@ -272,7 +305,7 @@ index 05dd96f..830f367 100644
                           THEN excluded.created_at
                         ELSE jobs.created_at
                       END,
-@@ -518,7 +530,12 @@ class EvidenceBroker:
+@@ -518,7 +533,12 @@ class EvidenceBroker:
              return True
  
      def _claim_jobs(self, limit, now=None, lease_seconds=15.0):
@@ -286,7 +319,7 @@ index 05dd96f..830f367 100644
          limit=max(1,int(limit))
          now=float(self.clock() if now is None else now)
          lease_until=now+max(1.0,float(lease_seconds))
-@@ -527,8 +544,9 @@ class EvidenceBroker:
+@@ -527,8 +547,9 @@ class EvidenceBroker:
                  self.db.execute("BEGIN IMMEDIATE")
                  self.db.execute(
                      """UPDATE jobs SET status='expired',lease_until=NULL,updated_at=?
@@ -298,7 +331,7 @@ index 05dd96f..830f367 100644
                  )
                  self.db.execute(
                      """DELETE FROM jobs
-@@ -545,7 +563,8 @@ class EvidenceBroker:
+@@ -545,7 +566,8 @@ class EvidenceBroker:
                  rows=self.db.execute(
                      """SELECT job_key,payload FROM jobs
                         WHERE status='pending' AND deadline>=?
@@ -308,8 +341,385 @@ index 05dd96f..830f367 100644
                      (now,limit),
                  ).fetchall()
                  if rows:
+@@ -596,7 +618,8 @@ class EvidenceBroker:
+             )
+ 
+     def hydrate_transactions(
+-        self, rpc, signatures, *, kind, deadline=None, max_version=1, batch_size=8
++        self, rpc, signatures, *, kind, deadline=None, max_version=1, batch_size=8,
++        owner=None, max_batches=None
+     ):
+         deadline = float(self.clock()) + 30.0 if deadline is None else float(deadline)
+         requested = []
+@@ -606,22 +629,34 @@ class EvidenceBroker:
+             if sig and sig not in seen:
+                 seen.add(sig)
+                 requested.append(sig)
+-                if self.get_transaction(sig) is None:
+-                    self.queue_transaction(
+-                        sig, kind=kind, deadline=deadline, max_version=max_version
+-                    )
++        if owner is not False:
++            owner = owner or f'{kind}:request:{deadline!r}'
++            self.consumers.register(owner, requested, kind, deadline)
+ 
++        batches = 0
+         while float(self.clock()) < deadline:
+             remaining = [sig for sig in requested if self.get_transaction(sig) is None]
+             if not remaining:
+                 break
++            if max_batches is not None and batches >= max_batches:
++                break
+             p=self._pressure()
++            # Logical consumer interest is durable for every missing signature, but
++            # only the next physically serviceable batch enters the transport queue.
++            capacity=max(1,min(int(batch_size),p['batch_size']))
++            if hasattr(rpc,'calls') and hasattr(rpc,'limit'):
++                capacity=min(capacity,max(0,int(rpc.limit)-int(rpc.calls)))
++                if capacity==0:
++                    self.consumers.failure('local_request_budget_exhausted')
++                    break
++            for sig in remaining[:capacity]:
++                self.queue_transaction(sig,kind=kind,deadline=deadline,max_version=max_version)
+             reserved=self._reserve_hydration_transport(deadline)
+             if reserved is None:
+                 break
+             p=self._pressure()
+             jobs=self._claim_jobs(
+-                max(1,min(int(batch_size),p["batch_size"])),
++                max(1,min(capacity,p["batch_size"])),
+                 float(self.clock()),
+                 lease_seconds=max(
+                     15.0,min(60.0,deadline-float(self.clock())+5.0)),
+@@ -639,6 +674,13 @@ class EvidenceBroker:
+                     ),
+                 ),
+             ] for row in payloads]
++            prior_failures=dict(getattr(rpc,'failure_methods',{}) or {})
++            batches+=1
++            previous_priority=getattr(rpc,'evidence_priority',None)
++            with self.lock:
++                priority=min(self.db.execute('SELECT priority FROM jobs WHERE job_key=?',
++                    (row[0],)).fetchone()[0] for row in jobs)
++            rpc.evidence_priority=priority
+             try:
+                 values = rpc.call_many(
+                     "getTransaction",
+@@ -646,10 +688,22 @@ class EvidenceBroker:
+                     True,
+                     batch_size=max(1, min(len(params), p["batch_size"], int(batch_size))),
+                 )
+-            except Unavailable:
++            except Unavailable as exc:
+                 self._release_jobs([row[0] for row in jobs])
+-                self._note_pressure_failure()
++                failures=getattr(rpc,'failure_methods',{}) or {}
++                throttled=('429' in str(exc) or any('429' in key and
++                    value>prior_failures.get(key,0) for key,value in failures.items()))
++                reason=('provider_rate_limited' if throttled else
++                        'local_request_budget_exhausted' if str(exc)=='provider_budget_exhausted'
++                        else 'provider_unavailable')
++                self.consumers.failure(reason)
++                if throttled:self._note_pressure_failure()
+                 break
++            finally:
++                if previous_priority is None:
++                    del rpc.evidence_priority
++                else:
++                    rpc.evidence_priority=previous_priority
+             completed = []
+             for job, row, tx in zip(jobs, payloads, values):
+                 if isinstance(tx, dict):
+@@ -667,11 +721,13 @@ class EvidenceBroker:
+ 
+         result = {sig: self.get_transaction(sig) for sig in requested}
+         pending = [sig for sig, tx in result.items() if tx is None]
++        self.consumers.settle()
+         return result, dict(
+             requested=len(requested),
+             hydrated=len(requested) - len(pending),
+             pending=len(pending),
+             pressure=self._pressure(),
++            acquisition_batches=batches,
+         )
+ 
+     def cursor(self, name):
+@@ -824,6 +880,7 @@ class EvidenceBroker:
+             stream_events=int(events),
+             signature_rows=int(signatures),
+             pressure=self._pressure(),
++            consumer_work=self.consumers.telemetry(),
+         )
+ 
+ 
+@@ -967,7 +1024,8 @@ class DynamicAddressLogStream:
+     """
+ 
+     def __init__(
+-        self, ws_url, broker, stream_prefix, *, coverage_seconds=30, clock=time.time
++        self, ws_url, broker, stream_prefix, *, coverage_seconds=30, clock=time.time,
++        prefetch=False
+     ):
+         self.ws_url=str(ws_url)
+         self.broker=broker
+@@ -980,6 +1038,7 @@ class DynamicAddressLogStream:
+         self.reconnects=0
+         self.last_error_kind=None
+         self.active_subscriptions=0
++        self.prefetch=bool(prefetch)
+ 
+     def stream_key(self,address):
+         return self.stream_prefix+":"+str(address)
+@@ -992,6 +1051,13 @@ class DynamicAddressLogStream:
+             self.addresses.add(address)
+         return self.stream_key(address)
+ 
++    def remove_address(self,address):
++        """Release an expired candidate subscription; open positions retain theirs."""
++        with self.lock:
++            self.addresses.discard(str(address))
++        if self.prefetch:
++            self.broker.consumers.settle(self.stream_key(address),'consumer_retired')
++
+     def wanted_addresses(self):
+         with self.lock:
+             return sorted(self.addresses)
+@@ -1015,6 +1081,8 @@ class DynamicAddressLogStream:
+                     close_timeout=5,max_size=2_000_000,max_queue=256,
+                 ) as websocket:
+                     pending={}
++                    retiring={}
++                    retired_subscriptions=[]
+                     by_address={}
+                     by_subscription={}
+                     next_id=1
+@@ -1028,6 +1096,12 @@ class DynamicAddressLogStream:
+ 
+                     while not stop_event.is_set():
+                         wanted=self.wanted_addresses()
++                        for address,subscription in list(by_address.items()):
++                            if address not in wanted and address not in retiring.values():
++                                request_id=next_id;next_id+=1
++                                websocket.send(json.dumps(dict(jsonrpc="2.0",id=request_id,
++                                    method="logsUnsubscribe",params=[subscription])))
++                                retiring[request_id]=address
+                         known=set(by_address)|set(pending.values())
+                         for address in [a for a in wanted if a not in known][:16]:
+                             request_id=next_id;next_id+=1
+@@ -1048,12 +1122,25 @@ class DynamicAddressLogStream:
+                         payload=json.loads(message)
+                         if "id" in payload:
+                             request_id=payload.get("id")
++                            if request_id in retiring:
++                                address=retiring.pop(request_id)
++                                if payload.get("error") or payload.get("result") is not True:
++                                    raise RuntimeError("address_log_unsubscription_rejected")
++                                subscription=by_address.pop(address)
++                                by_subscription.pop(subscription)
++                                retired_subscriptions.append(subscription)
++                                retired_subscriptions=retired_subscriptions[-512:]
++                                active_addresses=list(by_address)
++                                self.active_subscriptions=len(by_address)
++                                self.broker.stream_stop(self.stream_key(address))
++                                continue
+                             address=pending.pop(request_id,None)
+                             if address is None:
+                                 continue
+                             if payload.get("error") or not isinstance(payload.get("result"),int):
+                                 raise RuntimeError("address_log_subscription_rejected")
+                             subscription=int(payload["result"])
++                            retired_subscriptions=[s for s in retired_subscriptions if s!=subscription]
+                             by_address[address]=subscription
+                             by_subscription[subscription]=address
+                             active_addresses=list(by_address)
+@@ -1064,6 +1151,8 @@ class DynamicAddressLogStream:
+                         if payload.get("method")!="logsNotification":
+                             continue
+                         params=payload.get("params") or {}
++                        if params.get("subscription") in retired_subscriptions:
++                            continue  # In-flight notification from an acknowledged retirement.
+                         address=by_subscription.get(params.get("subscription"))
+                         if address is None:
+                             raise RuntimeError("address_log_unknown_subscription")
+@@ -1077,6 +1166,13 @@ class DynamicAddressLogStream:
+                             slot=int(result["context"]["slot"]),
+                             observed_at=int(self.clock()),
+                         )
++                        if self.prefetch:
++                            # Do not resurrect an owner while unsubscribe is pending.
++                            with self.lock:
++                                if address in self.addresses:
++                                    self.broker.consumers.register(
++                                        self.stream_key(address),[value['signature']],
++                                        'stream_prefetch',float(self.clock())+self.coverage_seconds+2)
+             except Exception as exc:
+                 if stop_event.is_set():
+                     break
+diff --git a/meme_machine/solana_evidence_consumers.py b/meme_machine/solana_evidence_consumers.py
+new file mode 100644
+index 0000000..b0b2c0b
+--- /dev/null
++++ b/meme_machine/solana_evidence_consumers.py
+@@ -0,0 +1,157 @@
++"""Consumer ownership for immutable evidence; never strategy or freshness authority."""
++from __future__ import annotations
++
++import threading
++
++
++class EvidenceConsumers:
++    def __init__(self, broker):
++        self.broker = broker
++        with broker.lock, broker.db:
++            broker.db.executescript('''
++                CREATE TABLE IF NOT EXISTS evidence_consumers(
++                    owner TEXT NOT NULL, signature TEXT NOT NULL, kind TEXT NOT NULL,
++                    deadline REAL NOT NULL, created_at REAL NOT NULL,
++                    state TEXT NOT NULL DEFAULT 'waiting',
++                    PRIMARY KEY(owner,signature));
++                CREATE INDEX IF NOT EXISTS consumers_ready
++                    ON evidence_consumers(state,kind,deadline);
++                CREATE TABLE IF NOT EXISTS evidence_terminals(
++                    id INTEGER PRIMARY KEY, owner TEXT NOT NULL, signature TEXT NOT NULL,
++                    kind TEXT NOT NULL, deadline REAL NOT NULL, observed_at REAL NOT NULL,
++                    reason TEXT NOT NULL, UNIQUE(owner,signature));
++                CREATE TABLE IF NOT EXISTS hydration_failures(
++                    reason TEXT PRIMARY KEY, count INTEGER NOT NULL);
++                CREATE TRIGGER IF NOT EXISTS evidence_terminals_no_update
++                    BEFORE UPDATE ON evidence_terminals BEGIN
++                    SELECT RAISE(ABORT,'append_only_evidence_terminals'); END;
++                CREATE TRIGGER IF NOT EXISTS evidence_terminals_no_delete
++                    BEFORE DELETE ON evidence_terminals BEGIN
++                    SELECT RAISE(ABORT,'append_only_evidence_terminals'); END;
++            ''')
++
++    def register(self, owner, signatures, kind, deadline):
++        b = self.broker
++        now = float(b.clock())
++        with b.lock, b.db:
++            # A repeated request cannot rejuvenate this consumer's original deadline.
++            b.db.executemany('INSERT OR IGNORE INTO evidence_consumers '
++                            '(owner,signature,kind,deadline,created_at) VALUES(?,?,?,?,?)',
++                            [(str(owner), str(s), str(kind), float(deadline), now)
++                             for s in dict.fromkeys(signatures)])
++
++    def settle(self, owner=None, reason=None):
++        b = self.broker
++        now = float(b.clock())
++        with b.lock, b.db:
++            # Cache completion takes precedence only if it was acquired before the
++            # consumer deadline. A late immutable transaction can serve a later consumer.
++            b.db.execute('''INSERT OR IGNORE INTO evidence_terminals
++                (owner,signature,kind,deadline,observed_at,reason)
++                SELECT owner,signature,kind,deadline,?, 'evidence_complete'
++                FROM evidence_consumers c WHERE state='waiting' AND EXISTS
++                    (SELECT 1 FROM tx_cache t WHERE t.signature=c.signature
++                     AND t.cached_at<=c.deadline)''', (now,))
++            if owner is not None:
++                b.db.execute('''INSERT OR IGNORE INTO evidence_terminals
++                    (owner,signature,kind,deadline,observed_at,reason)
++                    SELECT owner,signature,kind,deadline,?,? FROM evidence_consumers
++                    WHERE state='waiting' AND owner=?''', (now, str(reason), str(owner)))
++            b.db.execute('''INSERT OR IGNORE INTO evidence_terminals
++                (owner,signature,kind,deadline,observed_at,reason)
++                SELECT owner,signature,kind,deadline,?, 'consumer_deadline_expired'
++                FROM evidence_consumers WHERE state='waiting' AND deadline<?''', (now, now))
++            b.db.execute('''UPDATE evidence_consumers SET state=(SELECT reason
++                FROM evidence_terminals t WHERE t.owner=evidence_consumers.owner
++                    AND t.signature=evidence_consumers.signature)
++                WHERE state='waiting' AND EXISTS(SELECT 1 FROM evidence_terminals t
++                    WHERE t.owner=evidence_consumers.owner
++                        AND t.signature=evidence_consumers.signature)''')
++
++    def batch(self, limit=8):
++        self.settle()
++        b = self.broker
++        with b.lock:
++            # Only already subscribed pool streams may use background acquisition.
++            # Other consumers retain their lane's synchronous authentication path.
++            rows = b.db.execute('''SELECT c.signature, MIN(c.deadline)
++                FROM evidence_consumers c WHERE c.state='waiting'
++                  AND c.kind='stream_prefetch' AND c.deadline>?
++                  AND NOT EXISTS(SELECT 1 FROM tx_cache t WHERE t.signature=c.signature)
++                GROUP BY c.signature ORDER BY MIN(c.deadline),c.signature LIMIT ?''',
++                (float(b.clock()), max(1, min(8, int(limit))))).fetchall()
++        return rows
++
++    def failure(self, reason):
++        b = self.broker
++        with b.lock, b.db:
++            b.db.execute('INSERT INTO hydration_failures VALUES(?,1) '
++                         'ON CONFLICT(reason) DO UPDATE SET count=count+1', (reason,))
++
++    def telemetry(self):
++        self.settle()
++        b = self.broker
++        with b.lock:
++            rows = b.db.execute('SELECT kind,state,COUNT(*) FROM evidence_consumers '
++                                'GROUP BY kind,state').fetchall()
++            failures = dict(b.db.execute('SELECT reason,count FROM hydration_failures'))
++            overdue = b.db.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('pending','inflight') "
++                                   'AND deadline<?', (float(b.clock()),)).fetchone()[0]
++        return dict(scope='shared_solana_broker; not additive across lanes',
++                    consumers=[dict(kind=k, state=s, count=n) for k,s,n in rows],
++                    by_kind={k:{s:n for kind,s,n in rows if kind==k}
++                             for k in sorted({kind for kind,_,_ in rows})},
++                    acquisition_failures=failures, overdue_active_jobs=overdue)
++
++
++class StreamEvidenceService:
++    """One incremental reader; provider pacing and foreground priority still apply."""
++    def __init__(self, broker, rpc_factory):
++        self.broker, self.rpc_factory = broker, rpc_factory
++        self.stop = threading.Event()
++        self.thread = None
++        self.error = None
++        self.rpc = None
++        self.sessions = []
++
++    def step(self):
++        rows = self.broker.consumers.batch()
++        if not rows:
++            return False
++        if self.rpc is None or self.rpc.calls + len(rows) + 8 > self.rpc.limit:
++            if self.rpc is not None:
++                self.sessions.append(self.rpc.provider_telemetry())
++            self.rpc = self.rpc_factory()
++            self.rpc.evidence_priority = 90
++        self.broker.hydrate_transactions(
++            self.rpc, [s for s,_ in rows], kind='stream_prefetch',
++            deadline=min(float(self.broker.clock()) + 4, min(d for _,d in rows)),
++            batch_size=8, max_batches=1, owner=False)
++        self.broker.consumers.settle()
++        return True
++
++    def start(self):
++        def run():
++            try:
++                while not self.stop.is_set():
++                    self.step()
++                    self.stop.wait(.5)
++            except Exception as exc:
++                # An unexpected worker failure is visible and stops certification.
++                self.error = type(exc).__name__
++        self.thread = threading.Thread(target=run, name='solana-stream-evidence', daemon=True)
++        self.thread.start()
++
++    def check(self):
++        if self.error:
++            raise RuntimeError('stream_evidence_service_failed:' + self.error)
++
++    def close(self):
++        self.stop.set()
++        if self.thread is not None:
++            self.thread.join(timeout=40)
++            if self.thread.is_alive():
++                raise RuntimeError('stream_evidence_service_shutdown_timeout')
++        self.check()
++        if self.rpc is not None:
++            self.sessions.append(self.rpc.provider_telemetry())
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
-index 0a4acc7..d4cf715 100644
+index 0a4acc7..66933bd 100644
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
 @@ -12,8 +12,10 @@ transport.
@@ -473,7 +883,17 @@ index 0a4acc7..d4cf715 100644
      selected.append(witness)
      selected.sort(
          key=lambda row:(row["slot"],row["transactionIndex"]),reverse=True)
-@@ -1006,6 +1022,7 @@ def _build_position(entry,features,policy):
+@@ -653,7 +669,8 @@ def _capture_chunk(
+         signatures_to_hydrate=[s["signature"] for s in relevant]
+         txmap,hydration=broker.hydrate_transactions(
+             adapter.rpc,signatures_to_hydrate,kind=hydration_kind,
+-            deadline=time.time()+6.0,max_version=1,batch_size=8)
++            deadline=time.time()+6.0,max_version=1,batch_size=8,
++            owner=f'meteora:{start["pool"]}:interval:{start["slot"]}:{end_snapshot["slot"]}')
+         if hydration["pending"]:
+             raise Unavailable("solana_dlmm_transaction_hydration_incomplete")
+         transactions={
+@@ -1006,6 +1023,7 @@ def _build_position(entry,features,policy):
          entry_active=virtual["active"],entry_slot=entry["slot"],
          entry_time=entry["time"],entry_conversion_sol_lamports=conversion,
          entry_conversion_token_raw=token,deposits=deposits,
@@ -481,7 +901,7 @@ index 0a4acc7..d4cf715 100644
      )
  
  
-@@ -1045,14 +1062,30 @@ def _mark(position):
+@@ -1045,14 +1063,30 @@ def _mark(position):
      token_side="y" if sol_side=="x" else "x"
      sol=assets[sol_side]+assets["fee_"+sol_side]
      tokens=assets[token_side]+assets["fee_"+token_side]
@@ -513,7 +933,7 @@ index 0a4acc7..d4cf715 100644
          pnl_bps=pnl*10000/CAPITAL,
          non_sol_inventory_raw=tokens,
          non_sol_inventory_liquidation_lamports=liquidation,
-@@ -1100,10 +1133,26 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
+@@ -1100,10 +1134,26 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
      return reasons,recent,mark,fee_uplift
  
  
@@ -542,7 +962,7 @@ index 0a4acc7..d4cf715 100644
      current=entry;elapsed=0;segments=[];tapes=[]
      max_hold=int(policy["range"]["max_holding_seconds"])
      segment_seconds=int(policy["exit"]["observation_segment_seconds"])
-@@ -1122,13 +1171,16 @@ def _lifecycle(
+@@ -1122,13 +1172,16 @@ def _lifecycle(
              adapter,address,current,duration,False,pacer,rpcs,deadline,
              broker,"position_monitor")
          if not phase["verified"]:
@@ -560,7 +980,7 @@ index 0a4acc7..d4cf715 100644
          elapsed+=duration;tapes.append(tape)
          segments.append(dict(
              elapsed_seconds=elapsed,lineage=tape.lineage,
-@@ -1140,10 +1192,12 @@ def _lifecycle(
+@@ -1140,10 +1193,12 @@ def _lifecycle(
              exit_reason=reasons[0];break
      combined=chain_verified_tapes(entry,tapes)
      final=_mark(position)
@@ -574,7 +994,17 @@ index 0a4acc7..d4cf715 100644
          segments=segments,lineage=combined.lineage,final=final,
      ),adapter
  
-@@ -1627,7 +1681,7 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
+@@ -1219,7 +1274,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
+             sigs=[row["signature"] for row in valid]
+             txmap,hydration=broker.hydrate_transactions(
+                 rpc,sigs,kind="dlmm_fresh",
+-                deadline=time.time()+5.0,max_version=1,batch_size=8)
++                deadline=time.time()+5.0,max_version=1,batch_size=8,
++                owner=f'meteora:{pool}:trigger:{after_slot}:{head_slot}')
+             if hydration["pending"]:
+                 after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
+                     "getTransaction:http_429",0))
+@@ -1627,7 +1683,7 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
      ),None,None,None,None,adapter,current_candidate
  
  
@@ -583,7 +1013,7 @@ index 0a4acc7..d4cf715 100644
      assert_independence()
      policy=load_policy()
      target=int(target or policy["prospective_test"]["target_complete_lifecycles"])
-@@ -1638,11 +1692,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1638,11 +1694,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          raise ValueError("solana_dlmm_attempt_bound")
      max_runtime_seconds=int(
          max_runtime_seconds or DEFAULT_MAX_RUNTIME_SECONDS)
@@ -600,7 +1030,7 @@ index 0a4acc7..d4cf715 100644
      discovery_telemetry=dict(
          rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
      compatibility_rejections=[];compatibility_screened=0
-@@ -1681,7 +1739,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1681,7 +1741,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          evidence_broker=broker.telemetry(),
      )
      attempted=0;complete=0;failure_counts=Counter()
@@ -618,7 +1048,7 @@ index 0a4acc7..d4cf715 100644
          report["wake_stream"]=broker.stream_status(
              DLMM_WAKE_STREAM_KEY,int(time.time()),0)
          report["evidence_broker"]=broker.telemetry()
-@@ -1696,12 +1764,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1696,12 +1766,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  0.0,time.monotonic()-run_started_monotonic),
          )
      checkpoint("run_initialized")
@@ -639,7 +1069,7 @@ index 0a4acc7..d4cf715 100644
          candidate_rpcs=[]
          adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
          compatibility_screened+=1
-@@ -1719,6 +1792,12 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1719,6 +1794,12 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
              checkpoint("compatibility_rejection")
              continue
  
@@ -652,7 +1082,7 @@ index 0a4acc7..d4cf715 100644
          attempted+=1
          handoff_started_at=int(time.time())
          attempt=dict(
-@@ -1760,7 +1839,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1760,7 +1841,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  continue
              lifecycle,adapter=_lifecycle(
                  adapter,candidate["address"],entry,features,policy,pacer,
@@ -662,7 +1092,7 @@ index 0a4acc7..d4cf715 100644
              for rpc in candidate_rpcs:
                  if rpc not in rpcs:rpcs.append(rpc)
              attempt["lifecycle"]=lifecycle
-@@ -1777,9 +1857,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1777,9 +1859,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  failure_counts["lifecycle_unverified"]+=1
              checkpoint("lifecycle_terminal")
          except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
@@ -675,7 +1105,7 @@ index 0a4acc7..d4cf715 100644
              attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
              report["attempts"].append(attempt)
              checkpoint("candidate_exception")
-@@ -1817,12 +1898,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1817,12 +1900,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          elapsed_seconds=max(
              0.0,time.monotonic()-run_started_monotonic),
          conclusion=(
@@ -838,6 +1268,140 @@ index 5981022..7be2d8e 100644
              prices,reason=resolver.prices(
                  dict(
                      token_x=dlmm.WSOL,token_y="token",
+diff --git a/tests/test_evidence_consumers.py b/tests/test_evidence_consumers.py
+new file mode 100644
+index 0000000..1bd5953
+--- /dev/null
++++ b/tests/test_evidence_consumers.py
+@@ -0,0 +1,128 @@
++import tempfile
++import unittest
++
++from meme_machine.provider import Unavailable
++from meme_machine.solana_evidence_broker import EvidenceBroker, DynamicAddressLogStream
++from meme_machine.solana_evidence_consumers import StreamEvidenceService
++from tests.test_solana_evidence_broker import _Clock, _Rpc
++
++
++class PacedRpc(_Rpc):
++    def __init__(self, clock):
++        super().__init__()
++        self.clock, self.calls, self.limit = clock, 0, 240
++    def call_many(self, method, params, *args, **kwargs):
++        self.calls += len(params)
++        self.clock.sleep(.5)  # Same conservative two-transport/second ceiling.
++        return super().call_many(method, params, *args, **kwargs)
++    def provider_telemetry(self): return dict(requests=len(self.batches), logical=self.calls)
++
++
++class EvidenceConsumerTests(unittest.TestCase):
++    def broker(self):
++        clock=_Clock()
++        b=EvidenceBroker(':memory:',clock=clock,sleeper=clock.sleep)
++        self.addCleanup(b.close)
++        return b,clock
++
++    def test_incremental_completes_same_window_where_burst_censors_at_same_rate(self):
++        burst,clock=self.broker()
++        rpc=PacedRpc(clock)
++        signatures=[f's-{i}' for i in range(80)]
++        _,meta=burst.hydrate_transactions(rpc,signatures,kind='pump_window',deadline=clock()+4)
++        self.assertEqual(meta['hydrated'],64)
++        incremental,tick=self.broker()
++        ahead=PacedRpc(tick)
++        service=StreamEvidenceService(incremental,lambda:ahead)
++        for i in range(10):
++            incremental.consumers.register('pump:pool',signatures[i*8:(i+1)*8],
++                                           'stream_prefetch',tick()+32)
++            service.step()
++            tick.sleep(.5)
++        before=len(ahead.batches)
++        _,complete=incremental.hydrate_transactions(ahead,signatures,kind='pump_window',
++                                                     deadline=tick()+4)
++        self.assertEqual(complete['hydrated'],80)
++        self.assertEqual(len(ahead.batches),before)
++        self.assertEqual(before,10)
++
++    def test_burst_keeps_all_censoring_but_admits_only_serviceable_jobs(self):
++        b,c=self.broker()
++        _,meta=b.hydrate_transactions(PacedRpc(c),[str(i) for i in range(2000)],
++                                     kind='pump_window',deadline=c()+4)
++        self.assertEqual(meta['pending'],1936)
++        self.assertLessEqual(b.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0],72)
++        c.sleep(.1)
++        stats=b.consumers.telemetry()
++        censored=sum(x['count'] for x in stats['consumers'] if x['state']=='consumer_deadline_expired')
++        self.assertEqual(censored,1936)
++
++    def test_retirement_preserves_other_owner_and_original_deadline(self):
++        b,c=self.broker()
++        b.consumers.register('pump:pool',['shared'],'stream_prefetch',c()+1)
++        b.consumers.register('meteora:pool',['shared'],'dlmm_fresh',c()+20)
++        b.consumers.register('pump:pool',['shared'],'stream_prefetch',c()+99)
++        self.assertEqual(b.db.execute('SELECT deadline FROM evidence_consumers WHERE owner=?',
++                                     ('pump:pool',)).fetchone()[0],1001)
++        b.consumers.settle('pump:pool','consumer_retired')
++        _,meta=b.hydrate_transactions(_Rpc(),['shared'],kind='dlmm_fresh',deadline=c()+10,
++                                     owner='meteora:pool')
++        self.assertEqual(meta['pending'],0)
++        rows=dict(b.db.execute('SELECT owner,state FROM evidence_consumers'))
++        self.assertEqual(rows,{'pump:pool':'consumer_retired','meteora:pool':'evidence_complete'})
++
++    def test_late_cache_never_relabels_expired_consumer_complete(self):
++        b,c=self.broker()
++        b.consumers.register('one',['s'],'pump_window',c()+.1)
++        c.sleep(.2)
++        b.put_transaction('s',dict(slot=1,blockTime=1))
++        b.consumers.settle()
++        self.assertEqual(b.db.execute('SELECT state FROM evidence_consumers').fetchone()[0],
++                         'consumer_deadline_expired')
++
++    def test_local_budget_failure_is_not_provider_rate_pressure(self):
++        class Failed(_Rpc):
++            def call_many(self,*a,**k):raise Unavailable('provider_budget_exhausted')
++        b,c=self.broker()
++        b.hydrate_transactions(Failed(),['s'],kind='pump_window',deadline=c()+4)
++        self.assertEqual(b.telemetry()['pressure']['rate_events'],0)
++        self.assertEqual(b.consumers.telemetry()['acquisition_failures'],
++                         {'local_request_budget_exhausted':1})
++
++    def test_real_rate_pressure_still_backs_off(self):
++        class Failed(_Rpc):
++            failure_methods={}
++            def call_many(self,*a,**k):
++                self.failure_methods={'getTransaction:http_429':1}
++                raise Unavailable('provider_request_failed')
++        b,c=self.broker()
++        b.hydrate_transactions(Failed(),['s'],kind='pump_window',deadline=c()+4)
++        self.assertEqual(b.telemetry()['pressure']['rate_events'],1)
++
++    def test_shared_interest_reuses_single_physical_fetch(self):
++        with tempfile.TemporaryDirectory() as path:
++            c=_Clock()
++            a=EvidenceBroker(path+'/shared.sqlite',clock=c,sleeper=c.sleep)
++            b=EvidenceBroker(path+'/shared.sqlite',clock=c,sleeper=c.sleep)
++            try:
++                a.consumers.register('pump',['s'],'pump_window',c()+4)
++                b.consumers.register('meteora',['s'],'dlmm_fresh',c()+4)
++                rpc=_Rpc()
++                a.hydrate_transactions(rpc,['s'],kind='pump_window',deadline=c()+4,owner='pump')
++                b.hydrate_transactions(rpc,['s'],kind='dlmm_fresh',deadline=c()+4,owner='meteora')
++                self.assertEqual(len(rpc.batches),1)
++                self.assertEqual(a.db.execute("SELECT COUNT(*) FROM evidence_terminals WHERE reason='evidence_complete'").fetchone()[0],2)
++            finally:a.close();b.close()
++
++    def test_stream_retirement_is_durable_and_does_not_fetch_more(self):
++        b,c=self.broker()
++        stream=DynamicAddressLogStream('unused',b,'pool',prefetch=True,clock=c)
++        owner=stream.add_address('a')
++        b.consumers.register(owner,['s'],'stream_prefetch',c()+32)
++        stream.remove_address('a')
++        self.assertEqual(b.consumers.batch(),[])
++        self.assertEqual(b.db.execute('SELECT reason FROM evidence_terminals').fetchone()[0],
++                         'consumer_retired')
++
++
++if __name__=='__main__':unittest.main()
 diff --git a/tests/test_meteora_continuous_campaign.py b/tests/test_meteora_continuous_campaign.py
 new file mode 100644
 index 0000000..9c5fe0e
