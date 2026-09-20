@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 import json
+import math
 import os
 from pathlib import Path
 import time
@@ -457,8 +458,10 @@ def run(
     discovery_seconds=DISCOVERY_SECONDS,
     discovery_interval_seconds=DISCOVERY_INTERVAL_SECONDS,
     db_path=None,
+    campaign=False,
 ):
-    if type(discovery_seconds) not in (int,float) or not 60<=discovery_seconds<=1800:
+    if type(campaign) is not bool:raise BoundaryError('ramses_campaign_flag')
+    if type(discovery_seconds) not in (int,float) or not 60<=discovery_seconds<=(21600 if campaign else 1800):
         raise BoundaryError("extended_discovery_seconds")
     if type(discovery_interval_seconds) not in (int,float) or not 20<=discovery_interval_seconds<=300:
         raise BoundaryError("extended_discovery_interval")
@@ -468,9 +471,12 @@ def run(
     screens=[]
     seen_pools=set()
     cost_state={}
+    # Scale the total session budget to elapsed campaign time, never request rate.
+    frontier_session_budget=max(2,math.ceil(discovery_seconds/DISCOVERY_FRONTIER_POLL_SECONDS/190)+1) if campaign else 2
+    campaign_books=None
     frontier_rpc=BoundedMultiRpc(
         endpoint,
-        max_sessions=2,
+        max_sessions=frontier_session_budget,
         batch_size=1,
         batch_pause=0.0,
         rate_retries=3,
@@ -499,173 +505,213 @@ def run(
         frontier_poll_seconds=DISCOVERY_FRONTIER_POLL_SECONDS,
         frontier_driven_discovery=True,
         started_at=time.time(),
-        natural_screens=[],
+        natural_screens=[],continuous_campaign=campaign,natural_lifecycles=[],
+        operational_configuration=dict(campaign=campaign,discovery_seconds=discovery_seconds,
+            frontier_poll_seconds=DISCOVERY_FRONTIER_POLL_SECONDS,frontier_session_budget=frontier_session_budget,
+            funding_rule='initial_screen_maximum_size_per_quote_asset_no_replenishment' if campaign else 'single_lifecycle'),
     )
+    from .ramses_campaign import CampaignBooks,digest
+    result['operational_configuration_hash']=digest(result['operational_configuration'])
 
-    while True:
-        if os.environ.get("MM_CERTIFICATION_RUN_ID"):
-            result["checkpoint_at"]=time.time()
-            result["frontier_discovery"]=dict(
-                polls=frontier_polls,advances=frontier_advances,
-                expensive_scans=len(screens),provider=frontier_rpc.telemetry())
-            _persist_public_result(result)
-        now=time.monotonic()
-        elapsed=now-started
-        if elapsed>=discovery_seconds:
-            break
+    try:
+        while True:
+            if campaign or os.environ.get("MM_CERTIFICATION_RUN_ID"):
+                result["checkpoint_at"]=time.time()
+                result["frontier_discovery"]=dict(
+                    polls=frontier_polls,advances=frontier_advances,
+                    expensive_scans=len(screens),provider=frontier_rpc.telemetry())
+                _persist_public_result(result)
+            now=time.monotonic()
+            elapsed=now-started
+            if elapsed>=discovery_seconds:
+                break
 
-        frontier=frontier_rpc.call(
-            "eth_getBlockByNumber",["finalized",False],scope="extended_frontier"
-        )
-        frontier_polls+=1
-        progress=_frontier_progress(last_observed_frontier,frontier)
-        if progress=="advanced":
-            frontier_advances+=1
-        last_observed_frontier=dict(frontier)
+            frontier=frontier_rpc.call(
+                "eth_getBlockByNumber",["finalized",False],scope="extended_frontier"
+            )
+            frontier_polls+=1
+            progress=_frontier_progress(last_observed_frontier,frontier)
+            if progress=="advanced":
+                frontier_advances+=1
+            last_observed_frontier=dict(frontier)
 
-        should_scan,gate_reason,identity=_frontier_scan_gate(
-            last_scanned_identity,
-            frontier,
-            now=now,
-            last_scan_started=last_scan_started,
-            scan_interval=discovery_interval_seconds,
-        )
-        if not should_scan:
-            if gate_reason=="frontier_unchanged":
-                duplicate_frontier_polls+=1
-            elif gate_reason=="cadence_floor":
-                cadence_deferred_polls+=1
-        frontier_observations.append(dict(
-            elapsed_seconds=elapsed,
-            finalized_block=int(frontier["number"],16),
-            finalized_hash=frontier["hash"],
-            finalized_timestamp=int(frontier["timestamp"],16),
-            progress=progress,
-            expensive_scan=bool(should_scan),
-            gate_reason=gate_reason,
-        ))
+            should_scan,gate_reason,identity=_frontier_scan_gate(
+                last_scanned_identity,
+                frontier,
+                now=now,
+                last_scan_started=last_scan_started,
+                scan_interval=discovery_interval_seconds,
+            )
+            if not should_scan:
+                if gate_reason=="frontier_unchanged":
+                    duplicate_frontier_polls+=1
+                elif gate_reason=="cadence_floor":
+                    cadence_deferred_polls+=1
+            frontier_observations.append(dict(
+                elapsed_seconds=elapsed,
+                finalized_block=int(frontier["number"],16),
+                finalized_hash=frontier["hash"],
+                finalized_timestamp=int(frontier["timestamp"],16),
+                progress=progress,
+                expensive_scan=bool(should_scan),
+                gate_reason=gate_reason,
+            ))
 
-        if should_scan:
-            scan_started=time.monotonic()
-            screen=scan(
-                endpoint,
-                gas_costs_by_pool=costs_by_pool,
-                signals_by_pool=signals_by_pool,
-                cost_state=cost_state,
-                finalized_frontier=frontier,
+            if should_scan:
+                scan_started=time.monotonic()
+                screen=scan(
+                    endpoint,
+                    gas_costs_by_pool=costs_by_pool,
+                    signals_by_pool=signals_by_pool,
+                    cost_state=cost_state,
+                    finalized_frontier=frontier,
+                )
+                if (
+                    int(screen["finalized_block"])!=identity[0]
+                    or screen["finalized_hash"]!=identity[1]
+                    or screen.get("finalized_frontier_source")
+                        !="pinned_external_finalized_header"
+                ):
+                    raise BoundaryError("extended_frontier_scan_identity_disagreement")
+                last_scanned_identity=identity
+                last_scan_started=scan_started
+                screens.append(screen)
+                for row in screen.get("rows",[]):
+                    seen_pools.add(row["pool"])
+                summary=_screen_summary(screen)
+                summary["elapsed_seconds"]=time.monotonic()-started
+                summary["frontier_poll_index"]=frontier_polls
+                result["natural_screens"].append(summary)
+                if campaign and campaign_books is None:
+                    campaign_books=CampaignBooks(Path(str(db_path or DB)+'.campaign'),screen)
+                    result['campaign_accounting']=campaign_books.reconcile()
+                chosen=select_qualifier(screen)
+                if chosen is not None and campaign:
+                    result['natural_qualifier_found']=True
+                    result['natural_qualifier_pool']=chosen['pool']
+                    try:
+                        ledger=campaign_books.ledger(chosen['token_y'])
+                        life=run_connected(endpoint,costs_by_pool=costs_by_pool,signals_by_pool=signals_by_pool,
+                            db_path=str(db_path or DB),initial_screen=screen,cost_state=cost_state,
+                            campaign_ledger=ledger,lifecycle_prefix=campaign_books.run_id)
+                        campaign_books.record('natural_lifecycle',life)
+                        result['natural_lifecycles'].append(compact_lifecycle_result(life))
+                        result['connected_lifecycle']=compact_lifecycle_result(life)
+                        result['campaign_accounting']=campaign_books.reconcile()
+                        if result['campaign_accounting']['open_positions']:
+                            raise BoundaryError('ramses_campaign_unresolved_exposure')
+                    except BoundaryError as exc:
+                        terminal=dict(pool=chosen['pool'],terminal_reason=str(exc),economic_rejection=False,
+                            finalized_block=screen['finalized_block'],finalized_hash=screen['finalized_hash'])
+                        campaign_books.record('terminal_boundary',terminal)
+                        result.setdefault('campaign_terminals',[]).append(terminal)
+                        result['campaign_accounting']=campaign_books.reconcile()
+                        if str(exc) not in ('ramses_strategy_capital_exhausted','ramses_campaign_quote_asset_unfunded'):
+                            result.update(status='fail_closed',boundary=str(exc),ended_at=time.time())
+                            _persist_public_result(result);raise
+                elif chosen is not None:
+                    result["natural_qualifier_found"]=True
+                    result["natural_qualifier_pool"]=chosen["pool"]
+                    result["connected_lifecycle"]=run_connected(
+                        endpoint,
+                        costs_by_pool=costs_by_pool,
+                        signals_by_pool=signals_by_pool,
+                        db_path=str(db_path or DB),
+                        initial_screen=screen,
+                        cost_state=cost_state,
+                    )
+                    result["status"]=result["connected_lifecycle"].get("status")
+                    result["ended_at"]=time.time()
+                    result["unique_active_pools"]=len(seen_pools)
+                    result["cost_state_summary"]=dict(
+                        transactions_observed=len(cost_state.get("transactions") or {}),
+                        sample_counts={
+                            k: len(v)
+                            for k,v in (cost_state.get("samples") or {}).items()
+                        },
+                    )
+                    result["frontier_discovery"]=dict(
+                        polls=frontier_polls,
+                        advances=frontier_advances,
+                        expensive_scans=len(screens),
+                        duplicate_frontier_polls_skipped=duplicate_frontier_polls,
+                        cadence_deferred_polls=cadence_deferred_polls,
+                        provider=frontier_rpc.telemetry(),
+                        observations=frontier_observations,
+                    )
+                    return result
+
+            elapsed=time.monotonic()-started
+            if elapsed>=discovery_seconds:
+                break
+            sleep_for=min(
+                DISCOVERY_FRONTIER_POLL_SECONDS,
+                max(0,discovery_seconds-elapsed),
             )
             if (
-                int(screen["finalized_block"])!=identity[0]
-                or screen["finalized_hash"]!=identity[1]
-                or screen.get("finalized_frontier_source")
-                    !="pinned_external_finalized_header"
+                last_scan_started is not None
+                and last_scanned_identity is not None
+                and identity!=last_scanned_identity
             ):
-                raise BoundaryError("extended_frontier_scan_identity_disagreement")
-            last_scanned_identity=identity
-            last_scan_started=scan_started
-            screens.append(screen)
-            for row in screen.get("rows",[]):
-                seen_pools.add(row["pool"])
-            summary=_screen_summary(screen)
-            summary["elapsed_seconds"]=time.monotonic()-started
-            summary["frontier_poll_index"]=frontier_polls
-            result["natural_screens"].append(summary)
-            chosen=select_qualifier(screen)
-            if chosen is not None:
-                result["natural_qualifier_found"]=True
-                result["natural_qualifier_pool"]=chosen["pool"]
-                result["connected_lifecycle"]=run_connected(
-                    endpoint,
-                    costs_by_pool=costs_by_pool,
-                    signals_by_pool=signals_by_pool,
-                    db_path=str(db_path or DB),
-                    initial_screen=screen,
-                    cost_state=cost_state,
+                until_eligible=max(
+                    0.0,
+                    float(discovery_interval_seconds)
+                    -(time.monotonic()-last_scan_started),
                 )
-                result["status"]=result["connected_lifecycle"].get("status")
-                result["ended_at"]=time.time()
-                result["unique_active_pools"]=len(seen_pools)
-                result["cost_state_summary"]=dict(
-                    transactions_observed=len(cost_state.get("transactions") or {}),
-                    sample_counts={
-                        k: len(v)
-                        for k,v in (cost_state.get("samples") or {}).items()
-                    },
-                )
-                result["frontier_discovery"]=dict(
-                    polls=frontier_polls,
-                    advances=frontier_advances,
-                    expensive_scans=len(screens),
-                    duplicate_frontier_polls_skipped=duplicate_frontier_polls,
-                    cadence_deferred_polls=cadence_deferred_polls,
-                    provider=frontier_rpc.telemetry(),
-                    observations=frontier_observations,
-                )
-                return result
+                if until_eligible:
+                    sleep_for=min(sleep_for,until_eligible)
+            if sleep_for:
+                time.sleep(sleep_for)
 
-        elapsed=time.monotonic()-started
-        if elapsed>=discovery_seconds:
-            break
-        sleep_for=min(
-            DISCOVERY_FRONTIER_POLL_SECONDS,
-            max(0,discovery_seconds-elapsed),
+        result["natural_qualifier_found"]=bool(result.get('natural_qualifier_found'))
+        result["unique_active_pools"]=len(seen_pools)
+        result["cost_state_summary"]=dict(
+            transactions_observed=len(cost_state.get("transactions") or {}),
+            sample_counts={
+                k: len(v)
+                for k,v in (cost_state.get("samples") or {}).items()
+            },
         )
-        if (
-            last_scan_started is not None
-            and last_scanned_identity is not None
-            and identity!=last_scanned_identity
-        ):
-            until_eligible=max(
-                0.0,
-                float(discovery_interval_seconds)
-                -(time.monotonic()-last_scan_started),
-            )
-            if until_eligible:
-                sleep_for=min(sleep_for,until_eligible)
-        if sleep_for:
-            time.sleep(sleep_for)
-
-    result["natural_qualifier_found"]=False
-    result["unique_active_pools"]=len(seen_pools)
-    result["cost_state_summary"]=dict(
-        transactions_observed=len(cost_state.get("transactions") or {}),
-        sample_counts={
-            k: len(v)
-            for k,v in (cost_state.get("samples") or {}).items()
-        },
-    )
-    result["frontier_discovery"]=dict(
-        polls=frontier_polls,
-        advances=frontier_advances,
-        expensive_scans=len(screens),
-        duplicate_frontier_polls_skipped=duplicate_frontier_polls,
-        cadence_deferred_polls=cadence_deferred_polls,
-        provider=frontier_rpc.telemetry(),
-        observations=frontier_observations,
-    )
-    result["status"]="natural_discovery_complete_no_qualifier"
-    screen,row=_pick_forced_row(screens)
-    if row is None:
-        result["forced_machinery"]=dict(
-            mechanics_complete=False,
-            boundary="no_active_ramses_pool_for_machinery_proof",
+        result["frontier_discovery"]=dict(
+            polls=frontier_polls,
+            advances=frontier_advances,
+            expensive_scans=len(screens),
+            duplicate_frontier_polls_skipped=duplicate_frontier_polls,
+            cadence_deferred_polls=cadence_deferred_polls,
+            provider=frontier_rpc.telemetry(),
+            observations=frontier_observations,
         )
-    else:
-        try:
-            if FORCED_PROVIDER_COOLDOWN_SECONDS:
-                time.sleep(FORCED_PROVIDER_COOLDOWN_SECONDS)
-            result["forced_machinery"]=_forced_machinery(
-                endpoint,screen,row,db_path=str(db_path or DB)
-            )
-        except BoundaryError as exc:
+        if campaign:
+            result['status']='continuous_campaign_window_complete'
+            result['campaign_accounting']=campaign_books.reconcile() if campaign_books else None
+            result['ended_at']=time.time()
+            # Forced +60s observation is separate machinery, never the campaign hold policy.
+            return result
+        result["status"]="natural_discovery_complete_no_qualifier"
+        screen,row=_pick_forced_row(screens)
+        if row is None:
             result["forced_machinery"]=dict(
                 mechanics_complete=False,
-                boundary=str(exc),
-                paper_only=True,
-                strategy_evidence_eligible=False,
+                boundary="no_active_ramses_pool_for_machinery_proof",
             )
-    result["ended_at"]=time.time()
-    return result
+        else:
+            try:
+                if FORCED_PROVIDER_COOLDOWN_SECONDS:
+                    time.sleep(FORCED_PROVIDER_COOLDOWN_SECONDS)
+                result["forced_machinery"]=_forced_machinery(
+                    endpoint,screen,row,db_path=str(db_path or DB)
+                )
+            except BoundaryError as exc:
+                result["forced_machinery"]=dict(
+                    mechanics_complete=False,
+                    boundary=str(exc),
+                    paper_only=True,
+                    strategy_evidence_eligible=False,
+                )
+        result["ended_at"]=time.time()
+        return result
+    finally:
+        if campaign_books is not None:campaign_books.close()
 
 
 def _persist_public_result(result):
@@ -682,7 +728,7 @@ def _persist_public_result(result):
     os.replace(temporary,REPORT)
 
 
-def main():
+def main(*,campaign=False):
     costs=_json_env("MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON")
     signals=_json_env("MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON")
     started=time.time()
@@ -699,7 +745,7 @@ def main():
                 "MM_ROBINHOOD_RAMSES_EXTENDED_INTERVAL_SECONDS",
                 DISCOVERY_INTERVAL_SECONDS,
             )),
-            db_path=str(DB),
+            db_path=str(DB),campaign=campaign,
         )
     except BoundaryError as exc:
         result=dict(
@@ -719,6 +765,11 @@ def main():
             ended_at=time.time(),
             natural_screens=[],
         )
+        if REPORT.exists():
+            previous=json.loads(REPORT.read_text())
+            if previous.get('policy_hash')==POLICY_HASH and previous.get('started_at',0)>=started:
+                result=dict(previous,status='fail_closed',boundary=str(exc),ended_at=time.time(),
+                    terminal_phase='campaign_or_discovery',factory_cache_exists=FACTORY_CACHE.exists())
         _persist_public_result(result)
         print(json.dumps(dict(
             status=result["status"],boundary=result["boundary"],
