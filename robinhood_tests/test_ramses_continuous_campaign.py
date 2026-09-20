@@ -81,3 +81,44 @@ class RamsesCampaignTests(unittest.TestCase):
             self.assertEqual(rpc.call_args.kwargs['max_sessions'],7)
             self.assertEqual(rpc.call_args.kwargs['batch_size'],1)
         self.assertEqual(extended.POLICY_HASH,POLICY_HASH)
+
+    def test_empty_first_scan_does_not_permanently_disable_later_fundable_activity(self):
+        clock=[0];calls=[];ledger_ids=[]
+        class Rpc:
+            def verify_chain(self):return 4663
+            def telemetry(self):return {}
+            def call(self,*args,**kwargs):
+                n=100+int(clock[0]//60)
+                return dict(number=hex(n),hash='0x'+format(n,'064x'),parentHash='0x'+format(n-1,'064x'),timestamp=hex(1000+n))
+        def scan(endpoint,**kwargs):
+            header=kwargs['finalized_frontier']
+            rows=[] if clock[0]<60 else [dict(pool='pool',token_y=ASSET,paper_capital_quote_raw=1000)]
+            value=screen(rows);value.update(finalized_block=int(header['number'],16),finalized_hash=header['hash'])
+            return value
+        def connected(endpoint,**kwargs):
+            book=kwargs['campaign_ledger'];ledger_ids.append(id(book));identity=kwargs['lifecycle_prefix']+':'+str(len(calls));calls.append(identity)
+            book.reserve(identity,pool='pool',decision=decision(500),at=len(calls)*3);book.open(identity,at=len(calls)*3+1)
+            final=book.settle(identity,pnl=dict(strategy_domain=STRATEGY_DOMAIN,net_result_quote=10,unresolved_inventory=None),at=len(calls)*3+2)
+            return dict(status='settled',lifecycle_id=identity,ledger_final=final,ledger_reconciliation=book.reconcile(),segments=[dict(terminal_equality=True)])
+        with tempfile.TemporaryDirectory() as td,patch.object(extended,'REPORT',Path(td)/'report.json'), \
+            patch.object(extended,'BoundedMultiRpc',return_value=Rpc()),patch.object(extended,'scan',side_effect=scan), \
+            patch.object(extended,'_screen_summary',side_effect=lambda row:row),patch.object(extended,'select_qualifier',side_effect=lambda row:row['rows'][0] if row['rows'] else None), \
+            patch.object(extended,'run_connected',side_effect=connected),patch.object(extended.time,'monotonic',side_effect=lambda:clock[0]), \
+            patch.object(extended.time,'time',side_effect=lambda:10000+clock[0]),patch.object(extended.time,'sleep',side_effect=lambda n:clock.__setitem__(0,clock[0]+n)):
+            result=extended.run('unused',campaign=True,discovery_seconds=125,db_path=Path(td)/'paper.sqlite')
+            self.assertEqual(len(result['natural_lifecycles']),2)
+            self.assertEqual(len(set(ledger_ids)),1)
+            final=result['campaign_accounting']
+            self.assertEqual(final['manifest']['source_finalized_block'],101)
+            self.assertEqual(final['by_quote_asset'][ASSET]['paper_capital'],1000)
+            self.assertEqual(final['by_quote_asset'][ASSET]['available'],1020)
+            self.assertEqual(clock[0],125)
+
+    def test_unfundable_screen_cannot_create_an_empty_permanent_genesis(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)/'campaign'
+            with self.assertRaisesRegex(BoundaryError,'funding_unavailable'):CampaignBooks(root,screen([]))
+            self.assertFalse(root.exists())
+            self.assertEqual(CampaignBooks.budgets_from_screen(screen([])),{})
+            wrong=screen([]);wrong['policy_hash']='foreign'
+            with self.assertRaisesRegex(BoundaryError,'foreign_screen'):CampaignBooks.budgets_from_screen(wrong)

@@ -582,14 +582,21 @@ def run(
                 summary["elapsed_seconds"]=time.monotonic()-started
                 summary["frontier_poll_index"]=frontier_polls
                 result["natural_screens"].append(summary)
-                if campaign and campaign_books is None:
+                if campaign and campaign_books is None and CampaignBooks.budgets_from_screen(screen):
                     campaign_books=CampaignBooks(Path(str(db_path or DB)+'.campaign'),screen)
                     result['campaign_accounting']=campaign_books.reconcile()
+                if campaign and campaign_books is None:
+                    result['campaign_accounting']=dict(funding_state='awaiting_first_fundable_pinned_screen',
+                        by_quote_asset={},open_positions=0,position_count=0,conservation=True,
+                        unlike_quote_units_summed=False,paper_entry_ready=False,
+                        policy_hash=POLICY_HASH,allocation_authority=False)
                 chosen=select_qualifier(screen)
                 if chosen is not None and campaign:
                     result['natural_qualifier_found']=True
                     result['natural_qualifier_pool']=chosen['pool']
                     try:
+                        if campaign_books is None:
+                            raise BoundaryError('ramses_campaign_quote_asset_unfunded')
                         ledger=campaign_books.ledger(chosen['token_y'])
                         life=run_connected(endpoint,costs_by_pool=costs_by_pool,signals_by_pool=signals_by_pool,
                             db_path=str(db_path or DB),initial_screen=screen,cost_state=cost_state,
@@ -683,7 +690,7 @@ def run(
         )
         if campaign:
             result['status']='continuous_campaign_window_complete'
-            result['campaign_accounting']=campaign_books.reconcile() if campaign_books else None
+            if campaign_books is not None:result['campaign_accounting']=campaign_books.reconcile()
             result['ended_at']=time.time()
             # Forced +60s observation is separate machinery, never the campaign hold policy.
             return result

@@ -1,6 +1,6 @@
 """One frozen, asset-separated paper budget for a continuous Ramses campaign.
 
-Budgets are declared once from the first complete pinned factory screen, before
+Budgets are declared once from the first fundable pinned factory screen, before
 any outcome. Later candidates cannot mint capital or exchange unlike quote units.
 """
 import gzip
@@ -19,27 +19,34 @@ def digest(value):return hashlib.sha256(canonical(value).encode()).hexdigest()
 
 
 class CampaignBooks:
-    def __init__(self,root,screen):
+    @staticmethod
+    def budgets_from_screen(screen):
         if screen.get('policy_hash')!=POLICY_HASH or screen.get('strategy_domain')!=STRATEGY_DOMAIN:
             raise BoundaryError('ramses_campaign_foreign_screen')
         if screen.get('finalized_frontier_source')!='pinned_external_finalized_header':
             raise BoundaryError('ramses_campaign_unpinned_initial_screen')
-        self.root=Path(root)
-        if self.root.exists():raise BoundaryError('ramses_campaign_existing_capital_requires_recovery')
-        self.root.mkdir(parents=True)
-        with (self.root/'initial-screen.json.gz').open('wb') as file:
-            with gzip.GzipFile(fileobj=file,mode='wb') as archive:archive.write(canonical(screen).encode())
-            file.flush();os.fsync(file.fileno())
-        self.run_id=uuid.uuid4().hex;self.books={};budgets={}
+        budgets={}
         for row in screen.get('rows',[]):
             asset=row.get('token_y');amount=row.get('paper_capital_quote_raw')
             if not isinstance(asset,str) or not asset.startswith('0x') or len(asset)!=42:continue
             if type(amount) is not int or amount<=0:continue
             asset=asset.lower();budgets[asset]=max(budgets.get(asset,0),amount)
+        return budgets
+
+    def __init__(self,root,screen):
+        self.root=Path(root)
+        if self.root.exists():raise BoundaryError('ramses_campaign_existing_capital_requires_recovery')
+        budgets=self.budgets_from_screen(screen)
+        if not budgets:raise BoundaryError('ramses_campaign_initial_funding_unavailable')
+        self.root.mkdir(parents=True)
+        with (self.root/'initial-screen.json.gz').open('wb') as file:
+            with gzip.GzipFile(fileobj=file,mode='wb') as archive:archive.write(canonical(screen).encode())
+            file.flush();os.fsync(file.fileno())
+        self.run_id=uuid.uuid4().hex;self.books={}
         self.manifest=dict(run_id=self.run_id,policy_hash=POLICY_HASH,paper_only=True,
             source_screen_hash=digest(screen),source_finalized_block=screen.get('finalized_block'),
             source_finalized_hash=screen.get('finalized_hash'),genesis_by_quote_asset=budgets,
-            funding_rule='one_maximum_frozen_scanner_size_per_quote_asset_from_initial_screen',
+            funding_rule='one_maximum_frozen_scanner_size_per_quote_asset_from_first_fundable_pinned_screen',
             later_assets='unfunded_capacity_censoring',cross_asset_conversion=False)
         manifest=self.root/'capital-manifest.json'
         with manifest.open('x') as file:file.write(canonical(self.manifest));file.flush();os.fsync(file.fileno())
@@ -62,6 +69,7 @@ class CampaignBooks:
             if row['paper_capital']+row['realized']!=row['available']+row['committed']:
                 raise BoundaryError('ramses_campaign_conservation')
         return dict(manifest=self.manifest,by_quote_asset=rows,
+            funding_state='funded_once_from_pinned_screen',
             open_positions=sum(x['open_positions'] for x in rows.values()),
             position_count=sum(x['positions'] for x in rows.values()),
             conservation=True,unlike_quote_units_summed=False)
