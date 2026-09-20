@@ -43,6 +43,10 @@ class RamsesStrategyLedger:
                 seq INTEGER PRIMARY KEY AUTOINCREMENT,
                 id TEXT NOT NULL, action TEXT NOT NULL,
                 body TEXT NOT NULL, hash TEXT NOT NULL);
+            CREATE TRIGGER IF NOT EXISTS ramses_journal_no_update BEFORE UPDATE ON ramses_strategy_journal
+                BEGIN SELECT RAISE(ABORT,'append_only'); END;
+            CREATE TRIGGER IF NOT EXISTS ramses_journal_no_delete BEFORE DELETE ON ramses_strategy_journal
+                BEGIN SELECT RAISE(ABORT,'append_only'); END;
         """)
         genesis = dict(
             strategy_domain=STRATEGY_DOMAIN,
@@ -79,6 +83,8 @@ class RamsesStrategyLedger:
         if not row:
             raise BoundaryError("ramses_strategy_position_missing")
         body = json.loads(row[0])
+        recorded=self.db.execute('SELECT body,hash FROM ramses_strategy_journal WHERE id=? ORDER BY seq DESC LIMIT 1',(identity,)).fetchone()
+        if recorded!=row:raise BoundaryError('ramses_strategy_projection_mismatch')
         if _digest(body) != row[1]:
             raise BoundaryError("ramses_strategy_ledger_checksum")
         return body
@@ -114,9 +120,6 @@ class RamsesStrategyLedger:
         reserved = proposal.get("capital_employed")
         if type(reserved) is not int or reserved <= 0:
             raise BoundaryError("invalid_ramses_strategy_reservation")
-        rec = self.reconcile()
-        if rec["committed"] + reserved > self.paper_capital:
-            raise BoundaryError("ramses_strategy_capital_exhausted")
         body = dict(
             id=identity,
             strategy_domain=STRATEGY_DOMAIN,
@@ -141,6 +144,10 @@ class RamsesStrategyLedger:
         )
         self.db.execute("BEGIN IMMEDIATE")
         try:
+            if self.db.execute("SELECT 1 FROM ramses_strategy_position WHERE id=?",(identity,)).fetchone():
+                raise BoundaryError("duplicate_ramses_strategy_reservation")
+            if reserved>self.reconcile()['available']:
+                raise BoundaryError("ramses_strategy_capital_exhausted")
             self._save(body, "reserve")
             self.db.execute("COMMIT")
         except Exception:
@@ -167,9 +174,6 @@ class RamsesStrategyLedger:
         reserved = proposal.get("capital_employed")
         if type(reserved) is not int or reserved <= 0:
             raise BoundaryError("invalid_ramses_strategy_reservation")
-        rec = self.reconcile()
-        if rec["committed"] + reserved > self.paper_capital:
-            raise BoundaryError("ramses_strategy_capital_exhausted")
         body = dict(
             id=identity,
             strategy_domain=STRATEGY_DOMAIN,
@@ -196,6 +200,10 @@ class RamsesStrategyLedger:
         )
         self.db.execute("BEGIN IMMEDIATE")
         try:
+            if self.db.execute("SELECT 1 FROM ramses_strategy_position WHERE id=?",(identity,)).fetchone():
+                raise BoundaryError("duplicate_ramses_strategy_reservation")
+            if reserved>self.reconcile()['available']:
+                raise BoundaryError("ramses_strategy_capital_exhausted")
             self._save(body, "forced_machinery_reserve")
             self.db.execute("COMMIT")
         except Exception:
@@ -282,6 +290,7 @@ class RamsesStrategyLedger:
                 )
                 action = "settle"
             self._save(body, action)
+            self.reconcile()
             self.db.execute("COMMIT")
         except Exception:
             self.db.execute("ROLLBACK")
@@ -289,6 +298,29 @@ class RamsesStrategyLedger:
         return body
 
     def reconcile(self):
+        owns_transaction=not self.db.in_transaction
+        if owns_transaction:self.db.execute('BEGIN')
+        try:return self._reconcile()
+        finally:
+            if owns_transaction:self.db.execute('ROLLBACK')
+
+    def _reconcile(self):
+        replay={}
+        for identity,action,encoded,checksum in self.db.execute('SELECT id,action,body,hash FROM ramses_strategy_journal ORDER BY seq'):
+            body=json.loads(encoded);previous=replay.get(identity)
+            if _digest(body)!=checksum or body.get('id')!=identity or body.get('policy_hash')!=POLICY_HASH:
+                raise BoundaryError('ramses_strategy_journal_checksum')
+            if previous is None:
+                if action not in ('reserve','forced_machinery_reserve') or body.get('version')!=0 or body.get('status')!='reserved':
+                    raise BoundaryError('ramses_strategy_journal_transition')
+            else:
+                expected={'open':('reserved','open'),'monitor':('open','open'),'segment_close':('open','open'),
+                          'rebalance':('open','open'),'settle':('open','settled'),'unresolved':('open','unresolved')}
+                if (expected.get(action)!=(previous['status'],body['status']) or body.get('version')!=previous['version']+1
+                        or body['at']<previous['at']):raise BoundaryError('ramses_strategy_journal_transition')
+            replay[identity]=body
+        projection={identity:json.loads(encoded) for identity,encoded in self.db.execute('SELECT id,body FROM ramses_strategy_position')}
+        if replay!=projection:raise BoundaryError('ramses_strategy_projection_mismatch')
         rows = self.db.execute(
             "SELECT body,hash FROM ramses_strategy_position ORDER BY id"
         ).fetchall()
