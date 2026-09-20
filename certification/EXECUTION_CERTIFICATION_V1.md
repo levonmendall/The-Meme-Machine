@@ -13,14 +13,14 @@ Late-curve admission is widened to 55% progress, 10 bps/s velocity, two independ
 
 ## Pons
 
-Source: `cert/pons-execution-cert-v1@7797c71024e443ec4a330bd4341be1fc604d9088`
+Source: `cert/pons-execution-cert-v1@c692fe446bdee4ea1179da27a3f0c9f2f281f118`
 Policy hash: `d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9`
 
 Curve progress is 45%-97%, required 15-second progress is 3%, ETA is 300 seconds, breadth is three groups with one new group, recent buy:sell is 1.2:1, largest/top-three concentration ceilings are 40%/75%, and round-trip friction ceiling is 8%. Positive acceleration is retained as telemetry rather than a separate veto. Positive current independent net demand remains required. The five-second evidence freshness rule, exact snipe-tax evidence, creator protections, native-quote execution boundary and lifecycle accounting remain unchanged.
 
 ## Meteora
 
-Source: `cert/meteora-execution-cert-v1@362f6b8750b39ec9122a4dd293572d0515164056`
+Source: `cert/meteora-execution-cert-v1@91c5aaaadd718ead65b3c8e76a85b43372548fe9`
 Policy identity: `b1de19ed974faf3c92261fe7f4f6cb47570e4890c49e9547d7f4fcc50c7179b8`
 
 Volume/fee acceleration are 1.25x/1.0x, fresh-swap wait is 120 seconds, competing range liquidity is 5x capital, two-way balance is 0.25, maximum drift is 0.75, mandatory reversal is removed, stress-unwind ceiling is 150 bps, and the modeled expected-net floor is -200,000 lamports for certification. The exact 12-second post-trigger warmup, authenticated reconstruction, unsupported-mechanics boundary, finality, costs and accounting remain unchanged.
