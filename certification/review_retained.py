@@ -34,6 +34,8 @@ def review(artifact_id,expected_sha,output):
             relative=PurePosixPath(info.filename.removeprefix(prefix))
             if relative.is_absolute() or '..' in relative.parts:raise ValueError('unsafe_artifact_path')
             path=source/relative;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(archive.read(info))
+    from certification.acquisition_diagnosis import inspect
+    inspect(source)
     capacity=report(source);shadow=analyze(source,output/'shadow',Path(__file__).with_name('shadow_registry.json'))
     (output/'artifact-identity.json').write_text(json.dumps(dict(artifact_id=artifact_id,sha256=expected_sha),indent=2)+'\n')
     print('CAPACITY_STRATEGY '+json.dumps(capacity,sort_keys=True))

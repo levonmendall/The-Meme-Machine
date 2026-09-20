@@ -1,7 +1,7 @@
 name: four-lane-shadow-review
 on:
   push:
-    branches: [research/four-lane-shadow-registration, cert/four-lane-capacity-v2]
+    branches: [research/four-lane-shadow-registration, cert/four-lane-capacity-v2, repair/four-lane-acquisition]
 permissions:
   actions: read
   contents: read
