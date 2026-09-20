@@ -185,6 +185,37 @@ class CertificationTests(unittest.TestCase):
             self.assertEqual(status['queues'],[])
             self.assertEqual(status['providers'][0]['grants'],4)
 
+class SolanaMethodPressureTests(unittest.TestCase):
+    def test_getprogramaccounts_method_cooldown_fails_before_transport_admission(self):
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'governor.sqlite';g=Governor(path)
+            now=time.monotonic()
+            db=sqlite3.connect(path)
+            db.execute('INSERT OR IGNORE INTO pressure VALUES(?,0,0,0,0)',('solana',))
+            db.execute('INSERT OR REPLACE INTO method_pressure VALUES(?,?,?,?,?,?)',
+                       ('solana','getProgramAccounts',now+30,1,1,0))
+            db.commit();db.close()
+            with self.assertRaisesRegex(TimeoutError,'method_cooldown'):
+                g.acquire('solana','pump',methods=['getProgramAccounts'],
+                          deadline_seconds=1)
+            status=g.status()
+            row=next(x for x in status['method_pressure']
+                     if x['method']=='getProgramAccounts')
+            self.assertEqual(row['rate_errors'],1)
+            self.assertGreater(row['cooldown_remaining_seconds'],20)
+
+    def test_rate_limit_records_exact_method_pressure(self):
+        with tempfile.TemporaryDirectory() as td:
+            g=Governor(Path(td)/'governor.sqlite')
+            g.rate_limited('solana',['getProgramAccounts'])
+            status=g.status()
+            row=next(x for x in status['method_pressure']
+                     if x['method']=='getProgramAccounts')
+            self.assertEqual(row['rate_errors'],1)
+            self.assertEqual(row['rate_streak'],1)
+            self.assertGreaterEqual(row['cooldown_remaining_seconds'],29)
+
+
 class IntegrationRegressionTests(unittest.TestCase):
     def test_expired_ticket_and_capacity_are_fail_closed(self):
         with tempfile.TemporaryDirectory() as td:
@@ -226,6 +257,9 @@ class IntegrationRegressionTests(unittest.TestCase):
             self.assertEqual(activity['provider_requests'],1)
             self.assertEqual(activity['pid'],os.getpid())
             self.assertEqual(activity['lane'],'pump')
+            self.assertEqual(
+                status['provider_rpc_error_codes']['getTransaction:429'],1)
+            self.assertEqual(status['errors']['getTransaction:rpc_429'],1)
 
 class EvidenceDenominatorTests(unittest.TestCase):
     def test_missing_or_late_pons_evidence_is_not_economic_discrimination_sample(self):
