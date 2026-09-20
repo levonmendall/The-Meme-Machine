@@ -27,6 +27,17 @@ jobs:
           git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
           git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
           (cd "$WORKTREE" && python -m unittest tests.test_solana_evidence_broker tests.test_evidence_consumers tests.test_pump_acceleration_history -v)
+      - name: Validate qualification Meteora overlay
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
+        run: |
+          METEORA_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["meteora"]["source_sha"])')"
+          WORKTREE="$(mktemp -d)/meteora"
+          git fetch origin "$METEORA_SHA"
+          git worktree add --detach "$WORKTREE" "$METEORA_SHA"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/meteora-checkpoint.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/meteora-checkpoint.patch"
+          (cd "$WORKTREE" && python -m unittest tests.test_dlmm_alchemy_provider tests.test_solana_dlmm_independent_v1 -v)
+          (cd "$WORKTREE" && python -m tests.dlmm_resource_check)
       - run: python -m unittest discover -v
       - run: python -m tests.resource_check
       - run: python -m tests.make_tape && python -m meme_machine --mode synthetic --config config.synthetic.json --db /tmp/meme-ci.db --tape tests/fixtures/synthetic_lifecycle.jsonl
