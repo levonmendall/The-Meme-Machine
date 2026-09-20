@@ -108,6 +108,33 @@ class DLMMAlchemyTopologyTests(unittest.TestCase):
         self.assertEqual(len(clock2.sleeps),1)
         self.assertAlmostEqual(clock2.sleeps[0],0.2)
 
+    def test_signature_reads_use_one_second_method_cadence(self):
+        clock=_Clock();pacer=provider.AlchemyPacer()
+        rpc=provider.new_rpc(limit=240,pacer=pacer,environ=ENV,
+                             clock=clock,sleeper=clock.sleep)
+        rpc._request_url=lambda _url,request: {
+            "jsonrpc":"2.0","id":request["id"],"result":[]}
+        rpc.call("getSignaturesForAddress",["pool",{"limit":16,"commitment":"finalized"}],True)
+        first=clock.value
+        rpc.call("getSignaturesForAddress",["pool",{"limit":16,"commitment":"finalized","before":"x"}],True)
+        self.assertGreaterEqual(clock.value-first,provider.DLMM_SIGNATURE_REQUEST_INTERVAL_SECONDS)
+
+    def test_signature_429_installs_fifteen_second_shared_backoff(self):
+        clock=_Clock();pacer=provider.AlchemyPacer()
+        first=provider.new_rpc(limit=240,pacer=pacer,environ=ENV,
+                               clock=clock,sleeper=clock.sleep)
+        second=provider.new_rpc(limit=240,pacer=pacer,environ=ENV,
+                                clock=clock,sleeper=clock.sleep)
+        error=urllib.error.HTTPError(
+            "https://example.invalid",429,"rate limited",{},None)
+        cooldown=pacer.note_rate_limit(first,error,"getSignaturesForAddress")
+        self.assertGreaterEqual(cooldown,provider.DLMM_SIGNATURE_429_MIN_BACKOFF_SECONDS)
+        waited=pacer.pace(second,0.0)
+        self.assertGreaterEqual(waited,provider.DLMM_SIGNATURE_429_MIN_BACKOFF_SECONDS)
+        telemetry=pacer.telemetry()
+        self.assertEqual(
+            telemetry["method_rate_limit_events"]["getSignaturesForAddress"],1)
+
     def test_shared_pacer_serializes_rpc_objects(self):
         clock=_Clock();pacer=provider.AlchemyPacer(minimum_interval=1.0)
         a=SimpleNamespace(clock=clock.time,sleep=clock.sleep,last_request=None)
