@@ -78,8 +78,9 @@ def summarize(lane, report):
         result['cohort_accounting']=report.get('cohort_accounting')
         if result['cohort_accounting']:
             result['open_positions']=result['cohort_accounting']['unsettled']
-            result['accounting_reconciled']=result['cohort_accounting'].get('conservation') is True
-        result['limitations'].append('partial_exit_capital_time_and_detailed_cost_decomposition_require_verification')
+            result['accounting_reconciled']=all(result['cohort_accounting'].get(key) is True
+                for key in ('conservation','cash_basis_conservation','native_observation_complete'))
+        result['limitations'].append('capital_time_uses_durable_event_times; open_marks_are_asof_observations_not_current_prices')
     else:
         result['funnel']=dict(scans=len(report.get('natural_screens',[])),active_pools=report.get('unique_active_pools'))
         life=report.get('connected_lifecycle') or {};pos=life.get('ledger_final') or {}

@@ -5,6 +5,9 @@ import io
 import json
 import os
 import re
+import sqlite3
+import tempfile
+from pathlib import Path
 import urllib.error
 import urllib.request
 import zipfile
@@ -27,6 +30,27 @@ def main():
     print(json.dumps(dict(artifact_id=args.artifact_id,zip_sha256=hashlib.sha256(data).hexdigest())))
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         for info in archive.infolist():
+            if info.filename.endswith(('shared-solana-evidence.sqlite','shared-provider.sqlite','shared-robinhood-admission.sqlite')):
+                with tempfile.TemporaryDirectory() as tmp:
+                    path=Path(tmp)/'retained.sqlite';path.write_bytes(archive.read(info))
+                    # Include retained WAL if present; inspection changes only a
+                    # disposable copy, never the archived original evidence.
+                    for suffix in ('-wal','-shm'):
+                        if info.filename+suffix in archive.namelist():
+                            Path(str(path)+suffix).write_bytes(archive.read(info.filename+suffix))
+                    db=sqlite3.connect(path)
+                    tables=[r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+                    selected={}
+                    for table in tables:
+                        if not re.fullmatch('[A-Za-z_][A-Za-z_0-9]*',table):continue
+                        columns=[r[1] for r in db.execute(f'PRAGMA table_info({table})')]
+                        summary=dict(rows=db.execute(f'SELECT count(*) FROM {table}').fetchone()[0],columns=columns)
+                        if 'status' in columns:
+                            summary['status_counts']=dict(db.execute(f'SELECT status,count(*) FROM {table} GROUP BY status'))
+                        if 'priority' in columns and 'status' in columns:
+                            summary['priority_status_counts']=[list(r) for r in db.execute(f'SELECT priority,status,count(*) FROM {table} GROUP BY priority,status')]
+                        selected[table]=summary
+                    db.close();print('FINAL_SHARED_DATABASE '+json.dumps(dict(file=info.filename,tables=selected),sort_keys=True))
             if info.filename.endswith('/result.json'):
                 print('CERTIFICATION_RESULT '+archive.read(info).decode())
             elif '/certification-smoke/' in info.filename and info.filename.endswith('/process.log'):

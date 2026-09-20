@@ -65,7 +65,8 @@
       "repair_commits": [
         "c96d9092f7645c0def4fb2c237477644280f7041",
         "40bc4c4d1fb81900645fcbce109b4be0341320aa",
-        "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1"
+        "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
+        "44355aaac41a06a80f306f4458bbf200b118f179"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1"
     },

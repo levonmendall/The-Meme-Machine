@@ -17,4 +17,4 @@ jobs:
       - name: Extract retained smoke evidence without market access
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -m certification.inspect_artifact --artifact-id 10595876501
+        run: python -m certification.inspect_artifact --artifact-id 10595953662

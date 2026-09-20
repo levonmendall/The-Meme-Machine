@@ -282,3 +282,36 @@ archives and asset ledgers, and gives normal positions up to 3,300 seconds to dr
 (including Ramses' unchanged 1,800-second hold and slow finalized-frontier allowance).
 The four-hour command is still blocked pending this refreshed concurrent smoke and
 remaining accounting/replay controls. No four-hour observation has begun.
+
+## Refreshed smoke and Pons partial accounting (2026-09-20 02:03 UTC)
+
+Workflow 35480694517 / run 7389409f-708f-4a81-8ec6-c498c20294f7 completed
+600.161 seconds of four-process overlap at integration
+0ffe8ffc52e29890e9e68443888ade6c2e07b6e6. All four exited normally, zero
+restarts, accounting reconciled, no open positions, and zero natural qualifiers.
+Pump: 516 discovered / 62 complete; Meteora: 88 discovered / 20 screened;
+Pons: 192 evaluated; Ramses: 3 scans / 3 active pools. Solana governor recorded
+854 grants and 2 rate errors; Robinhood recorded 1,315 HTTP 200 requests, zero
+retries, maximum queue depth 2. Both final provider queues were empty. This is
+INCOMPLETE certification, not a four-hour or natural-execution PASS.
+The machine result and artifact identity/digest are in results/smoke-35480694517.json.
+
+The preceding smoke's native Ramses artifact confirms one forced machinery
+settlement with exact reconciliation. It used placeholder execution costs, is
+explicitly strategy-ineligible, and proves neither natural qualification nor
+profitability. The correction is stored separately beside the untouched original
+supervisor result in results/smoke-35478805316-ramses-native-review.json.
+
+Pons PR #78 / 44355aaac41a06a80f306f4458bbf200b118f179 adds immutable
+quote/mark evidence, native partial cash and cost-basis replay, event-time
+capital-at-risk integrals, globally unique lifecycle IDs, and a post-commit
+cohort observer. Reservations still release only at full settlement. Missing
+observer updates prevent consolidated cash reconciliation claims. All 220
+Robinhood tests and 20 supervisor tests pass. Five new accounting regressions
+cover partial/recycled capital, journal/projection damage, marks, clock rollback,
+and the native-commit/observer crash window. Policy hashes remain unchanged.
+
+The updated overlay still requires a fresh concurrent smoke before the four-hour
+run. Final shared-broker evidence is being inspected without market access.
+Unproven final certification controls remain explicit and cannot become PASS
+merely because processes stay alive or deterministic tests pass.
