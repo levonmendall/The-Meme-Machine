@@ -237,3 +237,48 @@ retirement work is under deterministic validation on `repair/pump-continuous-cam
 
 Four-hour certification, complete natural lifecycles, prospective shadow alternatives,
 and final lane accounting/capacity controls remain incomplete.
+
+## Continuous campaign integration (2026-09-20 01:09 UTC)
+
+Smoke `35478805316` completed with zero restarts/unexpected exits and 600.519 seconds
+of actual four-process overlap. Total drain-inclusive elapsed time was 1,626.556
+seconds. It is INCOMPLETE, not a four-hour certification. Pump retained 49 complete
+vectors from 517 discovered mints, Pons evaluated 213 candidates, and Meteora
+screened 20 of 100 discovered pools. No natural settlement was established. Both
+provider queues drained; shared Robinhood maximum observed queue depth was 2, with
+1,276 HTTP 200 transports, no retries and no RPC errors. The Solana governor recorded
+2,637 grants and zero rate errors. Exact per-lane evidence is in
+`results/smoke-35478805316.json` and artifact `10595876501`.
+
+The source/native terminal Ramses report is being read separately because the old
+supervisor could overwrite its final summary with stale progress while Pump drained.
+The retained native report is not erased. This integration prevents that overwrite
+and has a regression for it. The older PR #71 artifact review confirmed the already
+repaired Pons 4 MB checkpoint-helper misuse as its unexpected exit.
+
+The next smoke uses these exact additional reviewed overlays:
+
+- Pump #75: `6377b4c46da95c4591848939c714f7766e789acd` — explicit continuous
+  duration, unchanged full-evidence capacity per rolling interval, acknowledged
+  retirement of expired subscriptions, and position monitoring before hydration.
+- Meteora #74: `957ff70af2065c7bf0227f00a7fab0f44e0f81f0` — repeated bounded
+  census of new first sightings, unchanged rolling attempt capacity, one book and
+  broker, normal frozen position drain.
+- Pons #76: `3378ecc3e7a130e8dcd1fa1ef88105235875c6b1` — one initialized
+  cohort budget, continuous discovery, durable queue terminal reasons, complete
+  compressed reports behind bounded views, and admitted-position drain on failure.
+- Ramses #77: `a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a` — continued
+  frontier discovery after settlement, one prospectively frozen budget per quote
+  asset from the initial pinned screen, no replenishment or cross-asset sums.
+
+Validation: Pump 245 tests/resource gate; Meteora 350 tests/both resource gates;
+Pons 215 tests; Ramses 236 tests. All passed in the combined worktrees. The supervisor
+suite now has 19 tests including lossless evidence-work timing and terminal-report
+retention. Operational configuration hashes are separate from unchanged policy
+hashes. Full source SHA + overlay hashes remain in the runtime manifest.
+
+The next workflow invokes `--campaign` for each worker, retains the full native
+archives and asset ledgers, and gives normal positions up to 3,300 seconds to drain
+(including Ramses' unchanged 1,800-second hold and slow finalized-frontier allowance).
+The four-hour command is still blocked pending this refreshed concurrent smoke and
+remaining accounting/replay controls. No four-hour observation has begun.

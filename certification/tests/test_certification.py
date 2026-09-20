@@ -105,6 +105,26 @@ class CertificationTests(unittest.TestCase):
         report['connected_lifecycle']['segments'][0]['terminal_equality']=False
         self.assertEqual(summarize('ramses',report)['natural_settled'],0)
 
+    def test_campaign_counts_distinct_ramses_settlements_without_summing_quote_cash(self):
+        lives=[dict(lifecycle_id=str(i),ledger_final=dict(id=str(i),status='settled',policy_hash='frozen'),
+            ledger_reconciliation=dict(open_positions=0),segments=[dict(terminal_equality=True)]) for i in range(3)]
+        report=dict(policy_hash='frozen',continuous_campaign=True,natural_qualifier_found=True,
+            natural_lifecycles=lives+[lives[0]],campaign_accounting=dict(conservation=True,open_positions=0,
+                by_quote_asset=dict(a=dict(available=10),b=dict(available=20)),unlike_quote_units_summed=False))
+        result=summarize('ramses',report)
+        self.assertEqual(result['natural_settled'],3)
+        self.assertEqual(result['open_positions'],0)
+        self.assertFalse(result['native_accounting']['unlike_quote_units_summed'])
+
+    def test_terminal_native_report_survives_other_lanes_draining(self):
+        from certification.run import observe_checkpoint_report
+        row=dict(exit_code=0,natural_settled=1,forced_settled=0,open_positions=0,
+            accounting_reconciled=True,funnel=dict(scans=4))
+        before=json.loads(json.dumps(row))
+        stale=dict(report=dict(frontier_gate={'progress':'unchanged'}))
+        observe_checkpoint_report('ramses',row,stale,0)
+        self.assertEqual(row,before)
+
     def test_environment_does_not_leak_other_lane_secrets(self):
         from unittest.mock import patch
         env=dict(MM_SOLANA_READ_RPC_URL='solana',MM_ROBINHOOD_READ_RPC_URL='rh',GITHUB_TOKEN='secret',PRIVATE_KEY='secret')
@@ -168,6 +188,37 @@ class IntegrationRegressionTests(unittest.TestCase):
             self.assertEqual(activity['provider_requests'],1)
             self.assertEqual(activity['pid'],os.getpid())
             self.assertEqual(activity['lane'],'pump')
+
+class EvidenceDenominatorTests(unittest.TestCase):
+    def test_missing_or_late_pons_evidence_is_not_economic_discrimination_sample(self):
+        from certification.analysis import partition_pons
+        def row(complete,age):return dict(vector=dict(complete=complete,decision_state_age_seconds=age,
+            thresholds=dict(max_state_age_seconds=5),all_rejections=['curve_progress']))
+        good,censored=partition_pons([row(True,4.9),row(True,5.1),row(False,2),row(True,None)])
+        self.assertEqual(len(good),1);self.assertEqual(len(censored),3)
+        self.assertEqual(good[0]['decision_state_age_seconds'],4.9)
+
+class EvidenceWorkTests(unittest.TestCase):
+    def test_stage_timing_preserves_return_and_exception_without_qualification_claim(self):
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        from certification.worker import Observer
+        value={'qualified':False};error=ValueError('unavailable')
+        def work(fail=False):
+            if fail:raise error
+            return value
+        module=SimpleNamespace(work=work)
+        with tempfile.TemporaryDirectory() as td:
+            with patch.dict(os.environ,{'MM_CERT_GOVERNOR_DB':str(Path(td)/'provider.sqlite')}):
+                observer=Observer(Path(td)/'lane','pons','frozen')
+            observer.observe_work(module,'work','candidate')
+            self.assertIs(module.work(),value)
+            with self.assertRaises(ValueError) as caught:module.work(True)
+            self.assertIs(caught.exception,error)
+            events=list(observer.journal.records())
+            self.assertEqual([x['body']['outcome'] for x in events],['returned','exception'])
+            self.assertTrue(all(x['body']['qualification_inferred'] is False for x in events))
+            observer.raw.close();observer.journal.close()
 
 class ObservationRetentionTests(unittest.TestCase):
     def test_compact_progress_retains_each_candidate_once(self):

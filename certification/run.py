@@ -109,11 +109,19 @@ def sustained_readiness():
     # These are demonstrated source-level blockers, not configuration overrides.
     # Never bypass a bounded study by looping/restarting it or padding idle uptime.
     return [
-        'pump:runner discovery clamps at 3300s; lifetime evidence cap 120; detailed cost decomposition and full economic replay remain incomplete',
-        'meteora:runner rejects runtime above 7200s; single finite census and attempt/target early exits; native journal integrated; continuous census and raw-chain replay validation remain',
-        'pons:cohort capital guard implemented; unresolved trials require recovery/reconciliation; enrollment/qualifier early-stop conditions remain',
-        'ramses:runner returns on first natural lifecycle; multi-asset cumulative capital accounting remains unproven',
+        'pump:continuous campaign implemented; refreshed concurrent smoke and full economic replay controls require evidence',
+        'meteora:continuous census and native journal implemented; refreshed concurrent smoke and raw-chain replay validation remain',
+        'pons:continuous campaign and position drain implemented; refreshed smoke and partial-exit capital-time proof remain',
+        'ramses:continuous discovery with frozen per-asset budgets implemented; refreshed concurrent smoke and native campaign validation remain',
     ]
+
+
+def observe_checkpoint_report(lane,row,status,process_code):
+    # Once the process has returned, the copied native terminal report is final.
+    # A stale progress snapshot must not erase its settlement/accounting evidence
+    # while another lane is still draining.
+    if status.get('report') is not None and (process_code is None or 'exit_code' not in row):
+        row.update(summarize(lane,status['report']))
 
 
 def launch(worktrees,output,seconds,phase,gate_file):
@@ -154,7 +162,7 @@ def launch(worktrees,output,seconds,phase,gate_file):
         for lane,row in spec['lanes'].items():
             folder=run/lane;folder.mkdir()
             out=(folder/'process.log').open('wb');files[lane]=out
-            cmd=[sys.executable,'-m','certification.worker','--lane',lane,'--output',str(folder),'--policy-hash',row['policy_hash'],'--seconds',str(seconds)]
+            cmd=[sys.executable,'-m','certification.worker','--lane',lane,'--output',str(folder),'--policy-hash',row['policy_hash'],'--seconds',str(seconds),'--campaign']
             proc=subprocess.Popen(cmd,cwd=Path(worktrees)/lane,env=lane_environment(lane,row,run,run_id),stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
             launched=time.monotonic();processes[lane]=(proc,launched)
             rows[lane]=dict(pid=proc.pid,strategy_version=row['strategy_version'],policy_hash=row['policy_hash'],process_restarts=0,health='starting',natural_settled=0,forced_settled=0,gates={})
@@ -162,7 +170,7 @@ def launch(worktrees,output,seconds,phase,gate_file):
         # Drain lets normal policy-defined exits finish. It is never counted as
         # a replacement for an interrupted observation window.
         common_start=max(start for _proc,start in processes.values())
-        hard_deadline=common_start+seconds+1800
+        hard_deadline=common_start+seconds+3300
         while True:
             now=time.monotonic();alive=False
             for lane,(proc,launched) in processes.items():
@@ -174,8 +182,7 @@ def launch(worktrees,output,seconds,phase,gate_file):
                     progress=status.get('last_progress_monotonic')
                     row['progress_age_seconds']=None if progress is None else now-progress
                     if 'exit_code' not in row:row['health']='responsive' if progress is not None and now-progress<300 else 'progress_stalled'
-                    if status.get('report') is not None:
-                        row.update(summarize(lane,status['report']))
+                    observe_checkpoint_report(lane,row,status,code)
                     if status.get('policy_hash')!=row['policy_hash']:row['gates']['policy_unchanged']=False
                 activity_file=run/lane/'activity.json'
                 if activity_file.exists() and code is None:

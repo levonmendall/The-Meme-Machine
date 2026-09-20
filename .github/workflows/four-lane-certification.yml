@@ -13,7 +13,7 @@ jobs:
   concurrent-smoke:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[four-lane-smoke]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -61,7 +61,7 @@ jobs:
             ${{ runner.temp }}/four-lane-worktrees/pons/pons-selective-continuation-v1-cohort.json
             ${{ runner.temp }}/four-lane-worktrees/pons/pons-selective-continuation-v1-cohort/
             ${{ runner.temp }}/four-lane-worktrees/ramses/robinhood-ramses-extended-market-report.json
-            ${{ runner.temp }}/four-lane-worktrees/ramses/robinhood-ramses-extended-market.sqlite
+            ${{ runner.temp }}/four-lane-worktrees/ramses/robinhood-ramses-extended-market.sqlite*
             ${{ runner.temp }}/four-lane-worktrees/ramses/robinhood-ramses-all-pool-inventory-cache.json
           if-no-files-found: error
           retention-days: 90

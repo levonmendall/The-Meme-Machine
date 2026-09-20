@@ -48,6 +48,8 @@ def summarize(lane, report):
         result['terminal_reasons']=dict(Counter(x.get('limitation') or x.get('stage','unknown') for x in report.get('attempts',[])))
         result['native_accounting']=report.get('accounting')
         result['accounting_replay']=report.get('accounting_replay')
+        if (report.get('accounting') or {}).get('reconciled') is True and (report.get('accounting_replay') or {}).get('verified') is True:
+            result['accounting_reconciled']=True
         result['limitations'].append('detailed_cost_decomposition_and_complete_economic_replay_require_verification')
     elif lane=='meteora':
         result['funnel']=dict(discovered=report.get('discovery_unique_pool_count'),screened=report.get('compatibility_screened_count'),
@@ -76,22 +78,35 @@ def summarize(lane, report):
         result['cohort_accounting']=report.get('cohort_accounting')
         if result['cohort_accounting']:
             result['open_positions']=result['cohort_accounting']['unsettled']
+            result['accounting_reconciled']=result['cohort_accounting'].get('conservation') is True
         result['limitations'].append('partial_exit_capital_time_and_detailed_cost_decomposition_require_verification')
     else:
         result['funnel']=dict(scans=len(report.get('natural_screens',[])),active_pools=report.get('unique_active_pools'))
         life=report.get('connected_lifecycle') or {};pos=life.get('ledger_final') or {}
         reconciliation=life.get('ledger_reconciliation') or {}
-        segments=life.get('segments') or []
-        if (report.get('natural_qualifier_found') and pos.get('status')=='settled'
-                and not pos.get('forced_machinery_test') and pos.get('strategy_evidence_eligible') is not False
-                and pos.get('policy_hash')==report.get('policy_hash') and report.get('policy_hash')
-                and reconciliation.get('open_positions')==0 and segments
-                and all(x.get('terminal_equality') is True for x in segments)):
-            result['natural_settled']=1
+        lives=report.get('natural_lifecycles') if report.get('continuous_campaign') else [life]
+        seen=set()
+        for natural in lives or []:
+            position=natural.get('ledger_final') or {};book=natural.get('ledger_reconciliation') or {}
+            segments=natural.get('segments') or [];identity=natural.get('lifecycle_id') or position.get('id')
+            if not report.get('continuous_campaign'):identity=identity or 'single-native-lifecycle'
+            if (report.get('natural_qualifier_found') and position.get('status')=='settled'
+                    and not position.get('forced_machinery_test') and position.get('strategy_evidence_eligible') is not False
+                    and position.get('policy_hash')==report.get('policy_hash') and report.get('policy_hash')
+                    and book.get('open_positions')==0 and segments and identity
+                    and all(x.get('terminal_equality') is True for x in segments)):
+                seen.add(identity)
+        result['natural_settled']=len(seen)
+        campaign=report.get('campaign_accounting')
+        if campaign:
+            result['native_accounting']=campaign
+            result['open_positions']=campaign.get('open_positions')
+            result['accounting_reconciled']=campaign.get('conservation') is True
         forced=report.get('forced_machinery') or {}
         if forced.get('mechanics_complete') and (forced.get('final_position') or {}).get('status')=='settled':result['forced_settled']=1
         result['accounting_by_scope']=dict(natural=reconciliation or None,forced=forced.get('reconciliation'))
-        if reconciliation and 'open_positions' in reconciliation:
+        if campaign:pass
+        elif reconciliation and 'open_positions' in reconciliation:
             result['open_positions']=reconciliation['open_positions']
         elif report.get('natural_qualifier_found') is False and forced.get('reconciliation'):
             result['open_positions']=forced['reconciliation'].get('open_positions')

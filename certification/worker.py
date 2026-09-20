@@ -106,6 +106,19 @@ class Observer:
                       terminal_monotonic=time.monotonic() if phase in ("returned","failed") else None)
             raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
 
+    def observe_work(self,module,name,stage):
+        original=getattr(module,name)
+        @functools.wraps(original)
+        def measured(*args,**kwargs):
+            started=time.monotonic();outcome='returned';error=None
+            try:return original(*args,**kwargs)
+            except BaseException as exc:
+                outcome='exception';error=type(exc).__name__;raise
+            finally:
+                self.event('evidence_work',dict(stage=stage,duration_seconds=time.monotonic()-started,
+                    outcome=outcome,error_type=error,qualification_inferred=False))
+        setattr(module,name,measured)
+
     def prioritize(self, module, name):
         original=getattr(module,name)
         @functools.wraps(original)
@@ -213,7 +226,7 @@ def policy_for(lane):
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--lane',required=True);p.add_argument('--output',required=True)
-    p.add_argument('--policy-hash',required=True);p.add_argument('--seconds',type=int,required=True)
+    p.add_argument('--campaign',action='store_true');p.add_argument('--policy-hash',required=True);p.add_argument('--seconds',type=int,required=True)
     args=p.parse_args()
     # Lane source precedes the certification repository, including its tests package.
     sys.path.insert(0,os.getcwd())
@@ -233,29 +246,34 @@ def main():
             os.environ['MM_PUMP_ACCELERATION_DISCOVERY_SECONDS']=str(args.seconds)
             module=importlib.import_module('tests.pump_acceleration_natural_prospective')
             observer.prioritize(module,"_fill_pending")
+            observer.prioritize(module,"_monitor_positions")
+            observer.observe_work(module,'_refresh_pool_events','pumpswap_candidate_or_position_window')
+            observer.observe_work(module,'_postgrad_concentration','pumpswap_concentration')
             original=module._save
             def save(report):
                 original(report);observer.checkpoint(report,'lane_checkpoint')
-            module._save=save;module.main()
+            module._save=save;module.main(campaign=args.campaign,discovery_seconds=args.seconds)
         elif args.lane=='meteora':
             module=importlib.import_module('tests.solana_dlmm_independent_v1')
             observer.prioritize(module,"_lifecycle")
+            observer.observe_work(module,'_aligned_warmup','fresh_trigger_and_exact_warmup')
             original=module._atomic_checkpoint
             def checkpoint(report,stage,*a,**kw):
                 result=original(report,stage,*a,**kw)
                 observer.checkpoint(report,stage);return result
             module._atomic_checkpoint=checkpoint
-            module.run_live(target=6,max_attempted=48,max_runtime_seconds=args.seconds)
+            module.run_live(target=6,max_attempted=48,max_runtime_seconds=args.seconds,campaign=args.campaign)
         elif args.lane=='pons':
             os.environ['MM_PONS_SELECTIVE_DISCOVERY_SECONDS']=str(args.seconds)
             module=importlib.import_module('robinhood_research.pons_selective_cohort')
             observer.prioritize(module,"run_lifecycle")
+            observer.observe_work(module,'evaluate_candidate','pons_candidate_evidence_and_evaluation')
             original=module._checkpoint
             def checkpoint(result,**kw):
                 value=original(result,**kw);observer.pons_progress(result,value,kw['phase']);return value
             module._checkpoint=checkpoint
-            result=module.run(os.environ.get('MM_ROBINHOOD_READ_RPC_URL',''))
-            persist_pons_terminal(module.REPORT,result)
+            result=module.run(os.environ.get('MM_ROBINHOOD_READ_RPC_URL',''),campaign=args.campaign)
+            result=module.persist_terminal(result)
             observer.checkpoint(result,'lane_result')
         else:
             module=importlib.import_module('robinhood_research.ramses_extended_test')
@@ -263,6 +281,7 @@ def main():
             # the discovery or lifecycle algorithm. Startup/scan stalls stay visible.
             observer.prioritize(module,"run_connected")
             observer.prioritize(module,"_forced_machinery")
+            observer.observe_work(module,'scan','ramses_finalized_pool_scan')
             original=module.scan
             def scan(*a,**kw):
                 result=original(*a,**kw);observer.checkpoint(module._screen_summary(result),'authenticated_scan');return result
@@ -272,7 +291,11 @@ def main():
                 result=gate(*a,**kw);observer.checkpoint(dict(frontier_gate=result),'frontier_progress');return result
             module._frontier_scan_gate=frontier
             os.environ['MM_ROBINHOOD_RAMSES_EXTENDED_DISCOVERY_SECONDS']=str(args.seconds)
-            module.main()
+            original_persist=module._persist_public_result
+            def persist(result):
+                original_persist(result);observer.checkpoint(result,'campaign_checkpoint')
+            module._persist_public_result=persist
+            module.main(campaign=args.campaign)
         observer.event('process_terminal',dict(status='returned',policy_hash=policy_for(args.lane)))
         observer.status('returned')
     except BaseException as exc:

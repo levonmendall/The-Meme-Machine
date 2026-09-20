@@ -184,12 +184,15 @@ index 0000000..8f200e6
 +                    checked+=1
 +        return dict(verified=True,checked_economic_events=checked,authentication='existing_lane_verified_tapes',raw_chain_reauthentication=False)
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
-index 0a4acc7..3430213 100644
+index 0a4acc7..9ed9c9b 100644
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
-@@ -14,6 +14,8 @@ from __future__ import annotations
+@@ -12,8 +12,10 @@ transport.
+ from __future__ import annotations
+ 
  import argparse
- from collections import Counter
+-from collections import Counter
++from collections import Counter,deque
  from copy import deepcopy
 +from dataclasses import asdict
 +import uuid
@@ -206,7 +209,55 @@ index 0a4acc7..3430213 100644
  from tests import dlmm_alchemy_provider as provider
  
  POLICY_PATH=Path("SOLANA_DLMM_INDEPENDENT_V1.json")
-@@ -1006,6 +1009,7 @@ def _build_position(entry,features,policy):
+@@ -253,7 +256,7 @@ def _history_acceleration(candidate,observed_at):
+     return out
+ 
+ 
+-def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None):
++def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None,seen=None):
+     """Yield each qualifying pool immediately after its history check.
+ 
+     The order is deterministic: configured sort order, then page, then API row rank.
+@@ -266,7 +269,7 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
+     telemetry.setdefault("qualified",[])
+     telemetry.setdefault("seen",0)
+     telemetry.setdefault("history_reads",0)
+-    seen=set()
++    seen=set() if seen is None else seen
+     regime=policy["regime"]
+     for sort_by in DISCOVERY_SORTS:
+         for page in range(1,DISCOVERY_PAGES_PER_SORT+1):
+@@ -339,6 +342,29 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
+                 break
+ 
+ 
++class CampaignAttemptBudget:
++    """Same default-study attempt capacity per 20 minutes, without a lifetime stop."""
++    def __init__(self,limit,window=1200):self.limit=limit;self.window=window;self.admitted=deque()
++    def take(self,now):
++        while self.admitted and self.admitted[0]<=now-self.window:self.admitted.popleft()
++        if len(self.admitted)>=self.limit:return False
++        self.admitted.append(now);return True
++
++
++def _campaign_candidates(policy,telemetry,deadline,checkpoint):
++    # First sighting remains global for this process. Repeating the public census
++    # finds newly appearing pools, never refreshes a rejected pool's first clock
++    # or revises its priority using later outcomes.
++    seen=set();cycle=0
++    while not _runtime_expired(deadline):
++        cycle_started=time.monotonic();cycle+=1
++        yield from _iter_acceleration_candidates(policy,telemetry,deadline,checkpoint,seen)
++        telemetry['census_cycles']=cycle
++        checkpoint('census_cycle_complete')
++        wait=min(max(0.0,60-(time.monotonic()-cycle_started)),_runtime_remaining(deadline))
++        if wait:time.sleep(wait)
++
++
+ def discover(policy,scan_cap):
+     """Compatibility collector used by unit tests; live execution streams instead."""
+     telemetry={}
+@@ -1006,6 +1032,7 @@ def _build_position(entry,features,policy):
          entry_active=virtual["active"],entry_slot=entry["slot"],
          entry_time=entry["time"],entry_conversion_sol_lamports=conversion,
          entry_conversion_token_raw=token,deposits=deposits,
@@ -214,7 +265,7 @@ index 0a4acc7..3430213 100644
      )
  
  
-@@ -1045,14 +1049,30 @@ def _mark(position):
+@@ -1045,14 +1072,30 @@ def _mark(position):
      token_side="y" if sol_side=="x" else "x"
      sol=assets[sol_side]+assets["fee_"+sol_side]
      tokens=assets[token_side]+assets["fee_"+token_side]
@@ -246,7 +297,7 @@ index 0a4acc7..3430213 100644
          pnl_bps=pnl*10000/CAPITAL,
          non_sol_inventory_raw=tokens,
          non_sol_inventory_liquidation_lamports=liquidation,
-@@ -1100,10 +1120,26 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
+@@ -1100,10 +1143,26 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
      return reasons,recent,mark,fee_uplift
  
  
@@ -275,7 +326,7 @@ index 0a4acc7..3430213 100644
      current=entry;elapsed=0;segments=[];tapes=[]
      max_hold=int(policy["range"]["max_holding_seconds"])
      segment_seconds=int(policy["exit"]["observation_segment_seconds"])
-@@ -1122,13 +1158,16 @@ def _lifecycle(
+@@ -1122,13 +1181,16 @@ def _lifecycle(
              adapter,address,current,duration,False,pacer,rpcs,deadline,
              broker,"position_monitor")
          if not phase["verified"]:
@@ -293,7 +344,7 @@ index 0a4acc7..3430213 100644
          elapsed+=duration;tapes.append(tape)
          segments.append(dict(
              elapsed_seconds=elapsed,lineage=tape.lineage,
-@@ -1140,10 +1179,12 @@ def _lifecycle(
+@@ -1140,10 +1202,12 @@ def _lifecycle(
              exit_reason=reasons[0];break
      combined=chain_verified_tapes(entry,tapes)
      final=_mark(position)
@@ -307,7 +358,23 @@ index 0a4acc7..3430213 100644
          segments=segments,lineage=combined.lineage,final=final,
      ),adapter
  
-@@ -1643,6 +1684,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1627,7 +1691,7 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
+     ),None,None,None,None,adapter,current_candidate
+ 
+ 
+-def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
++def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=False):
+     assert_independence()
+     policy=load_policy()
+     target=int(target or policy["prospective_test"]["target_complete_lifecycles"])
+@@ -1638,11 +1702,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+         raise ValueError("solana_dlmm_attempt_bound")
+     max_runtime_seconds=int(
+         max_runtime_seconds or DEFAULT_MAX_RUNTIME_SECONDS)
+-    if not 60<=max_runtime_seconds<=7200:
++    if type(campaign) is not bool:raise ValueError("solana_dlmm_campaign_flag")
++    if not 60<=max_runtime_seconds<=(21600 if campaign else 7200):
+         raise ValueError("solana_dlmm_runtime_bound")
      run_started_monotonic=time.monotonic()
      deadline=run_started_monotonic+max_runtime_seconds
  
@@ -317,24 +384,89 @@ index 0a4acc7..3430213 100644
      discovery_telemetry=dict(
          rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
      compatibility_rejections=[];compatibility_screened=0
-@@ -1682,6 +1726,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1681,7 +1749,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+         evidence_broker=broker.telemetry(),
      )
      attempted=0;complete=0;failure_counts=Counter()
++    attempt_budget=CampaignAttemptBudget(max_attempted)
++    report['policy_hash']=digest(policy)
++    report["continuous_campaign"]=campaign
++    report["attempt_budget_window_seconds"]=1200 if campaign else None
++    report['operational_configuration']=dict(campaign=campaign,census_interval_seconds=60 if campaign else None,
++        attempt_limit=max_attempted,attempt_window_seconds=1200 if campaign else None,
++        first_sighting_scope='entire_process',paper_starting_capital_lamports=1_000_000_000,
++        runtime_seconds=max_runtime_seconds,position_drain_seconds=int(policy['range']['max_holding_seconds'])+300 if campaign else 0)
++    report['operational_configuration_hash']=digest(report['operational_configuration'])
      def checkpoint(stage):
 +        report["accounting"]=book.reconcile()
          report["wake_stream"]=broker.stream_status(
              DLMM_WAKE_STREAM_KEY,int(time.time()),0)
          report["evidence_broker"]=broker.telemetry()
-@@ -1760,7 +1805,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1696,12 +1774,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+                 0.0,time.monotonic()-run_started_monotonic),
+         )
+     checkpoint("run_initialized")
+-    candidate_stream=_iter_acceleration_candidates(
+-        policy,discovery_telemetry,deadline,checkpoint)
++    candidate_stream=(_campaign_candidates(policy,discovery_telemetry,deadline,checkpoint)
++        if campaign else _iter_acceleration_candidates(policy,discovery_telemetry,deadline,checkpoint))
+     for candidate in candidate_stream:
+         if (_runtime_expired(deadline)
+-                or attempted>=max_attempted or complete>=target):
++                or (not campaign and (attempted>=max_attempted or complete>=target))):
+             break
++        if book.reconcile()['unsettled']:
++            report['fatal_boundary']='solana_dlmm_unresolved_position_blocks_new_admission'
++            checkpoint('unresolved_position_blocks_new_admission')
++            stream_stop.set();wake_thread.join(timeout=5);broker.close()
++            raise Unavailable(report['fatal_boundary'])
+         candidate_rpcs=[]
+         adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
+         compatibility_screened+=1
+@@ -1719,6 +1802,12 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+             checkpoint("compatibility_rejection")
+             continue
+ 
++        if campaign and not attempt_budget.take(time.monotonic()):
++            failure_counts['capacity_attempt_window_budget']+=1
++            report['attempts'].append(dict(pool=candidate['address'],candidate=candidate,
++                terminal_classification='capacity_attempt_window_budget',economic_rejection=False))
++            checkpoint('capacity_censoring')
++            continue
+         attempted+=1
+         handoff_started_at=int(time.time())
+         attempt=dict(
+@@ -1760,7 +1849,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  continue
              lifecycle,adapter=_lifecycle(
                  adapter,candidate["address"],entry,features,policy,pacer,
 -                candidate_rpcs,deadline,broker)
-+                candidate_rpcs,deadline,broker,book)
++                candidate_rpcs,(deadline+int(policy['range']['max_holding_seconds'])+300
++                    if campaign else deadline),broker,book)
              for rpc in candidate_rpcs:
                  if rpc not in rpcs:rpcs.append(rpc)
              attempt["lifecycle"]=lifecycle
-@@ -1823,6 +1868,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1777,9 +1867,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+                 failure_counts["lifecycle_unverified"]+=1
+             checkpoint("lifecycle_terminal")
+         except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
+-            attempt["terminal_classification"]="exception"
++            classification='paper_capital_capacity' if str(exc)=='dlmm_accounting_capital_exhausted' else 'exception'
++            attempt["terminal_classification"]=classification
+             attempt["reason"]=str(exc)[:200]
+-            failure_counts["exception"]+=1
++            failure_counts[classification]+=1
+             attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
+             report["attempts"].append(attempt)
+             checkpoint("candidate_exception")
+@@ -1817,12 +1908,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+         elapsed_seconds=max(
+             0.0,time.monotonic()-run_started_monotonic),
+         conclusion=(
++            "continuous_campaign_window_complete" if campaign and _runtime_expired(deadline) else
+             "prospective_target_complete"
+             if complete>=target else
+             "prospective_20m_window_complete"
              if _runtime_expired(deadline) else
              "prospective_sample_incomplete_no_threshold_change"),
      )
@@ -437,3 +569,48 @@ index 5981022..7be2d8e 100644
              prices,reason=resolver.prices(
                  dict(
                      token_x=dlmm.WSOL,token_y="token",
+diff --git a/tests/test_meteora_continuous_campaign.py b/tests/test_meteora_continuous_campaign.py
+new file mode 100644
+index 0000000..9c5fe0e
+--- /dev/null
++++ b/tests/test_meteora_continuous_campaign.py
+@@ -0,0 +1,39 @@
++"""Continuous orchestration checks with a deterministic clock and no provider I/O."""
++from pathlib import Path
++import tempfile
++import unittest
++from unittest.mock import patch
++from meme_machine import dlmm
++from tests import solana_dlmm_independent_v1 as strategy
++
++
++class ContinuousCampaignTests(unittest.TestCase):
++    def test_attempt_budget_rolls_without_raising_original_window_capacity(self):
++        budget=strategy.CampaignAttemptBudget(2)
++        self.assertTrue(budget.take(0));self.assertTrue(budget.take(1))
++        self.assertFalse(budget.take(1199))
++        self.assertTrue(budget.take(1200));self.assertFalse(budget.take(1200.5))
++        self.assertTrue(budget.take(1201))
++
++    def test_repeated_census_only_admits_new_first_sightings(self):
++        clock=[0];telemetry={};phases=[];history=[]
++        def row(name):return dict(address=name,name=name,tvl=1000,is_blacklisted=False,
++            token_x=dict(address=dlmm.WSOL),token_y=dict(address='token'),volume={'30m':1000},fees={'30m':10})
++        def api(*args,**kw):return dict(data=[row('first')]+([row('new')] if clock[0]>=60 else []))
++        def acceleration(candidate,at):
++            history.append((candidate['address'],at))
++            return dict(candidate,volume_acceleration=0 if clock[0]==0 else 3,fee_acceleration=3)
++        with patch.object(strategy.time,'monotonic',side_effect=lambda:clock[0]),patch.object(strategy.time,'time',side_effect=lambda:2800+clock[0]),patch.object(strategy.time,'sleep',side_effect=lambda n:clock.__setitem__(0,clock[0]+n)),patch.object(strategy,'_api',side_effect=api),patch.object(strategy,'_history_acceleration',side_effect=acceleration):
++            candidates=list(strategy._campaign_candidates(strategy.load_policy(),telemetry,121,phases.append))
++        self.assertEqual(history,[('first',2800),('new',2860)])
++        self.assertEqual([x['address'] for x in candidates],['new'])
++        self.assertEqual(telemetry['seen'],2);self.assertEqual(telemetry['census_cycles'],3)
++        self.assertEqual(clock[0],121)
++
++    def test_four_hours_requires_explicit_campaign_and_policy_does_not_change(self):
++        before=strategy.digest(strategy.load_policy())
++        with self.assertRaisesRegex(ValueError,'runtime_bound'):strategy.run_live(max_runtime_seconds=14400)
++        with tempfile.TemporaryDirectory() as td,patch.object(strategy,'OUT',Path(td)/'report.json'),patch.object(strategy,'_prove_network_identity',side_effect=RuntimeError('offline-network-boundary')):
++            with self.assertRaisesRegex(RuntimeError,'offline-network-boundary'):
++                strategy.run_live(max_runtime_seconds=14400,campaign=True)
++        self.assertEqual(before,strategy.digest(strategy.load_policy()))

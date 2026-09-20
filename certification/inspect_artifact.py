@@ -33,6 +33,13 @@ def main():
                 text=archive.read(info).decode(errors='replace')[-14000:]
                 text=re.sub(r'https?://[^\s\"\x27<>]+','[endpoint redacted]',text)
                 print('LANE_PROCESS_TAIL '+info.filename+'\n'+text)
+            elif info.filename.endswith('/robinhood-ramses-extended-market-report.json'):
+                report=json.loads(archive.read(info));forced=report.get('forced_machinery') or {};life=report.get('connected_lifecycle') or {}
+                selected={k:report.get(k) for k in ('status','boundary','natural_qualifier_found','unique_active_pools','frontier_discovery')}
+                selected['natural_screens']=report.get('natural_screens')
+                selected['forced_machinery']={k:forced.get(k) for k in ('mechanics_complete','boundary','pool','final_position','reconciliation')}
+                selected['natural_lifecycle']={k:life.get(k) for k in ('status','boundary','ledger_final','ledger_reconciliation')}
+                print('RAMSES_NATIVE_TERMINAL '+json.dumps(selected,sort_keys=True))
             elif info.filename.endswith('/status.json'):
                 row=json.loads(archive.read(info));report=row.pop('report',None)
                 print('LANE_STATUS '+json.dumps(row,sort_keys=True))

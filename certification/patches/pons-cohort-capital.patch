@@ -1,3 +1,68 @@
+diff --git a/robinhood_research/evidence_queue.py b/robinhood_research/evidence_queue.py
+index 1b6f675..378c9d6 100644
+--- a/robinhood_research/evidence_queue.py
++++ b/robinhood_research/evidence_queue.py
+@@ -11,7 +11,7 @@ import time
+ 
+ 
+ class DeadlineEvidenceQueue:
+-    def __init__(self, *, limit=10_000, nominal_deadline_seconds=5.0):
++    def __init__(self, *, limit=10_000, nominal_deadline_seconds=5.0,on_terminal=None):
+         if not 1 <= int(limit) <= 100_000:
+             raise ValueError("invalid_evidence_queue_limit")
+         if not 1.0 <= float(nominal_deadline_seconds) <= 10.0:
+@@ -20,6 +20,11 @@ class DeadlineEvidenceQueue:
+         self.nominal_deadline_seconds=float(nominal_deadline_seconds)
+         self.rows={}
+         self.counts=Counter()
++        self.on_terminal=on_terminal
++        self.max_depth=0
++
++    def _terminal(self,row,reason):
++        if self.on_terminal is not None:self.on_terminal(row,reason)
+ 
+     @staticmethod
+     def _key(event):
+@@ -57,11 +62,14 @@ class DeadlineEvidenceQueue:
+                 self.rows.items(),key=lambda item:self._order(item[1])
+             )
+             if self._order(row)>=self._order(worst):
++                self._terminal(row,"capacity_skipped")
+                 self.counts["capacity_skipped"]+=1
+                 return False
++            self._terminal(worst,"capacity_evicted")
+             del self.rows[worst_key]
+             self.counts["capacity_evicted"]+=1
+         self.rows[key]=row
++        self.max_depth=max(self.max_depth,len(self.rows))
+         self.counts["enqueued"]+=1
+         return True
+ 
+@@ -69,6 +77,7 @@ class DeadlineEvidenceQueue:
+         observed=time.time() if now is None else float(now)
+         expired=[k for k,row in self.rows.items() if row["deadline"]<=observed]
+         for key in expired:
++            self._terminal(self.rows[key],"expired_before_evidence")
+             del self.rows[key]
+         self.counts["expired_before_evidence"]+=len(expired)
+         return len(expired)
+@@ -83,6 +92,7 @@ class DeadlineEvidenceQueue:
+             del self.rows[key]
+             remaining=float(row["deadline"])-observed
+             if remaining < float(minimum_remaining_seconds):
++                self._terminal(row,"deadline_insufficient")
+                 self.counts["deadline_insufficient"]+=1
+                 continue
+             self.counts["processed"]+=1
+@@ -92,7 +102,7 @@ class DeadlineEvidenceQueue:
+ 
+     def telemetry(self):
+         return dict(
+-            depth=len(self.rows),limit=self.limit,
++            depth=len(self.rows),limit=self.limit,max_depth=self.max_depth,
+             nominal_deadline_seconds=self.nominal_deadline_seconds,
+             **dict(self.counts),
+         )
 diff --git a/robinhood_research/pons_selective_capital.py b/robinhood_research/pons_selective_capital.py
 new file mode 100644
 index 0000000..1260912
@@ -110,10 +175,19 @@ index 0000000..1260912
 +                self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT');return rec
 +            except BaseException:db.execute('ROLLBACK');raise
 diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
-index 080894d..0a429e1 100644
+index 080894d..b4c67b6 100644
 --- a/robinhood_research/pons_selective_cohort.py
 +++ b/robinhood_research/pons_selective_cohort.py
-@@ -55,6 +55,8 @@ PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS=2.0
+@@ -5,6 +5,8 @@ result directory, dedicated wallet-skill ledger, dedicated paper databases, poli
+ hash, qualification rows and lifecycle outcomes.
+ """
+ from concurrent.futures import ThreadPoolExecutor
++import gzip
++import hashlib
+ import json
+ import os
+ from pathlib import Path
+@@ -55,6 +57,8 @@ PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS=2.0
  RATE_LIMIT_PROVIDER_BOUNDARIES=frozenset((
      "provider_http_429",
      "provider_rpc_429",
@@ -122,16 +196,50 @@ index 080894d..0a429e1 100644
  ))
  RECOVERABLE_PROVIDER_BOUNDARIES=frozenset((
      "provider_http_500",
-@@ -341,16 +343,30 @@ def _attach_wallet_overlay(vector,skill_book):
+@@ -132,13 +136,21 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
+         started_at=result["started_at"],
+         canonical_discovery_cursor=int(cursor),
+         summary=_summary_snapshot(result),
+-        discovery_sessions=list(result["discovery_sessions"]),
++        discovery_sessions=list(result["discovery_sessions"][-16:]),
++        discovery_session_count=len(result['discovery_sessions']),
++        provider_session_archive=str(PROVIDER_LOG),
+         active_discovery_provider=active_provider,
+-        sequencer_recoveries=list(result.get("sequencer_recoveries") or []),
++        sequencer_recoveries=list((result.get("sequencer_recoveries") or [])[-16:]),
++        sequencer_recovery_count=len(result.get('sequencer_recoveries') or []),
++        sequencer_recovery_archive=str(RECOVERY_LOG),
++        cohort_accounting=_cohort_accounting() if (ROOT/'pons-selective-cohort-capital.sqlite').exists() else result.get('cohort_accounting'),
+         sequencer_discovery=feed.status(),
+         warmup=result.get("warmup"),
+         target_reached=result.get("target_reached"),
+         boundary=result.get("boundary"),
++        evidence_queue=result.get('evidence_queue'),
++        evidence_acquisition=result.get('evidence_acquisition'),
++        capacity_censored=result.get('capacity_censored',0),
+         persisted_candidate_rows=len(result["rows"]),
+         persisted_qualifiers=len(result["qualifiers"]),
+     )
+@@ -341,23 +353,72 @@ def _attach_wallet_overlay(vector,skill_book):
      return overlay
  
  
+-def run(endpoint):
+-    ROOT.mkdir(parents=True,exist_ok=True)
+-    # Strategy-local artifacts only. Never delete other lanes' data.
+-    for path in ROOT.glob("trial-*.sqlite*"):
+-        path.unlink()
+-    for path in (PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT):
 +def _collect_completed(result,futures):
 +    remaining=[]
 +    for qindex,future in futures:
 +        if not future.done():
 +            remaining.append((qindex,future));continue
-+        try:
+         try:
+-            path.unlink()
+-        except FileNotFoundError:
+-            pass
+-
 +            life=future.result()
 +        except Exception as exc:
 +            life=dict(status="unexpected_boundary",boundary=type(exc).__name__)
@@ -141,16 +249,39 @@ index 080894d..0a429e1 100644
 +    return remaining
 +
 +
- def run(endpoint):
-     ROOT.mkdir(parents=True,exist_ok=True)
--    # Strategy-local artifacts only. Never delete other lanes' data.
--    for path in ROOT.glob("trial-*.sqlite*"):
--        path.unlink()
--    for path in (PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT):
--        try:
--            path.unlink()
--        except FileNotFoundError:
--            pass
++def _cohort_accounting():
++    from .pons_selective_capital import CohortCapital
++    return CohortCapital(ROOT/'pons-selective-cohort-capital.sqlite',STRATEGY_CAPITAL_QUOTE).reconcile()
++
++
++def persist_terminal(result):
++    """Retain the complete result durably and keep the terminal view bounded."""
++    archive=ROOT/'complete-result.json.gz'
++    with archive.open('wb') as file:
++        with gzip.GzipFile(fileobj=file,mode='wb') as compressed:
++            for piece in json.JSONEncoder(sort_keys=True,separators=(',',':')).iterencode(result):
++                compressed.write(piece.encode())
++        file.flush();os.fsync(file.fileno())
++    with archive.open('rb') as file:checksum=hashlib.file_digest(file,'sha256').hexdigest()
++    compact={k:v for k,v in result.items() if k not in (
++        'rows','qualifiers','discovery_sessions','sequencer_recoveries','lifecycles')}
++    compact['observation_archive']=dict(path=str(archive),sha256=checksum,complete=True,
++        candidate_rows=len(result['rows']),qualifiers=len(result['qualifiers']),
++        lifecycles=len(result['lifecycles']),provider_sessions=len(result['discovery_sessions']))
++    compact['lifecycles']=[{k:v for k,v in life.items() if k in (
++        'index','status','boundary','final_position','reconciliation','realized_pnl_quote',
++        'carried_through_graduation','capital_reconciliation')} for life in result['lifecycles']]
++    raw=json.dumps(compact,sort_keys=True,separators=(',',':')).encode()
++    if len(raw)>12_000_000:raise BoundaryError('selective_cohort_report_capacity')
++    temporary=REPORT.with_suffix(REPORT.suffix+'.tmp')
++    with temporary.open('wb') as file:file.write(raw);file.flush();os.fsync(file.fileno())
++    os.replace(temporary,REPORT)
++    return compact
++
++
++def run(endpoint,*,campaign=False):
++    if type(campaign) is not bool:raise BoundaryError('selective_campaign_flag')
++    ROOT.mkdir(parents=True,exist_ok=True)
 +    # Preserve existing evidence and lane capital on repeated invocation.
 +    occupied=list(ROOT.glob("trial-*.sqlite*"))
 +    occupied += [p for p in (PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT,
@@ -158,10 +289,64 @@ index 080894d..0a429e1 100644
 +    if occupied:
 +        raise BoundaryError("selective_existing_run_requires_explicit_recovery")
 +
- 
++    initial_accounting=_cohort_accounting()
      started=time.time()
      result=dict(
-@@ -423,6 +439,7 @@ def run(endpoint):
+         kind="pons-selective-continuation-v1-independent-cohort",
+         namespace=STRATEGY_NAMESPACE,policy=POLICY,policy_hash=POLICY_HASH,
+         independent_strategy=True,shared_allocator=False,live_money=False,
+-        cohort_target=COHORT_TARGET,max_enrolled=MAX_ENROLLED,
++        cohort_target=COHORT_TARGET,max_enrolled=MAX_ENROLLED,continuous_campaign=campaign,
++        cohort_accounting=initial_accounting,
++        operational_configuration=dict(campaign=campaign,discovery_seconds=DISCOVERY_SECONDS,
++            max_concurrent_lifecycles=MAX_CONCURRENT_LIFECYCLES,
++            observation_capacity=MAX_ENROLLED,exhausted_capacity='continue_authenticated_discovery_and_censor'),
+         selection_rule=(
+             "every distinct current authenticated Pons V2 buy, with at most one "
+             "evaluation per curve per 2 wall-clock seconds; no outcome reranking"
+@@ -369,6 +430,8 @@ def run(endpoint):
+         sequencer_recoveries=[],evidence_acquisition=None,started_at=started,
+     )
+ 
++    result['operational_configuration_hash']=hashlib.sha256(json.dumps(
++        result['operational_configuration'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
+     skill=WalletSkillBook(str(SKILL_DB))
+     evidence_context=SelectiveEvidenceContext(endpoint)
+     rpc=_discovery(endpoint)
+@@ -384,7 +447,13 @@ def run(endpoint):
+         raise BoundaryError("selective_sequencer_timestamp_missing")
+     tape=[];last_eval={};seen_event=set()
+     first_observed_monotonic={}
+-    queue=DeadlineEvidenceQueue(limit=4096,nominal_deadline_seconds=5.0)
++    def queue_terminal(row,reason):
++        event=row['event'];identity=(event['transactionHash'],event['logIndex'])
++        observed_monotonic=first_observed_monotonic.pop(identity,None)
++        _append_jsonl(ROOT/'queue-terminal.jsonl',dict(event=event,queued_at=row['queued_at'],
++            deadline=row['deadline'],first_observed_monotonic=observed_monotonic,
++            terminal_reason=reason,economic_rejection=False,policy_hash=POLICY_HASH))
++    queue=DeadlineEvidenceQueue(limit=4096,nominal_deadline_seconds=5.0,on_terminal=queue_terminal)
+ 
+     def _checkpoint_provider_failure(failed_rpc,boundary,current_cursor):
+         result["last_transient_provider_boundary"]=str(boundary)
+@@ -393,6 +462,7 @@ def run(endpoint):
+             phase="provider_recovery",
+         )
+ 
++    pool=None;futures=[]
+     try:
+         warm_deadline=time.monotonic()+TAPE_WARM_SECONDS
+         while time.monotonic()<warm_deadline:
+@@ -415,14 +485,15 @@ def run(endpoint):
+         next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
+         while (
+             time.monotonic()<deadline
+-            and len(result["rows"])<MAX_ENROLLED
+-            and len(result["qualifiers"])<COHORT_TARGET
++            and (campaign or (len(result["rows"])<MAX_ENROLLED
++                              and len(result["qualifiers"])<COHORT_TARGET))
+         ):
+             rpc,cursor,fresh=_poll(
+                 endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
                  result["sequencer_recoveries"],
                  on_provider_failure=_checkpoint_provider_failure,
              )
@@ -169,7 +354,39 @@ index 080894d..0a429e1 100644
              now=time.time()
              now_monotonic=time.monotonic()
              for event in fresh:
-@@ -497,6 +514,7 @@ def run(endpoint):
+@@ -444,6 +515,7 @@ def run(endpoint):
+                 if queue.enqueue(event,now=now):
+                     first_observed_monotonic[identity]=now_monotonic
+ 
++            result['evidence_queue']=queue.telemetry()
+             if time.monotonic()>=next_checkpoint:
+                 _checkpoint(
+                     result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery"
+@@ -461,6 +533,13 @@ def run(endpoint):
+             if observed_monotonic is None:
+                 raise BoundaryError("missing_evidence_observation_clock")
+             observed_at=float(scheduled["queued_at"])
++            if campaign and len(result['rows'])>=MAX_ENROLLED:
++                result['capacity_censored']=result.get('capacity_censored',0)+1
++                _append_jsonl(ROOT/'capacity-censored.jsonl',dict(
++                    source_transaction=event.get('transactionHash'),source_block=event.get('blockNumber'),
++                    observed_at=observed_at,observed_monotonic=observed_monotonic,
++                    terminal_reason='selective_campaign_observation_capacity',economic_rejection=False))
++                continue
+             try:
+                 evaluation=evaluate_candidate(
+                     endpoint,event,list(tape),
+@@ -493,10 +572,17 @@ def run(endpoint):
+                         phase="qualifier_persisted",
+                     )
+                     next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
++                    if len(futures)>=MAX_CONCURRENT_LIFECYCLES:
++                        life=dict(index=qindex,status='capacity_censored',
++                            boundary='selective_concurrent_position_capacity',economic_rejection=False)
++                        result['lifecycles'].append(life)
++                        _append_jsonl(ROOT/'completed-lifecycles.jsonl',life)
++                        continue
+                     futures.append((
                          qindex,pool.submit(
                              run_lifecycle,endpoint,evaluation,
                              db_path=ROOT/f"trial-{qindex:03d}.sqlite",
@@ -177,6 +394,60 @@ index 080894d..0a429e1 100644
                          )
                      ))
              except BoundaryError as exc:
+@@ -517,23 +603,30 @@ def run(endpoint):
+         if not result["target_reached"]:
+             result["boundary"]="selective_cohort_target_not_reached_in_bounded_window"
+ 
+-        for qindex,future in futures:
+-            try:
+-                life=future.result()
+-            except Exception as exc:
+-                life=dict(
+-                    index=qindex,status="unexpected_boundary",
+-                    boundary=type(exc).__name__,
+-                )
+-            life["index"]=qindex
+-            result["lifecycles"].append(life)
+-        pool.shutdown(wait=True)
+     except BoundaryError as exc:
+         result["boundary"]=str(exc)
+         terminal_provider=rpc.telemetry()
+         result["discovery_sessions"].append(terminal_provider)
+         _append_jsonl(PROVIDER_LOG,terminal_provider)
+     finally:
++        if pool is not None:
++            # Drain all admitted positions under their own frozen policy even if
++            # discovery failed. No future may be discarded from terminal evidence.
++            try:
++                for qindex,future in futures:
++                    try:life=future.result()
++                    except Exception as exc:life=dict(status='unexpected_boundary',boundary=type(exc).__name__)
++                    life['index']=qindex
++                    result['lifecycles'].append(life)
++                    _append_jsonl(ROOT/'completed-lifecycles.jsonl',life)
++                    _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase='position_drain')
++            finally:pool.shutdown(wait=True)
++        # Remaining queued observations retain their original clocks and an
++        # explicit shutdown terminal, never a synthetic fresh evaluation.
++        for row in list(queue.rows.values()):queue_terminal(row,'campaign_window_closed')
++        queue.rows.clear()
++        result['evidence_queue']=queue.telemetry()
++        result['cohort_accounting']=_cohort_accounting()
+         result["evidence_acquisition"]=evidence_context.telemetry()
+         result["sequencer_discovery"]=feed.status()
+         _checkpoint(
+@@ -575,10 +668,7 @@ def run(endpoint):
+ 
+ if __name__=="__main__":
+     output=run(os.environ.get("MM_ROBINHOOD_READ_RPC_URL",""))
+-    raw=json.dumps(output,sort_keys=True,separators=(",",":")).encode()
+-    if len(raw)>12_000_000:
+-        raise BoundaryError("selective_cohort_report_capacity")
+-    REPORT.write_bytes(raw)
++    output=persist_terminal(output)
+     print(json.dumps(dict(
+         policy_hash=output["policy_hash"],boundary=output.get("boundary"),
+         summary=output["summary"],
 diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
 index 36ef0b3..8b81f90 100644
 --- a/robinhood_research/pons_selective_paper.py
@@ -486,6 +757,101 @@ index 0000000..fb8f397
 +                p.reserve('b',900,at=2,decision_hash='b'*64,trial_path='b.sqlite')
 +
 +if __name__=='__main__':unittest.main()
+diff --git a/robinhood_tests/test_pons_continuous_campaign.py b/robinhood_tests/test_pons_continuous_campaign.py
+new file mode 100644
+index 0000000..e916793
+--- /dev/null
++++ b/robinhood_tests/test_pons_continuous_campaign.py
+@@ -0,0 +1,89 @@
++from contextlib import ExitStack
++from concurrent.futures import Future
++import gzip
++import hashlib
++import json
++from pathlib import Path
++import tempfile
++from types import SimpleNamespace
++import unittest
++from unittest.mock import patch
++from robinhood_research import pons_selective_cohort as cohort
++from robinhood_research.evidence_queue import DeadlineEvidenceQueue
++
++
++class ContinuousCampaignTests(unittest.TestCase):
++    def test_large_result_is_preserved_exactly_under_bounded_terminal_view(self):
++        result=dict(rows=[dict(evidence='x'*13_000_000)],qualifiers=[],lifecycles=[dict(
++            index=0,final_position=dict(status='settled',entry_tokens=2),reconciliation=dict(open_exposure=0),
++            full_evidence='proof')],discovery_sessions=[],sequencer_recoveries=[],summary=dict(enrolled=1))
++        with tempfile.TemporaryDirectory() as td,patch.object(cohort,'ROOT',Path(td)),patch.object(cohort,'REPORT',Path(td)/'report.json'):
++            compact=cohort.persist_terminal(result)
++            archive=Path(compact['observation_archive']['path'])
++            self.assertEqual(json.loads(gzip.decompress(archive.read_bytes())),result)
++            self.assertEqual(hashlib.sha256(archive.read_bytes()).hexdigest(),compact['observation_archive']['sha256'])
++            self.assertLess((Path(td)/'report.json').stat().st_size,2000)
++            self.assertEqual(compact['lifecycles'][0]['final_position']['entry_tokens'],2)
++
++    def test_provider_checkpoint_is_bounded_and_keeps_archive_identity(self):
++        result=dict(started_at=0,rows=[],qualifiers=[],lifecycles=[],discovery_sessions=[dict(id=i) for i in range(1000)],sequencer_recoveries=[])
++        with tempfile.TemporaryDirectory() as td,patch.object(cohort,'ROOT',Path(td)),patch.object(cohort,'PROGRESS',Path(td)/'progress.json'):
++            snapshot=cohort._checkpoint(result,cursor=1,feed=SimpleNamespace(status=lambda:{}),rpc=SimpleNamespace(telemetry=lambda:{}),phase='discovery')
++            self.assertEqual(len(snapshot['discovery_sessions']),16)
++            self.assertEqual(snapshot['discovery_session_count'],1000)
++            self.assertEqual(len(result['discovery_sessions']),1000)
++
++    def test_queue_terminal_preserves_original_deadline_for_expiry_and_eviction(self):
++        events=[];queue=DeadlineEvidenceQueue(limit=1,on_terminal=lambda row,reason:events.append((dict(row),reason)))
++        def event(n):return dict(transactionHash=str(n),logIndex='0x1',blockNumber='0x1')
++        queue.enqueue(event(1),now=10)
++        queue.enqueue(event(2),now=9) # Earliest authenticated observation keeps priority.
++        self.assertEqual(events[0][1],'capacity_evicted')
++        self.assertEqual(events[0][0]['deadline'],15)
++        self.assertIsNone(queue.pop(now=14))
++        self.assertEqual(events[1][1],'expired_before_evidence')
++        self.assertEqual(events[1][0]['queued_at'],9)
++        self.assertEqual(events[1][0]['deadline'],14)
++        self.assertEqual(queue.telemetry()['max_depth'],1)
++
++    def test_discovery_failure_drains_admitted_future_and_initializes_one_book(self):
++        from robinhood_research import BoundaryError
++        future=Future();clock_reads=[0]
++        class State:
++            @property
++            def latest_header_timestamp(self):
++                clock_reads[0]+=1
++                return 0 if clock_reads[0]==1 else 65
++        feed=SimpleNamespace(state=State(),connect=lambda:None,wait_for_after=lambda *a,**kw:1,
++            status=lambda:{},close=lambda:None)
++        rpc=SimpleNamespace(telemetry=lambda:{})
++        pool=SimpleNamespace(submit=lambda *a,**kw:future,shutdown=lambda **kw:None)
++        event=dict(transactionHash='transaction',logIndex='0x1',blockNumber='0x1',address='curve',
++            topics=[cohort.topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)')])
++        polls=[0]
++        def poll(*args,**kwargs):
++            polls[0]+=1
++            if polls[0]==1:return rpc,2,[event]
++            future.set_result(dict(status='settled',final_position=dict(status='settled',entry_tokens=2),
++                reconciliation=dict(open_exposure=0)))
++            raise BoundaryError('injected_discovery_failure')
++        evaluation=dict(vector=dict(current_threshold_pass=True),token='token',curve='curve',source_transaction='transaction')
++        with tempfile.TemporaryDirectory() as td,ExitStack() as stack:
++            root=Path(td)
++            for name in ('ROOT','SKILL_DB','PROGRESS','ROWS_LOG','QUALIFIERS_LOG','PROVIDER_LOG','RECOVERY_LOG','REPORT'):
++                stack.enter_context(patch.object(cohort,name,root if name=='ROOT' else root/(name+'.json')))
++            for name,value in dict(TAPE_WARM_SECONDS=0,SequencerBlockClock=lambda:feed,_discovery=lambda endpoint:rpc,
++                WalletSkillBook=lambda path:SimpleNamespace(close=lambda:None),
++                SelectiveEvidenceContext=lambda endpoint:SimpleNamespace(telemetry=lambda:{}),
++                ThreadPoolExecutor=lambda **kw:pool,_poll=poll,evaluate_candidate=lambda *a,**kw:evaluation,
++                public_evaluation=lambda value:dict(value),_attach_wallet_overlay=lambda *a:{'converged':False}).items():
++                stack.enter_context(patch.object(cohort,name,value))
++            stack.enter_context(patch.object(cohort.time,'monotonic',return_value=0))
++            stack.enter_context(patch.object(cohort.time,'time',return_value=100))
++            result=cohort.run('unused',campaign=True)
++            self.assertEqual(result['boundary'],'injected_discovery_failure')
++            self.assertEqual(len(result['lifecycles']),1)
++            self.assertEqual(result['lifecycles'][0]['final_position']['entry_tokens'],2)
++            self.assertEqual(len((root/'completed-lifecycles.jsonl').read_text().splitlines()),1)
++            self.assertTrue(result['cohort_accounting']['conservation'])
++            self.assertEqual(result['cohort_accounting']['genesis'],cohort.STRATEGY_CAPITAL_QUOTE)
 diff --git a/robinhood_tests/test_provider_admission.py b/robinhood_tests/test_provider_admission.py
 new file mode 100644
 index 0000000..8b6bef3
