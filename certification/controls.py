@@ -38,6 +38,7 @@ def audit_telemetry(folder,lane,policy):
         'eth_getLogs','eth_getTransactionReceipt','eth_getTransactionByHash',
         'eth_getCode','eth_getStorageAt','eth_getBalance','eth_call','eth_gasPrice',
         'eth_feeHistory','net_version','web3_clientVersion','eth_estimateGas',
+        'alchemy_getAssetTransfers',
     } for method in methods)
     return dict(verified=True,raw_transport_records=len(seen),methods=sorted(methods),read_only=read_only)
 

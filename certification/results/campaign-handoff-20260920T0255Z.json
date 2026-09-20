@@ -1,0 +1,52 @@
+{
+  "observed_at": "2026-09-20T02:55:00Z",
+  "active_original": {
+    "workflow": 35483374004,
+    "integration_sha": "ebd03f5780eee46cc59f0338f48830e475480d78",
+    "sustained_job": 106008580976,
+    "stage_started_at": "2026-09-20T02:42:32Z",
+    "status": "in_progress",
+    "certification_claim": false,
+    "smoke_review": "FAIL: permanently unfunded Ramses paper book; original artifact retained"
+  },
+  "queued_repaired": {
+    "workflow": 35485166791,
+    "integration_sha": "0b996823162cb614b64b85fe36d4eb93e704fa20",
+    "branch": "cert/four-lane-capacity-v2",
+    "pr": 82,
+    "status": "pending",
+    "concurrency_group": "meme-machine-four-lane-certification",
+    "process_restarts_requested": false,
+    "required_stages": [
+      "full deterministic",
+      "600-second concurrent smoke",
+      "new continuous 14400-second campaign"
+    ]
+  },
+  "read_only_review": {
+    "workflow": 35485166749,
+    "job": 106010077059,
+    "conclusion": "success",
+    "artifact": 10596573466,
+    "sha256": "b6b149d6250a5c4f16eeca20512269292b8d4905bbb15e883a304152af661f74"
+  },
+  "natural_settled_latest_smoke": {
+    "pump": 0,
+    "meteora": 0,
+    "pons": 0,
+    "ramses": 0
+  },
+  "local_tests": {
+    "supervisor": 29,
+    "pump": 245,
+    "meteora": 350,
+    "pons": 222,
+    "ramses": 238,
+    "solana_resource_gates": 3,
+    "passed": true
+  },
+  "frozen_policies_unchanged": true,
+  "paper_only": true,
+  "live_authority_added": false,
+  "merged_to_main": false
+}

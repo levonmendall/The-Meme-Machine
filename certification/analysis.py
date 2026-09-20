@@ -4,12 +4,24 @@ import json
 from pathlib import Path
 from certification.journal import Journal,digest
 from certification.report import LANES
+from certification.pressure import PressureView
 
 
 def percentiles(values):
     ordered=sorted(values)
     def q(p):return None if not ordered else ordered[int((len(ordered)-1)*p)]
     return dict(p50=q(.5),p95=q(.95),p99=q(.99),count=len(ordered))
+
+
+def cache_measurements(state):
+    cache=(state or {}).get('cache') or {}
+    pairs={}
+    for key,hits in cache.items():
+        if not key.endswith('_hit') or not isinstance(hits,int):continue
+        name=key[:-4];misses=cache.get(name+'_miss')
+        if not isinstance(misses,int):continue
+        pairs[name]=dict(hits=hits,misses=misses,hit_fraction=hits/(hits+misses) if hits+misses else None)
+    return dict(scope='native_cumulative_lookup_counters_not_sum_of_repeated_checkpoints',by_cache=pairs) if pairs else None
 
 
 def partition_pons(rows):
@@ -29,6 +41,8 @@ def report(run_dir):
     hours=result.get('elapsed_seconds',0)/3600
     out=dict(run_id=result['run_id'],frozen_policy=True,automatic_promotion=False,
              inference='descriptive_only_no_profitability_or_policy_promotion_claim',lanes={})
+    admission_path=root/'shared-robinhood-admission.sqlite'
+    admission_view=PressureView(admission_path).snapshot() if admission_path.exists() else result.get('shared_provider',{}).get('robinhood',{})
     for lane in LANES:
         path=root/lane/'telemetry.sqlite';runtime=result.get('lanes',{}).get(lane,{})
         hours=runtime.get('continuous_uptime_seconds',result.get('elapsed_seconds',0))/3600
@@ -84,10 +98,11 @@ def report(run_dir):
         physical=len(latencies)
         native_latencies=[x['evidence_acquisition_latency_seconds'] for x in raw.get('rows',[])
             if isinstance(x.get('evidence_acquisition_latency_seconds'),(int,float))]
-        admission=(result.get('shared_provider',{}).get('robinhood',{}).get('lanes',{}).get(lane) or {})
+        admission=(admission_view.get('lanes',{}).get(lane) or {})
         timed_deadline=dict(successes=sum(x<=5 for x in native_latencies),denominator=len(native_latencies),
             scope='Pons returned observations with original first-observation latency; excludes unmeasured exceptions') if lane=='pons' else None
         out['lanes'][lane]=dict(policy_hash=runtime.get('policy_hash'),funnel=funnel,funnel_per_hour=rates,
+            rate_denominator_seconds=hours*3600,rate_denominator_scope='lane_process_uptime_including_normal_drain',
             physical_transport_requests=physical,logical_methods=dict(methods),retry_burden=admission.get("retries"),
             maximum_provider_queue_depth=admission.get("max_queue_depth"),
             rpc_latency_seconds=percentiles(latencies),queue_wait_seconds=percentiles(queue),
@@ -95,7 +110,13 @@ def report(run_dir):
             evidence_work_duration_seconds_by_stage={k:percentiles(v) for k,v in work.items()},
             evidence_work_exceptions_by_stage=dict(work_errors),
             deadline_success_rate=(timed_deadline['successes']/timed_deadline['denominator'] if timed_deadline and timed_deadline['denominator'] else None),
-            deadline_denominator=timed_deadline,cache_reuse=None,
+            deadline_denominator=timed_deadline,cache_reuse=cache_measurements(runtime.get('evidence_state')),
+            physical_requests_per_second=physical/(hours*3600) if hours else None,
+            rpc_archive_seconds=runtime.get('telemetry_archive_seconds'),
+            rpc_archive_wall_time_fraction=(runtime['telemetry_archive_seconds']/(hours*3600)
+                if hours and isinstance(runtime.get('telemetry_archive_seconds'),(int,float)) else None),
+            maximum_sampled_active_shared_broker_jobs=result.get('maximum_sampled_active_broker_jobs') if lane in ('pump','meteora') else None,
+            shutdown_evidence_censoring=result.get('broker_shutdown_terminals') if lane in ('pump','meteora') else None,
             errors=dict(errors),provider_sessions=len(sessions),process_terminals=dict(terminal),
             requests_per_complete_observation=physical/count if count and lane!='ramses' else None,
             unique_complete_vectors=count if lane!='ramses' else None,
@@ -114,6 +135,8 @@ def report(run_dir):
                 'Repeated pool/mint observations are not statistically independent.',
                 'Missing metrics remain null; evidence censoring is not economic rejection.',
                 'Visible incomplete rows may be a lower bound for legacy rolling buffers.',
+                'Discovery rate per admission-hour requires native admission timestamps; process-hour rates include drain.',
+                'Archive wall-time fraction covers raw RPC persistence only, not all telemetry CPU/I/O.',
             ])
     (root/'capacity-strategy.json').write_text(json.dumps(out,indent=2)+'\n')
     return out
