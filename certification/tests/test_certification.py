@@ -214,6 +214,16 @@ class SolanaMethodPressureTests(unittest.TestCase):
             self.assertEqual(row['rate_errors'],1)
             self.assertEqual(row['rate_streak'],1)
             self.assertGreaterEqual(row['cooldown_remaining_seconds'],29)
+    def test_signature_rate_limit_uses_longer_method_backoff(self):
+        with tempfile.TemporaryDirectory() as td:
+            g=Governor(Path(td)/'governor.sqlite')
+            before=time.monotonic()
+            g.rate_limited('solana',['getSignaturesForAddress'])
+            row=next(x for x in g.status()['method_pressure']
+                     if x['method']=='getSignaturesForAddress')
+            self.assertEqual(row['rate_errors'],1)
+            self.assertGreaterEqual(row['cooldown_remaining_seconds'],14)
+
 
 
 class IntegrationRegressionTests(unittest.TestCase):
