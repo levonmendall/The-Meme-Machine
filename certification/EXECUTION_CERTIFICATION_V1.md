@@ -20,7 +20,7 @@ Curve progress is 45%-97%, required 15-second progress is 3%, ETA is 300 seconds
 
 ## Meteora
 
-Source: `cert/meteora-execution-cert-v1@91c5aaaadd718ead65b3c8e76a85b43372548fe9`
+Source: `cert/meteora-execution-cert-v1@0f01c79a4994224bf79b8c365b34f9f58cf3904e`
 Policy identity: `b1de19ed974faf3c92261fe7f4f6cb47570e4890c49e9547d7f4fcc50c7179b8`
 
 Volume/fee acceleration are 1.25x/1.0x, fresh-swap wait is 120 seconds, competing range liquidity is 5x capital, two-way balance is 0.25, maximum drift is 0.75, mandatory reversal is removed, stress-unwind ceiling is 150 bps, and the modeled expected-net floor is -200,000 lamports for certification. The exact 12-second post-trigger warmup, authenticated reconstruction, unsupported-mechanics boundary, finality, costs and accounting remain unchanged.
