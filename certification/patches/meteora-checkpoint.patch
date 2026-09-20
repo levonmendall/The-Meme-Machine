@@ -231,8 +231,90 @@ index 0000000..8f200e6
 +                    if digest(mark(positions[identity]))!=digest(data['mark']):raise ValueError('dlmm_accounting_settlement_replay')
 +                    checked+=1
 +        return dict(verified=True,checked_economic_events=checked,authentication='existing_lane_verified_tapes',raw_chain_reauthentication=False)
+diff --git a/meme_machine/pipeline.py b/meme_machine/pipeline.py
+new file mode 100644
+index 0000000..274abdb
+--- /dev/null
++++ b/meme_machine/pipeline.py
+@@ -0,0 +1,76 @@
++"""Append-only lane-local opportunity evidence; no strategy or allocation authority."""
++import json
++import sqlite3
++import threading
++import time
++from collections import defaultdict
++
++class Pipeline:
++    def __init__(self,path,lane,policy_hash):
++        self.lane=lane;self.policy_hash=policy_hash;self.lock=threading.RLock()
++        self.db=sqlite3.connect(str(path),check_same_thread=False)
++        self.db.execute('PRAGMA journal_mode=WAL')
++        self.db.executescript('''CREATE TABLE IF NOT EXISTS progress(
++            sequence INTEGER PRIMARY KEY, lane TEXT NOT NULL, policy_hash TEXT NOT NULL,
++            candidate TEXT NOT NULL, stage TEXT NOT NULL, reason TEXT, classification TEXT,
++            at REAL NOT NULL, monotonic REAL NOT NULL, details TEXT NOT NULL);
++            CREATE TRIGGER IF NOT EXISTS progress_no_update BEFORE UPDATE ON progress
++            BEGIN SELECT RAISE(ABORT,'append_only'); END;
++            CREATE TRIGGER IF NOT EXISTS progress_no_delete BEFORE DELETE ON progress
++            BEGIN SELECT RAISE(ABORT,'append_only'); END;''')
++        foreign=self.db.execute('SELECT 1 FROM progress WHERE lane!=? OR policy_hash!=? LIMIT 1',(lane,policy_hash)).fetchone()
++        if foreign:raise ValueError('foreign_pipeline_namespace')
++        self.stages=defaultdict(set);self.classes=defaultdict(set);self.reasons=defaultdict(set)
++        self.last=None;self.write_seconds=0.;self.records=0
++        for c,s,r,k,at,mono in self.db.execute('SELECT candidate,stage,reason,classification,at,monotonic FROM progress ORDER BY sequence'):
++            self._index(c,s,r,k,at,mono)
++
++    def _index(self,c,s,r,k,at,mono):
++        self.records+=1
++        self.stages[s].add(c)
++        if k:self.classes[k].add(c)
++        if r:self.reasons[r].add(c)
++        self.last=dict(candidate=c,stage=s,at=at,monotonic=mono)
++
++    def record(self,candidate,stage,reason=None,classification=None,**details):
++        c=str(candidate);at=time.time();mono=time.monotonic()
++        with self.lock,self.db:
++            self.db.execute('INSERT INTO progress(lane,policy_hash,candidate,stage,reason,classification,at,monotonic,details) VALUES(?,?,?,?,?,?,?,?,?)',
++                (self.lane,self.policy_hash,c,stage,reason,classification,at,mono,json.dumps(details,sort_keys=True)))
++            self._index(c,stage,reason,classification,at,mono)
++        self.write_seconds+=time.monotonic()-mono
++
++    def snapshot(self):
++        with self.lock:
++            stages=('discovered','screened','admitted','evidence_requested','evidence_complete',
++                    'trigger_observed','trigger_authenticated','fresh_state','warmup_started','warmup_complete',
++                    'reconstruction_started','reconstruction_complete','prospective_range','economic_vector',
++                    'trigger_terminal','evaluated','rejected','qualified','entry_reserved','entry_filled','entry_cancelled',
++                    'deployed','forward_observation','unwind','settled','terminal')
++            classes=('capacity_censored','provider_failed','stale_before_evidence','stale_during_evidence',
++                     'stale_after_complete_evidence','reconstruction_incomplete','strategy_rejection',
++                     'no_authentic_activity','local_budget_exhausted','consumer_deadline')
++            return dict(schema='lane-opportunity-coverage-v1',lane=self.lane,
++                identity_scope='native_candidate_identity; stages and classes overlap; never sum as losses',
++                raw_records=self.records,
++                authenticated_triggers=len(self.stages['trigger_started']),
++                terminally_classified_triggers=len(self.stages['trigger_terminal']),
++                unresolved_triggers=len(self.stages['trigger_started']-self.stages['trigger_terminal']),
++                stale_stage_counts={s:len(self.reasons[s]) for s in ('stale_on_arrival','stale_in_queue','stale_during_evidence','stale_after_complete_evidence')},
++                stages={s:len(self.stages[s]) for s in stages},
++                unique_classes={k:len(self.classes[k]) for k in classes},
++                unique_terminal_reasons={k:len(v) for k,v in self.reasons.items()},last_transition=self.last)
++
++    def close(self):self.db.close()
++
++def censor_class(reason):
++    r=str(reason).lower()
++    if 'stale_on_arrival' in r or 'stale_in_queue' in r:return 'stale_before_evidence'
++    if 'stale_after_complete' in r:return 'stale_after_complete_evidence'
++    if 'stale' in r:return 'stale_during_evidence'
++    if 'budget' in r:return 'local_budget_exhausted'
++    if 'capacity' in r or 'queue_deadline' in r:return 'capacity_censored'
++    if 'deadline' in r:return 'consumer_deadline'
++    if 'provider' in r or 'null_gettransaction' in r:return 'provider_failed'
++    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
++    return 'reconstruction_incomplete'
 diff --git a/meme_machine/solana_evidence_broker.py b/meme_machine/solana_evidence_broker.py
-index 05dd96f..a5b64ae 100644
+index 05dd96f..b8dacd5 100644
 --- a/meme_machine/solana_evidence_broker.py
 +++ b/meme_machine/solana_evidence_broker.py
 @@ -16,6 +16,7 @@ from pathlib import Path
@@ -347,7 +429,7 @@ index 05dd96f..a5b64ae 100644
      def hydrate_transactions(
 -        self, rpc, signatures, *, kind, deadline=None, max_version=1, batch_size=8
 +        self, rpc, signatures, *, kind, deadline=None, max_version=1, batch_size=8,
-+        owner=None, max_batches=None
++        owner=None, max_batches=None, candidate_id=None
      ):
          deadline = float(self.clock()) + 30.0 if deadline is None else float(deadline)
          requested = []
@@ -366,7 +448,7 @@ index 05dd96f..a5b64ae 100644
 +        missing_at_request = [sig for sig in requested if self.get_transaction(sig) is None]
 +        if owner is not False:
 +            owner = owner or f'{kind}:request:{deadline!r}'
-+            self.consumers.register(owner, missing_at_request, kind, deadline)
++            self.consumers.register(owner, missing_at_request, kind, deadline, candidate_id=candidate_id)
 +
 +        batches = 0
          while float(self.clock()) < deadline:
@@ -382,7 +464,7 @@ index 05dd96f..a5b64ae 100644
 +            if hasattr(rpc,'calls') and hasattr(rpc,'limit'):
 +                capacity=min(capacity,max(0,int(rpc.limit)-int(rpc.calls)))
 +                if capacity==0:
-+                    self.consumers.failure('local_request_budget_exhausted')
++                    self.consumers.failure('local_request_budget_exhausted',owner=owner,candidate_id=candidate_id,kind=kind,signatures=requested)
 +                    break
 +            for sig in remaining[:capacity]:
 +                self.queue_transaction(sig,kind=kind,deadline=deadline,max_version=max_version)
@@ -396,7 +478,7 @@ index 05dd96f..a5b64ae 100644
                  float(self.clock()),
                  lease_seconds=max(
                      15.0,min(60.0,deadline-float(self.clock())+5.0)),
-@@ -639,6 +678,13 @@ class EvidenceBroker:
+@@ -639,17 +678,45 @@ class EvidenceBroker:
                      ),
                  ),
              ] for row in payloads]
@@ -407,10 +489,15 @@ index 05dd96f..a5b64ae 100644
 +                priority=min(self.db.execute('SELECT priority FROM jobs WHERE job_key=?',
 +                    (row[0],)).fetchone()[0] for row in jobs)
 +            rpc.evidence_priority=priority
++            prior_deadline=getattr(rpc,'evidence_deadline',None)
++            prior_callback=getattr(rpc,'evidence_transport_callback',None)
++            rpc.evidence_deadline=deadline
++            rpc.evidence_transport_callback=lambda: self.consumers.first_transport([p['signature'] for p in payloads])
              try:
++                if not os.environ.get('MM_CERT_GOVERNOR_DB'):rpc.evidence_transport_callback()
                  values = rpc.call_many(
                      "getTransaction",
-@@ -646,10 +692,22 @@ class EvidenceBroker:
+                     params,
                      True,
                      batch_size=max(1, min(len(params), p["batch_size"], int(batch_size))),
                  )
@@ -423,11 +510,15 @@ index 05dd96f..a5b64ae 100644
 +                    value>prior_failures.get(key,0) for key,value in failures.items()))
 +                reason=('provider_rate_limited' if throttled else
 +                        'local_request_budget_exhausted' if str(exc)=='provider_budget_exhausted'
++                        else 'transaction_version_unsupported' if any('32015' in k and v>prior_failures.get(k,0) for k,v in failures.items())
++                        else 'null_transaction_unresolved' if 'null_getTransaction' in str(exc)
 +                        else 'provider_unavailable')
-+                self.consumers.failure(reason)
++                self.consumers.failure(reason,owner=owner,candidate_id=candidate_id,kind=kind,signatures=[x["signature"] for x in payloads])
 +                if throttled:self._note_pressure_failure()
                  break
 +            finally:
++                rpc.evidence_deadline=prior_deadline
++                rpc.evidence_transport_callback=prior_callback
 +                if previous_priority is None:
 +                    del rpc.evidence_priority
 +                else:
@@ -435,7 +526,7 @@ index 05dd96f..a5b64ae 100644
              completed = []
              for job, row, tx in zip(jobs, payloads, values):
                  if isinstance(tx, dict):
-@@ -667,11 +725,13 @@ class EvidenceBroker:
+@@ -667,11 +734,13 @@ class EvidenceBroker:
  
          result = {sig: self.get_transaction(sig) for sig in requested}
          pending = [sig for sig, tx in result.items() if tx is None]
@@ -449,7 +540,7 @@ index 05dd96f..a5b64ae 100644
          )
  
      def cursor(self, name):
-@@ -824,6 +884,7 @@ class EvidenceBroker:
+@@ -824,6 +893,7 @@ class EvidenceBroker:
              stream_events=int(events),
              signature_rows=int(signatures),
              pressure=self._pressure(),
@@ -457,7 +548,7 @@ index 05dd96f..a5b64ae 100644
          )
  
  
-@@ -967,7 +1028,8 @@ class DynamicAddressLogStream:
+@@ -967,7 +1037,8 @@ class DynamicAddressLogStream:
      """
  
      def __init__(
@@ -467,7 +558,7 @@ index 05dd96f..a5b64ae 100644
      ):
          self.ws_url=str(ws_url)
          self.broker=broker
-@@ -980,6 +1042,13 @@ class DynamicAddressLogStream:
+@@ -980,6 +1051,13 @@ class DynamicAddressLogStream:
          self.reconnects=0
          self.last_error_kind=None
          self.active_subscriptions=0
@@ -481,7 +572,7 @@ index 05dd96f..a5b64ae 100644
  
      def stream_key(self,address):
          return self.stream_prefix+":"+str(address)
-@@ -992,6 +1061,13 @@ class DynamicAddressLogStream:
+@@ -992,6 +1070,13 @@ class DynamicAddressLogStream:
              self.addresses.add(address)
          return self.stream_key(address)
  
@@ -495,7 +586,7 @@ index 05dd96f..a5b64ae 100644
      def wanted_addresses(self):
          with self.lock:
              return sorted(self.addresses)
-@@ -1003,8 +1079,29 @@ class DynamicAddressLogStream:
+@@ -1003,8 +1088,29 @@ class DynamicAddressLogStream:
              wanted_addresses=len(self.wanted_addresses()),
              active_subscriptions=int(self.active_subscriptions),
              last_error_kind=self.last_error_kind,
@@ -525,7 +616,7 @@ index 05dd96f..a5b64ae 100644
      def run(self,stop_event,ready_event=None):
          ever_ready=False
          while not stop_event.is_set():
-@@ -1015,6 +1112,8 @@ class DynamicAddressLogStream:
+@@ -1015,6 +1121,8 @@ class DynamicAddressLogStream:
                      close_timeout=5,max_size=2_000_000,max_queue=256,
                  ) as websocket:
                      pending={}
@@ -534,7 +625,7 @@ index 05dd96f..a5b64ae 100644
                      by_address={}
                      by_subscription={}
                      next_id=1
-@@ -1028,6 +1127,12 @@ class DynamicAddressLogStream:
+@@ -1028,6 +1136,12 @@ class DynamicAddressLogStream:
  
                      while not stop_event.is_set():
                          wanted=self.wanted_addresses()
@@ -547,7 +638,7 @@ index 05dd96f..a5b64ae 100644
                          known=set(by_address)|set(pending.values())
                          for address in [a for a in wanted if a not in known][:16]:
                              request_id=next_id;next_id+=1
-@@ -1048,12 +1153,25 @@ class DynamicAddressLogStream:
+@@ -1048,12 +1162,25 @@ class DynamicAddressLogStream:
                          payload=json.loads(message)
                          if "id" in payload:
                              request_id=payload.get("id")
@@ -573,7 +664,7 @@ index 05dd96f..a5b64ae 100644
                              by_address[address]=subscription
                              by_subscription[subscription]=address
                              active_addresses=list(by_address)
-@@ -1064,6 +1182,8 @@ class DynamicAddressLogStream:
+@@ -1064,6 +1191,8 @@ class DynamicAddressLogStream:
                          if payload.get("method")!="logsNotification":
                              continue
                          params=payload.get("params") or {}
@@ -582,7 +673,7 @@ index 05dd96f..a5b64ae 100644
                          address=by_subscription.get(params.get("subscription"))
                          if address is None:
                              raise RuntimeError("address_log_unknown_subscription")
-@@ -1077,6 +1197,13 @@ class DynamicAddressLogStream:
+@@ -1077,6 +1206,13 @@ class DynamicAddressLogStream:
                              slot=int(result["context"]["slot"]),
                              observed_at=int(self.clock()),
                          )
@@ -592,19 +683,21 @@ index 05dd96f..a5b64ae 100644
 +                                if address in self.addresses:
 +                                    self.broker.consumers.register(
 +                                        self.stream_key(address),[value['signature']],
-+                                        'stream_prefetch',float(self.clock())+self.coverage_seconds+2)
++                                        'stream_prefetch',float(self.clock())+self.coverage_seconds+2,candidate_id=address)
              except Exception as exc:
                  if stop_event.is_set():
                      break
 diff --git a/meme_machine/solana_evidence_consumers.py b/meme_machine/solana_evidence_consumers.py
 new file mode 100644
-index 0000000..b0b2c0b
+index 0000000..06e0c83
 --- /dev/null
 +++ b/meme_machine/solana_evidence_consumers.py
-@@ -0,0 +1,157 @@
+@@ -0,0 +1,206 @@
 +"""Consumer ownership for immutable evidence; never strategy or freshness authority."""
 +from __future__ import annotations
 +
++import os
++import json
 +import threading
 +
 +
@@ -624,6 +717,15 @@ index 0000000..b0b2c0b
 +                    id INTEGER PRIMARY KEY, owner TEXT NOT NULL, signature TEXT NOT NULL,
 +                    kind TEXT NOT NULL, deadline REAL NOT NULL, observed_at REAL NOT NULL,
 +                    reason TEXT NOT NULL, UNIQUE(owner,signature));
++                CREATE TABLE IF NOT EXISTS hydration_attempt_failures(
++                    seq INTEGER PRIMARY KEY,lane TEXT NOT NULL,owner TEXT,candidate_id TEXT,
++                    kind TEXT,at REAL NOT NULL,reason TEXT NOT NULL,signatures TEXT NOT NULL);
++                CREATE TRIGGER IF NOT EXISTS hydration_attempt_no_update BEFORE UPDATE ON hydration_attempt_failures
++                    BEGIN SELECT RAISE(ABORT,'append_only'); END;
++                CREATE TRIGGER IF NOT EXISTS hydration_attempt_no_delete BEFORE DELETE ON hydration_attempt_failures
++                    BEGIN SELECT RAISE(ABORT,'append_only'); END;
++                CREATE TABLE IF NOT EXISTS attributed_hydration_failures(
++                    lane TEXT NOT NULL,reason TEXT NOT NULL,count INTEGER NOT NULL,PRIMARY KEY(lane,reason));
 +                CREATE TABLE IF NOT EXISTS hydration_failures(
 +                    reason TEXT PRIMARY KEY, count INTEGER NOT NULL);
 +                CREATE TRIGGER IF NOT EXISTS evidence_terminals_no_update
@@ -634,14 +736,20 @@ index 0000000..b0b2c0b
 +                    SELECT RAISE(ABORT,'append_only_evidence_terminals'); END;
 +            ''')
 +
-+    def register(self, owner, signatures, kind, deadline):
++            broker.db.execute('BEGIN IMMEDIATE')
++            columns={r[1] for r in broker.db.execute('PRAGMA table_info(evidence_consumers)')}
++            for name,decl in (('lane',"TEXT NOT NULL DEFAULT 'unknown'"),
++                              ('candidate_id','TEXT'),('first_transport_at','REAL')):
++                if name not in columns:broker.db.execute(f'ALTER TABLE evidence_consumers ADD COLUMN {name} {decl}')
++
++    def register(self, owner, signatures, kind, deadline, *, candidate_id=None):
 +        b = self.broker
 +        now = float(b.clock())
 +        with b.lock, b.db:
 +            # A repeated request cannot rejuvenate this consumer's original deadline.
 +            b.db.executemany('INSERT OR IGNORE INTO evidence_consumers '
-+                            '(owner,signature,kind,deadline,created_at) VALUES(?,?,?,?,?)',
-+                            [(str(owner), str(s), str(kind), float(deadline), now)
++                            '(owner,signature,kind,deadline,created_at,lane,candidate_id) VALUES(?,?,?,?,?,?,?)',
++                            [(str(owner), str(s), str(kind), float(deadline), now, os.environ.get('MM_CERTIFICATION_LANE','unknown'), candidate_id)
 +                             for s in dict.fromkeys(signatures)])
 +
 +    def settle(self, owner=None, reason=None):
@@ -672,9 +780,24 @@ index 0000000..b0b2c0b
 +                    WHERE t.owner=evidence_consumers.owner
 +                        AND t.signature=evidence_consumers.signature)''')
 +
++    def first_transport(self, signatures):
++        b=self.broker
++        with b.lock,b.db:
++            b.db.executemany("UPDATE evidence_consumers SET first_transport_at=? "
++                "WHERE signature=? AND state='waiting' AND first_transport_at IS NULL",
++                [(float(b.clock()),str(s)) for s in signatures])
++
++    def foreground_pending(self):
++        b=self.broker
++        with b.lock:
++            return b.db.execute("SELECT 1 FROM evidence_consumers WHERE state='waiting' "
++                "AND kind NOT IN ('stream_prefetch','research_history') AND deadline>? LIMIT 1",
++                (float(b.clock()),)).fetchone() is not None
++
 +    def batch(self, limit=8):
 +        self.settle()
 +        b = self.broker
++        if self.foreground_pending():return []
 +        with b.lock:
 +            # Only already subscribed pool streams may use background acquisition.
 +            # Other consumers retain their lane's synchronous authentication path.
@@ -686,26 +809,43 @@ index 0000000..b0b2c0b
 +                (float(b.clock()), max(1, min(8, int(limit))))).fetchall()
 +        return rows
 +
-+    def failure(self, reason):
++    def failure(self, reason, *, owner=None, candidate_id=None, kind=None, signatures=()):
 +        b = self.broker
 +        with b.lock, b.db:
++            b.db.execute('INSERT INTO hydration_attempt_failures(lane,owner,candidate_id,kind,at,reason,signatures) VALUES(?,?,?,?,?,?,?)',
++                (os.environ.get('MM_CERTIFICATION_LANE','unknown'),str(owner) if owner else None,candidate_id,kind,
++                 float(b.clock()),reason,json.dumps(list(signatures))))
++            b.db.execute('INSERT INTO attributed_hydration_failures VALUES(?,?,1) '
++                         'ON CONFLICT(lane,reason) DO UPDATE SET count=count+1',
++                         (os.environ.get('MM_CERTIFICATION_LANE','unknown'),reason))
 +            b.db.execute('INSERT INTO hydration_failures VALUES(?,1) '
 +                         'ON CONFLICT(reason) DO UPDATE SET count=count+1', (reason,))
 +
-+    def telemetry(self):
++    def telemetry(self, lane=None):
 +        self.settle()
++        lane=lane or os.environ.get('MM_CERTIFICATION_LANE','unknown')
 +        b = self.broker
 +        with b.lock:
 +            rows = b.db.execute('SELECT kind,state,COUNT(*) FROM evidence_consumers '
-+                                'GROUP BY kind,state').fetchall()
++                                'WHERE lane=? GROUP BY kind,state',(lane,)).fetchall()
 +            failures = dict(b.db.execute('SELECT reason,count FROM hydration_failures'))
++            unique_failures=dict(b.db.execute('SELECT reason,COUNT(DISTINCT candidate_id) FROM hydration_attempt_failures WHERE lane=? AND candidate_id IS NOT NULL GROUP BY reason',(lane,)))
++            lane_failures=dict(b.db.execute('SELECT reason,count FROM attributed_hydration_failures WHERE lane=?',(lane,)))
 +            overdue = b.db.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('pending','inflight') "
 +                                   'AND deadline<?', (float(b.clock()),)).fetchone()[0]
-+        return dict(scope='shared_solana_broker; not additive across lanes',
++            unique=dict(b.db.execute("SELECT state,COUNT(DISTINCT candidate_id) FROM evidence_consumers "
++                "WHERE lane=? AND candidate_id IS NOT NULL GROUP BY state",(lane,)))
++            candidates=b.db.execute("SELECT COUNT(DISTINCT candidate_id) FROM evidence_consumers "
++                "WHERE lane=? AND candidate_id IS NOT NULL",(lane,)).fetchone()[0]
++        return dict(scope='lane_attributed_logical_consumers; candidate_states_may_overlap',lane=lane,
++                    candidate_interests=candidates,unique_candidate_states=unique,
++                    unique_candidate_acquisition_failures=unique_failures,
++                    opportunity_denominator_source='native_candidate_funnel_not_consumer_count',
++                    shared_acquisition_failures=failures,
 +                    consumers=[dict(kind=k, state=s, count=n) for k,s,n in rows],
 +                    by_kind={k:{s:n for kind,s,n in rows if kind==k}
 +                             for k in sorted({kind for kind,_,_ in rows})},
-+                    acquisition_failures=failures, overdue_active_jobs=overdue)
++                    acquisition_failures=lane_failures, shared_overdue_active_jobs=overdue)
 +
 +
 +class StreamEvidenceService:
@@ -760,7 +900,7 @@ index 0000000..b0b2c0b
 +        if self.rpc is not None:
 +            self.sessions.append(self.rpc.provider_telemetry())
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
-index 0a4acc7..66933bd 100644
+index 0a4acc7..1225d42 100644
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
 @@ -12,8 +12,10 @@ transport.
@@ -785,7 +925,19 @@ index 0a4acc7..66933bd 100644
  from tests import dlmm_alchemy_provider as provider
  
  POLICY_PATH=Path("SOLANA_DLMM_INDEPENDENT_V1.json")
-@@ -253,7 +256,7 @@ def _history_acceleration(candidate,observed_at):
+@@ -93,6 +96,11 @@ METEORA_PACER=_MeteoraPacer()
+ 
+ 
+ 
++PROGRESS_HOOK=None
++
++def _stage(pool,stage,reason=None,**details):
++    if PROGRESS_HOOK is not None:PROGRESS_HOOK(pool,stage,reason,**details)
++
+ def assert_independence():
+     bad_env=sorted(k for k in os.environ if k.startswith("MM_ROBINHOOD_"))
+     if bad_env:
+@@ -253,7 +261,7 @@ def _history_acceleration(candidate,observed_at):
      return out
  
  
@@ -794,7 +946,7 @@ index 0a4acc7..66933bd 100644
      """Yield each qualifying pool immediately after its history check.
  
      The order is deterministic: configured sort order, then page, then API row rank.
-@@ -266,7 +269,7 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
+@@ -266,7 +274,7 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
      telemetry.setdefault("qualified",[])
      telemetry.setdefault("seen",0)
      telemetry.setdefault("history_reads",0)
@@ -803,7 +955,15 @@ index 0a4acc7..66933bd 100644
      regime=policy["regime"]
      for sort_by in DISCOVERY_SORTS:
          for page in range(1,DISCOVERY_PAGES_PER_SORT+1):
-@@ -339,6 +342,29 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
+@@ -297,6 +305,7 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
+                 if not isinstance(address,str) or not address or address in seen:
+                     continue
+                 seen.add(address);telemetry["seen"]+=1
++                _stage(address,"discovered")
+                 raw=_candidate(row)
+                 raw["sources"]=[dict(
+                     sort=sort_by,rank=(page-1)*DISCOVERY_PAGE_SIZE+raw_rank)]
+@@ -339,6 +348,29 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
                  break
  
  
@@ -833,7 +993,15 @@ index 0a4acc7..66933bd 100644
  def discover(policy,scan_cap):
      """Compatibility collector used by unit tests; live execution streams instead."""
      telemetry={}
-@@ -556,53 +582,41 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
+@@ -427,6 +459,7 @@ def _rotate(adapter,pacer,rpcs):
+ 
+ 
+ def _atomic_checkpoint(report,stage,rpcs,pacer,**progress):
++    report.update(progress)
+     report["checkpoint"]=dict(
+         stage=stage,written_at=int(time.time()),**progress)
+     report["rpc"]=_sum_rpc_metrics(rpcs)
+@@ -556,53 +589,41 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
              before=page[-1]["signature"]
      else:
          coverage=broker.signature_coverage(scope,pool)
@@ -915,7 +1083,7 @@ index 0a4acc7..66933bd 100644
  
      if boundary is None:
          raise Unavailable("solana_dlmm_signature_census_missing_start_boundary")
-@@ -621,6 +635,8 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
+@@ -621,6 +642,8 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
          if type(item.get("transactionIndex")) is not int:
              raise Unavailable("solana_dlmm_transaction_index_unavailable")
          selected.append(item)
@@ -924,17 +1092,35 @@ index 0a4acc7..66933bd 100644
      selected.append(witness)
      selected.sort(
          key=lambda row:(row["slot"],row["transactionIndex"]),reverse=True)
-@@ -653,7 +669,8 @@ def _capture_chunk(
+@@ -640,7 +663,9 @@ def _capture_chunk(
+ ):
+     if wait_seconds<=0:
+         raise ValueError("solana_dlmm_chunk_wait")
++    _stage(start["pool"],"forward_observation",duration_seconds=wait_seconds)
+     time.sleep(wait_seconds)
++    _stage(start["pool"],"reconstruction_started")
+     end_snapshot=adapter.snapshot_from_state(
+         start,int(time.time()),True,fresh=True)
+     signatures,census=_complete_signature_census(
+@@ -653,7 +678,8 @@ def _capture_chunk(
          signatures_to_hydrate=[s["signature"] for s in relevant]
          txmap,hydration=broker.hydrate_transactions(
              adapter.rpc,signatures_to_hydrate,kind=hydration_kind,
 -            deadline=time.time()+6.0,max_version=1,batch_size=8)
 +            deadline=time.time()+6.0,max_version=1,batch_size=8,
-+            owner=f'meteora:{start["pool"]}:interval:{start["slot"]}:{end_snapshot["slot"]}')
++            owner=f'meteora:{start["pool"]}:interval:{start["slot"]}:{end_snapshot["slot"]}',candidate_id=start["pool"])
          if hydration["pending"]:
              raise Unavailable("solana_dlmm_transaction_hydration_incomplete")
          transactions={
-@@ -1006,6 +1023,7 @@ def _build_position(entry,features,policy):
+@@ -674,6 +700,7 @@ def _capture_chunk(
+         raise Unavailable("solana_dlmm_interval_evidence_bound")
+     tape=reconstruct(
+         start,end_snapshot,signatures,transactions,int(time.time()),cursor)
++    _stage(start["pool"],"reconstruction_complete",lineage=tape.lineage)
+     actions=ordered_tape_actions(tape)
+     next_cursor=(list(actions[-1][1].get("cursor") or cursor)
+                  if actions else list(cursor))
+@@ -1006,6 +1033,7 @@ def _build_position(entry,features,policy):
          entry_active=virtual["active"],entry_slot=entry["slot"],
          entry_time=entry["time"],entry_conversion_sol_lamports=conversion,
          entry_conversion_token_raw=token,deposits=deposits,
@@ -942,7 +1128,7 @@ index 0a4acc7..66933bd 100644
      )
  
  
-@@ -1045,14 +1063,30 @@ def _mark(position):
+@@ -1045,14 +1073,30 @@ def _mark(position):
      token_side="y" if sol_side=="x" else "x"
      sol=assets[sol_side]+assets["fee_"+sol_side]
      tokens=assets[token_side]+assets["fee_"+token_side]
@@ -974,7 +1160,7 @@ index 0a4acc7..66933bd 100644
          pnl_bps=pnl*10000/CAPITAL,
          non_sol_inventory_raw=tokens,
          non_sol_inventory_liquidation_lamports=liquidation,
-@@ -1100,10 +1134,26 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
+@@ -1100,10 +1144,29 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
      return reasons,recent,mark,fee_uplift
  
  
@@ -985,6 +1171,7 @@ index 0a4acc7..66933bd 100644
 +    if book is not None:
 +        book.append(identity,'reserve',dict(amount=CAPITAL+ROUND_TRIP_NETWORK_COST,
 +            pool=address,policy_hash=digest(policy),strategy_evidence_hash=digest(dict(entry=entry,features=features))))
++    _stage(address,'entry_reserved',lifecycle_id=identity)
 +    try:
 +        return _position_lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline,broker,book,identity)
 +    except BaseException as exc:
@@ -1000,10 +1187,12 @@ index 0a4acc7..66933bd 100644
 +        book.append(identity,'entry',dict(capital=CAPITAL,entry_cost=ENTRY_NETWORK_COST,
 +            exit_cost=EXIT_NETWORK_COST,entry_state=entry,position=position,features=features,
 +            policy=policy,mark=_mark(position)))
++    _stage(address,'deployed',lifecycle_id=identity)
++    _stage(address,'entry_filled',lifecycle_id=identity)
      current=entry;elapsed=0;segments=[];tapes=[]
      max_hold=int(policy["range"]["max_holding_seconds"])
      segment_seconds=int(policy["exit"]["observation_segment_seconds"])
-@@ -1122,13 +1172,16 @@ def _lifecycle(
+@@ -1122,13 +1185,16 @@ def _lifecycle(
              adapter,address,current,duration,False,pacer,rpcs,deadline,
              broker,"position_monitor")
          if not phase["verified"]:
@@ -1021,8 +1210,11 @@ index 0a4acc7..66933bd 100644
          elapsed+=duration;tapes.append(tape)
          segments.append(dict(
              elapsed_seconds=elapsed,lineage=tape.lineage,
-@@ -1140,10 +1193,12 @@ def _lifecycle(
+@@ -1138,12 +1204,15 @@ def _lifecycle(
+         current=terminal
+         if reasons:
              exit_reason=reasons[0];break
++    _stage(address,"unwind",lifecycle_id=identity)
      combined=chain_verified_tapes(entry,tapes)
      final=_mark(position)
 +    if book is not None:
@@ -1035,26 +1227,54 @@ index 0a4acc7..66933bd 100644
          segments=segments,lineage=combined.lineage,final=final,
      ),adapter
  
-@@ -1219,7 +1274,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
+@@ -1219,7 +1288,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
              sigs=[row["signature"] for row in valid]
              txmap,hydration=broker.hydrate_transactions(
                  rpc,sigs,kind="dlmm_fresh",
 -                deadline=time.time()+5.0,max_version=1,batch_size=8)
 +                deadline=time.time()+5.0,max_version=1,batch_size=8,
-+                owner=f'meteora:{pool}:trigger:{after_slot}:{head_slot}')
++                owner=f'meteora:{pool}:trigger:{after_slot}',candidate_id=pool)
              if hydration["pending"]:
                  after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
                      "getTransaction:http_429",0))
-@@ -1627,7 +1683,7 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
+@@ -1486,6 +1556,8 @@ def _await_fresh_swap_trigger(
+             if swaps:
+                 trigger=swaps[0]
+                 trigger_slot=int(trigger["slot"])
++                _stage(candidate["address"],"trigger_observed",slot=trigger_slot)
++                _stage(candidate["address"],"trigger_authenticated",slot=trigger_slot)
+                 adapter=_rotate(adapter,pacer,rpcs)
+                 (post,adapter)=_retry_rate_limited_operation(
+                     lambda active:_fresh_supported_start(
+@@ -1532,6 +1604,8 @@ def _triggered_warmup(
+         return dict(
+             aligned=False,reason=trigger["reason"],trigger=trigger,
+         ),None,None,None,adapter,current_candidate
++    _stage(candidate["address"],"fresh_state",slot=post_trigger["slot"])
++    _stage(candidate["address"],"warmup_started")
+     warmup_seconds=int(policy["range"]["warmup_seconds"])
+     phase,warm,entry,warm_origin,adapter=_observe_window(
+         adapter,current_candidate["address"],post_trigger,
+@@ -1550,6 +1624,7 @@ def _triggered_warmup(
+         qualifying_window_seconds=warmup_seconds,
+         swaps=(None if warm is None else len(warm.events)),
+     )
++    if phase.get("verified"):_stage(candidate["address"],"warmup_complete")
+     return result,warm,entry,warm_origin,adapter,current_candidate
+ 
+ 
+@@ -1627,7 +1702,9 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
      ),None,None,None,None,adapter,current_candidate
  
  
 -def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
 +def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=False):
++    global PROGRESS_HOOK
++    from meme_machine.pipeline import Pipeline,censor_class
      assert_independence()
      policy=load_policy()
      target=int(target or policy["prospective_test"]["target_complete_lifecycles"])
-@@ -1638,11 +1694,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1638,11 +1715,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          raise ValueError("solana_dlmm_attempt_bound")
      max_runtime_seconds=int(
          max_runtime_seconds or DEFAULT_MAX_RUNTIME_SECONDS)
@@ -1071,7 +1291,7 @@ index 0a4acc7..66933bd 100644
      discovery_telemetry=dict(
          rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
      compatibility_rejections=[];compatibility_screened=0
-@@ -1681,7 +1741,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1681,7 +1762,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          evidence_broker=broker.telemetry(),
      )
      attempted=0;complete=0;failure_counts=Counter()
@@ -1084,14 +1304,32 @@ index 0a4acc7..66933bd 100644
 +        first_sighting_scope='entire_process',paper_starting_capital_lamports=1_000_000_000,
 +        runtime_seconds=max_runtime_seconds,position_drain_seconds=int(policy['range']['max_holding_seconds'])+300 if campaign else 0)
 +    report['operational_configuration_hash']=digest(report['operational_configuration'])
++    pipeline=Pipeline(OUT.with_suffix(".pipeline.sqlite"),"meteora",digest(policy))
      def checkpoint(stage):
++        report["opportunity_coverage"]=pipeline.snapshot()
++        report["discovery_unique_pool_count"]=int(discovery_telemetry["seen"])
 +        report["accounting"]=book.reconcile()
          report["wake_stream"]=broker.stream_status(
              DLMM_WAKE_STREAM_KEY,int(time.time()),0)
          report["evidence_broker"]=broker.telemetry()
-@@ -1696,12 +1766,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1695,16 +1789,36 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+             elapsed_seconds=max(
                  0.0,time.monotonic()-run_started_monotonic),
          )
++    active_triggers={}
++    def progress(pool,stage,reason=None,**details):
++        if stage=="trigger_authenticated":
++            trigger_id=str(pool)+":"+str(details.get("slot"))
++            previous=active_triggers.get(pool)
++            if previous and previous!=trigger_id:
++                pipeline.record(previous,"trigger_terminal","superseded_before_fresh_state","reconstruction_incomplete",pool=pool)
++            active_triggers[pool]=trigger_id
++            pipeline.record(trigger_id,"trigger_started",pool=pool,slot=details.get("slot"))
++        if stage in ("terminal","settled") and pool in active_triggers:
++            pipeline.record(active_triggers.pop(pool),"trigger_terminal",reason or "settled",pool=pool)
++        pipeline.record(pool,stage,reason,censor_class(reason) if reason else None,**details)
++        checkpoint(stage)
++    PROGRESS_HOOK=progress
      checkpoint("run_initialized")
 -    candidate_stream=_iter_acceleration_candidates(
 -        policy,discovery_telemetry,deadline,checkpoint)
@@ -1110,7 +1348,15 @@ index 0a4acc7..66933bd 100644
          candidate_rpcs=[]
          adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
          compatibility_screened+=1
-@@ -1719,6 +1794,12 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
++        _stage(candidate["address"],"screened")
+         try:
+             (compatibility_state,adapter)=_retry_rate_limited_operation(
+                 lambda active:_fresh_supported_start(
+@@ -1716,10 +1830,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+                 reason=str(exc)[:200],
+                 rpc=_sum_rpc_metrics(candidate_rpcs),
+             ))
++            _stage(candidate["address"],"terminal",str(exc),stage_failed="compatibility")
              checkpoint("compatibility_rejection")
              continue
  
@@ -1118,12 +1364,40 @@ index 0a4acc7..66933bd 100644
 +            failure_counts['capacity_attempt_window_budget']+=1
 +            report['attempts'].append(dict(pool=candidate['address'],candidate=candidate,
 +                terminal_classification='capacity_attempt_window_budget',economic_rejection=False))
++            _stage(candidate["address"],"terminal","capacity_attempt_window_budget")
 +            checkpoint('capacity_censoring')
 +            continue
          attempted+=1
++        _stage(candidate["address"],"admitted")
++        _stage(candidate["address"],"evidence_requested")
          handoff_started_at=int(time.time())
          attempt=dict(
-@@ -1760,7 +1841,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+             attempt=attempted,pool=candidate["address"],candidate=candidate,
+@@ -1743,12 +1867,18 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+                 failure_counts[reason]+=1
+                 attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
+                 report["attempts"].append(attempt)
++                _stage(candidate["address"],"terminal",(alignment.get("warmup") or {}).get("reason",reason),stage_failed=reason)
+                 checkpoint("candidate_terminal")
+                 continue
+             attempt["candidate_at_warmup"]=aligned_candidate
+             features=pre_entry_features(
+                 warm_origin,warm,entry,aligned_candidate,policy)
++            _stage(candidate["address"],"prospective_range",lower=features.get("lower"),upper=features.get("upper"))
++            _stage(candidate["address"],"economic_vector")
++            _stage(candidate["address"],"evidence_complete")
+             decision=qualify(features,policy)
++            _stage(candidate["address"],"evaluated")
++            _stage(candidate["address"],"qualified" if decision["passes"] else "rejected")
+             attempt["pre_entry_features"]=features
+             attempt["qualification"]=decision
+             for failed in decision["failed"]:failure_counts[failed]+=1
+@@ -1756,11 +1886,13 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+                 attempt["terminal_classification"]="qualification_rejection"
+                 attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
+                 report["attempts"].append(attempt)
++                pipeline.record(candidate["address"],"terminal","qualification_rejection","strategy_rejection",failed=decision["failed"])
+                 checkpoint("qualification_rejection")
                  continue
              lifecycle,adapter=_lifecycle(
                  adapter,candidate["address"],entry,features,policy,pacer,
@@ -1133,8 +1407,11 @@ index 0a4acc7..66933bd 100644
              for rpc in candidate_rpcs:
                  if rpc not in rpcs:rpcs.append(rpc)
              attempt["lifecycle"]=lifecycle
-@@ -1777,9 +1859,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1775,13 +1907,16 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+                     pre_entry_features=features,qualification=decision,**lifecycle))
+             else:
                  failure_counts["lifecycle_unverified"]+=1
++            _stage(candidate["address"],"settled" if lifecycle["complete"] else "terminal",None if lifecycle["complete"] else "lifecycle_unverified")
              checkpoint("lifecycle_terminal")
          except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
 -            attempt["terminal_classification"]="exception"
@@ -1145,8 +1422,11 @@ index 0a4acc7..66933bd 100644
 +            failure_counts[classification]+=1
              attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
              report["attempts"].append(attempt)
++            _stage(candidate["address"],"terminal",str(exc),stage_failed=(pipeline.last or {}).get("stage"))
              checkpoint("candidate_exception")
-@@ -1817,12 +1900,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+ 
+     resolved=[x for x in report["qualified_lifecycles"]
+@@ -1817,12 +1952,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          elapsed_seconds=max(
              0.0,time.monotonic()-run_started_monotonic),
          conclusion=(
@@ -1162,6 +1442,17 @@ index 0a4acc7..66933bd 100644
      _atomic_checkpoint(
          report,"final",rpcs,pacer,
          attempted_pool_count=attempted,
+@@ -1837,6 +1975,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+         DLMM_WAKE_STREAM_KEY,int(time.time()),0)
+     report["evidence_broker"]=broker.telemetry()
+     broker.close()
++    for pool,trigger_id in active_triggers.items():
++        pipeline.record(trigger_id,"trigger_terminal","campaign_shutdown_unresolved_trigger","reconstruction_incomplete",pool=pool)
++    report["opportunity_coverage"]=pipeline.snapshot()
++    PROGRESS_HOOK=None;pipeline.close()
+     print(json.dumps(dict(
+         conclusion=report["conclusion"],attempted=attempted,complete=complete,
+         profitable_rate=report["profitable_rate"],
 diff --git a/tests/test_dlmm_broker_census.py b/tests/test_dlmm_broker_census.py
 new file mode 100644
 index 0000000..1ab6620
@@ -1309,6 +1600,49 @@ index 5981022..7be2d8e 100644
              prices,reason=resolver.prices(
                  dict(
                      token_x=dlmm.WSOL,token_y="token",
+diff --git a/tests/test_evidence_attribution.py b/tests/test_evidence_attribution.py
+new file mode 100644
+index 0000000..f1224cf
+--- /dev/null
++++ b/tests/test_evidence_attribution.py
+@@ -0,0 +1,37 @@
++import os
++import tempfile
++import unittest
++from pathlib import Path
++from unittest.mock import patch
++from meme_machine.solana_evidence_broker import EvidenceBroker
++
++class AttributionTests(unittest.TestCase):
++    def test_cross_lane_counts_preserve_original_deadline_and_history(self):
++        with tempfile.TemporaryDirectory() as d:
++            now=[100.]
++            broker=EvidenceBroker(str(Path(d)/'e.db'),clock=lambda:now[0],sleeper=lambda _:None)
++            self.addCleanup(broker.close)
++            with patch.dict(os.environ,{'MM_CERTIFICATION_LANE':'pump'}):
++                broker.consumers.register('pump:p',['x','x'],'pump_window',101,candidate_id='p')
++                broker.consumers.register('pump:p',['x'],'pump_window',110,candidate_id='p')
++                broker.consumers.failure('provider_unavailable')
++            with patch.dict(os.environ,{'MM_CERTIFICATION_LANE':'meteora'}):
++                broker.consumers.register('meteora:q',['y'],'dlmm_fresh',110,candidate_id='q')
++            broker.consumers.first_transport(['x'])
++            now[0]=102
++            p=broker.consumers.telemetry('pump');m=broker.consumers.telemetry('meteora')
++            self.assertEqual(p['by_kind']['pump_window']['consumer_deadline_expired'],1)
++            self.assertNotIn('pump_window',m['by_kind'])
++            self.assertEqual(p['candidate_interests'],1)
++            self.assertEqual(m['acquisition_failures'],{})
++            self.assertEqual(broker.db.execute("SELECT deadline,created_at,first_transport_at FROM evidence_consumers WHERE owner='pump:p'").fetchone(),(101,100,100))
++            self.assertEqual(broker.db.execute('SELECT COUNT(*) FROM evidence_terminals').fetchone()[0],1)
++    def test_prefetch_yields_to_admitted_foreground_until_original_deadline(self):
++        broker=EvidenceBroker(':memory:',clock=lambda:100,sleeper=lambda _:None)
++        self.addCleanup(broker.close)
++        broker.consumers.register('background',['b'],'stream_prefetch',110)
++        self.assertEqual(len(broker.consumers.batch()),1)
++        broker.consumers.register('candidate',['c'],'pump_window',105,candidate_id='c')
++        self.assertEqual(broker.consumers.batch(),[])
++        broker.consumers.settle('candidate','explicit_terminal')
++        self.assertEqual(len(broker.consumers.batch()),1)
 diff --git a/tests/test_evidence_consumers.py b/tests/test_evidence_consumers.py
 new file mode 100644
 index 0000000..099d6d9
@@ -1508,6 +1842,35 @@ index 0000000..9c5fe0e
 +            with self.assertRaisesRegex(RuntimeError,'offline-network-boundary'):
 +                strategy.run_live(max_runtime_seconds=14400,campaign=True)
 +        self.assertEqual(before,strategy.digest(strategy.load_policy()))
+diff --git a/tests/test_opportunity_coverage.py b/tests/test_opportunity_coverage.py
+new file mode 100644
+index 0000000..bad967e
+--- /dev/null
++++ b/tests/test_opportunity_coverage.py
+@@ -0,0 +1,23 @@
++import sqlite3
++import tempfile
++import unittest
++from pathlib import Path
++from meme_machine.pipeline import Pipeline
++
++class OpportunityCoverageTests(unittest.TestCase):
++    def test_unique_candidates_not_consumer_or_attempt_count_and_replay(self):
++        with tempfile.TemporaryDirectory() as d:
++            path=Path(d)/'progress.db'
++            p=Pipeline(path,'pump','frozen')
++            for _ in range(10):p.record('mint','evidence_requested')
++            p.record('mint','terminal','queue_deadline','capacity_censored')
++            p.record('mint','evidence_complete')
++            p.record('other','discovered')
++            expected=p.snapshot()
++            self.assertEqual(expected['stages']['evidence_requested'],1)
++            self.assertEqual(expected['unique_classes']['capacity_censored'],1)
++            self.assertEqual(p.db.execute('SELECT COUNT(*) FROM progress').fetchone()[0],13)
++            with self.assertRaises(sqlite3.IntegrityError):p.db.execute('DELETE FROM progress')
++            p.close();q=Pipeline(path,'pump','frozen')
++            self.assertEqual(q.snapshot(),expected);q.close()
++            with self.assertRaisesRegex(ValueError,'namespace'):Pipeline(path,'meteora','frozen')
 diff --git a/tests/test_solana_evidence_broker.py b/tests/test_solana_evidence_broker.py
 index 3115376..64b470b 100644
 --- a/tests/test_solana_evidence_broker.py

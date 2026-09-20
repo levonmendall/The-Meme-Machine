@@ -1,0 +1,165 @@
+{
+  "schema": "current-state-repair-tests-v1",
+  "full_composed_gates": {
+    "implementation_hash": "c20ec6c2d71174a729fdd40e61b073914373fe30666c823b9492592863601bd9",
+    "integration_sha": "6964cfe5c501075e53f3f6f809b85bbdeb50a7cc",
+    "lanes": {
+      "meteora": [
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "unittest",
+            "discover",
+            "-v"
+          ],
+          "ended_at": 1789912598.8632414,
+          "exit_code": 0,
+          "log": "meteora-gate-0.log",
+          "sha256": "d7a7a4ab0f56626ca174ad5ae919e2d06a8b43127ad7b37ecbefec14c8ab3223",
+          "started_at": 1789912595.2525477,
+          "summary_complete": true
+        },
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "tests.resource_check"
+          ],
+          "ended_at": 1789912610.724209,
+          "exit_code": 0,
+          "log": "meteora-gate-1.log",
+          "sha256": "39da55a566dc6f849f7205c15d1d1f4ab048aa235d7961dc69eed333a4c2e834",
+          "started_at": 1789912598.8633008,
+          "summary_complete": true
+        },
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "tests.dlmm_resource_check"
+          ],
+          "ended_at": 1789912634.9422526,
+          "exit_code": 0,
+          "log": "meteora-gate-2.log",
+          "sha256": "4ceb900592e8b8491ad3b95bf23df6d9602b1f26cef56d8665e9d4105d0cec71",
+          "started_at": 1789912610.724283,
+          "summary_complete": true
+        }
+      ],
+      "pons": [
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "robinhood_tests",
+            "-v"
+          ],
+          "ended_at": 1789912636.0163019,
+          "exit_code": 0,
+          "log": "pons-gate-0.log",
+          "sha256": "64aa6f3f1050b76f759d0839e8451f9e7c2c610df3e180cafe7fbdbbd29ccd52",
+          "started_at": 1789912634.9423342,
+          "summary_complete": true
+        }
+      ],
+      "pump": [
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "unittest",
+            "discover",
+            "-v"
+          ],
+          "ended_at": 1789912581.9317653,
+          "exit_code": 0,
+          "log": "pump-gate-0.log",
+          "sha256": "58694d240d35f0885f78908d8324fa1623cdd0875fa6787ef4bbee4dfb816c68",
+          "started_at": 1789912579.0438426,
+          "summary_complete": true
+        },
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "tests.resource_check"
+          ],
+          "ended_at": 1789912595.2524564,
+          "exit_code": 0,
+          "log": "pump-gate-1.log",
+          "sha256": "822e8a44accd326ea045c43da98cb037e4a478025c71aa9dc572055b8546f56d",
+          "started_at": 1789912581.9318323,
+          "summary_complete": true
+        }
+      ],
+      "ramses": [
+        {
+          "command": [
+            "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            "robinhood_tests",
+            "-v"
+          ],
+          "ended_at": 1789912637.0322156,
+          "exit_code": 0,
+          "log": "ramses-gate-0.log",
+          "sha256": "b7336129b6294027a2685167a5ec25bb19844ed1ccba4a0e7ec9b1816775b79c",
+          "started_at": 1789912636.0163684,
+          "summary_complete": true
+        }
+      ]
+    },
+    "passed": true,
+    "source_diff_hashes": {
+      "meteora": "330a23efab16d53dc41384b2f1ca1f9d0948598af997e1583f9e3ff4303bb43e",
+      "pons": "90f0063a7b90ca979f6262243ed6e15d6c18d9934a07952609aa67915a4179a5",
+      "pump": "61ca6e2ca004fe02639700dab148ccd607dd45615a201608781864e29f95ea35",
+      "ramses": "ddf8dbad23b40b968278d5e8c26cf0d305e047d12aa21f49a46749a6b19df076"
+    },
+    "source_manifest_hash": "68006c75fb58ec6562b8b1745f0c4d9cf0819ad6e039fc627721761b4907f34a"
+  },
+  "supervisor": {
+    "tests": 46,
+    "passed": true,
+    "log_sha256": "eac78275ad899256c2f33867e55cca5d7f54bdfefad9cd4d5dc3b2e3c9bdaff2"
+  },
+  "lane_test_counts": {
+    "pump": 264,
+    "meteora": 369,
+    "pons": 231,
+    "ramses": 241
+  },
+  "total_lane_tests": 1105,
+  "resource_checks": 3,
+  "initial_regressions": {
+    "supervisor": 1,
+    "pons": 3,
+    "pump": 1,
+    "status": "fixed; all original tests retained"
+  },
+  "policy_config_source_hashes_preserved": true,
+  "final_overlay_hashes": {
+    "pump": "61ca6e2ca004fe02639700dab148ccd607dd45615a201608781864e29f95ea35",
+    "meteora": "330a23efab16d53dc41384b2f1ca1f9d0948598af997e1583f9e3ff4303bb43e",
+    "pons": "90f0063a7b90ca979f6262243ed6e15d6c18d9934a07952609aa67915a4179a5",
+    "ramses": "107ed897b952a8c49756674212df05e755f0ee699a85166ba43273138b51f694"
+  },
+  "final_ramses_test_isolation_recheck": {
+    "tests": 241,
+    "passed": true,
+    "log_sha256": "ce692d781a012ccb1120c378f69a3f1d5db7004f3b7e1e49baeb02e7bd1684cd",
+    "change": "Existing mocked frontier test now writes progress to a temporary db; generated test sqlite excluded from overlay."
+  },
+  "live_validation": {
+    "authorized": false,
+    "started": false,
+    "reason": "latest user instruction: execute handoff; do not start validation"
+  }
+}

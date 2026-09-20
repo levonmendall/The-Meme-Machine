@@ -1,9 +1,91 @@
+diff --git a/robinhood_research/pipeline.py b/robinhood_research/pipeline.py
+new file mode 100644
+index 0000000..274abdb
+--- /dev/null
++++ b/robinhood_research/pipeline.py
+@@ -0,0 +1,76 @@
++"""Append-only lane-local opportunity evidence; no strategy or allocation authority."""
++import json
++import sqlite3
++import threading
++import time
++from collections import defaultdict
++
++class Pipeline:
++    def __init__(self,path,lane,policy_hash):
++        self.lane=lane;self.policy_hash=policy_hash;self.lock=threading.RLock()
++        self.db=sqlite3.connect(str(path),check_same_thread=False)
++        self.db.execute('PRAGMA journal_mode=WAL')
++        self.db.executescript('''CREATE TABLE IF NOT EXISTS progress(
++            sequence INTEGER PRIMARY KEY, lane TEXT NOT NULL, policy_hash TEXT NOT NULL,
++            candidate TEXT NOT NULL, stage TEXT NOT NULL, reason TEXT, classification TEXT,
++            at REAL NOT NULL, monotonic REAL NOT NULL, details TEXT NOT NULL);
++            CREATE TRIGGER IF NOT EXISTS progress_no_update BEFORE UPDATE ON progress
++            BEGIN SELECT RAISE(ABORT,'append_only'); END;
++            CREATE TRIGGER IF NOT EXISTS progress_no_delete BEFORE DELETE ON progress
++            BEGIN SELECT RAISE(ABORT,'append_only'); END;''')
++        foreign=self.db.execute('SELECT 1 FROM progress WHERE lane!=? OR policy_hash!=? LIMIT 1',(lane,policy_hash)).fetchone()
++        if foreign:raise ValueError('foreign_pipeline_namespace')
++        self.stages=defaultdict(set);self.classes=defaultdict(set);self.reasons=defaultdict(set)
++        self.last=None;self.write_seconds=0.;self.records=0
++        for c,s,r,k,at,mono in self.db.execute('SELECT candidate,stage,reason,classification,at,monotonic FROM progress ORDER BY sequence'):
++            self._index(c,s,r,k,at,mono)
++
++    def _index(self,c,s,r,k,at,mono):
++        self.records+=1
++        self.stages[s].add(c)
++        if k:self.classes[k].add(c)
++        if r:self.reasons[r].add(c)
++        self.last=dict(candidate=c,stage=s,at=at,monotonic=mono)
++
++    def record(self,candidate,stage,reason=None,classification=None,**details):
++        c=str(candidate);at=time.time();mono=time.monotonic()
++        with self.lock,self.db:
++            self.db.execute('INSERT INTO progress(lane,policy_hash,candidate,stage,reason,classification,at,monotonic,details) VALUES(?,?,?,?,?,?,?,?,?)',
++                (self.lane,self.policy_hash,c,stage,reason,classification,at,mono,json.dumps(details,sort_keys=True)))
++            self._index(c,stage,reason,classification,at,mono)
++        self.write_seconds+=time.monotonic()-mono
++
++    def snapshot(self):
++        with self.lock:
++            stages=('discovered','screened','admitted','evidence_requested','evidence_complete',
++                    'trigger_observed','trigger_authenticated','fresh_state','warmup_started','warmup_complete',
++                    'reconstruction_started','reconstruction_complete','prospective_range','economic_vector',
++                    'trigger_terminal','evaluated','rejected','qualified','entry_reserved','entry_filled','entry_cancelled',
++                    'deployed','forward_observation','unwind','settled','terminal')
++            classes=('capacity_censored','provider_failed','stale_before_evidence','stale_during_evidence',
++                     'stale_after_complete_evidence','reconstruction_incomplete','strategy_rejection',
++                     'no_authentic_activity','local_budget_exhausted','consumer_deadline')
++            return dict(schema='lane-opportunity-coverage-v1',lane=self.lane,
++                identity_scope='native_candidate_identity; stages and classes overlap; never sum as losses',
++                raw_records=self.records,
++                authenticated_triggers=len(self.stages['trigger_started']),
++                terminally_classified_triggers=len(self.stages['trigger_terminal']),
++                unresolved_triggers=len(self.stages['trigger_started']-self.stages['trigger_terminal']),
++                stale_stage_counts={s:len(self.reasons[s]) for s in ('stale_on_arrival','stale_in_queue','stale_during_evidence','stale_after_complete_evidence')},
++                stages={s:len(self.stages[s]) for s in stages},
++                unique_classes={k:len(self.classes[k]) for k in classes},
++                unique_terminal_reasons={k:len(v) for k,v in self.reasons.items()},last_transition=self.last)
++
++    def close(self):self.db.close()
++
++def censor_class(reason):
++    r=str(reason).lower()
++    if 'stale_on_arrival' in r or 'stale_in_queue' in r:return 'stale_before_evidence'
++    if 'stale_after_complete' in r:return 'stale_after_complete_evidence'
++    if 'stale' in r:return 'stale_during_evidence'
++    if 'budget' in r:return 'local_budget_exhausted'
++    if 'capacity' in r or 'queue_deadline' in r:return 'capacity_censored'
++    if 'deadline' in r:return 'consumer_deadline'
++    if 'provider' in r or 'null_gettransaction' in r:return 'provider_failed'
++    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
++    return 'reconstruction_incomplete'
 diff --git a/robinhood_research/provider_admission.py b/robinhood_research/provider_admission.py
 new file mode 100644
-index 0000000..ba1dfef
+index 0000000..c0fde9f
 --- /dev/null
 +++ b/robinhood_research/provider_admission.py
-@@ -0,0 +1,112 @@
+@@ -0,0 +1,133 @@
 +"""Optional cross-process read-only transport admission for concurrent certification.
 +
 +Endpoint credentials never enter SQLite. Existing role pacers and error recovery
@@ -30,7 +112,7 @@ index 0000000..ba1dfef
 +def priority(scope):
 +    scope=str(scope).lower()
 +    if any(x in scope for x in ('paper','monitor','exit','unwind','settle','lifecycle')):return 0
-+    if any(x in scope for x in ('selective','evidence','candidate')):return 10
++    if any(x in scope for x in ('selective','evidence','candidate','pons_natural')):return 10
 +    return 50
 +
 +
@@ -45,6 +127,10 @@ index 0000000..ba1dfef
 +                cooldown REAL NOT NULL,interval REAL NOT NULL);
 +            CREATE TABLE IF NOT EXISTS queue(id TEXT PRIMARY KEY,endpoint TEXT NOT NULL,
 +                priority INTEGER NOT NULL,created REAL NOT NULL,deadline REAL NOT NULL);
++            CREATE TABLE IF NOT EXISTS queue_meta(id TEXT PRIMARY KEY,lane TEXT NOT NULL);
++            CREATE TABLE IF NOT EXISTS admissions(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
++            CREATE TRIGGER IF NOT EXISTS no_admission_update BEFORE UPDATE ON admissions BEGIN SELECT RAISE(ABORT,'append_only'); END;
++            CREATE TRIGGER IF NOT EXISTS no_admission_delete BEFORE DELETE ON admissions BEGIN SELECT RAISE(ABORT,'append_only'); END;
 +            CREATE TABLE IF NOT EXISTS transports(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
 +            CREATE TRIGGER IF NOT EXISTS no_transport_update BEFORE UPDATE ON transports
 +                BEGIN SELECT RAISE(ABORT,'append_only'); END;
@@ -57,15 +143,19 @@ index 0000000..ba1dfef
 +        db=sqlite3.connect(self.path,timeout=10,isolation_level=None)
 +        db.execute('PRAGMA journal_mode=WAL');db.execute('PRAGMA synchronous=FULL')
 +        return db
-+    def acquire(self,scope):
-+        ticket=uuid.uuid4().hex;started=self.clock();deadline=started+30
++    def acquire(self,scope,deadline=None):
++        ticket=uuid.uuid4().hex;started=self.clock();deadline=min(started+30,deadline) if deadline is not None else started+30
++        if deadline<=started:raise BoundaryError('provider_shared_admission_deadline')
++        granted=False
 +        db=self.connect()
 +        try:
 +            db.execute('BEGIN IMMEDIATE')
 +            db.execute('DELETE FROM queue WHERE deadline<=?',(started,))
++            db.execute('DELETE FROM queue_meta WHERE id NOT IN (SELECT id FROM queue)')
 +            if db.execute('SELECT COUNT(*) FROM queue WHERE endpoint=?',(self.endpoint,)).fetchone()[0]>=256:
 +                raise BoundaryError('provider_shared_queue_capacity')
 +            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(ticket,self.endpoint,priority(scope),started,deadline))
++            db.execute('INSERT INTO queue_meta VALUES(?,?)',(ticket,self.lane))
 +            depth=db.execute('SELECT COUNT(*) FROM queue WHERE endpoint=?',(self.endpoint,)).fetchone()[0]
 +            db.execute('COMMIT')
 +            while True:
@@ -73,19 +163,31 @@ index 0000000..ba1dfef
 +                if now>=deadline:raise BoundaryError('provider_shared_admission_deadline')
 +                db.execute('BEGIN IMMEDIATE')
 +                db.execute('DELETE FROM queue WHERE deadline<=?',(now,))
-+                first=db.execute('SELECT id FROM queue WHERE endpoint=? ORDER BY priority,created,id LIMIT 1',(self.endpoint,)).fetchone()
++                first=db.execute("SELECT id FROM queue WHERE endpoint=? ORDER BY "
++                    "CASE WHEN priority=0 THEN 0 WHEN priority>=50 AND created<=? THEN 5 ELSE priority END,"
++                    "deadline,created,id LIMIT 1",(self.endpoint,now-3)).fetchone()
 +                next_at,cooldown,interval=db.execute('SELECT next_at,cooldown,interval FROM limits WHERE endpoint=?',(self.endpoint,)).fetchone()
 +                if first and first[0]==ticket and now>=max(next_at,cooldown):
 +                    db.execute('UPDATE limits SET next_at=? WHERE endpoint=?',(now+interval,self.endpoint))
 +                    db.execute('DELETE FROM queue WHERE id=?',(ticket,));db.execute('COMMIT')
++                    granted=True
 +                    return dict(wait_seconds=now-started,queue_depth=depth,admitted_at=now)
 +                db.execute('COMMIT')
 +                self.sleep(min(0.05,max(0.001,max(next_at,cooldown)-now)))
 +        finally:
 +            if db.in_transaction:db.execute('ROLLBACK')
-+            db.execute('DELETE FROM queue WHERE id=?',(ticket,));db.close()
-+    def invoke(self,call,methods,scope,retry_count=0):
-+        admitted=self.acquire(scope);started=self.clock();boundary=None;http_status=None;rpc_code=None
++            db.execute('DELETE FROM queue WHERE id=?',(ticket,))
++            db.execute('DELETE FROM queue_meta WHERE id=?',(ticket,))
++            db.execute('INSERT INTO admissions(body) VALUES(?)',(json.dumps(dict(lane=self.lane,
++                endpoint_fingerprint=self.endpoint,scope=scope,created=started,deadline=deadline,
++                ended=self.clock(),wait_seconds=self.clock()-started,granted=granted,
++                reason='granted' if granted else 'admission_failed')),))
++            db.close()
++    def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None):
++        admitted=self.acquire(scope,deadline);started=self.clock();boundary=None;http_status=None;rpc_code=None
++        if timing is not None:
++            timing.setdefault("first_transport_monotonic",started)
++            timing["shared_provider_queue_wait_seconds"]=timing.get("shared_provider_queue_wait_seconds",0)+admitted["wait_seconds"]
 +        try:
 +            result=call()
 +            http_status=200
@@ -98,6 +200,7 @@ index 0000000..ba1dfef
 +            rpc_code=int(match[1]) if match else None
 +            raise
 +        finally:
++            if timing is not None:timing["provider_transport_seconds"]=timing.get("provider_transport_seconds",0)+self.clock()-started
 +            row=dict(lane=self.lane,endpoint_fingerprint=self.endpoint,session=self.session,
 +                     methods=methods,scope=scope,http_status=http_status,rpc_error_code=rpc_code,
 +                     boundary=boundary,retry_count=retry_count,
@@ -117,7 +220,7 @@ index 0000000..ba1dfef
 +    if not path:return None
 +    return Admission(path,endpoint,lane=os.environ.get('MM_CERTIFICATION_LANE','unknown'))
 diff --git a/robinhood_research/provider_topology.py b/robinhood_research/provider_topology.py
-index d723038..8846728 100644
+index d723038..f43e9ea 100644
 --- a/robinhood_research/provider_topology.py
 +++ b/robinhood_research/provider_topology.py
 @@ -248,6 +248,9 @@ class PacedRpc(Rpc):
@@ -130,28 +233,37 @@ index d723038..8846728 100644
          self.provider_kind = _provider_kind(endpoint)
          self.pacer = pacer or ProviderPacer(requests_per_second)
          self._injected_transport = transport
-@@ -264,10 +267,20 @@ class PacedRpc(Rpc):
+@@ -263,11 +266,27 @@ class PacedRpc(Rpc):
+             super().__init__(endpoint, transport=transport, **kwargs)
  
      def _http(self, method, params):
-         self.pacer.pace()
+-        self.pacer.pace()
++        paced=self.pacer.pace()
++        timing=getattr(self,"evidence_timing",None)
++        if timing is not None:timing["local_pacer_wait_seconds"]=timing.get("local_pacer_wait_seconds",0)+paced
 +        if self.shared_admission is not None:
 +            parent=super()
 +            return self.shared_admission.invoke(
 +                lambda: parent._http(method,params),[method],
-+                getattr(self.admission_scope,"value","connectivity"),self.retry_count)
++                getattr(self.admission_scope,"value","connectivity"),self.retry_count,
++                deadline=getattr(self,"evidence_deadline",None),timing=timing)
          return super()._http(method, params)
  
      def _http_batch(self, calls):
-         self.pacer.pace()
+-        self.pacer.pace()
++        paced=self.pacer.pace()
++        timing=getattr(self,"evidence_timing",None)
++        if timing is not None:timing["local_pacer_wait_seconds"]=timing.get("local_pacer_wait_seconds",0)+paced
 +        if self.shared_admission is not None:
 +            parent=super()
 +            return self.shared_admission.invoke(
 +                lambda: parent._http_batch(calls),[x[0] for x in calls],
-+                getattr(self.admission_scope,"value","connectivity"),self.retry_count)
++                getattr(self.admission_scope,"value","connectivity"),self.retry_count,
++                deadline=getattr(self,"evidence_deadline",None),timing=timing)
          return super()._http_batch(calls)
  
      def _method_allowed_for_provider(self, method):
-@@ -276,12 +289,14 @@ class PacedRpc(Rpc):
+@@ -276,12 +295,14 @@ class PacedRpc(Rpc):
  
      def call(self, method, params, *, scope="connectivity"):
          self._method_allowed_for_provider(method)
@@ -311,7 +423,7 @@ index 0000000..79b25ae
 +    def close(self):
 +        for book in self.books.values():book.close()
 diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ramses_extended_test.py
-index e4ab19d..657bef5 100644
+index e4ab19d..40e145a 100644
 --- a/robinhood_research/ramses_extended_test.py
 +++ b/robinhood_research/ramses_extended_test.py
 @@ -21,6 +21,7 @@ from __future__ import annotations
@@ -348,7 +460,7 @@ index e4ab19d..657bef5 100644
          batch_size=1,
          batch_pause=0.0,
          rate_retries=3,
-@@ -499,167 +505,220 @@ def run(
+@@ -499,167 +505,260 @@ def run(
          frontier_poll_seconds=DISCOVERY_FRONTIER_POLL_SECONDS,
          frontier_driven_discovery=True,
          started_at=time.time(),
@@ -360,6 +472,21 @@ index e4ab19d..657bef5 100644
      )
 +    from .ramses_campaign import CampaignBooks,digest
 +    result['operational_configuration_hash']=digest(result['operational_configuration'])
++    from .pipeline import Pipeline,censor_class
++    pipeline=Pipeline(Path(str(db_path or DB)+'.pipeline.sqlite'),'ramses',POLICY_HASH)
++    result['scan_progress']=dict(state='idle',stage='awaiting_frontier')
++    if campaign:
++        result['campaign_accounting']=dict(funding_state='awaiting_first_fundable_pinned_screen',
++            by_quote_asset={},open_positions=0,position_count=0,conservation=True,
++            unlike_quote_units_summed=False,paper_entry_ready=False,
++            policy_hash=POLICY_HASH,allocation_authority=False)
++    def checkpoint_scan(progress):
++        result['scan_progress']=progress
++        result['opportunity_coverage']=pipeline.snapshot()
++        result['checkpoint_at']=time.time()
++        result['unique_active_pools']=len(seen_pools)
++        if campaign_books is not None:result['campaign_accounting']=campaign_books.reconcile()
++        if campaign or os.environ.get('MM_CERTIFICATION_RUN_ID'):_persist_public_result(result)
  
 -    while True:
 -        now=time.monotonic()
@@ -410,7 +537,7 @@ index e4ab19d..657bef5 100644
 +        while True:
 +            if campaign or os.environ.get("MM_CERTIFICATION_RUN_ID"):
 +                result["checkpoint_at"]=time.time()
-+                result["frontier_discovery"]=dict(
++                result["frontier_discovery"]=dict(result.get("frontier_discovery",{}),
 +                    polls=frontier_polls,advances=frontier_advances,
 +                    expensive_scans=len(screens),provider=frontier_rpc.telemetry())
 +                _persist_public_result(result)
@@ -470,6 +597,13 @@ index e4ab19d..657bef5 100644
 +                expensive_scan=bool(should_scan),
 +                gate_reason=gate_reason,
 +            ))
++            result.setdefault('frontier_discovery',{}).update(
++                polls=frontier_polls,advances=frontier_advances,
++                finalized_block=identity[0],finalized_hash=identity[1],
++                finalized_timestamp=int(frontier['timestamp'],16),last_gate_reason=gate_reason,
++                next_scan_eligibility=('eligible' if should_scan else gate_reason),
++                expensive_scans=len(screens))
++            if campaign or os.environ.get('MM_CERTIFICATION_RUN_ID'):_persist_public_result(result)
 +
 +            if should_scan:
 +                scan_started=time.monotonic()
@@ -482,6 +616,7 @@ index e4ab19d..657bef5 100644
 -                    initial_screen=screen,
                      cost_state=cost_state,
 +                    finalized_frontier=frontier,
++                    progress=checkpoint_scan,
                  )
 -                result["status"]=result["connected_lifecycle"].get("status")
 -                result["ended_at"]=time.time()
@@ -511,12 +646,27 @@ index e4ab19d..657bef5 100644
 +                last_scanned_identity=identity
 +                last_scan_started=scan_started
 +                screens.append(screen)
++                for row in screen.get('rows',[]):
++                    candidate=row['pool']
++                    for stage in ('discovered','screened','admitted','evidence_requested','evaluated'):
++                        pipeline.record(candidate,stage,frontier=identity,screening_only=True)
++                    qualified=bool((row.get('decision') or {}).get('qualified'))
++                    missing_cost=not (row.get('cost_evidence') or {}).get('available')
++                    construction=any(str(x).startswith('strategy_construction:') for x in (row.get('decision') or {}).get('reasons',[]))
++                    classification='reconstruction_incomplete' if missing_cost or construction else 'strategy_rejection'
++                    pipeline.record(candidate,'qualified' if qualified else 'rejected',
++                        None if qualified else 'screening_'+classification,None if qualified else classification,
++                        frontier=identity,screening_only=True)
++                result['opportunity_coverage']=pipeline.snapshot()
 +                for row in screen.get("rows",[]):
 +                    seen_pools.add(row["pool"])
 +                summary=_screen_summary(screen)
 +                summary["elapsed_seconds"]=time.monotonic()-started
 +                summary["frontier_poll_index"]=frontier_polls
 +                result["natural_screens"].append(summary)
++                result['frontier_discovery']['expensive_scans']=len(screens)
++                result['last_completed_scan']=dict(block=identity[0],hash=identity[1],
++                    completed_at=time.time(),duration_seconds=time.monotonic()-scan_started)
 +                if campaign and campaign_books is None and CampaignBooks.budgets_from_screen(screen):
 +                    campaign_books=CampaignBooks(Path(str(db_path or DB)+'.campaign'),screen)
 +                    result['campaign_accounting']=campaign_books.reconcile()
@@ -525,6 +675,7 @@ index e4ab19d..657bef5 100644
 +                        by_quote_asset={},open_positions=0,position_count=0,conservation=True,
 +                        unlike_quote_units_summed=False,paper_entry_ready=False,
 +                        policy_hash=POLICY_HASH,allocation_authority=False)
++                checkpoint_scan(result['scan_progress'])
 +                chosen=select_qualifier(screen)
 +                if chosen is not None and campaign:
 +                    result['natural_qualifier_found']=True
@@ -661,7 +812,7 @@ index e4ab19d..657bef5 100644
 -        result["forced_machinery"]=dict(
 -            mechanics_complete=False,
 -            boundary="no_active_ramses_pool_for_machinery_proof",
-+        result["frontier_discovery"]=dict(
++        result["frontier_discovery"]=dict(result.get("frontier_discovery",{}),
 +            polls=frontier_polls,
 +            advances=frontier_advances,
 +            expensive_scans=len(screens),
@@ -714,10 +865,11 @@ index e4ab19d..657bef5 100644
 +        return result
 +    finally:
 +        if campaign_books is not None:campaign_books.close()
++        pipeline.close()
  
  
  def _persist_public_result(result):
-@@ -671,10 +730,12 @@ def _persist_public_result(result):
+@@ -671,10 +770,12 @@ def _persist_public_result(result):
      raw=json.dumps(public_result,sort_keys=True,separators=(",",":")).encode()
      if len(raw)>12_000_000:
          raise BoundaryError("extended_market_report_capacity")
@@ -732,7 +884,7 @@ index e4ab19d..657bef5 100644
      costs=_json_env("MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON")
      signals=_json_env("MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON")
      started=time.time()
-@@ -691,7 +752,7 @@ def main():
+@@ -691,7 +792,7 @@ def main():
                  "MM_ROBINHOOD_RAMSES_EXTENDED_INTERVAL_SECONDS",
                  DISCOVERY_INTERVAL_SECONDS,
              )),
@@ -741,7 +893,7 @@ index e4ab19d..657bef5 100644
          )
      except BoundaryError as exc:
          result=dict(
-@@ -711,6 +772,11 @@ def main():
+@@ -711,6 +812,11 @@ def main():
              ended_at=time.time(),
              natural_screens=[],
          )
@@ -857,12 +1009,122 @@ index 2b6214c..0ffdeae 100644
          rows = self.db.execute(
              "SELECT body,hash FROM ramses_strategy_position ORDER BY id"
          ).fetchall()
+diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_universe.py
+index ced8b28..6ee15d8 100644
+--- a/robinhood_research/ramses_universe.py
++++ b/robinhood_research/ramses_universe.py
+@@ -390,6 +390,7 @@ def scan(
+     signals_by_pool=None,
+     cost_state=None,
+     finalized_frontier=None,
++    progress=None,
+ ):
+     """Scan the complete factory and classify the bounded recently-active cohort."""
+     if type(lookback_blocks) is not int or not 10 <= lookback_blocks <= 1200:
+@@ -416,6 +417,12 @@ def scan(
+         adaptive_batch_floor=2,
+     )
+     started = time.time()
++    scan_progress=dict(state='in_progress',started_at=started,stage='chain_authentication',
++        pools_total=0,pools_attempted=0,pools_completed=0,pools_failed=0)
++    def checkpoint(stage,**fields):
++        scan_progress.update(stage=stage,updated_at=time.time(),**fields)
++        if progress is not None:progress(dict(scan_progress))
++    checkpoint('chain_authentication')
+     rpc.verify_chain()
+     if finalized_frontier is None:
+         frontier = rpc.call(
+@@ -448,6 +455,8 @@ def scan(
+         frontier_source = "pinned_external_finalized_header"
+     end = int(frontier["number"], 16)
+     start = max(0, end - lookback_blocks + 1)
++    checkpoint('factory_authentication',frontier_block=end,frontier_hash=frontier['hash'],
++        frontier_timestamp=int(frontier['timestamp'],16))
+ 
+     factory_pin = load("ramses_factory")
+     factory = factory_pin["address"]
+@@ -458,8 +467,10 @@ def scan(
+         rpc,factory,end,
+         factory_runtime_sha256=factory_identity["runtime_sha256"],
+     )
++    checkpoint('economic_log_census',pools_total=len(addresses))
+     logs = _batched_logs(rpc, start, end, addresses)
+     histories, cost_events = _decode_economic_logs(logs, addresses)
++    checkpoint('receipt_cost_authentication')
+     observe_receipt_gas(rpc, cost_events, cost_state)
+ 
+     # Candidate truncation is pre-entry and outcome-blind: retain the pools with
+@@ -481,6 +492,9 @@ def scan(
+     exclusions = Counter()
+     for activity_row in active_cohort:
+         address = activity_row["pool"]
++        checkpoint('pool_prestate',current_pool=address,
++            pools_attempted=scan_progress['pools_attempted']+1,
++            active_cohort_size=len(active_cohort),inactive_pools=len(addresses)-len(histories))
+         try:
+             auth, prestate = _prestate(rpc, factory, address, end)
+             feature = pool_features(prestate, histories[address], "y", pool=address)
+@@ -498,6 +512,8 @@ def scan(
+             ))
+         except BoundaryError as exc:
+             exclusions[str(exc)] += 1
++            checkpoint('pool_prestate_failed',pools_failed=scan_progress['pools_failed']+1,
++                last_reason=str(exc))
+ 
+     features = [r["features"] for r in rows]
+     for row in rows:
+@@ -513,6 +529,7 @@ def scan(
+ 
+     classified = []
+     for row in rows:
++        checkpoint('pool_economic_classification',current_pool=row['pool'])
+         f = row["features"]
+         capital = max(1, f["active_liquidity_quote"] * PAPER_ACTIVE_LIQUIDITY_BPS // 10000)
+         signal_context = signals_by_pool.get(row["pool"], {})
+@@ -605,6 +622,8 @@ def scan(
+             "allocation_authority": False,
+         })
+ 
++        checkpoint('pool_complete',pools_completed=len(classified))
++    checkpoint('complete',state='complete',completed_at=time.time())
+     ranked = sorted(classified, key=_selection_key, reverse=True)
+     watch = [r["pool"] for r in ranked[:WATCH_COHORT_SIZE]]
+     no_swap_count = len(addresses) - len(histories)
+diff --git a/robinhood_tests/test_opportunity_coverage.py b/robinhood_tests/test_opportunity_coverage.py
+new file mode 100644
+index 0000000..8aebb0f
+--- /dev/null
++++ b/robinhood_tests/test_opportunity_coverage.py
+@@ -0,0 +1,23 @@
++import sqlite3
++import tempfile
++import unittest
++from pathlib import Path
++from robinhood_research.pipeline import Pipeline
++
++class OpportunityCoverageTests(unittest.TestCase):
++    def test_unique_candidates_not_consumer_or_attempt_count_and_replay(self):
++        with tempfile.TemporaryDirectory() as d:
++            path=Path(d)/'progress.db'
++            p=Pipeline(path,'pump','frozen')
++            for _ in range(10):p.record('mint','evidence_requested')
++            p.record('mint','terminal','queue_deadline','capacity_censored')
++            p.record('mint','evidence_complete')
++            p.record('other','discovered')
++            expected=p.snapshot()
++            self.assertEqual(expected['stages']['evidence_requested'],1)
++            self.assertEqual(expected['unique_classes']['capacity_censored'],1)
++            self.assertEqual(p.db.execute('SELECT COUNT(*) FROM progress').fetchone()[0],13)
++            with self.assertRaises(sqlite3.IntegrityError):p.db.execute('DELETE FROM progress')
++            p.close();q=Pipeline(path,'pump','frozen')
++            self.assertEqual(q.snapshot(),expected);q.close()
++            with self.assertRaisesRegex(ValueError,'namespace'):Pipeline(path,'meteora','frozen')
 diff --git a/robinhood_tests/test_provider_admission.py b/robinhood_tests/test_provider_admission.py
 new file mode 100644
-index 0000000..8b6bef3
+index 0000000..c17a9d4
 --- /dev/null
 +++ b/robinhood_tests/test_provider_admission.py
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,68 @@
 +import json
 +from pathlib import Path
 +import tempfile
@@ -901,6 +1163,36 @@ index 0000000..8b6bef3
 +            with self.assertRaisesRegex(BoundaryError,'capacity'):a.acquire('candidate')
 +            db.close()
 +            self.assertLess(priority('pons_paper'),priority('research_history'))
++
++class AdmissionFairnessTests(unittest.TestCase):
++    def test_original_deadline_prevents_transport_and_records_wait(self):
++        with tempfile.TemporaryDirectory() as td:
++            now=[100.]
++            a=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane='pons',clock=lambda:now[0],sleeper=lambda s:now.__setitem__(0,now[0]+s))
++            db=a.connect();db.execute('UPDATE limits SET next_at=110');db.close()
++            calls=[]
++            with self.assertRaisesRegex(BoundaryError,'deadline'):
++                a.invoke(lambda:calls.append(1),['eth_call'],'pons_natural',deadline=101.)
++            self.assertEqual(calls,[])
++            db=a.connect();row=json.loads(db.execute('SELECT body FROM admissions').fetchone()[0]);db.close()
++            self.assertFalse(row['granted']);self.assertEqual(row['deadline'],101.)
++    def test_aged_research_precedes_new_candidate_but_never_exit(self):
++        with tempfile.TemporaryDirectory() as td:
++            now=[100.];attempt=[0]
++            def sleep(seconds):
++                now[0]+=seconds;attempt[0]+=1
++                db=a.connect()
++                # Simulate an already waiting research worker consuming its grant.
++                db.execute("DELETE FROM queue WHERE id='research'");db.close()
++            a=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane='pons',clock=lambda:now[0],sleeper=sleep)
++            db=a.connect();db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('research',a.endpoint,50,96.,120.));db.close()
++            a.acquire('pons_natural',deadline=105.)
++            self.assertGreater(attempt[0],0)
++            attempt[0]=0
++            db=a.connect();db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('research',a.endpoint,50,96.,120.));db.execute('UPDATE limits SET next_at=0');db.close()
++            a.acquire('paper_unwind')
++            self.assertEqual(attempt[0],0)
++            self.assertEqual(priority('pons_natural'),10)
 diff --git a/robinhood_tests/test_ramses_capital_replay.py b/robinhood_tests/test_ramses_capital_replay.py
 new file mode 100644
 index 0000000..fa2ab1c
@@ -1091,3 +1383,29 @@ index 0000000..e4d0064
 +            self.assertEqual(CampaignBooks.budgets_from_screen(screen([])),{})
 +            wrong=screen([]);wrong['policy_hash']='foreign'
 +            with self.assertRaisesRegex(BoundaryError,'foreign_screen'):CampaignBooks.budgets_from_screen(wrong)
+diff --git a/robinhood_tests/test_ramses_extended_market.py b/robinhood_tests/test_ramses_extended_market.py
+index 711f223..764d886 100644
+--- a/robinhood_tests/test_ramses_extended_market.py
++++ b/robinhood_tests/test_ramses_extended_market.py
+@@ -1,3 +1,4 @@
++from pathlib import Path
+ import hashlib
+ import json
+ import os
+@@ -376,13 +377,15 @@ class RamsesExtendedMarketTests(unittest.TestCase):
+ 
+         clock=Clock()
+         rpc=Rpc()
+-        with patch.object(extended,"BoundedMultiRpc",return_value=rpc), \
++        with tempfile.TemporaryDirectory() as pipeline_dir, \
++             patch.object(extended,"BoundedMultiRpc",return_value=rpc), \
+              patch.object(extended,"scan",side_effect=fake_scan), \
+              patch.object(extended.time,"monotonic",side_effect=clock.monotonic), \
+              patch.object(extended.time,"sleep",side_effect=clock.sleep), \
+              patch.object(extended.time,"time",side_effect=clock.wall):
+             result=extended.run(
+                 "https://example.invalid",
++                db_path=str(Path(pipeline_dir)/"paper.sqlite"),
+                 discovery_seconds=75,
+                 discovery_interval_seconds=60,
+             )

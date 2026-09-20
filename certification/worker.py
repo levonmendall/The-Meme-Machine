@@ -166,10 +166,15 @@ class Observer:
             else:
                 methods=[args[0]];wire=[(args[0],args[1])]
             try:
-                priority=getattr(observer.context,"priority",50)
+                priority=getattr(observer.context,"priority",10 if solana else 50)
                 if priority!=0:priority=getattr(instance,'evidence_priority',priority)
-                queue_wait=(observer.governor.acquire(network,observer.lane,priority)
+                evidence_deadline=getattr(instance,'evidence_deadline',None)
+                remaining=30 if evidence_deadline is None else min(30,evidence_deadline-(time.time() if solana else time.monotonic()))
+                if remaining<=0:raise TimeoutError('evidence_deadline_before_transport')
+                queue_wait=(observer.governor.acquire(network,observer.lane,priority,deadline_seconds=remaining)
                             if solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB") else None)
+                callback=getattr(instance,'evidence_transport_callback',None)
+                if callback is not None:callback()
                 transport_started=time.monotonic_ns()
                 result=original(instance,*args,**kwargs)
                 http_status=200
@@ -309,14 +314,9 @@ def main():
             observer.prioritize(module,"run_connected")
             observer.prioritize(module,"_forced_machinery")
             observer.observe_work(module,'scan','ramses_finalized_pool_scan')
-            original=module.scan
-            def scan(*a,**kw):
-                result=original(*a,**kw);observer.checkpoint(module._screen_summary(result),'authenticated_scan');return result
-            module.scan=scan
-            gate=module._frontier_scan_gate
-            def frontier(*a,**kw):
-                result=gate(*a,**kw);observer.checkpoint(dict(frontier_gate=result),'frontier_progress');return result
-            module._frontier_scan_gate=frontier
+            # Only the complete native checkpoint can replace the aggregate view.
+            # Gate-only/scan-only dictionaries used to erase completed scans and
+            # durable capital books on every frontier poll.
             os.environ['MM_ROBINHOOD_RAMSES_EXTENDED_DISCOVERY_SECONDS']=str(args.seconds)
             original_persist=module._persist_public_result
             def persist(result):

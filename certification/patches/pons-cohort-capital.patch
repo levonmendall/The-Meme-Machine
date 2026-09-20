@@ -63,11 +63,195 @@ index 1b6f675..378c9d6 100644
              nominal_deadline_seconds=self.nominal_deadline_seconds,
              **dict(self.counts),
          )
+diff --git a/robinhood_research/pipeline.py b/robinhood_research/pipeline.py
+new file mode 100644
+index 0000000..274abdb
+--- /dev/null
++++ b/robinhood_research/pipeline.py
+@@ -0,0 +1,76 @@
++"""Append-only lane-local opportunity evidence; no strategy or allocation authority."""
++import json
++import sqlite3
++import threading
++import time
++from collections import defaultdict
++
++class Pipeline:
++    def __init__(self,path,lane,policy_hash):
++        self.lane=lane;self.policy_hash=policy_hash;self.lock=threading.RLock()
++        self.db=sqlite3.connect(str(path),check_same_thread=False)
++        self.db.execute('PRAGMA journal_mode=WAL')
++        self.db.executescript('''CREATE TABLE IF NOT EXISTS progress(
++            sequence INTEGER PRIMARY KEY, lane TEXT NOT NULL, policy_hash TEXT NOT NULL,
++            candidate TEXT NOT NULL, stage TEXT NOT NULL, reason TEXT, classification TEXT,
++            at REAL NOT NULL, monotonic REAL NOT NULL, details TEXT NOT NULL);
++            CREATE TRIGGER IF NOT EXISTS progress_no_update BEFORE UPDATE ON progress
++            BEGIN SELECT RAISE(ABORT,'append_only'); END;
++            CREATE TRIGGER IF NOT EXISTS progress_no_delete BEFORE DELETE ON progress
++            BEGIN SELECT RAISE(ABORT,'append_only'); END;''')
++        foreign=self.db.execute('SELECT 1 FROM progress WHERE lane!=? OR policy_hash!=? LIMIT 1',(lane,policy_hash)).fetchone()
++        if foreign:raise ValueError('foreign_pipeline_namespace')
++        self.stages=defaultdict(set);self.classes=defaultdict(set);self.reasons=defaultdict(set)
++        self.last=None;self.write_seconds=0.;self.records=0
++        for c,s,r,k,at,mono in self.db.execute('SELECT candidate,stage,reason,classification,at,monotonic FROM progress ORDER BY sequence'):
++            self._index(c,s,r,k,at,mono)
++
++    def _index(self,c,s,r,k,at,mono):
++        self.records+=1
++        self.stages[s].add(c)
++        if k:self.classes[k].add(c)
++        if r:self.reasons[r].add(c)
++        self.last=dict(candidate=c,stage=s,at=at,monotonic=mono)
++
++    def record(self,candidate,stage,reason=None,classification=None,**details):
++        c=str(candidate);at=time.time();mono=time.monotonic()
++        with self.lock,self.db:
++            self.db.execute('INSERT INTO progress(lane,policy_hash,candidate,stage,reason,classification,at,monotonic,details) VALUES(?,?,?,?,?,?,?,?,?)',
++                (self.lane,self.policy_hash,c,stage,reason,classification,at,mono,json.dumps(details,sort_keys=True)))
++            self._index(c,stage,reason,classification,at,mono)
++        self.write_seconds+=time.monotonic()-mono
++
++    def snapshot(self):
++        with self.lock:
++            stages=('discovered','screened','admitted','evidence_requested','evidence_complete',
++                    'trigger_observed','trigger_authenticated','fresh_state','warmup_started','warmup_complete',
++                    'reconstruction_started','reconstruction_complete','prospective_range','economic_vector',
++                    'trigger_terminal','evaluated','rejected','qualified','entry_reserved','entry_filled','entry_cancelled',
++                    'deployed','forward_observation','unwind','settled','terminal')
++            classes=('capacity_censored','provider_failed','stale_before_evidence','stale_during_evidence',
++                     'stale_after_complete_evidence','reconstruction_incomplete','strategy_rejection',
++                     'no_authentic_activity','local_budget_exhausted','consumer_deadline')
++            return dict(schema='lane-opportunity-coverage-v1',lane=self.lane,
++                identity_scope='native_candidate_identity; stages and classes overlap; never sum as losses',
++                raw_records=self.records,
++                authenticated_triggers=len(self.stages['trigger_started']),
++                terminally_classified_triggers=len(self.stages['trigger_terminal']),
++                unresolved_triggers=len(self.stages['trigger_started']-self.stages['trigger_terminal']),
++                stale_stage_counts={s:len(self.reasons[s]) for s in ('stale_on_arrival','stale_in_queue','stale_during_evidence','stale_after_complete_evidence')},
++                stages={s:len(self.stages[s]) for s in stages},
++                unique_classes={k:len(self.classes[k]) for k in classes},
++                unique_terminal_reasons={k:len(v) for k,v in self.reasons.items()},last_transition=self.last)
++
++    def close(self):self.db.close()
++
++def censor_class(reason):
++    r=str(reason).lower()
++    if 'stale_on_arrival' in r or 'stale_in_queue' in r:return 'stale_before_evidence'
++    if 'stale_after_complete' in r:return 'stale_after_complete_evidence'
++    if 'stale' in r:return 'stale_during_evidence'
++    if 'budget' in r:return 'local_budget_exhausted'
++    if 'capacity' in r or 'queue_deadline' in r:return 'capacity_censored'
++    if 'deadline' in r:return 'consumer_deadline'
++    if 'provider' in r or 'null_gettransaction' in r:return 'provider_failed'
++    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
++    return 'reconstruction_incomplete'
+diff --git a/robinhood_research/pons_natural_observation.py b/robinhood_research/pons_natural_observation.py
+index 03a18bd..af9ce03 100644
+--- a/robinhood_research/pons_natural_observation.py
++++ b/robinhood_research/pons_natural_observation.py
+@@ -182,7 +182,9 @@ def _authenticate_candidate(
+         ),block_hex]),
+         ("eth_gasPrice",[]),
+     ]
++    auth_batch_started=time.monotonic()
+     first=rpc.batch(first_calls,scope="pons_natural")
++    report.setdefault("timing",{})["header_receipt_state_cost_shared_batch_seconds"]=time.monotonic()-auth_batch_started
+     (chain_raw,header,receipt,token_raw,code,reserves_raw,real_raw,reserved_raw,
+      graduated_raw,snipe_raw,gas_raw)=first
+     if int(chain_raw,16)!=CHAIN_ID:
+@@ -215,7 +217,9 @@ def _authenticate_candidate(
+             to=factory,data=calldata("getLaunchedToken(address)",token)
+         ),block_hex]),
+     ]
++    factory_started=time.monotonic()
+     second=rpc.batch(second_calls,scope="pons_natural")
++    report.setdefault("timing",{})["launch_metadata_seconds"]=time.monotonic()-factory_started
+     record=factory_record(second[0],"pons_v2_factory")
+     auth=authenticate_curve(curve,code,factory_record=record)
+ 
 diff --git a/robinhood_research/pons_selective_acquisition.py b/robinhood_research/pons_selective_acquisition.py
-index bf9e1a8..49f8a24 100644
+index bf9e1a8..5c7eda1 100644
 --- a/robinhood_research/pons_selective_acquisition.py
 +++ b/robinhood_research/pons_selective_acquisition.py
-@@ -228,6 +228,39 @@ def _batched(endpoint,calls,scope,*,evidence_context=None):
+@@ -8,6 +8,7 @@ from __future__ import annotations
+ from collections import Counter, OrderedDict
+ from dataclasses import asdict
+ import time
++import json
+ 
+ from . import BoundaryError
+ from .abi import calldata
+@@ -154,6 +155,11 @@ class SelectiveEvidenceContext:
+         self.cache=cache or ImmutableEvidenceCache()
+         self.rpc=None
+         self.completed_sessions=[]
++        self.adjacent=[]
++        self.block_reads=OrderedDict()
++        self.pin=None
++        self.timing={}
++        self.deadline=None
+ 
+     def _rotate(self):
+         if self.rpc is not None:
+@@ -177,15 +183,53 @@ class SelectiveEvidenceContext:
+         return self.rpc
+ 
+     def call(self,method,params,scope):
+-        return self.acquire(1,scope).call(method,params,scope=scope)
++        return self.batch([(method,params)],scope)[0]
+ 
+     def batch(self,calls,scope):
+-        out=[]
+-        for group in _chunks(list(calls),50):
++        calls=list(calls);out=[None]*len(calls);missing=[];keys=[]
++        # Only exact block-scoped reads can cross candidates. Never cache gasPrice,
++        # latest/pending state, provider errors, or a read from a different block hash.
++        for index,(method,params) in enumerate(calls):
++            key=None;cached=None
++            if method=='eth_getBlockByNumber' and params and str(params[0]).startswith('0x'):
++                cached=self.cache.header_by_number(int(params[0],16))
++            elif method=='eth_getBlockByHash' and params:
++                cached=self.cache.header_by_hash(params[0])
++            elif method in ('eth_call','eth_getCode') and self.pin and params[-1]==hex(self.pin[0]):
++                key=(self.pin[1],method,json.dumps(params,sort_keys=True))
++                cached=self.block_reads.get(key)
++            if cached is not None:out[index]=cached
++            else:missing.append((index,(method,params),key))
++        for group in _chunks(missing,50):
+             rpc=self.acquire(len(group),scope)
+-            out.extend(rpc.batch(group,scope=scope))
++            rpc.evidence_deadline=self.deadline
++            rpc.evidence_timing=self.timing
++            before=time.monotonic()
++            if self.timing.get('first_transport_submitted_monotonic') is None:
++                self.timing['first_transport_submitted_monotonic']=before
++            values=rpc.batch([x[1] for x in group],scope=scope)
++            self.timing['rpc_batch_seconds']=self.timing.get('rpc_batch_seconds',0)+time.monotonic()-before
++            for (index,(method,params),key),value in zip(group,values):
++                out[index]=value
++                if key is not None:
++                    self.block_reads[key]=value
++                    while len(self.block_reads)>4096:self.block_reads.popitem(last=False)
+         return out
+ 
++    def prefetch_adjacent_headers(self,calls):
++        # Fill spare slots of an already-needed batch; never add a transport or
++        # evaluate a neighbour early. Normal receipt/log authentication still runs.
++        extras=[];seen={json.dumps(x,sort_keys=True) for x in calls}
++        for row in self.adjacent:
++            if row['deadline']<=time.time():continue
++            event=row['event'];block=int(event['blockNumber'],16)
++            if self.cache.header_by_number(block) is not None:continue
++            call=('eth_getBlockByNumber',[hex(block),False]);key=json.dumps(call,sort_keys=True)
++            if key in seen:continue
++            seen.add(key);extras.append((call,event['blockHash'],block))
++            if len(extras)>=max(0,50-len(calls)):break
++        return extras if len(calls)<50 else []
++
+     def remember_candidate(self,candidate):
+         self.cache.remember_header(candidate["header"])
+         self.cache.remember_receipt(
+@@ -228,6 +272,39 @@ def _batched(endpoint,calls,scope,*,evidence_context=None):
      return out,telemetry
  
  
@@ -107,7 +291,7 @@ index bf9e1a8..49f8a24 100644
  def _authenticate_window(
      endpoint,candidate,tape,seconds=60,*,evidence_context=None
  ):
-@@ -243,13 +276,7 @@ def _authenticate_window(
+@@ -243,13 +320,7 @@ def _authenticate_window(
      end_time=int(candidate["stamp"].event_at)
      end_block=int(candidate["block"])
      curve=candidate["curve"].lower()
@@ -122,7 +306,7 @@ index bf9e1a8..49f8a24 100644
  
      hashes=list(dict.fromkeys(event["blockHash"] for event in raw))
      tx_rows=list(dict.fromkeys(
-@@ -379,7 +406,7 @@ def _header_search(rpc,current_block,current_at,target_at,cache):
+@@ -379,7 +450,7 @@ def _header_search(rpc,current_block,current_at,target_at,cache):
      return read(low)
  
  
@@ -131,7 +315,23 @@ index bf9e1a8..49f8a24 100644
      """Resolve 5s/15s trajectory anchors from dense batched recent headers.
  
      The old binary search serialized one request per probe. This path walks recent
-@@ -488,12 +515,18 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+@@ -422,7 +493,14 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+             else:
+                 collected[block]=header
+ 
+-        values=ctx.batch(calls,"pons_selective_trajectory") if calls else []
++        extras=ctx.prefetch_adjacent_headers(calls) if calls and hasattr(ctx,'prefetch_adjacent_headers') else []
++        combined=calls+[x[0] for x in extras]
++        values=ctx.batch(combined,"pons_selective_trajectory") if combined else []
++        for (_,expected_hash,expected_block),header in zip(extras,values[len(calls):]):
++            if header.get('hash')!=expected_hash or int(header['number'],16)!=expected_block:
++                raise BoundaryError('adjacent_candidate_header_identity')
++            cache.remember_header(header)
++        values=values[:len(calls)]
+         for label,value in zip(labels,values):
+             kind,key=label
+             if kind=="launch":
+@@ -488,12 +566,18 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
              missing_blocks.append(block)
          else:
              reserve_by_block[block]=cached
@@ -152,17 +352,102 @@ index bf9e1a8..49f8a24 100644
      for block,raw in zip(missing_blocks,reads):
          reserve_by_block[block]=cache.remember_real_quote(
              curve,block,_one_word(raw)
-@@ -562,8 +595,9 @@ def evaluate_candidate(
+@@ -541,35 +625,48 @@ def evaluate_candidate(
+ ):
+     """Freeze one outcome-blind qualification vector from Pons-only evidence."""
+     sessions=[]
++    ctx=evidence_context or SelectiveEvidenceContext(endpoint)
++    started=time.monotonic()
++    ctx.timing=dict(evidence_started_monotonic=started,first_observation_monotonic=evidence_observed_monotonic,
++        queue_wait_seconds=None if evidence_observed_monotonic is None else started-float(evidence_observed_monotonic),
++        first_transport_submitted_monotonic=None)
++    ctx.deadline=None if evidence_observed_monotonic is None else float(evidence_observed_monotonic)+ENTRY_THRESHOLDS['max_state_age_seconds']
++    ctx.pin=(int(event['blockNumber'],16),event['blockHash'])
+     if evidence_observed_monotonic is not None:
+         preflight_latency=time.monotonic()-float(evidence_observed_monotonic)
+         if preflight_latency<0:
+             raise BoundaryError("future_evidence_observation")
+         if preflight_latency>ENTRY_THRESHOLDS["max_state_age_seconds"]:
+             raise BoundaryError("stale_evidence_acquisition")
+-    ctx=evidence_context or SelectiveEvidenceContext(endpoint)
+     rpc=ctx.acquire(16,"pons_natural")
+-    report=dict(reads=[])
++    auth_started=time.monotonic()
++    report=dict(reads=[],timing=ctx.timing)
+     candidate=_authenticate_candidate(
+-        rpc,event,report,
++        ctx,event,report,
+         evidence_observed_at=evidence_observed_at,
+         evidence_observed_monotonic=evidence_observed_monotonic,
+         max_evidence_latency_seconds=ENTRY_THRESHOLDS["max_state_age_seconds"],
+     )
++    ctx.timing["header_receipt_quote_authentication_seconds"]=time.monotonic()-auth_started
+     candidate["report"]=report
+     ctx.remember_candidate(candidate)
+     sessions.append(rpc.telemetry())
      if candidate["decoded_event"]["decoded"]["name"]!="CurveBuy":
          raise BoundaryError("selective_nomination_not_buy")
  
 +    tape=list(tape)
++    trajectory_started=time.monotonic()
      snapshots,launch_at,trajectory_session=_trajectory(
 -        endpoint,candidate,evidence_context=ctx
 +        endpoint,candidate,evidence_context=ctx,window_tape=tape
      )
      sessions.append(trajectory_session)
++    ctx.timing["trajectory_seconds"]=time.monotonic()-trajectory_started
++    window_started=time.monotonic()
      market,market_sessions=_authenticate_window(
+         endpoint,candidate,list(tape),seconds=60,evidence_context=ctx
+     )
+     sessions.extend(market_sessions)
++    ctx.timing["receipt_window_authentication_seconds"]=time.monotonic()-window_started
+ 
+     available=int(time.time())
+     completed_monotonic=time.monotonic()
+@@ -578,10 +675,15 @@ def evaluate_candidate(
+         if evidence_observed_monotonic is None
+         else completed_monotonic-float(evidence_observed_monotonic)
+     )
++    ctx.timing.update(evidence_completed_monotonic=completed_monotonic,
++        evidence_acquisition_seconds=completed_monotonic-started,
++        decision_age_seconds=acquisition_latency,chain_event_at=candidate['stamp'].event_at,
++        chain_timestamp_lag_seconds=None if evidence_observed_at is None else evidence_observed_at-candidate['stamp'].event_at)
+     creator_groups=(
+         candidate["record"].get("deployer"),
+         candidate["record"].get("creatorFeeRecipient"),
+     )
++    decision_started=time.monotonic()
+     vector=qualification_vector(
+         state=candidate["state"],
+         graduation_threshold=candidate["record"]["graduationThreshold"],
+@@ -601,6 +703,9 @@ def evaluate_candidate(
+         creator_history=creator_history,
+         quote_relative_strength_bps=quote_relative_strength_bps,
+     )
++    ctx.timing["decision_computation_seconds"]=time.monotonic()-decision_started
++    ctx.timing["first_transport_delay_seconds"]=(None if ctx.timing.get("first_transport_monotonic") is None
++        else ctx.timing["first_transport_monotonic"]-started)
+     return dict(
+         token=candidate["token"],curve=candidate["curve"],
+         source_transaction=event["transactionHash"],
+@@ -609,6 +714,8 @@ def evaluate_candidate(
+         candidate=candidate,market_events=market,
+         trajectory_snapshots=snapshots,launch_at=launch_at,
+         vector=vector,provider_sessions=sessions,
++        timing=dict(ctx.timing),
++        stale_stage=("stale_after_complete_evidence" if acquisition_latency>ENTRY_THRESHOLDS["max_state_age_seconds"] else None),
+         evaluation_completed_at=available,
+         evidence_observed_at=evidence_observed_at,
+         evidence_acquisition_latency_seconds=acquisition_latency,
+@@ -631,6 +738,7 @@ def public_evaluation(row):
+         market_events=row["market_events"],
+         trajectory_snapshots=row["trajectory_snapshots"],
+         launch_at=row["launch_at"],vector=row["vector"],
++        timing=row.get("timing"),stale_stage=row.get("stale_stage"),
+         evaluation_completed_at=row["evaluation_completed_at"],
+         evidence_observed_at=row.get("evidence_observed_at"),
+         evidence_acquisition_latency_seconds=row.get(
 diff --git a/robinhood_research/pons_selective_capital.py b/robinhood_research/pons_selective_capital.py
 new file mode 100644
 index 0000000..38a4454
@@ -354,7 +639,7 @@ index 0000000..38a4454
 +                self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT');return rec
 +            except BaseException:db.execute('ROLLBACK');raise
 diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
-index 080894d..b4c67b6 100644
+index 080894d..d4160fa 100644
 --- a/robinhood_research/pons_selective_cohort.py
 +++ b/robinhood_research/pons_selective_cohort.py
 @@ -5,6 +5,8 @@ result directory, dedicated wallet-skill ledger, dedicated paper databases, poli
@@ -366,7 +651,15 @@ index 080894d..b4c67b6 100644
  import json
  import os
  from pathlib import Path
-@@ -55,6 +57,8 @@ PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS=2.0
+@@ -13,6 +15,7 @@ import time
+ from . import BoundaryError
+ from .abi import topic
+ from .evidence_queue import DeadlineEvidenceQueue
++from .pipeline import Pipeline,censor_class
+ from .pons_natural_observation import (
+     _current_curve_events, _next_discovery_end,
+ )
+@@ -55,6 +58,8 @@ PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS=2.0
  RATE_LIMIT_PROVIDER_BOUNDARIES=frozenset((
      "provider_http_429",
      "provider_rpc_429",
@@ -375,7 +668,7 @@ index 080894d..b4c67b6 100644
  ))
  RECOVERABLE_PROVIDER_BOUNDARIES=frozenset((
      "provider_http_500",
-@@ -132,13 +136,21 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
+@@ -132,13 +137,22 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
          started_at=result["started_at"],
          canonical_discovery_cursor=int(cursor),
          summary=_summary_snapshot(result),
@@ -394,12 +687,13 @@ index 080894d..b4c67b6 100644
          target_reached=result.get("target_reached"),
          boundary=result.get("boundary"),
 +        evidence_queue=result.get('evidence_queue'),
++        opportunity_coverage=result.get("opportunity_coverage"),
 +        evidence_acquisition=result.get('evidence_acquisition'),
 +        capacity_censored=result.get('capacity_censored',0),
          persisted_candidate_rows=len(result["rows"]),
          persisted_qualifiers=len(result["qualifiers"]),
      )
-@@ -341,23 +353,72 @@ def _attach_wallet_overlay(vector,skill_book):
+@@ -341,23 +355,72 @@ def _attach_wallet_overlay(vector,skill_book):
      return overlay
  
  
@@ -483,7 +777,7 @@ index 080894d..b4c67b6 100644
          selection_rule=(
              "every distinct current authenticated Pons V2 buy, with at most one "
              "evaluation per curve per 2 wall-clock seconds; no outcome reranking"
-@@ -369,6 +430,8 @@ def run(endpoint):
+@@ -369,22 +432,37 @@ def run(endpoint):
          sequencer_recoveries=[],evidence_acquisition=None,started_at=started,
      )
  
@@ -491,8 +785,20 @@ index 080894d..b4c67b6 100644
 +        result['operational_configuration'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
      skill=WalletSkillBook(str(SKILL_DB))
      evidence_context=SelectiveEvidenceContext(endpoint)
++    pipeline=Pipeline(ROOT/"opportunity-pipeline.sqlite","pons",POLICY_HASH)
++    def coverage():result["opportunity_coverage"]=pipeline.snapshot()
      rpc=_discovery(endpoint)
-@@ -384,7 +447,13 @@ def run(endpoint):
+     feed=SequencerBlockClock();feed.connect()
+     cursor=feed.wait_for_after(-1,timeout=5.0)
+     if cursor is None:
++        coverage();pipeline.close()
+         skill.close();feed.close()
+         raise BoundaryError("selective_sequencer_start_timeout")
+ 
+     start_ts=feed.state.latest_header_timestamp
+     if start_ts is None:
++        coverage();pipeline.close()
+         skill.close();feed.close()
          raise BoundaryError("selective_sequencer_timestamp_missing")
      tape=[];last_eval={};seen_event=set()
      first_observed_monotonic={}
@@ -500,6 +806,9 @@ index 080894d..b4c67b6 100644
 +    def queue_terminal(row,reason):
 +        event=row['event'];identity=(event['transactionHash'],event['logIndex'])
 +        observed_monotonic=first_observed_monotonic.pop(identity,None)
++        stage_reason="stale_in_queue" if reason in ("expired_before_evidence","deadline_insufficient") else reason
++        pipeline.record(":".join(identity),"terminal",stage_reason,censor_class(stage_reason))
++        coverage()
 +        _append_jsonl(ROOT/'queue-terminal.jsonl',dict(event=event,queued_at=row['queued_at'],
 +            deadline=row['deadline'],first_observed_monotonic=observed_monotonic,
 +            terminal_reason=reason,economic_rejection=False,policy_hash=POLICY_HASH))
@@ -507,7 +816,7 @@ index 080894d..b4c67b6 100644
  
      def _checkpoint_provider_failure(failed_rpc,boundary,current_cursor):
          result["last_transient_provider_boundary"]=str(boundary)
-@@ -393,6 +462,7 @@ def run(endpoint):
+@@ -393,6 +471,7 @@ def run(endpoint):
              phase="provider_recovery",
          )
  
@@ -515,7 +824,7 @@ index 080894d..b4c67b6 100644
      try:
          warm_deadline=time.monotonic()+TAPE_WARM_SECONDS
          while time.monotonic()<warm_deadline:
-@@ -415,14 +485,15 @@ def run(endpoint):
+@@ -415,14 +494,15 @@ def run(endpoint):
          next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
          while (
              time.monotonic()<deadline
@@ -533,29 +842,64 @@ index 080894d..b4c67b6 100644
              now=time.time()
              now_monotonic=time.monotonic()
              for event in fresh:
-@@ -444,6 +515,7 @@ def run(endpoint):
+@@ -430,6 +510,7 @@ def run(endpoint):
+                 if identity in seen_event:
+                     continue
+                 seen_event.add(identity)
++                pipeline.record(":".join(identity),"discovered")
+                 if (
+                     not event.get("topics")
+                     or event["topics"][0].lower()!=topic(
+@@ -441,9 +522,14 @@ def run(endpoint):
+                 if now-last_eval.get(curve,0)<MIN_REEVALUATION_SECONDS:
+                     continue
+                 last_eval[curve]=now
++                pipeline.record(':'.join(identity),'screened')
                  if queue.enqueue(event,now=now):
                      first_observed_monotonic[identity]=now_monotonic
++                    pipeline.record(':'.join(identity),'admitted',first_observed_at=now,
++                        original_deadline=now+5,sequencer_last_received_at=getattr(feed.state,'last_received_at',None))
  
++            coverage()
 +            result['evidence_queue']=queue.telemetry()
              if time.monotonic()>=next_checkpoint:
                  _checkpoint(
                      result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery"
-@@ -461,6 +533,13 @@ def run(endpoint):
+@@ -461,6 +547,18 @@ def run(endpoint):
              if observed_monotonic is None:
                  raise BoundaryError("missing_evidence_observation_clock")
              observed_at=float(scheduled["queued_at"])
 +            if campaign and len(result['rows'])>=MAX_ENROLLED:
 +                result['capacity_censored']=result.get('capacity_censored',0)+1
++                pipeline.record(':'.join(observation_key),'terminal','selective_campaign_observation_capacity','capacity_censored')
 +                _append_jsonl(ROOT/'capacity-censored.jsonl',dict(
 +                    source_transaction=event.get('transactionHash'),source_block=event.get('blockNumber'),
 +                    observed_at=observed_at,observed_monotonic=observed_monotonic,
 +                    terminal_reason='selective_campaign_observation_capacity',economic_rejection=False))
 +                continue
++            identity=':'.join(observation_key)
++            dispatch=time.monotonic()
++            evidence_context.adjacent=list(queue.rows.values())
++            pipeline.record(identity,'evidence_requested',queue_wait_seconds=dispatch-observed_monotonic)
              try:
                  evaluation=evaluate_candidate(
                      endpoint,event,list(tape),
-@@ -493,10 +572,17 @@ def run(endpoint):
+@@ -470,6 +568,14 @@ def run(endpoint):
+                     evidence_observed_monotonic=observed_monotonic,
+                     evidence_context=evidence_context,
+                 )
++                pipeline.record(identity,'evidence_complete')
++                pipeline.record(identity,'evaluated')
++                if evaluation.get('stale_stage'):
++                    pipeline.record(identity,'terminal',evaluation['stale_stage'],censor_class(evaluation['stale_stage']),timing=evaluation.get('timing'))
++                elif evaluation['vector'].get('current_threshold_pass'):
++                    pipeline.record(identity,'qualified')
++                else:pipeline.record(identity,'rejected','strategy_rejection','strategy_rejection')
++                coverage()
+                 overlay=_attach_wallet_overlay(evaluation["vector"],skill)
+                 public=public_evaluation(evaluation)
+                 public["sequence"]=sequence
+@@ -493,14 +599,27 @@ def run(endpoint):
                          phase="qualifier_persisted",
                      )
                      next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
@@ -573,7 +917,18 @@ index 080894d..b4c67b6 100644
                          )
                      ))
              except BoundaryError as exc:
-@@ -517,23 +603,30 @@ def run(endpoint):
+-                incomplete=dict(
++                stale_stage=('stale_in_queue' if dispatch-observed_monotonic>5 else
++                    'stale_during_evidence') if 'stale' in str(exc) or 'admission_deadline' in str(exc) else None
++                reason=stale_stage or str(exc)
++                pipeline.record(identity,'terminal',reason,censor_class(reason),timing=evidence_context.timing)
++                coverage()
++                incomplete=dict(timing=dict(evidence_context.timing),stale_stage=stale_stage,
++                    source_log_index=int(event['logIndex'],16),
+                     sequence=sequence,status="incomplete",
+                     source_transaction=event.get("transactionHash"),
+                     source_block=event.get("blockNumber"),
+@@ -517,28 +636,36 @@ def run(endpoint):
          if not result["target_reached"]:
              result["boundary"]="selective_cohort_target_not_reached_in_bounded_window"
  
@@ -615,7 +970,13 @@ index 080894d..b4c67b6 100644
          result["evidence_acquisition"]=evidence_context.telemetry()
          result["sequencer_discovery"]=feed.status()
          _checkpoint(
-@@ -575,10 +668,7 @@ def run(endpoint):
+             result,cursor=cursor,feed=feed,rpc=rpc,phase="finalizing"
+         )
++        coverage();pipeline.close()
+         feed.close();skill.close()
+ 
+     result["lifecycles"].sort(key=lambda row:row.get("index",-1))
+@@ -575,10 +702,7 @@ def run(endpoint):
  
  if __name__=="__main__":
      output=run(os.environ.get("MM_ROBINHOOD_READ_RPC_URL",""))
@@ -1090,10 +1451,10 @@ index 36ef0b3..b596ff5 100644
          if store is not None:
 diff --git a/robinhood_research/provider_admission.py b/robinhood_research/provider_admission.py
 new file mode 100644
-index 0000000..ba1dfef
+index 0000000..c0fde9f
 --- /dev/null
 +++ b/robinhood_research/provider_admission.py
-@@ -0,0 +1,112 @@
+@@ -0,0 +1,133 @@
 +"""Optional cross-process read-only transport admission for concurrent certification.
 +
 +Endpoint credentials never enter SQLite. Existing role pacers and error recovery
@@ -1120,7 +1481,7 @@ index 0000000..ba1dfef
 +def priority(scope):
 +    scope=str(scope).lower()
 +    if any(x in scope for x in ('paper','monitor','exit','unwind','settle','lifecycle')):return 0
-+    if any(x in scope for x in ('selective','evidence','candidate')):return 10
++    if any(x in scope for x in ('selective','evidence','candidate','pons_natural')):return 10
 +    return 50
 +
 +
@@ -1135,6 +1496,10 @@ index 0000000..ba1dfef
 +                cooldown REAL NOT NULL,interval REAL NOT NULL);
 +            CREATE TABLE IF NOT EXISTS queue(id TEXT PRIMARY KEY,endpoint TEXT NOT NULL,
 +                priority INTEGER NOT NULL,created REAL NOT NULL,deadline REAL NOT NULL);
++            CREATE TABLE IF NOT EXISTS queue_meta(id TEXT PRIMARY KEY,lane TEXT NOT NULL);
++            CREATE TABLE IF NOT EXISTS admissions(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
++            CREATE TRIGGER IF NOT EXISTS no_admission_update BEFORE UPDATE ON admissions BEGIN SELECT RAISE(ABORT,'append_only'); END;
++            CREATE TRIGGER IF NOT EXISTS no_admission_delete BEFORE DELETE ON admissions BEGIN SELECT RAISE(ABORT,'append_only'); END;
 +            CREATE TABLE IF NOT EXISTS transports(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
 +            CREATE TRIGGER IF NOT EXISTS no_transport_update BEFORE UPDATE ON transports
 +                BEGIN SELECT RAISE(ABORT,'append_only'); END;
@@ -1147,15 +1512,19 @@ index 0000000..ba1dfef
 +        db=sqlite3.connect(self.path,timeout=10,isolation_level=None)
 +        db.execute('PRAGMA journal_mode=WAL');db.execute('PRAGMA synchronous=FULL')
 +        return db
-+    def acquire(self,scope):
-+        ticket=uuid.uuid4().hex;started=self.clock();deadline=started+30
++    def acquire(self,scope,deadline=None):
++        ticket=uuid.uuid4().hex;started=self.clock();deadline=min(started+30,deadline) if deadline is not None else started+30
++        if deadline<=started:raise BoundaryError('provider_shared_admission_deadline')
++        granted=False
 +        db=self.connect()
 +        try:
 +            db.execute('BEGIN IMMEDIATE')
 +            db.execute('DELETE FROM queue WHERE deadline<=?',(started,))
++            db.execute('DELETE FROM queue_meta WHERE id NOT IN (SELECT id FROM queue)')
 +            if db.execute('SELECT COUNT(*) FROM queue WHERE endpoint=?',(self.endpoint,)).fetchone()[0]>=256:
 +                raise BoundaryError('provider_shared_queue_capacity')
 +            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(ticket,self.endpoint,priority(scope),started,deadline))
++            db.execute('INSERT INTO queue_meta VALUES(?,?)',(ticket,self.lane))
 +            depth=db.execute('SELECT COUNT(*) FROM queue WHERE endpoint=?',(self.endpoint,)).fetchone()[0]
 +            db.execute('COMMIT')
 +            while True:
@@ -1163,19 +1532,31 @@ index 0000000..ba1dfef
 +                if now>=deadline:raise BoundaryError('provider_shared_admission_deadline')
 +                db.execute('BEGIN IMMEDIATE')
 +                db.execute('DELETE FROM queue WHERE deadline<=?',(now,))
-+                first=db.execute('SELECT id FROM queue WHERE endpoint=? ORDER BY priority,created,id LIMIT 1',(self.endpoint,)).fetchone()
++                first=db.execute("SELECT id FROM queue WHERE endpoint=? ORDER BY "
++                    "CASE WHEN priority=0 THEN 0 WHEN priority>=50 AND created<=? THEN 5 ELSE priority END,"
++                    "deadline,created,id LIMIT 1",(self.endpoint,now-3)).fetchone()
 +                next_at,cooldown,interval=db.execute('SELECT next_at,cooldown,interval FROM limits WHERE endpoint=?',(self.endpoint,)).fetchone()
 +                if first and first[0]==ticket and now>=max(next_at,cooldown):
 +                    db.execute('UPDATE limits SET next_at=? WHERE endpoint=?',(now+interval,self.endpoint))
 +                    db.execute('DELETE FROM queue WHERE id=?',(ticket,));db.execute('COMMIT')
++                    granted=True
 +                    return dict(wait_seconds=now-started,queue_depth=depth,admitted_at=now)
 +                db.execute('COMMIT')
 +                self.sleep(min(0.05,max(0.001,max(next_at,cooldown)-now)))
 +        finally:
 +            if db.in_transaction:db.execute('ROLLBACK')
-+            db.execute('DELETE FROM queue WHERE id=?',(ticket,));db.close()
-+    def invoke(self,call,methods,scope,retry_count=0):
-+        admitted=self.acquire(scope);started=self.clock();boundary=None;http_status=None;rpc_code=None
++            db.execute('DELETE FROM queue WHERE id=?',(ticket,))
++            db.execute('DELETE FROM queue_meta WHERE id=?',(ticket,))
++            db.execute('INSERT INTO admissions(body) VALUES(?)',(json.dumps(dict(lane=self.lane,
++                endpoint_fingerprint=self.endpoint,scope=scope,created=started,deadline=deadline,
++                ended=self.clock(),wait_seconds=self.clock()-started,granted=granted,
++                reason='granted' if granted else 'admission_failed')),))
++            db.close()
++    def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None):
++        admitted=self.acquire(scope,deadline);started=self.clock();boundary=None;http_status=None;rpc_code=None
++        if timing is not None:
++            timing.setdefault("first_transport_monotonic",started)
++            timing["shared_provider_queue_wait_seconds"]=timing.get("shared_provider_queue_wait_seconds",0)+admitted["wait_seconds"]
 +        try:
 +            result=call()
 +            http_status=200
@@ -1188,6 +1569,7 @@ index 0000000..ba1dfef
 +            rpc_code=int(match[1]) if match else None
 +            raise
 +        finally:
++            if timing is not None:timing["provider_transport_seconds"]=timing.get("provider_transport_seconds",0)+self.clock()-started
 +            row=dict(lane=self.lane,endpoint_fingerprint=self.endpoint,session=self.session,
 +                     methods=methods,scope=scope,http_status=http_status,rpc_error_code=rpc_code,
 +                     boundary=boundary,retry_count=retry_count,
@@ -1207,7 +1589,7 @@ index 0000000..ba1dfef
 +    if not path:return None
 +    return Admission(path,endpoint,lane=os.environ.get('MM_CERTIFICATION_LANE','unknown'))
 diff --git a/robinhood_research/provider_topology.py b/robinhood_research/provider_topology.py
-index 8fffdad..f5985f0 100644
+index 8fffdad..88df767 100644
 --- a/robinhood_research/provider_topology.py
 +++ b/robinhood_research/provider_topology.py
 @@ -193,6 +193,9 @@ class PacedRpc(Rpc):
@@ -1220,28 +1602,37 @@ index 8fffdad..f5985f0 100644
          self.provider_kind = _provider_kind(endpoint)
          self.pacer = pacer or ProviderPacer(requests_per_second)
          self._injected_transport = transport
-@@ -209,10 +212,20 @@ class PacedRpc(Rpc):
+@@ -208,11 +211,27 @@ class PacedRpc(Rpc):
+             super().__init__(endpoint, transport=transport, **kwargs)
  
      def _http(self, method, params):
-         self.pacer.pace()
+-        self.pacer.pace()
++        paced=self.pacer.pace()
++        timing=getattr(self,"evidence_timing",None)
++        if timing is not None:timing["local_pacer_wait_seconds"]=timing.get("local_pacer_wait_seconds",0)+paced
 +        if self.shared_admission is not None:
 +            parent=super()
 +            return self.shared_admission.invoke(
 +                lambda: parent._http(method,params),[method],
-+                getattr(self.admission_scope,"value","connectivity"),self.retry_count)
++                getattr(self.admission_scope,"value","connectivity"),self.retry_count,
++                deadline=getattr(self,"evidence_deadline",None),timing=timing)
          return super()._http(method, params)
  
      def _http_batch(self, calls):
-         self.pacer.pace()
+-        self.pacer.pace()
++        paced=self.pacer.pace()
++        timing=getattr(self,"evidence_timing",None)
++        if timing is not None:timing["local_pacer_wait_seconds"]=timing.get("local_pacer_wait_seconds",0)+paced
 +        if self.shared_admission is not None:
 +            parent=super()
 +            return self.shared_admission.invoke(
 +                lambda: parent._http_batch(calls),[x[0] for x in calls],
-+                getattr(self.admission_scope,"value","connectivity"),self.retry_count)
++                getattr(self.admission_scope,"value","connectivity"),self.retry_count,
++                deadline=getattr(self,"evidence_deadline",None),timing=timing)
          return super()._http_batch(calls)
  
      def _method_allowed_for_provider(self, method):
-@@ -221,12 +234,14 @@ class PacedRpc(Rpc):
+@@ -221,12 +240,14 @@ class PacedRpc(Rpc):
  
      def call(self, method, params, *, scope="connectivity"):
          self._method_allowed_for_provider(method)
@@ -1256,6 +1647,35 @@ index 8fffdad..f5985f0 100644
          return super().batch(calls, scope=scope)
  
      def telemetry(self):
+diff --git a/robinhood_tests/test_opportunity_coverage.py b/robinhood_tests/test_opportunity_coverage.py
+new file mode 100644
+index 0000000..8aebb0f
+--- /dev/null
++++ b/robinhood_tests/test_opportunity_coverage.py
+@@ -0,0 +1,23 @@
++import sqlite3
++import tempfile
++import unittest
++from pathlib import Path
++from robinhood_research.pipeline import Pipeline
++
++class OpportunityCoverageTests(unittest.TestCase):
++    def test_unique_candidates_not_consumer_or_attempt_count_and_replay(self):
++        with tempfile.TemporaryDirectory() as d:
++            path=Path(d)/'progress.db'
++            p=Pipeline(path,'pump','frozen')
++            for _ in range(10):p.record('mint','evidence_requested')
++            p.record('mint','terminal','queue_deadline','capacity_censored')
++            p.record('mint','evidence_complete')
++            p.record('other','discovered')
++            expected=p.snapshot()
++            self.assertEqual(expected['stages']['evidence_requested'],1)
++            self.assertEqual(expected['unique_classes']['capacity_censored'],1)
++            self.assertEqual(p.db.execute('SELECT COUNT(*) FROM progress').fetchone()[0],13)
++            with self.assertRaises(sqlite3.IntegrityError):p.db.execute('DELETE FROM progress')
++            p.close();q=Pipeline(path,'pump','frozen')
++            self.assertEqual(q.snapshot(),expected);q.close()
++            with self.assertRaisesRegex(ValueError,'namespace'):Pipeline(path,'meteora','frozen')
 diff --git a/robinhood_tests/test_pons_cohort_capital.py b/robinhood_tests/test_pons_cohort_capital.py
 new file mode 100644
 index 0000000..fb8f397
@@ -1702,10 +2122,10 @@ index d8d0a88..4798215 100644
          class FakeRpc:
 diff --git a/robinhood_tests/test_provider_admission.py b/robinhood_tests/test_provider_admission.py
 new file mode 100644
-index 0000000..8b6bef3
+index 0000000..c17a9d4
 --- /dev/null
 +++ b/robinhood_tests/test_provider_admission.py
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,68 @@
 +import json
 +from pathlib import Path
 +import tempfile
@@ -1744,3 +2164,62 @@ index 0000000..8b6bef3
 +            with self.assertRaisesRegex(BoundaryError,'capacity'):a.acquire('candidate')
 +            db.close()
 +            self.assertLess(priority('pons_paper'),priority('research_history'))
++
++class AdmissionFairnessTests(unittest.TestCase):
++    def test_original_deadline_prevents_transport_and_records_wait(self):
++        with tempfile.TemporaryDirectory() as td:
++            now=[100.]
++            a=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane='pons',clock=lambda:now[0],sleeper=lambda s:now.__setitem__(0,now[0]+s))
++            db=a.connect();db.execute('UPDATE limits SET next_at=110');db.close()
++            calls=[]
++            with self.assertRaisesRegex(BoundaryError,'deadline'):
++                a.invoke(lambda:calls.append(1),['eth_call'],'pons_natural',deadline=101.)
++            self.assertEqual(calls,[])
++            db=a.connect();row=json.loads(db.execute('SELECT body FROM admissions').fetchone()[0]);db.close()
++            self.assertFalse(row['granted']);self.assertEqual(row['deadline'],101.)
++    def test_aged_research_precedes_new_candidate_but_never_exit(self):
++        with tempfile.TemporaryDirectory() as td:
++            now=[100.];attempt=[0]
++            def sleep(seconds):
++                now[0]+=seconds;attempt[0]+=1
++                db=a.connect()
++                # Simulate an already waiting research worker consuming its grant.
++                db.execute("DELETE FROM queue WHERE id='research'");db.close()
++            a=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane='pons',clock=lambda:now[0],sleeper=sleep)
++            db=a.connect();db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('research',a.endpoint,50,96.,120.));db.close()
++            a.acquire('pons_natural',deadline=105.)
++            self.assertGreater(attempt[0],0)
++            attempt[0]=0
++            db=a.connect();db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('research',a.endpoint,50,96.,120.));db.execute('UPDATE limits SET next_at=0');db.close()
++            a.acquire('paper_unwind')
++            self.assertEqual(attempt[0],0)
++            self.assertEqual(priority('pons_natural'),10)
+diff --git a/robinhood_tests/test_selective_block_cache.py b/robinhood_tests/test_selective_block_cache.py
+new file mode 100644
+index 0000000..f4bf49b
+--- /dev/null
++++ b/robinhood_tests/test_selective_block_cache.py
+@@ -0,0 +1,23 @@
++import time
++import unittest
++from robinhood_research.pons_selective_acquisition import SelectiveEvidenceContext
++
++class BlockCacheTests(unittest.TestCase):
++    def test_block_hash_scopes_cache_and_gas_price_always_refreshes(self):
++        class Rpc:
++            def __init__(self):self.calls=[]
++            def batch(self,calls,scope):self.calls.extend(calls);return ['0x1']*len(calls)
++        rpc=Rpc();ctx=SelectiveEvidenceContext('unused');ctx.acquire=lambda *a:rpc
++        ctx.pin=(10,'hash-a');calls=[('eth_getCode',['curve','0xa']),('eth_gasPrice',[])]
++        ctx.batch(calls,'pons_natural');ctx.batch(calls,'pons_natural')
++        self.assertEqual([x[0] for x in rpc.calls],['eth_getCode','eth_gasPrice','eth_gasPrice'])
++        ctx.pin=(10,'hash-b');ctx.batch(calls,'pons_natural')
++        self.assertEqual(rpc.calls[-2:],calls)
++    def test_adjacent_header_batch_is_bounded_deduplicated_and_expiry_aware(self):
++        ctx=SelectiveEvidenceContext('unused')
++        ctx.adjacent=[dict(deadline=time.time()+5,event=dict(blockNumber=hex(i),blockHash=str(i))) for i in range(10)]
++        ctx.adjacent.append(dict(deadline=0,event=dict(blockNumber='0xff',blockHash='late')))
++        extra=ctx.prefetch_adjacent_headers([('eth_gasPrice',[])]*48)
++        self.assertEqual(len(extra),2)
++        self.assertNotIn('late',[x[1] for x in extra])
++        self.assertEqual(ctx.prefetch_adjacent_headers([('eth_gasPrice',[])]*50),[])

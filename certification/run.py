@@ -14,7 +14,7 @@ import uuid
 from certification.journal import canonical,digest,Journal
 from certification.governor import Governor
 from certification.pressure import PressureView
-from certification.report import LANES,dashboard,evaluate,summarize
+from certification.report import LANES,dashboard,evaluate,summarize,pipeline_health
 from certification.controls import (audit_telemetry,broker_snapshot,record_unfinished_broker_jobs,
                                     hourly_engineering,smoke_engineering,sustained_readiness)
 
@@ -44,6 +44,9 @@ def source_integrity(worktrees):
     for lane,row in manifest()['lanes'].items():
         cwd=Path(worktrees)/lane
         if git('rev-parse','HEAD',cwd=cwd)!=row.get('execution_sha',row['source_sha']):raise ValueError('worktree_head_drift:'+lane)
+        for file,expected_hash in row.get('file_hashes',{}).items():
+            if hashlib.sha256((cwd/file).read_bytes()).hexdigest()!=expected_hash:
+                raise ValueError('frozen_source_file_drift:'+lane+':'+file)
         diff=subprocess.check_output(['git','diff','--binary','HEAD'],cwd=cwd)
         observed[lane]=hashlib.sha256(diff).hexdigest()
         patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
@@ -266,6 +269,10 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                         try:row.update(summarize(lane,json.loads(raw)))
                         except ValueError:row['report_parse_error']=True
                 row['open_positions_unknown']=row.get('open_positions') is None
+                row['process_health']=row['health']
+                row['pipeline_health']=pipeline_health(row,time.time())
+                if code is None and row['health']=='responsive' and row['pipeline_health']['state']=='stalled':
+                    row['health']='responsive_but_strategy_stalled'
             result=dict(run_id=run_id,phase=phase,status='RUNNING' if alive else 'FINISHED',started_at=start_wall,observed_at=time.time(),elapsed_seconds=now-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=now)-common_start),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot()),source_manifest_hash=digest(spec))
             if now-last_sample>=30:
                 broker=broker_snapshot(run/'shared-solana-evidence.sqlite')

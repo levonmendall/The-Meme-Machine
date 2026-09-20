@@ -182,3 +182,13 @@ the unchanged economic gates. Solana and Robinhood queues ended empty. Six
 Solana rate events and a maximum Robinhood queue depth of two do not justify a
 new provider. Current frozen source heads were reverified before the Cycle 4
 observability edit.
+
+## Superseding current-state repair
+
+The repeating overnight campaign is stopped. The user subsequently authorized a
+single current-state repair validation (smoke plus one hour). See
+`CURRENT_STATE_REPAIR_HANDOFF.md` and Cycle 4 terminal JSON. Do not automatically
+launch another cycle after that single validation.
+
+Latest instruction supersedes that single-run authorization: finish repairs and
+execute a handoff, **do not start validation**. No replacement run launched.

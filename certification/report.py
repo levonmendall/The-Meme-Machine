@@ -53,6 +53,9 @@ def summarize(lane, report):
     result['evidence_state']=report.get('evidence_broker') or report.get('evidence_acquisition')
     result['provider_state']=report.get('active_provider') or report.get('active_discovery_provider') or report.get('provider')
     result['finality_state']=report.get('frontier_discovery') or report.get('canonical_discovery_cursor')
+    result['opportunity_coverage']=report.get('opportunity_coverage')
+    result['scan_progress']=report.get('scan_progress')
+    result['last_completed_scan']=report.get('last_completed_scan')
     if lane=='pump':
         qualifiers=report.get('qualifiers',[])
         entry_status=Counter(x.get('entry_status','unknown') for x in qualifiers)
@@ -73,8 +76,12 @@ def summarize(lane, report):
             result['accounting_reconciled']=True
         result['limitations'].append('detailed_cost_decomposition_and_complete_economic_replay_require_verification')
     elif lane=='meteora':
-        result['funnel']=dict(discovered=report.get('discovery_unique_pool_count'),screened=report.get('compatibility_screened_count'),
-                              complete_observations=report.get('complete_lifecycle_count'))
+        checkpoint=report.get('checkpoint') or {}
+        economic=sum('pre_entry_features' in x and 'qualification' in x for x in report.get('attempts',[]))
+        result['funnel']=dict(discovered=report.get('discovery_unique_pool_count'),
+            screened=report.get('compatibility_screened_count',checkpoint.get('compatibility_screened_count')),
+            complete_observations=economic,complete_economic_vectors=economic,
+            complete_lifecycles=report.get('complete_lifecycle_count',checkpoint.get('complete_lifecycle_count')))
         result['terminal_reasons']=report.get('qualification_failure_counts',{})
         book=report.get('accounting') or {};replay=report.get('accounting_replay') or {}
         result['native_accounting']=book;result['accounting_replay']=replay
@@ -138,7 +145,30 @@ def summarize(lane, report):
             for row in screen.get('rows',[]):reasons.update(row.get('reasons') or [])
         result['terminal_reasons']=dict(reasons)
         result['limitations'].append('quote_assets_require_separate_balances_and_authenticated_valuation_before_consolidation')
+    coverage=result.get('opportunity_coverage') or {}
+    if coverage:
+        result['funnel'].update({'unique_'+k:v for k,v in coverage.get('stages',{}).items()})
+        result['funnel'].update({'unique_'+k:v for k,v in coverage.get('unique_classes',{}).items()})
     return result
+
+
+def pipeline_health(row,now):
+    """Stage liveness never replaces transport health or authorizes a restart."""
+    scan=row.get('scan_progress') or {}
+    frontier=row.get('finality_state') or {}
+    if scan.get('state')=='in_progress':
+        age=max(0,now-scan.get('updated_at',scan.get('started_at',now)))
+        return dict(state='stalled' if age>300 else 'progressing',stage=scan.get('stage'),
+                    stage_age_seconds=age,scan_age_seconds=max(0,now-scan.get('started_at',now)),
+                    stall_bound_seconds=300)
+    if isinstance(frontier,dict) and frontier.get('last_gate_reason') in ('frontier_unchanged','cadence_floor'):
+        return dict(state='waiting_finalized_frontier',stage=frontier['last_gate_reason'])
+    last=(row.get('opportunity_coverage') or {}).get('last_transition') or {}
+    if not last:return dict(state='unknown',stage=None)
+    age=max(0,now-last.get('at',now))
+    active=last.get('stage') in ('evidence_requested','warmup_started','reconstruction_started','entry_reserved')
+    return dict(state='stalled' if active and age>300 else 'progressing' if active else 'awaiting_market_or_policy',
+                stage=last.get('stage'),stage_age_seconds=age,stall_bound_seconds=300)
 
 
 def dashboard(result,path):
@@ -185,6 +215,8 @@ body{font:14px system-ui;background:#101820;color:#e7eef4;padding:24px;max-width
             'last strategy progress age seconds':r.get('progress_age_seconds'),
             'last transport activity age seconds':r.get('transport_activity_age_seconds')})
         html+='<h3>Opportunity funnel</h3>'+mapping(r.get('funnel'))
+        html+='<h3>Pipeline health</h3>'+mapping(r.get('pipeline_health'))
+        if r.get('scan_progress'):html+='<h3>Pinned scan progress</h3>'+mapping(r['scan_progress'])
         evidence=r.get('evidence_state') or {};stream=r.get('stream_state') or {}
         native_finality=r.get('finality_state')
         finality=native_finality if isinstance(native_finality,dict) else {}

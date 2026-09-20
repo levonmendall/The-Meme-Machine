@@ -8,7 +8,7 @@ PATTERNS={
     'meteora':['solana-dlmm-independent-v1-live*'],
     'pons':['pons-selective-continuation-v1-cohort.json','pons-selective-continuation-v1-cohort'],
     'ramses':['robinhood-ramses-extended-market-report.json','robinhood-ramses-extended-market.sqlite*',
-              'robinhood-ramses-all-pool-inventory-cache.json'],
+              'robinhood-ramses-all-pool-inventory-cache.json','robinhood-ramses-extended-market.sqlite.pipeline.sqlite*'],
 }
 
 def collect(worktrees,output):

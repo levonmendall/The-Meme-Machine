@@ -20,16 +20,19 @@ from urllib.request import Request, urlopen
 from certification.report import LANES
 
 
-def numeric_tree(value, depth=0):
+def numeric_tree(value, depth=0, field=None):
     if depth > 9:return None
     if value is None or isinstance(value, bool):return value
     if isinstance(value, (int, float)):
         return value if math.isfinite(value) else None
     if isinstance(value, dict):
-        return {k:numeric_tree(v,depth+1) for k,v in list(value.items())[:150]
+        return {k:numeric_tree(v,depth+1,k) for k,v in list(value.items())[:150]
                 if re.fullmatch(r'[A-Za-z0-9_:. -]{1,100}',str(k))
                 and not any(s in str(k).lower() for s in ('token','secret','url','authorization','private_key'))}
     if isinstance(value, list):return [numeric_tree(v,depth+1) for v in value[:100]]
+    if isinstance(value,str) and field in ('stage','state','last_gate_reason','next_scan_eligibility',
+            'finalized_hash','frontier_hash','lane','scope','reason','terminal_reason','funding_state'):
+        if re.fullmatch(r'[A-Za-z0-9_: .;-]{1,180}',value):return value
     return None
 
 
@@ -57,9 +60,10 @@ def snapshot(result, now=None):
             'provider_requests','provider_session_count','method_counts','errors','rpc_latency_seconds',
             'funnel','terminal_reasons','open_positions','natural_settled','forced_settled',
             'accounting_reconciled','native_accounting','cohort_accounting','pnl_decomposition',
-            'stream_state','finality_state','evidence_state','runtime_resources','telemetry_cost','gates')
+            'stream_state','finality_state','evidence_state','runtime_resources','telemetry_cost','gates',
+            'opportunity_coverage','pipeline_health','scan_progress','last_completed_scan')
         public={k:numeric_tree(row.get(k)) for k in fields}
-        public['health']=health if health in ('starting','responsive','progress_stalled','exited','terminated') else 'unknown'
+        public['health']=health if health in ('starting','responsive','responsive_but_strategy_stalled','progress_stalled','exited','terminated') else 'unknown'
         policy=row.get('policy_hash','');public['policy_hash']=policy if re.fullmatch('[a-f0-9]{64}',policy) else None
         version=row.get('strategy_version','');public['strategy_version']=version if re.fullmatch(r'[A-Za-z0-9_. /-]{1,100}',version) else None
         out['lanes'][lane]=public

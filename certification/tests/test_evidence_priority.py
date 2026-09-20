@@ -39,7 +39,7 @@ class EvidencePriorityTests(unittest.TestCase):
                 {'MM_CERT_GOVERNOR_DB':str(Path(tmp)/'governor.sqlite')}):
             observer=Observer(Path(tmp)/'lane','pump','frozen')
             priorities=[]
-            observer.governor.acquire=lambda network,lane,priority:priorities.append(priority) or 0
+            observer.governor.acquire=lambda network,lane,priority,**kw:priorities.append(priority) or 0
             observer.wrap_transport(Transport,'send',solana=True)
             try:
                 transport=Transport()

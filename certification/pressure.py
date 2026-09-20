@@ -9,6 +9,7 @@ import time
 class PressureView:
     def __init__(self, path):
         self.path=Path(path);self.sequence=0;self.lanes={};self.endpoints={};self.retry_counters={}
+        self.admission_sequence=0;self.admissions={}
 
     def snapshot(self):
         if not self.path.exists():return dict(state='not_initialized',lanes={})
@@ -34,7 +35,20 @@ class PressureView:
                 self.endpoints[endpoint]=self.endpoints.get(endpoint,0)+1
                 self.sequence=seq
             now=time.monotonic()
+            if 'admissions' in tables:
+                for seq,body in db.execute('SELECT seq,body FROM admissions WHERE seq>? ORDER BY seq',(self.admission_sequence,)):
+                    event=json.loads(body);lane=event['lane']
+                    stats=self.admissions.setdefault(lane,dict(requested=0,granted=0,failed=0,
+                        max_wait_seconds=0,total_wait_seconds=0,last_grant_monotonic=None,grants_by_minute={}))
+                    stats['requested']+=1;stats['granted']+=int(event['granted']);stats['failed']+=int(not event['granted'])
+                    stats['max_wait_seconds']=max(stats['max_wait_seconds'],event['wait_seconds'])
+                    stats['total_wait_seconds']+=event['wait_seconds']
+                    if event['granted']:
+                        stats['last_grant_monotonic']=event['ended']
+                        minute=str(int(event['ended']//60));stats['grants_by_minute'][minute]=stats['grants_by_minute'].get(minute,0)+1
+                    self.admission_sequence=seq
             endpoints=[dict(identity=e,interval_seconds=i,cooldown_remaining_seconds=max(0,c-now),requests=self.endpoints.get(e,0)) for e,c,i in db.execute('SELECT endpoint,cooldown,interval FROM limits')]
             queues=[dict(endpoint=e,depth=n,oldest_wait_seconds=max(0,now-oldest)) for e,n,oldest in db.execute('SELECT endpoint,COUNT(*),MIN(created) FROM queue GROUP BY endpoint')]
-            return dict(state='observed',last_sequence=self.sequence,lanes=self.lanes,endpoints=endpoints,queues=queues)
+            return dict(state='observed',last_sequence=self.sequence,lanes=self.lanes,endpoints=endpoints,queues=queues,
+                        admission_by_lane=self.admissions)
         finally:db.close()
