@@ -6,7 +6,7 @@
   "lanes": {
     "pump": {
       "source_branch": "cert/pump-execution-cert-v1",
-      "source_sha": "7bcbf4f6c398e51f4cb01801c057d54244e05abd",
+      "source_sha": "04c99ca3125747dc8bfc6f655fec7533f8ac8156",
       "strategy_version": "pump-acceleration-independent-v1/execution-certification-v1",
       "policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e",
       "file_hashes": {
@@ -23,7 +23,10 @@
         "6377b4c46da95c4591848939c714f7766e789acd",
         "7774ebe0f712a0e12848de1c54aaaf44df8480e7",
         "4d094388b3101f1e8ff11357ac8a044b0ef75c63",
-        "110dbf34b054daf7a35c72d94196ec7ff0c2c331"
+        "110dbf34b054daf7a35c72d94196ec7ff0c2c331",
+        "edfd9c1f23f4f958780e441eb19bf397d2ac82ca",
+        "fa6ffbf0972676202f110f52425872b69f4ea627",
+        "04c99ca3125747dc8bfc6f655fec7533f8ac8156"
       ],
       "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
       "execution_certification": {
