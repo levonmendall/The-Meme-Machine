@@ -231,3 +231,44 @@ class SolanaEvidenceBrokerTests(unittest.TestCase):
 
 if __name__=="__main__":
     unittest.main()
+
+class HydrationDeadlineRegressionTests(unittest.TestCase):
+    def test_expired_pending_request_can_reenter_without_losing_a_refresh(self):
+        clock=_Clock();broker=EvidenceBroker(':memory:',clock=clock,sleeper=clock.sleep)
+        self.addCleanup(broker.close)
+        broker.queue_transaction('needed',kind='pump_window',deadline=clock()+1)
+        clock.value+=2
+        rpc=_Rpc();txs,meta=broker.hydrate_transactions(rpc,['needed'],kind='pump_window',deadline=clock()+4)
+        self.assertEqual(meta['pending'],0)
+        self.assertIsNotNone(txs['needed'])
+
+    def test_earlier_dlmm_deadline_is_not_starved_by_large_pump_batch(self):
+        clock=_Clock();broker=EvidenceBroker(':memory:',clock=clock,sleeper=clock.sleep)
+        self.addCleanup(broker.close)
+        for i in range(100):broker.queue_transaction('pump-'+str(i),kind='pump_window',deadline=clock()+20)
+        broker.queue_transaction('exit',kind='position_monitor',deadline=clock()+30)
+        rpc=_Rpc();original=rpc.call_many
+        def cost(*args,**kwargs):
+            clock.value+=1;return original(*args,**kwargs)
+        rpc.call_many=cost
+        txs,meta=broker.hydrate_transactions(rpc,['dlmm'],kind='dlmm_fresh',deadline=clock()+3,batch_size=1)
+        self.assertEqual(rpc.batches[0][1],['exit'])
+        self.assertEqual(meta['pending'],0)
+        self.assertIsNotNone(txs['dlmm'])
+
+    def test_expired_request_does_not_break_an_active_cross_process_lease(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            clock=_Clock();path=os.path.join(tmp,'broker.sqlite')
+            first=EvidenceBroker(path,clock=clock,sleeper=clock.sleep)
+            second=EvidenceBroker(path,clock=clock,sleeper=clock.sleep)
+            self.addCleanup(first.close);self.addCleanup(second.close)
+            first.queue_transaction('needed',kind='pump_window',deadline=clock()+1)
+            first._claim_jobs(1,clock(),lease_seconds=15)
+            clock.value+=2
+            second.queue_transaction('needed',kind='position_monitor',deadline=clock()+10)
+            self.assertEqual(second._claim_jobs(1,clock()),[])
+            self.assertEqual(first.telemetry()['inflight_jobs'],1)
+            first.put_transaction('needed',dict(slot=10,blockTime=1000))
+            first._complete_jobs(['tx:needed'])
+            rpc=_Rpc();values,meta=second.hydrate_transactions(rpc,['needed'],kind='position_monitor',deadline=clock()+2)
+            self.assertEqual(meta['pending'],0);self.assertEqual(rpc.batches,[])
