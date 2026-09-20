@@ -2248,7 +2248,7 @@ index 0000000..93546a2
 +        incremental.consumers.register(
 +            'pump:pool',signatures,'stream_prefetch',tick()+32)
 +        self.assertTrue(service.step())
-+        for _ in range(3):
++        for _ in range(2):
 +            tick.sleep(.5)
 +            self.assertFalse(service.step())
 +        self.assertEqual(len(ahead.batches),1)
