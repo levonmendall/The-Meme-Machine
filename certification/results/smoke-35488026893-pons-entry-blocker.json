@@ -1,0 +1,289 @@
+{
+  "workflow_run_id": 35488026893,
+  "integration_sha": "a4ff8cbfb8ae5400687abed6d10140144c455459",
+  "status": "FAIL",
+  "four_hour_window_started": false,
+  "artifact": {
+    "id": 10598344530,
+    "sha256": "987bf96aea3917717ae6f93b1bb5e45de84e86cd1fdf5892553adaa152971f31"
+  },
+  "pons": {
+    "cohort_accounting": {
+      "available": 989500000000000000,
+      "booked_realized": 0,
+      "capital_at_risk_unit_nanoseconds": 0,
+      "capital_integral_complete": false,
+      "cash": 1000000000000000000,
+      "cash_basis_conservation": true,
+      "conservation": true,
+      "genesis": 1000000000000000000,
+      "namespace": "pons-selective-continuation-v1",
+      "native_execution_cost": 0,
+      "native_observation_complete": true,
+      "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+      "positions": 3,
+      "realized": 0,
+      "remaining_cost_basis": 0,
+      "reserved": 10500000000000000,
+      "unobserved_native_positions": [],
+      "unsettled": 3
+    },
+    "lifecycles": [
+      {
+        "boundary": "stale_state",
+        "index": 0,
+        "reconciliation": {
+          "accounting": {
+            "pons-selective:e7405e82-cc1f-4dc6-b5cc-8ec064c624f0:0x63de0e7193f1c6eb001fc86836036c9c6c26254a:0xa93d6e9654b69d51aaed1c8b7b35ce328a67071392d3a891fc5aa0110ca4143c": {
+              "capital_at_risk_unit_nanoseconds": 0,
+              "held_reservation_unit_nanoseconds": 0,
+              "integral_complete": false,
+              "native_execution_cost": 0,
+              "replay_verified": true,
+              "through_recorded_at_ns": 1789877071893138200
+            }
+          },
+          "available": 996500000000000000,
+          "booked_realized": 0,
+          "cash": 1000000000000000000,
+          "cash_basis_conservation": true,
+          "committed": 3500000000000000,
+          "genesis": 1000000000000000000,
+          "mark_times": {},
+          "marked_position_value": 0,
+          "marks_complete": true,
+          "open_exposure": 0,
+          "realized": 0,
+          "remaining_cost_basis": 0,
+          "unrealized_at_recorded_marks": 0
+        },
+        "status": "boundary"
+      },
+      {
+        "boundary": "stale_state",
+        "index": 1,
+        "reconciliation": {
+          "accounting": {
+            "pons-selective:bfe8ba5c-f470-4c1f-b9da-00d9a9c3d3b9:0x63de0e7193f1c6eb001fc86836036c9c6c26254a:0xce25ad0d906e3e7bc116937488da41025dd6031b97ce8bd6c68e9bcc166932fa": {
+              "capital_at_risk_unit_nanoseconds": 0,
+              "held_reservation_unit_nanoseconds": 0,
+              "integral_complete": false,
+              "native_execution_cost": 0,
+              "replay_verified": true,
+              "through_recorded_at_ns": 1789877079272189700
+            }
+          },
+          "available": 996500000000000000,
+          "booked_realized": 0,
+          "cash": 1000000000000000000,
+          "cash_basis_conservation": true,
+          "committed": 3500000000000000,
+          "genesis": 1000000000000000000,
+          "mark_times": {},
+          "marked_position_value": 0,
+          "marks_complete": true,
+          "open_exposure": 0,
+          "realized": 0,
+          "remaining_cost_basis": 0,
+          "unrealized_at_recorded_marks": 0
+        },
+        "status": "boundary"
+      },
+      {
+        "boundary": "stale_state",
+        "index": 2,
+        "reconciliation": {
+          "accounting": {
+            "pons-selective:2bbf8ee0-252d-4353-b99a-7d61b82582fe:0x63de0e7193f1c6eb001fc86836036c9c6c26254a:0xd49b8a55054e3c9f1524de6a3845c93843092935a9d25c140d69af1a85a3952d": {
+              "capital_at_risk_unit_nanoseconds": 0,
+              "held_reservation_unit_nanoseconds": 0,
+              "integral_complete": false,
+              "native_execution_cost": 0,
+              "replay_verified": true,
+              "through_recorded_at_ns": 1789877094363125800
+            }
+          },
+          "available": 996500000000000000,
+          "booked_realized": 0,
+          "cash": 1000000000000000000,
+          "cash_basis_conservation": true,
+          "committed": 3500000000000000,
+          "genesis": 1000000000000000000,
+          "mark_times": {},
+          "marked_position_value": 0,
+          "marks_complete": true,
+          "open_exposure": 0,
+          "realized": 0,
+          "remaining_cost_basis": 0,
+          "unrealized_at_recorded_marks": 0
+        },
+        "status": "boundary"
+      }
+    ],
+    "limitations": null,
+    "summary": {
+      "enrolled": 182,
+      "graduated_lifecycles": 0,
+      "lifecycle_status_counts": {
+        "boundary": 3
+      },
+      "qualified": 3,
+      "qualifiers_with_wallet_convergence": 0,
+      "realized_pnl_quote": [],
+      "rejection_counts": {
+        "buy_sell_flow": 55,
+        "buyer_growth": 82,
+        "creator_distribution": 11,
+        "creator_tax": 3,
+        "curve_acceleration": 44,
+        "curve_progress": 106,
+        "curve_velocity": 127,
+        "graduation_eta": 113,
+        "independent_breadth": 54,
+        "largest_buyer_concentration": 89,
+        "net_demand_acceleration": 60,
+        "position_size_zero": 44,
+        "roundtrip_cost": 68,
+        "roundtrip_cost_unavailable": 44,
+        "snipe_tax_nonzero": 7,
+        "stale_state_after_evidence": 55,
+        "token_age": 45,
+        "top3_buyer_concentration": 89,
+        "trajectory_history": 16
+      }
+    },
+    "top_level_fields": [
+      "boundary",
+      "cohort_accounting",
+      "cohort_target",
+      "continuous_campaign",
+      "ended_at",
+      "evidence_acquisition",
+      "evidence_queue",
+      "independent_strategy",
+      "kind",
+      "lifecycles",
+      "live_money",
+      "max_enrolled",
+      "namespace",
+      "observation_archive",
+      "operational_configuration",
+      "operational_configuration_hash",
+      "outcome_blind",
+      "policy",
+      "policy_hash",
+      "replacement",
+      "reranking",
+      "selection_rule",
+      "sequencer_discovery",
+      "shared_allocator",
+      "started_at",
+      "strategy_capital_quote",
+      "summary",
+      "target_reached",
+      "wallet_skill_namespace",
+      "warmup"
+    ]
+  },
+  "lanes": {
+    "meteora": {
+      "funnel": {
+        "complete_observations": 0,
+        "discovered": 53,
+        "screened": 12
+      },
+      "complete_vectors": 2,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "physical_requests": 245,
+      "evidence_latency_seconds": null,
+      "deadline_success_rate": null,
+      "gate_rejections": {
+        "drift": 2,
+        "expected_net": 2,
+        "reversal": 2,
+        "two_way": 2
+      }
+    },
+    "pons": {
+      "funnel": {
+        "evaluated": 182,
+        "qualified": 3
+      },
+      "complete_vectors": 60,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "physical_requests": 1104,
+      "evidence_latency_seconds": {
+        "count": 152,
+        "p50": 4.508087930000045,
+        "p95": 6.645007492000019,
+        "p99": 7.872039715999989
+      },
+      "deadline_success_rate": 0.6381578947368421,
+      "gate_rejections": {
+        "buy_sell_flow": 5,
+        "buyer_growth": 38,
+        "creator_distribution": 7,
+        "creator_tax": 2,
+        "curve_acceleration": 18,
+        "curve_progress": 40,
+        "curve_velocity": 54,
+        "graduation_eta": 50,
+        "independent_breadth": 21,
+        "largest_buyer_concentration": 42,
+        "net_demand_acceleration": 12,
+        "roundtrip_cost": 45,
+        "token_age": 22,
+        "top3_buyer_concentration": 42
+      }
+    },
+    "pump": {
+      "funnel": {
+        "discovered": 447,
+        "evidence_complete": 7,
+        "qualified": 0,
+        "settled": 0
+      },
+      "complete_vectors": 7,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "physical_requests": 870,
+      "evidence_latency_seconds": null,
+      "deadline_success_rate": null,
+      "gate_rejections": {
+        "breakout": 1,
+        "buyer_growth": 5,
+        "concentration": 7,
+        "consolidation": 1,
+        "independent_buyers": 1,
+        "postgrad_age": 3,
+        "price_retention": 3,
+        "pullback_shape": 1,
+        "score": 5
+      }
+    },
+    "ramses": {
+      "funnel": {
+        "active_pools": 2,
+        "scans": 2
+      },
+      "complete_vectors": null,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "physical_requests": 103,
+      "evidence_latency_seconds": null,
+      "deadline_success_rate": null,
+      "gate_rejections": {
+        "cash_hurdle": 2,
+        "fee_percentile": 1,
+        "fee_to_inventory": 2,
+        "flow_imbalance": 2,
+        "insufficient_two_way_chop": 2,
+        "net_to_cost": 2,
+        "turnover_percentile": 1,
+        "volume_acceleration": 2
+      }
+    }
+  }
+}

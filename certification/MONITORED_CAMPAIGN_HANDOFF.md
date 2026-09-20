@@ -88,3 +88,33 @@ All 36 combined supervisor/research/monitor tests passed locally. Hosted full la
 suites and resource gates repeat on the new revision before fresh market work.
 The failed window is never resumed or spliced. No lane strategy, policy, evidence
 horizon, provider rate, or accounting economics changed.
+
+
+## Pons execution-acquisition and unfilled-reservation repair
+
+Smoke 35488026893 (a4ff8cbfb8ae5400687abed6d10140144c455459) completed
+600.118 seconds of four-lane overlap, with no process restart, no crash and normal
+exits. The four-hour stage correctly remained blocked: all three Pons qualifiers
+failed entry with stale_state before any fill, retaining 10500000000000000 native
+quote units across three reservations. Native cash remained at genesis and basis
+was zero. Full source evidence is retained in artifact 10598344530, SHA256
+987bf96aea3917717ae6f93b1bb5e45de84e86cd1fdf5892553adaa152971f31.
+Read-only review 35489445781 authenticated that artifact; it made no market calls.
+
+Other progress: Pump 447 discovered / 7 full-evidence / 0 qualified; Meteora 53
+pools / 12 screened and 2 complete economic vectors rejected by frozen economics;
+Pons 182 evaluated / 60 complete fresh / 3 qualified / 0 filled or settled;
+Ramses funded once from its pinned screen, completed 2 scans, and rejected economics.
+There were no natural or forced settled lifecycles. All terminal ledgers balanced,
+but Pons reservations were unresolved and therefore the smoke was FAIL.
+
+PR86 at 40c66a68704fab147dacbfc25a0819b5a6f9c844 batches the identical pinned
+Pons execution reads inside the original freshness timer (2 transports rather than
+serial calls), authenticates the repeated pinned header, and never resets candidate
+observation time or raises the five-second limit. On a boundary, a replay-proven
+zero-fill native reservation is cancelled with the native ledger event, then its
+cohort allocation is released exactly once. Filled/ambiguous exposure remains held.
+All 226 Pons tests pass, including unchanged native buy/sell quote economics,
+slow/reorg rejection, durable stale-entry cancellation, and filled-position protection.
+The certification overlay includes this exact lane repair. Full combined gates and
+clean smoke must repeat before another fresh four-hour window can begin.
