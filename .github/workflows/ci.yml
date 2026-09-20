@@ -26,7 +26,16 @@ jobs:
           git worktree add --detach "$WORKTREE" "$PUMP_SHA"
           git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
           git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
+          git -C "$WORKTREE" diff --binary HEAD > "$GITHUB_WORKSPACE/pump-normalized.patch"
           (cd "$WORKTREE" && python -m unittest tests.test_solana_evidence_broker tests.test_evidence_consumers tests.test_pump_acceleration_history -v)
+      - name: Preserve normalized Pump overlay
+        if: always() && github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pump-normalized-overlay-${{ github.run_id }}-${{ github.run_attempt }}
+          path: pump-normalized.patch
+          if-no-files-found: error
+          retention-days: 7
       - run: python -m unittest discover -v
       - run: python -m tests.resource_check
       - run: python -m tests.make_tape && python -m meme_machine --mode synthetic --config config.synthetic.json --db /tmp/meme-ci.db --tape tests/fixtures/synthetic_lifecycle.jsonl
