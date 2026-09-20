@@ -55,6 +55,7 @@ class Observer:
         if now-self.last_activity_write<5:return
         value=dict(lane=self.lane,pid=os.getpid(),process_nonce=PROCESS_NONCE,
             at_monotonic=now,provider_requests=self.requests,method_counts=dict(self.methods),
+            estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods) if self.lane in ('pons','ramses') else None),
             errors=dict(self.errors),provider_session_count=len(self.provider_sessions),
             evidence_qualification_inferred=False)
         before=time.monotonic_ns()
@@ -114,6 +115,8 @@ class Observer:
                           snapshot_seconds=self.snapshot_ns/1e9,
                           scope='serialized observer wall time; excludes strategy-native telemetry, lock wait and final snapshot'),
                       runtime_resources=process_resources(),
+                      estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods)
+                          if self.lane in ('pons','ramses') else None),
                       report=body,
                       terminal_monotonic=time.monotonic() if phase in ("returned","failed") else None)
             raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')

@@ -13,8 +13,8 @@ import time
 import uuid
 from certification.journal import canonical,digest,Journal
 from certification.governor import Governor
-from certification.pressure import PressureView
-from certification.report import LANES,dashboard,evaluate,summarize,pipeline_health
+from certification.pressure import PressureView, ReuseView
+from certification.report import LANES,dashboard,evaluate,summarize,pipeline_health,provider_efficiency
 from certification.controls import (audit_telemetry,broker_snapshot,record_unfinished_broker_jobs,
                                     hourly_engineering,smoke_engineering,sustained_readiness)
 
@@ -86,7 +86,10 @@ def verify(worktrees,output):
         rows[lane]=[]
         for index,cmd in enumerate(commands):
             started=time.time();log=output/f'{lane}-gate-{index}.log'
-            with log.open('wb') as f:r=subprocess.run(cmd,cwd=cwd,stdout=f,stderr=subprocess.STDOUT)
+            # Collect through a pipe, then durably write the complete child transcript.
+            # A zero return code without the full unittest footer still fails.
+            r=subprocess.run(cmd,cwd=cwd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+            log.write_bytes(r.stdout)
             complete=index!=0 or ('\nRan ' in log.read_text() and '\nOK' in log.read_text())
             rows[lane].append(dict(command=cmd,exit_code=r.returncode,summary_complete=complete,started_at=started,ended_at=time.time(),log=log.name,sha256=hashlib.sha256(log.read_bytes()).hexdigest()))
     result=dict(passed=all(x['exit_code']==0 and x['summary_complete'] for lane in rows.values() for x in lane),lanes=rows,
@@ -107,7 +110,9 @@ def lane_environment(lane,source,run,run_id=None):
                MM_CERT_GOVERNOR_DB=str(run/'shared-provider.sqlite'),
                MM_CERTIFICATION_RUN_ID=run_id or run.name,MM_CERTIFICATION_LANE=lane)
     if lane in ('pump','meteora'):env['MM_SOLANA_EVIDENCE_BROKER_DB']=str(run/'shared-solana-evidence.sqlite')
-    else:env.update(MM_CERTIFICATION_PROVIDER_DB=str(run/'shared-robinhood-admission.sqlite'),MM_CERTIFICATION_LANE=lane)
+    else:env.update(MM_CERTIFICATION_PROVIDER_DB=str(run/'shared-robinhood-admission.sqlite'),MM_CERTIFICATION_LANE=lane,
+                    MM_CERTIFICATION_RPC_CACHE_DB=str(run/'shared-robinhood-evidence.sqlite'),
+                    MM_CERTIFICATION_RPC_CAPABILITIES=str(run/'rpc-capabilities.json'))
     return env
 
 
@@ -172,6 +177,8 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     if gate.get('source_diff_hashes')!=source_integrity(worktrees):raise ValueError('source_gate_mismatch')
     run=Path(output).resolve();run.mkdir(parents=True,exist_ok=False)
     spec=manifest();run_id=str(uuid.uuid4())
+    capabilities=Path(gate_file).parent/'rpc-capabilities.json'
+    if capabilities.exists():atomic(run/'rpc-capabilities.json',json.loads(capabilities.read_text()))
     atomic(run/'manifest.json',dict(**spec,integration_sha=git('rev-parse','HEAD'),run_id=run_id,
                                   operational_overlay_sha256=hashlib.sha256((ROOT/'certification/patches/meteora-checkpoint.patch').read_bytes()).hexdigest()))
     if phase in ('sustained','hourly'):
@@ -179,7 +186,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
             implementation_hash=implementation_hash(),integration_sha=git('rev-parse','HEAD'))
         if blockers:
             result=dict(run_id=run_id,phase=phase,status='BLOCKED',blockers=blockers,lanes={},elapsed_seconds=0)
-            result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
+            provider_efficiency(result);result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
             return result
     for lane,row in spec['lanes'].items():
         if git('rev-parse','HEAD',cwd=Path(worktrees)/lane)!=row.get('execution_sha',row['source_sha']):raise ValueError('worktree_head_drift:'+lane)
@@ -189,13 +196,14 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     missing=[k for k in required if not os.environ.get(k)]
     if missing:
         result=dict(run_id=run_id,phase=phase,status='BLOCKED',blockers=['missing_authorized_runtime_variable:'+k for k in missing],lanes={},elapsed_seconds=0)
-        result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html');return result
+        provider_efficiency(result);result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html');return result
     provider_config={}
     for lane,row in spec['lanes'].items():
         provider_config[lane]={k:dict(configured=bool(os.environ.get(k)),identity=(hashlib.sha256(os.environ[k].encode()).hexdigest()[:16] if os.environ.get(k) else None)) for k in row['rpc_configuration_variables']}
     atomic(run/'provider-identities.json',provider_config)
     journal=Journal(run/'supervisor.sqlite');governor=Governor(run/'shared-provider.sqlite')
     pressure=PressureView(run/'shared-robinhood-admission.sqlite')
+    reuse=ReuseView(run/'shared-robinhood-evidence.sqlite')
     started=time.monotonic();start_wall=time.time();processes={};files={};rows={};interrupted=False;terminal_times={}
     common_start=started
     last_console=0;last_sample=0;max_broker_active=0;broker_terminal=None;supervisor_error=None
@@ -229,7 +237,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                         if row.get('process_nonce') is not None and row['process_nonce']!=nonce:
                             row['process_restarts']+=1
                         row['process_nonce']=nonce
-                    row.update({k:status[k] for k in ('phase','provider_requests','method_counts','errors','rpc_latency_seconds','telemetry_archive_seconds','telemetry_cost','runtime_resources') if k in status})
+                    row.update({k:status[k] for k in ('phase','estimated_alchemy','provider_requests','method_counts','errors','rpc_latency_seconds','telemetry_archive_seconds','telemetry_cost','runtime_resources') if k in status})
                     progress=status.get('last_progress_monotonic')
                     row['progress_age_seconds']=None if progress is None else now-progress
                     if 'exit_code' not in row:row['health']='responsive' if progress is not None and now-progress<300 else 'progress_stalled'
@@ -244,7 +252,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                         if isinstance(at,(int,float)) and 0<=now-at<300:
                             row['health']='responsive';row['transport_activity_age_seconds']=now-at
                         if isinstance(at,(int,float)) and at>(status.get('last_progress_monotonic') or 0):
-                            row.update({k:activity[k] for k in ('provider_requests','method_counts','errors','provider_session_count') if k in activity})
+                            row.update({k:activity[k] for k in ('provider_requests','method_counts','estimated_alchemy','errors','provider_session_count') if k in activity})
                 if code is None:
                     alive=True;row['continuous_uptime_seconds']=now-launched
                     last=status.get('last_progress_monotonic') or launched
@@ -273,7 +281,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                 row['pipeline_health']=pipeline_health(row,time.time())
                 if code is None and row['health']=='responsive' and row['pipeline_health']['state']=='stalled':
                     row['health']='responsive_but_strategy_stalled'
-            result=dict(run_id=run_id,phase=phase,status='RUNNING' if alive else 'FINISHED',started_at=start_wall,observed_at=time.time(),elapsed_seconds=now-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=now)-common_start),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot()),source_manifest_hash=digest(spec))
+            result=dict(run_id=run_id,phase=phase,status='RUNNING' if alive else 'FINISHED',started_at=start_wall,observed_at=time.time(),elapsed_seconds=now-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=now)-common_start),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot(),robinhood_reuse=reuse.snapshot()),source_manifest_hash=digest(spec))
             if now-last_sample>=30:
                 broker=broker_snapshot(run/'shared-solana-evidence.sqlite')
                 max_broker_active=max(max_broker_active,(broker or {}).get('active',0))
@@ -282,7 +290,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                         runtime_resources={k:r.get('runtime_resources') for k,r in rows.items()},
                         telemetry_cost={k:r.get('telemetry_cost') for k,r in rows.items()}))
                 last_sample=now
-            result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
+            provider_efficiency(result);result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
             if now-last_console>=60:
                 print(canonical(dict(run_id=run_id,elapsed_seconds=now-started,lanes={k:{f:v for f,v in r.items() if f in ('health','phase','continuous_uptime_seconds','provider_requests','natural_settled','forced_settled','unexpected_exit')} for k,r in rows.items()})),flush=True)
                 last_console=now
@@ -305,14 +313,14 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         for row in rows.values():
             row['gates']['freshness_finality_unchanged']=source_unchanged
             if not source_unchanged:row['gates']['policy_unchanged']=False
-        result=dict(run_id=run_id,phase=phase,status='FAILED' if interrupted else 'FINISHED',started_at=start_wall,ended_at=time.time(),elapsed_seconds=time.monotonic()-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=time.monotonic())-common_start),source_manifest_hash=digest(spec),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot()))
+        result=dict(run_id=run_id,phase=phase,status='FAILED' if interrupted else 'FINISHED',started_at=start_wall,ended_at=time.time(),elapsed_seconds=time.monotonic()-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=time.monotonic())-common_start),source_manifest_hash=digest(spec),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot(),robinhood_reuse=reuse.snapshot()))
         result.update(supervisor_error=supervisor_error,integration_sha=git('rev-parse','HEAD'),implementation_hash=implementation_hash(),
             maximum_sampled_active_broker_jobs=max_broker_active,broker_shutdown_terminals=broker_terminal,
             source_diff_hashes=gate['source_diff_hashes'])
         if phase=='smoke':result['smoke_engineering']=smoke_engineering(result)
-        result['certification']=evaluate(result)
+        provider_efficiency(result);result['certification']=evaluate(result)
         if phase=='hourly':result['hourly_engineering']=hourly_engineering(result)
-        atomic(run/'result.json',result);journal.close()
+        provider_efficiency(result);atomic(run/'result.json',result);journal.close()
         dashboard(result,run/'status.html')
         from certification.analysis import report
         report(run)

@@ -1,0 +1,24 @@
+{
+  "baseline_all_pons_methods": {
+    "eth_call": 9869,
+    "eth_chainId": 1413,
+    "eth_gasPrice": 1187,
+    "eth_getBlockByHash": 2524,
+    "eth_getBlockByNumber": 12599,
+    "eth_getCode": 1187,
+    "eth_getLogs": 1283,
+    "eth_getTransactionReceipt": 8104
+  },
+  "captured_evidence_unavailable": [],
+  "limitations": [
+    "Replay excludes discovery/window HTTP rounds and live timing.",
+    "Baseline header counts include authentication outside trajectory; no raw total-CU reduction claim follows."
+  ],
+  "matched_candidate_vectors": 836,
+  "replayed_trajectory_batches": 1457,
+  "replayed_trajectory_methods": {
+    "eth_call": 1613,
+    "eth_getBlockByNumber": 10540
+  },
+  "scope": "offline exact trajectory replay; not live coverage or latency certification"
+}

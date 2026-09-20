@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+  "retrieved_at": "2026-09-20",
+  "units": "estimated billed compute units; not invoice; batch members billed individually",
+  "methods": {
+    "eth_callMany": 20,
+    "eth_getBlockReceipts": 20,
+    "eth_getTransactionReceiptsByBlock": 20,
+    "eth_gasPrice": 20,
+    "eth_getBalance": 20,
+    "eth_getBlockByHash": 20,
+    "eth_getBlockByNumber": 20,
+    "eth_getCode": 20,
+    "eth_getStorageAt": 20,
+    "eth_getTransactionByHash": 20,
+    "eth_getTransactionReceipt": 20,
+    "eth_chainId": 0,
+    "eth_blockNumber": 10,
+    "eth_call": 26,
+    "eth_getLogs": 60,
+    "alchemy_getTransactionReceipts": 250,
+    "alchemy_getAssetTransfers": 120
+  },
+  "throughput_overrides": {
+    "eth_chainId": 5,
+    "eth_getBlockReceipts": 500,
+    "eth_getTransactionReceiptsByBlock": 1500
+  }
+}

@@ -63,6 +63,188 @@ index 1b6f675..378c9d6 100644
              nominal_deadline_seconds=self.nominal_deadline_seconds,
              **dict(self.counts),
          )
+diff --git a/robinhood_research/immutable_rpc.py b/robinhood_research/immutable_rpc.py
+new file mode 100644
+index 0000000..2baf04a
+--- /dev/null
++++ b/robinhood_research/immutable_rpc.py
+@@ -0,0 +1,176 @@
++"""Run-scoped neutral immutable evidence reuse; callers retain authentication authority.
++
++An endpoint digest isolates trust domains. Numeric state reads need an explicit
++caller-authenticated hash pin. Mutable tags and unpinned receipts never hit.
++The append-only provenance table retains every miss/reuse; errors are not cached.
++"""
++from collections import Counter
++import hashlib
++import json
++import os
++import sqlite3
++import threading
++import time
++import uuid
++from contextlib import contextmanager
++from . import BoundaryError, CHAIN_ID
++
++
++def canonical(x):return json.dumps(x,sort_keys=True,separators=(',',':'))
++
++class EvidenceStore:
++    def __init__(self,path=':memory:'):
++        self.db=sqlite3.connect(str(path),timeout=2,check_same_thread=False)
++        self.lock=threading.RLock();self.db.execute('PRAGMA journal_mode=WAL')
++        self.db.executescript('''CREATE TABLE IF NOT EXISTS evidence(
++            domain TEXT,key TEXT,body TEXT,created REAL,PRIMARY KEY(domain,key));
++            CREATE TABLE IF NOT EXISTS gas_quotes(domain TEXT,epoch TEXT,monotonic REAL,at REAL,body TEXT);
++            CREATE TABLE IF NOT EXISTS flights(domain TEXT,key TEXT,owner TEXT,PRIMARY KEY(domain,key));
++            CREATE TABLE IF NOT EXISTS reuse_events(sequence INTEGER PRIMARY KEY,
++            lane TEXT,domain TEXT,method TEXT,outcome TEXT,at REAL,key_digest TEXT,source_at REAL);
++            CREATE TRIGGER IF NOT EXISTS reuse_no_update BEFORE UPDATE ON reuse_events
++            BEGIN SELECT RAISE(ABORT,'append_only');END;
++            CREATE TRIGGER IF NOT EXISTS reuse_no_delete BEFORE DELETE ON reuse_events
++            BEGIN SELECT RAISE(ABORT,'append_only');END;''')
++    @contextmanager
++    def lease(self,domain,keys,deadline=None):
++        keys=sorted(set(k for k in keys if k));owner=uuid.uuid4().hex
++        deadline=time.monotonic()+30 if deadline is None else deadline
++        while keys:
++            with self.lock:
++                self.db.execute('BEGIN IMMEDIATE')
++                try:
++                    busy=any(self.db.execute('SELECT 1 FROM flights WHERE domain=? AND key=?',(domain,k)).fetchone() for k in keys)
++                    if not busy:
++                        self.db.executemany('INSERT INTO flights VALUES(?,?,?)',[(domain,k,owner) for k in keys])
++                    self.db.commit()
++                except BaseException:self.db.rollback();raise
++            if not busy:break
++            if time.monotonic()>=deadline:raise BoundaryError('immutable_evidence_wait_deadline')
++            time.sleep(min(.01,max(0,deadline-time.monotonic())))
++        try:yield
++        finally:
++            with self.lock,self.db:self.db.execute('DELETE FROM flights WHERE owner=?',(owner,))
++
++    def get(self,domain,key):
++        with self.lock:
++            row=self.db.execute('SELECT body,created FROM evidence WHERE domain=? AND key=?',(domain,key)).fetchone()
++        return None if row is None else (json.loads(row[0]),row[1])
++    def put(self,domain,key,value):
++        body=canonical(value)
++        with self.lock,self.db:
++            row=self.db.execute('SELECT body FROM evidence WHERE domain=? AND key=?',(domain,key)).fetchone()
++            if row and row[0]!=body:raise BoundaryError('immutable_rpc_evidence_conflict')
++            self.db.execute('INSERT OR IGNORE INTO evidence VALUES(?,?,?,?)',(domain,key,body,time.time()))
++    def event(self,lane,domain,method,outcome,key,source_at=None):
++        with self.lock,self.db:self.db.execute('INSERT INTO reuse_events(lane,domain,method,outcome,at,key_digest,source_at) VALUES(?,?,?,?,?,?,?)',
++            (lane,domain,method,outcome,time.time(),hashlib.sha256(key.encode()).hexdigest() if key else None,source_at))
++
++_stores={};_lock=threading.Lock()
++def configured():
++    path=os.environ.get('MM_CERTIFICATION_RPC_CACHE_DB')
++    if not path:return None
++    with _lock:
++        if path not in _stores:_stores[path]=EvidenceStore(path)
++        return _stores[path]
++
++class Reuse:
++    def __init__(self,endpoint,store,lane='unknown'):
++        self.domain=hashlib.sha256((str(CHAIN_ID)+':'+endpoint).encode()).hexdigest()
++        self.store=store;self.lane=lane;self.counts=Counter();self.chain=None
++    def key(self,method,params,pins=None,receipts=None):
++        pins=pins or {};receipts=receipts or {}
++        if method=='eth_getBlockByHash' and len(params)==2 and params[1] is False:
++            return canonical([method,params])
++        if method=='eth_getBlockByNumber' and len(params)==2 and params[1] is False and params[0] in pins:
++            return canonical(['eth_getBlockByHash',[pins[params[0]],False]])
++        if method=='eth_getTransactionReceipt' and params[0] in receipts:
++            return canonical([method,params[0],receipts[params[0]]])
++        if method in ('eth_call','eth_getCode','eth_getBalance','eth_getStorageAt'):
++            index=2 if method=='eth_getStorageAt' else 1
++            if len(params)<=index:return None
++            block=params[index]
++            if isinstance(block,dict):
++                # requireCanonical also belongs to the key. Do not substitute tags.
++                if not block.get('blockHash'):return None
++                identity=block
++            elif block in pins:identity={'blockHash':pins[block]}
++            else:return None
++            resolved=list(params);resolved[index]=identity
++            return canonical([method,resolved])
++        if method=='eth_getLogs' and len(params)==1:
++            query=params[0]
++            if query.get('blockHash'):return canonical([method,params])
++            first=query.get('fromBlock');last=query.get('toBlock')
++            # Exact filter and both immutable bounds; never reuse latest ranges.
++            if first==last and first in pins:
++                exact=dict(query);exact.pop('fromBlock');exact.pop('toBlock');exact['blockHash']=pins[first]
++                return canonical([method,[exact]])
++            # Multi-block numeric ranges remain caller-authenticated tape work.
++            # Do not durably key a mutable range by only its endpoint hashes.
++        return None
++    def lookup(self,method,params,pins=None,receipts=None,cost_epoch=None):
++        if method=='eth_gasPrice' and cost_epoch:
++            epoch,observed,deadline=cost_epoch
++            now=time.monotonic()
++            with self.store.lock:
++                row=self.store.db.execute('SELECT body,at,monotonic FROM gas_quotes WHERE domain=? AND epoch=? AND monotonic>=? AND monotonic<=? ORDER BY monotonic DESC LIMIT 1',
++                    (self.domain,epoch,observed,now)).fetchone()
++            key='gas_epoch:'+epoch
++            if row and now<=deadline:
++                self.counts['eth_gasPrice:hit']+=1
++                self.store.event(self.lane,self.domain,method,'hit',key,row[1])
++                self.gas_quote_origin=dict(observed_at=row[1],observed_monotonic=row[2],reused=True)
++                return True,json.loads(row[0]),None
++            self.counts['eth_gasPrice:miss']+=1
++            self.store.event(self.lane,self.domain,method,'miss',key)
++            return False,None,key
++        if method=='eth_chainId' and self.chain is not None:
++            self.counts['eth_chainId:session_hit']+=1
++            self.store.event(self.lane,self.domain,method,'session_hit','session',self.chain[1])
++            return True,self.chain[0],None
++        key=self.key(method,params,pins,receipts)
++        row=self.store.get(self.domain,key) if key else None
++        self.counts[method+(':hit' if row else ':miss')]+=1
++        self.store.event(self.lane,self.domain,method,'hit' if row else 'miss',key,row[1] if row else None)
++        return (True,row[0],key) if row else (False,None,key)
++    def remember(self,method,params,value,key):
++        if value is None:return
++        if method=='eth_gasPrice' and key and key.startswith('gas_epoch:'):
++            mono=time.monotonic();at=time.time()
++            with self.store.lock,self.store.db:self.store.db.execute('INSERT INTO gas_quotes VALUES(?,?,?,?,?)',
++                (self.domain,key[len('gas_epoch:'):],mono,at,canonical(value)))
++            self.gas_quote_origin=dict(observed_at=at,observed_monotonic=mono,reused=False)
++            return
++        if method=='eth_chainId':
++            if int(value,16)!=CHAIN_ID:raise BoundaryError('wrong_chain')
++            self.chain=(value,time.time());return
++        if method in ('eth_getBlockByHash','eth_getBlockByNumber') and len(params)==2 and params[1] is False:
++            if not isinstance(value,dict) or not value.get('hash') or not value.get('number'):raise BoundaryError('immutable_header_shape')
++            if method=='eth_getBlockByHash' and value['hash']!=params[0]:raise BoundaryError('immutable_header_identity')
++            if method=='eth_getBlockByNumber' and str(params[0]).startswith('0x') and int(value['number'],16)!=int(params[0],16):raise BoundaryError('immutable_header_identity')
++            if key and json.loads(key)[1][0]!=value['hash']:raise BoundaryError('immutable_header_pin_disagreement')
++            self.store.put(self.domain,canonical(['eth_getBlockByHash',[value['hash'],False]]),value)
++        if key:
++            if method=='eth_getTransactionReceipt':
++                expected=json.loads(key)
++                if value.get('transactionHash')!=expected[1] or value.get('blockHash')!=expected[2]:raise BoundaryError('receipt_block_disagreement')
++            if method=='eth_getLogs':
++                expected=json.loads(key)[1][0]['blockHash']
++                if not isinstance(value,list) or any(r.get('blockHash')!=expected or r.get('removed') for r in value):
++                    raise BoundaryError('immutable_log_block_disagreement')
++            self.store.put(self.domain,key,value)
++    def telemetry(self):return dict(self.counts)
++
++
++def choose_block_receipts(relevant_count,total_transactions,*,supported,remaining_seconds,
++                          individual_cu=20,block_cu=20):
++    """Bound size, relevance and throughput, not only the inexpensive billing price.
++
++    500 throughput CU for block receipts vs 20 per individual: require 25 relevant
++    members, >=50% relevance and <=128 transactions. Never spend urgent slack on
++    capability detection. Unknown block size/support uses individual receipts.
++    """
++    return bool(supported and isinstance(total_transactions,int) and 25<=relevant_count<=total_transactions<=128
++        and relevant_count*2>=total_transactions and remaining_seconds>=1
++        and block_cu<individual_cu*relevant_count)
 diff --git a/robinhood_research/pipeline.py b/robinhood_research/pipeline.py
 new file mode 100644
 index 0000000..274abdb
@@ -146,54 +328,110 @@ index 0000000..274abdb
 +    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
 +    return 'reconstruction_incomplete'
 diff --git a/robinhood_research/pons_natural_observation.py b/robinhood_research/pons_natural_observation.py
-index 03a18bd..af9ce03 100644
+index 03a18bd..bf762b8 100644
 --- a/robinhood_research/pons_natural_observation.py
 +++ b/robinhood_research/pons_natural_observation.py
-@@ -182,7 +182,9 @@ def _authenticate_candidate(
+@@ -182,9 +182,15 @@ def _authenticate_candidate(
          ),block_hex]),
          ("eth_gasPrice",[]),
      ]
++    factory=load("pons_v2_factory")["address"].lower()
++    hint=rpc.factory_token_hint(curve) if hasattr(rpc,'factory_token_hint') else None
++    if hint:
++        first_calls.append(('eth_call',[dict(to=factory,data=calldata('getLaunchedToken(address)',hint)),block_hex]))
 +    auth_batch_started=time.monotonic()
      first=rpc.batch(first_calls,scope="pons_natural")
 +    report.setdefault("timing",{})["header_receipt_state_cost_shared_batch_seconds"]=time.monotonic()-auth_batch_started
      (chain_raw,header,receipt,token_raw,code,reserves_raw,real_raw,reserved_raw,
-      graduated_raw,snipe_raw,gas_raw)=first
+-     graduated_raw,snipe_raw,gas_raw)=first
++     graduated_raw,snipe_raw,gas_raw)=first[:11]
      if int(chain_raw,16)!=CHAIN_ID:
-@@ -215,7 +217,9 @@ def _authenticate_candidate(
+         raise BoundaryError("wrong_chain")
+     if (
+@@ -215,7 +221,14 @@ def _authenticate_candidate(
              to=factory,data=calldata("getLaunchedToken(address)",token)
          ),block_hex]),
      ]
+-    second=rpc.batch(second_calls,scope="pons_natural")
 +    factory_started=time.monotonic()
-     second=rpc.batch(second_calls,scope="pons_natural")
++    if hint and hint.lower()==token.lower():
++        second=[first[11]]
++        report['timing']['factory_record_in_first_batch']=True
++    else:
++        second=rpc.batch(second_calls,scope="pons_natural")
++        report['timing']['factory_record_in_first_batch']=False
 +    report.setdefault("timing",{})["launch_metadata_seconds"]=time.monotonic()-factory_started
      record=factory_record(second[0],"pons_v2_factory")
      auth=authenticate_curve(curve,code,factory_record=record)
  
+@@ -268,8 +281,8 @@ def _authenticate_candidate(
+     report.setdefault("reads",[]).extend([
+         dict(kind="candidate_batch",round=1,block=block,
+              methods=[method for method,_ in first_calls],observed_at=observed),
+-        dict(kind="candidate_batch",round=2,block=block,
+-             methods=[method for method,_ in second_calls],observed_at=quote_at),
++        dict(kind="factory_record",round=1 if report['timing']['factory_record_in_first_batch'] else 2,block=block,
++             methods=[] if report['timing']['factory_record_in_first_batch'] else [method for method,_ in second_calls],observed_at=quote_at),
+     ])
+     return dict(
+         curve=curve,token=token,block=block,header=header,receipt=receipt,
+@@ -285,7 +298,7 @@ def _authenticate_candidate(
+         roundtrip_gas_wei=2*gas_units*gas_price,
+         gas_meta=dict(units_per_side=gas_units,gas_price=gas_price),
+         auth_latency_ms=round((time.time()-started)*1000,2),
+-        auth_transport_rounds=2,
++        auth_transport_rounds=1 if report['timing']['factory_record_in_first_batch'] else 2,
+     )
+ 
+ 
 diff --git a/robinhood_research/pons_selective_acquisition.py b/robinhood_research/pons_selective_acquisition.py
-index bf9e1a8..5c7eda1 100644
+index bf9e1a8..df7f303 100644
 --- a/robinhood_research/pons_selective_acquisition.py
 +++ b/robinhood_research/pons_selective_acquisition.py
-@@ -8,6 +8,7 @@ from __future__ import annotations
+@@ -8,6 +8,10 @@ from __future__ import annotations
  from collections import Counter, OrderedDict
  from dataclasses import asdict
  import time
 +import json
++import os
++from pathlib import Path
++import hashlib
  
  from . import BoundaryError
  from .abi import calldata
-@@ -154,6 +155,11 @@ class SelectiveEvidenceContext:
+@@ -24,6 +28,7 @@ HEADER_BATCH=50
+ RECEIPT_BATCH=50
+ MAX_TRAJECTORY_LOOKBACK_BLOCKS=8192
+ CACHE_HEADERS=4096
++INDEX_NEIGHBORHOOD=32
+ CACHE_RECEIPTS=8192
+ CACHE_LAUNCHES=4096
+ EVIDENCE_SESSION_ROTATE_AT=180
+@@ -154,6 +159,23 @@ class SelectiveEvidenceContext:
          self.cache=cache or ImmutableEvidenceCache()
          self.rpc=None
          self.completed_sessions=[]
 +        self.adjacent=[]
 +        self.block_reads=OrderedDict()
++        self.factory_hints=OrderedDict()
 +        self.pin=None
 +        self.timing={}
 +        self.deadline=None
++        self.receipt_pins={}
++        self.block_receipts_supported=False
++        self.view_batch_state={"supported":False}
++        cap=os.environ.get('MM_CERTIFICATION_RPC_CAPABILITIES')
++        if cap:
++            from . import CHAIN_ID
++            domain=hashlib.sha256((str(CHAIN_ID)+':'+endpoint).encode()).hexdigest()
++            try:self.block_receipts_supported=json.loads(Path(cap).read_text())['endpoints'][domain]['methods']['eth_getBlockReceipts']['supported'] is True
++            except (OSError,ValueError,KeyError):pass
++            try:self.view_batch_state['supported']=json.loads(Path(cap).read_text())['endpoints'][domain]['methods']['eth_callMany']['supported'] is True
++            except (OSError,ValueError,KeyError):pass
  
      def _rotate(self):
          if self.rpc is not None:
-@@ -177,15 +183,53 @@ class SelectiveEvidenceContext:
+@@ -177,16 +199,102 @@ class SelectiveEvidenceContext:
          return self.rpc
  
      def call(self,method,params,scope):
@@ -203,7 +441,11 @@ index bf9e1a8..5c7eda1 100644
      def batch(self,calls,scope):
 -        out=[]
 -        for group in _chunks(list(calls),50):
-+        calls=list(calls);out=[None]*len(calls);missing=[];keys=[]
+-            rpc=self.acquire(len(group),scope)
+-            out.extend(rpc.batch(group,scope=scope))
+-        return out
++        calls=list(calls);requested=len(calls)
++        out=[None]*len(calls);missing=[];keys=[];seen={};followers={}
 +        # Only exact block-scoped reads can cross candidates. Never cache gasPrice,
 +        # latest/pending state, provider errors, or a read from a different block hash.
 +        for index,(method,params) in enumerate(calls):
@@ -212,28 +454,41 @@ index bf9e1a8..5c7eda1 100644
 +                cached=self.cache.header_by_number(int(params[0],16))
 +            elif method=='eth_getBlockByHash' and params:
 +                cached=self.cache.header_by_hash(params[0])
++            elif method=='eth_getTransactionReceipt' and params[0] in self.receipt_pins:
++                cached=self.cache.receipt(params[0],self.receipt_pins[params[0]])
 +            elif method in ('eth_call','eth_getCode') and self.pin and params[-1]==hex(self.pin[0]):
 +                key=(self.pin[1],method,json.dumps(params,sort_keys=True))
 +                cached=self.block_reads.get(key)
 +            if cached is not None:out[index]=cached
-+            else:missing.append((index,(method,params),key))
++            else:
++                identity=json.dumps([method,params],sort_keys=True)
++                if identity in seen:followers[index]=seen[identity]
++                else:seen[identity]=index;missing.append((index,(method,params),key))
 +        for group in _chunks(missing,50):
-             rpc=self.acquire(len(group),scope)
--            out.extend(rpc.batch(group,scope=scope))
++            from .view_batch import grouped
++            extra=len(grouped([x[1] for x in group])) if self.view_batch_state.get('supported') and not self.view_batch_state.get('parity_verified') else 0
++            rpc=self.acquire(min(50,len(group)+extra),scope)
 +            rpc.evidence_deadline=self.deadline
++            rpc.evidence_pins={hex(n):h['hash'] for n,h in self.cache.headers_by_number.items()}
++            if self.pin:rpc.evidence_pins[hex(self.pin[0])]=self.pin[1]
++            rpc.evidence_receipts=self.receipt_pins
++            original=self.timing.get('first_observation_monotonic')
++            rpc.evidence_cost_epoch=(self.pin[1],original,self.deadline) if self.pin and original is not None and self.deadline is not None else None
 +            rpc.evidence_timing=self.timing
 +            before=time.monotonic()
 +            if self.timing.get('first_transport_submitted_monotonic') is None:
 +                self.timing['first_transport_submitted_monotonic']=before
-+            values=rpc.batch([x[1] for x in group],scope=scope)
++            from .view_batch import batch as view_batch
++            values=view_batch(rpc,[x[1] for x in group],scope,self.view_batch_state) if scope in ('pons_natural','pons_selective_trajectory') else rpc.batch([x[1] for x in group],scope=scope)
 +            self.timing['rpc_batch_seconds']=self.timing.get('rpc_batch_seconds',0)+time.monotonic()-before
 +            for (index,(method,params),key),value in zip(group,values):
 +                out[index]=value
 +                if key is not None:
 +                    self.block_reads[key]=value
 +                    while len(self.block_reads)>4096:self.block_reads.popitem(last=False)
-         return out
- 
++        for index,source in followers.items():out[index]=out[source]
++        return out[:requested]
++
 +    def prefetch_adjacent_headers(self,calls):
 +        # Fill spare slots of an already-needed batch; never add a transport or
 +        # evaluate a neighbour early. Normal receipt/log authentication still runs.
@@ -248,10 +503,53 @@ index bf9e1a8..5c7eda1 100644
 +            if len(extras)>=max(0,50-len(calls)):break
 +        return extras if len(calls)<50 else []
 +
++    def acquire_dense_receipts(self,tx_rows):
++        from .immutable_rpc import choose_block_receipts
++        groups={}
++        for tx,bh in tx_rows:
++            if self.cache.receipt(tx,bh) is None:groups.setdefault(bh,set()).add(tx)
++        for bh,required in groups.items():
++            header=self.cache.header_by_hash(bh)
++            transactions=header.get('transactions') if header else None
++            total=len(transactions) if isinstance(transactions,list) else None
++            remaining=0 if self.deadline is None else self.deadline-time.monotonic()
++            if not choose_block_receipts(len(required),total,supported=self.block_receipts_supported,remaining_seconds=remaining):continue
++            try:rows=self.call('eth_getBlockReceipts',[bh],'pons_selective_window')
++            except BoundaryError as exc:
++                if str(exc) not in ('provider_rpc_-32601','provider_rpc_-32602'):raise
++                self.block_receipts_supported=False
++                continue  # standard receipt acquisition retains the same deadline
++            if not isinstance(rows,list) or len(rows)!=total:raise BoundaryError('block_receipt_census_disagreement')
++            expected=set(transactions)
++            if len(expected)!=total or {r.get('transactionHash') for r in rows}!=expected:
++                raise BoundaryError('block_receipt_census_disagreement')
++            for r in rows:
++                if r.get('blockHash')!=bh or r.get('blockNumber')!=header['number']:
++                    raise BoundaryError('block_receipt_identity_disagreement')
++            for r in rows:self.cache.remember_receipt(r['transactionHash'],bh,r)
++
++    def factory_token_hint(self,curve):
++        # Only a request-shaping hint. Current token(), current factory record,
++        # and compiled deployment authentication are still mandatory.
++        return self.factory_hints.get(curve.lower())
+ 
      def remember_candidate(self,candidate):
++        self.factory_hints[candidate['curve'].lower()]=candidate['token']
++        self.factory_hints.move_to_end(candidate['curve'].lower())
++        while len(self.factory_hints)>4096:self.factory_hints.popitem(last=False)
          self.cache.remember_header(candidate["header"])
          self.cache.remember_receipt(
-@@ -228,6 +272,39 @@ def _batched(endpoint,calls,scope,*,evidence_context=None):
+             candidate["receipt"]["transactionHash"],
+@@ -202,7 +310,7 @@ class SelectiveEvidenceContext:
+         return dict(
+             completed_sessions=list(self.completed_sessions),
+             current_session=current,
+-            cache=self.cache.telemetry(),
++            cache=self.cache.telemetry(),view_batch=dict(self.view_batch_state),
+         )
+ 
+ 
+@@ -228,6 +336,39 @@ def _batched(endpoint,calls,scope,*,evidence_context=None):
      return out,telemetry
  
  
@@ -291,7 +589,7 @@ index bf9e1a8..5c7eda1 100644
  def _authenticate_window(
      endpoint,candidate,tape,seconds=60,*,evidence_context=None
  ):
-@@ -243,13 +320,7 @@ def _authenticate_window(
+@@ -243,18 +384,13 @@ def _authenticate_window(
      end_time=int(candidate["stamp"].event_at)
      end_block=int(candidate["block"])
      curve=candidate["curve"].lower()
@@ -306,16 +604,74 @@ index bf9e1a8..5c7eda1 100644
  
      hashes=list(dict.fromkeys(event["blockHash"] for event in raw))
      tx_rows=list(dict.fromkeys(
-@@ -379,7 +450,7 @@ def _header_search(rpc,current_block,current_at,target_at,cache):
+         (event["transactionHash"],event["blockHash"]) for event in raw
+     ))
++    if hasattr(ctx,"acquire_dense_receipts"):ctx.acquire_dense_receipts(tx_rows)
+     headers={}
+     receipts={}
+     pending=[]
+@@ -379,7 +515,42 @@ def _header_search(rpc,current_block,current_at,target_at,cache):
      return read(low)
  
  
 -def _trajectory(endpoint,candidate,*,evidence_context=None):
++def _indexed_header_plan(cache,current_header,launch_at):
++    """Use authenticated timestamp brackets; hints never select an anchor.
++
++    Every returned anchor needs its immediately following header strictly after
++    the target (or is the candidate block). Missing brackets hydrate a bounded
++    interpolated neighbourhood in one shared batch, then prove that boundary.
++    """
++    end=int(current_header['number'],16);at=int(current_header['timestamp'],16)
++    rows={n:h for n,h in cache.headers_by_number.items() if max(0,end-MAX_TRAJECTORY_LOOKBACK_BLOCKS)<=n<=end}
++    rows[end]=current_header;needed=set();complete=True
++    if len(rows)<2:return None,rows
++    for horizon in (15,5):
++        target=max(int(launch_at or 0),at-horizon)
++        low=max((n for n,h in rows.items() if int(h['timestamp'],16)<=target),default=None)
++        if low==end:continue
++        if low is not None and low+1 in rows and int(rows[low+1]['timestamp'],16)>target:continue
++        complete=False
++        high=min((n for n,h in rows.items() if int(h['timestamp'],16)>target),default=end)
++        if low is None:
++            # Cold historical edge keeps the original bounded contiguous search.
++            start=min(rows)-1
++            needed.update(range(max(0,start-48),start+1));continue
++        gap=high-low-1
++        if gap<=0:raise BoundaryError('trajectory_header_time_regression')
++        if gap<=INDEX_NEIGHBORHOOD:needed.update(range(low+1,high))
++        else:
++            lo_at=int(rows[low]['timestamp'],16);hi_at=int(rows[high]['timestamp'],16)
++            if hi_at<=lo_at:raise BoundaryError('trajectory_header_time_regression')
++            hint=low+(target-lo_at)*(high-low)//(hi_at-lo_at)
++            first=max(low+1,min(high-INDEX_NEIGHBORHOOD,hint-INDEX_NEIGHBORHOOD//2+1))
++            needed.update(range(first,min(high,first+INDEX_NEIGHBORHOOD)))
++    if complete:return [],rows
++    return sorted(n for n in needed if n not in rows)[:49],rows
++
++
 +def _trajectory(endpoint,candidate,*,evidence_context=None,window_tape=None):
      """Resolve 5s/15s trajectory anchors from dense batched recent headers.
  
      The old binary search serialized one request per probe. This path walks recent
-@@ -422,7 +493,14 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+@@ -399,12 +570,16 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+     looked=0
+     collected={current_block:current_header}
+     first=True
++    indexed_enabled=len(cache.headers_by_number)>1
+     before=len(ctx.completed_sessions)
+ 
+     while True:
+         room=49 if first and launch_at is None else 50
+         low=max(0,next_block-room+1)
+         blocks=list(range(next_block,low-1,-1)) if next_block>=0 else []
++        indexed,known=_indexed_header_plan(cache,current_header,launch_at) if indexed_enabled else (None,{})
++        if indexed is not None:
++            blocks=indexed;collected.update(known)
+         labels=[];calls=[]
+ 
+         if first and launch_at is None:
+@@ -422,7 +597,14 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
              else:
                  collected[block]=header
  
@@ -331,7 +687,33 @@ index bf9e1a8..5c7eda1 100644
          for label,value in zip(labels,values):
              kind,key=label
              if kind=="launch":
-@@ -488,12 +566,18 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+@@ -448,9 +630,12 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+             default=current_at,
+         )
+         looked+=len(blocks)
+-        if oldest<=min_target:
++        if indexed is None and oldest<=min_target:
+             break
+-        if low==0 or looked>=MAX_TRAJECTORY_LOOKBACK_BLOCKS:
++        if indexed is not None:
++            remaining,_=_indexed_header_plan(cache,current_header,launch_at)
++            if remaining==[]:break
++        if low==0 or looked>=MAX_TRAJECTORY_LOOKBACK_BLOCKS or (indexed is not None and not blocks and not calls):
+             raise BoundaryError("trajectory_history_incomplete")
+         next_block=low-1
+         first=False
+@@ -475,7 +660,9 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+         ]
+         if not eligible:
+             raise BoundaryError("trajectory_history_incomplete")
+-        prior_headers.append(max(eligible,key=lambda h:int(h["number"],16)))
++        chosen=max(eligible,key=lambda h:int(h["number"],16))
++        cache.header_by_number(int(chosen['number'],16))
++        prior_headers.append(chosen)
+ 
+     unique_blocks=list(dict.fromkeys(
+         int(h["number"],16) for h in prior_headers
+@@ -488,12 +675,18 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
              missing_blocks.append(block)
          else:
              reserve_by_block[block]=cached
@@ -352,7 +734,7 @@ index bf9e1a8..5c7eda1 100644
      for block,raw in zip(missing_blocks,reads):
          reserve_by_block[block]=cache.remember_real_quote(
              curve,block,_one_word(raw)
-@@ -541,35 +625,48 @@ def evaluate_candidate(
+@@ -541,35 +734,50 @@ def evaluate_candidate(
  ):
      """Freeze one outcome-blind qualification vector from Pons-only evidence."""
      sessions=[]
@@ -363,6 +745,8 @@ index bf9e1a8..5c7eda1 100644
 +        first_transport_submitted_monotonic=None)
 +    ctx.deadline=None if evidence_observed_monotonic is None else float(evidence_observed_monotonic)+ENTRY_THRESHOLDS['max_state_age_seconds']
 +    ctx.pin=(int(event['blockNumber'],16),event['blockHash'])
++    ctx.receipt_pins={x['transactionHash']:x['blockHash'] for x in tape}
++    ctx.receipt_pins[event['transactionHash']]=event['blockHash']
      if evidence_observed_monotonic is not None:
          preflight_latency=time.monotonic()-float(evidence_observed_monotonic)
          if preflight_latency<0:
@@ -405,7 +789,7 @@ index bf9e1a8..5c7eda1 100644
  
      available=int(time.time())
      completed_monotonic=time.monotonic()
-@@ -578,10 +675,15 @@ def evaluate_candidate(
+@@ -578,10 +786,15 @@ def evaluate_candidate(
          if evidence_observed_monotonic is None
          else completed_monotonic-float(evidence_observed_monotonic)
      )
@@ -421,7 +805,7 @@ index bf9e1a8..5c7eda1 100644
      vector=qualification_vector(
          state=candidate["state"],
          graduation_threshold=candidate["record"]["graduationThreshold"],
-@@ -601,6 +703,9 @@ def evaluate_candidate(
+@@ -601,6 +814,9 @@ def evaluate_candidate(
          creator_history=creator_history,
          quote_relative_strength_bps=quote_relative_strength_bps,
      )
@@ -431,7 +815,7 @@ index bf9e1a8..5c7eda1 100644
      return dict(
          token=candidate["token"],curve=candidate["curve"],
          source_transaction=event["transactionHash"],
-@@ -609,6 +714,8 @@ def evaluate_candidate(
+@@ -609,6 +825,8 @@ def evaluate_candidate(
          candidate=candidate,market_events=market,
          trajectory_snapshots=snapshots,launch_at=launch_at,
          vector=vector,provider_sessions=sessions,
@@ -440,7 +824,7 @@ index bf9e1a8..5c7eda1 100644
          evaluation_completed_at=available,
          evidence_observed_at=evidence_observed_at,
          evidence_acquisition_latency_seconds=acquisition_latency,
-@@ -631,6 +738,7 @@ def public_evaluation(row):
+@@ -631,6 +849,7 @@ def public_evaluation(row):
          market_events=row["market_events"],
          trajectory_snapshots=row["trajectory_snapshots"],
          launch_at=row["launch_at"],vector=row["vector"],
@@ -1449,6 +1833,19 @@ index 36ef0b3..b596ff5 100644
          if rpc is not None:
              result["provider_sessions"].append(rpc.telemetry())
          if store is not None:
+diff --git a/robinhood_research/provider.py b/robinhood_research/provider.py
+index c24ecb4..0aa82cf 100644
+--- a/robinhood_research/provider.py
++++ b/robinhood_research/provider.py
+@@ -13,7 +13,7 @@ READ_METHODS = frozenset({
+     'eth_getBlockByHash', 'eth_getLogs', 'eth_getTransactionReceipt',
+     'eth_getCode', 'eth_call', 'eth_gasPrice', 'eth_getBalance',
+     'eth_getStorageAt', 'eth_getTransactionByHash',
+-    'alchemy_getAssetTransfers',
++    'alchemy_getAssetTransfers', 'eth_getBlockReceipts', 'eth_callMany',
+ })
+ 
+ 
 diff --git a/robinhood_research/provider_admission.py b/robinhood_research/provider_admission.py
 new file mode 100644
 index 0000000..c0fde9f
@@ -1589,10 +1986,10 @@ index 0000000..c0fde9f
 +    if not path:return None
 +    return Admission(path,endpoint,lane=os.environ.get('MM_CERTIFICATION_LANE','unknown'))
 diff --git a/robinhood_research/provider_topology.py b/robinhood_research/provider_topology.py
-index 8fffdad..88df767 100644
+index 8fffdad..f374bf2 100644
 --- a/robinhood_research/provider_topology.py
 +++ b/robinhood_research/provider_topology.py
-@@ -193,6 +193,9 @@ class PacedRpc(Rpc):
+@@ -193,7 +193,22 @@ class PacedRpc(Rpc):
          **kwargs,
      ):
          self.role = str(role)
@@ -1600,9 +1997,22 @@ index 8fffdad..88df767 100644
 +        self.shared_admission = configured(endpoint)
 +        self.admission_scope = threading.local()
          self.provider_kind = _provider_kind(endpoint)
++        from .immutable_rpc import configured as evidence_store, Reuse
++        store=evidence_store()
++        self.evidence_reuse=Reuse(endpoint,store,os.environ.get('MM_CERTIFICATION_LANE','unknown')) if store else None
++        self.hash_state_supported=set()
++        capability_path=os.environ.get('MM_CERTIFICATION_RPC_CAPABILITIES')
++        if capability_path and self.evidence_reuse:
++            import json
++            from pathlib import Path
++            try:
++                methods=json.loads(Path(capability_path).read_text())['endpoints'][self.evidence_reuse.domain]['methods']
++                self.hash_state_supported={m for m in ('eth_call','eth_getCode') if methods.get('eip1898_'+m,{}).get('supported') is True}
++            except (OSError,ValueError,KeyError):pass
          self.pacer = pacer or ProviderPacer(requests_per_second)
          self._injected_transport = transport
-@@ -208,11 +211,27 @@ class PacedRpc(Rpc):
+         if transport is None:
+@@ -208,26 +223,114 @@ class PacedRpc(Rpc):
              super().__init__(endpoint, transport=transport, **kwargs)
  
      def _http(self, method, params):
@@ -1632,21 +2042,304 @@ index 8fffdad..88df767 100644
          return super()._http_batch(calls)
  
      def _method_allowed_for_provider(self, method):
-@@ -221,12 +240,14 @@ class PacedRpc(Rpc):
+         if method in ALCHEMY_ONLY_METHODS and self.provider_kind != "alchemy":
+             raise BoundaryError("provider_specific_method_wrong_provider")
  
++    def _reuse_lookup(self,method,params):
++        reuse=self.evidence_reuse
++        if reuse is None:return False,None,None
++        pins=getattr(self,'evidence_pins',{})
++        # A number-to-hash hint alone cannot bind a response across a reorg.
++        # State misses actually use EIP-1898 on the wire, after capability proof.
++        if method in ('eth_call','eth_getCode','eth_getBalance','eth_getStorageAt'):
++            index=2 if method=='eth_getStorageAt' else 1
++            if len(params)>index and not isinstance(params[index],dict) and method not in self.hash_state_supported:
++                pins={}
++        result=reuse.lookup(method,params,pins,getattr(self,'evidence_receipts',{}),getattr(self,'evidence_cost_epoch',None))
++        if method=='eth_gasPrice' and result[0] and getattr(self,'evidence_timing',None) is not None:
++            self.evidence_timing['gas_quote_origin']=dict(reuse.gas_quote_origin)
++        return result
++
++    @staticmethod
++    def _wire_params(method,params,key):
++        if key and method in ('eth_call','eth_getCode','eth_getBalance','eth_getStorageAt'):
++            import json
++            return json.loads(key)[1]
++        if key and method=='eth_getLogs':
++            import json
++            return json.loads(key)[1]
++        return params
++
      def call(self, method, params, *, scope="connectivity"):
          self._method_allowed_for_provider(method)
+-        return super().call(method, params, scope=scope)
 +        self.admission_scope.value=scope
-         return super().call(method, params, scope=scope)
++        hit,value,key=self._reuse_lookup(method,params)
++        if hit:return value
++        if not self.evidence_reuse:return super().call(method,params,scope=scope)
++        reuse=self.evidence_reuse
++        with reuse.store.lease(reuse.domain,[key],getattr(self,'evidence_deadline',None)):
++            cached=reuse.store.get(reuse.domain,key) if key else None
++            if cached:
++                reuse.store.event(reuse.lane,reuse.domain,method,'coalesced',key,cached[1])
++                return cached[0]
++            value=super().call(method,self._wire_params(method,params,key),scope=scope)
++            reuse.remember(method,params,value,key)
++            return value
  
      def batch(self, calls, *, scope="connectivity"):
-         for row in calls or []:
-             if isinstance(row, (list, tuple)) and row:
-                 self._method_allowed_for_provider(row[0])
-+        self.admission_scope.value=scope
-         return super().batch(calls, scope=scope)
+-        for row in calls or []:
+-            if isinstance(row, (list, tuple)) and row:
+-                self._method_allowed_for_provider(row[0])
+-        return super().batch(calls, scope=scope)
++        if not self.evidence_reuse:
++            for row in calls or []:
++                if isinstance(row,(list,tuple)) and row:self._method_allowed_for_provider(row[0])
++            self.admission_scope.value=scope
++            return super().batch(calls,scope=scope)
++        from .provider import READ_METHODS
++        if not isinstance(calls,list) or not calls or len(calls)>50:raise BoundaryError('provider_batch_capacity')
++        if any(not isinstance(r,(list,tuple)) or len(r)!=2 for r in calls):raise BoundaryError('provider_batch_shape')
++        if any(r[0] not in READ_METHODS for r in calls):raise BoundaryError('rpc_method_not_read_only')
++        out=[None]*len(calls);missing=[];followers={};keys={}
++        for index,(method,params) in enumerate(calls):
++            self._method_allowed_for_provider(method)
++            hit,value,key=self._reuse_lookup(method,params)
++            if hit:out[index]=value;continue
++            if key and key in keys:
++                followers[index]=keys[key];continue
++            if key:keys[key]=index
++            missing.append((index,method,params,key))
++        if missing:
++            deadline=getattr(self,'evidence_deadline',None)
++            if deadline is not None and time.monotonic()>=deadline:raise BoundaryError('evidence_deadline_before_transport')
++            self.admission_scope.value=scope
++            reuse=self.evidence_reuse
++            with reuse.store.lease(reuse.domain,[k for _,_,_,k in missing],deadline):
++                pending=[]
++                for item in missing:
++                    index,method,params,key=item
++                    cached=reuse.store.get(reuse.domain,key) if key else None
++                    if cached:
++                        out[index]=cached[0]
++                        reuse.store.event(reuse.lane,reuse.domain,method,'coalesced',key,cached[1])
++                    else:pending.append(item)
++                if pending:
++                    if deadline is not None and time.monotonic()>=deadline:raise BoundaryError('evidence_deadline_before_transport')
++                    values=super().batch([(m,self._wire_params(m,p,k)) for _,m,p,k in pending],scope=scope)
++                    for (index,method,params,key),value in zip(pending,values):
++                        reuse.remember(method,params,value,key);out[index]=value
++        for index,source in followers.items():out[index]=out[source]
++        return out
  
      def telemetry(self):
+         data = super().telemetry()
+@@ -236,6 +339,7 @@ class PacedRpc(Rpc):
+             provider_kind=self.provider_kind,
+             pacing=self.pacer.telemetry(),
+             automatic_failover=False,
++            immutable_reuse=self.evidence_reuse.telemetry() if self.evidence_reuse else None,
+         )
+         return data
+ 
+diff --git a/robinhood_research/view_batch.py b/robinhood_research/view_batch.py
+new file mode 100644
+index 0000000..18cb1df
+--- /dev/null
++++ b/robinhood_research/view_batch.py
+@@ -0,0 +1,66 @@
++"""Equivalent grouping restricted to the compiled Pons curve's read-only getters.
++
++These getters read storage/immutables and block.timestamp, without writes, calls,
++msg.sender, or gasleft. The unchanged caller must authenticate the exact compiled
++curve before accepting any result. One bundle, one contract, one end-of-block
++state; never combine different blocks, arbitrary calls, or state overrides.
++"""
++from collections import defaultdict
++from .abi import calldata
++from . import BoundaryError
++
++GETTERS=('token()','getReserves()','realQuoteReserve()','reservedTokens()',
++         'graduated()','currentSnipeTaxBps(address)','launchedAt()')
++SELECTORS={calldata(x,*(['0x'+'11'*20] if 'address' in x else []))[:10] for x in GETTERS}
++
++def grouped(calls):
++    groups=defaultdict(list)
++    for i,(method,p) in enumerate(calls):
++        if method!='eth_call' or len(p)!=2 or not isinstance(p[0],dict):continue
++        c,block=p
++        if set(c)!={'to','data'} or c['data'][:10] not in SELECTORS:continue
++        if not isinstance(block,str) or not block.startswith('0x'):continue
++        groups[(c['to'],block)].append(i)
++    # One candidate/curve only. Other calls remain independent.
++    return [indices for indices in groups.values() if len(indices)>=2]
++
++def batch(rpc,calls,scope,state):
++    if not state.get('supported'):return rpc.batch(calls,scope=scope)
++    groups=grouped(calls)
++    if not groups:return rpc.batch(calls,scope=scope)
++    members={i for g in groups for i in g};wire=[];labels=[]
++    for i,c in enumerate(calls):
++        if i not in members:wire.append(c);labels.append(('single',i))
++    for g in groups:
++        block=calls[g[0]][1][1]
++        txs=[dict(to=calls[i][1][0]['to'],input=calls[i][1][0]['data']) for i in g]
++        wire.append(('eth_callMany',[[{'transactions':txs}],{'blockNumber':block,'transactionIndex':-1},{},1000]))
++        labels.append(('group',g))
++    verifying=not state.get('parity_verified')
++    if verifying:
++        for i in sorted(members):wire.append(calls[i]);labels.append(('verify',i))
++    if len(wire)>50:return rpc.batch(calls,scope=scope)
++    try:values=rpc.batch(wire,scope=scope)
++    except BoundaryError as exc:
++        if str(exc) not in ('provider_rpc_-32601','provider_rpc_-32602'):raise
++        state.update(supported=False,fallback_reason=str(exc))
++        return rpc.batch(calls,scope=scope)
++    out=[None]*len(calls);reference={}
++    for label,value in zip(labels,values):
++        kind,indices=label
++        if kind=='single':out[indices]=value
++        elif kind=='verify':reference[indices]=value
++        else:
++            if not isinstance(value,list) or len(value)!=1 or not isinstance(value[0],list) or len(value[0])!=len(indices):
++                raise BoundaryError('callmany_shape_disagreement')
++            for i,v in zip(indices,value[0]):
++                if not isinstance(v,dict) or 'error' in v or not isinstance(v.get('value'),str):raise BoundaryError('callmany_member_failure')
++                out[i]=v['value']
++    if verifying:
++        if any(out[i]!=v for i,v in reference.items()):
++            state.update(supported=False,fallback_reason='callmany_independent_call_disagreement')
++            for i,v in reference.items():out[i]=v
++        else:state['parity_verified']=True
++    state['grouped_members']=state.get('grouped_members',0)+len(members)
++    state['groups']=state.get('groups',0)+len(groups)
++    return out
+diff --git a/robinhood_tests/test_immutable_rpc.py b/robinhood_tests/test_immutable_rpc.py
+new file mode 100644
+index 0000000..ba583be
+--- /dev/null
++++ b/robinhood_tests/test_immutable_rpc.py
+@@ -0,0 +1,120 @@
++import tempfile
++import time
++import unittest
++from pathlib import Path
++from unittest.mock import patch
++from robinhood_research import BoundaryError, CHAIN_ID
++from robinhood_research.immutable_rpc import EvidenceStore, Reuse, choose_block_receipts
++from robinhood_research.provider_topology import PacedRpc
++
++class ImmutableRpcTest(unittest.TestCase):
++    def setUp(self):
++        self.store=EvidenceStore();self.reuse=Reuse('https://unit.invalid/key',self.store,'pons')
++    def test_session_chain_verified_once_not_across_new_session(self):
++        r=self.reuse;r.remember('eth_chainId',[],hex(CHAIN_ID),None)
++        self.assertTrue(r.lookup('eth_chainId',[])[0])
++        self.assertFalse(Reuse('https://unit.invalid/key',self.store,'pons').lookup('eth_chainId',[])[0])
++        with self.assertRaises(BoundaryError):r.remember('eth_chainId',[],'0x1',None)
++    def test_hash_pinned_call_and_code_across_candidates(self):
++        for m,p in [('eth_call',[{'to':'0xa','data':'0x12'},'0x1']),('eth_getCode',['0xa','0x1'])]:
++            key=self.reuse.key(m,p,{'0x1':'0xh1'})
++            self.reuse.remember(m,p,'0x123',key)
++            other=Reuse('https://unit.invalid/key',self.store,'ramses')
++            self.assertEqual(other.lookup(m,p,{'0x1':'0xh1'})[:2],(True,'0x123'))
++            self.assertFalse(other.lookup(m,p,{'0x1':'0xreorg'})[0])
++            self.assertFalse(other.lookup(m,p,{})[0])
++    def test_overrides_and_other_block_are_distinct(self):
++        a=self.reuse.key('eth_call',[{'to':'a','data':'b'},'0x1'],{'0x1':'h1'})
++        b=self.reuse.key('eth_call',[{'to':'a','data':'b'},'0x2'],{'0x2':'h2'})
++        c=self.reuse.key('eth_call',[{'to':'a','data':'b'},'0x1',{'a':{'balance':'0x1'}}],{'0x1':'h1'})
++        self.assertEqual(len({a,b,c}),3)
++        self.assertIsNone(self.reuse.key('eth_call',[{},'latest']))
++    def test_header_number_and_hash_share_identity(self):
++        h={'number':'0x1','hash':'h1','timestamp':'0x2','parentHash':'h0'}
++        self.reuse.remember('eth_getBlockByNumber',['0x1',False],h,None)
++        self.assertEqual(self.reuse.lookup('eth_getBlockByHash',['h1',False])[1],h)
++        self.assertEqual(self.reuse.lookup('eth_getBlockByNumber',['0x1',False],{'0x1':'h1'})[1],h)
++        self.assertFalse(self.reuse.lookup('eth_getBlockByNumber',['latest',False])[0])
++    def test_receipt_requires_expected_block(self):
++        p=['tx'];k=self.reuse.key('eth_getTransactionReceipt',p,receipts={'tx':'h1'})
++        self.reuse.remember('eth_getTransactionReceipt',p,{'transactionHash':'tx','blockHash':'h1'},k)
++        self.assertTrue(self.reuse.lookup('eth_getTransactionReceipt',p,receipts={'tx':'h1'})[0])
++        self.assertFalse(self.reuse.lookup('eth_getTransactionReceipt',p,receipts={'tx':'h2'})[0])
++        with self.assertRaises(BoundaryError):self.reuse.remember('eth_getTransactionReceipt',p,{'transactionHash':'tx','blockHash':'h2'},k)
++    def test_exact_log_filter_and_immutable_bounds(self):
++        p=[{'fromBlock':'0x1','toBlock':'0x1','topics':['topic']}];pins={'0x1':'h1','0x2':'h2'}
++        k=self.reuse.key('eth_getLogs',p,pins);self.reuse.remember('eth_getLogs',p,[],k)
++        self.assertEqual(self.reuse.lookup('eth_getLogs',p,pins)[:2],(True,[]))
++        self.assertFalse(self.reuse.lookup('eth_getLogs',[dict(p[0],topics=['other'])],pins)[0])
++        self.assertIsNone(self.reuse.key('eth_getLogs',[{'fromBlock':'0x1','toBlock':'latest'}],pins))
++    def test_endpoint_domain_and_conflict_fail_closed(self):
++        self.store.put(self.reuse.domain,'k',1)
++        self.assertIsNone(self.store.get(Reuse('https://other.invalid',self.store).domain,'k'))
++        with self.assertRaises(BoundaryError):self.store.put(self.reuse.domain,'k',2)
++    def test_block_receipts_rule_throughput_and_size_guard(self):
++        self.assertTrue(choose_block_receipts(25,40,supported=True,remaining_seconds=2))
++        for n,total,supported,remaining in [(2,2,True,2),(25,100,True,2),(100,200,True,2),(25,40,False,2),(25,40,True,.1)]:
++            self.assertFalse(choose_block_receipts(n,total,supported=supported,remaining_seconds=remaining))
++    def test_batch_deduplicates_and_expired_miss_does_not_transport(self):
++        seen=[]
++        rpc=PacedRpc('https://unit.invalid',role='test',requests_per_second=2,
++            transport=lambda m,p: seen.append((m,p)) or '0x123')
++        rpc.evidence_reuse=self.reuse;rpc.hash_state_supported={'eth_getCode','eth_call'};rpc.evidence_pins={'0x1':'h1'}
++        call=('eth_getCode',['a','0x1'])
++        self.assertEqual(rpc.batch([call,call]),['0x123','0x123']);self.assertEqual(len(seen),1)
++        rpc.evidence_deadline=time.monotonic()-1
++        with self.assertRaises(BoundaryError):rpc.batch([('eth_getCode',['b','0x1'])])
++        self.assertEqual(len(seen),1)
++    def test_raw_reuse_history_is_append_only(self):
++        self.reuse.lookup('eth_chainId',[])
++        with self.assertRaises(Exception):self.store.db.execute('DELETE FROM reuse_events')
++    def test_concurrent_same_identity_executes_once(self):
++        import threading
++        from concurrent.futures import ThreadPoolExecutor
++        seen=[];started=threading.Event();release=threading.Event()
++        def transport(m,p):
++            seen.append(m);started.set();release.wait(2);return '0x123'
++        def rpc(lane):
++            r=PacedRpc('https://unit.invalid/key',role='test',requests_per_second=2,transport=transport)
++            r.evidence_reuse=Reuse('https://unit.invalid/key',self.store,lane);r.hash_state_supported={'eth_getCode','eth_call'};r.evidence_pins={'0x1':'h1'}
++            return r
++        a,b=rpc('pons'),rpc('ramses')
++        with ThreadPoolExecutor(2) as pool:
++            x=pool.submit(a.call,'eth_getCode',['a','0x1']);self.assertTrue(started.wait(1))
++            y=pool.submit(b.batch,[('eth_getCode',['a','0x1'])]);time.sleep(.02);release.set()
++            self.assertEqual(x.result(),'0x123');self.assertEqual(y.result(),['0x123'])
++        self.assertEqual(seen,['eth_getCode'])
++        self.assertEqual(self.store.db.execute('SELECT COUNT(*) FROM flights').fetchone()[0],0)
++    def test_waiter_keeps_own_deadline(self):
++        with self.store.lease(self.reuse.domain,['k']):
++            with self.assertRaisesRegex(BoundaryError,'immutable_evidence_wait_deadline'):
++                with self.store.lease(self.reuse.domain,['k'],time.monotonic()):pass
++    def test_gas_quote_same_epoch_after_original_observation_only(self):
++        observed=time.monotonic()-1;deadline=observed+5
++        hit,value,key=self.reuse.lookup('eth_gasPrice',[],cost_epoch=('h1',observed,deadline))
++        self.assertFalse(hit);self.reuse.remember('eth_gasPrice',[],'0x123',key)
++        self.assertTrue(self.reuse.lookup('eth_gasPrice',[],cost_epoch=('h1',observed,deadline))[0])
++        self.assertFalse(self.reuse.lookup('eth_gasPrice',[],cost_epoch=('h2',observed,deadline))[0])
++        self.assertFalse(self.reuse.lookup('eth_gasPrice',[],cost_epoch=('h1',time.monotonic(),deadline))[0])
++        self.assertFalse(self.reuse.lookup('eth_gasPrice',[],cost_epoch=('h1',observed,time.monotonic()-1))[0])
++
++    def test_numeric_pin_must_be_used_on_wire_not_only_cache_key(self):
++        seen=[]
++        rpc=PacedRpc('https://unit.invalid',role='test',requests_per_second=2,
++            transport=lambda m,p: seen.append((m,p)) or '0x123')
++        rpc.evidence_reuse=self.reuse;rpc.evidence_pins={'0x1':'h1'}
++        rpc.call('eth_getCode',['a','0x1']);rpc.call('eth_getCode',['a','0x1'])
++        self.assertEqual(len(seen),2)  # Unknown support: original safe path, no reuse.
++        rpc.hash_state_supported={'eth_getCode','eth_call'}
++        rpc.call('eth_getCode',['a','0x1']);rpc.call('eth_getCode',['a','0x1'])
++        self.assertEqual(len(seen),3);self.assertEqual(seen[-1][1][1],{'blockHash':'h1'})
++    def test_header_reorg_cannot_poison_pinned_alias(self):
++        p=['0x1',False];k=self.reuse.key('eth_getBlockByNumber',p,{'0x1':'h1'})
++        with self.assertRaisesRegex(BoundaryError,'immutable_header_pin_disagreement'):
++            self.reuse.remember('eth_getBlockByNumber',p,{'number':'0x1','hash':'other'},k)
++        self.assertIsNone(self.store.get(self.reuse.domain,k))
++    def test_log_reorg_and_numeric_range_not_cached(self):
++        self.assertIsNone(self.reuse.key('eth_getLogs',[{'fromBlock':'0x1','toBlock':'0x2'}],{'0x1':'h1','0x2':'h2'}))
++        p=[{'blockHash':'h1'}];k=self.reuse.key('eth_getLogs',p)
++        with self.assertRaisesRegex(BoundaryError,'immutable_log_block_disagreement'):
++            self.reuse.remember('eth_getLogs',p,[{'blockHash':'other'}],k)
 diff --git a/robinhood_tests/test_opportunity_coverage.py b/robinhood_tests/test_opportunity_coverage.py
 new file mode 100644
 index 0000000..8aebb0f
@@ -1936,6 +2629,56 @@ index 0000000..2f71d09
 +            self.assertIsNone(_cancel_proven_unfilled(paper,'x',guard,'stale_state'))
 +            self.assertEqual(guard.reconcile(),before);self.assertEqual(before['reserved'],120)
 +            self.assertEqual(paper._get('x')['status'],'open');store.close()
+diff --git a/robinhood_tests/test_pons_natural_observation.py b/robinhood_tests/test_pons_natural_observation.py
+index 5628cdb..8b6f649 100644
+--- a/robinhood_tests/test_pons_natural_observation.py
++++ b/robinhood_tests/test_pons_natural_observation.py
+@@ -65,6 +65,15 @@ class PonsNaturalObservationTests(unittest.TestCase):
+         )
+ 
+     def test_candidate_authentication_is_exactly_two_batch_transports(self):
++        self._assert_candidate_authentication(None,2)
++
++    def test_verified_token_hint_collapses_factory_round_but_reauthenticates(self):
++        self._assert_candidate_authentication('0x'+'11'*20,1)
++
++    def test_wrong_hint_falls_back_to_current_token_factory_record(self):
++        self._assert_candidate_authentication('0x'+'77'*20,2)
++
++    def _assert_candidate_authentication(self,hint,rounds):
+         now=int(time.time())
+         curve="0x"+"22"*20
+         token="0x"+"11"*20
+@@ -90,9 +99,10 @@ class PonsNaturalObservationTests(unittest.TestCase):
+         ]
+         batches=[]
+         class Rpc:
++            def factory_token_hint(self,curve):return hint
+             def batch(self,calls,scope):
+                 batches.append((calls,scope))
+-                return first if len(batches)==1 else ["0xdead"]
++                return first+(['0xdead'] if hint else []) if len(batches)==1 else ["0xdead"]
+         record=dict(
+             token=token,curve=curve,deployer="0x"+"66"*20,
+             creatorFeeRecipient="0x"+"66"*20,pairToken=ZERO,exists=True,
+@@ -110,11 +120,13 @@ class PonsNaturalObservationTests(unittest.TestCase):
+             return_value=decoded,
+         ):
+             result=_authenticate_candidate(Rpc(),event,dict(reads=[]))
+-        self.assertEqual(len(batches),2)
+-        self.assertEqual(len(batches[0][0]),11)
++        self.assertEqual(len(batches),rounds)
++        self.assertEqual(len(batches[0][0]),11+int(hint is not None))
+         self.assertEqual(batches[0][0][0],("eth_chainId",[]))
+-        self.assertEqual(len(batches[1][0]),1)
+-        self.assertEqual(result["auth_transport_rounds"],2)
++        if rounds==2:self.assertEqual(len(batches[1][0]),1)
++        self.assertEqual(result["auth_transport_rounds"],rounds)
++        self.assertEqual(result['token'],token)
++        self.assertEqual(result['roundtrip_gas_wei'],2*100_000*10**9)
+         self.assertLessEqual(result["freshness_seconds"],5)
+ 
+ 
 diff --git a/robinhood_tests/test_pons_partial_accounting.py b/robinhood_tests/test_pons_partial_accounting.py
 new file mode 100644
 index 0000000..2401955
@@ -2223,3 +2966,68 @@ index 0000000..f4bf49b
 +        self.assertEqual(len(extra),2)
 +        self.assertNotIn('late',[x[1] for x in extra])
 +        self.assertEqual(ctx.prefetch_adjacent_headers([('eth_gasPrice',[])]*50),[])
+diff --git a/robinhood_tests/test_view_batch.py b/robinhood_tests/test_view_batch.py
+new file mode 100644
+index 0000000..f6d3447
+--- /dev/null
++++ b/robinhood_tests/test_view_batch.py
+@@ -0,0 +1,59 @@
++import json
++from pathlib import Path
++import unittest
++from robinhood_research import BoundaryError
++from robinhood_research.abi import calldata
++from robinhood_research.view_batch import batch,GETTERS,grouped
++
++class Rpc:
++    def __init__(self,unsupported=False,mismatch=False):self.calls=[];self.unsupported=unsupported;self.mismatch=mismatch
++    def batch(self,calls,scope):
++        self.calls.append(calls);out=[]
++        for method,p in calls:
++            if method=='eth_callMany':
++                if self.unsupported:raise BoundaryError('provider_rpc_-32601')
++                out.append([[dict(value='0xwrong' if self.mismatch else tx['input']) for tx in p[0][0]['transactions']]])
++            else:out.append(p[0]['data'])
++        return out
++
++class ViewBatchTests(unittest.TestCase):
++    def calls(self):return [('eth_call',[dict(to='a',data=calldata(g)),'0x1']) for g in ('token()','realQuoteReserve()')]
++    def test_documented_getters_are_compiled_view_functions(self):
++        path=Path(__file__).resolve().parents[1]/'robinhood_research/pons_curve_template.json'
++        abi=json.loads(path.read_text())['abi'];byname={a.get('name'):a for a in abi if a['type']=='function'}
++        for g in GETTERS:self.assertEqual(byname[g.split('(')[0]]['stateMutability'],'view')
++    def test_first_group_proves_parity_then_reduces_logical_work(self):
++        r=Rpc();s={'supported':True};calls=self.calls()
++        expected=[c[1][0]['data'] for c in calls]
++        self.assertEqual(batch(r,calls,'test',s),expected);self.assertTrue(s['parity_verified'])
++        self.assertEqual(len(r.calls[0]),3)
++        self.assertEqual(batch(r,calls,'test',s),expected);self.assertEqual(len(r.calls[1]),1)
++    def test_unsupported_falls_back_and_does_not_reprobe(self):
++        r=Rpc(unsupported=True);s={'supported':True};calls=self.calls()
++        self.assertEqual(batch(r,calls,'test',s),[c[1][0]['data'] for c in calls]);self.assertFalse(s['supported'])
++        batch(r,calls,'test',s);self.assertEqual(len(r.calls),3)
++    def test_disagreement_uses_independent_results_and_disables(self):
++        s={'supported':True};calls=self.calls();r=Rpc(mismatch=True)
++        self.assertEqual(batch(r,calls,'test',s),[c[1][0]['data'] for c in calls]);self.assertFalse(s['supported'])
++    def test_no_cross_block_or_override_or_arbitrary_call_group(self):
++        a,b=self.calls();b=('eth_call',[b[1][0],'0x2']);self.assertFalse(grouped([a,b]))
++        b=('eth_call',[a[1][0],'0x1',{}]);self.assertFalse(grouped([a,b]))
++        b=('eth_call',[dict(to='a',data='0xdeadbeef'),'0x1']);self.assertFalse(grouped([a,b]))
++    def test_header_index_requires_adjacent_boundary_proof(self):
++        from robinhood_research.pons_selective_acquisition import ImmutableEvidenceCache,_indexed_header_plan
++        c=ImmutableEvidenceCache()
++        def h(n):return dict(number=hex(n),hash=str(n),timestamp=hex(100+n//10))
++        for n in (100,109,110,200,209,210,250):c.remember_header(h(n))
++        plan,_=_indexed_header_plan(c,h(250),1)
++        self.assertEqual(plan,[]) # exact 15s and 5s boundaries: 109/110 and 209/210
++        c.headers_by_number.pop(110)
++        plan,_=_indexed_header_plan(c,h(250),1)
++        self.assertNotEqual(plan,[]) # a timestamp hint cannot replace successor proof
++    def test_factory_hint_does_not_skip_current_reads(self):
++        from robinhood_research.pons_selective_acquisition import SelectiveEvidenceContext
++        ctx=SelectiveEvidenceContext('https://offline.invalid')
++        self.assertIsNone(ctx.factory_token_hint('curve'))
++        # Cached identity merely shapes a pinned request; no factory result cache.
++        ctx.factory_hints['curve']='token'
++        self.assertEqual(ctx.factory_token_hint('CURVE'),'token')
++        self.assertFalse(ctx.block_reads)
