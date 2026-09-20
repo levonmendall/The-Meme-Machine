@@ -1,15 +1,15 @@
 name: four-lane-certification
 on:
   push:
-    branches: [cert/four-lane-sustained-v1, certification/four-lane-repair-integration-20260920, cert/four-lane-capacity-v2]
+    branches: [cert/one-hour-repair-campaign]
   workflow_dispatch:
     inputs:
       phase:
-        description: Smoke only, or clean smoke followed by a fresh four-hour campaign
+        description: Smoke only, or clean smoke followed by a fresh one-hour campaign
         required: true
         default: smoke
         type: choice
-        options: [smoke, sustained]
+        options: [smoke, hourly]
 permissions:
   contents: read
   actions: read
@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   concurrent-smoke:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[four-lane-smoke]') || contains(github.event.head_commit.message, '[four-lane-sustained]')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[four-lane-smoke]') || contains(github.event.head_commit.message, '[four-lane-hourly]')
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     outputs:
@@ -59,7 +59,7 @@ jobs:
       - name: Export exact-revision engineering readiness
         id: readiness
         run: python -m certification.controls --smoke-result certification-smoke/result.json --output "$GITHUB_OUTPUT"
-      - name: Preserve smoke native ledgers before creating the sustained study
+      - name: Preserve smoke native ledgers before creating the hourly study
         if: always()
         run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-native/smoke
       - name: Preserve success and failure evidence
@@ -72,8 +72,8 @@ jobs:
             certification-gates/
             certification-smoke/
             certification-preflight.json
-            certification-sustained-gates/
-            certification-sustained/
+            certification-hourly-gates/
+            certification-hourly/
             certification-native/
             ${{ runner.temp }}/four-lane-worktrees/pump/pump-acceleration-natural-prospective*
             ${{ runner.temp }}/four-lane-worktrees/pump/pump-acceleration-natural-prospective.accounting.sqlite3*
@@ -87,11 +87,11 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-  sustained-campaign:
+  hourly-campaign:
     needs: concurrent-smoke
-    if: inputs.phase == 'sustained' || contains(github.event.head_commit.message, '[four-lane-sustained]')
+    if: inputs.phase == 'hourly' || contains(github.event.head_commit.message, '[four-lane-hourly]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 330
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -118,7 +118,7 @@ jobs:
         env:
           SMOKE_READINESS: ${{ needs.concurrent-smoke.outputs.readiness }}
         run: python -c 'import os,pathlib,json; value=json.loads(os.environ["SMOKE_READINESS"]); pathlib.Path("smoke-readiness.json").write_text(json.dumps(value))'
-      - name: Four-hour continuous paper campaign, no process restart
+      - name: One-hour continuous paper campaign, no process restart
         env:
           GH_CHECKS_TOKEN: ${{ github.token }}
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
@@ -127,19 +127,19 @@ jobs:
           MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
           MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON }}
           MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON }}
-        run: python -m certification.live_status --output certification-sustained --phase sustained -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-sustained --gate certification-gates/deterministic.json --phase sustained --seconds 14400 --smoke-result smoke-readiness.json
-      - name: Preserve sustained native ledgers including per-asset Ramses books
+        run: python -m certification.live_status --output certification-hourly --phase hourly -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-hourly --gate certification-gates/deterministic.json --phase hourly --seconds 3600 --smoke-result smoke-readiness.json
+      - name: Preserve hourly native ledgers including per-asset Ramses books
         if: always()
-        run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-native/sustained
-      - name: Preserve sustained success or failure evidence
+        run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-native/hourly
+      - name: Preserve hourly success or failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: four-lane-sustained-${{ github.run_id }}-${{ github.run_attempt }}
+          name: four-lane-hourly-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             certification-*-publisher.jsonl
             certification-gates/
-            certification-sustained/
+            certification-hourly/
             certification-native/
             certification-preflight.json
             smoke-readiness.json

@@ -1,0 +1,15 @@
+{
+  "schema": "four-lane-overnight-request-v1",
+  "sequence": 1,
+  "phase": "hourly",
+  "observation_seconds": 3600,
+  "smoke_seconds": 600,
+  "paper_only": true,
+  "repair_parent_integration_sha": "477c153af8efd41d29aacdad25f6e6899df64e67",
+  "superseded_four_hour_run": 35489724704,
+  "previous_result": "USER_CANCELLED_NOT_CERTIFIED",
+  "launch_cutoff_utc": "2026-09-20T15:00:00Z",
+  "normal_policy_drain_required": true,
+  "new_strategy_promotion_authorized": false,
+  "result_status": "AWAITING_EXACT_REVISION_GATES_AND_SMOKE"
+}

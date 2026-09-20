@@ -161,6 +161,7 @@ def finish_lanes(processes,files,rows,terminal_times,journal,run):
 
 def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     if phase=='sustained' and seconds<14400:raise ValueError('four_hour_minimum')
+    if phase=='hourly' and seconds!=3600:raise ValueError('one_hour_window_required')
     gate=json.loads(Path(gate_file).read_text())
     if not gate.get('passed') or gate.get('source_manifest_hash')!=digest(manifest()):raise ValueError('exact_source_deterministic_gate_required')
     if gate.get('integration_sha')!=git('rev-parse','HEAD'):raise ValueError('integration_sha_gate_mismatch')
@@ -170,7 +171,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     spec=manifest();run_id=str(uuid.uuid4())
     atomic(run/'manifest.json',dict(**spec,integration_sha=git('rev-parse','HEAD'),run_id=run_id,
                                   operational_overlay_sha256=hashlib.sha256((ROOT/'certification/patches/meteora-checkpoint.patch').read_bytes()).hexdigest()))
-    if phase=='sustained':
+    if phase in ('sustained','hourly'):
         blockers=sustained_readiness(smoke_result,manifest_hash=digest(spec),
             implementation_hash=implementation_hash(),integration_sha=git('rev-parse','HEAD'))
         if blockers:
@@ -314,7 +315,7 @@ def main():
     p=sub.add_parser('prepare');p.add_argument('--worktrees',required=True)
     p=sub.add_parser('verify');p.add_argument('--worktrees',required=True);p.add_argument('--output',required=True)
     p=sub.add_parser('run');p.add_argument('--worktrees',required=True);p.add_argument('--output',required=True);p.add_argument('--gate',required=True)
-    p.add_argument('--seconds',type=int,default=600);p.add_argument('--phase',choices=['smoke','sustained'],default='smoke')
+    p.add_argument('--seconds',type=int,default=600);p.add_argument('--phase',choices=['smoke','sustained','hourly'],default='smoke')
     p.add_argument('--smoke-result')
     args=parser.parse_args()
     if args.command=='prepare':print(prepare(args.worktrees));return

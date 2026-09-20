@@ -69,6 +69,34 @@ class JournalTests(unittest.TestCase):
             self.assertEqual(len(list(j.records())),1);j.close()
 
 class CertificationTests(unittest.TestCase):
+    def test_hourly_scope_does_not_satisfy_four_hour_certification(self):
+        result=self.complete();result.update(phase='hourly',continuous_overlap_seconds=3600)
+        for row in result['lanes'].values():row['continuous_uptime_seconds']=3600
+        verdict=evaluate(result)
+        self.assertEqual(verdict['status'],'PASS')
+        self.assertEqual(verdict['scope'],'one_hour_paper_campaign')
+        self.assertEqual(verdict['required_observation_seconds'],3600)
+        result['phase']='sustained'
+        self.assertEqual(evaluate(result)['status'],'INCOMPLETE')
+        result['phase']='hourly';result['continuous_overlap_seconds']=3599
+        self.assertEqual(evaluate(result)['status'],'INCOMPLETE')
+
+    def test_hourly_retains_natural_and_accounting_requirements(self):
+        result=self.complete();result['phase']='hourly'
+        result['lanes']['pump']['natural_settled']=0
+        result['lanes']['pump']['forced_settled']=3
+        self.assertEqual(evaluate(result)['status'],'INCOMPLETE')
+        result['lanes']['pons']['gates']['accounting_reconciled']=False
+        self.assertEqual(evaluate(result)['status'],'FAIL')
+
+    def test_launch_duration_rejected_before_any_work(self):
+        from certification.run import launch
+        for phase,seconds,message in [('hourly',3599,'one_hour_window_required'),
+                                      ('hourly',14400,'one_hour_window_required'),
+                                      ('sustained',3600,'four_hour_minimum')]:
+            with self.assertRaisesRegex(ValueError,message):
+                launch(None,None,seconds,phase,None)
+
     def complete(self):
         return dict(elapsed_seconds=14400,continuous_overlap_seconds=14400,lanes={lane:dict(continuous_uptime_seconds=14400,
                     natural_settled=1,open_positions=0,process_restarts=0,gates={g:True for g in REQUIRED}) for lane in LANES})

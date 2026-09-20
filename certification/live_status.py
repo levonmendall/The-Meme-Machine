@@ -39,7 +39,9 @@ def snapshot(result, now=None):
     age=None if not isinstance(observed,(int,float)) else max(0,now-observed)
     out=dict(schema='four-lane-live-v1',published_at=now,observed_at=observed,
         snapshot_age_seconds=age,stale=age is None or age>120,
-        phase=result.get('phase') if result.get('phase') in ('smoke','sustained') else None,
+        phase=result.get('phase') if result.get('phase') in ('smoke','sustained','hourly') else None,
+        certification_scope=result.get('certification',{}).get('scope'),
+        required_observation_seconds=result.get('certification',{}).get('required_observation_seconds'),
         elapsed_seconds=result.get('elapsed_seconds'),
         continuous_overlap_seconds=result.get('continuous_overlap_seconds'),lanes={},
         shared_provider=numeric_tree(result.get('shared_provider')),
@@ -95,7 +97,7 @@ def child_environment():
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--output',required=True)
-    parser.add_argument('--phase',required=True,choices=('smoke','sustained'))
+    parser.add_argument('--phase',required=True,choices=('smoke','sustained','hourly'))
     parser.add_argument('command',nargs=argparse.REMAINDER);args=parser.parse_args()
     command=args.command[1:] if args.command[:1]==['--'] else args.command
     if command[:3] not in ([sys.executable,'-m','certification.run'], ['python','-m','certification.run']):

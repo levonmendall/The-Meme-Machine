@@ -12,14 +12,17 @@ REQUIRED=('responsive','bounded_queue','provider_limits','no_starvation','teleme
 
 def evaluate(result):
     failures=[];incomplete=[]
+    hourly=result.get('phase')=='hourly'
+    required_seconds=3600 if hourly else 14400
     if result.get('status')=='FAILED':failures.append('supervisor_failed')
-    if result.get('continuous_overlap_seconds',0)<14400:incomplete.append('continuous_four_hour_window_not_completed')
+    if result.get('continuous_overlap_seconds',0)<required_seconds:
+        incomplete.append('continuous_one_hour_window_not_completed' if hourly else 'continuous_four_hour_window_not_completed')
     for lane in LANES:
         row=result.get('lanes',{}).get(lane,{})
         if row.get('process_restarts',0):failures.append(lane+':process_restart')
         if row.get('unexpected_exit'):failures.append(lane+':unexpected_exit')
         if permanently_unfunded(row):failures.append(lane+':permanently_unfunded_paper_book')
-        if row.get('continuous_uptime_seconds',0)<14400:incomplete.append(lane+':continuous_uptime_short')
+        if row.get('continuous_uptime_seconds',0)<required_seconds:incomplete.append(lane+':continuous_uptime_short')
         for gate in REQUIRED:
             value=row.get('gates',{}).get(gate)
             if value is False:failures.append(lane+':'+gate)
@@ -28,6 +31,8 @@ def evaluate(result):
         if row.get('open_positions') is None:incomplete.append(lane+':open_exposure_unknown')
         elif row['open_positions']:failures.append(lane+':unsettled_position')
     return dict(status='FAIL' if failures else 'INCOMPLETE' if incomplete else 'PASS',
+                scope='one_hour_paper_campaign' if hourly else 'four_hour_certification',
+                required_observation_seconds=required_seconds,
                 failures=failures,incomplete=incomplete,
                 target_three_per_lane_met=all(result.get('lanes',{}).get(k,{}).get('natural_settled',0)>=3 for k in LANES))
 

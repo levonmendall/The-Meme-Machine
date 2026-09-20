@@ -1,0 +1,101 @@
+# One-hour paper repair campaign — September 20, 2026
+
+The user replaced the four-hour schedule with successive **one-hour observation
+windows**, reviewing and repairing demonstrated engineering defects between runs.
+This supersedes the read-only four-hour monitoring instruction. Paper-only,
+frozen policy, freshness, finality, accounting, isolation and evidence controls
+remain mandatory. No signing, submission, new paid infrastructure or main merge.
+
+## Pinned repairs and source
+
+Parent integration: `477c153af8efd41d29aacdad25f6e6899df64e67` (PR89), including
+consumer scheduling PR87/88 and Pons quote/cancellation PR86. See
+`EVIDENCE_SCHEDULING_HANDOFF.md` and `sources.json` for exact source, execution,
+policy/config hashes and composed overlays. All four remote source heads were
+reverified unchanged at 2026-09-20T06:14Z. Before these duration-only changes the
+exact parent passed 1,087 lane tests, 38 supervisor tests and three resource gates.
+The hourly supervisor regressions now total 41. The workflow reruns all gates on
+its exact head before any live smoke and again before the one-hour window.
+
+Cancelled four-hour run: 35489724704 at
+`f7ee2b13036abb0171e0001608d589b51d28947e`; cancellation workflow 35493646305
+completed successfully. This is interrupted evidence, never a completed window.
+Also stop repair-branch CI run 35492642861, whose automatic live-diagnostic job
+would compete for provider capacity. Do not resume cancelled/failed runs
+35483374004, 35486770334, 35487539639, or 35488026893. Keep the Frozen Wallet Study
+launcher `6aad3e04f1a0819199290a31fdd19053` paused.
+
+## Launch and observation protocol
+
+Execution branch: `cert/one-hour-repair-campaign`. Push a reviewed commit with
+`[qualification-build] [four-lane-hourly]` to launch the existing
+`.github/workflows/four-lane-certification.yml`. The first marker prevents an
+unrelated legacy live diagnostic. A subsequent cycle may update a small request
+record with its sequence and prior-run review; this is an explicit new workflow,
+never a restart of a lane. Do not push a launch marker while any market run is
+active. The shared workflow concurrency lock and contention preflight stay on.
+
+Each workflow performs full deterministic gates, a 600-second concurrent smoke,
+normal smoke drain, exact-revision readiness, then a new 3,600-second concurrent
+observation and normal strategy-defined drain. The hour begins at the last lane
+launch, not workflow creation or smoke. Existing drain allowance remains 3,300
+seconds; never shorten a position's hold/exit policy to meet a wall-clock label.
+The full workflow can therefore take materially longer than one hour.
+
+Reproducible commands (authorized RPC configuration comes from existing secrets):
+
+```sh
+python -m unittest discover -s certification/tests -v
+python -m certification.run prepare --worktrees "$RUNNER_TEMP/four-lane-worktrees"
+python -m certification.run verify --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates
+python -m certification.guard
+python -m certification.live_status --output certification-smoke --phase smoke -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-smoke --gate certification-gates/deterministic.json --phase smoke --seconds 600
+python -m certification.live_status --output certification-hourly --phase hourly -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-hourly --gate certification-gates/deterministic.json --phase hourly --seconds 3600 --smoke-result smoke-readiness.json
+```
+
+The workflow exports/restores the exact smoke readiness file. A different code
+revision must pass its own smoke. One-hour evaluation is labeled
+`one_hour_paper_campaign`; the original four-hour evaluator remains strict. All
+other PASS controls and natural-settlement requirements remain unchanged.
+Missing natural trades or unproven controls produce INCOMPLETE, not fabricated
+success. A nonzero workflow conclusion alone is not enough to diagnose a code
+defect: inspect the result's failures versus incomplete reasons.
+
+## Overnight review loop
+
+Use the existing update watch, hourly, through 08:00 America/Los_Angeles on
+September 20 (15:00 UTC). At each check find the newest branch workflow, its exact
+SHA and attempt. If active, monitor; do not edit its frozen revision or launch a
+competing test. If terminal, inspect completed logs, artifact manifests and final
+live checks. Persist a per-run review before starting the next cycle. Repair
+demonstrated machinery defects on this integration branch, add targeted
+regressions and rerun full gates/smoke. If no defect is demonstrated, retain the
+frozen strategies and run another independent hour. Never interpret scarcity as
+an instruction to loosen gates. Do not automatically promote shadow research.
+
+At 08:00 stop launching new cycles. Allow any active cycle its normal drain,
+deliver a final cumulative summary when terminal, then pause the watch. If an
+authorization/access boundary prevents safe progress, preserve evidence and
+report the exact blocker. A transient provider error does not by itself justify
+stopping this overnight task or adding a provider.
+
+Retrieve checks through GET `/commits/{exact_sha}/check-runs?filter=all&per_page=100`
+(paginate). Select `four-lane-live-smoke` and `four-lane-live-hourly` with external
+ID `{workflow_run_id}:{attempt}:`. Their `output.text` contains
+`four-lane-live-v1` JSON. Individual check GET can be unsupported. Recompute age
+from observed_at; >120 seconds while running is stale. Read workflow/job status,
+supervisor_failed and supervisor_exit_code; stale healthy rows cannot override a
+terminal failure. Full logs, raw RPC archives, ledgers and JSON remain in the
+workflow's 90-day artifacts. Unknown is not zero, reconciliation or success.
+
+Report per lane: continuity, policy hash, funnel, complete evidence, queue and
+consumer deadline terminals, requests/errors/pressure, latency, open positions,
+natural versus forced settled, accounting and concrete blockers. Highlight new
+natural settlement, process exit/restart, stale data, unresolved reservations,
+accounting failure or starvation. Do not count zero-fill cancellations as trades.
+Do not claim profitability without final cost-complete reconciled accounting.
+
+Priority investigation: Pump incremental consumer service's measured completion
+gain and bounded provider load; Meteora authenticated trigger through complete
+economics; Pons batched quote timing and zero-fill reservation release; Ramses
+funded startup and natural Fee Pulse outcomes. Preserve every censoring reason.
