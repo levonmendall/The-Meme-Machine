@@ -1668,7 +1668,7 @@ index d8d0a88..9b22cbb 100644
          self.assertEqual(ENTRY_THRESHOLDS["capital_size_bps"],25)
          self.assertEqual(EXIT_POLICY["first_profit_bps"],2500)
          self.assertEqual(EXIT_POLICY["max_total_hold_seconds"],900)
-@@ -112,7 +112,7 @@ def test_clean_late_curve_acceleration_can_qualify(self):
+@@ -112,7 +112,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
          self.assertGreaterEqual(v["demand"]["new_independent_groups_15s"],3)
          self.assertEqual(v["current_snipe_bps"],0)
          self.assertGreater(v["proposed_size"]["amount_quote"],0)
@@ -1677,7 +1677,7 @@ index d8d0a88..9b22cbb 100644
  
      def test_chain_timestamp_lag_is_telemetry_not_selective_freshness(self):
          v=vector(
-@@ -149,6 +149,17 @@ def test_static_high_curve_does_not_qualify(self):
+@@ -149,6 +149,17 @@ class PonsSelectivePolicyTests(unittest.TestCase):
          v=vector(snapshots=flat)
          self.assertIn("curve_velocity",v["all_rejections"])
  
@@ -1695,7 +1695,7 @@ index d8d0a88..9b22cbb 100644
      def test_non_native_pair_is_research_only(self):
          v=vector(pair_token="0x"+"99"*20,quote_relative_strength_bps=321)
          self.assertIn("non_native_quote_allocation_disabled",v["all_rejections"])
-@@ -376,6 +387,42 @@ def fake_raw(_abi,event,**kwargs):
+@@ -376,6 +387,42 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
          self.assertGreaterEqual(tele.get("header_hash_hit",0),2)
          self.assertGreaterEqual(tele.get("receipt_hit",0),2)
  
