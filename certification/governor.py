@@ -41,6 +41,8 @@ class Governor:
         streak=max(1,int(streak))
         if method=='getProgramAccounts':
             return min(60.0,30.0*(2**min(streak-1,1)))
+        if method=='getSignaturesForAddress':
+            return min(60.0,15.0*(2**min(streak-1,2)))
         return min(30.0,8.0*(2**min(streak-1,2)))
 
     def acquire(self,provider,lane,priority=50,*,deadline_seconds=30,methods=()):
