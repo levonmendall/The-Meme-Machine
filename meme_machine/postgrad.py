@@ -411,7 +411,16 @@ class PostGraduationAdapter:
         self.scan_rpc = scan_rpc
         if (self.scan_rpc is None and hasattr(rpc, 'url') and
                 getattr(rpc, 'transport', None) == getattr(rpc, '_http', None)):
-            self.scan_rpc = PoolScanRPC(rpc.url, limit=scan_limit)
+            if hasattr(rpc,'read_pacer') and hasattr(rpc,'provider_telemetry'):
+                # Keep Raydium/program-account discovery on the same authenticated
+                # read topology and shared pacer as every other Pump HTTP read.
+                # This prevents a separate PoolScanRPC from bypassing certification
+                # admission/backoff and method-level 429 telemetry.
+                from .solana_read_rpc import new_pool_scan_rpc
+                self.scan_rpc = new_pool_scan_rpc(
+                    limit=scan_limit,pacer=rpc.read_pacer)
+            else:
+                self.scan_rpc = PoolScanRPC(rpc.url, limit=scan_limit)
         self.scan_verified = False
 
     def _market_time(self, slot, priority):
