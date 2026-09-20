@@ -1,3 +1,6 @@
+Latest continuation: see ACQUISITION_HANDOFF.md for the new Pump/Meteora repairs
+and deliberate replacement of the still-unstarted queued campaign.
+
 # Four-lane capacity integration: 2026-09-20
 
 This branch is based on integration ebd03f5780eee46cc59f0338f48830e475480d78

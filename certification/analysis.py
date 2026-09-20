@@ -76,7 +76,8 @@ def report(run_dir):
         complete=[];incomplete=[]
         if lane=='pump':
             complete=raw.get('full_evidence_candidates',[])
-            incomplete=[x for x in raw.get('attempts',[]) if x.get('stage')=='incomplete']
+            incomplete=[x for x in raw.get('attempts',[]) if x.get('stage') in ('incomplete','shape_incomplete')]
+            incomplete.extend(x for x in raw.get('postgrad',[]) if x.get('complete') is False)
             reason_key='reasons'
         elif lane=='pons':
             if candidate_rows:raw=dict(raw,rows=candidate_rows)
@@ -124,6 +125,7 @@ def report(run_dir):
             screening_only_vectors=count if lane=='ramses' else None,
             gate_evidence_grade='finalized_screening_not_receipt_authenticated_lifecycle' if lane=='ramses' else 'native_complete_fresh_vectors',
             incomplete_rows_visible=len(incomplete),
+            acquisition_reasons=dict(Counter(x.get("limitation") or x.get("terminal_classification") or "unclassified" for x in incomplete)),
             gate_rejections=dict(gates),
             gate_marginal_survival={k:dict(passed=count-n,denominator=count,fraction=(count-n)/count) for k,n in gates.items()} if count else {},
             natural_settled=runtime.get('natural_settled',0),forced_settled=runtime.get('forced_settled',0),

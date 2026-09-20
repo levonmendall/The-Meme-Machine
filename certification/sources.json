@@ -20,7 +20,8 @@
       "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment",
       "repair_commits": [
         "2b2af01299ce99b0f036981bfad57107713c68b7",
-        "6377b4c46da95c4591848939c714f7766e789acd"
+        "6377b4c46da95c4591848939c714f7766e789acd",
+        "7774ebe0f712a0e12848de1c54aaaf44df8480e7"
       ],
       "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd"
     },
@@ -42,7 +43,8 @@
       "repair_commits": [
         "6a3be3a2d3c3c45fb3068662a23800e2e3768933",
         "1b04eca2984f85c9a47d262dc7ea84796a21754e",
-        "957ff70af2065c7bf0227f00a7fab0f44e0f81f0"
+        "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
+        "45041de0669c9f0db2dc27793ab2da2a77e72a25"
       ],
       "paper_starting_capital_lamports": 1000000000,
       "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0"

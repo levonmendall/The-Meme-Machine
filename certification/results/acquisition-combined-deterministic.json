@@ -1,0 +1,169 @@
+{
+  "implementation_hash": "14bc89fdae8601c09388099775afe62a9933583be6c546dff443c16cc28a8b19",
+  "integration_sha": "4e85a24acdc0aa86b6d80183ed4845ba657c86ed",
+  "lanes": {
+    "meteora": [
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-v"
+        ],
+        "ended_at": 1789874815.8290122,
+        "exit_code": 0,
+        "log": "meteora-gate-0.log",
+        "sha256": "783e6b59c596a998c042a18ee3b47c335cdcd7325ac784509dbb53b44fd7fe73",
+        "started_at": 1789874812.32594,
+        "summary_complete": true
+      },
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "tests.resource_check"
+        ],
+        "ended_at": 1789874827.6633275,
+        "exit_code": 0,
+        "log": "meteora-gate-1.log",
+        "sha256": "74ba4f78ae9775e4472dd58569578363163d3fb60cfd47b60526b3b9de7625e2",
+        "started_at": 1789874815.8291216,
+        "summary_complete": true
+      },
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "tests.dlmm_resource_check"
+        ],
+        "ended_at": 1789874850.2237015,
+        "exit_code": 0,
+        "log": "meteora-gate-2.log",
+        "sha256": "97fa0b1951d2a48b09df7ae37ebd282d6ecfbbac6a0c28184bcf86e1aec21780",
+        "started_at": 1789874827.6633954,
+        "summary_complete": true
+      }
+    ],
+    "pons": [
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "robinhood_tests",
+          "-v"
+        ],
+        "ended_at": 1789874851.3335578,
+        "exit_code": 0,
+        "log": "pons-gate-0.log",
+        "sha256": "af0b86679c9cf6245f32c223db387bc5052803dd90673c1b33d3032c938b0fa6",
+        "started_at": 1789874850.2238193,
+        "summary_complete": true
+      }
+    ],
+    "pump": [
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-v"
+        ],
+        "ended_at": 1789874800.833465,
+        "exit_code": 0,
+        "log": "pump-gate-0.log",
+        "sha256": "ab364c3dfa73814bda6a7472ad07602526c0830dacd8c05bea2b5ba9fe7aac3b",
+        "started_at": 1789874798.0918622,
+        "summary_complete": true
+      },
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "tests.resource_check"
+        ],
+        "ended_at": 1789874812.325825,
+        "exit_code": 0,
+        "log": "pump-gate-1.log",
+        "sha256": "864b5cdad2a67281e88bc3a54b0e3f5955000c0175ec209ba6adb4bfa7608b02",
+        "started_at": 1789874800.8335137,
+        "summary_complete": true
+      }
+    ],
+    "ramses": [
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "robinhood_tests",
+          "-v"
+        ],
+        "exit_code": 0,
+        "summary_complete": true,
+        "started_at": 1789874921.3946896,
+        "ended_at": 1789874922.2580242,
+        "log": "ramses-verified-final.log",
+        "sha256": "92c123f40670a944340bb51fd05ef26cd6b4db61c55e834072755e466789b071"
+      }
+    ]
+  },
+  "passed": true,
+  "source_diff_hashes": {
+    "meteora": "e614822d5801b080e05039b00c211ed9764b1bb433cc4752d31bfbfb7adea36d",
+    "pons": "8e0a1ca171ca9320b776337a166be9a7d7f4b516f30ff3a0bee0cf2f1c182bed",
+    "pump": "fe65c8ce9b508b5cdc6f5af729081412623fbadc04598dc391ba899323863409",
+    "ramses": "1279ab734ab8a4f72cef8324cdfa8c46c1082f77b64f377d7c0d999901ccdc79"
+  },
+  "source_manifest_hash": "0b834d27f807361b97436a0e5c0daa5634567852e63d0efb7fdadd3ebe586a64",
+  "retained_log_integrity_recheck": {
+    "reason": "prior Ramses retained log did not match verifier digest",
+    "original": {
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "robinhood_tests",
+        "-v"
+      ],
+      "ended_at": 1789874852.4070284,
+      "exit_code": 0,
+      "log": "ramses-gate-0.log",
+      "sha256": "839f49aecfda4fce1b82c62d6e3ffdcd61baf7067971ea5e8b924916544d524a",
+      "started_at": 1789874851.3336282,
+      "summary_complete": true
+    },
+    "replacement": {
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "robinhood_tests",
+        "-v"
+      ],
+      "exit_code": 0,
+      "summary_complete": true,
+      "started_at": 1789874921.3946896,
+      "ended_at": 1789874922.2580242,
+      "log": "ramses-verified-final.log",
+      "sha256": "92c123f40670a944340bb51fd05ef26cd6b4db61c55e834072755e466789b071"
+    }
+  },
+  "counts": {
+    "meteora": 356,
+    "pons": 222,
+    "pump": 251,
+    "ramses": 238
+  },
+  "scope": "Local combined candidate tree; exact original source overlays and all test log hashes verified. Hosted execution repeats at the published integration SHA."
+}

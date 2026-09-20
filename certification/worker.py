@@ -278,7 +278,10 @@ def main():
         elif args.lane=='meteora':
             module=importlib.import_module('tests.solana_dlmm_independent_v1')
             observer.prioritize(module,"_lifecycle")
-            observer.observe_work(module,'_aligned_warmup','fresh_trigger_and_exact_warmup')
+            observer.observe_work(module,'_triggered_warmup','fresh_trigger_and_exact_warmup')
+            observer.observe_work(module,'_await_fresh_swap_trigger','dlmm_fresh_swap_trigger')
+            observer.observe_work(module,'_observe_window','dlmm_window_reconstruction')
+            observer.observe_work(module,'_complete_signature_census','dlmm_signature_census')
             original=module._atomic_checkpoint
             def checkpoint(report,stage,*a,**kw):
                 result=original(report,stage,*a,**kw)
