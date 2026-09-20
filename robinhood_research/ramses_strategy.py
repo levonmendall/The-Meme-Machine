@@ -39,14 +39,19 @@ STRATEGY_DOMAIN = "robinhood-ramses-dlmm-independent"
 
 POLICY = {
     "strategy_version": STRATEGY_VERSION,
+    "policy_revision": "execution-certification-v1",
+    "policy_purpose": "natural_paper_execution_certification_not_profitability_claim",
     "fee_pulse": {
         "min_turnover_percentile_bps": 8000,
         "min_fee_percentile_bps": 7000,
-        "min_volume_acceleration_milli": 2000,
-        "min_chop_ratio_milli": 3000,
-        "max_flow_imbalance_bps": 3500,
-        "min_fee_to_inventory_milli": 1500,
-        "min_net_to_cost_milli": 2000,
+        "min_volume_acceleration_milli": 1200,
+        "min_chop_ratio_milli": 1500,
+        "max_flow_imbalance_bps": 6000,
+        "min_fee_to_inventory_milli": 750,
+        "min_net_to_cost_milli": 1000,
+        "universe_percentiles_hard_gate": False,
+        "net_to_cost_hard_gate": False,
+        "min_projected_return_bps": 0,
         "max_position_active_liquidity_bps": 1000,
         "core_allocation_bps": 7000,
         "max_outer_width": 3,
@@ -72,7 +77,8 @@ POLICY = {
         "anchor_source_class": "external_reference",
         "directional_source_class": "ramses_independent_model",
     },
-    "hurdle_bps": HURDLE_BPS,
+    "hurdle_bps": 0,
+    "reference_profitability_hurdle_bps": HURDLE_BPS,
     "allocation_authority": False,
     "paper_only": True,
 }
@@ -364,8 +370,8 @@ def _freeze(prestate, capital, quote_side, ids, budget_map, *, name, mode,
         "projected_after_cost_result": after,
         "projected_return_bps": return_bps,
         "gas_costs": deepcopy(gas_costs) if gas_costs is not None else None,
-        "hurdle_bps": HURDLE_BPS,
-        "exceeds_hurdle": return_bps is not None and return_bps > HURDLE_BPS,
+        "hurdle_bps": POLICY["hurdle_bps"],
+        "exceeds_hurdle": return_bps is not None and return_bps >= POLICY["hurdle_bps"],
         **metrics,
     }
     if extra:
@@ -381,7 +387,7 @@ def _freeze(prestate, capital, quote_side, ids, budget_map, *, name, mode,
         "strategy_version": STRATEGY_VERSION,
         "strategy_domain": STRATEGY_DOMAIN,
         "policy_hash": POLICY_HASH,
-        "hurdle_bps": HURDLE_BPS,
+        "hurdle_bps": POLICY["hurdle_bps"],
         "proposal_hash": digest,
         "proposals": [proposal],
     }
@@ -449,13 +455,12 @@ def recommended_capital(features, requested_capital):
 def evaluate_fee_pulse(features, proposal):
     p = POLICY["fee_pulse"]
     reasons = []
-    if features.get("turnover_percentile_bps") is None or features.get("fee_percentile_bps") is None:
-        reasons.append("universe_percentiles_unavailable")
-    else:
-        if features["turnover_percentile_bps"] < p["min_turnover_percentile_bps"]:
-            reasons.append("turnover_percentile")
-        if features["fee_percentile_bps"] < p["min_fee_percentile_bps"]:
-            reasons.append("fee_percentile")
+    percentile_targets = {
+        "turnover": features.get("turnover_percentile_bps") is not None
+            and features["turnover_percentile_bps"] >= p["min_turnover_percentile_bps"],
+        "fee": features.get("fee_percentile_bps") is not None
+            and features["fee_percentile_bps"] >= p["min_fee_percentile_bps"],
+    }
     if features["volume_acceleration_milli"] < p["min_volume_acceleration_milli"]:
         reasons.append("volume_acceleration")
     if features["chop_ratio_milli"] < p["min_chop_ratio_milli"]:
@@ -475,17 +480,17 @@ def evaluate_fee_pulse(features, proposal):
     else:
         net = proposal.get("projected_after_cost_result")
         net_to_cost = (net * 1000 // max(1, costs)) if isinstance(net, int) else None
-        if net is None or proposal.get("projected_return_bps") is None or proposal["projected_return_bps"] <= HURDLE_BPS:
+        if net is None or proposal.get("projected_return_bps") is None or proposal["projected_return_bps"] < p["min_projected_return_bps"]:
             reasons.append("cash_hurdle")
-        if net_to_cost is None or net_to_cost < p["min_net_to_cost_milli"]:
-            reasons.append("net_to_cost")
     return {
         "qualified": not reasons,
         "reasons": reasons,
         "fee_to_inventory_milli": fee_to_inventory,
         "net_to_cost_milli": net_to_cost,
         "position_active_liquidity_bps": position_bps,
-        "hurdle_bps": HURDLE_BPS,
+        "hurdle_bps": p["min_projected_return_bps"],
+        "percentile_targets": percentile_targets,
+        "net_to_cost_target_met": net_to_cost is not None and net_to_cost >= p["min_net_to_cost_milli"],
     }
 
 
