@@ -1,0 +1,134 @@
+{
+  "implementation_hash": "5a83dd863f81ecd81e6bf1a5954be2dd8e2e1cc7375a683788d72358549806fc",
+  "integration_sha": "477c153af8efd41d29aacdad25f6e6899df64e67",
+  "lanes": {
+    "meteora": [
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-v"
+        ],
+        "ended_at": 1789883607.0892575,
+        "exit_code": 0,
+        "log": "meteora-gate-0.log",
+        "sha256": "4ebfc8c54bc99fc0d773d593542f556be19c04590875056b227185df817f349b",
+        "started_at": 1789883603.4605005,
+        "summary_complete": true
+      },
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "tests.resource_check"
+        ],
+        "ended_at": 1789883618.767034,
+        "exit_code": 0,
+        "log": "meteora-gate-1.log",
+        "sha256": "a54bf4b8f70151dba86ba79a2051419aa41866586ebd47e572ccb5b50cc4b32d",
+        "started_at": 1789883607.0893178,
+        "summary_complete": true
+      },
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "tests.dlmm_resource_check"
+        ],
+        "ended_at": 1789883640.9190354,
+        "exit_code": 0,
+        "log": "meteora-gate-2.log",
+        "sha256": "220a563e9e2e98c07bf4951eb99891c40c70e1271fdaf90576f459ed53623986",
+        "started_at": 1789883618.767097,
+        "summary_complete": true
+      }
+    ],
+    "pons": [
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "robinhood_tests",
+          "-v"
+        ],
+        "ended_at": 1789883642.135851,
+        "exit_code": 0,
+        "log": "pons-gate-0.log",
+        "sha256": "e79247ad9b82871b600ebe0bdb0a593ff2b7273d6b42d4a2a8587a2401f43808",
+        "started_at": 1789883640.9191186,
+        "summary_complete": true
+      }
+    ],
+    "pump": [
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-v"
+        ],
+        "ended_at": 1789883592.2278233,
+        "exit_code": 0,
+        "log": "pump-gate-0.log",
+        "sha256": "bf4b25e46a8dcab4f7de43471c728bd4eb50c8e51a25817255dd3174858d9a03",
+        "started_at": 1789883589.4458325,
+        "summary_complete": true
+      },
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "tests.resource_check"
+        ],
+        "ended_at": 1789883603.4603832,
+        "exit_code": 0,
+        "log": "pump-gate-1.log",
+        "sha256": "a2511164ac13f4f11b60d7c9d8832298ab728e9a98b817f0dfd7c60bc644ba47",
+        "started_at": 1789883592.2278726,
+        "summary_complete": true
+      }
+    ],
+    "ramses": [
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "robinhood_tests",
+          "-v"
+        ],
+        "ended_at": 1789883643.2117019,
+        "exit_code": 0,
+        "log": "ramses-gate-0.log",
+        "sha256": "c0a5916eaeb17d7bd8084222be585d1d7018b38915ffda3f2e922c16abf7e776",
+        "started_at": 1789883642.1359193,
+        "summary_complete": true
+      }
+    ]
+  },
+  "passed": true,
+  "source_diff_hashes": {
+    "meteora": "6f043c34802539836e71dfbcc033afb6679185f82b02ecdc0c08437c10066431",
+    "pons": "0c5cc26eb1ac4e6bfba4d83fab073bbb24c3f8bb326b6e8b0e3f3d100dae5adc",
+    "pump": "116a5815b09498c4c388f08299ff07e60ea4aa3d526506ee516be17a55c7aa3c",
+    "ramses": "1279ab734ab8a4f72cef8324cdfa8c46c1082f77b64f377d7c0d999901ccdc79"
+  },
+  "source_manifest_hash": "a99f92470ccc01152379ce2bb425b2248246753be1f7bc949298ffa49950e092",
+  "test_counts": {
+    "pump": 259,
+    "meteora": 364,
+    "pons": 226,
+    "ramses": 238,
+    "supervisor": 38
+  },
+  "scope": "local exact-published-integration deterministic verification; not live certification",
+  "live_validation_pending": true
+}
