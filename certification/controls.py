@@ -63,7 +63,7 @@ def record_unfinished_broker_jobs(path,journal,now):
     path=Path(path)
     if not path.exists():return dict(count=0,reasons={})
     db=sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True,timeout=2)
-    counts={}
+    counts={};consumer_counts={}
     try:
         for key,kind,priority,deadline,status in db.execute("SELECT job_key,kind,priority,deadline,status FROM jobs WHERE status IN ('pending','inflight')"):
             reason='evidence_deadline_expired_at_shutdown' if deadline<now else 'uncompleted_evidence_at_campaign_shutdown'
@@ -71,8 +71,21 @@ def record_unfinished_broker_jobs(path,journal,now):
                 job_key=key,kind=kind,priority=priority,deadline=deadline,native_status=status,
                 terminal_reason=reason,qualification_inferred=False))
             counts[reason]=counts.get(reason,0)+1
+        # Logical evidence interests are distinct from the bounded transport queue.
+        # Every unserved consumer also receives a durable shutdown terminal; reducing
+        # admission must never hide missing evidence behind a smaller job count.
+        if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='evidence_consumers'").fetchone():
+            for owner,signature,kind,deadline in db.execute(
+                    "SELECT owner,signature,kind,deadline FROM evidence_consumers WHERE state='waiting'"):
+                reason=('consumer_deadline_expired_at_shutdown' if deadline<now
+                        else 'consumer_censored_at_campaign_shutdown')
+                journal.append('supervisor','consumer-terminal:'+owner+':'+signature,
+                    'evidence_consumer_terminal',dict(owner=owner,signature=signature,
+                    kind=kind,deadline=deadline,terminal_reason=reason,qualification_inferred=False))
+                consumer_counts[reason]=consumer_counts.get(reason,0)+1
     finally:db.close()
-    return dict(count=sum(counts.values()),reasons=counts)
+    return dict(count=sum(counts.values()),reasons=counts,
+                consumer_count=sum(consumer_counts.values()),consumer_reasons=consumer_counts)
 
 
 def smoke_engineering(result):
