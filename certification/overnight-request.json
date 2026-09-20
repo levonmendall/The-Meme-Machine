@@ -1,11 +1,11 @@
 {
   "schema": "four-lane-overnight-request-v1",
-  "sequence": 6,
+  "sequence": 7,
   "phase": "hourly",
   "observation_seconds": 3600,
   "smoke_seconds": 600,
   "paper_only": true,
-  "repair_parent_integration_sha": "acb7e51127c66e89fc524d81408bdb4a0afec629",
+  "repair_parent_integration_sha": "a34c5d4dce4dc93445b837cfeeb51901825bdb9f",
   "superseded_four_hour_run": 35489724704,
   "previous_workflow_run": 35508695288,
   "previous_result": "ENGINEERING_PASS_NATURAL_INCOMPLETE",
@@ -17,9 +17,9 @@
   "meteora_repair_branch_sha": "00ebf7ffb3e13911d6c842898c98312c98d4e628",
   "normal_policy_drain_required": true,
   "new_strategy_promotion_authorized": false,
-  "result_status": "ALCHEMY_COMPARISON_PREPARATION",
-  "local_lane_test_count": 1146,
-  "local_supervisor_test_count": 55,
+  "result_status": "COMBINED_SOLANA_ROBINHOOD_VALIDATION_PREPARATION",
+  "local_lane_test_count": 1175,
+  "local_supervisor_test_count": 60,
   "repair_summary": [
     "Lane-attributed durable opportunity/consumer evidence and stage liveness",
     "Preserve complete Ramses checkpoint and expose pinned scan progress/accounting",
@@ -32,6 +32,7 @@
   ],
   "recurring_launch_authorized": false,
   "validation_authorized": true,
-  "requested_action": "one_smoke_then_one_independent_hourly_comparison",
-  "baseline": "certification/results/alchemy-cycle4-baseline.json"
+  "requested_action": "one_combined_smoke_then_one_independent_hourly_comparison",
+  "baseline": "certification/results/solana-cycle4-baseline.json",
+  "prior_robinhood_validation_status": "NOT_LAUNCHED_SUPERSEDED"
 }

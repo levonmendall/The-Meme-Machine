@@ -1,0 +1,618 @@
+{
+  "aggregate": {
+    "estimated_cu": {
+      "billing_estimate_only": true,
+      "estimated_cu": 1261810,
+      "estimated_cu_by_method": {
+        "getBlockTime": 28280,
+        "getGenesisHash": 1490,
+        "getMultipleAccounts": 38420,
+        "getSignaturesForAddress": 17800,
+        "getTokenLargestAccounts": 2940,
+        "getTransaction": 1172880
+      },
+      "known_estimated_cu": 1261810,
+      "logical_calls": 33398,
+      "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+      "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+      "unpriced_methods": {}
+    },
+    "logical_rpc_members": 33398,
+    "methods": {
+      "getBlockTime": 1414,
+      "getGenesisHash": 149,
+      "getMultipleAccounts": 1921,
+      "getSignaturesForAddress": 445,
+      "getTokenLargestAccounts": 147,
+      "getTransaction": 29322
+    },
+    "physical_http_transports": 8221
+  },
+  "artifact_id": 10605823461,
+  "artifact_sha256": "653ba9aaf63e591b7e6691a8b258103d527de9764b5aca722b15f18f5a564aaa",
+  "continuous_overlap_seconds": 3600.1582767040004,
+  "integration_sha": "6964cfe5c501075e53f3f6f809b85bbdeb50a7cc",
+  "lanes": {
+    "meteora": {
+      "average_batch_occupancy": 1.376750700280112,
+      "batch_size_counts": {
+        "1": 667,
+        "2": 5,
+        "3": 3,
+        "4": 2,
+        "5": 2,
+        "7": 1,
+        "8": 34
+      },
+      "cache_hits": null,
+      "cache_misses": null,
+      "errors": {},
+      "estimated_cu": {
+        "billing_estimate_only": true,
+        "estimated_cu": 29570,
+        "estimated_cu_by_method": {
+          "getBlockTime": 3760,
+          "getGenesisHash": 10,
+          "getMultipleAccounts": 5960,
+          "getSignaturesForAddress": 6600,
+          "getTransaction": 13240
+        },
+        "known_estimated_cu": 29570,
+        "logical_calls": 983,
+        "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "unpriced_methods": {}
+      },
+      "foreground_background_split": null,
+      "funnel": {
+        "accounting_reconciled": true,
+        "accounting_replay": {
+          "authentication": "existing_lane_verified_tapes",
+          "checked_economic_events": 0,
+          "raw_chain_reauthentication": false,
+          "verified": true
+        },
+        "evidence_state": {
+          "consumer_work": {
+            "acquisition_failures": {
+              "local_request_budget_exhausted": 7,
+              "provider_unavailable": 7
+            },
+            "by_kind": {
+              "dlmm_fresh": {
+                "evidence_complete": 331
+              },
+              "pump_window": {
+                "consumer_deadline_expired": 46109,
+                "evidence_complete": 12310
+              },
+              "research_history": {
+                "consumer_deadline_expired": 437,
+                "evidence_complete": 2178
+              },
+              "stream_prefetch": {
+                "consumer_deadline_expired": 49059,
+                "consumer_retired": 2772,
+                "evidence_complete": 6587,
+                "waiting": 157
+              }
+            },
+            "consumers": [
+              {
+                "count": 46109,
+                "kind": "pump_window",
+                "state": "consumer_deadline_expired"
+              },
+              {
+                "count": 437,
+                "kind": "research_history",
+                "state": "consumer_deadline_expired"
+              },
+              {
+                "count": 49059,
+                "kind": "stream_prefetch",
+                "state": "consumer_deadline_expired"
+              },
+              {
+                "count": 2772,
+                "kind": "stream_prefetch",
+                "state": "consumer_retired"
+              },
+              {
+                "count": 331,
+                "kind": "dlmm_fresh",
+                "state": "evidence_complete"
+              },
+              {
+                "count": 12310,
+                "kind": "pump_window",
+                "state": "evidence_complete"
+              },
+              {
+                "count": 2178,
+                "kind": "research_history",
+                "state": "evidence_complete"
+              },
+              {
+                "count": 6587,
+                "kind": "stream_prefetch",
+                "state": "evidence_complete"
+              },
+              {
+                "count": 157,
+                "kind": "stream_prefetch",
+                "state": "waiting"
+              }
+            ],
+            "overdue_active_jobs": 0,
+            "scope": "shared_solana_broker; not additive across lanes"
+          },
+          "expired_jobs": 254,
+          "inflight_jobs": 0,
+          "pending_jobs": 0,
+          "pressure": {
+            "batch_size": 16,
+            "cooldown_until": 0.0,
+            "next_transport_at": 1789910166.3393154,
+            "rate_events": 0,
+            "rate_streak": 0,
+            "recoveries": 8,
+            "reductions": 0,
+            "success_streak": 1,
+            "transport_ready_in_seconds": 0.0,
+            "transport_reservations": 2846
+          },
+          "signature_rows": 21348,
+          "stream_events": 144743,
+          "transaction_cache_entries": 18562
+        },
+        "finality_state": null,
+        "forced_settled": 0,
+        "funnel": {
+          "complete_economic_vectors": 2,
+          "complete_lifecycles": 0,
+          "complete_observations": 2,
+          "discovered": 559,
+          "screened": 99
+        },
+        "last_completed_scan": null,
+        "limitations": [
+          "economic_replay_uses_authenticated_lane_tapes_raw_chain_reauthentication_is_separate"
+        ],
+        "native_accounting": {
+          "available": 1000000000,
+          "capital_time_through_ns": 0,
+          "capital_unit_nanoseconds": 0,
+          "cash": 1000000000,
+          "economic_replay_verified": false,
+          "genesis": {
+            "asset": "SOL_lamports",
+            "capital": 1000000000,
+            "namespace": "solana_meteora_independent_v1",
+            "paper_only": true,
+            "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+            "run_id": "06fcba7f-8b4f-42a9-bc13-d16a1e200700"
+          },
+          "journal_events": 1,
+          "journal_hash": "0fecea0f235682eb9368eb0f3193c8f6603bbe994a23bfdd8d523fe1e13db31c",
+          "marked_equity": 1000000000,
+          "net_cash_flows": 0,
+          "open_positions": 0,
+          "pending": 0,
+          "realized_pnl_lamports": 0,
+          "reconciled": true,
+          "reserved": 0,
+          "settled": 0,
+          "stale_marks": 0,
+          "unrealized_pnl_lamports": 0,
+          "unsettled": 0
+        },
+        "natural_settled": 0,
+        "open_positions": 0,
+        "opportunity_coverage": null,
+        "provider_state": null,
+        "scan_progress": null,
+        "stream_state": {
+          "connected": true,
+          "covered": true,
+          "events": 62958,
+          "gaps": 0,
+          "last_slot": 448742392,
+          "loss_until": 0,
+          "warm_seconds": 3600
+        },
+        "terminal_reasons": {
+          "acceleration_regime_expired": 6,
+          "drift": 2,
+          "expected_net": 2,
+          "experiment_runtime_deadline": 1,
+          "fresh_swap_trigger_timeout": 36,
+          "reversal": 2,
+          "two_way": 1,
+          "unwind": 2,
+          "verified_zero_warmup_after_fresh_swap": 5,
+          "warmup_unverified": 2
+        }
+      },
+      "http_status_counts": {
+        "200": 714
+      },
+      "json_rpc_errors": {},
+      "limitations": [
+        "Historical wire records do not attribute foreground/background or every cache probe.",
+        "Policy cohort differs from current execution-certification; compare engineering replay separately."
+      ],
+      "logical_calls_per_complete_vector": 491.5,
+      "logical_rpc_members": 983,
+      "methods": {
+        "getBlockTime": 188,
+        "getGenesisHash": 1,
+        "getMultipleAccounts": 298,
+        "getSignaturesForAddress": 165,
+        "getTransaction": 331
+      },
+      "physical_http_transports": 714,
+      "physical_requests_per_complete_vector": 357.0,
+      "queue_wait": {
+        "p50": 0.8028233729999101,
+        "p95": 4.429467026999873,
+        "p99": 6.548421682000026
+      },
+      "queue_wait_total_seconds": 691.8657047150048,
+      "repeated_transaction_members": 0,
+      "retries": 0,
+      "transport_latency": {
+        "p50": 0.119772191,
+        "p95": 0.19417375,
+        "p99": 0.227169848
+      },
+      "unique_bodies_returned": 331,
+      "unique_signatures_requested": 331
+    },
+    "pump": {
+      "average_batch_occupancy": 4.317969894764886,
+      "batch_size_counts": {
+        "1": 3745,
+        "2": 86,
+        "3": 66,
+        "4": 57,
+        "5": 63,
+        "6": 53,
+        "7": 57,
+        "8": 3380
+      },
+      "cache_hits": null,
+      "cache_misses": null,
+      "errors": {
+        "certification_provider_queue_deadline": 38,
+        "null_getTransaction": 12
+      },
+      "estimated_cu": {
+        "billing_estimate_only": true,
+        "estimated_cu": 1232240,
+        "estimated_cu_by_method": {
+          "getBlockTime": 24520,
+          "getGenesisHash": 1480,
+          "getMultipleAccounts": 32460,
+          "getSignaturesForAddress": 11200,
+          "getTokenLargestAccounts": 2940,
+          "getTransaction": 1159640
+        },
+        "known_estimated_cu": 1232240,
+        "logical_calls": 32415,
+        "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "unpriced_methods": {}
+      },
+      "foreground_background_split": null,
+      "funnel": {
+        "accounting_reconciled": true,
+        "accounting_replay": {
+          "cash": 5110384300,
+          "events": 0,
+          "final_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "verified": true
+        },
+        "evidence_state": {
+          "consumer_work": {
+            "acquisition_failures": {
+              "local_request_budget_exhausted": 7,
+              "provider_unavailable": 7
+            },
+            "by_kind": {
+              "dlmm_fresh": {
+                "evidence_complete": 331
+              },
+              "pump_window": {
+                "consumer_deadline_expired": 46109,
+                "evidence_complete": 12310
+              },
+              "research_history": {
+                "consumer_deadline_expired": 437,
+                "evidence_complete": 2178
+              },
+              "stream_prefetch": {
+                "consumer_deadline_expired": 70186,
+                "consumer_retired": 3618,
+                "evidence_complete": 11141,
+                "waiting": 1654
+              }
+            },
+            "consumers": [
+              {
+                "count": 46109,
+                "kind": "pump_window",
+                "state": "consumer_deadline_expired"
+              },
+              {
+                "count": 437,
+                "kind": "research_history",
+                "state": "consumer_deadline_expired"
+              },
+              {
+                "count": 70186,
+                "kind": "stream_prefetch",
+                "state": "consumer_deadline_expired"
+              },
+              {
+                "count": 3618,
+                "kind": "stream_prefetch",
+                "state": "consumer_retired"
+              },
+              {
+                "count": 331,
+                "kind": "dlmm_fresh",
+                "state": "evidence_complete"
+              },
+              {
+                "count": 12310,
+                "kind": "pump_window",
+                "state": "evidence_complete"
+              },
+              {
+                "count": 2178,
+                "kind": "research_history",
+                "state": "evidence_complete"
+              },
+              {
+                "count": 11141,
+                "kind": "stream_prefetch",
+                "state": "evidence_complete"
+              },
+              {
+                "count": 1654,
+                "kind": "stream_prefetch",
+                "state": "waiting"
+              }
+            ],
+            "overdue_active_jobs": 0,
+            "scope": "shared_solana_broker; not additive across lanes"
+          },
+          "expired_jobs": 227,
+          "inflight_jobs": 0,
+          "pending_jobs": 0,
+          "pressure": {
+            "batch_size": 16,
+            "cooldown_until": 0.0,
+            "next_transport_at": 1789911169.3292649,
+            "rate_events": 0,
+            "rate_streak": 0,
+            "recoveries": 8,
+            "reductions": 0,
+            "success_streak": 1,
+            "transport_ready_in_seconds": 0.0,
+            "transport_reservations": 4029
+          },
+          "signature_rows": 21348,
+          "stream_events": 174389,
+          "transaction_cache_entries": 19247
+        },
+        "finality_state": null,
+        "forced_settled": 0,
+        "funnel": {
+          "discovered": 1138,
+          "entry_cancelled": 0,
+          "entry_filled": 0,
+          "entry_reserved": 0,
+          "evidence_complete": 235,
+          "qualified": 0,
+          "settled": 0
+        },
+        "last_completed_scan": null,
+        "limitations": [
+          "detailed_cost_decomposition_and_complete_economic_replay_require_verification"
+        ],
+        "native_accounting": {
+          "basis": 0,
+          "capital_hour_denominator": 3600,
+          "capital_unit_seconds": 0,
+          "cash": 5110384300,
+          "initial": 5110384300,
+          "lane": "pump-acceleration-independent-v1",
+          "marked_equity": 5110384300,
+          "open_positions": 0,
+          "pending": 0,
+          "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+          "realized": 0,
+          "reconciled": true,
+          "reserved": 0,
+          "run_id": "06fcba7f-8b4f-42a9-bc13-d16a1e200700",
+          "settled": 0,
+          "unrealized": 0
+        },
+        "natural_settled": 0,
+        "open_positions": 0,
+        "opportunity_coverage": null,
+        "provider_state": {
+          "failover_count": 0,
+          "failover_reasons": {},
+          "last_provider_error": null,
+          "logical_calls": 8,
+          "pacing": {
+            "gettransaction_429_events": 0,
+            "gettransaction_429_streak": 0,
+            "gettransaction_batch_recoveries": 0,
+            "gettransaction_batch_reductions": 0,
+            "gettransaction_batch_size": 16,
+            "gettransaction_cooldown_seconds": 0.0,
+            "minimum_interval_seconds": 0.5,
+            "paced_requests": 5906,
+            "throttle_sleep_seconds": 474.80865573883057
+          },
+          "physical_http_requests": 8,
+          "primary_provider": "alchemy_solana_mainnet",
+          "provider_error_fingerprints": {},
+          "provider_error_sequence": 0,
+          "provider_failure_reasons": {},
+          "provider_failures": {},
+          "provider_http_requests": {
+            "alchemy_solana_mainnet": 8
+          },
+          "provider_http_status_errors": {},
+          "provider_jsonrpc_error_codes": {},
+          "provider_method_failures": {},
+          "provider_successes": {
+            "alchemy_solana_mainnet": 8
+          },
+          "secondary_configured": false,
+          "secondary_provider": "none",
+          "topology": "alchemy_primary_no_rescue_public_ws_discovery"
+        },
+        "scan_progress": null,
+        "stream_state": {
+          "capacity_losses": 0,
+          "connected": false,
+          "covered": false,
+          "creation_capacity_losses": 0,
+          "creation_events": 1311,
+          "creation_records": 1243,
+          "event_id_version": "sig-slot-log-mint-v2",
+          "gaps": 0,
+          "last_slot": 448746153,
+          "loss_until": 0,
+          "max_events": 50000,
+          "notifications": 377161,
+          "parse_failures": 0,
+          "retained_events": 2451,
+          "retention_seconds": 75,
+          "trade_events": 125378,
+          "warm_seconds": 4600
+        },
+        "terminal_reasons": {
+          "full_point_in_time": 235,
+          "incomplete_pumpswap_second_leg_history": 54,
+          "insufficient_curve_trajectory": 28,
+          "invalid reserves": 9,
+          "invalid_curve_progress": 2,
+          "missing_pullback": 3,
+          "optimistic_preflight": 472,
+          "unsupported cashback or quote asset": 32
+        }
+      },
+      "http_status_counts": {
+        "200": 7495,
+        "None": 50
+      },
+      "json_rpc_errors": {},
+      "limitations": [
+        "Historical wire records do not attribute foreground/background or every cache probe.",
+        "Policy cohort differs from current execution-certification; compare engineering replay separately."
+      ],
+      "logical_calls_per_complete_vector": 137.93617021276594,
+      "logical_rpc_members": 32415,
+      "methods": {
+        "getBlockTime": 1226,
+        "getGenesisHash": 148,
+        "getMultipleAccounts": 1623,
+        "getSignaturesForAddress": 280,
+        "getTokenLargestAccounts": 147,
+        "getTransaction": 28991
+      },
+      "physical_http_transports": 7507,
+      "physical_requests_per_complete_vector": 31.94468085106383,
+      "queue_wait": {
+        "p50": 0.257090240000025,
+        "p95": 0.8883878620001724,
+        "p99": 10.728879357000096
+      },
+      "queue_wait_total_seconds": 3927.6965665370108,
+      "repeated_transaction_members": 41,
+      "retries": 198,
+      "transport_latency": {
+        "p50": 0.150141802,
+        "p95": 0.235239041,
+        "p99": 0.260496081
+      },
+      "unique_bodies_returned": 28949,
+      "unique_signatures_requested": 28950
+    },
+    "shared_broker": {
+      "cached_bodies_with_only_prefetch_interest": 9093,
+      "consumer_states": [
+        {
+          "count": 46109,
+          "kind": "pump_window",
+          "state": "consumer_deadline_expired",
+          "unique_signatures": 45884
+        },
+        {
+          "count": 437,
+          "kind": "research_history",
+          "state": "consumer_deadline_expired",
+          "unique_signatures": 437
+        },
+        {
+          "count": 70186,
+          "kind": "stream_prefetch",
+          "state": "consumer_deadline_expired",
+          "unique_signatures": 70179
+        },
+        {
+          "count": 3618,
+          "kind": "stream_prefetch",
+          "state": "consumer_retired",
+          "unique_signatures": 3618
+        },
+        {
+          "count": 331,
+          "kind": "dlmm_fresh",
+          "state": "evidence_complete",
+          "unique_signatures": 331
+        },
+        {
+          "count": 12310,
+          "kind": "pump_window",
+          "state": "evidence_complete",
+          "unique_signatures": 12308
+        },
+        {
+          "count": 2178,
+          "kind": "research_history",
+          "state": "evidence_complete",
+          "unique_signatures": 2178
+        },
+        {
+          "count": 11141,
+          "kind": "stream_prefetch",
+          "state": "evidence_complete",
+          "unique_signatures": 11140
+        },
+        {
+          "count": 1654,
+          "kind": "stream_prefetch",
+          "state": "waiting",
+          "unique_signatures": 1654
+        }
+      ],
+      "consumers_created": 147964,
+      "hot_cached_bodies": 19247,
+      "logical_consumers_per_signature": 1.4175105141641837,
+      "unique_consumer_signatures": 104383,
+      "unique_signatures_observed": 111168,
+      "warning": "Consumer deadlines are not missed economic opportunities; hot cache is not total historical hydration."
+    }
+  },
+  "run_id": 35508695288,
+  "schema": "solana-alchemy-baseline-v1",
+  "scope": "full observation plus normal drain"
+}

@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-20T08:43:00Z",
+  "verified_at": "2026-09-20-execution-certification-v1",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
-      "source_branch": "feat/pump-acceleration-independent-v1",
-      "source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
-      "strategy_version": "pump-acceleration-independent-v1",
-      "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+      "source_branch": "cert/pump-execution-cert-v1",
+      "source_sha": "7bcbf4f6c398e51f4cb01801c057d54244e05abd",
+      "strategy_version": "pump-acceleration-independent-v1/execution-certification-v1",
+      "policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e",
       "file_hashes": {
-        "meme_machine/pump_acceleration_strategy.py": "e69b14cd077e35398a253a4a27f29b8b5c7f3a2454bdbcd0330a7b929c505570",
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
-        ".github/workflows/pump-acceleration-natural-prospective.yml": "2d5e27c8d1808d5a84b521b42b6b4cbce70eef9b5ad6bcdfe9c1d412e5a27232"
+        ".github/workflows/pump-acceleration-natural-prospective.yml": "2d5e27c8d1808d5a84b521b42b6b4cbce70eef9b5ad6bcdfe9c1d412e5a27232",
+        "meme_machine/pump_acceleration_strategy.py": "ab5f149e315b438d959f623d051b394a44509b7a8af892ba8ad5f9bf197fe9d4"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -25,16 +25,21 @@
         "4d094388b3101f1e8ff11357ac8a044b0ef75c63",
         "110dbf34b054daf7a35c72d94196ec7ff0c2c331"
       ],
-      "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd"
+      "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
+      "execution_certification": {
+        "profitability_authority": false,
+        "target_restrictiveness": "~5/10",
+        "original_source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce"
+      }
     },
     "meteora": {
-      "source_branch": "research/solana-dlmm-independent-v1",
-      "source_sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
-      "strategy_version": "solana-dlmm-independent-v1.7",
-      "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+      "source_branch": "cert/meteora-execution-cert-v1",
+      "source_sha": "0f01c79a4994224bf79b8c365b34f9f58cf3904e",
+      "strategy_version": "solana-dlmm-independent-v1.8-execution-certification-v1",
+      "policy_hash": "b1de19ed974faf3c92261fe7f4f6cb47570e4890c49e9547d7f4fcc50c7179b8",
       "file_hashes": {
-        "SOLANA_DLMM_INDEPENDENT_V1.json": "4932d8d9e28f24baccc7917ef59a1fa95218facb8667a9683d6bb41296afee20",
-        ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe"
+        ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
+        "SOLANA_DLMM_INDEPENDENT_V1.json": "e09ad3d90ab4bfa5e39fb05c59c522712960f80ef3601ca0a0f65baaff701059"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -51,16 +56,21 @@
         "00ebf7ffb3e13911d6c842898c98312c98d4e628"
       ],
       "paper_starting_capital_lamports": 1000000000,
-      "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0"
+      "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
+      "execution_certification": {
+        "profitability_authority": false,
+        "target_restrictiveness": "~5/10",
+        "original_source_sha": "45836b18c9afdda29909ebe9cb68d386a47b074f"
+      }
     },
     "pons": {
-      "source_branch": "feat/pons-selective-continuation-v1",
-      "source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
-      "strategy_version": "pons-selective-continuation-v1",
-      "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+      "source_branch": "cert/pons-execution-cert-v1",
+      "source_sha": "c692fe446bdee4ea1179da27a3f0c9f2f281f118",
+      "strategy_version": "pons-selective-continuation-v1/execution-certification-v1",
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
       "file_hashes": {
-        "robinhood_research/pons_selective_continuation.py": "bf872cd83db8d4f187f1abfaacb2537441cee07e38f47b17d73805a23ceb32f8",
-        ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7"
+        ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
+        "robinhood_research/pons_selective_continuation.py": "b2ef248ddcda0c446381fcb307b6115a8bd10c3b84d092366356b60be764adc7"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
@@ -76,16 +86,21 @@
         "38d264c9dd878e2f70ffb461c18bd12ecdd7c1d6",
         "40c66a68704fab147dacbfc25a0819b5a6f9c844"
       ],
-      "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1"
+      "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
+      "execution_certification": {
+        "profitability_authority": false,
+        "target_restrictiveness": "~5/10",
+        "original_source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366"
+      }
     },
     "ramses": {
-      "source_branch": "feat/robinhood-research-foundation",
-      "source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
-      "strategy_version": "ramses-fee-pulse-v1",
-      "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+      "source_branch": "cert/ramses-execution-cert-v1",
+      "source_sha": "6b7ddd69940f5c9e056b2dca61c443450ca9965e",
+      "strategy_version": "ramses-fee-pulse-v1/execution-certification-v1",
+      "policy_hash": "50d928914df10568a7bc9679f0887ac7786fe17d67f1c57171c17a5a95fc6766",
       "file_hashes": {
-        "robinhood_research/ramses_strategy.py": "adefa16bec0a9cb8ebe4de4724ea16be1cd1de90263bc78f976f5ad28bf96fae",
-        ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023"
+        ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
+        "robinhood_research/ramses_strategy.py": "02cfad8c8153bdcef104d7a92be4a65e5e36c67a4067194168b9e798f8f7c2b8"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
@@ -98,7 +113,25 @@
         "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
         "325c6052056500146b88d1ad3e83bf5db5b9657a"
       ],
-      "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a"
+      "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
+      "execution_certification": {
+        "profitability_authority": false,
+        "target_restrictiveness": "~5/10",
+        "original_source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15"
+      }
     }
+  },
+  "execution_certification": {
+    "revision": "execution-certification-v1",
+    "purpose": "prove natural paper lifecycle execution before profitability tightening",
+    "profitability_authority": false,
+    "target_strategy_restrictiveness": "approximately 5/10 per lane",
+    "validation_status": "deferred_pending_alchemy_repairs",
+    "validation_run_requested": false
+  },
+  "composition": {
+    "execution_integration_sha": "960980c4412f525b15568401a2b8f0c2c25bdbab",
+    "robinhood_efficiency_sha": "a34c5d4dce4dc93445b837cfeeb51901825bdb9f",
+    "four_lane_observability_sha": "acb7e51127c66e89fc524d81408bdb4a0afec629"
   }
 }

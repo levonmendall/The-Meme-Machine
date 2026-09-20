@@ -1,3 +1,5 @@
+> Superseded launch instructions: follow SOLANA_ALCHEMY_EFFICIENCY_HANDOFF.md. Robinhood-only validation never launched; the next authorized validation contains both network repairs and current execution-certification sources. Recurring runs remain stopped.
+
 # One-hour paper repair campaign — September 20, 2026
 
 The user replaced the four-hour schedule with successive **one-hour observation

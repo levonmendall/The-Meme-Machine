@@ -9,6 +9,7 @@ import argparse
 import dataclasses
 import functools
 import gzip
+import hashlib
 import importlib
 import json
 import os
@@ -55,7 +56,7 @@ class Observer:
         if now-self.last_activity_write<5:return
         value=dict(lane=self.lane,pid=os.getpid(),process_nonce=PROCESS_NONCE,
             at_monotonic=now,provider_requests=self.requests,method_counts=dict(self.methods),
-            estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods) if self.lane in ('pons','ramses') else None),
+            estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods) if self.lane in ('pump','meteora','pons','ramses') else None),
             errors=dict(self.errors),provider_session_count=len(self.provider_sessions),
             evidence_qualification_inferred=False)
         before=time.monotonic_ns()
@@ -116,7 +117,7 @@ class Observer:
                           scope='serialized observer wall time; excludes strategy-native telemetry, lock wait and final snapshot'),
                       runtime_resources=process_resources(),
                       estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods)
-                          if self.lane in ('pons','ramses') else None),
+                          if self.lane in ('pump','meteora','pons','ramses') else None),
                       report=body,
                       terminal_monotonic=time.monotonic() if phase in ("returned","failed") else None)
             raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
@@ -216,6 +217,7 @@ class Observer:
                                 request=wire,response=result,error=error,queue_wait_seconds=queue_wait,
                                 http_status=http_status,json_rpc_error_codes=rpc_error_codes,
                                 retry_count=getattr(instance,"retry_count",getattr(instance,"retries",None)),
+                                evidence_priority=priority,evidence_kind=getattr(instance,'evidence_kind',None),
                                 authentication='raw_transport_response_requires_lane_verification')
                     observer.raw.write((canonical(record)+'\n').encode());observer.raw.flush();os.fsync(observer.raw.fileno())
                     observer.archive_ns+=time.monotonic_ns()-before
@@ -251,7 +253,13 @@ def policy_for(lane):
         from meme_machine.pump_acceleration_strategy import policy_hash
         return policy_hash()
     if lane=='meteora':
-        return digest(json.loads(Path('SOLANA_DLMM_INDEPENDENT_V1.json').read_text()))
+        path=Path('SOLANA_DLMM_INDEPENDENT_V1.json')
+        source=json.loads((Path(__file__).parent/'sources.json').read_text())['lanes']['meteora']
+        if hashlib.sha256(path.read_bytes()).hexdigest()!=source['file_hashes'][path.name]:
+            raise ValueError('frozen_source_file_drift:meteora')
+        # The execution policy embeds a label predating its description/duplicate-field
+        # synchronization. Bind the label to exact source bytes, never trust it alone.
+        return source['policy_hash']
     name='pons_selective_continuation' if lane=='pons' else 'ramses_strategy'
     return importlib.import_module('robinhood_research.'+name).POLICY_HASH
 

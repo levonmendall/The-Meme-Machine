@@ -13,6 +13,7 @@ import time
 import uuid
 from certification.journal import canonical,digest,Journal
 from certification.governor import Governor
+from certification.solana_efficiency import SolanaReuseView
 from certification.pressure import PressureView, ReuseView
 from certification.report import LANES,dashboard,evaluate,summarize,pipeline_health,provider_efficiency
 from certification.controls import (audit_telemetry,broker_snapshot,record_unfinished_broker_jobs,
@@ -203,6 +204,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     atomic(run/'provider-identities.json',provider_config)
     journal=Journal(run/'supervisor.sqlite');governor=Governor(run/'shared-provider.sqlite')
     pressure=PressureView(run/'shared-robinhood-admission.sqlite')
+    solana_reuse=SolanaReuseView(run/'shared-solana-evidence.sqlite')
     reuse=ReuseView(run/'shared-robinhood-evidence.sqlite')
     started=time.monotonic();start_wall=time.time();processes={};files={};rows={};interrupted=False;terminal_times={}
     common_start=started
@@ -281,7 +283,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                 row['pipeline_health']=pipeline_health(row,time.time())
                 if code is None and row['health']=='responsive' and row['pipeline_health']['state']=='stalled':
                     row['health']='responsive_but_strategy_stalled'
-            result=dict(run_id=run_id,phase=phase,status='RUNNING' if alive else 'FINISHED',started_at=start_wall,observed_at=time.time(),elapsed_seconds=now-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=now)-common_start),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot(),robinhood_reuse=reuse.snapshot()),source_manifest_hash=digest(spec))
+            result=dict(run_id=run_id,phase=phase,status='RUNNING' if alive else 'FINISHED',started_at=start_wall,observed_at=time.time(),elapsed_seconds=now-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=now)-common_start),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot(),robinhood_reuse=reuse.snapshot(),solana_reuse=solana_reuse.snapshot()),source_manifest_hash=digest(spec))
             if now-last_sample>=30:
                 broker=broker_snapshot(run/'shared-solana-evidence.sqlite')
                 max_broker_active=max(max_broker_active,(broker or {}).get('active',0))
@@ -313,7 +315,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         for row in rows.values():
             row['gates']['freshness_finality_unchanged']=source_unchanged
             if not source_unchanged:row['gates']['policy_unchanged']=False
-        result=dict(run_id=run_id,phase=phase,status='FAILED' if interrupted else 'FINISHED',started_at=start_wall,ended_at=time.time(),elapsed_seconds=time.monotonic()-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=time.monotonic())-common_start),source_manifest_hash=digest(spec),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot(),robinhood_reuse=reuse.snapshot()))
+        result=dict(run_id=run_id,phase=phase,status='FAILED' if interrupted else 'FINISHED',started_at=start_wall,ended_at=time.time(),elapsed_seconds=time.monotonic()-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=time.monotonic())-common_start),source_manifest_hash=digest(spec),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot(),robinhood_reuse=reuse.snapshot(),solana_reuse=solana_reuse.snapshot()))
         result.update(supervisor_error=supervisor_error,integration_sha=git('rev-parse','HEAD'),implementation_hash=implementation_hash(),
             maximum_sampled_active_broker_jobs=max_broker_active,broker_shutdown_terminals=broker_terminal,
             source_diff_hashes=gate['source_diff_hashes'])

@@ -1,7 +1,7 @@
 name: four-lane-certification
 on:
   push:
-    branches: [cert/one-hour-repair-campaign]
+    branches: [cert/one-hour-repair-campaign, repair/solana-alchemy-efficiency]
   workflow_dispatch:
     inputs:
       phase:
@@ -21,7 +21,7 @@ jobs:
   concurrent-smoke:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[four-lane-smoke]') || contains(github.event.head_commit.message, '[four-lane-hourly]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    timeout-minutes: 135
     outputs:
       readiness: ${{ steps.readiness.outputs.readiness }}
     steps:
@@ -45,7 +45,7 @@ jobs:
       - name: Verify current heads and absence of competing market jobs
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -m certification.guard
+        run: python -m certification.guard --wait-seconds 3600
       - name: Bounded existing-endpoint read-only capability probes
         env:
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
@@ -77,6 +77,7 @@ jobs:
             certification-gates/
             certification-smoke/
             certification-preflight.json
+            certification-contention-history.jsonl
             certification-hourly-gates/
             certification-hourly/
             certification-native/
@@ -96,7 +97,7 @@ jobs:
     needs: concurrent-smoke
     if: inputs.phase == 'hourly' || contains(github.event.head_commit.message, '[four-lane-hourly]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
+    timeout-minutes: 210
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -118,7 +119,7 @@ jobs:
       - name: Verify current heads and absence of competing market jobs
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -m certification.guard
+        run: python -m certification.guard --wait-seconds 3600
       - name: Restore exact smoke readiness
         env:
           SMOKE_READINESS: ${{ needs.concurrent-smoke.outputs.readiness }}
@@ -127,7 +128,7 @@ jobs:
         env:
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
           MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
-        run: python -m certification.capabilities --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-hourly-gates/rpc-capabilities.json
+        run: python -m certification.capabilities --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates/rpc-capabilities.json
       - name: One-hour continuous paper campaign, no process restart
         env:
           GH_CHECKS_TOKEN: ${{ github.token }}
@@ -152,6 +153,7 @@ jobs:
             certification-hourly/
             certification-native/
             certification-preflight.json
+            certification-contention-history.jsonl
             smoke-readiness.json
           if-no-files-found: error
           retention-days: 90

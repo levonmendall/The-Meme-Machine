@@ -20,19 +20,26 @@ class Governor:
                 provider TEXT PRIMARY KEY,next_at REAL NOT NULL,cooldown REAL NOT NULL,grants INTEGER NOT NULL,rate_errors INTEGER NOT NULL);
                 CREATE TABLE IF NOT EXISTS queue(
                 id TEXT PRIMARY KEY,provider TEXT NOT NULL,lane TEXT NOT NULL,priority INTEGER NOT NULL,created REAL NOT NULL);
-                CREATE INDEX IF NOT EXISTS priority_queue ON queue(provider,priority,created);''')
+                CREATE INDEX IF NOT EXISTS priority_queue ON queue(provider,priority,created);
+                CREATE TABLE IF NOT EXISTS grants(id INTEGER PRIMARY KEY,provider TEXT,lane TEXT,priority INTEGER,
+                    requested REAL,ended REAL,wait REAL,granted INTEGER,reason TEXT);
+                CREATE TRIGGER IF NOT EXISTS grants_no_delete BEFORE DELETE ON grants BEGIN SELECT RAISE(ABORT,'append_only'); END;
+                CREATE TRIGGER IF NOT EXISTS grants_no_update BEFORE UPDATE ON grants BEGIN SELECT RAISE(ABORT,'append_only'); END;''')
+            if 'deadline' not in {r[1] for r in db.execute('PRAGMA table_info(queue)')}:
+                db.execute('ALTER TABLE queue ADD COLUMN deadline REAL')
 
     def acquire(self,provider,lane,priority=50,*,deadline_seconds=30):
         if not 0<deadline_seconds<=30:raise ValueError('provider_deadline_bound')
         identity=str(uuid.uuid4());started=time.monotonic()
         db=sqlite3.connect(self.path,timeout=30,isolation_level=None)
+        granted=False;reason='queue_deadline'
         try:
             db.execute('INSERT OR IGNORE INTO pressure VALUES(?,0,0,0,0)',(provider,))
             db.execute('BEGIN IMMEDIATE')
             db.execute('DELETE FROM queue WHERE created<=?',(started-30,))
             if db.execute('SELECT COUNT(*) FROM queue WHERE provider=?',(provider,)).fetchone()[0]>=256:
                 db.execute('ROLLBACK');raise TimeoutError('certification_provider_queue_capacity')
-            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(identity,provider,lane,priority,started))
+            db.execute('INSERT INTO queue(id,provider,lane,priority,created,deadline) VALUES(?,?,?,?,?,?)',(identity,provider,lane,priority,started,started+deadline_seconds))
             db.execute('COMMIT')
             while True:
                 now=time.monotonic()
@@ -40,11 +47,12 @@ class Governor:
                 db.execute('BEGIN IMMEDIATE')
                 try:
                     db.execute('DELETE FROM queue WHERE created<=?',(now-30,))
-                    head=db.execute('SELECT id FROM queue WHERE provider=? ORDER BY priority,created,id LIMIT 1',(provider,)).fetchone()
+                    head=self._head(db,provider,now)
                     next_at,cooldown=db.execute('SELECT next_at,cooldown FROM pressure WHERE provider=?',(provider,)).fetchone()
                     if head and head[0]==identity and now>=max(next_at,cooldown):
                         db.execute('UPDATE pressure SET next_at=?,grants=grants+1 WHERE provider=?',(now+self.interval,provider))
                         db.execute('DELETE FROM queue WHERE id=?',(identity,));db.execute('COMMIT')
+                        granted=True;reason='granted'
                         return now-started
                     db.execute('COMMIT')
                 except BaseException:
@@ -52,7 +60,21 @@ class Governor:
                 time.sleep(min(.05,max(.005,max(next_at,cooldown)-now)))
         finally:
             if db.in_transaction:db.execute('ROLLBACK')
+            ended=time.monotonic()
+            db.execute('INSERT INTO grants(provider,lane,priority,requested,ended,wait,granted,reason) VALUES(?,?,?,?,?,?,?,?)',(provider,lane,priority,started,ended,ended-started,int(granted),reason))
             db.execute('DELETE FROM queue WHERE id=?',(identity,));db.close()
+
+    @staticmethod
+    def _head(db,provider,now):
+        # Positions always first. Foreground Pump/DLMM use one urgency class,
+        # with a bounded aged grant so a continuous short-deadline lane cannot
+        # suppress the other. Speculative work is never promoted over foreground.
+        return db.execute("""SELECT id FROM queue WHERE provider=?
+            ORDER BY CASE WHEN priority=0 THEN 0
+                     WHEN priority BETWEEN 10 AND 30 AND created<=? THEN 5
+                     WHEN priority BETWEEN 10 AND 30 THEN 10 ELSE priority END,
+            CASE WHEN priority BETWEEN 10 AND 30 AND created<=? THEN created ELSE COALESCE(deadline,created+30) END,
+            created,id LIMIT 1""",(provider,now-2,now-2)).fetchone()
 
     def rate_limited(self,provider):
         with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
@@ -61,4 +83,5 @@ class Governor:
     def status(self):
         with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
             return dict(providers=[dict(provider=p,next_at=n,cooldown=c,grants=g,rate_errors=r) for p,n,c,g,r in db.execute('SELECT * FROM pressure')],
+                        lane_grants=[dict(lane=l,requested=n,granted=g,deadline_misses=n-g,queue_wait_seconds=w,max_wait_seconds=m) for l,n,g,w,m in db.execute('SELECT lane,count(*),sum(granted),sum(wait),max(wait) FROM grants GROUP BY lane')],
                         queues=[dict(lane=l,priority=p,depth=n) for l,p,n in db.execute('SELECT lane,priority,count(*) FROM queue GROUP BY lane,priority')])
