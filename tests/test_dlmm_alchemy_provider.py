@@ -122,9 +122,9 @@ class DLMMAlchemyTopologyTests(unittest.TestCase):
     def test_signature_429_installs_fifteen_second_shared_backoff(self):
         clock=_Clock();pacer=provider.AlchemyPacer()
         first=provider.new_rpc(limit=240,pacer=pacer,environ=ENV,
-                               clock=clock,sleeper=clock.sleep)
+                               clock=clock.time,sleeper=clock.sleep)
         second=provider.new_rpc(limit=240,pacer=pacer,environ=ENV,
-                                clock=clock,sleeper=clock.sleep)
+                                clock=clock.time,sleeper=clock.sleep)
         error=urllib.error.HTTPError(
             "https://example.invalid",429,"rate limited",{},None)
         cooldown=pacer.note_rate_limit(first,error,"getSignaturesForAddress")
