@@ -182,7 +182,12 @@ class IncrementalPumpSwapHistory:
             return
         txs,meta=self.broker.hydrate_transactions(
             rpc,signatures,kind=str(hydration_kind),
-            deadline=time.time()+4.0,max_version=1,batch_size=8)
+            deadline=time.time()+4.0,max_version=1,batch_size=8,
+            # One durable acquisition interest per pool/signature/kind. Repeated
+            # overlapping evaluations keep their own strategy attempt records but
+            # must not multiply identical provider-work consumers or rejuvenate the
+            # original acquisition deadline.
+            owner=f'pump:{self.pool}:window:{hydration_kind}')
         self.stream_pending_transactions=int(meta["pending"])
         self.stream_hydrated_transactions+=int(meta["hydrated"])
         self._pending_stream_slots={sig:slot_by_sig[sig] for sig in signatures
@@ -338,7 +343,8 @@ class IncrementalPumpSwapHistory:
             if self.broker is not None:
                 txmap,meta=self.broker.hydrate_transactions(
                     rpc,signatures,kind=str(kind),
-                    deadline=hydration_deadline,max_version=1,batch_size=8)
+                    deadline=hydration_deadline,max_version=1,batch_size=8,
+                    owner=f'pump:{self.pool}:history:{now}:{kind}')
                 txs=[txmap.get(sig) for sig in signatures]
                 self.tx_failures+=int(meta["pending"])
             else:

@@ -25,10 +25,11 @@ from meme_machine.provider import PumpAdapter,Unavailable
 from meme_machine.pump_acceleration_confirmations import ConfirmationBook
 from meme_machine.pump_acceleration_evidence import (
     curve_progress_bps,early_holder_sell_share_bps,late_curve_trajectory,
-    postgrad_volume_acceleration_bps,price_return_bps,
+    postgrad_volume_acceleration_bps,price_return_bps,pumpswap_trade_events,
     reserve_price_parts,second_leg_shape,
 )
 from meme_machine.pump_acceleration_history import IncrementalPumpSwapHistory
+from meme_machine.solana_evidence_consumers import StreamEvidenceService
 from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
 from meme_machine.pump_acceleration_strategy import (
     MODE_LATE_CURVE,MODE_POSTGRAD,MODE_SECOND_LEG,POLICY,STRATEGY_ID,
@@ -451,6 +452,13 @@ def _terminal(report,row):
     reason=row['terminal_reason'];counts[reason]=counts.get(reason,0)+1
 
 
+def _pumpswap_prefetch_filter(address,value,slot):
+    """Use authenticated logs only to prioritize hydration, never as economics."""
+    tx={'slot':int(slot),'meta':{'err':value.get('err'),
+        'logMessages':value.get('logs') or []}}
+    return any(event.get('pool')==str(address) for event in pumpswap_trade_events(tx))
+
+
 def _retire_postgrad(report,postgrad,pending,active,stream,now):
     protected={key[0] for key in pending}|{key[0] for key in active}
     for mint,state in list(postgrad.items()):
@@ -522,8 +530,13 @@ def main(*,campaign=False,discovery_seconds=None):
     broker=EvidenceBroker(broker_path)
     stop=threading.Event();ready=threading.Event();pumpswap_ready=threading.Event()
     stream=PumpLogStream(primary_rpc_url(),tape,ws_url=discovery_ws_url())
+    # Additional acquisition concurrency is allowed only underneath the shared
+    # cross-process governor. Standalone runners retain their original transport cap.
+    incremental=bool(campaign and os.environ.get('MM_CERT_GOVERNOR_DB'))
     pumpswap_stream=DynamicAddressLogStream(
-        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30)
+        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30,prefetch=incremental,
+        prefetch_filter=_pumpswap_prefetch_filter)
+    evidence_service=StreamEvidenceService(broker,lambda:new_rpc(limit=240)) if incremental else None
     thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
     pumpswap_thread=threading.Thread(
         target=pumpswap_stream.run,args=(stop,pumpswap_ready),daemon=True)
@@ -543,7 +556,9 @@ def main(*,campaign=False,discovery_seconds=None):
     end=discovery_end+FOLLOWUP_SECONDS
 
     try:
+        if evidence_service:evidence_service.start()
         while int(time.time())<end:
+            if evidence_service:evidence_service.check()
             now=int(time.time())
             _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
             _fill_pending(report,pending,active,sessions,postgrad,int(time.time()))
@@ -745,6 +760,9 @@ def main(*,campaign=False,discovery_seconds=None):
             time.sleep(1)
     finally:
         stop.set();thread.join(timeout=5);pumpswap_thread.join(timeout=5)
+        if evidence_service:
+            evidence_service.close()
+            report['stream_evidence_sessions']=evidence_service.sessions
         sessions.finish()
         report["sessions"]=sessions.history
         report["stream"]=tape.status(int(time.time()))
