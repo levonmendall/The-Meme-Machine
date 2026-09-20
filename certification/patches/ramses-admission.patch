@@ -222,13 +222,13 @@ index dfccbc7..3450cd9 100644
  
 diff --git a/robinhood_research/ramses_campaign.py b/robinhood_research/ramses_campaign.py
 new file mode 100644
-index 0000000..0329a90
+index 0000000..79b25ae
 --- /dev/null
 +++ b/robinhood_research/ramses_campaign.py
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,84 @@
 +"""One frozen, asset-separated paper budget for a continuous Ramses campaign.
 +
-+Budgets are declared once from the first complete pinned factory screen, before
++Budgets are declared once from the first fundable pinned factory screen, before
 +any outcome. Later candidates cannot mint capital or exchange unlike quote units.
 +"""
 +import gzip
@@ -247,27 +247,34 @@ index 0000000..0329a90
 +
 +
 +class CampaignBooks:
-+    def __init__(self,root,screen):
++    @staticmethod
++    def budgets_from_screen(screen):
 +        if screen.get('policy_hash')!=POLICY_HASH or screen.get('strategy_domain')!=STRATEGY_DOMAIN:
 +            raise BoundaryError('ramses_campaign_foreign_screen')
 +        if screen.get('finalized_frontier_source')!='pinned_external_finalized_header':
 +            raise BoundaryError('ramses_campaign_unpinned_initial_screen')
-+        self.root=Path(root)
-+        if self.root.exists():raise BoundaryError('ramses_campaign_existing_capital_requires_recovery')
-+        self.root.mkdir(parents=True)
-+        with (self.root/'initial-screen.json.gz').open('wb') as file:
-+            with gzip.GzipFile(fileobj=file,mode='wb') as archive:archive.write(canonical(screen).encode())
-+            file.flush();os.fsync(file.fileno())
-+        self.run_id=uuid.uuid4().hex;self.books={};budgets={}
++        budgets={}
 +        for row in screen.get('rows',[]):
 +            asset=row.get('token_y');amount=row.get('paper_capital_quote_raw')
 +            if not isinstance(asset,str) or not asset.startswith('0x') or len(asset)!=42:continue
 +            if type(amount) is not int or amount<=0:continue
 +            asset=asset.lower();budgets[asset]=max(budgets.get(asset,0),amount)
++        return budgets
++
++    def __init__(self,root,screen):
++        self.root=Path(root)
++        if self.root.exists():raise BoundaryError('ramses_campaign_existing_capital_requires_recovery')
++        budgets=self.budgets_from_screen(screen)
++        if not budgets:raise BoundaryError('ramses_campaign_initial_funding_unavailable')
++        self.root.mkdir(parents=True)
++        with (self.root/'initial-screen.json.gz').open('wb') as file:
++            with gzip.GzipFile(fileobj=file,mode='wb') as archive:archive.write(canonical(screen).encode())
++            file.flush();os.fsync(file.fileno())
++        self.run_id=uuid.uuid4().hex;self.books={}
 +        self.manifest=dict(run_id=self.run_id,policy_hash=POLICY_HASH,paper_only=True,
 +            source_screen_hash=digest(screen),source_finalized_block=screen.get('finalized_block'),
 +            source_finalized_hash=screen.get('finalized_hash'),genesis_by_quote_asset=budgets,
-+            funding_rule='one_maximum_frozen_scanner_size_per_quote_asset_from_initial_screen',
++            funding_rule='one_maximum_frozen_scanner_size_per_quote_asset_from_first_fundable_pinned_screen',
 +            later_assets='unfunded_capacity_censoring',cross_asset_conversion=False)
 +        manifest=self.root/'capital-manifest.json'
 +        with manifest.open('x') as file:file.write(canonical(self.manifest));file.flush();os.fsync(file.fileno())
@@ -290,6 +297,7 @@ index 0000000..0329a90
 +            if row['paper_capital']+row['realized']!=row['available']+row['committed']:
 +                raise BoundaryError('ramses_campaign_conservation')
 +        return dict(manifest=self.manifest,by_quote_asset=rows,
++            funding_state='funded_once_from_pinned_screen',
 +            open_positions=sum(x['open_positions'] for x in rows.values()),
 +            position_count=sum(x['positions'] for x in rows.values()),
 +            conservation=True,unlike_quote_units_summed=False)
@@ -303,7 +311,7 @@ index 0000000..0329a90
 +    def close(self):
 +        for book in self.books.values():book.close()
 diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ramses_extended_test.py
-index e4ab19d..f18da7b 100644
+index e4ab19d..657bef5 100644
 --- a/robinhood_research/ramses_extended_test.py
 +++ b/robinhood_research/ramses_extended_test.py
 @@ -21,6 +21,7 @@ from __future__ import annotations
@@ -340,7 +348,7 @@ index e4ab19d..f18da7b 100644
          batch_size=1,
          batch_pause=0.0,
          rate_retries=3,
-@@ -499,167 +505,213 @@ def run(
+@@ -499,167 +505,220 @@ def run(
          frontier_poll_seconds=DISCOVERY_FRONTIER_POLL_SECONDS,
          frontier_driven_discovery=True,
          started_at=time.time(),
@@ -509,14 +517,21 @@ index e4ab19d..f18da7b 100644
 +                summary["elapsed_seconds"]=time.monotonic()-started
 +                summary["frontier_poll_index"]=frontier_polls
 +                result["natural_screens"].append(summary)
-+                if campaign and campaign_books is None:
++                if campaign and campaign_books is None and CampaignBooks.budgets_from_screen(screen):
 +                    campaign_books=CampaignBooks(Path(str(db_path or DB)+'.campaign'),screen)
 +                    result['campaign_accounting']=campaign_books.reconcile()
++                if campaign and campaign_books is None:
++                    result['campaign_accounting']=dict(funding_state='awaiting_first_fundable_pinned_screen',
++                        by_quote_asset={},open_positions=0,position_count=0,conservation=True,
++                        unlike_quote_units_summed=False,paper_entry_ready=False,
++                        policy_hash=POLICY_HASH,allocation_authority=False)
 +                chosen=select_qualifier(screen)
 +                if chosen is not None and campaign:
 +                    result['natural_qualifier_found']=True
 +                    result['natural_qualifier_pool']=chosen['pool']
 +                    try:
++                        if campaign_books is None:
++                            raise BoundaryError('ramses_campaign_quote_asset_unfunded')
 +                        ledger=campaign_books.ledger(chosen['token_y'])
 +                        life=run_connected(endpoint,costs_by_pool=costs_by_pool,signals_by_pool=signals_by_pool,
 +                            db_path=str(db_path or DB),initial_screen=screen,cost_state=cost_state,
@@ -665,7 +680,7 @@ index e4ab19d..f18da7b 100644
 -        except BoundaryError as exc:
 +        if campaign:
 +            result['status']='continuous_campaign_window_complete'
-+            result['campaign_accounting']=campaign_books.reconcile() if campaign_books else None
++            if campaign_books is not None:result['campaign_accounting']=campaign_books.reconcile()
 +            result['ended_at']=time.time()
 +            # Forced +60s observation is separate machinery, never the campaign hold policy.
 +            return result
@@ -702,7 +717,7 @@ index e4ab19d..f18da7b 100644
  
  
  def _persist_public_result(result):
-@@ -671,10 +723,12 @@ def _persist_public_result(result):
+@@ -671,10 +730,12 @@ def _persist_public_result(result):
      raw=json.dumps(public_result,sort_keys=True,separators=(",",":")).encode()
      if len(raw)>12_000_000:
          raise BoundaryError("extended_market_report_capacity")
@@ -717,7 +732,7 @@ index e4ab19d..f18da7b 100644
      costs=_json_env("MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON")
      signals=_json_env("MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON")
      started=time.time()
-@@ -691,7 +745,7 @@ def main():
+@@ -691,7 +752,7 @@ def main():
                  "MM_ROBINHOOD_RAMSES_EXTENDED_INTERVAL_SECONDS",
                  DISCOVERY_INTERVAL_SECONDS,
              )),
@@ -726,7 +741,7 @@ index e4ab19d..f18da7b 100644
          )
      except BoundaryError as exc:
          result=dict(
-@@ -711,6 +765,11 @@ def main():
+@@ -711,6 +772,11 @@ def main():
              ended_at=time.time(),
              natural_screens=[],
          )
@@ -948,10 +963,10 @@ index 0000000..fa2ab1c
 +            finally:ledger.close()
 diff --git a/robinhood_tests/test_ramses_continuous_campaign.py b/robinhood_tests/test_ramses_continuous_campaign.py
 new file mode 100644
-index 0000000..c8d2937
+index 0000000..e4d0064
 --- /dev/null
 +++ b/robinhood_tests/test_ramses_continuous_campaign.py
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,124 @@
 +import json
 +from pathlib import Path
 +import tempfile
@@ -1035,3 +1050,44 @@ index 0000000..c8d2937
 +            self.assertEqual(rpc.call_args.kwargs['max_sessions'],7)
 +            self.assertEqual(rpc.call_args.kwargs['batch_size'],1)
 +        self.assertEqual(extended.POLICY_HASH,POLICY_HASH)
++
++    def test_empty_first_scan_does_not_permanently_disable_later_fundable_activity(self):
++        clock=[0];calls=[];ledger_ids=[]
++        class Rpc:
++            def verify_chain(self):return 4663
++            def telemetry(self):return {}
++            def call(self,*args,**kwargs):
++                n=100+int(clock[0]//60)
++                return dict(number=hex(n),hash='0x'+format(n,'064x'),parentHash='0x'+format(n-1,'064x'),timestamp=hex(1000+n))
++        def scan(endpoint,**kwargs):
++            header=kwargs['finalized_frontier']
++            rows=[] if clock[0]<60 else [dict(pool='pool',token_y=ASSET,paper_capital_quote_raw=1000)]
++            value=screen(rows);value.update(finalized_block=int(header['number'],16),finalized_hash=header['hash'])
++            return value
++        def connected(endpoint,**kwargs):
++            book=kwargs['campaign_ledger'];ledger_ids.append(id(book));identity=kwargs['lifecycle_prefix']+':'+str(len(calls));calls.append(identity)
++            book.reserve(identity,pool='pool',decision=decision(500),at=len(calls)*3);book.open(identity,at=len(calls)*3+1)
++            final=book.settle(identity,pnl=dict(strategy_domain=STRATEGY_DOMAIN,net_result_quote=10,unresolved_inventory=None),at=len(calls)*3+2)
++            return dict(status='settled',lifecycle_id=identity,ledger_final=final,ledger_reconciliation=book.reconcile(),segments=[dict(terminal_equality=True)])
++        with tempfile.TemporaryDirectory() as td,patch.object(extended,'REPORT',Path(td)/'report.json'), \
++            patch.object(extended,'BoundedMultiRpc',return_value=Rpc()),patch.object(extended,'scan',side_effect=scan), \
++            patch.object(extended,'_screen_summary',side_effect=lambda row:row),patch.object(extended,'select_qualifier',side_effect=lambda row:row['rows'][0] if row['rows'] else None), \
++            patch.object(extended,'run_connected',side_effect=connected),patch.object(extended.time,'monotonic',side_effect=lambda:clock[0]), \
++            patch.object(extended.time,'time',side_effect=lambda:10000+clock[0]),patch.object(extended.time,'sleep',side_effect=lambda n:clock.__setitem__(0,clock[0]+n)):
++            result=extended.run('unused',campaign=True,discovery_seconds=125,db_path=Path(td)/'paper.sqlite')
++            self.assertEqual(len(result['natural_lifecycles']),2)
++            self.assertEqual(len(set(ledger_ids)),1)
++            final=result['campaign_accounting']
++            self.assertEqual(final['manifest']['source_finalized_block'],101)
++            self.assertEqual(final['by_quote_asset'][ASSET]['paper_capital'],1000)
++            self.assertEqual(final['by_quote_asset'][ASSET]['available'],1020)
++            self.assertEqual(clock[0],125)
++
++    def test_unfundable_screen_cannot_create_an_empty_permanent_genesis(self):
++        with tempfile.TemporaryDirectory() as td:
++            root=Path(td)/'campaign'
++            with self.assertRaisesRegex(BoundaryError,'funding_unavailable'):CampaignBooks(root,screen([]))
++            self.assertFalse(root.exists())
++            self.assertEqual(CampaignBooks.budgets_from_screen(screen([])),{})
++            wrong=screen([]);wrong['policy_hash']='foreign'
++            with self.assertRaisesRegex(BoundaryError,'foreign_screen'):CampaignBooks.budgets_from_screen(wrong)

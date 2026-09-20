@@ -46,6 +46,18 @@ class ControlsTests(unittest.TestCase):
             write([])
             with self.assertRaisesRegex(ValueError,'missing_raw'):audit_telemetry(root,'pons','policy')
 
+    def test_empty_frozen_capital_book_is_not_clean_smoke_or_market_scarcity(self):
+        bad=self.smoke();row=bad['lanes']['ramses']
+        row['native_accounting']=dict(conservation=True,manifest=dict(
+            genesis_by_quote_asset={},later_assets='unfunded_capacity_censoring'))
+        self.assertEqual(smoke_engineering(bad)['status'],'FAIL')
+        self.assertIn('ramses:permanently_unfunded_paper_book',evaluate(bad)['failures'])
+        # Waiting for the first fundable screen is a recoverable native state,
+        # not an initialized zero-capacity book or a natural lifecycle proof.
+        row['native_accounting']=dict(funding_state='awaiting_first_fundable_pinned_screen',paper_entry_ready=False)
+        self.assertEqual(smoke_engineering(bad)['status'],'PASS')
+        self.assertEqual(evaluate(bad)['status'],'INCOMPLETE')
+
     def test_shutdown_retains_native_queue_and_records_explicit_censor_reasons(self):
         with tempfile.TemporaryDirectory() as tmp:
             dbpath=Path(tmp)/'broker.sqlite';db=sqlite3.connect(dbpath)
@@ -58,6 +70,29 @@ class ControlsTests(unittest.TestCase):
             self.assertEqual({r['body']['terminal_reason'] for r in rows},{'evidence_deadline_expired_at_shutdown','uncompleted_evidence_at_campaign_shutdown'})
             with sqlite3.connect(dbpath) as db:self.assertEqual(db.execute("SELECT count(*) FROM jobs WHERE status='pending'").fetchone()[0],1)
             journal.close()
+
+    def test_native_read_only_asset_transfers_are_distinct_from_transaction_submission(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for method,allowed in [('alchemy_getAssetTransfers',True),('eth_sendRawTransaction',False)]:
+                root=Path(tmp)/method;root.mkdir();journal=Journal(root/'telemetry.sqlite')
+                record=dict(sequence=1,lane='pons',request=[[method,[]]],response={})
+                journal.append('pons','rpc','rpc_transport',dict(sequence=1,raw_hash=digest(record)))
+                journal.append('pons','end','process_terminal',dict(status='returned',policy_hash='policy'));journal.close()
+                with gzip.open(root/'rpc-evidence.jsonl.gz','wt') as handle:handle.write(json.dumps(record)+'\n')
+                self.assertEqual(audit_telemetry(root,'pons','policy')['read_only'],allowed)
+
+    def test_retry_burden_differences_cumulative_counters_within_each_session(self):
+        from certification.pressure import PressureView
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'provider.sqlite';db=sqlite3.connect(path)
+            db.executescript('CREATE TABLE transports(seq INTEGER PRIMARY KEY,body TEXT); CREATE TABLE limits(endpoint TEXT,cooldown REAL,interval REAL); CREATE TABLE queue(endpoint TEXT,created REAL);')
+            db.execute("INSERT INTO limits VALUES('endpoint',0,0.5)")
+            for session,cumulative in [('a',0),('a',1),('a',1),('a',2),('a',2),('b',1)]:
+                row=dict(lane='pons',endpoint_fingerprint='endpoint',session=session,methods=['eth_call'],retry_count=cumulative)
+                db.execute('INSERT INTO transports(body) VALUES(?)',(json.dumps(row),))
+            db.commit();db.close();view=PressureView(path)
+            self.assertEqual(view.snapshot()['lanes']['pons']['retries'],3)
+            self.assertEqual(view.snapshot()['lanes']['pons']['retries'],3)
 
 
 if __name__=='__main__':unittest.main()

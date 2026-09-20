@@ -1,0 +1,3334 @@
+{
+  "broker_jobs": [
+    {
+      "count": 36,
+      "first_deadline": 1789870592.3836129,
+      "kind": "dlmm_fresh",
+      "last_deadline": 1789870990.4682548,
+      "status": "complete"
+    },
+    {
+      "count": 3,
+      "first_deadline": 1789870659.8218346,
+      "kind": "dlmm_fresh",
+      "last_deadline": 1789870815.9963207,
+      "status": "expired"
+    },
+    {
+      "count": 1712,
+      "first_deadline": 1789870515.1899571,
+      "kind": "pump_window",
+      "last_deadline": 1789871023.603828,
+      "status": "complete"
+    },
+    {
+      "count": 6238,
+      "first_deadline": 1789870525.9067864,
+      "kind": "pump_window",
+      "last_deadline": 1789870994.9161673,
+      "status": "expired"
+    },
+    {
+      "count": 959,
+      "first_deadline": 1789870542.274077,
+      "kind": "research_history",
+      "last_deadline": 1789871044.7573812,
+      "status": "complete"
+    },
+    {
+      "count": 242,
+      "first_deadline": 1789870730.1692116,
+      "kind": "research_history",
+      "last_deadline": 1789871045.2559729,
+      "status": "expired"
+    },
+    {
+      "count": 32,
+      "first_deadline": 1789871047.2701218,
+      "kind": "research_history",
+      "last_deadline": 1789871051.2697875,
+      "status": "pending"
+    }
+  ],
+  "meteora": {
+    "attempts": [
+      {
+        "attempt": 1,
+        "candidate": {
+          "acceleration_bucket_count": 6,
+          "acceleration_window_end": 1789869900,
+          "acceleration_window_end_exclusive": 1789870200,
+          "acceleration_window_start": 1789868400,
+          "address": "81GpCm4d13y8TozYtThabuSCLQN2o3bbrvDogXFPn8sA",
+          "discovery_page": 1,
+          "discovery_raw_rank": 3,
+          "discovery_sort": "volume_5m:desc",
+          "dynamic_fee_pct": 0.0007999999999999999,
+          "event_score": 0.0007564570970077629,
+          "fee_30m_snapshot_usd": 138.89541964903208,
+          "fee_30m_usd": 123.59359150182915,
+          "fee_5m_usd": 43.55870807366493,
+          "fee_acceleration": 2.1146100316869716,
+          "fee_tvl_ratio_5m": 0.000016863490739861312,
+          "latest_completed_bucket_age_seconds": 241,
+          "name": "HYPE-SOL",
+          "signal_observed_at": 1789870441,
+          "sources": [
+            {
+              "rank": 3,
+              "sort": "volume_5m:desc"
+            }
+          ],
+          "token_x": "98sMhvDwXj1RQi5c5Mndm3vPe9cBqPrbLaufMXFNMh5g",
+          "token_y": "So11111111111111111111111111111111111111112",
+          "tvl_usd": 2583018.471418994,
+          "volume_30m_snapshot_usd": 76612.684281629,
+          "volume_30m_usd": 68260.85644410786,
+          "volume_5m_usd": 23934.89153719048,
+          "volume_acceleration": 2.1038316350561836
+        },
+        "compatibility_passed": true,
+        "fresh_swap_trigger_and_warmup": {
+          "aligned": false,
+          "reason": "fresh_swap_trigger_timeout",
+          "trigger": {
+            "acceleration_refreshes": 5,
+            "baseline_slot": 448593160,
+            "bootstrap_auth_reads": 1,
+            "gap_recoveries": 0,
+            "polls": 1,
+            "reason": "fresh_swap_trigger_timeout",
+            "triggered": false,
+            "waited_seconds": 60.000118808000025,
+            "wakeups": 0
+          }
+        },
+        "handoff_started_at": 1789870443,
+        "pool": "81GpCm4d13y8TozYtThabuSCLQN2o3bbrvDogXFPn8sA",
+        "rpc": {
+          "calls": 4,
+          "failure_kinds": {},
+          "failure_methods": {},
+          "failures": 0,
+          "http_requests": 4,
+          "retries": 0,
+          "session_count": 1,
+          "sessions": [
+            {
+              "calls": 4,
+              "failure_kinds": {},
+              "failure_methods": {},
+              "failures": 0,
+              "http_requests": 4,
+              "provider": {
+                "failover_count": 0,
+                "failover_reasons": {},
+                "logical_calls": 4,
+                "pacing": {
+                  "minimum_interval_seconds": 0.2,
+                  "paced_requests": 5,
+                  "rate_limit_cooldown_seconds": 0,
+                  "rate_limit_events": 0,
+                  "rate_limit_streak": 0,
+                  "rate_limit_successes_since_event": 0,
+                  "throttle_sleep_seconds": 0.03520369529724121
+                },
+                "physical_http_requests": 4,
+                "primary_provider": "alchemy_solana_mainnet_existing_secret",
+                "provider_failure_reasons": {},
+                "provider_failures": {},
+                "provider_http_requests": {
+                  "alchemy_solana_mainnet_existing_secret": 4
+                },
+                "provider_successes": {
+                  "alchemy_solana_mainnet_existing_secret": 4
+                },
+                "secondary_configured": false,
+                "secondary_provider": null,
+                "topology": "dlmm_public_ws_alchemy_http"
+              },
+              "retries": 0
+            }
+          ]
+        },
+        "signal_to_handoff_seconds": 2,
+        "terminal_classification": "fresh_swap_trigger_timeout"
+      },
+      {
+        "attempt": 2,
+        "candidate": {
+          "acceleration_bucket_count": 6,
+          "acceleration_window_end": 1789870200,
+          "acceleration_window_end_exclusive": 1789870500,
+          "acceleration_window_start": 1789868700,
+          "address": "46CgAPEz8V2e9UL5PDa3JNWFW6sk7uFCj7TjdB3XbKD3",
+          "discovery_page": 1,
+          "discovery_raw_rank": 28,
+          "discovery_sort": "volume_5m:desc",
+          "dynamic_fee_pct": 0.0005585,
+          "event_score": 0.0015904274787563676,
+          "fee_30m_snapshot_usd": 7.665721559929429,
+          "fee_30m_usd": 7.6657215599294295,
+          "fee_5m_usd": 3.109723635147252,
+          "fee_acceleration": 2.4339968083911567,
+          "fee_tvl_ratio_5m": 0.00003278727957311443,
+          "latest_completed_bucket_age_seconds": 12,
+          "name": "HYPE-SOL",
+          "signal_observed_at": 1789870512,
+          "sources": [
+            {
+              "rank": 28,
+              "sort": "volume_5m:desc"
+            }
+          ],
+          "token_x": "98sMhvDwXj1RQi5c5Mndm3vPe9cBqPrbLaufMXFNMh5g",
+          "token_y": "So11111111111111111111111111111111111111112",
+          "tvl_usd": 94845.4301679004,
+          "volume_30m_snapshot_usd": 8421.86145619489,
+          "volume_30m_usd": 8421.861456194889,
+          "volume_5m_usd": 3435.592558544579,
+          "volume_acceleration": 2.447624608702713
+        },
+        "compatibility_passed": true,
+        "fresh_swap_trigger_and_warmup": {
+          "aligned": false,
+          "reason": "fresh_swap_trigger_timeout",
+          "trigger": {
+            "acceleration_refreshes": 5,
+            "baseline_slot": 448593429,
+            "bootstrap_auth_reads": 1,
+            "gap_recoveries": 0,
+            "polls": 1,
+            "reason": "fresh_swap_trigger_timeout",
+            "triggered": false,
+            "waited_seconds": 60.000108755000014,
+            "wakeups": 0
+          }
+        },
+        "handoff_started_at": 1789870515,
+        "pool": "46CgAPEz8V2e9UL5PDa3JNWFW6sk7uFCj7TjdB3XbKD3",
+        "rpc": {
+          "calls": 4,
+          "failure_kinds": {},
+          "failure_methods": {},
+          "failures": 0,
+          "http_requests": 4,
+          "retries": 0,
+          "session_count": 1,
+          "sessions": [
+            {
+              "calls": 4,
+              "failure_kinds": {},
+              "failure_methods": {},
+              "failures": 0,
+              "http_requests": 4,
+              "provider": {
+                "failover_count": 0,
+                "failover_reasons": {},
+                "logical_calls": 4,
+                "pacing": {
+                  "minimum_interval_seconds": 0.2,
+                  "paced_requests": 16,
+                  "rate_limit_cooldown_seconds": 0,
+                  "rate_limit_events": 0,
+                  "rate_limit_streak": 0,
+                  "rate_limit_successes_since_event": 0,
+                  "throttle_sleep_seconds": 0.12448811531066895
+                },
+                "physical_http_requests": 4,
+                "primary_provider": "alchemy_solana_mainnet_existing_secret",
+                "provider_failure_reasons": {},
+                "provider_failures": {},
+                "provider_http_requests": {
+                  "alchemy_solana_mainnet_existing_secret": 4
+                },
+                "provider_successes": {
+                  "alchemy_solana_mainnet_existing_secret": 4
+                },
+                "secondary_configured": false,
+                "secondary_provider": null,
+                "topology": "dlmm_public_ws_alchemy_http"
+              },
+              "retries": 0
+            }
+          ]
+        },
+        "signal_to_handoff_seconds": 3,
+        "terminal_classification": "fresh_swap_trigger_timeout"
+      },
+      {
+        "attempt": 3,
+        "candidate": {
+          "acceleration_bucket_count": 6,
+          "acceleration_window_end": 1789870200,
+          "acceleration_window_end_exclusive": 1789870500,
+          "acceleration_window_start": 1789868700,
+          "address": "Cgnuirsk5dQ9Ka1Grnru7J8YW1sYncYUjiXvYxT7G4iZ",
+          "discovery_page": 1,
+          "discovery_raw_rank": 46,
+          "discovery_sort": "volume_5m:desc",
+          "dynamic_fee_pct": 0.0000159,
+          "event_score": 0.0011316362386541994,
+          "fee_30m_snapshot_usd": 12.417445175895278,
+          "fee_30m_usd": 12.798901702912513,
+          "fee_5m_usd": 4.569791153824318,
+          "fee_acceleration": 2.142273419969036,
+          "fee_tvl_ratio_5m": 0.00003140677352615422,
+          "latest_completed_bucket_age_seconds": 83,
+          "name": "TROLL-SOL",
+          "signal_observed_at": 1789870583,
+          "sources": [
+            {
+              "rank": 46,
+              "sort": "volume_5m:desc"
+            }
+          ],
+          "token_x": "5UUH9RTDiSpq6HKS6bp4NdU9PNJpXRXuiw6ShBTBhgH2",
+          "token_y": "So11111111111111111111111111111111111111112",
+          "tvl_usd": 145503.362515694,
+          "volume_30m_snapshot_usd": 6866.416706445728,
+          "volume_30m_usd": 7078.331318598926,
+          "volume_5m_usd": 2531.8235101195273,
+          "volume_acceleration": 2.14611896179565
+        },
+        "compatibility_passed": true,
+        "fresh_swap_trigger_and_warmup": {
+          "aligned": false,
+          "qualifying_window_seconds": 12,
+          "reason": "warmup_unverified",
+          "swaps": null,
+          "trigger": {
+            "acceleration_refreshes": 1,
+            "baseline_slot": 448593702,
+            "block_time": 1789870581,
+            "bootstrap_auth_reads": 1,
+            "gap_recoveries": 0,
+            "polls": 1,
+            "post_trigger_slot": 448593721,
+            "reason": "authenticated_fresh_swap",
+            "signature": "5PjsJJctQLq94nPQA5LgWusukih6gdggsGPUmTVZ7emautqZm1EpT2HH5wjKXMuHKt4bzpZGKm6xLdLjTfgw4aCj",
+            "slot": 448593720,
+            "swap_count": 1,
+            "swaps": [
+              {
+                "amount": 4124834,
+                "execution_order": [
+                  3,
+                  1
+                ],
+                "for_y": true,
+                "instruction": "swap",
+                "observed": {
+                  "end": -417,
+                  "fee": 8283,
+                  "output": 1789343,
+                  "protocol_fee": 828,
+                  "start": -417
+                },
+                "slot": 448593720,
+                "swap_mode": "trigger_only",
+                "time": 1789870581,
+                "trigger_only": true
+              }
+            ],
+            "triggered": true,
+            "waited_seconds": 4.995827994000024,
+            "wake_source": "handoff_gap_auth",
+            "wakeups": 0
+          },
+          "warmup": {
+            "chunks": [
+              {
+                "adjustments": 0,
+                "end_slot": 448593730,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": false,
+                  "pages": 16,
+                  "prior_oldest_slot": null,
+                  "relevant_successful": 0,
+                  "rows_scanned": 1024,
+                  "start_boundary_slot": 448593720
+                },
+                "start_slot": null,
+                "swaps": 0
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448593860,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448580121,
+                  "relevant_successful": 3,
+                  "rows_scanned": 8,
+                  "start_boundary_slot": 448593720,
+                  "transaction_hydration": {
+                    "hydrated": 3,
+                    "pending": 0,
+                    "pressure": {
+                      "batch_size": 13,
+                      "cooldown_until": 1789870566.00016,
+                      "next_transport_at": 1789870630.9550712,
+                      "rate_events": 1,
+                      "rate_streak": 0,
+                      "recoveries": 13,
+                      "reductions": 1,
+                      "success_streak": 0,
+                      "transport_ready_in_seconds": 0,
+                      "transport_reservations": 112
+                    },
+                    "requested": 3
+                  }
+                },
+                "start_slot": 448593721,
+                "swaps": 3
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448593877,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448580121,
+                  "relevant_successful": 0,
+                  "rows_scanned": 1,
+                  "start_boundary_slot": 448593745
+                },
+                "start_slot": null,
+                "swaps": 0
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448593890,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448580121,
+                  "relevant_successful": 0,
+                  "rows_scanned": 2,
+                  "start_boundary_slot": 448593745
+                },
+                "start_slot": null,
+                "swaps": 0
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448593902,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448580121,
+                  "relevant_successful": 0,
+                  "rows_scanned": 0,
+                  "start_boundary_slot": 448593885
+                },
+                "start_slot": null,
+                "swaps": 0
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448593915,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448580121,
+                  "relevant_successful": 1,
+                  "rows_scanned": 2,
+                  "start_boundary_slot": 448593885,
+                  "transaction_hydration": {
+                    "hydrated": 1,
+                    "pending": 0,
+                    "pressure": {
+                      "batch_size": 15,
+                      "cooldown_until": 1789870566.00016,
+                      "next_transport_at": 1789870645.8913012,
+                      "rate_events": 1,
+                      "rate_streak": 0,
+                      "recoveries": 15,
+                      "reductions": 1,
+                      "success_streak": 0,
+                      "transport_ready_in_seconds": 0,
+                      "transport_reservations": 128
+                    },
+                    "requested": 1
+                  }
+                },
+                "start_slot": 448593745,
+                "swaps": 1
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448593934,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448580121,
+                  "relevant_successful": 2,
+                  "rows_scanned": 0,
+                  "start_boundary_slot": 448593910,
+                  "transaction_hydration": {
+                    "hydrated": 2,
+                    "pending": 0,
+                    "pressure": {
+                      "batch_size": 3,
+                      "cooldown_until": 1789870653.6854563,
+                      "next_transport_at": 1789870653.8854563,
+                      "rate_events": 3,
+                      "rate_streak": 2,
+                      "recoveries": 15,
+                      "reductions": 3,
+                      "success_streak": 1,
+                      "transport_ready_in_seconds": 3.8395731449127197,
+                      "transport_reservations": 134
+                    },
+                    "requested": 2
+                  }
+                },
+                "start_slot": 448593910,
+                "swaps": 2
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448593946,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448580121,
+                  "relevant_successful": 0,
+                  "rows_scanned": 0,
+                  "start_boundary_slot": 448593918
+                },
+                "start_slot": null,
+                "swaps": 0
+              }
+            ],
+            "elapsed_seconds": 8,
+            "rate_limit_recoveries": 0,
+            "reason": "solana_dlmm_transaction_hydration_incomplete",
+            "resets": 0,
+            "verified": false
+          }
+        },
+        "handoff_started_at": 1789870586,
+        "pool": "Cgnuirsk5dQ9Ka1Grnru7J8YW1sYncYUjiXvYxT7G4iZ",
+        "rpc": {
+          "calls": 65,
+          "failure_kinds": {
+            "http_429": 2
+          },
+          "failure_methods": {
+            "getSignaturesForAddress:http_429": 2
+          },
+          "failures": 2,
+          "http_requests": 54,
+          "retries": 2,
+          "session_count": 1,
+          "sessions": [
+            {
+              "calls": 65,
+              "failure_kinds": {
+                "http_429": 2
+              },
+              "failure_methods": {
+                "getSignaturesForAddress:http_429": 2
+              },
+              "failures": 2,
+              "http_requests": 54,
+              "provider": {
+                "failover_count": 0,
+                "failover_reasons": {},
+                "logical_calls": 65,
+                "pacing": {
+                  "minimum_interval_seconds": 0.2,
+                  "paced_requests": 76,
+                  "rate_limit_cooldown_seconds": 4,
+                  "rate_limit_events": 2,
+                  "rate_limit_streak": 0,
+                  "rate_limit_successes_since_event": 0,
+                  "throttle_sleep_seconds": 0.16727733612060547
+                },
+                "physical_http_requests": 54,
+                "primary_provider": "alchemy_solana_mainnet_existing_secret",
+                "provider_failure_reasons": {
+                  "alchemy_solana_mainnet_existing_secret:http_429": 2
+                },
+                "provider_failures": {
+                  "alchemy_solana_mainnet_existing_secret": 2
+                },
+                "provider_http_requests": {
+                  "alchemy_solana_mainnet_existing_secret": 54
+                },
+                "provider_successes": {
+                  "alchemy_solana_mainnet_existing_secret": 52
+                },
+                "secondary_configured": false,
+                "secondary_provider": null,
+                "topology": "dlmm_public_ws_alchemy_http"
+              },
+              "retries": 2
+            }
+          ]
+        },
+        "signal_to_handoff_seconds": 3,
+        "terminal_classification": "warmup_unverified"
+      },
+      {
+        "attempt": 4,
+        "candidate": {
+          "acceleration_bucket_count": 6,
+          "acceleration_window_end": 1789870200,
+          "acceleration_window_end_exclusive": 1789870500,
+          "acceleration_window_start": 1789868700,
+          "address": "9F5zcBtYYbXGqfMsMyWTKcZmmp3PLsefZCy8oohge9Bs",
+          "discovery_page": 1,
+          "discovery_raw_rank": 47,
+          "discovery_sort": "volume_5m:desc",
+          "dynamic_fee_pct": 0.0854297,
+          "event_score": 0.048887929230844486,
+          "fee_30m_snapshot_usd": 71.38473594735584,
+          "fee_30m_usd": 100.3398092000745,
+          "fee_5m_usd": 49.1825509219653,
+          "fee_acceleration": 2.940959404690324,
+          "fee_tvl_ratio_5m": 0.0006598141570225366,
+          "latest_completed_bucket_age_seconds": 153,
+          "name": "biketyson-SOL",
+          "signal_observed_at": 1789870653,
+          "sources": [
+            {
+              "rank": 47,
+              "sort": "volume_5m:desc"
+            }
+          ],
+          "token_x": "CbyTNf7UPzvewHh4Zp6umogM2RWahhmGRJWLJnPwpump",
+          "token_y": "So11111111111111111111111111111111111111112",
+          "tvl_usd": 74540.00554323575,
+          "volume_30m_snapshot_usd": 7741.726035702119,
+          "volume_30m_usd": 10846.287278413809,
+          "volume_5m_usd": 5309.603549315676,
+          "volume_acceleration": 2.9371913612593343
+        },
+        "compatibility_passed": true,
+        "fresh_swap_trigger_and_warmup": {
+          "aligned": false,
+          "qualifying_window_seconds": 12,
+          "reason": "warmup_unverified",
+          "swaps": null,
+          "trigger": {
+            "acceleration_refreshes": 2,
+            "baseline_slot": 448593962,
+            "block_time": 1789870662,
+            "bootstrap_auth_reads": 1,
+            "gap_recoveries": 0,
+            "polls": 3,
+            "post_trigger_slot": 448594045,
+            "reason": "authenticated_fresh_swap",
+            "signature": "3vvDfviTJk3muhpgEiYFStmC1Mxz3yhJbWQBhEMBNJ9aEvMzkN2Z33KxETradybuEAA2rNNo4amcM3uic3rKSk2X",
+            "slot": 448594026,
+            "swap_count": 1,
+            "swaps": [
+              {
+                "amount": 64079378892,
+                "execution_order": [
+                  6,
+                  11
+                ],
+                "for_y": true,
+                "instruction": "swap2",
+                "observed": {
+                  "end": -442,
+                  "fee": 695538457,
+                  "output": 779707214,
+                  "protocol_fee": 69553845,
+                  "start": -441
+                },
+                "slot": 448594026,
+                "swap_mode": "trigger_only",
+                "time": 1789870662,
+                "trigger_only": true
+              }
+            ],
+            "triggered": true,
+            "waited_seconds": 21.509916180999994,
+            "wake_source": "finalized_program_account_stream",
+            "wakeups": 2
+          },
+          "warmup": {
+            "chunks": [
+              {
+                "adjustments": 0,
+                "end_slot": 448594054,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": false,
+                  "pages": 16,
+                  "prior_oldest_slot": null,
+                  "relevant_successful": 0,
+                  "rows_scanned": 1024,
+                  "start_boundary_slot": 448594026
+                },
+                "start_slot": null,
+                "swaps": 0
+              }
+            ],
+            "elapsed_seconds": 1,
+            "rate_limit_recoveries": 0,
+            "reason": "solana_dlmm_transaction_hydration_incomplete",
+            "resets": 0,
+            "verified": false
+          }
+        },
+        "handoff_started_at": 1789870656,
+        "pool": "9F5zcBtYYbXGqfMsMyWTKcZmmp3PLsefZCy8oohge9Bs",
+        "rpc": {
+          "calls": 45,
+          "failure_kinds": {
+            "http_429": 2
+          },
+          "failure_methods": {
+            "getSignaturesForAddress:http_429": 2
+          },
+          "failures": 2,
+          "http_requests": 35,
+          "retries": 2,
+          "session_count": 1,
+          "sessions": [
+            {
+              "calls": 45,
+              "failure_kinds": {
+                "http_429": 2
+              },
+              "failure_methods": {
+                "getSignaturesForAddress:http_429": 2
+              },
+              "failures": 2,
+              "http_requests": 35,
+              "provider": {
+                "failover_count": 0,
+                "failover_reasons": {},
+                "logical_calls": 45,
+                "pacing": {
+                  "minimum_interval_seconds": 0.2,
+                  "paced_requests": 111,
+                  "rate_limit_cooldown_seconds": 10,
+                  "rate_limit_events": 4,
+                  "rate_limit_streak": 1,
+                  "rate_limit_successes_since_event": 0,
+                  "throttle_sleep_seconds": 2.1652870178222656
+                },
+                "physical_http_requests": 35,
+                "primary_provider": "alchemy_solana_mainnet_existing_secret",
+                "provider_failure_reasons": {
+                  "alchemy_solana_mainnet_existing_secret:http_429": 2
+                },
+                "provider_failures": {
+                  "alchemy_solana_mainnet_existing_secret": 2
+                },
+                "provider_http_requests": {
+                  "alchemy_solana_mainnet_existing_secret": 35
+                },
+                "provider_successes": {
+                  "alchemy_solana_mainnet_existing_secret": 33
+                },
+                "secondary_configured": false,
+                "secondary_provider": null,
+                "topology": "dlmm_public_ws_alchemy_http"
+              },
+              "retries": 2
+            }
+          ]
+        },
+        "signal_to_handoff_seconds": 3,
+        "terminal_classification": "warmup_unverified"
+      },
+      {
+        "attempt": 5,
+        "candidate": {
+          "acceleration_bucket_count": 6,
+          "acceleration_window_end": 1789870200,
+          "acceleration_window_end_exclusive": 1789870500,
+          "acceleration_window_start": 1789868700,
+          "address": "Ekm4LYkihEdQgZx2UReDMJ3eCDDjExPQLG94WfWmfyWr",
+          "discovery_page": 1,
+          "discovery_raw_rank": 60,
+          "discovery_sort": "volume_5m:desc",
+          "dynamic_fee_pct": 0.12,
+          "event_score": 0.034969213720503746,
+          "fee_30m_snapshot_usd": 16.091299979835803,
+          "fee_30m_usd": 16.091299979835807,
+          "fee_5m_usd": 13.109966691545068,
+          "fee_acceleration": 4.8883434059299065,
+          "fee_tvl_ratio_5m": 0.0002049418944055381,
+          "latest_completed_bucket_age_seconds": 223,
+          "name": "OTC-SOL",
+          "signal_observed_at": 1789870723,
+          "sources": [
+            {
+              "rank": 60,
+              "sort": "volume_5m:desc"
+            }
+          ],
+          "token_x": "MukLDtJ8Cx9DxLbeyLRSWPSposTMWuwHANbuaudpump",
+          "token_y": "So11111111111111111111111111111111111111112",
+          "tvl_usd": 63969.18858182859,
+          "volume_30m_snapshot_usd": 1701.7573704219944,
+          "volume_30m_usd": 1701.7573704219942,
+          "volume_5m_usd": 1370.5095592621403,
+          "volume_acceleration": 4.832097394432747
+        },
+        "compatibility_passed": true,
+        "fresh_swap_trigger_and_warmup": {
+          "aligned": false,
+          "qualifying_window_seconds": 12,
+          "reason": "warmup_unverified",
+          "swaps": null,
+          "trigger": {
+            "acceleration_refreshes": 3,
+            "baseline_slot": 448594230,
+            "block_time": 1789870744,
+            "bootstrap_auth_reads": 1,
+            "gap_recoveries": 0,
+            "polls": 4,
+            "post_trigger_slot": 448594350,
+            "reason": "authenticated_fresh_swap",
+            "signature": "2Yw3hyh59JMjzYyLAGbmNocDBRkL7B2Ef7bzadHtMjbL9GLvSBRu6VK9SZd75vATmhdB17BHNaoxL8DfsrdjxhBt",
+            "slot": 448594335,
+            "swap_count": 1,
+            "swaps": [
+              {
+                "amount": 2162736781,
+                "execution_order": [
+                  3,
+                  9
+                ],
+                "for_y": false,
+                "instruction": "swap2",
+                "observed": {
+                  "end": -281,
+                  "fee": 21901103,
+                  "output": 35336560911,
+                  "protocol_fee": 2190109,
+                  "start": -282
+                },
+                "slot": 448594335,
+                "swap_mode": "trigger_only",
+                "time": 1789870744,
+                "trigger_only": true
+              }
+            ],
+            "triggered": true,
+            "waited_seconds": 32.70639000699998,
+            "wake_source": "finalized_program_account_stream",
+            "wakeups": 3
+          },
+          "warmup": {
+            "chunks": [
+              {
+                "adjustments": 0,
+                "end_slot": 448594360,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": false,
+                  "pages": 16,
+                  "prior_oldest_slot": null,
+                  "relevant_successful": 0,
+                  "rows_scanned": 1024,
+                  "start_boundary_slot": 448594335
+                },
+                "start_slot": null,
+                "swaps": 0
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448594488,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448593084,
+                  "relevant_successful": 10,
+                  "rows_scanned": 17,
+                  "start_boundary_slot": 448594335,
+                  "transaction_hydration": {
+                    "hydrated": 10,
+                    "pending": 0,
+                    "pressure": {
+                      "batch_size": 3,
+                      "cooldown_until": 1789870785.5277116,
+                      "next_transport_at": 1789870801.7752519,
+                      "rate_events": 8,
+                      "rate_streak": 1,
+                      "recoveries": 29,
+                      "reductions": 8,
+                      "success_streak": 2,
+                      "transport_ready_in_seconds": 0,
+                      "transport_reservations": 266
+                    },
+                    "requested": 10
+                  }
+                },
+                "start_slot": 448594350,
+                "swaps": 5
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448594523,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448593084,
+                  "relevant_successful": 1,
+                  "rows_scanned": 8,
+                  "start_boundary_slot": 448594482,
+                  "transaction_hydration": {
+                    "hydrated": 1,
+                    "pending": 0,
+                    "pressure": {
+                      "batch_size": 3,
+                      "cooldown_until": 1789870785.5277116,
+                      "next_transport_at": 1789870805.2173665,
+                      "rate_events": 8,
+                      "rate_streak": 1,
+                      "recoveries": 29,
+                      "reductions": 8,
+                      "success_streak": 3,
+                      "transport_ready_in_seconds": 0,
+                      "transport_reservations": 267
+                    },
+                    "requested": 1
+                  }
+                },
+                "start_slot": null,
+                "swaps": 0
+              }
+            ],
+            "elapsed_seconds": 3,
+            "rate_limit_recoveries": 0,
+            "reason": "solana_dlmm_transaction_hydration_incomplete",
+            "resets": 0,
+            "verified": false
+          }
+        },
+        "handoff_started_at": 1789870726,
+        "pool": "Ekm4LYkihEdQgZx2UReDMJ3eCDDjExPQLG94WfWmfyWr",
+        "rpc": {
+          "calls": 79,
+          "failure_kinds": {
+            "http_429": 2
+          },
+          "failure_methods": {
+            "getSignaturesForAddress:http_429": 2
+          },
+          "failures": 2,
+          "http_requests": 51,
+          "retries": 2,
+          "session_count": 1,
+          "sessions": [
+            {
+              "calls": 79,
+              "failure_kinds": {
+                "http_429": 2
+              },
+              "failure_methods": {
+                "getSignaturesForAddress:http_429": 2
+              },
+              "failures": 2,
+              "http_requests": 51,
+              "provider": {
+                "failover_count": 0,
+                "failover_reasons": {},
+                "logical_calls": 79,
+                "pacing": {
+                  "minimum_interval_seconds": 0.2,
+                  "paced_requests": 165,
+                  "rate_limit_cooldown_seconds": 16,
+                  "rate_limit_events": 6,
+                  "rate_limit_streak": 0,
+                  "rate_limit_successes_since_event": 0,
+                  "throttle_sleep_seconds": 4.163784027099609
+                },
+                "physical_http_requests": 51,
+                "primary_provider": "alchemy_solana_mainnet_existing_secret",
+                "provider_failure_reasons": {
+                  "alchemy_solana_mainnet_existing_secret:http_429": 2
+                },
+                "provider_failures": {
+                  "alchemy_solana_mainnet_existing_secret": 2
+                },
+                "provider_http_requests": {
+                  "alchemy_solana_mainnet_existing_secret": 51
+                },
+                "provider_successes": {
+                  "alchemy_solana_mainnet_existing_secret": 49
+                },
+                "secondary_configured": false,
+                "secondary_provider": null,
+                "topology": "dlmm_public_ws_alchemy_http"
+              },
+              "retries": 2
+            }
+          ]
+        },
+        "signal_to_handoff_seconds": 3,
+        "terminal_classification": "warmup_unverified"
+      },
+      {
+        "attempt": 6,
+        "candidate": {
+          "acceleration_bucket_count": 6,
+          "acceleration_window_end": 1789870500,
+          "acceleration_window_end_exclusive": 1789870800,
+          "acceleration_window_start": 1789869000,
+          "address": "BN7CfsGm6Vq9w8NibLZXRGW2tp5y2axwXuLAs85NGakf",
+          "discovery_page": 1,
+          "discovery_raw_rank": 61,
+          "discovery_sort": "volume_5m:desc",
+          "dynamic_fee_pct": 0.0446813,
+          "event_score": 0.03178569487444776,
+          "fee_30m_snapshot_usd": 24.704878018784065,
+          "fee_30m_usd": 55.400859806472745,
+          "fee_5m_usd": 31.437375094636536,
+          "fee_acceleration": 3.4047170247307488,
+          "fee_tvl_ratio_5m": 0.0003474590115570126,
+          "latest_completed_bucket_age_seconds": 16,
+          "name": "baton-SOL",
+          "signal_observed_at": 1789870816,
+          "sources": [
+            {
+              "rank": 61,
+              "sort": "volume_5m:desc"
+            }
+          ],
+          "token_x": "Hg5Ja55T5wESq4vyFoiVCMeHXtGyVA69X2UHq8hgpump",
+          "token_y": "So11111111111111111111111111111111111111112",
+          "tvl_usd": 90477.938545215,
+          "volume_30m_snapshot_usd": 3340.2370430548167,
+          "volume_30m_usd": 7084.541097696005,
+          "volume_5m_usd": 3843.462479509466,
+          "volume_acceleration": 3.2550837886389696
+        },
+        "compatibility_passed": true,
+        "fresh_swap_trigger_and_warmup": {
+          "aligned": false,
+          "reason": "fresh_swap_trigger_timeout",
+          "trigger": {
+            "acceleration_refreshes": 5,
+            "baseline_slot": 448594574,
+            "bootstrap_auth_reads": 1,
+            "gap_recoveries": 0,
+            "polls": 1,
+            "reason": "fresh_swap_trigger_timeout",
+            "triggered": false,
+            "waited_seconds": 60.000075874000004,
+            "wakeups": 0
+          }
+        },
+        "handoff_started_at": 1789870819,
+        "pool": "BN7CfsGm6Vq9w8NibLZXRGW2tp5y2axwXuLAs85NGakf",
+        "rpc": {
+          "calls": 4,
+          "failure_kinds": {},
+          "failure_methods": {},
+          "failures": 0,
+          "http_requests": 4,
+          "retries": 0,
+          "session_count": 1,
+          "sessions": [
+            {
+              "calls": 4,
+              "failure_kinds": {},
+              "failure_methods": {},
+              "failures": 0,
+              "http_requests": 4,
+              "provider": {
+                "failover_count": 0,
+                "failover_reasons": {},
+                "logical_calls": 4,
+                "pacing": {
+                  "minimum_interval_seconds": 0.2,
+                  "paced_requests": 169,
+                  "rate_limit_cooldown_seconds": 16,
+                  "rate_limit_events": 6,
+                  "rate_limit_streak": 0,
+                  "rate_limit_successes_since_event": 0,
+                  "throttle_sleep_seconds": 4.163784027099609
+                },
+                "physical_http_requests": 4,
+                "primary_provider": "alchemy_solana_mainnet_existing_secret",
+                "provider_failure_reasons": {},
+                "provider_failures": {},
+                "provider_http_requests": {
+                  "alchemy_solana_mainnet_existing_secret": 4
+                },
+                "provider_successes": {
+                  "alchemy_solana_mainnet_existing_secret": 4
+                },
+                "secondary_configured": false,
+                "secondary_provider": null,
+                "topology": "dlmm_public_ws_alchemy_http"
+              },
+              "retries": 0
+            }
+          ]
+        },
+        "signal_to_handoff_seconds": 3,
+        "terminal_classification": "fresh_swap_trigger_timeout"
+      },
+      {
+        "attempt": 7,
+        "candidate": {
+          "acceleration_bucket_count": 6,
+          "acceleration_window_end": 1789870500,
+          "acceleration_window_end_exclusive": 1789870800,
+          "acceleration_window_start": 1789869000,
+          "address": "3potGhhaNyzvCNq1CGh2wLbZLLMjpdPtG1Hpj8q2DDVR",
+          "discovery_page": 1,
+          "discovery_raw_rank": 77,
+          "discovery_sort": "volume_5m:desc",
+          "dynamic_fee_pct": 0.0002391,
+          "event_score": 0.0009718514749688091,
+          "fee_30m_snapshot_usd": 2.5837121864218373,
+          "fee_30m_usd": 4.096430379059994,
+          "fee_5m_usd": 1.8046659023327536,
+          "fee_acceleration": 2.6432758309153095,
+          "fee_tvl_ratio_5m": 0.00001640335269160375,
+          "latest_completed_bucket_age_seconds": 82,
+          "name": "ETH-SOL",
+          "signal_observed_at": 1789870882,
+          "sources": [
+            {
+              "rank": 77,
+              "sort": "volume_5m:desc"
+            }
+          ],
+          "token_x": "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
+          "token_y": "So11111111111111111111111111111111111111112",
+          "tvl_usd": 110018.11253235402,
+          "volume_30m_snapshot_usd": 7024.197368278171,
+          "volume_30m_usd": 11192.05138919398,
+          "volume_5m_usd": 4918.322422708687,
+          "volume_acceleration": 2.6366868333667774
+        },
+        "compatibility_passed": true,
+        "fresh_swap_trigger_and_warmup": {
+          "aligned": false,
+          "reason": "fresh_swap_trigger_timeout",
+          "trigger": {
+            "acceleration_refreshes": 5,
+            "baseline_slot": 448594822,
+            "bootstrap_auth_reads": 1,
+            "gap_recoveries": 0,
+            "polls": 1,
+            "reason": "fresh_swap_trigger_timeout",
+            "triggered": false,
+            "waited_seconds": 60.00011151299998,
+            "wakeups": 0
+          }
+        },
+        "handoff_started_at": 1789870885,
+        "pool": "3potGhhaNyzvCNq1CGh2wLbZLLMjpdPtG1Hpj8q2DDVR",
+        "rpc": {
+          "calls": 4,
+          "failure_kinds": {},
+          "failure_methods": {},
+          "failures": 0,
+          "http_requests": 4,
+          "retries": 0,
+          "session_count": 1,
+          "sessions": [
+            {
+              "calls": 4,
+              "failure_kinds": {},
+              "failure_methods": {},
+              "failures": 0,
+              "http_requests": 4,
+              "provider": {
+                "failover_count": 0,
+                "failover_reasons": {},
+                "logical_calls": 4,
+                "pacing": {
+                  "minimum_interval_seconds": 0.2,
+                  "paced_requests": 173,
+                  "rate_limit_cooldown_seconds": 16,
+                  "rate_limit_events": 6,
+                  "rate_limit_streak": 0,
+                  "rate_limit_successes_since_event": 0,
+                  "throttle_sleep_seconds": 4.163784027099609
+                },
+                "physical_http_requests": 4,
+                "primary_provider": "alchemy_solana_mainnet_existing_secret",
+                "provider_failure_reasons": {},
+                "provider_failures": {},
+                "provider_http_requests": {
+                  "alchemy_solana_mainnet_existing_secret": 4
+                },
+                "provider_successes": {
+                  "alchemy_solana_mainnet_existing_secret": 4
+                },
+                "secondary_configured": false,
+                "secondary_provider": null,
+                "topology": "dlmm_public_ws_alchemy_http"
+              },
+              "retries": 0
+            }
+          ]
+        },
+        "signal_to_handoff_seconds": 3,
+        "terminal_classification": "fresh_swap_trigger_timeout"
+      },
+      {
+        "attempt": 8,
+        "candidate": {
+          "acceleration_bucket_count": 6,
+          "acceleration_window_end": 1789870500,
+          "acceleration_window_end_exclusive": 1789870800,
+          "acceleration_window_start": 1789869000,
+          "address": "bFsVzSMig72r5fBBTzXRpkvpbntKnj9VMrtA7EVwJrU",
+          "discovery_page": 1,
+          "discovery_raw_rank": 106,
+          "discovery_sort": "volume_5m:desc",
+          "dynamic_fee_pct": 0.0639863,
+          "event_score": 0.018983234408008785,
+          "fee_30m_snapshot_usd": 8.292120011795575,
+          "fee_30m_usd": 13.981308282193584,
+          "fee_5m_usd": 6.336435141710995,
+          "fee_acceleration": 2.719245587244935,
+          "fee_tvl_ratio_5m": 0.0003721378579423002,
+          "latest_completed_bucket_age_seconds": 154,
+          "name": "baton-SOL",
+          "signal_observed_at": 1789870954,
+          "sources": [
+            {
+              "rank": 106,
+              "sort": "volume_5m:desc"
+            }
+          ],
+          "token_x": "Hg5Ja55T5wESq4vyFoiVCMeHXtGyVA69X2UHq8hgpump",
+          "token_y": "So11111111111111111111111111111111111111112",
+          "tvl_usd": 17027.117791099492,
+          "volume_30m_snapshot_usd": 1735.1797544351205,
+          "volume_30m_usd": 2851.9006002319716,
+          "volume_5m_usd": 1250.2476067106618,
+          "volume_acceleration": 2.6303461066117824
+        },
+        "compatibility_passed": true,
+        "fresh_swap_trigger_and_warmup": {
+          "aligned": false,
+          "qualifying_window_seconds": 12,
+          "reason": "warmup_unverified",
+          "swaps": null,
+          "trigger": {
+            "acceleration_refreshes": 3,
+            "baseline_slot": 448595088,
+            "block_time": 1789870975,
+            "bootstrap_auth_reads": 1,
+            "gap_recoveries": 0,
+            "polls": 2,
+            "post_trigger_slot": 448595210,
+            "reason": "authenticated_fresh_swap",
+            "signature": "2rpgmpnCYF128dB6USkwx4Q4WhGodGVYHPNxCCbdgEdtLbneBegJBTCmqaii9dkGtMdxG1WkP6mU864gZtk9Gcou",
+            "slot": 448595196,
+            "swap_count": 1,
+            "swaps": [
+              {
+                "amount": 696973169,
+                "execution_order": [
+                  2,
+                  8
+                ],
+                "for_y": false,
+                "instruction": "swap2",
+                "observed": {
+                  "end": -827,
+                  "fee": 3521907,
+                  "output": 42922190587,
+                  "protocol_fee": 352190,
+                  "start": -828
+                },
+                "slot": 448595196,
+                "swap_mode": "trigger_only",
+                "time": 1789870975,
+                "trigger_only": true
+              }
+            ],
+            "triggered": true,
+            "waited_seconds": 33.54157914699999,
+            "wake_source": "finalized_program_account_stream",
+            "wakeups": 1
+          },
+          "warmup": {
+            "chunks": [
+              {
+                "adjustments": 0,
+                "end_slot": 448595221,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": false,
+                  "pages": 16,
+                  "prior_oldest_slot": null,
+                  "relevant_successful": 0,
+                  "rows_scanned": 1024,
+                  "start_boundary_slot": 448595196
+                },
+                "start_slot": null,
+                "swaps": 0
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448595327,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448585233,
+                  "relevant_successful": 0,
+                  "rows_scanned": 0,
+                  "start_boundary_slot": 448595196
+                },
+                "start_slot": null,
+                "swaps": 0
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448595367,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448585233,
+                  "relevant_successful": 0,
+                  "rows_scanned": 0,
+                  "start_boundary_slot": 448595196
+                },
+                "start_slot": null,
+                "swaps": 0
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448595380,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448585233,
+                  "relevant_successful": 0,
+                  "rows_scanned": 0,
+                  "start_boundary_slot": 448595196
+                },
+                "start_slot": null,
+                "swaps": 0
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448595393,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448585233,
+                  "relevant_successful": 0,
+                  "rows_scanned": 0,
+                  "start_boundary_slot": 448595196
+                },
+                "start_slot": null,
+                "swaps": 0
+              },
+              {
+                "adjustments": 0,
+                "end_slot": 448595405,
+                "signature_census": {
+                  "cache_enabled": true,
+                  "cached_prefix_reused": true,
+                  "pages": 1,
+                  "prior_oldest_slot": 448585233,
+                  "relevant_successful": 0,
+                  "rows_scanned": 0,
+                  "start_boundary_slot": 448595196
+                },
+                "start_slot": null,
+                "swaps": 0
+              }
+            ],
+            "elapsed_seconds": 6,
+            "rate_limit_recoveries": 0,
+            "reason": "experiment_runtime_deadline",
+            "resets": 0,
+            "verified": false
+          }
+        },
+        "handoff_started_at": 1789870955,
+        "pool": "bFsVzSMig72r5fBBTzXRpkvpbntKnj9VMrtA7EVwJrU",
+        "rpc": {
+          "calls": 43,
+          "failure_kinds": {
+            "http_429": 1
+          },
+          "failure_methods": {
+            "getSignaturesForAddress:http_429": 1
+          },
+          "failures": 1,
+          "http_requests": 43,
+          "retries": 1,
+          "session_count": 1,
+          "sessions": [
+            {
+              "calls": 43,
+              "failure_kinds": {
+                "http_429": 1
+              },
+              "failure_methods": {
+                "getSignaturesForAddress:http_429": 1
+              },
+              "failures": 1,
+              "http_requests": 43,
+              "provider": {
+                "failover_count": 0,
+                "failover_reasons": {},
+                "logical_calls": 43,
+                "pacing": {
+                  "minimum_interval_seconds": 0.2,
+                  "paced_requests": 220,
+                  "rate_limit_cooldown_seconds": 18,
+                  "rate_limit_events": 7,
+                  "rate_limit_streak": 0,
+                  "rate_limit_successes_since_event": 0,
+                  "throttle_sleep_seconds": 4.163784027099609
+                },
+                "physical_http_requests": 43,
+                "primary_provider": "alchemy_solana_mainnet_existing_secret",
+                "provider_failure_reasons": {
+                  "alchemy_solana_mainnet_existing_secret:http_429": 1
+                },
+                "provider_failures": {
+                  "alchemy_solana_mainnet_existing_secret": 1
+                },
+                "provider_http_requests": {
+                  "alchemy_solana_mainnet_existing_secret": 43
+                },
+                "provider_successes": {
+                  "alchemy_solana_mainnet_existing_secret": 42
+                },
+                "secondary_configured": false,
+                "secondary_provider": null,
+                "topology": "dlmm_public_ws_alchemy_http"
+              },
+              "retries": 1
+            }
+          ]
+        },
+        "signal_to_handoff_seconds": 1,
+        "terminal_classification": "warmup_unverified"
+      }
+    ],
+    "limitations": null,
+    "qualification_failure_counts": {
+      "fresh_swap_trigger_timeout": 4,
+      "warmup_unverified": 4
+    },
+    "top_level_fields": [
+      "accounting",
+      "accounting_replay",
+      "alchemy_pacer",
+      "allocation_authority",
+      "attempt_budget_window_seconds",
+      "attempted_pool_count",
+      "attempts",
+      "checkpoint",
+      "compatibility_rejection_count",
+      "compatibility_rejections",
+      "compatibility_screened_count",
+      "complete_lifecycle_count",
+      "conclusion",
+      "continuous_campaign",
+      "discovery_api_rejections",
+      "discovery_candidates",
+      "discovery_errors",
+      "discovery_history_read_count",
+      "discovery_mode",
+      "discovery_qualified_count",
+      "discovery_rejection_count",
+      "discovery_unique_pool_count",
+      "elapsed_seconds",
+      "ended",
+      "evidence_acquisition_mode",
+      "evidence_broker",
+      "exit_reason_counts",
+      "frozen_policy",
+      "independent_of_all_prior_dlmm_strategies",
+      "independent_of_robinhood",
+      "kind",
+      "live_money",
+      "max_attempted_pools",
+      "mean_pnl_bps",
+      "mean_pnl_bps_per_capital_hour",
+      "median_pnl_bps",
+      "median_pnl_bps_per_capital_hour",
+      "network_identity",
+      "operational_configuration",
+      "operational_configuration_hash",
+      "policy_hash",
+      "policy_revision",
+      "post_freeze_only",
+      "profitable_lifecycle_count",
+      "profitable_rate",
+      "qualification_failure_counts",
+      "qualified_lifecycles",
+      "rpc",
+      "runtime_limit_reached",
+      "runtime_limit_seconds",
+      "selector_uses_outcome_data",
+      "signing",
+      "started",
+      "submission",
+      "target_complete_lifecycles",
+      "target_met",
+      "wake_stream"
+    ]
+  },
+  "pons": {
+    "summary": {
+      "enrolled": 161,
+      "graduated_lifecycles": 0,
+      "lifecycle_status_counts": {},
+      "qualified": 0,
+      "qualifiers_with_wallet_convergence": 0,
+      "realized_pnl_quote": [],
+      "rejection_counts": {
+        "buy_sell_flow": 60,
+        "buyer_growth": 56,
+        "creator_distribution": 16,
+        "curve_acceleration": 48,
+        "curve_progress": 124,
+        "curve_velocity": 106,
+        "graduation_eta": 88,
+        "independent_breadth": 27,
+        "largest_buyer_concentration": 75,
+        "net_demand_acceleration": 57,
+        "position_size_zero": 40,
+        "roundtrip_cost": 71,
+        "roundtrip_cost_unavailable": 40,
+        "snipe_tax_nonzero": 1,
+        "stale_state_after_evidence": 51,
+        "token_age": 14,
+        "top3_buyer_concentration": 75,
+        "trajectory_history": 14
+      }
+    },
+    "top_level_fields": [
+      "boundary",
+      "cohort_accounting",
+      "cohort_target",
+      "continuous_campaign",
+      "ended_at",
+      "evidence_acquisition",
+      "evidence_queue",
+      "independent_strategy",
+      "kind",
+      "lifecycles",
+      "live_money",
+      "max_enrolled",
+      "namespace",
+      "observation_archive",
+      "operational_configuration",
+      "operational_configuration_hash",
+      "outcome_blind",
+      "policy",
+      "policy_hash",
+      "replacement",
+      "reranking",
+      "selection_rule",
+      "sequencer_discovery",
+      "shared_allocator",
+      "started_at",
+      "strategy_capital_quote",
+      "summary",
+      "target_reached",
+      "wallet_skill_namespace",
+      "warmup"
+    ]
+  },
+  "pump": {
+    "attempts": [
+      {
+        "acceleration": -124,
+        "breakout_bps": null,
+        "buyer_growth": 40,
+        "concentration_bps": 0,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "Bff5g1YEG6VRyKrDjd7sC44wzDH18ysLUc8ZTv1bPGyE"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [
+          "quote_relative_strength"
+        ],
+        "consolidation_seconds": null,
+        "curve_progress_bps": 8815,
+        "early_holder_sell_share_bps": null,
+        "extension_bps": 11275,
+        "independent_buyers": 140,
+        "mint": "o48TcY82MYf7p2EnBNAP4QXQWg9KZ5iQFooPoV5FoMo",
+        "mode": "late_curve_acceleration",
+        "net_buy_share_bps": 3957,
+        "observed_at": 1789870490,
+        "price_vs_graduation_bps": null,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "curve_acceleration",
+          "net_demand",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 59,
+        "seconds_since_graduation": null,
+        "stage": "optimistic_preflight",
+        "trajectory": {
+          "absolute_progress_source": "prospectively_observed_create_event",
+          "curve_acceleration_bps_per_s2": -124,
+          "curve_progress_bps": 8815,
+          "curve_velocity_bps_per_s": 104,
+          "elapsed_seconds": 15,
+          "extension_baseline_time": 1789870480,
+          "extension_bps": 11275,
+          "extension_lookback_seconds": 10,
+          "quote_relative_return_bps": 11275,
+          "sample_count": 3,
+          "trajectory_window_seconds": 30
+        },
+        "velocity": 104,
+        "volume_acceleration_bps": null
+      },
+      {
+        "acceleration": -78,
+        "breakout_bps": null,
+        "buyer_growth": -34,
+        "concentration_bps": 0,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "Bff5g1YEG6VRyKrDjd7sC44wzDH18ysLUc8ZTv1bPGyE"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [
+          "quote_relative_strength"
+        ],
+        "consolidation_seconds": null,
+        "curve_progress_bps": 9410,
+        "early_holder_sell_share_bps": null,
+        "extension_bps": 3411,
+        "independent_buyers": 166,
+        "mint": "o48TcY82MYf7p2EnBNAP4QXQWg9KZ5iQFooPoV5FoMo",
+        "mode": "late_curve_acceleration",
+        "net_buy_share_bps": 4113,
+        "observed_at": 1789870495,
+        "price_vs_graduation_bps": null,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "curve_acceleration",
+          "buyer_growth",
+          "net_demand",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 46,
+        "seconds_since_graduation": null,
+        "stage": "optimistic_preflight",
+        "trajectory": {
+          "absolute_progress_source": "prospectively_observed_create_event",
+          "curve_acceleration_bps_per_s2": -78,
+          "curve_progress_bps": 9410,
+          "curve_velocity_bps_per_s": 65,
+          "elapsed_seconds": 20,
+          "extension_baseline_time": 1789870485,
+          "extension_bps": 3411,
+          "extension_lookback_seconds": 10,
+          "quote_relative_return_bps": 3411,
+          "sample_count": 3,
+          "trajectory_window_seconds": 30
+        },
+        "velocity": 65,
+        "volume_acceleration_bps": null
+      },
+      {
+        "acceleration": -2,
+        "breakout_bps": null,
+        "buyer_growth": 0,
+        "concentration_bps": 0,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "DzZ5zYbiynQPkabZ298TeSNQPbrtcWJS4MxFZo1R39MF"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [
+          "quote_relative_strength"
+        ],
+        "consolidation_seconds": null,
+        "curve_progress_bps": 7271,
+        "early_holder_sell_share_bps": null,
+        "extension_bps": 1814,
+        "independent_buyers": 20,
+        "mint": "8hAr39H5bWnhdXa3uWcgc4XH6jkfBYf6979r6rEfpump",
+        "mode": "late_curve_acceleration",
+        "net_buy_share_bps": 5018,
+        "observed_at": 1789870536,
+        "price_vs_graduation_bps": null,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "curve_acceleration",
+          "buyer_growth",
+          "net_demand",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 17,
+        "seconds_since_graduation": null,
+        "stage": "optimistic_preflight",
+        "trajectory": {
+          "absolute_progress_source": "prospectively_observed_create_event",
+          "curve_acceleration_bps_per_s2": -2,
+          "curve_progress_bps": 7271,
+          "curve_velocity_bps_per_s": 30,
+          "elapsed_seconds": 30,
+          "extension_baseline_time": 1789870525,
+          "extension_bps": 1814,
+          "extension_lookback_seconds": 10,
+          "quote_relative_return_bps": 1814,
+          "sample_count": 3,
+          "trajectory_window_seconds": 30
+        },
+        "velocity": 30,
+        "volume_acceleration_bps": null
+      },
+      {
+        "acceleration": null,
+        "breakout_bps": null,
+        "buyer_growth": 1,
+        "concentration_bps": 9800,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "AsiPhZ4XTEDegVxWd9g5UX8wREWMz6fxxKWFcDiumBZN"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [],
+        "consolidation_seconds": null,
+        "curve_progress_bps": null,
+        "early_holder_sell_share_bps": 0,
+        "extension_bps": 0,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 0,
+          "decision_bootstrap_before": null,
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": false,
+          "decision_bootstrap_oldest_time": null,
+          "decision_bootstrap_pages": 0,
+          "decision_window": {
+            "complete": true,
+            "cutoff": 1789870555,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 0,
+            "signature_complete": true,
+            "stream_complete": true,
+            "window_seconds": 30
+          },
+          "events": 6,
+          "history_exhausted": false,
+          "newest_signature": "2JaihKVBNKXJqriZNF6K3Py63HScT9XUSLK4cQdnWwK977wrx9bzfDsNoZ87B3gFToeSwcdXnSp3wFTRGaGP457d",
+          "oldest_signature": "5zZkp6CYaJg25FVmXAAahgXynMBWh3DazSHUWo2RgmzTAWuSSAdebXGCtMHTUa3QPXnuCAvUdxYWQgncvsJvs4yg",
+          "pages": 3,
+          "pending_transactions": 17,
+          "persisted_signature_rows": 151,
+          "processed_transactions": 6,
+          "refreshes": 1,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": true,
+          "signatures": 151,
+          "stream_events_seen": 8,
+          "stream_hydrated_transactions": 8,
+          "stream_last_slot": 448593696,
+          "stream_pending_transactions": 0,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 12,
+            "gaps": 0,
+            "last_slot": 448593736,
+            "loss_until": 0,
+            "warm_seconds": 41
+          },
+          "transaction_failures": 0,
+          "unknown_block_times": 0
+        },
+        "independent_buyers": 2,
+        "mint": "iXd6mmAcKjWCM3G4ZajogbEzfk1TX5srBziN7U5pump",
+        "mode": "post_graduation_momentum",
+        "net_buy_share_bps": 9680,
+        "observed_at": 1789870581,
+        "price_vs_graduation_bps": 0,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "independent_buyers",
+          "price_retention",
+          "concentration",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 35,
+        "seconds_since_graduation": 52,
+        "stage": "full_point_in_time",
+        "velocity": null,
+        "volume_acceleration_bps": 18439
+      },
+      {
+        "limitation": "incomplete_pumpswap_second_leg_history",
+        "mint": "iXd6mmAcKjWCM3G4ZajogbEzfk1TX5srBziN7U5pump",
+        "mode": "pumpswap_second_leg",
+        "observed_at": 1789870585,
+        "qualified": false,
+        "stage": "shape_incomplete"
+      },
+      {
+        "acceleration": 4,
+        "breakout_bps": null,
+        "buyer_growth": -7,
+        "concentration_bps": 0,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "DzZ5zYbiynQPkabZ298TeSNQPbrtcWJS4MxFZo1R39MF"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [
+          "quote_relative_strength"
+        ],
+        "consolidation_seconds": null,
+        "curve_progress_bps": 8009,
+        "early_holder_sell_share_bps": null,
+        "extension_bps": 247,
+        "independent_buyers": 15,
+        "mint": "8hAr39H5bWnhdXa3uWcgc4XH6jkfBYf6979r6rEfpump",
+        "mode": "late_curve_acceleration",
+        "net_buy_share_bps": 0,
+        "observed_at": 1789870597,
+        "price_vs_graduation_bps": null,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "buyer_growth",
+          "net_demand",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 25,
+        "seconds_since_graduation": null,
+        "stage": "optimistic_preflight",
+        "trajectory": {
+          "absolute_progress_source": "prospectively_observed_create_event",
+          "curve_acceleration_bps_per_s2": 4,
+          "curve_progress_bps": 8009,
+          "curve_velocity_bps_per_s": 31,
+          "elapsed_seconds": 30,
+          "extension_baseline_time": 1789870587,
+          "extension_bps": 247,
+          "extension_lookback_seconds": 10,
+          "quote_relative_return_bps": 247,
+          "sample_count": 3,
+          "trajectory_window_seconds": 30
+        },
+        "velocity": 31,
+        "volume_acceleration_bps": null
+      },
+      {
+        "acceleration": 4,
+        "breakout_bps": null,
+        "buyer_growth": -7,
+        "concentration_bps": 0,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "DzZ5zYbiynQPkabZ298TeSNQPbrtcWJS4MxFZo1R39MF"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [
+          "quote_relative_strength"
+        ],
+        "consolidation_seconds": null,
+        "curve_progress_bps": 8009,
+        "early_holder_sell_share_bps": null,
+        "extension_bps": 247,
+        "independent_buyers": 15,
+        "mint": "8hAr39H5bWnhdXa3uWcgc4XH6jkfBYf6979r6rEfpump",
+        "mode": "late_curve_acceleration",
+        "net_buy_share_bps": 0,
+        "observed_at": 1789870597,
+        "price_vs_graduation_bps": null,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "buyer_growth",
+          "net_demand",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 25,
+        "seconds_since_graduation": null,
+        "stage": "optimistic_preflight",
+        "trajectory": {
+          "absolute_progress_source": "prospectively_observed_create_event",
+          "curve_acceleration_bps_per_s2": 4,
+          "curve_progress_bps": 8009,
+          "curve_velocity_bps_per_s": 31,
+          "elapsed_seconds": 30,
+          "extension_baseline_time": 1789870587,
+          "extension_bps": 247,
+          "extension_lookback_seconds": 10,
+          "quote_relative_return_bps": 247,
+          "sample_count": 3,
+          "trajectory_window_seconds": 30
+        },
+        "velocity": 31,
+        "volume_acceleration_bps": null
+      },
+      {
+        "acceleration": -14,
+        "breakout_bps": null,
+        "buyer_growth": -39,
+        "concentration_bps": 0,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "7RHezCfEw5KaPKuCUJ32UcsiPJ1BRSAGQZFEDByCxM1M"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [],
+        "consolidation_seconds": null,
+        "curve_progress_bps": 6857,
+        "early_holder_sell_share_bps": null,
+        "extension_bps": -696,
+        "independent_buyers": 110,
+        "mint": "BZRTMm73tEdDAVzSS8pFDwWuAWoF437CLdq6LpDPQMQS",
+        "mode": "late_curve_acceleration",
+        "net_buy_share_bps": 2461,
+        "observed_at": 1789870599,
+        "price_vs_graduation_bps": null,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "curve_not_late",
+          "curve_acceleration",
+          "buyer_growth",
+          "net_demand",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 12,
+        "seconds_since_graduation": null,
+        "stage": "optimistic_preflight",
+        "trajectory": {
+          "absolute_progress_source": "prospectively_observed_create_event",
+          "curve_acceleration_bps_per_s2": -14,
+          "curve_progress_bps": 6857,
+          "curve_velocity_bps_per_s": 27,
+          "elapsed_seconds": 29,
+          "extension_baseline_time": 1789870589,
+          "extension_bps": -696,
+          "extension_lookback_seconds": 10,
+          "quote_relative_return_bps": -696,
+          "sample_count": 3,
+          "trajectory_window_seconds": 30
+        },
+        "velocity": 27,
+        "volume_acceleration_bps": null
+      },
+      {
+        "acceleration": null,
+        "breakout_bps": null,
+        "buyer_growth": 0,
+        "concentration_bps": 2185,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "AsiPhZ4XTEDegVxWd9g5UX8wREWMz6fxxKWFcDiumBZN"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [
+          "quote_relative_strength"
+        ],
+        "consolidation_seconds": null,
+        "curve_progress_bps": null,
+        "early_holder_sell_share_bps": 0,
+        "extension_bps": 0,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 0,
+          "decision_bootstrap_before": null,
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": false,
+          "decision_bootstrap_oldest_time": null,
+          "decision_bootstrap_pages": 0,
+          "decision_window": {
+            "complete": true,
+            "cutoff": 1789870697,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 0,
+            "signature_complete": true,
+            "stream_complete": true,
+            "window_seconds": 30
+          },
+          "events": 10,
+          "history_exhausted": false,
+          "newest_signature": "3A6PB8X5HdqVqkD7QV5rYMi7Fhqd41Vm6p5jPX33gQu7ykza7vM8VQSDaJqAVg2mAcdaqdHpVAiunRwWoisocydc",
+          "oldest_signature": "5zZkp6CYaJg25FVmXAAahgXynMBWh3DazSHUWo2RgmzTAWuSSAdebXGCtMHTUa3QPXnuCAvUdxYWQgncvsJvs4yg",
+          "pages": 4,
+          "pending_transactions": 17,
+          "persisted_signature_rows": 155,
+          "processed_transactions": 10,
+          "refreshes": 2,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": true,
+          "signatures": 155,
+          "stream_events_seen": 12,
+          "stream_hydrated_transactions": 12,
+          "stream_last_slot": 448594229,
+          "stream_pending_transactions": 0,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 24,
+            "gaps": 0,
+            "last_slot": 448594259,
+            "loss_until": 0,
+            "warm_seconds": 183
+          },
+          "transaction_failures": 0,
+          "unknown_block_times": 0
+        },
+        "independent_buyers": 1,
+        "mint": "iXd6mmAcKjWCM3G4ZajogbEzfk1TX5srBziN7U5pump",
+        "mode": "post_graduation_momentum",
+        "net_buy_share_bps": 10000,
+        "observed_at": 1789870720,
+        "price_vs_graduation_bps": 169,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "postgrad_age",
+          "independent_buyers",
+          "buyer_growth",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 40,
+        "seconds_since_graduation": 191,
+        "stage": "full_point_in_time",
+        "velocity": null,
+        "volume_acceleration_bps": 7698
+      },
+      {
+        "limitation": "incomplete_pumpswap_second_leg_history",
+        "mint": "iXd6mmAcKjWCM3G4ZajogbEzfk1TX5srBziN7U5pump",
+        "mode": "pumpswap_second_leg",
+        "observed_at": 1789870727,
+        "qualified": false,
+        "stage": "shape_incomplete"
+      },
+      {
+        "acceleration": 3,
+        "breakout_bps": null,
+        "buyer_growth": -3,
+        "concentration_bps": 0,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "7RHezCfEw5KaPKuCUJ32UcsiPJ1BRSAGQZFEDByCxM1M"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [],
+        "consolidation_seconds": null,
+        "curve_progress_bps": 8957,
+        "early_holder_sell_share_bps": null,
+        "extension_bps": -111,
+        "independent_buyers": 33,
+        "mint": "BZRTMm73tEdDAVzSS8pFDwWuAWoF437CLdq6LpDPQMQS",
+        "mode": "late_curve_acceleration",
+        "net_buy_share_bps": 0,
+        "observed_at": 1789870795,
+        "price_vs_graduation_bps": null,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "curve_velocity",
+          "buyer_growth",
+          "net_demand",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 28,
+        "seconds_since_graduation": null,
+        "stage": "optimistic_preflight",
+        "trajectory": {
+          "absolute_progress_source": "prospectively_observed_create_event",
+          "curve_acceleration_bps_per_s2": 3,
+          "curve_progress_bps": 8957,
+          "curve_velocity_bps_per_s": 6,
+          "elapsed_seconds": 28,
+          "extension_baseline_time": 1789870785,
+          "extension_bps": -111,
+          "extension_lookback_seconds": 10,
+          "quote_relative_return_bps": -111,
+          "sample_count": 3,
+          "trajectory_window_seconds": 30
+        },
+        "velocity": 6,
+        "volume_acceleration_bps": null
+      },
+      {
+        "acceleration": -7,
+        "breakout_bps": null,
+        "buyer_growth": -5,
+        "concentration_bps": 0,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "7RHezCfEw5KaPKuCUJ32UcsiPJ1BRSAGQZFEDByCxM1M"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [
+          "quote_relative_strength"
+        ],
+        "consolidation_seconds": null,
+        "curve_progress_bps": 6384,
+        "early_holder_sell_share_bps": null,
+        "extension_bps": 1620,
+        "independent_buyers": 32,
+        "mint": "BZRTMm73tEdDAVzSS8pFDwWuAWoF437CLdq6LpDPQMQS",
+        "mode": "late_curve_acceleration",
+        "net_buy_share_bps": 0,
+        "observed_at": 1789870947,
+        "price_vs_graduation_bps": null,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "curve_not_late",
+          "curve_velocity",
+          "curve_acceleration",
+          "buyer_growth",
+          "net_demand",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 12,
+        "seconds_since_graduation": null,
+        "stage": "optimistic_preflight",
+        "trajectory": {
+          "absolute_progress_source": "prospectively_observed_create_event",
+          "curve_acceleration_bps_per_s2": -7,
+          "curve_progress_bps": 6384,
+          "curve_velocity_bps_per_s": -50,
+          "elapsed_seconds": 30,
+          "extension_baseline_time": 1789870937,
+          "extension_bps": 1620,
+          "extension_lookback_seconds": 10,
+          "quote_relative_return_bps": 1620,
+          "sample_count": 3,
+          "trajectory_window_seconds": 30
+        },
+        "velocity": -50,
+        "volume_acceleration_bps": null
+      },
+      {
+        "acceleration": 1,
+        "breakout_bps": null,
+        "buyer_growth": -7,
+        "concentration_bps": 0,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "GBGtzKTrkxPtLGDn6KRfBKqBkszgwHSjSmMBnVVoJPTA"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [],
+        "consolidation_seconds": null,
+        "curve_progress_bps": 6755,
+        "early_holder_sell_share_bps": null,
+        "extension_bps": -199,
+        "independent_buyers": 13,
+        "mint": "CB4VaQdp8cTGyrE2uuCsqKExDCMBQ7Wy9RBLqVxmpump",
+        "mode": "late_curve_acceleration",
+        "net_buy_share_bps": 0,
+        "observed_at": 1789870948,
+        "price_vs_graduation_bps": null,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "curve_not_late",
+          "curve_velocity",
+          "buyer_growth",
+          "net_demand",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 11,
+        "seconds_since_graduation": null,
+        "stage": "optimistic_preflight",
+        "trajectory": {
+          "absolute_progress_source": "prospectively_observed_create_event",
+          "curve_acceleration_bps_per_s2": 1,
+          "curve_progress_bps": 6755,
+          "curve_velocity_bps_per_s": 3,
+          "elapsed_seconds": 30,
+          "extension_baseline_time": 1789870937,
+          "extension_bps": -199,
+          "extension_lookback_seconds": 10,
+          "quote_relative_return_bps": -199,
+          "sample_count": 3,
+          "trajectory_window_seconds": 30
+        },
+        "velocity": 3,
+        "volume_acceleration_bps": null
+      },
+      {
+        "acceleration": -3,
+        "breakout_bps": null,
+        "buyer_growth": -22,
+        "concentration_bps": 0,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "5e8L1ZAtxLyJpiepD4yhjNSKp5GoENVMxPeDm135pRkz"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [],
+        "consolidation_seconds": null,
+        "curve_progress_bps": 7578,
+        "early_holder_sell_share_bps": null,
+        "extension_bps": -1986,
+        "independent_buyers": 56,
+        "mint": "7PcjC3S9FQ3tLhhEqEd1msL6jKpz26qyCxZTroZ7pump",
+        "mode": "late_curve_acceleration",
+        "net_buy_share_bps": 0,
+        "observed_at": 1789870949,
+        "price_vs_graduation_bps": null,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "curve_velocity",
+          "curve_acceleration",
+          "buyer_growth",
+          "net_demand",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 14,
+        "seconds_since_graduation": null,
+        "stage": "optimistic_preflight",
+        "trajectory": {
+          "absolute_progress_source": "prospectively_observed_create_event",
+          "curve_acceleration_bps_per_s2": -3,
+          "curve_progress_bps": 7578,
+          "curve_velocity_bps_per_s": -69,
+          "elapsed_seconds": 30,
+          "extension_baseline_time": 1789870939,
+          "extension_bps": -1986,
+          "extension_lookback_seconds": 10,
+          "quote_relative_return_bps": -1986,
+          "sample_count": 3,
+          "trajectory_window_seconds": 30
+        },
+        "velocity": -69,
+        "volume_acceleration_bps": null
+      },
+      {
+        "acceleration": 0,
+        "breakout_bps": null,
+        "buyer_growth": -29,
+        "concentration_bps": 0,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "43ERqhPisGWZyhbKH1tptyzN6BaJtraRKCyuY2imf3jv"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [
+          "quote_relative_strength"
+        ],
+        "consolidation_seconds": null,
+        "curve_progress_bps": 9048,
+        "early_holder_sell_share_bps": null,
+        "extension_bps": 3173,
+        "independent_buyers": 103,
+        "mint": "FnuCsKSpy7SzKnuSY1WNtJ6MRTAB5auQMzgsudPBpump",
+        "mode": "late_curve_acceleration",
+        "net_buy_share_bps": 1852,
+        "observed_at": 1789870949,
+        "price_vs_graduation_bps": null,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "buyer_growth",
+          "net_demand",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 32,
+        "seconds_since_graduation": null,
+        "stage": "optimistic_preflight",
+        "trajectory": {
+          "absolute_progress_source": "prospectively_observed_create_event",
+          "curve_acceleration_bps_per_s2": 0,
+          "curve_progress_bps": 9048,
+          "curve_velocity_bps_per_s": 32,
+          "elapsed_seconds": 30,
+          "extension_baseline_time": 1789870939,
+          "extension_bps": 3173,
+          "extension_lookback_seconds": 10,
+          "quote_relative_return_bps": 3173,
+          "sample_count": 3,
+          "trajectory_window_seconds": 30
+        },
+        "velocity": 32,
+        "volume_acceleration_bps": null
+      },
+      {
+        "acceleration": 3,
+        "breakout_bps": null,
+        "buyer_growth": -1,
+        "concentration_bps": 0,
+        "confirmation_evidence": {
+          "creator_history_launches": 0,
+          "creator_quality_bps": null,
+          "excluded_clusters": [
+            "7RHezCfEw5KaPKuCUJ32UcsiPJ1BRSAGQZFEDByCxM1M"
+          ],
+          "explicit_funding_groups_observed": 0,
+          "skilled_wallet_clusters": 0,
+          "skilled_wallets_observed": 0
+        },
+        "confirmations": [
+          "quote_relative_strength"
+        ],
+        "consolidation_seconds": null,
+        "curve_progress_bps": 7013,
+        "early_holder_sell_share_bps": null,
+        "extension_bps": 1439,
+        "independent_buyers": 29,
+        "mint": "BZRTMm73tEdDAVzSS8pFDwWuAWoF437CLdq6LpDPQMQS",
+        "mode": "late_curve_acceleration",
+        "net_buy_share_bps": 0,
+        "observed_at": 1789870951,
+        "price_vs_graduation_bps": null,
+        "pullback_depth_bps": null,
+        "qualified": false,
+        "reasons": [
+          "buyer_growth",
+          "net_demand",
+          "score"
+        ],
+        "recovery_bps": null,
+        "score": 19,
+        "seconds_since_graduation": null,
+        "stage": "optimistic_preflight",
+        "trajectory": {
+          "absolute_progress_source": "prospectively_observed_create_event",
+          "curve_acceleration_bps_per_s2": 3,
+          "curve_progress_bps": 7013,
+          "curve_velocity_bps_per_s": 33,
+          "elapsed_seconds": 30,
+          "extension_baseline_time": 1789870941,
+          "extension_bps": 1439,
+          "extension_lookback_seconds": 10,
+          "quote_relative_return_bps": 1439,
+          "sample_count": 3,
+          "trajectory_window_seconds": 30
+        },
+        "velocity": 33,
+        "volume_acceleration_bps": null
+      }
+    ],
+    "limitations": [],
+    "postgrad": [
+      {
+        "age_seconds": 10,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870497,
+          "decision_bootstrap_pages": 1,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870477,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 0,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 39,
+          "history_exhausted": true,
+          "newest_signature": "2CaUDC6XyuJ3GDUnKqUhCKwNAexs2qa3jTySAF9qUz49XfLKPrwVAocMyqkV6qwLH6uU6nSzTKQZU7sHHu193uDh",
+          "oldest_signature": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "pages": 1,
+          "pending_transactions": 0,
+          "persisted_signature_rows": 78,
+          "processed_transactions": 67,
+          "refreshes": 1,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": false,
+          "signatures": 78,
+          "stream_events_seen": 89,
+          "stream_hydrated_transactions": 40,
+          "stream_last_slot": 448593419,
+          "stream_pending_transactions": 49,
+          "stream_status": {
+            "connected": true,
+            "covered": false,
+            "events": 236,
+            "gaps": 0,
+            "last_slot": 448593449,
+            "loss_until": 0,
+            "warm_seconds": 0
+          },
+          "transaction_failures": 0,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "o48TcY82MYf7p2EnBNAP4QXQWg9KZ5iQFooPoV5FoMo",
+        "observed_at": 1789870507
+      },
+      {
+        "age_seconds": 22,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870497,
+          "decision_bootstrap_pages": 1,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870489,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 0,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 97,
+          "history_exhausted": true,
+          "newest_signature": "21V14B5VhNJuDkttbSGyjrHVYFe43iw1cB46P7VLCdFDAzC6u1tTZHkQAgPnvcPKdiFSLvBqGMfBKmj75H5c43xW",
+          "oldest_signature": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "pages": 1,
+          "pending_transactions": 0,
+          "persisted_signature_rows": 142,
+          "processed_transactions": 131,
+          "refreshes": 2,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": false,
+          "signatures": 142,
+          "stream_events_seen": 376,
+          "stream_hydrated_transactions": 144,
+          "stream_last_slot": 448593461,
+          "stream_pending_transactions": 183,
+          "stream_status": {
+            "connected": true,
+            "covered": false,
+            "events": 333,
+            "gaps": 0,
+            "last_slot": 448593476,
+            "loss_until": 0,
+            "warm_seconds": 11
+          },
+          "transaction_failures": 0,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "o48TcY82MYf7p2EnBNAP4QXQWg9KZ5iQFooPoV5FoMo",
+        "observed_at": 1789870519
+      },
+      {
+        "age_seconds": 32,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": true,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870497,
+          "decision_bootstrap_pages": 1,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870499,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 0,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 235,
+          "history_exhausted": true,
+          "newest_signature": "5NpGjHbSGPPCb2KRvRz1GBThDtvKNKGWUQY92L4AXCbHpPwF9E988sArFK1Mqvks4Ma8bvWbmQ5E7bUdhVbCaQ4A",
+          "oldest_signature": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "pages": 2,
+          "pending_transactions": 0,
+          "persisted_signature_rows": 548,
+          "processed_transactions": 309,
+          "refreshes": 3,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": true,
+          "signatures": 548,
+          "stream_events_seen": 752,
+          "stream_hydrated_transactions": 312,
+          "stream_last_slot": 448593497,
+          "stream_pending_transactions": 208,
+          "stream_status": {
+            "connected": true,
+            "covered": false,
+            "events": 524,
+            "gaps": 0,
+            "last_slot": 448593545,
+            "loss_until": 0,
+            "warm_seconds": 21
+          },
+          "transaction_failures": 0,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "o48TcY82MYf7p2EnBNAP4QXQWg9KZ5iQFooPoV5FoMo",
+        "observed_at": 1789870529
+      },
+      {
+        "age_seconds": 48,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870497,
+          "decision_bootstrap_pages": 1,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870515,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 83,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 393,
+          "history_exhausted": true,
+          "newest_signature": "36oR6rYAD5XuQ9x5e7PFmzsfJe4qM42uNb6SHkTJV4xjKHqa83j7942vtsPoHYmsu3xaAz4ugCExtyNeVbCot8X2",
+          "oldest_signature": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "pages": 4,
+          "pending_transactions": 83,
+          "persisted_signature_rows": 963,
+          "processed_transactions": 474,
+          "refreshes": 4,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": true,
+          "signatures": 963,
+          "stream_events_seen": 1196,
+          "stream_hydrated_transactions": 549,
+          "stream_last_slot": 448593563,
+          "stream_pending_transactions": 207,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 812,
+            "gaps": 0,
+            "last_slot": 448593622,
+            "loss_until": 0,
+            "warm_seconds": 37
+          },
+          "transaction_failures": 24,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "o48TcY82MYf7p2EnBNAP4QXQWg9KZ5iQFooPoV5FoMo",
+        "observed_at": 1789870545
+      },
+      {
+        "age_seconds": 38,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "3k5w7dB3uT31NuQZboActP4LfSZNvQ384QuxPQ5UuxA9vdQosH5cXNKAymN6uXPabgrFt6MLi7fDsgmaq85ha4yC",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870530,
+          "decision_bootstrap_pages": 1,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870534,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 47,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 214,
+          "history_exhausted": false,
+          "newest_signature": "52KRjWVLVLCsKRwPdVsw87v7pac1symvAFc6HVcZiiuEgbDT3BPMKSF7NCSPsM8L1PWBfFy8SgeScp7NJ5EvX3PY",
+          "oldest_signature": "BHrLNtqY5wjKgrsykdBZLWnY1PSMHcTj5kdCVPux8mD4SCZVupcZQNRzFvkzqFz7PT8oSVpqmwmrjFZnaW2YGzy",
+          "pages": 3,
+          "pending_transactions": 91,
+          "persisted_signature_rows": 493,
+          "processed_transactions": 214,
+          "refreshes": 1,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": true,
+          "signatures": 493,
+          "stream_events_seen": 165,
+          "stream_hydrated_transactions": 64,
+          "stream_last_slot": 448593632,
+          "stream_pending_transactions": 101,
+          "stream_status": {
+            "connected": true,
+            "covered": false,
+            "events": 325,
+            "gaps": 0,
+            "last_slot": 448593704,
+            "loss_until": 0,
+            "warm_seconds": 20
+          },
+          "transaction_failures": 0,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "G3ihQjtefWrkBJQR8CtD8MvgFsuAx6G7n8fHVPG9pump",
+        "observed_at": 1789870564
+      },
+      {
+        "age_seconds": 112,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870497,
+          "decision_bootstrap_pages": 1,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870579,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 42,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 601,
+          "history_exhausted": true,
+          "newest_signature": "3r97aR123FMLqosvu4P9ahiqyVxRuCpTzUDyf8XgQvArEsCFGRn3fEG1QRdkE8U7HqSQTyX9d9359awntkhGzAHF",
+          "oldest_signature": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "pages": 6,
+          "pending_transactions": 256,
+          "persisted_signature_rows": 1652,
+          "processed_transactions": 682,
+          "refreshes": 5,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": true,
+          "signatures": 1652,
+          "stream_events_seen": 1348,
+          "stream_hydrated_transactions": 557,
+          "stream_last_slot": 448593811,
+          "stream_pending_transactions": 144,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 1198,
+            "gaps": 0,
+            "last_slot": 448593954,
+            "loss_until": 0,
+            "warm_seconds": 101
+          },
+          "transaction_failures": 66,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "o48TcY82MYf7p2EnBNAP4QXQWg9KZ5iQFooPoV5FoMo",
+        "observed_at": 1789870609
+      },
+      {
+        "age_seconds": 127,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "3k5w7dB3uT31NuQZboActP4LfSZNvQ384QuxPQ5UuxA9vdQosH5cXNKAymN6uXPabgrFt6MLi7fDsgmaq85ha4yC",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870530,
+          "decision_bootstrap_pages": 1,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870623,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 159,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 442,
+          "history_exhausted": false,
+          "newest_signature": "59C5tuBDuTcP5H1sPtV33HbFC8tCMkFDveq5SQSU9JJ9XPrK2Tk8Lmsbq1FVVHviW1epsKNAQUUYApQbXk9gF4QB",
+          "oldest_signature": "BHrLNtqY5wjKgrsykdBZLWnY1PSMHcTj5kdCVPux8mD4SCZVupcZQNRzFvkzqFz7PT8oSVpqmwmrjFZnaW2YGzy",
+          "pages": 7,
+          "pending_transactions": 608,
+          "persisted_signature_rows": 1903,
+          "processed_transactions": 442,
+          "refreshes": 2,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": true,
+          "signatures": 1903,
+          "stream_events_seen": 461,
+          "stream_hydrated_transactions": 67,
+          "stream_last_slot": 448593976,
+          "stream_pending_transactions": 293,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 1530,
+            "gaps": 0,
+            "last_slot": 448594236,
+            "loss_until": 0,
+            "warm_seconds": 109
+          },
+          "transaction_failures": 28,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "G3ihQjtefWrkBJQR8CtD8MvgFsuAx6G7n8fHVPG9pump",
+        "observed_at": 1789870653
+      },
+      {
+        "age_seconds": 170,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "yjBXbCq9pYAf7tbMNDXMA6g9LDUFvaAD3xJyMNiywJSPPXcZKFuQHLqVAscBxZeyEDPChyRphVjqjcKQYZTrtFd",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": false,
+          "decision_bootstrap_oldest_time": 1789870720,
+          "decision_bootstrap_pages": 3,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870703,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 28,
+            "signature_complete": false,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 195,
+          "history_exhausted": false,
+          "newest_signature": "2pYy1wbjC83kcKZeUppWHJbZuvCksmHQgdh72WzadNMykH88FXuV9DFzxFsuPiTMSobWTh6QvsChL9rgjAQLxdt9",
+          "oldest_signature": "2Q2jc4wZNdHvLXSk5WGFFUAdWEp7GyF3MQFfubrczaknufzpkQBrWZ451cWDNcDNRACVkfSHvxsmrNPnrqH7sbGm",
+          "pages": 6,
+          "pending_transactions": 28,
+          "persisted_signature_rows": 717,
+          "processed_transactions": 195,
+          "refreshes": 1,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": false,
+          "signatures": 717,
+          "stream_events_seen": 295,
+          "stream_hydrated_transactions": 22,
+          "stream_last_slot": 448594269,
+          "stream_pending_transactions": 273,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 1482,
+            "gaps": 0,
+            "last_slot": 448594438,
+            "loss_until": 0,
+            "warm_seconds": 135
+          },
+          "transaction_failures": 28,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "HR7hJRmHtkN7HA9mTzURfmirptknxh3oo68JTDYVpump",
+        "observed_at": 1789870733
+      },
+      {
+        "age_seconds": 199,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "2tBbxk6uJqXHqLJk14ddEXT6EKe2pQsA9UE881MHDMt6r89Sfz4Q5zeoNFoJiCzp5Dehgwt4iD78zNSkkBJrmMjj",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": false,
+          "decision_bootstrap_oldest_time": 1789870794,
+          "decision_bootstrap_pages": 3,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870751,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 0,
+            "signature_complete": false,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 0,
+          "history_exhausted": false,
+          "newest_signature": "2t1geq4FjjTwDH99JZnbngpnBuhTzuzBsHH8CBsCj2a6T3bkhpN88Px7X4DgSrmpAKXEj2tv7o8mFB17KC842QL5",
+          "oldest_signature": "3cBeBtDTLzQcQeHzXopytNhNKPgM2PuXkDabFpQiDqEoidcT61gBzsCToNht2m6E6n63BvPHwf9G6JZC7bKPDsJm",
+          "pages": 6,
+          "pending_transactions": 0,
+          "persisted_signature_rows": 701,
+          "processed_transactions": 0,
+          "refreshes": 1,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": false,
+          "signatures": 701,
+          "stream_events_seen": 2426,
+          "stream_hydrated_transactions": 10,
+          "stream_last_slot": 448594487,
+          "stream_pending_transactions": 2416,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 7609,
+            "gaps": 0,
+            "last_slot": 448594522,
+            "loss_until": 0,
+            "warm_seconds": 183
+          },
+          "transaction_failures": 0,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "9RPHFUTADgLmowMGVp7SFMNrmXzHzZqrTohxWCiLpump",
+        "observed_at": 1789870781
+      },
+      {
+        "age_seconds": 309,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870497,
+          "decision_bootstrap_pages": 1,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870776,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 0,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 764,
+          "history_exhausted": true,
+          "newest_signature": "2ufCvH1i9NqLoBrk34kYzzvUd2jSEjB8Sopke5cQLAJBDp5zG92umfKueHMWUyMM8dFGSS4pH6EueKtLWMJBxpcZ",
+          "oldest_signature": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "pages": 7,
+          "pending_transactions": 246,
+          "persisted_signature_rows": 1785,
+          "processed_transactions": 845,
+          "refreshes": 6,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": true,
+          "signatures": 1785,
+          "stream_events_seen": 1397,
+          "stream_hydrated_transactions": 580,
+          "stream_last_slot": 448594546,
+          "stream_pending_transactions": 26,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 1489,
+            "gaps": 0,
+            "last_slot": 448594632,
+            "loss_until": 0,
+            "warm_seconds": 298
+          },
+          "transaction_failures": 66,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "o48TcY82MYf7p2EnBNAP4QXQWg9KZ5iQFooPoV5FoMo",
+        "observed_at": 1789870806
+      },
+      {
+        "age_seconds": 307,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "3k5w7dB3uT31NuQZboActP4LfSZNvQ384QuxPQ5UuxA9vdQosH5cXNKAymN6uXPabgrFt6MLi7fDsgmaq85ha4yC",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870530,
+          "decision_bootstrap_pages": 1,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870803,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 257,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 602,
+          "history_exhausted": false,
+          "newest_signature": "4g6LkmrF2K41D7av9hrJrACRPm1UHs5DkWVnDxrtHBWW6yJHnmdnzfJtPVoTb5jyNoH1S88NLXA7rYtLFYBR7tLb",
+          "oldest_signature": "BHrLNtqY5wjKgrsykdBZLWnY1PSMHcTj5kdCVPux8mD4SCZVupcZQNRzFvkzqFz7PT8oSVpqmwmrjFZnaW2YGzy",
+          "pages": 11,
+          "pending_transactions": 2157,
+          "persisted_signature_rows": 3317,
+          "processed_transactions": 602,
+          "refreshes": 3,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": true,
+          "signatures": 3317,
+          "stream_events_seen": 800,
+          "stream_hydrated_transactions": 131,
+          "stream_last_slot": 448594645,
+          "stream_pending_transactions": 275,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 2741,
+            "gaps": 0,
+            "last_slot": 448594727,
+            "loss_until": 0,
+            "warm_seconds": 289
+          },
+          "transaction_failures": 124,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "G3ihQjtefWrkBJQR8CtD8MvgFsuAx6G7n8fHVPG9pump",
+        "observed_at": 1789870833
+      },
+      {
+        "age_seconds": 329,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "tTJhxhSVn1XtWM4QSfPyAp9sPyuegwVT7hV9zkLK5395PZ2Eo2Jifm8Zb5NEkHc6pS3FHTNCQ9nqfGSzbmEBzd3",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870570,
+          "decision_bootstrap_pages": 1,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870828,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 0,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 16,
+          "history_exhausted": false,
+          "newest_signature": "5oXrK8As2VmKRwD25fhXjQBDq3Q3DWHb69U1ymHuPfgExD7S5jqX2nF5QtUrihN1kiAydzszj7RH89tNDr186QBA",
+          "oldest_signature": "5zZkp6CYaJg25FVmXAAahgXynMBWh3DazSHUWo2RgmzTAWuSSAdebXGCtMHTUa3QPXnuCAvUdxYWQgncvsJvs4yg",
+          "pages": 6,
+          "pending_transactions": 46,
+          "persisted_signature_rows": 222,
+          "processed_transactions": 16,
+          "refreshes": 3,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": true,
+          "signatures": 222,
+          "stream_events_seen": 20,
+          "stream_hydrated_transactions": 12,
+          "stream_last_slot": 448594736,
+          "stream_pending_transactions": 8,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 49,
+            "gaps": 0,
+            "last_slot": 448594755,
+            "loss_until": 0,
+            "warm_seconds": 314
+          },
+          "transaction_failures": 4,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "iXd6mmAcKjWCM3G4ZajogbEzfk1TX5srBziN7U5pump",
+        "observed_at": 1789870858
+      },
+      {
+        "age_seconds": 306,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 2,
+          "decision_bootstrap_before": "oSL2jCDohh2MFdyk7JmvjL5jq3t1BvNbPcBu5DTs6L6xEna9KYM7YAA1us2PJAeuG1ovdDs93FzUTKXihFnRzvv",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870714,
+          "decision_bootstrap_pages": 4,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870839,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 208,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 395,
+          "history_exhausted": false,
+          "newest_signature": "JM9emVkWUshDkp7rgsgVAGQLaCFZkFoznBZM9vWoFzrETBgjdwrny82cMQZKbUc2AURBkTGVQ9MXBVCtWQmzYuR",
+          "oldest_signature": "5HvH5dmXyvMDf8VVfL9e2fgJFU27QrK2z4FQMFHCMfcCaHnE5PigrkpwEB2dn43YG8ug2HzbHCYs7wTA6eUiXSjR",
+          "pages": 13,
+          "pending_transactions": 1142,
+          "persisted_signature_rows": 2227,
+          "processed_transactions": 395,
+          "refreshes": 2,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": false,
+          "signatures": 2227,
+          "stream_events_seen": 601,
+          "stream_hydrated_transactions": 36,
+          "stream_last_slot": 448594777,
+          "stream_pending_transactions": 292,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 2618,
+            "gaps": 0,
+            "last_slot": 448594918,
+            "loss_until": 0,
+            "warm_seconds": 271
+          },
+          "transaction_failures": 84,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "HR7hJRmHtkN7HA9mTzURfmirptknxh3oo68JTDYVpump",
+        "observed_at": 1789870869
+      },
+      {
+        "age_seconds": 328,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": true,
+          "complete": false,
+          "decision_bootstrap_attempts": 2,
+          "decision_bootstrap_before": "2eLESy5F8G5hFKkfYBoZ48aNVKzgTAZ2qW5HCyTRvXx95EKgWhre7ZCbk9jMM55vVoFCtmp9VkLMzUNz6Cz6KHkH",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870793,
+          "decision_bootstrap_pages": 4,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870880,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 0,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 14,
+          "history_exhausted": false,
+          "newest_signature": "5mHhSVQWa6ZYBcrBCv1YS4Dq8LX4bJCvTgVFxqNg73yqDepazdErAkE6r1QmBQr6jrRDSP6DH4qbKtb3SWibGYX5",
+          "oldest_signature": "4FFAwWk7Q4qpQMdYNZj1acm4dQ1ZGqpss4soCr1cZZTFrz3gPFWGFAu5KWy59wgbPMpV7q1YMwXnrZEspg87S1mp",
+          "pages": 13,
+          "pending_transactions": 445,
+          "persisted_signature_rows": 2418,
+          "processed_transactions": 220,
+          "refreshes": 2,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": false,
+          "signatures": 2418,
+          "stream_events_seen": 5089,
+          "stream_hydrated_transactions": 10,
+          "stream_last_slot": 448594927,
+          "stream_pending_transactions": 2663,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 19081,
+            "gaps": 0,
+            "last_slot": 448595085,
+            "loss_until": 0,
+            "warm_seconds": 312
+          },
+          "transaction_failures": 36,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "9RPHFUTADgLmowMGVp7SFMNrmXzHzZqrTohxWCiLpump",
+        "observed_at": 1789870910
+      },
+      {
+        "age_seconds": 464,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": false,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870497,
+          "decision_bootstrap_pages": 1,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870931,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 0,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 914,
+          "history_exhausted": true,
+          "newest_signature": "X4fon1iiic5Sq6t8HziwTHYJmuJtd5sfv6mGwh6wSGJZ3jov2m3KdL6PZxDeWPuASW263yC1VSNEUtsUEXkJBX2",
+          "oldest_signature": "2CejBvU9j2sP2Y6PY12QV3VTABE42tCdr19qvsuR6KdFfBPzZp2wZFgNwpZR5LbeRpp1AZG2w697P29vLfCrH8Go",
+          "pages": 8,
+          "pending_transactions": 140,
+          "persisted_signature_rows": 1810,
+          "processed_transactions": 995,
+          "refreshes": 7,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": true,
+          "signatures": 1810,
+          "stream_events_seen": 1417,
+          "stream_hydrated_transactions": 596,
+          "stream_last_slot": 448595109,
+          "stream_pending_transactions": 4,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 1552,
+            "gaps": 0,
+            "last_slot": 448595191,
+            "loss_until": 0,
+            "warm_seconds": 453
+          },
+          "transaction_failures": 66,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "o48TcY82MYf7p2EnBNAP4QXQWg9KZ5iQFooPoV5FoMo",
+        "observed_at": 1789870961
+      },
+      {
+        "age_seconds": 459,
+        "complete": false,
+        "history_status": {
+          "capacity_loss": true,
+          "complete": false,
+          "decision_bootstrap_attempts": 1,
+          "decision_bootstrap_before": "3k5w7dB3uT31NuQZboActP4LfSZNvQ384QuxPQ5UuxA9vdQosH5cXNKAymN6uXPabgrFt6MLi7fDsgmaq85ha4yC",
+          "decision_bootstrap_capacity_loss": false,
+          "decision_bootstrap_complete": true,
+          "decision_bootstrap_oldest_time": 1789870530,
+          "decision_bootstrap_pages": 1,
+          "decision_window": {
+            "complete": false,
+            "cutoff": 1789870955,
+            "ignored_historical_unknown_block_times": 0,
+            "pending_transactions": 218,
+            "signature_complete": true,
+            "stream_complete": false,
+            "window_seconds": 30
+          },
+          "events": 802,
+          "history_exhausted": false,
+          "newest_signature": "TT2L8eHruxg147KE8nPEr5czfyZrQzwh8YFGuhDqu2hs5kGQLC5GzmsFsf7T8L4Aud92affQuSmcW15D8FbRwgs",
+          "oldest_signature": "BHrLNtqY5wjKgrsykdBZLWnY1PSMHcTj5kdCVPux8mD4SCZVupcZQNRzFvkzqFz7PT8oSVpqmwmrjFZnaW2YGzy",
+          "pages": 15,
+          "pending_transactions": 3311,
+          "persisted_signature_rows": 4853,
+          "processed_transactions": 802,
+          "refreshes": 4,
+          "restored_signature_rows": 0,
+          "signature_coverage_complete": true,
+          "signatures": 4853,
+          "stream_events_seen": 1133,
+          "stream_hydrated_transactions": 159,
+          "stream_last_slot": 448595219,
+          "stream_pending_transactions": 305,
+          "stream_status": {
+            "connected": true,
+            "covered": true,
+            "events": 4455,
+            "gaps": 0,
+            "last_slot": 448595427,
+            "loss_until": 0,
+            "warm_seconds": 441
+          },
+          "transaction_failures": 180,
+          "unknown_block_times": 0
+        },
+        "limitation": "incomplete_pumpswap_decision_window",
+        "mint": "G3ihQjtefWrkBJQR8CtD8MvgFsuAx6G7n8fHVPG9pump",
+        "observed_at": 1789870985
+      }
+    ],
+    "pumpswap_stream": {
+      "active_subscriptions": 0,
+      "connections": 1,
+      "last_error_kind": null,
+      "reconnects": 0,
+      "wanted_addresses": 8
+    },
+    "top_level_fields": [
+      "accounting",
+      "accounting_path",
+      "accounting_replay",
+      "active_provider",
+      "attempts",
+      "confirmation_evidence",
+      "continuous_campaign",
+      "counts",
+      "created_mints_observed",
+      "curve_progress_definition",
+      "discovery_seconds",
+      "discovery_source",
+      "ended",
+      "entry_budget_lamports",
+      "entry_delay_seconds",
+      "entry_fill_timeout_seconds",
+      "entry_fraction_bps",
+      "evidence_acquisition_mode",
+      "evidence_broker",
+      "evidence_source",
+      "expected_policy_hash",
+      "extension_lookback_seconds",
+      "followup_seconds",
+      "frozen_policy",
+      "full_evidence_attempts",
+      "full_evidence_candidates",
+      "kind",
+      "limitations",
+      "live_money_authority",
+      "open_positions",
+      "operational_configuration",
+      "operational_configuration_hash",
+      "order_authority",
+      "outcomes_can_change_policy",
+      "pending_entries",
+      "policy_hash",
+      "postgrad",
+      "postgrad_candidates",
+      "postgrad_history_status",
+      "pumpswap_stream",
+      "qualifiers",
+      "retired_postgrad_candidates",
+      "run_id",
+      "selection_uses_future_outcomes",
+      "sessions",
+      "settled",
+      "shared_portfolio_mutation",
+      "signing_authority",
+      "started",
+      "strategy_id",
+      "stream",
+      "terminal_reason_counts",
+      "threshold_changes_allowed",
+      "threshold_changes_made",
+      "transaction_submission_authority",
+      "velocity_window_seconds"
+    ]
+  }
+}

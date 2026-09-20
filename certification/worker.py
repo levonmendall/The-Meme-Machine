@@ -13,6 +13,7 @@ import importlib
 import json
 import os
 import re
+import resource
 from pathlib import Path
 import sys
 import threading
@@ -30,7 +31,8 @@ class Observer:
         self.latencies=[];self.errors=Counter();self.started=time.monotonic()
         self.journal=Journal(self.root/'telemetry.sqlite')
         self.raw=gzip.open(self.root/'rpc-evidence.jsonl.gz','ab')
-        self.archive_ns=0;self.requests=0;self.raw_records=0;self.provider_sessions={}
+        self.archive_ns=0;self.journal_ns=0;self.snapshot_ns=0
+        self.requests=0;self.raw_records=0;self.provider_sessions={}
         self.last_progress=None;self.last_report=None
         self.last_activity_write=0
         self.pons_rows=0;self.pons_qualifiers=0;self.pons_lifecycles=set()
@@ -39,9 +41,11 @@ class Observer:
 
     def event(self, kind, body):
         with self.lock:
+            before=time.monotonic_ns()
             self.sequence+=1
             identity=f'{os.getpid()}:{self.sequence}'
             self.journal.append(self.lane,identity,kind,body)
+            self.journal_ns+=time.monotonic_ns()-before
             return identity
 
     def transport_activity(self):
@@ -53,8 +57,10 @@ class Observer:
             at_monotonic=now,provider_requests=self.requests,method_counts=dict(self.methods),
             errors=dict(self.errors),provider_session_count=len(self.provider_sessions),
             evidence_qualification_inferred=False)
+        before=time.monotonic_ns()
         temporary=self.root/'activity.json.tmp';temporary.write_text(canonical(value))
         os.replace(temporary,self.root/'activity.json');self.last_activity_write=now
+        self.snapshot_ns+=time.monotonic_ns()-before
 
     def checkpoint(self, body, phase):
         # Called by the lane's progress path, never by a timer pretending health.
@@ -91,6 +97,7 @@ class Observer:
 
     def status(self, phase, body=None):
         with self.lock:
+            before=time.monotonic_ns()
             if body is None:body=self.last_report
             lat=sorted(self.latencies)
             quant=lambda f: None if not lat else lat[min(len(lat)-1,int((len(lat)-1)*f))]
@@ -102,9 +109,15 @@ class Observer:
                       errors=dict(self.errors),provider_session_count=len(self.provider_sessions),
                       rpc_latency_seconds=dict(p50=quant(.5),p95=quant(.95),p99=quant(.99)),
                       telemetry_archive_seconds=self.archive_ns/1e9,
+                      telemetry_cost=dict(raw_archive_seconds=self.archive_ns/1e9,
+                          journal_append_seconds=self.journal_ns/1e9,
+                          snapshot_seconds=self.snapshot_ns/1e9,
+                          scope='serialized observer wall time; excludes strategy-native telemetry, lock wait and final snapshot'),
+                      runtime_resources=process_resources(),
                       report=body,
                       terminal_monotonic=time.monotonic() if phase in ("returned","failed") else None)
             raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
+            self.snapshot_ns+=time.monotonic_ns()-before
 
     def observe_work(self,module,name,stage):
         original=getattr(module,name)
@@ -188,6 +201,7 @@ class Observer:
                     before=time.monotonic_ns()
                     record=dict(sequence=observer.raw_records,lane=observer.lane,session=session,
                                 transport_attempted=transport_started is not None,transport_duration_seconds=transport_elapsed,
+                                transport_started_monotonic_ns=transport_started,
                                 observed_at_ns=time.time_ns(),duration_seconds=elapsed,
                                 request=wire,response=result,error=error,queue_wait_seconds=queue_wait,
                                 http_status=http_status,json_rpc_error_codes=rpc_error_codes,
@@ -202,6 +216,14 @@ class Observer:
         setattr(cls,name,observed)
 
 PROCESS_NONCE=str(uuid.uuid4())
+
+
+def process_resources():
+    usage=resource.getrusage(resource.RUSAGE_SELF)
+    return dict(cpu_user_seconds=usage.ru_utime,cpu_system_seconds=usage.ru_stime,
+        maximum_resident_bytes=usage.ru_maxrss*(1024 if sys.platform!='darwin' else 1),
+        available_logical_cpus=len(os.sched_getaffinity(0)) if hasattr(os,'sched_getaffinity') else os.cpu_count(),
+        scope='lane process including all threads; CPU cumulative, RSS high-water mark')
 
 
 def persist_pons_terminal(path,result):
@@ -256,7 +278,10 @@ def main():
         elif args.lane=='meteora':
             module=importlib.import_module('tests.solana_dlmm_independent_v1')
             observer.prioritize(module,"_lifecycle")
-            observer.observe_work(module,'_aligned_warmup','fresh_trigger_and_exact_warmup')
+            observer.observe_work(module,'_triggered_warmup','fresh_trigger_and_exact_warmup')
+            observer.observe_work(module,'_await_fresh_swap_trigger','dlmm_fresh_swap_trigger')
+            observer.observe_work(module,'_observe_window','dlmm_window_reconstruction')
+            observer.observe_work(module,'_complete_signature_census','dlmm_signature_census')
             original=module._atomic_checkpoint
             def checkpoint(report,stage,*a,**kw):
                 result=original(report,stage,*a,**kw)

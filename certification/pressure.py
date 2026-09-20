@@ -8,7 +8,7 @@ import time
 
 class PressureView:
     def __init__(self, path):
-        self.path=Path(path);self.sequence=0;self.lanes={};self.endpoints={}
+        self.path=Path(path);self.sequence=0;self.lanes={};self.endpoints={};self.retry_counters={}
 
     def snapshot(self):
         if not self.path.exists():return dict(state='not_initialized',lanes={})
@@ -22,7 +22,12 @@ class PressureView:
                 stats['requests']+=1;stats['methods'].update(row['methods'])
                 if row.get('http_status') is not None:stats['http_status'][str(row['http_status'])]+=1
                 if row.get('rpc_error_code') is not None:stats['rpc_errors'][str(row['rpc_error_code'])]+=1
-                stats['retries']+=row.get('retry_count',0)
+                # provider_topology records Rpc.retry_count: cumulative within
+                # a session, not retries performed by this one transport.
+                key=(lane,row.get('session'))
+                cumulative=row.get('retry_count',0);previous=self.retry_counters.get(key,0)
+                stats['retries']+=max(0,cumulative-previous)
+                self.retry_counters[key]=max(previous,cumulative)
                 stats['max_queue_depth']=max(stats['max_queue_depth'],row.get('queue_depth',0))
                 stats['queue_wait_seconds']+=row.get('wait_seconds',0)
                 stats['transport_seconds']+=row.get('latency_seconds',0)

@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "research_version": "four-lane-fixed-univariate-shadow-v1",
+  "paper_only": true,
+  "allocation_authority": false,
+  "automatic_promotion": false,
+  "registration_not_before_utc": "2026-09-20T02:25:00+00:00",
+  "selection": "Every configured score is reported. Never retrospectively select only the winning score.",
+  "range_policy": "Only the original pre-entry frozen range is observed. No alternative range is invented after outcomes.",
+  "outcome_policy": "Missing forward paths remain censored. No synthetic, forced, incomplete, late or screening-only evidence can be promoted as a natural economic outcome.",
+  "minimum_outcomes_for_exploratory_discrimination": 30,
+  "minimum_distinct_assets": 10,
+  "promotion": "No automatic promotion; requires a later, separately registered prospective validation cohort.",
+  "lanes": {
+    "pump": {
+      "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+      "models": [
+        {
+          "id": "buyer_breadth",
+          "path": "independent_buyers",
+          "direction": 1
+        },
+        {
+          "id": "buyer_growth",
+          "path": "buyer_growth",
+          "direction": 1
+        },
+        {
+          "id": "net_buy_share",
+          "path": "net_buy_share_bps",
+          "direction": 1
+        },
+        {
+          "id": "low_concentration",
+          "path": "concentration_bps",
+          "direction": -1
+        }
+      ]
+    },
+    "pons": {
+      "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+      "models": [
+        {
+          "id": "buyer_breadth",
+          "path": "demand.independent_groups",
+          "direction": 1
+        },
+        {
+          "id": "buyer_growth",
+          "path": "demand.new_independent_groups_15s",
+          "direction": 1
+        },
+        {
+          "id": "low_concentration",
+          "path": "demand.largest_buyer_flow_bps",
+          "direction": -1
+        },
+        {
+          "id": "low_roundtrip_cost",
+          "path": "roundtrip_loss_bps",
+          "direction": -1
+        }
+      ]
+    },
+    "meteora": {
+      "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+      "models": [
+        {
+          "id": "fee_acceleration",
+          "path": "fee_acceleration",
+          "direction": 1
+        },
+        {
+          "id": "volume_acceleration",
+          "path": "volume_acceleration",
+          "direction": 1
+        },
+        {
+          "id": "low_drift",
+          "path": "drift_ratio",
+          "direction": -1
+        },
+        {
+          "id": "projected_net",
+          "path": "expected_net_lamports",
+          "direction": 1
+        }
+      ]
+    },
+    "ramses": {
+      "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+      "models": [
+        {
+          "id": "volume_acceleration",
+          "path": "volume_acceleration_milli",
+          "direction": 1
+        },
+        {
+          "id": "two_way_chop",
+          "path": "chop_ratio_milli",
+          "direction": 1
+        },
+        {
+          "id": "low_imbalance",
+          "path": "flow_imbalance_bps",
+          "direction": -1
+        },
+        {
+          "id": "turnover",
+          "path": "turnover_bps",
+          "direction": 1
+        }
+      ]
+    }
+  }
+}

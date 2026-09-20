@@ -1,3 +1,50 @@
+diff --git a/ACQUISITION_REPAIR_HANDOFF.md b/ACQUISITION_REPAIR_HANDOFF.md
+new file mode 100644
+index 0000000..1a89883
+--- /dev/null
++++ b/ACQUISITION_REPAIR_HANDOFF.md
+@@ -0,0 +1,41 @@
++# Pump acquisition repair
++
++Source branch: feat/pump-acceleration-independent-v1, exact source SHA
++361d90dbfd12226467ac458f92b16a9f0b017fce. Stacked repair base:
++6377b4c46da95c4591848939c714f7766e789acd (continuous paper campaign).
++Frozen policy b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246.
++No strategy, finality, signing or live-money authority changes.
++
++Latest retained smoke 35483374004 / 2fa41cd0-88ba-4845-b167-ced816dca812:
++390 discovered, two complete vectors, zero natural settlements. Read-only
++acquisition review 35485976103 exposed 6,238 expired Pump-window jobs,
++959 completed lower-priority research jobs, and candidate windows still marked
++incomplete despite some body work having completed during the same refresh.
++The 18 window acquisitions had p50 19.08 / p95 54.39 seconds.
++
++Changes:
++- A six-second decoder deadline applies across chunks; it is not renewed for
++  every 16-body chunk. Missing evidence still fails qualification closed.
++- Defer older second-leg history while the current decision window is incomplete.
++  All frozen strategy modes remain; no history is fabricated or discarded.
++- Reconcile captured stream misses against the shared immutable cache after
++  bootstrap/decoder work, without another RPC. Do not preserve an obsolete miss
++  count after that exact body was hydrated by this or another lane.
++- Shared broker uses earliest deadline among time-sensitive decision classes,
++  with open positions still first and background history still last.
++- Requeue expired pending body work immediately, preserving active leases. This
++  changes an infrastructure work request, never a candidate observation clock.
++
++The existing three-attempt bounded bootstrap, exact 30-second horizon, stream
++coverage, transaction-version support, global pacing/backpressure, immutable
++reuse and accounting semantics remain. New budget/deferred-work counters remain
++observable in history status; raw transport telemetry is unchanged.
++
++Five failure cases were reproduced against the pre-repair behavior. Six new
++regressions pass, including active-lease expiry protection. Full suite:
++251 tests passed; python -m tests.resource_check passed. Command:
++python -m unittest discover -v
++
++Live throughput gain is not yet measured. Integration must run full gates,
++clean concurrent smoke and a fresh four-hour window before claiming that gain
++or natural lifecycle certification. These changes never patch a running lane.
 diff --git a/meme_machine/paper_accounting.py b/meme_machine/paper_accounting.py
 new file mode 100644
 index 0000000..9fabf17
@@ -197,6 +244,133 @@ index 0000000..9fabf17
 +        self.replay()
 +        self.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
 +        self.db.close()
+diff --git a/meme_machine/pump_acceleration_history.py b/meme_machine/pump_acceleration_history.py
+index 0a774b1..e22207e 100644
+--- a/meme_machine/pump_acceleration_history.py
++++ b/meme_machine/pump_acceleration_history.py
+@@ -35,10 +35,13 @@ class IncrementalPumpSwapHistory:
+         self.pages=0
+         self.refreshes=0
+         self.tx_failures=0
++        self.hydration_budget_exhaustions=0
++        self.research_deferred_refreshes=0
+         self.broker=broker
+         self.stream_key=str(stream_key)
+         self.history_scope="pumpswap_history"
+         self.stream_pending_transactions=0
++        self._pending_stream_slots={}
+         self.stream_events_seen=0
+         self.stream_hydrated_transactions=0
+         self.stream_last_slot=0
+@@ -174,6 +177,7 @@ class IncrementalPumpSwapHistory:
+             slot_by_sig[sig]=int(row["slot"])
+             self.stream_last_slot=max(self.stream_last_slot,int(row["slot"]))
+         if not signatures:
++            self._pending_stream_slots={}
+             self.stream_pending_transactions=0
+             return
+         txs,meta=self.broker.hydrate_transactions(
+@@ -181,27 +185,36 @@ class IncrementalPumpSwapHistory:
+             deadline=time.time()+4.0,max_version=1,batch_size=8)
+         self.stream_pending_transactions=int(meta["pending"])
+         self.stream_hydrated_transactions+=int(meta["hydrated"])
++        self._pending_stream_slots={sig:slot_by_sig[sig] for sig in signatures
++                                    if not isinstance(txs.get(sig),dict)}
+         for sig in signatures:
+-            tx=txs.get(sig)
+-            if not isinstance(tx,dict):
+-                continue
+-            bt=tx.get("blockTime")
+-            if type(bt) is not int or not cutoff-2<=int(bt)<=now:
+-                continue
+-            row=dict(
+-                signature=sig,slot=int(tx.get("slot") or slot_by_sig[sig]),
+-                blockTime=int(bt),err=(tx.get("meta") or {}).get("err"),
+-                confirmationStatus="finalized",
+-            )
+-            self._remember([row])
+-            if sig in self.processed or row.get("err"):
+-                continue
+-            self.processed.add(sig)
+-            for event in pumpswap_trade_events(tx):
+-                if event.get("pool")!=self.pool:
+-                    continue
+-                event["id"]=f'{sig}:{event["index"]}'
+-                self.events[event["id"]]=event
++            self._accept_stream_transaction(sig,slot_by_sig[sig],txs.get(sig),now,window_seconds)
++
++    def _accept_stream_transaction(self,sig,slot,tx,now,window_seconds=30):
++        if not isinstance(tx,dict):return
++        bt=tx.get("blockTime");cutoff=int(now)-int(window_seconds)
++        if type(bt) is not int or not cutoff-2<=int(bt)<=int(now):return
++        row=dict(signature=sig,slot=int(tx.get("slot") or slot),blockTime=int(bt),
++                 err=(tx.get("meta") or {}).get("err"),confirmationStatus="finalized")
++        self._remember([row])
++        if sig in self.processed or row.get("err"):return
++        self.processed.add(sig)
++        for event in pumpswap_trade_events(tx):
++            if event.get("pool")!=self.pool:continue
++            event["id"]=f'{sig}:{event["index"]}'
++            self.events[event["id"]]=event
++
++    def _refresh_cached_stream(self,now):
++        # Another chunk/lane may have completed the exact same immutable body.
++        # Reconcile captured misses before failing the window; never issue an RPC
++        # or infer missing economics merely because a signature is known.
++        for sig,slot in list(self._pending_stream_slots.items()):
++            tx=self.broker.get_transaction(sig)
++            if not isinstance(tx,dict):continue
++            self._accept_stream_transaction(sig,slot,tx,now)
++            del self._pending_stream_slots[sig]
++            self.stream_hydrated_transactions+=1
++        self.stream_pending_transactions=len(self._pending_stream_slots)
+ 
+     def _stream_window_complete(self,now,window_seconds=30):
+         if self.broker is None:
+@@ -315,13 +328,17 @@ class IncrementalPumpSwapHistory:
+             pending=recent[:self.max_tx_per_refresh]
+         else:
+             pending=older[:self.max_tx_per_refresh]
++        hydration_deadline=time.time()+6.0
+         for start in range(0,len(pending),16):
++            if self.broker is not None and time.time()>=hydration_deadline:
++                self.hydration_budget_exhaustions+=1
++                break
+             chunk=pending[start:start+16]
+             signatures=[str(r["signature"]) for r in chunk]
+             if self.broker is not None:
+                 txmap,meta=self.broker.hydrate_transactions(
+                     rpc,signatures,kind=str(kind),
+-                    deadline=time.time()+6.0,max_version=1,batch_size=8)
++                    deadline=hydration_deadline,max_version=1,batch_size=8)
+                 txs=[txmap.get(sig) for sig in signatures]
+                 self.tx_failures+=int(meta["pending"])
+             else:
+@@ -406,10 +423,14 @@ class IncrementalPumpSwapHistory:
+                 self._bootstrap_decision_window(rpc,now,30)
+                 self._decode_pending(
+                     rpc,now,kind=str(hydration_kind))
+-            if research:
++            self._refresh_cached_stream(now)
++            if research and not self.decision_window_status(now,30)["complete"]:
++                self.research_deferred_refreshes+=1
++            if research and self.decision_window_status(now,30)["complete"]:
+                 self._new_head(rpc)
+                 self._backfill(rpc)
+                 self._decode_pending(rpc,now,kind="research_history")
++                self._refresh_cached_stream(now)
+         else:
+             self._new_head(rpc)
+             self._backfill(rpc)
+@@ -454,6 +475,8 @@ class IncrementalPumpSwapHistory:
+             events=len(self.events),pages=self.pages,refreshes=self.refreshes,
+             unknown_block_times=self.unknown_block_times,
+             transaction_failures=self.tx_failures,
++            hydration_budget_exhaustions=self.hydration_budget_exhaustions,
++            research_deferred_refreshes=self.research_deferred_refreshes,
+             stream_pending_transactions=self.stream_pending_transactions,
+             stream_events_seen=self.stream_events_seen,
+             stream_hydrated_transactions=self.stream_hydrated_transactions,
 diff --git a/meme_machine/pump_acceleration_paper.py b/meme_machine/pump_acceleration_paper.py
 index 3e64d83..7c6e406 100644
 --- a/meme_machine/pump_acceleration_paper.py
@@ -306,10 +480,83 @@ index 3e64d83..7c6e406 100644
              reservation=None if self.reservation is None else dict(self.reservation),
              position=None if self.position is None else asdict(self.position),
 diff --git a/meme_machine/solana_evidence_broker.py b/meme_machine/solana_evidence_broker.py
-index 05dd96f..5625634 100644
+index 05dd96f..cff4522 100644
 --- a/meme_machine/solana_evidence_broker.py
 +++ b/meme_machine/solana_evidence_broker.py
-@@ -992,6 +992,11 @@ class DynamicAddressLogStream:
+@@ -472,17 +472,26 @@ class EvidenceBroker:
+                    ON CONFLICT(job_key) DO UPDATE SET
+                      kind=CASE
+                        WHEN jobs.status IN ('complete','expired')
++                         OR (jobs.deadline<=excluded.created_at
++                             AND NOT (jobs.status='inflight'
++                                      AND COALESCE(jobs.lease_until,0)>excluded.created_at))
+                          THEN excluded.kind
+                        WHEN excluded.priority<jobs.priority THEN excluded.kind
+                        ELSE jobs.kind
+                      END,
+                      priority=CASE
+                        WHEN jobs.status IN ('complete','expired')
++                         OR (jobs.deadline<=excluded.created_at
++                             AND NOT (jobs.status='inflight'
++                                      AND COALESCE(jobs.lease_until,0)>excluded.created_at))
+                          THEN excluded.priority
+                        ELSE MIN(jobs.priority,excluded.priority)
+                      END,
+                      deadline=CASE
+                        WHEN jobs.status IN ('complete','expired')
++                         OR (jobs.deadline<=excluded.created_at
++                             AND NOT (jobs.status='inflight'
++                                      AND COALESCE(jobs.lease_until,0)>excluded.created_at))
+                          THEN excluded.deadline
+                        ELSE MIN(jobs.deadline,excluded.deadline)
+                      END,
+@@ -501,6 +510,9 @@ class EvidenceBroker:
+                      END,
+                      created_at=CASE
+                        WHEN jobs.status IN ('complete','expired')
++                         OR (jobs.deadline<=excluded.created_at
++                             AND NOT (jobs.status='inflight'
++                                      AND COALESCE(jobs.lease_until,0)>excluded.created_at))
+                          THEN excluded.created_at
+                        ELSE jobs.created_at
+                      END,
+@@ -518,7 +530,12 @@ class EvidenceBroker:
+             return True
+ 
+     def _claim_jobs(self, limit, now=None, lease_seconds=15.0):
+-        """Atomically claim global hydration jobs across broker processes."""
++        """Atomically claim jobs: positions first, then earliest decision deadline.
++
++        Pump and DLMM decision evidence share urgency. A large Pump backlog must
++        not outrank an earlier DLMM deadline solely because of its lane label.
++        Research stays lower priority and active leases remain protected.
++        """
+         limit=max(1,int(limit))
+         now=float(self.clock() if now is None else now)
+         lease_until=now+max(1.0,float(lease_seconds))
+@@ -527,8 +544,9 @@ class EvidenceBroker:
+                 self.db.execute("BEGIN IMMEDIATE")
+                 self.db.execute(
+                     """UPDATE jobs SET status='expired',lease_until=NULL,updated_at=?
+-                       WHERE status IN ('pending','inflight') AND deadline<?""",
+-                    (now,now),
++                       WHERE deadline<? AND (status='pending'
++                         OR (status='inflight' AND COALESCE(lease_until,0)<=?))""",
++                    (now,now,now),
+                 )
+                 self.db.execute(
+                     """DELETE FROM jobs
+@@ -545,7 +563,8 @@ class EvidenceBroker:
+                 rows=self.db.execute(
+                     """SELECT job_key,payload FROM jobs
+                        WHERE status='pending' AND deadline>=?
+-                       ORDER BY priority ASC,deadline ASC,created_at ASC LIMIT ?""",
++                       ORDER BY CASE WHEN priority BETWEEN 10 AND 30 THEN 10 ELSE priority END ASC,
++                                deadline ASC,priority ASC,created_at ASC LIMIT ?""",
+                     (now,limit),
+                 ).fetchall()
+                 if rows:
+@@ -992,6 +1011,11 @@ class DynamicAddressLogStream:
              self.addresses.add(address)
          return self.stream_key(address)
  
@@ -321,7 +568,7 @@ index 05dd96f..5625634 100644
      def wanted_addresses(self):
          with self.lock:
              return sorted(self.addresses)
-@@ -1015,6 +1020,8 @@ class DynamicAddressLogStream:
+@@ -1015,6 +1039,8 @@ class DynamicAddressLogStream:
                      close_timeout=5,max_size=2_000_000,max_queue=256,
                  ) as websocket:
                      pending={}
@@ -330,7 +577,7 @@ index 05dd96f..5625634 100644
                      by_address={}
                      by_subscription={}
                      next_id=1
-@@ -1028,6 +1035,12 @@ class DynamicAddressLogStream:
+@@ -1028,6 +1054,12 @@ class DynamicAddressLogStream:
  
                      while not stop_event.is_set():
                          wanted=self.wanted_addresses()
@@ -343,7 +590,7 @@ index 05dd96f..5625634 100644
                          known=set(by_address)|set(pending.values())
                          for address in [a for a in wanted if a not in known][:16]:
                              request_id=next_id;next_id+=1
-@@ -1048,12 +1061,25 @@ class DynamicAddressLogStream:
+@@ -1048,12 +1080,25 @@ class DynamicAddressLogStream:
                          payload=json.loads(message)
                          if "id" in payload:
                              request_id=payload.get("id")
@@ -369,7 +616,7 @@ index 05dd96f..5625634 100644
                              by_address[address]=subscription
                              by_subscription[subscription]=address
                              active_addresses=list(by_address)
-@@ -1064,6 +1090,8 @@ class DynamicAddressLogStream:
+@@ -1064,6 +1109,8 @@ class DynamicAddressLogStream:
                          if payload.get("method")!="logsNotification":
                              continue
                          params=payload.get("params") or {}
@@ -859,6 +1106,70 @@ index 0000000..25ba1d5
 +        self.assertEqual(self.book.reconcile()['reserved'],400)
 +
 +if __name__=='__main__':unittest.main()
+diff --git a/tests/test_pump_acceleration_history.py b/tests/test_pump_acceleration_history.py
+index a9eaead..856cc10 100644
+--- a/tests/test_pump_acceleration_history.py
++++ b/tests/test_pump_acceleration_history.py
+@@ -1,6 +1,7 @@
+ import os
+ import tempfile
+ import unittest
++from unittest.mock import patch
+ 
+ from meme_machine.solana_evidence_broker import EvidenceBroker
+ from meme_machine.pump_acceleration_history import IncrementalPumpSwapHistory
+@@ -248,3 +249,51 @@ class IncrementalHistoryTests(unittest.TestCase):
+ 
+ if __name__=="__main__":
+     unittest.main()
++
++class RefreshBudgetRegressionTests(unittest.TestCase):
++    def test_decision_decoder_uses_one_budget_across_chunks(self):
++        clock=[1000.0]
++        class B:
++            def signature_rows(self,*_a,**_kw):return []
++            def hydrate_transactions(self,rpc,sigs,**kw):
++                rpc.append((list(sigs),kw['deadline']));clock[0]+=6.1
++                return {s:None for s in sigs},dict(pending=len(sigs))
++        history=IncrementalPumpSwapHistory('pool',900,broker=B())
++        history.signature_rows={str(i):dict(signature=str(i),slot=i,blockTime=999,err=None) for i in range(48)}
++        calls=[]
++        with patch('meme_machine.pump_acceleration_history.time.time',side_effect=lambda:clock[0]):
++            history._decode_pending(calls,1000,kind='pump_window')
++        self.assertEqual(len(calls),1)
++        self.assertEqual(history.tx_failures,16)
++
++    def test_incomplete_current_window_does_not_start_second_leg_history_reads(self):
++        class B:
++            def signature_rows(self,*_a,**_kw):return []
++            def stream_status(self,*_a,**_kw):return dict(covered=False)
++        history=IncrementalPumpSwapHistory('pool',900,broker=B())
++        with patch.object(history,'_ingest_stream_window'),patch.object(history,'_bootstrap_decision_window'),\
++             patch.object(history,'_decode_pending'),patch.object(history,'_new_head') as head,\
++             patch.object(history,'_backfill') as backfill:
++            history.refresh(object(),1000,research=True)
++        head.assert_not_called();backfill.assert_not_called()
++
++    def test_bootstrap_hydration_clears_initial_stream_miss_without_another_rpc(self):
++        class B(EvidenceBroker):
++            first=True
++            def hydrate_transactions(self,rpc,signatures,**kwargs):
++                if self.first:
++                    self.first=False
++                    return {s:None for s in signatures},dict(pending=len(signatures),hydrated=0)
++                return super().hydrate_transactions(rpc,signatures,**kwargs)
++        class R(FakeRPC):
++            def call_many(self,*args,**kwargs):
++                result=super().call_many(*args,**kwargs)
++                return [dict(tx,blockTime=100+tx['slot']) for tx in result]
++        broker=B(':memory:',clock=lambda:103,sleeper=lambda _:None);self.addCleanup(broker.close)
++        broker.stream_begin('pool:one',70)
++        broker.record_event('pool:one',signature='s3',slot=3,observed_at=103)
++        history=IncrementalPumpSwapHistory('pool',100,broker=broker,stream_key='pool:one')
++        rpc=R();history.refresh(rpc,103)
++        self.assertEqual(history.stream_pending_transactions,0)
++        self.assertTrue(history.decision_window_status(103)['complete'])
++        self.assertEqual(rpc.tx_calls.count('s3'),1)
 diff --git a/tests/test_pump_continuous_campaign.py b/tests/test_pump_continuous_campaign.py
 new file mode 100644
 index 0000000..80cf79e
@@ -940,3 +1251,52 @@ index 0000000..80cf79e
 +        self.assertEqual(broker.record_event.call_args.kwargs['signature'],'new-signature')
 +        self.assertEqual(stream.reconnects,0)
 +        broker.stream_gap.assert_not_called()
+diff --git a/tests/test_solana_evidence_broker.py b/tests/test_solana_evidence_broker.py
+index 3115376..64b470b 100644
+--- a/tests/test_solana_evidence_broker.py
++++ b/tests/test_solana_evidence_broker.py
+@@ -231,3 +231,44 @@ class SolanaEvidenceBrokerTests(unittest.TestCase):
+ 
+ if __name__=="__main__":
+     unittest.main()
++
++class HydrationDeadlineRegressionTests(unittest.TestCase):
++    def test_expired_pending_request_can_reenter_without_losing_a_refresh(self):
++        clock=_Clock();broker=EvidenceBroker(':memory:',clock=clock,sleeper=clock.sleep)
++        self.addCleanup(broker.close)
++        broker.queue_transaction('needed',kind='pump_window',deadline=clock()+1)
++        clock.value+=2
++        rpc=_Rpc();txs,meta=broker.hydrate_transactions(rpc,['needed'],kind='pump_window',deadline=clock()+4)
++        self.assertEqual(meta['pending'],0)
++        self.assertIsNotNone(txs['needed'])
++
++    def test_earlier_dlmm_deadline_is_not_starved_by_large_pump_batch(self):
++        clock=_Clock();broker=EvidenceBroker(':memory:',clock=clock,sleeper=clock.sleep)
++        self.addCleanup(broker.close)
++        for i in range(100):broker.queue_transaction('pump-'+str(i),kind='pump_window',deadline=clock()+20)
++        broker.queue_transaction('exit',kind='position_monitor',deadline=clock()+30)
++        rpc=_Rpc();original=rpc.call_many
++        def cost(*args,**kwargs):
++            clock.value+=1;return original(*args,**kwargs)
++        rpc.call_many=cost
++        txs,meta=broker.hydrate_transactions(rpc,['dlmm'],kind='dlmm_fresh',deadline=clock()+3,batch_size=1)
++        self.assertEqual(rpc.batches[0][1],['exit'])
++        self.assertEqual(meta['pending'],0)
++        self.assertIsNotNone(txs['dlmm'])
++
++    def test_expired_request_does_not_break_an_active_cross_process_lease(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            clock=_Clock();path=os.path.join(tmp,'broker.sqlite')
++            first=EvidenceBroker(path,clock=clock,sleeper=clock.sleep)
++            second=EvidenceBroker(path,clock=clock,sleeper=clock.sleep)
++            self.addCleanup(first.close);self.addCleanup(second.close)
++            first.queue_transaction('needed',kind='pump_window',deadline=clock()+1)
++            first._claim_jobs(1,clock(),lease_seconds=15)
++            clock.value+=2
++            second.queue_transaction('needed',kind='position_monitor',deadline=clock()+10)
++            self.assertEqual(second._claim_jobs(1,clock()),[])
++            self.assertEqual(first.telemetry()['inflight_jobs'],1)
++            first.put_transaction('needed',dict(slot=10,blockTime=1000))
++            first._complete_jobs(['tx:needed'])
++            rpc=_Rpc();values,meta=second.hydrate_transactions(rpc,['needed'],kind='position_monitor',deadline=clock()+2)
++            self.assertEqual(meta['pending'],0);self.assertEqual(rpc.batches,[])

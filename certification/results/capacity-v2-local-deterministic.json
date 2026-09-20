@@ -1,0 +1,132 @@
+{
+  "implementation_hash": "265c97f1860e680956cc49b5b31b1757a0b4c161ceb56c7aa40b6ae06ebac7c9",
+  "integration_sha": "7901e0803792e26dd8d8087d3914c642d359f876",
+  "lanes": {
+    "meteora": [
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-v"
+        ],
+        "ended_at": 1789872671.3713443,
+        "exit_code": 0,
+        "log": "meteora-gate-0.log",
+        "sha256": "8f42e267dba5df5028790719a2b76bafc647b6592b82a9a1a278b44a86bfced4",
+        "started_at": 1789872668.0592515,
+        "summary_complete": true
+      },
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "tests.resource_check"
+        ],
+        "ended_at": 1789872683.3999317,
+        "exit_code": 0,
+        "log": "meteora-gate-1.log",
+        "sha256": "95c2a12e5522035f86b14458db67720c73b6f8ed8059e403b611348130c71f43",
+        "started_at": 1789872671.3714085,
+        "summary_complete": true
+      },
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "tests.dlmm_resource_check"
+        ],
+        "ended_at": 1789872706.021319,
+        "exit_code": 0,
+        "log": "meteora-gate-2.log",
+        "sha256": "f5049afea9420fe1302f2c0855a948abadb2293cdf964165755f9771c25593ac",
+        "started_at": 1789872683.4000292,
+        "summary_complete": true
+      }
+    ],
+    "pons": [
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "robinhood_tests",
+          "-v"
+        ],
+        "ended_at": 1789872707.0487876,
+        "exit_code": 0,
+        "log": "pons-gate-0.log",
+        "sha256": "c48647015ff9b770b9492e305d305fa7305fe3e88a48fa225c0d9d7c40bd5111",
+        "started_at": 1789872706.02143,
+        "summary_complete": true
+      }
+    ],
+    "pump": [
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-v"
+        ],
+        "ended_at": 1789872656.4016705,
+        "exit_code": 0,
+        "log": "pump-gate-0.log",
+        "sha256": "407a5392139ed1e5486df333b5e327d28e4343498fe49c08220f7883e2031746",
+        "started_at": 1789872653.799325,
+        "summary_complete": true
+      },
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "tests.resource_check"
+        ],
+        "ended_at": 1789872668.0591457,
+        "exit_code": 0,
+        "log": "pump-gate-1.log",
+        "sha256": "bb9aa20dfb07642e7eaf886f6a6f00adb2ac7b8de51d460bedeb77ac220365b2",
+        "started_at": 1789872656.4017203,
+        "summary_complete": true
+      }
+    ],
+    "ramses": [
+      {
+        "command": [
+          "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "robinhood_tests",
+          "-v"
+        ],
+        "ended_at": 1789872708.0154681,
+        "exit_code": 0,
+        "log": "ramses-gate-0.log",
+        "sha256": "4962623fbdfd3ecf251766b4d8b46598e275423c92407fde2a4dea4d4a439be0",
+        "started_at": 1789872707.0488517,
+        "summary_complete": true
+      }
+    ]
+  },
+  "passed": true,
+  "source_diff_hashes": {
+    "meteora": "cb3eaa6f75a28337d9fd130c6d1b7c3e0b8491ce8332cf1b0071619733ad889a",
+    "pons": "8e0a1ca171ca9320b776337a166be9a7d7f4b516f30ff3a0bee0cf2f1c182bed",
+    "pump": "7572359cb10208f00f400fa6d79a689a5d7a69a5c76bedebe519c347a02ab6a0",
+    "ramses": "1279ab734ab8a4f72cef8324cdfa8c46c1082f77b64f377d7c0d999901ccdc79"
+  },
+  "source_manifest_hash": "ac38ed391d7b75f262e8755a2ce59165cd775174c52fc477df1a6de61d73ce14",
+  "evidence_scope": "Local uncommitted candidate tree; exact source overlays and log hashes verified. Hosted campaign repeats all gates at its exact integration SHA.",
+  "counts": {
+    "meteora": 350,
+    "pons": 222,
+    "pump": 245,
+    "ramses": 238
+  }
+}

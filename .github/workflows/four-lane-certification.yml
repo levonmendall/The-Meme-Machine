@@ -1,7 +1,7 @@
 name: four-lane-certification
 on:
   push:
-    branches: [cert/four-lane-sustained-v1, certification/four-lane-repair-integration-20260920]
+    branches: [cert/four-lane-sustained-v1, certification/four-lane-repair-integration-20260920, cert/four-lane-capacity-v2]
   workflow_dispatch:
     inputs:
       phase:
@@ -13,6 +13,7 @@ on:
 permissions:
   contents: read
   actions: read
+  checks: write
 concurrency:
   group: meme-machine-four-lane-certification
   cancel-in-progress: false
@@ -47,13 +48,14 @@ jobs:
         run: python -m certification.guard
       - name: Concurrent paper smoke with original frozen lane runners
         env:
+          GH_CHECKS_TOKEN: ${{ github.token }}
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
           MM_ROBINHOOD_DISCOVERY_RPC_URL: ${{ secrets.MM_ROBINHOOD_DISCOVERY_RPC_URL }}
           MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
           MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON }}
           MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON }}
-        run: python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-smoke --gate certification-gates/deterministic.json --phase smoke --seconds 600
+        run: python -m certification.live_status --output certification-smoke --phase smoke -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-smoke --gate certification-gates/deterministic.json --phase smoke --seconds 600
       - name: Export exact-revision engineering readiness
         id: readiness
         run: python -m certification.controls --smoke-result certification-smoke/result.json --output "$GITHUB_OUTPUT"
@@ -66,6 +68,7 @@ jobs:
         with:
           name: four-lane-certification-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            certification-*-publisher.jsonl
             certification-gates/
             certification-smoke/
             certification-preflight.json
@@ -117,13 +120,14 @@ jobs:
         run: python -c 'import os,pathlib,json; value=json.loads(os.environ["SMOKE_READINESS"]); pathlib.Path("smoke-readiness.json").write_text(json.dumps(value))'
       - name: Four-hour continuous paper campaign, no process restart
         env:
+          GH_CHECKS_TOKEN: ${{ github.token }}
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
           MM_ROBINHOOD_DISCOVERY_RPC_URL: ${{ secrets.MM_ROBINHOOD_DISCOVERY_RPC_URL }}
           MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
           MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON }}
           MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON }}
-        run: python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-sustained --gate certification-gates/deterministic.json --phase sustained --seconds 14400 --smoke-result smoke-readiness.json
+        run: python -m certification.live_status --output certification-sustained --phase sustained -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-sustained --gate certification-gates/deterministic.json --phase sustained --seconds 14400 --smoke-result smoke-readiness.json
       - name: Preserve sustained native ledgers including per-asset Ramses books
         if: always()
         run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-native/sustained
@@ -133,6 +137,7 @@ jobs:
         with:
           name: four-lane-sustained-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            certification-*-publisher.jsonl
             certification-gates/
             certification-sustained/
             certification-native/

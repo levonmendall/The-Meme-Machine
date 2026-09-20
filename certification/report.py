@@ -12,11 +12,13 @@ REQUIRED=('responsive','bounded_queue','provider_limits','no_starvation','teleme
 
 def evaluate(result):
     failures=[];incomplete=[]
+    if result.get('status')=='FAILED':failures.append('supervisor_failed')
     if result.get('continuous_overlap_seconds',0)<14400:incomplete.append('continuous_four_hour_window_not_completed')
     for lane in LANES:
         row=result.get('lanes',{}).get(lane,{})
         if row.get('process_restarts',0):failures.append(lane+':process_restart')
         if row.get('unexpected_exit'):failures.append(lane+':unexpected_exit')
+        if permanently_unfunded(row):failures.append(lane+':permanently_unfunded_paper_book')
         if row.get('continuous_uptime_seconds',0)<14400:incomplete.append(lane+':continuous_uptime_short')
         for gate in REQUIRED:
             value=row.get('gates',{}).get(gate)
@@ -28,6 +30,13 @@ def evaluate(result):
     return dict(status='FAIL' if failures else 'INCOMPLETE' if incomplete else 'PASS',
                 failures=failures,incomplete=incomplete,
                 target_three_per_lane_met=all(result.get('lanes',{}).get(k,{}).get('natural_settled',0)>=3 for k in LANES))
+
+
+def permanently_unfunded(row):
+    book=row.get('native_accounting') or {}
+    manifest=book.get('manifest') or {}
+    return ('genesis_by_quote_asset' in manifest and not manifest['genesis_by_quote_asset']
+        and manifest.get('later_assets')=='unfunded_capacity_censoring')
 
 
 def summarize(lane, report):
@@ -121,25 +130,73 @@ def summarize(lane, report):
 
 
 def dashboard(result,path):
-    columns=('Lane','Health','Uptime (s)','Policy','Natural / forced settled','Requests','Latest phase','Accounting')
+    """Compact view of measured fields, with the complete result retained below."""
+    def value(x):
+        if x is None:return 'unmeasured'
+        if isinstance(x,bool):return 'yes' if x else 'no'
+        if isinstance(x,float):return f'{x:.3f}'
+        if isinstance(x,(dict,list)):return json.dumps(x,separators=(',',':'))
+        return str(x)
+    def cell(x):return '<td>'+escape(value(x))+'</td>'
+    def table(headers,rows):
+        return ('<div class="scroll"><table><thead><tr>'+''.join('<th>'+escape(x)+'</th>' for x in headers)
+            +'</tr></thead><tbody>'+''.join('<tr>'+''.join(cell(x) for x in row)+'</tr>' for row in rows)+'</tbody></table></div>')
+    def mapping(data):
+        return table(('Measure','Observed value'),(data or {'status':None}).items())
+    html='''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Four-lane paper certification</title><style>
+body{font:14px system-ui;background:#101820;color:#e7eef4;padding:24px;max-width:1600px;margin:auto}table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:8px;border-bottom:1px solid #34434f;vertical-align:top}td{overflow-wrap:anywhere}th{color:#a7bdca}pre{white-space:pre-wrap;overflow-wrap:anywhere}h1{font-size:24px}h2{font-size:20px}.scroll{overflow-x:auto}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px}section{background:#17232d;padding:16px;border-radius:8px}summary{cursor:pointer;padding:10px 0}.note{color:#b6c5d0}code{overflow-wrap:anywhere}
+</style><h1>Four-lane paper certification</h1>'''
+    verdict=result.get('certification') or {}
+    html+='<p>Result: <strong>'+escape(verdict.get('status','RUNNING'))+'</strong> · '+escape(result.get('status','unknown'))+' · run '+escape(str(result.get('run_id','unknown')))+'</p>'
+    html+='<p class="note">Paper only. Unknown fields remain unproven. Forced settlements are separate from natural execution. All balances are native units; unlike assets are never summed.</p>'
     rows=[]
     for lane in LANES:
         r=result.get('lanes',{}).get(lane,{})
-        rows.append([lane,r.get('health','unknown'),round(r.get('continuous_uptime_seconds',0),1),
-                     r.get('policy_hash','unknown')[:12],f"{r.get('natural_settled',0)} / {r.get('forced_settled',0)}",
-                     r.get('provider_requests','unknown'),r.get('phase','unknown'),
-                     'verified' if r.get('gates',{}).get('accounting_reconciled') is True else 'unproven'])
-    cell=lambda x:'<td>'+escape(str(x))+'</td>'
-    html='''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Four-lane paper certification</title><style>body{font:15px system-ui;background:#101820;color:#e7eef4;padding:24px}table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:12px;border-bottom:1px solid #34434f}pre{white-space:pre-wrap;overflow-wrap:anywhere}h1{font-size:24px}.scroll{overflow-x:auto}</style><h1>Four-lane paper certification</h1>'''
-    html+='<p>Result: '+escape(result.get('certification',{}).get('status','RUNNING'))+'</p><div class="scroll"><table><tr>'+''.join('<th>'+x+'</th>' for x in columns)+'</tr>'
-    html+=''.join('<tr>'+''.join(cell(x) for x in row)+'</tr>' for row in rows)+'</table></div>'
-    html+='<p>Unknown fields remain unproven. Raw RPC evidence and append-only telemetry are retained per lane. Forced outcomes never count as natural qualification.</p>'
+        rows.append([lane,r.get('health'),r.get('continuous_uptime_seconds'),r.get('process_restarts'),
+            r.get('open_positions'),r.get('natural_settled'),r.get('forced_settled'),r.get('accounting_reconciled')])
+    html+=table(('Lane','Health','Uptime seconds','Restarts','Open','Natural settled','Forced settled','Reconciled'),rows)
+    html+='<h2>Shared resources</h2>'
+    shared=result.get('shared_provider') or {};pressure=[]
+    for network,body in shared.items():
+        for endpoint in body.get('endpoints',body.get('providers',[])):
+            pressure.append([network,endpoint.get('identity',endpoint.get('provider')),endpoint.get('requests',endpoint.get('grants')),
+                endpoint.get('interval_seconds'),endpoint.get('rate_errors'),endpoint.get('cooldown_remaining_seconds')])
+    html+=table(('Network','Provider identity','Requests / grants','Interval seconds','Rate errors','Cooldown remaining seconds'),pressure)
+    html+=mapping({network+' queue':body.get('queues') for network,body in shared.items()})
+    html+='<div class="cards">'
     for lane in LANES:
         r=result.get('lanes',{}).get(lane,{})
-        fields=('strategy_version','funnel','terminal_reasons','open_positions','native_accounting','cohort_accounting',
-                'accounting_by_scope','pnl_decomposition','stream_state','finality_state','evidence_state',
-                'rpc_latency_seconds','provider_state','errors')
-        html+='<details open><summary>'+escape(lane)+' — lane status</summary><pre>'+escape(json.dumps({k:r.get(k) for k in fields if k in r},indent=2))+'</pre></details>'
-    html+='<details open><summary>Shared provider contention</summary><pre>'+escape(json.dumps(result.get('shared_provider'),indent=2))+'</pre></details>'
-    html+='<details><summary>Funnel, reasons, contention and evidence limits</summary><pre>'+escape(json.dumps(result,indent=2))+'</pre></details></html>'
+        html+='<section><h2>'+escape(lane)+'</h2><p>'+escape(r.get('strategy_version','unknown'))+'</p><code>'+escape(r.get('policy_hash','unknown'))+'</code>'
+        html+=mapping({'phase':r.get('phase'),'physical requests':r.get('provider_requests'),
+            'provider sessions (not reconnect count)':r.get('provider_session_count'),
+            'RPC latency p50 / p95 / p99 seconds':r.get('rpc_latency_seconds'),
+            'last strategy progress age seconds':r.get('progress_age_seconds'),
+            'last transport activity age seconds':r.get('transport_activity_age_seconds')})
+        html+='<h3>Opportunity funnel</h3>'+mapping(r.get('funnel'))
+        evidence=r.get('evidence_state') or {};stream=r.get('stream_state') or {}
+        native_finality=r.get('finality_state')
+        finality=native_finality if isinstance(native_finality,dict) else {}
+        html+='<h3>Evidence and continuity</h3>'+mapping({
+            'pending jobs':evidence.get('pending_jobs'),'inflight jobs':evidence.get('inflight_jobs'),
+            'expired jobs retained':evidence.get('expired_jobs'),'connected':stream.get('connected'),
+            'covered':stream.get('covered'),'stream gaps':stream.get('gaps'),
+            'last slot':stream.get('last_slot'),
+            'canonical cursor':native_finality if isinstance(native_finality,int) and not isinstance(native_finality,bool) else None,
+            'frontier polls':finality.get('polls'),
+            'frontier advances':finality.get('advances')})
+        reasons=sorted((r.get('terminal_reasons') or {}).items(),key=lambda x:(-x[1],x[0]))
+        html+='<h3>Latest terminal reasons</h3>'+table(('Reason','Count'),reasons[:6])
+        book=r.get('native_accounting') or r.get('cohort_accounting') or {}
+        fields=('initial','genesis','cash','basis','reserved','available','realized','unrealized','marked_equity',
+            'starting_capital','ending_cash','realized_pnl','capital_unit_nanoseconds','capital_unit_seconds','funding_state','paper_entry_ready')
+        balance={k:book[k] for k in fields if k in book}
+        if permanently_unfunded(r):balance['capacity defect']='permanently unfunded paper book'
+        if book.get('by_quote_asset') is not None:balance['separate quote-asset balances']=book['by_quote_asset']
+        html+='<h3>Accounting and PnL</h3>'+mapping(balance)
+        if r.get('pnl_decomposition'):html+=mapping(r['pnl_decomposition'])
+        html+='<h3>Errors</h3>'+mapping(r.get('errors') or {'observed errors':0})
+        html+='<details><summary>Runtime, provider detail and all controls</summary><pre>'+escape(json.dumps({k:r.get(k) for k in (
+            'runtime_resources','telemetry_cost','provider_state','finality_state','evidence_state','gates','limitations','terminal_reasons')},indent=2))+'</pre></details></section>'
+    html+='</div><details><summary>Complete machine-readable result</summary><pre>'+escape(json.dumps(result,indent=2))+'</pre></details>'
+    html+='<p class="note">Raw RPC archives and append-only journals remain available per lane. This view does not replace durable evidence.</p></html>'
     Path(path).write_text(html)

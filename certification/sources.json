@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-19T23:18:30.237315+00:00",
+  "verified_at": "2026-09-20T02:44:01Z",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -20,7 +20,8 @@
       "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment",
       "repair_commits": [
         "2b2af01299ce99b0f036981bfad57107713c68b7",
-        "6377b4c46da95c4591848939c714f7766e789acd"
+        "6377b4c46da95c4591848939c714f7766e789acd",
+        "7774ebe0f712a0e12848de1c54aaaf44df8480e7"
       ],
       "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd"
     },
@@ -42,7 +43,8 @@
       "repair_commits": [
         "6a3be3a2d3c3c45fb3068662a23800e2e3768933",
         "1b04eca2984f85c9a47d262dc7ea84796a21754e",
-        "957ff70af2065c7bf0227f00a7fab0f44e0f81f0"
+        "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
+        "45041de0669c9f0db2dc27793ab2da2a77e72a25"
       ],
       "paper_starting_capital_lamports": 1000000000,
       "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0"
@@ -66,7 +68,9 @@
         "c96d9092f7645c0def4fb2c237477644280f7041",
         "40bc4c4d1fb81900645fcbce109b4be0341320aa",
         "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
-        "44355aaac41a06a80f306f4458bbf200b118f179"
+        "44355aaac41a06a80f306f4458bbf200b118f179",
+        "38d264c9dd878e2f70ffb461c18bd12ecdd7c1d6",
+        "40c66a68704fab147dacbfc25a0819b5a6f9c844"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1"
     },
@@ -87,7 +91,8 @@
       "repair_commits": [
         "3ec74dfa223d3eecae3c3d525ceb27bcdf63d5f6",
         "b3ec5aaca230f2aa9c0e894c9912722a56f2eef1",
-        "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a"
+        "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
+        "325c6052056500146b88d1ad3e83bf5db5b9657a"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a"
     }
