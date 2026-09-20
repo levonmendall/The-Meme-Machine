@@ -11,7 +11,7 @@ from pathlib import Path
 from . import BoundaryError
 from .evidence import canonical,digest
 from .pons_selective_continuation import POLICY_HASH
-from .pons_selective_ledger import STRATEGY_NAMESPACE
+from .pons_selective_ledger import STRATEGY_NAMESPACE, DECISION_CATEGORY, JOURNAL_CATEGORY
 
 class CohortCapital:
     def __init__(self,path,capital):
@@ -48,6 +48,15 @@ class CohortCapital:
                     raise BoundaryError('selective_cohort_journal_transition')
                 if any(row.get(k)!=previous.get(k) for k in ('initial_reserved','decision_hash','trial_path','policy_hash')):
                     raise BoundaryError('selective_cohort_journal_transition')
+            elif action=='observe':
+                if previous is None or previous['status']!='reserved' or any(
+                    row.get(k)!=previous.get(k) for k in ('status','reserved','initial_reserved','pnl','at','decision_hash','trial_path','policy_hash')
+                ):
+                    raise BoundaryError('selective_cohort_journal_transition')
+                native=row.get('native_position',{})
+                old=previous.get('native_position')
+                if native.get('id')!=identity or native.get('experiment')!=STRATEGY_NAMESPACE or (old and native['version']<=old['version']):
+                    raise BoundaryError('selective_cohort_native_sequence')
             else:raise BoundaryError('selective_cohort_journal_transition')
             replay[identity]=row
         projection={identity:json.loads(raw) for identity,raw in db.execute('SELECT id,body FROM capital_positions')}
@@ -57,15 +66,83 @@ class CohortCapital:
         realized=sum(x['pnl'] for x in rows if x['status']=='settled')
         available=self.capital+realized-reserved
         if available<0:raise BoundaryError('selective_cohort_capital_invariant')
+        observed=[x for x in rows if 'native_position' in x]
+        complete=len(observed)==len(rows) and all(x['native_accounting']['replay_verified'] for x in observed)
+        cash=self.capital-sum(x['native_position']['cost'] for x in observed)+sum(x['native_position']['realized_proceeds'] for x in observed)
+        basis=sum(x['native_position']['remaining_cost'] for x in observed)
+        booked=sum(x['native_position']['realized_pnl'] for x in observed)
+        if complete and (cash<0 or self.capital+booked!=cash+basis):
+            raise BoundaryError('selective_cohort_cash_basis_invariant')
         return dict(genesis=self.capital,available=available,reserved=reserved,realized=realized,
                     unsettled=sum(x['status']!='settled' for x in rows),positions=len(rows),
                     policy_hash=POLICY_HASH,namespace=STRATEGY_NAMESPACE,
-                    conservation=self.capital+realized==available+reserved)
+                    conservation=self.capital+realized==available+reserved,
+                    native_observation_complete=complete,
+                    cash=cash if complete else None,remaining_cost_basis=basis if complete else None,
+                    booked_realized=booked if complete else None,
+                    cash_basis_conservation=self.capital+booked==cash+basis if complete else None,
+                    native_execution_cost=sum(x['native_accounting']['native_execution_cost'] for x in observed) if complete else None,
+                    capital_at_risk_unit_nanoseconds=sum(x['native_accounting']['capital_at_risk_unit_nanoseconds'] for x in observed) if complete else None,
+                    capital_integral_complete=complete and all(x['native_accounting']['integral_complete'] for x in observed))
+
+    def observe(self,paper,position):
+        """Post-commit observer. Never releases or increases allocation authority.
+
+        The native transaction commits first. An observer failure propagates;
+        the cohort reservation remains held, including ambiguous native exits.
+        """
+        identity=position['id']
+        paper.positions()  # Verify immutable native replay against projection.
+        event=paper.store.get(JOURNAL_CATEGORY,f'{identity}:{position["version"]}')
+        decision=paper.store.get(DECISION_CATEGORY,identity)
+        if event['position']!=position or position.get('experiment')!=STRATEGY_NAMESPACE or decision.get('policy_hash')!=POLICY_HASH:
+            raise BoundaryError('selective_cohort_native_observation_mismatch')
+        accounting=paper.accounting(identity)
+        if not accounting['replay_verified']:
+            raise BoundaryError('selective_cohort_native_replay_required')
+        with closing(self._connect()) as db:
+            db.execute('BEGIN IMMEDIATE')
+            try:
+                self._reconcile(db)
+                raw=db.execute('SELECT body FROM capital_positions WHERE id=?',(identity,)).fetchone()
+                if not raw:raise BoundaryError('selective_cohort_reservation_missing')
+                row=json.loads(raw[0])
+                if row['decision_hash']!=digest(decision):raise BoundaryError('selective_cohort_decision_mismatch')
+                if row.get('native_position')==position:
+                    db.execute('COMMIT');return
+                row.update(native_position=position,native_journal_hash=digest(event),native_accounting=accounting)
+                self._write(db,row,'observe');self._reconcile(db);db.execute('COMMIT')
+            except BaseException:db.execute('ROLLBACK');raise
 
     def reconcile(self):
         with closing(self._connect()) as db:
             db.execute('BEGIN')
-            return self._reconcile(db)
+            result=self._reconcile(db)
+            rows=[json.loads(raw) for raw, in db.execute('SELECT body FROM capital_positions')]
+        stale=[]
+        for row in rows:
+            position=row.get('native_position')
+            if position is None:
+                stale.append(row['id']);continue
+            # A crash between the native commit and its observer must not
+            # leave a falsely reconciled consolidated snapshot. This check is
+            # read-only and never creates missing native databases.
+            try:
+                uri=Path(row['trial_path']).resolve().as_uri()+'?mode=ro'
+                with closing(sqlite3.connect(uri,uri=True,timeout=30)) as native:
+                    value=native.execute('SELECT body FROM pons_selective_paper WHERE id=?',(row['id'],)).fetchone()
+                    event=native.execute('SELECT body,hash FROM records WHERE category=? AND id=?',
+                        (JOURNAL_CATEGORY,f'{row["id"]}:{position["version"]}')).fetchone()
+                    if (not value or json.loads(value[0])!=position or not event
+                            or digest(json.loads(event[0]))!=event[1] or event[1]!=row['native_journal_hash']):
+                        stale.append(row['id'])
+            except (OSError,sqlite3.Error,ValueError):stale.append(row['id'])
+        result['unobserved_native_positions']=stale
+        if stale:
+            result.update(native_observation_complete=False,cash_basis_conservation=None,
+                cash=None,remaining_cost_basis=None,booked_realized=None,native_execution_cost=None,
+                capital_at_risk_unit_nanoseconds=None,capital_integral_complete=False)
+        return result
 
     def _write(self,db,row,action):
         raw=canonical(row)
@@ -100,6 +177,8 @@ class CohortCapital:
                 if row['status']=='settled':raise BoundaryError('selective_cohort_duplicate_settlement')
                 if int(at)<row['at']:raise BoundaryError('selective_cohort_time_regression')
                 if pnl < -row['initial_reserved']:raise BoundaryError('selective_cohort_loss_exceeds_reservation')
+                if 'native_position' in row and row['native_position']!=position:
+                    raise BoundaryError('selective_cohort_unobserved_settlement')
                 row.update(status='settled',reserved=0,pnl=pnl,at=int(at),native_settlement_hash=digest(position))
                 self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT');return rec
             except BaseException:db.execute('ROLLBACK');raise
