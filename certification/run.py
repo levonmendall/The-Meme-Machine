@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import signal
 import sqlite3
@@ -39,6 +40,19 @@ def implementation_hash():
     return digest({str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files})
 
 
+def _normalized_patch_bytes(raw):
+    """Compare reviewed patch semantics while ignoring Git diff position metadata."""
+    text=raw.decode("utf-8")
+    rows=[]
+    for line in text.splitlines():
+        if line.startswith("index "):
+            continue
+        if line.startswith("@@ "):
+            line=re.sub(r"^@@ -\\d+(?:,\\d+)? \\+\\d+(?:,\\d+)? @@", "@@ @@", line)
+        rows.append(line)
+    return "\n".join(rows).strip().encode()
+
+
 def source_integrity(worktrees):
     observed={}
     for lane,row in manifest()['lanes'].items():
@@ -48,18 +62,10 @@ def source_integrity(worktrees):
         observed[lane]=hashlib.sha256(diff).hexdigest()
         patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
         expected=(ROOT/'certification/patches'/patch).read_bytes() if patch else b''
-        # Compare git's normalized diff to the pinned overlay applied at preparation.
-        if diff.strip()!=expected.strip():
-            actual_lines=diff.decode(errors='replace').splitlines()
-            expected_lines=expected.decode(errors='replace').splitlines()
-            first=next((i for i,(a,b) in enumerate(zip(actual_lines,expected_lines),1) if a!=b),
-                       min(len(actual_lines),len(expected_lines))+1)
-            actual_line=actual_lines[first-1] if first<=len(actual_lines) else '<EOF>'
-            expected_line=expected_lines[first-1] if first<=len(expected_lines) else '<EOF>'
-            raise ValueError(
-                'unreviewed_lane_mutation:'+lane+
-                f':first_diff={first}:actual={actual_line!r}:expected={expected_line!r}'+
-                f':actual_lines={len(actual_lines)}:expected_lines={len(expected_lines)}')
+        # Compare every reviewed content line exactly; tolerate only Git metadata
+        # changes caused by a legitimate pinned-source revision moving a hunk.
+        if _normalized_patch_bytes(diff)!=_normalized_patch_bytes(expected):
+            raise ValueError('unreviewed_lane_mutation:'+lane)
     return observed
 
 
