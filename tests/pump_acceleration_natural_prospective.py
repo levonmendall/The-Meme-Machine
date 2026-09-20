@@ -29,6 +29,7 @@ from meme_machine.pump_acceleration_evidence import (
     reserve_price_parts,second_leg_shape,
 )
 from meme_machine.pump_acceleration_history import IncrementalPumpSwapHistory
+from meme_machine.solana_evidence_consumers import StreamEvidenceService
 from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
 from meme_machine.pump_acceleration_strategy import (
     MODE_LATE_CURVE,MODE_POSTGRAD,MODE_SECOND_LEG,POLICY,STRATEGY_ID,
@@ -522,8 +523,12 @@ def main(*,campaign=False,discovery_seconds=None):
     broker=EvidenceBroker(broker_path)
     stop=threading.Event();ready=threading.Event();pumpswap_ready=threading.Event()
     stream=PumpLogStream(primary_rpc_url(),tape,ws_url=discovery_ws_url())
+    # Additional acquisition concurrency is allowed only underneath the shared
+    # cross-process governor. Standalone runners retain their original transport cap.
+    incremental=bool(campaign and os.environ.get('MM_CERT_GOVERNOR_DB'))
     pumpswap_stream=DynamicAddressLogStream(
-        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30)
+        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30,prefetch=incremental)
+    evidence_service=StreamEvidenceService(broker,lambda:new_rpc(limit=240)) if incremental else None
     thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
     pumpswap_thread=threading.Thread(
         target=pumpswap_stream.run,args=(stop,pumpswap_ready),daemon=True)
@@ -543,7 +548,9 @@ def main(*,campaign=False,discovery_seconds=None):
     end=discovery_end+FOLLOWUP_SECONDS
 
     try:
+        if evidence_service:evidence_service.start()
         while int(time.time())<end:
+            if evidence_service:evidence_service.check()
             now=int(time.time())
             _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
             _fill_pending(report,pending,active,sessions,postgrad,int(time.time()))
@@ -745,6 +752,9 @@ def main(*,campaign=False,discovery_seconds=None):
             time.sleep(1)
     finally:
         stop.set();thread.join(timeout=5);pumpswap_thread.join(timeout=5)
+        if evidence_service:
+            evidence_service.close()
+            report['stream_evidence_sessions']=evidence_service.sessions
         sessions.finish()
         report["sessions"]=sessions.history
         report["stream"]=tape.status(int(time.time()))

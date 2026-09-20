@@ -16,6 +16,7 @@ from pathlib import Path
 from websockets.sync.client import connect
 
 from .provider import Unavailable
+from .solana_evidence_consumers import EvidenceConsumers
 
 
 DEFAULT_BROKER_DB = "solana-evidence-broker.sqlite3"
@@ -29,6 +30,7 @@ PRIORITY = {
     "pump_window": 20,
     "dlmm_fresh": 30,
     "research_history": 90,
+    "stream_prefetch": 90,
 }
 
 
@@ -54,6 +56,7 @@ class EvidenceBroker:
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA synchronous=NORMAL")
         self._init_schema()
+        self.consumers = EvidenceConsumers(self)
 
     def _init_schema(self):
         with self.lock, self.db:
@@ -333,7 +336,7 @@ class EvidenceBroker:
                     None if type(slot) is not int else int(slot),
                     None if type(block_time) is not int else int(block_time),
                     body,
-                    int(self.clock()),
+                    float(self.clock()),
                 ),
             )
             count = self.db.execute("SELECT COUNT(*) FROM tx_cache").fetchone()[0]
@@ -615,7 +618,8 @@ class EvidenceBroker:
             )
 
     def hydrate_transactions(
-        self, rpc, signatures, *, kind, deadline=None, max_version=1, batch_size=8
+        self, rpc, signatures, *, kind, deadline=None, max_version=1, batch_size=8,
+        owner=None, max_batches=None
     ):
         deadline = float(self.clock()) + 30.0 if deadline is None else float(deadline)
         requested = []
@@ -625,22 +629,34 @@ class EvidenceBroker:
             if sig and sig not in seen:
                 seen.add(sig)
                 requested.append(sig)
-                if self.get_transaction(sig) is None:
-                    self.queue_transaction(
-                        sig, kind=kind, deadline=deadline, max_version=max_version
-                    )
+        if owner is not False:
+            owner = owner or f'{kind}:request:{deadline!r}'
+            self.consumers.register(owner, requested, kind, deadline)
 
+        batches = 0
         while float(self.clock()) < deadline:
             remaining = [sig for sig in requested if self.get_transaction(sig) is None]
             if not remaining:
                 break
+            if max_batches is not None and batches >= max_batches:
+                break
             p=self._pressure()
+            # Logical consumer interest is durable for every missing signature, but
+            # only the next physically serviceable batch enters the transport queue.
+            capacity=max(1,min(int(batch_size),p['batch_size']))
+            if hasattr(rpc,'calls') and hasattr(rpc,'limit'):
+                capacity=min(capacity,max(0,int(rpc.limit)-int(rpc.calls)))
+                if capacity==0:
+                    self.consumers.failure('local_request_budget_exhausted')
+                    break
+            for sig in remaining[:capacity]:
+                self.queue_transaction(sig,kind=kind,deadline=deadline,max_version=max_version)
             reserved=self._reserve_hydration_transport(deadline)
             if reserved is None:
                 break
             p=self._pressure()
             jobs=self._claim_jobs(
-                max(1,min(int(batch_size),p["batch_size"])),
+                max(1,min(capacity,p["batch_size"])),
                 float(self.clock()),
                 lease_seconds=max(
                     15.0,min(60.0,deadline-float(self.clock())+5.0)),
@@ -658,6 +674,13 @@ class EvidenceBroker:
                     ),
                 ),
             ] for row in payloads]
+            prior_failures=dict(getattr(rpc,'failure_methods',{}) or {})
+            batches+=1
+            previous_priority=getattr(rpc,'evidence_priority',None)
+            with self.lock:
+                priority=min(self.db.execute('SELECT priority FROM jobs WHERE job_key=?',
+                    (row[0],)).fetchone()[0] for row in jobs)
+            rpc.evidence_priority=priority
             try:
                 values = rpc.call_many(
                     "getTransaction",
@@ -665,10 +688,22 @@ class EvidenceBroker:
                     True,
                     batch_size=max(1, min(len(params), p["batch_size"], int(batch_size))),
                 )
-            except Unavailable:
+            except Unavailable as exc:
                 self._release_jobs([row[0] for row in jobs])
-                self._note_pressure_failure()
+                failures=getattr(rpc,'failure_methods',{}) or {}
+                throttled=('429' in str(exc) or any('429' in key and
+                    value>prior_failures.get(key,0) for key,value in failures.items()))
+                reason=('provider_rate_limited' if throttled else
+                        'local_request_budget_exhausted' if str(exc)=='provider_budget_exhausted'
+                        else 'provider_unavailable')
+                self.consumers.failure(reason)
+                if throttled:self._note_pressure_failure()
                 break
+            finally:
+                if previous_priority is None:
+                    del rpc.evidence_priority
+                else:
+                    rpc.evidence_priority=previous_priority
             completed = []
             for job, row, tx in zip(jobs, payloads, values):
                 if isinstance(tx, dict):
@@ -686,11 +721,13 @@ class EvidenceBroker:
 
         result = {sig: self.get_transaction(sig) for sig in requested}
         pending = [sig for sig, tx in result.items() if tx is None]
+        self.consumers.settle()
         return result, dict(
             requested=len(requested),
             hydrated=len(requested) - len(pending),
             pending=len(pending),
             pressure=self._pressure(),
+            acquisition_batches=batches,
         )
 
     def cursor(self, name):
@@ -843,6 +880,7 @@ class EvidenceBroker:
             stream_events=int(events),
             signature_rows=int(signatures),
             pressure=self._pressure(),
+            consumer_work=self.consumers.telemetry(),
         )
 
 
@@ -986,7 +1024,8 @@ class DynamicAddressLogStream:
     """
 
     def __init__(
-        self, ws_url, broker, stream_prefix, *, coverage_seconds=30, clock=time.time
+        self, ws_url, broker, stream_prefix, *, coverage_seconds=30, clock=time.time,
+        prefetch=False
     ):
         self.ws_url=str(ws_url)
         self.broker=broker
@@ -999,6 +1038,7 @@ class DynamicAddressLogStream:
         self.reconnects=0
         self.last_error_kind=None
         self.active_subscriptions=0
+        self.prefetch=bool(prefetch)
 
     def stream_key(self,address):
         return self.stream_prefix+":"+str(address)
@@ -1015,6 +1055,8 @@ class DynamicAddressLogStream:
         """Release an expired candidate subscription; open positions retain theirs."""
         with self.lock:
             self.addresses.discard(str(address))
+        if self.prefetch:
+            self.broker.consumers.settle(self.stream_key(address),'consumer_retired')
 
     def wanted_addresses(self):
         with self.lock:
@@ -1124,6 +1166,13 @@ class DynamicAddressLogStream:
                             slot=int(result["context"]["slot"]),
                             observed_at=int(self.clock()),
                         )
+                        if self.prefetch:
+                            # Do not resurrect an owner while unsubscribe is pending.
+                            with self.lock:
+                                if address in self.addresses:
+                                    self.broker.consumers.register(
+                                        self.stream_key(address),[value['signature']],
+                                        'stream_prefetch',float(self.clock())+self.coverage_seconds+2)
             except Exception as exc:
                 if stop_event.is_set():
                     break
