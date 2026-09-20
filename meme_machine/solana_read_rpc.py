@@ -169,11 +169,68 @@ class SolanaReadPacer:
         self.gettransaction_batch_reductions = 0
         self.gettransaction_batch_recoveries = 0
         self.gettransaction_cooldown_seconds = 0.0
+        # Method-aware pressure complements the transaction-body controller.
+        # Heavy reads can hit provider throughput limits even below the physical
+        # request-count ceiling, so a 429 must cool the exact method across every
+        # bounded RPC object sharing this pacer.
+        self.method_rate_events = Counter()
+        self.method_rate_streaks = Counter()
+        self.method_success_streaks = Counter()
+        self.method_cooldown_until = {}
+        self.method_cooldown_seconds = Counter()
 
-    def pace(self, rpc, requested_interval=0.2):
+    @staticmethod
+    def _method_backoff(method, streak):
+        streak=max(1,int(streak))
+        # Live certification proved that retrying the identical compact program
+        # scan after the old eight-second global cooldown still returned 429.
+        # Keep this method conservative; lighter reads use the ordinary bounded
+        # adaptive cooldown.
+        if str(method)=="getProgramAccounts":
+            return min(60.0,30.0*(2**min(streak-1,1)))
+        return min(30.0,8.0*(2**min(streak-1,2)))
+
+    def note_method_rate_limit(self, rpc, methods):
+        now=float(rpc.clock())
+        methods=tuple(dict.fromkeys(str(x) for x in methods if x))
+        for method in methods:
+            self.method_rate_events[method]+=1
+            self.method_rate_streaks[method]+=1
+            self.method_success_streaks[method]=0
+            delay=self._method_backoff(method,self.method_rate_streaks[method])
+            self.method_cooldown_until[method]=max(
+                float(self.method_cooldown_until.get(method,-float("inf"))),
+                now+delay,
+            )
+            self.method_cooldown_seconds[method]+=delay
+        # Preserve the existing endpoint-wide recovery floor as well.
+        self.next_request_at=max(float(self.next_request_at),now+8.0)
+
+    def note_method_success(self, methods):
+        for method in dict.fromkeys(str(x) for x in methods if x):
+            if self.method_rate_streaks.get(method,0)<=0:
+                continue
+            self.method_success_streaks[method]+=1
+            if self.method_success_streaks[method]>=4:
+                self.method_rate_streaks[method]=max(
+                    0,int(self.method_rate_streaks[method])-1)
+                self.method_success_streaks[method]=0
+
+    def method_cooldown_remaining(self, rpc, method):
+        if not method:
+            return 0.0
+        return max(0.0,float(self.method_cooldown_until.get(
+            str(method),-float("inf")))-float(rpc.clock()))
+
+    def pace(self, rpc, requested_interval=0.2, method=None):
         interval = max(float(requested_interval), self.minimum_interval)
         now = float(rpc.clock())
-        wait = max(0.0, self.next_request_at - now)
+        ready=max(
+            float(self.next_request_at),
+            float(self.method_cooldown_until.get(str(method),-float("inf")))
+            if method else -float("inf"),
+        )
+        wait = max(0.0, ready - now)
         if wait:
             rpc.sleep(wait)
             self.sleep_seconds += wait
@@ -196,6 +253,11 @@ class SolanaReadPacer:
             gettransaction_batch_reductions=int(self.gettransaction_batch_reductions),
             gettransaction_batch_recoveries=int(self.gettransaction_batch_recoveries),
             gettransaction_cooldown_seconds=float(self.gettransaction_cooldown_seconds),
+            method_rate_events=dict(sorted(self.method_rate_events.items())),
+            method_rate_streaks=dict(sorted(
+                (k,int(v)) for k,v in self.method_rate_streaks.items())),
+            method_cooldown_seconds=dict(sorted(
+                (k,float(v)) for k,v in self.method_cooldown_seconds.items())),
         )
 
 
@@ -229,7 +291,16 @@ class _ReadOnlyFailoverMixin:
             # Base RPC passes legacy logical pacing hints (0.5s and batch-derived
             # intervals). Provider governance is physical-request based: respect the
             # shared 2 req/s primary cadence instead of the legacy 1-2 req/s ceiling.
-            self.read_pacer.pace(self, self.read_pacer.minimum_interval)
+            method=getattr(self,"_active_rpc_method",None)
+            # Compact program scans have a proven safe fallback.  During a
+            # method-specific cooldown, fail this path before transport so the
+            # concentration reader can use the unchanged largest-account path
+            # instead of retrying the same expensive request into another 429.
+            if (method=="getProgramAccounts"
+                    and self.read_pacer.method_cooldown_remaining(self,method)>0):
+                raise Unavailable("provider_method_cooldown")
+            self.read_pacer.pace(
+                self,self.read_pacer.minimum_interval,method=method)
 
     @staticmethod
     def _retry_delay(exc):
@@ -350,6 +421,7 @@ class _ReadOnlyFailoverMixin:
     def _provider_attempt(self, label, url, request):
         self.provider_http_requests[label] += 1
         error_sequence_before = self.provider_error_sequence
+        methods=self._request_methods(request)
         try:
             response = self._request_url(url, request)
             self._record_jsonrpc_errors(label, request, response)
@@ -357,10 +429,14 @@ class _ReadOnlyFailoverMixin:
             if issue is not None:
                 raise Unavailable(issue)
             self.provider_successes[label] += 1
+            if self.provider_error_sequence==error_sequence_before:
+                self.read_pacer.note_method_success(methods)
             return response
         except Exception as exc:
             self.provider_failures[label] += 1
             reason = self._exception_reason(exc)
+            if isinstance(exc, urllib.error.HTTPError) and int(exc.code)==429:
+                self.read_pacer.note_method_rate_limit(self,methods)
             self.provider_failure_reasons[f"{label}:{reason}"] += 1
             # JSON-RPC errors are recorded from the structured response above. For
             # transport/HTTP/shape failures, attach the physical failure to each
@@ -376,6 +452,29 @@ class _ReadOnlyFailoverMixin:
                         http_status=status,
                     )
             raise
+
+    def call(self, method, params=None, priority=False):
+        previous=getattr(self,"_active_rpc_method",None)
+        self._active_rpc_method=str(method)
+        try:
+            return super().call(method,params,priority)
+        finally:
+            if previous is None:
+                try:del self._active_rpc_method
+                except AttributeError:pass
+            else:self._active_rpc_method=previous
+
+    def call_many(self, method, params_list, priority=False, batch_size=8):
+        previous=getattr(self,"_active_rpc_method",None)
+        self._active_rpc_method=str(method)
+        try:
+            return super().call_many(
+                method,params_list,priority,batch_size=batch_size)
+        finally:
+            if previous is None:
+                try:del self._active_rpc_method
+                except AttributeError:pass
+            else:self._active_rpc_method=previous
 
     def _http(self, request):
         try:
