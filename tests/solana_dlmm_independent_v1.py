@@ -12,7 +12,7 @@ transport.
 from __future__ import annotations
 
 import argparse
-from collections import Counter
+from collections import Counter,deque
 from copy import deepcopy
 from dataclasses import asdict
 import uuid
@@ -256,7 +256,7 @@ def _history_acceleration(candidate,observed_at):
     return out
 
 
-def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None):
+def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None,seen=None):
     """Yield each qualifying pool immediately after its history check.
 
     The order is deterministic: configured sort order, then page, then API row rank.
@@ -269,7 +269,7 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
     telemetry.setdefault("qualified",[])
     telemetry.setdefault("seen",0)
     telemetry.setdefault("history_reads",0)
-    seen=set()
+    seen=set() if seen is None else seen
     regime=policy["regime"]
     for sort_by in DISCOVERY_SORTS:
         for page in range(1,DISCOVERY_PAGES_PER_SORT+1):
@@ -340,6 +340,29 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
                 yield item
             if len(rows)<DISCOVERY_PAGE_SIZE:
                 break
+
+
+class CampaignAttemptBudget:
+    """Same default-study attempt capacity per 20 minutes, without a lifetime stop."""
+    def __init__(self,limit,window=1200):self.limit=limit;self.window=window;self.admitted=deque()
+    def take(self,now):
+        while self.admitted and self.admitted[0]<=now-self.window:self.admitted.popleft()
+        if len(self.admitted)>=self.limit:return False
+        self.admitted.append(now);return True
+
+
+def _campaign_candidates(policy,telemetry,deadline,checkpoint):
+    # First sighting remains global for this process. Repeating the public census
+    # finds newly appearing pools, never refreshes a rejected pool's first clock
+    # or revises its priority using later outcomes.
+    seen=set();cycle=0
+    while not _runtime_expired(deadline):
+        cycle_started=time.monotonic();cycle+=1
+        yield from _iter_acceleration_candidates(policy,telemetry,deadline,checkpoint,seen)
+        telemetry['census_cycles']=cycle
+        checkpoint('census_cycle_complete')
+        wait=min(max(0.0,60-(time.monotonic()-cycle_started)),_runtime_remaining(deadline))
+        if wait:time.sleep(wait)
 
 
 def discover(policy,scan_cap):
@@ -1668,7 +1691,7 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
     ),None,None,None,None,adapter,current_candidate
 
 
-def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=False):
     assert_independence()
     policy=load_policy()
     target=int(target or policy["prospective_test"]["target_complete_lifecycles"])
@@ -1679,7 +1702,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         raise ValueError("solana_dlmm_attempt_bound")
     max_runtime_seconds=int(
         max_runtime_seconds or DEFAULT_MAX_RUNTIME_SECONDS)
-    if not 60<=max_runtime_seconds<=7200:
+    if type(campaign) is not bool:raise ValueError("solana_dlmm_campaign_flag")
+    if not 60<=max_runtime_seconds<=(21600 if campaign else 7200):
         raise ValueError("solana_dlmm_runtime_bound")
     run_started_monotonic=time.monotonic()
     deadline=run_started_monotonic+max_runtime_seconds
@@ -1725,6 +1749,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         evidence_broker=broker.telemetry(),
     )
     attempted=0;complete=0;failure_counts=Counter()
+    attempt_budget=CampaignAttemptBudget(max_attempted)
+    report['policy_hash']=digest(policy)
+    report["continuous_campaign"]=campaign
+    report["attempt_budget_window_seconds"]=1200 if campaign else None
+    report['operational_configuration']=dict(campaign=campaign,census_interval_seconds=60 if campaign else None,
+        attempt_limit=max_attempted,attempt_window_seconds=1200 if campaign else None,
+        first_sighting_scope='entire_process',paper_starting_capital_lamports=1_000_000_000,
+        runtime_seconds=max_runtime_seconds,position_drain_seconds=int(policy['range']['max_holding_seconds'])+300 if campaign else 0)
+    report['operational_configuration_hash']=digest(report['operational_configuration'])
     def checkpoint(stage):
         report["accounting"]=book.reconcile()
         report["wake_stream"]=broker.stream_status(
@@ -1741,12 +1774,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                 0.0,time.monotonic()-run_started_monotonic),
         )
     checkpoint("run_initialized")
-    candidate_stream=_iter_acceleration_candidates(
-        policy,discovery_telemetry,deadline,checkpoint)
+    candidate_stream=(_campaign_candidates(policy,discovery_telemetry,deadline,checkpoint)
+        if campaign else _iter_acceleration_candidates(policy,discovery_telemetry,deadline,checkpoint))
     for candidate in candidate_stream:
         if (_runtime_expired(deadline)
-                or attempted>=max_attempted or complete>=target):
+                or (not campaign and (attempted>=max_attempted or complete>=target))):
             break
+        if book.reconcile()['unsettled']:
+            report['fatal_boundary']='solana_dlmm_unresolved_position_blocks_new_admission'
+            checkpoint('unresolved_position_blocks_new_admission')
+            stream_stop.set();wake_thread.join(timeout=5);broker.close()
+            raise Unavailable(report['fatal_boundary'])
         candidate_rpcs=[]
         adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
         compatibility_screened+=1
@@ -1764,6 +1802,12 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
             checkpoint("compatibility_rejection")
             continue
 
+        if campaign and not attempt_budget.take(time.monotonic()):
+            failure_counts['capacity_attempt_window_budget']+=1
+            report['attempts'].append(dict(pool=candidate['address'],candidate=candidate,
+                terminal_classification='capacity_attempt_window_budget',economic_rejection=False))
+            checkpoint('capacity_censoring')
+            continue
         attempted+=1
         handoff_started_at=int(time.time())
         attempt=dict(
@@ -1805,7 +1849,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                 continue
             lifecycle,adapter=_lifecycle(
                 adapter,candidate["address"],entry,features,policy,pacer,
-                candidate_rpcs,deadline,broker,book)
+                candidate_rpcs,(deadline+int(policy['range']['max_holding_seconds'])+300
+                    if campaign else deadline),broker,book)
             for rpc in candidate_rpcs:
                 if rpc not in rpcs:rpcs.append(rpc)
             attempt["lifecycle"]=lifecycle
@@ -1822,9 +1867,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                 failure_counts["lifecycle_unverified"]+=1
             checkpoint("lifecycle_terminal")
         except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
-            attempt["terminal_classification"]="exception"
+            classification='paper_capital_capacity' if str(exc)=='dlmm_accounting_capital_exhausted' else 'exception'
+            attempt["terminal_classification"]=classification
             attempt["reason"]=str(exc)[:200]
-            failure_counts["exception"]+=1
+            failure_counts[classification]+=1
             attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
             report["attempts"].append(attempt)
             checkpoint("candidate_exception")
@@ -1862,6 +1908,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         elapsed_seconds=max(
             0.0,time.monotonic()-run_started_monotonic),
         conclusion=(
+            "continuous_campaign_window_complete" if campaign and _runtime_expired(deadline) else
             "prospective_target_complete"
             if complete>=target else
             "prospective_20m_window_complete"
