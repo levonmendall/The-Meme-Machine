@@ -487,7 +487,8 @@ index 0a774b1..d41405a 100644
 +            research_deferred_refreshes=self.research_deferred_refreshes,
              stream_pending_transactions=self.stream_pending_transactions,
              stream_events_seen=self.stream_events_seen,
-             stream_hydrated_transactions=self.stream_hydrated_transactions,stream_prefiltered_transactions=len(self.stream_prefiltered_signatures),
+-            stream_hydrated_transactions=self.stream_hydrated_transactions,
++            stream_hydrated_transactions=self.stream_hydrated_transactions,stream_prefiltered_transactions=len(self.stream_prefiltered_signatures),
 diff --git a/meme_machine/pump_acceleration_paper.py b/meme_machine/pump_acceleration_paper.py
 index 3e64d83..7c6e406 100644
 --- a/meme_machine/pump_acceleration_paper.py
