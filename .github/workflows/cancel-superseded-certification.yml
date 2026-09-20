@@ -1,0 +1,39 @@
+name: cancel-superseded-certification
+on:
+  push:
+    branches: [cert/cancel-four-hour-20260920]
+permissions:
+  contents: read
+  actions: write
+jobs:
+  cancel-authorized-runs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Cancel exact superseded runs at user request; preserve artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, time
+          from urllib.request import Request, urlopen
+          from urllib.error import HTTPError
+          base='https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/runs/'
+          targets={35489724704:'f7ee2b13036abb0171e0001608d589b51d28947e'}
+          def call(run, suffix='', method='GET'):
+              req=Request(base+str(run)+suffix,method=method,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urlopen(req,timeout=30) as res:
+                  raw=res.read()
+                  return json.loads(raw) if raw else None
+          for run,sha in targets.items():
+              row=call(run)
+              assert row['head_sha']==sha and row['name']=='four-lane-certification'
+              print(json.dumps({'run':run,'before':row['status'],'sha':sha,'reason':'user_requested_one_hour_repair_cycles','certification':'INTERRUPTED_NOT_CERTIFIED'}),flush=True)
+              if row['status']!='completed':call(run,'/cancel','POST')
+          for attempt in range(48):
+              rows=[{'id':run,'status':(row:=call(run))['status'],'conclusion':row['conclusion']} for run in targets]
+              print(json.dumps(rows),flush=True)
+              if all(r['status']=='completed' for r in rows):break
+              time.sleep(10)
+          else:raise SystemExit('superseded_run_not_terminal')
+          PY
