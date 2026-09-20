@@ -67,15 +67,15 @@
   },
   "regime": {
     "kind": "opportunistic_fee_density_event",
-    "min_volume_acceleration": 2,
-    "min_fee_acceleration": 1.25,
+    "min_volume_acceleration": 1.25,
+    "min_fee_acceleration": 1,
     "min_dynamic_fee_uplift_over_base": 1.25,
     "require_verified_warmup_flow": true,
     "require_two_way_flow": true,
     "entry_clock": "five-minute acceleration is regime-only; a new finalized authenticated Meteora DLMM swap after compatibility screening starts the entry-observation clock",
     "fresh_swap_trigger": {
       "required": true,
-      "max_wait_seconds": 60,
+      "max_wait_seconds": 120,
       "poll_seconds": 2,
       "acceleration_refresh_seconds": 12,
       "rule": "While waiting, the same frozen 2.0x volume and 1.25x fee acceleration gates must remain true. On the first authenticated finalized DLMM swap, capture a fresh post-trigger state and begin one exact 12-second warmup."
@@ -112,25 +112,25 @@
     }
   },
   "qualification": {
-    "min_competing_range_liquidity_to_capital_multiple": 10,
-    "min_two_way_balance": 0.5,
-    "max_drift_ratio": 0.5,
-    "require_reversal": true,
+    "min_competing_range_liquidity_to_capital_multiple": 5,
+    "min_two_way_balance": 0.25,
+    "max_drift_ratio": 0.75,
+    "require_reversal": false,
     "stress_inventory_fraction_of_capital": 0.5,
-    "max_stress_unwind_loss_bps": 70,
+    "max_stress_unwind_loss_bps": 150,
     "projected_fee_horizon_seconds": 120,
-    "min_expected_net_lamports": 100000,
+    "min_expected_net_lamports": -200000,
     "expected_net_definition": "projected exact-range fee capture - 400000 lamports modeled network cost - 50%-inventory stress unwind loss",
     "primary_score": "expected_net_lamports / capital / expected_capital_hours",
     "ranking_metric": "expected_after_cost_pnl_bps_per_capital_hour",
     "dynamic_fee_uplift_hard_gate": false,
     "unchanged_hard_risk_gates": [
-      "min_competing_range_liquidity_to_capital_multiple = 10",
-      "min_two_way_balance = 0.50",
-      "max_drift_ratio = 0.50",
-      "require_reversal = true",
-      "max_stress_unwind_loss_bps = 70",
-      "min_expected_net_lamports = 100000"
+      "min_competing_range_liquidity_to_capital_multiple = 5",
+      "min_two_way_balance = 0.25",
+      "max_drift_ratio = 0.75",
+      "require_reversal = false",
+      "max_stress_unwind_loss_bps = 150",
+      "min_expected_net_lamports = -200000"
     ]
   },
   "fee_model": {
@@ -140,7 +140,7 @@
     "range_fee_capture": "warmup fees crossing the proposed range times estimated capital share of competing range liquidity",
     "historical_apr_is_not_an_entry_signal": true,
     "dynamic_fee_uplift_role": "recorded context and exit-state feature; not a hard entry gate",
-    "hard_entry_economic_test": "projected exact-range fee capture - 400000 lamports modeled network cost - 50%-inventory stress unwind loss >= min_expected_net_lamports"
+    "hard_entry_economic_test": "projected exact-range fee capture - 400000 lamports modeled network cost - 50%-inventory stress unwind loss >= -200000 lamports during execution certification"
   },
   "flow_model": {
     "two_way_balance_definition": "2 * min(direction_A_volume,direction_B_volume) / total_directional_volume",
@@ -196,7 +196,7 @@
     "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
     "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
   },
-  "revision": "1.7",
+  "revision": "1.8-execution-certification-v1",
   "amendment_history": [
     {
       "revision": "1.1",
@@ -254,6 +254,16 @@
       "expected_net_threshold_changed": false,
       "capital_changed": false,
       "robinhood_independence_changed": false
+    },
+    {
+      "revision": "1.8-execution-certification-v1",
+      "reason": "Execution-certification overlay widens regime and flow admission, removes mandatory reversal, and permits bounded modeled loss so natural paper lifecycle machinery can be exercised before profitability tightening.",
+      "strategy_thresholds_changed": true,
+      "freshness_changed": false,
+      "finality_changed": false,
+      "accounting_changed": false,
+      "live_money_authority_changed": false,
+      "profitability_authority": false
     }
   ],
   "support_layer": {
@@ -306,5 +316,14 @@
       "candidate_failure_on_429": false,
       "strategy_thresholds_changed": false
     }
+  },
+  "execution_certification": {
+    "policy_hash": "b1de19ed974faf3c92261fe7f4f6cb47570e4890c49e9547d7f4fcc50c7179b8",
+    "purpose": "natural_paper_execution_certification_not_profitability_claim",
+    "profitability_authority": false,
+    "paper_only": true,
+    "freshness_finality_unchanged": true,
+    "exact_warmup_seconds": 12,
+    "reference_profitability_policy_revision": "1.7"
   }
 }
