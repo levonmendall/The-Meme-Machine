@@ -97,10 +97,15 @@ def summarize(lane, report):
         summary=report.get('summary') or {}
         result['funnel']=dict(evaluated=summary.get('enrolled',len(report.get('rows',[]))),
                              qualified=summary.get('qualified',len(report.get('qualifiers',[]))))
+        writeoffs=0
         for life in report.get('lifecycles',[]):
             pos=life.get('final_position') or {}
+            if life.get('settlement_kind')=='liquidity_writeoff':
+                writeoffs+=1
+                continue
             if pos.get('status')=='settled' and pos.get('entry_tokens',0)>0:
                 result['natural_settled']+=1
+        result['funnel']['liquidity_writeoffs']=writeoffs
         result['open_positions']=sum((x.get('reconciliation') or {}).get('open_exposure',0)>0 for x in report.get('lifecycles',[]))
         result['terminal_reasons']=(report.get('summary') or {}).get('rejection_counts',{})
         result['cohort_accounting']=report.get('cohort_accounting')
