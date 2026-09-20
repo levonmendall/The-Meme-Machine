@@ -243,7 +243,9 @@ def policy_for(lane):
         from meme_machine.pump_acceleration_strategy import policy_hash
         return policy_hash()
     if lane=='meteora':
-        return digest(json.loads(Path('SOLANA_DLMM_INDEPENDENT_V1.json').read_text()))
+        policy=json.loads(Path('SOLANA_DLMM_INDEPENDENT_V1.json').read_text())
+        execution=(policy.get('execution_certification') or {}).get('policy_hash')
+        return execution or digest(policy)
     name='pons_selective_continuation' if lane=='pons' else 'ramses_strategy'
     return importlib.import_module('robinhood_research.'+name).POLICY_HASH
 
