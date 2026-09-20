@@ -1,0 +1,3 @@
+execution-certification-v1
+validation=retry_after_pons_overlay_reconciliation
+profitability_authority=false
