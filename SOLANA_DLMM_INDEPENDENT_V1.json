@@ -78,7 +78,7 @@
       "max_wait_seconds": 120,
       "poll_seconds": 2,
       "acceleration_refresh_seconds": 12,
-      "rule": "While waiting, the same frozen 2.0x volume and 1.25x fee acceleration gates must remain true. On the first authenticated finalized DLMM swap, capture a fresh post-trigger state and begin one exact 12-second warmup."
+      "rule": "While waiting, the execution-certification 1.25x volume and 1.0x fee acceleration gates must remain true. On the first authenticated finalized DLMM swap, capture a fresh post-trigger state and begin one exact 12-second warmup."
     },
     "dynamic_fee_uplift_role": "context_only_not_entry_veto"
   },
@@ -144,7 +144,7 @@
   },
   "flow_model": {
     "two_way_balance_definition": "2 * min(direction_A_volume,direction_B_volume) / total_directional_volume",
-    "min_two_way_balance": 0.5,
+    "min_two_way_balance": 0.25,
     "adverse_selection_proxy": [
       "near-range drift ratio",
       "one-way flow",
