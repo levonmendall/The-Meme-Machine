@@ -16,6 +16,16 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Validate qualification Pump overlay
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
+        run: |
+          PUMP_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["pump"]["source_sha"])')"
+          WORKTREE="$(mktemp -d)/pump"
+          git fetch origin "$PUMP_SHA"
+          git worktree add --detach "$WORKTREE" "$PUMP_SHA"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
+          (cd "$WORKTREE" && python -m unittest tests.test_solana_evidence_broker tests.test_evidence_consumers tests.test_pump_acceleration_history -v)
       - run: python -m unittest discover -v
       - run: python -m tests.resource_check
       - run: python -m tests.make_tape && python -m meme_machine --mode synthetic --config config.synthetic.json --db /tmp/meme-ci.db --tape tests/fixtures/synthetic_lifecycle.jsonl
