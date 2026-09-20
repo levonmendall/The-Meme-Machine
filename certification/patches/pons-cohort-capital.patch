@@ -1419,7 +1419,7 @@ index 94c48d6..95def7d 100644
          self.store.put(
              GENESIS_CATEGORY,self.experiment,
              dict(
-@@ -57,8 +69,66 @@ class SelectivePaper:
+@@ -57,8 +69,74 @@ class SelectivePaper:
              row=json.loads(body)
              if row.get("experiment")==self.experiment:
                  out.append(row)
@@ -1605,7 +1605,7 @@ index 94c48d6..95def7d 100644
                      p["pending_exit_tokens"]=None
                      if p["tokens"]==0:
                          p.update(
-@@ -254,16 +384,18 @@ class SelectivePaper:
+@@ -254,16 +384,32 @@ class SelectivePaper:
                  if proof!=transition:
                      raise BoundaryError("unproven_selective_pool_transition")
                  p["market"]=transition["market"]
@@ -1669,7 +1669,7 @@ index 36ef0b3..208db1b 100644
  )
  from .pons_selective_acquisition import (
      _batched, _header_search, _rpc as evidence_rpc, _trajectory,
-@@ -32,6 +36,68 @@ STRATEGY_NAMESPACE="pons-selective-continuation-v1"
+@@ -32,6 +36,82 @@ STRATEGY_NAMESPACE="pons-selective-continuation-v1"
  STRATEGY_CAPITAL_QUOTE=10**18
  ENTRY_SLIPPAGE_BPS=100
  POST_GRAD_OBSERVE_SECONDS=10
@@ -1809,7 +1809,7 @@ index 36ef0b3..208db1b 100644
          reserved=paper.reserve(
              identity,market=candidate["curve"],amount=amount,gas_budget=gas_budget,
              now=now,features=decision,kind="natural",
-@@ -267,6 +347,9 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -267,6 +347,30 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                  status="entry_failed",entry_failure="entry_slippage",
                  final_position=paper._get(identity),reconciliation=paper.reconcile(),
              )
@@ -1848,7 +1848,7 @@ index 36ef0b3..208db1b 100644
          )
          if paper.reconcile()!=before:
              raise BoundaryError("selective_restart_reconciliation")
-@@ -301,253 +385,306 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -301,253 +385,319 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
          entry_largest=int(vector["demand"]["largest_buyer_flow_bps"])
          seen_v4_buyers=set()
          pending_transition_exit_reason=None
