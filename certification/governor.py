@@ -23,19 +23,26 @@ class Governor:
                 CREATE INDEX IF NOT EXISTS priority_queue ON queue(provider,priority,created);''')
 
     def acquire(self,provider,lane,priority=50,*,deadline_seconds=30):
+        if not 0<deadline_seconds<=30:raise ValueError('provider_deadline_bound')
         identity=str(uuid.uuid4());started=time.monotonic()
         db=sqlite3.connect(self.path,timeout=30,isolation_level=None)
         try:
             db.execute('INSERT OR IGNORE INTO pressure VALUES(?,0,0,0,0)',(provider,))
-            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(identity,provider,lane,priority,time.monotonic()))
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('DELETE FROM queue WHERE created<=?',(started-30,))
+            if db.execute('SELECT COUNT(*) FROM queue WHERE provider=?',(provider,)).fetchone()[0]>=256:
+                db.execute('ROLLBACK');raise TimeoutError('certification_provider_queue_capacity')
+            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(identity,provider,lane,priority,started))
+            db.execute('COMMIT')
             while True:
                 now=time.monotonic()
                 if now-started>deadline_seconds:raise TimeoutError('certification_provider_queue_deadline')
                 db.execute('BEGIN IMMEDIATE')
                 try:
+                    db.execute('DELETE FROM queue WHERE created<=?',(now-30,))
                     head=db.execute('SELECT id FROM queue WHERE provider=? ORDER BY priority,created,id LIMIT 1',(provider,)).fetchone()
                     next_at,cooldown=db.execute('SELECT next_at,cooldown FROM pressure WHERE provider=?',(provider,)).fetchone()
-                    if head[0]==identity and now>=max(next_at,cooldown):
+                    if head and head[0]==identity and now>=max(next_at,cooldown):
                         db.execute('UPDATE pressure SET next_at=?,grants=grants+1 WHERE provider=?',(now+self.interval,provider))
                         db.execute('DELETE FROM queue WHERE id=?',(identity,));db.execute('COMMIT')
                         return now-started
@@ -44,6 +51,7 @@ class Governor:
                     db.execute('ROLLBACK');raise
                 time.sleep(min(.05,max(.005,max(next_at,cooldown)-now)))
         finally:
+            if db.in_transaction:db.execute('ROLLBACK')
             db.execute('DELETE FROM queue WHERE id=?',(identity,));db.close()
 
     def rate_limited(self,provider):

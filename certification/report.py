@@ -12,7 +12,7 @@ REQUIRED=('responsive','bounded_queue','provider_limits','no_starvation','teleme
 
 def evaluate(result):
     failures=[];incomplete=[]
-    if result.get('elapsed_seconds',0)<14400:incomplete.append('continuous_four_hour_window_not_completed')
+    if result.get('continuous_overlap_seconds',0)<14400:incomplete.append('continuous_four_hour_window_not_completed')
     for lane in LANES:
         row=result.get('lanes',{}).get(lane,{})
         if row.get('process_restarts',0):failures.append(lane+':process_restart')
@@ -23,7 +23,8 @@ def evaluate(result):
             if value is False:failures.append(lane+':'+gate)
             elif value is not True:incomplete.append(lane+':unproven:'+gate)
         if row.get('natural_settled',0)<1:incomplete.append(lane+':natural_lifecycle_missing')
-        if row.get('open_positions',0):failures.append(lane+':unsettled_position')
+        if row.get('open_positions') is None:incomplete.append(lane+':open_exposure_unknown')
+        elif row['open_positions']:failures.append(lane+':unsettled_position')
     return dict(status='FAIL' if failures else 'INCOMPLETE' if incomplete else 'PASS',
                 failures=failures,incomplete=incomplete,
                 target_three_per_lane_met=all(result.get('lanes',{}).get(k,{}).get('natural_settled',0)>=3 for k in LANES))
@@ -41,7 +42,9 @@ def summarize(lane, report):
         result['open_positions']=len(report.get('open_positions',[]))+len(report.get('pending_entries',[]))
         result['natural_settled']=len(report.get('settled',[]))
         result['terminal_reasons']=dict(Counter(x.get('limitation') or x.get('stage','unknown') for x in report.get('attempts',[])))
-        result['limitations'].append('isolated_research_lifecycles_are_not_consolidated_cash_accounting')
+        result['native_accounting']=report.get('accounting')
+        result['accounting_replay']=report.get('accounting_replay')
+        result['limitations'].append('detailed_cost_decomposition_and_complete_economic_replay_require_verification')
     elif lane=='meteora':
         result['funnel']=dict(discovered=report.get('discovery_unique_pool_count'),screened=report.get('compatibility_screened_count'),
                               complete_observations=report.get('complete_lifecycle_count'))
@@ -56,7 +59,10 @@ def summarize(lane, report):
                 result['natural_settled']+=1
         result['open_positions']=sum((x.get('reconciliation') or {}).get('open_exposure',0)>0 for x in report.get('lifecycles',[]))
         result['terminal_reasons']=(report.get('summary') or {}).get('rejection_counts',{})
-        result['limitations'].append('per_trial_genesis_requires_lane_level_capital_reservation_proof')
+        result['cohort_accounting']=report.get('cohort_accounting')
+        if result['cohort_accounting']:
+            result['open_positions']=result['cohort_accounting']['unsettled']
+        result['limitations'].append('partial_exit_capital_time_and_detailed_cost_decomposition_require_verification')
     else:
         result['funnel']=dict(scans=len(report.get('natural_screens',[])),active_pools=report.get('unique_active_pools'))
         life=report.get('connected_lifecycle') or {};pos=life.get('final_position') or {}

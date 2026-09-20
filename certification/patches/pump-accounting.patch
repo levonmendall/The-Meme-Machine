@@ -1,0 +1,520 @@
+diff --git a/meme_machine/paper_accounting.py b/meme_machine/paper_accounting.py
+new file mode 100644
+index 0000000..9fabf17
+--- /dev/null
++++ b/meme_machine/paper_accounting.py
+@@ -0,0 +1,193 @@
++"""Integer, append-only paper accounting, isolated by run and strategy namespace.
++
++No signer, transport, strategy thresholds or trade authority. Reservations enforce
++one caller-supplied genesis across concurrent lifecycles instead of minting capital
++for each trial. Runtime evidence belongs in the run artifact, never in git.
++"""
++from contextlib import contextmanager
++import hashlib
++import json
++import sqlite3
++import threading
++
++
++def _json(value):
++    return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
++
++
++def _hash(value):
++    return hashlib.sha256(_json(value).encode()).hexdigest()
++
++
++def _integer(value):
++    if type(value) is not int or value < 0:
++        raise ValueError('nonnegative_native_integer_required')
++    return value
++
++
++class PaperBook:
++    def __init__(self, path, *, run_id, lane, policy_hash, initial):
++        _integer(initial)
++        self.identity = dict(run_id=run_id, lane=lane, policy_hash=policy_hash, initial=initial)
++        self.lock = threading.RLock()
++        self.db = sqlite3.connect(path, isolation_level=None, timeout=30, check_same_thread=False)
++        self.db.execute('PRAGMA journal_mode=WAL')
++        self.db.execute('PRAGMA synchronous=FULL')
++        self.db.executescript('''
++          CREATE TABLE IF NOT EXISTS genesis(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL);
++          CREATE TABLE IF NOT EXISTS positions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
++          CREATE TABLE IF NOT EXISTS journal(seq INTEGER PRIMARY KEY,body TEXT NOT NULL,
++            previous TEXT NOT NULL,hash TEXT NOT NULL);
++          CREATE TRIGGER IF NOT EXISTS journal_no_update BEFORE UPDATE ON journal
++            BEGIN SELECT RAISE(ABORT,'append_only'); END;
++          CREATE TRIGGER IF NOT EXISTS journal_no_delete BEFORE DELETE ON journal
++            BEGIN SELECT RAISE(ABORT,'append_only'); END;
++          CREATE TRIGGER IF NOT EXISTS genesis_no_update BEFORE UPDATE ON genesis
++            BEGIN SELECT RAISE(ABORT,'immutable_genesis'); END;
++          CREATE TRIGGER IF NOT EXISTS genesis_no_delete BEFORE DELETE ON genesis
++            BEGIN SELECT RAISE(ABORT,'immutable_genesis'); END;
++        ''')
++        self.db.execute('INSERT OR IGNORE INTO genesis VALUES(1,?)', (_json(self.identity),))
++        if json.loads(self.db.execute('SELECT body FROM genesis').fetchone()[0]) != self.identity:
++            raise ValueError('paper_book_namespace_or_genesis_mismatch')
++        self.replay()
++
++    @contextmanager
++    def transaction(self):
++        with self.lock:
++            self.db.execute('BEGIN IMMEDIATE')
++            try:
++                yield
++                self.db.execute('COMMIT')
++            except BaseException:
++                self.db.execute('ROLLBACK')
++                raise
++
++    def _load(self, identity):
++        row = self.db.execute('SELECT body FROM positions WHERE id=?', (identity,)).fetchone()
++        if not row:
++            raise ValueError('paper_position_missing')
++        return json.loads(row[0])
++
++    def _record(self, position, action, at, evidence):
++        _integer(at)
++        old_at = position.get('last_at', at)
++        if at < old_at:
++            raise ValueError('paper_accounting_time_regression')
++        position['last_at'] = at
++        body = dict(identity=self.identity, action=action, at=at, position=position,
++                    evidence=evidence, evidence_hash=_hash(evidence))
++        row = self.db.execute('SELECT seq,hash FROM journal ORDER BY seq DESC LIMIT 1').fetchone()
++        seq, previous = (row[0] + 1, row[1]) if row else (1, '0' * 64)
++        self.db.execute('INSERT INTO journal VALUES(?,?,?,?)',
++                        (seq, _json(body), previous, _hash([seq, previous, body])))
++        self.db.execute('INSERT OR REPLACE INTO positions VALUES(?,?)',
++                        (position['id'], _json(position)))
++
++    def reserve(self, identity, amount, at, evidence):
++        _integer(amount)
++        if amount == 0 or not identity.startswith(self.identity['run_id'] + ':'):
++            raise ValueError('paper_lifecycle_identity_or_amount')
++        with self.transaction():
++            if self.db.execute('SELECT 1 FROM positions WHERE id=?', (identity,)).fetchone():
++                raise ValueError('duplicate_paper_lifecycle')
++            if amount > self.reconcile()['cash']:
++                raise ValueError('paper_capital_exhausted')
++            position = dict(id=identity, status='reserved', reserved=amount, basis=0,
++                            mark=0, tokens=0, realized=0, capital_unit_seconds=0,
++                            capital_at_risk=amount, risk_at=at, last_at=at)
++            self._record(position, 'reserved', at, evidence)
++
++    def transition(self, identity, action, at, *, amount=0, tokens=0, evidence=None):
++        _integer(amount); _integer(tokens); _integer(at)
++        with self.transaction():
++            p = self._load(identity)
++            if at < p['last_at']:
++                raise ValueError('paper_accounting_time_regression')
++            p['capital_unit_seconds'] += p['capital_at_risk'] * (at - p['risk_at'])
++            p['risk_at'] = at
++            if action == 'filled':
++                if p['status'] != 'reserved' or amount > p['reserved'] or not amount or not tokens:
++                    raise ValueError('invalid_paper_fill')
++                p.update(status='open', reserved=0, basis=amount, mark=amount,
++                         tokens=tokens, capital_at_risk=amount)
++            elif action == 'cancelled':
++                if p['status'] != 'reserved':
++                    raise ValueError('invalid_paper_cancel')
++                p.update(status='cancelled', reserved=0, capital_at_risk=0)
++            elif action == 'mark':
++                if p['status'] != 'open':
++                    raise ValueError('invalid_paper_mark')
++                p['mark'] = amount
++            elif action == 'settled':
++                if p['status'] != 'open':
++                    raise ValueError('duplicate_or_invalid_paper_settlement')
++                p.update(status='settled', realized=amount-p['basis'], proceeds=amount,
++                         basis=0, mark=0, tokens=0, capital_at_risk=0)
++            else:
++                raise ValueError('unknown_paper_transition')
++            self._record(p, action, at, evidence or {})
++            return self.reconcile()
++
++    def reconcile(self):
++        with self.lock:
++            positions = [json.loads(x[0]) for x in self.db.execute('SELECT body FROM positions')]
++            realized = sum(x['realized'] for x in positions)
++            reserved = sum(x['reserved'] for x in positions)
++            basis = sum(x['basis'] for x in positions)
++            marks = sum(x['mark'] for x in positions)
++            cash = self.identity['initial'] + realized - reserved - basis
++            if cash < 0:
++                raise ValueError('paper_capital_conservation')
++            return dict(**self.identity, cash=cash, reserved=reserved, basis=basis,
++                        realized=realized, unrealized=marks-basis,
++                        marked_equity=cash+reserved+marks,
++                        capital_unit_seconds=sum(x['capital_unit_seconds'] for x in positions),
++                        capital_hour_denominator=3600,
++                        open_positions=sum(x['status']=='open' for x in positions),
++                        pending=sum(x['status']=='reserved' for x in positions),
++                        settled=sum(x['status']=='settled' for x in positions),
++                        reconciled=True)
++
++    def replay(self):
++        """Verify immutable chain, then independently rebuild cash and occupations."""
++        with self.lock:
++            positions = {}; previous = '0' * 64; count = 0
++            cash = self.identity['initial']
++            for seq, raw, prior, checksum in self.db.execute('SELECT * FROM journal ORDER BY seq'):
++                count += 1; body = json.loads(raw); p = body['position']; identity = p['id']
++                if (seq != count or prior != previous or body['identity'] != self.identity
++                        or checksum != _hash([seq, prior, body])
++                        or body['evidence_hash'] != _hash(body['evidence'])):
++                    raise ValueError('paper_journal_corruption')
++                old = positions.get(identity); action = body['action']
++                if action == 'reserved':
++                    if old is not None or p['reserved'] > cash:
++                        raise ValueError('paper_replay_duplicate_or_overdraw')
++                    cash -= p['reserved']
++                elif action == 'filled':
++                    if not old or old['status'] != 'reserved':
++                        raise ValueError('paper_replay_fill')
++                    cash += old['reserved'] - p['basis']
++                elif action == 'cancelled':
++                    if not old or old['status'] != 'reserved':
++                        raise ValueError('paper_replay_cancel')
++                    cash += old['reserved']
++                elif action == 'settled':
++                    if not old or old['status'] != 'open' or p['realized'] != p['proceeds']-old['basis']:
++                        raise ValueError('paper_replay_settlement')
++                    cash += p['proceeds']
++                elif action != 'mark' or not old or old['status'] != 'open':
++                    raise ValueError('paper_replay_transition')
++                if cash < 0:
++                    raise ValueError('paper_replay_negative_cash')
++                positions[identity] = p; previous = checksum
++            actual = {identity: json.loads(raw) for identity, raw in self.db.execute('SELECT * FROM positions')}
++            if positions != actual or cash != self.reconcile()['cash']:
++                raise ValueError('paper_projection_differs_from_replay')
++            return dict(verified=True, events=count, final_hash=previous, cash=cash)
++
++    def close(self):
++        self.replay()
++        self.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
++        self.db.close()
+diff --git a/meme_machine/pump_acceleration_paper.py b/meme_machine/pump_acceleration_paper.py
+index 3e64d83..7c6e406 100644
+--- a/meme_machine/pump_acceleration_paper.py
++++ b/meme_machine/pump_acceleration_paper.py
+@@ -35,10 +35,15 @@ class PaperPosition:
+ class PumpAccelerationPaperLifecycle:
+     """One independent strategy lifecycle; no shared-capital authority."""
+ 
+-    def __init__(self):
++    def __init__(self, *, book=None, lifecycle_id=None, entry_evidence=None):
+         self.reservation=None
+         self.position=None
+         self.history=[]
++        self.book=book
++        self.lifecycle_id=lifecycle_id
++        self.entry_evidence=entry_evidence or {}
++        if book is not None and not lifecycle_id:
++            raise ValueError("durable_lifecycle_id_required")
+ 
+     def reserve(self, qualification: Qualification, budget_quote_units: int, now: int):
+         if qualification.strategy_id != STRATEGY_ID:
+@@ -49,6 +54,10 @@ class PumpAccelerationPaperLifecycle:
+             raise ValueError("invalid_budget")
+         if self.reservation is not None or self.position is not None:
+             raise ValueError("lifecycle_already_active")
++        if self.book is not None:
++            self.book.reserve(self.lifecycle_id,int(budget_quote_units),int(now),
++                              dict(qualification=asdict(qualification),
++                                   snapshot=self.entry_evidence))
+         self.reservation=dict(
+             strategy_id=STRATEGY_ID,
+             mode=qualification.mode,
+@@ -61,7 +70,7 @@ class PumpAccelerationPaperLifecycle:
+         self.history.append(dict(event="reserved",**self.reservation))
+         return dict(self.reservation)
+ 
+-    def fill(self, tokens: int, cost_quote_units: int, now: int, surface: str):
++    def fill(self, tokens: int, cost_quote_units: int, now: int, surface: str, *, evidence=None):
+         if self.reservation is None or self.position is not None:
+             raise ValueError("no_active_reservation")
+         if tokens <= 0 or cost_quote_units <= 0:
+@@ -70,6 +79,10 @@ class PumpAccelerationPaperLifecycle:
+             raise ValueError("fill_exceeds_budget")
+         if surface not in ("pump.fun","pumpswap"):
+             raise ValueError("unsupported_surface")
++        if self.book is not None:
++            self.book.transition(self.lifecycle_id,"filled",int(now),
++                                 amount=int(cost_quote_units),tokens=int(tokens),
++                                 evidence=dict(surface=surface,execution=evidence))
+         self.position=PaperPosition(
+             strategy_id=STRATEGY_ID,
+             mode=self.reservation["mode"],
+@@ -86,6 +99,9 @@ class PumpAccelerationPaperLifecycle:
+     def cancel(self, reason: str, now: int):
+         if self.reservation is None:
+             raise ValueError("no_active_reservation")
++        if self.book is not None:
++            self.book.transition(self.lifecycle_id,"cancelled",int(now),
++                                 evidence=dict(reason=str(reason)))
+         self.history.append(dict(event="cancelled",reason=str(reason),time=int(now),reservation=dict(self.reservation)))
+         self.reservation=None
+ 
+@@ -103,11 +119,17 @@ class PumpAccelerationPaperLifecycle:
+         return asdict(self.position)
+ 
+     def mark(self, executable_proceeds_quote_units: int, now: int, demand_score: int,
+-             postgrad_demand_confirmed: bool=False):
++             postgrad_demand_confirmed: bool=False, *, evidence=None):
+         if self.position is None:
+             raise ValueError("no_open_position")
+         if executable_proceeds_quote_units < 0:
+             raise ValueError("invalid_mark")
++        if self.book is not None:
++            self.book.transition(self.lifecycle_id,"mark",int(now),
++                                 amount=int(executable_proceeds_quote_units),
++                                 evidence=dict(demand_score=int(demand_score),
++                                               postgrad_demand_confirmed=bool(postgrad_demand_confirmed),
++                                               execution=evidence))
+         basis=self.position.basis_quote_units
+         ret=(int(executable_proceeds_quote_units)-basis)*10_000//basis
+         self.position.peak_return_bps=max(self.position.peak_return_bps,ret)
+@@ -135,13 +157,17 @@ class PumpAccelerationPaperLifecycle:
+         ))
+         return dict(return_bps=int(ret),peak_return_bps=int(self.position.peak_return_bps),exit_reason=reason)
+ 
+-    def settle(self, executable_proceeds_quote_units: int, now: int):
++    def settle(self, executable_proceeds_quote_units: int, now: int, *, evidence=None):
+         if self.position is None:
+             raise ValueError("no_open_position")
+         if self.position.exit_reason is None:
+             raise ValueError("exit_not_intended")
+         if executable_proceeds_quote_units < 0:
+             raise ValueError("invalid_settlement")
++        if self.book is not None:
++            self.book.transition(self.lifecycle_id,"settled",int(now),
++                                 amount=int(executable_proceeds_quote_units),
++                                 evidence=dict(exit_reason=self.position.exit_reason,execution=evidence))
+         self.position.realized_quote_units=int(executable_proceeds_quote_units)-self.position.basis_quote_units
+         self.position.closed_at=int(now)
+         closed=asdict(self.position)
+@@ -152,6 +178,7 @@ class PumpAccelerationPaperLifecycle:
+     def snapshot(self):
+         return dict(
+             strategy_id=STRATEGY_ID,
++            lifecycle_id=self.lifecycle_id,
+             capital_authority=False,
+             reservation=None if self.reservation is None else dict(self.reservation),
+             position=None if self.position is None else asdict(self.position),
+diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
+index db17c29..61d9771 100644
+--- a/tests/pump_acceleration_natural_prospective.py
++++ b/tests/pump_acceleration_natural_prospective.py
+@@ -54,10 +54,16 @@ ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
+ ENTRY_DELAY_SECONDS=2
+ ENTRY_FILL_TIMEOUT_SECONDS=20
+ FROZEN_POLICY_HASH="b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246"
++ACCOUNTING=None
+ 
+ 
+ def _save(report):
+-    REPORT.write_text(json.dumps(report,indent=2,sort_keys=True))
++    if ACCOUNTING is not None:
++        report["accounting"]=ACCOUNTING.reconcile()
++        report["accounting_replay"]=ACCOUNTING.replay()
++    temporary=REPORT.with_suffix(REPORT.suffix+".tmp")
++    temporary.write_text(json.dumps(report,indent=2,sort_keys=True))
++    os.replace(temporary,REPORT)
+ 
+ 
+ class Sessions:
+@@ -224,9 +230,13 @@ def _reserve_position(report,pending,active,qualification,snapshot,mode,concentr
+     if any(x["mint"]==qualification.mint and x["mode"]==mode for x in report["qualifiers"]):
+         return
+     reserved_at=int(snapshot["available_time"])
+-    life=PumpAccelerationPaperLifecycle()
++    import uuid
++    lifecycle_id=(ACCOUNTING.identity["run_id"] if ACCOUNTING else "research")+":"+uuid.uuid4().hex
++    life=PumpAccelerationPaperLifecycle(book=ACCOUNTING,lifecycle_id=lifecycle_id,
++                                       entry_evidence=snapshot)
+     life.reserve(qualification,ENTRY_BUDGET+GAS,reserved_at)
+     qrow=dict(
++        lifecycle_id=lifecycle_id,
+         mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
+         score=qualification.score,reasons=list(qualification.reasons),
+         confirmations=list(qualification.confirmations),
+@@ -280,7 +290,8 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+                 entry=dict(tokens=tokens,cost=cost,fee=quote.fee_amount,gas=GAS)
+ 
+             basis=cost+GAS
+-            life.fill(tokens,basis,int(snapshot["available_time"]),surface)
++            life.fill(tokens,basis,int(snapshot["available_time"]),surface,
++                      evidence=dict(snapshot=snapshot,entry=entry))
+             active[key]=dict(
+                 lifecycle=life,opened=int(snapshot["available_time"]),
+                 next_monitor=int(snapshot["available_time"])+5,
+@@ -330,6 +341,10 @@ def _record_attempt(report,signal,q,stage,extra=None):
+     )
+     if extra:
+         row.update(extra)
++    if ACCOUNTING is not None:
++        with REPORT.with_suffix(".candidates.jsonl").open("a") as sink:
++            sink.write(json.dumps(dict(policy_hash=policy_hash(),**row),sort_keys=True)+"\n")
++            sink.flush();os.fsync(sink.fileno())
+     if stage=="full_point_in_time":
+         # Full-evidence rows are an append-only experiment ledger and are never
+         # removed by the rolling UI/debug attempt buffer.
+@@ -339,10 +354,19 @@ def _record_attempt(report,signal,q,stage,extra=None):
+ 
+ 
+ def main():
++    global ACCOUNTING
++    from meme_machine.paper_accounting import PaperBook
++    import uuid
+     actual_policy_hash=policy_hash()
+     if actual_policy_hash!=FROZEN_POLICY_HASH:
+         raise RuntimeError("frozen_policy_hash_changed")
+     confirmations=ConfirmationBook.from_files()
++    run_id=os.environ.get("MM_CERTIFICATION_RUN_ID") or uuid.uuid4().hex
++    accounting_path=REPORT.with_suffix(".accounting.sqlite3")
++    if accounting_path.exists():
++        raise RuntimeError("existing_paper_book_requires_explicit_recovery")
++    ACCOUNTING=PaperBook(str(accounting_path),run_id=run_id,lane=STRATEGY_ID,
++                         policy_hash=actual_policy_hash,initial=INITIAL_LAMPORTS)
+     report=dict(
+         kind="pump_acceleration_natural_prospective",
+         strategy_id=STRATEGY_ID,policy_hash=actual_policy_hash,
+@@ -362,6 +386,7 @@ def main():
+         entry_delay_seconds=ENTRY_DELAY_SECONDS,entry_fill_timeout_seconds=ENTRY_FILL_TIMEOUT_SECONDS,
+         discovery_seconds=DISCOVERY_SECONDS,followup_seconds=FOLLOWUP_SECONDS,
+         started=int(time.time()),stream={},sessions=[],counts={},limitations=[],
++        run_id=run_id,accounting_path=str(accounting_path),
+         confirmation_evidence=confirmations.status(),
+         attempts=[],full_evidence_candidates=[],qualifiers=[],settled=[],
+         open_positions=[],postgrad=[],
+@@ -609,7 +634,9 @@ def main():
+                             state,snapshot,events,MODE_POSTGRAD,concentration,confirmations)
+                         cq=qualify(current);demand_score=cq.score;confirmed=cq.qualified
+ 
+-                    mark=life.mark(proceeds,now,demand_score,confirmed)
++                    mark_evidence=dict(snapshot=snapshot,net_proceeds=proceeds,
++                                       network_cost=GAS)
++                    mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
+                     age=now-int(row["opened"])
+                     for horizon in (15,60,300,900):
+                         if age>=horizon and str(horizon) not in row["marks"]:
+@@ -617,8 +644,9 @@ def main():
+                                 observed_at=now,return_bps=mark["return_bps"],
+                                 proceeds=proceeds)
+                     if mark["exit_reason"] is not None:
+-                        closed=life.settle(proceeds,now)
++                        closed=life.settle(proceeds,now,evidence=mark_evidence)
+                         report["settled"].append(dict(
++                            lifecycle_id=life.lifecycle_id,
+                             mint=mint,mode=mode,opened=row["opened"],closed=now,
+                             exit_reason=closed["exit_reason"],
+                             realized_quote_units=closed["realized_quote_units"],
+@@ -630,6 +658,8 @@ def main():
+                     row["monitor_failures"]=row["monitor_failures"][-20:]
+ 
+             if now-last_save>=15:
++                report["active_provider"]=sessions.rpc.provider_telemetry()
++                report["evidence_broker"]=broker.telemetry()
+                 counts=Counter()
+                 for attempt in report["attempts"]:
+                     counts[f'{attempt.get("mode")}:{attempt.get("stage")}']+=1
+@@ -655,6 +685,10 @@ def main():
+         report["pumpswap_stream"]=pumpswap_stream.status()
+         report["evidence_broker"]=broker.telemetry()
+         report["ended"]=int(time.time())
++        report["pending_entries"]=[dict(mint=k[0],mode=k[1],snapshot=v["lifecycle"].snapshot())
++                                    for k,v in pending.items()]
++        report["open_positions"]=[dict(mint=k[0],mode=k[1],snapshot=v["lifecycle"].snapshot())
++                                   for k,v in active.items()]
+         report["full_evidence_attempts"]=full_attempts
+         report["created_mints_observed"]=len(created)
+         report["postgrad_candidates"]=len(postgrad)
+@@ -674,6 +708,7 @@ def main():
+         report["threshold_changes_made"]=False
+         _save(report)
+         broker.close()
++        ACCOUNTING.close();ACCOUNTING=None
+     print(json.dumps(report,sort_keys=True))
+ 
+ 
+diff --git a/tests/test_paper_accounting.py b/tests/test_paper_accounting.py
+new file mode 100644
+index 0000000..25ba1d5
+--- /dev/null
++++ b/tests/test_paper_accounting.py
+@@ -0,0 +1,71 @@
++import json
++import sqlite3
++import tempfile
++from concurrent.futures import ThreadPoolExecutor
++from pathlib import Path
++import unittest
++from meme_machine.paper_accounting import PaperBook
++from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
++from tests.test_pump_acceleration_paper import qualification
++
++
++class PaperAccountingTests(unittest.TestCase):
++    def setUp(self):
++        self.temp=tempfile.TemporaryDirectory()
++        self.path=str(Path(self.temp.name)/'book.sqlite')
++        self.book=self.open()
++    def tearDown(self):
++        self.book.db.close()
++        self.temp.cleanup()
++    def open(self):
++        return PaperBook(self.path,run_id='r',lane='pump',policy_hash='frozen',initial=1000)
++    def test_actual_lifecycle_replays_after_close_without_recycling_genesis(self):
++        life=PumpAccelerationPaperLifecycle(book=self.book,lifecycle_id='r:one')
++        life.reserve(qualification(),600,100)
++        life.fill(100,550,102,'pump.fun',evidence={'gas':10,'fee':5})
++        life.mark(700,110,80)
++        life.mark(550,120,20)
++        life.settle(550,122)
++        self.assertEqual(self.book.reconcile()['cash'],1000)
++        self.assertEqual(self.book.reconcile()['capital_unit_seconds'],12200)
++        self.book.close();self.book=self.open()
++        self.assertEqual(self.book.replay()['cash'],1000)
++        self.book.reserve('r:two',600,123,{})
++        self.assertEqual(self.book.reconcile()['cash'],400)
++    def test_atomic_reservation_across_independent_connections(self):
++        other=self.open()
++        def reserve(pair):
++            b,name=pair
++            try:b.reserve(name,600,10,{});return True
++            except ValueError as e:
++                self.assertEqual(str(e),'paper_capital_exhausted');return False
++        with ThreadPoolExecutor(2) as pool:
++            out=list(pool.map(reserve,[(self.book,'r:a'),(other,'r:b')]))
++        self.assertEqual(sorted(out),[False,True]);other.close()
++        self.assertEqual(self.book.reconcile()['reserved'],600)
++    def test_duplicate_settlement_and_namespace_fail_closed(self):
++        self.book.reserve('r:a',400,10,{})
++        self.book.transition('r:a','filled',12,amount=390,tokens=10)
++        self.book.transition('r:a','settled',20,amount=420)
++        with self.assertRaisesRegex(ValueError,'duplicate'):
++            self.book.transition('r:a','settled',21,amount=420)
++        self.assertEqual(self.book.reconcile()['cash'],1030)
++        with self.assertRaisesRegex(ValueError,'identity'):
++            self.book.reserve('other:a',10,21,{})
++    def test_append_only_and_mutable_projection_corruption_detected(self):
++        self.book.reserve('r:a',400,10,{})
++        with self.assertRaises(sqlite3.IntegrityError):
++            self.book.db.execute('DELETE FROM journal')
++        p=json.loads(self.book.db.execute('SELECT body FROM positions').fetchone()[0])
++        p['reserved']=0
++        self.book.db.execute('UPDATE positions SET body=?',(json.dumps(p),))
++        with self.assertRaisesRegex(ValueError,'projection'):
++            self.book.replay()
++    def test_float_money_time_regression_and_overfill_fail(self):
++        with self.assertRaises(ValueError):self.book.reserve('r:a',400.0,10,{})
++        self.book.reserve('r:a',400,10,{})
++        with self.assertRaises(ValueError):self.book.transition('r:a','filled',12,amount=401,tokens=5)
++        with self.assertRaises(ValueError):self.book.transition('r:a','cancelled',9)
++        self.assertEqual(self.book.reconcile()['reserved'],400)
++
++if __name__=='__main__':unittest.main()

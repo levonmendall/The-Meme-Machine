@@ -70,17 +70,19 @@ class JournalTests(unittest.TestCase):
 
 class CertificationTests(unittest.TestCase):
     def complete(self):
-        return dict(elapsed_seconds=14400,lanes={lane:dict(continuous_uptime_seconds=14400,
-                    natural_settled=1,process_restarts=0,gates={g:True for g in REQUIRED}) for lane in LANES})
+        return dict(elapsed_seconds=14400,continuous_overlap_seconds=14400,lanes={lane:dict(continuous_uptime_seconds=14400,
+                    natural_settled=1,open_positions=0,process_restarts=0,gates={g:True for g in REQUIRED}) for lane in LANES})
 
     def test_forced_zero_missing_unknown_and_restart_cannot_pass(self):
         good=self.complete();self.assertEqual(evaluate(good)['status'],'PASS')
-        for name in ('forced','missing','restart','short','unsettled'):
+        for name in ('forced','missing','restart','short','unsettled','unknown_exposure','short_overlap'):
             x=json.loads(json.dumps(good));r=x['lanes']['pons']
             if name=='forced':r.update(natural_settled=0,forced_settled=3)
             elif name=='missing':del r['gates']['accounting_reconciled']
             elif name=='restart':r['process_restarts']=1
             elif name=='short':r['continuous_uptime_seconds']=14399
+            elif name=='unknown_exposure':r['open_positions']=None
+            elif name=='short_overlap':x['continuous_overlap_seconds']=14399
             else:r['open_positions']=1
             self.assertNotEqual(evaluate(x)['status'],'PASS',name)
 
@@ -113,5 +115,63 @@ class CertificationTests(unittest.TestCase):
             status=Governor(path).status()
             self.assertEqual(status['queues'],[])
             self.assertEqual(status['providers'][0]['grants'],4)
+
+class IntegrationRegressionTests(unittest.TestCase):
+    def test_expired_ticket_and_capacity_are_fail_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'gate.sqlite';g=Governor(path)
+            db=sqlite3.connect(path)
+            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('stale','solana','dead',0,time.monotonic()-31))
+            db.commit()
+            g.acquire('solana','pump')
+            self.assertEqual(g.status()['queues'],[])
+            now=time.monotonic()
+            db.executemany('INSERT INTO queue VALUES(?,?,?,?,?)',[(str(i),'solana','research',50,now) for i in range(256)])
+            db.commit()
+            with self.assertRaisesRegex(TimeoutError,'capacity'):g.acquire('solana','pump')
+            db.close()
+
+    def test_terminal_status_keeps_report_and_rpc_error_code(self):
+        import gzip
+        from unittest.mock import patch
+        from certification.worker import Observer
+        class Rpc:
+            def transport(self,request):return {'error':{'code':429}}
+        with tempfile.TemporaryDirectory() as td:
+            with patch.dict(os.environ,{'MM_CERT_GOVERNOR_DB':str(Path(td)/'governor.sqlite')}):
+                o=Observer(Path(td)/'lane','pump','policy')
+            o.checkpoint({'accounting':{'cash':100}},'checkpoint')
+            o.wrap_transport(Rpc,'transport',solana=True)
+            rpc=Rpc();rpc.transport({'method':'getTransaction','params':['signature']})
+            o.status('returned')
+            status=json.loads((Path(td)/'lane/status.json').read_text())
+            self.assertEqual(status['report']['accounting']['cash'],100)
+            self.assertIsNotNone(status['terminal_monotonic'])
+            o.raw.close();o.journal.close()
+            raw=json.loads(gzip.open(Path(td)/'lane/rpc-evidence.jsonl.gz','rt').readline())
+            self.assertEqual(raw['http_status'],200)
+            self.assertEqual(raw['json_rpc_error_codes'],[429])
+            self.assertTrue(raw['transport_attempted'])
+
+class PressureViewTests(unittest.TestCase):
+    def test_incremental_observation_never_rebooks_or_mutates_admission(self):
+        from certification.pressure import PressureView
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'shared.sqlite';view=PressureView(path)
+            self.assertEqual(view.snapshot()['state'],'not_initialized')
+            db=sqlite3.connect(path)
+            db.executescript('CREATE TABLE transports(seq INTEGER PRIMARY KEY,body TEXT); CREATE TABLE limits(endpoint TEXT,cooldown REAL,interval REAL); CREATE TABLE queue(endpoint TEXT,created REAL);')
+            db.execute('INSERT INTO limits VALUES(?,?,?)',('opaque',time.monotonic()+8,.5))
+            def append(lane):
+                row=dict(lane=lane,endpoint_fingerprint='opaque',methods=['eth_call'],http_status=429,rpc_error_code=None,retry_count=1,queue_depth=2,wait_seconds=.2,latency_seconds=.1)
+                db.execute('INSERT INTO transports(body) VALUES(?)',(json.dumps(row),));db.commit()
+            append('pons')
+            self.assertEqual(view.snapshot()['lanes']['pons']['requests'],1)
+            self.assertEqual(view.snapshot()['lanes']['pons']['requests'],1)
+            append('ramses');r=view.snapshot()
+            self.assertEqual(r['endpoints'][0]['requests'],2)
+            self.assertEqual(r['lanes']['ramses']['requests'],1)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM transports').fetchone()[0],2)
+            db.close()
 
 if __name__=='__main__':unittest.main()

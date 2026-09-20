@@ -1,0 +1,240 @@
+diff --git a/robinhood_research/provider_admission.py b/robinhood_research/provider_admission.py
+new file mode 100644
+index 0000000..ba1dfef
+--- /dev/null
++++ b/robinhood_research/provider_admission.py
+@@ -0,0 +1,112 @@
++"""Optional cross-process read-only transport admission for concurrent certification.
++
++Endpoint credentials never enter SQLite. Existing role pacers and error recovery
++remain authoritative; this adds a shared physical-transport ceiling and telemetry.
++"""
++import hashlib
++import json
++import os
++import re
++import sqlite3
++import time
++import uuid
++from . import BoundaryError
++
++
++def fingerprint(endpoint):
++    from urllib.parse import urlsplit
++    p=urlsplit(endpoint.strip())
++    normalized=f'{p.scheme.lower()}://{p.netloc.lower()}{p.path.rstrip("/")}'
++    if p.query: normalized+='?'+p.query
++    return hashlib.sha256(normalized.encode()).hexdigest()
++
++
++def priority(scope):
++    scope=str(scope).lower()
++    if any(x in scope for x in ('paper','monitor','exit','unwind','settle','lifecycle')):return 0
++    if any(x in scope for x in ('selective','evidence','candidate')):return 10
++    return 50
++
++
++class Admission:
++    def __init__(self,path,endpoint,*,lane,interval=0.5,clock=time.monotonic,sleeper=time.sleep):
++        self.path=path;self.endpoint=fingerprint(endpoint);self.lane=lane
++        self.clock=clock;self.sleep=sleeper;self.interval=interval
++        self.session=uuid.uuid4().hex
++        db=self.connect()
++        db.executescript('''
++            CREATE TABLE IF NOT EXISTS limits(endpoint TEXT PRIMARY KEY,next_at REAL NOT NULL,
++                cooldown REAL NOT NULL,interval REAL NOT NULL);
++            CREATE TABLE IF NOT EXISTS queue(id TEXT PRIMARY KEY,endpoint TEXT NOT NULL,
++                priority INTEGER NOT NULL,created REAL NOT NULL,deadline REAL NOT NULL);
++            CREATE TABLE IF NOT EXISTS transports(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
++            CREATE TRIGGER IF NOT EXISTS no_transport_update BEFORE UPDATE ON transports
++                BEGIN SELECT RAISE(ABORT,'append_only'); END;
++            CREATE TRIGGER IF NOT EXISTS no_transport_delete BEFORE DELETE ON transports
++                BEGIN SELECT RAISE(ABORT,'append_only'); END;
++        ''')
++        db.execute('INSERT INTO limits VALUES(?,0,0,?) ON CONFLICT(endpoint) DO UPDATE SET interval=MAX(interval,excluded.interval)',(self.endpoint,interval))
++        db.close()
++    def connect(self):
++        db=sqlite3.connect(self.path,timeout=10,isolation_level=None)
++        db.execute('PRAGMA journal_mode=WAL');db.execute('PRAGMA synchronous=FULL')
++        return db
++    def acquire(self,scope):
++        ticket=uuid.uuid4().hex;started=self.clock();deadline=started+30
++        db=self.connect()
++        try:
++            db.execute('BEGIN IMMEDIATE')
++            db.execute('DELETE FROM queue WHERE deadline<=?',(started,))
++            if db.execute('SELECT COUNT(*) FROM queue WHERE endpoint=?',(self.endpoint,)).fetchone()[0]>=256:
++                raise BoundaryError('provider_shared_queue_capacity')
++            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(ticket,self.endpoint,priority(scope),started,deadline))
++            depth=db.execute('SELECT COUNT(*) FROM queue WHERE endpoint=?',(self.endpoint,)).fetchone()[0]
++            db.execute('COMMIT')
++            while True:
++                now=self.clock()
++                if now>=deadline:raise BoundaryError('provider_shared_admission_deadline')
++                db.execute('BEGIN IMMEDIATE')
++                db.execute('DELETE FROM queue WHERE deadline<=?',(now,))
++                first=db.execute('SELECT id FROM queue WHERE endpoint=? ORDER BY priority,created,id LIMIT 1',(self.endpoint,)).fetchone()
++                next_at,cooldown,interval=db.execute('SELECT next_at,cooldown,interval FROM limits WHERE endpoint=?',(self.endpoint,)).fetchone()
++                if first and first[0]==ticket and now>=max(next_at,cooldown):
++                    db.execute('UPDATE limits SET next_at=? WHERE endpoint=?',(now+interval,self.endpoint))
++                    db.execute('DELETE FROM queue WHERE id=?',(ticket,));db.execute('COMMIT')
++                    return dict(wait_seconds=now-started,queue_depth=depth,admitted_at=now)
++                db.execute('COMMIT')
++                self.sleep(min(0.05,max(0.001,max(next_at,cooldown)-now)))
++        finally:
++            if db.in_transaction:db.execute('ROLLBACK')
++            db.execute('DELETE FROM queue WHERE id=?',(ticket,));db.close()
++    def invoke(self,call,methods,scope,retry_count=0):
++        admitted=self.acquire(scope);started=self.clock();boundary=None;http_status=None;rpc_code=None
++        try:
++            result=call()
++            http_status=200
++            return result
++        except BoundaryError as exc:
++            boundary=str(exc)
++            match=re.fullmatch(r'provider_http_(\d+)',boundary)
++            http_status=int(match[1]) if match else None
++            match=re.fullmatch(r'provider_rpc_(-?\d+)',boundary)
++            rpc_code=int(match[1]) if match else None
++            raise
++        finally:
++            row=dict(lane=self.lane,endpoint_fingerprint=self.endpoint,session=self.session,
++                     methods=methods,scope=scope,http_status=http_status,rpc_error_code=rpc_code,
++                     boundary=boundary,retry_count=retry_count,
++                     latency_seconds=self.clock()-started,**admitted)
++            db=self.connect()
++            try:
++                db.execute('BEGIN IMMEDIATE')
++                if http_status==429 or rpc_code==429:
++                    db.execute('UPDATE limits SET cooldown=MAX(cooldown,?) WHERE endpoint=?',(self.clock()+8,self.endpoint))
++                db.execute('INSERT INTO transports(body) VALUES(?)',(json.dumps(row,sort_keys=True),))
++                db.execute('COMMIT')
++            finally:db.close()
++
++
++def configured(endpoint):
++    path=os.environ.get('MM_CERTIFICATION_PROVIDER_DB')
++    if not path:return None
++    return Admission(path,endpoint,lane=os.environ.get('MM_CERTIFICATION_LANE','unknown'))
+diff --git a/robinhood_research/provider_topology.py b/robinhood_research/provider_topology.py
+index d723038..8846728 100644
+--- a/robinhood_research/provider_topology.py
++++ b/robinhood_research/provider_topology.py
+@@ -248,6 +248,9 @@ class PacedRpc(Rpc):
+         **kwargs,
+     ):
+         self.role = str(role)
++        from .provider_admission import configured
++        self.shared_admission = configured(endpoint)
++        self.admission_scope = threading.local()
+         self.provider_kind = _provider_kind(endpoint)
+         self.pacer = pacer or ProviderPacer(requests_per_second)
+         self._injected_transport = transport
+@@ -264,10 +267,20 @@ class PacedRpc(Rpc):
+ 
+     def _http(self, method, params):
+         self.pacer.pace()
++        if self.shared_admission is not None:
++            parent=super()
++            return self.shared_admission.invoke(
++                lambda: parent._http(method,params),[method],
++                getattr(self.admission_scope,"value","connectivity"),self.retry_count)
+         return super()._http(method, params)
+ 
+     def _http_batch(self, calls):
+         self.pacer.pace()
++        if self.shared_admission is not None:
++            parent=super()
++            return self.shared_admission.invoke(
++                lambda: parent._http_batch(calls),[x[0] for x in calls],
++                getattr(self.admission_scope,"value","connectivity"),self.retry_count)
+         return super()._http_batch(calls)
+ 
+     def _method_allowed_for_provider(self, method):
+@@ -276,12 +289,14 @@ class PacedRpc(Rpc):
+ 
+     def call(self, method, params, *, scope="connectivity"):
+         self._method_allowed_for_provider(method)
++        self.admission_scope.value=scope
+         return super().call(method, params, scope=scope)
+ 
+     def batch(self, calls, *, scope="connectivity"):
+         for row in calls or []:
+             if isinstance(row, (list, tuple)) and row:
+                 self._method_allowed_for_provider(row[0])
++        self.admission_scope.value=scope
+         return super().batch(calls, scope=scope)
+ 
+     def telemetry(self):
+diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ramses_extended_test.py
+index e4ab19d..52f757a 100644
+--- a/robinhood_research/ramses_extended_test.py
++++ b/robinhood_research/ramses_extended_test.py
+@@ -503,6 +503,12 @@ def run(
+     )
+ 
+     while True:
++        if os.environ.get("MM_CERTIFICATION_RUN_ID"):
++            result["checkpoint_at"]=time.time()
++            result["frontier_discovery"]=dict(
++                polls=frontier_polls,advances=frontier_advances,
++                expensive_scans=len(screens),provider=frontier_rpc.telemetry())
++            _persist_public_result(result)
+         now=time.monotonic()
+         elapsed=now-started
+         if elapsed>=discovery_seconds:
+@@ -671,7 +677,9 @@ def _persist_public_result(result):
+     raw=json.dumps(public_result,sort_keys=True,separators=(",",":")).encode()
+     if len(raw)>12_000_000:
+         raise BoundaryError("extended_market_report_capacity")
+-    REPORT.write_bytes(raw)
++    temporary=REPORT.with_suffix(REPORT.suffix+".tmp")
++    temporary.write_bytes(raw)
++    os.replace(temporary,REPORT)
+ 
+ 
+ def main():
+diff --git a/robinhood_tests/test_provider_admission.py b/robinhood_tests/test_provider_admission.py
+new file mode 100644
+index 0000000..8b6bef3
+--- /dev/null
++++ b/robinhood_tests/test_provider_admission.py
+@@ -0,0 +1,38 @@
++import json
++from pathlib import Path
++import tempfile
++import unittest
++from robinhood_research import BoundaryError
++from robinhood_research.provider_admission import Admission,priority
++
++class SharedAdmissionTests(unittest.TestCase):
++    def test_two_sessions_share_physical_request_clock_and_cooldown(self):
++        with tempfile.TemporaryDirectory() as td:
++            now=[100.0]
++            def sleep(seconds):now[0]+=seconds
++            kw=dict(clock=lambda:now[0],sleeper=sleep,lane='test')
++            a=Admission(str(Path(td)/'gate.db'),'https://example.com/secret',**kw)
++            b=Admission(a.path,'https://example.com/secret/',**kw)
++            self.assertEqual(a.endpoint,b.endpoint)
++            a.acquire('discovery')
++            wait=b.acquire('paper_exit')['wait_seconds']
++            self.assertGreaterEqual(wait,0.5);self.assertLess(wait,0.502)
++            def limited():raise BoundaryError('provider_http_429')
++            with self.assertRaises(BoundaryError):a.invoke(limited,['eth_call'],'evidence')
++            wait=b.acquire('paper_exit')['wait_seconds']
++            self.assertGreaterEqual(wait,8.0)
++            db=a.connect();raw=db.execute('SELECT body FROM transports').fetchone()[0];db.close()
++            row=json.loads(raw)
++            self.assertEqual(row['http_status'],429)
++            self.assertNotIn('secret',raw)
++    def test_open_position_precedes_research_and_queue_is_bounded(self):
++        with tempfile.TemporaryDirectory() as td:
++            a=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane='test')
++            db=a.connect();now=a.clock()
++            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('research',a.endpoint,50,now-1,now+30))
++            self.assertLess(a.acquire('lifecycle_unwind')['wait_seconds'],0.1)
++            for n in range(255):
++                db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(str(n),a.endpoint,50,now,now+30))
++            with self.assertRaisesRegex(BoundaryError,'capacity'):a.acquire('candidate')
++            db.close()
++            self.assertLess(priority('pons_paper'),priority('research_history'))

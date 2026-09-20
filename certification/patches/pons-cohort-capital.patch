@@ -1,0 +1,532 @@
+diff --git a/robinhood_research/pons_selective_capital.py b/robinhood_research/pons_selective_capital.py
+new file mode 100644
+index 0000000..1260912
+--- /dev/null
++++ b/robinhood_research/pons_selective_capital.py
+@@ -0,0 +1,105 @@
++"""One Pons-only capital guard across independently persisted paper trials.
++
++Reserve before a native trial can reserve. Release only after its native ledger
++proves settlement. Failed/ambiguous trials retain their reservation and remain
++visible; they cannot silently reset the lane's capital. No allocation authority.
++"""
++from contextlib import closing
++import json
++import sqlite3
++from pathlib import Path
++from . import BoundaryError
++from .evidence import canonical,digest
++from .pons_selective_continuation import POLICY_HASH
++from .pons_selective_ledger import STRATEGY_NAMESPACE
++
++class CohortCapital:
++    def __init__(self,path,capital):
++        if type(capital) is not int or capital<=0:raise BoundaryError('selective_cohort_capital_invalid')
++        self.path=str(path);self.capital=capital
++        Path(path).parent.mkdir(parents=True,exist_ok=True)
++        with closing(self._connect()) as db:
++            db.executescript('''CREATE TABLE IF NOT EXISTS capital_genesis(id INTEGER PRIMARY KEY,body TEXT NOT NULL);
++                CREATE TABLE IF NOT EXISTS capital_positions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
++                CREATE TABLE IF NOT EXISTS capital_journal(seq INTEGER PRIMARY KEY,id TEXT NOT NULL,action TEXT NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL);
++                CREATE TRIGGER IF NOT EXISTS journal_no_update BEFORE UPDATE ON capital_journal BEGIN SELECT RAISE(ABORT,'append_only'); END;
++                CREATE TRIGGER IF NOT EXISTS journal_no_delete BEFORE DELETE ON capital_journal BEGIN SELECT RAISE(ABORT,'append_only'); END;''')
++            genesis=canonical(dict(capital=capital,policy_hash=POLICY_HASH,namespace=STRATEGY_NAMESPACE,asset='robinhood_native_quote',paper_only=True))
++            db.execute('INSERT OR IGNORE INTO capital_genesis VALUES(1,?)',(genesis,))
++            if db.execute('SELECT body FROM capital_genesis WHERE id=1').fetchone()[0]!=genesis:
++                raise BoundaryError('selective_cohort_genesis_mismatch')
++
++    def _connect(self):
++        db=sqlite3.connect(self.path,timeout=30,isolation_level=None)
++        db.execute('PRAGMA synchronous=FULL')
++        return db
++
++    def _reconcile(self,db):
++        replay={}
++        for identity,action,raw,checksum in db.execute('SELECT id,action,body,hash FROM capital_journal ORDER BY seq'):
++            row=json.loads(raw);previous=replay.get(identity)
++            if row.get('id')!=identity or checksum!=digest(row) or row.get('policy_hash')!=POLICY_HASH:
++                raise BoundaryError('selective_cohort_journal_mismatch')
++            if action=='reserve':
++                if previous is not None or row.get('status')!='reserved' or row.get('reserved')!=row.get('initial_reserved') or row.get('pnl')!=0:
++                    raise BoundaryError('selective_cohort_journal_transition')
++            elif action=='settle':
++                if previous is None or previous['status']!='reserved' or row.get('status')!='settled' or row.get('reserved')!=0 or row['at']<previous['at']:
++                    raise BoundaryError('selective_cohort_journal_transition')
++                if any(row.get(k)!=previous.get(k) for k in ('initial_reserved','decision_hash','trial_path','policy_hash')):
++                    raise BoundaryError('selective_cohort_journal_transition')
++            else:raise BoundaryError('selective_cohort_journal_transition')
++            replay[identity]=row
++        projection={identity:json.loads(raw) for identity,raw in db.execute('SELECT id,body FROM capital_positions')}
++        if projection!=replay:raise BoundaryError('selective_cohort_projection_mismatch')
++        rows=list(replay.values())
++        reserved=sum(x['reserved'] for x in rows)
++        realized=sum(x['pnl'] for x in rows if x['status']=='settled')
++        available=self.capital+realized-reserved
++        if available<0:raise BoundaryError('selective_cohort_capital_invariant')
++        return dict(genesis=self.capital,available=available,reserved=reserved,realized=realized,
++                    unsettled=sum(x['status']!='settled' for x in rows),positions=len(rows),
++                    policy_hash=POLICY_HASH,namespace=STRATEGY_NAMESPACE,
++                    conservation=self.capital+realized==available+reserved)
++
++    def reconcile(self):
++        with closing(self._connect()) as db:
++            db.execute('BEGIN')
++            return self._reconcile(db)
++
++    def _write(self,db,row,action):
++        raw=canonical(row)
++        db.execute('INSERT OR REPLACE INTO capital_positions VALUES(?,?)',(row['id'],raw))
++        db.execute('INSERT INTO capital_journal(id,action,body,hash) VALUES(?,?,?,?)',(row['id'],action,raw,digest(row)))
++
++    def reserve(self,identity,amount,*,at,decision_hash,trial_path):
++        if type(amount) is not int or amount<=0:raise BoundaryError('selective_cohort_reservation_invalid')
++        with closing(self._connect()) as db:
++            db.execute('BEGIN IMMEDIATE')
++            try:
++                if db.execute('SELECT 1 FROM capital_positions WHERE id=?',(identity,)).fetchone():
++                    raise BoundaryError('selective_cohort_duplicate_reservation')
++                if amount>self._reconcile(db)['available']:
++                    raise BoundaryError('selective_cohort_capital_exhausted')
++                row=dict(id=identity,status='reserved',reserved=amount,initial_reserved=amount,pnl=0,
++                         at=int(at),decision_hash=decision_hash,trial_path=str(trial_path),policy_hash=POLICY_HASH)
++                self._write(db,row,'reserve');db.execute('COMMIT');return row
++            except BaseException:db.execute('ROLLBACK');raise
++
++    def settle(self,identity,position,*,at):
++        if position.get('id')!=identity or position.get('experiment')!=STRATEGY_NAMESPACE or position.get('status')!='settled' or position.get('tokens')!=0 or position.get('reserved')!=0:
++            raise BoundaryError('selective_cohort_native_settlement_required')
++        pnl=position.get('pnl')
++        if type(pnl) is not int:raise BoundaryError('selective_cohort_pnl_integer_required')
++        with closing(self._connect()) as db:
++            db.execute('BEGIN IMMEDIATE')
++            try:
++                raw=db.execute('SELECT body FROM capital_positions WHERE id=?',(identity,)).fetchone()
++                if not raw:raise BoundaryError('selective_cohort_reservation_missing')
++                row=json.loads(raw[0])
++                if row['status']=='settled':raise BoundaryError('selective_cohort_duplicate_settlement')
++                if int(at)<row['at']:raise BoundaryError('selective_cohort_time_regression')
++                if pnl < -row['initial_reserved']:raise BoundaryError('selective_cohort_loss_exceeds_reservation')
++                row.update(status='settled',reserved=0,pnl=pnl,at=int(at),native_settlement_hash=digest(position))
++                self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT');return rec
++            except BaseException:db.execute('ROLLBACK');raise
+diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
+index 080894d..0a429e1 100644
+--- a/robinhood_research/pons_selective_cohort.py
++++ b/robinhood_research/pons_selective_cohort.py
+@@ -55,6 +55,8 @@ PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS=2.0
+ RATE_LIMIT_PROVIDER_BOUNDARIES=frozenset((
+     "provider_http_429",
+     "provider_rpc_429",
++    "provider_shared_admission_deadline",
++    "provider_shared_queue_capacity",
+ ))
+ RECOVERABLE_PROVIDER_BOUNDARIES=frozenset((
+     "provider_http_500",
+@@ -341,16 +343,30 @@ def _attach_wallet_overlay(vector,skill_book):
+     return overlay
+ 
+ 
++def _collect_completed(result,futures):
++    remaining=[]
++    for qindex,future in futures:
++        if not future.done():
++            remaining.append((qindex,future));continue
++        try:
++            life=future.result()
++        except Exception as exc:
++            life=dict(status="unexpected_boundary",boundary=type(exc).__name__)
++        life["index"]=qindex
++        result["lifecycles"].append(life)
++        _append_jsonl(ROOT/"completed-lifecycles.jsonl",life)
++    return remaining
++
++
+ def run(endpoint):
+     ROOT.mkdir(parents=True,exist_ok=True)
+-    # Strategy-local artifacts only. Never delete other lanes' data.
+-    for path in ROOT.glob("trial-*.sqlite*"):
+-        path.unlink()
+-    for path in (PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT):
+-        try:
+-            path.unlink()
+-        except FileNotFoundError:
+-            pass
++    # Preserve existing evidence and lane capital on repeated invocation.
++    occupied=list(ROOT.glob("trial-*.sqlite*"))
++    occupied += [p for p in (PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT,
++                            ROOT/"pons-selective-cohort-capital.sqlite") if p.exists()]
++    if occupied:
++        raise BoundaryError("selective_existing_run_requires_explicit_recovery")
++
+ 
+     started=time.time()
+     result=dict(
+@@ -423,6 +439,7 @@ def run(endpoint):
+                 result["sequencer_recoveries"],
+                 on_provider_failure=_checkpoint_provider_failure,
+             )
++            futures=_collect_completed(result,futures)
+             now=time.time()
+             now_monotonic=time.monotonic()
+             for event in fresh:
+@@ -497,6 +514,7 @@ def run(endpoint):
+                         qindex,pool.submit(
+                             run_lifecycle,endpoint,evaluation,
+                             db_path=ROOT/f"trial-{qindex:03d}.sqlite",
++                            capital_path=ROOT/"pons-selective-cohort-capital.sqlite",
+                         )
+                     ))
+             except BoundaryError as exc:
+diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
+index 36ef0b3..8b81f90 100644
+--- a/robinhood_research/pons_selective_paper.py
++++ b/robinhood_research/pons_selective_paper.py
+@@ -10,7 +10,8 @@ import time
+ 
+ from . import BoundaryError
+ from .abi import topic
+-from .evidence import Store
++from .evidence import Store, digest
++from .pons_selective_capital import CohortCapital
+ from .pons_selective_ledger import SelectivePaper
+ from .pons import CurveState, curve_abi, raw_event
+ from .pons_natural_observation import _latest_header
+@@ -193,7 +194,7 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
+     return position,meta
+ 
+ 
+-def run_lifecycle(endpoint,evaluation,*,db_path):
++def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
+     vector=evaluation["vector"]
+     if not vector.get("current_threshold_pass"):
+         raise BoundaryError("selective_unqualified_lifecycle")
+@@ -210,7 +211,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+         source_transaction=evaluation["source_transaction"],
+         provider_sessions=[],monitor=[],started_at=time.time(),
+     )
+-    store=None;rpc=None
++    store=None;rpc=None;capital_guard=None;identity=None
+     try:
+         gas_units=_gas_units(candidate["receipt"])
+         rpc=paper_rpc(endpoint);rpc.verify_chain()
+@@ -239,6 +240,12 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+             "pons-selective:"+evaluation["token"]+":"+
+             evaluation["source_transaction"]
+         )
++        if capital_path is not None:
++            capital_guard=CohortCapital(capital_path,STRATEGY_CAPITAL_QUOTE)
++            result["cohort_reservation"]=capital_guard.reserve(
++                identity,amount+gas_budget,at=now,
++                decision_hash=digest(decision),trial_path=db_path,
++            )
+         reserved=paper.reserve(
+             identity,market=candidate["curve"],amount=amount,gas_budget=gas_budget,
+             now=now,features=decision,kind="natural",
+@@ -267,6 +274,9 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+                 status="entry_failed",entry_failure="entry_slippage",
+                 final_position=paper._get(identity),reconciliation=paper.reconcile(),
+             )
++            if capital_guard is not None:
++                result["cohort_reconciliation"]=capital_guard.settle(
++                    identity,result["final_position"],at=int(time.time()))
+             return result
+         opened=paper.advance(
+             identity,now=entry.stamp.observed_at,action="entry",quote=entry,
+@@ -562,6 +572,12 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+         result["reconciliation"]=reconciliation
+         result["realized_pnl_quote"]=result["final_position"]["pnl"]
+         result["carried_through_graduation"]=transition is not None
++        if capital_guard is not None:
++            if result["final_position"]["status"]=="settled":
++                result["cohort_reconciliation"]=capital_guard.settle(
++                    identity,result["final_position"],at=int(time.time()))
++            else:
++                result["cohort_reconciliation"]=capital_guard.reconcile()
+         return result
+     except BoundaryError as exc:
+         result["status"]="boundary"
+@@ -578,6 +594,9 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+                 pass
+         return result
+     finally:
++        if capital_guard is not None:
++            # Ambiguous native exits keep capital occupied and fail certification.
++            result["cohort_reconciliation"]=capital_guard.reconcile()
+         if rpc is not None:
+             result["provider_sessions"].append(rpc.telemetry())
+         if store is not None:
+diff --git a/robinhood_research/provider_admission.py b/robinhood_research/provider_admission.py
+new file mode 100644
+index 0000000..ba1dfef
+--- /dev/null
++++ b/robinhood_research/provider_admission.py
+@@ -0,0 +1,112 @@
++"""Optional cross-process read-only transport admission for concurrent certification.
++
++Endpoint credentials never enter SQLite. Existing role pacers and error recovery
++remain authoritative; this adds a shared physical-transport ceiling and telemetry.
++"""
++import hashlib
++import json
++import os
++import re
++import sqlite3
++import time
++import uuid
++from . import BoundaryError
++
++
++def fingerprint(endpoint):
++    from urllib.parse import urlsplit
++    p=urlsplit(endpoint.strip())
++    normalized=f'{p.scheme.lower()}://{p.netloc.lower()}{p.path.rstrip("/")}'
++    if p.query: normalized+='?'+p.query
++    return hashlib.sha256(normalized.encode()).hexdigest()
++
++
++def priority(scope):
++    scope=str(scope).lower()
++    if any(x in scope for x in ('paper','monitor','exit','unwind','settle','lifecycle')):return 0
++    if any(x in scope for x in ('selective','evidence','candidate')):return 10
++    return 50
++
++
++class Admission:
++    def __init__(self,path,endpoint,*,lane,interval=0.5,clock=time.monotonic,sleeper=time.sleep):
++        self.path=path;self.endpoint=fingerprint(endpoint);self.lane=lane
++        self.clock=clock;self.sleep=sleeper;self.interval=interval
++        self.session=uuid.uuid4().hex
++        db=self.connect()
++        db.executescript('''
++            CREATE TABLE IF NOT EXISTS limits(endpoint TEXT PRIMARY KEY,next_at REAL NOT NULL,
++                cooldown REAL NOT NULL,interval REAL NOT NULL);
++            CREATE TABLE IF NOT EXISTS queue(id TEXT PRIMARY KEY,endpoint TEXT NOT NULL,
++                priority INTEGER NOT NULL,created REAL NOT NULL,deadline REAL NOT NULL);
++            CREATE TABLE IF NOT EXISTS transports(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
++            CREATE TRIGGER IF NOT EXISTS no_transport_update BEFORE UPDATE ON transports
++                BEGIN SELECT RAISE(ABORT,'append_only'); END;
++            CREATE TRIGGER IF NOT EXISTS no_transport_delete BEFORE DELETE ON transports
++                BEGIN SELECT RAISE(ABORT,'append_only'); END;
++        ''')
++        db.execute('INSERT INTO limits VALUES(?,0,0,?) ON CONFLICT(endpoint) DO UPDATE SET interval=MAX(interval,excluded.interval)',(self.endpoint,interval))
++        db.close()
++    def connect(self):
++        db=sqlite3.connect(self.path,timeout=10,isolation_level=None)
++        db.execute('PRAGMA journal_mode=WAL');db.execute('PRAGMA synchronous=FULL')
++        return db
++    def acquire(self,scope):
++        ticket=uuid.uuid4().hex;started=self.clock();deadline=started+30
++        db=self.connect()
++        try:
++            db.execute('BEGIN IMMEDIATE')
++            db.execute('DELETE FROM queue WHERE deadline<=?',(started,))
++            if db.execute('SELECT COUNT(*) FROM queue WHERE endpoint=?',(self.endpoint,)).fetchone()[0]>=256:
++                raise BoundaryError('provider_shared_queue_capacity')
++            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(ticket,self.endpoint,priority(scope),started,deadline))
++            depth=db.execute('SELECT COUNT(*) FROM queue WHERE endpoint=?',(self.endpoint,)).fetchone()[0]
++            db.execute('COMMIT')
++            while True:
++                now=self.clock()
++                if now>=deadline:raise BoundaryError('provider_shared_admission_deadline')
++                db.execute('BEGIN IMMEDIATE')
++                db.execute('DELETE FROM queue WHERE deadline<=?',(now,))
++                first=db.execute('SELECT id FROM queue WHERE endpoint=? ORDER BY priority,created,id LIMIT 1',(self.endpoint,)).fetchone()
++                next_at,cooldown,interval=db.execute('SELECT next_at,cooldown,interval FROM limits WHERE endpoint=?',(self.endpoint,)).fetchone()
++                if first and first[0]==ticket and now>=max(next_at,cooldown):
++                    db.execute('UPDATE limits SET next_at=? WHERE endpoint=?',(now+interval,self.endpoint))
++                    db.execute('DELETE FROM queue WHERE id=?',(ticket,));db.execute('COMMIT')
++                    return dict(wait_seconds=now-started,queue_depth=depth,admitted_at=now)
++                db.execute('COMMIT')
++                self.sleep(min(0.05,max(0.001,max(next_at,cooldown)-now)))
++        finally:
++            if db.in_transaction:db.execute('ROLLBACK')
++            db.execute('DELETE FROM queue WHERE id=?',(ticket,));db.close()
++    def invoke(self,call,methods,scope,retry_count=0):
++        admitted=self.acquire(scope);started=self.clock();boundary=None;http_status=None;rpc_code=None
++        try:
++            result=call()
++            http_status=200
++            return result
++        except BoundaryError as exc:
++            boundary=str(exc)
++            match=re.fullmatch(r'provider_http_(\d+)',boundary)
++            http_status=int(match[1]) if match else None
++            match=re.fullmatch(r'provider_rpc_(-?\d+)',boundary)
++            rpc_code=int(match[1]) if match else None
++            raise
++        finally:
++            row=dict(lane=self.lane,endpoint_fingerprint=self.endpoint,session=self.session,
++                     methods=methods,scope=scope,http_status=http_status,rpc_error_code=rpc_code,
++                     boundary=boundary,retry_count=retry_count,
++                     latency_seconds=self.clock()-started,**admitted)
++            db=self.connect()
++            try:
++                db.execute('BEGIN IMMEDIATE')
++                if http_status==429 or rpc_code==429:
++                    db.execute('UPDATE limits SET cooldown=MAX(cooldown,?) WHERE endpoint=?',(self.clock()+8,self.endpoint))
++                db.execute('INSERT INTO transports(body) VALUES(?)',(json.dumps(row,sort_keys=True),))
++                db.execute('COMMIT')
++            finally:db.close()
++
++
++def configured(endpoint):
++    path=os.environ.get('MM_CERTIFICATION_PROVIDER_DB')
++    if not path:return None
++    return Admission(path,endpoint,lane=os.environ.get('MM_CERTIFICATION_LANE','unknown'))
+diff --git a/robinhood_research/provider_topology.py b/robinhood_research/provider_topology.py
+index 8fffdad..f5985f0 100644
+--- a/robinhood_research/provider_topology.py
++++ b/robinhood_research/provider_topology.py
+@@ -193,6 +193,9 @@ class PacedRpc(Rpc):
+         **kwargs,
+     ):
+         self.role = str(role)
++        from .provider_admission import configured
++        self.shared_admission = configured(endpoint)
++        self.admission_scope = threading.local()
+         self.provider_kind = _provider_kind(endpoint)
+         self.pacer = pacer or ProviderPacer(requests_per_second)
+         self._injected_transport = transport
+@@ -209,10 +212,20 @@ class PacedRpc(Rpc):
+ 
+     def _http(self, method, params):
+         self.pacer.pace()
++        if self.shared_admission is not None:
++            parent=super()
++            return self.shared_admission.invoke(
++                lambda: parent._http(method,params),[method],
++                getattr(self.admission_scope,"value","connectivity"),self.retry_count)
+         return super()._http(method, params)
+ 
+     def _http_batch(self, calls):
+         self.pacer.pace()
++        if self.shared_admission is not None:
++            parent=super()
++            return self.shared_admission.invoke(
++                lambda: parent._http_batch(calls),[x[0] for x in calls],
++                getattr(self.admission_scope,"value","connectivity"),self.retry_count)
+         return super()._http_batch(calls)
+ 
+     def _method_allowed_for_provider(self, method):
+@@ -221,12 +234,14 @@ class PacedRpc(Rpc):
+ 
+     def call(self, method, params, *, scope="connectivity"):
+         self._method_allowed_for_provider(method)
++        self.admission_scope.value=scope
+         return super().call(method, params, scope=scope)
+ 
+     def batch(self, calls, *, scope="connectivity"):
+         for row in calls or []:
+             if isinstance(row, (list, tuple)) and row:
+                 self._method_allowed_for_provider(row[0])
++        self.admission_scope.value=scope
+         return super().batch(calls, scope=scope)
+ 
+     def telemetry(self):
+diff --git a/robinhood_tests/test_pons_cohort_capital.py b/robinhood_tests/test_pons_cohort_capital.py
+new file mode 100644
+index 0000000..fb8f397
+--- /dev/null
++++ b/robinhood_tests/test_pons_cohort_capital.py
+@@ -0,0 +1,57 @@
++from concurrent.futures import ThreadPoolExecutor
++import tempfile
++import sqlite3
++from pathlib import Path
++import unittest
++from robinhood_research import BoundaryError
++from robinhood_research.pons_selective_capital import CohortCapital
++from robinhood_research.pons_selective_ledger import STRATEGY_NAMESPACE
++
++class CohortCapitalTests(unittest.TestCase):
++    def test_concurrent_trials_cannot_each_spend_the_same_genesis(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            path=Path(tmp)/'pool.sqlite';pool=CohortCapital(path,1000)
++            def reserve(i):
++                try:
++                    CohortCapital(path,1000).reserve(str(i),600,at=1,decision_hash='a'*64,trial_path='trial'+str(i))
++                    return 'reserved'
++                except BoundaryError as e:return str(e)
++            with ThreadPoolExecutor(max_workers=2) as executor:results=list(executor.map(reserve,range(2)))
++            self.assertEqual(sorted(results),['reserved','selective_cohort_capital_exhausted'])
++            r=pool.reconcile();self.assertEqual(r['reserved'],600);self.assertEqual(r['available'],400)
++            self.assertTrue(r['conservation'])
++
++    def test_settlement_recycles_once_and_failed_trial_keeps_reservation(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            p=CohortCapital(Path(tmp)/'pool.sqlite',1000)
++            p.reserve('a',600,at=1,decision_hash='a'*64,trial_path='a.sqlite')
++            self.assertEqual(CohortCapital(p.path,1000).reconcile()['unsettled'],1)
++            position=dict(id='a',experiment=STRATEGY_NAMESPACE,status='settled',tokens=0,reserved=0,pnl=-100)
++            r=p.settle('a',position,at=2)
++            self.assertEqual((r['genesis'],r['available'],r['realized']),(1000,900,-100))
++            with self.assertRaisesRegex(BoundaryError,'duplicate_settlement'):p.settle('a',position,at=3)
++            p.reserve('b',900,at=3,decision_hash='b'*64,trial_path='b.sqlite')
++            self.assertEqual(p.reconcile()['available'],0)
++            with self.assertRaisesRegex(BoundaryError,'native_settlement_required'):
++                p.settle('b',dict(position,id='b',status='open',tokens=1),at=4)
++            self.assertEqual(p.reconcile()['reserved'],900)
++
++    def test_genesis_and_foreign_position_fail_closed(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            path=Path(tmp)/'pool.sqlite';p=CohortCapital(path,1000)
++            with self.assertRaisesRegex(BoundaryError,'genesis_mismatch'):CohortCapital(path,1001)
++            p.reserve('a',100,at=1,decision_hash='a'*64,trial_path='a.sqlite')
++            with self.assertRaisesRegex(BoundaryError,'native_settlement_required'):
++                p.settle('a',dict(id='a',experiment='ramses',status='settled',tokens=0,reserved=0,pnl=0),at=2)
++            self.assertEqual(p.reconcile()['reserved'],100)
++
++    def test_deleted_projection_cannot_release_reserved_capital(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            p=CohortCapital(Path(tmp)/'pool.sqlite',1000)
++            p.reserve('a',900,at=1,decision_hash='a'*64,trial_path='a.sqlite')
++            with sqlite3.connect(p.path) as db:db.execute('DELETE FROM capital_positions')
++            with self.assertRaisesRegex(BoundaryError,'projection_mismatch'):p.reconcile()
++            with self.assertRaisesRegex(BoundaryError,'projection_mismatch'):
++                p.reserve('b',900,at=2,decision_hash='b'*64,trial_path='b.sqlite')
++
++if __name__=='__main__':unittest.main()
+diff --git a/robinhood_tests/test_provider_admission.py b/robinhood_tests/test_provider_admission.py
+new file mode 100644
+index 0000000..8b6bef3
+--- /dev/null
++++ b/robinhood_tests/test_provider_admission.py
+@@ -0,0 +1,38 @@
++import json
++from pathlib import Path
++import tempfile
++import unittest
++from robinhood_research import BoundaryError
++from robinhood_research.provider_admission import Admission,priority
++
++class SharedAdmissionTests(unittest.TestCase):
++    def test_two_sessions_share_physical_request_clock_and_cooldown(self):
++        with tempfile.TemporaryDirectory() as td:
++            now=[100.0]
++            def sleep(seconds):now[0]+=seconds
++            kw=dict(clock=lambda:now[0],sleeper=sleep,lane='test')
++            a=Admission(str(Path(td)/'gate.db'),'https://example.com/secret',**kw)
++            b=Admission(a.path,'https://example.com/secret/',**kw)
++            self.assertEqual(a.endpoint,b.endpoint)
++            a.acquire('discovery')
++            wait=b.acquire('paper_exit')['wait_seconds']
++            self.assertGreaterEqual(wait,0.5);self.assertLess(wait,0.502)
++            def limited():raise BoundaryError('provider_http_429')
++            with self.assertRaises(BoundaryError):a.invoke(limited,['eth_call'],'evidence')
++            wait=b.acquire('paper_exit')['wait_seconds']
++            self.assertGreaterEqual(wait,8.0)
++            db=a.connect();raw=db.execute('SELECT body FROM transports').fetchone()[0];db.close()
++            row=json.loads(raw)
++            self.assertEqual(row['http_status'],429)
++            self.assertNotIn('secret',raw)
++    def test_open_position_precedes_research_and_queue_is_bounded(self):
++        with tempfile.TemporaryDirectory() as td:
++            a=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane='test')
++            db=a.connect();now=a.clock()
++            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('research',a.endpoint,50,now-1,now+30))
++            self.assertLess(a.acquire('lifecycle_unwind')['wait_seconds'],0.1)
++            for n in range(255):
++                db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(str(n),a.endpoint,50,now,now+30))
++            with self.assertRaisesRegex(BoundaryError,'capacity'):a.acquire('candidate')
++            db.close()
++            self.assertLess(priority('pons_paper'),priority('research_history'))

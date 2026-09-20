@@ -61,10 +61,10 @@ SQLite journal. Heartbeats come from lane progress callbacks, never a timer that
 would hide a hung lane. Raw transport data is explicitly labelled as requiring
 lane authentication; capture is not an authentication claim.
 
-Only neutral Solana evidence/cache state is shared. Environment construction removes
+Only neutral evidence/cache/provider state is shared. Environment construction removes
 foreign lane variables and GitHub tokens. A certification-only SQLite governor
-bounds combined physical requests conservatively at 2 RPS per network without
-raising any original local limit. Position lifecycle hydration receives priority.
+bounds combined Solana physical requests conservatively at 2 RPS; Robinhood
+uses a shared 2 RPS endpoint gate without raising any original local limit. Position lifecycle hydration receives priority.
 Existing lane-specific backoff, session recovery and cursor logic remain intact.
 
 The HTML status view reads the same JSON result; unknown controls remain unproven.
@@ -102,16 +102,16 @@ It is a machinery proof, not a natural Fee Pulse lifecycle.
 ## Remaining blockers and next repairs
 
 - Pump: the original runner clamps discovery to 3,300 seconds and stops full-evidence
-  work at 120 lifetime attempts. Its isolated lifecycle histories have no consolidated
-  lane cash/reservation ledger. Replace bounded-study orchestration with continuous
-  admission and durable accounting while preserving all three frozen modes.
+  work at 120 lifetime attempts. The lane-wide paper book from #67 is integrated. Replace bounded-study
+  orchestration with continuous admission and complete cost/economic replay while
+  preserving all three frozen modes.
 - Meteora: runtime is capped at 7,200 seconds, discovery is one finite census, and
   attempt/complete targets can stop the process early. The v1.7 virtual position's
   final mark is not a durable allocation/unwind/settlement ledger. Persist entry,
   authenticated tape/position checkpoints, cost decomposition and terminal booking.
-- Pons: each parallel trial initializes its own capital ledger. Before portfolio
-  certification, enforce one lane-local atomic capital budget across trials, preserve
-  partial-exit accounting, and expose capacity stops and lifecycle completion live.
+- Pons: the shared cohort budget from #70 is integrated. Add unresolved-trial
+  recovery and accurate partial-exit capital time; preserve trial-specific accounting
+  and expose capacity stops and lifecycle completion live.
 - Ramses: the extended runner returns after its first natural lifecycle. Continue
   frontier discovery after settlement without restarting, reuse durable inventory,
   and reconcile separate quote assets without adding unlike units.
@@ -121,3 +121,52 @@ It is a machinery proof, not a natural Fee Pulse lifecycle.
 
 No full capacity, strategy-performance, capital-hour profitability or natural
 certification claim is supported yet. Raw failures must remain preserved.
+
+
+## PR #71 integration checks incorporated
+
+The checks in `d9dc1abf55cb2ab37a6181567f616535659dc9a1` are included:
+actual four-process overlap, unknown exposure, bounded/expired admission tickets,
+terminal report retention, unittest completion summaries, stable session identities,
+and method/HTTP/JSON-RPC error telemetry. Its prerequisite result is preserved in
+`repair-integration-result.json` as a historical result for that exact revision.
+
+This revision uses original source SHAs plus exact reviewed patches, including the
+explicit composition of Pons #68 and #70. It does not use PR #71's execution-SHA
+arrangement or its single-network Robinhood governor. One shared source-level
+endpoint admission gate serves Robinhood, and the observer does not double-queue it.
+
+## Integration update: newer concurrent repairs
+
+The next overlay set also includes PR #67 (Pump paper book, 241 tests), PR #68
+(Pons provider admission and completed-future checkpoints), PR #69 (Ramses admission
+and progress, 230 tests), and PR #70 (one Pons cohort capital budget).
+Pons #68 and #70 are combined explicitly: keep #68's prior-run rejection/recovery
+reason and completed-future collection, add the capital-guard file to protected
+artifacts, and pass the guard to every lifecycle. The combined full suite passes
+211 tests. Exact repair commits are in `sources.json`.
+
+Both Robinhood lanes use the identical source-level neutral admission module from
+#68/#69, with one shared DB and separate lane names. The observer's fallback governor
+is disabled for Robinhood when this source-level gate is configured, avoiding duplicate
+queueing. Solana still shares its original evidence broker and the conservative
+certification transport governor. Raw RPC responses are fsynced before their journal
+reference is committed.
+
+The first hosted harness attempt `35476508893` failed before any market access on a
+cross-process queue-cleanup assertion. Explicit connection closure and fresh spawned
+test processes repaired that gate. The corrected attempt `35476622573` passed all
+hosted deterministic/resource/preflight gates and entered concurrent live-paper smoke
+at integration SHA `3e0024c328365548e4bb4a9678b57bbb6dbec004`.
+That run uses the previous overlay set; later repairs are not applied to an active run.
+No four-hour window has been started or claimed.
+
+The Pons shared-budget prerequisite above is now implemented by #70. Remaining Pons
+work is explicit unresolved-trial recovery, capital-time treatment of partial exits,
+and complete cost/replay reporting, plus continuous admission without an early cohort
+stop. Pump's lane-wide paper book is implemented by #67; duration/capacity orchestration
+and full cost decomposition/economic replay remain incomplete.
+
+Current descriptive reporting preserves missing measurements as null. It distinguishes physical transport from admission failure and measures each lane over its own actual uptime. Shared Robinhood pressure is read incrementally without re-reading the whole transport journal on every refresh.
+
+PR #70 follow-up `40bc4c4d1fb81900645fcbce109b4be0341320aa` reconstructs the complete reservation journal before trusting the mutable projection. A missing reservation projection now fails closed rather than releasing capital. Native Pons tests: 209; with #68 composed: 211.
