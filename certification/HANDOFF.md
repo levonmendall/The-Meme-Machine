@@ -205,3 +205,5 @@ resource gates; all four new accounting lifecycle regressions pass. Full chain
 reauthentication and continuous discovery remain separate unfinished prerequisites.
 
 The first smoke also overlapped external live-diagnostic job `105986654094` in mixed CI workflow `35476545177`. Preflight previously checked selected workflow names only. It now inspects active jobs and fails closed on unrecognized activity. The smoke throughput is descriptive under external contention, not a sustainable-capacity benchmark. The older #71 smoke `35476889114` was already running at discovery; it is not changed in place.
+
+PR #73 (`b3ec5aaca230f2aa9c0e894c9912722a56f2eef1`) repairs Ramses reservations after realized losses and concurrent reservations, adds append-only journal protection and full projection comparison. All three regressions fail on the original source and pass on the repair; 233 full lane tests pass. This prerequisite is added to the next queued smoke, never patched into a running process.

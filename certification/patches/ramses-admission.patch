@@ -194,6 +194,110 @@ index e4ab19d..52f757a 100644
  
  
  def main():
+diff --git a/robinhood_research/ramses_strategy_ledger.py b/robinhood_research/ramses_strategy_ledger.py
+index 2b6214c..0ffdeae 100644
+--- a/robinhood_research/ramses_strategy_ledger.py
++++ b/robinhood_research/ramses_strategy_ledger.py
+@@ -43,6 +43,10 @@ class RamsesStrategyLedger:
+                 seq INTEGER PRIMARY KEY AUTOINCREMENT,
+                 id TEXT NOT NULL, action TEXT NOT NULL,
+                 body TEXT NOT NULL, hash TEXT NOT NULL);
++            CREATE TRIGGER IF NOT EXISTS ramses_journal_no_update BEFORE UPDATE ON ramses_strategy_journal
++                BEGIN SELECT RAISE(ABORT,'append_only'); END;
++            CREATE TRIGGER IF NOT EXISTS ramses_journal_no_delete BEFORE DELETE ON ramses_strategy_journal
++                BEGIN SELECT RAISE(ABORT,'append_only'); END;
+         """)
+         genesis = dict(
+             strategy_domain=STRATEGY_DOMAIN,
+@@ -79,6 +83,8 @@ class RamsesStrategyLedger:
+         if not row:
+             raise BoundaryError("ramses_strategy_position_missing")
+         body = json.loads(row[0])
++        recorded=self.db.execute('SELECT body,hash FROM ramses_strategy_journal WHERE id=? ORDER BY seq DESC LIMIT 1',(identity,)).fetchone()
++        if recorded!=row:raise BoundaryError('ramses_strategy_projection_mismatch')
+         if _digest(body) != row[1]:
+             raise BoundaryError("ramses_strategy_ledger_checksum")
+         return body
+@@ -114,9 +120,6 @@ class RamsesStrategyLedger:
+         reserved = proposal.get("capital_employed")
+         if type(reserved) is not int or reserved <= 0:
+             raise BoundaryError("invalid_ramses_strategy_reservation")
+-        rec = self.reconcile()
+-        if rec["committed"] + reserved > self.paper_capital:
+-            raise BoundaryError("ramses_strategy_capital_exhausted")
+         body = dict(
+             id=identity,
+             strategy_domain=STRATEGY_DOMAIN,
+@@ -141,6 +144,10 @@ class RamsesStrategyLedger:
+         )
+         self.db.execute("BEGIN IMMEDIATE")
+         try:
++            if self.db.execute("SELECT 1 FROM ramses_strategy_position WHERE id=?",(identity,)).fetchone():
++                raise BoundaryError("duplicate_ramses_strategy_reservation")
++            if reserved>self.reconcile()['available']:
++                raise BoundaryError("ramses_strategy_capital_exhausted")
+             self._save(body, "reserve")
+             self.db.execute("COMMIT")
+         except Exception:
+@@ -167,9 +174,6 @@ class RamsesStrategyLedger:
+         reserved = proposal.get("capital_employed")
+         if type(reserved) is not int or reserved <= 0:
+             raise BoundaryError("invalid_ramses_strategy_reservation")
+-        rec = self.reconcile()
+-        if rec["committed"] + reserved > self.paper_capital:
+-            raise BoundaryError("ramses_strategy_capital_exhausted")
+         body = dict(
+             id=identity,
+             strategy_domain=STRATEGY_DOMAIN,
+@@ -196,6 +200,10 @@ class RamsesStrategyLedger:
+         )
+         self.db.execute("BEGIN IMMEDIATE")
+         try:
++            if self.db.execute("SELECT 1 FROM ramses_strategy_position WHERE id=?",(identity,)).fetchone():
++                raise BoundaryError("duplicate_ramses_strategy_reservation")
++            if reserved>self.reconcile()['available']:
++                raise BoundaryError("ramses_strategy_capital_exhausted")
+             self._save(body, "forced_machinery_reserve")
+             self.db.execute("COMMIT")
+         except Exception:
+@@ -282,6 +290,7 @@ class RamsesStrategyLedger:
+                 )
+                 action = "settle"
+             self._save(body, action)
++            self.reconcile()
+             self.db.execute("COMMIT")
+         except Exception:
+             self.db.execute("ROLLBACK")
+@@ -289,6 +298,29 @@ class RamsesStrategyLedger:
+         return body
+ 
+     def reconcile(self):
++        owns_transaction=not self.db.in_transaction
++        if owns_transaction:self.db.execute('BEGIN')
++        try:return self._reconcile()
++        finally:
++            if owns_transaction:self.db.execute('ROLLBACK')
++
++    def _reconcile(self):
++        replay={}
++        for identity,action,encoded,checksum in self.db.execute('SELECT id,action,body,hash FROM ramses_strategy_journal ORDER BY seq'):
++            body=json.loads(encoded);previous=replay.get(identity)
++            if _digest(body)!=checksum or body.get('id')!=identity or body.get('policy_hash')!=POLICY_HASH:
++                raise BoundaryError('ramses_strategy_journal_checksum')
++            if previous is None:
++                if action not in ('reserve','forced_machinery_reserve') or body.get('version')!=0 or body.get('status')!='reserved':
++                    raise BoundaryError('ramses_strategy_journal_transition')
++            else:
++                expected={'open':('reserved','open'),'monitor':('open','open'),'segment_close':('open','open'),
++                          'rebalance':('open','open'),'settle':('open','settled'),'unresolved':('open','unresolved')}
++                if (expected.get(action)!=(previous['status'],body['status']) or body.get('version')!=previous['version']+1
++                        or body['at']<previous['at']):raise BoundaryError('ramses_strategy_journal_transition')
++            replay[identity]=body
++        projection={identity:json.loads(encoded) for identity,encoded in self.db.execute('SELECT id,body FROM ramses_strategy_position')}
++        if replay!=projection:raise BoundaryError('ramses_strategy_projection_mismatch')
+         rows = self.db.execute(
+             "SELECT body,hash FROM ramses_strategy_position ORDER BY id"
+         ).fetchall()
 diff --git a/robinhood_tests/test_provider_admission.py b/robinhood_tests/test_provider_admission.py
 new file mode 100644
 index 0000000..8b6bef3
@@ -238,3 +342,63 @@ index 0000000..8b6bef3
 +            with self.assertRaisesRegex(BoundaryError,'capacity'):a.acquire('candidate')
 +            db.close()
 +            self.assertLess(priority('pons_paper'),priority('research_history'))
+diff --git a/robinhood_tests/test_ramses_capital_replay.py b/robinhood_tests/test_ramses_capital_replay.py
+new file mode 100644
+index 0000000..fa2ab1c
+--- /dev/null
++++ b/robinhood_tests/test_ramses_capital_replay.py
+@@ -0,0 +1,54 @@
++from concurrent.futures import ThreadPoolExecutor
++from pathlib import Path
++import sqlite3
++import tempfile
++import unittest
++from robinhood_research import BoundaryError
++from robinhood_research.ramses_strategy import POLICY_HASH,STRATEGY_DOMAIN,STRATEGY_VERSION
++from robinhood_research.ramses_strategy_ledger import RamsesStrategyLedger
++
++
++def decision(amount):
++    return dict(mode='fee_pulse',qualified=True,allocation_authority=False,
++        strategy_domain=STRATEGY_DOMAIN,strategy_version=STRATEGY_VERSION,policy_hash=POLICY_HASH,
++        freeze=dict(proposal_hash='synthetic-test',proposals=[dict(capital_employed=amount)]))
++
++
++class RamsesCapitalReplay(unittest.TestCase):
++    def test_loss_reduces_next_reservation_and_failure_is_atomic(self):
++        with tempfile.TemporaryDirectory() as td:
++            ledger=RamsesStrategyLedger(str(Path(td)/'paper.sqlite'),paper_capital=1000,quote_asset='quote')
++            try:
++                ledger.reserve('one',pool='pool',decision=decision(1000),at=1);ledger.open('one',at=2)
++                ledger.settle('one',pnl=dict(strategy_domain=STRATEGY_DOMAIN,net_result_quote=-100,unresolved_inventory=None),at=3)
++                before=ledger.reconcile()
++                with self.assertRaisesRegex(BoundaryError,'capital_exhausted'):
++                    ledger.reserve('two',pool='pool',decision=decision(1000),at=4)
++                self.assertEqual(before,ledger.reconcile())
++                ledger.reserve('two',pool='pool',decision=decision(900),at=4)
++                self.assertEqual(ledger.reconcile()['available'],0)
++            finally:ledger.close()
++
++    def test_concurrent_reservations_share_one_available_balance(self):
++        with tempfile.TemporaryDirectory() as td:
++            path=str(Path(td)/'paper.sqlite')
++            RamsesStrategyLedger(path,paper_capital=1000,quote_asset='quote').close()
++            def reserve(i):
++                ledger=RamsesStrategyLedger(path,paper_capital=1000,quote_asset='quote')
++                try:
++                    ledger.reserve(str(i),pool='pool',decision=decision(600),at=1);return 'reserved'
++                except BoundaryError as exc:return str(exc)
++                finally:ledger.close()
++            with ThreadPoolExecutor(max_workers=2) as executor:results=list(executor.map(reserve,range(2)))
++            self.assertEqual(sorted(results),['ramses_strategy_capital_exhausted','reserved'])
++
++    def test_projection_loss_cannot_erase_a_reservation(self):
++        with tempfile.TemporaryDirectory() as td:
++            ledger=RamsesStrategyLedger(str(Path(td)/'paper.sqlite'),paper_capital=1000,quote_asset='quote')
++            try:
++                ledger.reserve_forced_machinery('one',pool='pool',decision=decision(600),at=1)
++                with self.assertRaisesRegex(sqlite3.IntegrityError,'append_only'):
++                    ledger.db.execute('DELETE FROM ramses_strategy_journal')
++                ledger.db.execute('DELETE FROM ramses_strategy_position')
++                with self.assertRaisesRegex(BoundaryError,'projection_mismatch'):ledger.reconcile()
++            finally:ledger.close()

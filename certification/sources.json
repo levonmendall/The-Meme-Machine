@@ -78,7 +78,8 @@
       ],
       "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment",
       "repair_commits": [
-        "3ec74dfa223d3eecae3c3d525ceb27bcdf63d5f6"
+        "3ec74dfa223d3eecae3c3d525ceb27bcdf63d5f6",
+        "b3ec5aaca230f2aa9c0e894c9912722a56f2eef1"
       ]
     }
   }
