@@ -1,0 +1,250 @@
+{
+  "workflow_run": 35480694517,
+  "analysis_workflow": 35483859146,
+  "interpretation": "All observations predate the preregistration cutoff. This verifies real retained-data extraction/scoring only; no prospective performance or promotion claim.",
+  "report": {
+    "analysis_integration_sha": null,
+    "automatic_promotion": false,
+    "lanes": {
+      "meteora": {
+        "censor_reasons": {
+          "incomplete_or_screening_only_or_post_outcome_or_before_registration": 10
+        },
+        "limitations": [
+          "Native outcome adapters must authenticate full path/cost joins before economic performance can be inferred.",
+          "These scores do not select, exclude or allocate any frozen-strategy trade.",
+          "No missing mark, fee, cost or forward return is imputed as zero."
+        ],
+        "missing_forward_outcomes": 10,
+        "models": {
+          "fee_acceleration": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          },
+          "low_drift": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          },
+          "projected_net": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          },
+          "volume_acceleration": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          }
+        },
+        "natural_qualified": 0,
+        "observations": 10,
+        "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+        "prospective_feature_observations": 0,
+        "range_alternatives_studied": 0,
+        "range_policy": "Only the original pre-entry frozen range is observed. No alternative range is invented after outcomes."
+      },
+      "pons": {
+        "censor_reasons": {
+          "incomplete_or_screening_only_or_post_outcome_or_before_registration": 192
+        },
+        "limitations": [
+          "Native outcome adapters must authenticate full path/cost joins before economic performance can be inferred.",
+          "These scores do not select, exclude or allocate any frozen-strategy trade.",
+          "No missing mark, fee, cost or forward return is imputed as zero."
+        ],
+        "missing_forward_outcomes": 192,
+        "models": {
+          "buyer_breadth": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          },
+          "buyer_growth": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          },
+          "low_concentration": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          },
+          "low_roundtrip_cost": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          }
+        },
+        "natural_qualified": 0,
+        "observations": 192,
+        "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+        "prospective_feature_observations": 0,
+        "range_alternatives_studied": 0,
+        "range_policy": "Only the original pre-entry frozen range is observed. No alternative range is invented after outcomes."
+      },
+      "pump": {
+        "censor_reasons": {
+          "incomplete_or_screening_only_or_post_outcome_or_before_registration": 62
+        },
+        "limitations": [
+          "Native outcome adapters must authenticate full path/cost joins before economic performance can be inferred.",
+          "These scores do not select, exclude or allocate any frozen-strategy trade.",
+          "No missing mark, fee, cost or forward return is imputed as zero."
+        ],
+        "missing_forward_outcomes": 62,
+        "models": {
+          "buyer_breadth": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          },
+          "buyer_growth": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          },
+          "low_concentration": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          },
+          "net_buy_share": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          }
+        },
+        "natural_qualified": 0,
+        "observations": 62,
+        "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+        "prospective_feature_observations": 0,
+        "range_alternatives_studied": 0,
+        "range_policy": "Only the original pre-entry frozen range is observed. No alternative range is invented after outcomes."
+      },
+      "ramses": {
+        "censor_reasons": {
+          "incomplete_or_screening_only_or_post_outcome_or_before_registration": 3
+        },
+        "limitations": [
+          "Native outcome adapters must authenticate full path/cost joins before economic performance can be inferred.",
+          "These scores do not select, exclude or allocate any frozen-strategy trade.",
+          "No missing mark, fee, cost or forward return is imputed as zero."
+        ],
+        "missing_forward_outcomes": 3,
+        "models": {
+          "low_imbalance": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          },
+          "turnover": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          },
+          "two_way_chop": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          },
+          "volume_acceleration": {
+            "auc": null,
+            "denominator": "complete_prospective_authenticated_after_cost_settlements_only",
+            "distinct_assets": 0,
+            "nonpositive": 0,
+            "outcomes": 0,
+            "promotion_eligible": false,
+            "reason": "insufficient_independent_outcome_evidence",
+            "winners": 0
+          }
+        },
+        "natural_qualified": 0,
+        "observations": 3,
+        "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+        "prospective_feature_observations": 0,
+        "range_alternatives_studied": 0,
+        "range_policy": "Only the original pre-entry frozen range is observed. No alternative range is invented after outcomes."
+      }
+    },
+    "registry_hash": "327be8c4863e323b80f3b11c4306940d3d79873a821b1e241077900f2af1cbde",
+    "run_id": "7389409f-708f-4a81-8ec6-c498c20294f7",
+    "source_integration_sha": null
+  }
+}

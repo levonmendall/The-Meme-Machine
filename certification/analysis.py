@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from certification.journal import Journal,digest
 from certification.report import LANES
+from certification.pressure import PressureView
 
 
 def percentiles(values):
@@ -40,6 +41,8 @@ def report(run_dir):
     hours=result.get('elapsed_seconds',0)/3600
     out=dict(run_id=result['run_id'],frozen_policy=True,automatic_promotion=False,
              inference='descriptive_only_no_profitability_or_policy_promotion_claim',lanes={})
+    admission_path=root/'shared-robinhood-admission.sqlite'
+    admission_view=PressureView(admission_path).snapshot() if admission_path.exists() else result.get('shared_provider',{}).get('robinhood',{})
     for lane in LANES:
         path=root/lane/'telemetry.sqlite';runtime=result.get('lanes',{}).get(lane,{})
         hours=runtime.get('continuous_uptime_seconds',result.get('elapsed_seconds',0))/3600
@@ -95,7 +98,7 @@ def report(run_dir):
         physical=len(latencies)
         native_latencies=[x['evidence_acquisition_latency_seconds'] for x in raw.get('rows',[])
             if isinstance(x.get('evidence_acquisition_latency_seconds'),(int,float))]
-        admission=(result.get('shared_provider',{}).get('robinhood',{}).get('lanes',{}).get(lane) or {})
+        admission=(admission_view.get('lanes',{}).get(lane) or {})
         timed_deadline=dict(successes=sum(x<=5 for x in native_latencies),denominator=len(native_latencies),
             scope='Pons returned observations with original first-observation latency; excludes unmeasured exceptions') if lane=='pons' else None
         out['lanes'][lane]=dict(policy_hash=runtime.get('policy_hash'),funnel=funnel,funnel_per_hour=rates,

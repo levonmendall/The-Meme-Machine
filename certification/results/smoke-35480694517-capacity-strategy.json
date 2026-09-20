@@ -1,0 +1,596 @@
+{
+  "workflow_run": 35480694517,
+  "analysis_workflow": 35483859146,
+  "analysis_sha": "0c68df3b193b51d46a23ff85435e3a180e11ee38",
+  "artifact_id": 10597296448,
+  "artifact_sha256": "55cf4bdb3e584ecaaab26b4454c5908ba700aec1f19e51717534dbc094754a35",
+  "report": {
+    "automatic_promotion": false,
+    "frozen_policy": true,
+    "inference": "descriptive_only_no_profitability_or_policy_promotion_claim",
+    "lanes": {
+      "meteora": {
+        "cache_reuse": null,
+        "capital_hour_return": null,
+        "deadline_denominator": null,
+        "deadline_success_rate": null,
+        "errors": {
+          "HTTPError": 2
+        },
+        "evidence_latency_seconds": null,
+        "evidence_work_duration_seconds_by_stage": {},
+        "evidence_work_exceptions_by_stage": {},
+        "forced_settled": 0,
+        "funnel": {
+          "complete_observations": 0,
+          "discovered": 88,
+          "screened": 20
+        },
+        "funnel_per_hour": {
+          "complete_observations": 0,
+          "discovered": 527.3509221086036,
+          "screened": 119.85248229740992
+        },
+        "gate_evidence_grade": "native_complete_fresh_vectors",
+        "gate_marginal_survival": {},
+        "gate_rejections": {},
+        "incomplete_rows_visible": 10,
+        "limitations": [
+          "RPC latency is not end-to-end evidence hydration latency.",
+          "Marginal gate survival is not conditional sequential gate survival.",
+          "Repeated pool/mint observations are not statistically independent.",
+          "Missing metrics remain null; evidence censoring is not economic rejection.",
+          "Visible incomplete rows may be a lower bound for legacy rolling buffers.",
+          "Discovery rate per admission-hour requires native admission timestamps; process-hour rates include drain.",
+          "Archive wall-time fraction covers raw RPC persistence only, not all telemetry CPU/I/O."
+        ],
+        "liquidity_capacity": null,
+        "logical_methods": {
+          "getBlockTime": 22,
+          "getGenesisHash": 1,
+          "getMultipleAccounts": 43,
+          "getSignaturesForAddress": 33,
+          "getTransaction": 38
+        },
+        "maximum_provider_queue_depth": null,
+        "maximum_sampled_active_shared_broker_jobs": null,
+        "natural_settled": 0,
+        "natural_settled_rate_per_hour": 0,
+        "physical_requests_per_second": 0.17478487001705614,
+        "physical_transport_requests": 105,
+        "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+        "positive_negative_feature_discrimination": null,
+        "process_terminals": {
+          "returned": 1
+        },
+        "promotion_decision": "not_eligible_without_prospective_out_of_sample_outcomes",
+        "provider_sessions": 21,
+        "queue_wait_seconds": {
+          "count": 105,
+          "p50": 0.7717568269999902,
+          "p95": 0.9377531590000672,
+          "p99": 0.9406824379999534
+        },
+        "rate_denominator_scope": "lane_process_uptime_including_normal_drain",
+        "rate_denominator_seconds": 600.738496357,
+        "requests_per_complete_observation": null,
+        "retry_burden": null,
+        "rpc_archive_seconds": 0.208901612,
+        "rpc_archive_wall_time_fraction": 0.00034774134380736657,
+        "rpc_latency_seconds": {
+          "count": 105,
+          "p50": 0.086470619,
+          "p95": 0.202061449,
+          "p99": 0.223298587
+        },
+        "screening_only_vectors": null,
+        "shutdown_evidence_censoring": null,
+        "unique_complete_vectors": 0
+      },
+      "pons": {
+        "cache_reuse": {
+          "by_cache": {
+            "header_hash": {
+              "hit_fraction": 0.9921104536489151,
+              "hits": 8551,
+              "misses": 68
+            },
+            "header_number": {
+              "hit_fraction": 0.9506117955882976,
+              "hits": 44905,
+              "misses": 2333
+            },
+            "launch": {
+              "hit_fraction": 0.8132530120481928,
+              "hits": 135,
+              "misses": 31
+            },
+            "real_quote": {
+              "hit_fraction": 0.12852664576802508,
+              "hits": 41,
+              "misses": 278
+            },
+            "receipt": {
+              "hit_fraction": 0.9372268204222077,
+              "hits": 10078,
+              "misses": 675
+            }
+          },
+          "scope": "native_cumulative_lookup_counters_not_sum_of_repeated_checkpoints"
+        },
+        "capital_hour_return": null,
+        "deadline_denominator": {
+          "denominator": 166,
+          "scope": "Pons returned observations with original first-observation latency; excludes unmeasured exceptions",
+          "successes": 83
+        },
+        "deadline_success_rate": 0.5,
+        "errors": {},
+        "evidence_latency_seconds": {
+          "count": 166,
+          "p50": 4.9049960070000225,
+          "p95": 6.720888469999977,
+          "p99": 7.070822528000008
+        },
+        "evidence_work_duration_seconds_by_stage": {
+          "pons_candidate_evidence_and_evaluation": {
+            "count": 192,
+            "p50": 2.6634276120000777,
+            "p95": 3.570042527999931,
+            "p99": 4.017167326999925
+          }
+        },
+        "evidence_work_exceptions_by_stage": {
+          "pons_candidate_evidence_and_evaluation": 26
+        },
+        "forced_settled": 0,
+        "funnel": {
+          "evaluated": 192,
+          "qualified": 0
+        },
+        "funnel_per_hour": {
+          "evaluated": 1034.8074460857417,
+          "qualified": 0
+        },
+        "gate_evidence_grade": "native_complete_fresh_vectors",
+        "gate_marginal_survival": {
+          "buy_sell_flow": {
+            "denominator": 58,
+            "fraction": 0.8448275862068966,
+            "passed": 49
+          },
+          "buyer_growth": {
+            "denominator": 58,
+            "fraction": 0.25862068965517243,
+            "passed": 15
+          },
+          "creator_tax": {
+            "denominator": 58,
+            "fraction": 0.9827586206896551,
+            "passed": 57
+          },
+          "curve_acceleration": {
+            "denominator": 58,
+            "fraction": 0.7758620689655172,
+            "passed": 45
+          },
+          "curve_progress": {
+            "denominator": 58,
+            "fraction": 0.10344827586206896,
+            "passed": 6
+          },
+          "curve_velocity": {
+            "denominator": 58,
+            "fraction": 0.017241379310344827,
+            "passed": 1
+          },
+          "graduation_eta": {
+            "denominator": 58,
+            "fraction": 0.034482758620689655,
+            "passed": 2
+          },
+          "independent_breadth": {
+            "denominator": 58,
+            "fraction": 0.3793103448275862,
+            "passed": 22
+          },
+          "largest_buyer_concentration": {
+            "denominator": 58,
+            "fraction": 0.1896551724137931,
+            "passed": 11
+          },
+          "net_demand_acceleration": {
+            "denominator": 58,
+            "fraction": 0.7586206896551724,
+            "passed": 44
+          },
+          "roundtrip_cost": {
+            "denominator": 58,
+            "fraction": 0.4827586206896552,
+            "passed": 28
+          },
+          "token_age": {
+            "denominator": 58,
+            "fraction": 0.4827586206896552,
+            "passed": 28
+          },
+          "top3_buyer_concentration": {
+            "denominator": 58,
+            "fraction": 0.20689655172413793,
+            "passed": 12
+          }
+        },
+        "gate_rejections": {
+          "buy_sell_flow": 9,
+          "buyer_growth": 43,
+          "creator_tax": 1,
+          "curve_acceleration": 13,
+          "curve_progress": 52,
+          "curve_velocity": 57,
+          "graduation_eta": 56,
+          "independent_breadth": 36,
+          "largest_buyer_concentration": 47,
+          "net_demand_acceleration": 14,
+          "roundtrip_cost": 30,
+          "token_age": 30,
+          "top3_buyer_concentration": 46
+        },
+        "incomplete_rows_visible": 134,
+        "limitations": [
+          "RPC latency is not end-to-end evidence hydration latency.",
+          "Marginal gate survival is not conditional sequential gate survival.",
+          "Repeated pool/mint observations are not statistically independent.",
+          "Missing metrics remain null; evidence censoring is not economic rejection.",
+          "Visible incomplete rows may be a lower bound for legacy rolling buffers.",
+          "Discovery rate per admission-hour requires native admission timestamps; process-hour rates include drain.",
+          "Archive wall-time fraction covers raw RPC persistence only, not all telemetry CPU/I/O."
+        ],
+        "liquidity_capacity": null,
+        "logical_methods": {
+          "eth_call": 1653,
+          "eth_chainId": 229,
+          "eth_gasPrice": 192,
+          "eth_getBlockByHash": 68,
+          "eth_getBlockByNumber": 2525,
+          "eth_getCode": 192,
+          "eth_getLogs": 332,
+          "eth_getTransactionReceipt": 867
+        },
+        "maximum_provider_queue_depth": 2,
+        "maximum_sampled_active_shared_broker_jobs": null,
+        "natural_settled": 0,
+        "natural_settled_rate_per_hour": 0,
+        "physical_requests_per_second": 1.7935464705016182,
+        "physical_transport_requests": 1198,
+        "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+        "positive_negative_feature_discrimination": null,
+        "process_terminals": {
+          "returned": 1
+        },
+        "promotion_decision": "not_eligible_without_prospective_out_of_sample_outcomes",
+        "provider_sessions": 37,
+        "queue_wait_seconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        },
+        "rate_denominator_scope": "lane_process_uptime_including_normal_drain",
+        "rate_denominator_seconds": 667.9503540630001,
+        "requests_per_complete_observation": 20.655172413793103,
+        "retry_burden": 0,
+        "rpc_archive_seconds": 2.586895373,
+        "rpc_archive_wall_time_fraction": 0.0038728856976637037,
+        "rpc_latency_seconds": {
+          "count": 1198,
+          "p50": 0.065220619,
+          "p95": 0.096834291,
+          "p99": 0.116004999
+        },
+        "screening_only_vectors": null,
+        "shutdown_evidence_censoring": null,
+        "unique_complete_vectors": 58
+      },
+      "pump": {
+        "cache_reuse": null,
+        "capital_hour_return": null,
+        "deadline_denominator": null,
+        "deadline_success_rate": null,
+        "errors": {},
+        "evidence_latency_seconds": null,
+        "evidence_work_duration_seconds_by_stage": {
+          "pumpswap_candidate_or_position_window": {
+            "count": 45,
+            "p50": 2.163683805000005,
+            "p95": 18.621420165000018,
+            "p99": 26.070078193000086
+          },
+          "pumpswap_concentration": {
+            "count": 33,
+            "p50": 0.45335559099999045,
+            "p95": 0.9402266199999758,
+            "p99": 0.9648862179999469
+          }
+        },
+        "evidence_work_exceptions_by_stage": {},
+        "forced_settled": 0,
+        "funnel": {
+          "discovered": 516,
+          "evidence_complete": 62,
+          "qualified": 0,
+          "settled": 0
+        },
+        "funnel_per_hour": {
+          "discovered": 1156.3837005874145,
+          "evidence_complete": 138.94532836515447,
+          "qualified": 0,
+          "settled": 0
+        },
+        "gate_evidence_grade": "native_complete_fresh_vectors",
+        "gate_marginal_survival": {
+          "breakout": {
+            "denominator": 62,
+            "fraction": 0.9516129032258065,
+            "passed": 59
+          },
+          "buyer_growth": {
+            "denominator": 62,
+            "fraction": 0.14516129032258066,
+            "passed": 9
+          },
+          "concentration": {
+            "denominator": 62,
+            "fraction": 0,
+            "passed": 0
+          },
+          "consolidation": {
+            "denominator": 62,
+            "fraction": 0.7741935483870968,
+            "passed": 48
+          },
+          "early_holder_distribution": {
+            "denominator": 62,
+            "fraction": 0.04838709677419355,
+            "passed": 3
+          },
+          "independent_buyers": {
+            "denominator": 62,
+            "fraction": 0.9838709677419355,
+            "passed": 61
+          },
+          "net_demand": {
+            "denominator": 62,
+            "fraction": 0.11290322580645161,
+            "passed": 7
+          },
+          "postgrad_age": {
+            "denominator": 62,
+            "fraction": 0.7258064516129032,
+            "passed": 45
+          },
+          "price_retention": {
+            "denominator": 62,
+            "fraction": 0.9516129032258065,
+            "passed": 59
+          },
+          "pullback_shape": {
+            "denominator": 62,
+            "fraction": 0.8870967741935484,
+            "passed": 55
+          },
+          "score": {
+            "denominator": 62,
+            "fraction": 0.016129032258064516,
+            "passed": 1
+          },
+          "second_leg_age": {
+            "denominator": 62,
+            "fraction": 0.9838709677419355,
+            "passed": 61
+          },
+          "volume_acceleration": {
+            "denominator": 62,
+            "fraction": 0.9193548387096774,
+            "passed": 57
+          }
+        },
+        "gate_rejections": {
+          "breakout": 3,
+          "buyer_growth": 53,
+          "concentration": 62,
+          "consolidation": 14,
+          "early_holder_distribution": 59,
+          "independent_buyers": 1,
+          "net_demand": 55,
+          "postgrad_age": 17,
+          "price_retention": 3,
+          "pullback_shape": 7,
+          "score": 61,
+          "second_leg_age": 1,
+          "volume_acceleration": 5
+        },
+        "incomplete_rows_visible": 5,
+        "limitations": [
+          "RPC latency is not end-to-end evidence hydration latency.",
+          "Marginal gate survival is not conditional sequential gate survival.",
+          "Repeated pool/mint observations are not statistically independent.",
+          "Missing metrics remain null; evidence censoring is not economic rejection.",
+          "Visible incomplete rows may be a lower bound for legacy rolling buffers.",
+          "Discovery rate per admission-hour requires native admission timestamps; process-hour rates include drain.",
+          "Archive wall-time fraction covers raw RPC persistence only, not all telemetry CPU/I/O."
+        ],
+        "liquidity_capacity": null,
+        "logical_methods": {
+          "getBlockTime": 116,
+          "getGenesisHash": 14,
+          "getMultipleAccounts": 164,
+          "getSignaturesForAddress": 65,
+          "getTokenLargestAccounts": 33,
+          "getTransaction": 1938
+        },
+        "maximum_provider_queue_depth": null,
+        "maximum_sampled_active_shared_broker_jobs": null,
+        "natural_settled": 0,
+        "natural_settled_rate_per_hour": 0,
+        "physical_requests_per_second": 0.4662636691106662,
+        "physical_transport_requests": 749,
+        "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+        "positive_negative_feature_discrimination": null,
+        "process_terminals": {
+          "returned": 1
+        },
+        "promotion_decision": "not_eligible_without_prospective_out_of_sample_outcomes",
+        "provider_sessions": 14,
+        "queue_wait_seconds": {
+          "count": 749,
+          "p50": 0.008317585000099825,
+          "p95": 0.8866990779999924,
+          "p99": 0.9392630849999932
+        },
+        "rate_denominator_scope": "lane_process_uptime_including_normal_drain",
+        "rate_denominator_seconds": 1606.3872216950003,
+        "requests_per_complete_observation": 12.080645161290322,
+        "retry_burden": null,
+        "rpc_archive_seconds": 1.522434994,
+        "rpc_archive_wall_time_fraction": 0.0009477384863617023,
+        "rpc_latency_seconds": {
+          "count": 749,
+          "p50": 0.07924546,
+          "p95": 0.220689991,
+          "p99": 0.274182398
+        },
+        "screening_only_vectors": null,
+        "shutdown_evidence_censoring": null,
+        "unique_complete_vectors": 62
+      },
+      "ramses": {
+        "cache_reuse": null,
+        "capital_hour_return": null,
+        "deadline_denominator": null,
+        "deadline_success_rate": null,
+        "errors": {},
+        "evidence_latency_seconds": null,
+        "evidence_work_duration_seconds_by_stage": {
+          "ramses_finalized_pool_scan": {
+            "count": 3,
+            "p50": 33.0210105110001,
+            "p95": 33.0210105110001,
+            "p99": 33.0210105110001
+          }
+        },
+        "evidence_work_exceptions_by_stage": {},
+        "forced_settled": 0,
+        "funnel": {
+          "active_pools": 3,
+          "scans": 3
+        },
+        "funnel_per_hour": {
+          "active_pools": 17.99516409950768,
+          "scans": 17.99516409950768
+        },
+        "gate_evidence_grade": "finalized_screening_not_receipt_authenticated_lifecycle",
+        "gate_marginal_survival": {
+          "cash_hurdle": {
+            "denominator": 3,
+            "fraction": 0,
+            "passed": 0
+          },
+          "fee_percentile": {
+            "denominator": 3,
+            "fraction": 0.6666666666666666,
+            "passed": 2
+          },
+          "flow_imbalance": {
+            "denominator": 3,
+            "fraction": 0.3333333333333333,
+            "passed": 1
+          },
+          "insufficient_two_way_chop": {
+            "denominator": 3,
+            "fraction": 0,
+            "passed": 0
+          },
+          "net_to_cost": {
+            "denominator": 3,
+            "fraction": 0,
+            "passed": 0
+          },
+          "turnover_percentile": {
+            "denominator": 3,
+            "fraction": 0.6666666666666666,
+            "passed": 2
+          },
+          "volume_acceleration": {
+            "denominator": 3,
+            "fraction": 0.3333333333333333,
+            "passed": 1
+          }
+        },
+        "gate_rejections": {
+          "cash_hurdle": 3,
+          "fee_percentile": 1,
+          "flow_imbalance": 2,
+          "insufficient_two_way_chop": 3,
+          "net_to_cost": 3,
+          "turnover_percentile": 1,
+          "volume_acceleration": 2
+        },
+        "incomplete_rows_visible": 0,
+        "limitations": [
+          "RPC latency is not end-to-end evidence hydration latency.",
+          "Marginal gate survival is not conditional sequential gate survival.",
+          "Repeated pool/mint observations are not statistically independent.",
+          "Missing metrics remain null; evidence censoring is not economic rejection.",
+          "Visible incomplete rows may be a lower bound for legacy rolling buffers.",
+          "Discovery rate per admission-hour requires native admission timestamps; process-hour rates include drain.",
+          "Archive wall-time fraction covers raw RPC persistence only, not all telemetry CPU/I/O."
+        ],
+        "liquidity_capacity": null,
+        "logical_methods": {
+          "eth_call": 375,
+          "eth_chainId": 4,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 32,
+          "eth_getCode": 19,
+          "eth_getLogs": 90,
+          "eth_getTransactionReceipt": 4
+        },
+        "maximum_provider_queue_depth": 2,
+        "maximum_sampled_active_shared_broker_jobs": null,
+        "natural_settled": 0,
+        "natural_settled_rate_per_hour": 0,
+        "physical_requests_per_second": 0.19494761107799985,
+        "physical_transport_requests": 117,
+        "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+        "positive_negative_feature_discrimination": null,
+        "process_terminals": {
+          "returned": 1
+        },
+        "promotion_decision": "not_eligible_without_prospective_out_of_sample_outcomes",
+        "provider_sessions": 5,
+        "queue_wait_seconds": {
+          "count": 0,
+          "p50": null,
+          "p95": null,
+          "p99": null
+        },
+        "rate_denominator_scope": "lane_process_uptime_including_normal_drain",
+        "rate_denominator_seconds": 600.1612400019999,
+        "requests_per_complete_observation": null,
+        "retry_burden": 0,
+        "rpc_archive_seconds": 0.111879841,
+        "rpc_archive_wall_time_fraction": 0.00018641630539090992,
+        "rpc_latency_seconds": {
+          "count": 117,
+          "p50": 0.068407401,
+          "p95": 0.116618193,
+          "p99": 0.132100882
+        },
+        "screening_only_vectors": 3,
+        "shutdown_evidence_censoring": null,
+        "unique_complete_vectors": null
+      }
+    },
+    "run_id": "7389409f-708f-4a81-8ec6-c498c20294f7"
+  }
+}
