@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from meme_machine.solana_evidence_broker import EvidenceBroker
 from meme_machine.pump_acceleration_history import IncrementalPumpSwapHistory
@@ -248,3 +249,51 @@ class IncrementalHistoryTests(unittest.TestCase):
 
 if __name__=="__main__":
     unittest.main()
+
+class RefreshBudgetRegressionTests(unittest.TestCase):
+    def test_decision_decoder_uses_one_budget_across_chunks(self):
+        clock=[1000.0]
+        class B:
+            def signature_rows(self,*_a,**_kw):return []
+            def hydrate_transactions(self,rpc,sigs,**kw):
+                rpc.append((list(sigs),kw['deadline']));clock[0]+=6.1
+                return {s:None for s in sigs},dict(pending=len(sigs))
+        history=IncrementalPumpSwapHistory('pool',900,broker=B())
+        history.signature_rows={str(i):dict(signature=str(i),slot=i,blockTime=999,err=None) for i in range(48)}
+        calls=[]
+        with patch('meme_machine.pump_acceleration_history.time.time',side_effect=lambda:clock[0]):
+            history._decode_pending(calls,1000,kind='pump_window')
+        self.assertEqual(len(calls),1)
+        self.assertEqual(history.tx_failures,16)
+
+    def test_incomplete_current_window_does_not_start_second_leg_history_reads(self):
+        class B:
+            def signature_rows(self,*_a,**_kw):return []
+            def stream_status(self,*_a,**_kw):return dict(covered=False)
+        history=IncrementalPumpSwapHistory('pool',900,broker=B())
+        with patch.object(history,'_ingest_stream_window'),patch.object(history,'_bootstrap_decision_window'),\
+             patch.object(history,'_decode_pending'),patch.object(history,'_new_head') as head,\
+             patch.object(history,'_backfill') as backfill:
+            history.refresh(object(),1000,research=True)
+        head.assert_not_called();backfill.assert_not_called()
+
+    def test_bootstrap_hydration_clears_initial_stream_miss_without_another_rpc(self):
+        class B(EvidenceBroker):
+            first=True
+            def hydrate_transactions(self,rpc,signatures,**kwargs):
+                if self.first:
+                    self.first=False
+                    return {s:None for s in signatures},dict(pending=len(signatures),hydrated=0)
+                return super().hydrate_transactions(rpc,signatures,**kwargs)
+        class R(FakeRPC):
+            def call_many(self,*args,**kwargs):
+                result=super().call_many(*args,**kwargs)
+                return [dict(tx,blockTime=100+tx['slot']) for tx in result]
+        broker=B(':memory:',clock=lambda:103,sleeper=lambda _:None);self.addCleanup(broker.close)
+        broker.stream_begin('pool:one',70)
+        broker.record_event('pool:one',signature='s3',slot=3,observed_at=103)
+        history=IncrementalPumpSwapHistory('pool',100,broker=broker,stream_key='pool:one')
+        rpc=R();history.refresh(rpc,103)
+        self.assertEqual(history.stream_pending_transactions,0)
+        self.assertTrue(history.decision_window_status(103)['complete'])
+        self.assertEqual(rpc.tx_calls.count('s3'),1)
