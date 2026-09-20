@@ -1015,7 +1015,7 @@ index 0000000..b0b2c0b
 +        if self.rpc is not None:
 +            self.sessions.append(self.rpc.provider_telemetry())
 diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
-index db17c29..c53aa3d 100644
+index db17c29..51fb519 100644
 --- a/tests/pump_acceleration_natural_prospective.py
 +++ b/tests/pump_acceleration_natural_prospective.py
 @@ -11,7 +11,7 @@ import json
