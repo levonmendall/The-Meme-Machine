@@ -330,6 +330,15 @@ diff --git a/meme_machine/pump_acceleration_history.py b/meme_machine/pump_accel
 index 0a774b1..d41405a 100644
 --- a/meme_machine/pump_acceleration_history.py
 +++ b/meme_machine/pump_acceleration_history.py
+@@ -9,7 +9,7 @@ import time
+ import time
+ 
+ from .provider import Unavailable
+-from .pump_acceleration_evidence import pumpswap_trade_events
++from .pump_acceleration_evidence import PUMPSWAP_PROGRAM,pumpswap_trade_events
+ 
+ 
+ class IncrementalPumpSwapHistory:
 @@ -35,10 +35,13 @@ class IncrementalPumpSwapHistory:
          self.pages=0
          self.refreshes=0
@@ -340,11 +349,30 @@ index 0a774b1..d41405a 100644
          self.stream_key=str(stream_key)
          self.history_scope="pumpswap_history"
          self.stream_pending_transactions=0
-+        self._pending_stream_slots={}
++        self._pending_stream_slots={};self.stream_prefiltered_signatures=set()
          self.stream_events_seen=0
          self.stream_hydrated_transactions=0
          self.stream_last_slot=0
-@@ -174,34 +177,49 @@ class IncrementalPumpSwapHistory:
+@@ -159,15 +162,18 @@ class IncrementalPumpSwapHistory:
+     def _ingest_stream_window(
+         self,rpc,now,window_seconds=30,hydration_kind="pump_window"
+     ):
+         if self.broker is None:
+             return
+         now=int(now);cutoff=now-int(window_seconds)
+         rows=self.broker.recent_events(
+             self.stream_key,since=cutoff-2,after_slot=None)
+         self.stream_events_seen+=len(rows)
+         signatures=[];slot_by_sig={}
+         for row in rows:
+             sig=row.get("signature")
++            payload=row.get("payload") or {};logs=payload.get("logs")
++            safe_negative=(isinstance(logs,list) and logs and not any("truncat" in str(x).lower() for x in logs) and not any(PUMPSWAP_PROGRAM in str(x) for x in logs))
+             if not isinstance(sig,str) or not sig:
+                 continue
++            if safe_negative:self.stream_prefiltered_signatures.add(sig);continue
+             signatures.append(sig)
+@@ -174,34 +180,49 @@ class IncrementalPumpSwapHistory:
              slot_by_sig[sig]=int(row["slot"])
              self.stream_last_slot=max(self.stream_last_slot,int(row["slot"]))
          if not signatures:
@@ -354,7 +382,7 @@ index 0a774b1..d41405a 100644
          txs,meta=self.broker.hydrate_transactions(
              rpc,signatures,kind=str(hydration_kind),
 -            deadline=time.time()+4.0,max_version=1,batch_size=8)
-+            deadline=time.time()+4.0,max_version=1,batch_size=8,
++            deadline=time.time()+4.0,max_version=1,batch_size=16,
 +            # One durable acquisition interest per pool/signature/kind. Repeated
 +            # overlapping evaluations keep their own strategy attempt records but
 +            # must not multiply identical provider-work consumers or rejuvenate the
@@ -415,7 +443,7 @@ index 0a774b1..d41405a 100644
  
      def _stream_window_complete(self,now,window_seconds=30):
          if self.broker is None:
-@@ -315,13 +333,18 @@ class IncrementalPumpSwapHistory:
+@@ -315,13 +336,18 @@ class IncrementalPumpSwapHistory:
              pending=recent[:self.max_tx_per_refresh]
          else:
              pending=older[:self.max_tx_per_refresh]
@@ -430,12 +458,12 @@ index 0a774b1..d41405a 100644
                  txmap,meta=self.broker.hydrate_transactions(
                      rpc,signatures,kind=str(kind),
 -                    deadline=time.time()+6.0,max_version=1,batch_size=8)
-+                    deadline=hydration_deadline,max_version=1,batch_size=8,
++                    deadline=hydration_deadline,max_version=1,batch_size=16,
 +                    owner=f'pump:{self.pool}:history:{kind}',candidate_id=self.pool)
                  txs=[txmap.get(sig) for sig in signatures]
                  self.tx_failures+=int(meta["pending"])
              else:
-@@ -406,10 +429,14 @@ class IncrementalPumpSwapHistory:
+@@ -406,10 +432,14 @@ class IncrementalPumpSwapHistory:
                  self._bootstrap_decision_window(rpc,now,30)
                  self._decode_pending(
                      rpc,now,kind=str(hydration_kind))
@@ -451,7 +479,7 @@ index 0a774b1..d41405a 100644
          else:
              self._new_head(rpc)
              self._backfill(rpc)
-@@ -454,6 +481,8 @@ class IncrementalPumpSwapHistory:
+@@ -454,6 +484,8 @@ class IncrementalPumpSwapHistory:
              events=len(self.events),pages=self.pages,refreshes=self.refreshes,
              unknown_block_times=self.unknown_block_times,
              transaction_failures=self.tx_failures,
@@ -912,7 +940,7 @@ index 05dd96f..86e37e8 100644
 +                    continue
                  break
 +            try:
-+                reserved=self._reserve_hydration_transport(deadline)
++                pacer=getattr(rpc,'read_pacer',None);interval=max(HYDRATION_MIN_INTERVAL_SECONDS,float(getattr(pacer,'minimum_interval',HYDRATION_MIN_INTERVAL_SECONDS)));reserved=self._reserve_hydration_transport(deadline,interval=interval)
 +            except BaseException:
 +                self._release_jobs([row[0] for row in jobs])
 +                raise
@@ -1373,7 +1401,7 @@ index 0000000..f96d983
 +        self.broker.hydrate_transactions(
 +            self.rpc, [s for s,_ in rows], kind='stream_prefetch',
 +            deadline=min(float(self.broker.clock()) + 4, min(d for _,d in rows)),
-+            batch_size=8, max_batches=1, owner=False)
++            batch_size=16, max_batches=1, owner=False)
 +        self.broker.consumers.settle()
 +        return True
 +
@@ -2170,7 +2198,7 @@ index 0000000..099d6d9
 +class PacedRpc(_Rpc):
 +    def __init__(self, clock):
 +        super().__init__()
-+        self.clock, self.calls, self.limit = clock, 0, 240
++        self.clock, self.calls, self.limit = clock, 0, 240;self.read_pacer=type('P',(),{'minimum_interval':.5})()
 +    def call_many(self, method, params, *args, **kwargs):
 +        self.calls += len(params)
 +        self.clock.sleep(.5)  # Same conservative two-transport/second ceiling.
@@ -2470,12 +2498,12 @@ index a9eaead..856cc10 100644
 +                return [dict(tx,blockTime=100+tx['slot']) for tx in result]
 +        broker=B(':memory:',clock=lambda:103,sleeper=lambda _:None);self.addCleanup(broker.close)
 +        broker.stream_begin('pool:one',70)
-+        broker.record_event('pool:one',signature='s3',slot=3,observed_at=103)
++        broker.record_event('pool:one',signature='s3',slot=3,observed_at=103);broker.record_event('pool:one',signature='noise',slot=2,observed_at=103,payload=dict(err=None,logs=['Program Other111 invoke [1]','Program Other111 success']))
 +        history=IncrementalPumpSwapHistory('pool',100,broker=broker,stream_key='pool:one')
 +        rpc=R();history.refresh(rpc,103)
 +        self.assertEqual(history.stream_pending_transactions,0)
 +        self.assertTrue(history.decision_window_status(103)['complete'])
-+        self.assertEqual(rpc.tx_calls.count('s3'),1)
++        self.assertEqual(rpc.tx_calls.count('s3'),1);self.assertNotIn('noise',rpc.tx_calls);self.assertEqual(len(history.stream_prefiltered_signatures),1)
 diff --git a/tests/test_pump_continuous_campaign.py b/tests/test_pump_continuous_campaign.py
 new file mode 100644
 index 0000000..80cf79e
