@@ -111,13 +111,13 @@ class DLMMAlchemyTopologyTests(unittest.TestCase):
     def test_signature_reads_use_one_second_method_cadence(self):
         clock=_Clock();pacer=provider.AlchemyPacer()
         rpc=provider.new_rpc(limit=240,pacer=pacer,environ=ENV,
-                             clock=clock,sleeper=clock.sleep)
+                             clock=clock.time,sleeper=clock.sleep)
         rpc._request_url=lambda _url,request: {
             "jsonrpc":"2.0","id":request["id"],"result":[]}
         rpc.call("getSignaturesForAddress",["pool",{"limit":16,"commitment":"finalized"}],True)
-        first=clock.value
+        first=clock.now
         rpc.call("getSignaturesForAddress",["pool",{"limit":16,"commitment":"finalized","before":"x"}],True)
-        self.assertGreaterEqual(clock.value-first,provider.DLMM_SIGNATURE_REQUEST_INTERVAL_SECONDS)
+        self.assertGreaterEqual(clock.now-first,provider.DLMM_SIGNATURE_REQUEST_INTERVAL_SECONDS)
 
     def test_signature_429_installs_fifteen_second_shared_backoff(self):
         clock=_Clock();pacer=provider.AlchemyPacer()
