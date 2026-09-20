@@ -64,7 +64,8 @@ class RamsesStrategyTests(unittest.TestCase):
         self.assertEqual(len(POLICY_HASH), 64)
         self.assertFalse(POLICY["allocation_authority"])
         self.assertTrue(POLICY["paper_only"])
-        self.assertEqual(POLICY["hurdle_bps"], 35)
+        self.assertEqual(POLICY["hurdle_bps"], 0)
+        self.assertEqual(POLICY["reference_profitability_hurdle_bps"], 35)
 
     def test_chop_metric_distinguishes_two_way_from_directional_path(self):
         state = self._state()
@@ -110,7 +111,7 @@ class RamsesStrategyTests(unittest.TestCase):
         freeze = build_fee_pulse_freeze(state, 10**16, "y", entry_timestamp=1000, prehistory=history)
         evaluation = evaluate_fee_pulse(features, freeze["proposals"][0])
         self.assertFalse(evaluation["qualified"])
-        self.assertIn("universe_percentiles_unavailable", evaluation["reasons"])
+        self.assertNotIn("universe_percentiles_unavailable", evaluation["reasons"])
         self.assertIn("cost_evidence_unavailable", evaluation["reasons"])
 
     def test_fee_pulse_can_qualify_on_frozen_high_density_inputs(self):
@@ -125,6 +126,21 @@ class RamsesStrategyTests(unittest.TestCase):
         )
         evaluation = evaluate_fee_pulse(features, freeze["proposals"][0])
         self.assertTrue(evaluation["qualified"], evaluation)
+
+    def test_execution_certification_percentiles_rank_but_do_not_veto(self):
+        state = self._state()
+        history = self._history(True)
+        features = pool_features(state, history, "y")
+        features["turnover_percentile_bps"] = 0
+        features["fee_percentile_bps"] = 0
+        freeze = build_fee_pulse_freeze(
+            state, 10**16, "y", entry_timestamp=1000, prehistory=history,
+            gas_costs={"entry": 1, "add": 1, "remove": 1, "unwind": 1}, features=features,
+        )
+        evaluation = evaluate_fee_pulse(features, freeze["proposals"][0])
+        self.assertTrue(evaluation["qualified"], evaluation)
+        self.assertFalse(evaluation["percentile_targets"]["turnover"])
+        self.assertFalse(evaluation["percentile_targets"]["fee"])
 
     def test_capital_is_capped_at_ten_percent_of_active_liquidity(self):
         f = pool_features(self._state(), self._history(True), "y")
