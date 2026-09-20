@@ -14,6 +14,8 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from copy import deepcopy
+from dataclasses import asdict
+import uuid
 import json
 import math
 import os
@@ -39,7 +41,8 @@ from meme_machine.provider import Unavailable
 from meme_machine.solana_evidence_broker import (
     DEFAULT_BROKER_DB,EvidenceBroker,ProgramAccountWakeStream,
 )
-from meme_machine.store import encode
+from meme_machine.store import encode,digest
+from meme_machine.dlmm_independent_accounting import PaperBook
 from tests import dlmm_alchemy_provider as provider
 
 POLICY_PATH=Path("SOLANA_DLMM_INDEPENDENT_V1.json")
@@ -1006,6 +1009,7 @@ def _build_position(entry,features,policy):
         entry_active=virtual["active"],entry_slot=entry["slot"],
         entry_time=entry["time"],entry_conversion_sol_lamports=conversion,
         entry_conversion_token_raw=token,deposits=deposits,
+        entry_conversion_quote=quote,
     )
 
 
@@ -1045,14 +1049,30 @@ def _mark(position):
     token_side="y" if sol_side=="x" else "x"
     sol=assets[sol_side]+assets["fee_"+sol_side]
     tokens=assets[token_side]+assets["fee_"+token_side]
-    liquidation=0
+    liquidation=0;quote=None
     if tokens:
         _,quote=dlmm.swap(
             deepcopy(state),tokens,sol_side=="y",int(state["time"]))
         liquidation=int(quote["output"]);sol+=liquidation
+    # Allocate the one executable unwind proportionally. A separate dust-size
+    # hypothetical swap must never censor an otherwise executable real unwind.
+    inventory_liquidation=liquidation*assets[token_side]//tokens if tokens else 0
+    inventory_sol=assets[sol_side]+inventory_liquidation
+    fee_value=sol-inventory_sol
+    inventory_spot=assets[sol_side]+_to_sol(state,assets[token_side],state[token_side],state['active'])
+    fee_spot=assets['fee_'+sol_side]+_to_sol(state,assets['fee_'+token_side],state[token_side],state['active'])
+    unwind_cost=inventory_spot+fee_spot-sol
     pnl=sol-CAPITAL-ROUND_TRIP_NETWORK_COST
     return dict(
         resolved=True,ending_sol_lamports=sol,pnl_lamports=pnl,
+        withdrawn_assets_raw=assets,unwind_quote=quote,
+        fee_pnl_lamports=fee_value,inventory_pnl_lamports=inventory_sol-CAPITAL,
+        fee_income_mark_lamports=fee_spot,inventory_mark_pnl_lamports=inventory_spot-CAPITAL,
+        unwind_cost_lamports=unwind_cost,
+        network_cost_lamports=ROUND_TRIP_NETWORK_COST,
+        fee_valuation_method='pro_rata_combined_executable_unwind_output',
+        execution_cost_accounting='swap_and_protocol_fees_embedded_in_executable_quotes_network_cost_separate',
+        unwind_input_token=state[token_side],
         pnl_bps=pnl*10000/CAPITAL,
         non_sol_inventory_raw=tokens,
         non_sol_inventory_liquidation_lamports=liquidation,
@@ -1100,10 +1120,26 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
     return reasons,recent,mark,fee_uplift
 
 
-def _lifecycle(
-    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None
+def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None):
+    identity=book.identity() if book is not None else None
+    if book is not None:
+        book.append(identity,'reserve',dict(amount=CAPITAL+ROUND_TRIP_NETWORK_COST,
+            pool=address,policy_hash=digest(policy),strategy_evidence_hash=digest(dict(entry=entry,features=features))))
+    try:
+        return _position_lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline,broker,book,identity)
+    except BaseException as exc:
+        if book is not None:book.fail(identity,type(exc).__name__+':'+str(exc)[:200])
+        raise
+
+
+def _position_lifecycle(
+    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None,identity=None
 ):
     position=_build_position(entry,features,policy)
+    if book is not None:
+        book.append(identity,'entry',dict(capital=CAPITAL,entry_cost=ENTRY_NETWORK_COST,
+            exit_cost=EXIT_NETWORK_COST,entry_state=entry,position=position,features=features,
+            policy=policy,mark=_mark(position)))
     current=entry;elapsed=0;segments=[];tapes=[]
     max_hold=int(policy["range"]["max_holding_seconds"])
     segment_seconds=int(policy["exit"]["observation_segment_seconds"])
@@ -1122,13 +1158,16 @@ def _lifecycle(
             adapter,address,current,duration,False,pacer,rpcs,deadline,
             broker,"position_monitor")
         if not phase["verified"]:
-            return dict(
+            if book is not None:book.append(identity,'unresolved',dict(reason=phase['reason']))
+            return dict(lifecycle_id=identity,
                 complete=False,reason=phase["reason"],segments=segments,
                 verified_hold_seconds=elapsed,
             ),adapter
         position=_advance_position(position,tape)
         reasons,recent,mark,uplift=_segment_exit(
             position,effective_start,tape,terminal,entry_flow,policy)
+        if book is not None:
+            book.append(identity,'mark',dict(tape=asdict(tape),position_hash=digest(position),mark=mark))
         elapsed+=duration;tapes.append(tape)
         segments.append(dict(
             elapsed_seconds=elapsed,lineage=tape.lineage,
@@ -1140,10 +1179,12 @@ def _lifecycle(
             exit_reason=reasons[0];break
     combined=chain_verified_tapes(entry,tapes)
     final=_mark(position)
+    if book is not None:
+        book.append(identity,'settle',dict(mark=final,exit_reason=exit_reason,lineage=combined.lineage))
     hours=max(elapsed/3600.0,1/3600.0)
     final["pnl_bps_per_capital_hour"]=final["pnl_bps"]/hours
     return dict(
-        complete=True,exit_reason=exit_reason,realized_hold_seconds=elapsed,
+        complete=True,lifecycle_id=identity,exit_reason=exit_reason,realized_hold_seconds=elapsed,
         segments=segments,lineage=combined.lineage,final=final,
     ),adapter
 
@@ -1643,6 +1684,9 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
     run_started_monotonic=time.monotonic()
     deadline=run_started_monotonic+max_runtime_seconds
 
+    book=PaperBook(OUT.with_suffix('.accounting.sqlite3'),
+        run_id=os.environ.get('MM_CERTIFICATION_RUN_ID') or str(uuid.uuid4()),
+        policy_hash=digest(policy),capital=1_000_000_000)
     discovery_telemetry=dict(
         rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
     compatibility_rejections=[];compatibility_screened=0
@@ -1682,6 +1726,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
     )
     attempted=0;complete=0;failure_counts=Counter()
     def checkpoint(stage):
+        report["accounting"]=book.reconcile()
         report["wake_stream"]=broker.stream_status(
             DLMM_WAKE_STREAM_KEY,int(time.time()),0)
         report["evidence_broker"]=broker.telemetry()
@@ -1760,7 +1805,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                 continue
             lifecycle,adapter=_lifecycle(
                 adapter,candidate["address"],entry,features,policy,pacer,
-                candidate_rpcs,deadline,broker)
+                candidate_rpcs,deadline,broker,book)
             for rpc in candidate_rpcs:
                 if rpc not in rpcs:rpcs.append(rpc)
             attempt["lifecycle"]=lifecycle
@@ -1823,6 +1868,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
             if _runtime_expired(deadline) else
             "prospective_sample_incomplete_no_threshold_change"),
     )
+    report["accounting"]=book.reconcile()
+    report["accounting_replay"]=book.replay_economics(_build_position,_advance_position,_mark)
     _atomic_checkpoint(
         report,"final",rpcs,pacer,
         attempted_pool_count=attempted,
