@@ -992,6 +992,11 @@ class DynamicAddressLogStream:
             self.addresses.add(address)
         return self.stream_key(address)
 
+    def remove_address(self,address):
+        """Release an expired candidate subscription; open positions retain theirs."""
+        with self.lock:
+            self.addresses.discard(str(address))
+
     def wanted_addresses(self):
         with self.lock:
             return sorted(self.addresses)
@@ -1015,6 +1020,8 @@ class DynamicAddressLogStream:
                     close_timeout=5,max_size=2_000_000,max_queue=256,
                 ) as websocket:
                     pending={}
+                    retiring={}
+                    retired_subscriptions=[]
                     by_address={}
                     by_subscription={}
                     next_id=1
@@ -1028,6 +1035,12 @@ class DynamicAddressLogStream:
 
                     while not stop_event.is_set():
                         wanted=self.wanted_addresses()
+                        for address,subscription in list(by_address.items()):
+                            if address not in wanted and address not in retiring.values():
+                                request_id=next_id;next_id+=1
+                                websocket.send(json.dumps(dict(jsonrpc="2.0",id=request_id,
+                                    method="logsUnsubscribe",params=[subscription])))
+                                retiring[request_id]=address
                         known=set(by_address)|set(pending.values())
                         for address in [a for a in wanted if a not in known][:16]:
                             request_id=next_id;next_id+=1
@@ -1048,12 +1061,25 @@ class DynamicAddressLogStream:
                         payload=json.loads(message)
                         if "id" in payload:
                             request_id=payload.get("id")
+                            if request_id in retiring:
+                                address=retiring.pop(request_id)
+                                if payload.get("error") or payload.get("result") is not True:
+                                    raise RuntimeError("address_log_unsubscription_rejected")
+                                subscription=by_address.pop(address)
+                                by_subscription.pop(subscription)
+                                retired_subscriptions.append(subscription)
+                                retired_subscriptions=retired_subscriptions[-512:]
+                                active_addresses=list(by_address)
+                                self.active_subscriptions=len(by_address)
+                                self.broker.stream_stop(self.stream_key(address))
+                                continue
                             address=pending.pop(request_id,None)
                             if address is None:
                                 continue
                             if payload.get("error") or not isinstance(payload.get("result"),int):
                                 raise RuntimeError("address_log_subscription_rejected")
                             subscription=int(payload["result"])
+                            retired_subscriptions=[s for s in retired_subscriptions if s!=subscription]
                             by_address[address]=subscription
                             by_subscription[subscription]=address
                             active_addresses=list(by_address)
@@ -1064,6 +1090,8 @@ class DynamicAddressLogStream:
                         if payload.get("method")!="logsNotification":
                             continue
                         params=payload.get("params") or {}
+                        if params.get("subscription") in retired_subscriptions:
+                            continue  # In-flight notification from an acknowledged retirement.
                         address=by_subscription.get(params.get("subscription"))
                         if address is None:
                             raise RuntimeError("address_log_unknown_subscription")

@@ -11,7 +11,7 @@ import json
 import os
 import threading
 import time
-from collections import Counter
+from collections import Counter,deque
 from pathlib import Path
 
 from meme_machine import pump
@@ -353,10 +353,126 @@ def _record_attempt(report,signal,q,stage,extra=None):
     report["attempts"]=report["attempts"][-1000:]
 
 
-def main():
+def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now):
+    # Exact frozen exit controller on natural qualifiers.  Each qualifier is
+    # an isolated research lifecycle; no shared Store capital is mutated.
+    for key,row in list(active.items()):
+        if now<int(row["next_monitor"]):
+            continue
+        mint,mode=key
+        row["next_monitor"]=now+5
+        life=row["lifecycle"]
+        try:
+            sessions.ensure(20)
+            position=life.position
+            if position is None:
+                active.pop(key,None);continue
+            demand_score=0;confirmed=False
+            if position.surface=="pump.fun":
+                snapshot=sessions.pump.snapshot(mint,now,priority=True)
+                curve=pump.curve(snapshot["accounts"][0])
+                if curve.complete or curve.real_token==0:
+                    graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
+                    handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
+                    life.authenticate_graduation(now,True)
+                    snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
+                    quote=sell_quote(snapshot,life.position.tokens)
+                    proceeds=max(0,quote.output_amount-GAS)
+                else:
+                    supply,_=pump.mint_info(snapshot["accounts"][1])
+                    rates=pump.fees(snapshot["accounts"][2],curve,supply)
+                    proceeds_raw,_=pump.sell(curve,life.position.tokens,rates)
+                    proceeds=max(0,proceeds_raw-GAS)
+                    try:
+                        creation=created[mint]["creation"]
+                        ev=tape.window(mint,int(snapshot["market_time"]),max_slot=snapshot["slot"])
+                        current,_trajectory,_confirmation=_late_signal(
+                            creation,ev,snapshot,
+                            int(row.get("last_concentration",0)),confirmations)
+                        demand_score=qualify(current).score
+                    except Exception:
+                        demand_score=0
+            else:
+                state=postgrad.get(mint)
+                if state is None:
+                    raise Unavailable("missing_postgrad_state")
+                graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
+                handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
+                snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
+                events=_refresh_pool_events(
+                    state,sessions,now,research=False,
+                    hydration_kind="position_monitor")
+                quote=sell_quote(snapshot,life.position.tokens)
+                proceeds=max(0,quote.output_amount-GAS)
+                concentration=_postgrad_concentration(sessions.rpc,snapshot)
+                current,_confirmation=_volume_price_signal(
+                    state,snapshot,events,MODE_POSTGRAD,concentration,confirmations)
+                cq=qualify(current);demand_score=cq.score;confirmed=cq.qualified
+
+            mark_evidence=dict(snapshot=snapshot,net_proceeds=proceeds,
+                               network_cost=GAS)
+            mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
+            age=now-int(row["opened"])
+            for horizon in (15,60,300,900):
+                if age>=horizon and str(horizon) not in row["marks"]:
+                    row["marks"][str(horizon)]=dict(
+                        observed_at=now,return_bps=mark["return_bps"],
+                        proceeds=proceeds)
+            if mark["exit_reason"] is not None:
+                closed=life.settle(proceeds,now,evidence=mark_evidence)
+                report["settled"].append(dict(
+                    lifecycle_id=life.lifecycle_id,
+                    mint=mint,mode=mode,opened=row["opened"],closed=now,
+                    exit_reason=closed["exit_reason"],
+                    realized_quote_units=closed["realized_quote_units"],
+                    marks=dict(row["marks"]),history=life.snapshot()["history"]))
+                active.pop(key,None)
+        except (Unavailable,ValueError,KeyError,TypeError) as exc:
+            row.setdefault("monitor_failures",[]).append(dict(
+                observed_at=now,reason=str(exc) or type(exc).__name__))
+            row["monitor_failures"]=row["monitor_failures"][-20:]
+
+
+class RollingAttemptBudget:
+    def __init__(self,limit=MAX_FULL_ATTEMPTS,window=3300):
+        self.limit=limit;self.window=window;self.admitted=deque()
+
+    def take(self,now):
+        while self.admitted and self.admitted[0]<=now-self.window:self.admitted.popleft()
+        if len(self.admitted)>=self.limit:return False
+        self.admitted.append(now);return True
+
+
+def _terminal(report,row):
+    with REPORT.with_suffix('.terminal.jsonl').open('a') as sink:
+        sink.write(json.dumps(dict(policy_hash=policy_hash(),**row),sort_keys=True)+'\n')
+        sink.flush();os.fsync(sink.fileno())
+    counts=report.setdefault('terminal_reason_counts',{})
+    reason=row['terminal_reason'];counts[reason]=counts.get(reason,0)+1
+
+
+def _retire_postgrad(report,postgrad,pending,active,stream,now):
+    protected={key[0] for key in pending}|{key[0] for key in active}
+    for mint,state in list(postgrad.items()):
+        if mint in protected or now-int(state['graduation_time'])<=max(POLICY.max_postgrad_entry_age_s,600):
+            continue
+        # Durable terminal evidence is written before releasing the stream slot.
+        row=dict(mint=mint,observed_at=now,terminal_reason='postgrad_entry_horizon_expired',
+                 history_status=state['history'].status(now))
+        _terminal(report,row)
+        stream.remove_address(state['pool'])
+        del postgrad[mint]
+        report['retired_postgrad_candidates']=report.get('retired_postgrad_candidates',0)+1
+
+
+def main(*,campaign=False,discovery_seconds=None):
     global ACCOUNTING
     from meme_machine.paper_accounting import PaperBook
     import uuid
+    if type(campaign) is not bool:raise ValueError('pump_campaign_flag')
+    discovery_seconds=DISCOVERY_SECONDS if discovery_seconds is None else int(discovery_seconds)
+    if not 600<=discovery_seconds<=(21600 if campaign else 3300):
+        raise ValueError('pump_discovery_runtime_bound')
     actual_policy_hash=policy_hash()
     if actual_policy_hash!=FROZEN_POLICY_HASH:
         raise RuntimeError("frozen_policy_hash_changed")
@@ -384,13 +500,20 @@ def main():
         velocity_window_seconds=30,extension_lookback_seconds=10,
         entry_budget_lamports=ENTRY_BUDGET,entry_fraction_bps=POLICY.entry_fraction_bps,
         entry_delay_seconds=ENTRY_DELAY_SECONDS,entry_fill_timeout_seconds=ENTRY_FILL_TIMEOUT_SECONDS,
-        discovery_seconds=DISCOVERY_SECONDS,followup_seconds=FOLLOWUP_SECONDS,
+        discovery_seconds=discovery_seconds,followup_seconds=FOLLOWUP_SECONDS,continuous_campaign=campaign,
         started=int(time.time()),stream={},sessions=[],counts={},limitations=[],
         run_id=run_id,accounting_path=str(accounting_path),
         confirmation_evidence=confirmations.status(),
         attempts=[],full_evidence_candidates=[],qualifiers=[],settled=[],
         open_positions=[],postgrad=[],
     )
+    report['operational_configuration']=dict(campaign=campaign,discovery_seconds=discovery_seconds,
+        full_attempt_limit=MAX_FULL_ATTEMPTS,full_attempt_window_seconds=3300 if campaign else None,
+        concurrent_postgrad_limit=MAX_POSTGRAD_CANDIDATES,followup_seconds=FOLLOWUP_SECONDS,
+        open_positions_before_candidate_hydration=True)
+    import hashlib
+    report['operational_configuration_hash']=hashlib.sha256(json.dumps(
+        report['operational_configuration'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
     _save(report)
 
     tape=PumpTape()
@@ -415,12 +538,16 @@ def main():
     sessions=Sessions()
     cursor=0;created={};postgrad={};pending={};active={};full_attempts=0
     last_eval={};last_postgrad_eval={};last_save=0
-    discovery_end=int(time.time())+DISCOVERY_SECONDS
+    discovery_end=int(time.time())+discovery_seconds
+    attempt_budget=RollingAttemptBudget()
     end=discovery_end+FOLLOWUP_SECONDS
 
     try:
         while int(time.time())<end:
             now=int(time.time())
+            _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
+            _fill_pending(report,pending,active,sessions,postgrad,int(time.time()))
+            if campaign:_retire_postgrad(report,postgrad,pending,active,pumpswap_stream,int(time.time()))
             fresh,cursor=tape.events_since(cursor)
             for event in fresh:
                 creation=tape.creation(event["mint"])
@@ -438,7 +565,8 @@ def main():
                     state["graduation_time"]=int(event["market_time"])
                     confirmations.observe_graduation(
                         event["mint"],int(event.get("available_time") or now))
-                    if len(postgrad)<MAX_POSTGRAD_CANDIDATES:
+                    position_needs_stream=any(key[0]==event['mint'] for key in (*pending,*active))
+                    if len(postgrad)<MAX_POSTGRAD_CANDIDATES or position_needs_stream:
                         pool=pumpswap_pool(event["mint"])
                         stream_key=pumpswap_stream.add_address(pool)
                         postgrad[event["mint"]]=dict(
@@ -450,11 +578,18 @@ def main():
                                 stream_key=stream_key),
                             history_status={},graduation_price=None,
                         )
+                    else:
+                        _terminal(report,dict(mint=event['mint'],observed_at=now,
+                            terminal_reason='postgrad_candidate_capacity',economic_rejection=False))
 
             # New late-curve entries stop at discovery_end; follow-up never backfills
             # another pre-graduation decision.
             if now<discovery_end and tape.covered(now):
                 for event in fresh:
+                    _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time()))
+                    _fill_pending(report,pending,active,sessions,postgrad,int(time.time()))
+                    now=int(time.time())
+                    if now>=discovery_end:break
                     mint=event.get("mint")
                     state=created.get(mint)
                     if state is None or state.get("graduated"):
@@ -486,8 +621,11 @@ def main():
                                 {"trajectory":trajectory,
                                  "confirmation_evidence":_confirmation_meta(confirmation)})
                             continue
-                        if full_attempts>=MAX_FULL_ATTEMPTS:
-                            report["limitations"].append("full_evidence_attempt_cap")
+                        if (not attempt_budget.take(time.monotonic()) if campaign else full_attempts>=MAX_FULL_ATTEMPTS):
+                            _terminal(report,dict(mint=mint,observed_at=now,
+                                terminal_reason='full_evidence_attempt_cap',economic_rejection=False))
+                            if "full_evidence_attempt_cap" not in report["limitations"]:
+                                report["limitations"].append("full_evidence_attempt_cap")
                             continue
                         full_attempts+=1
                         concentration,meta=sessions.reader.read(mint,snapshot,priority=True)
@@ -513,6 +651,10 @@ def main():
             # Natural post-graduation and second-leg entries may occur during the
             # follow-up because their decision time is necessarily after migration.
             for mint,state in list(postgrad.items()):
+                _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time()))
+                _fill_pending(report,pending,active,sessions,postgrad,int(time.time()))
+                now=int(time.time())
+                if campaign and now>=discovery_end:break
                 age=now-int(state["graduation_time"])
                 if age<5 or now-int(last_postgrad_eval.get(mint,0))<10:
                     continue
@@ -579,83 +721,7 @@ def main():
             # executable quote. This is execution realism, not a strategy threshold.
             _fill_pending(report,pending,active,sessions,postgrad,now)
 
-            # Exact frozen exit controller on natural qualifiers.  Each qualifier is
-            # an isolated research lifecycle; no shared Store capital is mutated.
-            for key,row in list(active.items()):
-                if now<int(row["next_monitor"]):
-                    continue
-                mint,mode=key
-                row["next_monitor"]=now+5
-                life=row["lifecycle"]
-                try:
-                    sessions.ensure(20)
-                    position=life.position
-                    if position is None:
-                        active.pop(key,None);continue
-                    demand_score=0;confirmed=False
-                    if position.surface=="pump.fun":
-                        snapshot=sessions.pump.snapshot(mint,now,priority=True)
-                        curve=pump.curve(snapshot["accounts"][0])
-                        if curve.complete or curve.real_token==0:
-                            graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
-                            handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
-                            life.authenticate_graduation(now,True)
-                            snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
-                            quote=sell_quote(snapshot,life.position.tokens)
-                            proceeds=max(0,quote.output_amount-GAS)
-                        else:
-                            supply,_=pump.mint_info(snapshot["accounts"][1])
-                            rates=pump.fees(snapshot["accounts"][2],curve,supply)
-                            proceeds_raw,_=pump.sell(curve,life.position.tokens,rates)
-                            proceeds=max(0,proceeds_raw-GAS)
-                            try:
-                                creation=created[mint]["creation"]
-                                ev=tape.window(mint,int(snapshot["market_time"]),max_slot=snapshot["slot"])
-                                current,_trajectory,_confirmation=_late_signal(
-                                    creation,ev,snapshot,
-                                    int(row.get("last_concentration",0)),confirmations)
-                                demand_score=qualify(current).score
-                            except Exception:
-                                demand_score=0
-                    else:
-                        state=postgrad.get(mint)
-                        if state is None:
-                            raise Unavailable("missing_postgrad_state")
-                        graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
-                        handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
-                        snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
-                        events=_refresh_pool_events(
-                            state,sessions,now,research=False,
-                            hydration_kind="position_monitor")
-                        quote=sell_quote(snapshot,life.position.tokens)
-                        proceeds=max(0,quote.output_amount-GAS)
-                        concentration=_postgrad_concentration(sessions.rpc,snapshot)
-                        current,_confirmation=_volume_price_signal(
-                            state,snapshot,events,MODE_POSTGRAD,concentration,confirmations)
-                        cq=qualify(current);demand_score=cq.score;confirmed=cq.qualified
-
-                    mark_evidence=dict(snapshot=snapshot,net_proceeds=proceeds,
-                                       network_cost=GAS)
-                    mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
-                    age=now-int(row["opened"])
-                    for horizon in (15,60,300,900):
-                        if age>=horizon and str(horizon) not in row["marks"]:
-                            row["marks"][str(horizon)]=dict(
-                                observed_at=now,return_bps=mark["return_bps"],
-                                proceeds=proceeds)
-                    if mark["exit_reason"] is not None:
-                        closed=life.settle(proceeds,now,evidence=mark_evidence)
-                        report["settled"].append(dict(
-                            lifecycle_id=life.lifecycle_id,
-                            mint=mint,mode=mode,opened=row["opened"],closed=now,
-                            exit_reason=closed["exit_reason"],
-                            realized_quote_units=closed["realized_quote_units"],
-                            marks=dict(row["marks"]),history=life.snapshot()["history"]))
-                        active.pop(key,None)
-                except (Unavailable,ValueError,KeyError,TypeError) as exc:
-                    row.setdefault("monitor_failures",[]).append(dict(
-                        observed_at=now,reason=str(exc) or type(exc).__name__))
-                    row["monitor_failures"]=row["monitor_failures"][-20:]
+            _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time()))
 
             if now-last_save>=15:
                 report["active_provider"]=sessions.rpc.provider_telemetry()
