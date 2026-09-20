@@ -100,22 +100,22 @@ class AlchemyPacer(SolanaReadPacer):
 
 class AlchemyPoolScanRPC(ReadOnlyFailoverPoolScanRPC):
     """DLMM direct-Alchemy client sharing rate-limit state across sessions."""
-    def call(self,method,params=None,priority=False):
+    def call(self,method,params=None,priority=False,**kwargs):
         previous=getattr(self,"_active_rpc_method",None)
         self._active_rpc_method=str(method)
         try:
-            return super().call(method,params,priority)
+            return super().call(method,params,priority,**kwargs)
         finally:
             if previous is None:
                 try:del self._active_rpc_method
                 except AttributeError:pass
             else:self._active_rpc_method=previous
 
-    def call_many(self,method,params_list,priority=False,batch_size=8):
+    def call_many(self,method,params_list,priority=False,batch_size=8,**kwargs):
         previous=getattr(self,"_active_rpc_method",None)
         self._active_rpc_method=str(method)
         try:
-            return super().call_many(method,params_list,priority,batch_size=batch_size)
+            return super().call_many(method,params_list,priority,batch_size=batch_size,**kwargs)
         finally:
             if previous is None:
                 try:del self._active_rpc_method
