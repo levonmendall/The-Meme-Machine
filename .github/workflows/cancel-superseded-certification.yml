@@ -1,7 +1,7 @@
 name: cancel-superseded-certification
 on:
   push:
-    branches: [cert/cancel-superseded-20260920]
+    branches: [cert/cancel-combined-preflight-20260920]
 permissions:
   contents: read
   actions: write
@@ -19,7 +19,7 @@ jobs:
           from urllib.request import Request, urlopen
           from urllib.error import HTTPError
           base='https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/runs/'
-          targets={35486770334:'ce734284ae458a8187316e9570688140ada6b390',35483374004:'ebd03f5780eee46cc59f0338f48830e475480d78'}
+          targets={35520048920:'3ad467a0bf6a8b10b5ce013fdb3b710ecaa93d17'}
           def call(run, suffix='', method='GET'):
               req=Request(base+str(run)+suffix,method=method,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
               with urlopen(req,timeout=30) as res:
@@ -28,7 +28,7 @@ jobs:
           for run,sha in targets.items():
               row=call(run)
               assert row['head_sha']==sha and row['name']=='four-lane-certification'
-              print(json.dumps({'run':run,'before':row['status'],'sha':sha,'reason':'user_requested_repaired_monitored_replacement','certification':'INTERRUPTED_NOT_CERTIFIED'}),flush=True)
+              print(json.dumps({'run':run,'before':row['status'],'sha':sha,'reason':'combined_efficiency_preflight_superseded_before_lane_launch','certification':'INTERRUPTED_NOT_CERTIFIED'}),flush=True)
               if row['status']!='completed':call(run,'/cancel','POST')
           for attempt in range(48):
               rows=[{'id':run,'status':(row:=call(run))['status'],'conclusion':row['conclusion']} for run in targets]
