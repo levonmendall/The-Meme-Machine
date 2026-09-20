@@ -5,6 +5,7 @@ reconstruction. Public Solana WebSocket remains the discovery surface. Existing
 imports remain valid so ongoing research code does not need strategy-layer changes.
 """
 import urllib.error
+from collections import Counter
 
 from meme_machine.provider import Unavailable
 from meme_machine.solana_read_rpc import (
@@ -31,6 +32,8 @@ PROVIDER_LABEL = TOPOLOGY_LABEL
 # DLMM uses direct Alchemy HTTP reconstruction at a hard 5 requests/second ceiling.
 DLMM_MIN_REQUEST_INTERVAL_SECONDS = 0.2
 DLMM_PRIMARY_REQUESTS_PER_SECOND = 5
+DLMM_SIGNATURE_REQUEST_INTERVAL_SECONDS = 1.0
+DLMM_SIGNATURE_429_MIN_BACKOFF_SECONDS = 15.0
 
 class AlchemyPacer(SolanaReadPacer):
     """One shared DLMM request clock plus adaptive cross-session 429 cooldown."""
@@ -40,6 +43,8 @@ class AlchemyPacer(SolanaReadPacer):
         self.rate_limit_streak=0
         self.rate_limit_cooldown_seconds=0.0
         self.rate_limit_successes_since_event=0
+        self.method_rate_limit_events=Counter()
+        self.method_successes_since_event=Counter()
 
     @staticmethod
     def _retry_after(exc):
@@ -48,21 +53,28 @@ class AlchemyPacer(SolanaReadPacer):
         except (TypeError,ValueError,AttributeError):
             return 0.0
 
-    def note_rate_limit(self,rpc,exc):
+    def note_rate_limit(self,rpc,exc,method=None):
         self.rate_limit_events+=1
         self.rate_limit_streak=min(5,self.rate_limit_streak+1)
         self.rate_limit_successes_since_event=0
+        method=str(method or "unknown")
+        self.method_rate_limit_events[method]+=1
+        self.method_successes_since_event[method]=0
         base=max(
             float(PROVIDER_429_MIN_BACKOFF_SECONDS),
             self._retry_after(exc),
         )
+        if method=="getSignaturesForAddress":
+            base=max(base,DLMM_SIGNATURE_429_MIN_BACKOFF_SECONDS)
         adaptive=min(30.0,max(base,2.0**self.rate_limit_streak))
         now=float(rpc.clock())
         self.next_request_at=max(self.next_request_at,now+adaptive)
         self.rate_limit_cooldown_seconds+=adaptive
         return adaptive
 
-    def note_success(self):
+    def note_success(self,method=None):
+        method=str(method or "unknown")
+        self.method_successes_since_event[method]+=1
         if self.rate_limit_streak<=0:
             return
         self.rate_limit_successes_since_event+=1
@@ -79,14 +91,44 @@ class AlchemyPacer(SolanaReadPacer):
                 self.rate_limit_cooldown_seconds),
             rate_limit_successes_since_event=int(
                 self.rate_limit_successes_since_event),
+            method_rate_limit_events=dict(sorted(self.method_rate_limit_events.items())),
+            method_successes_since_event=dict(sorted(self.method_successes_since_event.items())),
+            signature_request_interval_seconds=DLMM_SIGNATURE_REQUEST_INTERVAL_SECONDS,
+            signature_429_min_backoff_seconds=DLMM_SIGNATURE_429_MIN_BACKOFF_SECONDS,
         )
         return data
 
 class AlchemyPoolScanRPC(ReadOnlyFailoverPoolScanRPC):
     """DLMM direct-Alchemy client sharing rate-limit state across sessions."""
+    def call(self,method,params=None,priority=False):
+        previous=getattr(self,"_active_rpc_method",None)
+        self._active_rpc_method=str(method)
+        try:
+            return super().call(method,params,priority)
+        finally:
+            if previous is None:
+                try:del self._active_rpc_method
+                except AttributeError:pass
+            else:self._active_rpc_method=previous
+
+    def call_many(self,method,params_list,priority=False,batch_size=8):
+        previous=getattr(self,"_active_rpc_method",None)
+        self._active_rpc_method=str(method)
+        try:
+            return super().call_many(method,params_list,priority,batch_size=batch_size)
+        finally:
+            if previous is None:
+                try:del self._active_rpc_method
+                except AttributeError:pass
+            else:self._active_rpc_method=previous
+
     def _pace(self, interval=0.5):
         if self.transport == self._http:
-            self.read_pacer.pace(self, DLMM_MIN_REQUEST_INTERVAL_SECONDS)
+            method=getattr(self,"_active_rpc_method",None)
+            requested=(DLMM_SIGNATURE_REQUEST_INTERVAL_SECONDS
+                       if method=="getSignaturesForAddress"
+                       else DLMM_MIN_REQUEST_INTERVAL_SECONDS)
+            self.read_pacer.pace(self, requested)
 
     def _provider_attempt(self,label,url,request):
         try:
@@ -96,11 +138,11 @@ class AlchemyPoolScanRPC(ReadOnlyFailoverPoolScanRPC):
                     and int(exc.code)==429):
                 note=getattr(self.read_pacer,"note_rate_limit",None)
                 if callable(note):
-                    note(self,exc)
+                    note(self,exc,getattr(self,"_active_rpc_method",None))
             raise
         success=getattr(self.read_pacer,"note_success",None)
         if callable(success):
-            success()
+            success(getattr(self,"_active_rpc_method",None))
         return response
 
     def provider_telemetry(self):
