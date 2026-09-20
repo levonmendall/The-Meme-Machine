@@ -1738,7 +1738,6 @@ index d8d0a88..9b22cbb 100644
      def test_authoritative_rpc_session_is_reused_until_bounded_rotation(self):
          created=[]
          class FakeRpc:
-
 diff --git a/robinhood_tests/test_provider_admission.py b/robinhood_tests/test_provider_admission.py
 new file mode 100644
 index 0000000..8b6bef3
