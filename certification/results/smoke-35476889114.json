@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "run_id": "87f9be98-77b9-4ce8-9b4a-e7cba4dd0bb3",
+  "workflow_run_id": 35476889114,
+  "integration_sha": "d9dc1abf55cb2ab37a6181567f616535659dc9a1",
+  "status": "FAIL",
+  "failures": [
+    "pons:unexpected_exit"
+  ],
+  "artifact_id": 10595461557,
+  "artifact_sha256": "752c074a3be457b48d750feaac7da1914a5006cdc3d34d50840a99f9d0192cf7",
+  "details_status": "retained_artifact_review_pending",
+  "natural_certified": false,
+  "sustained_certified": false
+}

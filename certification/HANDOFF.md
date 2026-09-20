@@ -207,3 +207,33 @@ reauthentication and continuous discovery remain separate unfinished prerequisit
 The first smoke also overlapped external live-diagnostic job `105986654094` in mixed CI workflow `35476545177`. Preflight previously checked selected workflow names only. It now inspects active jobs and fails closed on unrecognized activity. The smoke throughput is descriptive under external contention, not a sustainable-capacity benchmark. The older #71 smoke `35476889114` was already running at discovery; it is not changed in place.
 
 PR #73 (`b3ec5aaca230f2aa9c0e894c9912722a56f2eef1`) repairs Ramses reservations after realized losses and concurrent reservations, adds append-only journal protection and full projection comparison. All three regressions fail on the original source and pass on the repair; 233 full lane tests pass. This prerequisite is added to the next queued smoke, never patched into a running process.
+
+## Continuous-operation update (2026-09-20 00:50 UTC)
+
+Source heads were rechecked and remain exactly those in the manifest. The current
+replacement smoke is run `35478805316`, job `105993725328`, at
+`2ce75052dcb3ee029ee0643fc0595fb8bebfacf6`. It passed all deterministic and
+contention gates and is still running; its outcome is not assumed.
+
+The preceding PR #71 smoke `35476889114` ended with a Pons unexpected exit. Its
+artifact `10595461557` (SHA256
+`752c074a3be457b48d750feaac7da1914a5006cdc3d34d50840a99f9d0192cf7`)
+is retained. A read-only artifact review is queued; no running market process is
+modified or restarted.
+
+Pons observer checkpoints now journal each completed candidate exactly once rather
+than repeatedly copying the entire growing cohort. Native full observations remain
+fsynced. Provider activity updates distinguish actual completed transports (including
+explicit failures) from evidence qualification. Ramses natural settlement reporting
+uses its actual `ledger_final` and segment reconciliation fields and excludes forced
+proofs. All 16 supervisor tests pass.
+
+Meteora continuous campaign PR #74 (`957ff70af2065c7bf0227f00a7fab0f44e0f81f0`)
+is separately reviewable on top of #72: 350 tests and both resource gates pass. It
+keeps one process/book/broker alive, admits only new first sightings from bounded
+censuses, applies the same attempt capacity per 20 minutes, and preserves normal
+policy exits. It is not yet part of the running smoke. Pump scheduling/stream
+retirement work is under deterministic validation on `repair/pump-continuous-campaign`.
+
+Four-hour certification, complete natural lifecycles, prospective shadow alternatives,
+and final lane accounting/capacity controls remain incomplete.

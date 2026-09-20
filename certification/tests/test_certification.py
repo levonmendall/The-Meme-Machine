@@ -94,6 +94,17 @@ class CertificationTests(unittest.TestCase):
         x=summarize('pons',dict(lifecycles=[dict(final_position=dict(status='settled',entry_tokens=0))]))
         self.assertEqual(x['natural_settled'],0)
 
+    def test_ramses_natural_uses_native_ledger_fields_and_terminal_equality(self):
+        report=dict(policy_hash='frozen',natural_qualifier_found=True,connected_lifecycle=dict(
+            ledger_final=dict(status='settled',policy_hash='frozen'),ledger_reconciliation=dict(open_positions=0),
+            segments=[dict(terminal_equality=True)]))
+        self.assertEqual(summarize('ramses',report)['natural_settled'],1)
+        report['connected_lifecycle']['ledger_final']['forced_machinery_test']=True
+        self.assertEqual(summarize('ramses',report)['natural_settled'],0)
+        report['connected_lifecycle']['ledger_final'].pop('forced_machinery_test')
+        report['connected_lifecycle']['segments'][0]['terminal_equality']=False
+        self.assertEqual(summarize('ramses',report)['natural_settled'],0)
+
     def test_environment_does_not_leak_other_lane_secrets(self):
         from unittest.mock import patch
         env=dict(MM_SOLANA_READ_RPC_URL='solana',MM_ROBINHOOD_READ_RPC_URL='rh',GITHUB_TOKEN='secret',PRIVATE_KEY='secret')
@@ -152,6 +163,30 @@ class IntegrationRegressionTests(unittest.TestCase):
             self.assertEqual(raw['http_status'],200)
             self.assertEqual(raw['json_rpc_error_codes'],[429])
             self.assertTrue(raw['transport_attempted'])
+            activity=json.loads((Path(td)/'lane/activity.json').read_text())
+            self.assertFalse(activity['evidence_qualification_inferred'])
+            self.assertEqual(activity['provider_requests'],1)
+            self.assertEqual(activity['pid'],os.getpid())
+            self.assertEqual(activity['lane'],'pump')
+
+class ObservationRetentionTests(unittest.TestCase):
+    def test_compact_progress_retains_each_candidate_once(self):
+        from unittest.mock import patch
+        from certification.worker import Observer
+        with tempfile.TemporaryDirectory() as td:
+            with patch.dict(os.environ,{'MM_CERT_GOVERNOR_DB':str(Path(td)/'provider.sqlite')}):
+                observer=Observer(Path(td)/'lane','pons','frozen-policy')
+            result=dict(rows=[dict(vector={'complete':True},raw_evidence='x'*10000)],qualifiers=[],lifecycles=[])
+            observer.pons_progress(result,dict(summary=dict(enrolled=1,qualified=0)),'candidate')
+            observer.pons_progress(result,dict(summary=dict(enrolled=1,qualified=0)),'idle_progress')
+            result['rows'].append(dict(vector={'complete':False},reason='evidence_deadline'))
+            observer.pons_progress(result,dict(summary=dict(enrolled=2,qualified=0)),'candidate')
+            events=list(observer.journal.records());candidates=[x for x in events if x['kind']=='candidate_observation']
+            self.assertEqual([x['body']['observation'] for x in candidates],result['rows'])
+            checkpoints=[x for x in events if x['kind']=='checkpoint']
+            self.assertNotIn('raw_evidence',json.dumps(checkpoints))
+            self.assertEqual(summarize('pons',checkpoints[-1]['body']['report'])['funnel']['evaluated'],2)
+            observer.raw.close();observer.journal.close()
 
 class ContentionPreflightTests(unittest.TestCase):
     def test_mixed_ci_live_job_is_not_hidden_by_workflow_name(self):

@@ -32,6 +32,8 @@ class Observer:
         self.raw=gzip.open(self.root/'rpc-evidence.jsonl.gz','ab')
         self.archive_ns=0;self.requests=0;self.raw_records=0;self.provider_sessions={}
         self.last_progress=None;self.last_report=None
+        self.last_activity_write=0
+        self.pons_rows=0;self.pons_qualifiers=0;self.pons_lifecycles=set()
         self.governor=Governor(os.environ["MM_CERT_GOVERNOR_DB"])
         self.context=threading.local()
 
@@ -41,6 +43,18 @@ class Observer:
             identity=f'{os.getpid()}:{self.sequence}'
             self.journal.append(self.lane,identity,kind,body)
             return identity
+
+    def transport_activity(self):
+        # A completed real transport is process activity, including an explicit
+        # provider failure. It is not a claim of successful market evidence.
+        now=time.monotonic()
+        if now-self.last_activity_write<5:return
+        value=dict(lane=self.lane,pid=os.getpid(),process_nonce=PROCESS_NONCE,
+            at_monotonic=now,provider_requests=self.requests,method_counts=dict(self.methods),
+            errors=dict(self.errors),provider_session_count=len(self.provider_sessions),
+            evidence_qualification_inferred=False)
+        temporary=self.root/'activity.json.tmp';temporary.write_text(canonical(value))
+        os.replace(temporary,self.root/'activity.json');self.last_activity_write=now
 
     def checkpoint(self, body, phase):
         # Called by the lane's progress path, never by a timer pretending health.
@@ -54,6 +68,26 @@ class Observer:
         self.last_report=body
         self.event('checkpoint', dict(phase=phase,report=body,policy_hash=self.policy))
         self.status(phase,body)
+
+    def pons_progress(self,result,snapshot,phase):
+        # The lane already fsyncs candidate/provider/lifecycle JSONL files. Store
+        # each completed observation once, rather than copying the entire growing
+        # cohort into every progress event. No raw observation is removed.
+        for key,attribute,kind in (('rows','pons_rows','candidate_observation'),
+                                   ('qualifiers','pons_qualifiers','strategy_qualifier')):
+            rows=result.get(key,[]);previous=getattr(self,attribute)
+            if len(rows)<previous:raise ValueError('pons_observation_history_regressed')
+            for index in range(previous,len(rows)):
+                self.event(kind,dict(index=index,policy_hash=self.policy,observation=rows[index]))
+            setattr(self,attribute,len(rows))
+        for life in result.get('lifecycles',[]):
+            identity=digest(life)
+            if identity not in self.pons_lifecycles:
+                self.event('paper_lifecycle',dict(policy_hash=self.policy,lifecycle=life))
+                self.pons_lifecycles.add(identity)
+        self.checkpoint(dict(snapshot,lifecycles=result.get('lifecycles',[]),
+                             observation_archive=dict(candidate_rows=self.pons_rows,
+                                 qualifiers=self.pons_qualifiers,journal='telemetry.sqlite')),phase)
 
     def status(self, phase, body=None):
         with self.lock:
@@ -151,6 +185,7 @@ class Observer:
                     observer.event('rpc_transport',dict(sequence=observer.raw_records,session=session,transport_attempted=transport_started is not None,
                         methods=methods,duration_seconds=elapsed,transport_duration_seconds=transport_elapsed,error=error,http_status=http_status,
                         json_rpc_error_codes=rpc_error_codes,queue_wait_seconds=queue_wait,raw_hash=digest(record)))
+                    if transport_started is not None:observer.transport_activity()
         setattr(cls,name,observed)
 
 PROCESS_NONCE=str(uuid.uuid4())
@@ -217,7 +252,7 @@ def main():
             observer.prioritize(module,"run_lifecycle")
             original=module._checkpoint
             def checkpoint(result,**kw):
-                value=original(result,**kw);observer.checkpoint(result,kw['phase']);return value
+                value=original(result,**kw);observer.pons_progress(result,value,kw['phase']);return value
             module._checkpoint=checkpoint
             result=module.run(os.environ.get('MM_ROBINHOOD_READ_RPC_URL',''))
             persist_pons_terminal(module.REPORT,result)

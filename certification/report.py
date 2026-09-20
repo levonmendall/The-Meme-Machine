@@ -35,6 +35,10 @@ def summarize(lane, report):
     result=dict(natural_settled=0,forced_settled=0,open_positions=None,
                 accounting_reconciled=None,terminal_reasons={},funnel={},limitations=[])
     if not isinstance(report,dict):return result
+    result['stream_state']=report.get('stream') or report.get('wake_stream') or report.get('sequencer_discovery')
+    result['evidence_state']=report.get('evidence_broker') or report.get('evidence_acquisition')
+    result['provider_state']=report.get('active_provider') or report.get('active_discovery_provider') or report.get('provider')
+    result['finality_state']=report.get('frontier_discovery') or report.get('canonical_discovery_cursor')
     if lane=='pump':
         result['funnel']=dict(discovered=report.get('created_mints_observed'),
             evidence_complete=len(report.get('full_evidence_candidates',[])),qualified=len(report.get('qualifiers',[])),
@@ -60,7 +64,9 @@ def summarize(lane, report):
                 result['accounting_reconciled']=True
         result['limitations'].append('economic_replay_uses_authenticated_lane_tapes_raw_chain_reauthentication_is_separate')
     elif lane=='pons':
-        result['funnel']=dict(evaluated=len(report.get('rows',[])),qualified=len(report.get('qualifiers',[])))
+        summary=report.get('summary') or {}
+        result['funnel']=dict(evaluated=summary.get('enrolled',len(report.get('rows',[]))),
+                             qualified=summary.get('qualified',len(report.get('qualifiers',[]))))
         for life in report.get('lifecycles',[]):
             pos=life.get('final_position') or {}
             if pos.get('status')=='settled' and pos.get('entry_tokens',0)>0:
@@ -73,10 +79,23 @@ def summarize(lane, report):
         result['limitations'].append('partial_exit_capital_time_and_detailed_cost_decomposition_require_verification')
     else:
         result['funnel']=dict(scans=len(report.get('natural_screens',[])),active_pools=report.get('unique_active_pools'))
-        life=report.get('connected_lifecycle') or {};pos=life.get('final_position') or {}
-        if report.get('natural_qualifier_found') and pos.get('status')=='settled':result['natural_settled']=1
+        life=report.get('connected_lifecycle') or {};pos=life.get('ledger_final') or {}
+        reconciliation=life.get('ledger_reconciliation') or {}
+        segments=life.get('segments') or []
+        if (report.get('natural_qualifier_found') and pos.get('status')=='settled'
+                and not pos.get('forced_machinery_test') and pos.get('strategy_evidence_eligible') is not False
+                and pos.get('policy_hash')==report.get('policy_hash') and report.get('policy_hash')
+                and reconciliation.get('open_positions')==0 and segments
+                and all(x.get('terminal_equality') is True for x in segments)):
+            result['natural_settled']=1
         forced=report.get('forced_machinery') or {}
         if forced.get('mechanics_complete') and (forced.get('final_position') or {}).get('status')=='settled':result['forced_settled']=1
+        result['accounting_by_scope']=dict(natural=reconciliation or None,forced=forced.get('reconciliation'))
+        if reconciliation and 'open_positions' in reconciliation:
+            result['open_positions']=reconciliation['open_positions']
+        elif report.get('natural_qualifier_found') is False and forced.get('reconciliation'):
+            result['open_positions']=forced['reconciliation'].get('open_positions')
+        result['pnl_decomposition']=life.get('pnl') or (forced.get('segment') or {}).get('pnl')
         reasons=Counter()
         for screen in report.get('natural_screens',[]):
             for row in screen.get('rows',[]):reasons.update(row.get('reasons') or [])
@@ -99,5 +118,12 @@ def dashboard(result,path):
     html+='<p>Result: '+escape(result.get('certification',{}).get('status','RUNNING'))+'</p><div class="scroll"><table><tr>'+''.join('<th>'+x+'</th>' for x in columns)+'</tr>'
     html+=''.join('<tr>'+''.join(cell(x) for x in row)+'</tr>' for row in rows)+'</table></div>'
     html+='<p>Unknown fields remain unproven. Raw RPC evidence and append-only telemetry are retained per lane. Forced outcomes never count as natural qualification.</p>'
+    for lane in LANES:
+        r=result.get('lanes',{}).get(lane,{})
+        fields=('strategy_version','funnel','terminal_reasons','open_positions','native_accounting','cohort_accounting',
+                'accounting_by_scope','pnl_decomposition','stream_state','finality_state','evidence_state',
+                'rpc_latency_seconds','provider_state','errors')
+        html+='<details open><summary>'+escape(lane)+' — lane status</summary><pre>'+escape(json.dumps({k:r.get(k) for k in fields if k in r},indent=2))+'</pre></details>'
+    html+='<details open><summary>Shared provider contention</summary><pre>'+escape(json.dumps(result.get('shared_provider'),indent=2))+'</pre></details>'
     html+='<details><summary>Funnel, reasons, contention and evidence limits</summary><pre>'+escape(json.dumps(result,indent=2))+'</pre></details></html>'
     Path(path).write_text(html)

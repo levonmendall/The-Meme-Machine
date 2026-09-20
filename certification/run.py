@@ -157,7 +157,7 @@ def launch(worktrees,output,seconds,phase,gate_file):
             cmd=[sys.executable,'-m','certification.worker','--lane',lane,'--output',str(folder),'--policy-hash',row['policy_hash'],'--seconds',str(seconds)]
             proc=subprocess.Popen(cmd,cwd=Path(worktrees)/lane,env=lane_environment(lane,row,run,run_id),stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
             launched=time.monotonic();processes[lane]=(proc,launched)
-            rows[lane]=dict(pid=proc.pid,policy_hash=row['policy_hash'],process_restarts=0,health='starting',natural_settled=0,forced_settled=0,gates={})
+            rows[lane]=dict(pid=proc.pid,strategy_version=row['strategy_version'],policy_hash=row['policy_hash'],process_restarts=0,health='starting',natural_settled=0,forced_settled=0,gates={})
             journal.append(lane,'launch','process_launch',dict(pid=proc.pid,command=cmd,source_sha=row['source_sha'],launched_monotonic=launched))
         # Drain lets normal policy-defined exits finish. It is never counted as
         # a replacement for an interrupted observation window.
@@ -166,7 +166,7 @@ def launch(worktrees,output,seconds,phase,gate_file):
         while True:
             now=time.monotonic();alive=False
             for lane,(proc,launched) in processes.items():
-                row=rows[lane];code=proc.poll();path=run/lane/'status.json';status={};status={}
+                row=rows[lane];code=proc.poll();path=run/lane/'status.json';status={}
                 if path.exists():
                     try:status=json.loads(path.read_text())
                     except (ValueError,OSError):status={}
@@ -177,6 +177,16 @@ def launch(worktrees,output,seconds,phase,gate_file):
                     if status.get('report') is not None:
                         row.update(summarize(lane,status['report']))
                     if status.get('policy_hash')!=row['policy_hash']:row['gates']['policy_unchanged']=False
+                activity_file=run/lane/'activity.json'
+                if activity_file.exists() and code is None:
+                    try:activity=json.loads(activity_file.read_text())
+                    except (ValueError,OSError):activity={}
+                    if activity.get('pid')==proc.pid and activity.get('lane')==lane:
+                        at=activity.get('at_monotonic',0)
+                        if isinstance(at,(int,float)) and 0<=now-at<300:
+                            row['health']='responsive';row['transport_activity_age_seconds']=now-at
+                        if isinstance(at,(int,float)) and at>(status.get('last_progress_monotonic') or 0):
+                            row.update({k:activity[k] for k in ('provider_requests','method_counts','errors','provider_session_count') if k in activity})
                 if code is None:
                     alive=True;row['continuous_uptime_seconds']=now-launched
                 elif 'exit_code' not in row:
