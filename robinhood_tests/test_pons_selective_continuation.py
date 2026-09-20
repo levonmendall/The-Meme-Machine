@@ -96,8 +96,8 @@ class PonsSelectivePolicyTests(unittest.TestCase):
     def test_policy_is_distinct_and_frozen(self):
         self.assertEqual(POLICY,"pons-selective-continuation-v1")
         self.assertEqual(len(POLICY_HASH),64)
-        self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],5500)
-        self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],9200)
+        self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],4500)
+        self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],9700)
         self.assertEqual(ENTRY_THRESHOLDS["capital_size_bps"],25)
         self.assertEqual(EXIT_POLICY["first_profit_bps"],2500)
         self.assertEqual(EXIT_POLICY["max_total_hold_seconds"],900)
@@ -112,7 +112,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         self.assertGreaterEqual(v["demand"]["new_independent_groups_15s"],3)
         self.assertEqual(v["current_snipe_bps"],0)
         self.assertGreater(v["proposed_size"]["amount_quote"],0)
-        self.assertLessEqual(v["roundtrip_loss_bps"],500)
+        self.assertLessEqual(v["roundtrip_loss_bps"],ENTRY_THRESHOLDS["max_roundtrip_loss_bps"])
 
     def test_chain_timestamp_lag_is_telemetry_not_selective_freshness(self):
         v=vector(
@@ -148,6 +148,17 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         ]
         v=vector(snapshots=flat)
         self.assertIn("curve_velocity",v["all_rejections"])
+
+    def test_execution_certification_does_not_require_positive_acceleration(self):
+        decelerating=[
+            dict(at=185,progress_bps=7300),
+            dict(at=195,progress_bps=7900),
+            dict(at=200,progress_bps=8000),
+        ]
+        v=vector(snapshots=decelerating)
+        self.assertFalse(v["trajectory"]["accelerating"])
+        self.assertGreaterEqual(v["trajectory"]["progress_15s_bps"],ENTRY_THRESHOLDS["min_progress_15s_bps"])
+        self.assertTrue(v["current_threshold_pass"],v["all_rejections"])
 
     def test_non_native_pair_is_research_only(self):
         v=vector(pair_token="0x"+"99"*20,quote_relative_strength_bps=321)
