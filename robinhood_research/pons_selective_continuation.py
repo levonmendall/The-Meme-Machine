@@ -15,21 +15,22 @@ from . import BoundaryError
 from .evidence import digest
 
 POLICY = "pons-selective-continuation-v1"
+POLICY_REVISION = "execution-certification-v1"
 ZERO = "0x0000000000000000000000000000000000000000"
 
 ENTRY_THRESHOLDS = dict(
-    min_curve_progress_bps=5500,
-    max_curve_progress_bps=9200,
+    min_curve_progress_bps=4500,
+    max_curve_progress_bps=9700,
     max_token_age_seconds=900,
-    max_graduation_eta_seconds=120,
-    min_progress_15s_bps=800,
-    min_independent_groups=5,
-    min_new_independent_groups_15s=3,
-    min_buy_sell_ratio_bps=20_000,
-    max_largest_buyer_flow_bps=2500,
-    max_top3_buyer_flow_bps=5500,
+    max_graduation_eta_seconds=300,
+    min_progress_15s_bps=300,
+    min_independent_groups=3,
+    min_new_independent_groups_15s=1,
+    min_buy_sell_ratio_bps=12_000,
+    max_largest_buyer_flow_bps=4000,
+    max_top3_buyer_flow_bps=7500,
     max_creator_tax_bps=200,
-    max_roundtrip_loss_bps=500,
+    max_roundtrip_loss_bps=800,
     max_entry_impact_bps=300,
     capital_size_bps=25,          # 0.25% of strategy capital
     real_quote_size_bps=200,      # 2% of real quote liquidity
@@ -67,6 +68,7 @@ BREAKOUT_THRESHOLDS = dict(
 
 POLICY_HASH = digest(dict(
     policy=POLICY,
+    revision=POLICY_REVISION,
     entry=ENTRY_THRESHOLDS,
     post_graduation=POST_GRAD_THRESHOLDS,
     exits=EXIT_POLICY,
@@ -416,8 +418,6 @@ def qualification_vector(
     else:
         if traj["progress_15s_bps"] < ENTRY_THRESHOLDS["min_progress_15s_bps"]:
             reject("curve_velocity")
-        if not traj["accelerating"]:
-            reject("curve_acceleration")
         eta = traj["graduation_eta_seconds"]
         if eta is None or eta > ENTRY_THRESHOLDS["max_graduation_eta_seconds"]:
             reject("graduation_eta")
@@ -427,8 +427,8 @@ def qualification_vector(
         reject("buyer_growth")
     if demand["buy_sell_ratio_bps"] < ENTRY_THRESHOLDS["min_buy_sell_ratio_bps"]:
         reject("buy_sell_flow")
-    if demand["current_net_quote"] <= 0 or demand["current_net_quote"] <= demand["prior_net_quote"]:
-        reject("net_demand_acceleration")
+    if demand["current_net_quote"] <= 0:
+        reject("net_demand_nonpositive")
     if demand["largest_buyer_flow_bps"] > ENTRY_THRESHOLDS["max_largest_buyer_flow_bps"]:
         reject("largest_buyer_concentration")
     if demand["top3_buyer_flow_bps"] > ENTRY_THRESHOLDS["max_top3_buyer_flow_bps"]:
