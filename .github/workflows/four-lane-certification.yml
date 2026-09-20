@@ -16,7 +16,7 @@ permissions:
   checks: write
 concurrency:
   group: meme-machine-four-lane-certification
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' && github.event.head_commit.message == '[cancel-runs]' }}
 jobs:
   concurrent-smoke:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[four-lane-smoke]') || contains(github.event.head_commit.message, '[four-lane-hourly]')
