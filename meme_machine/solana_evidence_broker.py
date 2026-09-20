@@ -472,17 +472,26 @@ class EvidenceBroker:
                    ON CONFLICT(job_key) DO UPDATE SET
                      kind=CASE
                        WHEN jobs.status IN ('complete','expired')
+                         OR (jobs.deadline<=excluded.created_at
+                             AND NOT (jobs.status='inflight'
+                                      AND COALESCE(jobs.lease_until,0)>excluded.created_at))
                          THEN excluded.kind
                        WHEN excluded.priority<jobs.priority THEN excluded.kind
                        ELSE jobs.kind
                      END,
                      priority=CASE
                        WHEN jobs.status IN ('complete','expired')
+                         OR (jobs.deadline<=excluded.created_at
+                             AND NOT (jobs.status='inflight'
+                                      AND COALESCE(jobs.lease_until,0)>excluded.created_at))
                          THEN excluded.priority
                        ELSE MIN(jobs.priority,excluded.priority)
                      END,
                      deadline=CASE
                        WHEN jobs.status IN ('complete','expired')
+                         OR (jobs.deadline<=excluded.created_at
+                             AND NOT (jobs.status='inflight'
+                                      AND COALESCE(jobs.lease_until,0)>excluded.created_at))
                          THEN excluded.deadline
                        ELSE MIN(jobs.deadline,excluded.deadline)
                      END,
@@ -501,6 +510,9 @@ class EvidenceBroker:
                      END,
                      created_at=CASE
                        WHEN jobs.status IN ('complete','expired')
+                         OR (jobs.deadline<=excluded.created_at
+                             AND NOT (jobs.status='inflight'
+                                      AND COALESCE(jobs.lease_until,0)>excluded.created_at))
                          THEN excluded.created_at
                        ELSE jobs.created_at
                      END,
@@ -518,7 +530,12 @@ class EvidenceBroker:
             return True
 
     def _claim_jobs(self, limit, now=None, lease_seconds=15.0):
-        """Atomically claim global hydration jobs across broker processes."""
+        """Atomically claim jobs: positions first, then earliest decision deadline.
+
+        Pump and DLMM decision evidence share urgency. A large Pump backlog must
+        not outrank an earlier DLMM deadline solely because of its lane label.
+        Research stays lower priority and active leases remain protected.
+        """
         limit=max(1,int(limit))
         now=float(self.clock() if now is None else now)
         lease_until=now+max(1.0,float(lease_seconds))
@@ -527,8 +544,9 @@ class EvidenceBroker:
                 self.db.execute("BEGIN IMMEDIATE")
                 self.db.execute(
                     """UPDATE jobs SET status='expired',lease_until=NULL,updated_at=?
-                       WHERE status IN ('pending','inflight') AND deadline<?""",
-                    (now,now),
+                       WHERE deadline<? AND (status='pending'
+                         OR (status='inflight' AND COALESCE(lease_until,0)<=?))""",
+                    (now,now,now),
                 )
                 self.db.execute(
                     """DELETE FROM jobs
@@ -545,7 +563,8 @@ class EvidenceBroker:
                 rows=self.db.execute(
                     """SELECT job_key,payload FROM jobs
                        WHERE status='pending' AND deadline>=?
-                       ORDER BY priority ASC,deadline ASC,created_at ASC LIMIT ?""",
+                       ORDER BY CASE WHEN priority BETWEEN 10 AND 30 THEN 10 ELSE priority END ASC,
+                                deadline ASC,priority ASC,created_at ASC LIMIT ?""",
                     (now,limit),
                 ).fetchall()
                 if rows:
