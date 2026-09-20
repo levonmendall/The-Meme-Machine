@@ -75,3 +75,11 @@ Deterministic correctness is separate from live efficiency and natural execution
 35520048920 at 3ad467a0 was cancelled during read-only contention waiting, before any lane launch. Full hosted deterministic/resource gates had passed. A focused concurrent-consumer reproducer found two broker reservations for one fetch; the follow-up atomically claims the unique job before reserving physical capacity, releases it on an unavailable reservation, and respects sibling 429 batch reductions during the wait. Cancellation workflow 35520619194 succeeded with exact run/SHA allowlisting. This is superseded preflight evidence, not a smoke or hourly observation. See results/solana-preflight-review-35520048920.json.
 
 A second focused regression proves that a body arriving after an acquisition deadline is retained as immutable history but cannot complete that expired consumer. A later independent consumer may reuse it under its own unchanged deadline.
+
+## Hosted gate race, run 35520877325
+
+Revision 22516a91 failed the Pump and Meteora concurrent-fetch regression in hosted CI (2 fetches where 1 is required). All 60 supervisor tests, 515 Robinhood tests, and three resource gates passed. No probe, smoke, or lane launched. The preserved artifact is 10609010093 (SHA256 dd64f8f2f907623c4b1d5cde5786f5a86915f4b2bf11c8b661761bf86f6e707f).
+
+The demonstrated race was between the cache check and queue UPSERT: another process could complete the immutable fetch before the stale UPSERT revived its job. Both now execute in one SQLite write transaction. Atomic claims also reconcile jobs already fulfilled by a cache producer. The original concurrent assertion remains unchanged; a deterministic cache-between-queue-and-claim regression and 100 repeated concurrent trials pass. See results/solana-hosted-gate-review-35520877325.json. This is failed deterministic preflight evidence, not interrupted market evidence.
+
+Replacement local verification: Pump 281, Meteora 385, Pons 257, Ramses 258 (1,181 total); 60 supervisor tests; all three resource gates and exact-source/config/overlay integrity passed. Transcripts: results/solana-atomic-validation/.
