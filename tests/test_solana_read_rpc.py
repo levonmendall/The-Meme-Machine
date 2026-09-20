@@ -1,8 +1,10 @@
 import urllib.error
 import unittest
+from unittest.mock import patch
 
 from meme_machine import solana_read_rpc as rpc_topology
 from meme_machine.provider import Unavailable
+from meme_machine.postgrad import PostGraduationAdapter
 
 
 ALCHEMY='https://solana-mainnet.g.alchemy.com/v2/example-key'
@@ -119,6 +121,50 @@ class SolanaReadTopologyTests(unittest.TestCase):
         self.assertEqual(telemetry['last_provider_error']['jsonrpc_error_code'],-32602)
         self.assertNotIn('sensitive',str(telemetry))
         self.assertNotIn(ALCHEMY,str(telemetry))
+
+    def test_getprogramaccounts_429_is_not_retried_into_same_method_pressure(self):
+        clock=Clock();pacer=rpc_topology.SolanaReadPacer()
+        env={rpc_topology.ALCHEMY_ENV_NAME:ALCHEMY}
+        rpc=rpc_topology.new_pool_scan_rpc(
+            limit=40,pacer=pacer,environ=env,clock=clock,sleeper=clock.sleep)
+        calls=[]
+        def fail(url,request):
+            calls.append(request['method'])
+            raise urllib.error.HTTPError(url,429,'rate limited',{},None)
+        rpc._request_url=fail
+        with self.assertRaises(Unavailable):
+            rpc.call('getProgramAccounts',[
+                'Token111111111111111111111111111111111111',
+                {'commitment':'finalized','withContext':True,'encoding':'base64'},
+            ],priority=True)
+        # The first real 429 cools this exact heavy method.  RPC.call's ordinary
+        # second attempt is rejected by the shared pacer before another transport.
+        self.assertEqual(calls,['getProgramAccounts'])
+        telemetry=rpc.provider_telemetry()
+        self.assertEqual(
+            telemetry['provider_http_status_errors'][
+                f"{rpc_topology.PRIMARY_PROVIDER}:getProgramAccounts:429"],1)
+        self.assertEqual(
+            telemetry['pacing']['method_rate_events']['getProgramAccounts'],1)
+        self.assertGreaterEqual(
+            telemetry['pacing']['method_cooldown_seconds']['getProgramAccounts'],30)
+
+    def test_postgrad_program_scan_reuses_primary_shared_pacer(self):
+        clock=Clock();pacer=rpc_topology.SolanaReadPacer()
+        env={rpc_topology.ALCHEMY_ENV_NAME:ALCHEMY}
+        rpc=rpc_topology.new_rpc(
+            limit=40,pacer=pacer,environ=env,clock=clock,sleeper=clock.sleep)
+        rpc._request_url=lambda _url,request: {
+            'jsonrpc':'2.0','id':request['id'],'result':(
+                __import__('meme_machine.pump',fromlist=['MAINNET']).MAINNET
+                if request['method']=='getGenesisHash' else 1)}
+        sentinel=object()
+        with patch('meme_machine.solana_read_rpc.new_pool_scan_rpc',
+                   return_value=sentinel) as factory:
+            adapter=PostGraduationAdapter(rpc)
+        self.assertIs(adapter.scan_rpc,sentinel)
+        self.assertIs(factory.call_args.kwargs['pacer'],pacer)
+        self.assertEqual(factory.call_args.kwargs['limit'],40)
 
     def test_shared_pacer_preserves_gettransaction_pressure_state(self):
         clock=Clock();pacer=rpc_topology.SolanaReadPacer()
