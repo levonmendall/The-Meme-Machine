@@ -1,11 +1,11 @@
 {
   "schema": "four-lane-overnight-request-v1",
-  "sequence": 5,
+  "sequence": 6,
   "phase": "hourly",
   "observation_seconds": 3600,
   "smoke_seconds": 600,
   "paper_only": true,
-  "repair_parent_integration_sha": "6964cfe5c501075e53f3f6f809b85bbdeb50a7cc",
+  "repair_parent_integration_sha": "acb7e51127c66e89fc524d81408bdb4a0afec629",
   "superseded_four_hour_run": 35489724704,
   "previous_workflow_run": 35508695288,
   "previous_result": "ENGINEERING_PASS_NATURAL_INCOMPLETE",
@@ -17,17 +17,21 @@
   "meteora_repair_branch_sha": "00ebf7ffb3e13911d6c842898c98312c98d4e628",
   "normal_policy_drain_required": true,
   "new_strategy_promotion_authorized": false,
-  "result_status": "HANDOFF_ONLY_NO_VALIDATION_RUN",
-  "local_lane_test_count": 1105,
-  "local_supervisor_test_count": 46,
+  "result_status": "ALCHEMY_COMPARISON_PREPARATION",
+  "local_lane_test_count": 1146,
+  "local_supervisor_test_count": 54,
   "repair_summary": [
     "Lane-attributed durable opportunity/consumer evidence and stage liveness",
     "Preserve complete Ramses checkpoint and expose pinned scan progress/accounting",
     "Correct Meteora economic-vector funnel and terminal trigger attribution",
     "Pons exact-block immutable reuse, adjacent-header batching, original-deadline admission/timing",
-    "Foreground Solana admission and append-only attributed failure evidence; frozen policies unchanged"
+    "Foreground Solana admission and append-only attributed failure evidence; frozen policies unchanged",
+    "Exact-identity shared Robinhood evidence reuse and CU telemetry",
+    "Captured-vector-equivalent local header index and current-block metadata batching",
+    "Bounded capability-proven RPC shapes with parity and fallback; rates unchanged"
   ],
   "recurring_launch_authorized": false,
-  "validation_authorized": false,
-  "requested_action": "finish_engineering_and_handoff"
+  "validation_authorized": true,
+  "requested_action": "one_smoke_then_one_independent_hourly_comparison",
+  "baseline": "certification/results/alchemy-cycle4-baseline.json"
 }

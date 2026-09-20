@@ -192,3 +192,11 @@ launch another cycle after that single validation.
 
 Latest instruction supersedes that single-run authorization: finish repairs and
 execute a handoff, **do not start validation**. No replacement run launched.
+
+
+## Current Robinhood CU repair request
+
+The later focused Alchemy/Robinhood request supersedes handoff-only: one smoke
+and one independent one-hour comparison are authorized after all exact-revision
+gates and no competing live jobs. See ALCHEMY_EFFICIENCY_HANDOFF.md. The recurring
+overnight loop stays stopped; no automatic successor is authorized.

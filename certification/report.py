@@ -146,6 +146,8 @@ def summarize(lane, report):
         result['terminal_reasons']=dict(reasons)
         result['limitations'].append('quote_assets_require_separate_balances_and_authenticated_valuation_before_consolidation')
     coverage=result.get('opportunity_coverage') or {}
+    if lane=='pons' and coverage:
+        result['funnel']['complete_evidence_vectors']=coverage.get('stages',{}).get('economic_vector',0)
     if coverage:
         result['funnel'].update({'unique_'+k:v for k,v in coverage.get('stages',{}).items()})
         result['funnel'].update({'unique_'+k:v for k,v in coverage.get('unique_classes',{}).items()})
@@ -244,3 +246,20 @@ body{font:14px system-ui;background:#101820;color:#e7eef4;padding:24px;max-width
     html+='</div><details><summary>Complete machine-readable result</summary><pre>'+escape(json.dumps(result,indent=2))+'</pre></details>'
     html+='<p class="note">Raw RPC archives and append-only journals remain available per lane. This view does not replace durable evidence.</p></html>'
     Path(path).write_text(html)
+
+
+def provider_efficiency(result):
+    """Attach estimates to measured denominators; never convert missing evidence to zero."""
+    provider=result.get('shared_provider',{}).get('robinhood',{})
+    for lane in ('pons','ramses'):
+        row=result.get('lanes',{}).get(lane,{})
+        stats=provider.get('lanes',{}).get(lane,{})
+        cu=stats.get('estimated_cu');funnel=row.get('funnel',{})
+        evaluated=funnel.get('evaluated');complete=funnel.get('complete_evidence_vectors');scans=funnel.get('scans')
+        ratio=lambda n:cu/n if cu is not None and isinstance(n,(int,float)) and n>0 else None
+        row['rpc_efficiency']=dict(estimated_cu=cu,physical_http_requests=stats.get('requests'),
+            logical_wire_calls=stats.get('logical_calls'),cu_per_evaluated=ratio(evaluated),
+            cu_per_complete_vector=ratio(complete),cu_per_scan=ratio(scans),
+            evaluated=evaluated,complete_vectors=complete,scans=scans,
+            cache=(result.get('shared_provider',{}).get('robinhood_reuse',{}).get('lanes',{}).get(lane)))
+    return result

@@ -46,6 +46,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m certification.guard
+      - name: Bounded existing-endpoint read-only capability probes
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+        run: python -m certification.capabilities --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates/rpc-capabilities.json
       - name: Concurrent paper smoke with original frozen lane runners
         env:
           GH_CHECKS_TOKEN: ${{ github.token }}
@@ -118,6 +123,11 @@ jobs:
         env:
           SMOKE_READINESS: ${{ needs.concurrent-smoke.outputs.readiness }}
         run: python -c 'import os,pathlib,json; value=json.loads(os.environ["SMOKE_READINESS"]); pathlib.Path("smoke-readiness.json").write_text(json.dumps(value))'
+      - name: Bounded existing-endpoint read-only capability probes
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+        run: python -m certification.capabilities --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-hourly-gates/rpc-capabilities.json
       - name: One-hour continuous paper campaign, no process restart
         env:
           GH_CHECKS_TOKEN: ${{ github.token }}

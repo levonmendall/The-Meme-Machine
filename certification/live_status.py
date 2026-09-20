@@ -58,7 +58,7 @@ def snapshot(result, now=None):
         fields=('pid','continuous_uptime_seconds','process_restarts','unexpected_exit','exit_code',
             'progress_age_seconds','transport_activity_age_seconds','max_no_activity_seconds',
             'provider_requests','provider_session_count','method_counts','errors','rpc_latency_seconds',
-            'funnel','terminal_reasons','open_positions','natural_settled','forced_settled',
+            'rpc_efficiency','estimated_alchemy','funnel','terminal_reasons','open_positions','natural_settled','forced_settled',
             'accounting_reconciled','native_accounting','cohort_accounting','pnl_decomposition',
             'stream_state','finality_state','evidence_state','runtime_resources','telemetry_cost','gates',
             'opportunity_coverage','pipeline_health','scan_progress','last_completed_scan')

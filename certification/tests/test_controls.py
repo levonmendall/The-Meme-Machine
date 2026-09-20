@@ -20,6 +20,15 @@ class ControlsTests(unittest.TestCase):
                 open_positions=0,accounting_reconciled=True,provider_requests=1,
                 gates={g:True for g in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated')}) for lane in LANES})
 
+    def test_unresolved_immutable_work_fails_smoke_and_hourly_readiness(self):
+        for count in (1,None):
+            result=self.smoke();result['shared_provider']['robinhood_reuse']=dict(state='observed',inflight_jobs=count)
+            self.assertIn('robinhood:immutable_provider_jobs_not_drained',smoke_engineering(result)['failures'])
+            result.update(phase='hourly',continuous_overlap_seconds=3600,certification=dict(failures=[]))
+            self.assertIn('robinhood:immutable_provider_jobs_not_drained',hourly_engineering(result)['failures'])
+        result=self.smoke();result['shared_provider']['robinhood_reuse']=dict(state='observed',inflight_jobs=0)
+        self.assertEqual(smoke_engineering(result)['status'],'PASS')
+
     def test_exact_clean_smoke_can_start_observation_but_never_proves_full_certification(self):
         good=self.smoke();self.assertEqual(smoke_engineering(good)['status'],'PASS')
         self.assertEqual(evaluate(good)['status'],'INCOMPLETE')

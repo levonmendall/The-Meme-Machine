@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sqlite3
 import time
+from certification.cu import estimate
 
 
 class PressureView:
@@ -49,6 +50,32 @@ class PressureView:
                     self.admission_sequence=seq
             endpoints=[dict(identity=e,interval_seconds=i,cooldown_remaining_seconds=max(0,c-now),requests=self.endpoints.get(e,0)) for e,c,i in db.execute('SELECT endpoint,cooldown,interval FROM limits')]
             queues=[dict(endpoint=e,depth=n,oldest_wait_seconds=max(0,now-oldest)) for e,n,oldest in db.execute('SELECT endpoint,COUNT(*),MIN(created) FROM queue GROUP BY endpoint')]
-            return dict(state='observed',last_sequence=self.sequence,lanes=self.lanes,endpoints=endpoints,queues=queues,
+            for stats in self.lanes.values():
+                stats.update(estimate(stats['methods']))
+                stats['logical_calls_per_physical_request']=sum(stats['methods'].values())/stats['requests'] if stats['requests'] else None
+            total=Counter()
+            for stats in self.lanes.values():total.update(stats['methods'])
+            return dict(state='observed',estimated_cu=estimate(total),last_sequence=self.sequence,lanes=self.lanes,endpoints=endpoints,queues=queues,
                         admission_by_lane=self.admissions)
+        finally:db.close()
+
+
+class ReuseView:
+    def __init__(self,path):
+        self.path=Path(path);self.sequence=0;self.lanes={}
+    def snapshot(self):
+        if not self.path.exists():return dict(state='not_initialized',lanes={})
+        db=sqlite3.connect(self.path.resolve().as_uri()+'?mode=ro',uri=True,timeout=2)
+        try:
+            tables={r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            if 'reuse_events' not in tables:return dict(state='initializing',lanes={})
+            for seq,lane,method,outcome in db.execute('SELECT sequence,lane,method,outcome FROM reuse_events WHERE sequence>? ORDER BY sequence',(self.sequence,)):
+                stats=self.lanes.setdefault(lane,dict(hits=Counter(),misses=Counter(),session_hits=Counter(),coalesced=Counter()))
+                stats['hits' if outcome=='hit' else 'coalesced' if outcome=='coalesced' else 'session_hits' if outcome=='session_hit' else 'misses'][method]+=1
+                self.sequence=seq
+            return dict(state='observed',last_sequence=self.sequence,lanes=self.lanes,
+                inflight_jobs=db.execute('SELECT COUNT(*) FROM flights').fetchone()[0],
+                cache_entries=db.execute('SELECT COUNT(*) FROM evidence').fetchone()[0],
+                database_bytes=self.path.stat().st_size,
+                scope='shared provider cache lookups; lane-native caches remain separately reported')
         finally:db.close()

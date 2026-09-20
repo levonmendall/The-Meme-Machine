@@ -1,3 +1,185 @@
+diff --git a/robinhood_research/immutable_rpc.py b/robinhood_research/immutable_rpc.py
+new file mode 100644
+index 0000000..2baf04a
+--- /dev/null
++++ b/robinhood_research/immutable_rpc.py
+@@ -0,0 +1,176 @@
++"""Run-scoped neutral immutable evidence reuse; callers retain authentication authority.
++
++An endpoint digest isolates trust domains. Numeric state reads need an explicit
++caller-authenticated hash pin. Mutable tags and unpinned receipts never hit.
++The append-only provenance table retains every miss/reuse; errors are not cached.
++"""
++from collections import Counter
++import hashlib
++import json
++import os
++import sqlite3
++import threading
++import time
++import uuid
++from contextlib import contextmanager
++from . import BoundaryError, CHAIN_ID
++
++
++def canonical(x):return json.dumps(x,sort_keys=True,separators=(',',':'))
++
++class EvidenceStore:
++    def __init__(self,path=':memory:'):
++        self.db=sqlite3.connect(str(path),timeout=2,check_same_thread=False)
++        self.lock=threading.RLock();self.db.execute('PRAGMA journal_mode=WAL')
++        self.db.executescript('''CREATE TABLE IF NOT EXISTS evidence(
++            domain TEXT,key TEXT,body TEXT,created REAL,PRIMARY KEY(domain,key));
++            CREATE TABLE IF NOT EXISTS gas_quotes(domain TEXT,epoch TEXT,monotonic REAL,at REAL,body TEXT);
++            CREATE TABLE IF NOT EXISTS flights(domain TEXT,key TEXT,owner TEXT,PRIMARY KEY(domain,key));
++            CREATE TABLE IF NOT EXISTS reuse_events(sequence INTEGER PRIMARY KEY,
++            lane TEXT,domain TEXT,method TEXT,outcome TEXT,at REAL,key_digest TEXT,source_at REAL);
++            CREATE TRIGGER IF NOT EXISTS reuse_no_update BEFORE UPDATE ON reuse_events
++            BEGIN SELECT RAISE(ABORT,'append_only');END;
++            CREATE TRIGGER IF NOT EXISTS reuse_no_delete BEFORE DELETE ON reuse_events
++            BEGIN SELECT RAISE(ABORT,'append_only');END;''')
++    @contextmanager
++    def lease(self,domain,keys,deadline=None):
++        keys=sorted(set(k for k in keys if k));owner=uuid.uuid4().hex
++        deadline=time.monotonic()+30 if deadline is None else deadline
++        while keys:
++            with self.lock:
++                self.db.execute('BEGIN IMMEDIATE')
++                try:
++                    busy=any(self.db.execute('SELECT 1 FROM flights WHERE domain=? AND key=?',(domain,k)).fetchone() for k in keys)
++                    if not busy:
++                        self.db.executemany('INSERT INTO flights VALUES(?,?,?)',[(domain,k,owner) for k in keys])
++                    self.db.commit()
++                except BaseException:self.db.rollback();raise
++            if not busy:break
++            if time.monotonic()>=deadline:raise BoundaryError('immutable_evidence_wait_deadline')
++            time.sleep(min(.01,max(0,deadline-time.monotonic())))
++        try:yield
++        finally:
++            with self.lock,self.db:self.db.execute('DELETE FROM flights WHERE owner=?',(owner,))
++
++    def get(self,domain,key):
++        with self.lock:
++            row=self.db.execute('SELECT body,created FROM evidence WHERE domain=? AND key=?',(domain,key)).fetchone()
++        return None if row is None else (json.loads(row[0]),row[1])
++    def put(self,domain,key,value):
++        body=canonical(value)
++        with self.lock,self.db:
++            row=self.db.execute('SELECT body FROM evidence WHERE domain=? AND key=?',(domain,key)).fetchone()
++            if row and row[0]!=body:raise BoundaryError('immutable_rpc_evidence_conflict')
++            self.db.execute('INSERT OR IGNORE INTO evidence VALUES(?,?,?,?)',(domain,key,body,time.time()))
++    def event(self,lane,domain,method,outcome,key,source_at=None):
++        with self.lock,self.db:self.db.execute('INSERT INTO reuse_events(lane,domain,method,outcome,at,key_digest,source_at) VALUES(?,?,?,?,?,?,?)',
++            (lane,domain,method,outcome,time.time(),hashlib.sha256(key.encode()).hexdigest() if key else None,source_at))
++
++_stores={};_lock=threading.Lock()
++def configured():
++    path=os.environ.get('MM_CERTIFICATION_RPC_CACHE_DB')
++    if not path:return None
++    with _lock:
++        if path not in _stores:_stores[path]=EvidenceStore(path)
++        return _stores[path]
++
++class Reuse:
++    def __init__(self,endpoint,store,lane='unknown'):
++        self.domain=hashlib.sha256((str(CHAIN_ID)+':'+endpoint).encode()).hexdigest()
++        self.store=store;self.lane=lane;self.counts=Counter();self.chain=None
++    def key(self,method,params,pins=None,receipts=None):
++        pins=pins or {};receipts=receipts or {}
++        if method=='eth_getBlockByHash' and len(params)==2 and params[1] is False:
++            return canonical([method,params])
++        if method=='eth_getBlockByNumber' and len(params)==2 and params[1] is False and params[0] in pins:
++            return canonical(['eth_getBlockByHash',[pins[params[0]],False]])
++        if method=='eth_getTransactionReceipt' and params[0] in receipts:
++            return canonical([method,params[0],receipts[params[0]]])
++        if method in ('eth_call','eth_getCode','eth_getBalance','eth_getStorageAt'):
++            index=2 if method=='eth_getStorageAt' else 1
++            if len(params)<=index:return None
++            block=params[index]
++            if isinstance(block,dict):
++                # requireCanonical also belongs to the key. Do not substitute tags.
++                if not block.get('blockHash'):return None
++                identity=block
++            elif block in pins:identity={'blockHash':pins[block]}
++            else:return None
++            resolved=list(params);resolved[index]=identity
++            return canonical([method,resolved])
++        if method=='eth_getLogs' and len(params)==1:
++            query=params[0]
++            if query.get('blockHash'):return canonical([method,params])
++            first=query.get('fromBlock');last=query.get('toBlock')
++            # Exact filter and both immutable bounds; never reuse latest ranges.
++            if first==last and first in pins:
++                exact=dict(query);exact.pop('fromBlock');exact.pop('toBlock');exact['blockHash']=pins[first]
++                return canonical([method,[exact]])
++            # Multi-block numeric ranges remain caller-authenticated tape work.
++            # Do not durably key a mutable range by only its endpoint hashes.
++        return None
++    def lookup(self,method,params,pins=None,receipts=None,cost_epoch=None):
++        if method=='eth_gasPrice' and cost_epoch:
++            epoch,observed,deadline=cost_epoch
++            now=time.monotonic()
++            with self.store.lock:
++                row=self.store.db.execute('SELECT body,at,monotonic FROM gas_quotes WHERE domain=? AND epoch=? AND monotonic>=? AND monotonic<=? ORDER BY monotonic DESC LIMIT 1',
++                    (self.domain,epoch,observed,now)).fetchone()
++            key='gas_epoch:'+epoch
++            if row and now<=deadline:
++                self.counts['eth_gasPrice:hit']+=1
++                self.store.event(self.lane,self.domain,method,'hit',key,row[1])
++                self.gas_quote_origin=dict(observed_at=row[1],observed_monotonic=row[2],reused=True)
++                return True,json.loads(row[0]),None
++            self.counts['eth_gasPrice:miss']+=1
++            self.store.event(self.lane,self.domain,method,'miss',key)
++            return False,None,key
++        if method=='eth_chainId' and self.chain is not None:
++            self.counts['eth_chainId:session_hit']+=1
++            self.store.event(self.lane,self.domain,method,'session_hit','session',self.chain[1])
++            return True,self.chain[0],None
++        key=self.key(method,params,pins,receipts)
++        row=self.store.get(self.domain,key) if key else None
++        self.counts[method+(':hit' if row else ':miss')]+=1
++        self.store.event(self.lane,self.domain,method,'hit' if row else 'miss',key,row[1] if row else None)
++        return (True,row[0],key) if row else (False,None,key)
++    def remember(self,method,params,value,key):
++        if value is None:return
++        if method=='eth_gasPrice' and key and key.startswith('gas_epoch:'):
++            mono=time.monotonic();at=time.time()
++            with self.store.lock,self.store.db:self.store.db.execute('INSERT INTO gas_quotes VALUES(?,?,?,?,?)',
++                (self.domain,key[len('gas_epoch:'):],mono,at,canonical(value)))
++            self.gas_quote_origin=dict(observed_at=at,observed_monotonic=mono,reused=False)
++            return
++        if method=='eth_chainId':
++            if int(value,16)!=CHAIN_ID:raise BoundaryError('wrong_chain')
++            self.chain=(value,time.time());return
++        if method in ('eth_getBlockByHash','eth_getBlockByNumber') and len(params)==2 and params[1] is False:
++            if not isinstance(value,dict) or not value.get('hash') or not value.get('number'):raise BoundaryError('immutable_header_shape')
++            if method=='eth_getBlockByHash' and value['hash']!=params[0]:raise BoundaryError('immutable_header_identity')
++            if method=='eth_getBlockByNumber' and str(params[0]).startswith('0x') and int(value['number'],16)!=int(params[0],16):raise BoundaryError('immutable_header_identity')
++            if key and json.loads(key)[1][0]!=value['hash']:raise BoundaryError('immutable_header_pin_disagreement')
++            self.store.put(self.domain,canonical(['eth_getBlockByHash',[value['hash'],False]]),value)
++        if key:
++            if method=='eth_getTransactionReceipt':
++                expected=json.loads(key)
++                if value.get('transactionHash')!=expected[1] or value.get('blockHash')!=expected[2]:raise BoundaryError('receipt_block_disagreement')
++            if method=='eth_getLogs':
++                expected=json.loads(key)[1][0]['blockHash']
++                if not isinstance(value,list) or any(r.get('blockHash')!=expected or r.get('removed') for r in value):
++                    raise BoundaryError('immutable_log_block_disagreement')
++            self.store.put(self.domain,key,value)
++    def telemetry(self):return dict(self.counts)
++
++
++def choose_block_receipts(relevant_count,total_transactions,*,supported,remaining_seconds,
++                          individual_cu=20,block_cu=20):
++    """Bound size, relevance and throughput, not only the inexpensive billing price.
++
++    500 throughput CU for block receipts vs 20 per individual: require 25 relevant
++    members, >=50% relevance and <=128 transactions. Never spend urgent slack on
++    capability detection. Unknown block size/support uses individual receipts.
++    """
++    return bool(supported and isinstance(total_transactions,int) and 25<=relevant_count<=total_transactions<=128
++        and relevant_count*2>=total_transactions and remaining_seconds>=1
++        and block_cu<individual_cu*relevant_count)
 diff --git a/robinhood_research/pipeline.py b/robinhood_research/pipeline.py
 new file mode 100644
 index 0000000..274abdb
@@ -80,6 +262,19 @@ index 0000000..274abdb
 +    if 'provider' in r or 'null_gettransaction' in r:return 'provider_failed'
 +    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
 +    return 'reconstruction_incomplete'
+diff --git a/robinhood_research/provider.py b/robinhood_research/provider.py
+index c24ecb4..0aa82cf 100644
+--- a/robinhood_research/provider.py
++++ b/robinhood_research/provider.py
+@@ -13,7 +13,7 @@ READ_METHODS = frozenset({
+     'eth_getBlockByHash', 'eth_getLogs', 'eth_getTransactionReceipt',
+     'eth_getCode', 'eth_call', 'eth_gasPrice', 'eth_getBalance',
+     'eth_getStorageAt', 'eth_getTransactionByHash',
+-    'alchemy_getAssetTransfers',
++    'alchemy_getAssetTransfers', 'eth_getBlockReceipts', 'eth_callMany',
+ })
+ 
+ 
 diff --git a/robinhood_research/provider_admission.py b/robinhood_research/provider_admission.py
 new file mode 100644
 index 0000000..c0fde9f
@@ -220,10 +415,10 @@ index 0000000..c0fde9f
 +    if not path:return None
 +    return Admission(path,endpoint,lane=os.environ.get('MM_CERTIFICATION_LANE','unknown'))
 diff --git a/robinhood_research/provider_topology.py b/robinhood_research/provider_topology.py
-index d723038..f43e9ea 100644
+index d723038..d12c53f 100644
 --- a/robinhood_research/provider_topology.py
 +++ b/robinhood_research/provider_topology.py
-@@ -248,6 +248,9 @@ class PacedRpc(Rpc):
+@@ -248,7 +248,22 @@ class PacedRpc(Rpc):
          **kwargs,
      ):
          self.role = str(role)
@@ -231,9 +426,22 @@ index d723038..f43e9ea 100644
 +        self.shared_admission = configured(endpoint)
 +        self.admission_scope = threading.local()
          self.provider_kind = _provider_kind(endpoint)
++        from .immutable_rpc import configured as evidence_store, Reuse
++        store=evidence_store()
++        self.evidence_reuse=Reuse(endpoint,store,os.environ.get('MM_CERTIFICATION_LANE','unknown')) if store else None
++        self.hash_state_supported=set()
++        capability_path=os.environ.get('MM_CERTIFICATION_RPC_CAPABILITIES')
++        if capability_path and self.evidence_reuse:
++            import json
++            from pathlib import Path
++            try:
++                methods=json.loads(Path(capability_path).read_text())['endpoints'][self.evidence_reuse.domain]['methods']
++                self.hash_state_supported={m for m in ('eth_call','eth_getCode') if methods.get('eip1898_'+m,{}).get('supported') is True}
++            except (OSError,ValueError,KeyError):pass
          self.pacer = pacer or ProviderPacer(requests_per_second)
          self._injected_transport = transport
-@@ -263,11 +266,27 @@ class PacedRpc(Rpc):
+         if transport is None:
+@@ -263,26 +278,114 @@ class PacedRpc(Rpc):
              super().__init__(endpoint, transport=transport, **kwargs)
  
      def _http(self, method, params):
@@ -263,21 +471,106 @@ index d723038..f43e9ea 100644
          return super()._http_batch(calls)
  
      def _method_allowed_for_provider(self, method):
-@@ -276,12 +295,14 @@ class PacedRpc(Rpc):
+         if method in ALCHEMY_ONLY_METHODS and self.provider_kind != "alchemy":
+             raise BoundaryError("provider_specific_method_wrong_provider")
  
++    def _reuse_lookup(self,method,params):
++        reuse=self.evidence_reuse
++        if reuse is None:return False,None,None
++        pins=getattr(self,'evidence_pins',{})
++        # A number-to-hash hint alone cannot bind a response across a reorg.
++        # State misses actually use EIP-1898 on the wire, after capability proof.
++        if method in ('eth_call','eth_getCode','eth_getBalance','eth_getStorageAt'):
++            index=2 if method=='eth_getStorageAt' else 1
++            if len(params)>index and not isinstance(params[index],dict) and method not in self.hash_state_supported:
++                pins={}
++        result=reuse.lookup(method,params,pins,getattr(self,'evidence_receipts',{}),getattr(self,'evidence_cost_epoch',None))
++        if method=='eth_gasPrice' and result[0] and getattr(self,'evidence_timing',None) is not None:
++            self.evidence_timing['gas_quote_origin']=dict(reuse.gas_quote_origin)
++        return result
++
++    @staticmethod
++    def _wire_params(method,params,key):
++        if key and method in ('eth_call','eth_getCode','eth_getBalance','eth_getStorageAt'):
++            import json
++            return json.loads(key)[1]
++        if key and method=='eth_getLogs':
++            import json
++            return json.loads(key)[1]
++        return params
++
      def call(self, method, params, *, scope="connectivity"):
          self._method_allowed_for_provider(method)
+-        return super().call(method, params, scope=scope)
 +        self.admission_scope.value=scope
-         return super().call(method, params, scope=scope)
++        hit,value,key=self._reuse_lookup(method,params)
++        if hit:return value
++        if not self.evidence_reuse:return super().call(method,params,scope=scope)
++        reuse=self.evidence_reuse
++        with reuse.store.lease(reuse.domain,[key],getattr(self,'evidence_deadline',None)):
++            cached=reuse.store.get(reuse.domain,key) if key else None
++            if cached:
++                reuse.store.event(reuse.lane,reuse.domain,method,'coalesced',key,cached[1])
++                return cached[0]
++            value=super().call(method,self._wire_params(method,params,key),scope=scope)
++            reuse.remember(method,params,value,key)
++            return value
  
      def batch(self, calls, *, scope="connectivity"):
-         for row in calls or []:
-             if isinstance(row, (list, tuple)) and row:
-                 self._method_allowed_for_provider(row[0])
-+        self.admission_scope.value=scope
-         return super().batch(calls, scope=scope)
+-        for row in calls or []:
+-            if isinstance(row, (list, tuple)) and row:
+-                self._method_allowed_for_provider(row[0])
+-        return super().batch(calls, scope=scope)
++        if not self.evidence_reuse:
++            for row in calls or []:
++                if isinstance(row,(list,tuple)) and row:self._method_allowed_for_provider(row[0])
++            self.admission_scope.value=scope
++            return super().batch(calls,scope=scope)
++        from .provider import READ_METHODS
++        if not isinstance(calls,list) or not calls or len(calls)>50:raise BoundaryError('provider_batch_capacity')
++        if any(not isinstance(r,(list,tuple)) or len(r)!=2 for r in calls):raise BoundaryError('provider_batch_shape')
++        if any(r[0] not in READ_METHODS for r in calls):raise BoundaryError('rpc_method_not_read_only')
++        out=[None]*len(calls);missing=[];followers={};keys={}
++        for index,(method,params) in enumerate(calls):
++            self._method_allowed_for_provider(method)
++            hit,value,key=self._reuse_lookup(method,params)
++            if hit:out[index]=value;continue
++            if key and key in keys:
++                followers[index]=keys[key];continue
++            if key:keys[key]=index
++            missing.append((index,method,params,key))
++        if missing:
++            deadline=getattr(self,'evidence_deadline',None)
++            if deadline is not None and time.monotonic()>=deadline:raise BoundaryError('evidence_deadline_before_transport')
++            self.admission_scope.value=scope
++            reuse=self.evidence_reuse
++            with reuse.store.lease(reuse.domain,[k for _,_,_,k in missing],deadline):
++                pending=[]
++                for item in missing:
++                    index,method,params,key=item
++                    cached=reuse.store.get(reuse.domain,key) if key else None
++                    if cached:
++                        out[index]=cached[0]
++                        reuse.store.event(reuse.lane,reuse.domain,method,'coalesced',key,cached[1])
++                    else:pending.append(item)
++                if pending:
++                    if deadline is not None and time.monotonic()>=deadline:raise BoundaryError('evidence_deadline_before_transport')
++                    values=super().batch([(m,self._wire_params(m,p,k)) for _,m,p,k in pending],scope=scope)
++                    for (index,method,params,key),value in zip(pending,values):
++                        reuse.remember(method,params,value,key);out[index]=value
++        for index,source in followers.items():out[index]=out[source]
++        return out
  
      def telemetry(self):
+         data = super().telemetry()
+@@ -294,6 +397,7 @@ class PacedRpc(Rpc):
+             primary_shared=bool(getattr(self, "primary_shared", False)),
+             pacing=self.pacer.telemetry(),
+             automatic_failover=False,
++            immutable_reuse=self.evidence_reuse.telemetry() if self.evidence_reuse else None,
+         )
+         return data
+ 
 diff --git a/robinhood_research/ramses_all_pool_lifecycle.py b/robinhood_research/ramses_all_pool_lifecycle.py
 index dfccbc7..3450cd9 100644
 --- a/robinhood_research/ramses_all_pool_lifecycle.py
@@ -422,6 +715,26 @@ index 0000000..79b25ae
 +
 +    def close(self):
 +        for book in self.books.values():book.close()
+diff --git a/robinhood_research/ramses_capture.py b/robinhood_research/ramses_capture.py
+index 2f2bbc9..edb85f9 100644
+--- a/robinhood_research/ramses_capture.py
++++ b/robinhood_research/ramses_capture.py
+@@ -70,6 +70,7 @@ class BoundedMultiRpc:
+         self.rate_limit_sleep_seconds=0.0
+         self._receipt_cache={}
+         self._block_cache={}
++        self.evidence_pins={}
+         self.receipt_cache_hits=0
+         self.block_cache_hits=0
+         self._new()
+@@ -87,6 +88,7 @@ class BoundedMultiRpc:
+         current=self.sessions[-1]
+         if current.used+needed>current.limit:
+             current=self._new()
++        current.evidence_pins=self.evidence_pins
+         return current
+ 
+     def _rate_wait(self,attempt):
 diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ramses_extended_test.py
 index e4ab19d..40e145a 100644
 --- a/robinhood_research/ramses_extended_test.py
@@ -1010,7 +1323,7 @@ index 2b6214c..0ffdeae 100644
              "SELECT body,hash FROM ramses_strategy_position ORDER BY id"
          ).fetchall()
 diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_universe.py
-index ced8b28..6ee15d8 100644
+index ced8b28..794ce79 100644
 --- a/robinhood_research/ramses_universe.py
 +++ b/robinhood_research/ramses_universe.py
 @@ -390,6 +390,7 @@ def scan(
@@ -1034,8 +1347,11 @@ index ced8b28..6ee15d8 100644
      rpc.verify_chain()
      if finalized_frontier is None:
          frontier = rpc.call(
-@@ -448,6 +455,8 @@ def scan(
+@@ -446,8 +453,11 @@ def scan(
+             raise BoundaryError("invalid_ramses_finalized_frontier")
+         frontier = dict(finalized_frontier)
          frontier_source = "pinned_external_finalized_header"
++    rpc.evidence_pins={frontier["number"]:frontier["hash"]}
      end = int(frontier["number"], 16)
      start = max(0, end - lookback_blocks + 1)
 +    checkpoint('factory_authentication',frontier_block=end,frontier_hash=frontier['hash'],
@@ -1043,7 +1359,7 @@ index ced8b28..6ee15d8 100644
  
      factory_pin = load("ramses_factory")
      factory = factory_pin["address"]
-@@ -458,8 +467,10 @@ def scan(
+@@ -458,8 +468,10 @@ def scan(
          rpc,factory,end,
          factory_runtime_sha256=factory_identity["runtime_sha256"],
      )
@@ -1054,7 +1370,7 @@ index ced8b28..6ee15d8 100644
      observe_receipt_gas(rpc, cost_events, cost_state)
  
      # Candidate truncation is pre-entry and outcome-blind: retain the pools with
-@@ -481,6 +492,9 @@ def scan(
+@@ -481,6 +493,9 @@ def scan(
      exclusions = Counter()
      for activity_row in active_cohort:
          address = activity_row["pool"]
@@ -1064,7 +1380,7 @@ index ced8b28..6ee15d8 100644
          try:
              auth, prestate = _prestate(rpc, factory, address, end)
              feature = pool_features(prestate, histories[address], "y", pool=address)
-@@ -498,6 +512,8 @@ def scan(
+@@ -498,6 +513,8 @@ def scan(
              ))
          except BoundaryError as exc:
              exclusions[str(exc)] += 1
@@ -1073,7 +1389,7 @@ index ced8b28..6ee15d8 100644
  
      features = [r["features"] for r in rows]
      for row in rows:
-@@ -513,6 +529,7 @@ def scan(
+@@ -513,6 +530,7 @@ def scan(
  
      classified = []
      for row in rows:
@@ -1081,7 +1397,7 @@ index ced8b28..6ee15d8 100644
          f = row["features"]
          capital = max(1, f["active_liquidity_quote"] * PAPER_ACTIVE_LIQUIDITY_BPS // 10000)
          signal_context = signals_by_pool.get(row["pool"], {})
-@@ -605,6 +622,8 @@ def scan(
+@@ -605,6 +623,8 @@ def scan(
              "allocation_authority": False,
          })
  
@@ -1090,6 +1406,132 @@ index ced8b28..6ee15d8 100644
      ranked = sorted(classified, key=_selection_key, reverse=True)
      watch = [r["pool"] for r in ranked[:WATCH_COHORT_SIZE]]
      no_swap_count = len(addresses) - len(histories)
+diff --git a/robinhood_tests/test_immutable_rpc.py b/robinhood_tests/test_immutable_rpc.py
+new file mode 100644
+index 0000000..ba583be
+--- /dev/null
++++ b/robinhood_tests/test_immutable_rpc.py
+@@ -0,0 +1,120 @@
++import tempfile
++import time
++import unittest
++from pathlib import Path
++from unittest.mock import patch
++from robinhood_research import BoundaryError, CHAIN_ID
++from robinhood_research.immutable_rpc import EvidenceStore, Reuse, choose_block_receipts
++from robinhood_research.provider_topology import PacedRpc
++
++class ImmutableRpcTest(unittest.TestCase):
++    def setUp(self):
++        self.store=EvidenceStore();self.reuse=Reuse('https://unit.invalid/key',self.store,'pons')
++    def test_session_chain_verified_once_not_across_new_session(self):
++        r=self.reuse;r.remember('eth_chainId',[],hex(CHAIN_ID),None)
++        self.assertTrue(r.lookup('eth_chainId',[])[0])
++        self.assertFalse(Reuse('https://unit.invalid/key',self.store,'pons').lookup('eth_chainId',[])[0])
++        with self.assertRaises(BoundaryError):r.remember('eth_chainId',[],'0x1',None)
++    def test_hash_pinned_call_and_code_across_candidates(self):
++        for m,p in [('eth_call',[{'to':'0xa','data':'0x12'},'0x1']),('eth_getCode',['0xa','0x1'])]:
++            key=self.reuse.key(m,p,{'0x1':'0xh1'})
++            self.reuse.remember(m,p,'0x123',key)
++            other=Reuse('https://unit.invalid/key',self.store,'ramses')
++            self.assertEqual(other.lookup(m,p,{'0x1':'0xh1'})[:2],(True,'0x123'))
++            self.assertFalse(other.lookup(m,p,{'0x1':'0xreorg'})[0])
++            self.assertFalse(other.lookup(m,p,{})[0])
++    def test_overrides_and_other_block_are_distinct(self):
++        a=self.reuse.key('eth_call',[{'to':'a','data':'b'},'0x1'],{'0x1':'h1'})
++        b=self.reuse.key('eth_call',[{'to':'a','data':'b'},'0x2'],{'0x2':'h2'})
++        c=self.reuse.key('eth_call',[{'to':'a','data':'b'},'0x1',{'a':{'balance':'0x1'}}],{'0x1':'h1'})
++        self.assertEqual(len({a,b,c}),3)
++        self.assertIsNone(self.reuse.key('eth_call',[{},'latest']))
++    def test_header_number_and_hash_share_identity(self):
++        h={'number':'0x1','hash':'h1','timestamp':'0x2','parentHash':'h0'}
++        self.reuse.remember('eth_getBlockByNumber',['0x1',False],h,None)
++        self.assertEqual(self.reuse.lookup('eth_getBlockByHash',['h1',False])[1],h)
++        self.assertEqual(self.reuse.lookup('eth_getBlockByNumber',['0x1',False],{'0x1':'h1'})[1],h)
++        self.assertFalse(self.reuse.lookup('eth_getBlockByNumber',['latest',False])[0])
++    def test_receipt_requires_expected_block(self):
++        p=['tx'];k=self.reuse.key('eth_getTransactionReceipt',p,receipts={'tx':'h1'})
++        self.reuse.remember('eth_getTransactionReceipt',p,{'transactionHash':'tx','blockHash':'h1'},k)
++        self.assertTrue(self.reuse.lookup('eth_getTransactionReceipt',p,receipts={'tx':'h1'})[0])
++        self.assertFalse(self.reuse.lookup('eth_getTransactionReceipt',p,receipts={'tx':'h2'})[0])
++        with self.assertRaises(BoundaryError):self.reuse.remember('eth_getTransactionReceipt',p,{'transactionHash':'tx','blockHash':'h2'},k)
++    def test_exact_log_filter_and_immutable_bounds(self):
++        p=[{'fromBlock':'0x1','toBlock':'0x1','topics':['topic']}];pins={'0x1':'h1','0x2':'h2'}
++        k=self.reuse.key('eth_getLogs',p,pins);self.reuse.remember('eth_getLogs',p,[],k)
++        self.assertEqual(self.reuse.lookup('eth_getLogs',p,pins)[:2],(True,[]))
++        self.assertFalse(self.reuse.lookup('eth_getLogs',[dict(p[0],topics=['other'])],pins)[0])
++        self.assertIsNone(self.reuse.key('eth_getLogs',[{'fromBlock':'0x1','toBlock':'latest'}],pins))
++    def test_endpoint_domain_and_conflict_fail_closed(self):
++        self.store.put(self.reuse.domain,'k',1)
++        self.assertIsNone(self.store.get(Reuse('https://other.invalid',self.store).domain,'k'))
++        with self.assertRaises(BoundaryError):self.store.put(self.reuse.domain,'k',2)
++    def test_block_receipts_rule_throughput_and_size_guard(self):
++        self.assertTrue(choose_block_receipts(25,40,supported=True,remaining_seconds=2))
++        for n,total,supported,remaining in [(2,2,True,2),(25,100,True,2),(100,200,True,2),(25,40,False,2),(25,40,True,.1)]:
++            self.assertFalse(choose_block_receipts(n,total,supported=supported,remaining_seconds=remaining))
++    def test_batch_deduplicates_and_expired_miss_does_not_transport(self):
++        seen=[]
++        rpc=PacedRpc('https://unit.invalid',role='test',requests_per_second=2,
++            transport=lambda m,p: seen.append((m,p)) or '0x123')
++        rpc.evidence_reuse=self.reuse;rpc.hash_state_supported={'eth_getCode','eth_call'};rpc.evidence_pins={'0x1':'h1'}
++        call=('eth_getCode',['a','0x1'])
++        self.assertEqual(rpc.batch([call,call]),['0x123','0x123']);self.assertEqual(len(seen),1)
++        rpc.evidence_deadline=time.monotonic()-1
++        with self.assertRaises(BoundaryError):rpc.batch([('eth_getCode',['b','0x1'])])
++        self.assertEqual(len(seen),1)
++    def test_raw_reuse_history_is_append_only(self):
++        self.reuse.lookup('eth_chainId',[])
++        with self.assertRaises(Exception):self.store.db.execute('DELETE FROM reuse_events')
++    def test_concurrent_same_identity_executes_once(self):
++        import threading
++        from concurrent.futures import ThreadPoolExecutor
++        seen=[];started=threading.Event();release=threading.Event()
++        def transport(m,p):
++            seen.append(m);started.set();release.wait(2);return '0x123'
++        def rpc(lane):
++            r=PacedRpc('https://unit.invalid/key',role='test',requests_per_second=2,transport=transport)
++            r.evidence_reuse=Reuse('https://unit.invalid/key',self.store,lane);r.hash_state_supported={'eth_getCode','eth_call'};r.evidence_pins={'0x1':'h1'}
++            return r
++        a,b=rpc('pons'),rpc('ramses')
++        with ThreadPoolExecutor(2) as pool:
++            x=pool.submit(a.call,'eth_getCode',['a','0x1']);self.assertTrue(started.wait(1))
++            y=pool.submit(b.batch,[('eth_getCode',['a','0x1'])]);time.sleep(.02);release.set()
++            self.assertEqual(x.result(),'0x123');self.assertEqual(y.result(),['0x123'])
++        self.assertEqual(seen,['eth_getCode'])
++        self.assertEqual(self.store.db.execute('SELECT COUNT(*) FROM flights').fetchone()[0],0)
++    def test_waiter_keeps_own_deadline(self):
++        with self.store.lease(self.reuse.domain,['k']):
++            with self.assertRaisesRegex(BoundaryError,'immutable_evidence_wait_deadline'):
++                with self.store.lease(self.reuse.domain,['k'],time.monotonic()):pass
++    def test_gas_quote_same_epoch_after_original_observation_only(self):
++        observed=time.monotonic()-1;deadline=observed+5
++        hit,value,key=self.reuse.lookup('eth_gasPrice',[],cost_epoch=('h1',observed,deadline))
++        self.assertFalse(hit);self.reuse.remember('eth_gasPrice',[],'0x123',key)
++        self.assertTrue(self.reuse.lookup('eth_gasPrice',[],cost_epoch=('h1',observed,deadline))[0])
++        self.assertFalse(self.reuse.lookup('eth_gasPrice',[],cost_epoch=('h2',observed,deadline))[0])
++        self.assertFalse(self.reuse.lookup('eth_gasPrice',[],cost_epoch=('h1',time.monotonic(),deadline))[0])
++        self.assertFalse(self.reuse.lookup('eth_gasPrice',[],cost_epoch=('h1',observed,time.monotonic()-1))[0])
++
++    def test_numeric_pin_must_be_used_on_wire_not_only_cache_key(self):
++        seen=[]
++        rpc=PacedRpc('https://unit.invalid',role='test',requests_per_second=2,
++            transport=lambda m,p: seen.append((m,p)) or '0x123')
++        rpc.evidence_reuse=self.reuse;rpc.evidence_pins={'0x1':'h1'}
++        rpc.call('eth_getCode',['a','0x1']);rpc.call('eth_getCode',['a','0x1'])
++        self.assertEqual(len(seen),2)  # Unknown support: original safe path, no reuse.
++        rpc.hash_state_supported={'eth_getCode','eth_call'}
++        rpc.call('eth_getCode',['a','0x1']);rpc.call('eth_getCode',['a','0x1'])
++        self.assertEqual(len(seen),3);self.assertEqual(seen[-1][1][1],{'blockHash':'h1'})
++    def test_header_reorg_cannot_poison_pinned_alias(self):
++        p=['0x1',False];k=self.reuse.key('eth_getBlockByNumber',p,{'0x1':'h1'})
++        with self.assertRaisesRegex(BoundaryError,'immutable_header_pin_disagreement'):
++            self.reuse.remember('eth_getBlockByNumber',p,{'number':'0x1','hash':'other'},k)
++        self.assertIsNone(self.store.get(self.reuse.domain,k))
++    def test_log_reorg_and_numeric_range_not_cached(self):
++        self.assertIsNone(self.reuse.key('eth_getLogs',[{'fromBlock':'0x1','toBlock':'0x2'}],{'0x1':'h1','0x2':'h2'}))
++        p=[{'blockHash':'h1'}];k=self.reuse.key('eth_getLogs',p)
++        with self.assertRaisesRegex(BoundaryError,'immutable_log_block_disagreement'):
++            self.reuse.remember('eth_getLogs',p,[{'blockHash':'other'}],k)
 diff --git a/robinhood_tests/test_opportunity_coverage.py b/robinhood_tests/test_opportunity_coverage.py
 new file mode 100644
 index 0000000..8aebb0f

@@ -37,6 +37,7 @@ def audit_telemetry(folder,lane,policy):
         'eth_chainId','eth_blockNumber','eth_getBlockByNumber','eth_getBlockByHash',
         'eth_getLogs','eth_getTransactionReceipt','eth_getTransactionByHash',
         'eth_getCode','eth_getStorageAt','eth_getBalance','eth_call','eth_gasPrice',
+        'eth_getBlockReceipts','eth_callMany',
         'eth_feeHistory','net_version','web3_clientVersion','eth_estimateGas',
         'alchemy_getAssetTransfers',
     } for method in methods)
@@ -106,6 +107,8 @@ def smoke_engineering(result):
     shared=result.get('shared_provider',{})
     for network in ('solana','robinhood'):
         if network not in shared or shared[network].get('queues')!=[]:failures.append(network+':provider_queue_not_drained')
+    if 'robinhood_reuse' in shared and shared['robinhood_reuse'].get('inflight_jobs')!=0:
+        failures.append('robinhood:immutable_provider_jobs_not_drained')
     return dict(status='PASS' if not failures else 'FAIL',failures=failures,
         scope='ten_minute_engineering_preflight_only; not natural or sustained certification')
 
@@ -137,6 +140,8 @@ def hourly_engineering(result):
     for network in ('solana','robinhood'):
         if network not in shared or shared[network].get('queues')!=[]:
             failures.append(network+':provider_queue_not_drained')
+    if 'robinhood_reuse' in shared and shared['robinhood_reuse'].get('inflight_jobs')!=0:
+        failures.append('robinhood:immutable_provider_jobs_not_drained')
     return dict(status='PASS' if not failures else 'FAIL',failures=failures,
         scope='one_hour_execution_integrity_only; natural certification remains separate')
 
@@ -161,6 +166,8 @@ def export_readiness(path,output):
     attestation={key:result[key] for key in keys}
     attestation['full_smoke_result_sha256']=hashlib.sha256(raw).hexdigest()
     attestation['shared_provider']={network:dict(queues=result['shared_provider'][network]['queues']) for network in ('solana','robinhood')}
+    if 'robinhood_reuse' in result['shared_provider']:
+        attestation['shared_provider']['robinhood_reuse']={k:result['shared_provider']['robinhood_reuse'].get(k) for k in ('state','inflight_jobs')}
     lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting')
     attestation['lanes']={lane:{key:result['lanes'][lane].get(key) for key in lane_keys} for lane in LANES}
     with Path(output).open('a') as handle:handle.write('readiness='+json.dumps(attestation,separators=(',',':'))+'\n')

@@ -1,0 +1,142 @@
+{
+  "failures_preserved": [
+    "Two local Pump transcript files ended without unittest footer despite exit zero; correctly rejected by gate. Full unchanged suite passed with pipe capture; gate transcript capture repaired; full four-lane stack then passed."
+  ],
+  "lane_tests": {
+    "meteora": 369,
+    "pons": 256,
+    "pump": 264,
+    "ramses": 257
+  },
+  "lane_total": 1146,
+  "logs": {
+    "alchemy-final-gates-deterministic.json": "fbd91ad97445008637d98bee9d6cfa7550c9add8b6512a38d876a66d600dad5c",
+    "alchemy-final-gates-pump-gate-0.log": "69992287686a2d9141a1024198f05eb86cdbeccbb945be439b3c1954b9e5dcfd",
+    "alchemy-release-gates-deterministic.json": "73573de990a30a04d9d07746caab1f7b02738f9ed01b93ea42311ee74a5a29aa",
+    "alchemy-release-gates-pump-gate-0.log": "4da7903fd5a0e4e25d636dcc6abbd4a7ab5c5aa676f3e920fceb35a5c30e5068",
+    "deterministic.json": "f33049e122cf11d461f4558fd9f1c0e49053861950c9e2c7624ae29f2758cd54",
+    "meteora-gate-0.log": "cd8be70d425c94e644822776160a299c2315521d74427aa3a0ae6c951b5c601f",
+    "meteora-gate-1.log": "751a81a3a5093c68e8ef93f1fb4ae7fd863cd8d7f80ee8871a3b340fcce08be9",
+    "meteora-gate-2.log": "1b05f523163d5d0ee31e20fbb8a5bea26cc99e7f8bde358636f90c61babfc16e",
+    "pons-gate-0.log": "1681519748e742ad0e683e62be487aed4b113e014626f673ca82970d62eaab7d",
+    "pump-gate-0.log": "e0e9e63035518798d19db15cbfb3637a75de6fe726166aa76aa78ce74ca67119",
+    "pump-gate-1.log": "05b75f83778fd2cfd36afc566d18548530ec05cacc4461e679708eff8a5d37eb",
+    "ramses-gate-0.log": "8e97cc28d24a16d70154c6651d54291c157bfdae412289deb34ff1822664a574",
+    "supervisor-tests.log": "7b70f02dd812ddff228e50dafc2b1a5fc3be13255d22ac797a4af7ac89e27e56"
+  },
+  "passed": true,
+  "resource_checks": 3,
+  "schema_version": 1,
+  "scope": "local deterministic evidence; hosted exact-commit gates still mandatory",
+  "source_diff_hashes": {
+    "meteora": "330a23efab16d53dc41384b2f1ca1f9d0948598af997e1583f9e3ff4303bb43e",
+    "pons": "b4a6abbc3be17874c80de9694397c9476b531daee47b09c0946c443e9bbd1951",
+    "pump": "61ca6e2ca004fe02639700dab148ccd607dd45615a201608781864e29f95ea35",
+    "ramses": "18c45c2c42111ba1a567f42188140fc881c92afeb1c0992f087f43c7729e2dc4"
+  },
+  "source_manifest": {
+    "lanes": {
+      "meteora": {
+        "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
+        "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment",
+        "file_hashes": {
+          ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
+          "SOLANA_DLMM_INDEPENDENT_V1.json": "4932d8d9e28f24baccc7917ef59a1fa95218facb8667a9683d6bb41296afee20"
+        },
+        "paper_starting_capital_lamports": 1000000000,
+        "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+        "repair_commit": "6a3be3a2d3c3c45fb3068662a23800e2e3768933",
+        "repair_commits": [
+          "6a3be3a2d3c3c45fb3068662a23800e2e3768933",
+          "1b04eca2984f85c9a47d262dc7ea84796a21754e",
+          "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
+          "45041de0669c9f0db2dc27793ab2da2a77e72a25",
+          "686e1938da1ba1a275b65fe1e7be0694ce697a04",
+          "00ebf7ffb3e13911d6c842898c98312c98d4e628"
+        ],
+        "repair_pr": 64,
+        "rpc_configuration_variables": [
+          "MM_SOLANA_READ_RPC_URL"
+        ],
+        "source_branch": "research/solana-dlmm-independent-v1",
+        "source_sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
+        "strategy_version": "solana-dlmm-independent-v1.7"
+      },
+      "pons": {
+        "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
+        "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment",
+        "file_hashes": {
+          ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
+          "robinhood_research/pons_selective_continuation.py": "bf872cd83db8d4f187f1abfaacb2537441cee07e38f47b17d73805a23ceb32f8"
+        },
+        "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+        "repair_commit": "40bc4c4d1fb81900645fcbce109b4be0341320aa",
+        "repair_commits": [
+          "c96d9092f7645c0def4fb2c237477644280f7041",
+          "40bc4c4d1fb81900645fcbce109b4be0341320aa",
+          "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
+          "44355aaac41a06a80f306f4458bbf200b118f179",
+          "38d264c9dd878e2f70ffb461c18bd12ecdd7c1d6",
+          "40c66a68704fab147dacbfc25a0819b5a6f9c844"
+        ],
+        "rpc_configuration_variables": [
+          "MM_ROBINHOOD_READ_RPC_URL",
+          "MM_ROBINHOOD_DISCOVERY_RPC_URL"
+        ],
+        "source_branch": "feat/pons-selective-continuation-v1",
+        "source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
+        "strategy_version": "pons-selective-continuation-v1"
+      },
+      "pump": {
+        "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
+        "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment",
+        "file_hashes": {
+          ".github/workflows/pump-acceleration-natural-prospective.yml": "2d5e27c8d1808d5a84b521b42b6b4cbce70eef9b5ad6bcdfe9c1d412e5a27232",
+          "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
+          "meme_machine/pump_acceleration_strategy.py": "e69b14cd077e35398a253a4a27f29b8b5c7f3a2454bdbcd0330a7b929c505570"
+        },
+        "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+        "repair_commits": [
+          "2b2af01299ce99b0f036981bfad57107713c68b7",
+          "6377b4c46da95c4591848939c714f7766e789acd",
+          "7774ebe0f712a0e12848de1c54aaaf44df8480e7",
+          "4d094388b3101f1e8ff11357ac8a044b0ef75c63",
+          "110dbf34b054daf7a35c72d94196ec7ff0c2c331"
+        ],
+        "rpc_configuration_variables": [
+          "MM_SOLANA_READ_RPC_URL"
+        ],
+        "source_branch": "feat/pump-acceleration-independent-v1",
+        "source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
+        "strategy_version": "pump-acceleration-independent-v1"
+      },
+      "ramses": {
+        "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
+        "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment",
+        "file_hashes": {
+          ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
+          "robinhood_research/ramses_strategy.py": "adefa16bec0a9cb8ebe4de4724ea16be1cd1de90263bc78f976f5ad28bf96fae"
+        },
+        "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+        "repair_commits": [
+          "3ec74dfa223d3eecae3c3d525ceb27bcdf63d5f6",
+          "b3ec5aaca230f2aa9c0e894c9912722a56f2eef1",
+          "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
+          "325c6052056500146b88d1ad3e83bf5db5b9657a"
+        ],
+        "rpc_configuration_variables": [
+          "MM_ROBINHOOD_READ_RPC_URL",
+          "MM_ROBINHOOD_DLMM_RPC_URL"
+        ],
+        "source_branch": "feat/robinhood-research-foundation",
+        "source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
+        "strategy_version": "ramses-fee-pulse-v1"
+      }
+    },
+    "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
+    "repository": "levonmendall/The-Meme-Machine",
+    "schema_version": 1,
+    "verified_at": "2026-09-20T08:43:00Z"
+  },
+  "supervisor_tests": 54
+}
