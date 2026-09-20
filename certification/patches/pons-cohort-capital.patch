@@ -1373,7 +1373,7 @@ index 080894d..d4160fa 100644
          policy_hash=output["policy_hash"],boundary=output.get("boundary"),
          summary=output["summary"],
 diff --git a/robinhood_research/pons_selective_ledger.py b/robinhood_research/pons_selective_ledger.py
-index 94c48d6..95def7d 100644
+index 94c48d6..9fc8803 100644
 --- a/robinhood_research/pons_selective_ledger.py
 +++ b/robinhood_research/pons_selective_ledger.py
 @@ -10,9 +10,11 @@ It may consume the generic Quote value object because executable quote validatio
@@ -1494,7 +1494,7 @@ index 94c48d6..95def7d 100644
      def reconcile(self):
          genesis=self.store.get(GENESIS_CATEGORY,self.experiment)["capital"]
          rows=self.positions()
-@@ -67,15 +137,30 @@ class SelectivePaper:
+@@ -67,15 +145,30 @@ class SelectivePaper:
          available=int(genesis)+realized-committed
          if available<0:
              raise BoundaryError("selective_paper_capital_invariant")
@@ -1525,7 +1525,7 @@ index 94c48d6..95def7d 100644
          row=self.store.db.execute(
              f"SELECT body FROM {TABLE} WHERE id=?",(identity,)
          ).fetchone()
-@@ -86,12 +171,47 @@ class SelectivePaper:
+@@ -86,12 +179,47 @@ class SelectivePaper:
              raise BoundaryError("selective_cross_experiment_authority")
          return p
  
@@ -1574,7 +1574,7 @@ index 94c48d6..95def7d 100644
              ),
          )
          self.store.db.execute(
-@@ -149,6 +269,7 @@ class SelectivePaper:
+@@ -149,6 +277,7 @@ class SelectivePaper:
          except Exception:
              self.store.db.execute("ROLLBACK")
              raise
@@ -1582,7 +1582,7 @@ index 94c48d6..95def7d 100644
          return p
  
      def advance(
-@@ -193,6 +314,14 @@ class SelectivePaper:
+@@ -193,6 +322,14 @@ class SelectivePaper:
                      pending_exit_tokens=requested,
                  )
  
@@ -1597,7 +1597,7 @@ index 94c48d6..95def7d 100644
              elif action=="exit":
                  if p["status"]!="exit_pending" or now<int(p["due"]):
                      raise BoundaryError("selective_exit_not_due")
-@@ -228,6 +357,7 @@ class SelectivePaper:
+@@ -228,6 +365,7 @@ class SelectivePaper:
                      p["realized_pnl"]=int(p["realized_pnl"])+net-sold_cost
                      p["pnl"]=p["realized_pnl"]
                      p["reason"]=None
@@ -1605,7 +1605,7 @@ index 94c48d6..95def7d 100644
                      p["pending_exit_tokens"]=None
                      if p["tokens"]==0:
                          p.update(
-@@ -254,16 +384,32 @@ class SelectivePaper:
+@@ -254,16 +392,32 @@ class SelectivePaper:
                  if proof!=transition:
                      raise BoundaryError("unproven_selective_pool_transition")
                  p["market"]=transition["market"]
@@ -1641,7 +1641,7 @@ index 94c48d6..95def7d 100644
 +        if self.on_commit:self.on_commit(self,p)
 +        return p
 diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
-index 36ef0b3..208db1b 100644
+index 36ef0b3..c087c3d 100644
 --- a/robinhood_research/pons_selective_paper.py
 +++ b/robinhood_research/pons_selective_paper.py
 @@ -7,16 +7,20 @@ other strategy signal/threshold/state is imported.
@@ -1752,7 +1752,7 @@ index 36ef0b3..208db1b 100644
  
  
  def _position_return_bps(position,quote):
-@@ -134,10 +200,16 @@ def _delayed_exit(
+@@ -134,10 +214,16 @@ def _delayed_exit(
      endpoint,*,paper,identity,rpc,candidate,gas_units,store,
      transition,v4_key,label,exit_tokens,
  ):
@@ -1772,7 +1772,7 @@ index 36ef0b3..208db1b 100644
      time.sleep(max(0,pending["due"]-int(time.time())))
      amount=int(pending["pending_exit_tokens"])
      if transition is None:
-@@ -193,7 +265,7 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
+@@ -193,7 +279,7 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
      return position,meta
  
  
@@ -1781,7 +1781,7 @@ index 36ef0b3..208db1b 100644
      vector=evaluation["vector"]
      if not vector.get("current_threshold_pass"):
          raise BoundaryError("selective_unqualified_lifecycle")
-@@ -210,7 +282,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -210,7 +296,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
          source_transaction=evaluation["source_transaction"],
          provider_sessions=[],monitor=[],started_at=time.time(),
      )
@@ -1790,7 +1790,7 @@ index 36ef0b3..208db1b 100644
      try:
          gas_units=_gas_units(candidate["receipt"])
          rpc=paper_rpc(endpoint);rpc.verify_chain()
-@@ -236,9 +308,17 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -236,9 +322,17 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
              token=evaluation["token"],outcome_used_for_selection=False,
          )
          identity=(
@@ -1809,14 +1809,14 @@ index 36ef0b3..208db1b 100644
          reserved=paper.reserve(
              identity,market=candidate["curve"],amount=amount,gas_budget=gas_budget,
              now=now,features=decision,kind="natural",
-@@ -267,6 +347,30 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -267,6 +361,30 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                  status="entry_failed",entry_failure="entry_slippage",
                  final_position=paper._get(identity),reconciliation=paper.reconcile(),
              )
 +            if capital_guard is not None:
 +                result["cohort_reconciliation"]=capital_guard.settle(
 +                    identity,result["final_position"],at=int(time.time()))
-             return result
++            return result
 +        try:
 +            result["fill_full_exit_check"]=_fresh_fill_full_exit_check(
 +                entry_meta,entry.amount_out)
@@ -1837,10 +1837,10 @@ index 36ef0b3..208db1b 100644
 +                final_position=cancelled,
 +                reconciliation=paper.reconcile(),
 +            )
-+            return result
+             return result
          opened=paper.advance(
              identity,now=entry.stamp.observed_at,action="entry",quote=entry,
-@@ -281,6 +364,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -281,6 +399,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
              store,STRATEGY_NAMESPACE,capital,
              delay=EXIT_POLICY["entry_delay_seconds"],
              natural_policy_hash=POLICY_HASH,
@@ -1848,7 +1848,7 @@ index 36ef0b3..208db1b 100644
          )
          if paper.reconcile()!=before:
              raise BoundaryError("selective_restart_reconciliation")
-@@ -301,253 +385,319 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -301,253 +420,319 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
          entry_largest=int(vector["demand"]["largest_buyer_flow_bps"])
          seen_v4_buyers=set()
          pending_transition_exit_reason=None
@@ -2214,7 +2214,7 @@ index 36ef0b3..208db1b 100644
 -                    "selective-postgrad-mark",local_freshness=True,
 +                    "selective-v4-mark-"+str(len(result["monitor"])),
 +                    local_freshness=True,
-                 )
++                )
 +                paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,finality_ledger=ledger)
 +                rbps=_position_return_bps(position,mark)
 +                current_header=dict(
@@ -2225,7 +2225,7 @@ index 36ef0b3..208db1b 100644
 +                start_header=_header_search(
 +                    locator,int(meta["block"]),mark.stamp.event_at,
 +                    max(graduation_at,mark.stamp.event_at-15),cache,
-+                )
+                 )
 +                result["provider_sessions"].append(locator.telemetry())
                  activity=collect_v4_activity(
                      endpoint,pool_id=position["market"],key=v4_key,
@@ -2283,14 +2283,14 @@ index 36ef0b3..208db1b 100644
 -                        transition=transition,v4_key=v4_key,
 -                        label="selective-postgrad-failure-exit",
 -                        exit_tokens=position["tokens"],
--                    )
--                    result["exit"]=dict(
--                        reason="post_graduation_failure",quote=exit_meta,
--                        position=position,
 +                        endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
 +                        gas_units=gas_units,store=store,transition=transition,v4_key=v4_key,
 +                        label="selective-v4-exit",exit_tokens=action["exit_tokens"],
                      )
+-                    result["exit"]=dict(
+-                        reason="post_graduation_failure",quote=exit_meta,
+-                        position=position,
+-                    )
 -                    result["status"]="settled"
 -                    break
 -
@@ -2379,7 +2379,7 @@ index 36ef0b3..208db1b 100644
  
          reconciliation=paper.reconcile();store.close();store=None
          store=Store(str(db_path),max_records=8192)
-@@ -562,22 +699,36 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -562,22 +747,36 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
          result["reconciliation"]=reconciliation
          result["realized_pnl_quote"]=result["final_position"]["pnl"]
          result["carried_through_graduation"]=transition is not None
@@ -3270,7 +3270,7 @@ index 5628cdb..8b6f649 100644
  
 diff --git a/robinhood_tests/test_pons_partial_accounting.py b/robinhood_tests/test_pons_partial_accounting.py
 new file mode 100644
-index 0000000..2401955
+index 0000000..62c04e5
 --- /dev/null
 +++ b/robinhood_tests/test_pons_partial_accounting.py
 @@ -0,0 +1,157 @@
@@ -3433,7 +3433,7 @@ index 0000000..2401955
 +if __name__=='__main__':unittest.main()
 diff --git a/robinhood_tests/test_pons_position_provider_recovery.py b/robinhood_tests/test_pons_position_provider_recovery.py
 new file mode 100644
-index 0000000..9d85f68
+index 0000000..4e5ec06
 --- /dev/null
 +++ b/robinhood_tests/test_pons_position_provider_recovery.py
 @@ -0,0 +1,131 @@
