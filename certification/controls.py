@@ -110,6 +110,37 @@ def smoke_engineering(result):
         scope='ten_minute_engineering_preflight_only; not natural or sustained certification')
 
 
+def hourly_engineering(result):
+    """Execution integrity for one hour, separate from natural certification.
+
+    A scarcity-driven INCOMPLETE result is a valid completed observation, not a
+    supervisor crash. False controls, accounting failures, restarts and short
+    windows still fail this surface.
+    """
+    failures=[]
+    if result.get('phase')!='hourly' or result.get('status')!='FINISHED':
+        failures.append('hourly_not_finished')
+    if result.get('continuous_overlap_seconds',0)<3600:
+        failures.append('one_hour_overlap_missing')
+    if (result.get('certification') or {}).get('failures'):
+        failures.extend('certification:'+x for x in result['certification']['failures'])
+    for lane in LANES:
+        row=result.get('lanes',{}).get(lane,{})
+        if row.get('exit_code')!=0 or row.get('unexpected_exit') or row.get('process_restarts')!=0:
+            failures.append(lane+':process_continuity')
+        if row.get('open_positions')!=0 or row.get('accounting_reconciled') is not True:
+            failures.append(lane+':accounting_or_exposure')
+        if not row.get('provider_requests'):failures.append(lane+':no_provider_activity')
+        for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
+            if row.get('gates',{}).get(gate) is not True:failures.append(lane+':'+gate)
+    shared=result.get('shared_provider',{})
+    for network in ('solana','robinhood'):
+        if network not in shared or shared[network].get('queues')!=[]:
+            failures.append(network+':provider_queue_not_drained')
+    return dict(status='PASS' if not failures else 'FAIL',failures=failures,
+        scope='one_hour_execution_integrity_only; natural certification remains separate')
+
+
 def sustained_readiness(smoke_path,*,manifest_hash,implementation_hash,integration_sha):
     if not smoke_path:return ['exact_revision_clean_smoke_required']
     try:smoke=json.loads(Path(smoke_path).read_text())

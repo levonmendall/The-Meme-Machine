@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-20T02:44:01Z",
+  "verified_at": "2026-09-20T08:43:00Z",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -22,7 +22,8 @@
         "2b2af01299ce99b0f036981bfad57107713c68b7",
         "6377b4c46da95c4591848939c714f7766e789acd",
         "7774ebe0f712a0e12848de1c54aaaf44df8480e7",
-        "4d094388b3101f1e8ff11357ac8a044b0ef75c63"
+        "4d094388b3101f1e8ff11357ac8a044b0ef75c63",
+        "110dbf34b054daf7a35c72d94196ec7ff0c2c331"
       ],
       "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd"
     },
@@ -46,7 +47,8 @@
         "1b04eca2984f85c9a47d262dc7ea84796a21754e",
         "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
         "45041de0669c9f0db2dc27793ab2da2a77e72a25",
-        "686e1938da1ba1a275b65fe1e7be0694ce697a04"
+        "686e1938da1ba1a275b65fe1e7be0694ce697a04",
+        "00ebf7ffb3e13911d6c842898c98312c98d4e628"
       ],
       "paper_starting_capital_lamports": 1000000000,
       "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0"

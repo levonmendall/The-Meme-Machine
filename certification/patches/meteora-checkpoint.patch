@@ -232,7 +232,7 @@ index 0000000..8f200e6
 +                    checked+=1
 +        return dict(verified=True,checked_economic_events=checked,authentication='existing_lane_verified_tapes',raw_chain_reauthentication=False)
 diff --git a/meme_machine/solana_evidence_broker.py b/meme_machine/solana_evidence_broker.py
-index 05dd96f..17dccd9 100644
+index 05dd96f..a5b64ae 100644
 --- a/meme_machine/solana_evidence_broker.py
 +++ b/meme_machine/solana_evidence_broker.py
 @@ -16,6 +16,7 @@ from pathlib import Path
@@ -351,7 +351,7 @@ index 05dd96f..17dccd9 100644
      ):
          deadline = float(self.clock()) + 30.0 if deadline is None else float(deadline)
          requested = []
-@@ -606,22 +629,34 @@ class EvidenceBroker:
+@@ -606,22 +629,38 @@ class EvidenceBroker:
              if sig and sig not in seen:
                  seen.add(sig)
                  requested.append(sig)
@@ -359,10 +359,15 @@ index 05dd96f..17dccd9 100644
 -                    self.queue_transaction(
 -                        sig, kind=kind, deadline=deadline, max_version=max_version
 -                    )
+-
++        # Cached immutable bodies are reuse, not new acquisition work.  Registering
++        # them again for every overlapping decision window made the durable consumer
++        # denominator grow with evaluation frequency instead of provider demand.
++        missing_at_request = [sig for sig in requested if self.get_transaction(sig) is None]
 +        if owner is not False:
 +            owner = owner or f'{kind}:request:{deadline!r}'
-+            self.consumers.register(owner, requested, kind, deadline)
- 
++            self.consumers.register(owner, missing_at_request, kind, deadline)
++
 +        batches = 0
          while float(self.clock()) < deadline:
              remaining = [sig for sig in requested if self.get_transaction(sig) is None]
@@ -391,7 +396,7 @@ index 05dd96f..17dccd9 100644
                  float(self.clock()),
                  lease_seconds=max(
                      15.0,min(60.0,deadline-float(self.clock())+5.0)),
-@@ -639,6 +674,13 @@ class EvidenceBroker:
+@@ -639,6 +678,13 @@ class EvidenceBroker:
                      ),
                  ),
              ] for row in payloads]
@@ -405,7 +410,7 @@ index 05dd96f..17dccd9 100644
              try:
                  values = rpc.call_many(
                      "getTransaction",
-@@ -646,10 +688,22 @@ class EvidenceBroker:
+@@ -646,10 +692,22 @@ class EvidenceBroker:
                      True,
                      batch_size=max(1, min(len(params), p["batch_size"], int(batch_size))),
                  )
@@ -430,7 +435,7 @@ index 05dd96f..17dccd9 100644
              completed = []
              for job, row, tx in zip(jobs, payloads, values):
                  if isinstance(tx, dict):
-@@ -667,11 +721,13 @@ class EvidenceBroker:
+@@ -667,11 +725,13 @@ class EvidenceBroker:
  
          result = {sig: self.get_transaction(sig) for sig in requested}
          pending = [sig for sig, tx in result.items() if tx is None]
@@ -444,7 +449,7 @@ index 05dd96f..17dccd9 100644
          )
  
      def cursor(self, name):
-@@ -824,6 +880,7 @@ class EvidenceBroker:
+@@ -824,6 +884,7 @@ class EvidenceBroker:
              stream_events=int(events),
              signature_rows=int(signatures),
              pressure=self._pressure(),
@@ -452,25 +457,31 @@ index 05dd96f..17dccd9 100644
          )
  
  
-@@ -967,7 +1024,8 @@ class DynamicAddressLogStream:
+@@ -967,7 +1028,8 @@ class DynamicAddressLogStream:
      """
  
      def __init__(
 -        self, ws_url, broker, stream_prefix, *, coverage_seconds=30, clock=time.time
 +        self, ws_url, broker, stream_prefix, *, coverage_seconds=30, clock=time.time,
-+        prefetch=False
++        prefetch=False, prefetch_filter=None
      ):
          self.ws_url=str(ws_url)
          self.broker=broker
-@@ -980,6 +1038,7 @@ class DynamicAddressLogStream:
+@@ -980,6 +1042,13 @@ class DynamicAddressLogStream:
          self.reconnects=0
          self.last_error_kind=None
          self.active_subscriptions=0
 +        self.prefetch=bool(prefetch)
++        if prefetch_filter is not None and not callable(prefetch_filter):
++            raise TypeError('prefetch_filter_must_be_callable')
++        self.prefetch_filter=prefetch_filter
++        self.prefetch_notifications=0
++        self.prefetch_admitted=0
++        self.prefetch_filter_errors=0
  
      def stream_key(self,address):
          return self.stream_prefix+":"+str(address)
-@@ -992,6 +1051,13 @@ class DynamicAddressLogStream:
+@@ -992,6 +1061,13 @@ class DynamicAddressLogStream:
              self.addresses.add(address)
          return self.stream_key(address)
  
@@ -484,7 +495,37 @@ index 05dd96f..17dccd9 100644
      def wanted_addresses(self):
          with self.lock:
              return sorted(self.addresses)
-@@ -1015,6 +1081,8 @@ class DynamicAddressLogStream:
+@@ -1003,8 +1079,29 @@ class DynamicAddressLogStream:
+             wanted_addresses=len(self.wanted_addresses()),
+             active_subscriptions=int(self.active_subscriptions),
+             last_error_kind=self.last_error_kind,
++            prefetch_notifications=int(self.prefetch_notifications),
++            prefetch_admitted=int(self.prefetch_admitted),
++            prefetch_filter_errors=int(self.prefetch_filter_errors),
+         )
+ 
++    def should_prefetch(self,address,value,slot):
++        if not self.prefetch:
++            return False
++        self.prefetch_notifications+=1
++        if self.prefetch_filter is None:
++            admitted=True
++        else:
++            try:
++                admitted=bool(self.prefetch_filter(str(address),value,int(slot)))
++            except Exception:
++                # This callback controls proactive work only. The signature remains
++                # in the authenticated stream and candidate-specific hydration still
++                # fails closed if it cannot obtain the transaction.
++                self.prefetch_filter_errors+=1
++                admitted=False
++        if admitted:self.prefetch_admitted+=1
++        return admitted
++
+     def run(self,stop_event,ready_event=None):
+         ever_ready=False
+         while not stop_event.is_set():
+@@ -1015,6 +1112,8 @@ class DynamicAddressLogStream:
                      close_timeout=5,max_size=2_000_000,max_queue=256,
                  ) as websocket:
                      pending={}
@@ -493,7 +534,7 @@ index 05dd96f..17dccd9 100644
                      by_address={}
                      by_subscription={}
                      next_id=1
-@@ -1028,6 +1096,12 @@ class DynamicAddressLogStream:
+@@ -1028,6 +1127,12 @@ class DynamicAddressLogStream:
  
                      while not stop_event.is_set():
                          wanted=self.wanted_addresses()
@@ -506,7 +547,7 @@ index 05dd96f..17dccd9 100644
                          known=set(by_address)|set(pending.values())
                          for address in [a for a in wanted if a not in known][:16]:
                              request_id=next_id;next_id+=1
-@@ -1048,12 +1122,25 @@ class DynamicAddressLogStream:
+@@ -1048,12 +1153,25 @@ class DynamicAddressLogStream:
                          payload=json.loads(message)
                          if "id" in payload:
                              request_id=payload.get("id")
@@ -532,7 +573,7 @@ index 05dd96f..17dccd9 100644
                              by_address[address]=subscription
                              by_subscription[subscription]=address
                              active_addresses=list(by_address)
-@@ -1064,6 +1151,8 @@ class DynamicAddressLogStream:
+@@ -1064,6 +1182,8 @@ class DynamicAddressLogStream:
                          if payload.get("method")!="logsNotification":
                              continue
                          params=payload.get("params") or {}
@@ -541,11 +582,11 @@ index 05dd96f..17dccd9 100644
                          address=by_subscription.get(params.get("subscription"))
                          if address is None:
                              raise RuntimeError("address_log_unknown_subscription")
-@@ -1077,6 +1166,13 @@ class DynamicAddressLogStream:
+@@ -1077,6 +1197,13 @@ class DynamicAddressLogStream:
                              slot=int(result["context"]["slot"]),
                              observed_at=int(self.clock()),
                          )
-+                        if self.prefetch:
++                        if self.should_prefetch(address,value,int(result["context"]["slot"])):
 +                            # Do not resurrect an owner while unsubscribe is pending.
 +                            with self.lock:
 +                                if address in self.addresses:
@@ -1270,10 +1311,10 @@ index 5981022..7be2d8e 100644
                      token_x=dlmm.WSOL,token_y="token",
 diff --git a/tests/test_evidence_consumers.py b/tests/test_evidence_consumers.py
 new file mode 100644
-index 0000000..1bd5953
+index 0000000..099d6d9
 --- /dev/null
 +++ b/tests/test_evidence_consumers.py
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,148 @@
 +import tempfile
 +import unittest
 +
@@ -1389,6 +1430,26 @@ index 0000000..1bd5953
 +                self.assertEqual(len(rpc.batches),1)
 +                self.assertEqual(a.db.execute("SELECT COUNT(*) FROM evidence_terminals WHERE reason='evidence_complete'").fetchone()[0],2)
 +            finally:a.close();b.close()
++
++    def test_cached_reuse_does_not_multiply_acquisition_consumers(self):
++        b,c=self.broker();b.put_transaction('cached',dict(slot=1,blockTime=1))
++        _,meta=b.hydrate_transactions(_Rpc(),['cached'],kind='pump_window',
++                                      deadline=c()+4,owner='decision:one')
++        self.assertEqual(meta['hydrated'],1)
++        self.assertEqual(b.db.execute('SELECT COUNT(*) FROM evidence_consumers').fetchone()[0],0)
++
++    def test_prefetch_filter_reduces_work_without_hiding_stream_signature(self):
++        b,c=self.broker()
++        stream=DynamicAddressLogStream('unused',b,'pool',prefetch=True,clock=c,
++            prefetch_filter=lambda address,value,slot:value.get('economic') is True)
++        owner=stream.add_address('a')
++        b.record_event(owner,signature='noise',address='a',slot=1,observed_at=int(c()))
++        self.assertFalse(stream.should_prefetch('a',{'economic':False},1))
++        self.assertEqual([x['signature'] for x in b.recent_events(owner,since=c()-1)],['noise'])
++        self.assertEqual(b.db.execute('SELECT COUNT(*) FROM evidence_consumers').fetchone()[0],0)
++        self.assertTrue(stream.should_prefetch('a',{'economic':True},2))
++        self.assertEqual(stream.status()['prefetch_notifications'],2)
++        self.assertEqual(stream.status()['prefetch_admitted'],1)
 +
 +    def test_stream_retirement_is_durable_and_does_not_fetch_more(self):
 +        b,c=self.broker()

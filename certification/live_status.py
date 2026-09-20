@@ -46,6 +46,7 @@ def snapshot(result, now=None):
         continuous_overlap_seconds=result.get('continuous_overlap_seconds'),lanes={},
         shared_provider=numeric_tree(result.get('shared_provider')),
         certification_status=result.get('certification',{}).get('status','INCOMPLETE'),
+        hourly_engineering_status=result.get('hourly_engineering',{}).get('status'),
         supervisor_exit_code=result.get('supervisor_exit_code'),
         supervisor_failed=result.get('supervisor_failed',False))
     for lane in LANES:

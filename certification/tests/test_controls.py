@@ -5,7 +5,8 @@ import sqlite3
 import tempfile
 import unittest
 
-from certification.controls import audit_telemetry,record_unfinished_broker_jobs,smoke_engineering,sustained_readiness
+from certification.controls import (audit_telemetry,hourly_engineering,
+    record_unfinished_broker_jobs,smoke_engineering,sustained_readiness)
 from certification.journal import Journal,digest
 from certification.report import LANES,evaluate
 
@@ -29,6 +30,20 @@ class ControlsTests(unittest.TestCase):
         for field,value in (('unexpected_exit',True),('process_restarts',1),('accounting_reconciled',False),('open_positions',None)):
             bad=self.smoke();bad['lanes']['pons'][field]=value
             self.assertEqual(smoke_engineering(bad)['status'],'FAIL')
+
+    def test_clean_hour_is_not_failed_only_because_natural_opportunity_is_missing(self):
+        result=self.smoke();result.update(phase='hourly',continuous_overlap_seconds=3600)
+        result['certification']=dict(status='INCOMPLETE',failures=[],
+            incomplete=['pump:natural_lifecycle_missing'])
+        self.assertEqual(hourly_engineering(result)['status'],'PASS')
+        result['lanes']['pump']['process_restarts']=1
+        self.assertEqual(hourly_engineering(result)['status'],'FAIL')
+        result=self.smoke();result.update(phase='hourly',continuous_overlap_seconds=3599,
+            certification=dict(status='INCOMPLETE',failures=[]))
+        self.assertEqual(hourly_engineering(result)['status'],'FAIL')
+        result=self.smoke();result.update(phase='hourly',continuous_overlap_seconds=3600,
+            certification=dict(status='FAIL',failures=['pons:accounting_reconciled']))
+        self.assertEqual(hourly_engineering(result)['status'],'FAIL')
 
     def test_raw_transport_hash_missing_record_and_terminal_policy_are_checked(self):
         with tempfile.TemporaryDirectory() as tmp:

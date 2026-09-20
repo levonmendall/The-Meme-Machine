@@ -99,3 +99,40 @@ Priority investigation: Pump incremental consumer service's measured completion
 gain and bounded provider load; Meteora authenticated trigger through complete
 economics; Pons batched quote timing and zero-fill reservation release; Ramses
 funded startup and natural Fee Pulse outcomes. Preserve every censoring reason.
+
+## Cycle 1 review and cycle 2 repairs
+
+Run [35493891947](https://github.com/levonmendall/The-Meme-Machine/actions/runs/35493891947)
+completed an uninterrupted 3,600.128-second four-lane overlap with zero restarts,
+zero unexpected exits, empty final provider queues, reconciled lane accounting,
+and no open positions. It was naturally **INCOMPLETE**, not an engineering
+failure: every lane recorded zero natural and zero forced settlements. The exact
+machine-readable review is `results/hourly-review-35493891947.json`; the retained
+hourly and smoke artifacts are 10600877928 and 10600507860.
+
+The workflow's terminal `failure` label exposed a reporting defect. The clean
+INCOMPLETE result had no certification failures, but the hourly CLI returned one
+and live status rewrote it as `supervisor_failed`. Cycle 2 separates hourly
+engineering integrity from natural-opportunity completion. A full four-hour PASS
+still requires all original controls and natural lifecycle evidence; this change
+does not weaken certification.
+
+Pump's logical consumer trail was also amplified by proactive hydration of every
+transaction mentioning a PumpSwap pool and by a new owner for every overlapping
+decision window. Physical queues nevertheless drained and only six Solana rate
+errors appeared late in drain, so another provider was not justified. Cycle 2:
+
+- excludes immutable cache reuse from acquisition-consumer registration;
+- gives overlapping Pump decision windows a stable owner and first deadline;
+- prefilters proactive PumpSwap work using authenticated matching trade logs;
+- still records every stream signature and performs exact candidate hydration
+  fail-closed, so unsupported shapes, missing history and economic censoring stay
+  visible and unchanged.
+
+Repair heads are `110dbf34b054daf7a35c72d94196ec7ff0c2c331` for Pump
+(PR87) and `00ebf7ffb3e13911d6c842898c98312c98d4e628` for Meteora
+(PR88). Frozen source heads and all four policy hashes remain unchanged. Local
+exact-revision gates passed 261 Pump, 366 Meteora, 226 Pons and 238 Ramses
+tests (1,091 total), 42 supervisor tests, and all three resource gates. The
+hosted workflow must independently repeat those gates and pass its own
+600-second smoke before cycle 2's one-hour clock begins.

@@ -1,15 +1,30 @@
 {
   "schema": "four-lane-overnight-request-v1",
-  "sequence": 1,
+  "sequence": 2,
   "phase": "hourly",
   "observation_seconds": 3600,
   "smoke_seconds": 600,
   "paper_only": true,
-  "repair_parent_integration_sha": "477c153af8efd41d29aacdad25f6e6899df64e67",
+  "repair_parent_integration_sha": "93d9b35fd01f119f14e3562baa0f78a60f51df21",
   "superseded_four_hour_run": 35489724704,
-  "previous_result": "USER_CANCELLED_NOT_CERTIFIED",
+  "previous_workflow_run": 35493891947,
+  "previous_result": "ENGINEERING_PASS_NATURAL_INCOMPLETE",
+  "previous_continuous_overlap_seconds": 3600.127916118,
+  "previous_natural_settled": 0,
+  "previous_forced_settled": 0,
+  "previous_review": "certification/results/hourly-review-35493891947.json",
+  "pump_repair_branch_sha": "110dbf34b054daf7a35c72d94196ec7ff0c2c331",
+  "meteora_repair_branch_sha": "00ebf7ffb3e13911d6c842898c98312c98d4e628",
   "launch_cutoff_utc": "2026-09-20T15:00:00Z",
   "normal_policy_drain_required": true,
   "new_strategy_promotion_authorized": false,
-  "result_status": "AWAITING_EXACT_REVISION_GATES_AND_SMOKE"
+  "result_status": "LOCAL_EXACT_REVISION_GATES_PASSED_AWAITING_HOSTED_SMOKE",
+  "local_lane_test_count": 1091,
+  "local_supervisor_test_count": 42,
+  "repair_summary": [
+    "Separate clean hourly engineering execution from natural-opportunity INCOMPLETE.",
+    "Remove cached immutable reuse from the acquisition-consumer denominator.",
+    "Deduplicate overlapping Pump decision-window ownership.",
+    "Filter proactive PumpSwap prefetch with authenticated matching trade logs without hiding signatures from exact hydration."
+  ]
 }

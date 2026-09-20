@@ -16,7 +16,7 @@ from certification.governor import Governor
 from certification.pressure import PressureView
 from certification.report import LANES,dashboard,evaluate,summarize
 from certification.controls import (audit_telemetry,broker_snapshot,record_unfinished_broker_jobs,
-                                    smoke_engineering,sustained_readiness)
+                                    hourly_engineering,smoke_engineering,sustained_readiness)
 
 ROOT=Path(__file__).resolve().parents[1]
 REPORTS={'pump':'pump-acceleration-natural-prospective.json','meteora':'solana-dlmm-independent-v1-live.json',
@@ -303,7 +303,9 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
             maximum_sampled_active_broker_jobs=max_broker_active,broker_shutdown_terminals=broker_terminal,
             source_diff_hashes=gate['source_diff_hashes'])
         if phase=='smoke':result['smoke_engineering']=smoke_engineering(result)
-        result['certification']=evaluate(result);atomic(run/'result.json',result);journal.close()
+        result['certification']=evaluate(result)
+        if phase=='hourly':result['hourly_engineering']=hourly_engineering(result)
+        atomic(run/'result.json',result);journal.close()
         dashboard(result,run/'status.html')
         from certification.analysis import report
         report(run)
@@ -323,7 +325,9 @@ def main():
         r=verify(args.worktrees,args.output);print(canonical(r));raise SystemExit(0 if r['passed'] else 1)
     r=launch(args.worktrees,args.output,args.seconds,args.phase,args.gate,args.smoke_result)
     print(canonical(r))
-    success=r.get('smoke_engineering',{}).get('status')=='PASS' if args.phase=='smoke' else r['certification']['status']=='PASS'
+    if args.phase=='smoke':success=r.get('smoke_engineering',{}).get('status')=='PASS'
+    elif args.phase=='hourly':success=r.get('hourly_engineering',{}).get('status')=='PASS'
+    else:success=r['certification']['status']=='PASS'
     raise SystemExit(0 if success else 1)
 
 if __name__=='__main__':main()
