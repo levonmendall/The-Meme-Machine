@@ -69,3 +69,9 @@ Only the combined workflow may validate this task. A single marker push on `repa
 ## Acceptance status
 
 Deterministic correctness is separate from live efficiency and natural execution. Live 40% savings, equal-or-better useful coverage, unchanged Pons stale fraction and non-starved Ramses must be measured in the combined campaign; none is inferred from lower speculative admission. No natural lifecycle or profitability claim is made. Another provider is not justified by existing evidence. Dynamic account acquisition, exact second-leg history, Meteora complete-economic-vector throughput and Pons evidence freshness remain measurement priorities.
+
+## Preflight supersession
+
+35520048920 at 3ad467a0 was cancelled during read-only contention waiting, before any lane launch. Full hosted deterministic/resource gates had passed. A focused concurrent-consumer reproducer found two broker reservations for one fetch; the follow-up atomically claims the unique job before reserving physical capacity, releases it on an unavailable reservation, and respects sibling 429 batch reductions during the wait. Cancellation workflow 35520619194 succeeded with exact run/SHA allowlisting. This is superseded preflight evidence, not a smoke or hourly observation. See results/solana-preflight-review-35520048920.json.
+
+A second focused regression proves that a body arriving after an acquisition deadline is retained as immutable history but cannot complete that expired consumer. A later independent consumer may reuse it under its own unchanged deadline.

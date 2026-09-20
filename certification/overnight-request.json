@@ -1,6 +1,6 @@
 {
   "schema": "four-lane-overnight-request-v1",
-  "sequence": 7,
+  "sequence": 8,
   "phase": "hourly",
   "observation_seconds": 3600,
   "smoke_seconds": 600,
@@ -18,7 +18,7 @@
   "normal_policy_drain_required": true,
   "new_strategy_promotion_authorized": false,
   "result_status": "COMBINED_SOLANA_ROBINHOOD_VALIDATION_PREPARATION",
-  "local_lane_test_count": 1175,
+  "local_lane_test_count": 1179,
   "local_supervisor_test_count": 60,
   "repair_summary": [
     "Lane-attributed durable opportunity/consumer evidence and stage liveness",
@@ -34,5 +34,7 @@
   "validation_authorized": true,
   "requested_action": "one_combined_smoke_then_one_independent_hourly_comparison",
   "baseline": "certification/results/solana-cycle4-baseline.json",
-  "prior_robinhood_validation_status": "NOT_LAUNCHED_SUPERSEDED"
+  "prior_robinhood_validation_status": "NOT_LAUNCHED_SUPERSEDED",
+  "superseded_combined_preflight": 35520048920,
+  "supersession_review": "certification/results/solana-preflight-review-35520048920.json"
 }

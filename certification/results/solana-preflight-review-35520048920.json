@@ -1,0 +1,17 @@
+{
+  "run_id": 35520048920,
+  "integration_sha": "3ad467a0bf6a8b10b5ce013fdb3b710ecaa93d17",
+  "status": "CANCELLED_SUPERSEDED_BEFORE_LANE_LAUNCH",
+  "observed_at": "2026-09-20T15:47:56.992220+00:00",
+  "phase": "read_only_contention_preflight",
+  "hosted_deterministic_gates": "passed",
+  "lane_processes_launched": 0,
+  "natural_settled": null,
+  "forced_settled": null,
+  "accounting": "not_initialized_no_market_process",
+  "cancellation_workflow": 35520619194,
+  "cancellation_commit": "fef208b3d8e405780413caab4cbc65e262ff87f6",
+  "reason": "offline concurrent consumers reproduced one body fetch but two broker transport reservations; corrected before live validation",
+  "artifact_id": 10608043866,
+  "artifact_sha256": "329d104cc8aedba41f43c13baa97e59689fd280708fa68ef0590fe25964eafcf"
+}

@@ -314,7 +314,7 @@ index 0000000..274abdb
 +    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
 +    return 'reconstruction_incomplete'
 diff --git a/meme_machine/solana_evidence_broker.py b/meme_machine/solana_evidence_broker.py
-index 05dd96f..f6d6981 100644
+index 05dd96f..1ac867a 100644
 --- a/meme_machine/solana_evidence_broker.py
 +++ b/meme_machine/solana_evidence_broker.py
 @@ -6,6 +6,8 @@ backpressure. It grants no strategy/allocation/signing authority.
@@ -570,7 +570,7 @@ index 05dd96f..f6d6981 100644
      ):
          deadline = float(self.clock()) + 30.0 if deadline is None else float(deadline)
          requested = []
-@@ -606,27 +643,63 @@ class EvidenceBroker:
+@@ -606,28 +643,75 @@ class EvidenceBroker:
              if sig and sig not in seen:
                  seen.add(sig)
                  requested.append(sig)
@@ -602,11 +602,14 @@ index 05dd96f..f6d6981 100644
              remaining = [sig for sig in requested if self.get_transaction(sig) is None]
              if not remaining:
                  break
+-            p=self._pressure()
+-            reserved=self._reserve_hydration_transport(deadline)
+-            if reserved is None:
 +            if max_batches is not None and batches >= max_batches:
 +                break
 +            if kind in ('stream_prefetch','research_history') and self.consumers.foreground_pending():
 +                self.consumers.failure('background_deferred_foreground',owner=owner,kind=kind,signatures=remaining)
-+                break
+                 break
              p=self._pressure()
 +            # Logical consumer interest is durable for every missing signature, but
 +            # only the next physically serviceable batch enters the transport queue.
@@ -618,10 +621,8 @@ index 05dd96f..f6d6981 100644
 +                    break
 +            for sig in remaining[:capacity]:
 +                self.queue_transaction(sig,kind=kind,deadline=deadline,max_version=max_version)
-             reserved=self._reserve_hydration_transport(deadline)
-             if reserved is None:
-                 break
-             p=self._pressure()
++            # Claim unique work atomically before reserving capacity. A consumer
++            # waiting on another lane's lease must not spend a second slot.
              jobs=self._claim_jobs(
 -                max(1,min(int(batch_size),p["batch_size"])),
 +                max(1,min(capacity,p["batch_size"])),
@@ -638,9 +639,23 @@ index 05dd96f..f6d6981 100644
 +                    self.sleep(min(.02,max(0,deadline-float(self.clock()))))
 +                    continue
                  break
++            try:
++                reserved=self._reserve_hydration_transport(deadline)
++            except BaseException:
++                self._release_jobs([row[0] for row in jobs])
++                raise
++            if reserved is None:
++                self._release_jobs([row[0] for row in jobs])
++                break
++            p=self._pressure()
++            # A sibling's 429 during our wait also constrains this batch.
++            allowed=max(1,min(capacity,p['batch_size']))
++            self._release_jobs([row[0] for row in jobs[allowed:]])
++            jobs=jobs[:allowed]
              payloads = [json.loads(row[1]) for row in jobs]
              params = [[
-@@ -639,17 +712,57 @@ class EvidenceBroker:
+                 row["signature"],
+@@ -639,17 +723,57 @@ class EvidenceBroker:
                      ),
                  ),
              ] for row in payloads]
@@ -700,7 +715,7 @@ index 05dd96f..f6d6981 100644
              completed = []
              for job, row, tx in zip(jobs, payloads, values):
                  if isinstance(tx, dict):
-@@ -657,7 +770,7 @@ class EvidenceBroker:
+@@ -657,7 +781,7 @@ class EvidenceBroker:
                      completed.append(job[0])
              if completed:
                  self._complete_jobs(completed)
@@ -709,9 +724,18 @@ index 05dd96f..f6d6981 100644
              completed_set=set(completed)
              incomplete=[row[0] for row in jobs if row[0] not in completed_set]
              if incomplete:
-@@ -667,11 +780,13 @@ class EvidenceBroker:
+@@ -665,13 +789,21 @@ class EvidenceBroker:
+             if not completed:
+                 break
  
-         result = {sig: self.get_transaction(sig) for sig in requested}
+-        result = {sig: self.get_transaction(sig) for sig in requested}
++        # Historical bodies remain reusable, but a transport completing after this
++        # consumer's original deadline cannot turn its expired attempt into success.
++        with self.lock:
++            timely={sig for sig in requested if self.db.execute(
++                'SELECT 1 FROM immutable_transactions WHERE signature=? AND cached_at<=? UNION SELECT 1 FROM tx_cache WHERE signature=? AND cached_at<=?',
++                (sig,deadline,sig,deadline)).fetchone()}
++        result = {sig: self.get_transaction(sig) if sig in timely else None for sig in requested}
          pending = [sig for sig, tx in result.items() if tx is None]
 +        self.consumers.settle()
          return result, dict(
@@ -723,7 +747,7 @@ index 05dd96f..f6d6981 100644
          )
  
      def cursor(self, name):
-@@ -781,6 +896,7 @@ class EvidenceBroker:
+@@ -781,6 +913,7 @@ class EvidenceBroker:
                  + " ORDER BY slot DESC,signature DESC",
                  tuple(params),
              ).fetchall()
@@ -731,7 +755,7 @@ index 05dd96f..f6d6981 100644
          return [json.loads(row[0]) for row in rows]
  
      def signature_coverage(self, scope, address):
-@@ -824,6 +940,7 @@ class EvidenceBroker:
+@@ -824,6 +957,7 @@ class EvidenceBroker:
              stream_events=int(events),
              signature_rows=int(signatures),
              pressure=self._pressure(),
@@ -739,7 +763,7 @@ index 05dd96f..f6d6981 100644
          )
  
  
-@@ -967,7 +1084,8 @@ class DynamicAddressLogStream:
+@@ -967,7 +1101,8 @@ class DynamicAddressLogStream:
      """
  
      def __init__(
@@ -749,7 +773,7 @@ index 05dd96f..f6d6981 100644
      ):
          self.ws_url=str(ws_url)
          self.broker=broker
-@@ -980,6 +1098,13 @@ class DynamicAddressLogStream:
+@@ -980,6 +1115,13 @@ class DynamicAddressLogStream:
          self.reconnects=0
          self.last_error_kind=None
          self.active_subscriptions=0
@@ -763,7 +787,7 @@ index 05dd96f..f6d6981 100644
  
      def stream_key(self,address):
          return self.stream_prefix+":"+str(address)
-@@ -992,6 +1117,13 @@ class DynamicAddressLogStream:
+@@ -992,6 +1134,13 @@ class DynamicAddressLogStream:
              self.addresses.add(address)
          return self.stream_key(address)
  
@@ -777,7 +801,7 @@ index 05dd96f..f6d6981 100644
      def wanted_addresses(self):
          with self.lock:
              return sorted(self.addresses)
-@@ -1003,8 +1135,40 @@ class DynamicAddressLogStream:
+@@ -1003,8 +1152,40 @@ class DynamicAddressLogStream:
              wanted_addresses=len(self.wanted_addresses()),
              active_subscriptions=int(self.active_subscriptions),
              last_error_kind=self.last_error_kind,
@@ -818,7 +842,7 @@ index 05dd96f..f6d6981 100644
      def run(self,stop_event,ready_event=None):
          ever_ready=False
          while not stop_event.is_set():
-@@ -1015,6 +1179,8 @@ class DynamicAddressLogStream:
+@@ -1015,6 +1196,8 @@ class DynamicAddressLogStream:
                      close_timeout=5,max_size=2_000_000,max_queue=256,
                  ) as websocket:
                      pending={}
@@ -827,7 +851,7 @@ index 05dd96f..f6d6981 100644
                      by_address={}
                      by_subscription={}
                      next_id=1
-@@ -1028,6 +1194,12 @@ class DynamicAddressLogStream:
+@@ -1028,6 +1211,12 @@ class DynamicAddressLogStream:
  
                      while not stop_event.is_set():
                          wanted=self.wanted_addresses()
@@ -840,7 +864,7 @@ index 05dd96f..f6d6981 100644
                          known=set(by_address)|set(pending.values())
                          for address in [a for a in wanted if a not in known][:16]:
                              request_id=next_id;next_id+=1
-@@ -1048,12 +1220,25 @@ class DynamicAddressLogStream:
+@@ -1048,12 +1237,25 @@ class DynamicAddressLogStream:
                          payload=json.loads(message)
                          if "id" in payload:
                              request_id=payload.get("id")
@@ -866,7 +890,7 @@ index 05dd96f..f6d6981 100644
                              by_address[address]=subscription
                              by_subscription[subscription]=address
                              active_addresses=list(by_address)
-@@ -1064,6 +1249,8 @@ class DynamicAddressLogStream:
+@@ -1064,6 +1266,8 @@ class DynamicAddressLogStream:
                          if payload.get("method")!="logsNotification":
                              continue
                          params=payload.get("params") or {}
@@ -875,7 +899,7 @@ index 05dd96f..f6d6981 100644
                          address=by_subscription.get(params.get("subscription"))
                          if address is None:
                              raise RuntimeError("address_log_unknown_subscription")
-@@ -1077,6 +1264,13 @@ class DynamicAddressLogStream:
+@@ -1077,6 +1281,13 @@ class DynamicAddressLogStream:
                              slot=int(result["context"]["slot"]),
                              observed_at=int(self.clock()),
                          )
@@ -2315,10 +2339,10 @@ index 3115376..e6bd7dc 100644
 +            self.assertEqual(meta['pending'],0);self.assertEqual(rpc.batches,[])
 diff --git a/tests/test_solana_immutable_efficiency.py b/tests/test_solana_immutable_efficiency.py
 new file mode 100644
-index 0000000..4a1efb9
+index 0000000..f997d92
 --- /dev/null
 +++ b/tests/test_solana_immutable_efficiency.py
-@@ -0,0 +1,111 @@
+@@ -0,0 +1,131 @@
 +import json,os,sqlite3,tempfile,time,unittest
 +from pathlib import Path
 +from unittest.mock import patch
@@ -2409,6 +2433,8 @@ index 0000000..4a1efb9
 +        with concurrent.futures.ThreadPoolExecutor(2) as pool:
 +            a,b=list(pool.map(lambda _:consumer(),range(2)))
 +        self.assertEqual(a,b);self.assertEqual(count[0],1)
++        broker=EvidenceBroker(self.db);self.addCleanup(broker.close)
++        self.assertEqual(broker._pressure()['transport_reservations'],1)
 +    def test_recovered_internal_429_still_updates_shared_batch_pressure(self):
 +        class Rpc:
 +            gettransaction_429_events=0
@@ -2430,3 +2456,21 @@ index 0000000..4a1efb9
 +        self.assertEqual(len(b.recent_events('s')),1)
 +        self.assertEqual(b.db.execute('SELECT count(*) FROM stream_signature_archive').fetchone()[0],2)
 +        self.assertIsNone(b.get_transaction('old'))
++
++    def test_unserviceable_reservation_releases_unique_job_lease(self):
++        b=EvidenceBroker(self.db);self.addCleanup(b.close)
++        with b.db:b.db.execute("UPDATE pressure SET cooldown_until=?",(time.time()+60,))
++        result,meta=b.hydrate_transactions(self.rpc(),['a'],kind='pump_window',deadline=time.time()+.1)
++        self.assertEqual(meta['pending'],1);self.assertEqual(self.wire,[])
++        self.assertEqual(b.db.execute("SELECT count(*) FROM jobs WHERE status='inflight'").fetchone()[0],0)
++
++    def test_late_body_is_archived_but_does_not_complete_expired_consumer(self):
++        now=[100.]
++        b=EvidenceBroker(self.db,clock=lambda:now[0],sleeper=lambda n:now.__setitem__(0,now[0]+n));self.addCleanup(b.close)
++        class Slow:
++            def call_many(self,*a,**kw):now[0]=102.;return [{'slot':1}]
++        values,meta=b.hydrate_transactions(Slow(),['a'],kind='pump_window',deadline=101.)
++        self.assertIsNone(values['a']);self.assertEqual(meta['pending'],1)
++        self.assertEqual(b.get_transaction('a'),{'slot':1})
++        values,meta=b.hydrate_transactions(Slow(),['a'],kind='pump_window',deadline=103.)
++        self.assertEqual(meta['pending'],0) # later independent consumer can reuse history
