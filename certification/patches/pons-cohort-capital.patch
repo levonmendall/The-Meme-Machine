@@ -1480,6 +1480,14 @@ index 94c48d6..95def7d 100644
 +                remaining_cost=before["remaining_cost"]-basis,
 +                realized_proceeds=before["realized_proceeds"]+net,
 +                realized_pnl=before["realized_pnl"]+net-basis)
++        elif event["action"]=="liquidity_writeoff":
++            if (q is not None or before["status"] not in ("open","exit_pending")
++                    or p.get("reason")!="liquidity_writeoff:impossible_full_position_exit"):
++                raise BoundaryError("selective_writeoff_replay_mismatch")
++            expected.update(
++                tokens=0,remaining_cost=0,
++                realized_pnl=before["realized_pnl"]-before["remaining_cost"],
++            )
 +        if any(p[k]!=v for k,v in expected.items()):
 +            raise BoundaryError("selective_economic_replay_mismatch")
 +
@@ -1602,6 +1610,20 @@ index 94c48d6..95def7d 100644
                      raise BoundaryError("unproven_selective_pool_transition")
                  p["market"]=transition["market"]
 +                p.pop("mark",None)
++
++            elif action=="liquidity_writeoff":
++                if (p["status"] not in ("open","exit_pending")
++                        or cancel_reason!="impossible_full_position_exit"):
++                    raise BoundaryError("invalid_selective_liquidity_writeoff")
++                remaining=int(p["remaining_cost"])
++                p["realized_pnl"]=int(p["realized_pnl"])-remaining
++                p["pnl"]=p["realized_pnl"]
++                p.update(
++                    tokens=0,remaining_cost=0,reserved=0,
++                    pending_exit_tokens=None,status="settled",
++                    reason="liquidity_writeoff:impossible_full_position_exit",
++                )
++                p.pop("mark",None)
  
              else:
                  raise BoundaryError("unsupported_selective_paper_action")
@@ -1713,6 +1735,20 @@ index 36ef0b3..208db1b 100644
 +    cancelled=paper.advance(identity,now=now,action='cancel',cancel_reason=reason)
 +    if capital_guard is not None:capital_guard.settle(identity,cancelled,at=now)
 +    return cancelled
++
++
++def _fresh_fill_full_exit_check(entry_meta,tokens):
++    """Execution-only invariant: a fresh paper fill cannot start already unexitable."""
++    state=entry_meta.get("state")
++    if not isinstance(state,dict):
++        raise BoundaryError("selective_fill_state_missing")
++    checked=CurveState(**state).sell(int(tokens))
++    return dict(
++        executable=True,tokens=int(tokens),
++        gross_quote=int(checked["gross_quote"]),
++        quote_out=int(checked["quote_out"]),
++        real_quote=int(state["real_quote"]),
++    )
  
  
  def _position_return_bps(position,quote):
@@ -1781,6 +1817,27 @@ index 36ef0b3..208db1b 100644
 +                result["cohort_reconciliation"]=capital_guard.settle(
 +                    identity,result["final_position"],at=int(time.time()))
              return result
++        try:
++            result["fill_full_exit_check"]=_fresh_fill_full_exit_check(
++                entry_meta,entry.amount_out)
++        except BoundaryError as exc:
++            if str(exc)!="impossible_full_position_exit":
++                raise
++            cancelled=paper.advance(
++                identity,now=entry.stamp.observed_at,action="cancel",
++                cancel_reason="fill_full_exit_unavailable",
++            )
++            if capital_guard is not None:
++                result["cohort_reconciliation"]=capital_guard.settle(
++                    identity,cancelled,at=entry.stamp.observed_at)
++            result.update(
++                status="entry_failed",
++                entry_failure="fill_full_exit_unavailable",
++                fill_exit_boundary=str(exc),
++                final_position=cancelled,
++                reconciliation=paper.reconcile(),
++            )
++            return result
          opened=paper.advance(
              identity,now=entry.stamp.observed_at,action="entry",quote=entry,
 @@ -281,6 +364,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
@@ -1842,7 +1899,20 @@ index 36ef0b3..208db1b 100644
 +                            if str(exc)=="graduated_during_selective_exit":
 +                                pending_transition_exit_reason="max_total_hold"
 +                                continue
-+                            raise
++                            if str(exc)=="impossible_full_position_exit":
++                                position=paper.advance(
++                                    identity,now=int(time.time()),
++                                    action="liquidity_writeoff",
++                                    cancel_reason="impossible_full_position_exit",
++                                )
++                                meta=dict(
++                                    venue="paper_liquidity_writeoff",
++                                    amount_in=0,amount_out=0,
++                                    reason=str(exc),executable=False,
++                                )
++                                result["settlement_kind"]="liquidity_writeoff"
++                            else:
++                                raise
 +                    else:
 +                        continue
 +                    result["exit"]=dict(reason="max_total_hold",quote=meta,position=position)
@@ -3203,7 +3273,7 @@ new file mode 100644
 index 0000000..2401955
 --- /dev/null
 +++ b/robinhood_tests/test_pons_partial_accounting.py
-@@ -0,0 +1,131 @@
+@@ -0,0 +1,157 @@
 +"""Pons-native cash flow replay, isolated from generic paper machinery."""
 +import sqlite3
 +import tempfile
@@ -3298,6 +3368,32 @@ index 0000000..2401955
 +        self.assertIsNone(paper.reconcile()['unrealized_at_recorded_marks'])
 +        store.close()
 +
++    def test_liquidity_writeoff_realizes_basis_without_fabricating_proceeds(self):
++        store=Store(':memory:');paper=SelectivePaper(
++            store,STRATEGY_NAMESPACE,1000,delay=1,natural_policy_hash=POLICY_HASH)
++        paper.reserve(
++            'x',market='m',amount=100,gas_budget=20,now=10,features=self.features(10))
++        paper.advance(
++            'x',now=11,action='entry',quote=self.quote(11,'buy',100,1000))
++        position=paper.advance(
++            'x',now=20,action='liquidity_writeoff',
++            cancel_reason='impossible_full_position_exit')
++        self.assertEqual(
++            (position['status'],position['tokens'],position['remaining_cost']),
++            ('settled',0,0))
++        self.assertEqual(position['realized_proceeds'],0)
++        self.assertEqual(position['realized_pnl'],-102)
++        self.assertEqual(
++            position['reason'],'liquidity_writeoff:impossible_full_position_exit')
++        rec=paper.reconcile()
++        self.assertEqual(
++            (rec['cash'],rec['remaining_cost_basis'],rec['booked_realized']),
++            (898,0,-102))
++        self.assertTrue(rec['cash_basis_conservation'])
++        self.assertTrue(paper.accounting('x')['replay_verified'])
++        self.assertTrue(paper.accounting('x')['integral_complete'])
++        store.close()
++
 +    def test_clock_regression_rolls_back_and_observer_failure_keeps_native_commit(self):
 +        store=Store(':memory:');clock=[20]
 +        paper=SelectivePaper(store,STRATEGY_NAMESPACE,1000,delay=1,natural_policy_hash=POLICY_HASH,clock_ns=lambda:clock[0])
@@ -3340,7 +3436,7 @@ new file mode 100644
 index 0000000..9d85f68
 --- /dev/null
 +++ b/robinhood_tests/test_pons_position_provider_recovery.py
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,131 @@
 +"""A transport failure after a real paper fill must not abandon its lifecycle."""
 +import json,tempfile,unittest
 +from contextlib import ExitStack
@@ -3383,6 +3479,7 @@ index 0000000..9d85f68
 +        db=Path(folder)/'trial.sqlite';capital=Path(folder)/'capital.sqlite'
 +        patches={'paper_rpc':lambda *a:rpc,'_gas_quote':lambda *a:(2,1),
 +            '_wait_curve_quote':wait_quote,'_curve_quote':quote,
++            '_fresh_fill_full_exit_check':lambda *a:dict(executable=True),
 +            '_latest_header':lambda *a:dict(number=hex(int(clock[0]))),
 +            '_graduation_transition':lambda *a:None,'_refresh_curve_signal':signal,
 +            'pregraduation_exit_reason':lambda **kw:'test_authenticated_exit',
@@ -3395,6 +3492,46 @@ index 0000000..9d85f68
 +        store.close()
 +        book=CohortCapital(capital,STRATEGY_CAPITAL_QUOTE).reconcile()
 +        return result,book,events,signal_times,sell_calls
++
++    def test_fresh_unexitable_fill_is_cancelled_before_entry(self):
++        with tempfile.TemporaryDirectory() as d:
++            clock=[100];fixture=accounting_fixture.PartialAccountingTests()
++            state=MagicMock();state.buy_with_snipe.return_value=dict(
++                refund=0,ready_to_graduate=False,tokens_out=1000)
++            evaluation=dict(
++                vector=dict(
++                    current_threshold_pass=True,policy_hash=POLICY_HASH,
++                    proposed_size={'amount_quote':100},evidence_available_at=100,
++                    trajectory={'graduation_eta_seconds':100},
++                    demand={'largest_buyer_flow_bps':100}),
++                candidate=dict(
++                    receipt={'gasUsed':hex(21000)},curve='m',state=state,report={}),
++                token='token',curve='m',source_transaction='source',market_events=[])
++            rpc=MagicMock();rpc.used=0;rpc.telemetry.return_value={}
++            entry=fixture.quote(102,'buy',100,1000)
++            meta=dict(block=102,block_hash='h102',event_at=102,state={})
++            db=Path(d)/'trial.sqlite';capital=Path(d)/'capital.sqlite'
++            with patch(MODULE+'paper_rpc',return_value=rpc),\
++                 patch(MODULE+'_gas_quote',return_value=(2,1)),\
++                 patch(MODULE+'_wait_curve_quote',return_value=(entry,meta,None)),\
++                 patch(MODULE+'_fresh_fill_full_exit_check',
++                       side_effect=BoundaryError('impossible_full_position_exit')),\
++                 patch(MODULE+'time.time',return_value=102),\
++                 patch(MODULE+'time.sleep'):
++                result=run_lifecycle(
++                    'unused',evaluation,db_path=db,capital_path=capital)
++            self.assertEqual(result['status'],'entry_failed')
++            self.assertEqual(
++                result['entry_failure'],'fill_full_exit_unavailable')
++            self.assertEqual(result['final_position']['status'],'settled')
++            self.assertEqual(
++                CohortCapital(capital,STRATEGY_CAPITAL_QUOTE).reconcile()['unsettled'],0)
++            store=Store(db)
++            events=[json.loads(r[0]) for r in store.db.execute(
++                'SELECT body FROM records WHERE category=?',(JOURNAL_CATEGORY,))]
++            store.close()
++            self.assertFalse(any(e['action']=='entry' for e in events))
++            self.assertEqual(sum(e['action']=='cancel' for e in events),1)
 +
 +    def test_post_entry_429_refreshes_evidence_on_same_lifecycle_then_settles(self):
 +        with tempfile.TemporaryDirectory() as d:r,b,events,times,_=self.run_case(d,'signal')
