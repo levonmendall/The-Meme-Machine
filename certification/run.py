@@ -6,9 +6,11 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 from certification.journal import canonical,digest,Journal
@@ -22,6 +24,32 @@ from certification.controls import (audit_telemetry,broker_snapshot,record_unfin
 ROOT=Path(__file__).resolve().parents[1]
 REPORTS={'pump':'pump-acceleration-natural-prospective.json','meteora':'solana-dlmm-independent-v1-live.json',
          'pons':'pons-selective-continuation-v1-cohort.json','ramses':'robinhood-ramses-extended-market-report.json'}
+PATCH_BY_LANE={
+    'pump':'pump-accounting.patch',
+    'meteora':'meteora-checkpoint.patch',
+    'pons':'pons-cohort-capital.patch',
+    'ramses':'ramses-admission.patch',
+}
+OVERRIDES={
+    'pump':{
+        'tests/pump_acceleration_natural_prospective.py':
+            'certification/overrides/pump/tests/pump_acceleration_natural_prospective.py',
+        'meme_machine/pipeline.py':
+            'certification/overrides/pump/meme_machine/pipeline.py',
+        'tests/test_strategy_prospect_admission.py':
+            'certification/overrides/pump/tests/test_strategy_prospect_admission.py',
+    },
+    'pons':{
+        'robinhood_research/pons_selective_acquisition.py':
+            'certification/overrides/pons/robinhood_research/pons_selective_acquisition.py',
+        'robinhood_research/pons_selective_cohort.py':
+            'certification/overrides/pons/robinhood_research/pons_selective_cohort.py',
+        'robinhood_research/pipeline.py':
+            'certification/overrides/pons/robinhood_research/pipeline.py',
+        'robinhood_tests/test_strategy_prospect_admission.py':
+            'certification/overrides/pons/robinhood_tests/test_strategy_prospect_admission.py',
+    },
+}
 
 
 def atomic(path,data):
@@ -40,6 +68,36 @@ def implementation_hash():
     return digest({str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files})
 
 
+def _expected_overlay_tree(cwd,lane):
+    """Build the reviewed overlay tree in a private index, never mutating the worktree."""
+    fd,index_path=tempfile.mkstemp(prefix='mm-expected-index-')
+    os.close(fd);os.unlink(index_path)
+    env=dict(os.environ,GIT_INDEX_FILE=index_path)
+    try:
+        subprocess.run(['git','read-tree','HEAD'],cwd=cwd,env=env,check=True)
+        patch=PATCH_BY_LANE.get(lane)
+        if patch:
+            subprocess.run(
+                ['git','apply','--cached',str(ROOT/'certification/patches'/patch)],
+                cwd=cwd,env=env,check=True)
+        for target,source in OVERRIDES.get(lane,{}).items():
+            source_path=ROOT/source
+            if not source_path.is_file():
+                raise ValueError('missing_reviewed_override:'+lane+':'+target)
+            blob=subprocess.check_output(
+                ['git','hash-object','-w',str(source_path)],
+                cwd=cwd,text=True).strip()
+            subprocess.run(
+                ['git','update-index','--add','--cacheinfo',
+                 f'100644,{blob},{target}'],
+                cwd=cwd,env=env,check=True)
+        return subprocess.check_output(
+            ['git','write-tree'],cwd=cwd,env=env,text=True).strip()
+    finally:
+        try:os.unlink(index_path)
+        except FileNotFoundError:pass
+
+
 def source_integrity(worktrees):
     observed={}
     for lane,row in manifest()['lanes'].items():
@@ -48,12 +106,14 @@ def source_integrity(worktrees):
         for file,expected_hash in row.get('file_hashes',{}).items():
             if hashlib.sha256((cwd/file).read_bytes()).hexdigest()!=expected_hash:
                 raise ValueError('frozen_source_file_drift:'+lane+':'+file)
+        if subprocess.run(['git','diff','--quiet'],cwd=cwd).returncode!=0:
+            raise ValueError('unstaged_lane_mutation:'+lane)
+        actual_tree=subprocess.check_output(['git','write-tree'],cwd=cwd,text=True).strip()
+        expected_tree=_expected_overlay_tree(cwd,lane)
+        if actual_tree!=expected_tree:
+            raise ValueError('unreviewed_lane_mutation:'+lane)
         diff=subprocess.check_output(['git','diff','--binary','HEAD'],cwd=cwd)
         observed[lane]=hashlib.sha256(diff).hexdigest()
-        patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
-        expected=(ROOT/'certification/patches'/patch).read_bytes() if patch else b''
-        # Compare git's normalized diff to the pinned overlay applied at preparation.
-        if diff.strip()!=expected.strip():raise ValueError('unreviewed_lane_mutation:'+lane)
     return observed
 
 
@@ -67,9 +127,14 @@ def prepare(destination):
         subprocess.run(['git','worktree','add','--detach',str(work),execution],cwd=ROOT,check=True)
         for file,expected in row['file_hashes'].items():
             if hashlib.sha256((work/file).read_bytes()).hexdigest()!=expected:raise ValueError('source_hash_mismatch:'+lane+':'+file)
-        patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
+        patch=PATCH_BY_LANE.get(lane)
         if patch:
             subprocess.run(['git','apply','--index',str(ROOT/'certification/patches'/patch)],cwd=work,check=True)
+        for target,source in OVERRIDES.get(lane,{}).items():
+            destination=work/target
+            destination.parent.mkdir(parents=True,exist_ok=True)
+            shutil.copyfile(ROOT/source,destination)
+            subprocess.run(['git','add','--',target],cwd=work,check=True)
     atomic(destination/'manifest.json',spec)
     return destination
 
