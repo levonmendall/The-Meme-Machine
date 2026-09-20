@@ -315,3 +315,48 @@ The updated overlay still requires a fresh concurrent smoke before the four-hour
 run. Final shared-broker evidence is being inspected without market access.
 Unproven final certification controls remain explicit and cannot become PASS
 merely because processes stay alive or deterministic tests pass.
+
+## Gated sustained campaign workflow (2026-09-20 02:11 UTC)
+
+The final shared-database review is retained in
+results/smoke-35480694517-shared-database-review.json. It verified the artifact
+digest, empty physical provider queues, 1,976 completed evidence jobs, 4,966
+expired jobs (4,768 priority 20), and eight pending priority-90 research jobs.
+These are explicit evidence censoring/capacity observations, not strategy losses.
+The next supervisor records every unfinished job with a shutdown reason without
+editing its original broker record. Thirty-second durable samples retain shared
+queue/pressure/health histories for boundedness and starvation review.
+
+Full native suites/resource gates pass on the #78 overlay: Pump 245, Meteora 350,
+Pons 220, Ramses 236. Supervisor/control suite: 23 tests pass. New controls verify
+every raw transport hash against the append-only journal and the final process
+policy identity; they reject missing records, mixed lane state and process nonce
+changes. Native source integrity is checked again after the run. No signing or
+submission method is permitted to count as paper-only evidence.
+
+Workflow `.github/workflows/four-lane-certification.yml` now has separate smoke
+(75-minute bound) and sustained (330-minute bound) jobs. The sustained job uses
+fresh worktrees/books and accepts only a clean ten-minute engineering smoke from
+the exact same integration/source/implementation hashes. It never restarts a lane
+inside a window. The small readiness handoff includes the full smoke-result hash;
+full native evidence is retained in the preceding artifact. Separate jobs preserve
+the full policy-defined drain allowance without GitHub's job duration limit
+truncating the four-hour window. Per-asset Ramses campaign books are explicitly
+archived alongside the other native paper records.
+
+Reproduction: `python -m unittest discover -s certification/tests -v`;
+`python -m certification.run prepare --worktrees /new/isolated/worktrees`;
+`python -m certification.run verify --worktrees /new/isolated/worktrees --output gates`;
+`python -m certification.guard`; then `python -m certification.run run
+--worktrees /new/isolated/worktrees --output smoke --gate gates/deterministic.json
+--phase smoke --seconds 600`. For the fresh sustained worktrees, repeat prepare,
+verify and guard, then run with `--phase sustained --seconds 14400
+--smoke-result smoke/result.json` and distinct output. Existing authorized RPC
+secrets are supplied only inside Actions; no secret values are persisted.
+
+The commit marker `[four-lane-sustained]` schedules the two-stage workflow.
+Engineering smoke PASS is explicitly separate from full certification PASS.
+No-starvation, durable economic replay and detailed capacity controls remain
+unproven until supported by the retained campaign evidence; the final evaluator
+keeps missing evidence INCOMPLETE. Natural outcomes remain zero in completed
+runs. The four-hour run is requested by this revision, not claimed completed.

@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import sqlite3
 import subprocess
 import sys
 import time
@@ -14,6 +15,8 @@ from certification.journal import canonical,digest,Journal
 from certification.governor import Governor
 from certification.pressure import PressureView
 from certification.report import LANES,dashboard,evaluate,summarize
+from certification.controls import (audit_telemetry,broker_snapshot,record_unfinished_broker_jobs,
+                                    smoke_engineering,sustained_readiness)
 
 ROOT=Path(__file__).resolve().parents[1]
 REPORTS={'pump':'pump-acceleration-natural-prospective.json','meteora':'solana-dlmm-independent-v1-live.json',
@@ -105,17 +108,6 @@ def lane_environment(lane,source,run,run_id=None):
     return env
 
 
-def sustained_readiness():
-    # These are demonstrated source-level blockers, not configuration overrides.
-    # Never bypass a bounded study by looping/restarting it or padding idle uptime.
-    return [
-        'pump:continuous campaign implemented; refreshed concurrent smoke and full economic replay controls require evidence',
-        'meteora:continuous census and native journal implemented; refreshed concurrent smoke and raw-chain replay validation remain',
-        'pons:continuous campaign and position drain implemented; refreshed smoke and partial-exit capital-time proof remain',
-        'ramses:continuous discovery with frozen per-asset budgets implemented; refreshed concurrent smoke and native campaign validation remain',
-    ]
-
-
 def observe_checkpoint_report(lane,row,status,process_code):
     # Once the process has returned, the copied native terminal report is final.
     # A stale progress snapshot must not erase its settlement/accounting evidence
@@ -124,7 +116,7 @@ def observe_checkpoint_report(lane,row,status,process_code):
         row.update(summarize(lane,status['report']))
 
 
-def launch(worktrees,output,seconds,phase,gate_file):
+def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     if phase=='sustained' and seconds<14400:raise ValueError('four_hour_minimum')
     gate=json.loads(Path(gate_file).read_text())
     if not gate.get('passed') or gate.get('source_manifest_hash')!=digest(manifest()):raise ValueError('exact_source_deterministic_gate_required')
@@ -136,10 +128,12 @@ def launch(worktrees,output,seconds,phase,gate_file):
     atomic(run/'manifest.json',dict(**spec,integration_sha=git('rev-parse','HEAD'),run_id=run_id,
                                   operational_overlay_sha256=hashlib.sha256((ROOT/'certification/patches/meteora-checkpoint.patch').read_bytes()).hexdigest()))
     if phase=='sustained':
-        blockers=sustained_readiness()
-        result=dict(run_id=run_id,phase=phase,status='BLOCKED',blockers=blockers,lanes={},elapsed_seconds=0)
-        result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
-        return result
+        blockers=sustained_readiness(smoke_result,manifest_hash=digest(spec),
+            implementation_hash=implementation_hash(),integration_sha=git('rev-parse','HEAD'))
+        if blockers:
+            result=dict(run_id=run_id,phase=phase,status='BLOCKED',blockers=blockers,lanes={},elapsed_seconds=0)
+            result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
+            return result
     for lane,row in spec['lanes'].items():
         if git('rev-parse','HEAD',cwd=Path(worktrees)/lane)!=row.get('execution_sha',row['source_sha']):raise ValueError('worktree_head_drift:'+lane)
         for f,h in row['file_hashes'].items():
@@ -157,7 +151,9 @@ def launch(worktrees,output,seconds,phase,gate_file):
     pressure=PressureView(run/'shared-robinhood-admission.sqlite')
     started=time.monotonic();start_wall=time.time();processes={};files={};rows={};interrupted=False;terminal_times={}
     common_start=started
-    last_console=0
+    last_console=0;last_sample=0;max_broker_active=0;broker_terminal=None
+    lane_roots=[str((Path(worktrees)/lane).resolve()) for lane in LANES]
+    if len(set(lane_roots))!=len(LANES):raise ValueError('lane_state_roots_not_isolated')
     try:
         for lane,row in spec['lanes'].items():
             folder=run/lane;folder.mkdir()
@@ -165,7 +161,8 @@ def launch(worktrees,output,seconds,phase,gate_file):
             cmd=[sys.executable,'-m','certification.worker','--lane',lane,'--output',str(folder),'--policy-hash',row['policy_hash'],'--seconds',str(seconds),'--campaign']
             proc=subprocess.Popen(cmd,cwd=Path(worktrees)/lane,env=lane_environment(lane,row,run,run_id),stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
             launched=time.monotonic();processes[lane]=(proc,launched)
-            rows[lane]=dict(pid=proc.pid,strategy_version=row['strategy_version'],policy_hash=row['policy_hash'],process_restarts=0,health='starting',natural_settled=0,forced_settled=0,gates={})
+            rows[lane]=dict(pid=proc.pid,strategy_version=row['strategy_version'],policy_hash=row['policy_hash'],process_restarts=0,health='starting',natural_settled=0,forced_settled=0,
+                max_no_activity_seconds=0,gates=dict(responsive=True,state_isolated=True))
             journal.append(lane,'launch','process_launch',dict(pid=proc.pid,command=cmd,source_sha=row['source_sha'],launched_monotonic=launched))
         # Drain lets normal policy-defined exits finish. It is never counted as
         # a replacement for an interrupted observation window.
@@ -178,6 +175,13 @@ def launch(worktrees,output,seconds,phase,gate_file):
                 if path.exists():
                     try:status=json.loads(path.read_text())
                     except (ValueError,OSError):status={}
+                    if status:
+                        if status.get('pid')!=proc.pid or status.get('lane')!=lane:
+                            row['gates']['state_isolated']=False
+                        nonce=status.get('process_nonce')
+                        if row.get('process_nonce') is not None and row['process_nonce']!=nonce:
+                            row['process_restarts']+=1
+                        row['process_nonce']=nonce
                     row.update({k:status[k] for k in ('phase','provider_requests','method_counts','errors','rpc_latency_seconds','telemetry_archive_seconds') if k in status})
                     progress=status.get('last_progress_monotonic')
                     row['progress_age_seconds']=None if progress is None else now-progress
@@ -196,6 +200,16 @@ def launch(worktrees,output,seconds,phase,gate_file):
                             row.update({k:activity[k] for k in ('provider_requests','method_counts','errors','provider_session_count') if k in activity})
                 if code is None:
                     alive=True;row['continuous_uptime_seconds']=now-launched
+                    last=status.get('last_progress_monotonic') or launched
+                    if activity_file.exists():
+                        try:
+                            heartbeat=json.loads(activity_file.read_text())
+                            if heartbeat.get('pid')==proc.pid and heartbeat.get('lane')==lane:
+                                last=max(last,heartbeat.get('at_monotonic',launched))
+                        except (ValueError,OSError):pass
+                    idle=max(0,now-last)
+                    row['max_no_activity_seconds']=max(row['max_no_activity_seconds'],idle)
+                    if idle>300:row['gates']['responsive']=False
                 elif 'exit_code' not in row:
                     reported=status.get('terminal_monotonic')
                     ended=reported if isinstance(reported,(int,float)) and launched<=reported<=now else now
@@ -209,6 +223,12 @@ def launch(worktrees,output,seconds,phase,gate_file):
                         except ValueError:row['report_parse_error']=True
                 row['open_positions_unknown']=row.get('open_positions') is None
             result=dict(run_id=run_id,phase=phase,status='RUNNING' if alive else 'FINISHED',started_at=start_wall,observed_at=time.time(),elapsed_seconds=now-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=now)-common_start),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot()),source_manifest_hash=digest(spec))
+            if now-last_sample>=30:
+                broker=broker_snapshot(run/'shared-solana-evidence.sqlite')
+                max_broker_active=max(max_broker_active,(broker or {}).get('active',0))
+                journal.append('supervisor','resource-sample:'+str(time.monotonic_ns()),'resource_sample',
+                    dict(broker=broker,providers=result['shared_provider'],health={k:r['health'] for k,r in rows.items()}))
+                last_sample=now
             result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
             if now-last_console>=60:
                 print(canonical(dict(run_id=run_id,elapsed_seconds=now-started,lanes={k:{f:v for f,v in r.items() if f in ('health','phase','continuous_uptime_seconds','provider_requests','natural_settled','forced_settled','unexpected_exit')} for k,r in rows.items()})),flush=True)
@@ -231,7 +251,26 @@ def launch(worktrees,output,seconds,phase,gate_file):
                 rows[lane].update(unexpected_exit=True,exit_code=proc.returncode,health='terminated',shutdown_positions='explicitly_unresolved')
                 journal.append(lane,'supervisor_stop','forced_process_stop',dict(exit_code=proc.returncode))
             files[lane].close()
+            try:
+                audit=audit_telemetry(run/lane,lane,rows[lane]['policy_hash'])
+                rows[lane]['telemetry_audit']=audit
+                rows[lane]['gates'].update(telemetry_complete=True,paper_only=audit['read_only'])
+                rows[lane]['gates'].setdefault('policy_unchanged',True)
+            except (OSError,ValueError,KeyError,sqlite3.Error) as exc:
+                rows[lane]['telemetry_audit']=dict(verified=False,error_type=type(exc).__name__)
+                rows[lane]['gates']['telemetry_complete']=False
+            rows[lane]['gates']['accounting_reconciled']=rows[lane].get('accounting_reconciled') is True
+        broker_terminal=record_unfinished_broker_jobs(run/'shared-solana-evidence.sqlite',journal,time.time())
+        try:source_unchanged=source_integrity(worktrees)==gate['source_diff_hashes']
+        except (ValueError,OSError,subprocess.CalledProcessError):source_unchanged=False
+        for row in rows.values():
+            row['gates']['freshness_finality_unchanged']=source_unchanged
+            if not source_unchanged:row['gates']['policy_unchanged']=False
         result=dict(run_id=run_id,phase=phase,status='FAILED' if interrupted else 'FINISHED',started_at=start_wall,ended_at=time.time(),elapsed_seconds=time.monotonic()-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=time.monotonic())-common_start),source_manifest_hash=digest(spec),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot()))
+        result.update(integration_sha=git('rev-parse','HEAD'),implementation_hash=implementation_hash(),
+            maximum_sampled_active_broker_jobs=max_broker_active,broker_shutdown_terminals=broker_terminal,
+            source_diff_hashes=gate['source_diff_hashes'])
+        if phase=='smoke':result['smoke_engineering']=smoke_engineering(result)
         result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html');journal.close()
         from certification.analysis import report
         report(run)
@@ -244,12 +283,14 @@ def main():
     p=sub.add_parser('verify');p.add_argument('--worktrees',required=True);p.add_argument('--output',required=True)
     p=sub.add_parser('run');p.add_argument('--worktrees',required=True);p.add_argument('--output',required=True);p.add_argument('--gate',required=True)
     p.add_argument('--seconds',type=int,default=600);p.add_argument('--phase',choices=['smoke','sustained'],default='smoke')
+    p.add_argument('--smoke-result')
     args=parser.parse_args()
     if args.command=='prepare':print(prepare(args.worktrees));return
     if args.command=='verify':
         r=verify(args.worktrees,args.output);print(canonical(r));raise SystemExit(0 if r['passed'] else 1)
-    r=launch(args.worktrees,args.output,args.seconds,args.phase,args.gate)
+    r=launch(args.worktrees,args.output,args.seconds,args.phase,args.gate,args.smoke_result)
     print(canonical(r))
-    raise SystemExit(0 if r['certification']['status']=='PASS' else 1)
+    success=r.get('smoke_engineering',{}).get('status')=='PASS' if args.phase=='smoke' else r['certification']['status']=='PASS'
+    raise SystemExit(0 if success else 1)
 
 if __name__=='__main__':main()

@@ -1,0 +1,126 @@
+"""Evidence-backed engineering readiness, separate from natural certification."""
+import gzip
+import json
+from pathlib import Path
+import sqlite3
+
+from certification.journal import Journal, digest
+from certification.report import LANES
+
+
+def audit_telemetry(folder,lane,policy):
+    """Verify every raw transport against its append-only journal reference."""
+    folder=Path(folder);journal=Journal(folder/'telemetry.sqlite')
+    try:
+        references={};terminals=[]
+        for event in journal.records():
+            if event['lane']!=lane:raise ValueError('cross_lane_telemetry')
+            if event['kind']=='rpc_transport':
+                body=event['body'];seq=body['sequence']
+                if seq in references:raise ValueError('duplicate_transport_sequence')
+                references[seq]=body['raw_hash']
+            elif event['kind']=='process_terminal':terminals.append(event['body'])
+    finally:journal.close()
+    seen=set();methods=set()
+    with gzip.open(folder/'rpc-evidence.jsonl.gz','rt') as raw:
+        for line in raw:
+            row=json.loads(line);seq=row['sequence']
+            if row['lane']!=lane or seq in seen or references.get(seq)!=digest(row):
+                raise ValueError('raw_transport_journal_mismatch')
+            seen.add(seq)
+            for request in row['request']:
+                methods.add(request['method'] if isinstance(request,dict) else request[0])
+    if set(references)!=seen:raise ValueError('missing_raw_transport_record')
+    if len(terminals)!=1 or terminals[0].get('status')!='returned' or terminals[0].get('policy_hash')!=policy:
+        raise ValueError('native_terminal_or_policy_mismatch')
+    read_only=all(method.startswith('get') if lane in ('pump','meteora') else method in {
+        'eth_chainId','eth_blockNumber','eth_getBlockByNumber','eth_getBlockByHash',
+        'eth_getLogs','eth_getTransactionReceipt','eth_getTransactionByHash',
+        'eth_getCode','eth_getStorageAt','eth_getBalance','eth_call','eth_gasPrice',
+        'eth_feeHistory','net_version','web3_clientVersion','eth_estimateGas',
+    } for method in methods)
+    return dict(verified=True,raw_transport_records=len(seen),methods=sorted(methods),read_only=read_only)
+
+
+def broker_snapshot(path):
+    path=Path(path)
+    if not path.exists():return None
+    db=sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True,timeout=2)
+    try:
+        rows=db.execute('SELECT priority,status,count(*) FROM jobs GROUP BY priority,status').fetchall()
+        return dict(active=sum(n for _,s,n in rows if s in ('pending','inflight')),
+            priority_status=[dict(priority=p,status=s,count=n) for p,s,n in rows])
+    finally:db.close()
+
+
+def record_unfinished_broker_jobs(path,journal,now):
+    """Retain and explicitly censor every unfinished shared job at shutdown.
+
+    Never mutates broker state or reclassifies missing evidence as economic
+    rejection. Called only after all four processes have exited.
+    """
+    path=Path(path)
+    if not path.exists():return dict(count=0,reasons={})
+    db=sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True,timeout=2)
+    counts={}
+    try:
+        for key,kind,priority,deadline,status in db.execute("SELECT job_key,kind,priority,deadline,status FROM jobs WHERE status IN ('pending','inflight')"):
+            reason='evidence_deadline_expired_at_shutdown' if deadline<now else 'uncompleted_evidence_at_campaign_shutdown'
+            journal.append('supervisor','broker-terminal:'+key,'evidence_terminal',dict(
+                job_key=key,kind=kind,priority=priority,deadline=deadline,native_status=status,
+                terminal_reason=reason,qualification_inferred=False))
+            counts[reason]=counts.get(reason,0)+1
+    finally:db.close()
+    return dict(count=sum(counts.values()),reasons=counts)
+
+
+def smoke_engineering(result):
+    """A machinery preflight, never a four-hour or natural execution PASS."""
+    failures=[]
+    if result.get('phase')!='smoke' or result.get('status')!='FINISHED':failures.append('smoke_not_finished')
+    if result.get('continuous_overlap_seconds',0)<600:failures.append('ten_minute_overlap_missing')
+    for lane in LANES:
+        row=result.get('lanes',{}).get(lane,{})
+        if row.get('exit_code')!=0 or row.get('unexpected_exit') or row.get('process_restarts')!=0:
+            failures.append(lane+':process_continuity')
+        if row.get('open_positions')!=0 or row.get('accounting_reconciled') is not True:
+            failures.append(lane+':accounting_or_exposure')
+        if not row.get('provider_requests'):failures.append(lane+':no_provider_activity')
+        for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
+            if row.get('gates',{}).get(gate) is not True:failures.append(lane+':'+gate)
+    shared=result.get('shared_provider',{})
+    for network in ('solana','robinhood'):
+        if network not in shared or shared[network].get('queues')!=[]:failures.append(network+':provider_queue_not_drained')
+    return dict(status='PASS' if not failures else 'FAIL',failures=failures,
+        scope='ten_minute_engineering_preflight_only; not natural or sustained certification')
+
+
+def sustained_readiness(smoke_path,*,manifest_hash,implementation_hash,integration_sha):
+    if not smoke_path:return ['exact_revision_clean_smoke_required']
+    try:smoke=json.loads(Path(smoke_path).read_text())
+    except (OSError,ValueError):return ['smoke_result_unreadable']
+    blockers=[]
+    for key,value in (('source_manifest_hash',manifest_hash),('implementation_hash',implementation_hash),('integration_sha',integration_sha)):
+        if smoke.get(key)!=value:blockers.append('smoke_revision_mismatch:'+key)
+    blockers.extend(smoke_engineering(smoke)['failures'])
+    return blockers
+
+
+def export_readiness(path,output):
+    """Small workflow handoff; full evidence stays in the smoke artifact."""
+    import hashlib
+    raw=Path(path).read_bytes();result=json.loads(raw)
+    if smoke_engineering(result)['status']!='PASS':raise ValueError('clean_smoke_required')
+    keys=('phase','status','run_id','continuous_overlap_seconds','source_manifest_hash','implementation_hash','integration_sha')
+    attestation={key:result[key] for key in keys}
+    attestation['full_smoke_result_sha256']=hashlib.sha256(raw).hexdigest()
+    attestation['shared_provider']={network:dict(queues=result['shared_provider'][network]['queues']) for network in ('solana','robinhood')}
+    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates')
+    attestation['lanes']={lane:{key:result['lanes'][lane][key] for key in lane_keys} for lane in LANES}
+    with Path(output).open('a') as handle:handle.write('readiness='+json.dumps(attestation,separators=(',',':'))+'\n')
+
+
+if __name__=='__main__':
+    import argparse
+    parser=argparse.ArgumentParser();parser.add_argument('--smoke-result',required=True);parser.add_argument('--output',required=True)
+    args=parser.parse_args();export_readiness(args.smoke_result,args.output)
