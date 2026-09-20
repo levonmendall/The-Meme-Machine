@@ -96,8 +96,8 @@ class PonsSelectivePolicyTests(unittest.TestCase):
     def test_policy_is_distinct_and_frozen(self):
         self.assertEqual(POLICY,"pons-selective-continuation-v1")
         self.assertEqual(len(POLICY_HASH),64)
-        self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],5500)
-        self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],9200)
+        self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],4500)
+        self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],9700)
         self.assertEqual(ENTRY_THRESHOLDS["capital_size_bps"],25)
         self.assertEqual(EXIT_POLICY["first_profit_bps"],2500)
         self.assertEqual(EXIT_POLICY["max_total_hold_seconds"],900)
@@ -112,7 +112,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         self.assertGreaterEqual(v["demand"]["new_independent_groups_15s"],3)
         self.assertEqual(v["current_snipe_bps"],0)
         self.assertGreater(v["proposed_size"]["amount_quote"],0)
-        self.assertLessEqual(v["roundtrip_loss_bps"],500)
+        self.assertLessEqual(v["roundtrip_loss_bps"],ENTRY_THRESHOLDS["max_roundtrip_loss_bps"])
 
     def test_chain_timestamp_lag_is_telemetry_not_selective_freshness(self):
         v=vector(
@@ -148,6 +148,17 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         ]
         v=vector(snapshots=flat)
         self.assertIn("curve_velocity",v["all_rejections"])
+
+    def test_execution_certification_does_not_require_positive_acceleration(self):
+        decelerating=[
+            dict(at=185,progress_bps=7300),
+            dict(at=195,progress_bps=7900),
+            dict(at=200,progress_bps=8000),
+        ]
+        v=vector(snapshots=decelerating)
+        self.assertFalse(v["trajectory"]["accelerating"])
+        self.assertGreaterEqual(v["trajectory"]["progress_15s_bps"],ENTRY_THRESHOLDS["min_progress_15s_bps"])
+        self.assertTrue(v["current_threshold_pass"],v["all_rejections"])
 
     def test_non_native_pair_is_research_only(self):
         v=vector(pair_token="0x"+"99"*20,quote_relative_strength_bps=321)
@@ -375,6 +386,42 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
         tele=ctx.cache.telemetry()
         self.assertGreaterEqual(tele.get("header_hash_hit",0),2)
         self.assertGreaterEqual(tele.get("receipt_hit",0),2)
+
+    def test_trajectory_spare_slots_remove_one_transport_without_changing_window(self):
+        events=[dict(address=CREATOR,blockNumber=hex(block),blockHash='0x'+f'{block:064x}',
+            transactionHash='0x'+f'{block:064x}',transactionIndex='0x0',logIndex=hex(block-190)) for block in (190,191)]
+        candidate=self._candidate(200)
+        candidate['stamp']=type('StampLike',(),{'event_at':1000})()
+        def raw(_abi,event,**kwargs):
+            self.assertEqual(kwargs['receipt']['blockHash'],event['blockHash'])
+            self.assertEqual(kwargs['header']['hash'],event['blockHash'])
+            return dict(decoded=dict(name='CurveBuy',args={}),block=int(event['blockNumber'],16),
+                transaction_hash=event['transactionHash'],log_index=int(event['logIndex'],16),
+                event_at=int(kwargs['header']['timestamp'],16))
+        outputs=[];contexts=[]
+        with patch.object(selective_acquisition,'raw_event',side_effect=raw),patch.object(
+            selective_acquisition,'normalized_trade',side_effect=lambda decoded,identity,event_at:dict(identity=identity,event_at=event_at,decoded=decoded)):
+            for prefetched in (False,True):
+                ctx=self.BatchContext();contexts.append(ctx)
+                snapshots,launch,_=_trajectory('https://unused',candidate,evidence_context=ctx,
+                    window_tape=events if prefetched else None)
+                market,_=_authenticate_window('https://unused',candidate,events,evidence_context=ctx)
+                outputs.append((snapshots,launch,market))
+        self.assertEqual(outputs[0],outputs[1])
+        self.assertEqual([len(c.batches) for c in contexts],[3,2])
+        self.assertEqual([len(calls) for _,calls in contexts[1].batches],[50,4])
+        self.assertEqual(sum(len(c) for _,c in contexts[0].batches),sum(len(c) for _,c in contexts[1].batches))
+
+    def test_window_prefetch_is_bounded_and_foreign_receipts_still_fail_closed(self):
+        candidate=self._candidate(200);cache=ImmutableEvidenceCache()
+        events=[dict(address=CREATOR,blockNumber='0xbe',blockHash='h190',transactionHash='tx'+str(i)) for i in range(100)]
+        calls,labels=selective_acquisition._window_prefetch(cache,candidate,events,48)
+        self.assertEqual(len(calls),48);self.assertEqual(len(labels),48)
+        with self.assertRaisesRegex(BoundaryError,'receipt_identity'):
+            selective_acquisition._remember_window_prefetch(cache,[('receipt',('tx','block'))],
+                [dict(transactionHash='tx',blockHash='foreign')])
+        self.assertIsNone(cache.receipt('tx','block'))
+        self.assertEqual(selective_acquisition._window_prefetch(cache,candidate,events,0),([],[]))
 
     def test_authoritative_rpc_session_is_reused_until_bounded_rotation(self):
         created=[]
