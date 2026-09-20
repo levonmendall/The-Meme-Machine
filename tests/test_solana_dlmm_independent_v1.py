@@ -547,7 +547,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         candidate=dict(
             address="pool",volume_acceleration=2.5,fee_acceleration=1.5)
         adapter=MagicMock();adapter.rpc.calls=0
-        expired=dict(candidate,volume_acceleration=1.9,fee_acceleration=1.5)
+        expired=dict(candidate,volume_acceleration=1.2,fee_acceleration=1.5)
         with patch.object(
                 strategy,"_history_acceleration",return_value=expired), \
              patch.object(strategy.time,"monotonic",return_value=0.0):
