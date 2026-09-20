@@ -629,9 +629,13 @@ class EvidenceBroker:
             if sig and sig not in seen:
                 seen.add(sig)
                 requested.append(sig)
+        # Cached immutable bodies are reuse, not new acquisition work.  Registering
+        # them again for every overlapping decision window made the durable consumer
+        # denominator grow with evaluation frequency instead of provider demand.
+        missing_at_request = [sig for sig in requested if self.get_transaction(sig) is None]
         if owner is not False:
             owner = owner or f'{kind}:request:{deadline!r}'
-            self.consumers.register(owner, requested, kind, deadline)
+            self.consumers.register(owner, missing_at_request, kind, deadline)
 
         batches = 0
         while float(self.clock()) < deadline:
@@ -1025,7 +1029,7 @@ class DynamicAddressLogStream:
 
     def __init__(
         self, ws_url, broker, stream_prefix, *, coverage_seconds=30, clock=time.time,
-        prefetch=False
+        prefetch=False, prefetch_filter=None
     ):
         self.ws_url=str(ws_url)
         self.broker=broker
@@ -1039,6 +1043,12 @@ class DynamicAddressLogStream:
         self.last_error_kind=None
         self.active_subscriptions=0
         self.prefetch=bool(prefetch)
+        if prefetch_filter is not None and not callable(prefetch_filter):
+            raise TypeError('prefetch_filter_must_be_callable')
+        self.prefetch_filter=prefetch_filter
+        self.prefetch_notifications=0
+        self.prefetch_admitted=0
+        self.prefetch_filter_errors=0
 
     def stream_key(self,address):
         return self.stream_prefix+":"+str(address)
@@ -1069,7 +1079,28 @@ class DynamicAddressLogStream:
             wanted_addresses=len(self.wanted_addresses()),
             active_subscriptions=int(self.active_subscriptions),
             last_error_kind=self.last_error_kind,
+            prefetch_notifications=int(self.prefetch_notifications),
+            prefetch_admitted=int(self.prefetch_admitted),
+            prefetch_filter_errors=int(self.prefetch_filter_errors),
         )
+
+    def should_prefetch(self,address,value,slot):
+        if not self.prefetch:
+            return False
+        self.prefetch_notifications+=1
+        if self.prefetch_filter is None:
+            admitted=True
+        else:
+            try:
+                admitted=bool(self.prefetch_filter(str(address),value,int(slot)))
+            except Exception:
+                # This callback controls proactive work only. The signature remains
+                # in the authenticated stream and candidate-specific hydration still
+                # fails closed if it cannot obtain the transaction.
+                self.prefetch_filter_errors+=1
+                admitted=False
+        if admitted:self.prefetch_admitted+=1
+        return admitted
 
     def run(self,stop_event,ready_event=None):
         ever_ready=False
@@ -1166,7 +1197,7 @@ class DynamicAddressLogStream:
                             slot=int(result["context"]["slot"]),
                             observed_at=int(self.clock()),
                         )
-                        if self.prefetch:
+                        if self.should_prefetch(address,value,int(result["context"]["slot"])):
                             # Do not resurrect an owner while unsubscribe is pending.
                             with self.lock:
                                 if address in self.addresses:

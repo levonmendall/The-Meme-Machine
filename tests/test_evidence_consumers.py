@@ -114,6 +114,26 @@ class EvidenceConsumerTests(unittest.TestCase):
                 self.assertEqual(a.db.execute("SELECT COUNT(*) FROM evidence_terminals WHERE reason='evidence_complete'").fetchone()[0],2)
             finally:a.close();b.close()
 
+    def test_cached_reuse_does_not_multiply_acquisition_consumers(self):
+        b,c=self.broker();b.put_transaction('cached',dict(slot=1,blockTime=1))
+        _,meta=b.hydrate_transactions(_Rpc(),['cached'],kind='pump_window',
+                                      deadline=c()+4,owner='decision:one')
+        self.assertEqual(meta['hydrated'],1)
+        self.assertEqual(b.db.execute('SELECT COUNT(*) FROM evidence_consumers').fetchone()[0],0)
+
+    def test_prefetch_filter_reduces_work_without_hiding_stream_signature(self):
+        b,c=self.broker()
+        stream=DynamicAddressLogStream('unused',b,'pool',prefetch=True,clock=c,
+            prefetch_filter=lambda address,value,slot:value.get('economic') is True)
+        owner=stream.add_address('a')
+        b.record_event(owner,signature='noise',address='a',slot=1,observed_at=int(c()))
+        self.assertFalse(stream.should_prefetch('a',{'economic':False},1))
+        self.assertEqual([x['signature'] for x in b.recent_events(owner,since=c()-1)],['noise'])
+        self.assertEqual(b.db.execute('SELECT COUNT(*) FROM evidence_consumers').fetchone()[0],0)
+        self.assertTrue(stream.should_prefetch('a',{'economic':True},2))
+        self.assertEqual(stream.status()['prefetch_notifications'],2)
+        self.assertEqual(stream.status()['prefetch_admitted'],1)
+
     def test_stream_retirement_is_durable_and_does_not_fetch_more(self):
         b,c=self.broker()
         stream=DynamicAddressLogStream('unused',b,'pool',prefetch=True,clock=c)

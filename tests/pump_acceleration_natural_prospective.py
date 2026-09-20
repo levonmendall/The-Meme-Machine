@@ -25,7 +25,7 @@ from meme_machine.provider import PumpAdapter,Unavailable
 from meme_machine.pump_acceleration_confirmations import ConfirmationBook
 from meme_machine.pump_acceleration_evidence import (
     curve_progress_bps,early_holder_sell_share_bps,late_curve_trajectory,
-    postgrad_volume_acceleration_bps,price_return_bps,
+    postgrad_volume_acceleration_bps,price_return_bps,pumpswap_trade_events,
     reserve_price_parts,second_leg_shape,
 )
 from meme_machine.pump_acceleration_history import IncrementalPumpSwapHistory
@@ -452,6 +452,13 @@ def _terminal(report,row):
     reason=row['terminal_reason'];counts[reason]=counts.get(reason,0)+1
 
 
+def _pumpswap_prefetch_filter(address,value,slot):
+    """Use authenticated logs only to prioritize hydration, never as economics."""
+    tx={'slot':int(slot),'meta':{'err':value.get('err'),
+        'logMessages':value.get('logs') or []}}
+    return any(event.get('pool')==str(address) for event in pumpswap_trade_events(tx))
+
+
 def _retire_postgrad(report,postgrad,pending,active,stream,now):
     protected={key[0] for key in pending}|{key[0] for key in active}
     for mint,state in list(postgrad.items()):
@@ -527,7 +534,8 @@ def main(*,campaign=False,discovery_seconds=None):
     # cross-process governor. Standalone runners retain their original transport cap.
     incremental=bool(campaign and os.environ.get('MM_CERT_GOVERNOR_DB'))
     pumpswap_stream=DynamicAddressLogStream(
-        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30,prefetch=incremental)
+        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30,prefetch=incremental,
+        prefetch_filter=_pumpswap_prefetch_filter)
     evidence_service=StreamEvidenceService(broker,lambda:new_rpc(limit=240)) if incremental else None
     thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
     pumpswap_thread=threading.Thread(
