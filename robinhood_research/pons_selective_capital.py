@@ -35,13 +35,24 @@ class CohortCapital:
         return db
 
     def _reconcile(self,db):
-        rows=[]
-        for identity,raw in db.execute('SELECT id,body FROM capital_positions'):
-            row=json.loads(raw)
-            journal=db.execute('SELECT body,hash FROM capital_journal WHERE id=? ORDER BY seq DESC LIMIT 1',(identity,)).fetchone()
-            if not journal or journal[0]!=raw or journal[1]!=digest(row) or row.get('policy_hash')!=POLICY_HASH:
+        replay={}
+        for identity,action,raw,checksum in db.execute('SELECT id,action,body,hash FROM capital_journal ORDER BY seq'):
+            row=json.loads(raw);previous=replay.get(identity)
+            if row.get('id')!=identity or checksum!=digest(row) or row.get('policy_hash')!=POLICY_HASH:
                 raise BoundaryError('selective_cohort_journal_mismatch')
-            rows.append(row)
+            if action=='reserve':
+                if previous is not None or row.get('status')!='reserved' or row.get('reserved')!=row.get('initial_reserved') or row.get('pnl')!=0:
+                    raise BoundaryError('selective_cohort_journal_transition')
+            elif action=='settle':
+                if previous is None or previous['status']!='reserved' or row.get('status')!='settled' or row.get('reserved')!=0 or row['at']<previous['at']:
+                    raise BoundaryError('selective_cohort_journal_transition')
+                if any(row.get(k)!=previous.get(k) for k in ('initial_reserved','decision_hash','trial_path','policy_hash')):
+                    raise BoundaryError('selective_cohort_journal_transition')
+            else:raise BoundaryError('selective_cohort_journal_transition')
+            replay[identity]=row
+        projection={identity:json.loads(raw) for identity,raw in db.execute('SELECT id,body FROM capital_positions')}
+        if projection!=replay:raise BoundaryError('selective_cohort_projection_mismatch')
+        rows=list(replay.values())
         reserved=sum(x['reserved'] for x in rows)
         realized=sum(x['pnl'] for x in rows if x['status']=='settled')
         available=self.capital+realized-reserved
@@ -52,7 +63,9 @@ class CohortCapital:
                     conservation=self.capital+realized==available+reserved)
 
     def reconcile(self):
-        with closing(self._connect()) as db:return self._reconcile(db)
+        with closing(self._connect()) as db:
+            db.execute('BEGIN')
+            return self._reconcile(db)
 
     def _write(self,db,row,action):
         raw=canonical(row)

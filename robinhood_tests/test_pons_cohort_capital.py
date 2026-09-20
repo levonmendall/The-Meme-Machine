@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 import tempfile
+import sqlite3
 from pathlib import Path
 import unittest
 from robinhood_research import BoundaryError
@@ -43,5 +44,14 @@ class CohortCapitalTests(unittest.TestCase):
             with self.assertRaisesRegex(BoundaryError,'native_settlement_required'):
                 p.settle('a',dict(id='a',experiment='ramses',status='settled',tokens=0,reserved=0,pnl=0),at=2)
             self.assertEqual(p.reconcile()['reserved'],100)
+
+    def test_deleted_projection_cannot_release_reserved_capital(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=CohortCapital(Path(tmp)/'pool.sqlite',1000)
+            p.reserve('a',900,at=1,decision_hash='a'*64,trial_path='a.sqlite')
+            with sqlite3.connect(p.path) as db:db.execute('DELETE FROM capital_positions')
+            with self.assertRaisesRegex(BoundaryError,'projection_mismatch'):p.reconcile()
+            with self.assertRaisesRegex(BoundaryError,'projection_mismatch'):
+                p.reserve('b',900,at=2,decision_hash='b'*64,trial_path='b.sqlite')
 
 if __name__=='__main__':unittest.main()
