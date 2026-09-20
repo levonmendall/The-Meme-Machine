@@ -63,6 +63,106 @@ index 1b6f675..378c9d6 100644
              nominal_deadline_seconds=self.nominal_deadline_seconds,
              **dict(self.counts),
          )
+diff --git a/robinhood_research/pons_selective_acquisition.py b/robinhood_research/pons_selective_acquisition.py
+index bf9e1a8..49f8a24 100644
+--- a/robinhood_research/pons_selective_acquisition.py
++++ b/robinhood_research/pons_selective_acquisition.py
+@@ -228,6 +228,39 @@ def _batched(endpoint,calls,scope,*,evidence_context=None):
+     return out,telemetry
+ 
+ 
++def _window_events(candidate,tape):
++    end_block=int(candidate['block']);curve=candidate['curve'].lower()
++    raw=[event for event in tape if event.get('address','').lower()==curve
++         and int(event['blockNumber'],16)<=end_block]
++    return raw[-ENTRY_THRESHOLDS['max_market_events']*4:]
++
++
++def _window_prefetch(cache,candidate,tape,limit):
++    """Only fill spare slots of an already-required immutable state batch.
++
++    Authentication/normalization still runs in _authenticate_window. Cached
++    receipts must match both transaction and block identity before reuse.
++    """
++    if tape is None or limit<=0:return [],[]
++    raw=_window_events(candidate,tape);calls=[];labels=[]
++    for block_hash in dict.fromkeys(event['blockHash'] for event in raw):
++        if cache.header_by_hash(block_hash) is None:
++            calls.append(('eth_getBlockByHash',[block_hash,False]));labels.append(('header',block_hash))
++    for tx,block_hash in dict.fromkeys((event['transactionHash'],event['blockHash']) for event in raw):
++        if cache.receipt(tx,block_hash) is None:
++            calls.append(('eth_getTransactionReceipt',[tx]));labels.append(('receipt',(tx,block_hash)))
++    return calls[:limit],labels[:limit]
++
++
++def _remember_window_prefetch(cache,labels,values):
++    for (kind,key),value in zip(labels,values):
++        if kind=='header':
++            if value['hash']!=key:raise BoundaryError('selective_window_header_disagreement')
++            cache.remember_header(value)
++        else:
++            tx,block_hash=key;cache.remember_receipt(tx,block_hash,value)
++
++
+ def _authenticate_window(
+     endpoint,candidate,tape,seconds=60,*,evidence_context=None
+ ):
+@@ -243,13 +276,7 @@ def _authenticate_window(
+     end_time=int(candidate["stamp"].event_at)
+     end_block=int(candidate["block"])
+     curve=candidate["curve"].lower()
+-    raw=[
+-        event for event in tape
+-        if event.get("address","").lower()==curve
+-        and int(event["blockNumber"],16)<=end_block
+-    ]
+-    if len(raw)>ENTRY_THRESHOLDS["max_market_events"]*4:
+-        raw=raw[-ENTRY_THRESHOLDS["max_market_events"]*4:]
++    raw=_window_events(candidate,tape)
+ 
+     hashes=list(dict.fromkeys(event["blockHash"] for event in raw))
+     tx_rows=list(dict.fromkeys(
+@@ -379,7 +406,7 @@ def _header_search(rpc,current_block,current_at,target_at,cache):
+     return read(low)
+ 
+ 
+-def _trajectory(endpoint,candidate,*,evidence_context=None):
++def _trajectory(endpoint,candidate,*,evidence_context=None,window_tape=None):
+     """Resolve 5s/15s trajectory anchors from dense batched recent headers.
+ 
+     The old binary search serialized one request per probe. This path walks recent
+@@ -488,12 +515,18 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+             missing_blocks.append(block)
+         else:
+             reserve_by_block[block]=cached
+-    reads=ctx.batch([
++    reserve_calls=[
+         ("eth_call",[
+             dict(to=curve,data=calldata("realQuoteReserve()")),hex(block)
+         ])
+         for block in missing_blocks
+-    ],"pons_selective_trajectory") if missing_blocks else []
++    ]
++    extra_calls,extra_labels=_window_prefetch(cache,candidate,window_tape,
++        50-len(reserve_calls) if reserve_calls else 0)
++    combined=reserve_calls+extra_calls
++    reads=ctx.batch(combined,"pons_selective_trajectory") if combined else []
++    _remember_window_prefetch(cache,extra_labels,reads[len(reserve_calls):])
++    reads=reads[:len(reserve_calls)]
+     for block,raw in zip(missing_blocks,reads):
+         reserve_by_block[block]=cache.remember_real_quote(
+             curve,block,_one_word(raw)
+@@ -562,8 +595,9 @@ def evaluate_candidate(
+     if candidate["decoded_event"]["decoded"]["name"]!="CurveBuy":
+         raise BoundaryError("selective_nomination_not_buy")
+ 
++    tape=list(tape)
+     snapshots,launch_at,trajectory_session=_trajectory(
+-        endpoint,candidate,evidence_context=ctx
++        endpoint,candidate,evidence_context=ctx,window_tape=tape
+     )
+     sessions.append(trajectory_session)
+     market,market_sessions=_authenticate_window(
 diff --git a/robinhood_research/pons_selective_capital.py b/robinhood_research/pons_selective_capital.py
 new file mode 100644
 index 0000000..38a4454
@@ -1358,6 +1458,53 @@ index 0000000..2401955
 +
 +
 +if __name__=='__main__':unittest.main()
+diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
+index d8d0a88..4798215 100644
+--- a/robinhood_tests/test_pons_selective_continuation.py
++++ b/robinhood_tests/test_pons_selective_continuation.py
+@@ -376,6 +376,42 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
+         self.assertGreaterEqual(tele.get("header_hash_hit",0),2)
+         self.assertGreaterEqual(tele.get("receipt_hit",0),2)
+ 
++    def test_trajectory_spare_slots_remove_one_transport_without_changing_window(self):
++        events=[dict(address=CREATOR,blockNumber=hex(block),blockHash='0x'+f'{block:064x}',
++            transactionHash='0x'+f'{block:064x}',transactionIndex='0x0',logIndex=hex(block-190)) for block in (190,191)]
++        candidate=self._candidate(200)
++        candidate['stamp']=type('StampLike',(),{'event_at':1000})()
++        def raw(_abi,event,**kwargs):
++            self.assertEqual(kwargs['receipt']['blockHash'],event['blockHash'])
++            self.assertEqual(kwargs['header']['hash'],event['blockHash'])
++            return dict(decoded=dict(name='CurveBuy',args={}),block=int(event['blockNumber'],16),
++                transaction_hash=event['transactionHash'],log_index=int(event['logIndex'],16),
++                event_at=int(kwargs['header']['timestamp'],16))
++        outputs=[];contexts=[]
++        with patch.object(selective_acquisition,'raw_event',side_effect=raw),patch.object(
++            selective_acquisition,'normalized_trade',side_effect=lambda decoded,identity,event_at:dict(identity=identity,event_at=event_at,decoded=decoded)):
++            for prefetched in (False,True):
++                ctx=self.BatchContext();contexts.append(ctx)
++                snapshots,launch,_=_trajectory('https://unused',candidate,evidence_context=ctx,
++                    window_tape=events if prefetched else None)
++                market,_=_authenticate_window('https://unused',candidate,events,evidence_context=ctx)
++                outputs.append((snapshots,launch,market))
++        self.assertEqual(outputs[0],outputs[1])
++        self.assertEqual([len(c.batches) for c in contexts],[3,2])
++        self.assertEqual([len(calls) for _,calls in contexts[1].batches],[50,4])
++        self.assertEqual(sum(len(c) for _,c in contexts[0].batches),sum(len(c) for _,c in contexts[1].batches))
++
++    def test_window_prefetch_is_bounded_and_foreign_receipts_still_fail_closed(self):
++        candidate=self._candidate(200);cache=ImmutableEvidenceCache()
++        events=[dict(address=CREATOR,blockNumber='0xbe',blockHash='h190',transactionHash='tx'+str(i)) for i in range(100)]
++        calls,labels=selective_acquisition._window_prefetch(cache,candidate,events,48)
++        self.assertEqual(len(calls),48);self.assertEqual(len(labels),48)
++        with self.assertRaisesRegex(BoundaryError,'receipt_identity'):
++            selective_acquisition._remember_window_prefetch(cache,[('receipt',('tx','block'))],
++                [dict(transactionHash='tx',blockHash='foreign')])
++        self.assertIsNone(cache.receipt('tx','block'))
++        self.assertEqual(selective_acquisition._window_prefetch(cache,candidate,events,0),([],[]))
++
+     def test_authoritative_rpc_session_is_reused_until_bounded_rotation(self):
+         created=[]
+         class FakeRpc:
 diff --git a/robinhood_tests/test_provider_admission.py b/robinhood_tests/test_provider_admission.py
 new file mode 100644
 index 0000000..8b6bef3

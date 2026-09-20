@@ -182,7 +182,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                         if row.get('process_nonce') is not None and row['process_nonce']!=nonce:
                             row['process_restarts']+=1
                         row['process_nonce']=nonce
-                    row.update({k:status[k] for k in ('phase','provider_requests','method_counts','errors','rpc_latency_seconds','telemetry_archive_seconds') if k in status})
+                    row.update({k:status[k] for k in ('phase','provider_requests','method_counts','errors','rpc_latency_seconds','telemetry_archive_seconds','telemetry_cost','runtime_resources') if k in status})
                     progress=status.get('last_progress_monotonic')
                     row['progress_age_seconds']=None if progress is None else now-progress
                     if 'exit_code' not in row:row['health']='responsive' if progress is not None and now-progress<300 else 'progress_stalled'
@@ -227,7 +227,9 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                 broker=broker_snapshot(run/'shared-solana-evidence.sqlite')
                 max_broker_active=max(max_broker_active,(broker or {}).get('active',0))
                 journal.append('supervisor','resource-sample:'+str(time.monotonic_ns()),'resource_sample',
-                    dict(broker=broker,providers=result['shared_provider'],health={k:r['health'] for k,r in rows.items()}))
+                    dict(broker=broker,providers=result['shared_provider'],health={k:r['health'] for k,r in rows.items()},
+                        runtime_resources={k:r.get('runtime_resources') for k,r in rows.items()},
+                        telemetry_cost={k:r.get('telemetry_cost') for k,r in rows.items()}))
                 last_sample=now
             result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
             if now-last_console>=60:

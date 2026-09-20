@@ -1,7 +1,7 @@
 name: four-lane-shadow-review
 on:
   push:
-    branches: [research/four-lane-shadow-registration]
+    branches: [research/four-lane-shadow-registration, cert/four-lane-capacity-v2]
 permissions:
   actions: read
   contents: read
@@ -19,7 +19,7 @@ jobs:
       - name: Score retained observations without market access
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -m certification.review_retained --artifact-id 10595953662 --sha256 d97f3d5c732c60127a4fa2c0a1cd692c127741069a1116709a9a15107589517b --output retained-analysis
+        run: python -m certification.review_retained --artifact-id 10597391938 --sha256 977e69aed5b94f092cd894c827b34208ae9020474ac6aa5d792d2d2caef91c92 --output retained-analysis
       - name: Preserve full source telemetry and separate research results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

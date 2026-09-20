@@ -1,7 +1,7 @@
 name: four-lane-certification
 on:
   push:
-    branches: [cert/four-lane-sustained-v1, certification/four-lane-repair-integration-20260920]
+    branches: [cert/four-lane-sustained-v1, certification/four-lane-repair-integration-20260920, cert/four-lane-capacity-v2]
   workflow_dispatch:
     inputs:
       phase:

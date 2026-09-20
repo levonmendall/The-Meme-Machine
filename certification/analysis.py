@@ -113,6 +113,7 @@ def report(run_dir):
             deadline_denominator=timed_deadline,cache_reuse=cache_measurements(runtime.get('evidence_state')),
             physical_requests_per_second=physical/(hours*3600) if hours else None,
             rpc_archive_seconds=runtime.get('telemetry_archive_seconds'),
+            runtime_resources=runtime.get('runtime_resources'),telemetry_cost=runtime.get('telemetry_cost'),
             rpc_archive_wall_time_fraction=(runtime['telemetry_archive_seconds']/(hours*3600)
                 if hours and isinstance(runtime.get('telemetry_archive_seconds'),(int,float)) else None),
             maximum_sampled_active_shared_broker_jobs=result.get('maximum_sampled_active_broker_jobs') if lane in ('pump','meteora') else None,

@@ -46,6 +46,18 @@ class ControlsTests(unittest.TestCase):
             write([])
             with self.assertRaisesRegex(ValueError,'missing_raw'):audit_telemetry(root,'pons','policy')
 
+    def test_empty_frozen_capital_book_is_not_clean_smoke_or_market_scarcity(self):
+        bad=self.smoke();row=bad['lanes']['ramses']
+        row['native_accounting']=dict(conservation=True,manifest=dict(
+            genesis_by_quote_asset={},later_assets='unfunded_capacity_censoring'))
+        self.assertEqual(smoke_engineering(bad)['status'],'FAIL')
+        self.assertIn('ramses:permanently_unfunded_paper_book',evaluate(bad)['failures'])
+        # Waiting for the first fundable screen is a recoverable native state,
+        # not an initialized zero-capacity book or a natural lifecycle proof.
+        row['native_accounting']=dict(funding_state='awaiting_first_fundable_pinned_screen',paper_entry_ready=False)
+        self.assertEqual(smoke_engineering(bad)['status'],'PASS')
+        self.assertEqual(evaluate(bad)['status'],'INCOMPLETE')
+
     def test_shutdown_retains_native_queue_and_records_explicit_censor_reasons(self):
         with tempfile.TemporaryDirectory() as tmp:
             dbpath=Path(tmp)/'broker.sqlite';db=sqlite3.connect(dbpath)

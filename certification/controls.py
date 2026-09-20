@@ -5,7 +5,7 @@ from pathlib import Path
 import sqlite3
 
 from certification.journal import Journal, digest
-from certification.report import LANES
+from certification.report import LANES,permanently_unfunded
 
 
 def audit_telemetry(folder,lane,policy):
@@ -82,6 +82,7 @@ def smoke_engineering(result):
     if result.get('continuous_overlap_seconds',0)<600:failures.append('ten_minute_overlap_missing')
     for lane in LANES:
         row=result.get('lanes',{}).get(lane,{})
+        if permanently_unfunded(row):failures.append(lane+':permanently_unfunded_paper_book')
         if row.get('exit_code')!=0 or row.get('unexpected_exit') or row.get('process_restarts')!=0:
             failures.append(lane+':process_continuity')
         if row.get('open_positions')!=0 or row.get('accounting_reconciled') is not True:
@@ -116,8 +117,8 @@ def export_readiness(path,output):
     attestation={key:result[key] for key in keys}
     attestation['full_smoke_result_sha256']=hashlib.sha256(raw).hexdigest()
     attestation['shared_provider']={network:dict(queues=result['shared_provider'][network]['queues']) for network in ('solana','robinhood')}
-    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates')
-    attestation['lanes']={lane:{key:result['lanes'][lane][key] for key in lane_keys} for lane in LANES}
+    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting')
+    attestation['lanes']={lane:{key:result['lanes'][lane].get(key) for key in lane_keys} for lane in LANES}
     with Path(output).open('a') as handle:handle.write('readiness='+json.dumps(attestation,separators=(',',':'))+'\n')
 
 

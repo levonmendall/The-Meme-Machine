@@ -1,0 +1,59 @@
+{
+  "source_run_id": "2fa41cd0-88ba-4845-b167-ced816dca812",
+  "source_integration_sha": "ebd03f5780eee46cc59f0338f48830e475480d78",
+  "original_smoke_result": {
+    "failures": [],
+    "scope": "ten_minute_engineering_preflight_only; not natural or sustained certification",
+    "status": "PASS"
+  },
+  "reviewed_smoke_result": {
+    "status": "FAIL",
+    "failures": [
+      "ramses:permanently_unfunded_paper_book"
+    ],
+    "scope": "ten_minute_engineering_preflight_only; not natural or sustained certification"
+  },
+  "reviewed_certification": {
+    "status": "FAIL",
+    "failures": [
+      "ramses:permanently_unfunded_paper_book"
+    ],
+    "incomplete": [
+      "continuous_four_hour_window_not_completed",
+      "pump:continuous_uptime_short",
+      "pump:unproven:bounded_queue",
+      "pump:unproven:provider_limits",
+      "pump:unproven:no_starvation",
+      "pump:unproven:durable_replay",
+      "pump:natural_lifecycle_missing",
+      "meteora:continuous_uptime_short",
+      "meteora:unproven:bounded_queue",
+      "meteora:unproven:provider_limits",
+      "meteora:unproven:no_starvation",
+      "meteora:unproven:durable_replay",
+      "meteora:natural_lifecycle_missing",
+      "pons:continuous_uptime_short",
+      "pons:unproven:bounded_queue",
+      "pons:unproven:provider_limits",
+      "pons:unproven:no_starvation",
+      "pons:unproven:durable_replay",
+      "pons:natural_lifecycle_missing",
+      "ramses:continuous_uptime_short",
+      "ramses:unproven:bounded_queue",
+      "ramses:unproven:provider_limits",
+      "ramses:unproven:no_starvation",
+      "ramses:unproven:durable_replay",
+      "ramses:natural_lifecycle_missing"
+    ],
+    "target_three_per_lane_met": false
+  },
+  "review_scope": "New empty-capital control applied to immutable original result; original report unchanged",
+  "sustained_stage": {
+    "workflow": 35483374004,
+    "job": 106008580976,
+    "started_at": "2026-09-20T02:42:32Z",
+    "state": "in_progress",
+    "original_revision_unchanged": true
+  },
+  "required_next": "Repair empty-start funding and repeat full gates, clean smoke and new uninterrupted four-hour window; never splice this observation into the repaired run"
+}
