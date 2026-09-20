@@ -34,7 +34,7 @@
     },
     "meteora": {
       "source_branch": "cert/meteora-execution-cert-v1",
-      "source_sha": "91c5aaaadd718ead65b3c8e76a85b43372548fe9",
+      "source_sha": "0f01c79a4994224bf79b8c365b34f9f58cf3904e",
       "strategy_version": "solana-dlmm-independent-v1.8-execution-certification-v1",
       "policy_hash": "b1de19ed974faf3c92261fe7f4f6cb47570e4890c49e9547d7f4fcc50c7179b8",
       "file_hashes": {
