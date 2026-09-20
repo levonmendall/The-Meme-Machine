@@ -53,7 +53,7 @@ def source_integrity(worktrees):
         patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
         expected=(ROOT/'certification/patches'/patch).read_bytes() if patch else b''
         # Compare git's normalized diff to the pinned overlay applied at preparation.
-        if diff.strip()!=expected.strip():raise ValueError('unreviewed_lane_mutation:'+lane)
+        if diff!=expected:raise ValueError('unreviewed_lane_mutation:'+lane)
     return observed
 
 

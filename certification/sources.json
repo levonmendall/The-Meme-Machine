@@ -33,6 +33,13 @@
         "profitability_authority": false,
         "target_restrictiveness": "~5/10",
         "original_source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce"
+      },
+      "prospect_admission": {
+        "market_observation_scope": "all finalized Pump events remain observable",
+        "investment_evaluation_scope": "late-curve candidates only after finalized-stream progress, trajectory, independent-demand and extension gates can satisfy the frozen Pump strategy; post-graduation modes are limited to authenticated graduations inside their entry horizons",
+        "pre_rpc_strategy_screen": true,
+        "permanent_exclusion_on_screen_failure": false,
+        "strategy_thresholds_changed": false
       }
     },
     "meteora": {
@@ -71,6 +78,12 @@
         "profitability_authority": false,
         "target_restrictiveness": "~5/10",
         "original_source_sha": "45836b18c9afdda29909ebe9cb68d386a47b074f"
+      },
+      "prospect_admission": {
+        "market_observation_scope": "observable SOL-paired Meteora DLMM inventory and history",
+        "investment_evaluation_scope": "exactly-one-WSOL-leg, nonblacklisted pools that pass the frozen volume/fee acceleration regime before fresh-swap warmup and economic reconstruction",
+        "current_behavior_already_strategy_shaped": true,
+        "strategy_thresholds_changed": false
       }
     },
     "pons": {
@@ -101,6 +114,14 @@
         "profitability_authority": false,
         "target_restrictiveness": "~5/10",
         "original_source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366"
+      },
+      "prospect_admission": {
+        "market_observation_scope": "all authenticated Pons V2 buy/sell logs remain observable",
+        "investment_evaluation_scope": "after minimal authenticated current-state acquisition, only ungraduated native-quote curves inside the frozen progress band with acceptable snipe and creator tax are promoted to trajectory/window investment evaluation",
+        "minimal_state_preflight": true,
+        "trajectory_window_after_preflight_only": true,
+        "permanent_exclusion_on_screen_failure": false,
+        "strategy_thresholds_changed": false
       }
     },
     "ramses": {
@@ -128,6 +149,13 @@
         "profitability_authority": false,
         "target_restrictiveness": "~5/10",
         "original_source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15"
+      },
+      "prospect_admission": {
+        "market_observation_scope": "complete authenticated Ramses factory inventory for observability",
+        "investment_evaluation_scope": "bounded pools with recent finalized swaps; Fee Pulse classification is performed only on that active cohort",
+        "factory_enumeration_is_inventory_not_investment_evaluation": true,
+        "current_behavior_already_strategy_shaped": true,
+        "strategy_thresholds_changed": false
       }
     }
   },
@@ -143,5 +171,16 @@
     "execution_integration_sha": "960980c4412f525b15568401a2b8f0c2c25bdbab",
     "robinhood_efficiency_sha": "a34c5d4dce4dc93445b837cfeeb51901825bdb9f",
     "four_lane_observability_sha": "acb7e51127c66e89fc524d81408bdb4a0afec629"
+  },
+  "prospect_admission": {
+    "revision": "strategy-prospect-admission-v1",
+    "purpose": "keep broad market observability while limiting investment evaluation to prospects defined by each frozen strategy",
+    "strategy_thresholds_changed": false,
+    "freshness_finality_changed": false,
+    "paper_accounting_changed": false,
+    "validation_status": "deterministic_in_progress",
+    "validation_run_requested": true,
+    "source_sha": "0982519a68222b7cd0640981a7ac4a8ac7c119dd",
+    "integration": "semantic delta composed in canonical overlays"
   }
 }

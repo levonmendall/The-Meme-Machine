@@ -1,0 +1,22 @@
+{
+  "pump": {
+    "source_sha": "04c99ca3125747dc8bfc6f655fec7533f8ac8156",
+    "patch_sha256": "74e9d09469016afdffc3444bf4bc9b9da7e63d76cc3471f3933395ec4fc53c05",
+    "byte_identical": true
+  },
+  "meteora": {
+    "source_sha": "29d050b218969e4c7761346737d082bf1db382ec",
+    "patch_sha256": "de7b07c5cedf741de04f2b964d0795e04d6faa971a61fd88d3ea74972b1e4f66",
+    "byte_identical": true
+  },
+  "pons": {
+    "source_sha": "c692fe446bdee4ea1179da27a3f0c9f2f281f118",
+    "patch_sha256": "4d25f362395c4ae07f208402e614af8b3001f96f6b443e9df5c50e740da17780",
+    "byte_identical": true
+  },
+  "ramses": {
+    "source_sha": "6b7ddd69940f5c9e056b2dca61c443450ca9965e",
+    "patch_sha256": "18c45c2c42111ba1a567f42188140fc881c92afeb1c0992f087f43c7729e2dc4",
+    "byte_identical": true
+  }
+}

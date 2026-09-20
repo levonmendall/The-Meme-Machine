@@ -1,0 +1,13 @@
+{
+  "lane_tests": {
+    "meteora": 390,
+    "pons": 272,
+    "pump": 288,
+    "ramses": 258
+  },
+  "total_lane_tests": 1208,
+  "supervisor_tests": 68,
+  "all_resource_gates_pass": true,
+  "local_verification_only": true,
+  "hosted_exact_revision_still_required": true
+}

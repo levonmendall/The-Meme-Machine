@@ -30,7 +30,7 @@ class Observer:
         self.lane,self.policy=lane,policy
         self.lock=threading.RLock();self.sequence=0;self.methods=Counter()
         self.latencies=[];self.errors=Counter();self.started=time.monotonic()
-        self.provider_method_errors=Counter()
+        self.provider_method_errors=Counter();self.local_admission_errors=Counter()
         self.provider_http_status_errors=Counter()
         self.provider_rpc_error_codes=Counter()
         self.journal=Journal(self.root/'telemetry.sqlite')
@@ -61,6 +61,7 @@ class Observer:
             at_monotonic=now,provider_requests=self.requests,method_counts=dict(self.methods),
             estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods) if self.lane in ('pump','meteora','pons','ramses') else None),
             errors=dict(self.errors),provider_method_errors=dict(self.provider_method_errors),
+            local_admission_errors=dict(self.local_admission_errors),
             provider_http_status_errors=dict(self.provider_http_status_errors),
             provider_rpc_error_codes=dict(self.provider_rpc_error_codes),
             provider_session_count=len(self.provider_sessions),
@@ -115,7 +116,8 @@ class Observer:
                       last_progress_monotonic=self.last_progress,
                       provider_requests=self.requests,method_counts=dict(self.methods),
                       errors=dict(self.errors),provider_method_errors=dict(self.provider_method_errors),
-                      provider_http_status_errors=dict(self.provider_http_status_errors),
+                      local_admission_errors=dict(self.local_admission_errors),
+            provider_http_status_errors=dict(self.provider_http_status_errors),
                       provider_rpc_error_codes=dict(self.provider_rpc_error_codes),
                       provider_session_count=len(self.provider_sessions),
                       rpc_latency_seconds=dict(p50=quant(.5),p95=quant(.95),p99=quant(.99)),
@@ -178,6 +180,7 @@ class Observer:
                 wire=list(args[0]);methods=[x[0] for x in wire]
             else:
                 methods=[args[0]];wire=[(args[0],args[1])]
+            instance.evidence_local_failure=None
             try:
                 priority=getattr(observer.context,"priority",10 if solana else 50)
                 if priority!=0:priority=getattr(instance,'evidence_priority',priority)
@@ -220,7 +223,10 @@ class Observer:
                     if error:
                         observer.errors[error]+=1
                         for method in unique_methods:
-                            observer.provider_method_errors[f"{method}:{error}"]+=1
+                            target=(observer.provider_method_errors if transport_started is not None
+                                    else observer.local_admission_errors)
+                            target[f"{method}:{error}"]+=1
+                        if transport_started is None:instance.evidence_local_failure=error
                     if http_status is not None and http_status!=200:
                         for method in unique_methods:
                             observer.provider_http_status_errors[
@@ -247,6 +253,10 @@ class Observer:
                                 transport_started_monotonic_ns=transport_started,
                                 observed_at_ns=time.time_ns(),duration_seconds=elapsed,
                                 request=wire,response=result,error=error,queue_wait_seconds=queue_wait,
+                                physical_request_id=f'{session}:{observer.raw_records}',
+                                parameter_identity=digest(wire),original_deadline=evidence_deadline,
+                                failure_domain=('local_admission' if error and transport_started is None
+                                                else 'provider' if error else None),
                                 http_status=http_status,json_rpc_error_codes=rpc_error_codes,
                                 retry_count=getattr(instance,"retry_count",getattr(instance,"retries",None)),
                                 evidence_priority=priority,evidence_kind=getattr(instance,'evidence_kind',None),

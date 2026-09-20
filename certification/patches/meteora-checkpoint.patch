@@ -314,7 +314,7 @@ index 0000000..274abdb
 +    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
 +    return 'reconstruction_incomplete'
 diff --git a/meme_machine/solana_evidence_broker.py b/meme_machine/solana_evidence_broker.py
-index 05dd96f..86e37e8 100644
+index 05dd96f..a10c943 100644
 --- a/meme_machine/solana_evidence_broker.py
 +++ b/meme_machine/solana_evidence_broker.py
 @@ -6,6 +6,8 @@ backpressure. It grants no strategy/allocation/signing authority.
@@ -587,7 +587,7 @@ index 05dd96f..86e37e8 100644
      ):
          deadline = float(self.clock()) + 30.0 if deadline is None else float(deadline)
          requested = []
-@@ -606,28 +656,75 @@ class EvidenceBroker:
+@@ -606,28 +656,84 @@ class EvidenceBroker:
              if sig and sig not in seen:
                  seen.add(sig)
                  requested.append(sig)
@@ -614,6 +614,11 @@ index 05dd96f..86e37e8 100644
 +            owner = owner or f'{kind}:request:{deadline!r}'
 +            self.consumers.register(owner, missing_at_request, kind, deadline, candidate_id=candidate_id)
 +
++        def phase(name,signatures):
++            self.consumers.phase(name,owner=owner,kind=kind,deadline=deadline,signatures=signatures)
++        if missing_at_request:
++            phase('already_expired_before_enqueue' if float(self.clock())>=deadline else 'enqueued',missing_at_request)
++        lease_wait_recorded=False
 +        batches = 0
          while float(self.clock()) < deadline:
              remaining = [sig for sig in requested if self.get_transaction(sig) is None]
@@ -653,6 +658,8 @@ index 05dd96f..86e37e8 100644
 +                with self.lock:
 +                    inflight=any(self.db.execute("SELECT 1 FROM jobs WHERE job_key=? AND status='inflight' AND lease_until>?",(f'tx:{sig}',float(self.clock()))).fetchone() for sig in remaining)
 +                if inflight:
++                    if not lease_wait_recorded:
++                        phase('lease_coalescing_wait',remaining);lease_wait_recorded=True
 +                    self.sleep(min(.02,max(0,deadline-float(self.clock()))))
 +                    continue
                  break
@@ -662,6 +669,8 @@ index 05dd96f..86e37e8 100644
 +                self._release_jobs([row[0] for row in jobs])
 +                raise
 +            if reserved is None:
++                phase('shared_cooldown_backpressure' if self._pressure()['cooldown_until']>=deadline
++                      else 'physical_capacity_wait',[json.loads(x[1])['signature'] for x in jobs])
 +                self._release_jobs([row[0] for row in jobs])
 +                break
 +            p=self._pressure()
@@ -672,7 +681,7 @@ index 05dd96f..86e37e8 100644
              payloads = [json.loads(row[1]) for row in jobs]
              params = [[
                  row["signature"],
-@@ -639,17 +736,57 @@ class EvidenceBroker:
+@@ -639,17 +745,71 @@ class EvidenceBroker:
                      ),
                  ),
              ] for row in payloads]
@@ -691,7 +700,12 @@ index 05dd96f..86e37e8 100644
 +            prior_kind=getattr(rpc,'evidence_kind',None)
 +            rpc.evidence_kind=kind
 +            rpc.evidence_deadline=deadline
-+            rpc.evidence_transport_callback=lambda: self.consumers.first_transport([p['signature'] for p in payloads])
++            def on_transport():
++                signatures=[p['signature'] for p in payloads]
++                self.consumers.first_transport(signatures)
++                phase('provider_transport',signatures)
++            rpc.evidence_transport_callback=on_transport
++            rpc.evidence_local_failure=None
 +            prior_broker_transport=getattr(rpc,'_broker_transport',False)
 +            rpc._broker_transport=True
              try:
@@ -709,13 +723,20 @@ index 05dd96f..86e37e8 100644
 +                failures=getattr(rpc,'failure_methods',{}) or {}
 +                throttled=('429' in str(exc) or any('429' in key and
 +                    value>prior_failures.get(key,0) for key,value in failures.items()))
-+                reason=('provider_rate_limited' if throttled else
++                local_failure=getattr(rpc,'evidence_local_failure',None)
++                local_reason=({'evidence_deadline_before_transport':'expired_before_transport',
++                               'certification_provider_queue_capacity':'queue_capacity_rejection',
++                               'certification_provider_queue_deadline':'physical_governor_wait',
++                               'certification_provider_method_cooldown':'shared_cooldown_backpressure'}.get(local_failure))
++                reason=(local_reason if local_reason else 'provider_rate_limited' if throttled else
 +                        'local_request_budget_exhausted' if str(exc)=='provider_budget_exhausted'
 +                        else 'transaction_version_unsupported' if any('32015' in k and v>prior_failures.get(k,0) for k,v in failures.items())
 +                        else 'null_transaction_unresolved' if 'null_getTransaction' in str(exc)
 +                        else 'provider_unavailable')
 +                self.consumers.failure(reason,owner=owner,candidate_id=candidate_id,kind=kind,signatures=[x["signature"] for x in payloads])
++                if local_reason:phase(local_reason,[x['signature'] for x in payloads])
 +                if throttled:
++                    phase('provider_429',[x['signature'] for x in payloads])
 +                    self._note_pressure_failure();rate_noted=True
                  break
 +            finally:
@@ -729,10 +750,12 @@ index 05dd96f..86e37e8 100644
 +                    del rpc.evidence_priority
 +                else:
 +                    rpc.evidence_priority=previous_priority
++            if float(self.clock())>deadline:
++                phase('post_transport_late_result',[x['signature'] for x in payloads])
              completed = []
              for job, row, tx in zip(jobs, payloads, values):
                  if isinstance(tx, dict):
-@@ -657,7 +794,7 @@ class EvidenceBroker:
+@@ -657,7 +817,7 @@ class EvidenceBroker:
                      completed.append(job[0])
              if completed:
                  self._complete_jobs(completed)
@@ -741,7 +764,7 @@ index 05dd96f..86e37e8 100644
              completed_set=set(completed)
              incomplete=[row[0] for row in jobs if row[0] not in completed_set]
              if incomplete:
-@@ -665,13 +802,21 @@ class EvidenceBroker:
+@@ -665,13 +825,21 @@ class EvidenceBroker:
              if not completed:
                  break
  
@@ -764,7 +787,7 @@ index 05dd96f..86e37e8 100644
          )
  
      def cursor(self, name):
-@@ -781,6 +926,7 @@ class EvidenceBroker:
+@@ -781,6 +949,7 @@ class EvidenceBroker:
                  + " ORDER BY slot DESC,signature DESC",
                  tuple(params),
              ).fetchall()
@@ -772,7 +795,7 @@ index 05dd96f..86e37e8 100644
          return [json.loads(row[0]) for row in rows]
  
      def signature_coverage(self, scope, address):
-@@ -824,6 +970,7 @@ class EvidenceBroker:
+@@ -824,6 +993,7 @@ class EvidenceBroker:
              stream_events=int(events),
              signature_rows=int(signatures),
              pressure=self._pressure(),
@@ -780,7 +803,7 @@ index 05dd96f..86e37e8 100644
          )
  
  
-@@ -967,7 +1114,8 @@ class DynamicAddressLogStream:
+@@ -967,7 +1137,8 @@ class DynamicAddressLogStream:
      """
  
      def __init__(
@@ -790,7 +813,7 @@ index 05dd96f..86e37e8 100644
      ):
          self.ws_url=str(ws_url)
          self.broker=broker
-@@ -980,6 +1128,13 @@ class DynamicAddressLogStream:
+@@ -980,6 +1151,13 @@ class DynamicAddressLogStream:
          self.reconnects=0
          self.last_error_kind=None
          self.active_subscriptions=0
@@ -804,7 +827,7 @@ index 05dd96f..86e37e8 100644
  
      def stream_key(self,address):
          return self.stream_prefix+":"+str(address)
-@@ -992,6 +1147,13 @@ class DynamicAddressLogStream:
+@@ -992,6 +1170,13 @@ class DynamicAddressLogStream:
              self.addresses.add(address)
          return self.stream_key(address)
  
@@ -818,7 +841,7 @@ index 05dd96f..86e37e8 100644
      def wanted_addresses(self):
          with self.lock:
              return sorted(self.addresses)
-@@ -1003,8 +1165,40 @@ class DynamicAddressLogStream:
+@@ -1003,8 +1188,40 @@ class DynamicAddressLogStream:
              wanted_addresses=len(self.wanted_addresses()),
              active_subscriptions=int(self.active_subscriptions),
              last_error_kind=self.last_error_kind,
@@ -859,7 +882,7 @@ index 05dd96f..86e37e8 100644
      def run(self,stop_event,ready_event=None):
          ever_ready=False
          while not stop_event.is_set():
-@@ -1015,6 +1209,8 @@ class DynamicAddressLogStream:
+@@ -1015,6 +1232,8 @@ class DynamicAddressLogStream:
                      close_timeout=5,max_size=2_000_000,max_queue=256,
                  ) as websocket:
                      pending={}
@@ -868,7 +891,7 @@ index 05dd96f..86e37e8 100644
                      by_address={}
                      by_subscription={}
                      next_id=1
-@@ -1028,6 +1224,12 @@ class DynamicAddressLogStream:
+@@ -1028,6 +1247,12 @@ class DynamicAddressLogStream:
  
                      while not stop_event.is_set():
                          wanted=self.wanted_addresses()
@@ -881,7 +904,7 @@ index 05dd96f..86e37e8 100644
                          known=set(by_address)|set(pending.values())
                          for address in [a for a in wanted if a not in known][:16]:
                              request_id=next_id;next_id+=1
-@@ -1048,12 +1250,25 @@ class DynamicAddressLogStream:
+@@ -1048,12 +1273,25 @@ class DynamicAddressLogStream:
                          payload=json.loads(message)
                          if "id" in payload:
                              request_id=payload.get("id")
@@ -907,7 +930,7 @@ index 05dd96f..86e37e8 100644
                              by_address[address]=subscription
                              by_subscription[subscription]=address
                              active_addresses=list(by_address)
-@@ -1064,6 +1279,8 @@ class DynamicAddressLogStream:
+@@ -1064,6 +1302,8 @@ class DynamicAddressLogStream:
                          if payload.get("method")!="logsNotification":
                              continue
                          params=payload.get("params") or {}
@@ -916,7 +939,7 @@ index 05dd96f..86e37e8 100644
                          address=by_subscription.get(params.get("subscription"))
                          if address is None:
                              raise RuntimeError("address_log_unknown_subscription")
-@@ -1077,6 +1294,13 @@ class DynamicAddressLogStream:
+@@ -1077,6 +1317,13 @@ class DynamicAddressLogStream:
                              slot=int(result["context"]["slot"]),
                              observed_at=int(self.clock()),
                          )
@@ -932,10 +955,10 @@ index 05dd96f..86e37e8 100644
                      break
 diff --git a/meme_machine/solana_evidence_consumers.py b/meme_machine/solana_evidence_consumers.py
 new file mode 100644
-index 0000000..f96d983
+index 0000000..ab20fd2
 --- /dev/null
 +++ b/meme_machine/solana_evidence_consumers.py
-@@ -0,0 +1,211 @@
+@@ -0,0 +1,234 @@
 +"""Consumer ownership for immutable evidence; never strategy or freshness authority."""
 +from __future__ import annotations
 +
@@ -960,6 +983,13 @@ index 0000000..f96d983
 +                    id INTEGER PRIMARY KEY, owner TEXT NOT NULL, signature TEXT NOT NULL,
 +                    kind TEXT NOT NULL, deadline REAL NOT NULL, observed_at REAL NOT NULL,
 +                    reason TEXT NOT NULL, UNIQUE(owner,signature));
++                CREATE TABLE IF NOT EXISTS acquisition_phases(
++                    seq INTEGER PRIMARY KEY,lane TEXT NOT NULL,owner TEXT,kind TEXT,
++                    phase TEXT NOT NULL,at REAL NOT NULL,deadline REAL,signatures TEXT NOT NULL);
++                CREATE TRIGGER IF NOT EXISTS acquisition_phases_no_update BEFORE UPDATE ON acquisition_phases
++                    BEGIN SELECT RAISE(ABORT,'append_only'); END;
++                CREATE TRIGGER IF NOT EXISTS acquisition_phases_no_delete BEFORE DELETE ON acquisition_phases
++                    BEGIN SELECT RAISE(ABORT,'append_only'); END;
 +                CREATE TABLE IF NOT EXISTS hydration_attempt_failures(
 +                    seq INTEGER PRIMARY KEY,lane TEXT NOT NULL,owner TEXT,candidate_id TEXT,
 +                    kind TEXT,at REAL NOT NULL,reason TEXT NOT NULL,signatures TEXT NOT NULL);
@@ -1052,6 +1082,13 @@ index 0000000..f96d983
 +                (float(b.clock()), max(1, min(8, int(limit))))).fetchall()
 +        return rows
 +
++    def phase(self,phase,*,owner,kind,deadline,signatures):
++        b=self.broker
++        with b.lock,b.db:
++            b.db.execute('INSERT INTO acquisition_phases(lane,owner,kind,phase,at,deadline,signatures) VALUES(?,?,?,?,?,?,?)',
++                (os.environ.get('MM_CERTIFICATION_LANE','unknown'),str(owner),kind,phase,
++                 float(b.clock()),float(deadline),json.dumps(list(signatures))))
++
 +    def failure(self, reason, *, owner=None, candidate_id=None, kind=None, signatures=()):
 +        b = self.broker
 +        with b.lock, b.db:
@@ -1072,6 +1109,13 @@ index 0000000..f96d983
 +            rows = b.db.execute('SELECT kind,state,COUNT(*) FROM evidence_consumers '
 +                                'WHERE lane=? GROUP BY kind,state',(lane,)).fetchall()
 +            failures = dict(b.db.execute('SELECT reason,count FROM hydration_failures'))
++            phases=dict(b.db.execute('SELECT phase,count(*) FROM acquisition_phases WHERE lane=? GROUP BY phase',(lane,)))
++            deadline_rows=b.db.execute('''SELECT kind,
++                CASE WHEN created_at>=deadline THEN 'already_expired_before_enqueue'
++                     WHEN first_transport_at IS NULL THEN 'expired_before_transport'
++                     ELSE 'expired_after_transport_started' END,COUNT(*)
++                FROM evidence_consumers WHERE lane=? AND state='consumer_deadline_expired'
++                GROUP BY 1,2''',(lane,)).fetchall()
 +            unique_failures=dict(b.db.execute('SELECT reason,COUNT(DISTINCT candidate_id) FROM hydration_attempt_failures WHERE lane=? AND candidate_id IS NOT NULL GROUP BY reason',(lane,)))
 +            lane_failures=dict(b.db.execute('SELECT reason,count FROM attributed_hydration_failures WHERE lane=?',(lane,)))
 +            overdue = b.db.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('pending','inflight') "
@@ -1081,6 +1125,8 @@ index 0000000..f96d983
 +            candidates=b.db.execute("SELECT COUNT(DISTINCT candidate_id) FROM evidence_consumers "
 +                "WHERE lane=? AND candidate_id IS NOT NULL",(lane,)).fetchone()[0]
 +        return dict(scope='lane_attributed_logical_consumers; candidate_states_may_overlap',lane=lane,
++                    acquisition_phase_attempts=phases,
++                    deadline_decomposition=[dict(kind=k,stage=s,count=n) for k,s,n in deadline_rows],
 +                    candidate_interests=candidates,unique_candidate_states=unique,
 +                    unique_candidate_acquisition_failures=unique_failures,
 +                    opportunity_denominator_source='native_candidate_funnel_not_consumer_count',
@@ -2356,10 +2402,10 @@ index 3115376..e6bd7dc 100644
 +            self.assertEqual(meta['pending'],0);self.assertEqual(rpc.batches,[])
 diff --git a/tests/test_solana_immutable_efficiency.py b/tests/test_solana_immutable_efficiency.py
 new file mode 100644
-index 0000000..416f384
+index 0000000..6b52e6c
 --- /dev/null
 +++ b/tests/test_solana_immutable_efficiency.py
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,161 @@
 +import json,os,sqlite3,tempfile,time,unittest
 +from pathlib import Path
 +from unittest.mock import patch
@@ -2501,3 +2547,23 @@ index 0000000..416f384
 +        self.assertEqual(b.get_transaction('a'),{'slot':1})
 +        values,meta=b.hydrate_transactions(Slow(),['a'],kind='pump_window',deadline=103.)
 +        self.assertEqual(meta['pending'],0) # later independent consumer can reuse history
++
++    def test_local_governor_expiry_is_not_recorded_as_provider_failure(self):
++        b=EvidenceBroker(self.db);self.addCleanup(b.close)
++        class LocalFailure:
++            def call_many(self,*a,**kw):
++                self.evidence_local_failure='certification_provider_queue_deadline'
++                raise Unavailable('provider_unavailable')
++        _,meta=b.hydrate_transactions(LocalFailure(),['sig'],kind='pump_window',deadline=time.time()+1)
++        self.assertEqual(meta['pending'],1)
++        telemetry=b.consumers.telemetry()
++        self.assertEqual(telemetry['acquisition_failures'],{'physical_governor_wait':1})
++        self.assertEqual(telemetry['acquisition_phase_attempts']['physical_governor_wait'],1)
++
++    def test_expired_before_enqueue_is_separate_and_never_transports(self):
++        b=EvidenceBroker(self.db);self.addCleanup(b.close)
++        _,meta=b.hydrate_transactions(self.rpc(),['sig'],kind='pump_window',deadline=time.time()-1)
++        self.assertEqual(self.wire,[])
++        telemetry=b.consumers.telemetry()
++        self.assertEqual(telemetry['acquisition_phase_attempts']['already_expired_before_enqueue'],1)
++        self.assertEqual(telemetry['deadline_decomposition'][0]['stage'],'already_expired_before_enqueue')

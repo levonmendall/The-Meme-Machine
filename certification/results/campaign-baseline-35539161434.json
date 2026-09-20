@@ -1,0 +1,375 @@
+{
+  "integration_sha": "0653621edb2a4fa5bfdc0922a1c42149b2774975",
+  "continuous_overlap_seconds": 600.1215440779999,
+  "smoke_engineering": {
+    "failures": [
+      "pons:accounting_or_exposure"
+    ],
+    "scope": "ten_minute_engineering_preflight_only; not natural or sustained certification",
+    "status": "FAIL"
+  },
+  "source_manifest_hash": "f6670376e37e3b407e0b2372d8c55b9057d149f0e5214f6d8a099fb9588d028a",
+  "source_diff_hashes": {
+    "meteora": "2562a0918ee0e8c021b916fbf98031745562ab92405ed2c4d5291e9a361fdc0c",
+    "pons": "607e764531247101573f0b55a5bdbb0f8c5e3f3d6974036d3e1dbbad34ea6275",
+    "pump": "83d531f992f025c7adecf3831c4d81d3123aed2a4308e70e645b2cb598e89d6b",
+    "ramses": "18c45c2c42111ba1a567f42188140fc881c92afeb1c0992f087f43c7729e2dc4"
+  },
+  "run_id": 35539161434,
+  "artifact_id": 10614203841,
+  "artifact_sha256": "cbbc55c40f4ca3cf9c0b7869ed53998a4affb9d5adedf3d402546dcefe74c4b2",
+  "engineering_pass": false,
+  "historical_exposure_preserved": true,
+  "lanes": {
+    "meteora": {
+      "funnel": {
+        "complete_economic_vectors": 1,
+        "complete_lifecycles": 0,
+        "complete_observations": 1,
+        "discovered": 36,
+        "screened": 12,
+        "unique_admitted": 11,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 1,
+        "unique_deployed": 0,
+        "unique_discovered": 36,
+        "unique_economic_vector": 1,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 1,
+        "unique_evidence_complete": 1,
+        "unique_evidence_requested": 11,
+        "unique_forward_observation": 4,
+        "unique_fresh_state": 4,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 5,
+        "unique_prospective_range": 1,
+        "unique_provider_failed": 0,
+        "unique_qualified": 0,
+        "unique_reconstruction_complete": 4,
+        "unique_reconstruction_incomplete": 12,
+        "unique_reconstruction_started": 4,
+        "unique_rejected": 1,
+        "unique_screened": 12,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 0,
+        "unique_stale_before_evidence": 0,
+        "unique_stale_during_evidence": 0,
+        "unique_strategy_rejection": 1,
+        "unique_terminal": 12,
+        "unique_trigger_authenticated": 7,
+        "unique_trigger_observed": 7,
+        "unique_trigger_terminal": 13,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 1,
+        "unique_warmup_started": 4
+      },
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "open_positions": 0,
+      "accounting_reconciled": true,
+      "provider_http_status_errors": {},
+      "provider_method_errors": {},
+      "process_restarts": 0,
+      "accounting_replay": {
+        "authentication": "existing_lane_verified_tapes",
+        "checked_economic_events": 0,
+        "raw_chain_reauthentication": false,
+        "verified": true
+      }
+    },
+    "pons": {
+      "funnel": {
+        "complete_evidence_vectors": 99,
+        "evaluated": 146,
+        "qualified": 2,
+        "unique_admitted": 245,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 11,
+        "unique_deployed": 0,
+        "unique_discovered": 1355,
+        "unique_economic_vector": 0,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 99,
+        "unique_evidence_complete": 99,
+        "unique_evidence_requested": 146,
+        "unique_forward_observation": 0,
+        "unique_fresh_state": 0,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 0,
+        "unique_prospective_range": 0,
+        "unique_provider_failed": 0,
+        "unique_qualified": 2,
+        "unique_reconstruction_complete": 0,
+        "unique_reconstruction_incomplete": 23,
+        "unique_reconstruction_started": 0,
+        "unique_rejected": 68,
+        "unique_screened": 245,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 29,
+        "unique_stale_before_evidence": 99,
+        "unique_stale_during_evidence": 13,
+        "unique_strategy_rejection": 68,
+        "unique_terminal": 175,
+        "unique_trigger_authenticated": 0,
+        "unique_trigger_observed": 0,
+        "unique_trigger_terminal": 0,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 0,
+        "unique_warmup_started": 0
+      },
+      "natural_settled": 1,
+      "forced_settled": 0,
+      "open_positions": 1,
+      "accounting_reconciled": true,
+      "provider_http_status_errors": {},
+      "provider_method_errors": {},
+      "process_restarts": 0,
+      "accounting_replay": null
+    },
+    "pump": {
+      "funnel": {
+        "discovered": 884,
+        "entry_cancelled": 0,
+        "entry_filled": 2,
+        "entry_reserved": 0,
+        "evidence_complete": 6,
+        "qualified": 2,
+        "settled": 2,
+        "unique_admitted": 21,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 0,
+        "unique_deployed": 0,
+        "unique_discovered": 884,
+        "unique_economic_vector": 0,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 2,
+        "unique_entry_reserved": 2,
+        "unique_evaluated": 17,
+        "unique_evidence_complete": 3,
+        "unique_evidence_requested": 21,
+        "unique_forward_observation": 0,
+        "unique_fresh_state": 0,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 0,
+        "unique_prospective_range": 0,
+        "unique_provider_failed": 0,
+        "unique_qualified": 2,
+        "unique_reconstruction_complete": 0,
+        "unique_reconstruction_incomplete": 10,
+        "unique_reconstruction_started": 0,
+        "unique_rejected": 17,
+        "unique_screened": 19,
+        "unique_settled": 2,
+        "unique_stale_after_complete_evidence": 0,
+        "unique_stale_before_evidence": 0,
+        "unique_stale_during_evidence": 0,
+        "unique_strategy_rejection": 0,
+        "unique_terminal": 10,
+        "unique_trigger_authenticated": 0,
+        "unique_trigger_observed": 0,
+        "unique_trigger_terminal": 0,
+        "unique_unwind": 2,
+        "unique_warmup_complete": 0,
+        "unique_warmup_started": 0
+      },
+      "natural_settled": 2,
+      "forced_settled": 0,
+      "open_positions": 0,
+      "accounting_reconciled": true,
+      "provider_http_status_errors": {
+        "getProgramAccounts:429": 2
+      },
+      "provider_method_errors": {
+        "getProgramAccounts:HTTPError": 2,
+        "getTransaction:certification_provider_queue_deadline": 1,
+        "getTransaction:evidence_deadline_before_transport": 5,
+        "getTransaction:null_getTransaction": 33
+      },
+      "process_restarts": 0,
+      "accounting_replay": {
+        "cash": 5116239311,
+        "events": 8,
+        "final_hash": "252dbf3ddf87ca58cbd11ee4d4b95fb3055339c9810da938fde957e4588aeb34",
+        "verified": true
+      }
+    },
+    "ramses": {
+      "funnel": {
+        "active_pools": 2,
+        "scans": 2,
+        "unique_admitted": 2,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 0,
+        "unique_deployed": 0,
+        "unique_discovered": 2,
+        "unique_economic_vector": 0,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 2,
+        "unique_evidence_complete": 0,
+        "unique_evidence_requested": 2,
+        "unique_forward_observation": 0,
+        "unique_fresh_state": 0,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 0,
+        "unique_prospective_range": 0,
+        "unique_provider_failed": 0,
+        "unique_qualified": 0,
+        "unique_reconstruction_complete": 0,
+        "unique_reconstruction_incomplete": 0,
+        "unique_reconstruction_started": 0,
+        "unique_rejected": 2,
+        "unique_screened": 2,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 0,
+        "unique_stale_before_evidence": 0,
+        "unique_stale_during_evidence": 0,
+        "unique_strategy_rejection": 2,
+        "unique_terminal": 0,
+        "unique_trigger_authenticated": 0,
+        "unique_trigger_observed": 0,
+        "unique_trigger_terminal": 0,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 0,
+        "unique_warmup_started": 0
+      },
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "open_positions": 0,
+      "accounting_reconciled": true,
+      "provider_http_status_errors": {},
+      "provider_method_errors": {},
+      "process_restarts": 0,
+      "accounting_replay": null
+    }
+  },
+  "pump_program_account_scans": {
+    "classification": "independent_scans",
+    "evidence": [
+      {
+        "physical_request_id": "0f5a93e5-edc5-4b10-8455-512f3084f46e:346",
+        "parameters": [
+          "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+          {
+            "commitment": "finalized",
+            "dataSlice": {
+              "length": 8,
+              "offset": 64
+            },
+            "encoding": "base64",
+            "filters": [
+              {
+                "memcmp": {
+                  "bytes": "BqDumYqVJ1P94aGysckwAGusVfofPpwYpQxNoszT7kni",
+                  "offset": 0
+                }
+              }
+            ],
+            "minContextSlot": 448856310,
+            "withContext": true
+          }
+        ],
+        "retry_count": 0,
+        "http_status": 429,
+        "at_ns": 1789940624576220492
+      },
+      {
+        "physical_request_id": "97596c67-87b4-4e03-a205-f9652a7475c2:431",
+        "parameters": [
+          "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+          {
+            "commitment": "finalized",
+            "dataSlice": {
+              "length": 8,
+              "offset": 64
+            },
+            "encoding": "base64",
+            "filters": [
+              {
+                "memcmp": {
+                  "bytes": "BCM5MWh6KeP2iM3CZXEPiLdTtqeuyve9cpjmWfj5pump",
+                  "offset": 0
+                }
+              }
+            ],
+            "minContextSlot": 448856597,
+            "withContext": true
+          }
+        ],
+        "retry_count": 0,
+        "http_status": 429,
+        "at_ns": 1789940700784772155
+      }
+    ],
+    "reason": "different mint filters, minimum slots and RPC sessions; zero retries; 76 seconds apart"
+  },
+  "pump_pretransport_attempts": {
+    "certification_provider_queue_deadline": 1,
+    "evidence_deadline_before_transport": 5
+  },
+  "pump_physical_method_members": {
+    "getMultipleAccounts": 269,
+    "getBlockTime": 212,
+    "getTransaction": 3660,
+    "getSignaturesForAddress": 1,
+    "getTokenLargestAccounts": 5,
+    "getProgramAccounts": 2
+  },
+  "pump_consumer_deadlines": [
+    {
+      "kind": "pump_window",
+      "state": "consumer_deadline_expired",
+      "never_transported": false,
+      "count": 32
+    },
+    {
+      "kind": "pump_window",
+      "state": "consumer_deadline_expired",
+      "never_transported": true,
+      "count": 1980
+    },
+    {
+      "kind": "pump_window",
+      "state": "evidence_complete",
+      "never_transported": false,
+      "count": 223
+    },
+    {
+      "kind": "stream_prefetch",
+      "state": "consumer_deadline_expired",
+      "never_transported": false,
+      "count": 168
+    },
+    {
+      "kind": "stream_prefetch",
+      "state": "consumer_deadline_expired",
+      "never_transported": true,
+      "count": 653
+    },
+    {
+      "kind": "stream_prefetch",
+      "state": "consumer_retired",
+      "never_transported": true,
+      "count": 61
+    },
+    {
+      "kind": "stream_prefetch",
+      "state": "evidence_complete",
+      "never_transported": false,
+      "count": 2346
+    },
+    {
+      "kind": "stream_prefetch",
+      "state": "waiting",
+      "never_transported": true,
+      "count": 224
+    }
+  ],
+  "consumer_count_caveat": "Original per-signature interests, not unique opportunities. Old artifact does not fully resolve all queue/lease/cooldown causes. New instrumentation is prospective.",
+  "meteora_signature_pressure": "0 HTTP 429 across 64 signature history members in latest smoke; pressure improvement observed, sustained result still unproven"
+}

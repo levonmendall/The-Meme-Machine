@@ -101,3 +101,8 @@ The terminal artifact confirms both the publisher overflow and one Pons filled p
 The new Pons overlay retries only allowlisted transient post-fill provider boundaries, preserving the same lifecycle, original qualification timestamp, original hold clock and any pending exit amount/due. Five bounded recoveries are durable and observable; persistent pressure or authentication failure retains exposure and fails certification. No entry is recreated. Four focused real-ledger regressions cover signal recovery, pending-exit recovery, persistent pressure and authentication rejection.
 
 All 1,185 lane tests (Pump 281, Meteora 385, Pons 261, Ramses 258), 64 supervisor tests and three resource gates pass; exact source/policy/config/overlay integrity passes. Full transcripts: results/solana-recovery-validation/. Remote source heads were re-fetched and remain unchanged. No competing live workflow was active before preparing the replacement. The next marker push must pass its own hosted gates and a fresh 600-second smoke/drain before one independent 3,600-second campaign. Efficiency acceptance remains unproven.
+
+
+## Autonomous continuation, 2026-09-20
+
+The authorized current-state reconstruction, prospect-admission composition, pending Pons terminal repair, targeted cancellations and fresh certification evidence continue append-only in `AUTONOMOUS_CAMPAIGN_HANDOFF.md`. No prior failure or unresolved exposure is erased.

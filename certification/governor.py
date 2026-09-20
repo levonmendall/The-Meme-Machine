@@ -59,7 +59,7 @@ class Governor:
             db.execute('BEGIN IMMEDIATE')
             db.execute('DELETE FROM queue WHERE created<=?',(started-30,))
             if db.execute('SELECT COUNT(*) FROM queue WHERE provider=?',(provider,)).fetchone()[0]>=256:
-                db.execute('ROLLBACK');raise TimeoutError('certification_provider_queue_capacity')
+                reason='queue_capacity';db.execute('ROLLBACK');raise TimeoutError('certification_provider_queue_capacity')
             db.execute('INSERT INTO queue(id,provider,lane,priority,created,deadline) VALUES(?,?,?,?,?,?)',(identity,provider,lane,priority,started,started+deadline_seconds))
             db.execute('COMMIT')
             while True:
@@ -85,6 +85,8 @@ class Governor:
                         db.execute('COMMIT')
                         raise TimeoutError('certification_provider_method_cooldown')
                     ready=max(float(next_at),float(cooldown),method_cooldown)
+                    reason=('shared_cooldown_backpressure' if max(float(cooldown),method_cooldown)>now
+                            else 'physical_governor_wait')
                     if head and head[0]==identity and now>=ready:
                         db.execute('UPDATE pressure SET next_at=?,grants=grants+1 WHERE provider=?',(now+self.interval,provider))
                         db.execute('DELETE FROM queue WHERE id=?',(identity,));db.execute('COMMIT')

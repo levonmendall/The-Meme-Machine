@@ -55,3 +55,22 @@ class EvidencePriorityTests(unittest.TestCase):
             finally:
                 observer.raw.close()
                 observer.journal.db.close()
+
+    def test_local_expiry_is_not_provider_failure_or_physical_request(self):
+        import time
+        class Transport:
+            evidence_deadline=time.time()-1
+            def send(self,request):raise AssertionError('must never reach provider')
+        with tempfile.TemporaryDirectory() as tmp,patch.dict(os.environ,
+                {'MM_CERT_GOVERNOR_DB':str(Path(tmp)/'governor.sqlite')}):
+            observer=Observer(Path(tmp)/'lane','pump','frozen')
+            observer.wrap_transport(Transport,'send',solana=True)
+            try:
+                rpc=Transport()
+                with self.assertRaisesRegex(TimeoutError,'evidence_deadline_before_transport'):
+                    rpc.send({'method':'getTransaction'})
+                self.assertEqual(observer.requests,0)
+                self.assertEqual(observer.provider_method_errors,{})
+                self.assertEqual(observer.local_admission_errors['getTransaction:evidence_deadline_before_transport'],1)
+                self.assertEqual(rpc.evidence_local_failure,'evidence_deadline_before_transport')
+            finally:observer.raw.close();observer.journal.db.close()

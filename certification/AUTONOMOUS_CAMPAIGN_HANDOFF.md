@@ -1,0 +1,120 @@
+# Autonomous repair and certification campaign — 2026-09-20
+
+This is an append-only continuation of SOLANA_ALCHEMY_EFFICIENCY_HANDOFF.md.
+The user explicitly authorized implementation repairs, full deterministic verification,
+fresh 600-second smoke and an independent 3,600-second four-lane observation, including
+bounded replacement runs after implementation defects. Prior handoff-only pauses are
+superseded for this campaign. No merge to main, policy change, signing, transaction
+submission, paid provider, increased rate ceiling or narrowed market scope is authorized.
+
+## Reconstructed starting state
+
+Fetched origin and GitHub PR/workflow state before edits. Main remains
+`54712c4c6470cc4dc267888f934bd693aac030d0`. Draft PR91
+`repair/four-lane-observability@acb7e51127c66e89fc524d81408bdb4a0afec629`
+stacks on `cert/one-hour-repair-campaign`; draft PR92
+`repair/robinhood-cu-efficiency@a34c5d4dce4dc93445b837cfeeb51901825bdb9f`
+stacks on PR91. Draft PR93 `repair/solana-alchemy-efficiency` stacks on PR92;
+its starting exact head was `1d92a1360b82460beb461ae89795b85b630eff80`.
+Newer PR94 was closed after Pump-pressure work was integrated into PR93.
+The remote strategy admission branch remains at
+`0982519a68222b7cd0640981a7ac4a8ac7c119dd`, uncomposed at starting head.
+Workflow 35542891347 passed deterministic CI, not a four-lane market smoke.
+An isolated detached worktree preserves prior local worktrees.
+
+Exact current lane source/policy/config hashes: `results/campaign-policy-integrity.json`.
+The descriptive source table in the older handoff predates later Pump/Meteora sources;
+`sources.json` and the fetched lane heads are authoritative. All four existing overlays
+reproduced byte-for-byte at campaign start. Their latest composed versions are checked
+using a fresh private Git index: `results/campaign-overlay-reproduction.json`.
+
+## Preserved smoke and diagnostic evidence
+
+Latest completed smoke 35539161434 used
+`0653621edb2a4fa5bfdc0922a1c42149b2774975`, before the newest Pons repair.
+Artifact 10614203841, SHA256
+`cbbc55c40f4ca3cf9c0b7869ed53998a4affb9d5adedf3d402546dcefe74c4b2`,
+was downloaded, checksum verified, extracted and inspected. It retains raw RPC responses,
+per-lane ledgers, journals and failed/unresolved evidence. It achieved 600.1215 seconds
+of overlap with zero restarts but failed engineering on one unresolved Pons position.
+Pump settled two natural paper lifecycles; Pons settled one separate natural lifecycle;
+Meteora/Ramses zero. Forced settlements zero. No historical exposure was modified.
+The full structured baseline is `results/campaign-baseline-35539161434.json`.
+
+The two Pump getProgramAccounts HTTP 429s were independent concentration scans:
+different mint filters, minimum slots, session identities and timestamps ~76 seconds
+apart, each retry_count=0. No duplicate scan is proven or deduplicated. The retained
+raw requests identify them exactly. Meteora had zero signature-method 429s across 64
+getSignaturesForAddress members, with one complete economic vector. Sustained pressure
+and efficiency still require the new campaign.
+
+Pump's old raw transport archive records five requests already expired on arrival at
+the transport wrapper and one governor deadline. Neither is a provider failure.
+Consumer-level expiration counts are separate per-signature interests, not opportunity
+counts. The old artifact cannot fully resolve every lease/cooldown/queue cause; it is
+not retrospectively relabeled using the new instrumentation.
+
+## Targeted cancellations
+
+Superseded legacy Pump diagnostics were accidentally triggered by repair commits lacking
+qualification-build markers. Run 35542697441 at f0ab87c was in progress; run 35542796805
+at b9c8113 was pending. Both belong to this campaign and conflict with clean provider
+capacity. The cancellation workflow was narrowed from cancel-everything to exact
+run ID + SHA + branch + workflow allowlisting. Commit
+`a2a4daa2459b729c4feff462f71cd19b7ffc09e0`, cancellation run 35545355369, succeeded.
+Both targets were subsequently verified cancelled. Original workflow artifact retention
+ran for the active diagnostic: artifact 10616038438, SHA256
+`bf3a4986dc2b06d113e998e30d0d12d40278ec99868e9956f730274e3c96407e`.
+The pending diagnostic had no artifact because its live job never started. Cancellation
+audit artifact 10616212792, SHA256
+`ebd437a3b93a50e3ce92a669703f484577203220f3e0f477feeb1dec361c0216`.
+No unrelated workflow was cancelled. Waiting is not counted as uptime.
+
+## Composed repairs
+
+1. Strategy admission: extracted only semantic changes from 0982519 relative to its
+   original lane source plus overlay. Did not install its obsolete full-file overrides
+   or apply the branch twice. Pump uses finalized event progress/trajectory/demand and
+   extension before expensive RPC evaluation, with optimistic concentration only for
+   admission. Same-slot later events cannot enter an earlier event's vector. Screen
+   failures and incomplete screens remain durable; later events can re-enter. Pons
+   performs authenticated current-state preflight before trajectory/window acquisition.
+   Current-state queue, screens and expensive admitted work are separate pipeline stages,
+   including when later evidence fails. Full qualification stays authoritative.
+2. Pons pending terminal exit: the latest upstream repair could still abandon an
+   impossible exit already marked exit_pending. Preserve its intent, amount, original
+   hold clock and recovery. At original max hold, reauthenticate full remaining size,
+   current curve state and unchanged five-second freshness/finality before a writeoff.
+   Recovered liquidity requires actual exit; provider/authentication errors cannot prove
+   writeoff. The ledger records zero proceeds and loss of remaining basis, with exact
+   replay and capital conservation. Existing immediate fill-feasibility check remains.
+3. Local admission observability: requests that never reached transport no longer enter
+   provider-error counters. Append-only acquisition phase records distinguish enqueue,
+   already-expired work, leases, physical capacity, shared cooldown, actual transport,
+   provider 429 and post-transport late results. Consumer deadline decomposition and raw
+   request IDs, parameter identities and original deadlines remain separately visible.
+4. Canonicality: source_integrity now requires exact byte equality without stripping
+   whitespace. All lane source SHAs and protected policy/config/workflow bytes remain
+   unchanged. No change to the adaptive starting batch of eight or provider ceilings.
+
+Changed operational lane files are embedded in the canonical Pump, Meteora and Pons
+patches. Integration changes are in governor.py, worker.py, run.py, sources.json,
+test_evidence_priority.py and this campaign's evidence/handoff files.
+
+## Verification record
+
+Commands:
+- python -m unittest discover -s certification/tests -v
+- python -m certification.run prepare --worktrees <isolated-directory>
+- python -m certification.run verify --worktrees <isolated-directory> --output <gate-directory>
+- Fresh private-index read-tree/apply/diff reproduction of each overlay.
+
+Initial full deterministic pass succeeded before final attribution/test refinements.
+Final full pass and hosted exact-revision gate results will be appended below.
+No local test result is claimed as prospective natural execution or profitability.
+Live launch requires fresh workflow hygiene, all hosted gates, exact source integrity,
+600 seconds overlap and normal drain. No earlier smoke time is reused.
+
+## Final local verification
+
+All 1208 lane tests passed: meteora 390, pons 272, pump 288, ramses 258. All 68 supervisor/capacity/accounting tests and all three resource gates passed. Complete transcripts and SHA256 hashes are in `results/autonomous-local-verification/`. Four overlays are byte-reproducible; current source SHAs and frozen file hashes are unchanged. New regressions cover same-mint re-entry, Pons preflight avoiding trajectory/window calls, pending impossible exits, fresh durable writeoff proof, stale/provider rejection, and local expiry attribution. The prospective candidate still must pass hosted gates before live observation.
