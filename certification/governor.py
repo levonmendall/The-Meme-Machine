@@ -90,7 +90,8 @@ class Governor:
                         return now-started
                     db.execute('COMMIT')
                 except BaseException:
-                    db.execute('ROLLBACK');raise
+                    if db.in_transaction:db.execute('ROLLBACK')
+                    raise
                 time.sleep(min(.05,max(.005,ready-now)))
         finally:
             if db.in_transaction:db.execute('ROLLBACK')
