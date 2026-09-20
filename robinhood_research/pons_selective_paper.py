@@ -10,16 +10,17 @@ import time
 import uuid
 
 from . import BoundaryError
-from .abi import topic
-from .evidence import Store, digest
+from .abi import topic, calldata
+from .evidence import Store, digest, canonical
 from .finality import Finality
 from .pons_selective_capital import CohortCapital
 from .pons_selective_ledger import SelectivePaper
 from .pons import CurveState, curve_abi, raw_event
 from .pons_natural_observation import _latest_header
 from .pons_natural_paper import (
-    _curve_quote, _gas_quote, _gas_units, _graduation_transition,
-    _rpc as paper_rpc, _v4_quote, _wait_curve_quote,
+    _curve_quote as _native_curve_quote, _gas_quote, _gas_units, _graduation_transition,
+    _rpc as paper_rpc, _v4_quote, _wait_curve_quote as _native_wait_curve_quote,
+    RESEARCH_RECIPIENT,
 )
 from .pons_selective_acquisition import (
     _batched, _header_search, _rpc as evidence_rpc, _trajectory,
@@ -35,6 +36,62 @@ STRATEGY_NAMESPACE="pons-selective-continuation-v1"
 STRATEGY_CAPITAL_QUOTE=10**18
 ENTRY_SLIPPAGE_BPS=100
 POST_GRAD_OBSERVE_SECONDS=10
+
+
+class _PinnedQuoteReads:
+    """One fresh head plus one batch of the identical pinned execution reads.
+
+    Called inside the native quote's original acquisition timer. Each retry gets
+    a new head and cache; no timestamp/deadline or strategy economics is changed.
+    """
+    def __init__(self,rpc,curve,side):
+        self.rpc=rpc;self.curve=curve;self.side=side;self.header=None;self.cache=None
+
+    def call(self,method,params,*,scope):
+        if method=='eth_getBlockByNumber' and params==['latest',False]:
+            self.header=self.rpc.call(method,params,scope=scope);self.cache=None
+            return self.header
+        if self.header is None:raise BoundaryError('selective_quote_head_required')
+        if self.cache is None:
+            block=hex(int(self.header['number'],16))
+            calls=[('eth_call',[dict(to=self.curve,data=calldata(sig)),block])
+                for sig in ('getReserves()','realQuoteReserve()','reservedTokens()','graduated()')]
+            calls.append(('eth_getBlockByNumber',[block,False]))
+            if self.side=='buy':
+                calls.append(('eth_call',[dict(to=self.curve,data=calldata('currentSnipeTaxBps(address)',RESEARCH_RECIPIENT)),block]))
+            calls.append(('eth_gasPrice',[]))
+            values=self.rpc.batch(calls,scope='pons_selective_paper_quote')
+            if len(values)!=len(calls):raise BoundaryError('selective_quote_batch_incomplete')
+            pinned=values[4]
+            if any(pinned.get(k)!=self.header.get(k) for k in ('number','hash','parentHash','timestamp')):
+                raise BoundaryError('selective_quote_header_changed')
+            self.cache={canonical([m,p]):v for (m,p),v in zip(calls,values)}
+        key=canonical([method,params])
+        if key not in self.cache:raise BoundaryError('selective_quote_read_not_pinned')
+        return self.cache.pop(key)
+
+
+def _curve_quote(rpc,candidate,side,*args,**kwargs):
+    return _native_curve_quote(_PinnedQuoteReads(rpc,candidate['curve'],side),candidate,side,*args,**kwargs)
+
+
+def _wait_curve_quote(rpc,candidate,side,*args,**kwargs):
+    return _native_wait_curve_quote(_PinnedQuoteReads(rpc,candidate['curve'],side),candidate,side,*args,**kwargs)
+
+
+def _cancel_proven_unfilled(paper,identity,capital_guard,reason):
+    """Release only a replay-proven zero-fill reservation, with a native cancel."""
+    positions={p['id']:p for p in paper.positions()}
+    position=positions.get(identity)
+    if (position is None or position['status']!='reserved'
+            or any(position.get(k)!=0 for k in ('tokens','entry_tokens','cost','remaining_cost','realized_proceeds'))):
+        return None
+    if not paper.accounting(identity)['replay_verified']:
+        raise BoundaryError('selective_unfilled_cancel_replay_required')
+    now=int(time.time())
+    cancelled=paper.advance(identity,now=now,action='cancel',cancel_reason=reason)
+    if capital_guard is not None:capital_guard.settle(identity,cancelled,at=now)
+    return cancelled
 
 
 def _position_return_bps(position,quote):
@@ -593,14 +650,19 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
         result["boundary"]=str(exc)
         if store is not None:
             try:
-                result["reconciliation"]=SelectivePaper(
-                    store,STRATEGY_NAMESPACE,
-                    max(STRATEGY_CAPITAL_QUOTE,1),
+                recovery=SelectivePaper(
+                    store,STRATEGY_NAMESPACE,capital,
                     delay=EXIT_POLICY["entry_delay_seconds"],
                     natural_policy_hash=POLICY_HASH,
-                ).reconcile()
-            except Exception:
-                pass
+                    on_commit=capital_guard.observe if capital_guard is not None else None,
+                )
+                cancelled=_cancel_proven_unfilled(recovery,identity,capital_guard,str(exc))
+                if cancelled is not None:
+                    result.update(status='entry_failed',entry_failure=str(exc),final_position=cancelled)
+                result['reconciliation']=recovery.reconcile()
+            except Exception as cleanup:
+                # Ambiguous exposure remains reserved and explicitly blocks certification.
+                result['cancellation_failure']=type(cleanup).__name__
         return result
     finally:
         if capital_guard is not None:
