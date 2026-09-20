@@ -193,6 +193,9 @@ class PacedRpc(Rpc):
         **kwargs,
     ):
         self.role = str(role)
+        from .provider_admission import configured
+        self.shared_admission = configured(endpoint)
+        self.admission_scope = threading.local()
         self.provider_kind = _provider_kind(endpoint)
         self.pacer = pacer or ProviderPacer(requests_per_second)
         self._injected_transport = transport
@@ -209,10 +212,20 @@ class PacedRpc(Rpc):
 
     def _http(self, method, params):
         self.pacer.pace()
+        if self.shared_admission is not None:
+            parent=super()
+            return self.shared_admission.invoke(
+                lambda: parent._http(method,params),[method],
+                getattr(self.admission_scope,"value","connectivity"),self.retry_count)
         return super()._http(method, params)
 
     def _http_batch(self, calls):
         self.pacer.pace()
+        if self.shared_admission is not None:
+            parent=super()
+            return self.shared_admission.invoke(
+                lambda: parent._http_batch(calls),[x[0] for x in calls],
+                getattr(self.admission_scope,"value","connectivity"),self.retry_count)
         return super()._http_batch(calls)
 
     def _method_allowed_for_provider(self, method):
@@ -221,12 +234,14 @@ class PacedRpc(Rpc):
 
     def call(self, method, params, *, scope="connectivity"):
         self._method_allowed_for_provider(method)
+        self.admission_scope.value=scope
         return super().call(method, params, scope=scope)
 
     def batch(self, calls, *, scope="connectivity"):
         for row in calls or []:
             if isinstance(row, (list, tuple)) and row:
                 self._method_allowed_for_provider(row[0])
+        self.admission_scope.value=scope
         return super().batch(calls, scope=scope)
 
     def telemetry(self):

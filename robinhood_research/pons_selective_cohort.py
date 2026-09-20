@@ -5,6 +5,8 @@ result directory, dedicated wallet-skill ledger, dedicated paper databases, poli
 hash, qualification rows and lifecycle outcomes.
 """
 from concurrent.futures import ThreadPoolExecutor
+import gzip
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -55,6 +57,8 @@ PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS=2.0
 RATE_LIMIT_PROVIDER_BOUNDARIES=frozenset((
     "provider_http_429",
     "provider_rpc_429",
+    "provider_shared_admission_deadline",
+    "provider_shared_queue_capacity",
 ))
 RECOVERABLE_PROVIDER_BOUNDARIES=frozenset((
     "provider_http_500",
@@ -132,13 +136,21 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
         started_at=result["started_at"],
         canonical_discovery_cursor=int(cursor),
         summary=_summary_snapshot(result),
-        discovery_sessions=list(result["discovery_sessions"]),
+        discovery_sessions=list(result["discovery_sessions"][-16:]),
+        discovery_session_count=len(result['discovery_sessions']),
+        provider_session_archive=str(PROVIDER_LOG),
         active_discovery_provider=active_provider,
-        sequencer_recoveries=list(result.get("sequencer_recoveries") or []),
+        sequencer_recoveries=list((result.get("sequencer_recoveries") or [])[-16:]),
+        sequencer_recovery_count=len(result.get('sequencer_recoveries') or []),
+        sequencer_recovery_archive=str(RECOVERY_LOG),
+        cohort_accounting=_cohort_accounting() if (ROOT/'pons-selective-cohort-capital.sqlite').exists() else result.get('cohort_accounting'),
         sequencer_discovery=feed.status(),
         warmup=result.get("warmup"),
         target_reached=result.get("target_reached"),
         boundary=result.get("boundary"),
+        evidence_queue=result.get('evidence_queue'),
+        evidence_acquisition=result.get('evidence_acquisition'),
+        capacity_censored=result.get('capacity_censored',0),
         persisted_candidate_rows=len(result["rows"]),
         persisted_qualifiers=len(result["qualifiers"]),
     )
@@ -341,23 +353,72 @@ def _attach_wallet_overlay(vector,skill_book):
     return overlay
 
 
-def run(endpoint):
-    ROOT.mkdir(parents=True,exist_ok=True)
-    # A cohort directory is single-use. Never erase an earlier failed trial or
-    # leave its capital reservation without the native ledger that explains it.
-    protected=list(ROOT.glob("trial-*.sqlite*"))+[
-        PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT,
-        ROOT/"pons-selective-cohort-capital.sqlite",
-    ]
-    if any(path.exists() for path in protected):
-        raise BoundaryError("selective_existing_cohort_requires_fresh_directory")
+def _collect_completed(result,futures):
+    remaining=[]
+    for qindex,future in futures:
+        if not future.done():
+            remaining.append((qindex,future));continue
+        try:
+            life=future.result()
+        except Exception as exc:
+            life=dict(status="unexpected_boundary",boundary=type(exc).__name__)
+        life["index"]=qindex
+        result["lifecycles"].append(life)
+        _append_jsonl(ROOT/"completed-lifecycles.jsonl",life)
+    return remaining
 
+
+def _cohort_accounting():
+    from .pons_selective_capital import CohortCapital
+    return CohortCapital(ROOT/'pons-selective-cohort-capital.sqlite',STRATEGY_CAPITAL_QUOTE).reconcile()
+
+
+def persist_terminal(result):
+    """Retain the complete result durably and keep the terminal view bounded."""
+    archive=ROOT/'complete-result.json.gz'
+    with archive.open('wb') as file:
+        with gzip.GzipFile(fileobj=file,mode='wb') as compressed:
+            for piece in json.JSONEncoder(sort_keys=True,separators=(',',':')).iterencode(result):
+                compressed.write(piece.encode())
+        file.flush();os.fsync(file.fileno())
+    with archive.open('rb') as file:checksum=hashlib.file_digest(file,'sha256').hexdigest()
+    compact={k:v for k,v in result.items() if k not in (
+        'rows','qualifiers','discovery_sessions','sequencer_recoveries','lifecycles')}
+    compact['observation_archive']=dict(path=str(archive),sha256=checksum,complete=True,
+        candidate_rows=len(result['rows']),qualifiers=len(result['qualifiers']),
+        lifecycles=len(result['lifecycles']),provider_sessions=len(result['discovery_sessions']))
+    compact['lifecycles']=[{k:v for k,v in life.items() if k in (
+        'index','status','boundary','final_position','reconciliation','realized_pnl_quote',
+        'carried_through_graduation','capital_reconciliation')} for life in result['lifecycles']]
+    raw=json.dumps(compact,sort_keys=True,separators=(',',':')).encode()
+    if len(raw)>12_000_000:raise BoundaryError('selective_cohort_report_capacity')
+    temporary=REPORT.with_suffix(REPORT.suffix+'.tmp')
+    with temporary.open('wb') as file:file.write(raw);file.flush();os.fsync(file.fileno())
+    os.replace(temporary,REPORT)
+    return compact
+
+
+def run(endpoint,*,campaign=False):
+    if type(campaign) is not bool:raise BoundaryError('selective_campaign_flag')
+    ROOT.mkdir(parents=True,exist_ok=True)
+    # Preserve existing evidence and lane capital on repeated invocation.
+    occupied=list(ROOT.glob("trial-*.sqlite*"))
+    occupied += [p for p in (PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT,
+                            ROOT/"pons-selective-cohort-capital.sqlite") if p.exists()]
+    if occupied:
+        raise BoundaryError("selective_existing_run_requires_explicit_recovery")
+
+    initial_accounting=_cohort_accounting()
     started=time.time()
     result=dict(
         kind="pons-selective-continuation-v1-independent-cohort",
         namespace=STRATEGY_NAMESPACE,policy=POLICY,policy_hash=POLICY_HASH,
         independent_strategy=True,shared_allocator=False,live_money=False,
-        cohort_target=COHORT_TARGET,max_enrolled=MAX_ENROLLED,
+        cohort_target=COHORT_TARGET,max_enrolled=MAX_ENROLLED,continuous_campaign=campaign,
+        cohort_accounting=initial_accounting,
+        operational_configuration=dict(campaign=campaign,discovery_seconds=DISCOVERY_SECONDS,
+            max_concurrent_lifecycles=MAX_CONCURRENT_LIFECYCLES,
+            observation_capacity=MAX_ENROLLED,exhausted_capacity='continue_authenticated_discovery_and_censor'),
         selection_rule=(
             "every distinct current authenticated Pons V2 buy, with at most one "
             "evaluation per curve per 2 wall-clock seconds; no outcome reranking"
@@ -369,6 +430,8 @@ def run(endpoint):
         sequencer_recoveries=[],evidence_acquisition=None,started_at=started,
     )
 
+    result['operational_configuration_hash']=hashlib.sha256(json.dumps(
+        result['operational_configuration'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
     skill=WalletSkillBook(str(SKILL_DB))
     evidence_context=SelectiveEvidenceContext(endpoint)
     rpc=_discovery(endpoint)
@@ -384,7 +447,13 @@ def run(endpoint):
         raise BoundaryError("selective_sequencer_timestamp_missing")
     tape=[];last_eval={};seen_event=set()
     first_observed_monotonic={}
-    queue=DeadlineEvidenceQueue(limit=4096,nominal_deadline_seconds=5.0)
+    def queue_terminal(row,reason):
+        event=row['event'];identity=(event['transactionHash'],event['logIndex'])
+        observed_monotonic=first_observed_monotonic.pop(identity,None)
+        _append_jsonl(ROOT/'queue-terminal.jsonl',dict(event=event,queued_at=row['queued_at'],
+            deadline=row['deadline'],first_observed_monotonic=observed_monotonic,
+            terminal_reason=reason,economic_rejection=False,policy_hash=POLICY_HASH))
+    queue=DeadlineEvidenceQueue(limit=4096,nominal_deadline_seconds=5.0,on_terminal=queue_terminal)
 
     def _checkpoint_provider_failure(failed_rpc,boundary,current_cursor):
         result["last_transient_provider_boundary"]=str(boundary)
@@ -393,6 +462,7 @@ def run(endpoint):
             phase="provider_recovery",
         )
 
+    pool=None;futures=[]
     try:
         warm_deadline=time.monotonic()+TAPE_WARM_SECONDS
         while time.monotonic()<warm_deadline:
@@ -415,14 +485,15 @@ def run(endpoint):
         next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
         while (
             time.monotonic()<deadline
-            and len(result["rows"])<MAX_ENROLLED
-            and len(result["qualifiers"])<COHORT_TARGET
+            and (campaign or (len(result["rows"])<MAX_ENROLLED
+                              and len(result["qualifiers"])<COHORT_TARGET))
         ):
             rpc,cursor,fresh=_poll(
                 endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
                 result["sequencer_recoveries"],
                 on_provider_failure=_checkpoint_provider_failure,
             )
+            futures=_collect_completed(result,futures)
             now=time.time()
             now_monotonic=time.monotonic()
             for event in fresh:
@@ -444,6 +515,7 @@ def run(endpoint):
                 if queue.enqueue(event,now=now):
                     first_observed_monotonic[identity]=now_monotonic
 
+            result['evidence_queue']=queue.telemetry()
             if time.monotonic()>=next_checkpoint:
                 _checkpoint(
                     result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery"
@@ -461,6 +533,13 @@ def run(endpoint):
             if observed_monotonic is None:
                 raise BoundaryError("missing_evidence_observation_clock")
             observed_at=float(scheduled["queued_at"])
+            if campaign and len(result['rows'])>=MAX_ENROLLED:
+                result['capacity_censored']=result.get('capacity_censored',0)+1
+                _append_jsonl(ROOT/'capacity-censored.jsonl',dict(
+                    source_transaction=event.get('transactionHash'),source_block=event.get('blockNumber'),
+                    observed_at=observed_at,observed_monotonic=observed_monotonic,
+                    terminal_reason='selective_campaign_observation_capacity',economic_rejection=False))
+                continue
             try:
                 evaluation=evaluate_candidate(
                     endpoint,event,list(tape),
@@ -493,6 +572,12 @@ def run(endpoint):
                         phase="qualifier_persisted",
                     )
                     next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
+                    if len(futures)>=MAX_CONCURRENT_LIFECYCLES:
+                        life=dict(index=qindex,status='capacity_censored',
+                            boundary='selective_concurrent_position_capacity',economic_rejection=False)
+                        result['lifecycles'].append(life)
+                        _append_jsonl(ROOT/'completed-lifecycles.jsonl',life)
+                        continue
                     futures.append((
                         qindex,pool.submit(
                             run_lifecycle,endpoint,evaluation,
@@ -518,23 +603,30 @@ def run(endpoint):
         if not result["target_reached"]:
             result["boundary"]="selective_cohort_target_not_reached_in_bounded_window"
 
-        for qindex,future in futures:
-            try:
-                life=future.result()
-            except Exception as exc:
-                life=dict(
-                    index=qindex,status="unexpected_boundary",
-                    boundary=type(exc).__name__,
-                )
-            life["index"]=qindex
-            result["lifecycles"].append(life)
-        pool.shutdown(wait=True)
     except BoundaryError as exc:
         result["boundary"]=str(exc)
         terminal_provider=rpc.telemetry()
         result["discovery_sessions"].append(terminal_provider)
         _append_jsonl(PROVIDER_LOG,terminal_provider)
     finally:
+        if pool is not None:
+            # Drain all admitted positions under their own frozen policy even if
+            # discovery failed. No future may be discarded from terminal evidence.
+            try:
+                for qindex,future in futures:
+                    try:life=future.result()
+                    except Exception as exc:life=dict(status='unexpected_boundary',boundary=type(exc).__name__)
+                    life['index']=qindex
+                    result['lifecycles'].append(life)
+                    _append_jsonl(ROOT/'completed-lifecycles.jsonl',life)
+                    _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase='position_drain')
+            finally:pool.shutdown(wait=True)
+        # Remaining queued observations retain their original clocks and an
+        # explicit shutdown terminal, never a synthetic fresh evaluation.
+        for row in list(queue.rows.values()):queue_terminal(row,'campaign_window_closed')
+        queue.rows.clear()
+        result['evidence_queue']=queue.telemetry()
+        result['cohort_accounting']=_cohort_accounting()
         result["evidence_acquisition"]=evidence_context.telemetry()
         result["sequencer_discovery"]=feed.status()
         _checkpoint(
@@ -576,10 +668,7 @@ def run(endpoint):
 
 if __name__=="__main__":
     output=run(os.environ.get("MM_ROBINHOOD_READ_RPC_URL",""))
-    raw=json.dumps(output,sort_keys=True,separators=(",",":")).encode()
-    if len(raw)>12_000_000:
-        raise BoundaryError("selective_cohort_report_capacity")
-    REPORT.write_bytes(raw)
+    output=persist_terminal(output)
     print(json.dumps(dict(
         policy_hash=output["policy_hash"],boundary=output.get("boundary"),
         summary=output["summary"],
