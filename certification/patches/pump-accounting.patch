@@ -327,10 +327,10 @@ index 0000000..274abdb
 +    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
 +    return 'reconstruction_incomplete'
 diff --git a/meme_machine/pump_acceleration_history.py b/meme_machine/pump_acceleration_history.py
-index 0a774b1..d41405a 100644
+index 0a774b1..c53fc14 100644
 --- a/meme_machine/pump_acceleration_history.py
 +++ b/meme_machine/pump_acceleration_history.py
-@@ -9,7 +9,7 @@ import time
+@@ -9,7 +9,7 @@ from __future__ import annotations
  import time
  
  from .provider import Unavailable
@@ -353,16 +353,7 @@ index 0a774b1..d41405a 100644
          self.stream_events_seen=0
          self.stream_hydrated_transactions=0
          self.stream_last_slot=0
-@@ -159,15 +162,18 @@ class IncrementalPumpSwapHistory:
-     def _ingest_stream_window(
-         self,rpc,now,window_seconds=30,hydration_kind="pump_window"
-     ):
-         if self.broker is None:
-             return
-         now=int(now);cutoff=now-int(window_seconds)
-         rows=self.broker.recent_events(
-             self.stream_key,since=cutoff-2,after_slot=None)
-         self.stream_events_seen+=len(rows)
+@@ -168,40 +171,58 @@ class IncrementalPumpSwapHistory:
          signatures=[];slot_by_sig={}
          for row in rows:
              sig=row.get("signature")
@@ -372,7 +363,6 @@ index 0a774b1..d41405a 100644
                  continue
 +            if safe_negative:self.stream_prefiltered_signatures.add(sig);continue
              signatures.append(sig)
-@@ -174,34 +180,49 @@ class IncrementalPumpSwapHistory:
              slot_by_sig[sig]=int(row["slot"])
              self.stream_last_slot=max(self.stream_last_slot,int(row["slot"]))
          if not signatures:
@@ -597,7 +587,7 @@ index 3e64d83..7c6e406 100644
              reservation=None if self.reservation is None else dict(self.reservation),
              position=None if self.position is None else asdict(self.position),
 diff --git a/meme_machine/solana_evidence_broker.py b/meme_machine/solana_evidence_broker.py
-index 05dd96f..86e37e8 100644
+index 05dd96f..d73816f 100644
 --- a/meme_machine/solana_evidence_broker.py
 +++ b/meme_machine/solana_evidence_broker.py
 @@ -6,6 +6,8 @@ backpressure. It grants no strategy/allocation/signing authority.
@@ -1215,7 +1205,7 @@ index 05dd96f..86e37e8 100644
                      break
 diff --git a/meme_machine/solana_evidence_consumers.py b/meme_machine/solana_evidence_consumers.py
 new file mode 100644
-index 0000000..f96d983
+index 0000000..4dc1ee0
 --- /dev/null
 +++ b/meme_machine/solana_evidence_consumers.py
 @@ -0,0 +1,211 @@
@@ -2182,7 +2172,7 @@ index 0000000..f1224cf
 +        self.assertEqual(len(broker.consumers.batch()),1)
 diff --git a/tests/test_evidence_consumers.py b/tests/test_evidence_consumers.py
 new file mode 100644
-index 0000000..099d6d9
+index 0000000..93546a2
 --- /dev/null
 +++ b/tests/test_evidence_consumers.py
 @@ -0,0 +1,148 @@
@@ -2441,7 +2431,7 @@ index 0000000..25ba1d5
 +
 +if __name__=='__main__':unittest.main()
 diff --git a/tests/test_pump_acceleration_history.py b/tests/test_pump_acceleration_history.py
-index a9eaead..856cc10 100644
+index a9eaead..79e2bdc 100644
 --- a/tests/test_pump_acceleration_history.py
 +++ b/tests/test_pump_acceleration_history.py
 @@ -1,6 +1,7 @@
