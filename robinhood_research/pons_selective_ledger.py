@@ -10,9 +10,11 @@ It may consume the generic Quote value object because executable quote validatio
 neutral execution primitive. No generic Paper state or behavior is inherited.
 """
 import json
+import time
+from dataclasses import asdict
 
 from . import BoundaryError
-from .evidence import canonical
+from .evidence import canonical, digest
 
 STRATEGY_NAMESPACE="pons-selective-continuation-v1"
 TABLE="pons_selective_paper"
@@ -22,7 +24,8 @@ JOURNAL_CATEGORY="pons_selective_paper_journal"
 
 
 class SelectivePaper:
-    def __init__(self, store, experiment, capital, *, delay=2, natural_policy_hash=None):
+    def __init__(self, store, experiment, capital, *, delay=2, natural_policy_hash=None,
+                 on_commit=None, clock_ns=time.time_ns):
         if not str(experiment).startswith(STRATEGY_NAMESPACE):
             raise BoundaryError("pons_selective_experiment_namespace")
         if capital <= 0 or delay < 1:
@@ -33,10 +36,19 @@ class SelectivePaper:
         self.experiment=str(experiment)
         self.delay=int(delay)
         self.natural_policy_hash=str(natural_policy_hash)
+        self.on_commit=on_commit
+        self.clock_ns=clock_ns
         self.store.db.execute(
             """CREATE TABLE IF NOT EXISTS pons_selective_paper(
                    id TEXT PRIMARY KEY, body TEXT NOT NULL)"""
         )
+        # Only this strategy's immutable records are protected here. Generic
+        # paper machinery and other research evidence retain their own rules.
+        for operation in ("UPDATE", "DELETE"):
+            self.store.db.execute(f"""CREATE TRIGGER IF NOT EXISTS
+                pons_selective_records_no_{operation.lower()} BEFORE {operation} ON records
+                WHEN OLD.category IN ('{GENESIS_CATEGORY}','{DECISION_CATEGORY}','{JOURNAL_CATEGORY}')
+                BEGIN SELECT RAISE(ABORT,'pons_selective_append_only'); END""")
         self.store.put(
             GENESIS_CATEGORY,self.experiment,
             dict(
@@ -57,7 +69,65 @@ class SelectivePaper:
             row=json.loads(body)
             if row.get("experiment")==self.experiment:
                 out.append(row)
+        replay={}
+        for identity, in self.store.db.execute(
+            "SELECT id FROM records WHERE category=?",(JOURNAL_CATEGORY,)
+        ):
+            event=self.store.get(JOURNAL_CATEGORY,identity)
+            p=event["position"]
+            if p.get("experiment")!=self.experiment:
+                continue
+            if identity!=f'{p["id"]}:{p["version"]}':
+                raise BoundaryError("selective_journal_identity_mismatch")
+            replay.setdefault(p["id"],[]).append(event)
+        latest={}
+        for identity,events in replay.items():
+            events.sort(key=lambda e:e["position"]["version"])
+            previous=None
+            for version,event in enumerate(events):
+                p=event["position"]
+                if p["version"]!=version or (previous is None and event["action"]!="reserve"):
+                    raise BoundaryError("selective_journal_sequence_mismatch")
+                if "previous_hash" in event and event["previous_hash"]!=(digest(previous) if previous else None):
+                    raise BoundaryError("selective_journal_chain_mismatch")
+                if previous and event.get("recorded_at_ns",0)<previous.get("recorded_at_ns",0):
+                    raise BoundaryError("selective_accounting_clock_regression")
+                self._verify_flow(previous,event)
+                previous=event
+            latest[identity]=events[-1]["position"]
+        if {p["id"]:p for p in out}!=latest:
+            raise BoundaryError("selective_projection_mismatch")
         return out
+
+    @staticmethod
+    def _verify_flow(previous,event):
+        """Replay booked native units from durable executable quotes.
+
+        Historical records without quote payloads remain readable, but are not
+        advertised as economic replay proof by reconciliation.
+        """
+        p=event["position"]
+        if not previous or "quote" not in event:
+            return
+        before=previous["position"];q=event["quote"]
+        expected={k:before[k] for k in ("cost","remaining_cost","realized_proceeds","realized_pnl","tokens")}
+        if event["action"]=="entry":
+            if q is None or q["amount_in"]!=before["amount"]:
+                raise BoundaryError("selective_entry_replay_mismatch")
+            cost=q["amount_in"]+q["gas_quote"]
+            expected.update(cost=cost,remaining_cost=cost,tokens=q["amount_out"])
+        elif event["action"]=="exit" and p.get("reason") is None:
+            amount=before["pending_exit_tokens"]
+            if q is None or q["amount_in"]!=amount or not 0<amount<=before["tokens"]:
+                raise BoundaryError("selective_exit_replay_mismatch")
+            basis=before["remaining_cost"]*amount//before["tokens"]
+            net=q["amount_out"]-q["gas_quote"]
+            expected.update(tokens=before["tokens"]-amount,
+                remaining_cost=before["remaining_cost"]-basis,
+                realized_proceeds=before["realized_proceeds"]+net,
+                realized_pnl=before["realized_pnl"]+net-basis)
+        if any(p[k]!=v for k,v in expected.items()):
+            raise BoundaryError("selective_economic_replay_mismatch")
 
     def reconcile(self):
         genesis=self.store.get(GENESIS_CATEGORY,self.experiment)["capital"]
@@ -67,15 +137,30 @@ class SelectivePaper:
         available=int(genesis)+realized-committed
         if available<0:
             raise BoundaryError("selective_paper_capital_invariant")
+        cash=int(genesis)-sum(p["cost"] for p in rows)+sum(p["realized_proceeds"] for p in rows)
+        basis=sum(p["remaining_cost"] for p in rows)
+        booked=sum(p["realized_pnl"] for p in rows)
+        if int(genesis)+booked!=cash+basis:
+            raise BoundaryError("selective_cash_basis_invariant")
+        open_rows=[p for p in rows if p['tokens']>0]
+        marks_complete=all(p.get('mark',{}).get('tokens')==p['tokens'] for p in open_rows)
+        unrealized=sum(p['mark']['unrealized_pnl'] for p in open_rows) if marks_complete else None
         return dict(
             genesis=int(genesis),realized=realized,committed=committed,
             available=available,
+            cash=cash,remaining_cost_basis=basis,booked_realized=booked,
+            cash_basis_conservation=True,
+            marks_complete=marks_complete,unrealized_at_recorded_marks=unrealized,
+            marked_position_value=basis+unrealized if marks_complete else None,
+            mark_times={p['id']:p.get('mark',{}).get('at') for p in open_rows},
+            accounting={p["id"]:self.accounting(p["id"]) for p in rows},
             open_exposure=sum(
                 int(p["tokens"]) for p in rows if p["status"]!="settled"
             ),
         )
 
     def _get(self,identity):
+        self.positions()  # A deleted/corrupted projection cannot create capital.
         row=self.store.db.execute(
             f"SELECT body FROM {TABLE} WHERE id=?",(identity,)
         ).fetchone()
@@ -86,12 +171,47 @@ class SelectivePaper:
             raise BoundaryError("selective_cross_experiment_authority")
         return p
 
-    def _save(self,p,action,now):
+    def accounting(self,identity):
+        """Exact event-time integral; units*nanos / 3_600_000_000_000 = unit-hours.
+
+        Open exposure is integrated only through the last durable event. This
+        is cost basis at risk, not an invented live mark or unrealized return.
+        """
+        events=[]
+        for key, in self.store.db.execute("SELECT id FROM records WHERE category=?",(JOURNAL_CATEGORY,)):
+            e=self.store.get(JOURNAL_CATEGORY,key)
+            if e["position"]["id"]==identity:events.append(e)
+        events.sort(key=lambda e:e["position"]["version"])
+        risk=reserved=execution_cost=0;complete=True
+        for index,e in enumerate(events):
+            complete=complete and "recorded_at_ns" in e and "quote" in e
+            if index and complete:
+                prev=events[index-1];p=prev["position"]
+                dt=e["recorded_at_ns"]-prev["recorded_at_ns"]
+                if dt<0:raise BoundaryError("selective_accounting_clock_regression")
+                risk+=(p["reserved"] if p["status"]=="reserved" else p["remaining_cost"])*dt
+                reserved+=p["reserved"]*dt
+            if e.get("quote") and (e["action"]=="entry" or (e["action"]=="exit" and e["position"].get("reason") is None)):
+                execution_cost+=e["quote"]["gas_quote"]
+        return dict(replay_verified=bool(events) and complete,
+            capital_at_risk_unit_nanoseconds=risk if complete else None,
+            held_reservation_unit_nanoseconds=reserved if complete else None,
+            native_execution_cost=execution_cost if complete else None,
+            through_recorded_at_ns=events[-1].get("recorded_at_ns") if events else None,
+            integral_complete=bool(events) and complete and events[-1]["position"]["status"]=="settled")
+
+    def _save(self,p,action,now,quote=None):
+        previous=self.store.get(JOURNAL_CATEGORY,f'{p["id"]}:{p["version"]-1}') if p["version"] else None
+        recorded_at_ns=int(self.clock_ns())
+        if previous and recorded_at_ns<previous.get("recorded_at_ns",0):
+            raise BoundaryError("selective_accounting_clock_regression")
         self.store.put(
             JOURNAL_CATEGORY,f'{p["id"]}:{p["version"]}',
             dict(
                 strategy_namespace=STRATEGY_NAMESPACE,
                 action=action,at=int(now),position=p,
+                recorded_at_ns=recorded_at_ns,previous_hash=digest(previous) if previous else None,
+                quote=asdict(quote) if quote is not None else None,
             ),
         )
         self.store.db.execute(
@@ -149,6 +269,7 @@ class SelectivePaper:
         except Exception:
             self.store.db.execute("ROLLBACK")
             raise
+        if self.on_commit:self.on_commit(self,p)
         return p
 
     def advance(
@@ -193,6 +314,14 @@ class SelectivePaper:
                     pending_exit_tokens=requested,
                 )
 
+            elif action=="mark":
+                if p["status"] not in ("open","exit_pending"):
+                    raise BoundaryError("selective_position_not_open")
+                quote.check(now,p["market"],"sell",p["tokens"],p["kind"],finality_ledger=finality_ledger)
+                p["mark"]=dict(quote=asdict(quote),at=now,tokens=p["tokens"],
+                    executable_net=int(quote.amount_out)-int(quote.gas_quote),
+                    unrealized_pnl=int(quote.amount_out)-int(quote.gas_quote)-p["remaining_cost"])
+
             elif action=="exit":
                 if p["status"]!="exit_pending" or now<int(p["due"]):
                     raise BoundaryError("selective_exit_not_due")
@@ -228,6 +357,7 @@ class SelectivePaper:
                     p["realized_pnl"]=int(p["realized_pnl"])+net-sold_cost
                     p["pnl"]=p["realized_pnl"]
                     p["reason"]=None
+                    p.pop("mark",None)
                     p["pending_exit_tokens"]=None
                     if p["tokens"]==0:
                         p.update(
@@ -254,16 +384,18 @@ class SelectivePaper:
                 if proof!=transition:
                     raise BoundaryError("unproven_selective_pool_transition")
                 p["market"]=transition["market"]
+                p.pop("mark",None)
 
             else:
                 raise BoundaryError("unsupported_selective_paper_action")
 
             p["version"]+=1
             p["last_at"]=now
-            self._save(p,action,now)
+            self._save(p,action,now,quote)
             self.reconcile()
             self.store.db.execute("COMMIT")
-            return p
         except Exception:
             self.store.db.execute("ROLLBACK")
             raise
+        if self.on_commit:self.on_commit(self,p)
+        return p

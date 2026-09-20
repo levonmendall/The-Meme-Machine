@@ -7,10 +7,12 @@ other strategy signal/threshold/state is imported.
 """
 from dataclasses import asdict
 import time
+import uuid
 
 from . import BoundaryError
 from .abi import topic
 from .evidence import Store, digest
+from .finality import Finality
 from .pons_selective_capital import CohortCapital
 from .pons_selective_ledger import SelectivePaper
 from .pons import CurveState, curve_abi, raw_event
@@ -237,15 +239,17 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
             token=evaluation["token"],outcome_used_for_selection=False,
         )
         identity=(
-            "pons-selective:"+evaluation["token"]+":"+
+            "pons-selective:"+str(uuid.uuid4())+":"+evaluation["token"]+":"+
             evaluation["source_transaction"]
         )
+        result["lifecycle_id"]=identity
         if capital_path is not None:
             capital_guard=CohortCapital(capital_path,STRATEGY_CAPITAL_QUOTE)
             result["cohort_reservation"]=capital_guard.reserve(
                 identity,amount+gas_budget,at=now,
                 decision_hash=digest(decision),trial_path=db_path,
             )
+            paper.on_commit=capital_guard.observe
         reserved=paper.reserve(
             identity,market=candidate["curve"],amount=amount,gas_budget=gas_budget,
             now=now,features=decision,kind="natural",
@@ -291,6 +295,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
             store,STRATEGY_NAMESPACE,capital,
             delay=EXIT_POLICY["entry_delay_seconds"],
             natural_policy_hash=POLICY_HASH,
+            on_commit=capital_guard.observe if capital_guard is not None else None,
         )
         if paper.reconcile()!=before:
             raise BoundaryError("selective_restart_reconciliation")
@@ -399,6 +404,8 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
                     ))
                     continue
                 rbps=_position_return_bps(position,mark)
+                paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,
+                    finality_ledger=Finality(store,scope="paper-selective-curve-mark-"+str(len(result["monitor"])),max_blocks=4))
                 last_curve_reference=dict(
                     tokens=position["tokens"],amount_out=mark.amount_out,
                     gas_quote=mark.gas_quote,at=mark.stamp.observed_at,
@@ -460,6 +467,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
                     rpc,v4_key,position["market"],position["tokens"],gas_units,store,
                     "selective-postgrad-mark",local_freshness=True,
                 )
+                paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,finality_ledger=ledger)
                 activity=collect_v4_activity(
                     endpoint,pool_id=position["market"],key=v4_key,
                     token=evaluation["token"],start_block=graduation_block,
@@ -510,6 +518,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
                 "selective-v4-mark-"+str(len(result["monitor"])),
                 local_freshness=True,
             )
+            paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,finality_ledger=ledger)
             rbps=_position_return_bps(position,mark)
             current_header=dict(
                 number=hex(int(meta["block"])),hash=meta["block_hash"],
