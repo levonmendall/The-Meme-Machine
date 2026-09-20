@@ -77,6 +77,24 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
         self.assertIn("creator_quality",result.confirmations)
         self.assertEqual(result.policy_hash,policy_hash())
 
+    def test_execution_certification_accepts_valid_nonexceptional_late_curve(self):
+        result=qualify(self.strong_late(
+            curve_progress_bps=6000,
+            curve_velocity_bps_per_s=12,
+            curve_acceleration_bps_per_s2=-2,
+            independent_buyer_clusters=2,
+            buyer_growth=1,
+            net_buy_share_bps=5600,
+            concentration_bps=4900,
+            extension_bps=15000,
+            skilled_wallet_clusters=0,
+            creator_quality_bps=None,
+            creator_history_launches=0,
+            quote_relative_return_bps=0,
+        ))
+        self.assertTrue(result.qualified,result.reasons)
+        self.assertLess(result.score,65)
+
     def test_creator_quality_cannot_override_weak_trajectory(self):
         result=qualify(self.strong_late(
             curve_velocity_bps_per_s=1,
