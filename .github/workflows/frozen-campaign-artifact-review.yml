@@ -41,7 +41,7 @@ jobs:
           REVIEW_RUN_ID: "35578433187"
           REVIEW_SHA: 7427d71b685d9a273732b65265a34e49d4f8bbd5
           REVIEW_PHASE: hourly
-        run: python certification/inspect_stable_artifact.py
+        run: python certification/inspect_ramses_dynamic_events.py
       - name: Preserve complete review and verified artifact metadata
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

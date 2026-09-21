@@ -1,0 +1,36 @@
+{"boundary": "event_dynamic_capacity", "factory_cache_exists": true, "status": "fail_closed", "terminal_phase": "campaign_or_discovery"}
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/certification/worker.py", line 394, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/certification/worker.py", line 384, in main
+    module.main(campaign=args.campaign)
+  File "/home/runner/work/_temp/four-lane-worktrees/ramses/robinhood_research/ramses_extended_test.py", line 808, in main
+    result=run(
+           ^^^^
+  File "/home/runner/work/_temp/four-lane-worktrees/ramses/robinhood_research/ramses_extended_test.py", line 611, in run
+    screen=_scan_with_capacity_recovery(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/_temp/four-lane-worktrees/ramses/robinhood_research/ramses_extended_test.py", line 82, in _scan_with_capacity_recovery
+    result=scan_call()
+           ^^^^^^^^^^^
+  File "/home/runner/work/_temp/four-lane-worktrees/ramses/robinhood_research/ramses_extended_test.py", line 612, in <lambda>
+    lambda:scan(endpoint,gas_costs_by_pool=costs_by_pool,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/certification/worker.py", line 142, in measured
+    try:return original(*args,**kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/_temp/four-lane-worktrees/ramses/robinhood_research/ramses_universe.py", line 473, in scan
+    histories, cost_events = _decode_economic_logs(logs, addresses)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/_temp/four-lane-worktrees/ramses/robinhood_research/ramses_universe.py", line 294, in _decode_economic_logs
+    decoded = decode_ramses_event(load("ramses_pool_implementation")["abi"], event)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/_temp/four-lane-worktrees/ramses/robinhood_research/ramses.py", line 277, in decode_ramses_event
+    if typ.endswith('[]'): out[spec_i['name']]=_dynamic_value(typ,raw,int.from_bytes(w,'big'))
+                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/_temp/four-lane-worktrees/ramses/robinhood_research/ramses.py", line 253, in _dynamic_value
+    raise BoundaryError('event_dynamic_capacity')
+robinhood_research.BoundaryError: event_dynamic_capacity
