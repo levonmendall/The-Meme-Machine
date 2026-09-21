@@ -2,3 +2,4 @@ Regenerate the Meteora operational overlay after post-fill lifecycle recovery re
 Final canonicalization after explicit rebalance classification and writeoff accounting.
 Retry canonicalization after normalizing unified-diff hunk counts.
 Retry after atomically rebuilding the lifecycle recovery hunk from pinned source lines.
+Retry with anchored pre/post source context around the complete lifecycle replacement.
