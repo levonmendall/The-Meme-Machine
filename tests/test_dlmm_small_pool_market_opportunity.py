@@ -16,6 +16,14 @@ class SmallPoolMarketOpportunityTests(unittest.TestCase):
         self.assertFalse(study._exact_sol_pair(dict(
             token_x={"address":dlmm.WSOL},token_y={"address":dlmm.WSOL})))
 
+    def test_timestamp_normalizes_iso_seconds_and_milliseconds(self):
+        self.assertEqual(study._timestamp(1234),1234)
+        self.assertEqual(study._timestamp(1234000),1234000)
+        self.assertEqual(study._timestamp(1790022270000),1790022270)
+        self.assertEqual(study._timestamp("1790022270"),1790022270)
+        self.assertEqual(study._timestamp("2026-09-21T20:24:30Z"),1790022270)
+        self.assertIsNone(study._timestamp("not-a-time"))
+
     def test_tvl_filters_are_disjoint(self):
         self.assertEqual(study._filter("<10k"),
                          "is_blacklisted=false && tvl<10000")
