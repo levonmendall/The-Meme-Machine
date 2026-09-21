@@ -53,7 +53,7 @@ INITIAL_LAMPORTS=INITIAL_USD_MICROS*1_000_000_000//GENESIS_SOL_USD_MICROS
 ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
 ENTRY_DELAY_SECONDS=2
 ENTRY_FILL_TIMEOUT_SECONDS=20
-FROZEN_POLICY_HASH="b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246"
+FROZEN_POLICY_HASH="561ce76a334d9cdcd3b4888a9aaee24d11c9eb43f1ca20c5b806940297018bfc"
 
 
 def _save(report):
@@ -121,6 +121,29 @@ def _confirmation_meta(value):
     )
 
 
+def _late_roundtrip_loss_bps(snapshot):
+    """Immediate executable after-cost downside for the exact paper entry size."""
+    curve=pump.curve(snapshot["accounts"][0])
+    supply,_=pump.mint_info(snapshot["accounts"][1])
+    entry_rates=pump.fees(snapshot["accounts"][2],curve,supply)
+    tokens,cost,entry_fee=pump.buy(curve,ENTRY_BUDGET,entry_rates)
+    gross=max(0,int(cost)-int(entry_fee))
+    after=pump.Curve(
+        token=int(curve.token)-int(tokens),
+        sol=int(curve.sol)+gross,
+        real_token=int(curve.real_token)-int(tokens),
+        real_sol=int(curve.real_sol)+gross,
+        supply=int(curve.supply),
+        complete=False,
+        creator=curve.creator,
+    )
+    exit_rates=pump.fees(snapshot["accounts"][2],after,supply)
+    proceeds,_=pump.sell(after,tokens,exit_rates)
+    basis=int(cost)+GAS
+    executable=max(0,int(proceeds)-GAS)
+    return max(0,(basis-executable)*10_000//max(1,basis))
+
+
 def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
     now=int(snapshot["market_time"])
     curve=pump.curve(snapshot["accounts"][0])
@@ -141,6 +164,7 @@ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
         buyer_growth=flow["buyer_growth"],net_buy_share_bps=flow["net_buy_share_bps"],
         concentration_bps=int(concentration_bps),
         extension_bps=int(trajectory["extension_bps"]),
+        immediate_roundtrip_loss_bps=_late_roundtrip_loss_bps(snapshot),
         skilled_wallet_clusters=int(confirmation["skilled_wallet_clusters"]),
         creator_quality_bps=confirmation["creator_quality_bps"],
         creator_history_launches=int(confirmation["creator_history_launches"]),
@@ -319,6 +343,7 @@ def _record_attempt(report,signal,q,stage,extra=None):
         buyer_growth=signal.buyer_growth,net_buy_share_bps=signal.net_buy_share_bps,
         concentration_bps=signal.concentration_bps,
         extension_bps=signal.extension_bps,
+        immediate_roundtrip_loss_bps=signal.immediate_roundtrip_loss_bps,
         seconds_since_graduation=signal.seconds_since_graduation,
         price_vs_graduation_bps=signal.price_vs_graduation_bps,
         volume_acceleration_bps=signal.volume_acceleration_bps,
