@@ -19,8 +19,7 @@ jobs:
           python - <<'PY'
           import json, os, pathlib, urllib.request
           targets = {
-              35542697441: "f0ab87cda024bd8be39bded5603e9ceef74286a2",
-              35542796805: "b9c8113a173df1ddc31f58ac4f97339cbe04a489",
+              35545908034: "9ef7addcf9d5fb0ca2cc106f0f0a512b4c475bef",
           }
           headers = {"Authorization": "Bearer " + os.environ["GH_TOKEN"],
                      "Accept": "application/vnd.github+json",
@@ -31,12 +30,12 @@ jobs:
               url = base + str(run_id)
               with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as response:
                   row = json.load(response)
-              if row["head_sha"] != sha or row["head_branch"] != "repair/solana-alchemy-efficiency" or row["name"] != "paper-milestone":
+              if row["head_sha"] != sha or row["head_branch"] != "repair/solana-alchemy-efficiency" or row["name"] != "four-lane-certification":
                   raise SystemExit("cancellation_identity_mismatch")
               with urllib.request.urlopen(urllib.request.Request(url + "/artifacts", headers=headers)) as response:
                   artifacts = json.load(response)
               record = dict(run_id=run_id, sha=sha, before=row["status"],
-                            artifacts=artifacts, reason="superseded accidental legacy diagnostic conflicts with authorized four-lane campaign")
+                            artifacts=artifacts, reason="superseded failed smoke: Pons exited at 135 seconds; all books show zero open exposure after observation cutoff; preserve artifacts before replacement")
               if row["status"] != "completed":
                   with urllib.request.urlopen(urllib.request.Request(url + "/cancel", headers=headers, method="POST")) as response:
                       record["cancel_response"] = response.status
