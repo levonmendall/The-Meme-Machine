@@ -5,6 +5,7 @@ subsequently reauthenticated from chain state and receipts.
 """
 from __future__ import annotations
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import gzip, json, math, statistics, time, urllib.request
 from pathlib import Path
 
@@ -147,14 +148,22 @@ def windows(swaps,fees,pools,seconds=300):
 def main():
     cutoff=int(time.time())+1
     swaps=[];fees=[]
-    cursor=START
+    ranges=[];cursor=START
     while cursor<cutoff:
-        end=min(cutoff,cursor+DAY)
-        s=fetch_day("DLMMSwap",SWAP_FIELDS,cursor,end)
-        e=fetch_day("DLMMFeeEvent",FEE_FIELDS,cursor,end)
-        swaps.extend(s);fees.extend(e)
-        print(json.dumps(dict(day=cursor,swaps=len(s),fees=len(e),cumulative_swaps=len(swaps))),flush=True)
-        cursor=end
+        end=min(cutoff,cursor+DAY);ranges.append((cursor,end));cursor=end
+    def one_day(pair):
+        start,end=pair
+        return start,fetch_day("DLMMSwap",SWAP_FIELDS,start,end),fetch_day("DLMMFeeEvent",FEE_FIELDS,start,end)
+    completed=0
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        futures=[ex.submit(one_day,pair) for pair in ranges]
+        for future in as_completed(futures):
+            start,s,e=future.result()
+            swaps.extend(s);fees.extend(e);completed+=1
+            print(json.dumps(dict(day=start,swaps=len(s),fees=len(e),days_complete=completed,total_days=len(ranges),
+                                  cumulative_swaps=len(swaps))),flush=True)
+    swaps.sort(key=lambda r:(i(r.get("timestamp")),str(r.get("transaction")),str(r.get("id"))))
+    fees.sort(key=lambda r:(i(r.get("timestamp")),i(r.get("blockNumber")),str(r.get("id"))))
     pools=fetch_pools();days=fetch_days()
     ws5=windows(swaps,fees,pools,300)
     ws15=windows(swaps,fees,pools,900)
