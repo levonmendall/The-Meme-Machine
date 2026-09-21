@@ -60,6 +60,36 @@ class RamsesStrategyIsolationTests(unittest.TestCase):
         self.assertEqual(rec["committed"], 0)
         ledger.close()
 
+    def test_realized_loss_reduces_repeat_entry_capacity(self):
+        ledger = RamsesStrategyLedger(
+            self._path(), paper_capital=1000, quote_asset="0x" + "11" * 20
+        )
+        ledger.reserve(
+            "one", pool="0x" + "22" * 20, decision=self._decision(400), at=1
+        )
+        ledger.open("one", at=2)
+        ledger.settle(
+            "one",
+            pnl=dict(
+                strategy_domain=STRATEGY_DOMAIN,
+                net_result_quote=-300,
+                unresolved_inventory=None,
+            ),
+            at=3,
+        )
+        self.assertEqual(ledger.reconcile()["available"], 700)
+        with self.assertRaisesRegex(BoundaryError, "ramses_strategy_capital_exhausted"):
+            ledger.reserve(
+                "two", pool="0x" + "33" * 20,
+                decision=self._decision(701), at=4
+            )
+        ledger.reserve(
+            "three", pool="0x" + "44" * 20,
+            decision=self._decision(700), at=5
+        )
+        self.assertEqual(ledger.reconcile()["committed"], 700)
+        ledger.close()
+
     def test_foreign_strategy_decision_cannot_enter_ledger(self):
         ledger = RamsesStrategyLedger(
             self._path(), paper_capital=1000, quote_asset="0x" + "11" * 20
