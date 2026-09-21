@@ -1305,3 +1305,6 @@ The old hourly check106274851741 has been finalized as FAILURE by35588676066/job
 
 
 The new exact candidate is65253887d56e0c692d80bb78092f824749f3b6b3 onrepair/frozen-campaign-handoff. Workflow35589047835 (concurrent-smoke job106299025885) is repeating the candidate's full deterministic/source gates before fresh live processes. PR93 was updated with the verified decoder repair, old-hour failure and native drain/accounting results. The PR remains draft/open and its separate changed-policy headc0b8bfb71c1635f60997d92c681d85298bd2030c is unchanged. No merge or signing authority has been introduced.
+
+
+Replacement smoke check106299590703 is active on exact65253887d56e0c692d80bb78092f824749f3b6b3 in workflow35589047835. At422.368340715seconds all four processes were responsive, with zero restarts/provider errors/natural qualifiers/open exposure. Ramses had completed its second finalized-frontier scan over the unchanged283-pool inventory. A separate read-only audit is now waiting only for this exact smoke artifact; it has no provider credentials or market-launch marker. Smoke engineering acceptance still requires its full600seconds, normal drain and evidence review.
