@@ -1,3 +1,2 @@
-Pons market-wide missed-winner replay requested 2026-09-21.
-Pump indexed historical-source probe requested.
-Pons replay uses bounded public-RPC pacing and discovery-only windows.
+Pump indexed historical-source probe requested after harness correction.
+Pons replay definition retained; final replay will be triggered after audit harness changes stop.
