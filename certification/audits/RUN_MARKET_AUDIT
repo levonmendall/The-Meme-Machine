@@ -1,2 +1,3 @@
 Pons market-wide missed-winner replay requested 2026-09-21.
 Pump historical-source probe requested.
+Pons replay retry uses bounded public-RPC pacing.
