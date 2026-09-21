@@ -491,3 +491,131 @@ Engineering certification for this frozen-policy campaign remains FAIL.
 Natural certification is not inferred from machinery success or changed gates.
 Resuming integration requires resolving which policy campaign/head is authoritative
 and restoring access to or reconstructing the unpublished verified implementation.
+
+
+## Final verified fba42eff hourly artifact and unresolved implementation defects
+
+The exact failed hour completed normal process shutdown at4625.056032356 seconds.
+Continuous four-lane overlap was only505.60147918199993 seconds. Supervisor exit1;
+engineering FAIL. No replacement certification time is claimed and no cancellation
+was performed. Artifact10622262502 is566397254 bytes, verified SHA256
+670e3fdaf2b003931d04cdde9db9910006bd6c7a511c0f50fce5b04623d7cfee.
+Read-only review workflow35561304796/job106214553158 passed on evidence commit
+1f353c9d81207259ea21810d9fd39af13b0b5afc. Its complete review artifact10622616161,
+6473358 bytes, recorded SHA256ce5805b9527ac95e87ca2082c470a0e68a715dcd60383506e77df382b45e34c9,
+contains full Pons and Pump native results, qualification/entry/exit/cost/PnL paths,
+Pons journal/recovery/writeoff records, shared admission records and all process logs.
+The original566MB archive retains every raw transport and ledger; it was not modified.
+Compact exact-integer summary and original result JSON are committed adjacent to
+this handoff under results/hourly-35555511322-hosted-review.json and
+results/hourly-35555511322-result.json.
+
+All source overlay hashes match fba42eff, manifest SHA256
+7c2505cc65e599929e58511f2463875f86228232d30f053754bf0ec9ef639226.
+Ramses missing terminal-proof flags are consequences of its process failure; they
+are not evidence that the running worktree adopted the later policy revision.
+
+Ramses traceback confirms provider_shared_admission_deadline while verifying cached
+factory sentinels: ramses_universe._enumerate_factory -> _factory_rows ->
+scope universe_inventory_verify -> shared Admission.acquire. Its only failed
+admission consumed30.008014887 seconds and reached no provider transport.
+Inventory/finality progress stopped after2 expensive scans; three active pools were
+evaluated, no natural qualifier/fill and no exposure. The local bounded-fairness and
+same-frontier recovery repair targets this confirmed implementation failure.
+
+Pons exact terminal cause was NOT selective_position_provider_recovery_exhausted.
+Trials001,002,003,004,009 all filled, then ended at
+provider_session_budget_exhausted. Trials002/003 had no preceding transient recovery.
+Trials001/004 retained4/3 local-deadline recoveries; trial009 retained one actual
+eth_getLogs RPC429 and one local-deadline recovery. This corrects the earlier
+hypothesis that all five positions had exhausted transient recovery.
+paper_rpc configures limit200/per_scope190; run_lifecycle rotates only at the start
+of an iteration when rpc.used>145. A monitoring iteration may exhaust the remaining
+local session budget before reaching that rotation check. This is an additional
+implementation defect requiring bounded, deadline-preserving session management
+and its own regression. The unpublished fairness repair alone does NOT fix or prove
+this path. Do not increase provider contractual rate limits or simply allowlist
+unbounded budget retries. No further implementation is claimed complete.
+
+Pons trial010 demonstrates pending-exit preservation: original opened_at1789961824,
+pending_due1789961918, same pending token amount through local-deadline recoveries
+at hold elapsed125/226, then actual settlement at1789962120, realized loss
+-2273191636074254. Other natural settlements were trial007 -27143106252672 and
+trial008 +6781647264891961. Total settled realized +4481312522565035 is not a
+profitability claim: five positions remain unresolved. Full qualification and
+cost/fee/slippage/holding evidence is retained in the native review/archive.
+26 qualifiers yielded17 entry failures,6 boundary outcomes (one before reservation),
+and3 settlements;25 reservations total. Zero forced lifecycle or writeoff.
+
+Pons accounting exactly: cash991955879578349035, remaining basis12525432944216000,
+reserved17500000000000000, unsettled5, native execution cost101165850806000.
+Cash+basis=genesis+realized holds; native observation completeness and native replay
+hold, but capital_integral_complete=false and terminal exposure is unresolved.
+The five ledger identities are preserved in the exact review. No historical or new
+exposure is relabeled settled, erased, recreated, or written off from provider errors.
+
+Pump observed1278 mints,24 unique late-curve prospects,54 admitted candidates across
+modes,45 expensive evaluations,160 complete evidence records,2 qualifiers/fills and
+2 genuine settlements. Fill delays13/13 seconds, holding6/10 seconds. PnLs
+-28515027 and+15371221 lamports, total-13143806; cash5097240494, basis/reserved0.
+Eight-event accounting replay verified. No forced settlement.
+6501 physical transports,3600 eight-member transaction batches,maximum8 and zero
+getTransaction429.59 null transaction-body failures remain visible.
+
+Both getProgramAccounts HTTP429s are independent, not duplicate retries:
+- sequence2484, physical18aa7fed-11ba-4721-bbb6-fa69ffe4513f:2484,
+  mint CXs9Cf7QuXxdiE3Qb3g1AgyDDWQd8j4tLmfzdnxcBaTg, minContextSlot448937839,
+  parameter hash0a9adea684a68420127500b3fa2f9c86edc0ffc208a0a9c1a5c542d914762310,
+  timestamp1789962413228616700ns, retry0.
+- sequence4670, physical715f6c8d-c8fd-48e0-af39-21643160522c:4670,
+  mint ZG6E39iPoKvrZcdjQxtPzRmq6BKrKKrTPCBEMFapump, minContextSlot448942655,
+  parameter hash18150962a78d5ab95bc9c0194d8dd9ffd7fa0e98021fa26505d2ca4e9d5f06d5,
+  timestamp1789963701847166200ns, retry0.
+Original per-scan deadline was null; no deadline is fabricated. Full finalized
+filters, scope/session and physical identity are retained. These scans correspond
+to distinct natural lifecycle mints and remain legitimate pressure evidence.
+
+Pump wrapper local failures:9 physical-governor waits (8priority20,1priority90);
+zero queue-capacity/shared-cooldown terminal failures. Acquisition phases separately
+retain window1 expiry before transport,24 physical-capacity waits,8 governor waits,
+261 post-transport late results; research1 already-expired before enqueue,
+12 capacity waits,1 governor wait,11 late results; stream4 before-transport expiries,
+2 capacity waits,14 late results. Full consumer decomposition: window115906 expired
+before transport,1640 after transport,17042 complete; research16 already expired
+before enqueue,481 before transport,88 after,2511 complete; stream6781 before,
+708 after,6434 complete,436 retired,126 waiting at its last snapshot. Supervisor
+shutdown explicitly classified126 unfinished consumers (89deadline,37censored).
+Window pre-transport fraction86.12% versus88.59% defective baseline is a different
+market/duration sample, not proof of material improvement. Residual local loss
+remains unresolved; do not label untransported work provider rate limiting.
+Maximum sampled active broker jobs8; final physical-governor queues empty.
+
+Meteora observed245 pools,53 admitted interests,21 authenticated triggers,
+19 reconstructions,9 complete economic vectors,zero natural qualifier/fill.
+261 getSignaturesForAddress members and1070 physical grants,zero signature429,
+zero local governor misses; max governor wait3.049 seconds. Natural certification
+remains NATURAL_INCOMPLETE. Broad inventory, frozen strategy and interval evidence
+were retained. Ramses also remains NATURAL_INCOMPLETE. Neither lane's incomplete
+natural result is cured by the later machinery-proof policy changes.
+
+Final peak RSS bytes: Pump118910976,Meteora83009536,Pons175505408,Ramses31879168.
+No process restarts. Pump/Meteora/Pons exited0; Ramses exited1. Method/HTTP/RPC-code
+attribution remains intact. Pons RPC code3 errors are kept separately from its one
+RPC429. No hourly publication-size failure was observed.
+
+The separate c0b8bfb machinery-proof workflow35558419998 subsequently FAILED before
+any live smoke: supervisor test_execution_source_files_remain_explicitly_hash_pinned
+expected an execution-certification strategy label and found machinery-proof-v2.
+Its smoke/hour steps were skipped. Artifact10622576228,2965 bytes, recorded digest
+80181659ecf7456b21dd314ac06440496c6d409670d25c727c621d8b04b169fb preserves that failure.
+This campaign did not disable or alter that test, modify its policies, cancel it,
+or reuse its time. Policy/head authority remains a decision outside this task's
+no-threshold-change permission. Local runtime access still returns environment_offline.
+
+Required continuation, once authority/workspace access is resolved: recover or
+reconstruct the unpublished fairness/context/admission telemetry patch; repair Pons
+within-iteration session exhaustion without weakening budgets or deadlines; retain
+all five unresolved ledgers; verify frozen policies and canonical overlays; run full
+deterministic/resource gates; then one fresh600-second smoke and, only if it passes
+normal terminal drain, one independent3600-second hour. Neither engineering success
+nor natural completeness is claimed at this checkpoint.
