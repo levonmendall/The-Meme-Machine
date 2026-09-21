@@ -78,6 +78,20 @@ def compact_evidence_state(value):
     return result
 
 
+def compact_finality_state(value):
+    """Keep terminal frontier history bounded without losing its aggregate truth."""
+    if not isinstance(value,dict) or not isinstance(value.get('observations'),list):
+        return value
+    observations=value['observations'];result=dict(value)
+    reasons=Counter(row.get('gate_reason','unknown') for row in observations if isinstance(row,dict))
+    result['observation_summary']=dict(count=len(observations),gate_reasons=dict(reasons),
+        expensive_scans=sum(row.get('expensive_scan') is True for row in observations if isinstance(row,dict)),
+        displayed_recent_observations=min(2,len(observations)),
+        full_history_retained_in_raw_artifacts=True)
+    result['observations']=observations[-2:]
+    return result
+
+
 def snapshot(result, now=None):
     now=time.time() if now is None else now
     observed=result.get('observed_at',result.get('ended_at'))
@@ -106,6 +120,7 @@ def snapshot(result, now=None):
             'stream_state','finality_state','evidence_state','runtime_resources','telemetry_cost','gates',
             'opportunity_coverage','pipeline_health','scan_progress','last_completed_scan')
         public={k:numeric_tree(compact_evidence_state(row.get(k)) if k=='evidence_state' else row.get(k)) for k in fields}
+        public['finality_state']=numeric_tree(compact_finality_state(row.get('finality_state')))
         public['health']=health if health in ('starting','responsive','responsive_but_strategy_stalled','progress_stalled','exited','terminated') else 'unknown'
         policy=row.get('policy_hash','');public['policy_hash']=policy if re.fullmatch('[a-f0-9]{64}',policy) else None
         version=row.get('strategy_version','');public['strategy_version']=version if re.fullmatch(r'[A-Za-z0-9_. /-]{1,100}',version) else None

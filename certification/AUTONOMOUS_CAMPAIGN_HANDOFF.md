@@ -247,3 +247,163 @@ Pons272, Ramses258), **69 supervisor tests**, all3 resource gates pass. Logs are
 `results/entry-priority-verification/`; canonical overlays/frozen-file verification in
 `results/entry-priority-overlay-reproduction.json`. A fresh smoke and independent hour
 are still required. No prior failed/superseded observation time is reusable.
+
+## Pending-entry candidate launched
+
+Candidate `752dd501266359eb56db2bbe6e9362f306af40bd`, workflow **35549221493**,
+was published to PR93 after the repository-wide active/queued/pending/waiting workflow
+check was empty. Hosted exact-revision gates precede its fresh smoke and replacement
+hour. PR93 remains draft and unmerged; prior campaign evidence remains appended.
+
+## Accepted smoke at 752dd501 and independent hour
+
+Workflow35549221493 smoke completed normal drain with600.1143855829998 seconds overlap,
+all exits0, no restarts/unexpected exits, all accounting reconciled and zero exposure.
+Artifact10618127519 SHA256 `3c5402eb38dec15d8a84da44de310ebddff04d750c95e688a0800900146e6d2f`
+was downloaded and verified. Automated and artifact-review engineering status PASS;
+review is `results/smoke-35549221493-review.json` with full natural lifecycle evidence.
+
+All3 Pump reservations filled in12–13 seconds under their original20-second timeout.
+From first position check to fill, their original RPC sessions had respectively15,4,4
+priority0 records and ZERO intervening research records. Natural PnLs were+1506443,
+-8512170 and-15472750 lamports (total-22478477), with holding times78,7,7 seconds.
+No cancelled Pump reservation or unresolved exposure. Pons retained10 entry-slippage
+rejections and1 natural market-sale settlement, PnL+1723165591410886 native quote units.
+No writeoff/forced lifecycle occurred; all losses and rejected opportunities remain.
+
+Pump's two program-account HTTP429s were independent scans: raw525/770, different mint
+filters4Y9FuLB.../5h38uRJ..., minimum slots448901191/448901724, sessions76dcc114.../
+93677549..., timestamps1789952624124392492/1789952766644939660ns, each retry_count0.
+No duplicate physical retry. Pump had0 getTransaction HTTP429s,27 explicit null bodies,
+1 local wrapper governor timeout (research_history, priority90), plus1 acquisition-stage
+pre-transport expiry. No expired-batch fanout. Pump window consumers:1294 complete,
+2509 expired before transport,156 after transport; these per-signature interests are
+not independent opportunity counts. Complete evidence and all missing demand remain.
+
+Meteora observed92 pools, issued19 signature members with0 signature429s, but no complete
+economic vector in this sample:5 fresh-trigger timeouts,1 warmup-unverified,1 acceleration
+regime expiry and1 experiment deadline. One foreground request hit a30-second governor
+wait during Pump position monitoring (priority10, raw51); this remains a visible local
+capacity loss. Other Meteora requests received101 grants; it is not relabeled as provider
+rate limiting. Sustained fairness and completion remain hourly observations to verify.
+Ramses completed2 inventory scans and screened1 active pool. Natural certification stays
+NATURAL_INCOMPLETE for Meteora/Ramses. No profitability conclusion is drawn.
+
+Before hourly observation, active/queued/pending/waiting workflows were rechecked: only
+35549221493 active, all other queues empty. The fresh hourly job106185034210 reran all
+hosted gates and uses the same exact752dd501 source/overlay revision. Live check106185318738.
+No smoke uptime counts toward the required3600-second independent observation.
+
+Hourly midpoint snapshot (not final certification):1806.3597875459998 seconds concurrent
+overlap, all four lanes responsive. Pons8 natural settlements and1 open position;
+original lifecycle authority remains active. One post-fill Robinhood JSON-RPC429 was
+observed around18 minutes; subsequent settlements occurred without lane restart. Exact
+recovery identity/PnL will be checked from final native artifacts. Pump68 complete
+candidate evidence records, Meteora4 economic vectors, Pons102 full vectors. No Solana
+HTTP429 reported so far; incomplete/null and local admission evidence remain visible.
+
+## Terminal classification defect found during hourly artifact preparation
+
+The hourly live check106185318738 stopped advancing after3554.3319998760003 seconds
+of overlap at observed timestamp1789957537.1718543. The workflow remained active;
+no certification conclusion is drawn from this stale checkpoint. Last visible books
+were flat, Pump3/Pons18 natural settlements, no unexpected exits. Publisher and
+supervisor artifacts must establish the cause before any replacement run.
+
+Independent source review found `persist_terminal` omitted `settlement_kind` from
+its compact Pons lifecycle whitelist. A correctly booked liquidity writeoff could
+therefore be counted as a natural market sale by the supervisor after terminal
+compaction. No current live writeoff has been observed; this is nevertheless a
+required terminal-truth regression. The fix retains the discriminator and makes
+summary classification also recognize the exact durable position reason
+`liquidity_writeoff:impossible_full_position_exit`, including older compact reports.
+It changes neither ledger economics nor policy and does not relabel unresolved books.
+
+Files changed: Pons overlay native `pons_selective_cohort.py` and
+`test_pons_continuous_campaign.py`; supervisor `certification/report.py` and
+`certification/tests/test_certification.py`. New tests prove compact/archive kind
+retention, exact loss retention, zero natural-sale credit for explicit and historical
+compact writeoffs, and independent counting of a real market sale.
+
+Local verification:1215 lane tests (Pump292, Meteora392, Pons273, Ramses258),70
+supervisor tests and all3 resource gates pass. Logs in
+`results/terminal-report-verification/`; all overlays byte-reproduce and frozen files
+match, recorded in `results/terminal-report-overlay-reproduction.json`. These tests
+ran against the local revised tree while Git HEAD and hosted validation remain752dd501;
+the deterministic manifest's integration SHA is the base, not a claim that the edited
+reporting code ran in the current hour. A new exact candidate and fresh smoke/hour
+are required after the visibility issue is diagnosed.
+
+## Completed 752dd501 hour: execution PASS, campaign review FAIL
+
+Run35549221493 hourly job106185034210 finished with workflow failure, preserving
+artifact10620090080, SHA256
+`e219603870cc0adcd856498fb94f68afeb3cf2851c3dc19a102c4e86fc32e222` (531588445 bytes).
+Archive was downloaded, checksum-verified and extracted without changing original bytes.
+Full review is `results/hourly-35549221493-review.json`; four adjacent Pons lifecycle
+files preserve all20 qualifications/lifecycles including2 entry failures and18 losses.
+
+Exact752dd501 observation achieved3600.1381197540004 seconds concurrent overlap, with
+4628.684449273 seconds total including normal drain. Every lane exited0, no unexpected
+exit/restart, all books reconciled, zero exposure, zero forced lifecycles, no writeoff.
+Automated hourly execution integrity PASS is retained. Campaign review FAIL is explicit:
+terminal live publication failed and terminal writeoff classification needed repair.
+ZERO seconds from this hour count toward the replacement revision's certification.
+
+Publication diagnosis: first failure at1789957598.169829 immediately after the first
+lane's terminal report. Ramses terminal `finality_state.observations` added177 frontier
+observations; the public view became70293 bytes and raised `live_status_payload_capacity`.
+The prior session-list bound did not cover this history. Nineteen ValueErrors followed;
+the publisher finished with supervisor_exit_code0 and visibility_failed=true. No lane
+or supervisor failure was hidden. The repair adds `compact_finality_state`, retaining
+all aggregate counts/gate reasons and2 recent observations; the complete original
+history stays in native/raw artifacts. The captured terminal result now renders46992
+bytes. A1000-observation regression checks exact totals, recent selection, source
+immutability and the60KB bound. Supervisor suite now71 tests; lane1215 tests and3resource
+gates unchanged and passing. Files: `certification/live_status.py`,
+`certification/tests/test_live_status.py`, plus the previously recorded writeoff fix.
+
+Pump naturally filled/settled3, entry delays11/12/12 seconds, holding times8/7/7 seconds.
+PnLs -5506819,-11112604,-174348732 lamports, sum -190968155; cash4919416145 and basis0.
+Replay12 events verified. Losses are retained unchanged, not an implementation pass
+being presented as profitability. GPA429s raw4825/4970 are independent: mint filters
+91f14Qr.../A7Hpn94..., slots448917075/448917399, different parameter hashes and sessions,
+physical IDs29779731...:4825/4fe9aa27...:4970, timestamps1789956864000624205/
+1789956951935856426ns, retry0 both. No duplicate scan. getTransaction429=0; maxbatch8,
+3578 eight-member physical batches. One true transport timeout and9 null bodies remain.
+
+Pump local decomposition:15 wrapper governor deadline rejections,14 physical wait and
+1 deadline already expired at governor admission; zero queue-capacity rejection or
+shared-cooldown terminal rejection. Native acquisition phases separately retain7
+pump-window expiries before transport,10 governor waits,24 capacity waits,239 late
+transport results; research and stream phases are separately recorded in the review.
+The13 local request-budget exhausted episodes remain visible. Window consumers18915
+complete,48683 expired before transport,1724 after transport; before-transport fraction
+70.23% versus88.59% in the defective600-second baseline. These are different market
+samples/durations and per-signature interests, not a causal proof or unique opportunity
+count. Residual loss is substantial; no provider error is invented for untransported work.
+No expired-batch fallback fanout was observed. All34 position-monitor consumers completed.
+
+Meteora:210 getSignaturesForAddress members,0 signature429s,5 complete economic vectors,
+922 physical grants with0 deadline misses and maxwait6.922s. Exact reconstruction and
+rejections remain in the raw artifact. No natural qualifier; NATURAL_INCOMPLETE.
+Ramses:177 frontier observations,10 advances,11 expensive inventory scans,282-pool
+inventory retained,416 Robinhood transports/grants with0 failure. No natural qualifier;
+NATURAL_INCOMPLETE. Final Solana and Robinhood governor queues empty; no mutual starvation.
+Peak RSS bytes Pump123711488/Meteora101183488/Pons179855360/Ramses34541568.
+
+Pons:20 qualifiers,2 entry failures,18 natural market-sale settlements, all losses;
+realized -2407251945184515 native quote units, native execution cost195057506862000,
+cash997592748054815485, remaining basis0/reserved0/unsettled0. Conservation, native
+observation completeness, and every filled lifecycle's replay verified. No writeoff or
+post-fill provider-recovery attempt occurred. Correction to the midpoint interpretation:
+the observed JSON-RPC429 occurred in priority50 candidate trajectory acquisition while
+a separate position was open; it was not that position's monitoring failure. One
+eth_getLogs RPC-32602 and one mixed-method trajectory RPC429 batch remain attributed.
+Neither is relabeled as successful evidence. All qualification vectors, entry/exit,
+quote fees, modeled gas, min-fill/slippage bounds, holding paths and realized results
+remain in the lifecycle files and original native ledgers. No provider billing invented
+from estimated compute units. Historical unresolved baseline exposure remains unresolved.
+
+A fresh exact-revision600-second smoke and independent3600-second hour will follow
+these two implementation-only reporting repairs. No policy/provider limits changed.

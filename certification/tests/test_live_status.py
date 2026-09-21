@@ -98,6 +98,27 @@ class LiveStatusTests(unittest.TestCase):
         self.assertIsNone(totals['logical_requests'])
         self.assertIsNone(totals['transport_requests'])
 
+    def test_terminal_frontier_history_keeps_all_counts_and_only_recent_samples(self):
+        observations=[dict(finalized_block=i,finalized_hash='0x'+'a'*64,
+            finalized_timestamp=100+i,elapsed_seconds=i,expensive_scan=i%10==0,
+            gate_reason='frontier_advanced' if i%10==0 else 'frontier_unchanged',
+            progress='advanced' if i%10==0 else 'unchanged') for i in range(1000)]
+        result={'lanes':{lane:{'finality_state':dict(observations=copy.deepcopy(observations),
+            advances=99,expensive_scans=100,finalized_block=999)}
+            for lane in ('pump','meteora','pons','ramses')}}
+        original=copy.deepcopy(result)
+        view=snapshot(result,now=1001)
+        self.assertLess(len(output(result)['text'].encode()),60000)
+        for row in view['lanes'].values():
+            state=row['finality_state'];summary=state['observation_summary']
+            self.assertEqual(summary['count'],1000)
+            self.assertEqual(summary['expensive_scans'],100)
+            self.assertEqual(summary['gate_reasons'],{'frontier_advanced':100,'frontier_unchanged':900})
+            self.assertEqual([x['finalized_block'] for x in state['observations']],[998,999])
+            self.assertEqual(state['advances'],99)
+            self.assertTrue(summary['full_history_retained_in_raw_artifacts'])
+        self.assertEqual(result,original)
+
     def test_smoke_scope_does_not_inherit_four_hour_certification_label(self):
         v=snapshot({'phase':'smoke','certification':{'scope':'four_hour_certification','required_observation_seconds':14400}})
         self.assertEqual(v['certification_scope'],'ten_minute_engineering_smoke')

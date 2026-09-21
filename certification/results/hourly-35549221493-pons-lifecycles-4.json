@@ -1,0 +1,3098 @@
+[
+  {
+    "boundary": "curve_graduated_requires_transition",
+    "cohort_reconciliation": {
+      "available": 997961587680770874,
+      "booked_realized": -2038412319229126,
+      "capital_at_risk_unit_nanoseconds": 2511428629322300440324680000,
+      "capital_integral_complete": true,
+      "cash": 997961587680770874,
+      "cash_basis_conservation": true,
+      "conservation": true,
+      "genesis": 1000000000000000000,
+      "namespace": "pons-selective-continuation-v1",
+      "native_execution_cost": 151532426784000,
+      "native_observation_complete": true,
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "positions": 16,
+      "realized": -2038412319229126,
+      "remaining_cost_basis": 0,
+      "reserved": 0,
+      "unobserved_native_positions": [],
+      "unsettled": 0
+    },
+    "cohort_reservation": {
+      "at": 1789956102,
+      "decision_hash": "913090fb86487f089dadaeb3a6ed502291e4c95b09799668009c4e9a2c9b8cff",
+      "id": "pons-selective:c7215fee-69ae-478a-b29c-bbe91293dbb3:0x1ec0c9f616e72bbe21c858ebdb6af109b0384e16:0x2ea0674c217d15266ab3746051e416c0097ffba1648cc5268a5913cf62d7f7a8",
+      "initial_reserved": 3500000000000000,
+      "pnl": 0,
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "reserved": 3500000000000000,
+      "status": "reserved",
+      "trial_path": "pons-selective-continuation-v1-cohort/trial-015.sqlite"
+    },
+    "curve": "0x87caf8c95b1068d31f99cd5867f15ca25e254e67",
+    "ended_at": 1789956106.1343305,
+    "entry_failure": "curve_graduated_requires_transition",
+    "final_position": {
+      "amount": 2500000000000000,
+      "cost": 0,
+      "due": 1789956104,
+      "entry_tokens": 0,
+      "experiment": "pons-selective-continuation-v1",
+      "id": "pons-selective:c7215fee-69ae-478a-b29c-bbe91293dbb3:0x1ec0c9f616e72bbe21c858ebdb6af109b0384e16:0x2ea0674c217d15266ab3746051e416c0097ffba1648cc5268a5913cf62d7f7a8",
+      "kind": "natural",
+      "last_at": 1789956106,
+      "market": "0x87caf8c95b1068d31f99cd5867f15ca25e254e67",
+      "pending_exit_tokens": null,
+      "pnl": 0,
+      "realized_pnl": 0,
+      "realized_proceeds": 0,
+      "reason": "curve_graduated_requires_transition",
+      "remaining_cost": 0,
+      "reserved": 0,
+      "status": "settled",
+      "strategy_namespace": "pons-selective-continuation-v1",
+      "tokens": 0,
+      "version": 1
+    },
+    "gas_model": {
+      "gas_price": 51594000,
+      "reservation_budget": 1000000000000000,
+      "units_proxy": 100615
+    },
+    "independent_strategy": true,
+    "index": 15,
+    "kind": "pons-selective-continuation-v1-paper",
+    "lifecycle_id": "pons-selective:c7215fee-69ae-478a-b29c-bbe91293dbb3:0x1ec0c9f616e72bbe21c858ebdb6af109b0384e16:0x2ea0674c217d15266ab3746051e416c0097ffba1648cc5268a5913cf62d7f7a8",
+    "live_money": false,
+    "minimum_fill_tokens": 229563900501338683856462,
+    "monitor": [],
+    "namespace": "pons-selective-continuation-v1",
+    "paper_only": true,
+    "policy": "pons-selective-continuation-v1",
+    "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+    "provider_sessions": [
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_call:miss": 5,
+          "eth_chainId:miss": 1,
+          "eth_gasPrice:miss": 2,
+          "eth_getBlockByNumber:miss": 2
+        },
+        "logical_methods": {
+          "eth_call": 5,
+          "eth_chainId": 1,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 2
+        },
+        "logical_requests": 10,
+        "methods": {
+          "eth_call": 5,
+          "eth_chainId": 1,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 2
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2200,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 197.37122076500447
+        },
+        "provider_kind": "alchemy",
+        "requests": 10,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_natural": 1,
+          "pons_paper": 1,
+          "pons_selective_paper_quote": 7
+        },
+        "transport_requests": 4
+      }
+    ],
+    "qualification_vector": {
+      "all_rejections": [],
+      "asof": 1789955493,
+      "authority": "frozen_policy_paper",
+      "chain_timestamp_lag_seconds": 607.1752722263336,
+      "complete": true,
+      "creator_history": null,
+      "current_snipe_bps": 0,
+      "current_threshold_pass": true,
+      "decision_state_age_seconds": 2.085225989999799,
+      "demand": {
+        "buy_sell_ratio_bps": 18215,
+        "creator_sell_quote_15s": 0,
+        "current_buy_quote": 623292000000000008,
+        "current_net_by_group": {
+          "0x03581c231b74266a4fffa54e998f8f5304f15bcb": 70000000000000008,
+          "0x5df51a0c9f15b8d3c7fed8ff1ab5aad21547c453": 75000000000000000,
+          "0x637fa1cc95ac2281b69e9f3f00d9fa35891236a0": -31311734296148220,
+          "0x638e281cfa869d4988790a82e39baff4b7467078": 90000000000000000,
+          "0x65050a9b7e5075a2ba5ced7b1b64ee66262c40dc": -28981123205026527,
+          "0x9689992f5b5c09447f15906d8d11214944488341": -1227898174379217,
+          "0xc067aa58842c21728c13959ac88ee760e8079b69": 60000000000000000,
+          "0xc9b303e7991600615a12bee8a9a5fec528c3b681": -32355254183966701,
+          "0xcb3fdb4673a55662a7f63927e891962a21bdca12": 80000000000000000
+        },
+        "current_net_quote": 281123990140479343,
+        "current_sell_quote": 342168009859520665,
+        "independent_group_ids": [
+          "0x03581c231b74266a4fffa54e998f8f5304f15bcb",
+          "0x081ab15175f837c8adbe21ca44548c3c1a47bcde",
+          "0x08b094bcbc84e3314d086617abdcc464231274a4",
+          "0x1860195074eb1ef1f622f79886e20af0258cb624",
+          "0x2c678e7a37616acb73a88b84bc7b9f6c4c51c491",
+          "0x2dc529ddc6f9f92a89f0c767b6f09416817e9aa7",
+          "0x300afe5ccbd71be598dccfe9eced77d412e2392e",
+          "0x39537d69b3eb4115995c389fa9f94bb3410ea0b4",
+          "0x47e5df754b89173451dab462c5493e9150650faa",
+          "0x4abf09eec67977996a81e7205f23d07466978733",
+          "0x4b10f6d49c94802069aa2e095b3c67c85836c805",
+          "0x4b31c0615491ec786bbf71b39a3dff6f40f99af0",
+          "0x4e7a4cc92eb09e77d1d3c60a7cdb7c8e5dca705c",
+          "0x59779aabd6a275c99fca75fbd3b9d6f00f96a1f4",
+          "0x5dbbf54be2aba20aead64aaddf6a8a8d24afa384",
+          "0x5df51a0c9f15b8d3c7fed8ff1ab5aad21547c453",
+          "0x61759a5de521954ded062e7f4b7ae838f22c26ec",
+          "0x63657b5e9f04a12b5a486a27ae479c589751487f",
+          "0x638e281cfa869d4988790a82e39baff4b7467078",
+          "0x65050a9b7e5075a2ba5ced7b1b64ee66262c40dc",
+          "0x6a7447f86a480330671dbbca3fd124e9292eba5b",
+          "0x6c7fb8fb8b3aaaef48cb97e73782e97b48febd1d",
+          "0x6e15979eb9ab78d280c882f115550368aa29faab",
+          "0x716cd90edeb0d213f80f03ec84674a8d995e96a4",
+          "0x743a68aa269cd0b9ccd292d24b9c93fc6e8fafe0",
+          "0x753363bf6431d092fe161f0015f3d5f481980d59",
+          "0x7872e4eaaa7cca011bec603041e583971a50160a",
+          "0x7cd5f60ab2273c38dacd5b8db734671382b7a819",
+          "0x7fe36e8ed1b71e10233bfd0f90635ce9473b630b",
+          "0x870d1a49a1156f8b4ff613db540772b1a76aa99a",
+          "0x87b8b1c34a12061d138d24a907bb9fe8f78e62a0",
+          "0x8ebcdd4f725966ad7133e910d5322dd35b2c76cb",
+          "0x924ad4393b0c31b1181d7c9fc68393e12466663f",
+          "0x9689992f5b5c09447f15906d8d11214944488341",
+          "0xb1000000096bd2f8ca9b6883182eccaf31e7c3fd",
+          "0xb9cc14518596627dccbb0fba52ae3cc3da662958",
+          "0xc067aa58842c21728c13959ac88ee760e8079b69",
+          "0xcb3fdb4673a55662a7f63927e891962a21bdca12",
+          "0xd0ed76ba9aa1f8f9fe5b35dd5a5ec2183e738da5",
+          "0xd1b4f234eb5d2a37dbb263d6be12a72d07b2c1e3",
+          "0xd7a4ff74d4c6eac4f35788c69ac8aaba254f4564",
+          "0xddc60dfd49de9465456d89c3e5b12393e70b72f5",
+          "0xe4dbf5a1d6e39017f79abaac936f816fb1fd99c2",
+          "0xec4aa6a95b7c3e6818bb36aaff1b587ac2283f88",
+          "0xf6e661cae059e3fcc53af2bc45eb46fd9d9888d4"
+        ],
+        "independent_groups": 45,
+        "largest_buyer_flow_bps": 3754,
+        "new_independent_groups_15s": 5,
+        "prior_net_quote": 1351720209576933215,
+        "recent_buy_groups": [
+          "0x03581c231b74266a4fffa54e998f8f5304f15bcb",
+          "0x5df51a0c9f15b8d3c7fed8ff1ab5aad21547c453",
+          "0x638e281cfa869d4988790a82e39baff4b7467078",
+          "0xc067aa58842c21728c13959ac88ee760e8079b69",
+          "0xcb3fdb4673a55662a7f63927e891962a21bdca12"
+        ],
+        "top3_buyer_flow_bps": 6072
+      },
+      "evidence_acquisition_latency_seconds": 2.085225989999799,
+      "evidence_available_at": 1789956102,
+      "evidence_observed_at": 1789956100.1752722,
+      "pair_token": "0x0000000000000000000000000000000000000000",
+      "policy": "pons-selective-continuation-v1",
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "progress_bps": 6028,
+      "proposed_size": {
+        "amount_quote": 2500000000000000,
+        "caps": {
+          "capital": 2500000000000000,
+          "independent_net": 28112399014047934,
+          "real_quote": 50637836366077891
+        },
+        "impact_cap_quote": 2500000000000000
+      },
+      "qualification": "qualified",
+      "qualification_authority": true,
+      "quote_relative_strength_bps": null,
+      "roundtrip_loss_bps": 449,
+      "thresholds": {
+        "capital_size_bps": 25,
+        "independent_net_size_bps": 1000,
+        "max_creator_tax_bps": 200,
+        "max_curve_progress_bps": 9700,
+        "max_entry_impact_bps": 300,
+        "max_graduation_eta_seconds": 300,
+        "max_largest_buyer_flow_bps": 4000,
+        "max_market_events": 512,
+        "max_roundtrip_loss_bps": 800,
+        "max_state_age_seconds": 5,
+        "max_token_age_seconds": 900,
+        "max_top3_buyer_flow_bps": 7500,
+        "min_buy_sell_ratio_bps": 12000,
+        "min_curve_progress_bps": 4500,
+        "min_independent_groups": 3,
+        "min_new_independent_groups_15s": 1,
+        "min_progress_15s_bps": 300,
+        "real_quote_size_bps": 200
+      },
+      "token_age_seconds": 226,
+      "trajectory": {
+        "accelerating": true,
+        "complete": true,
+        "current_progress_bps": 6028,
+        "graduation_eta_seconds": 14,
+        "prior_progress_bps": -830,
+        "prior_seconds": 10,
+        "progress_15s_bps": 623,
+        "recent_progress_bps": 1453,
+        "recent_seconds": 5
+      },
+      "wallet_convergence": {
+        "complete": true,
+        "converged": false,
+        "convergence_count": 0,
+        "qualification_authority": false,
+        "skilled_independent_groups": []
+      }
+    },
+    "reconciliation": {
+      "accounting": {
+        "pons-selective:c7215fee-69ae-478a-b29c-bbe91293dbb3:0x1ec0c9f616e72bbe21c858ebdb6af109b0384e16:0x2ea0674c217d15266ab3746051e416c0097ffba1648cc5268a5913cf62d7f7a8": {
+          "capital_at_risk_unit_nanoseconds": 10521622398000000000000000,
+          "held_reservation_unit_nanoseconds": 10521622398000000000000000,
+          "integral_complete": true,
+          "native_execution_cost": 0,
+          "replay_verified": true,
+          "through_recorded_at_ns": 1789956106094646409
+        }
+      },
+      "available": 1000000000000000000,
+      "booked_realized": 0,
+      "cash": 1000000000000000000,
+      "cash_basis_conservation": true,
+      "committed": 0,
+      "genesis": 1000000000000000000,
+      "mark_times": {},
+      "marked_position_value": 0,
+      "marks_complete": true,
+      "open_exposure": 0,
+      "realized": 0,
+      "remaining_cost_basis": 0,
+      "unrealized_at_recorded_marks": 0
+    },
+    "reservation": {
+      "amount": 2500000000000000,
+      "cost": 0,
+      "due": 1789956104,
+      "entry_tokens": 0,
+      "experiment": "pons-selective-continuation-v1",
+      "id": "pons-selective:c7215fee-69ae-478a-b29c-bbe91293dbb3:0x1ec0c9f616e72bbe21c858ebdb6af109b0384e16:0x2ea0674c217d15266ab3746051e416c0097ffba1648cc5268a5913cf62d7f7a8",
+      "kind": "natural",
+      "last_at": 1789956102,
+      "market": "0x87caf8c95b1068d31f99cd5867f15ca25e254e67",
+      "pending_exit_tokens": null,
+      "pnl": 0,
+      "realized_pnl": 0,
+      "realized_proceeds": 0,
+      "reason": null,
+      "remaining_cost": 0,
+      "reserved": 3500000000000000,
+      "status": "reserved",
+      "strategy_namespace": "pons-selective-continuation-v1",
+      "tokens": 0,
+      "version": 0
+    },
+    "shared_allocator": false,
+    "source_transaction": "0x2ea0674c217d15266ab3746051e416c0097ffba1648cc5268a5913cf62d7f7a8",
+    "started_at": 1789956102.3129675,
+    "status": "entry_failed",
+    "token": "0x1ec0c9f616e72bbe21c858ebdb6af109b0384e16"
+  },
+  {
+    "carried_through_graduation": false,
+    "cohort_reconciliation": {
+      "available": 997788581023065313,
+      "booked_realized": -2211418976934687,
+      "capital_at_risk_unit_nanoseconds": 2628443138293049951603040000,
+      "capital_integral_complete": true,
+      "cash": 997788581023065313,
+      "cash_basis_conservation": true,
+      "conservation": true,
+      "genesis": 1000000000000000000,
+      "namespace": "pons-selective-continuation-v1",
+      "native_execution_cost": 170030099880000,
+      "native_observation_complete": true,
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "positions": 17,
+      "realized": -2211418976934687,
+      "remaining_cost_basis": 0,
+      "reserved": 0,
+      "unobserved_native_positions": [],
+      "unsettled": 0
+    },
+    "cohort_reservation": {
+      "at": 1789956219,
+      "decision_hash": "2366edae0fad6cb6dc7229b04b31db363bccd0312b2b0d25d3f378825485a287",
+      "id": "pons-selective:e9322d5a-d065-4cf6-a42f-8625ec765e5c:0x7d23f6182643b5d1d7814a6091aebb8b2819518c:0x847de708410cad4165e1a6d2692bc0bfa081a9727e94bc44684d303cd04bb4ee",
+      "initial_reserved": 3500000000000000,
+      "pnl": 0,
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "reserved": 3500000000000000,
+      "status": "reserved",
+      "trial_path": "pons-selective-continuation-v1-cohort/trial-016.sqlite"
+    },
+    "curve": "0x5c0c6151374ec366b42767e75a9c568228c35ca2",
+    "ended_at": 1789956267.127878,
+    "entry": {
+      "position": {
+        "amount": 2500000000000000,
+        "cost": 2509239295912000,
+        "due": 1789956221,
+        "entry_tokens": 1436175831238648882535779,
+        "experiment": "pons-selective-continuation-v1",
+        "id": "pons-selective:e9322d5a-d065-4cf6-a42f-8625ec765e5c:0x7d23f6182643b5d1d7814a6091aebb8b2819518c:0x847de708410cad4165e1a6d2692bc0bfa081a9727e94bc44684d303cd04bb4ee",
+        "kind": "natural",
+        "last_at": 1789956222,
+        "market": "0x5c0c6151374ec366b42767e75a9c568228c35ca2",
+        "pending_exit_tokens": null,
+        "pnl": 0,
+        "realized_pnl": 0,
+        "realized_proceeds": 0,
+        "reason": null,
+        "remaining_cost": 2509239295912000,
+        "reserved": 3500000000000000,
+        "status": "open",
+        "strategy_namespace": "pons-selective-continuation-v1",
+        "tokens": 1436175831238648882535779,
+        "version": 1
+      },
+      "quote": {
+        "amount_in": 2500000000000000,
+        "amount_out": 1436175831238648882535779,
+        "block": 68424775,
+        "block_hash": "0x6dbe82820f1cbe9c3bda400faedf6071681681512bfe7285c441d3762ee3ba25",
+        "chain_timestamp_lag_seconds": 0.07128667831420898,
+        "event_at": 1789956221,
+        "evidence_acquisition_latency_seconds": 1.5016966850002973,
+        "fee_quote": 75000000000000,
+        "gas_price": 51326000,
+        "gas_quote": 9239295912000,
+        "gas_units_proxy": 180012,
+        "observed_at": 1789956222,
+        "state": {
+          "creator_tax_bps": 200,
+          "fee_bps": 100,
+          "graduated": false,
+          "launched_at": 1789956221,
+          "quote_reserve": 1683038515659960383,
+          "real_quote": 3038515659960383,
+          "reserved_tokens": 285714285714285714285714285,
+          "snipe_seconds": 1,
+          "snipe_start_bps": 0,
+          "timestamp": 1789956221,
+          "token_reserve": 998194625000148082906877846
+        },
+        "venue": "pons_v2_curve"
+      }
+    },
+    "exit": {
+      "position": {
+        "amount": 2500000000000000,
+        "cost": 2509239295912000,
+        "due": 1789956266,
+        "entry_tokens": 1436175831238648882535779,
+        "experiment": "pons-selective-continuation-v1",
+        "id": "pons-selective:e9322d5a-d065-4cf6-a42f-8625ec765e5c:0x7d23f6182643b5d1d7814a6091aebb8b2819518c:0x847de708410cad4165e1a6d2692bc0bfa081a9727e94bc44684d303cd04bb4ee",
+        "kind": "natural",
+        "last_at": 1789956267,
+        "market": "0x5c0c6151374ec366b42767e75a9c568228c35ca2",
+        "pending_exit_tokens": null,
+        "pnl": -173006657705561,
+        "realized_pnl": -173006657705561,
+        "realized_proceeds": 2336232638206439,
+        "reason": null,
+        "remaining_cost": 0,
+        "reserved": 0,
+        "status": "settled",
+        "strategy_namespace": "pons-selective-continuation-v1",
+        "tokens": 0,
+        "version": 4
+      },
+      "quote": {
+        "amount_in": 1436175831238648882535779,
+        "amount_out": 2345491015390439,
+        "block": 68425217,
+        "block_hash": "0xf35bd46c32160ac3bbf40014dbbed1bdf900f9afc57c389bbd153e876adfa94c",
+        "chain_timestamp_lag_seconds": 0.32793498039245605,
+        "event_at": 1789956266,
+        "evidence_acquisition_latency_seconds": 0.7661521549998724,
+        "fee_quote": 72540959238879,
+        "gas_price": 51432000,
+        "gas_quote": 9258377184000,
+        "gas_units_proxy": 180012,
+        "observed_at": 1789956267,
+        "state": {
+          "creator_tax_bps": 200,
+          "fee_bps": 100,
+          "graduated": false,
+          "launched_at": 1789956266,
+          "quote_reserve": 1683038515659960383,
+          "real_quote": 3038515659960383,
+          "reserved_tokens": 285714285714285714285714285,
+          "snipe_seconds": 1,
+          "snipe_start_bps": 0,
+          "timestamp": 1789956266,
+          "token_reserve": 998194625000148082906877846
+        },
+        "venue": "pons_v2_curve"
+      },
+      "reason": "momentum_failure"
+    },
+    "exits": [
+      {
+        "position": {
+          "amount": 2500000000000000,
+          "cost": 2509239295912000,
+          "due": 1789956266,
+          "entry_tokens": 1436175831238648882535779,
+          "experiment": "pons-selective-continuation-v1",
+          "id": "pons-selective:e9322d5a-d065-4cf6-a42f-8625ec765e5c:0x7d23f6182643b5d1d7814a6091aebb8b2819518c:0x847de708410cad4165e1a6d2692bc0bfa081a9727e94bc44684d303cd04bb4ee",
+          "kind": "natural",
+          "last_at": 1789956267,
+          "market": "0x5c0c6151374ec366b42767e75a9c568228c35ca2",
+          "pending_exit_tokens": null,
+          "pnl": -173006657705561,
+          "realized_pnl": -173006657705561,
+          "realized_proceeds": 2336232638206439,
+          "reason": null,
+          "remaining_cost": 0,
+          "reserved": 0,
+          "status": "settled",
+          "strategy_namespace": "pons-selective-continuation-v1",
+          "tokens": 0,
+          "version": 4
+        },
+        "quote": {
+          "amount_in": 1436175831238648882535779,
+          "amount_out": 2345491015390439,
+          "block": 68425217,
+          "block_hash": "0xf35bd46c32160ac3bbf40014dbbed1bdf900f9afc57c389bbd153e876adfa94c",
+          "chain_timestamp_lag_seconds": 0.32793498039245605,
+          "event_at": 1789956266,
+          "evidence_acquisition_latency_seconds": 0.7661521549998724,
+          "fee_quote": 72540959238879,
+          "gas_price": 51432000,
+          "gas_quote": 9258377184000,
+          "gas_units_proxy": 180012,
+          "observed_at": 1789956267,
+          "state": {
+            "creator_tax_bps": 200,
+            "fee_bps": 100,
+            "graduated": false,
+            "launched_at": 1789956266,
+            "quote_reserve": 1683038515659960383,
+            "real_quote": 3038515659960383,
+            "reserved_tokens": 285714285714285714285714285,
+            "snipe_seconds": 1,
+            "snipe_start_bps": 0,
+            "timestamp": 1789956266,
+            "token_reserve": 998194625000148082906877846
+          },
+          "venue": "pons_v2_curve"
+        },
+        "reason": "momentum_failure"
+      }
+    ],
+    "fill_full_exit_check": {
+      "executable": true,
+      "gross_quote": 2418031974629318,
+      "quote_out": 2345491015390439,
+      "real_quote": 3038515659960383,
+      "tokens": 1436175831238648882535779
+    },
+    "final_position": {
+      "amount": 2500000000000000,
+      "cost": 2509239295912000,
+      "due": 1789956266,
+      "entry_tokens": 1436175831238648882535779,
+      "experiment": "pons-selective-continuation-v1",
+      "id": "pons-selective:e9322d5a-d065-4cf6-a42f-8625ec765e5c:0x7d23f6182643b5d1d7814a6091aebb8b2819518c:0x847de708410cad4165e1a6d2692bc0bfa081a9727e94bc44684d303cd04bb4ee",
+      "kind": "natural",
+      "last_at": 1789956267,
+      "market": "0x5c0c6151374ec366b42767e75a9c568228c35ca2",
+      "pending_exit_tokens": null,
+      "pnl": -173006657705561,
+      "realized_pnl": -173006657705561,
+      "realized_proceeds": 2336232638206439,
+      "reason": null,
+      "remaining_cost": 0,
+      "reserved": 0,
+      "status": "settled",
+      "strategy_namespace": "pons-selective-continuation-v1",
+      "tokens": 0,
+      "version": 4
+    },
+    "gas_model": {
+      "gas_price": 51890000,
+      "reservation_budget": 1000000000000000,
+      "units_proxy": 180012
+    },
+    "independent_strategy": true,
+    "index": 16,
+    "kind": "pons-selective-continuation-v1-paper",
+    "lifecycle_id": "pons-selective:e9322d5a-d065-4cf6-a42f-8625ec765e5c:0x7d23f6182643b5d1d7814a6091aebb8b2819518c:0x847de708410cad4165e1a6d2692bc0bfa081a9727e94bc44684d303cd04bb4ee",
+    "live_money": false,
+    "minimum_fill_tokens": 236505556192682104912580,
+    "monitor": [
+      {
+        "action": {
+          "action": "full_exit",
+          "exit_tokens": 1436175831238648882535779,
+          "reason": "momentum_failure"
+        },
+        "at": 1789956234,
+        "available": true,
+        "demand": {
+          "buy_sell_ratio_bps": 0,
+          "creator_sell_quote_15s": 0,
+          "current_buy_quote": 0,
+          "current_net_by_group": {},
+          "current_net_quote": 0,
+          "current_sell_quote": 0,
+          "independent_group_ids": [],
+          "independent_groups": 0,
+          "largest_buyer_flow_bps": 0,
+          "new_independent_groups_15s": 0,
+          "prior_net_quote": 0,
+          "recent_buy_groups": [],
+          "top3_buyer_flow_bps": 0
+        },
+        "market": "curve",
+        "pregraduation_exit_reason": "momentum_failure",
+        "profit_taking_deferred_until_post_graduation": true,
+        "quote": {
+          "amount_in": 1436175831238648882535779,
+          "amount_out": 2345491015390439,
+          "block": 68424892,
+          "block_hash": "0xa4e2e1aabcff57849a48c62165c96d2b51c7c5750b9393b3748014673d87162c",
+          "chain_timestamp_lag_seconds": -0.7026491165161133,
+          "event_at": 1789956233,
+          "evidence_acquisition_latency_seconds": 2.0307369689999177,
+          "fee_quote": 72540959238879,
+          "gas_price": 52862000,
+          "gas_quote": 9515794344000,
+          "gas_units_proxy": 180012,
+          "observed_at": 1789956234,
+          "state": {
+            "creator_tax_bps": 200,
+            "fee_bps": 100,
+            "graduated": false,
+            "launched_at": 1789956233,
+            "quote_reserve": 1683038515659960383,
+            "real_quote": 3038515659960383,
+            "reserved_tokens": 285714285714285714285714285,
+            "snipe_seconds": 1,
+            "snipe_start_bps": 0,
+            "timestamp": 1789956233,
+            "token_reserve": 998194625000148082906877846
+          },
+          "venue": "pons_v2_curve"
+        },
+        "return_bps": -691,
+        "trajectory": {
+          "accelerating": false,
+          "complete": true,
+          "current_progress_bps": 7,
+          "graduation_eta_seconds": null,
+          "prior_progress_bps": 0,
+          "prior_seconds": 10,
+          "progress_15s_bps": 0,
+          "recent_progress_bps": 0,
+          "recent_seconds": 5
+        }
+      }
+    ],
+    "namespace": "pons-selective-continuation-v1",
+    "paper_only": true,
+    "policy": "pons-selective-continuation-v1",
+    "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+    "provider_sessions": [
+      {
+        "batched_recent_headers": true,
+        "cache": {
+          "header_hashes": 150,
+          "header_number_hit": 151,
+          "header_number_miss": 298,
+          "header_numbers": 150,
+          "header_store": 150,
+          "launch_miss": 1,
+          "launch_store": 1,
+          "launches": 1,
+          "real_quote_miss": 2,
+          "real_quote_store": 2,
+          "real_quotes": 2,
+          "receipts": 0
+        },
+        "recent_headers_considered": 150,
+        "sessions": [
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 3,
+              "eth_chainId:miss": 1,
+              "eth_getBlockByNumber:miss": 149
+            },
+            "logical_methods": {
+              "eth_call": 3,
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 149
+            },
+            "logical_requests": 153,
+            "methods": {
+              "eth_call": 3,
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 149
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 2357,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 204.35963473300518
+            },
+            "provider_kind": "alchemy",
+            "requests": 153,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_selective_trajectory": 152
+            },
+            "transport_requests": 5
+          }
+        ]
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_chainId:miss": 1,
+          "eth_getBlockByNumber:miss": 18
+        },
+        "logical_methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 18
+        },
+        "logical_requests": 19,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 18
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2384,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 207.36920609000464
+        },
+        "provider_kind": "alchemy",
+        "requests": 19,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_selective_trajectory": 18
+        },
+        "transport_requests": 19
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_chainId:miss": 1,
+          "eth_getLogs:miss": 60
+        },
+        "logical_methods": {
+          "eth_chainId": 1,
+          "eth_getLogs": 60
+        },
+        "logical_requests": 61,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getLogs": 60
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2389,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 207.71670814200462
+        },
+        "provider_kind": "alchemy",
+        "requests": 61,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_selective_monitor": 60
+        },
+        "transport_requests": 3
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_call:miss": 13,
+          "eth_chainId:miss": 1,
+          "eth_gasPrice:miss": 4,
+          "eth_getBlockByNumber:miss": 7,
+          "eth_getLogs:miss": 7
+        },
+        "logical_methods": {
+          "eth_call": 13,
+          "eth_chainId": 1,
+          "eth_gasPrice": 4,
+          "eth_getBlockByNumber": 7,
+          "eth_getLogs": 7
+        },
+        "logical_requests": 32,
+        "methods": {
+          "eth_call": 13,
+          "eth_chainId": 1,
+          "eth_gasPrice": 4,
+          "eth_getBlockByNumber": 7,
+          "eth_getLogs": 7
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2393,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 208.16860547800462
+        },
+        "provider_kind": "alchemy",
+        "requests": 32,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_natural": 4,
+          "pons_paper": 8,
+          "pons_selective_paper_quote": 19
+        },
+        "transport_requests": 16
+      }
+    ],
+    "qualification_vector": {
+      "all_rejections": [],
+      "asof": 1789955566,
+      "authority": "frozen_policy_paper",
+      "chain_timestamp_lag_seconds": 650.478794336319,
+      "complete": true,
+      "creator_history": null,
+      "current_snipe_bps": 0,
+      "current_threshold_pass": true,
+      "decision_state_age_seconds": 2.549575298000036,
+      "demand": {
+        "buy_sell_ratio_bps": 100000,
+        "creator_sell_quote_15s": 0,
+        "current_buy_quote": 149360000000000000,
+        "current_net_by_group": {
+          "0x4952c6e4952078cb7b9b5ed277b0c8f32765e46c": 94120000000000000,
+          "0x69d85650753920deddfe7aee74c000cdcc1fe502": 55240000000000000
+        },
+        "current_net_quote": 149360000000000000,
+        "current_sell_quote": 0,
+        "independent_group_ids": [
+          "0x14f2df4bced93e596609ae219df84b2978f495ab",
+          "0x2457be1f814f592eddb052e4a260508e5f2e6440",
+          "0x30e14a3b830c0745aa3b959d438cde1f44b085dc",
+          "0x4952c6e4952078cb7b9b5ed277b0c8f32765e46c",
+          "0x65050a9b7e5075a2ba5ced7b1b64ee66262c40dc",
+          "0x69d85650753920deddfe7aee74c000cdcc1fe502",
+          "0x818d9073e1783088024d79a01e128aecd0b20120",
+          "0x95f5e7ebc3d90e5e36afe843198c80f0ca2cabca",
+          "0xab2862eb3ae3864c202df7daae27b380afa504d7",
+          "0xac500e5867f8a372957db8ca21ec409b3884a35c",
+          "0xac8557fce11d4d86a7bbe04f5e880b94e01f1642",
+          "0xc0d6a9bb76403ad44b543849046197687d475447",
+          "0xc4bb019eb0b7d7948db8ecf63593e846beae33b4",
+          "0xc99495b9b126c6f6250881d2eb69c662ea34e9ed",
+          "0xdf54995ec983d967d1ff9b6c314bedf2ccbcee45"
+        ],
+        "independent_groups": 15,
+        "largest_buyer_flow_bps": 1140,
+        "new_independent_groups_15s": 2,
+        "prior_net_quote": -21985713390461190,
+        "recent_buy_groups": [
+          "0x4952c6e4952078cb7b9b5ed277b0c8f32765e46c",
+          "0x69d85650753920deddfe7aee74c000cdcc1fe502"
+        ],
+        "top3_buyer_flow_bps": 3178
+      },
+      "evidence_acquisition_latency_seconds": 2.549575298000036,
+      "evidence_available_at": 1789956219,
+      "evidence_observed_at": 1789956216.4787943,
+      "pair_token": "0x0000000000000000000000000000000000000000",
+      "policy": "pons-selective-continuation-v1",
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "progress_bps": 5829,
+      "proposed_size": {
+        "amount_quote": 2500000000000000,
+        "caps": {
+          "capital": 2500000000000000,
+          "independent_net": 14936000000000000,
+          "real_quote": 48967648664049858
+        },
+        "impact_cap_quote": 2500000000000000
+      },
+      "qualification": "qualified",
+      "qualification_authority": true,
+      "quote_relative_strength_bps": null,
+      "roundtrip_loss_bps": 677,
+      "thresholds": {
+        "capital_size_bps": 25,
+        "independent_net_size_bps": 1000,
+        "max_creator_tax_bps": 200,
+        "max_curve_progress_bps": 9700,
+        "max_entry_impact_bps": 300,
+        "max_graduation_eta_seconds": 300,
+        "max_largest_buyer_flow_bps": 4000,
+        "max_market_events": 512,
+        "max_roundtrip_loss_bps": 800,
+        "max_state_age_seconds": 5,
+        "max_token_age_seconds": 900,
+        "max_top3_buyer_flow_bps": 7500,
+        "min_buy_sell_ratio_bps": 12000,
+        "min_curve_progress_bps": 4500,
+        "min_independent_groups": 3,
+        "min_new_independent_groups_15s": 1,
+        "min_progress_15s_bps": 300,
+        "real_quote_size_bps": 200
+      },
+      "token_age_seconds": 639,
+      "trajectory": {
+        "accelerating": true,
+        "complete": true,
+        "current_progress_bps": 5829,
+        "graduation_eta_seconds": 163,
+        "prior_progress_bps": 217,
+        "prior_seconds": 10,
+        "progress_15s_bps": 345,
+        "recent_progress_bps": 128,
+        "recent_seconds": 5
+      },
+      "wallet_convergence": {
+        "complete": true,
+        "converged": false,
+        "convergence_count": 0,
+        "qualification_authority": false,
+        "skilled_independent_groups": []
+      }
+    },
+    "realized_pnl_quote": -173006657705561,
+    "reconciliation": {
+      "accounting": {
+        "pons-selective:e9322d5a-d065-4cf6-a42f-8625ec765e5c:0x7d23f6182643b5d1d7814a6091aebb8b2819518c:0x847de708410cad4165e1a6d2692bc0bfa081a9727e94bc44684d303cd04bb4ee": {
+          "capital_at_risk_unit_nanoseconds": 117014508970749511278360000,
+          "held_reservation_unit_nanoseconds": 161124477034500000000000000,
+          "integral_complete": true,
+          "native_execution_cost": 18497673096000,
+          "replay_verified": true,
+          "through_recorded_at_ns": 1789956267095734121
+        }
+      },
+      "available": 999826993342294439,
+      "booked_realized": -173006657705561,
+      "cash": 999826993342294439,
+      "cash_basis_conservation": true,
+      "committed": 0,
+      "genesis": 1000000000000000000,
+      "mark_times": {},
+      "marked_position_value": 0,
+      "marks_complete": true,
+      "open_exposure": 0,
+      "realized": -173006657705561,
+      "remaining_cost_basis": 0,
+      "unrealized_at_recorded_marks": 0
+    },
+    "reservation": {
+      "amount": 2500000000000000,
+      "cost": 0,
+      "due": 1789956221,
+      "entry_tokens": 0,
+      "experiment": "pons-selective-continuation-v1",
+      "id": "pons-selective:e9322d5a-d065-4cf6-a42f-8625ec765e5c:0x7d23f6182643b5d1d7814a6091aebb8b2819518c:0x847de708410cad4165e1a6d2692bc0bfa081a9727e94bc44684d303cd04bb4ee",
+      "kind": "natural",
+      "last_at": 1789956219,
+      "market": "0x5c0c6151374ec366b42767e75a9c568228c35ca2",
+      "pending_exit_tokens": null,
+      "pnl": 0,
+      "realized_pnl": 0,
+      "realized_proceeds": 0,
+      "reason": null,
+      "remaining_cost": 0,
+      "reserved": 3500000000000000,
+      "status": "reserved",
+      "strategy_namespace": "pons-selective-continuation-v1",
+      "tokens": 0,
+      "version": 0
+    },
+    "restart_reconciliation": {
+      "accounting": {
+        "pons-selective:e9322d5a-d065-4cf6-a42f-8625ec765e5c:0x7d23f6182643b5d1d7814a6091aebb8b2819518c:0x847de708410cad4165e1a6d2692bc0bfa081a9727e94bc44684d303cd04bb4ee": {
+          "capital_at_risk_unit_nanoseconds": 5299879242000000000000000,
+          "held_reservation_unit_nanoseconds": 5299879242000000000000000,
+          "integral_complete": false,
+          "native_execution_cost": 9239295912000,
+          "replay_verified": true,
+          "through_recorded_at_ns": 1789956222574420466
+        }
+      },
+      "available": 996500000000000000,
+      "booked_realized": 0,
+      "cash": 997490760704088000,
+      "cash_basis_conservation": true,
+      "committed": 3500000000000000,
+      "genesis": 1000000000000000000,
+      "mark_times": {
+        "pons-selective:e9322d5a-d065-4cf6-a42f-8625ec765e5c:0x7d23f6182643b5d1d7814a6091aebb8b2819518c:0x847de708410cad4165e1a6d2692bc0bfa081a9727e94bc44684d303cd04bb4ee": null
+      },
+      "marked_position_value": null,
+      "marks_complete": false,
+      "open_exposure": 1436175831238648882535779,
+      "realized": 0,
+      "remaining_cost_basis": 2509239295912000,
+      "unrealized_at_recorded_marks": null
+    },
+    "shared_allocator": false,
+    "source_transaction": "0x847de708410cad4165e1a6d2692bc0bfa081a9727e94bc44684d303cd04bb4ee",
+    "started_at": 1789956219.0746572,
+    "status": "settled",
+    "token": "0x7d23f6182643b5d1d7814a6091aebb8b2819518c"
+  },
+  {
+    "carried_through_graduation": false,
+    "cohort_reconciliation": {
+      "available": 994223260691328037,
+      "booked_realized": -2276739308671963,
+      "capital_at_risk_unit_nanoseconds": 3009466883584101286761870000,
+      "capital_integral_complete": false,
+      "cash": 995219067776488037,
+      "cash_basis_conservation": true,
+      "conservation": true,
+      "genesis": 1000000000000000000,
+      "namespace": "pons-selective-continuation-v1",
+      "native_execution_cost": 182608159368000,
+      "native_observation_complete": true,
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "positions": 19,
+      "realized": -2276739308671963,
+      "remaining_cost_basis": 2504192914840000,
+      "reserved": 3500000000000000,
+      "unobserved_native_positions": [],
+      "unsettled": 1
+    },
+    "cohort_reservation": {
+      "at": 1789956409,
+      "decision_hash": "cca4b1740a0f09b35c8ca68f26c0e778002f02b4bda368a89ebf3295d28ba1b2",
+      "id": "pons-selective:31d8c820-5018-4d5c-bf7d-164dfe9428d9:0x85479de25df7699094dd2998970b8393ae5049f1:0x7c7ec013b8acf547ee9313c8b35744d8d0950fc6a98a129dd2c90023fed99ec3",
+      "initial_reserved": 3500000000000000,
+      "pnl": 0,
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "reserved": 3500000000000000,
+      "status": "reserved",
+      "trial_path": "pons-selective-continuation-v1-cohort/trial-017.sqlite"
+    },
+    "curve": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+    "ended_at": 1789956490.7091072,
+    "entry": {
+      "position": {
+        "amount": 2500000000000000,
+        "cost": 2504207238430000,
+        "due": 1789956411,
+        "entry_tokens": 1465689911987289676307052,
+        "experiment": "pons-selective-continuation-v1",
+        "id": "pons-selective:31d8c820-5018-4d5c-bf7d-164dfe9428d9:0x85479de25df7699094dd2998970b8393ae5049f1:0x7c7ec013b8acf547ee9313c8b35744d8d0950fc6a98a129dd2c90023fed99ec3",
+        "kind": "natural",
+        "last_at": 1789956414,
+        "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+        "pending_exit_tokens": null,
+        "pnl": 0,
+        "realized_pnl": 0,
+        "realized_proceeds": 0,
+        "reason": null,
+        "remaining_cost": 2504207238430000,
+        "reserved": 3500000000000000,
+        "status": "open",
+        "strategy_namespace": "pons-selective-continuation-v1",
+        "tokens": 1465689911987289676307052,
+        "version": 1
+      },
+      "quote": {
+        "amount_in": 2500000000000000,
+        "amount_out": 1465689911987289676307052,
+        "block": 68426688,
+        "block_hash": "0x711a572544a527ac4ad8b739fdf132871376a6bb80060a36f929fdd38bd166f7",
+        "chain_timestamp_lag_seconds": -1.2560372352600098,
+        "event_at": 1789956413,
+        "evidence_acquisition_latency_seconds": 2.5702489300001616,
+        "fee_quote": 25000000000000,
+        "gas_price": 52210000,
+        "gas_quote": 4207238430000,
+        "gas_units_proxy": 80583,
+        "observed_at": 1789956414,
+        "state": {
+          "creator_tax_bps": 0,
+          "fee_bps": 100,
+          "graduated": false,
+          "launched_at": 1789956413,
+          "quote_reserve": 1683069720196495412,
+          "real_quote": 3069720196495412,
+          "reserved_tokens": 285714285714285714285714285,
+          "snipe_seconds": 1,
+          "snipe_start_bps": 0,
+          "timestamp": 1789956413,
+          "token_reserve": 998176118220380672375777002
+        },
+        "venue": "pons_v2_curve"
+      }
+    },
+    "exit": {
+      "position": {
+        "amount": 2500000000000000,
+        "cost": 2504207238430000,
+        "due": 1789956487,
+        "entry_tokens": 1465689911987289676307052,
+        "experiment": "pons-selective-continuation-v1",
+        "id": "pons-selective:31d8c820-5018-4d5c-bf7d-164dfe9428d9:0x85479de25df7699094dd2998970b8393ae5049f1:0x7c7ec013b8acf547ee9313c8b35744d8d0950fc6a98a129dd2c90023fed99ec3",
+        "kind": "natural",
+        "last_at": 1789956490,
+        "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+        "pending_exit_tokens": null,
+        "pnl": -65320331737276,
+        "realized_pnl": -65320331737276,
+        "realized_proceeds": 2438886906692724,
+        "reason": null,
+        "remaining_cost": 0,
+        "reserved": 0,
+        "status": "settled",
+        "strategy_namespace": "pons-selective-continuation-v1",
+        "tokens": 0,
+        "version": 4
+      },
+      "quote": {
+        "amount_in": 1465689911987289676307052,
+        "amount_out": 2443064812910724,
+        "block": 68427442,
+        "block_hash": "0xb2344906aeb87156cb8f2d32c141da23ae5fd4329e53ca81d8b14ca243ce5b54",
+        "chain_timestamp_lag_seconds": -1.5002107620239258,
+        "event_at": 1789956489,
+        "evidence_acquisition_latency_seconds": 3.172419966999769,
+        "fee_quote": 24677422352633,
+        "gas_price": 51846000,
+        "gas_quote": 4177906218000,
+        "gas_units_proxy": 80583,
+        "observed_at": 1789956490,
+        "state": {
+          "creator_tax_bps": 0,
+          "fee_bps": 100,
+          "graduated": false,
+          "launched_at": 1789956489,
+          "quote_reserve": 1683069720196495412,
+          "real_quote": 3069720196495412,
+          "reserved_tokens": 285714285714285714285714285,
+          "snipe_seconds": 1,
+          "snipe_start_bps": 0,
+          "timestamp": 1789956489,
+          "token_reserve": 998176118220380672375777002
+        },
+        "venue": "pons_v2_curve"
+      },
+      "reason": "momentum_failure"
+    },
+    "exits": [
+      {
+        "position": {
+          "amount": 2500000000000000,
+          "cost": 2504207238430000,
+          "due": 1789956487,
+          "entry_tokens": 1465689911987289676307052,
+          "experiment": "pons-selective-continuation-v1",
+          "id": "pons-selective:31d8c820-5018-4d5c-bf7d-164dfe9428d9:0x85479de25df7699094dd2998970b8393ae5049f1:0x7c7ec013b8acf547ee9313c8b35744d8d0950fc6a98a129dd2c90023fed99ec3",
+          "kind": "natural",
+          "last_at": 1789956490,
+          "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+          "pending_exit_tokens": null,
+          "pnl": -65320331737276,
+          "realized_pnl": -65320331737276,
+          "realized_proceeds": 2438886906692724,
+          "reason": null,
+          "remaining_cost": 0,
+          "reserved": 0,
+          "status": "settled",
+          "strategy_namespace": "pons-selective-continuation-v1",
+          "tokens": 0,
+          "version": 4
+        },
+        "quote": {
+          "amount_in": 1465689911987289676307052,
+          "amount_out": 2443064812910724,
+          "block": 68427442,
+          "block_hash": "0xb2344906aeb87156cb8f2d32c141da23ae5fd4329e53ca81d8b14ca243ce5b54",
+          "chain_timestamp_lag_seconds": -1.5002107620239258,
+          "event_at": 1789956489,
+          "evidence_acquisition_latency_seconds": 3.172419966999769,
+          "fee_quote": 24677422352633,
+          "gas_price": 51846000,
+          "gas_quote": 4177906218000,
+          "gas_units_proxy": 80583,
+          "observed_at": 1789956490,
+          "state": {
+            "creator_tax_bps": 0,
+            "fee_bps": 100,
+            "graduated": false,
+            "launched_at": 1789956489,
+            "quote_reserve": 1683069720196495412,
+            "real_quote": 3069720196495412,
+            "reserved_tokens": 285714285714285714285714285,
+            "snipe_seconds": 1,
+            "snipe_start_bps": 0,
+            "timestamp": 1789956489,
+            "token_reserve": 998176118220380672375777002
+          },
+          "venue": "pons_v2_curve"
+        },
+        "reason": "momentum_failure"
+      }
+    ],
+    "fill_full_exit_check": {
+      "executable": true,
+      "gross_quote": 2467742235263357,
+      "quote_out": 2443064812910724,
+      "real_quote": 3069720196495412,
+      "tokens": 1465689911987289676307052
+    },
+    "final_position": {
+      "amount": 2500000000000000,
+      "cost": 2504207238430000,
+      "due": 1789956487,
+      "entry_tokens": 1465689911987289676307052,
+      "experiment": "pons-selective-continuation-v1",
+      "id": "pons-selective:31d8c820-5018-4d5c-bf7d-164dfe9428d9:0x85479de25df7699094dd2998970b8393ae5049f1:0x7c7ec013b8acf547ee9313c8b35744d8d0950fc6a98a129dd2c90023fed99ec3",
+      "kind": "natural",
+      "last_at": 1789956490,
+      "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+      "pending_exit_tokens": null,
+      "pnl": -65320331737276,
+      "realized_pnl": -65320331737276,
+      "realized_proceeds": 2438886906692724,
+      "reason": null,
+      "remaining_cost": 0,
+      "reserved": 0,
+      "status": "settled",
+      "strategy_namespace": "pons-selective-continuation-v1",
+      "tokens": 0,
+      "version": 4
+    },
+    "gas_model": {
+      "gas_price": 51672000,
+      "reservation_budget": 1000000000000000,
+      "units_proxy": 80583
+    },
+    "independent_strategy": true,
+    "index": 17,
+    "kind": "pons-selective-continuation-v1-paper",
+    "lifecycle_id": "pons-selective:31d8c820-5018-4d5c-bf7d-164dfe9428d9:0x85479de25df7699094dd2998970b8393ae5049f1:0x7c7ec013b8acf547ee9313c8b35744d8d0950fc6a98a129dd2c90023fed99ec3",
+    "live_money": false,
+    "minimum_fill_tokens": 303029191427099942331010,
+    "monitor": [
+      {
+        "action": {
+          "action": "full_exit",
+          "exit_tokens": 1465689911987289676307052,
+          "reason": "momentum_failure"
+        },
+        "at": 1789956429,
+        "available": true,
+        "demand": {
+          "buy_sell_ratio_bps": 0,
+          "creator_sell_quote_15s": 0,
+          "current_buy_quote": 0,
+          "current_net_by_group": {},
+          "current_net_quote": 0,
+          "current_sell_quote": 0,
+          "independent_group_ids": [],
+          "independent_groups": 0,
+          "largest_buyer_flow_bps": 0,
+          "new_independent_groups_15s": 0,
+          "prior_net_quote": 0,
+          "recent_buy_groups": [],
+          "top3_buyer_flow_bps": 0
+        },
+        "market": "curve",
+        "pregraduation_exit_reason": "momentum_failure",
+        "profit_taking_deferred_until_post_graduation": true,
+        "quote": {
+          "amount_in": 1465689911987289676307052,
+          "amount_out": 2443064812910724,
+          "block": 68426837,
+          "block_hash": "0x32edc727311ac9457be1b2253b2c17cfdb7c28742b4d2fbc343a82c3ee0d2eea",
+          "chain_timestamp_lag_seconds": -1.2058653831481934,
+          "event_at": 1789956428,
+          "evidence_acquisition_latency_seconds": 2.592518454999663,
+          "fee_quote": 24677422352633,
+          "gas_price": 53312000,
+          "gas_quote": 4296040896000,
+          "gas_units_proxy": 80583,
+          "observed_at": 1789956429,
+          "state": {
+            "creator_tax_bps": 0,
+            "fee_bps": 100,
+            "graduated": false,
+            "launched_at": 1789956428,
+            "quote_reserve": 1683069720196495412,
+            "real_quote": 3069720196495412,
+            "reserved_tokens": 285714285714285714285714285,
+            "snipe_seconds": 1,
+            "snipe_start_bps": 0,
+            "timestamp": 1789956428,
+            "token_reserve": 998176118220380672375777002
+          },
+          "venue": "pons_v2_curve"
+        },
+        "return_bps": -262,
+        "trajectory": {
+          "accelerating": false,
+          "complete": true,
+          "current_progress_bps": 7,
+          "graduation_eta_seconds": null,
+          "prior_progress_bps": 0,
+          "prior_seconds": 10,
+          "progress_15s_bps": 0,
+          "recent_progress_bps": 0,
+          "recent_seconds": 5
+        }
+      }
+    ],
+    "namespace": "pons-selective-continuation-v1",
+    "paper_only": true,
+    "policy": "pons-selective-continuation-v1",
+    "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+    "provider_sessions": [
+      {
+        "batched_recent_headers": true,
+        "cache": {
+          "header_hashes": 150,
+          "header_number_hit": 151,
+          "header_number_miss": 298,
+          "header_numbers": 150,
+          "header_store": 150,
+          "launch_miss": 1,
+          "launch_store": 1,
+          "launches": 1,
+          "real_quote_miss": 2,
+          "real_quote_store": 2,
+          "real_quotes": 2,
+          "receipts": 0
+        },
+        "recent_headers_considered": 150,
+        "sessions": [
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 3,
+              "eth_chainId:miss": 1,
+              "eth_getBlockByNumber:miss": 149
+            },
+            "logical_methods": {
+              "eth_call": 3,
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 149
+            },
+            "logical_requests": 153,
+            "methods": {
+              "eth_call": 3,
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 149
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 2584,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 222.62752473400434
+            },
+            "provider_kind": "alchemy",
+            "requests": 153,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_selective_trajectory": 152
+            },
+            "transport_requests": 5
+          }
+        ]
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_chainId:miss": 1,
+          "eth_getBlockByNumber:miss": 18
+        },
+        "logical_methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 18
+        },
+        "logical_requests": 19,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 18
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2642,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 228.33281758300274
+        },
+        "provider_kind": "alchemy",
+        "requests": 19,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_selective_trajectory": 18
+        },
+        "transport_requests": 19
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_chainId:miss": 1,
+          "eth_getLogs:miss": 59
+        },
+        "logical_methods": {
+          "eth_chainId": 1,
+          "eth_getLogs": 59
+        },
+        "logical_requests": 60,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getLogs": 59
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2651,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 229.32071957800264
+        },
+        "provider_kind": "alchemy",
+        "requests": 60,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_selective_monitor": 59
+        },
+        "transport_requests": 3
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_call:miss": 13,
+          "eth_chainId:miss": 1,
+          "eth_gasPrice:miss": 4,
+          "eth_getBlockByNumber:miss": 7,
+          "eth_getLogs:miss": 7
+        },
+        "logical_methods": {
+          "eth_call": 13,
+          "eth_chainId": 1,
+          "eth_gasPrice": 4,
+          "eth_getBlockByNumber": 7,
+          "eth_getLogs": 7
+        },
+        "logical_requests": 32,
+        "methods": {
+          "eth_call": 13,
+          "eth_chainId": 1,
+          "eth_gasPrice": 4,
+          "eth_getBlockByNumber": 7,
+          "eth_getLogs": 7
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2657,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 230.02297529100252
+        },
+        "provider_kind": "alchemy",
+        "requests": 32,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_natural": 4,
+          "pons_paper": 8,
+          "pons_selective_paper_quote": 19
+        },
+        "transport_requests": 16
+      }
+    ],
+    "qualification_vector": {
+      "all_rejections": [],
+      "asof": 1789955695,
+      "authority": "frozen_policy_paper",
+      "chain_timestamp_lag_seconds": 711.3456702232361,
+      "complete": true,
+      "creator_history": null,
+      "current_snipe_bps": 0,
+      "current_threshold_pass": true,
+      "decision_state_age_seconds": 3.6449699390000205,
+      "demand": {
+        "buy_sell_ratio_bps": 223366,
+        "creator_sell_quote_15s": 0,
+        "current_buy_quote": 1466605600694656437,
+        "current_net_by_group": {
+          "0x1fe89ace6b13f3e5ad703d696134b555335f2b46": 55000000000000000,
+          "0x21e99a857b2e0145b0c75c3d858d4cfab114f238": 67000000000000000,
+          "0x25a945c5661009342d702d40c200346e072763e0": 79200000000000000,
+          "0x3a6b9e22e2043969a9cde924955eeacba37865f7": 113700000000000000,
+          "0x4039c853fed0b5a13fe03c9746078d0b517352da": 133000000000000000,
+          "0x4d67049a51922349c5399d99f5c8aff9f139655f": 72000000000000000,
+          "0x5758a44b771d781591e841340acfdaaeeb9d76cc": 78000000000000000,
+          "0x58c011dd1566e9f36c03118b2084aac968e977e1": 96000000000000000,
+          "0x62667b8d073af8197bc8e8a07427ba30107e71b2": 59000000000000000,
+          "0x6cea141856b250dd3a99679713a58a42e4ad91bc": 81670000000000000,
+          "0x7d7d287861ff345dd6b64b11b1514ab5ce955888": -2880981807993844,
+          "0x819130002bbd6029fdf767e59f4dc5347109f786": -962883938850442,
+          "0x8adfb0c6a97042d75ef9ef494d980e7fe672bbad": -7168469293007902,
+          "0x8aeb2f59c3105f1d19855c20f733f63fc717ad77": 25780000000000000,
+          "0x8f6f0cb39fce61cc3493ba1c5ec1d50d6147eac3": 5000000000000000,
+          "0x97ab4fd522b84d69220aa783726df0cd71c7b957": 71000000000000000,
+          "0xa837fb20333f143c721d7dca8c866f41f7c70304": 3767600694656437,
+          "0xaf98c9503d418dbf486170a2aa292c00e5f1107d": 84200000000000000,
+          "0xbce05fb07e8a965cb565c4412afdae217d1b98fb": 22000000000000000,
+          "0xcd68d1ef14e6f142b40618fd0d7e79d9270ca93e": 36300000000000000,
+          "0xd4149b142d797d447fd2470ae8f6fb7c30a5ba6a": 47041107956751097,
+          "0xdb7929468669d74693aa3a0eaac8ea6f01b9dc7e": 82300000000000000,
+          "0xe90d2ee462646e2b1574c2ad051456b8bf55eaa2": 200000000000000000
+        },
+        "current_net_quote": 1400946373611555346,
+        "current_sell_quote": 65659227083101091,
+        "independent_group_ids": [
+          "0x1e04cc90fc9eb74941e1985c84938045a3d1fbe3",
+          "0x1fe89ace6b13f3e5ad703d696134b555335f2b46",
+          "0x213ef45993a0a68a310de65a5cbc72ff3f37f8ed",
+          "0x21e99a857b2e0145b0c75c3d858d4cfab114f238",
+          "0x25a945c5661009342d702d40c200346e072763e0",
+          "0x33af5449ede65ae6414ac31751b9056e9925c68a",
+          "0x3a6b9e22e2043969a9cde924955eeacba37865f7",
+          "0x4039c853fed0b5a13fe03c9746078d0b517352da",
+          "0x4d67049a51922349c5399d99f5c8aff9f139655f",
+          "0x5758a44b771d781591e841340acfdaaeeb9d76cc",
+          "0x58c011dd1566e9f36c03118b2084aac968e977e1",
+          "0x62667b8d073af8197bc8e8a07427ba30107e71b2",
+          "0x67a2a2cd4dd27dc65598ceec0bb75e19100762b1",
+          "0x6cea141856b250dd3a99679713a58a42e4ad91bc",
+          "0x7d7d287861ff345dd6b64b11b1514ab5ce955888",
+          "0x819130002bbd6029fdf767e59f4dc5347109f786",
+          "0x8adfb0c6a97042d75ef9ef494d980e7fe672bbad",
+          "0x8aeb2f59c3105f1d19855c20f733f63fc717ad77",
+          "0x8f6f0cb39fce61cc3493ba1c5ec1d50d6147eac3",
+          "0x93a20a3c1d54beac8eed33cc90c0038a2c038991",
+          "0x97ab4fd522b84d69220aa783726df0cd71c7b957",
+          "0x998338b3a710eb0bdb4b3a0a9e38f87b08864a75",
+          "0xa837fb20333f143c721d7dca8c866f41f7c70304",
+          "0xac53bf83f09b45dde9f7ba1c1ff34f7cac1dc372",
+          "0xae289c2412f83a3d8e65a6a3abd979d8127e455a",
+          "0xae9f25d879505685c7edab9d71a5272e27418566",
+          "0xaf98c9503d418dbf486170a2aa292c00e5f1107d",
+          "0xbce05fb07e8a965cb565c4412afdae217d1b98fb",
+          "0xc2839a62f236c08d890b39557c3099fde73383d5",
+          "0xcd68d1ef14e6f142b40618fd0d7e79d9270ca93e",
+          "0xcf87efc94443efd9ec9ed5531ee1ac0089540f47",
+          "0xd4149b142d797d447fd2470ae8f6fb7c30a5ba6a",
+          "0xda7b9f2af529a196b050b882263bba20c210635b",
+          "0xdb7929468669d74693aa3a0eaac8ea6f01b9dc7e",
+          "0xe90d2ee462646e2b1574c2ad051456b8bf55eaa2"
+        ],
+        "independent_groups": 35,
+        "largest_buyer_flow_bps": 976,
+        "new_independent_groups_15s": 23,
+        "prior_net_quote": 581000000000000000,
+        "recent_buy_groups": [
+          "0x1fe89ace6b13f3e5ad703d696134b555335f2b46",
+          "0x21e99a857b2e0145b0c75c3d858d4cfab114f238",
+          "0x25a945c5661009342d702d40c200346e072763e0",
+          "0x3a6b9e22e2043969a9cde924955eeacba37865f7",
+          "0x4039c853fed0b5a13fe03c9746078d0b517352da",
+          "0x4d67049a51922349c5399d99f5c8aff9f139655f",
+          "0x5758a44b771d781591e841340acfdaaeeb9d76cc",
+          "0x58c011dd1566e9f36c03118b2084aac968e977e1",
+          "0x62667b8d073af8197bc8e8a07427ba30107e71b2",
+          "0x6cea141856b250dd3a99679713a58a42e4ad91bc",
+          "0x8aeb2f59c3105f1d19855c20f733f63fc717ad77",
+          "0x8f6f0cb39fce61cc3493ba1c5ec1d50d6147eac3",
+          "0x97ab4fd522b84d69220aa783726df0cd71c7b957",
+          "0xa837fb20333f143c721d7dca8c866f41f7c70304",
+          "0xaf98c9503d418dbf486170a2aa292c00e5f1107d",
+          "0xbce05fb07e8a965cb565c4412afdae217d1b98fb",
+          "0xcd68d1ef14e6f142b40618fd0d7e79d9270ca93e",
+          "0xd4149b142d797d447fd2470ae8f6fb7c30a5ba6a",
+          "0xdb7929468669d74693aa3a0eaac8ea6f01b9dc7e",
+          "0xe90d2ee462646e2b1574c2ad051456b8bf55eaa2"
+        ],
+        "top3_buyer_flow_bps": 2181
+      },
+      "evidence_acquisition_latency_seconds": 3.6449699390000205,
+      "evidence_available_at": 1789956409,
+      "evidence_observed_at": 1789956406.3456702,
+      "pair_token": "0x0000000000000000000000000000000000000000",
+      "policy": "pons-selective-continuation-v1",
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "progress_bps": 4772,
+      "proposed_size": {
+        "amount_quote": 2500000000000000,
+        "caps": {
+          "capital": 2500000000000000,
+          "independent_net": 140094637361155534,
+          "real_quote": 40088850813772357
+        },
+        "impact_cap_quote": 2500000000000000
+      },
+      "qualification": "qualified",
+      "qualification_authority": true,
+      "quote_relative_strength_bps": null,
+      "roundtrip_loss_bps": 246,
+      "thresholds": {
+        "capital_size_bps": 25,
+        "independent_net_size_bps": 1000,
+        "max_creator_tax_bps": 200,
+        "max_curve_progress_bps": 9700,
+        "max_entry_impact_bps": 300,
+        "max_graduation_eta_seconds": 300,
+        "max_largest_buyer_flow_bps": 4000,
+        "max_market_events": 512,
+        "max_roundtrip_loss_bps": 800,
+        "max_state_age_seconds": 5,
+        "max_token_age_seconds": 900,
+        "max_top3_buyer_flow_bps": 7500,
+        "min_buy_sell_ratio_bps": 12000,
+        "min_curve_progress_bps": 4500,
+        "min_independent_groups": 3,
+        "min_new_independent_groups_15s": 1,
+        "min_progress_15s_bps": 300,
+        "real_quote_size_bps": 200
+      },
+      "token_age_seconds": 16,
+      "trajectory": {
+        "accelerating": true,
+        "complete": true,
+        "current_progress_bps": 4772,
+        "graduation_eta_seconds": 15,
+        "prior_progress_bps": 298,
+        "prior_seconds": 10,
+        "progress_15s_bps": 2053,
+        "recent_progress_bps": 1755,
+        "recent_seconds": 5
+      },
+      "wallet_convergence": {
+        "complete": true,
+        "converged": false,
+        "convergence_count": 0,
+        "qualification_authority": false,
+        "skilled_independent_groups": []
+      }
+    },
+    "realized_pnl_quote": -65320331737276,
+    "reconciliation": {
+      "accounting": {
+        "pons-selective:31d8c820-5018-4d5c-bf7d-164dfe9428d9:0x85479de25df7699094dd2998970b8393ae5049f1:0x7c7ec013b8acf547ee9313c8b35744d8d0950fc6a98a129dd2c90023fed99ec3": {
+          "capital_at_risk_unit_nanoseconds": 200256557552515867674950000,
+          "held_reservation_unit_nanoseconds": 276293414726000000000000000,
+          "integral_complete": true,
+          "native_execution_cost": 8385144648000,
+          "replay_verified": true,
+          "through_recorded_at_ns": 1789956490673837528
+        }
+      },
+      "available": 999934679668262724,
+      "booked_realized": -65320331737276,
+      "cash": 999934679668262724,
+      "cash_basis_conservation": true,
+      "committed": 0,
+      "genesis": 1000000000000000000,
+      "mark_times": {},
+      "marked_position_value": 0,
+      "marks_complete": true,
+      "open_exposure": 0,
+      "realized": -65320331737276,
+      "remaining_cost_basis": 0,
+      "unrealized_at_recorded_marks": 0
+    },
+    "reservation": {
+      "amount": 2500000000000000,
+      "cost": 0,
+      "due": 1789956411,
+      "entry_tokens": 0,
+      "experiment": "pons-selective-continuation-v1",
+      "id": "pons-selective:31d8c820-5018-4d5c-bf7d-164dfe9428d9:0x85479de25df7699094dd2998970b8393ae5049f1:0x7c7ec013b8acf547ee9313c8b35744d8d0950fc6a98a129dd2c90023fed99ec3",
+      "kind": "natural",
+      "last_at": 1789956409,
+      "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+      "pending_exit_tokens": null,
+      "pnl": 0,
+      "realized_pnl": 0,
+      "realized_proceeds": 0,
+      "reason": null,
+      "remaining_cost": 0,
+      "reserved": 3500000000000000,
+      "status": "reserved",
+      "strategy_namespace": "pons-selective-continuation-v1",
+      "tokens": 0,
+      "version": 0
+    },
+    "restart_reconciliation": {
+      "accounting": {
+        "pons-selective:31d8c820-5018-4d5c-bf7d-164dfe9428d9:0x85479de25df7699094dd2998970b8393ae5049f1:0x7c7ec013b8acf547ee9313c8b35744d8d0950fc6a98a129dd2c90023fed99ec3": {
+          "capital_at_risk_unit_nanoseconds": 9040015848500000000000000,
+          "held_reservation_unit_nanoseconds": 9040015848500000000000000,
+          "integral_complete": false,
+          "native_execution_cost": 4207238430000,
+          "replay_verified": true,
+          "through_recorded_at_ns": 1789956414315723563
+        }
+      },
+      "available": 996500000000000000,
+      "booked_realized": 0,
+      "cash": 997495792761570000,
+      "cash_basis_conservation": true,
+      "committed": 3500000000000000,
+      "genesis": 1000000000000000000,
+      "mark_times": {
+        "pons-selective:31d8c820-5018-4d5c-bf7d-164dfe9428d9:0x85479de25df7699094dd2998970b8393ae5049f1:0x7c7ec013b8acf547ee9313c8b35744d8d0950fc6a98a129dd2c90023fed99ec3": null
+      },
+      "marked_position_value": null,
+      "marks_complete": false,
+      "open_exposure": 1465689911987289676307052,
+      "realized": 0,
+      "remaining_cost_basis": 2504207238430000,
+      "unrealized_at_recorded_marks": null
+    },
+    "shared_allocator": false,
+    "source_transaction": "0x7c7ec013b8acf547ee9313c8b35744d8d0950fc6a98a129dd2c90023fed99ec3",
+    "started_at": 1789956410.0516155,
+    "status": "settled",
+    "token": "0x85479de25df7699094dd2998970b8393ae5049f1"
+  },
+  {
+    "carried_through_graduation": false,
+    "cohort_reconciliation": {
+      "available": 997658000425092761,
+      "booked_realized": -2341999574907239,
+      "capital_at_risk_unit_nanoseconds": 3018913432088396558454310000,
+      "capital_integral_complete": true,
+      "cash": 997658000425092761,
+      "cash_basis_conservation": true,
+      "conservation": true,
+      "genesis": 1000000000000000000,
+      "namespace": "pons-selective-continuation-v1",
+      "native_execution_cost": 186740323674000,
+      "native_observation_complete": true,
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "positions": 19,
+      "realized": -2341999574907239,
+      "remaining_cost_basis": 0,
+      "reserved": 0,
+      "unobserved_native_positions": [],
+      "unsettled": 0
+    },
+    "cohort_reservation": {
+      "at": 1789956417,
+      "decision_hash": "3c97fea446dc69dc24dea32dbce0affc4a43aae8be1694685c46ad0d48e2166c",
+      "id": "pons-selective:021175bc-ab7f-47fb-bf47-7442637626ad:0x85479de25df7699094dd2998970b8393ae5049f1:0x67864bf727302b20af36aa9a7005b7bc0c41614dc9a5825aefafdd61d0a19594",
+      "initial_reserved": 3500000000000000,
+      "pnl": 0,
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "reserved": 3500000000000000,
+      "status": "reserved",
+      "trial_path": "pons-selective-continuation-v1-cohort/trial-018.sqlite"
+    },
+    "curve": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+    "ended_at": 1789956492.983216,
+    "entry": {
+      "position": {
+        "amount": 2500000000000000,
+        "cost": 2504192914840000,
+        "due": 1789956419,
+        "entry_tokens": 1465689911987289676307052,
+        "experiment": "pons-selective-continuation-v1",
+        "id": "pons-selective:021175bc-ab7f-47fb-bf47-7442637626ad:0x85479de25df7699094dd2998970b8393ae5049f1:0x67864bf727302b20af36aa9a7005b7bc0c41614dc9a5825aefafdd61d0a19594",
+        "kind": "natural",
+        "last_at": 1789956423,
+        "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+        "pending_exit_tokens": null,
+        "pnl": 0,
+        "realized_pnl": 0,
+        "realized_proceeds": 0,
+        "reason": null,
+        "remaining_cost": 2504192914840000,
+        "reserved": 3500000000000000,
+        "status": "open",
+        "strategy_namespace": "pons-selective-continuation-v1",
+        "tokens": 1465689911987289676307052,
+        "version": 1
+      },
+      "quote": {
+        "amount_in": 2500000000000000,
+        "amount_out": 1465689911987289676307052,
+        "block": 68426763,
+        "block_hash": "0x9df1cf89a9499795e4f7f6f019f7377702adcf327a17e3a27da1676f496e0da0",
+        "chain_timestamp_lag_seconds": -1.2683329582214355,
+        "event_at": 1789956421,
+        "evidence_acquisition_latency_seconds": 3.3357428839999557,
+        "fee_quote": 25000000000000,
+        "gas_price": 52040000,
+        "gas_quote": 4192914840000,
+        "gas_units_proxy": 80571,
+        "observed_at": 1789956423,
+        "state": {
+          "creator_tax_bps": 0,
+          "fee_bps": 100,
+          "graduated": false,
+          "launched_at": 1789956421,
+          "quote_reserve": 1683069720196495412,
+          "real_quote": 3069720196495412,
+          "reserved_tokens": 285714285714285714285714285,
+          "snipe_seconds": 1,
+          "snipe_start_bps": 0,
+          "timestamp": 1789956421,
+          "token_reserve": 998176118220380672375777002
+        },
+        "venue": "pons_v2_curve"
+      }
+    },
+    "exit": {
+      "position": {
+        "amount": 2500000000000000,
+        "cost": 2504192914840000,
+        "due": 1789956491,
+        "entry_tokens": 1465689911987289676307052,
+        "experiment": "pons-selective-continuation-v1",
+        "id": "pons-selective:021175bc-ab7f-47fb-bf47-7442637626ad:0x85479de25df7699094dd2998970b8393ae5049f1:0x67864bf727302b20af36aa9a7005b7bc0c41614dc9a5825aefafdd61d0a19594",
+        "kind": "natural",
+        "last_at": 1789956492,
+        "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+        "pending_exit_tokens": null,
+        "pnl": -65260266235276,
+        "realized_pnl": -65260266235276,
+        "realized_proceeds": 2438932648604724,
+        "reason": null,
+        "remaining_cost": 0,
+        "reserved": 0,
+        "status": "settled",
+        "strategy_namespace": "pons-selective-continuation-v1",
+        "tokens": 0,
+        "version": 4
+      },
+      "quote": {
+        "amount_in": 1465689911987289676307052,
+        "amount_out": 2443064812910724,
+        "block": 68427462,
+        "block_hash": "0x418908ec6e6f38274c522820ff50f50d5f5069f3b3e4d3e62fb6fa6803dc1940",
+        "chain_timestamp_lag_seconds": 0.19863247871398926,
+        "event_at": 1789956491,
+        "evidence_acquisition_latency_seconds": 1.748038290000295,
+        "fee_quote": 24677422352633,
+        "gas_price": 51286000,
+        "gas_quote": 4132164306000,
+        "gas_units_proxy": 80571,
+        "observed_at": 1789956492,
+        "state": {
+          "creator_tax_bps": 0,
+          "fee_bps": 100,
+          "graduated": false,
+          "launched_at": 1789956491,
+          "quote_reserve": 1683069720196495412,
+          "real_quote": 3069720196495412,
+          "reserved_tokens": 285714285714285714285714285,
+          "snipe_seconds": 1,
+          "snipe_start_bps": 0,
+          "timestamp": 1789956491,
+          "token_reserve": 998176118220380672375777002
+        },
+        "venue": "pons_v2_curve"
+      },
+      "reason": "momentum_failure"
+    },
+    "exits": [
+      {
+        "position": {
+          "amount": 2500000000000000,
+          "cost": 2504192914840000,
+          "due": 1789956491,
+          "entry_tokens": 1465689911987289676307052,
+          "experiment": "pons-selective-continuation-v1",
+          "id": "pons-selective:021175bc-ab7f-47fb-bf47-7442637626ad:0x85479de25df7699094dd2998970b8393ae5049f1:0x67864bf727302b20af36aa9a7005b7bc0c41614dc9a5825aefafdd61d0a19594",
+          "kind": "natural",
+          "last_at": 1789956492,
+          "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+          "pending_exit_tokens": null,
+          "pnl": -65260266235276,
+          "realized_pnl": -65260266235276,
+          "realized_proceeds": 2438932648604724,
+          "reason": null,
+          "remaining_cost": 0,
+          "reserved": 0,
+          "status": "settled",
+          "strategy_namespace": "pons-selective-continuation-v1",
+          "tokens": 0,
+          "version": 4
+        },
+        "quote": {
+          "amount_in": 1465689911987289676307052,
+          "amount_out": 2443064812910724,
+          "block": 68427462,
+          "block_hash": "0x418908ec6e6f38274c522820ff50f50d5f5069f3b3e4d3e62fb6fa6803dc1940",
+          "chain_timestamp_lag_seconds": 0.19863247871398926,
+          "event_at": 1789956491,
+          "evidence_acquisition_latency_seconds": 1.748038290000295,
+          "fee_quote": 24677422352633,
+          "gas_price": 51286000,
+          "gas_quote": 4132164306000,
+          "gas_units_proxy": 80571,
+          "observed_at": 1789956492,
+          "state": {
+            "creator_tax_bps": 0,
+            "fee_bps": 100,
+            "graduated": false,
+            "launched_at": 1789956491,
+            "quote_reserve": 1683069720196495412,
+            "real_quote": 3069720196495412,
+            "reserved_tokens": 285714285714285714285714285,
+            "snipe_seconds": 1,
+            "snipe_start_bps": 0,
+            "timestamp": 1789956491,
+            "token_reserve": 998176118220380672375777002
+          },
+          "venue": "pons_v2_curve"
+        },
+        "reason": "momentum_failure"
+      }
+    ],
+    "fill_full_exit_check": {
+      "executable": true,
+      "gross_quote": 2467742235263357,
+      "quote_out": 2443064812910724,
+      "real_quote": 3069720196495412,
+      "tokens": 1465689911987289676307052
+    },
+    "final_position": {
+      "amount": 2500000000000000,
+      "cost": 2504192914840000,
+      "due": 1789956491,
+      "entry_tokens": 1465689911987289676307052,
+      "experiment": "pons-selective-continuation-v1",
+      "id": "pons-selective:021175bc-ab7f-47fb-bf47-7442637626ad:0x85479de25df7699094dd2998970b8393ae5049f1:0x67864bf727302b20af36aa9a7005b7bc0c41614dc9a5825aefafdd61d0a19594",
+      "kind": "natural",
+      "last_at": 1789956492,
+      "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+      "pending_exit_tokens": null,
+      "pnl": -65260266235276,
+      "realized_pnl": -65260266235276,
+      "realized_proceeds": 2438932648604724,
+      "reason": null,
+      "remaining_cost": 0,
+      "reserved": 0,
+      "status": "settled",
+      "strategy_namespace": "pons-selective-continuation-v1",
+      "tokens": 0,
+      "version": 4
+    },
+    "gas_model": {
+      "gas_price": 51870000,
+      "reservation_budget": 1000000000000000,
+      "units_proxy": 80571
+    },
+    "independent_strategy": true,
+    "index": 18,
+    "kind": "pons-selective-continuation-v1-paper",
+    "lifecycle_id": "pons-selective:021175bc-ab7f-47fb-bf47-7442637626ad:0x85479de25df7699094dd2998970b8393ae5049f1:0x67864bf727302b20af36aa9a7005b7bc0c41614dc9a5825aefafdd61d0a19594",
+    "live_money": false,
+    "minimum_fill_tokens": 302801520914044026352480,
+    "monitor": [
+      {
+        "action": {
+          "action": "full_exit",
+          "exit_tokens": 1465689911987289676307052,
+          "reason": "momentum_failure"
+        },
+        "at": 1789956439,
+        "available": true,
+        "demand": {
+          "buy_sell_ratio_bps": 0,
+          "creator_sell_quote_15s": 0,
+          "current_buy_quote": 0,
+          "current_net_by_group": {},
+          "current_net_quote": 0,
+          "current_sell_quote": 0,
+          "independent_group_ids": [],
+          "independent_groups": 0,
+          "largest_buyer_flow_bps": 0,
+          "new_independent_groups_15s": 0,
+          "prior_net_quote": 0,
+          "recent_buy_groups": [],
+          "top3_buyer_flow_bps": 0
+        },
+        "market": "curve",
+        "pregraduation_exit_reason": "momentum_failure",
+        "profit_taking_deferred_until_post_graduation": true,
+        "quote": {
+          "amount_in": 1465689911987289676307052,
+          "amount_out": 2443064812910724,
+          "block": 68426939,
+          "block_hash": "0x27250eb98f37640a927bdc1b59f73c7671855891e6f52a39708195369c868e72",
+          "chain_timestamp_lag_seconds": -1.0562176704406738,
+          "event_at": 1789956438,
+          "evidence_acquisition_latency_seconds": 2.527220577999742,
+          "fee_quote": 24677422352633,
+          "gas_price": 51276000,
+          "gas_quote": 4131358596000,
+          "gas_units_proxy": 80571,
+          "observed_at": 1789956439,
+          "state": {
+            "creator_tax_bps": 0,
+            "fee_bps": 100,
+            "graduated": false,
+            "launched_at": 1789956438,
+            "quote_reserve": 1683069720196495412,
+            "real_quote": 3069720196495412,
+            "reserved_tokens": 285714285714285714285714285,
+            "snipe_seconds": 1,
+            "snipe_start_bps": 0,
+            "timestamp": 1789956438,
+            "token_reserve": 998176118220380672375777002
+          },
+          "venue": "pons_v2_curve"
+        },
+        "return_bps": -261,
+        "trajectory": {
+          "accelerating": false,
+          "complete": true,
+          "current_progress_bps": 7,
+          "graduation_eta_seconds": null,
+          "prior_progress_bps": 0,
+          "prior_seconds": 10,
+          "progress_15s_bps": 0,
+          "recent_progress_bps": 0,
+          "recent_seconds": 5
+        }
+      }
+    ],
+    "namespace": "pons-selective-continuation-v1",
+    "paper_only": true,
+    "policy": "pons-selective-continuation-v1",
+    "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+    "provider_sessions": [
+      {
+        "batched_recent_headers": true,
+        "cache": {
+          "header_hashes": 150,
+          "header_number_hit": 151,
+          "header_number_miss": 298,
+          "header_numbers": 150,
+          "header_store": 150,
+          "launch_miss": 1,
+          "launch_store": 1,
+          "launches": 1,
+          "real_quote_miss": 2,
+          "real_quote_store": 2,
+          "real_quotes": 2,
+          "receipts": 0
+        },
+        "recent_headers_considered": 150,
+        "sessions": [
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:hit": 1,
+              "eth_call:miss": 2,
+              "eth_chainId:miss": 1,
+              "eth_getBlockByNumber:miss": 149
+            },
+            "logical_methods": {
+              "eth_call": 2,
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 149
+            },
+            "logical_requests": 152,
+            "methods": {
+              "eth_call": 2,
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 149
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 2597,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 224.25947603100377
+            },
+            "provider_kind": "alchemy",
+            "requests": 152,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_selective_trajectory": 151
+            },
+            "transport_requests": 5
+          }
+        ]
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_chainId:miss": 1,
+          "eth_getBlockByNumber:miss": 18
+        },
+        "logical_methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 18
+        },
+        "logical_requests": 19,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 18
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2648,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 228.62623836500262
+        },
+        "provider_kind": "alchemy",
+        "requests": 19,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_selective_trajectory": 18
+        },
+        "transport_requests": 19
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_chainId:miss": 1,
+          "eth_getLogs:miss": 60
+        },
+        "logical_methods": {
+          "eth_chainId": 1,
+          "eth_getLogs": 60
+        },
+        "logical_requests": 61,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getLogs": 60
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2656,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 230.02297529100252
+        },
+        "provider_kind": "alchemy",
+        "requests": 61,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_selective_monitor": 60
+        },
+        "transport_requests": 3
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_call:miss": 13,
+          "eth_chainId:miss": 1,
+          "eth_gasPrice:miss": 4,
+          "eth_getBlockByNumber:miss": 7,
+          "eth_getLogs:miss": 9
+        },
+        "logical_methods": {
+          "eth_call": 13,
+          "eth_chainId": 1,
+          "eth_gasPrice": 4,
+          "eth_getBlockByNumber": 7,
+          "eth_getLogs": 9
+        },
+        "logical_requests": 34,
+        "methods": {
+          "eth_call": 13,
+          "eth_chainId": 1,
+          "eth_gasPrice": 4,
+          "eth_getBlockByNumber": 7,
+          "eth_getLogs": 9
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2661,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 230.40471210400239
+        },
+        "provider_kind": "alchemy",
+        "requests": 34,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_natural": 4,
+          "pons_paper": 10,
+          "pons_selective_paper_quote": 19
+        },
+        "transport_requests": 18
+      }
+    ],
+    "qualification_vector": {
+      "all_rejections": [],
+      "asof": 1789955697,
+      "authority": "frozen_policy_paper",
+      "chain_timestamp_lag_seconds": 715.3107936382294,
+      "complete": true,
+      "creator_history": null,
+      "current_snipe_bps": 0,
+      "current_threshold_pass": true,
+      "decision_state_age_seconds": 4.753851358999782,
+      "demand": {
+        "buy_sell_ratio_bps": 121631,
+        "creator_sell_quote_15s": 0,
+        "current_buy_quote": 952057600694656437,
+        "current_net_by_group": {
+          "0x25a945c5661009342d702d40c200346e072763e0": 79200000000000000,
+          "0x3a6b9e22e2043969a9cde924955eeacba37865f7": 113700000000000000,
+          "0x4039c853fed0b5a13fe03c9746078d0b517352da": 133000000000000000,
+          "0x6cea141856b250dd3a99679713a58a42e4ad91bc": 81670000000000000,
+          "0x7d7d287861ff345dd6b64b11b1514ab5ce955888": -11698981807993844,
+          "0x819130002bbd6029fdf767e59f4dc5347109f786": -2962883938850442,
+          "0x8adfb0c6a97042d75ef9ef494d980e7fe672bbad": -27168469293007902,
+          "0x8aeb2f59c3105f1d19855c20f733f63fc717ad77": 27900000000000000,
+          "0x8f6f0cb39fce61cc3493ba1c5ec1d50d6147eac3": -3511256105601314,
+          "0xa837fb20333f143c721d7dca8c866f41f7c70304": -335688858715089,
+          "0xaf98c9503d418dbf486170a2aa292c00e5f1107d": 84200000000000000,
+          "0xbce05fb07e8a965cb565c4412afdae217d1b98fb": 22000000000000000,
+          "0xcd68d1ef14e6f142b40618fd0d7e79d9270ca93e": 41900000000000000,
+          "0xd4149b142d797d447fd2470ae8f6fb7c30a5ba6a": 47041107956751097,
+          "0xdb7929468669d74693aa3a0eaac8ea6f01b9dc7e": 88850000000000000,
+          "0xe90d2ee462646e2b1574c2ad051456b8bf55eaa2": 200000000000000000
+        },
+        "current_net_quote": 873783827952582506,
+        "current_sell_quote": 78273772742073931,
+        "independent_group_ids": [
+          "0x1e04cc90fc9eb74941e1985c84938045a3d1fbe3",
+          "0x1fe89ace6b13f3e5ad703d696134b555335f2b46",
+          "0x213ef45993a0a68a310de65a5cbc72ff3f37f8ed",
+          "0x21e99a857b2e0145b0c75c3d858d4cfab114f238",
+          "0x25a945c5661009342d702d40c200346e072763e0",
+          "0x33af5449ede65ae6414ac31751b9056e9925c68a",
+          "0x3a6b9e22e2043969a9cde924955eeacba37865f7",
+          "0x4039c853fed0b5a13fe03c9746078d0b517352da",
+          "0x4d67049a51922349c5399d99f5c8aff9f139655f",
+          "0x5758a44b771d781591e841340acfdaaeeb9d76cc",
+          "0x58c011dd1566e9f36c03118b2084aac968e977e1",
+          "0x62667b8d073af8197bc8e8a07427ba30107e71b2",
+          "0x67a2a2cd4dd27dc65598ceec0bb75e19100762b1",
+          "0x6cea141856b250dd3a99679713a58a42e4ad91bc",
+          "0x7d7d287861ff345dd6b64b11b1514ab5ce955888",
+          "0x819130002bbd6029fdf767e59f4dc5347109f786",
+          "0x8adfb0c6a97042d75ef9ef494d980e7fe672bbad",
+          "0x8aeb2f59c3105f1d19855c20f733f63fc717ad77",
+          "0x8f6f0cb39fce61cc3493ba1c5ec1d50d6147eac3",
+          "0x93a20a3c1d54beac8eed33cc90c0038a2c038991",
+          "0x97ab4fd522b84d69220aa783726df0cd71c7b957",
+          "0x998338b3a710eb0bdb4b3a0a9e38f87b08864a75",
+          "0xa837fb20333f143c721d7dca8c866f41f7c70304",
+          "0xac53bf83f09b45dde9f7ba1c1ff34f7cac1dc372",
+          "0xae289c2412f83a3d8e65a6a3abd979d8127e455a",
+          "0xae9f25d879505685c7edab9d71a5272e27418566",
+          "0xaf98c9503d418dbf486170a2aa292c00e5f1107d",
+          "0xbce05fb07e8a965cb565c4412afdae217d1b98fb",
+          "0xc2839a62f236c08d890b39557c3099fde73383d5",
+          "0xcd68d1ef14e6f142b40618fd0d7e79d9270ca93e",
+          "0xcf87efc94443efd9ec9ed5531ee1ac0089540f47",
+          "0xd4149b142d797d447fd2470ae8f6fb7c30a5ba6a",
+          "0xda7b9f2af529a196b050b882263bba20c210635b",
+          "0xdb7929468669d74693aa3a0eaac8ea6f01b9dc7e",
+          "0xe90d2ee462646e2b1574c2ad051456b8bf55eaa2"
+        ],
+        "independent_groups": 35,
+        "largest_buyer_flow_bps": 969,
+        "new_independent_groups_15s": 13,
+        "prior_net_quote": 1109818000000000000,
+        "recent_buy_groups": [
+          "0x25a945c5661009342d702d40c200346e072763e0",
+          "0x3a6b9e22e2043969a9cde924955eeacba37865f7",
+          "0x4039c853fed0b5a13fe03c9746078d0b517352da",
+          "0x6cea141856b250dd3a99679713a58a42e4ad91bc",
+          "0x8aeb2f59c3105f1d19855c20f733f63fc717ad77",
+          "0xaf98c9503d418dbf486170a2aa292c00e5f1107d",
+          "0xbce05fb07e8a965cb565c4412afdae217d1b98fb",
+          "0xcd68d1ef14e6f142b40618fd0d7e79d9270ca93e",
+          "0xd4149b142d797d447fd2470ae8f6fb7c30a5ba6a",
+          "0xdb7929468669d74693aa3a0eaac8ea6f01b9dc7e",
+          "0xe90d2ee462646e2b1574c2ad051456b8bf55eaa2"
+        ],
+        "top3_buyer_flow_bps": 2166
+      },
+      "evidence_acquisition_latency_seconds": 4.753851358999782,
+      "evidence_available_at": 1789956417,
+      "evidence_observed_at": 1789956412.3107936,
+      "pair_token": "0x0000000000000000000000000000000000000000",
+      "policy": "pons-selective-continuation-v1",
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "progress_bps": 4775,
+      "proposed_size": {
+        "amount_quote": 2500000000000000,
+        "caps": {
+          "capital": 2500000000000000,
+          "independent_net": 87378382795258250,
+          "real_quote": 40116557507530481
+        },
+        "impact_cap_quote": 2500000000000000
+      },
+      "qualification": "qualified",
+      "qualification_authority": true,
+      "quote_relative_strength_bps": null,
+      "roundtrip_loss_bps": 246,
+      "thresholds": {
+        "capital_size_bps": 25,
+        "independent_net_size_bps": 1000,
+        "max_creator_tax_bps": 200,
+        "max_curve_progress_bps": 9700,
+        "max_entry_impact_bps": 300,
+        "max_graduation_eta_seconds": 300,
+        "max_largest_buyer_flow_bps": 4000,
+        "max_market_events": 512,
+        "max_roundtrip_loss_bps": 800,
+        "max_state_age_seconds": 5,
+        "max_token_age_seconds": 900,
+        "max_top3_buyer_flow_bps": 7500,
+        "min_buy_sell_ratio_bps": 12000,
+        "min_curve_progress_bps": 4500,
+        "min_independent_groups": 3,
+        "min_new_independent_groups_15s": 1,
+        "min_progress_15s_bps": 300,
+        "real_quote_size_bps": 200
+      },
+      "token_age_seconds": 18,
+      "trajectory": {
+        "accelerating": true,
+        "complete": true,
+        "current_progress_bps": 4775,
+        "graduation_eta_seconds": 27,
+        "prior_progress_bps": 1136,
+        "prior_seconds": 10,
+        "progress_15s_bps": 2109,
+        "recent_progress_bps": 973,
+        "recent_seconds": 5
+      },
+      "wallet_convergence": {
+        "complete": true,
+        "converged": false,
+        "convergence_count": 0,
+        "qualification_authority": false,
+        "skilled_independent_groups": []
+      }
+    },
+    "realized_pnl_quote": -65260266235276,
+    "reconciliation": {
+      "accounting": {
+        "pons-selective:021175bc-ab7f-47fb-bf47-7442637626ad:0x85479de25df7699094dd2998970b8393ae5049f1:0x67864bf727302b20af36aa9a7005b7bc0c41614dc9a5825aefafdd61d0a19594": {
+          "capital_at_risk_unit_nanoseconds": 190213736242830739176320000,
+          "held_reservation_unit_nanoseconds": 259800764877500000000000000,
+          "integral_complete": true,
+          "native_execution_cost": 8325079146000,
+          "replay_verified": true,
+          "through_recorded_at_ns": 1789956492948946233
+        }
+      },
+      "available": 999934739733764724,
+      "booked_realized": -65260266235276,
+      "cash": 999934739733764724,
+      "cash_basis_conservation": true,
+      "committed": 0,
+      "genesis": 1000000000000000000,
+      "mark_times": {},
+      "marked_position_value": 0,
+      "marks_complete": true,
+      "open_exposure": 0,
+      "realized": -65260266235276,
+      "remaining_cost_basis": 0,
+      "unrealized_at_recorded_marks": 0
+    },
+    "reservation": {
+      "amount": 2500000000000000,
+      "cost": 0,
+      "due": 1789956419,
+      "entry_tokens": 0,
+      "experiment": "pons-selective-continuation-v1",
+      "id": "pons-selective:021175bc-ab7f-47fb-bf47-7442637626ad:0x85479de25df7699094dd2998970b8393ae5049f1:0x67864bf727302b20af36aa9a7005b7bc0c41614dc9a5825aefafdd61d0a19594",
+      "kind": "natural",
+      "last_at": 1789956417,
+      "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+      "pending_exit_tokens": null,
+      "pnl": 0,
+      "realized_pnl": 0,
+      "realized_proceeds": 0,
+      "reason": null,
+      "remaining_cost": 0,
+      "reserved": 3500000000000000,
+      "status": "reserved",
+      "strategy_namespace": "pons-selective-continuation-v1",
+      "tokens": 0,
+      "version": 0
+    },
+    "restart_reconciliation": {
+      "accounting": {
+        "pons-selective:021175bc-ab7f-47fb-bf47-7442637626ad:0x85479de25df7699094dd2998970b8393ae5049f1:0x67864bf727302b20af36aa9a7005b7bc0c41614dc9a5825aefafdd61d0a19594": {
+          "capital_at_risk_unit_nanoseconds": 15220661109500000000000000,
+          "held_reservation_unit_nanoseconds": 15220661109500000000000000,
+          "integral_complete": false,
+          "native_execution_cost": 4192914840000,
+          "replay_verified": true,
+          "through_recorded_at_ns": 1789956423068916585
+        }
+      },
+      "available": 996500000000000000,
+      "booked_realized": 0,
+      "cash": 997495807085160000,
+      "cash_basis_conservation": true,
+      "committed": 3500000000000000,
+      "genesis": 1000000000000000000,
+      "mark_times": {
+        "pons-selective:021175bc-ab7f-47fb-bf47-7442637626ad:0x85479de25df7699094dd2998970b8393ae5049f1:0x67864bf727302b20af36aa9a7005b7bc0c41614dc9a5825aefafdd61d0a19594": null
+      },
+      "marked_position_value": null,
+      "marks_complete": false,
+      "open_exposure": 1465689911987289676307052,
+      "realized": 0,
+      "remaining_cost_basis": 2504192914840000,
+      "unrealized_at_recorded_marks": null
+    },
+    "shared_allocator": false,
+    "source_transaction": "0x67864bf727302b20af36aa9a7005b7bc0c41614dc9a5825aefafdd61d0a19594",
+    "started_at": 1789956417.1176095,
+    "status": "settled",
+    "token": "0x85479de25df7699094dd2998970b8393ae5049f1"
+  },
+  {
+    "carried_through_graduation": false,
+    "cohort_reconciliation": {
+      "available": 997592748054815485,
+      "booked_realized": -2407251945184515,
+      "capital_at_risk_unit_nanoseconds": 3131599486974708124871484000,
+      "capital_integral_complete": true,
+      "cash": 997592748054815485,
+      "cash_basis_conservation": true,
+      "conservation": true,
+      "genesis": 1000000000000000000,
+      "namespace": "pons-selective-continuation-v1",
+      "native_execution_cost": 195057506862000,
+      "native_observation_complete": true,
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "positions": 20,
+      "realized": -2407251945184515,
+      "remaining_cost_basis": 0,
+      "reserved": 0,
+      "unobserved_native_positions": [],
+      "unsettled": 0
+    },
+    "cohort_reservation": {
+      "at": 1789956523,
+      "decision_hash": "bffba54f97681c2f5a4683765f5c82f86f0a341a1d8f7380265f88a0921065b4",
+      "id": "pons-selective:8e0dfbea-22bd-4845-9acb-f4fad9a7435c:0x85479de25df7699094dd2998970b8393ae5049f1:0x1f8535787a2bd432f98f4c2e5a53d49b2de742af3d6d652a464a410b4a9f8eaa",
+      "initial_reserved": 3500000000000000,
+      "pnl": 0,
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "reserved": 3500000000000000,
+      "status": "reserved",
+      "trial_path": "pons-selective-continuation-v1-cohort/trial-019.sqlite"
+    },
+    "curve": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+    "ended_at": 1789956570.0036194,
+    "entry": {
+      "position": {
+        "amount": 2500000000000000,
+        "cost": 2504130552886000,
+        "due": 1789956525,
+        "entry_tokens": 1465689911987289676307052,
+        "experiment": "pons-selective-continuation-v1",
+        "id": "pons-selective:8e0dfbea-22bd-4845-9acb-f4fad9a7435c:0x85479de25df7699094dd2998970b8393ae5049f1:0x1f8535787a2bd432f98f4c2e5a53d49b2de742af3d6d652a464a410b4a9f8eaa",
+        "kind": "natural",
+        "last_at": 1789956526,
+        "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+        "pending_exit_tokens": null,
+        "pnl": 0,
+        "realized_pnl": 0,
+        "realized_proceeds": 0,
+        "reason": null,
+        "remaining_cost": 2504130552886000,
+        "reserved": 3500000000000000,
+        "status": "open",
+        "strategy_namespace": "pons-selective-continuation-v1",
+        "tokens": 1465689911987289676307052,
+        "version": 1
+      },
+      "quote": {
+        "amount_in": 2500000000000000,
+        "amount_out": 1465689911987289676307052,
+        "block": 68427798,
+        "block_hash": "0x5d4b9e4cb128276ded0b835f73ba3465322646948f6b055d4c0f5085c2d0355c",
+        "chain_timestamp_lag_seconds": 0.41028523445129395,
+        "event_at": 1789956525,
+        "evidence_acquisition_latency_seconds": 1.0739331659997333,
+        "fee_quote": 25000000000000,
+        "gas_price": 51266000,
+        "gas_quote": 4130552886000,
+        "gas_units_proxy": 80571,
+        "observed_at": 1789956526,
+        "state": {
+          "creator_tax_bps": 0,
+          "fee_bps": 100,
+          "graduated": false,
+          "launched_at": 1789956525,
+          "quote_reserve": 1683069720196495412,
+          "real_quote": 3069720196495412,
+          "reserved_tokens": 285714285714285714285714285,
+          "snipe_seconds": 1,
+          "snipe_start_bps": 0,
+          "timestamp": 1789956525,
+          "token_reserve": 998176118220380672375777002
+        },
+        "venue": "pons_v2_curve"
+      }
+    },
+    "exit": {
+      "position": {
+        "amount": 2500000000000000,
+        "cost": 2504130552886000,
+        "due": 1789956568,
+        "entry_tokens": 1465689911987289676307052,
+        "experiment": "pons-selective-continuation-v1",
+        "id": "pons-selective:8e0dfbea-22bd-4845-9acb-f4fad9a7435c:0x85479de25df7699094dd2998970b8393ae5049f1:0x1f8535787a2bd432f98f4c2e5a53d49b2de742af3d6d652a464a410b4a9f8eaa",
+        "kind": "natural",
+        "last_at": 1789956569,
+        "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+        "pending_exit_tokens": null,
+        "pnl": -65252370277276,
+        "realized_pnl": -65252370277276,
+        "realized_proceeds": 2438878182608724,
+        "reason": null,
+        "remaining_cost": 0,
+        "reserved": 0,
+        "status": "settled",
+        "strategy_namespace": "pons-selective-continuation-v1",
+        "tokens": 0,
+        "version": 4
+      },
+      "quote": {
+        "amount_in": 1465689911987289676307052,
+        "amount_out": 2443064812910724,
+        "block": 68428227,
+        "block_hash": "0x61af9796ff89d32e728bde5905d28aa82fca07a48ab50811c1ec3086036a1f63",
+        "chain_timestamp_lag_seconds": -0.3340747356414795,
+        "event_at": 1789956569,
+        "evidence_acquisition_latency_seconds": 1.2985821790002774,
+        "fee_quote": 24677422352633,
+        "gas_price": 51962000,
+        "gas_quote": 4186630302000,
+        "gas_units_proxy": 80571,
+        "observed_at": 1789956569,
+        "state": {
+          "creator_tax_bps": 0,
+          "fee_bps": 100,
+          "graduated": false,
+          "launched_at": 1789956569,
+          "quote_reserve": 1683069720196495412,
+          "real_quote": 3069720196495412,
+          "reserved_tokens": 285714285714285714285714285,
+          "snipe_seconds": 1,
+          "snipe_start_bps": 0,
+          "timestamp": 1789956569,
+          "token_reserve": 998176118220380672375777002
+        },
+        "venue": "pons_v2_curve"
+      },
+      "reason": "momentum_failure"
+    },
+    "exits": [
+      {
+        "position": {
+          "amount": 2500000000000000,
+          "cost": 2504130552886000,
+          "due": 1789956568,
+          "entry_tokens": 1465689911987289676307052,
+          "experiment": "pons-selective-continuation-v1",
+          "id": "pons-selective:8e0dfbea-22bd-4845-9acb-f4fad9a7435c:0x85479de25df7699094dd2998970b8393ae5049f1:0x1f8535787a2bd432f98f4c2e5a53d49b2de742af3d6d652a464a410b4a9f8eaa",
+          "kind": "natural",
+          "last_at": 1789956569,
+          "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+          "pending_exit_tokens": null,
+          "pnl": -65252370277276,
+          "realized_pnl": -65252370277276,
+          "realized_proceeds": 2438878182608724,
+          "reason": null,
+          "remaining_cost": 0,
+          "reserved": 0,
+          "status": "settled",
+          "strategy_namespace": "pons-selective-continuation-v1",
+          "tokens": 0,
+          "version": 4
+        },
+        "quote": {
+          "amount_in": 1465689911987289676307052,
+          "amount_out": 2443064812910724,
+          "block": 68428227,
+          "block_hash": "0x61af9796ff89d32e728bde5905d28aa82fca07a48ab50811c1ec3086036a1f63",
+          "chain_timestamp_lag_seconds": -0.3340747356414795,
+          "event_at": 1789956569,
+          "evidence_acquisition_latency_seconds": 1.2985821790002774,
+          "fee_quote": 24677422352633,
+          "gas_price": 51962000,
+          "gas_quote": 4186630302000,
+          "gas_units_proxy": 80571,
+          "observed_at": 1789956569,
+          "state": {
+            "creator_tax_bps": 0,
+            "fee_bps": 100,
+            "graduated": false,
+            "launched_at": 1789956569,
+            "quote_reserve": 1683069720196495412,
+            "real_quote": 3069720196495412,
+            "reserved_tokens": 285714285714285714285714285,
+            "snipe_seconds": 1,
+            "snipe_start_bps": 0,
+            "timestamp": 1789956569,
+            "token_reserve": 998176118220380672375777002
+          },
+          "venue": "pons_v2_curve"
+        },
+        "reason": "momentum_failure"
+      }
+    ],
+    "fill_full_exit_check": {
+      "executable": true,
+      "gross_quote": 2467742235263357,
+      "quote_out": 2443064812910724,
+      "real_quote": 3069720196495412,
+      "tokens": 1465689911987289676307052
+    },
+    "final_position": {
+      "amount": 2500000000000000,
+      "cost": 2504130552886000,
+      "due": 1789956568,
+      "entry_tokens": 1465689911987289676307052,
+      "experiment": "pons-selective-continuation-v1",
+      "id": "pons-selective:8e0dfbea-22bd-4845-9acb-f4fad9a7435c:0x85479de25df7699094dd2998970b8393ae5049f1:0x1f8535787a2bd432f98f4c2e5a53d49b2de742af3d6d652a464a410b4a9f8eaa",
+      "kind": "natural",
+      "last_at": 1789956569,
+      "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+      "pending_exit_tokens": null,
+      "pnl": -65252370277276,
+      "realized_pnl": -65252370277276,
+      "realized_proceeds": 2438878182608724,
+      "reason": null,
+      "remaining_cost": 0,
+      "reserved": 0,
+      "status": "settled",
+      "strategy_namespace": "pons-selective-continuation-v1",
+      "tokens": 0,
+      "version": 4
+    },
+    "gas_model": {
+      "gas_price": 51266000,
+      "reservation_budget": 1000000000000000,
+      "units_proxy": 80571
+    },
+    "independent_strategy": true,
+    "index": 19,
+    "kind": "pons-selective-continuation-v1-paper",
+    "lifecycle_id": "pons-selective:8e0dfbea-22bd-4845-9acb-f4fad9a7435c:0x85479de25df7699094dd2998970b8393ae5049f1:0x1f8535787a2bd432f98f4c2e5a53d49b2de742af3d6d652a464a410b4a9f8eaa",
+    "live_money": false,
+    "minimum_fill_tokens": 305043701960183158166142,
+    "monitor": [
+      {
+        "action": {
+          "action": "full_exit",
+          "exit_tokens": 1465689911987289676307052,
+          "reason": "momentum_failure"
+        },
+        "at": 1789956537,
+        "available": true,
+        "demand": {
+          "buy_sell_ratio_bps": 0,
+          "creator_sell_quote_15s": 0,
+          "current_buy_quote": 0,
+          "current_net_by_group": {},
+          "current_net_quote": 0,
+          "current_sell_quote": 0,
+          "independent_group_ids": [],
+          "independent_groups": 0,
+          "largest_buyer_flow_bps": 0,
+          "new_independent_groups_15s": 0,
+          "prior_net_quote": 0,
+          "recent_buy_groups": [],
+          "top3_buyer_flow_bps": 0
+        },
+        "market": "curve",
+        "pregraduation_exit_reason": "momentum_failure",
+        "profit_taking_deferred_until_post_graduation": true,
+        "quote": {
+          "amount_in": 1465689911987289676307052,
+          "amount_out": 2443064812910724,
+          "block": 68427904,
+          "block_hash": "0x63562182f2bde70701bcd2f707c0bf60d0013866636d17d492027c87c662e9e5",
+          "chain_timestamp_lag_seconds": -1.2251014709472656,
+          "event_at": 1789956536,
+          "evidence_acquisition_latency_seconds": 2.514841850999801,
+          "fee_quote": 24677422352633,
+          "gas_price": 51824000,
+          "gas_quote": 4175511504000,
+          "gas_units_proxy": 80571,
+          "observed_at": 1789956537,
+          "state": {
+            "creator_tax_bps": 0,
+            "fee_bps": 100,
+            "graduated": false,
+            "launched_at": 1789956536,
+            "quote_reserve": 1683069720196495412,
+            "real_quote": 3069720196495412,
+            "reserved_tokens": 285714285714285714285714285,
+            "snipe_seconds": 1,
+            "snipe_start_bps": 0,
+            "timestamp": 1789956536,
+            "token_reserve": 998176118220380672375777002
+          },
+          "venue": "pons_v2_curve"
+        },
+        "return_bps": -261,
+        "trajectory": {
+          "accelerating": false,
+          "complete": true,
+          "current_progress_bps": 7,
+          "graduation_eta_seconds": null,
+          "prior_progress_bps": 0,
+          "prior_seconds": 10,
+          "progress_15s_bps": 0,
+          "recent_progress_bps": 0,
+          "recent_seconds": 5
+        }
+      }
+    ],
+    "namespace": "pons-selective-continuation-v1",
+    "paper_only": true,
+    "policy": "pons-selective-continuation-v1",
+    "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+    "provider_sessions": [
+      {
+        "batched_recent_headers": true,
+        "cache": {
+          "header_hashes": 150,
+          "header_number_hit": 151,
+          "header_number_miss": 298,
+          "header_numbers": 150,
+          "header_store": 150,
+          "launch_miss": 1,
+          "launch_store": 1,
+          "launches": 1,
+          "real_quote_miss": 2,
+          "real_quote_store": 2,
+          "real_quotes": 2,
+          "receipts": 0
+        },
+        "recent_headers_considered": 150,
+        "sessions": [
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 3,
+              "eth_chainId:miss": 1,
+              "eth_getBlockByNumber:miss": 149
+            },
+            "logical_methods": {
+              "eth_call": 3,
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 149
+            },
+            "logical_requests": 153,
+            "methods": {
+              "eth_call": 3,
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 149
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 2718,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 234.86901091900273
+            },
+            "provider_kind": "alchemy",
+            "requests": 153,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_selective_trajectory": 152
+            },
+            "transport_requests": 5
+          }
+        ]
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_chainId:miss": 1,
+          "eth_getBlockByNumber:miss": 18
+        },
+        "logical_methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 18
+        },
+        "logical_requests": 19,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 18
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2749,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 238.3766413260035
+        },
+        "provider_kind": "alchemy",
+        "requests": 19,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_selective_trajectory": 18
+        },
+        "transport_requests": 19
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_chainId:miss": 1,
+          "eth_getLogs:miss": 59
+        },
+        "logical_methods": {
+          "eth_chainId": 1,
+          "eth_getLogs": 59
+        },
+        "logical_requests": 60,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getLogs": 59
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2755,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 238.74190733300367
+        },
+        "provider_kind": "alchemy",
+        "requests": 60,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_selective_monitor": 59
+        },
+        "transport_requests": 3
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_call:miss": 13,
+          "eth_chainId:miss": 1,
+          "eth_gasPrice:miss": 4,
+          "eth_getBlockByNumber:miss": 7,
+          "eth_getLogs:miss": 6
+        },
+        "logical_methods": {
+          "eth_call": 13,
+          "eth_chainId": 1,
+          "eth_gasPrice": 4,
+          "eth_getBlockByNumber": 7,
+          "eth_getLogs": 6
+        },
+        "logical_requests": 31,
+        "methods": {
+          "eth_call": 13,
+          "eth_chainId": 1,
+          "eth_gasPrice": 4,
+          "eth_getBlockByNumber": 7,
+          "eth_getLogs": 6
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 2758,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 239.1490805080037
+        },
+        "provider_kind": "alchemy",
+        "requests": 31,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_natural": 4,
+          "pons_paper": 7,
+          "pons_selective_paper_quote": 19
+        },
+        "transport_requests": 15
+      }
+    ],
+    "qualification_vector": {
+      "all_rejections": [],
+      "asof": 1789955745,
+      "authority": "frozen_policy_paper",
+      "chain_timestamp_lag_seconds": 774.764487028122,
+      "complete": true,
+      "creator_history": null,
+      "current_snipe_bps": 0,
+      "current_threshold_pass": true,
+      "decision_state_age_seconds": 3.8829418469999837,
+      "demand": {
+        "buy_sell_ratio_bps": 64571,
+        "creator_sell_quote_15s": 0,
+        "current_buy_quote": 684116400000000000,
+        "current_net_by_group": {
+          "0x25a945c5661009342d702d40c200346e072763e0": 55300000000000000,
+          "0x3a6b9e22e2043969a9cde924955eeacba37865f7": 156699425786925101,
+          "0x4039c853fed0b5a13fe03c9746078d0b517352da": 32239000000000000,
+          "0x65050a9b7e5075a2ba5ced7b1b64ee66262c40dc": 990000000000000,
+          "0x6cea141856b250dd3a99679713a58a42e4ad91bc": 78460000000000000,
+          "0x8aeb2f59c3105f1d19855c20f733f63fc717ad77": 8446000000000000,
+          "0x8f6f0cb39fce61cc3493ba1c5ec1d50d6147eac3": -5773429541268116,
+          "0xaf98c9503d418dbf486170a2aa292c00e5f1107d": 10630000000000000,
+          "0xbce05fb07e8a965cb565c4412afdae217d1b98fb": 6900400000000000,
+          "0xcd68d1ef14e6f142b40618fd0d7e79d9270ca93e": 38801000000000000,
+          "0xd4149b142d797d447fd2470ae8f6fb7c30a5ba6a": 20250000000000000,
+          "0xdb7929468669d74693aa3a0eaac8ea6f01b9dc7e": -3463225331799711,
+          "0xe90d2ee462646e2b1574c2ad051456b8bf55eaa2": 178690000000000000
+        },
+        "current_net_quote": 578169170913857274,
+        "current_sell_quote": 105947229086142726,
+        "independent_group_ids": [
+          "0x25a945c5661009342d702d40c200346e072763e0",
+          "0x3a6b9e22e2043969a9cde924955eeacba37865f7",
+          "0x4039c853fed0b5a13fe03c9746078d0b517352da",
+          "0x65050a9b7e5075a2ba5ced7b1b64ee66262c40dc",
+          "0x6cea141856b250dd3a99679713a58a42e4ad91bc",
+          "0x8aeb2f59c3105f1d19855c20f733f63fc717ad77",
+          "0x8f6f0cb39fce61cc3493ba1c5ec1d50d6147eac3",
+          "0xa837fb20333f143c721d7dca8c866f41f7c70304",
+          "0xaa769c28898597419b71afcc57ce61ca038c9889",
+          "0xaf98c9503d418dbf486170a2aa292c00e5f1107d",
+          "0xbce05fb07e8a965cb565c4412afdae217d1b98fb",
+          "0xcd68d1ef14e6f142b40618fd0d7e79d9270ca93e",
+          "0xd4149b142d797d447fd2470ae8f6fb7c30a5ba6a",
+          "0xdb7929468669d74693aa3a0eaac8ea6f01b9dc7e",
+          "0xe90d2ee462646e2b1574c2ad051456b8bf55eaa2"
+        ],
+        "independent_groups": 15,
+        "largest_buyer_flow_bps": 2039,
+        "new_independent_groups_15s": 1,
+        "prior_net_quote": 138974565891725607,
+        "recent_buy_groups": [
+          "0x25a945c5661009342d702d40c200346e072763e0",
+          "0x3a6b9e22e2043969a9cde924955eeacba37865f7",
+          "0x4039c853fed0b5a13fe03c9746078d0b517352da",
+          "0x65050a9b7e5075a2ba5ced7b1b64ee66262c40dc",
+          "0x6cea141856b250dd3a99679713a58a42e4ad91bc",
+          "0x8aeb2f59c3105f1d19855c20f733f63fc717ad77",
+          "0xaf98c9503d418dbf486170a2aa292c00e5f1107d",
+          "0xbce05fb07e8a965cb565c4412afdae217d1b98fb",
+          "0xcd68d1ef14e6f142b40618fd0d7e79d9270ca93e",
+          "0xd4149b142d797d447fd2470ae8f6fb7c30a5ba6a",
+          "0xe90d2ee462646e2b1574c2ad051456b8bf55eaa2"
+        ],
+        "top3_buyer_flow_bps": 4623
+      },
+      "evidence_acquisition_latency_seconds": 3.8829418469999837,
+      "evidence_available_at": 1789956523,
+      "evidence_observed_at": 1789956519.764487,
+      "pair_token": "0x0000000000000000000000000000000000000000",
+      "policy": "pons-selective-continuation-v1",
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "progress_bps": 4743,
+      "proposed_size": {
+        "amount_quote": 2500000000000000,
+        "caps": {
+          "capital": 2500000000000000,
+          "independent_net": 57816917091385727,
+          "real_quote": 39845045108367307
+        },
+        "impact_cap_quote": 2500000000000000
+      },
+      "qualification": "qualified",
+      "qualification_authority": true,
+      "quote_relative_strength_bps": null,
+      "roundtrip_loss_bps": 246,
+      "thresholds": {
+        "capital_size_bps": 25,
+        "independent_net_size_bps": 1000,
+        "max_creator_tax_bps": 200,
+        "max_curve_progress_bps": 9700,
+        "max_entry_impact_bps": 300,
+        "max_graduation_eta_seconds": 300,
+        "max_largest_buyer_flow_bps": 4000,
+        "max_market_events": 512,
+        "max_roundtrip_loss_bps": 800,
+        "max_state_age_seconds": 5,
+        "max_token_age_seconds": 900,
+        "max_top3_buyer_flow_bps": 7500,
+        "min_buy_sell_ratio_bps": 12000,
+        "min_curve_progress_bps": 4500,
+        "min_independent_groups": 3,
+        "min_new_independent_groups_15s": 1,
+        "min_progress_15s_bps": 300,
+        "real_quote_size_bps": 200
+      },
+      "token_age_seconds": 66,
+      "trajectory": {
+        "accelerating": false,
+        "complete": true,
+        "current_progress_bps": 4743,
+        "graduation_eta_seconds": 120,
+        "prior_progress_bps": 1079,
+        "prior_seconds": 10,
+        "progress_15s_bps": 1299,
+        "recent_progress_bps": 220,
+        "recent_seconds": 5
+      },
+      "wallet_convergence": {
+        "complete": true,
+        "converged": false,
+        "convergence_count": 0,
+        "qualification_authority": false,
+        "skilled_independent_groups": []
+      }
+    },
+    "realized_pnl_quote": -65252370277276,
+    "reconciliation": {
+      "accounting": {
+        "pons-selective:8e0dfbea-22bd-4845-9acb-f4fad9a7435c:0x85479de25df7699094dd2998970b8393ae5049f1:0x1f8535787a2bd432f98f4c2e5a53d49b2de742af3d6d652a464a410b4a9f8eaa": {
+          "capital_at_risk_unit_nanoseconds": 112686054886311566417174000,
+          "held_reservation_unit_nanoseconds": 155987080077500000000000000,
+          "integral_complete": true,
+          "native_execution_cost": 8317183188000,
+          "replay_verified": true,
+          "through_recorded_at_ns": 1789956569966230453
+        }
+      },
+      "available": 999934747629722724,
+      "booked_realized": -65252370277276,
+      "cash": 999934747629722724,
+      "cash_basis_conservation": true,
+      "committed": 0,
+      "genesis": 1000000000000000000,
+      "mark_times": {},
+      "marked_position_value": 0,
+      "marks_complete": true,
+      "open_exposure": 0,
+      "realized": -65252370277276,
+      "remaining_cost_basis": 0,
+      "unrealized_at_recorded_marks": 0
+    },
+    "reservation": {
+      "amount": 2500000000000000,
+      "cost": 0,
+      "due": 1789956525,
+      "entry_tokens": 0,
+      "experiment": "pons-selective-continuation-v1",
+      "id": "pons-selective:8e0dfbea-22bd-4845-9acb-f4fad9a7435c:0x85479de25df7699094dd2998970b8393ae5049f1:0x1f8535787a2bd432f98f4c2e5a53d49b2de742af3d6d652a464a410b4a9f8eaa",
+      "kind": "natural",
+      "last_at": 1789956523,
+      "market": "0x031322d6ab07b048435b5fef1460cd069b97937b",
+      "pending_exit_tokens": null,
+      "pnl": 0,
+      "realized_pnl": 0,
+      "realized_proceeds": 0,
+      "reason": null,
+      "remaining_cost": 0,
+      "reserved": 3500000000000000,
+      "status": "reserved",
+      "strategy_namespace": "pons-selective-continuation-v1",
+      "tokens": 0,
+      "version": 0
+    },
+    "restart_reconciliation": {
+      "accounting": {
+        "pons-selective:8e0dfbea-22bd-4845-9acb-f4fad9a7435c:0x85479de25df7699094dd2998970b8393ae5049f1:0x1f8535787a2bd432f98f4c2e5a53d49b2de742af3d6d652a464a410b4a9f8eaa": {
+          "capital_at_risk_unit_nanoseconds": 3804895346000000000000000,
+          "held_reservation_unit_nanoseconds": 3804895346000000000000000,
+          "integral_complete": false,
+          "native_execution_cost": 4130552886000,
+          "replay_verified": true,
+          "through_recorded_at_ns": 1789956526485606244
+        }
+      },
+      "available": 996500000000000000,
+      "booked_realized": 0,
+      "cash": 997495869447114000,
+      "cash_basis_conservation": true,
+      "committed": 3500000000000000,
+      "genesis": 1000000000000000000,
+      "mark_times": {
+        "pons-selective:8e0dfbea-22bd-4845-9acb-f4fad9a7435c:0x85479de25df7699094dd2998970b8393ae5049f1:0x1f8535787a2bd432f98f4c2e5a53d49b2de742af3d6d652a464a410b4a9f8eaa": null
+      },
+      "marked_position_value": null,
+      "marks_complete": false,
+      "open_exposure": 1465689911987289676307052,
+      "realized": 0,
+      "remaining_cost_basis": 2504130552886000,
+      "unrealized_at_recorded_marks": null
+    },
+    "shared_allocator": false,
+    "source_transaction": "0x1f8535787a2bd432f98f4c2e5a53d49b2de742af3d6d652a464a410b4a9f8eaa",
+    "started_at": 1789956523.714584,
+    "status": "settled",
+    "token": "0x85479de25df7699094dd2998970b8393ae5049f1"
+  }
+]

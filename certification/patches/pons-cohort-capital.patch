@@ -1125,7 +1125,7 @@ index 0000000..38a4454
 +                self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT');return rec
 +            except BaseException:db.execute('ROLLBACK');raise
 diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
-index 080894d..03f1556 100644
+index 080894d..b138fed 100644
 --- a/robinhood_research/pons_selective_cohort.py
 +++ b/robinhood_research/pons_selective_cohort.py
 @@ -5,6 +5,8 @@ result directory, dedicated wallet-skill ledger, dedicated paper databases, poli
@@ -1228,7 +1228,7 @@ index 080894d..03f1556 100644
 +        candidate_rows=len(result['rows']),qualifiers=len(result['qualifiers']),
 +        lifecycles=len(result['lifecycles']),provider_sessions=len(result['discovery_sessions']))
 +    compact['lifecycles']=[{k:v for k,v in life.items() if k in (
-+        'index','status','boundary','final_position','reconciliation','realized_pnl_quote',
++        'index','status','boundary','settlement_kind','final_position','reconciliation','realized_pnl_quote',
 +        'carried_through_graduation','capital_reconciliation')} for life in result['lifecycles']]
 +    raw=json.dumps(compact,sort_keys=True,separators=(',',':')).encode()
 +    if len(raw)>12_000_000:raise BoundaryError('selective_cohort_report_capacity')
@@ -3194,10 +3194,10 @@ index 0000000..fb8f397
 +if __name__=='__main__':unittest.main()
 diff --git a/robinhood_tests/test_pons_continuous_campaign.py b/robinhood_tests/test_pons_continuous_campaign.py
 new file mode 100644
-index 0000000..e916793
+index 0000000..7cde493
 --- /dev/null
 +++ b/robinhood_tests/test_pons_continuous_campaign.py
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,104 @@
 +from contextlib import ExitStack
 +from concurrent.futures import Future
 +import gzip
@@ -3213,6 +3213,21 @@ index 0000000..e916793
 +
 +
 +class ContinuousCampaignTests(unittest.TestCase):
++    def test_terminal_writeoff_keeps_its_accounting_kind(self):
++        life=dict(index=0,status='settled',settlement_kind='liquidity_writeoff',
++            final_position=dict(status='settled',entry_tokens=2,
++                reason='liquidity_writeoff:impossible_full_position_exit',realized=-100),
++            reconciliation=dict(open_exposure=0),
++            exit=dict(quote=dict(amount_out=0,executable=False,proof={'verified':True})))
++        result=dict(rows=[],qualifiers=[],lifecycles=[life],discovery_sessions=[],
++                    sequencer_recoveries=[],summary=dict(enrolled=1))
++        with tempfile.TemporaryDirectory() as td,patch.object(cohort,'ROOT',Path(td)),patch.object(cohort,'REPORT',Path(td)/'report.json'):
++            compact=cohort.persist_terminal(result)
++            self.assertEqual(compact['lifecycles'][0]['settlement_kind'],'liquidity_writeoff')
++            self.assertEqual(compact['lifecycles'][0]['final_position']['realized'],-100)
++            archived=json.loads(gzip.decompress(Path(compact['observation_archive']['path']).read_bytes()))
++            self.assertEqual(archived,result)
++
 +    def test_large_result_is_preserved_exactly_under_bounded_terminal_view(self):
 +        result=dict(rows=[dict(evidence='x'*13_000_000)],qualifiers=[],lifecycles=[dict(
 +            index=0,final_position=dict(status='settled',entry_tokens=2),reconciliation=dict(open_exposure=0),

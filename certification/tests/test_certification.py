@@ -122,6 +122,17 @@ class CertificationTests(unittest.TestCase):
         x=summarize('pons',dict(lifecycles=[dict(final_position=dict(status='settled',entry_tokens=0))]))
         self.assertEqual(x['natural_settled'],0)
 
+    def test_pons_writeoff_never_counts_as_natural_sale_after_compaction(self):
+        position=dict(status='settled',entry_tokens=10,realized=-100,
+            reason='liquidity_writeoff:impossible_full_position_exit')
+        for life in (dict(final_position=position,settlement_kind='liquidity_writeoff'),
+                     dict(final_position=position)):
+            with self.subTest(explicit_kind='settlement_kind' in life):
+                report=summarize('pons',dict(lifecycles=[life,dict(
+                    final_position=dict(status='settled',entry_tokens=10,reason='momentum_failure'))]))
+                self.assertEqual(report['natural_settled'],1)
+                self.assertEqual(report['funnel']['liquidity_writeoffs'],1)
+
     def test_pump_cancelled_qualification_is_visible_but_not_a_trade(self):
         report=dict(qualifiers=[dict(entry_status='cancelled',entry_limitation='entry_fill_timeout')],
             full_evidence_candidates=[{}],settled=[],attempts=[],open_positions=[],pending_entries=[])

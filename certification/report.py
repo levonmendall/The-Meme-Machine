@@ -100,7 +100,8 @@ def summarize(lane, report):
         writeoffs=0
         for life in report.get('lifecycles',[]):
             pos=life.get('final_position') or {}
-            if life.get('settlement_kind')=='liquidity_writeoff':
+            if (life.get('settlement_kind')=='liquidity_writeoff' or
+                    pos.get('reason')=='liquidity_writeoff:impossible_full_position_exit'):
                 writeoffs+=1
                 continue
             if pos.get('status')=='settled' and pos.get('entry_tokens',0)>0:
