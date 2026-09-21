@@ -1,0 +1,40 @@
+name: pump-market-probe
+on:
+  push:
+    branches:
+      - audit/missed-winner-market-replay
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: contains(github.event.head_commit.message, '[run-pump-probe]') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe Solana indexed/public historical sources
+        shell: bash
+        run: |
+          set -x
+          python - <<'PY'
+          import json, urllib.request
+          program="6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
+          url=f"https://api.solana.fm/v0/accounts/{program}/transactions?utcFrom=1789988465&utcTo=1789988525&limit=10&page=1"
+          try:
+              req=urllib.request.Request(url,headers={"User-Agent":"meme-machine-audit/1"})
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  raw=r.read(1000000)
+              print("SOLANAFM_STATUS",len(raw))
+              print(raw[:5000].decode("utf-8","replace"))
+          except Exception as e:
+              print("SOLANAFM_ERROR",repr(e))
+          for rpc in ["https://api.mainnet-beta.solana.com","https://solana.api.onfinality.io/public"]:
+              body=json.dumps({"jsonrpc":"2.0","id":1,"method":"getSignaturesForAddress","params":[program,{"limit":3,"commitment":"finalized"}]}).encode()
+              try:
+                  req=urllib.request.Request(rpc,data=body,headers={"Content-Type":"application/json","User-Agent":"meme-machine-audit/1"})
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      raw=r.read(1000000)
+                  print("RPC",rpc,len(raw),raw[:3000].decode("utf-8","replace"))
+              except Exception as e:
+                  print("RPC_ERROR",rpc,repr(e))
+          PY
