@@ -1391,3 +1391,6 @@ Immediately before this launch, in_progress/queued/pending/waiting Actions lists
 
 
 Fresh exact candidatee552c288e6dd6c9028819cc4883890303dbf9524 is now in staged workflow35600287474, smoke job106334511622. Its exact-revision deterministic/source gates precede any market process. Standalone artifact-review workflow35600287418 and deterministic-build35600287400 were correctly skipped for this launch marker; the legacy paper-milestone job has the qualification-build marker and no live authority. The smoke's mandatory complete archive review now supplies fresh authenticated frontier evidence before the hourly job can start.
+
+
+At422.854505303seconds of the fresh e552c288smoke, all four lanes are responsive with zero restarts/open exposure/natural fills. One Pons eth_getLogs JSON-RPC-32602 error appeared before180seconds and has not repeated. The lane continued through its existing range-recovery behavior; its feed header age stayed around1second while full candidate work proceeded. This error is not hidden or labeled local capacity. A separate provider-free exact-smoke archive audit now records the original failed request plus subsequent authenticated eth_blockNumber/headers/broad log ranges, retaining adjacency as evidence without inventing retry-parent identities. This additional audit modifies no running source, policy, governor or candidate overlay.

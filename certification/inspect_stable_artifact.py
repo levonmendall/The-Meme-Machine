@@ -183,6 +183,7 @@ if failures:raise RuntimeError('stable_archive_integrity_failed')
 # This is read-only attribution; it neither advances cursors nor changes freshness.
 frontier_rows=[]; log_rows=[]; response_shapes=collections.Counter()
 discovery_events={}
+frontier_number_rows=[]
 warmup_end=(review['pons_complete'].get('warmup') or {}).get('end_block')
 def integer(value):
     if isinstance(value,str):
@@ -221,6 +222,8 @@ with state['gzip'].open(state['base']/'pons/rpc-evidence.jsonl.gz','rt') as file
                     body=raw
             else:
                 continue
+            if method=='eth_blockNumber' and integer(body) is not None:
+                frontier_number_rows.append(dict(physical_request_id=row.get('physical_request_id'),observed_at_ns=at_ns,block=integer(body)))
             if method=='eth_getBlockByNumber' and isinstance(body,dict):
                 number=integer(body.get('number'));timestamp=integer(body.get('timestamp'))
                 frontier_rows.append(dict(physical_request_id=row.get('physical_request_id'),
@@ -277,3 +280,21 @@ freshness_audit=dict(run=state['RUN'],sha=state['SHA'],phase=state['PHASE'],
 print('PONS_DISCOVERY_FRESHNESS_BEGIN',flush=True)
 print(json.dumps(freshness_audit,sort_keys=True),flush=True)
 print('PONS_DISCOVERY_FRESHNESS_END',flush=True)
+
+range_recoveries=[]
+for failure in review['raw']['pons']['provider_failures']:
+    at=integer(failure.get('observed_at_ns'))
+    if not at:continue
+    nearby=lambda x: x.get('observed_at_ns') is not None and at<=x['observed_at_ns']<=at+30*10**9
+    range_recoveries.append(dict(
+        failure={k:failure.get(k) for k in ('physical_request_id','observed_at_ns','request','error','http_status','json_rpc_error_codes','retry_count','original_deadline','failure_domain')},
+        following_block_number=[x for x in frontier_number_rows if nearby(x)][:8],
+        following_broad_ranges=[x for x in broad if nearby(x)][:12],
+        following_headers=[x for x in frontier_rows if nearby(x)][-8:]))
+range_audit=dict(run=state['RUN'],sha=state['SHA'],phase=state['PHASE'],
+    scope='Actual failed requests plus subsequent authenticated range/frontier records; adjacency is evidence, not an invented retry-parent identity.',
+    provider_failures=range_recoveries)
+(out/'pons-range-recovery-attribution.json').write_text(json.dumps(range_audit,indent=2,sort_keys=True))
+print('PONS_RANGE_RECOVERY_BEGIN',flush=True)
+print(json.dumps(range_audit,sort_keys=True),flush=True)
+print('PONS_RANGE_RECOVERY_END',flush=True)
