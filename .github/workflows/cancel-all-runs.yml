@@ -19,7 +19,7 @@ jobs:
           python - <<'PY'
           import json, os, pathlib, time, urllib.request
           targets = {
-              35563114670: "c4572e18d078222fe05d6df9eec55d62dfc59f41",
+              35568442889: "437a844579c5d8e982a172dca7cbe160f066d099",
           }
           headers = {"Authorization": "Bearer " + os.environ["GH_TOKEN"],
                      "Accept": "application/vnd.github+json",
@@ -35,7 +35,7 @@ jobs:
               with urllib.request.urlopen(urllib.request.Request(url + "/artifacts", headers=headers)) as response:
                   artifacts = json.load(response)
               record = dict(run_id=run_id, sha=sha, before=row["status"],
-                            artifacts=artifacts, reason="stop failed superseded hour after Pons already exited unexpectedly with retained unresolved exposure; require every still-running lane flat with no outstanding qualification before cancellation; preserve all artifacts and exact unresolved Pons accounting")
+                            artifacts=artifacts, reason="superseded hour: smoke raw evidence proves current-state authentication omitted original five-second deadline and foreground priority, causing five 30-second local waits; require all four lanes flat and reconciled without outstanding qualifiers; preserve prior smoke and all partial hour evidence")
               if row["status"] != "completed":
                   checks_url = "https://api.github.com/repos/" + os.environ["REPOSITORY"] + "/commits/" + sha + "/check-runs?per_page=100"
                   for freshness_attempt in range(19):
@@ -47,11 +47,7 @@ jobs:
                       if 0 <= time.time()-snapshot.get("observed_at",0)<45:break
                       if freshness_attempt<18:time.sleep(5)
                   flat = snapshot.get("elapsed_seconds") is not None and 0 <= time.time()-snapshot.get("observed_at",0)<45
-                  pons = snapshot["lanes"]["pons"]
-                  flat = flat and pons.get("exit_code")==0 and pons.get("unexpected_exit") is True and pons.get("health")=="exited"
-                  record["already_exited_unresolved_pons"] = pons.get("cohort_accounting")
                   for lane, state in snapshot["lanes"].items():
-                      if lane=="pons":continue
                       flat = flat and state.get("open_positions") == 0 and state.get("accounting_reconciled") is True
                       funnel = state.get("funnel") or {}
                       qualified = funnel.get("qualified",funnel.get("unique_qualified",0))

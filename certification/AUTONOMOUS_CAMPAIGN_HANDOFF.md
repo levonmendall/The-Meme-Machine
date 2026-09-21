@@ -906,3 +906,73 @@ normal drain, archive checksum/native review and engineering controls must pass
 before one independent3600-second hour starts from fresh process state. Prior
 smoke/hour time is not reused. No profitability or natural completion is inferred
 from deterministic or engineering success.
+
+
+## 2026-09-21: 437a8445 smoke accepted; remaining authentication scheduling defect
+
+Exact candidate437a844579c5d8e982a172dca7cbe160f066d099, workflow35568442889,
+smoke job106234826385 and raw/native review106240924283 passed.
+Continuous overlap600.124634884s; normal drain total1605.016779171s. All four
+exit0, no restarts, no open positions, reconciled run-specific books.
+Archive10626230498,72379323 bytes, verified SHA256
+1568c2024fb20b01bbd4ad9febd194bb1130eb2b68f362c27c921597fdfb78d0.
+Review10626100967,270828 bytes, recorded SHA256
+6b12897805c0b3ec1fd385f4b35c69d2827a05437d76540558189c2b40e3a596.
+The repaired isolated artifact staging completed successfully. A separate read-only
+file-checksum/SQLite audit is requested in this commit and uses no provider secrets.
+
+Pons4 natural market-sale settlements, zero forced and zero writeoffs. All4 lost:
+-115288648968118,-2065046779447658,-2068798264482066,-164747550498457 native quote
+units; total-4413881243396299. Exact cohort cash995586118756603701, basis/reserved0,
+execution cost40832014544000; native replay and capital integrals complete.
+Two positions each survived4 actual provider429 recoveries and one authenticated
+mid-operation local session rotation at used200, preserving original identities,
+hold clocks, pending state and entry. No position was recreated.
+Pump1 natural settlement+22998693 lamports, four-event ledger replay verified.
+All full qualification/entry/exit/cost records remain in raw/native archive.
+Meteora/Ramses natural0: NATURAL_INCOMPLETE. No profitability claim.
+
+Pump805 physical transports, max getTransaction batch8, zero transaction429;
+four null transaction responses remain incomplete evidence. One getProgramAccounts
+HTTP429: physical0a640ea9-d162-48b9-a92f-532adb999e8d:413, parameter hash
+262df93ae330ba290f9fd13f78d9ec269c31a3f60f9d15a4ffaa5ed7dee62674,
+mint86SSLD31hkdCkoaBAMksTzgir7xio9FfKvAysqChpump, finalized minContextSlot448975954,
+observed1789972569477526999ns, retry0, original deadline null. Exactly one physical
+scan appears, so no duplicate scan is established. Original absent metadata is
+not invented. Method/HTTP/RPC-code attribution retained.
+Pump one physical-governor miss; one prefetch expiration before transport;
+zero queue-capacity/shared-cooldown/lease-wait failure records. Window consumers:
+21845 expired (21837 before transport,8 after),296 complete; these are logical
+signature interests, not unique missed opportunities or provider429s. Thirty-four
+window late-result phase records remain visible. A causal improvement in logical
+expiry is not established by unlike live workloads.
+Meteora59 observed pools,11 admitted,4 reconstructions,2 economic vectors;
+58 signature-history members,zero429,253 physical grants,zero misses.
+Ramses282-pool inventory,2 scans,95 grants,zero misses,maxwait18.040898010s.
+Maximum RSS: Pump94728192,Meteora59621376,Pons53813248,Ramses32215040 bytes.
+Source manifest7c2505cc65e599929e58511f2463875f86228232d30f053754bf0ec9ef639226
+and all four canonical overlay hashes match the candidate. Full hosted gates reran.
+
+The independent hour job106240974615/check106241394327 began after smoke review.
+Further source-level attribution of19 Pons local admission failures found a concrete
+remaining defect: SelectiveEvidenceContext.acquire authenticates a new current-state
+session via _rpc before assigning ctx.deadline to rpc.evidence_deadline.
+Authentication therefore uses generic priority50 and the30s shared cap instead
+of the original five-second candidate deadline. Five recorded connectivity waits
+lasted30s. Discovery authentication and open-position authentication were fixed
+previously, but this separate current-state path was not.
+The hour is SUPERSEDED as replacement certification evidence. The targeted
+cancellation requested here requires a fresh<45s snapshot, all four lanes flat and
+reconciled, no reserved/pending/committed capital, and all qualifiers already settled.
+If refused, existing lifecycle authority continues; no competing market validation
+will start. Cancellation never changes historical unresolved books.
+A repair will bind the original deadline and foreground priority before current-state
+authentication, add regression coverage, and rerun complete canonical deterministic
+gates, a new smoke and a new independent hour. No economic or freshness gate changes.
+
+The prior failed-hour check correction succeeded: workflow35568442894,
+job106234826153; check106224946839 is completed/failure, preserving its original
+pre-cancellation JSON. Audit10624826382,11104 bytes, SHA256
+3d5fa165223a89b42232681a7b0f54f781811a6ae7e2a1689db6ccd9938d5a93.
+The prior missing-hour evidence gap and seven aggregate historical unresolved Pons
+exposures remain recorded; fresh flat books do not resolve that historical exposure.
