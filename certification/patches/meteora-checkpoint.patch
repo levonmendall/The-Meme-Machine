@@ -1880,7 +1880,7 @@ index c1aef79..9054445 100644
 +            terminal_writeoff=reason.startswith("dlmm_rebalance_liquidity_requires_position_state:")
 +            if book is not None:(book.append(identity,'writeoff',dict(reason=reason,recovery_attempts=recoveries)) if terminal_writeoff else book.fail(identity,reason))
 +            return dict(lifecycle_id=identity,
-                 complete=False,reason=reason,segments=segments,
+                 complete=False,reason=phase["reason"],segments=segments,
 -                verified_hold_seconds=elapsed,
 +                verified_hold_seconds=elapsed,recovery_attempts=recoveries,terminal_writeoff=terminal_writeoff,
 +                **(dict(writeoff_proceeds_lamports=0) if terminal_writeoff else dict(unresolved_position=True)),
