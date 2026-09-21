@@ -1,0 +1,15 @@
+name: cancel-dlmm-shadow
+on:
+  push:
+    branches: [cert/dlmm-machinery-proof-current]
+permissions:
+  contents: read
+jobs:
+  cancel:
+    if: contains(github.event.head_commit.message, '[cancel-dlmm-shadow]')
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: solana-public-rpc-live
+      cancel-in-progress: true
+    steps:
+      - run: echo "Cancelling stale branch-enablement live diagnostic before relaxed DLMM certification."
