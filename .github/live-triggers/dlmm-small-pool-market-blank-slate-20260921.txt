@@ -1,0 +1,4 @@
+Purpose: blank-slate DLMM market segmentation research.
+Existing strategy thresholds are not inputs to this study.
+Run the wallet-independent Meteora TVL / age / volatility / fee-density market census only.
+No Solana RPC research run is authorized by this marker.
