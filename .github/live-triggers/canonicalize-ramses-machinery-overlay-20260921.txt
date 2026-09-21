@@ -1,0 +1,1 @@
+Regenerate the Ramses operational overlay against the repaired machinery-proof source and commit the exact git diff.
