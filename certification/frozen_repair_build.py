@@ -41,7 +41,7 @@ def publish():
     for path in files+sorted(out.glob('*')):
         if not path.is_file():continue
         content=path.read_bytes()
-        target=str(path.relative_to(ROOT)) if path in files else 'certification/results/hosted-frozen-repair/ramses-dynamic-events/'+path.name
+        target=str(path.relative_to(ROOT)) if path in files else 'certification/results/hosted-frozen-repair/pons-discovery-range-batching/'+path.name
         request=urllib.request.Request('https://api.github.com/repos/levonmendall/The-Meme-Machine/git/blobs',
             data=json.dumps({'content':base64.b64encode(content).decode(),'encoding':'base64'}).encode(),
             headers={'Authorization':'Bearer '+os.environ['GITHUB_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json'},

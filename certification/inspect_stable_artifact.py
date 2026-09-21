@@ -182,6 +182,8 @@ if failures:raise RuntimeError('stable_archive_integrity_failed')
 # Distinguish auxiliary sequencer header age from authenticated L2 discovery lag.
 # This is read-only attribution; it neither advances cursors nor changes freshness.
 frontier_rows=[]; log_rows=[]; response_shapes=collections.Counter()
+discovery_events={}
+warmup_end=(review['pons_complete'].get('warmup') or {}).get('end_block')
 def integer(value):
     if isinstance(value,str):
         try:return int(value,16) if value.startswith('0x') else int(value)
@@ -233,6 +235,22 @@ with state['gzip'].open(state['base']/'pons/rpc-evidence.jsonl.gz','rt') as file
                         broad_discovery=params[0].get('address') is None,
                         http_status=row.get('http_status'),error=row.get('error'),
                         rpc_error=response.get('error'),response_logs=len(body) if isinstance(body,list) else None))
+                    if params[0].get('address') is None and isinstance(body,list):
+                        groups=params[0].get('topics') or []
+                        alternatives=groups[0] if groups and isinstance(groups[0],list) else []
+                        for event in body:
+                            if not isinstance(event,dict) or not event.get('topics'):continue
+                            event_topic=str(event['topics'][0]).lower()
+                            labels={str(value).lower():label for value,label in zip(alternatives,('CurveBuy','CurveSell'))}
+                            kind=labels.get(event_topic,'unclassified')
+                            key=(event.get('blockHash'),event.get('transactionHash'),event.get('logIndex'))
+                            block=integer(event.get('blockNumber'))
+                            period='post_warmup' if warmup_end is not None and block is not None and block>int(warmup_end) else 'warmup_or_unclassified'
+                            identity=(kind,period)
+                            if key in discovery_events and discovery_events[key]!=identity:
+                                raise RuntimeError('pons_discovery_event_identity_conflict')
+                            discovery_events[key]=identity
+
 # Preserve every parsed row; compact printed samples stay bounded.
 (out/'pons-authenticated-header-rows.json').write_text(json.dumps(frontier_rows,indent=2,sort_keys=True))
 (out/'pons-discovery-range-rows.json').write_text(json.dumps(log_rows,indent=2,sort_keys=True))
@@ -246,6 +264,8 @@ if not frontier_rows or not broad:raise RuntimeError('pons_freshness_archive_sch
 freshness_audit=dict(run=state['RUN'],sha=state['SHA'],phase=state['PHASE'],
     scope='Auxiliary sequencer header time is not assumed to equal L2 block time. Only authenticated response members establish L2 frontier evidence. Log ranges include all archived Pons roles; no discovery-gap inference is made from mixed roles.',
     response_shapes=dict(response_shapes),header_rows=len(frontier_rows),log_range_rows=len(log_rows),
+    observed_curve_events={period:dict(collections.Counter(kind for kind,p in discovery_events.values() if p==period)) for period in ('post_warmup','warmup_or_unclassified')},
+    event_count_scope='Unique blockHash/transactionHash/logIndex from broad authenticated reads; topic order follows the exact cohort CurveBuy/CurveSell query; native warmup.end_block separates warmup.',
     broad_discovery_rows=len(broad),broad_discovery_first=broad[:4],broad_discovery_last=broad[-12:],
     nearby_newest_headers=sorted(nearby_headers,key=lambda x:x['block'] or -1)[-12:],
     latest_tag_rows=len(latest),latest_tag_first=latest[:4],latest_tag_last=latest[-12:],
