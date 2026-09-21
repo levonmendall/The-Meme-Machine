@@ -19,7 +19,7 @@ jobs:
           python - <<'PY'
           import json, os, pathlib, urllib.request
           targets = {
-              35545908034: "9ef7addcf9d5fb0ca2cc106f0f0a512b4c475bef",
+              35547208867: "128d744a795d3a465dbf4b5e7719fd9f75930ee8",
           }
           headers = {"Authorization": "Bearer " + os.environ["GH_TOKEN"],
                      "Accept": "application/vnd.github+json",
@@ -35,7 +35,7 @@ jobs:
               with urllib.request.urlopen(urllib.request.Request(url + "/artifacts", headers=headers)) as response:
                   artifacts = json.load(response)
               record = dict(run_id=run_id, sha=sha, before=row["status"],
-                            artifacts=artifacts, reason="superseded failed smoke: Pons exited at 135 seconds; all books show zero open exposure after observation cutoff; preserve artifacts before replacement")
+                            artifacts=artifacts, reason="stop successor hour after smoke artifact proved pending Pump entry starved by research RPC work; latest all-lane snapshot shows zero open exposure; preserve both artifacts")
               if row["status"] != "completed":
                   with urllib.request.urlopen(urllib.request.Request(url + "/cancel", headers=headers, method="POST")) as response:
                       record["cancel_response"] = response.status
