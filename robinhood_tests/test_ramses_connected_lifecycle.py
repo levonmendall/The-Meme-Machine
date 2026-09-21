@@ -10,6 +10,8 @@ import robinhood_research.ramses_all_pool_lifecycle as lifecycle
 from robinhood_research.ramses_all_pool_lifecycle import (
     _canonicalize_selected_row,
     _frozen_prestate,
+    _is_transient_provider_boundary,
+    _paper_ledger_capital,
     aggregate_segments,
     compact_lifecycle_result,
     select_qualifier,
@@ -51,6 +53,44 @@ def _decision(qualified=True):
 
 
 class RamsesConnectedLifecycleTests(unittest.TestCase):
+    def test_transient_provider_boundaries_are_position_safe_only_for_rate_limits(self):
+        self.assertTrue(
+            _is_transient_provider_boundary(
+                lifecycle.BoundaryError("provider_http_429")
+            )
+        )
+        self.assertTrue(
+            _is_transient_provider_boundary(
+                lifecycle.BoundaryError("provider_rpc_429")
+            )
+        )
+        self.assertTrue(
+            _is_transient_provider_boundary(
+                lifecycle.BoundaryError("provider_rate_limit")
+            )
+        )
+        self.assertFalse(
+            _is_transient_provider_boundary(
+                lifecycle.BoundaryError("connected_lifecycle_terminal_equality")
+            )
+        )
+
+    def test_machinery_proof_ledger_funds_modeled_cost_envelope_without_resizing_position(self):
+        position = 205467
+        costs = dict(
+            entry_overhead=630350,
+            add_liquidity=1260698,
+            remove_liquidity=1260698,
+            unwind=630349,
+        )
+        funded = _paper_ledger_capital(position, costs, 2)
+        self.assertEqual(
+            funded,
+            position + sum(costs.values()) * 3,
+        )
+        self.assertGreater(funded, position)
+        self.assertEqual(position, 205467)
+
     def test_first_ranked_genuine_qualifier_is_selected(self):
         screen = dict(
             strategy_domain=STRATEGY_DOMAIN,
