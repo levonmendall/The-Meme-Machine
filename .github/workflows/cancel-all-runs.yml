@@ -19,7 +19,7 @@ jobs:
           python - <<'PY'
           import json, os, pathlib, time, urllib.request
           targets = {
-              35578433187: "7427d71b685d9a273732b65265a34e49d4f8bbd5",
+              35600287474: "e552c288e6dd6c9028819cc4883890303dbf9524",
           }
           headers = {"Authorization": "Bearer " + os.environ["GH_TOKEN"],
                      "Accept": "application/vnd.github+json",
@@ -35,7 +35,7 @@ jobs:
               with urllib.request.urlopen(urllib.request.Request(url + "/artifacts", headers=headers)) as response:
                   artifacts = json.load(response)
               record = dict(run_id=run_id, sha=sha, before=row["status"],
-                            artifacts=artifacts, reason="failed hour: Ramses exited unexpectedly before 3600 seconds; Pons and Meteora must already have completed normally; require every native book flat and reconciled and no outstanding Pump or Pons qualifier; stop only remaining superseded flat follow-up and preserve all native evidence")
+                            artifacts=artifacts, reason="failed hour: Pump exited1 after0.222seconds before any provider transport; require every lane flat/reconciled with no outstanding qualifier, basis, reservation or unsettled exposure; preserve full startup evidence and diagnose before any replacement")
               if row["status"] != "completed":
                   checks_url = "https://api.github.com/repos/" + os.environ["REPOSITORY"] + "/commits/" + sha + "/check-runs?per_page=100"
                   for freshness_attempt in range(19):
@@ -46,26 +46,14 @@ jobs:
                       snapshot = json.loads(body.removeprefix("```json").removesuffix("```").strip())
                       if 0 <= time.time()-snapshot.get("observed_at",0)<45:break
                       if freshness_attempt<18:time.sleep(5)
-                  flat = snapshot.get("elapsed_seconds") is not None and 0 <= time.time()-snapshot.get("observed_at",0)<45
+                  flat = set(snapshot.get("lanes",{})) == {"pump","meteora","pons","ramses"} and snapshot.get("elapsed_seconds") is not None and 0 <= time.time()-snapshot.get("observed_at",0)<45
                   for lane, state in snapshot["lanes"].items():
                       flat = flat and state.get("open_positions") == 0 and state.get("accounting_reconciled") is True
                       funnel = state.get("funnel") or {}
                       qualified = funnel.get("qualified",funnel.get("unique_qualified",0))
+                      flat = flat and qualified == state.get("natural_settled",0)
                       book = state.get("cohort_accounting") or state.get("native_accounting") or {}
-                      if lane == "pons":
-                          # A normal native cohort exit plus a fully reconciled terminal
-                          # book accounts for settled trades and failed entry attempts.
-                          flat = flat and state.get("exit_code") == 0 and state.get("unexpected_exit") is False
-                          flat = flat and book.get("positions") == qualified and book.get("unsettled") == 0
-                          flat = flat and book.get("capital_integral_complete") is True
-                          flat = flat and book.get("remaining_cost_basis") == 0
-                      else:
-                          flat = flat and qualified == state.get("natural_settled",0)
-                      if lane == "meteora":
-                          flat = flat and state.get("exit_code") == 0 and state.get("unexpected_exit") is False
-                      if lane == "ramses":
-                          flat = flat and state.get("exit_code") == 1 and state.get("unexpected_exit") is True
-                      flat = flat and not book.get("reserved",0) and not book.get("pending",0)
+                      flat = flat and not book.get("reserved",0) and not book.get("pending",0) and not book.get("basis",0) and not book.get("remaining_cost_basis",0) and not book.get("unsettled",0)
                       for asset in (book.get("by_quote_asset") or {}).values():
                           flat = flat and not asset.get("open_positions",0) and not asset.get("committed",0)
                   record["guard_passed"] = bool(flat)
