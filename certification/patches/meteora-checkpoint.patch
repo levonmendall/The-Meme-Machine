@@ -373,7 +373,7 @@ index 76eb6e8..20919e0 100644
                  self._record_failure(method,kind,logical)
                  fallback=list(chunk)
 diff --git a/meme_machine/solana_evidence_broker.py b/meme_machine/solana_evidence_broker.py
-index 05dd96f..8f1034a 100644
+index 05dd96f..2cdf6ad 100644
 --- a/meme_machine/solana_evidence_broker.py
 +++ b/meme_machine/solana_evidence_broker.py
 @@ -6,6 +6,8 @@ backpressure. It grants no strategy/allocation/signing authority.
@@ -402,15 +402,57 @@ index 05dd96f..8f1034a 100644
  }
  
  
-@@ -54,6 +59,7 @@ class EvidenceBroker:
-         self.db.execute("PRAGMA journal_mode=WAL")
-         self.db.execute("PRAGMA synchronous=NORMAL")
-         self._init_schema()
-+        self.consumers = EvidenceConsumers(self)
+@@ -36,6 +41,31 @@ def _priority(kind):
+     return int(PRIORITY.get(str(kind), 50))
+ 
+ 
++
++def _enable_wal(db, *, timeout=30.0, monotonic=time.monotonic, sleeper=time.sleep):
++    """Bound only the startup journal transition; never retry evidence or provider work.
++
++    SQLite can return SQLITE_BUSY immediately for a concurrent journal-mode
++    transition even when the connection has a busy timeout. Use one monotonic
++    deadline and retry only BUSY/LOCKED, before any schema or consumer is created.
++    """
++    deadline = monotonic() + timeout
++    db.execute("PRAGMA busy_timeout=0")
++    try:
++        while True:
++            try:
++                return db.execute("PRAGMA journal_mode=WAL").fetchone()[0]
++            except sqlite3.OperationalError as error:
++                code = getattr(error, "sqlite_errorcode", None)
++                if code is None or (code & 255) not in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
++                    raise
++                remaining = deadline - monotonic()
++                if remaining <= 0:
++                    raise
++                sleeper(min(0.05, remaining))
++    finally:
++        db.execute("PRAGMA busy_timeout=30000")
++
+ class EvidenceBroker:
+     """Durable local evidence cache/queue with one global hydration controller."""
+ 
+@@ -51,9 +81,14 @@ class EvidenceBroker:
+         self.sleep = sleeper
+         self.lock = threading.RLock()
+         self.db = sqlite3.connect(value, timeout=30, check_same_thread=False)
+-        self.db.execute("PRAGMA journal_mode=WAL")
+-        self.db.execute("PRAGMA synchronous=NORMAL")
+-        self._init_schema()
++        try:
++            _enable_wal(self.db)
++            self.db.execute("PRAGMA synchronous=NORMAL")
++            self._init_schema()
++            self.consumers = EvidenceConsumers(self)
++        except BaseException:
++            self.db.close()
++            raise
  
      def _init_schema(self):
          with self.lock, self.db:
-@@ -68,6 +74,13 @@ class EvidenceBroker:
+@@ -68,6 +103,13 @@ class EvidenceBroker:
                      gaps INTEGER NOT NULL DEFAULT 0,
                      events INTEGER NOT NULL DEFAULT 0
                  );
@@ -424,7 +466,7 @@ index 05dd96f..8f1034a 100644
                  CREATE TABLE IF NOT EXISTS stream_events(
                      stream TEXT NOT NULL,
                      event_key TEXT NOT NULL,
-@@ -80,6 +93,17 @@ class EvidenceBroker:
+@@ -80,6 +122,17 @@ class EvidenceBroker:
                  );
                  CREATE INDEX IF NOT EXISTS stream_events_lookup
                      ON stream_events(stream,address,slot,observed_at);
@@ -442,7 +484,7 @@ index 05dd96f..8f1034a 100644
                  CREATE TABLE IF NOT EXISTS tx_cache(
                      signature TEXT PRIMARY KEY,
                      slot INTEGER,
-@@ -223,6 +247,10 @@ class EvidenceBroker:
+@@ -223,6 +276,10 @@ class EvidenceBroker:
          address = None if address is None else str(address)
          event_key = signature or f"{slot}:{address or ''}"
          body = None if payload is None else json.dumps(payload, sort_keys=True)
@@ -453,7 +495,7 @@ index 05dd96f..8f1034a 100644
          with self.lock, self.db:
              cur = self.db.execute(
                  """INSERT OR IGNORE INTO stream_events
-@@ -231,6 +259,12 @@ class EvidenceBroker:
+@@ -231,6 +288,12 @@ class EvidenceBroker:
                  (str(stream), event_key, signature, address, slot, observed_at, body),
              )
              accepted = int(cur.rowcount or 0)
@@ -466,7 +508,7 @@ index 05dd96f..8f1034a 100644
              self.db.execute(
                  """INSERT INTO stream_state(stream,connected,warm_since,loss_until,last_slot,gaps,events)
                     VALUES(?,1,?,0,?,0,?)
-@@ -309,51 +343,41 @@ class EvidenceBroker:
+@@ -309,51 +372,41 @@ class EvidenceBroker:
              events=int(events or 0),
          )
  
@@ -549,7 +591,7 @@ index 05dd96f..8f1034a 100644
  
      def _pressure(self):
          with self.lock:
-@@ -454,14 +478,22 @@ class EvidenceBroker:
+@@ -454,14 +507,22 @@ class EvidenceBroker:
      def queue_transaction(self, signature, *, kind, deadline, max_version=1):
          now = float(self.clock())
          signature=str(signature)
@@ -574,7 +616,7 @@ index 05dd96f..8f1034a 100644
              ).fetchone() is not None:
                  return False
              self.db.execute(
-@@ -472,17 +504,26 @@ class EvidenceBroker:
+@@ -472,17 +533,26 @@ class EvidenceBroker:
                     ON CONFLICT(job_key) DO UPDATE SET
                       kind=CASE
                         WHEN jobs.status IN ('complete','expired')
@@ -601,7 +643,7 @@ index 05dd96f..8f1034a 100644
                           THEN excluded.deadline
                         ELSE MIN(jobs.deadline,excluded.deadline)
                       END,
-@@ -501,6 +542,9 @@ class EvidenceBroker:
+@@ -501,6 +571,9 @@ class EvidenceBroker:
                       END,
                       created_at=CASE
                         WHEN jobs.status IN ('complete','expired')
@@ -611,7 +653,7 @@ index 05dd96f..8f1034a 100644
                           THEN excluded.created_at
                         ELSE jobs.created_at
                       END,
-@@ -518,7 +562,12 @@ class EvidenceBroker:
+@@ -518,7 +591,12 @@ class EvidenceBroker:
              return True
  
      def _claim_jobs(self, limit, now=None, lease_seconds=15.0):
@@ -625,7 +667,7 @@ index 05dd96f..8f1034a 100644
          limit=max(1,int(limit))
          now=float(self.clock() if now is None else now)
          lease_until=now+max(1.0,float(lease_seconds))
-@@ -527,8 +576,9 @@ class EvidenceBroker:
+@@ -527,8 +605,9 @@ class EvidenceBroker:
                  self.db.execute("BEGIN IMMEDIATE")
                  self.db.execute(
                      """UPDATE jobs SET status='expired',lease_until=NULL,updated_at=?
@@ -637,7 +679,7 @@ index 05dd96f..8f1034a 100644
                  )
                  self.db.execute(
                      """DELETE FROM jobs
-@@ -542,10 +592,20 @@ class EvidenceBroker:
+@@ -542,10 +621,20 @@ class EvidenceBroker:
                           AND deadline>=?""",
                      (now,now,now),
                  )
@@ -659,7 +701,7 @@ index 05dd96f..8f1034a 100644
                      (now,limit),
                  ).fetchall()
                  if rows:
-@@ -596,7 +656,8 @@ class EvidenceBroker:
+@@ -596,7 +685,8 @@ class EvidenceBroker:
              )
  
      def hydrate_transactions(
@@ -669,7 +711,7 @@ index 05dd96f..8f1034a 100644
      ):
          deadline = float(self.clock()) + 30.0 if deadline is None else float(deadline)
          requested = []
-@@ -606,28 +667,89 @@ class EvidenceBroker:
+@@ -606,28 +696,89 @@ class EvidenceBroker:
              if sig and sig not in seen:
                  seen.add(sig)
                  requested.append(sig)
@@ -750,7 +792,7 @@ index 05dd96f..8f1034a 100644
 +                        phase('lease_coalescing_wait',remaining);lease_wait_recorded=True
 +                    self.sleep(min(.02,max(0,deadline-float(self.clock()))))
 +                    continue
-                 break
++                break
 +            try:
 +                reserved=self._reserve_hydration_transport(deadline)
 +            except BaseException:
@@ -760,7 +802,7 @@ index 05dd96f..8f1034a 100644
 +                phase('shared_cooldown_backpressure' if self._pressure()['cooldown_until']>=deadline
 +                      else 'physical_capacity_wait',[json.loads(x[1])['signature'] for x in jobs])
 +                self._release_jobs([row[0] for row in jobs])
-+                break
+                 break
 +            p=self._pressure()
 +            # A sibling's 429 during our wait also constrains this batch.
 +            allowed=max(1,min(capacity,p['batch_size']))
@@ -769,7 +811,7 @@ index 05dd96f..8f1034a 100644
              payloads = [json.loads(row[1]) for row in jobs]
              params = [[
                  row["signature"],
-@@ -639,17 +761,71 @@ class EvidenceBroker:
+@@ -639,17 +790,71 @@ class EvidenceBroker:
                      ),
                  ),
              ] for row in payloads]
@@ -843,7 +885,7 @@ index 05dd96f..8f1034a 100644
              completed = []
              for job, row, tx in zip(jobs, payloads, values):
                  if isinstance(tx, dict):
-@@ -657,7 +833,7 @@ class EvidenceBroker:
+@@ -657,7 +862,7 @@ class EvidenceBroker:
                      completed.append(job[0])
              if completed:
                  self._complete_jobs(completed)
@@ -852,7 +894,7 @@ index 05dd96f..8f1034a 100644
              completed_set=set(completed)
              incomplete=[row[0] for row in jobs if row[0] not in completed_set]
              if incomplete:
-@@ -665,13 +841,21 @@ class EvidenceBroker:
+@@ -665,13 +870,21 @@ class EvidenceBroker:
              if not completed:
                  break
  
@@ -875,7 +917,7 @@ index 05dd96f..8f1034a 100644
          )
  
      def cursor(self, name):
-@@ -781,6 +965,7 @@ class EvidenceBroker:
+@@ -781,6 +994,7 @@ class EvidenceBroker:
                  + " ORDER BY slot DESC,signature DESC",
                  tuple(params),
              ).fetchall()
@@ -883,7 +925,7 @@ index 05dd96f..8f1034a 100644
          return [json.loads(row[0]) for row in rows]
  
      def signature_coverage(self, scope, address):
-@@ -824,6 +1009,7 @@ class EvidenceBroker:
+@@ -824,6 +1038,7 @@ class EvidenceBroker:
              stream_events=int(events),
              signature_rows=int(signatures),
              pressure=self._pressure(),
@@ -891,7 +933,7 @@ index 05dd96f..8f1034a 100644
          )
  
  
-@@ -967,7 +1153,8 @@ class DynamicAddressLogStream:
+@@ -967,7 +1182,8 @@ class DynamicAddressLogStream:
      """
  
      def __init__(
@@ -901,7 +943,7 @@ index 05dd96f..8f1034a 100644
      ):
          self.ws_url=str(ws_url)
          self.broker=broker
-@@ -980,6 +1167,13 @@ class DynamicAddressLogStream:
+@@ -980,6 +1196,13 @@ class DynamicAddressLogStream:
          self.reconnects=0
          self.last_error_kind=None
          self.active_subscriptions=0
@@ -915,7 +957,7 @@ index 05dd96f..8f1034a 100644
  
      def stream_key(self,address):
          return self.stream_prefix+":"+str(address)
-@@ -992,6 +1186,13 @@ class DynamicAddressLogStream:
+@@ -992,6 +1215,13 @@ class DynamicAddressLogStream:
              self.addresses.add(address)
          return self.stream_key(address)
  
@@ -929,7 +971,7 @@ index 05dd96f..8f1034a 100644
      def wanted_addresses(self):
          with self.lock:
              return sorted(self.addresses)
-@@ -1003,8 +1204,40 @@ class DynamicAddressLogStream:
+@@ -1003,8 +1233,40 @@ class DynamicAddressLogStream:
              wanted_addresses=len(self.wanted_addresses()),
              active_subscriptions=int(self.active_subscriptions),
              last_error_kind=self.last_error_kind,
@@ -970,7 +1012,7 @@ index 05dd96f..8f1034a 100644
      def run(self,stop_event,ready_event=None):
          ever_ready=False
          while not stop_event.is_set():
-@@ -1015,6 +1248,8 @@ class DynamicAddressLogStream:
+@@ -1015,6 +1277,8 @@ class DynamicAddressLogStream:
                      close_timeout=5,max_size=2_000_000,max_queue=256,
                  ) as websocket:
                      pending={}
@@ -979,7 +1021,7 @@ index 05dd96f..8f1034a 100644
                      by_address={}
                      by_subscription={}
                      next_id=1
-@@ -1028,6 +1263,12 @@ class DynamicAddressLogStream:
+@@ -1028,6 +1292,12 @@ class DynamicAddressLogStream:
  
                      while not stop_event.is_set():
                          wanted=self.wanted_addresses()
@@ -992,7 +1034,7 @@ index 05dd96f..8f1034a 100644
                          known=set(by_address)|set(pending.values())
                          for address in [a for a in wanted if a not in known][:16]:
                              request_id=next_id;next_id+=1
-@@ -1048,12 +1289,25 @@ class DynamicAddressLogStream:
+@@ -1048,12 +1318,25 @@ class DynamicAddressLogStream:
                          payload=json.loads(message)
                          if "id" in payload:
                              request_id=payload.get("id")
@@ -1018,7 +1060,7 @@ index 05dd96f..8f1034a 100644
                              by_address[address]=subscription
                              by_subscription[subscription]=address
                              active_addresses=list(by_address)
-@@ -1064,6 +1318,8 @@ class DynamicAddressLogStream:
+@@ -1064,6 +1347,8 @@ class DynamicAddressLogStream:
                          if payload.get("method")!="logsNotification":
                              continue
                          params=payload.get("params") or {}
@@ -1027,7 +1069,7 @@ index 05dd96f..8f1034a 100644
                          address=by_subscription.get(params.get("subscription"))
                          if address is None:
                              raise RuntimeError("address_log_unknown_subscription")
-@@ -1073,10 +1329,18 @@ class DynamicAddressLogStream:
+@@ -1073,10 +1358,18 @@ class DynamicAddressLogStream:
                          self.broker.record_event(
                              self.stream_key(address),
                              signature=value["signature"],
@@ -2042,6 +2084,131 @@ index c1aef79..046427f 100644
      print(json.dumps(dict(
          conclusion=report["conclusion"],attempted=attempted,complete=complete,
          profitable_rate=report["profitable_rate"],
+diff --git a/tests/test_broker_startup_wal.py b/tests/test_broker_startup_wal.py
+new file mode 100644
+index 0000000..7d2a8a9
+--- /dev/null
++++ b/tests/test_broker_startup_wal.py
+@@ -0,0 +1,119 @@
++"""Concurrent cold startup, bounded local lock recovery, and evidence preservation."""
++import multiprocessing
++import os
++import queue
++import sqlite3
++import tempfile
++import unittest
++from unittest.mock import patch
++from meme_machine import solana_evidence_broker as module
++
++
++def start_broker(path, barrier, output, identity):
++    try:
++        barrier.wait(timeout=20)
++        broker = module.EvidenceBroker(path)
++        broker.record_event("startup", slot=identity+1, signature=str(identity))
++        broker.close()
++        output.put(("ok", identity))
++    except BaseException as error:
++        output.put(("error", type(error).__name__, str(error)))
++
++
++class StartupWALTests(unittest.TestCase):
++    def test_real_journal_transition_waits_for_existing_reader_then_preserves_data(self):
++        with tempfile.TemporaryDirectory() as directory:
++            path = os.path.join(directory, "broker.sqlite")
++            owner = sqlite3.connect(path)
++            self.addCleanup(owner.close)
++            owner.execute("CREATE TABLE retained(value TEXT)")
++            owner.execute("INSERT INTO retained VALUES('original')")
++            owner.commit()
++            owner.execute("BEGIN")
++            owner.execute("SELECT * FROM retained").fetchall()
++            db = sqlite3.connect(path)
++            self.addCleanup(db.close)
++            waits = []
++            def release(delay):
++                waits.append(delay)
++                owner.rollback()
++            self.assertEqual(module._enable_wal(db, sleeper=release), "wal")
++            self.assertEqual(len(waits), 1)
++            self.assertEqual(db.execute("SELECT * FROM retained").fetchall(), [("original",)])
++            self.assertEqual(db.execute("PRAGMA busy_timeout").fetchone()[0], 30000)
++
++    def test_simultaneous_fresh_processes_share_one_intact_broker(self):
++        context = multiprocessing.get_context("spawn")
++        with tempfile.TemporaryDirectory() as directory:
++            path = os.path.join(directory, "broker.sqlite")
++            barrier = context.Barrier(6)
++            output = context.Queue()
++            processes = [context.Process(target=start_broker,args=(path,barrier,output,i)) for i in range(6)]
++            try:
++                for process in processes:process.start()
++                rows = [output.get(timeout=40) for _ in processes]
++                for process in processes:process.join(timeout=10)
++                self.assertEqual(sorted(rows), [("ok", i) for i in range(6)])
++                self.assertEqual([p.exitcode for p in processes], [0]*6)
++                broker = module.EvidenceBroker(path)
++                try:
++                    self.assertEqual(len(broker.recent_events("startup")), 6)
++                    self.assertEqual(broker.db.execute("SELECT count(*) FROM stream_signature_archive").fetchone()[0], 6)
++                    self.assertEqual(broker.db.execute("PRAGMA quick_check").fetchall(), [("ok",)])
++                    self.assertEqual(broker.db.execute("SELECT count(*) FROM pressure").fetchone()[0], 1)
++                    with self.assertRaisesRegex(sqlite3.IntegrityError,"append_only"):
++                        broker.db.execute("DELETE FROM stream_signature_archive")
++                finally:broker.close()
++            finally:
++                for process in processes:
++                    if process.is_alive():process.terminate()
++                    if process.pid is not None:process.join(timeout=5)
++                output.close()
++                output.join_thread()
++
++    def fake_db(self, code):
++        error = sqlite3.OperationalError("test local startup failure")
++        if code is not None:error.sqlite_errorcode=code
++        class DB:
++            def __init__(self):self.calls=[]
++            def execute(self, sql):
++                self.calls.append(sql)
++                if sql == "PRAGMA journal_mode=WAL":raise error
++        return DB(), error
++
++    def test_persistent_busy_exhausts_single_deadline_and_restores_busy_timeout(self):
++        for code in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_BUSY | (2<<8)):
++            with self.subTest(code=code):
++                db, error = self.fake_db(code)
++                now=[0.0]
++                waits=[]
++                def sleep(delay):
++                    waits.append(delay);now[0]+=delay
++                with self.assertRaises(sqlite3.OperationalError) as caught:
++                    module._enable_wal(db, timeout=0.12, monotonic=lambda:now[0], sleeper=sleep)
++                self.assertIs(caught.exception,error)
++                self.assertAlmostEqual(sum(waits),0.12)
++                self.assertEqual(db.calls.count("PRAGMA journal_mode=WAL"),4)
++                self.assertEqual(db.calls[-1],"PRAGMA busy_timeout=30000")
++
++    def test_non_lock_operational_errors_fail_without_retry(self):
++        for code in (None,sqlite3.SQLITE_CORRUPT,sqlite3.SQLITE_READONLY,sqlite3.SQLITE_IOERR):
++            with self.subTest(code=code):
++                db,error=self.fake_db(code)
++                with patch.object(module.time,"sleep") as sleep:
++                    with self.assertRaises(sqlite3.OperationalError) as caught:
++                        module._enable_wal(db,sleeper=sleep)
++                self.assertIs(caught.exception,error)
++                sleep.assert_not_called()
++                self.assertEqual(db.calls.count("PRAGMA journal_mode=WAL"),1)
++
++    def test_failed_constructor_closes_connection_without_initializing_consumers(self):
++        with patch.object(module.sqlite3,"connect") as connect, patch.object(module,"_enable_wal",side_effect=sqlite3.OperationalError("locked")), patch.object(module,"EvidenceConsumers") as consumers:
++            with self.assertRaises(sqlite3.OperationalError):module.EvidenceBroker(":memory:")
++            connect.return_value.close.assert_called_once()
++            consumers.assert_not_called()
++
++    def test_memory_broker_remains_supported(self):
++        broker=module.EvidenceBroker(":memory:")
++        try:self.assertEqual(broker.db.execute("PRAGMA journal_mode").fetchone()[0],"memory")
++        finally:broker.close()
 diff --git a/tests/test_default_signature_admission.py b/tests/test_default_signature_admission.py
 new file mode 100644
 index 0000000..9c1bea1
