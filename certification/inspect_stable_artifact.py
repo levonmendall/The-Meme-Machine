@@ -177,3 +177,58 @@ printed['pump_replay']=review['pump_complete'].get('accounting_replay')
 print(json.dumps(printed,sort_keys=True),flush=True)
 print('STABLE_ARCHIVE_AUDIT_END',flush=True)
 if failures:raise RuntimeError('stable_archive_integrity_failed')
+
+
+# Distinguish auxiliary sequencer header age from authenticated L2 discovery lag.
+# This is read-only attribution; it neither advances cursors nor changes freshness.
+frontier_rows=[]; log_rows=[]; response_shapes=collections.Counter()
+def integer(value):
+    if isinstance(value,str):
+        try:return int(value,16) if value.startswith('0x') else int(value)
+        except ValueError:return None
+    return value if isinstance(value,int) else None
+with state['gzip'].open(state['base']/'pons/rpc-evidence.jsonl.gz','rt') as file:
+    for line in file:
+        row=json.loads(line)
+        requests=row.get('request') or []
+        requests=requests if isinstance(requests,list) else [requests]
+        responses=row.get('response')
+        responses=responses if isinstance(responses,list) else [responses]
+        response_shapes[type(row.get('response')).__name__]+=1
+        by_id={x.get('id'):x for x in responses if isinstance(x,dict)}
+        at_ns=integer(row.get('observed_at_ns'))
+        for req in requests:
+            if not isinstance(req,dict):continue
+            method=req.get('method');params=req.get('params') or []
+            response=by_id.get(req.get('id')) or {}
+            body=response.get('result')
+            if method=='eth_getBlockByNumber' and isinstance(body,dict):
+                number=integer(body.get('number'));timestamp=integer(body.get('timestamp'))
+                frontier_rows.append(dict(physical_request_id=row.get('physical_request_id'),
+                    observed_at_ns=at_ns,requested_tag=params[0] if params else None,
+                    block=number,timestamp=timestamp,
+                    age_seconds=at_ns/1e9-timestamp if at_ns and timestamp else None))
+            if method=='eth_getLogs' and params and isinstance(params[0],dict):
+                first=integer(params[0].get('fromBlock'));last=integer(params[0].get('toBlock'))
+                if first is not None and last is not None:
+                    log_rows.append(dict(physical_request_id=row.get('physical_request_id'),
+                        observed_at_ns=at_ns,first=first,last=last,scope=row.get('scope'),
+                        http_status=row.get('http_status'),error=row.get('error'),
+                        rpc_error=response.get('error'),response_logs=len(body) if isinstance(body,list) else None))
+# Preserve every parsed row; compact printed samples stay bounded.
+(out/'pons-authenticated-header-rows.json').write_text(json.dumps(frontier_rows,indent=2,sort_keys=True))
+(out/'pons-discovery-range-rows.json').write_text(json.dumps(log_rows,indent=2,sort_keys=True))
+latest=[x for x in frontier_rows if x['requested_tag'] in ('latest','safe','finalized')]
+final_feed=review['pons_complete'].get('sequencer_discovery') or {}
+freshness_audit=dict(run=state['RUN'],sha=state['SHA'],phase=state['PHASE'],
+    scope='Auxiliary sequencer header time is not assumed to equal L2 block time. Only authenticated response members establish L2 frontier evidence. Log ranges include all archived Pons roles; no discovery-gap inference is made from mixed roles.',
+    response_shapes=dict(response_shapes),header_rows=len(frontier_rows),log_range_rows=len(log_rows),
+    latest_tag_rows=len(latest),latest_tag_first=latest[:4],latest_tag_last=latest[-12:],
+    newest_header_samples=sorted(frontier_rows,key=lambda x:x['block'] or -1)[-12:],
+    discovery_range_first=log_rows[:4],discovery_range_last=log_rows[-12:],
+    sequencer_final=final_feed,
+    maximum_log_range=max((x['last']-x['first']+1 for x in log_rows),default=0))
+(out/'pons-discovery-freshness.json').write_text(json.dumps(freshness_audit,indent=2,sort_keys=True))
+print('PONS_DISCOVERY_FRESHNESS_BEGIN',flush=True)
+print(json.dumps(freshness_audit,sort_keys=True),flush=True)
+print('PONS_DISCOVERY_FRESHNESS_END',flush=True)
