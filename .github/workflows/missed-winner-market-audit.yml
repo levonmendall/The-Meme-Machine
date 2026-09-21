@@ -1,0 +1,34 @@
+name: missed-winner-market-audit
+on:
+  push:
+    branches:
+      - audit/missed-winner-market-replay
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pons-market-replay:
+    if: contains(github.event.head_commit.message, '[run-market-audit]') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Prepare exact frozen Pons source
+        run: |
+          git worktree add --detach /tmp/pons-src c692fe446bdee4ea1179da27a3f0c9f2f281f118
+      - name: Replay complete Pons target market
+        env:
+          PONS_SRC: /tmp/pons-src
+          ROBINHOOD_PUBLIC_RPC: https://rpc.mainnet.chain.robinhood.com
+        run: |
+          python certification/audits/pons_missed_winner_replay.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pons-missed-winner-market-audit
+          path: /tmp/pons-missed-winner-audit.json
+          if-no-files-found: warn
