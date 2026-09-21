@@ -1,0 +1,34 @@
+name: ramses-historical-index-summary-extract
+on:
+  push:
+    branches: [research/ramses-dlmm-historical-market-v1]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  extract:
+    if: contains(github.event.head_commit.message, '[ramses-index-summary]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Extract latest complete index summary only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_id="$(gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100"             --jq '.artifacts[] | select(.expired == false and (.name | startswith("ramses-historical-index-"))) | [.created_at, (.id|tostring)] | @tsv'             | sort -r | head -1 | cut -f2)"
+          test -n "$artifact_id"
+          gh api "repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip" > /tmp/index.zip
+          unzip -p /tmp/index.zip ramses-historical-index-summary.json > ramses-historical-index-summary.json
+          python - <<'PY'
+          import json
+          x=json.load(open("ramses-historical-index-summary.json"))
+          print(json.dumps({k:x.get(k) for k in ("swaps","fee_events","pools","protocol_days","distinct_active_pools","active_5m_windows","two_way_5m_windows","distributions")},sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ramses-historical-index-summary-${{ github.run_id }}
+          path: ramses-historical-index-summary.json
+          retention-days: 90
