@@ -1065,3 +1065,28 @@ Every subsequent documentation/build/audit marker will also include
 any deterministic test. No replacement market run starts until those jobs terminate.
 Main, all four frozen source heads, prospect branch and separate PR93 policy head
 were refreshed and remain unchanged.
+
+
+### Fresh exact-revision replacement launch after hygiene and review
+
+Cancellation35571461052/job106243796288 completed successfully for both exact
+legacy targets. Audit10626127805,3040 bytes, recorded SHA256
+fcd24b926c2bf27adcc18a262f28e900b6b0745a21fe1a2a0deefe97ebb2f62c.
+Legacy35570800018 retained qualification-vector artifact10626097711 (166 bytes,
+SHA2564253285272b963dbb836ccf1e72a526a0a6f102d0616a3973abd78f0a9235e81);
+its interrupted buffered report carries no accepted observation result.
+35571312143 had no finalized artifact; it was stopped before its queued shadow
+diagnostic launched. Job logs and the cancellation audit retain the interruption.
+No historical evidence was deleted or natural lifecycle inferred from these runs.
+
+Fresh active/queued/pending/waiting inspection found no competing market job.
+Only deterministic paper-milestone35571461072 remained active; its live-diagnostic,
+postgrad, longevity, auth-smoke and forced jobs were explicitly skipped.
+All original lane heads and manifest/overlay hashes were freshly verified unchanged
+except the fully tested Pons acquisition overlay5cecafc4.
+This marker launches one fresh600-second smoke at the resulting exact commit,
+then one independent3600-second hour only after its engineering and raw/native
+artifact review pass. Both start from new process state; no previous time is reused.
+The new authentication regressions/full suites/resource gates rerun on the candidate.
+The original frozen thresholds, market scopes, provider ceilings and paper-only
+authority remain unchanged. Engineering certification is still pending.
