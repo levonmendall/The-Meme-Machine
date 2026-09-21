@@ -277,10 +277,10 @@ index c24ecb4..0aa82cf 100644
  
 diff --git a/robinhood_research/provider_admission.py b/robinhood_research/provider_admission.py
 new file mode 100644
-index 0000000..4d9bbc7
+index 0000000..15cd061
 --- /dev/null
 +++ b/robinhood_research/provider_admission.py
-@@ -0,0 +1,176 @@
+@@ -0,0 +1,187 @@
 +"""Optional cross-process read-only transport admission for concurrent certification.
 +
 +Endpoint credentials never enter SQLite. Existing role pacers and error recovery
@@ -301,6 +301,7 @@ index 0000000..4d9bbc7
 +POSITION_BURST = 8
 +FOREGROUND_AGE_SECONDS = 3
 +_position_work = ContextVar('provider_position_work',default=False)
++_foreground_work = ContextVar('provider_foreground_work',default=False)
 +
 +
 +def position_work(function):
@@ -309,6 +310,15 @@ index 0000000..4d9bbc7
 +        token=_position_work.set(True)
 +        try:return function(*args,**kwargs)
 +        finally:_position_work.reset(token)
++    return wrapped
++
++
++def foreground_work(function):
++    @wraps(function)
++    def wrapped(*args,**kwargs):
++        token=_foreground_work.set(True)
++        try:return function(*args,**kwargs)
++        finally:_foreground_work.reset(token)
 +    return wrapped
 +
 +
@@ -322,7 +332,7 @@ index 0000000..4d9bbc7
 +    if not service or service[0]!=first[2] or service[1]<POSITION_BURST:return first
 +    aged=db.execute('SELECT q.id,q.priority,m.lane,q.deadline FROM queue q '
 +        'JOIN queue_meta m ON m.id=q.id WHERE q.endpoint=? AND q.priority>0 '
-+        'AND m.lane<>? AND q.created<=? ORDER BY q.deadline,q.created,q.id LIMIT 1',
++        'AND (m.lane<>? OR q.priority<=10) AND q.created<=? ORDER BY q.deadline,q.created,q.id LIMIT 1',
 +        (endpoint,first[2],now-FOREGROUND_AGE_SECONDS)).fetchone()
 +    return aged or first
 +
@@ -344,6 +354,7 @@ index 0000000..4d9bbc7
 +
 +def priority(scope):
 +    if _position_work.get():return 0
++    if _foreground_work.get():return 10
 +    scope=str(scope).lower()
 +    if any(x in scope for x in ('paper','monitor','exit','unwind','settle','lifecycle')):return 0
 +    if any(x in scope for x in ('selective','evidence','candidate','pons_natural')):return 10
@@ -1994,16 +2005,16 @@ index 0000000..e589449
 +                clock=lambda:0,sleeper=lambda _:None)
 diff --git a/robinhood_tests/test_shared_position_fairness.py b/robinhood_tests/test_shared_position_fairness.py
 new file mode 100644
-index 0000000..8f25dd2
+index 0000000..5a12ca3
 --- /dev/null
 +++ b/robinhood_tests/test_shared_position_fairness.py
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,106 @@
 +import json
 +from pathlib import Path
 +import tempfile
 +import unittest
 +from robinhood_research import BoundaryError
-+from robinhood_research.provider_admission import Admission,next_ticket,record_service,POSITION_BURST,position_work,priority
++from robinhood_research.provider_admission import Admission,next_ticket,record_service,POSITION_BURST,position_work,foreground_work,priority
 +
 +
 +class SustainedPositionFairnessTests(unittest.TestCase):
@@ -2020,7 +2031,7 @@ index 0000000..8f25dd2
 +        self.assertEqual(priority('pons_natural'),10)
 +        self.assertEqual(priority('universe_identity'),50)
 +
-+    def exercise(self,lane,deadline):
++    def exercise(self,lane,deadline,scope='universe_identity'):
 +        with tempfile.TemporaryDirectory() as td:
 +            now=[100.];positions=[];transport=[]
 +            def sleep(seconds):
@@ -2038,7 +2049,7 @@ index 0000000..8f25dd2
 +            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('position',gate.endpoint,0,100.,130.))
 +            db.execute('INSERT INTO queue_meta VALUES(?,?)',('position','pons'));db.close()
 +            boundary=None
-+            try:gate.invoke(lambda:transport.append(now[0]),['eth_getCode'],'universe_identity',deadline=deadline)
++            try:gate.invoke(lambda:transport.append(now[0]),['eth_getCode'],scope,deadline=deadline)
 +            except BoundaryError as exc:boundary=str(exc)
 +            db=gate.connect()
 +            event=json.loads(db.execute('SELECT body FROM admissions').fetchone()[0])
@@ -2084,3 +2095,23 @@ index 0000000..8f25dd2
 +            self.assertEqual(row['deadline'],99.);self.assertEqual(row['methods'],['eth_call'])
 +            self.assertEqual(db.execute('SELECT count(*) FROM queue').fetchone()[0],0)
 +            self.assertEqual(db.execute('SELECT count(*) FROM transports').fetchone()[0],0);db.close()
++
++    def test_same_lane_foreground_observation_has_bounded_service(self):
++        boundary,positions,transport,event,physical,interval,pending=self.exercise('pons',110.,'pons_natural')
++        self.assertIsNone(boundary)
++        self.assertEqual(len(positions),POSITION_BURST)
++        self.assertEqual(len(transport),1);self.assertLess(transport[0],105.)
++        self.assertEqual(event['priority'],10);self.assertEqual(event['deadline'],110.)
++        self.assertEqual(pending[0],'position');self.assertEqual(interval,.5)
++
++    def test_foreground_authentication_retains_position_precedence_and_context_isolation(self):
++        @foreground_work
++        def observation():
++            self.assertEqual(priority('connectivity'),10)
++            @position_work
++            def position():self.assertEqual(priority('connectivity'),0)
++            position()
++            self.assertEqual(priority('connectivity'),10)
++            raise BoundaryError('injected_observation_failure')
++        with self.assertRaises(BoundaryError):observation()
++        self.assertEqual(priority('connectivity'),50)

@@ -29,3 +29,50 @@ jobs:
           path: frozen-review/
           if-no-files-found: error
           retention-days: 90
+
+  finalize-failed-check:
+    if: contains(github.event.head_commit.message, '[record-failed-check]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      checks: write
+    steps:
+      - name: Finalize only the retained failed c4572 hourly check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import datetime,json,os,pathlib,urllib.request
+          base='https://api.github.com/repos/levonmendall/The-Meme-Machine'
+          headers={'Authorization':'Bearer '+os.environ['GITHUB_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json'}
+          def api(path,body=None):
+              request=urllib.request.Request(base+path,headers=headers,data=None if body is None else json.dumps(body).encode(),method='GET' if body is None else 'PATCH')
+              with urllib.request.urlopen(request,timeout=30) as response:return json.load(response)
+          run=api('/actions/runs/35563114670')
+          check=api('/check-runs/106224946839')
+          if run['head_sha']!='c4572e18d078222fe05d6df9eec55d62dfc59f41' or run['status']!='completed' or run['conclusion']!='cancelled':
+              raise SystemExit('failed_run_identity_mismatch')
+          if check['head_sha']!=run['head_sha'] or check['name']!='four-lane-live-hourly' or check['external_id']!='35563114670:1:hourly':
+              raise SystemExit('failed_check_identity_mismatch')
+          audit={'run_id':run['id'],'sha':run['head_sha'],'before':check,'hourly_artifact_missing':True}
+          pathlib.Path('failed-check-audit.json').write_text(json.dumps(audit,indent=2))
+          if check['status']!='completed':
+              output=check['output']
+              body={'status':'completed','conclusion':'failure','completed_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    'output':{'title':'FAILED: early Pons exit, unresolved exposure, hourly archive unavailable',
+                      'summary':'Engineering certification failed before cancellation. Pons exited after1369.46s with1 unresolved position. The hourly artifact upload failed during SQLite sidecar ZIP creation; full raw replay evidence is unavailable. The JSON below is the retained PRE-CANCELLATION snapshot, not a terminal measurement. Complete cancellation audit and evidence-gap handoff: https://github.com/levonmendall/The-Meme-Machine/blob/repair/frozen-campaign-handoff/certification/AUTONOMOUS_CAMPAIGN_HANDOFF.md',
+                      'text':output.get('text','')}}
+              updated=api('/check-runs/106224946839',body)
+              audit['after_status']=updated['status'];audit['after_conclusion']=updated['conclusion']
+              pathlib.Path('failed-check-audit.json').write_text(json.dumps(audit,indent=2))
+          print(json.dumps({k:v for k,v in audit.items() if k!='before'}))
+          PY
+      - name: Preserve prior check state and failure correction
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: failed-check-audit-${{ github.run_id }}
+          path: failed-check-audit.json
+          retention-days: 90

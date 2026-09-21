@@ -871,3 +871,38 @@ a run expression. Per GitHub's contexts reference
 status functions belong in step/job if conditions. A dedicated if:cancelled() step
 now sets a trusted cancellation flag; the collector consumes that flag. Both
 failures are retained, and the complete gates must pass before any live launch.
+
+
+## 2026-09-21: verified capacity/archive candidate and fresh staged launch
+
+Build35568087595/job106233813173 at1673eb4cd8b49bbc8d748a387f2b3eb8ad4035a1
+PASS:1253 lane tests (Pump292,Meteora392,Pons300,Ramses269),78 supervisor tests,
+all3 resource gates, exact canonical overlay reproduction and frozen file hashes.
+Artifact10625031687,208621 bytes, recorded SHA256
+b90831615faf5740498f53e7958b428aac5cd6e3f9546e865439500687ef8ad1.
+Complete transcripts/canonicality are appended under
+results/hosted-frozen-repair/capacity-and-archive/.
+Pons overlay SHA256e6e5824e8cee8479913303363d055bd77d0c539307f1e5b5d55883fcc9d7c90a;
+Ramses8e4eb8de96c73c8812f760733d48dd6921f2817922d959b5c98ca85e903a2786.
+Pump/Meteora overlays and original manifest7c2505cc65e599929e58511f2463875f86228232d30f053754bf0ec9ef639226
+remain unchanged. This commit composes precisely the hosted verified blobs.
+
+Fresh prelaunch inspection: in_progress/queued/pending/waiting workflow lists all
+empty. All147 branches were enumerated across two pages. Four original frozen
+source heads, main54712c4c, PR91acb7e511, PR92a34c5d4d and PR93c0b8bfb remain
+as previously recorded; no newer PR after closed94. Prospect branch0982519a remains
+unchanged and its equivalent repair remains composed exactly once.
+The separate changed-policy PR93 head remains untouched.
+
+Read-only review35566806078/job106230168533 ended with exact_hour_artifact_not_available,
+confirming no missing-hour artifact was recovered. Its failed read-only wait used
+no provider credentials or market capacity. That evidence gap remains unresolved.
+A strictly identified check-state correction will mark old hourly check106224946839
+failed while retaining its pre-cancellation JSON and a durable before/after audit;
+it does not invent a final accounting measurement.
+
+The new marker requests one fresh600-second four-lane smoke. Its source gates,
+normal drain, archive checksum/native review and engineering controls must pass
+before one independent3600-second hour starts from fresh process state. Prior
+smoke/hour time is not reused. No profitability or natural completion is inferred
+from deterministic or engineering success.

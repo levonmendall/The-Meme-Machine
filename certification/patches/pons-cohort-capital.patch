@@ -1125,7 +1125,7 @@ index 0000000..38a4454
 +                self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT');return rec
 +            except BaseException:db.execute('ROLLBACK');raise
 diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
-index 080894d..b138fed 100644
+index 080894d..9591210 100644
 --- a/robinhood_research/pons_selective_cohort.py
 +++ b/robinhood_research/pons_selective_cohort.py
 @@ -5,6 +5,8 @@ result directory, dedicated wallet-skill ledger, dedicated paper databases, poli
@@ -1137,24 +1137,27 @@ index 080894d..b138fed 100644
  import json
  import os
  from pathlib import Path
-@@ -13,6 +15,7 @@ import time
+@@ -13,6 +15,8 @@ import time
  from . import BoundaryError
  from .abi import topic
  from .evidence_queue import DeadlineEvidenceQueue
 +from .pipeline import Pipeline,censor_class
++from .provider_admission import foreground_work
  from .pons_natural_observation import (
      _current_curve_events, _next_discovery_end,
  )
-@@ -55,6 +58,8 @@ PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS=2.0
- RATE_LIMIT_PROVIDER_BOUNDARIES=frozenset((
+@@ -56,6 +60,10 @@ RATE_LIMIT_PROVIDER_BOUNDARIES=frozenset((
      "provider_http_429",
      "provider_rpc_429",
+ ))
++LOCAL_CAPACITY_BOUNDARIES=frozenset((
 +    "provider_shared_admission_deadline",
 +    "provider_shared_queue_capacity",
- ))
++))
  RECOVERABLE_PROVIDER_BOUNDARIES=frozenset((
      "provider_http_500",
-@@ -132,13 +137,22 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
+     "provider_http_502",
+@@ -132,13 +140,22 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
          started_at=result["started_at"],
          canonical_discovery_cursor=int(cursor),
          summary=_summary_snapshot(result),
@@ -1179,7 +1182,93 @@ index 080894d..b138fed 100644
          persisted_candidate_rows=len(result["rows"]),
          persisted_qualifiers=len(result["qualifiers"]),
      )
-@@ -341,26 +355,79 @@ def _attach_wallet_overlay(vector,skill_book):
+@@ -175,6 +192,7 @@ def _recover_sequencer(feed,cursor,recoveries):
+     raise BoundaryError("sequencer_reconnect_exhausted:"+str(last or "unknown"))
+ 
+ 
++@foreground_work
+ def _discovery(endpoint):
+     rpc=configured_discovery_rpc(endpoint,limit=200,per_scope=190,retries=0)
+     rpc.verify_chain()
+@@ -186,6 +204,7 @@ def _recoverable_provider_boundary(exc):
+     return (
+         boundary in RECOVERABLE_PROVIDER_BOUNDARIES
+         or boundary in RATE_LIMIT_PROVIDER_BOUNDARIES
++        or boundary in LOCAL_CAPACITY_BOUNDARIES
+     )
+ 
+ 
+@@ -202,6 +221,7 @@ def _recover_discovery(
+         on_failure(rpc,boundary,int(cursor))
+ 
+     rate_limited=boundary in RATE_LIMIT_PROVIDER_BOUNDARIES
++    capacity_limited=boundary in LOCAL_CAPACITY_BOUNDARIES
+     pacer=getattr(rpc,"pacer",None)
+     rps_before=(
+         None if pacer is None
+@@ -217,10 +237,10 @@ def _recover_discovery(
+     last=boundary
+     attempts=(
+         PROVIDER_RATE_LIMIT_ATTEMPTS
+-        if rate_limited else PROVIDER_RECOVERY_ATTEMPTS
++        if rate_limited or capacity_limited else PROVIDER_RECOVERY_ATTEMPTS
+     )
+     for attempt in range(1,attempts+1):
+-        if rate_limited:
++        if rate_limited or capacity_limited:
+             time.sleep(PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS*attempt)
+         elif attempt>1:
+             time.sleep(PROVIDER_RECOVERY_SLEEP_SECONDS)
+@@ -235,7 +255,8 @@ def _recover_discovery(
+                 attempts=max(attempts,PROVIDER_RATE_LIMIT_ATTEMPTS)
+             continue
+         row=dict(
+-            kind=("provider_rate_limit_recovery" if rate_limited else "provider_recovery"),
++            kind=("provider_rate_limit_recovery" if rate_limited else
++                  "local_admission_recovery" if capacity_limited else "provider_recovery"),
+             recovered_at=time.time(),
+             attempt=attempt,
+             boundary=boundary,
+@@ -243,7 +264,7 @@ def _recover_discovery(
+             canonical_cursor_advanced=False,
+             catchup_authority="authenticated_discovery_rpc",
+             catchup_from=int(cursor)+1,
+-            rate_limited=bool(rate_limited),
++            rate_limited=bool(rate_limited),local_capacity_limited=bool(capacity_limited),
+             pacer_rps_before=rps_before,
+             pacer_rps_after=rps_after,
+         )
+@@ -277,6 +298,7 @@ def _read_curve_range(rpc,first,observed_end):
+         return observed_end,_current_curve_events(rpc,first,observed_end)
+ 
+ 
++@foreground_work
+ def _poll(
+     endpoint,rpc,cursor,tape,feed,sessions,recoveries=None,
+     on_provider_failure=None,
+@@ -284,10 +306,17 @@ def _poll(
+     if recoveries is None:
+         recoveries=[]
+     if rpc.used>150:
+-        telemetry=rpc.telemetry()
+-        sessions.append(telemetry)
+-        _append_jsonl(PROVIDER_LOG,telemetry)
+-        rpc=_discovery(endpoint)
++        try:replacement=_discovery(endpoint)
++        except BoundaryError as exc:
++            if not _recoverable_provider_boundary(exc):raise
++            rpc._last_boundary=str(exc)
++            rpc=_recover_discovery(endpoint,rpc,cursor,sessions,recoveries,
++                on_failure=on_provider_failure)
++        else:
++            telemetry=rpc.telemetry()
++            sessions.append(telemetry)
++            _append_jsonl(PROVIDER_LOG,telemetry)
++            rpc=replacement
+ 
+     while True:
+         try:
+@@ -341,26 +370,79 @@ def _attach_wallet_overlay(vector,skill_book):
      return overlay
  
  
@@ -1228,7 +1317,7 @@ index 080894d..b138fed 100644
 +        candidate_rows=len(result['rows']),qualifiers=len(result['qualifiers']),
 +        lifecycles=len(result['lifecycles']),provider_sessions=len(result['discovery_sessions']))
 +    compact['lifecycles']=[{k:v for k,v in life.items() if k in (
-+        'index','status','boundary','settlement_kind','final_position','reconciliation','realized_pnl_quote',
++        'index','status','boundary','lifecycle_id','settlement_kind','final_position','reconciliation','realized_pnl_quote',
 +        'carried_through_graduation','capital_reconciliation')} for life in result['lifecycles']]
 +    raw=json.dumps(compact,sort_keys=True,separators=(',',':')).encode()
 +    if len(raw)>12_000_000:raise BoundaryError('selective_cohort_report_capacity')
@@ -1272,7 +1361,7 @@ index 080894d..b138fed 100644
          ),
          outcome_blind=True,reranking=False,replacement=False,
          wallet_skill_namespace=STRATEGY_NAMESPACE,
-@@ -369,22 +436,37 @@ def run(endpoint):
+@@ -369,22 +451,37 @@ def run(endpoint):
          sequencer_recoveries=[],evidence_acquisition=None,started_at=started,
      )
  
@@ -1311,7 +1400,7 @@ index 080894d..b138fed 100644
  
      def _checkpoint_provider_failure(failed_rpc,boundary,current_cursor):
          result["last_transient_provider_boundary"]=str(boundary)
-@@ -393,6 +475,7 @@ def run(endpoint):
+@@ -393,6 +490,7 @@ def run(endpoint):
              phase="provider_recovery",
          )
  
@@ -1319,7 +1408,7 @@ index 080894d..b138fed 100644
      try:
          warm_deadline=time.monotonic()+TAPE_WARM_SECONDS
          while time.monotonic()<warm_deadline:
-@@ -415,14 +498,15 @@ def run(endpoint):
+@@ -415,14 +513,15 @@ def run(endpoint):
          next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
          while (
              time.monotonic()<deadline
@@ -1337,7 +1426,7 @@ index 080894d..b138fed 100644
              now=time.time()
              now_monotonic=time.monotonic()
              for event in fresh:
-@@ -430,6 +514,7 @@ def run(endpoint):
+@@ -430,6 +529,7 @@ def run(endpoint):
                  if identity in seen_event:
                      continue
                  seen_event.add(identity)
@@ -1345,7 +1434,7 @@ index 080894d..b138fed 100644
                  if (
                      not event.get("topics")
                      or event["topics"][0].lower()!=topic(
-@@ -441,9 +526,14 @@ def run(endpoint):
+@@ -441,9 +541,14 @@ def run(endpoint):
                  if now-last_eval.get(curve,0)<MIN_REEVALUATION_SECONDS:
                      continue
                  last_eval[curve]=now
@@ -1360,7 +1449,7 @@ index 080894d..b138fed 100644
              if time.monotonic()>=next_checkpoint:
                  _checkpoint(
                      result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery"
-@@ -461,6 +551,18 @@ def run(endpoint):
+@@ -461,6 +566,18 @@ def run(endpoint):
              if observed_monotonic is None:
                  raise BoundaryError("missing_evidence_observation_clock")
              observed_at=float(scheduled["queued_at"])
@@ -1379,7 +1468,7 @@ index 080894d..b138fed 100644
              try:
                  evaluation=evaluate_candidate(
                      endpoint,event,list(tape),
-@@ -469,7 +571,29 @@ def run(endpoint):
+@@ -469,7 +586,29 @@ def run(endpoint):
                      evidence_observed_at=observed_at,
                      evidence_observed_monotonic=observed_monotonic,
                      evidence_context=evidence_context,
@@ -1409,7 +1498,7 @@ index 080894d..b138fed 100644
                  overlay=_attach_wallet_overlay(evaluation["vector"],skill)
                  public=public_evaluation(evaluation)
                  public["sequence"]=sequence
-@@ -493,14 +617,27 @@ def run(endpoint):
+@@ -493,14 +632,27 @@ def run(endpoint):
                          phase="qualifier_persisted",
                      )
                      next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
@@ -1438,7 +1527,7 @@ index 080894d..b138fed 100644
                      sequence=sequence,status="incomplete",
                      source_transaction=event.get("transactionHash"),
                      source_block=event.get("blockNumber"),
-@@ -517,28 +654,36 @@ def run(endpoint):
+@@ -517,28 +669,36 @@ def run(endpoint):
          if not result["target_reached"]:
              result["boundary"]="selective_cohort_target_not_reached_in_bounded_window"
  
@@ -1486,7 +1575,7 @@ index 080894d..b138fed 100644
          feed.close();skill.close()
  
      result["lifecycles"].sort(key=lambda row:row.get("index",-1))
-@@ -575,10 +720,7 @@ def run(endpoint):
+@@ -575,10 +735,7 @@ def run(endpoint):
  
  if __name__=="__main__":
      output=run(os.environ.get("MM_ROBINHOOD_READ_RPC_URL",""))
@@ -2704,10 +2793,10 @@ index c24ecb4..0aa82cf 100644
  
 diff --git a/robinhood_research/provider_admission.py b/robinhood_research/provider_admission.py
 new file mode 100644
-index 0000000..4d9bbc7
+index 0000000..15cd061
 --- /dev/null
 +++ b/robinhood_research/provider_admission.py
-@@ -0,0 +1,176 @@
+@@ -0,0 +1,187 @@
 +"""Optional cross-process read-only transport admission for concurrent certification.
 +
 +Endpoint credentials never enter SQLite. Existing role pacers and error recovery
@@ -2728,6 +2817,7 @@ index 0000000..4d9bbc7
 +POSITION_BURST = 8
 +FOREGROUND_AGE_SECONDS = 3
 +_position_work = ContextVar('provider_position_work',default=False)
++_foreground_work = ContextVar('provider_foreground_work',default=False)
 +
 +
 +def position_work(function):
@@ -2736,6 +2826,15 @@ index 0000000..4d9bbc7
 +        token=_position_work.set(True)
 +        try:return function(*args,**kwargs)
 +        finally:_position_work.reset(token)
++    return wrapped
++
++
++def foreground_work(function):
++    @wraps(function)
++    def wrapped(*args,**kwargs):
++        token=_foreground_work.set(True)
++        try:return function(*args,**kwargs)
++        finally:_foreground_work.reset(token)
 +    return wrapped
 +
 +
@@ -2749,7 +2848,7 @@ index 0000000..4d9bbc7
 +    if not service or service[0]!=first[2] or service[1]<POSITION_BURST:return first
 +    aged=db.execute('SELECT q.id,q.priority,m.lane,q.deadline FROM queue q '
 +        'JOIN queue_meta m ON m.id=q.id WHERE q.endpoint=? AND q.priority>0 '
-+        'AND m.lane<>? AND q.created<=? ORDER BY q.deadline,q.created,q.id LIMIT 1',
++        'AND (m.lane<>? OR q.priority<=10) AND q.created<=? ORDER BY q.deadline,q.created,q.id LIMIT 1',
 +        (endpoint,first[2],now-FOREGROUND_AGE_SECONDS)).fetchone()
 +    return aged or first
 +
@@ -2771,6 +2870,7 @@ index 0000000..4d9bbc7
 +
 +def priority(scope):
 +    if _position_work.get():return 0
++    if _foreground_work.get():return 10
 +    scope=str(scope).lower()
 +    if any(x in scope for x in ('paper','monitor','exit','unwind','settle','lifecycle')):return 0
 +    if any(x in scope for x in ('selective','evidence','candidate','pons_natural')):return 10
@@ -3113,6 +3213,76 @@ index 0000000..18cb1df
 +    state['grouped_members']=state.get('grouped_members',0)+len(members)
 +    state['groups']=state.get('groups',0)+len(groups)
 +    return out
+diff --git a/robinhood_tests/test_discovery_capacity.py b/robinhood_tests/test_discovery_capacity.py
+new file mode 100644
+index 0000000..a9a7c17
+--- /dev/null
++++ b/robinhood_tests/test_discovery_capacity.py
+@@ -0,0 +1,64 @@
++import tempfile
++from pathlib import Path
++from types import SimpleNamespace
++import unittest
++from unittest.mock import Mock,patch
++from robinhood_research import BoundaryError
++from robinhood_research import pons_selective_cohort as cohort
++from robinhood_research.provider_admission import priority
++
++
++class DiscoveryCapacityTests(unittest.TestCase):
++    def rpc(self,boundary='provider_shared_admission_deadline'):
++        return SimpleNamespace(used=151,_last_boundary=boundary,
++            telemetry=lambda:{'requests':151},
++            pacer=SimpleNamespace(requests_per_second=2.0,slow_to=Mock()))
++
++    def test_local_capacity_recovery_is_not_provider_throttling(self):
++        old=self.rpc();new=object();sessions=[];recoveries=[]
++        with tempfile.TemporaryDirectory() as td,patch.object(cohort,'PROVIDER_LOG',Path(td)/'providers'),patch.object(cohort,'RECOVERY_LOG',Path(td)/'recoveries'),patch.object(cohort,'_discovery',return_value=new),patch.object(cohort.time,'sleep'):
++            self.assertIs(cohort._recover_discovery('unused',old,123,sessions,recoveries),new)
++        old.pacer.slow_to.assert_not_called()
++        self.assertEqual(len(sessions),1);self.assertEqual(len(recoveries),1)
++        row=recoveries[0]
++        self.assertEqual(row['kind'],'local_admission_recovery')
++        self.assertTrue(row['local_capacity_limited']);self.assertFalse(row['rate_limited'])
++        self.assertEqual(row['canonical_cursor_before'],123)
++        self.assertFalse(row['canonical_cursor_advanced'])
++        self.assertEqual(row['catchup_from'],124)
++
++    def test_actual_provider_429_keeps_existing_backpressure(self):
++        old=self.rpc('provider_rpc_429');recoveries=[]
++        with tempfile.TemporaryDirectory() as td,patch.object(cohort,'PROVIDER_LOG',Path(td)/'providers'),patch.object(cohort,'RECOVERY_LOG',Path(td)/'recoveries'),patch.object(cohort,'_discovery',return_value=object()),patch.object(cohort.time,'sleep'):
++            cohort._recover_discovery('unused',old,123,[],recoveries)
++        old.pacer.slow_to.assert_called_once_with(1.0)
++        self.assertTrue(recoveries[0]['rate_limited'])
++
++    def test_persistent_local_pressure_remains_bounded(self):
++        old=self.rpc()
++        with tempfile.TemporaryDirectory() as td,patch.object(cohort,'PROVIDER_LOG',Path(td)/'providers'),patch.object(cohort,'_discovery',side_effect=BoundaryError('provider_shared_admission_deadline')) as connect,patch.object(cohort.time,'sleep'):
++            with self.assertRaisesRegex(BoundaryError,'provider_recovery_exhausted'):
++                cohort._recover_discovery('unused',old,123,[],[])
++        self.assertEqual(connect.call_count,cohort.PROVIDER_RATE_LIMIT_ATTEMPTS)
++        old.pacer.slow_to.assert_not_called()
++
++    def test_session_rotation_recovers_without_duplicate_archive_or_cursor_advance(self):
++        old=self.rpc();new=self.rpc();new.used=0;sessions=[];recoveries=[]
++        def discovery(endpoint):
++            self.assertEqual(priority('connectivity'),10)
++            if not getattr(discovery,'called',False):
++                discovery.called=True;raise BoundaryError('provider_shared_admission_deadline')
++            return new
++        with tempfile.TemporaryDirectory() as td,patch.object(cohort,'PROVIDER_LOG',Path(td)/'providers'),patch.object(cohort,'RECOVERY_LOG',Path(td)/'recoveries'),patch.object(cohort,'_discovery',side_effect=discovery),patch.object(cohort,'_next_discovery_end',return_value=None),patch.object(cohort.time,'sleep'):
++            actual,cursor,fresh=cohort._poll('unused',old,123,[],object(),sessions,recoveries)
++        self.assertIs(actual,new);self.assertEqual(cursor,123);self.assertEqual(fresh,[])
++        self.assertEqual(len(sessions),1);self.assertEqual(len(recoveries),1)
++        self.assertEqual(priority('connectivity'),50)
++
++    def test_discovery_authentication_failure_stays_fail_closed(self):
++        old=self.rpc()
++        with patch.object(cohort,'_discovery',side_effect=BoundaryError('provider_http_401')) as connect:
++            with self.assertRaisesRegex(BoundaryError,'401'):
++                cohort._poll('unused',old,123,[],object(),[],[])
++        self.assertEqual(connect.call_count,1)
++        self.assertEqual(priority('connectivity'),50)
 diff --git a/robinhood_tests/test_immutable_rpc.py b/robinhood_tests/test_immutable_rpc.py
 new file mode 100644
 index 0000000..ba583be
@@ -3333,10 +3503,10 @@ index 0000000..fb8f397
 +if __name__=='__main__':unittest.main()
 diff --git a/robinhood_tests/test_pons_continuous_campaign.py b/robinhood_tests/test_pons_continuous_campaign.py
 new file mode 100644
-index 0000000..7cde493
+index 0000000..f382cdb
 --- /dev/null
 +++ b/robinhood_tests/test_pons_continuous_campaign.py
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,116 @@
 +from contextlib import ExitStack
 +from concurrent.futures import Future
 +import gzip
@@ -3441,6 +3611,18 @@ index 0000000..7cde493
 +            self.assertEqual(len((root/'completed-lifecycles.jsonl').read_text().splitlines()),1)
 +            self.assertTrue(result['cohort_accounting']['conservation'])
 +            self.assertEqual(result['cohort_accounting']['genesis'],cohort.STRATEGY_CAPITAL_QUOTE)
++
++    def test_terminal_boundary_retains_original_ledger_identity(self):
++        life=dict(index=1,status='boundary',boundary='provider_shared_admission_deadline',
++                  lifecycle_id='original-ledger',qualification_vector={'original':True})
++        result=dict(rows=[],qualifiers=[],lifecycles=[life],discovery_sessions=[],
++                    sequencer_recoveries=[],summary={})
++        with tempfile.TemporaryDirectory() as td,patch.object(cohort,'ROOT',Path(td)),patch.object(cohort,'REPORT',Path(td)/'report.json'):
++            compact=cohort.persist_terminal(result)
++            self.assertEqual(compact['lifecycles'][0]['lifecycle_id'],'original-ledger')
++            self.assertEqual(compact['lifecycles'][0]['status'],'boundary')
++            archived=json.loads(gzip.decompress(Path(compact['observation_archive']['path']).read_bytes()))
++            self.assertEqual(archived,result)
 diff --git a/robinhood_tests/test_pons_execution_acquisition.py b/robinhood_tests/test_pons_execution_acquisition.py
 new file mode 100644
 index 0000000..2f71d09
@@ -4362,16 +4544,16 @@ index 0000000..f4bf49b
 +        self.assertEqual(ctx.prefetch_adjacent_headers([('eth_gasPrice',[])]*50),[])
 diff --git a/robinhood_tests/test_shared_position_fairness.py b/robinhood_tests/test_shared_position_fairness.py
 new file mode 100644
-index 0000000..8f25dd2
+index 0000000..5a12ca3
 --- /dev/null
 +++ b/robinhood_tests/test_shared_position_fairness.py
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,106 @@
 +import json
 +from pathlib import Path
 +import tempfile
 +import unittest
 +from robinhood_research import BoundaryError
-+from robinhood_research.provider_admission import Admission,next_ticket,record_service,POSITION_BURST,position_work,priority
++from robinhood_research.provider_admission import Admission,next_ticket,record_service,POSITION_BURST,position_work,foreground_work,priority
 +
 +
 +class SustainedPositionFairnessTests(unittest.TestCase):
@@ -4388,7 +4570,7 @@ index 0000000..8f25dd2
 +        self.assertEqual(priority('pons_natural'),10)
 +        self.assertEqual(priority('universe_identity'),50)
 +
-+    def exercise(self,lane,deadline):
++    def exercise(self,lane,deadline,scope='universe_identity'):
 +        with tempfile.TemporaryDirectory() as td:
 +            now=[100.];positions=[];transport=[]
 +            def sleep(seconds):
@@ -4406,7 +4588,7 @@ index 0000000..8f25dd2
 +            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('position',gate.endpoint,0,100.,130.))
 +            db.execute('INSERT INTO queue_meta VALUES(?,?)',('position','pons'));db.close()
 +            boundary=None
-+            try:gate.invoke(lambda:transport.append(now[0]),['eth_getCode'],'universe_identity',deadline=deadline)
++            try:gate.invoke(lambda:transport.append(now[0]),['eth_getCode'],scope,deadline=deadline)
 +            except BoundaryError as exc:boundary=str(exc)
 +            db=gate.connect()
 +            event=json.loads(db.execute('SELECT body FROM admissions').fetchone()[0])
@@ -4452,6 +4634,26 @@ index 0000000..8f25dd2
 +            self.assertEqual(row['deadline'],99.);self.assertEqual(row['methods'],['eth_call'])
 +            self.assertEqual(db.execute('SELECT count(*) FROM queue').fetchone()[0],0)
 +            self.assertEqual(db.execute('SELECT count(*) FROM transports').fetchone()[0],0);db.close()
++
++    def test_same_lane_foreground_observation_has_bounded_service(self):
++        boundary,positions,transport,event,physical,interval,pending=self.exercise('pons',110.,'pons_natural')
++        self.assertIsNone(boundary)
++        self.assertEqual(len(positions),POSITION_BURST)
++        self.assertEqual(len(transport),1);self.assertLess(transport[0],105.)
++        self.assertEqual(event['priority'],10);self.assertEqual(event['deadline'],110.)
++        self.assertEqual(pending[0],'position');self.assertEqual(interval,.5)
++
++    def test_foreground_authentication_retains_position_precedence_and_context_isolation(self):
++        @foreground_work
++        def observation():
++            self.assertEqual(priority('connectivity'),10)
++            @position_work
++            def position():self.assertEqual(priority('connectivity'),0)
++            position()
++            self.assertEqual(priority('connectivity'),10)
++            raise BoundaryError('injected_observation_failure')
++        with self.assertRaises(BoundaryError):observation()
++        self.assertEqual(priority('connectivity'),50)
 diff --git a/robinhood_tests/test_strategy_prospect_admission.py b/robinhood_tests/test_strategy_prospect_admission.py
 new file mode 100644
 index 0000000..dcf74d7
