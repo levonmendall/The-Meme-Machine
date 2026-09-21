@@ -72,6 +72,19 @@ class DlmmTapeExtensions(unittest.TestCase):
         self.assertEqual(tape.terminal_adjustments,())
         self.assertEqual(tape.terminal['last_update'],110)
 
+    def test_rebalance_liquidity_is_explicitly_unreplayable_without_position_state(self):
+        start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
+        _,tx=transaction(start,1_000_000,101,101,'rebalance')
+        keys=tx['transaction']['message']['accountKeys']
+        pool_index=keys.index(POOL)
+        other_index=next(i for i,key in enumerate(keys) if i!=pool_index)
+        ix=tx['transaction']['message']['instructions'][0]
+        ix['accounts']=[other_index,pool_index]
+        ix['data']=pump.b58(bytes.fromhex('5c04b0c177b95309')+b'\x00'*8)
+        with self.assertRaisesRegex(
+                Exception,'dlmm_rebalance_liquidity_requires_position_state:101'):
+            transaction_swaps(tx,POOL)
+
     def test_unexplained_terminal_last_update_mutation_still_fails_closed(self):
         start_snapshot=snapshot();start_snapshot['kind']='real';start=dlmm.validate(start_snapshot,100)
         post,tx=transaction(start,1_000_000,101,110,'clock-bad')
