@@ -13,6 +13,7 @@ ENDPOINT="https://gateway.kingdom.dev/robinhood/subgraph/v1/graphql"
 CHAIN=4663
 LIMIT=1000
 INDEX=Path("ramses-historical-index-data.json.gz")
+FEE_SUPPLEMENT=Path("ramses-historical-fees-with-identity.json.gz")
 JOIN=Path("ramses-historical-lp-signal-join.json")
 OUT=Path("ramses-historical-fee-decomposition.json")
 getcontext().prec=60
@@ -111,8 +112,15 @@ def main():
         rows.sort(key=lambda x:(i(x.get("validFromBlock")) or -1,i(x.get("validFromLogIndex")) or -1))
 
     with gzip.open(INDEX,"rt",encoding="utf-8") as fh:index=json.load(fh)
+    if FEE_SUPPLEMENT.exists():
+        with gzip.open(FEE_SUPPLEMENT,"rt",encoding="utf-8") as fh:
+            fee_source=json.load(fh).get("fee_events") or []
+        fee_source_kind="fee_identity_supplement"
+    else:
+        fee_source=index.get("fee_events") or []
+        fee_source_kind="full_index"
     fee_by_pool=defaultdict(list)
-    for e in index.get("fee_events") or []:
+    for e in fee_source:
         if e.get("attributedToLiquidity") is False:continue
         pool=addr(e.get("poolAddress") or e.get("pool"));bid=i(e.get("binId"))
         ts=i(e.get("timestamp"));key=event_key(e.get("blockNumber"),e.get("logIndexNumber") or e.get("logIndex"))
@@ -169,6 +177,8 @@ def main():
         methodology=("For each derivation/validation lifecycle, attribute indexed per-bin LP fee USD "
                      "by the owner's historical DLMMUserBinLiquidityVersion share of binTotalSupply. "
                      "Inventory P&L is realized gross cash-flow P&L minus attributed LP fee income."),
+        fee_source_kind=fee_source_kind,
+        fee_source_events=len(fee_source),
         counts=dict(
             lifecycles_in=len(lifecycles),lifecycles_out=len(outrows),
             liquidity_versions_total=len(versions),relevant_liquidity_versions=relevant_versions,
