@@ -1,0 +1,62 @@
+name: profitability-v1-overlay-build
+on:
+  push:
+    branches: [cert/profitability-v1-current]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Build combined operational plus profitability overlays
+        run: |
+          set -euo pipefail
+          mkdir -p profitability-overlay-build
+
+          merge_lane() {
+            lane="$1"; base="$2"; profit="$3"; old_patch="$4"; shift 4
+            work="$RUNNER_TEMP/$lane-combined"
+            git fetch origin "$base" "$profit"
+            git worktree add --detach "$work" "$base"
+            git -C "$work" apply --index "$GITHUB_WORKSPACE/$old_patch"
+            for file in "$@"; do
+              base_file="$RUNNER_TEMP/base-${lane}-$(basename "$file")"
+              profit_file="$RUNNER_TEMP/profit-${lane}-$(basename "$file")"
+              merged_file="$RUNNER_TEMP/merged-${lane}-$(basename "$file")"
+              git -C "$work" show "HEAD:$file" > "$base_file"
+              git show "$profit:$file" > "$profit_file"
+              cp "$work/$file" "$merged_file"
+              set +e
+              git merge-file -p "$merged_file" "$base_file" "$profit_file" > "$merged_file.out"
+              rc=$?
+              set -e
+              mv "$merged_file.out" "$work/$file"
+              if [ "$rc" -gt 0 ]; then
+                echo "MERGE_CONFLICT lane=$lane file=$file"
+                grep -n -C 8 '<<<<<<<\|=======\|>>>>>>>' "$work/$file" || true
+                cp "$work/$file" "profitability-overlay-build/${lane}-conflict-$(basename "$file")"
+                return 1
+              fi
+            done
+            git -C "$work" diff --binary HEAD > "profitability-overlay-build/${lane}-combined.patch"
+            git -C "$work" diff --check
+          }
+
+          status=0
+          merge_lane pump 04c99ca3125747dc8bfc6f655fec7533f8ac8156 160985182b043ab41d0418ba5dcfed7dbfbe3cb2 certification/patches/pump-accounting.patch             meme_machine/pump_acceleration_strategy.py tests/pump_acceleration_natural_prospective.py tests/test_pump_acceleration_strategy.py tests/test_pump_acceleration_policy_identity.py .github/workflows/pump-acceleration-natural-prospective.yml .github/workflows/ci.yml || status=1
+
+          merge_lane pons c692fe446bdee4ea1179da27a3f0c9f2f281f118 a8b560c13f7e1b3696ac7f7aa9f35801f87421e1 certification/patches/pons-cohort-capital.patch             robinhood_research/pons_selective_continuation.py robinhood_research/pons_selective_cohort.py robinhood_tests/test_pons_selective_continuation.py .github/workflows/robinhood-research.yml || status=1
+
+          exit "$status"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: profitability-v1-overlay-build-${{ github.run_id }}
+          path: profitability-overlay-build/
+          if-no-files-found: warn
+          retention-days: 30
