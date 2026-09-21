@@ -5,14 +5,14 @@
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
-      "source_branch": "cert/pump-execution-cert-v1",
-      "source_sha": "04c99ca3125747dc8bfc6f655fec7533f8ac8156",
-      "strategy_version": "pump-acceleration-independent-v1/execution-certification-v1",
-      "policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e",
+      "source_branch": "strategy/pump-profitability-v1",
+      "source_sha": "160985182b043ab41d0418ba5dcfed7dbfbe3cb2",
+      "strategy_version": "pump-acceleration-independent-v1/profitability-v1",
+      "policy_hash": "561ce76a334d9cdcd3b4888a9aaee24d11c9eb43f1ca20c5b806940297018bfc",
       "file_hashes": {
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
-        ".github/workflows/pump-acceleration-natural-prospective.yml": "2d5e27c8d1808d5a84b521b42b6b4cbce70eef9b5ad6bcdfe9c1d412e5a27232",
-        "meme_machine/pump_acceleration_strategy.py": "ab5f149e315b438d959f623d051b394a44509b7a8af892ba8ad5f9bf197fe9d4"
+        ".github/workflows/pump-acceleration-natural-prospective.yml": "7bc6fe705dd688fbb42e6ecc96112f2f1c56eb510076d6d1cfcfb5904145bf24",
+        "meme_machine/pump_acceleration_strategy.py": "f85adbe235e8d59f418a15561f3453336a6bbd24c74724a4a3cc893335c0dd16"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -26,20 +26,26 @@
         "110dbf34b054daf7a35c72d94196ec7ff0c2c331",
         "edfd9c1f23f4f958780e441eb19bf397d2ac82ca",
         "fa6ffbf0972676202f110f52425872b69f4ea627",
-        "04c99ca3125747dc8bfc6f655fec7533f8ac8156"
+        "04c99ca3125747dc8bfc6f655fec7533f8ac8156",
+        "160985182b043ab41d0418ba5dcfed7dbfbe3cb2"
       ],
       "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
       "execution_certification": {
-        "profitability_authority": false,
-        "target_restrictiveness": "~5/10",
-        "original_source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce"
+        "profitability_authority": true,
+        "target_restrictiveness": "profitability-v1",
+        "original_source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
+        "revision": "profitability-v1",
+        "purpose": "active paper-trading profitability policy derived from executed-trade, missed-winner, segment and robustness research",
+        "machinery_baseline_policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e"
       },
       "prospect_admission": {
         "market_observation_scope": "all finalized Pump events remain observable",
-        "investment_evaluation_scope": "late-curve candidates only after finalized-stream progress, trajectory, independent-demand and extension gates can satisfy the frozen Pump strategy; post-graduation modes are limited to authenticated graduations inside their entry horizons",
+        "investment_evaluation_scope": "profitability-v1 late-curve candidates in the 60-85% progress band with broad expanding independent demand, controlled concentration, non-collapsing trajectory and bounded executable round-trip downside; authenticated post-graduation modes retain separate continuation evidence",
         "pre_rpc_strategy_screen": true,
         "permanent_exclusion_on_screen_failure": false,
-        "strategy_thresholds_changed": false
+        "strategy_thresholds_changed": true,
+        "profitability_authority": true,
+        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       }
     },
     "meteora": {
@@ -111,13 +117,13 @@
       }
     },
     "pons": {
-      "source_branch": "cert/pons-execution-cert-v1",
-      "source_sha": "c692fe446bdee4ea1179da27a3f0c9f2f281f118",
-      "strategy_version": "pons-selective-continuation-v1/execution-certification-v1",
-      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "source_branch": "strategy/pons-profitability-v1",
+      "source_sha": "a8b560c13f7e1b3696ac7f7aa9f35801f87421e1",
+      "strategy_version": "pons-selective-continuation-v1/profitability-v1",
+      "policy_hash": "d9f19aa3c9ab23aeab5a5622c8ca2bdefbca46a140ce3f56dbc0d64b14e6e64a",
       "file_hashes": {
         ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
-        "robinhood_research/pons_selective_continuation.py": "b2ef248ddcda0c446381fcb307b6115a8bd10c3b84d092366356b60be764adc7"
+        "robinhood_research/pons_selective_continuation.py": "09d9611034132f9f3b804e0b49f5d3e78e02f9d27c1745e2c2b9abc66e4eeb0a"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
@@ -131,21 +137,27 @@
         "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
         "44355aaac41a06a80f306f4458bbf200b118f179",
         "38d264c9dd878e2f70ffb461c18bd12ecdd7c1d6",
-        "40c66a68704fab147dacbfc25a0819b5a6f9c844"
+        "40c66a68704fab147dacbfc25a0819b5a6f9c844",
+        "a8b560c13f7e1b3696ac7f7aa9f35801f87421e1"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
       "execution_certification": {
-        "profitability_authority": false,
-        "target_restrictiveness": "~5/10",
-        "original_source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366"
+        "profitability_authority": true,
+        "target_restrictiveness": "profitability-v1",
+        "original_source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
+        "revision": "profitability-v1",
+        "purpose": "active paper-trading profitability policy emphasizing mature continuation, bounded graduation ETA/friction and regime-reset re-entry",
+        "machinery_baseline_policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9"
       },
       "prospect_admission": {
         "market_observation_scope": "all authenticated Pons V2 buy/sell logs remain observable",
-        "investment_evaluation_scope": "after minimal authenticated current-state acquisition, only ungraduated native-quote curves inside the frozen progress band with acceptable snipe and creator tax are promoted to trajectory/window investment evaluation",
+        "investment_evaluation_scope": "ungraduated native-quote curves at 50-85% progress, age 120-600s and graduation ETA 20-90s with the existing demand breadth/flow controls, tighter top-three concentration and <=6% round-trip friction; same-curve re-entry requires a terminal flat prior lifecycle and a material point-in-time regime reset",
         "minimal_state_preflight": true,
         "trajectory_window_after_preflight_only": true,
         "permanent_exclusion_on_screen_failure": false,
-        "strategy_thresholds_changed": false
+        "strategy_thresholds_changed": true,
+        "profitability_authority": true,
+        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       }
     },
     "ramses": {
@@ -213,11 +225,11 @@
     }
   },
   "execution_certification": {
-    "revision": "dlmm-machinery-proof-v2-current",
-    "purpose": "test relaxed Meteora and Ramses qualification on latest repaired four-lane implementation",
-    "profitability_authority": false,
-    "target_strategy_restrictiveness": "Pump/Pons unchanged; Meteora/Ramses relaxed only for machinery proof",
-    "validation_status": "ramses_repeat_entry_repair_preflight",
+    "revision": "profitability-v1-current",
+    "purpose": "active Pump and Pons paper profitability policies on the latest repaired four-lane integration; DLMM lanes retain current machinery-proof-v2 policies",
+    "profitability_authority": true,
+    "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora/Ramses machinery-proof-v2",
+    "validation_status": "deterministic_verification_pending",
     "validation_run_requested": false
   },
   "composition": {
@@ -228,12 +240,12 @@
   "prospect_admission": {
     "revision": "strategy-prospect-admission-v1",
     "purpose": "keep broad market observability while limiting investment evaluation to prospects defined by each frozen strategy",
-    "strategy_thresholds_changed": false,
+    "strategy_thresholds_changed": true,
     "freshness_finality_changed": false,
     "paper_accounting_changed": false,
-    "validation_status": "deterministic_in_progress",
-    "validation_run_requested": true,
+    "validation_status": "profitability-v1-deterministic-pending",
+    "validation_run_requested": false,
     "source_sha": "0982519a68222b7cd0640981a7ac4a8ac7c119dd",
-    "integration": "semantic delta composed in canonical overlays"
+    "integration": "Pump/Pons profitability-v1 authority composed with current DLMM machinery-proof implementation"
   }
 }
