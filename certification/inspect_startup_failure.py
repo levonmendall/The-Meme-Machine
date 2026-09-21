@@ -73,7 +73,7 @@ logs={}
 for lane in ("pump","meteora","pons","ramses"):
     path=base/lane/"process.log"
     value=path.read_text() if path.exists() else "<missing>"
-    value=re.sub(r'(?:https?|wss?)://[^\\s\\\"\\\']+', '<endpoint-redacted>', value)
+    value="\n".join("<sensitive endpoint line redacted>" if any(marker in line.lower() for marker in ("http://","https://","ws://","wss://","authorization:","bearer ")) else line for line in value.splitlines())
     logs[lane]=value[-24000:]
     (OUT/(lane+"-process-sanitized.log")).write_text(value)
 receipt={"artifact":artifact,"verified_sha256":artifact["digest"],"result":result,"snapshot_complete":manifest.get("snapshot_complete"),"file_kinds":dict(counts),"verified_file_count":len(verified),"failures":failures,"logs":logs}
