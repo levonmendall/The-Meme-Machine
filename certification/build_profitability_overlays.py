@@ -132,9 +132,9 @@ def merge_file(lane,path,operational,base,profit):
         a.write_text(operational);b.write_text(base);c.write_text(profit)
         proc=run("git","merge-file","-p",str(a),str(b),str(c),check=False)
         body=proc.stdout
-    if proc.returncode>1:
-        raise RuntimeError(f"merge_file_failed:{lane}:{path}")
-    if proc.returncode==1:
+    if proc.returncode!=0:
+        if not any(x in body for x in ("<<<<<<<","=======",">>>>>>>")):
+            raise RuntimeError(f"merge_file_failed:{lane}:{path}:{proc.returncode}")
         body=resolve_pump(path,body) if lane=="pump" else resolve_pons(path,body)
     if any(x in body for x in ("<<<<<<<","=======",">>>>>>>")):
         raise RuntimeError(f"conflict_marker_remaining:{lane}:{path}")
