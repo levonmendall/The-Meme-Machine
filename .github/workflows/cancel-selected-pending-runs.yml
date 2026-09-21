@@ -16,7 +16,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          for id in 35643917106 35640542900; do
+          for id in 35643917106 35640542900 35640057271; do
             status="$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '.status' 2>/dev/null || true)"
             case "$status" in
               queued|pending|waiting|requested)
