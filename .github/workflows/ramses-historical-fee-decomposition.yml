@@ -27,6 +27,20 @@ jobs:
           mkdir -p /tmp/index
           unzip -q /tmp/index.zip -d /tmp/index
           cp /tmp/index/ramses-historical-index-data.json.gz .
+      - name: Download latest fee identity supplement
+        env:
+          GH_TOKEN: \${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aid="$(gh api --paginate "repos/\${{ github.repository }}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false and (.name | startswith("ramses-historical-fee-identity-"))) | [.created_at, (.id|tostring)] | @tsv' \
+            | sort -r | head -1 | cut -f2)"
+          test -n "$aid"
+          gh api "repos/\${{ github.repository }}/actions/artifacts/$aid/zip" > /tmp/fees.zip
+          mkdir -p /tmp/fees
+          unzip -q /tmp/fees.zip -d /tmp/fees
+          cp /tmp/fees/ramses-historical-fees-with-identity.json.gz .
       - name: Download latest redacted LP signal join
         env:
           GH_TOKEN: ${{ github.token }}
