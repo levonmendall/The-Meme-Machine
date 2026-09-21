@@ -35,7 +35,7 @@ def main():
     }"""
     rows=gql(q)["__schema"]["types"]
     keep={}
-    needles=("dlmm","liquidity","position","bin","pool","fee","swap")
+    needles=("dlmm","liquidity","position","bin","pool","fee","swap","transaction","transfer")
     for row in rows:
         name=str(row.get("name") or "")
         low=name.lower()
