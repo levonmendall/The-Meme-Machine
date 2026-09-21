@@ -1277,3 +1277,6 @@ Pons has a complete native final result: 15 qualifiers, 8 failed entries (3 entr
 
 
 The first targeted dynamic-event audit (35587882946/job 106295353216) failed before artifact processing because its script directory did not expose the repository package on sys.path. This read-only audit harness error is retained and corrected by resolving the repository root explicitly; no lane source or candidate changes, no provider access, and no market run occurred.
+
+
+The second read-only attempt (35587986529/job 106295686353) confirmed the integration checkout does not contain native lane packages at all; those exist only in pinned worktrees. The audit now embeds the unchanged pure Keccak helper from the frozen Ramses source, verifies the standard empty-input vector, and uses the exact pinned liquidity-event ABI definitions. Both failed audit logs remain retained. This is an audit dependency correction only.
