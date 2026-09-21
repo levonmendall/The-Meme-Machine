@@ -11,41 +11,49 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Cancel exact superseded workflow
+      - name: Cancel exact provider-contention workflow
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
           python - <<'PY'
           import json, os, pathlib, time, urllib.request
-          run_id=35660810946
-          sha="acc8240ef967daeeba04a8bb309038f33c9d2a02"
-          expected_branch="repair/frozen-campaign-handoff"
-          expected_name="paper-milestone"
+          targets=[
+              dict(run_id=35659161615,sha="a71d754692cfad33d8ccf66b3f365af2a6405554",
+                   branch="research/ramses-dlmm-historical-market-v1",name="ramses-historical-market-review",
+                   reason="explicit user request to clear blockers so profitability-v1 four-lane validation can start cleanly; historical review shares Robinhood RPC capacity"),
+          ]
           base="https://api.github.com/repos/"+os.environ["REPOSITORY"]
           headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],"Accept":"application/vnd.github+json"}
           def api(path,method="GET"):
               with urllib.request.urlopen(urllib.request.Request(base+path,headers=headers,method=method),timeout=30) as response:
                   data=response.read()
                   return json.loads(data) if data else {"status":response.status}
-          path="/actions/runs/"+str(run_id)
-          row=api(path)
-          if row["head_sha"]!=sha or row["head_branch"]!=expected_branch or row["name"]!=expected_name:
-              raise SystemExit("exact_stop_identity_mismatch")
-          record={"run_id":run_id,"sha":sha,"before":row["status"],
-                  "reason":"explicit user cancellation: obsolete continuation-v1 live diagnostic blocks profitability-v1 four-lane contention gate"}
-          record["artifacts_before"]=api(path+"/artifacts")
-          pathlib.Path("campaign-cancellations.json").write_text(json.dumps([record],indent=2))
-          if row["status"]!="completed":
-              record["cancel"]=api(path+"/cancel","POST")
-          for _ in range(30):
+          records=[]
+          for target in targets:
+              path="/actions/runs/"+str(target["run_id"])
               row=api(path)
-              record["after"]=row["status"];record["conclusion"]=row["conclusion"]
-              if row["status"]=="completed":break
+              if row["head_sha"]!=target["sha"] or row["head_branch"]!=target["branch"] or row["name"]!=target["name"]:
+                  raise SystemExit("exact_stop_identity_mismatch")
+              record={k:target[k] for k in ("run_id","sha","reason")}
+              record["before"]=row["status"];record["artifacts_before"]=api(path+"/artifacts")
+              if row["status"]!="completed":
+                  record["cancel"]=api(path+"/cancel","POST")
+              records.append(record)
+              pathlib.Path("campaign-cancellations.json").write_text(json.dumps(records,indent=2))
+          for _ in range(30):
+              done=True
+              for record in records:
+                  row=api("/actions/runs/"+str(record["run_id"]))
+                  record["after"]=row["status"];record["conclusion"]=row["conclusion"]
+                  done=done and row["status"]=="completed"
+              pathlib.Path("campaign-cancellations.json").write_text(json.dumps(records,indent=2))
+              if done:break
               time.sleep(2)
-          record["artifacts_after"]=api(path+"/artifacts")
-          pathlib.Path("campaign-cancellations.json").write_text(json.dumps([record],indent=2))
-          print(json.dumps({k:v for k,v in record.items() if not k.startswith("artifacts")}),flush=True)
+          for record in records:
+              record["artifacts_after"]=api("/actions/runs/"+str(record["run_id"])+"/artifacts")
+          pathlib.Path("campaign-cancellations.json").write_text(json.dumps(records,indent=2))
+          print(json.dumps([{k:v for k,v in r.items() if not k.startswith("artifacts")} for r in records]),flush=True)
           PY
       - name: Preserve cancellation audit
         if: always()
