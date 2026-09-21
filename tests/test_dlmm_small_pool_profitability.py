@@ -40,7 +40,7 @@ class SmallPoolProfitabilityTests(unittest.TestCase):
 
     def test_price_inference_uses_sol_plausibility_and_ohlcv_ratio(self):
         resolver=study.EntryContextResolver()
-        with patch.object(resolver,"ohlcv_close",return_value=2.0):
+        with patch.object(resolver,"_candles",return_value=[(999,2.0)]):
             prices,reason=resolver.prices(
                 dict(
                     token_x=dlmm.WSOL,token_y="token",
