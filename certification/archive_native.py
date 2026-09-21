@@ -1,5 +1,6 @@
 """Freeze explicit public campaign evidence before upload; never copy credentials."""
 import argparse
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -58,9 +59,14 @@ def copy_snapshot(source,target,records):
             begun=time.monotonic()
             def progress(status,remaining,total):
                 if time.monotonic()-begun>30:raise TimeoutError('sqlite_snapshot_timeout')
-            with sqlite3.connect(source.resolve().as_uri()+'?mode=ro',uri=True,timeout=10) as origin:
-                with sqlite3.connect(target) as destination:
+            with closing(sqlite3.connect(source.resolve().as_uri()+'?mode=ro',uri=True,timeout=10)) as origin:
+                with closing(sqlite3.connect(target)) as destination:
                     origin.backup(destination,pages=256,progress=progress,sleep=.01)
+                    destination.commit()
+                    # The copied database header can inherit WAL mode. Make the
+                    # archive standalone before closing and hashing the snapshot.
+                    if destination.execute('PRAGMA journal_mode=DELETE').fetchone()[0]!='delete':
+                        raise ValueError('sqlite_snapshot_not_standalone')
                     if destination.execute('PRAGMA quick_check').fetchall()!=[('ok',)]:
                         raise ValueError('sqlite_snapshot_integrity')
             row['kind']='sqlite_online_backup';row['integrity_verified']=True

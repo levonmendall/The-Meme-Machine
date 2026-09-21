@@ -65,9 +65,12 @@ jobs:
       - name: Export exact-revision engineering readiness
         id: readiness
         run: python -m certification.controls --smoke-result certification-smoke/result.json --output "$GITHUB_OUTPUT"
+      - name: Mark cancelled collection
+        if: cancelled()
+        run: echo "MM_ARCHIVE_CANCELLED=true" >> "$GITHUB_ENV"
       - name: Preserve smoke native ledgers before creating the hourly study
         if: always()
-        run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact --evidence-root . --phase smoke --cancelled "${{ cancelled() }}"
+        run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact --evidence-root . --phase smoke --cancelled "${MM_ARCHIVE_CANCELLED:-false}"
       - name: Preserve success and failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -124,9 +127,12 @@ jobs:
           MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON }}
           MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON }}
         run: exec python -m certification.live_status --output certification-hourly --phase hourly -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-hourly --gate certification-gates/deterministic.json --phase hourly --seconds 3600 --smoke-result smoke-readiness.json
+      - name: Mark cancelled collection
+        if: cancelled()
+        run: echo "MM_ARCHIVE_CANCELLED=true" >> "$GITHUB_ENV"
       - name: Preserve hourly native ledgers including per-asset Ramses books
         if: always()
-        run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact --evidence-root . --phase hourly --cancelled "${{ cancelled() }}"
+        run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact --evidence-root . --phase hourly --cancelled "${MM_ARCHIVE_CANCELLED:-false}"
       - name: Preserve hourly success or failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

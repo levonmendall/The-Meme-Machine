@@ -852,3 +852,22 @@ identity, persistent local pressure and fail-closed authentication.
 The next live attempt remains a completely fresh smoke; an hour may follow only
 its exact-revision engineering/artifact gates. No elapsed time from this failed,
 cancelled hour is reused. No merge, economic change or live-money authority.
+
+
+### Deterministic archive regression caught and corrected before live use
+
+Build35567907287/job106233302830 failed the new sidecar-race regression: SQLite
+backup preserved the source WAL-mode header, so opening the copied database could
+create new destination sidecars. No lane suite or live test was launched from this
+failed gate. Artifact10624645899,168799 bytes, recorded SHA256
+f1fa1a9bcffc635062c2d1d87dfa7ed7b038bdc5d96a6458f1ea5cf8eb00548d preserves the failure.
+The collector now explicitly closes both connections and converts only the copied
+snapshot to standalone DELETE journal mode before hashing. The same regression
+remains enabled. Native source databases and their accounting are not modified.
+
+Workflow35567906325 also failed YAML validation because cancelled() was used in
+a run expression. Per GitHub's contexts reference
+(https://docs.github.com/en/actions/reference/workflows-and-actions/contexts),
+status functions belong in step/job if conditions. A dedicated if:cancelled() step
+now sets a trusted cancellation flag; the collector consumes that flag. Both
+failures are retained, and the complete gates must pass before any live launch.
