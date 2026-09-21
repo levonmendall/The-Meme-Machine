@@ -147,7 +147,7 @@
     },
     "ramses": {
       "source_branch": "cert/ramses-machinery-proof-v2",
-      "source_sha": "ff757da9bc95656b27047f6bb081092fff6edb87",
+      "source_sha": "fd984cae1ca474430de9b8a220d5635f21aae916",
       "strategy_version": "ramses-fee-pulse-v1/execution-certification-machinery-proof-v2",
       "policy_hash": "5e1560af8b4d40f72e60cd93b52ede575aecbac58fd4cad6c02cc2c25fdeeaf0",
       "file_hashes": {
@@ -165,7 +165,8 @@
         "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
         "325c6052056500146b88d1ad3e83bf5db5b9657a",
         "4db39fbc3729af1fa186ad58ba611333abd69939",
-        "ff757da9bc95656b27047f6bb081092fff6edb87"
+        "ff757da9bc95656b27047f6bb081092fff6edb87",
+        "fd984cae1ca474430de9b8a220d5635f21aae916"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
@@ -209,7 +210,7 @@
     "purpose": "test relaxed Meteora and Ramses qualification on latest repaired four-lane implementation",
     "profitability_authority": false,
     "target_strategy_restrictiveness": "Pump/Pons unchanged; Meteora/Ramses relaxed only for machinery proof",
-    "validation_status": "repaired_ramses_lifecycle_preflight",
+    "validation_status": "ramses_overlay_reconciled_preflight",
     "validation_run_requested": false
   },
   "composition": {
