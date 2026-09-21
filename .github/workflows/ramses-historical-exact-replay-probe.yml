@@ -1,0 +1,39 @@
+name: ramses-historical-exact-replay-probe
+on:
+  push:
+    branches: [research/ramses-dlmm-historical-market-v1]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  replay:
+    if: contains(github.event.head_commit.message, '[ramses-exact-probe]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+      MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Download nomination artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_id="$(gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100"             --jq '.artifacts[] | select(.expired == false and (.name | startswith("ramses-historical-nominations-"))) | [.created_at, (.id|tostring)] | @tsv'             | sort -r | head -1 | cut -f2)"
+          test -n "$artifact_id"
+          gh api "repos/${{ github.repository }}/actions/artifacts/$artifact_id/zip" > /tmp/noms.zip
+          unzip -p /tmp/noms.zip ramses-historical-strategy-nominations.json > ramses-historical-strategy-nominations.json
+      - run: python -m py_compile robinhood_research/ramses_historical_exact_replay_probe.py
+      - run: python -m robinhood_research.ramses_historical_exact_replay_probe
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ramses-historical-exact-probe-${{ github.run_id }}
+          path: ramses-historical-exact-replay-probe.json
+          if-no-files-found: warn
+          retention-days: 90
