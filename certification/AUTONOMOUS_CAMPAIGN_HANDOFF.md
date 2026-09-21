@@ -1185,3 +1185,9 @@ deadlines, immutable coalescing, candidate re-entry and full frozen qualificatio
 remain unchanged. No market/pool is removed and no failed evidence is erased.
 Complete deterministic/concurrency/resource/hash gates and fresh smoke/hour remain
 required after the repair. Historical unresolved positions remain unchanged.
+
+
+### Default-signature implementation and safe supersession (2026-09-21)
+Cancellation run35574595599/job106253470678 stopped only35571580714@46b3db017656d2885e9c8d0020d2e95bd6e9c240 after a3.989s-old snapshot proved allfour lanesflat/reconciled and nooutstanding qualifier. Cancellationaudit10627034208,11760bytes,SHA256cc0910a003b53577528da3888efa070e45f14bb1ce9b35bb6183f01798d18c6c. Partialhour isnotcertificationtime; nativeartifact review follows.
+Versioned buildinputs now preserve bothlanes' existing code differences and reject only exactSDKdefault64-zero-byte signature before physicalhydration. Eachoriginal consumer retains itsdeadline and append-only invalid-identity terminal; broad notifications/rawpayloads retained, default observations identified byslot/address/payloadhash instead of conflating distinctevents. Validnull results remainretryable and cannotrevive expiredconsumers. Mixedbatches stillacquire validbodies; directqueue/cache cannotfabricate defaultsuccess. No policy/finality/provider limitchanges.
+Eight regressionsperSolanalane cover repeatedbackground rejection withoutRPCconstruction, mixedbatchreuse, foreground deadline/failureattribution, validnullrecovery, observationretention/reentry, queue/cache failclosed, directsharedRPC, andlegacywaitingconsumer. Fullcanonical fourlane/supervisor/resource gates requested; no freshmarketvalidation authorizedbythiscommit.

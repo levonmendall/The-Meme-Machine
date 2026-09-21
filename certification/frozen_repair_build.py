@@ -36,12 +36,12 @@ def publish():
     if os.environ.get('GITHUB_REF_NAME')!='repair/frozen-campaign-handoff':raise ValueError('wrong_branch')
     out=ROOT/'frozen-repair-gates';gate=json.loads((out/'deterministic.json').read_text())
     if not gate['passed']:raise ValueError('verification_required')
-    files=[ROOT/'certification/patches'/PATCHES[l] for l in ('pons','ramses')]
+    files=[ROOT/'certification/patches'/PATCHES[l] for l in PATCHES]
     entries=[]
     for path in files+sorted(out.glob('*')):
         if not path.is_file():continue
         content=path.read_bytes()
-        target=str(path.relative_to(ROOT)) if path in files else 'certification/results/hosted-frozen-repair/candidate-authentication/'+path.name
+        target=str(path.relative_to(ROOT)) if path in files else 'certification/results/hosted-frozen-repair/default-signature-admission/'+path.name
         request=urllib.request.Request('https://api.github.com/repos/levonmendall/The-Meme-Machine/git/blobs',
             data=json.dumps({'content':base64.b64encode(content).decode(),'encoding':'base64'}).encode(),
             headers={'Authorization':'Bearer '+os.environ['GITHUB_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json'},

@@ -19,7 +19,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           REVIEW_RUN_ID: "35571580714"
           REVIEW_SHA: 46b3db017656d2885e9c8d0020d2e95bd6e9c240
-          REVIEW_PHASE: smoke
+          REVIEW_PHASE: hourly
         run: python certification/inspect_stable_artifact.py
       - name: Preserve complete review and verified artifact metadata
         if: always()
