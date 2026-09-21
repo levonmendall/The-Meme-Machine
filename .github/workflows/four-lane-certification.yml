@@ -1,7 +1,7 @@
 name: four-lane-certification
 on:
   push:
-    branches: [cert/one-hour-repair-campaign, cert/dlmm-machinery-proof-current, repair/solana-alchemy-efficiency, repair/frozen-campaign-handoff]
+    branches: [cert/one-hour-repair-campaign, cert/dlmm-machinery-proof-current, cert/profitability-v1-current, repair/solana-alchemy-efficiency, repair/frozen-campaign-handoff]
   workflow_dispatch:
     inputs:
       phase:
