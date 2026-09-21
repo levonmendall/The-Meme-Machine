@@ -276,7 +276,11 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                     report=Path(worktrees)/lane/REPORTS[lane]
                     if report.exists():
                         raw=report.read_bytes();(run/lane/REPORTS[lane]).write_bytes(raw)
-                        try:row.update(summarize(lane,json.loads(raw)))
+                        try:
+                            native=json.loads(raw);row.update(summarize(lane,native))
+                            if lane=='pons':
+                                from certification.terminal_receipts import emit_pons
+                                emit_pons(native)
                         except ValueError:row['report_parse_error']=True
                 row['open_positions_unknown']=row.get('open_positions') is None
                 row['process_health']=row['health']

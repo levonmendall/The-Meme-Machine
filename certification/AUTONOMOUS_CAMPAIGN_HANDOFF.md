@@ -772,3 +772,83 @@ Pons unresolved book is retained in the cancellation audit; cancellation cannot
 relabel it settled. This avoids spending the rest of a failed hour while preserving
 all existing artifacts and raw evidence. Exact terminal boundary and writeoff proof
 must be reviewed before deciding the next implementation repair.
+
+
+## 2026-09-21: cancellation outcome and hourly artifact preservation failure
+
+Cancellation attempts35566601403 and35566685373 refused the guard; the latter
+snapshot was60.677s old. Their audits remain respectively10623269362
+(SHA2567ac1fe023b32f1c37fc630dffad9fbfc0a25ddb1c507401544e28e026af7f2d9)
+and10624138999 (SHA256221cacf09bdd5809562c4cc76563fe6b4973f1b866e4be789a3f8721e0d2e8cc).
+Commit eb53c8dfbe8bcce9d21687f0f51026d694f594dd added a bounded wait for a fresh
+snapshot without relaxing the45s age limit or flat-lane tests. Cancellation
+35566755868/job106230020457 succeeded(HTTP202), snapshot age7.2809295654296875s,
+elapsed1690.424287857s. Audit10624432398,12703 bytes, recorded SHA256
+13b5d224630083a1a389eba1e3784bf264ea6ad1fdc1b5979c5e7434a29a78a8.
+The exact audit JSON is retained in results/hourly-35563114670-cancellation.json.
+
+IMPORTANT EVIDENCE GAP: the hourly archive did NOT finalize. The always-run
+native copy step completed, but actions/upload-artifact failed while a still-live
+SQLite sidecar disappeared during ZIP construction:
+certification-hourly/shared-robinhood-admission.sqlite-shm.
+The job then cleaned up its runner/orphan processes. GitHub lists only the
+previously accepted smoke archive and smoke review. No hourly artifact ID or digest
+exists; full native hourly ledgers, raw RPC evidence and path-dependent trade
+details cannot be recovered through the available tools. Do not claim that the
+complete failed hour was preserved or replay-certified. The original job logs,
+three cancellation audits, retained public snapshot, and prior smoke remain.
+A sanitized durable copy of job106224629679 logs is stored with this entry.
+
+Retained Pons accounting at cancellation (exact integers from the audit):
+cash994978443746350000, remaining basis2516434138096000, reserved3500000000000000,
+realized-2505122115554000, execution cost21556253650000, positions2, unsettled1.
+Reported writeoffs1 and natural market-sale settlements0. The reported writeoff's
+full proof/replay is unavailable because of the archive failure; do not invent it.
+One additional unresolved historical Pons exposure remains recorded alongside the
+five from35555511322 and the original baseline unresolved position. Nothing is
+relabelled settled. Pump reported3 natural settlements and realized-7402388 lamports;
+their full hourly entry/exit/cost detail is unavailable, so this is only a retained
+aggregate, not profitability or full lifecycle certification.
+Meteora/Ramses reported no natural settlements or open exposure.
+
+The current source deterministically reproduces same-lane foreground starvation:
+position bursts could yield to Ramses, but never to Pons discovery authentication.
+The retained snapshot had18 local admission misses, including11 connectivity
+misses, zero Pons provider429, and continuing position grants. This supports an
+implementation diagnosis, but the exact cohort/lifecycle terminal boundary is
+UNKNOWN due to the artifact gap. Do not assert a fully proven production cause.
+
+Repairs submitted for fresh full deterministic verification:
+- Preserve eight position grants before one aged foreground opportunity. Same-lane
+  priority10 observation can now receive that bounded turn; generic same-lane
+  priority50 research still cannot bypass positions. Imminent position deadlines
+  retain precedence. Shared0.5s ceiling, cooldowns, queues, original deadlines,
+  lane market scope and all frozen policy/config hashes remain unchanged.
+- Scope Pons discovery authentication/polling as foreground; handle an allowlisted
+  transient failure during ordinary discovery session rotation without double
+  archiving the old session or advancing the original cursor.
+- Separate local-capacity recovery from actual provider429 backpressure. Local
+  admission does not slow the provider pacer or masquerade as provider throttling;
+  recovery remains bounded, and authentication failure remains fail-closed.
+- Freeze upload inputs into an isolated staging directory. SQLite online backups
+  include committed WAL content and verify integrity; transient sidecars are never
+  globbed live by the uploader. Preserve unverified raw bytes if a database backup
+  fails, retain all other files, and mark incomplete snapshots explicitly.
+- On workflow cancellation, identify leftover workers by exact PID/process group/
+  command/lane/output path before stopping them, then let the existing supervisor
+  finalize failed/interrupted evidence. No settlement is inferred. The workflow
+  entrypoint uses exec so cancellation reaches the publisher directly.
+- Supplement artifacts with small sanitized Pons terminal receipts in Actions
+  logs, preserving exact integer accounting, known boundary class/hash and ledger
+  identity where available. They never replace raw replay evidence.
+- Retain lifecycle_id in the bounded native terminal view, including failed
+  positions. No public snapshot returns to unbounded history growth.
+
+Regression coverage includes committed-WAL capture while sidecars disappear,
+immutable snapshot independence, corrupt database byte retention, symlink rejection,
+verified-worker-only cancellation, exact sanitized terminal receipts, same-lane
+foreground fairness, position deadline precedence, discovery recovery cursor/
+identity, persistent local pressure and fail-closed authentication.
+The next live attempt remains a completely fresh smoke; an hour may follow only
+its exact-revision engineering/artifact gates. No elapsed time from this failed,
+cancelled hour is reused. No merge, economic change or live-money authority.
