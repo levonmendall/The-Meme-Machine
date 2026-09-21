@@ -1439,3 +1439,47 @@ Startupaudit10641856635 SHA2561507b3a30a2bfee491300bf3ef52c2679eedade24915553a3f
 
 ### Candidate92a8 fresh smoke observation checkpoint
 Exactcandidate92a8ccabb7ce83f570b495f834e6e18596b68de2 workflow35605451168, smokejob106351295224, livecheck106351999646. Achieved600.522587784s concurrentobservation; normaldrain/followup ongoing. Meteora/Ramses/Pons exited0 withoutrestarts. Pons3natural settlements after receiptRPC429pressure (3errors); aggregatedrealized−3811192249048356 nativequoteunits, cash996188807750951644, basis/reserved/unsettled0, conservation+capitalintegralcomplete. Fullnativejournals must stillbe audited; no smokeacceptance orhourcertification yet. Pumpfollowup responsiveflat. OnePonsposition wasopennearthe600sboundary and remainedunderauthority through settlement; noforcedsale/writeoff inferred. Pumpwindowpretransportexpiry remainsvisible andwillbe decomposedfromrawSQLite. Previousfailedhours remainunchanged.
+
+
+### USER STOP — smoke is the terminal handoff (2026-09-21)
+
+The user explicitly ended the autonomous campaign at the current smoke boundary. Do not
+start, continue, or repair toward another hourly validation after this smoke. Preserve
+the smoke artifact as the handoff and stop autonomous work.
+
+Exact handoff candidate: `92a8ccabb7ce83f570b495f834e6e18596b68de2`.
+Workflow: `35605451168`. Live smoke check: `106351999646`.
+
+The smoke achieved **600.522587784 seconds** of four-lane concurrent observation. At the
+latest fresh checkpoint, Meteora, Pons and Ramses had exited normally with exit code 0;
+Pump remained responsive in post-observation follow-up with zero open exposure. All four
+lane books were flat/reconciled and there were no process restarts or forced settlements.
+
+Natural paper outcomes at this handoff checkpoint:
+- Pump: 0 natural settlements in this smoke.
+- Meteora DLMM: 0 natural settlements. 31 unique pools discovered, 17 screened,
+  12 admitted, 1 complete economic vector / evaluated candidate, 0 qualified.
+  The evaluated candidate failed the original frozen `two_way` and `expected_net`
+  gates. Additional incomplete/terminal reasons include fresh-swap timeout,
+  verified-zero warmup, transaction-pressure overflow, unsupported freeze authority,
+  non-swap interval mutation, acceleration-regime expiry and runtime deadline.
+- Pons: 3 natural market-sale settlements, aggregate realized
+  **-3,811,192,249,048,356 native quote units**. Final current-book cash
+  `996188807750951644`; remaining cost basis/reserved/unsettled all zero;
+  conservation and capital integral complete. Three receipt RPC 429s were retained.
+- Ramses DLMM: 0 natural settlements. 6 active-pool opportunities were
+  discovered/admitted/evaluated and all 6 were strategy rejections. Recorded rejection
+  counts: cash_hurdle 6, flow_imbalance 6, insufficient_two_way_chop 6,
+  volume_acceleration 5, fee_to_inventory 5. 0 qualifiers, 0 positions, 0 provider
+  or admission failures; current funded quote-asset book remains flat.
+
+This is an **original frozen-policy** smoke, not the separate relaxed
+`machinery-proof-v2` policy branch. Do not reinterpret its zero DLMM trades as a
+machinery-proof failure under the relaxed policy.
+
+Stop procedure: allow only the already-completed smoke observation to finish native
+drain/archive creation. Once the exact smoke artifact for workflow 35605451168 is
+durably uploaded and a fresh flat/reconciled snapshot confirms no exposure, cancel the
+workflow before any successor hourly observation can become meaningful. No replacement
+run, no new repair, no policy change, no merge, and no additional autonomous work is
+authorized after this handoff.
