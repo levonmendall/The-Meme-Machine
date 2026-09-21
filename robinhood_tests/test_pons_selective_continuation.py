@@ -95,7 +95,10 @@ def vector(**overrides):
 class PonsSelectivePolicyTests(unittest.TestCase):
     def test_policy_is_distinct_and_frozen(self):
         self.assertEqual(POLICY,"pons-selective-continuation-v1")
-        self.assertEqual(len(POLICY_HASH),64)
+        self.assertEqual(
+            POLICY_HASH,
+            "d9f19aa3c9ab23aeab5a5622c8ca2bdefbca46a140ce3f56dbc0d64b14e6e64a",
+        )
         self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],5000)
         self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],8500)
         self.assertEqual(ENTRY_THRESHOLDS["min_token_age_seconds"],120)
