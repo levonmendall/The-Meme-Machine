@@ -1,0 +1,4 @@
+Verify canonical integrated DLMM terminal lifecycle repairs.
+Canonical Meteora overlay head: b06de26fc2d18df7cc1dcdf6a94cb48d132c9f6a
+Ramses source head: c545ab43676fde30ca6fa1284bb5215d5a678182
+No market run requested by this commit.
