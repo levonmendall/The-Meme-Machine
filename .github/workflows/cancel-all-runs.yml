@@ -11,17 +11,17 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Cancel exact superseded DLMM run
+      - name: Cancel exact superseded workflow
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
           python - <<'PY'
           import json, os, pathlib, time, urllib.request
-          run_id=35658558646
-          sha="9de34f44c8a4f02cb328aded796e59971ebbc857"
-          expected_branch="cert/dlmm-machinery-proof-current"
-          expected_name="four-lane-certification"
+          run_id=35660810946
+          sha="acc8240ef967daeeba04a8bb309038f33c9d2a02"
+          expected_branch="repair/frozen-campaign-handoff"
+          expected_name="paper-milestone"
           base="https://api.github.com/repos/"+os.environ["REPOSITORY"]
           headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],"Accept":"application/vnd.github+json"}
           def api(path,method="GET"):
@@ -33,7 +33,7 @@ jobs:
           if row["head_sha"]!=sha or row["head_branch"]!=expected_branch or row["name"]!=expected_name:
               raise SystemExit("exact_stop_identity_mismatch")
           record={"run_id":run_id,"sha":sha,"before":row["status"],
-                  "reason":"explicit user cancellation: superseded run uses old Pump/Pons execution-certification strategies; replacement must use profitability-v1"}
+                  "reason":"explicit user cancellation: obsolete continuation-v1 live diagnostic blocks profitability-v1 four-lane contention gate"}
           record["artifacts_before"]=api(path+"/artifacts")
           pathlib.Path("campaign-cancellations.json").write_text(json.dumps([record],indent=2))
           if row["status"]!="completed":
