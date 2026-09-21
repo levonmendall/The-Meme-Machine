@@ -5,3 +5,7 @@ Ramses relaxed source: d252724f081a9ca0b3bc5fbd8e28b191568c6499.
 Pump and Pons policies unchanged.
 Request one fresh 600-second four-lane smoke followed by the normal independent hour only if readiness passes.
 Paper only; no profitability claim.
+
+Relaunch after paper-milestone/live-diagnostic isolation repair.
+Workflow control head before trigger: da5a5982ba93931fc4b245ca1d0c51dd30aed534.
+No DLMM thresholds changed by the repair.
