@@ -73,6 +73,53 @@ null_summary={'attribution_scope':'explicit per-member JSON-RPC result:null; exc
 print('NULL_TRANSACTION_AUDIT_BEGIN',flush=True)
 print(json.dumps(null_summary,sort_keys=True),flush=True)
 print('NULL_TRANSACTION_AUDIT_END',flush=True)
+
+# Read-only attribution of foreground work to retained finalized stream hints.
+import zlib
+PUMPSWAP_PROGRAM='pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'
+broker_paths=list(root.rglob('shared-solana-evidence.sqlite'))
+if len(broker_paths)!=1:raise RuntimeError('shared_broker_identity_ambiguous')
+db=sqlite3.connect(broker_paths[0].resolve().as_uri()+'?mode=ro',uri=True)
+def log_shape(logs):
+    if not isinstance(logs,list) or not logs:return 'missing_or_empty_logs'
+    if any('truncat' in str(x).lower() for x in logs):return 'truncated_logs'
+    if any(PUMPSWAP_PROGRAM in str(x) for x in logs):return 'possible_pumpswap'
+    return 'complete_logs_exclude_pumpswap'
+hints=collections.Counter();body_shapes=collections.Counter();seen_bodies=set()
+for stream,signature,payload,body in db.execute("""
+    SELECT a.stream,a.signature,a.payload,t.payload
+    FROM stream_signature_archive a LEFT JOIN immutable_transactions t ON t.signature=a.signature
+    WHERE a.stream LIKE 'pumpswap_pool:%'"""):
+    hints['archived_notifications']+=1
+    if signature=='1'*64:hints['default_signature_notifications']+=1
+    if payload is None:hints['without_retained_payload']+=1
+    else:
+        value=json.loads(zlib.decompress(payload))
+        hints['retained_payload:'+log_shape(value.get('logs'))]+=1
+    if body is None:
+        hints['without_acquired_body']+=1
+    elif signature not in seen_bodies:
+        seen_bodies.add(signature)
+        tx=json.loads(zlib.decompress(body))
+        body_shapes[log_shape((tx.get('meta') or {}).get('logMessages'))]+=1
+consumers=[dict(kind=k,state=s,logical_consumers=n,unique_signatures=u,unique_candidates=c)
+    for k,s,n,u,c in db.execute("""
+        SELECT kind,state,count(*),count(DISTINCT signature),count(DISTINCT candidate_id)
+        FROM evidence_consumers WHERE lane='pump' GROUP BY kind,state""")]
+deadlines=[dict(kind=k,stage=stage,logical_consumers=n,unique_signatures=u)
+    for k,stage,n,u in db.execute("""
+        SELECT kind,CASE WHEN created_at>=deadline THEN 'already_expired_before_enqueue'
+          WHEN first_transport_at IS NULL THEN 'expired_before_transport'
+          ELSE 'expired_after_transport_started' END,count(*),count(DISTINCT signature)
+        FROM evidence_consumers WHERE lane='pump' AND state='consumer_deadline_expired' GROUP BY 1,2""")]
+stream_audit={'run':state['RUN'],'sha':state['SHA'],'phase':state['PHASE'],
+ 'scope':'All archived pool notifications; acquired-body classification is evidence only for bodies actually obtained, not an inference about missing bodies.',
+ 'archived_hints':dict(hints),'unique_acquired_body_log_shapes':dict(body_shapes),
+ 'consumer_states':consumers,'deadline_decomposition':deadlines}
+db.close()
+(out/'stream-admission-attribution.json').write_text(json.dumps(stream_audit,indent=2,sort_keys=True))
+print('STREAM_ADMISSION_AUDIT_BEGIN',flush=True);print(json.dumps(stream_audit,sort_keys=True),flush=True);print('STREAM_ADMISSION_AUDIT_END',flush=True)
+
 print('STABLE_ARCHIVE_AUDIT_BEGIN',flush=True)
 printed={k:v for k,v in receipt.items() if k not in ('pons_journals','pump_complete')}
 printed['pons_journal_categories']={p['file']:dict(collections.Counter(r['category'] for r in p['records'])) for p in review['pons_journals']}

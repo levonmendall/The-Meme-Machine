@@ -390,7 +390,7 @@ index d01cfe6..970a7fe 100644
                          and int(exc.code)==429):
                      rate_limited=list(chunk)
 diff --git a/meme_machine/pump_acceleration_history.py b/meme_machine/pump_acceleration_history.py
-index 0a774b1..23ccebe 100644
+index 0a774b1..849cdb3 100644
 --- a/meme_machine/pump_acceleration_history.py
 +++ b/meme_machine/pump_acceleration_history.py
 @@ -9,7 +9,7 @@ from __future__ import annotations
@@ -532,7 +532,7 @@ index 0a774b1..23ccebe 100644
          else:
              self._new_head(rpc)
              self._backfill(rpc)
-@@ -454,6 +484,8 @@ class IncrementalPumpSwapHistory:
+@@ -454,8 +484,11 @@ class IncrementalPumpSwapHistory:
              events=len(self.events),pages=self.pages,refreshes=self.refreshes,
              unknown_block_times=self.unknown_block_times,
              transaction_failures=self.tx_failures,
@@ -540,7 +540,10 @@ index 0a774b1..23ccebe 100644
 +            research_deferred_refreshes=self.research_deferred_refreshes,
              stream_pending_transactions=self.stream_pending_transactions,
              stream_events_seen=self.stream_events_seen,
++            stream_prefiltered_signatures=len(self.stream_prefiltered_signatures),
              stream_hydrated_transactions=self.stream_hydrated_transactions,
+             stream_last_slot=self.stream_last_slot,
+             decision_bootstrap_attempts=self.decision_bootstrap_attempts,
 diff --git a/meme_machine/pump_acceleration_paper.py b/meme_machine/pump_acceleration_paper.py
 index 3e64d83..7c6e406 100644
 --- a/meme_machine/pump_acceleration_paper.py
@@ -650,7 +653,7 @@ index 3e64d83..7c6e406 100644
              reservation=None if self.reservation is None else dict(self.reservation),
              position=None if self.position is None else asdict(self.position),
 diff --git a/meme_machine/solana_evidence_broker.py b/meme_machine/solana_evidence_broker.py
-index 05dd96f..711148d 100644
+index 05dd96f..fb509da 100644
 --- a/meme_machine/solana_evidence_broker.py
 +++ b/meme_machine/solana_evidence_broker.py
 @@ -6,6 +6,8 @@ backpressure. It grants no strategy/allocation/signing authority.
@@ -1308,7 +1311,7 @@ index 05dd96f..711148d 100644
                          self.broker.record_event(
                              self.stream_key(address),
                              signature=value["signature"],
-+                            payload=value if is_default_signature(value["signature"]) else None,
++                            payload=value,  # Finalized logs support existing negative-only hydration screens.
                              address=address,
                              slot=int(result["context"]["slot"]),
                              observed_at=int(self.clock()),
@@ -3463,3 +3466,122 @@ index 0000000..2c5b3ed
 +
 +if __name__=="__main__":
 +    unittest.main()
+diff --git a/tests/test_stream_negative_admission.py b/tests/test_stream_negative_admission.py
+new file mode 100644
+index 0000000..ef1e037
+--- /dev/null
++++ b/tests/test_stream_negative_admission.py
+@@ -0,0 +1,61 @@
++"""Live ingress must wire the existing negative-only PumpSwap prospect screen."""
++import unittest
++from unittest.mock import patch
++from meme_machine.solana_evidence_broker import EvidenceBroker
++from meme_machine.pump_acceleration_history import IncrementalPumpSwapHistory
++from meme_machine.pump_acceleration_evidence import PUMPSWAP_PROGRAM
++from tests.test_stream_payload_retention import ingest
++
++
++class RecordingRPC:
++    def __init__(self):self.signatures=[]
++    def call_many(self,method,params,*args,**kwargs):
++        self.signatures.extend(p[0] for p in params)
++        return [None for _ in params]
++
++
++class StreamNegativeAdmissionTests(unittest.TestCase):
++    def setUp(self):
++        self.b=EvidenceBroker(':memory:',clock=lambda:1000,sleeper=lambda n:None)
++        self.addCleanup(self.b.close)
++
++    def history(self,key):
++        return IncrementalPumpSwapHistory('pool',900,broker=self.b,stream_key=key)
++
++    def test_thousand_proven_unrelated_notifications_remain_observed_without_rpc_consumers(self):
++        values=[dict(signature='noise-'+str(i),err=None,
++            logs=['Program Other111 invoke [1]','Program Other111 success']) for i in range(1000)]
++        key,_=ingest(self.b,values);history=self.history(key);rpc=RecordingRPC()
++        with patch('meme_machine.pump_acceleration_history.time.time',return_value=1000):
++            history._ingest_stream_window(rpc,1000)
++        self.assertEqual(rpc.signatures,[])
++        self.assertEqual(len(history.stream_prefiltered_signatures),1000)
++        self.assertEqual(history.status(1000)['stream_prefiltered_signatures'],1000)
++        self.assertEqual(self.b.db.execute('SELECT count(*) FROM stream_signature_archive').fetchone()[0],1000)
++        self.assertEqual(self.b.db.execute('SELECT count(*) FROM evidence_consumers').fetchone()[0],0)
++        self.assertEqual(self.b.db.execute('SELECT count(*) FROM jobs').fetchone()[0],0)
++        self.assertEqual(history.stream_pending_transactions,0)
++        self.assertEqual(history.events,{})
++
++    def test_missing_empty_truncated_and_possible_pumpswap_logs_still_require_body(self):
++        values=[dict(signature='missing',err=None),dict(signature='empty',err=None,logs=[]),
++            dict(signature='truncated',err=None,logs=['Program Other111 invoke [1]','Log truncated']),
++            dict(signature='possible',err=None,logs=['Program '+PUMPSWAP_PROGRAM+' invoke [1]'])]
++        key,_=ingest(self.b,values);history=self.history(key);rpc=RecordingRPC()
++        with patch('meme_machine.pump_acceleration_history.time.time',return_value=1000):
++            history._ingest_stream_window(rpc,1000)
++        self.assertEqual(set(rpc.signatures),{v['signature'] for v in values})
++        self.assertEqual(history.stream_pending_transactions,4)
++        self.assertEqual(history.events,{})
++        self.assertEqual(len(history.stream_prefiltered_signatures),0)
++
++    def test_later_possible_trade_for_same_pool_is_not_suppressed_by_prior_negative(self):
++        key,_=ingest(self.b,[dict(signature='noise',err=None,logs=['Program Other111 success'])])
++        history=self.history(key);rpc=RecordingRPC()
++        with patch('meme_machine.pump_acceleration_history.time.time',return_value=1000):
++            history._ingest_stream_window(rpc,1000)
++            ingest(self.b,[dict(signature='later',err=None,logs=['Program '+PUMPSWAP_PROGRAM+' invoke [1]'])])
++            history._ingest_stream_window(rpc,1000)
++        self.assertEqual(rpc.signatures,['later'])
++        self.assertEqual(history.stream_pending_transactions,1)
++        self.assertEqual(self.b.db.execute('SELECT count(*) FROM stream_signature_archive').fetchone()[0],2)
+diff --git a/tests/test_stream_payload_retention.py b/tests/test_stream_payload_retention.py
+new file mode 100644
+index 0000000..01af937
+--- /dev/null
++++ b/tests/test_stream_payload_retention.py
+@@ -0,0 +1,46 @@
++"""Exercise actual finalized log ingress, including durable raw hint retention."""
++import json
++import threading
++import unittest
++import zlib
++from unittest.mock import patch
++from meme_machine import solana_evidence_broker as module
++
++
++def ingest(broker, values, *, stream_name='pumpswap_pool', address='pool'):
++    stop=threading.Event()
++    stream=module.DynamicAddressLogStream('wss://test.invalid',broker,stream_name,clock=lambda:1000)
++    key=stream.add_address(address)
++    queue=[];incoming=iter(values)
++    class Socket:
++        def __enter__(self):return self
++        def __exit__(self,*args):pass
++        def send(self,raw):
++            request=json.loads(raw)
++            assert request['params'][1]['commitment']=='finalized'
++            queue.append(dict(id=request['id'],result=7))
++        def recv(self,**kwargs):
++            if queue:return json.dumps(queue.pop(0))
++            try:value=next(incoming)
++            except StopIteration:
++                stop.set();raise TimeoutError()
++            return json.dumps(dict(method='logsNotification',params=dict(subscription=7,
++                result=dict(context=dict(slot=100),value=value))))
++    with patch.object(module,'connect',return_value=Socket()):stream.run(stop)
++    return key,stream
++
++
++class StreamPayloadTests(unittest.TestCase):
++    def test_real_ingress_retains_all_finalized_log_payloads_without_body_authority(self):
++        b=module.EvidenceBroker(':memory:',clock=lambda:1000);self.addCleanup(b.close)
++        values=[dict(signature='noise',err=None,logs=['Program Other111 invoke [1]','Program Other111 success']),
++                dict(signature='ambiguous',err=None,logs=['Log truncated']),
++                dict(signature='missing',err=None)]
++        key,stream=ingest(b,values)
++        self.assertEqual(stream.last_error_kind,None)
++        self.assertEqual({r['signature']:r['payload'] for r in b.recent_events(key)},
++                         {v['signature']:v for v in values})
++        archived={s:json.loads(zlib.decompress(p)) for s,p in b.db.execute('SELECT signature,payload FROM stream_signature_archive')}
++        self.assertEqual(archived,{v['signature']:v for v in values})
++        self.assertEqual(b.db.execute('SELECT count(*) FROM immutable_transactions').fetchone()[0],0)
++        self.assertEqual(b.db.execute('SELECT count(*) FROM evidence_consumers').fetchone()[0],0)

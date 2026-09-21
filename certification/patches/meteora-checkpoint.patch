@@ -373,7 +373,7 @@ index 76eb6e8..20919e0 100644
                  self._record_failure(method,kind,logical)
                  fallback=list(chunk)
 diff --git a/meme_machine/solana_evidence_broker.py b/meme_machine/solana_evidence_broker.py
-index 05dd96f..06dd0ad 100644
+index 05dd96f..8f1034a 100644
 --- a/meme_machine/solana_evidence_broker.py
 +++ b/meme_machine/solana_evidence_broker.py
 @@ -6,6 +6,8 @@ backpressure. It grants no strategy/allocation/signing authority.
@@ -1031,7 +1031,7 @@ index 05dd96f..06dd0ad 100644
                          self.broker.record_event(
                              self.stream_key(address),
                              signature=value["signature"],
-+                            payload=value if is_default_signature(value["signature"]) else None,
++                            payload=value,  # Finalized logs support existing negative-only hydration screens.
                              address=address,
                              slot=int(result["context"]["slot"]),
                              observed_at=int(self.clock()),
@@ -2878,3 +2878,55 @@ index 0000000..6b52e6c
 +        telemetry=b.consumers.telemetry()
 +        self.assertEqual(telemetry['acquisition_phase_attempts']['already_expired_before_enqueue'],1)
 +        self.assertEqual(telemetry['deadline_decomposition'][0]['stage'],'already_expired_before_enqueue')
+diff --git a/tests/test_stream_payload_retention.py b/tests/test_stream_payload_retention.py
+new file mode 100644
+index 0000000..01af937
+--- /dev/null
++++ b/tests/test_stream_payload_retention.py
+@@ -0,0 +1,46 @@
++"""Exercise actual finalized log ingress, including durable raw hint retention."""
++import json
++import threading
++import unittest
++import zlib
++from unittest.mock import patch
++from meme_machine import solana_evidence_broker as module
++
++
++def ingest(broker, values, *, stream_name='pumpswap_pool', address='pool'):
++    stop=threading.Event()
++    stream=module.DynamicAddressLogStream('wss://test.invalid',broker,stream_name,clock=lambda:1000)
++    key=stream.add_address(address)
++    queue=[];incoming=iter(values)
++    class Socket:
++        def __enter__(self):return self
++        def __exit__(self,*args):pass
++        def send(self,raw):
++            request=json.loads(raw)
++            assert request['params'][1]['commitment']=='finalized'
++            queue.append(dict(id=request['id'],result=7))
++        def recv(self,**kwargs):
++            if queue:return json.dumps(queue.pop(0))
++            try:value=next(incoming)
++            except StopIteration:
++                stop.set();raise TimeoutError()
++            return json.dumps(dict(method='logsNotification',params=dict(subscription=7,
++                result=dict(context=dict(slot=100),value=value))))
++    with patch.object(module,'connect',return_value=Socket()):stream.run(stop)
++    return key,stream
++
++
++class StreamPayloadTests(unittest.TestCase):
++    def test_real_ingress_retains_all_finalized_log_payloads_without_body_authority(self):
++        b=module.EvidenceBroker(':memory:',clock=lambda:1000);self.addCleanup(b.close)
++        values=[dict(signature='noise',err=None,logs=['Program Other111 invoke [1]','Program Other111 success']),
++                dict(signature='ambiguous',err=None,logs=['Log truncated']),
++                dict(signature='missing',err=None)]
++        key,stream=ingest(b,values)
++        self.assertEqual(stream.last_error_kind,None)
++        self.assertEqual({r['signature']:r['payload'] for r in b.recent_events(key)},
++                         {v['signature']:v for v in values})
++        archived={s:json.loads(zlib.decompress(p)) for s,p in b.db.execute('SELECT signature,payload FROM stream_signature_archive')}
++        self.assertEqual(archived,{v['signature']:v for v in values})
++        self.assertEqual(b.db.execute('SELECT count(*) FROM immutable_transactions').fetchone()[0],0)
++        self.assertEqual(b.db.execute('SELECT count(*) FROM evidence_consumers').fetchone()[0],0)
