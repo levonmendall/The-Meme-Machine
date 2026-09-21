@@ -147,7 +147,7 @@
     },
     "ramses": {
       "source_branch": "cert/ramses-machinery-proof-v2",
-      "source_sha": "d252724f081a9ca0b3bc5fbd8e28b191568c6499",
+      "source_sha": "ff757da9bc95656b27047f6bb081092fff6edb87",
       "strategy_version": "ramses-fee-pulse-v1/execution-certification-machinery-proof-v2",
       "policy_hash": "5e1560af8b4d40f72e60cd93b52ede575aecbac58fd4cad6c02cc2c25fdeeaf0",
       "file_hashes": {
@@ -163,7 +163,9 @@
         "3ec74dfa223d3eecae3c3d525ceb27bcdf63d5f6",
         "b3ec5aaca230f2aa9c0e894c9912722a56f2eef1",
         "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
-        "325c6052056500146b88d1ad3e83bf5db5b9657a"
+        "325c6052056500146b88d1ad3e83bf5db5b9657a",
+        "4db39fbc3729af1fa186ad58ba611333abd69939",
+        "ff757da9bc95656b27047f6bb081092fff6edb87"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
@@ -174,7 +176,8 @@
         "purpose": "natural paper DLMM machinery proof, not profitability",
         "machinery_proof_only": true,
         "one_natural_settled_lifecycle_target": true,
-        "prior_execution_source_sha": "6b7ddd69940f5c9e056b2dca61c443450ca9965e"
+        "prior_execution_source_sha": "6b7ddd69940f5c9e056b2dca61c443450ca9965e",
+        "lifecycle_repair": "transient provider rate limits hold open paper positions and retry; isolated paper ledger funds modeled cost envelope without resizing position"
       },
       "prospect_admission": {
         "market_observation_scope": "complete authenticated Ramses factory inventory for observability",
@@ -206,7 +209,7 @@
     "purpose": "test relaxed Meteora and Ramses qualification on latest repaired four-lane implementation",
     "profitability_authority": false,
     "target_strategy_restrictiveness": "Pump/Pons unchanged; Meteora/Ramses relaxed only for machinery proof",
-    "validation_status": "deterministic_preflight_requested",
+    "validation_status": "repaired_ramses_lifecycle_preflight",
     "validation_run_requested": false
   },
   "composition": {
