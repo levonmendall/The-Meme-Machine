@@ -1,0 +1,1 @@
+Analyze only derivation+validation quiet USDG Ramses lifecycles by width, hold, sidedness, pool, and concentration. Holdout remains absent.
