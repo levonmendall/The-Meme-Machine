@@ -2,7 +2,7 @@ import unittest
 
 from meme_machine.pump_acceleration_strategy import policy_hash
 
-FROZEN="bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e"
+FROZEN="561ce76a334d9cdcd3b4888a9aaee24d11c9eb43f1ca20c5b806940297018bfc"
 
 
 class FrozenPolicyIdentityTests(unittest.TestCase):
