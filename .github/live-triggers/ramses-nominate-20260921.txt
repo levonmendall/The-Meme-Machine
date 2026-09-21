@@ -1,0 +1,1 @@
+Nominate derivation/validation/holdout Ramses historical windows from completed full index. Signal data only; no future PnL selection.\n
