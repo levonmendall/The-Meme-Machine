@@ -1810,6 +1810,39 @@ index c1aef79..046427f 100644
 +        raise
 +
 +
++POSITION_EVIDENCE_RECOVERY_MAX=3
++POSITION_EVIDENCE_RECOVERABLE=frozenset((
++    "provider_request_failed",
++    "solana_dlmm_rate_limit_recovery_exhausted",
++    "solana_dlmm_signature_census_missing_start_boundary",
++    "solana_dlmm_transaction_hydration_incomplete",
++    "solana_dlmm_transaction_index_unavailable",
++))
++
++
++def _recover_position_observation(
++    adapter,address,current,duration,pacer,rpcs,deadline,broker
++):
++    recoveries=[]
++    while True:
++        phase,tape,terminal,effective_start,adapter=_observe_window(
++            adapter,address,current,duration,False,pacer,rpcs,deadline,
++            broker,"position_monitor")
++        if phase["verified"]:
++            return phase,tape,terminal,effective_start,adapter,recoveries
++        reason=str(phase.get("reason") or "")
++        if (
++            reason not in POSITION_EVIDENCE_RECOVERABLE
++            or len(recoveries)>=POSITION_EVIDENCE_RECOVERY_MAX
++            or _runtime_expired(deadline)
++        ):
++            return phase,tape,terminal,effective_start,adapter,recoveries
++        recoveries.append(dict(attempt=len(recoveries)+1,reason=reason))
++        _stage(address,"forward_observation",recovery=True,
++            recovery_attempt=len(recoveries),reason=reason)
++        adapter=_rotate(adapter,pacer,rpcs)
++
++
 +def _position_lifecycle(
 +    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None,identity=None
  ):
@@ -1838,9 +1871,13 @@ index c1aef79..046427f 100644
              position,effective_start,tape,terminal,entry_flow,policy)
 +        if book is not None:
 +            book.append(identity,'mark',dict(tape=asdict(tape),position_hash=digest(position),mark=mark))
-         elapsed+=duration;tapes.append(tape)
++        observed_seconds=max(
++            duration,
++            max(0,int(terminal.get("time",0))-int(current.get("time",0))))
++        elapsed+=observed_seconds;tapes.append(tape)
          segments.append(dict(
              elapsed_seconds=elapsed,lineage=tape.lineage,
++            evidence_recovery_attempts=recoveries,
 @@ -1139,12 +1205,15 @@ def _lifecycle(
          current=terminal
          if reasons:
