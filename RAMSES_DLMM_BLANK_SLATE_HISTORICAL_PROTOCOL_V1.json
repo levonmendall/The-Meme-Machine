@@ -1,0 +1,191 @@
+{
+  "kind": "ramses_dlmm_blank_slate_historical_protocol_v1",
+  "status": "preregistered_before_full_index_results",
+  "created_date": "2026-09-21",
+  "scope": "Ramses DLMM on Robinhood Chain (chainId 4663), complete indexed history plus exact on-chain replay",
+  "authority": {
+    "research_only": true,
+    "allocation": false,
+    "signing": false,
+    "submission": false,
+    "live_money": false
+  },
+  "independence": {
+    "existing_fee_pulse_policy_used": false,
+    "forbidden_inputs": [
+      "ramses-fee-pulse-v1 thresholds",
+      "existing 35-bps hurdle as a qualification gate",
+      "existing 30-minute maximum hold",
+      "existing 3-bin range cap",
+      "existing percentile qualification thresholds",
+      "existing qualification outcomes"
+    ],
+    "permitted_inputs": [
+      "authenticated Ramses contract mechanics",
+      "complete historical indexed swaps and fee events",
+      "historical and archive-RPC pool state",
+      "actual unwind quotes",
+      "historical/provider-verifiable execution costs"
+    ]
+  },
+  "split": {
+    "method": "chronological by indexed timestamp",
+    "derivation_fraction": 0.6,
+    "validation_fraction": 0.2,
+    "holdout_fraction": 0.2,
+    "holdout_rule": "never inspect holdout outcome metrics until one candidate rule is frozen from derivation+validation"
+  },
+  "signal_windows_seconds": [
+    300,
+    900,
+    1800
+  ],
+  "search_grid": {
+    "minimum_swaps": [
+      2,
+      3,
+      5,
+      8
+    ],
+    "minimum_two_way_share": [
+      0,
+      0.05,
+      0.1,
+      0.2,
+      0.3,
+      0.4
+    ],
+    "minimum_chop_ratio": [
+      0,
+      1,
+      2,
+      3,
+      5
+    ],
+    "maximum_net_displacement_bins": [
+      1,
+      2,
+      3,
+      5,
+      8,
+      13
+    ],
+    "minimum_fee_percentile": [
+      0.5,
+      0.7,
+      0.8,
+      0.9,
+      0.95
+    ],
+    "minimum_volume_percentile": [
+      0.5,
+      0.7,
+      0.8,
+      0.9,
+      0.95
+    ],
+    "hold_seconds": [
+      300,
+      900,
+      1800,
+      3600,
+      7200,
+      14400
+    ],
+    "range_half_width_bins": [
+      1,
+      2,
+      3,
+      5,
+      8,
+      13
+    ],
+    "placement_families": [
+      "symmetric_centered",
+      "reversion_skewed_against_recent_net_move",
+      "momentum_skewed_with_recent_net_move"
+    ],
+    "local_depth_fraction": [
+      0.0025,
+      0.005,
+      0.01,
+      0.02,
+      0.05
+    ]
+  },
+  "indexed_stage": {
+    "purpose": "nominate repeatable historical regimes; indexed outcomes alone cannot establish profitability",
+    "features": [
+      "swap count",
+      "USD volume",
+      "LP fee USD",
+      "fee rate",
+      "two-way share",
+      "flow imbalance",
+      "gross bin travel",
+      "net displacement",
+      "chop ratio",
+      "bin step",
+      "volatility accumulator",
+      "pool age",
+      "contemporaneous fee and volume percentiles"
+    ],
+    "outcome_proxies": [
+      "subsequent LP fee production",
+      "subsequent two-way flow",
+      "subsequent net displacement",
+      "subsequent gross/net travel ratio"
+    ],
+    "anti_concentration": "rank both position-weighted and equal-pool-weighted; cap one pool at 10 nominated windows per rule per split"
+  },
+  "exact_replay_stage": {
+    "required": true,
+    "entry_state": "archive-RPC state at the frozen entry block before outcome",
+    "range_state": "all proposed bins plus every economically mutated bin required for exact terminal equality",
+    "mechanics": "existing authenticated Ramses integer replay",
+    "fee_capture": "paper share of authenticated per-bin LP fees",
+    "inventory_pnl": "full withdrawal inventory plus executable same-pool residual unwind at exit block",
+    "sizing": "fraction of exact local range liquidity, never total factory TVL",
+    "costs": "use historical/verifiable Ramses lifecycle gas when available; otherwise publish both pre-gas and conservative cost-sensitivity results and do not call a marginal result profitable",
+    "no_future_input": true
+  },
+  "candidate_selection": {
+    "derivation_min_exact_observations": 20,
+    "derivation_min_pools": 3,
+    "validation_min_exact_observations": 15,
+    "validation_min_pools": 3,
+    "ordering": [
+      "equal-pool-weighted median after-cost return",
+      "equal-pool-weighted mean after-cost return",
+      "10th percentile after-cost return",
+      "profitable observation rate",
+      "capital-hour return",
+      "sample size"
+    ],
+    "no_retrospective_threshold_relaxation": true
+  },
+  "profitability_claim": {
+    "validation_required": true,
+    "holdout_required": true,
+    "criteria": [
+      "median after-cost return > 0 in validation and holdout",
+      "mean after-cost return > 0 in validation and holdout",
+      "profitable observation rate > 0.55 in validation and holdout",
+      "positive result supported by at least 3 pools in validation and holdout, unless explicitly labeled pool-specific",
+      "result remains positive under conservative execution-cost sensitivity"
+    ]
+  },
+  "output": {
+    "venue_strategy": [
+      "market segment / pool characteristics",
+      "entry signal",
+      "range width and placement",
+      "position sizing",
+      "hold and rebalance rule",
+      "exit rule",
+      "capacity",
+      "failure modes",
+      "derivation/validation/holdout performance"
+    ]
+  }
+}
