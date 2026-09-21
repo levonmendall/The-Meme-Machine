@@ -160,9 +160,16 @@ index 0000000..8f200e6
 +            state['cash']-=capital+entry_cost;state['net_cash_flows']-=capital+entry_cost
 +            if type(data['mark']['pnl_lamports']) is not int or data['mark']['pnl_lamports']!=integer(data['mark']['ending_sol_lamports'])-capital-entry_cost-exit_cost:raise ValueError('dlmm_accounting_entry_mark')
 +            p.update(status='open',reserved=exit_cost,basis=capital,entry_cost=entry_cost,exit_cost=exit_cost,entry=data,mark=data['mark'])
-+        elif action in ('mark','unresolved','settle'):
++        elif action in ('mark','unresolved','settle','writeoff'):
 +            if p['status'] not in ('open','unresolved'):raise ValueError('dlmm_accounting_position_not_open')
 +            if action=='unresolved':p['status']='unresolved';p['reason']=data['reason'];return
++            if action=='writeoff':
++                loss=-(p['basis']+p['entry_cost'])
++                state['realized']+=loss
++                p.update(status='written_off',reserved=0,basis=0,mark=None,
++                    reason=str(data.get('reason') or 'unverified_position_writeoff')[:200],
++                    writeoff_loss_lamports=loss)
++                return
 +            mark=data['mark'];ending=integer(mark['ending_sol_lamports'])
 +            if mark['pnl_lamports']!=ending-p['basis']-p['entry_cost']-p['exit_cost']:raise ValueError('dlmm_accounting_mark_cost_disagreement')
 +            p['mark']=mark
@@ -204,6 +211,7 @@ index 0000000..8f200e6
 +                    open_positions=len(open_rows),pending=sum(p['status']=='reserved' for p in s['positions'].values()),
 +                    unsettled=sum(p['status'] in ('open','unresolved','reserved') for p in s['positions'].values()),
 +                    settled=sum(p['status']=='settled' for p in s['positions'].values()),
++                    writeoffs=sum(p['status']=='written_off' for p in s['positions'].values()),
 +                    realized_pnl_lamports=s['realized'],unrealized_pnl_lamports=unrealized,marked_equity=equity,
 +                    capital_unit_nanoseconds=s['capital_unit_nanoseconds'],capital_time_through_ns=s['last_at_ns'],
 +                    net_cash_flows=s['net_cash_flows'],journal_hash=s['hash'],journal_events=s['events'],reconciled=True,
@@ -2079,7 +2087,8 @@ index c1aef79..046427f 100644
                      pre_entry_features=features,qualification=decision,**lifecycle))
              else:
                  failure_counts["lifecycle_unverified"]+=1
-+            _stage(candidate["address"],"settled" if lifecycle["complete"] else "terminal",None if lifecycle["complete"] else "lifecycle_unverified")
++            _stage(candidate["address"],"settled" if lifecycle["complete"] else "terminal",
++                None if lifecycle["complete"] else lifecycle.get("reason","lifecycle_unverified"))
              checkpoint("lifecycle_terminal")
          except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
 -            attempt["terminal_classification"]="exception"
