@@ -45,7 +45,7 @@ def sample(root,fields):
     return gql(q,{"limit":3}).get(root,[])
 
 def main():
-    names=["DLMMSwap","DLMMFeeEvent","DLMMPool","DLMMProtocolDayData"]
+    names=["DLMMSwap","DLMMFeeEvent","DLMMPool","DLMMProtocolDayData","Transaction"]
     schema={n:type_fields(n) for n in names}
     OUT.write_text(json.dumps(schema,indent=2,sort_keys=True))
     samples={}
