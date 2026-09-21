@@ -1,1 +1,2 @@
 Regenerate the Meteora operational overlay after post-fill lifecycle recovery repair.
+Final canonicalization after explicit rebalance classification and writeoff accounting.
