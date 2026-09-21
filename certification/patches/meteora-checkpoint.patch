@@ -2464,7 +2464,7 @@ new file mode 100644
 index 0000000..96e0410
 --- /dev/null
 +++ b/tests/test_dlmm_independent_accounting.py
-@@ -0,0 +1,75 @@
+@@ -0,0 +1,85 @@
 +"""Synthetic mechanics only: these tests never claim natural qualification."""
 +from copy import deepcopy
 +from pathlib import Path
@@ -2540,6 +2540,16 @@ index 0000000..96e0410
 +                strategy._lifecycle(None,'pool',self.entry,self.features,self.policy,None,[],book=self.book)
 +        r=self.reopen().reconcile();self.assertEqual((r['cash'],r['unsettled']),(1_000_000_000,0))
 +        with self.assertRaisesRegex(ValueError,'foreign_lifecycle'):
++            self.book.append('pons:foreign','reserve',dict(amount=1))
++        with self.assertRaisesRegex(ValueError,'capital_exhausted'):
++            self.book.append(self.book.identity(),'reserve',dict(amount=1_000_000_001))
++        with sqlite3.connect(self.path) as db:
++            with self.assertRaisesRegex(sqlite3.IntegrityError,'append_only'):db.execute('DELETE FROM events')
++
++    def test_replay_rejects_different_economic_result(self):
++        self.run_lifecycle()
++        def wrong(position):return dict(strategy._mark(position),ending_sol_lamports=1)
++        with self.assertRaisesRegex(ValueError,'entry_replay'):self.book.replay_economics(strategy._build_position,strategy._advance_position,wrong)
 diff --git a/tests/test_dlmm_small_pool_profitability.py b/tests/test_dlmm_small_pool_profitability.py
 index 5981022..7be2d8e 100644
 --- a/tests/test_dlmm_small_pool_profitability.py
