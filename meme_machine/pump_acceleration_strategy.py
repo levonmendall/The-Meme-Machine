@@ -40,19 +40,23 @@ def _points(value, low, high, maximum):
 
 @dataclass(frozen=True)
 class FrozenPolicy:
-    version: str = STRATEGY_ID + "-execution-certification-v1"
+    version: str = STRATEGY_ID + "-profitability-v1"
     entry_fraction_bps: int = 500
 
     # Late-curve structural gates.
-    min_curve_progress_bps: int = 5500
+    min_curve_progress_bps: int = 6000
+    max_curve_progress_bps: int = 8500
     min_curve_velocity_bps_per_s: int = 10
-    min_curve_acceleration_bps_per_s2: int = 0
-    min_independent_clusters: int = 2
-    min_buyer_growth: int = 1
+    min_curve_acceleration_bps_per_s2: int = -10
+    min_independent_clusters: int = 20
+    min_buyer_growth: int = 4
     min_net_buy_share_bps: int = 5500
-    max_concentration_bps: int = 5000
+    max_concentration_bps: int = 2500
     max_extension_bps: int = 16000
-    min_late_curve_score: int = 65
+    max_immediate_roundtrip_loss_bps: int = 600
+    # Retained as an informational field for stable serialization. The old score
+    # was not robustly discriminative and has no entry authority in profitability-v1.
+    min_late_curve_score: int = 0
 
     # Historical confirmation inputs.  These can add score but never authorize
     # a trade on their own.
@@ -64,11 +68,13 @@ class FrozenPolicy:
     # Immediate post-graduation momentum gates.
     min_postgrad_age_s: int = 5
     max_postgrad_entry_age_s: int = 180
-    min_postgrad_independent_clusters: int = 2
+    min_postgrad_independent_clusters: int = 8
+    min_postgrad_buyer_growth: int = 2
     min_postgrad_price_vs_graduation_bps: int = 1
     min_postgrad_volume_acceleration_bps: int = 0
-    max_early_holder_sell_share_bps: int = 5000
-    min_postgrad_score: int = 65
+    max_postgrad_concentration_bps: int = 3500
+    max_early_holder_sell_share_bps: int = 4000
+    min_postgrad_score: int = 0
 
     # PumpSwap second-leg gates.
     min_second_leg_age_s: int = 30
@@ -76,12 +82,13 @@ class FrozenPolicy:
     min_pullback_depth_bps: int = 100
     max_pullback_depth_bps: int = 3500
     min_breakout_bps: int = 200
-    min_second_leg_score: int = 65
+    min_second_leg_buyer_growth: int = 2
+    min_second_leg_score: int = 0
 
     # Independent paper exit policy.
-    hard_stop_bps: int = -1000
+    hard_stop_bps: int = -800
     trailing_drawdown_bps: int = 1200
-    demand_exit_score: int = 45
+    demand_exit_score: int = 50
     late_curve_max_hold_s: int = 900
     postgrad_max_hold_s: int = 300
     second_leg_max_hold_s: int = 600
@@ -138,6 +145,7 @@ class SignalVector:
     net_buy_share_bps: int = 0
     concentration_bps: int = 10_000
     extension_bps: int = 0
+    immediate_roundtrip_loss_bps: int | None = None
 
     skilled_wallet_clusters: int = 0
     creator_quality_bps: int | None = None
@@ -315,19 +323,24 @@ def creator_confirmation(record, observed_at, policy=POLICY):
 
 
 def _late_score(s):
+    """Profitability-v1 ranking.
+
+    Rank broad, expanding independent demand and low concentration most heavily.
+    Score remains diagnostic/ranking evidence only; the explicit structural gates
+    below retain qualification authority.
+    """
     score=0
-    score+=_points(int(s.curve_progress_bps or 0),7000,9500,20)
-    score+=_points(int(s.curve_velocity_bps_per_s or 0),20,100,25)
-    score+=_points(int(s.curve_acceleration_bps_per_s2 or 0),0,10,10)
-    score+=_points(int(s.independent_buyer_clusters),3,6,10)
-    score+=_points(int(s.buyer_growth),1,5,15)
-    score+=_points(int(s.net_buy_share_bps),6000,9000,15)
-    score+=_points(int(s.skilled_wallet_clusters),0,3,8)
+    score+=_points(int(s.curve_progress_bps or 0),6000,8000,10)
+    score+=_points(int(s.curve_velocity_bps_per_s or 0),10,60,10)
+    score+=_points(int(s.curve_acceleration_bps_per_s2 or -10),-10,5,5)
+    score+=_points(int(s.independent_buyer_clusters),10,30,25)
+    score+=_points(int(s.buyer_growth),2,10,25)
+    score+=_points(int(s.net_buy_share_bps),5500,8000,5)
+    score+=20-_points(int(s.concentration_bps),1000,2500,20)
+    score+=_points(int(s.skilled_wallet_clusters),0,3,3)
     if s.creator_quality_bps is not None and s.creator_history_launches >= POLICY.creator_min_history_launches:
-        score+=_points(int(s.creator_quality_bps),5000,9000,4)
-    score+=_points(int(s.quote_relative_return_bps),0,2000,3)
-    score-=_points(max(0,int(s.concentration_bps)-2500),0,1000,10)
-    score-=_points(max(0,int(s.extension_bps)-5000),0,7000,10)
+        score+=_points(int(s.creator_quality_bps),5000,9000,1)
+    score+=_points(int(s.quote_relative_return_bps),0,2000,1)
     return _clamp(score,0,100)
 
 
@@ -382,13 +395,18 @@ def qualify(signal, policy=POLICY):
         confirmations.append("quote_relative_strength")
 
     if signal.phase == MODE_LATE_CURVE:
-        if int(signal.curve_progress_bps or 0) < policy.min_curve_progress_bps:
+        progress=int(signal.curve_progress_bps or 0)
+        if progress < policy.min_curve_progress_bps:
             reasons.append("curve_not_late")
+        if progress > policy.max_curve_progress_bps:
+            reasons.append("curve_too_late")
         if int(signal.curve_velocity_bps_per_s or 0) < policy.min_curve_velocity_bps_per_s:
             reasons.append("curve_velocity")
+        if int(signal.curve_acceleration_bps_per_s2 or 0) < policy.min_curve_acceleration_bps_per_s2:
+            reasons.append("curve_deceleration")
         if signal.independent_buyer_clusters < policy.min_independent_clusters:
             reasons.append("independent_buyers")
-        if signal.buyer_growth < policy.min_buyer_growth:
+        if signal.buyer_growth < policy.min_postgrad_buyer_growth:
             reasons.append("buyer_growth")
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")
@@ -396,6 +414,10 @@ def qualify(signal, policy=POLICY):
             reasons.append("concentration")
         if signal.extension_bps > policy.max_extension_bps:
             reasons.append("extension")
+        if signal.immediate_roundtrip_loss_bps is None:
+            reasons.append("executable_downside_unavailable")
+        elif int(signal.immediate_roundtrip_loss_bps) > policy.max_immediate_roundtrip_loss_bps:
+            reasons.append("executable_downside")
         score=_late_score(signal)
         threshold=policy.min_late_curve_score
 
@@ -407,7 +429,7 @@ def qualify(signal, policy=POLICY):
             reasons.append("postgrad_age")
         if signal.independent_buyer_clusters < policy.min_postgrad_independent_clusters:
             reasons.append("independent_buyers")
-        if signal.buyer_growth < policy.min_buyer_growth:
+        if signal.buyer_growth < policy.min_second_leg_buyer_growth:
             reasons.append("buyer_growth")
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")
@@ -417,7 +439,7 @@ def qualify(signal, policy=POLICY):
             reasons.append("volume_acceleration")
         if int(_value_or(signal.early_holder_sell_share_bps,10_000)) > policy.max_early_holder_sell_share_bps:
             reasons.append("early_holder_distribution")
-        if signal.concentration_bps > policy.max_concentration_bps:
+        if signal.concentration_bps > policy.max_postgrad_concentration_bps:
             reasons.append("concentration")
         score=_postgrad_score(signal)
         threshold=policy.min_postgrad_score
@@ -443,7 +465,7 @@ def qualify(signal, policy=POLICY):
             reasons.append("net_demand")
         if int(_value_or(signal.early_holder_sell_share_bps,10_000)) > policy.max_early_holder_sell_share_bps:
             reasons.append("early_holder_distribution")
-        if signal.concentration_bps > policy.max_concentration_bps:
+        if signal.concentration_bps > policy.max_postgrad_concentration_bps:
             reasons.append("concentration")
         score=_second_leg_score(signal)
         threshold=policy.min_second_leg_score
