@@ -1,3 +1,4 @@
 Canonicalize Ramses overlay after repeat-entry capacity/provider/lifecycle-namespace repair.
 Retry after normalizing unified-diff hunk counts.
 Retry after rebasing transactional reserve overlay onto post-loss-capacity source.
+Retry after fixing repeat-entry regression helper import.
