@@ -683,3 +683,52 @@ The generalized review script is syntax-checked before any live lane launch.
 Exact candidate SHA/run ID will be recorded in PR93 and the next handoff entry.
 No time from fba42eff or any earlier run is reused; five failed-hour Pons ledgers
 and prior unresolved baseline exposure remain unresolved historical evidence.
+
+
+## 2026-09-21: accepted c4572 smoke; superseded hour and authentication repair
+
+Candidate c4572e18d078222fe05d6df9eec55d62dfc59f41, workflow35563114670:
+smoke job106219609968 and artifact review106224597512 PASS. Continuous four-lane
+overlap600.123617827s, total1605.083120743s including normal drain. All exit0,
+no restarts, no open positions, reconciled accounting. Natural/forced settlements
+zero for all lanes: NATURAL_INCOMPLETE. Smoke archive10624085968 (114429650 bytes)
+verified SHA2566cacbfdb6cbff6bc78593aa8fdf35ffefc8ac65bbe9f12a8b828c3a0927621cc.
+Review archive10624185885 recorded SHA25691cbf7e4adbeee390d33876d8639158b70754ff6cf0ff8323654798ddf48a388.
+
+Pump1327 physical requests, maximum getTransaction batch8, zero provider429 or
+getProgramAccounts calls, zero physical-governor deadline misses. Window2056
+complete/18988 expired (18793 before,195 after); stream3574 complete/728 expired/
+142 retired. Logical expiry remains substantial and is not mislabeled provider
+failure or claimed materially improved. Meteora53 pools/10 admitted/4 authenticated
+triggers/3 reconstructions/1 economic vector,43 signature members with zero429.
+Pons1324 CurveBuys/297 current-state complete/45 admitted/37 full vectors;
+1126 grants/2 local admission misses with original deadlines under0.25s; no fills.
+Ramses282-pool inventory/2 scans/1 frontier advancement/3 active evaluations,
+101 grants/zero failures. Complete native and raw evidence retained in archives.
+
+Static review after the independent hour began found a concrete wrapper defect:
+a replacement session assigned before verify_chain could remain current following
+a transient authentication failure and dispatch a later read without successful
+authentication. The hour at c4572 is SUPERSEDED and will not certify any replacement.
+Targeted cancellation commit17671d8f1d3ad1a3f45bc4f0e5bfe2f883e99cbd,
+workflow35565147831/job106225361497, refused cancellation with
+not_proven_flat_do_not_cancel. Audit10624171231,9986 bytes,
+SHA256c5d53dee5c9a33cbede1bb5a4a7ce43f320c96a7ad64988b424410e69d415ea3.
+Natural activity had already occurred. The guard is preserved; the run is allowed
+to complete its authorized lifecycle/drain, with no competing market run started.
+No runtime is hot-patched and no prior time will count toward the replacement.
+
+Versioned native inputs now require successful authentication before reads or
+iteration processing after rotation. Failed authentication keeps the same session
+and explicit unauthenticated state; each bounded outer recovery rechecks chain
+identity before any read. Durable attempts distinguish authentication retry from
+session rotation and do not double count the current session's telemetry.
+Original provider limits, policy clocks, recovery bounds and all frozen gates remain.
+Four adapter regressions cover transient/persistent authentication, iteration retry
+and explicit reauthentication failure. Two full-ledger regressions cover pending
+exit recovery and bounded persistent failure retaining unresolved exposure.
+Changed native files: position_sessions.py, pons_selective_paper.py,
+test_position_sessions.py, test_pons_position_provider_recovery.py (all Pons).
+The hosted builder will canonicalize overlays, verify protected hashes, run all
+lane/supervisor/concurrency/accounting/resource gates, and publish exact Git blobs.
+No live replacement is authorized by this build marker alone.
