@@ -1,0 +1,1 @@
+Survey transaction and transfer-related indexed schema types to repair Ramses LP burn ownership attribution.\n
