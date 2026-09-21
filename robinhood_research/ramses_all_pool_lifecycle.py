@@ -577,6 +577,22 @@ def _unwind(rpc, pool, decision, replay_result, block):
     )
 
 
+def _unwind_has_full_liquidity(unwind):
+    """Only a fully executable same-pool quote can authorize paper settlement."""
+    if unwind is None:
+        return True
+    if not isinstance(unwind, dict):
+        raise BoundaryError("connected_lifecycle_unwind_shape")
+    amount=unwind.get("amount_in")
+    left=unwind.get("amount_in_left")
+    if (
+        type(amount) is not int or amount<=0
+        or type(left) is not int or left<0 or left>amount
+    ):
+        raise BoundaryError("connected_lifecycle_unwind_shape")
+    return left==0
+
+
 def _segment_costs(costs):
     if not isinstance(costs, dict) or not costs:
         raise BoundaryError("connected_lifecycle_cost_evidence_missing")
@@ -1010,6 +1026,20 @@ def run(
                 unwind = _unwind(
                     rpc, pool, decision, replay_result, block
                 )
+                if not _unwind_has_full_liquidity(unwind):
+                    hold=dict(
+                        action="hold",
+                        reason="unwind_liquidity_unavailable",
+                        stage="unwind",
+                        block=block,
+                        amount_in=unwind["amount_in"],
+                        amount_in_left=unwind["amount_in_left"],
+                    )
+                    result.setdefault("liquidity_holds", []).append(hold)
+                    ledger.checkpoint(
+                        identity, action="monitor", detail=hold, at=at
+                    )
+                    continue
             except BoundaryError as exc:
                 if not _is_transient_provider_boundary(exc):
                     raise
