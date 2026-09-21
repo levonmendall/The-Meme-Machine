@@ -1,0 +1,6 @@
+Fresh four-lane DLMM functionality run after Meteora failed-monitor accounting repair.
+Base repaired integration: 4a8c71ed8e58903b9cb79c3e674efb055a4d3610
+Generic failed post-entry monitor evidence remains unresolved with exit-cost reserve intact.
+Only explicit dlmm_rebalance_liquidity_requires_position_state remains eligible for zero-proceeds paper writeoff.
+Qualification build 35638732457 passed.
+Paper only. No profitability claim.
