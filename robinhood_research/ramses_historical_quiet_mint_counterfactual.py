@@ -30,7 +30,7 @@ MINT_FIELDS="id timestamp pool recipient sender amountUSD totalAmountX totalAmou
 POOL_FIELDS="id address symbol tokenX tokenY binStep"
 WIDTHS=(3,8,13)
 HOLDS=(3600,14400)
-MAX_CANDIDATES=6
+MAX_CANDIDATES=24
 MAX_PER_POOL=2
 DEPTH_BPS=50
 
