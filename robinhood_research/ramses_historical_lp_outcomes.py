@@ -68,7 +68,7 @@ def main():
 
     mintg=defaultdict(list);burng=defaultdict(list)
     for r in mints:mintg[(str(r.get("recipient") or "").lower(),addr(r.get("pool")))].append(r)
-    for r in burns:burng[(str(r.get("sender") or "").lower(),addr(r.get("pool")))].append(r)
+    for r in burns:burng[(str(r.get("recipient") or "").lower(),addr(r.get("pool")))].append(r)
     open_liq=defaultdict(float)
     for r in current:
         liq=f(r.get("liquidity"))
