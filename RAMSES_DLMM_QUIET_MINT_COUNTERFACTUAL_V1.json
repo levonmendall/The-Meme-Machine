@@ -1,0 +1,53 @@
+{
+  "kind": "ramses_dlmm_quiet_mint_counterfactual_v1",
+  "status": "preregistered_before_counterfactual_outcomes",
+  "research_only": true,
+  "allocation_authority": false,
+  "context": {
+    "hypothesis_source": "The first 80% historical LP study showed stronger realized outcomes when public LP entries followed <=2 swaps in the prior 30 minutes. The original 60/20 validation slice influenced this hypothesis, so it is now treated as development evidence rather than confirmatory validation.",
+    "holdout": "The final 20% chronological history remains outcome-blind and is not read by this counterfactual development test."
+  },
+  "signal": {
+    "event": "finalized public DLMMMint",
+    "prior_30m_max_swaps": 2,
+    "prior_24h_min_swaps": 10,
+    "quote_asset": "USDG",
+    "entry": "first block after the finalized mint block",
+    "candidate_order": "deterministic SHA256(pool,timestamp,transaction); never future outcome",
+    "max_per_pool": 2,
+    "initial_development_candidates": 6
+  },
+  "paper_position": {
+    "depth_fraction_bps": 50,
+    "sizing_basis": "exact active-bin quote liquidity at counterfactual entry",
+    "symmetric_half_width_bins": [
+      3,
+      8,
+      13
+    ],
+    "initial_holds_seconds": [
+      3600,
+      14400
+    ],
+    "rebalance": "none in diagnostic",
+    "exit": "full removal plus executable same-pool residual inventory unwind"
+  },
+  "exactness": {
+    "existing_strategy_policy_used": false,
+    "archive_rpc_entry_state": true,
+    "authenticated_factory_identity": true,
+    "exact_integer_ramses_replay": true,
+    "terminal_equality_required": true,
+    "exact_lp_fee_capture": true,
+    "executable_unwind_required": true,
+    "same_block_lookahead_forbidden": true,
+    "entry_after_signal_block": true
+  },
+  "interpretation": {
+    "initial_stage": "development diagnostic only",
+    "profitability_claim": false,
+    "next_if_promising": "expand to >=20 development counterfactuals across >=3 pools, freeze exact rule, then expose untouched final-20% holdout",
+    "costs": "Initial diagnostic reports pre-wallet-gas gross economics; no profitability claim until historical gas/cycle cost sensitivity is applied."
+  },
+  "revision": "1.0"
+}
