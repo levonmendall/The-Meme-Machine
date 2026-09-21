@@ -19,7 +19,7 @@ SUMMARY=Path("ramses-historical-index-summary.json")
 
 SWAP_FIELDS="""id timestamp pool transaction activeId amountUSD amountXIn amountXOut amountYIn amountYOut
 protocolFeesX protocolFeesY totalFeesX totalFeesY tokenX tokenY volatilityAccumulator"""
-FEE_FIELDS="""id timestamp pool poolAddress transaction blockNumber binId binTotalSupply eventType attributedToLiquidity
+FEE_FIELDS="""id timestamp pool poolAddress transaction blockNumber logIndex logIndexNumber binId binTotalSupply eventType attributedToLiquidity
 lpFeesUSD protocolFeesUSD totalFeesUSD lpFeesX lpFeesY protocolFeesX protocolFeesY totalFeesX totalFeesY tokenX tokenY"""
 POOL_FIELDS="""id address symbol tokenX tokenY activeId binStep baseFactor protocolShare filterPeriod decayPeriod
 reductionFactor variableFeeControl maxVolatilityAccumulator totalValueLockedUSD volumeUSD feesUSD"""
