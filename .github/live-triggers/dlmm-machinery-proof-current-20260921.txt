@@ -16,3 +16,7 @@ Fresh replacement after Ramses capital-invariant repair.
 Verified integration head before trigger: 46934b26f7d4b6d7f56bcdafd93432a48d8ad6be.
 Ramses source: fd984cae1ca474430de9b8a220d5635f21aae916.
 Failed smoke 35618493417 cancelled and preserved; no prior observation time reused.
+
+Final replacement launch after canonical Ramses overlay.
+Canonical integration base: 8981dd9baa982c5267cc31a64c1cdabb50a78291.
+Prior failed smoke 35618493417 is cancelled and archived.
