@@ -3,18 +3,34 @@ on:
   push:
     branches: [cert/profitability-v1-current]
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
+    if: ${{ !contains(github.event.head_commit.message, '[profitability-overlay-promoted]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
-          persist-credentials: false
+          persist-credentials: true
       - name: Build rebased operational plus profitability overlays
         run: python certification/build_profitability_overlays.py
+      - name: Promote exact rebased overlays
+        run: |
+          set -euo pipefail
+          cp profitability-overlay-build/pump-combined.patch certification/patches/pump-accounting.patch
+          cp profitability-overlay-build/pons-combined.patch certification/patches/pons-cohort-capital.patch
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch
+          if git diff --cached --quiet; then
+            echo "rebased overlays already canonical"
+          else
+            git commit -m "[qualification-build] [profitability-overlay-promoted] Rebase operational overlays onto profitability-v1"
+            git push origin HEAD:cert/profitability-v1-current
+          fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
