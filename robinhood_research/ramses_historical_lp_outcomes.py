@@ -67,8 +67,32 @@ def main():
             first_hour[p]=min(first_hour.get(p,ts),ts)
 
     mintg=defaultdict(list);burng=defaultdict(list)
-    for r in mints:mintg[(str(r.get("recipient") or "").lower(),addr(r.get("pool")))].append(r)
-    for r in burns:burng[(str(r.get("recipient") or "").lower(),addr(r.get("pool")))].append(r)
+    owners_by_pool=defaultdict(set);closed_by_pool_time=defaultdict(list)
+    for r in positions:
+        p=addr(r.get("pool"));owner=str(r.get("owner") or "").lower()
+        if owner:owners_by_pool[p].add(owner)
+        if f(r.get("liquidity"))==0 and r.get("lastModifiedTimestamp") is not None:
+            closed_by_pool_time[(p,str(r.get("lastModifiedTimestamp")))].append(
+                (owner,str(r.get("lastModifiedLogIndex") or ""))
+            )
+    for r in mints:
+        mintg[(str(r.get("recipient") or "").lower(),addr(r.get("pool")))].append(r)
+    burn_resolution=defaultdict(int)
+    unresolved_burns=0
+    for r in burns:
+        p=addr(r.get("pool"));recipient=str(r.get("recipient") or "").lower()
+        owner=None
+        if recipient in owners_by_pool[p]:
+            owner=recipient;burn_resolution["burn_recipient"]+=1
+        else:
+            candidates=closed_by_pool_time.get((p,str(r.get("timestamp") or "")),[])
+            owners={o for o,_log in candidates if o}
+            if len(owners)==1:
+                owner=next(iter(owners));burn_resolution["unique_terminal_timestamp"]+=1
+        if owner is None:
+            unresolved_burns+=1
+            continue
+        burng[(owner,p)].append(r)
     open_liq=defaultdict(float)
     for r in current:
         liq=f(r.get("liquidity"))
@@ -141,7 +165,9 @@ def main():
     out=dict(kind="ramses_dlmm_clean_actual_lp_outcomes_v1",research_only=True,
              interpretation="Gross realized LP cash-flow return before wallet gas. Fees are embedded in bin share value.",
              counts=dict(mints=len(mints),burns=len(burns),positions=len(positions),current_bin_liquidity=len(current),
-                         pool_hours=len(hours),pools=len(pools),clean_lifecycles=len(clean)),
+                         pool_hours=len(hours),pools=len(pools),clean_lifecycles=len(clean),
+                         resolved_burns=sum(burn_resolution.values()),unresolved_burns=unresolved_burns,
+                         burn_resolution=dict(burn_resolution)),
              split_bounds=dict(start=lo,derivation_end=de,validation_end=ve,end=hi),
              analyses=analyses,lifecycles=clean)
     OUT.write_text(json.dumps(out,indent=2,sort_keys=True))
