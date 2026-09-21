@@ -17,6 +17,7 @@ from pathlib import Path
 import time
 
 from . import BoundaryError
+from .provider_admission import position_work
 from .abi import calldata, topic
 from .identity import load
 from .ramses import (
@@ -694,6 +695,7 @@ def _requalify_current_pool(
     )
 
 
+@position_work
 def run(
     endpoint,
     *,
@@ -704,6 +706,8 @@ def run(
     rescan_seconds=RESCAN_SECONDS,
     initial_screen=None,
     cost_state=None,
+    campaign_ledger=None,
+    lifecycle_prefix=None,
 ):
     costs_by_pool = _normalize_context(costs_by_pool)
     signals_by_pool = _normalize_context(signals_by_pool)
@@ -827,35 +831,54 @@ def run(
     )
 
     db_path = str(db_path or DB)
-    if Path(db_path).exists():
-        raise BoundaryError("connected_lifecycle_db_already_exists")
     position_capital = int(
         decision["freeze"]["proposals"][0]["capital_employed"]
     )
-    paper_capital = _paper_ledger_capital(
+    required_paper_capital = _paper_ledger_capital(
         position_capital,
         costs,
         int(POLICY["controller"]["max_rebalances"]),
     )
+    if campaign_ledger is None:
+        if Path(db_path).exists():
+            raise BoundaryError("connected_lifecycle_db_already_exists")
+        ledger = RamsesStrategyLedger(
+            db_path,
+            paper_capital=required_paper_capital,
+            quote_asset=chosen["token_y"],
+        )
+    else:
+        if (
+            not isinstance(campaign_ledger, RamsesStrategyLedger)
+            or campaign_ledger.quote_asset != chosen["token_y"].lower()
+        ):
+            raise BoundaryError("connected_campaign_ledger_quote_mismatch")
+        if not isinstance(lifecycle_prefix, str) or not lifecycle_prefix:
+            raise BoundaryError("connected_campaign_lifecycle_namespace")
+        reconciliation = campaign_ledger.reconcile()
+        if reconciliation["open_positions"]:
+            raise BoundaryError("connected_campaign_unresolved_exposure")
+        if reconciliation["paper_capital"] < required_paper_capital:
+            raise BoundaryError("connected_campaign_cost_envelope_unfunded")
+        ledger = campaign_ledger
     result["ledger_funding"] = dict(
         position_capital=position_capital,
-        execution_cost_envelope=paper_capital-position_capital,
-        paper_capital=paper_capital,
+        required_execution_cost_envelope=required_paper_capital-position_capital,
+        required_paper_capital=required_paper_capital,
+        actual_paper_capital=ledger.paper_capital,
         position_size_unchanged=True,
-    )
-    ledger = RamsesStrategyLedger(
-        db_path,
-        paper_capital=paper_capital,
-        quote_asset=chosen["token_y"],
     )
     identity = (
         STRATEGY_DOMAIN + ":" + pool + ":" + str(entry_block) + ":"
         + decision["freeze"]["proposal_hash"]
     )
+    if lifecycle_prefix:
+        identity = lifecycle_prefix + ":" + identity
+    result["lifecycle_id"] = identity
     segments = []
     controller_log = []
     rebalances = 0
-    current_capital = paper_capital
+    current_capital = position_capital
     segment_start = entry_block
     last_scan_wall = time.monotonic()
     latest_screen = screen
@@ -1118,7 +1141,8 @@ def run(
         result["boundary"] = None
     finally:
         try:
-            ledger.close()
+            if campaign_ledger is None:
+                ledger.close()
         except Exception:
             pass
 
