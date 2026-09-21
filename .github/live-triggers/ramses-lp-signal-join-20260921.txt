@@ -1,1 +1,2 @@
 Join corrected actual Ramses LP lifecycles to strictly pre-entry swap flow. Holdout outcomes remain redacted.\n
+Rerun after corrected burn ownership artifact became available.
