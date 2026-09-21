@@ -1,0 +1,1 @@
+Extract compact summary from the completed full Ramses indexed-history artifact.\n
