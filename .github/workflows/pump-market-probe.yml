@@ -28,7 +28,19 @@ jobs:
               print(raw[:5000].decode("utf-8","replace"))
           except Exception as e:
               print("SOLANAFM_ERROR",repr(e))
-          for rpc in ["https://api.mainnet-beta.solana.com","https://solana.api.onfinality.io/public"]:
+          for u in [
+    f"https://public-api.solscan.io/account/transactions?account={program}&limit=10",
+    f"https://public-api.solscan.io/account/transactions?address={program}&limit=10",
+    f"https://pro-api.solscan.io/playground/account/transactions/enhanced?address={program}&from_time=1789988465&to_time=1789988525",
+]:
+    try:
+        req=urllib.request.Request(u,headers={"User-Agent":"meme-machine-audit/1","accept":"application/json"})
+        with urllib.request.urlopen(req,timeout=30) as r:
+            raw=r.read(1000000)
+        print("INDEXER",u,len(raw),raw[:5000].decode("utf-8","replace"))
+    except Exception as e:
+        print("INDEXER_ERROR",u,repr(e))
+for rpc in ["https://api.mainnet-beta.solana.com","https://solana.api.onfinality.io/public"]:
               body=json.dumps({"jsonrpc":"2.0","id":1,"method":"getSignaturesForAddress","params":[program,{"limit":3,"commitment":"finalized"}]}).encode()
               try:
                   req=urllib.request.Request(rpc,data=body,headers={"Content-Type":"application/json","User-Agent":"meme-machine-audit/1"})
