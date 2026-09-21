@@ -619,3 +619,37 @@ all five unresolved ledgers; verify frozen policies and canonical overlays; run 
 deterministic/resource gates; then one fresh600-second smoke and, only if it passes
 normal terminal drain, one independent3600-second hour. Neither engineering success
 nor natural completeness is claimed at this checkpoint.
+
+
+## Isolated frozen-source continuation using hosted deterministic execution
+
+Further reconstruction established a safe continuation path: retain the original
+fba42eff frozen source manifest on this isolated branch, leaving PR93's separate
+machinery-proof policies untouched. The task explicitly permits branch separation
+when existing branch structure requires it. The earlier checkpoint's policy conflict
+therefore prevents adopting c0b8bfb, but does not require abandoning infrastructure
+repairs on the original frozen sources. Local execution remains unavailable, so the
+implementation is reconstructed in versioned inputs and verified on a hosted runner.
+
+The reconstructed repair includes bounded Robinhood cross-lane admission, thread-local
+position context, exact local-admission telemetry and bounded same-frontier Ramses scan
+recovery. In addition, a Pons PositionSessions wrapper can rotate an exhausted local
+200-request session within one operation, retrying only the rejected untransported
+operation once. Fresh-session failure remains fail-closed. Provider429/authentication/
+per-scope budget errors are not blanket-retried; limit200/per_scope190 are unchanged.
+Session authentication and previous telemetry remain mandatory; rotation records
+retain original ledger identity and hold clock. No position, qualification or pending
+exit is recreated. Existing iteration-headroom rotation is preserved in the wrapper.
+
+New deterministic cases cover sustained cross-lane pressure, imminent position
+deadlines, local failure attribution, context/thread isolation, Ramses pinned scan
+recovery, bounded Pons session rotation, authentication/configuration failure, and
+full-ledger monitor/pending-exit session exhaustion with settlement/reconciliation.
+Hosted verification is pending; prior local test results are not substituted for it.
+The builder has no provider credentials and only creates Git blobs after every gate
+passes; it cannot move any branch ref. Candidate composition remains explicit.
+
+The live workflow accepts this isolated branch but no live run is requested by this
+build commit. A subsequent exact canonical candidate must pass all hosted gates and
+active-run checks before a fresh smoke and independent hour. No older time is reused.
+All old failed artifacts and unresolved positions remain historical evidence.

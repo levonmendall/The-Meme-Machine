@@ -40,11 +40,20 @@ class PressureView:
                 for seq,body in db.execute('SELECT seq,body FROM admissions WHERE seq>? ORDER BY seq',(self.admission_sequence,)):
                     event=json.loads(body);lane=event['lane']
                     stats=self.admissions.setdefault(lane,dict(requested=0,granted=0,failed=0,
-                        max_wait_seconds=0,total_wait_seconds=0,last_grant_monotonic=None,grants_by_minute={}))
+                        max_wait_seconds=0,total_wait_seconds=0,last_grant_monotonic=None,grants_by_minute={},
+                        failed_by_reason={},failed_by_method={},failed_by_scope={},granted_by_priority={}))
                     stats['requested']+=1;stats['granted']+=int(event['granted']);stats['failed']+=int(not event['granted'])
                     stats['max_wait_seconds']=max(stats['max_wait_seconds'],event['wait_seconds'])
                     stats['total_wait_seconds']+=event['wait_seconds']
+                    if not event['granted']:
+                        for key,values in (
+                            ('failed_by_reason',[event.get('reason','admission_failed')]),
+                            ('failed_by_scope',[event.get('scope','unknown')]),
+                            ('failed_by_method',sorted(set(event.get('methods') or ['unknown'])))):
+                            for value in values:stats[key][value]=stats[key].get(value,0)+1
                     if event['granted']:
+                        priority=str(event.get('priority','unknown'))
+                        stats['granted_by_priority'][priority]=stats['granted_by_priority'].get(priority,0)+1
                         stats['last_grant_monotonic']=event['ended']
                         minute=str(int(event['ended']//60));stats['grants_by_minute'][minute]=stats['grants_by_minute'].get(minute,0)+1
                     self.admission_sequence=seq
