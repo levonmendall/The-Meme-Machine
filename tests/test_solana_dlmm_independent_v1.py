@@ -52,8 +52,9 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             p["evidence_acquisition"]["interval_transaction_bound"],16)
         self.assertFalse(
             p["evidence_acquisition"]["strategy_thresholds_changed"])
-        self.assertEqual(p["revision"],"1.8-execution-certification-v1")
+        self.assertEqual(p["revision"],"1.9-machinery-proof-v2")
         self.assertFalse(p["execution_certification"]["profitability_authority"])
+        self.assertTrue(p["execution_certification"]["machinery_proof_only"])
         self.assertTrue(p["execution_certification"]["freshness_finality_unchanged"])
 
     def test_strategy_import_graph_contains_no_strategy_dependency(self):
