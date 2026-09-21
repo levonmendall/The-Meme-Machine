@@ -7,6 +7,9 @@ on:
 
 permissions:
   contents: read
+concurrency:
+  group: missed-winner-market-audit
+  cancel-in-progress: true
 
 jobs:
   pons-market-replay:
