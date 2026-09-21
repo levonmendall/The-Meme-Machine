@@ -67,11 +67,16 @@ class PublicRPC:
     def __init__(self,url):
         self.url=url; self.next_id=1; self.calls=0; self.failures=defaultdict(int)
         self.block_cache={}; self.time_cache={}
-    def request(self,payload,attempts=8):
+        self.last_http=0.0
+        self.min_http_interval=0.55
+    def request(self,payload,attempts=20):
         raw=json.dumps(payload,separators=(",",":")).encode()
         req=Request(self.url,data=raw,headers={"Content-Type":"application/json","User-Agent":"meme-machine-market-audit/1"})
         for a in range(attempts):
             try:
+                wait=self.min_http_interval-(real_time.monotonic()-self.last_http)
+                if wait>0: real_time.sleep(wait)
+                self.last_http=real_time.monotonic()
                 with urlopen(req,timeout=30) as resp:
                     body=resp.read(25_000_000)
                 val=json.loads(body)
@@ -79,7 +84,10 @@ class PublicRPC:
             except HTTPError as e:
                 self.failures[f"http_{e.code}"]+=1
                 if e.code in (429,500,502,503,504) and a+1<attempts:
-                    real_time.sleep(min(8,0.5*(2**a))); continue
+                    retry=e.headers.get("Retry-After") if getattr(e,"headers",None) else None
+                    try: pause=max(float(retry or 0),min(30,1.0*(2**min(a,5))))
+                    except Exception: pause=min(30,1.0*(2**min(a,5)))
+                    real_time.sleep(pause); continue
                 raise
             except (URLError,TimeoutError,OSError,ValueError) as e:
                 self.failures[type(e).__name__]+=1
@@ -95,6 +103,11 @@ class PublicRPC:
         return val.get("result")
     def batch(self,calls):
         if not calls:return []
+        if len(calls)>4:
+            out=[]
+            for i in range(0,len(calls),4):
+                out.extend(self.batch(calls[i:i+4]))
+            return out
         payload=[]; ids=[]
         for method,params in calls:
             i=self.next_id;self.next_id+=1;ids.append(i)
@@ -131,7 +144,7 @@ class PublicRPC:
         calls=[]
         for first in range(int(start),int(end)+1,10):
             calls.append(("eth_getLogs",[{"fromBlock":hex(first),"toBlock":hex(min(end,first+9)),"topics":[topics0]}]))
-            if len(calls)==30:
+            if len(calls)==4:
                 for x in self.batch(calls): out.extend(x or [])
                 calls=[]
         if calls:
