@@ -1,0 +1,25 @@
+name: ramses-historical-burn-ownership
+on:
+  push:
+    branches: [research/ramses-dlmm-historical-market-v1]
+permissions:
+  contents: read
+jobs:
+  resolve:
+    if: contains(github.event.head_commit.message, '[ramses-burn-ownership]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m py_compile robinhood_research/ramses_historical_burn_ownership.py
+      - run: python -m robinhood_research.ramses_historical_burn_ownership
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ramses-historical-burn-ownership-${{ github.run_id }}
+          path: ramses-historical-burn-ownership.json
+          retention-days: 90
+          if-no-files-found: error
