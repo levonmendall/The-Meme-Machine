@@ -1,0 +1,7 @@
+DLMM machinery-proof current validation.
+Base implementation: 92a8ccabb7ce83f570b495f834e6e18596b68de2.
+Meteora relaxed source: 43bbcce60913a9a87404fe6563585159fb72352f.
+Ramses relaxed source: d252724f081a9ca0b3bc5fbd8e28b191568c6499.
+Pump and Pons policies unchanged.
+Request one fresh 600-second four-lane smoke followed by the normal independent hour only if readiness passes.
+Paper only; no profitability claim.
