@@ -324,21 +324,22 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             fee_acceleration=1.0,
             dynamic_fee_uplift=1.0,
             competing_liquidity_to_capital_multiple=5.0,
-            two_way_balance=0.25,
+            two_way_balance=0.0,
             drift_ratio=0.75,
             reversal_count=0,
             stress_inventory_roundtrip={"loss_bps":150.0},
-            expected_net_lamports=-200000,
+            expected_net_lamports=-1000000,
         )
+        self.assertEqual(p["qualification"]["min_two_way_balance"],0)
+        self.assertEqual(p["qualification"]["min_expected_net_lamports"],-1000000)
         self.assertTrue(strategy.qualify(base,p)["passes"])
         mutations={
             "volume_acceleration":{"volume_acceleration":1.24},
             "fee_acceleration":{"fee_acceleration":0.99},
             "capacity":{"competing_liquidity_to_capital_multiple":4.99},
-            "two_way":{"two_way_balance":0.24},
             "drift":{"drift_ratio":0.7501},
             "unwind":{"stress_inventory_roundtrip":{"loss_bps":150.01}},
-            "expected_net":{"expected_net_lamports":-200001},
+            "expected_net":{"expected_net_lamports":-1000001},
         }
         for expected,change in mutations.items():
             row=dict(base);row.update(change)
