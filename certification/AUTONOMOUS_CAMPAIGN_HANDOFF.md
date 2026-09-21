@@ -976,3 +976,26 @@ pre-cancellation JSON. Audit10624826382,11104 bytes, SHA256
 3d5fa165223a89b42232681a7b0f54f781811a6ae7e2a1689db6ccd9938d5a93.
 The prior missing-hour evidence gap and seven aggregate historical unresolved Pons
 exposures remain recorded; fresh flat books do not resolve that historical exposure.
+
+
+### Stable-archive audit and current-state authentication regression
+
+Read-only audit35570800072/job106241833861 passed:78 exact file checksums and22
+standalone SQLite quick_checks; no errors. It verified committed snapshots in the
+original smoke archive without changing native files. Audit archive10625702432,
+312072 bytes, SHA2563bca84cf28bfb3bbf3489e483cbc4f8126191575db96514dae68c9facef46613.
+Cancellation35570800141/job106241834038 refused while Pump had open exposure.
+Audit10626430049,10784 bytes, SHA25622c2c9e110a2b084be40c715de14d7e38b050538b922aa2a318c0ea932f25065.
+The latest snapshot subsequently reported that Pump position settled. A new
+identically guarded cancellation attempt is requested, retaining the refused audit.
+
+The repair passes ctx.deadline into _rpc before verify_chain and scopes context
+rotation as foreground. Position context still wins priority0. Failed replacement
+authentication never installs a session; the previously completed session is cleared
+after one telemetry archive, preventing repeated double-counting on retries.
+Regression cases exercise original deadline propagation, real shared-admission
+expiry at4.25s rather than30s, already-expired admission without transport/wait,
+failed rotation without old-session reuse or telemetry duplication, later independent
+candidate authentication, and position priority/context cleanup.
+All changes are acquisition implementation only. Full hosted canonicality and all
+deterministic/resource gates must pass before composing any replacement candidate.
