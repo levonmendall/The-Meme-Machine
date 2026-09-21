@@ -1155,7 +1155,7 @@ index 0000000..38a4454
 +                self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT');return rec
 +            except BaseException:db.execute('ROLLBACK');raise
 diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
-index 080894d..b6a579e 100644
+index 76f73f5..3f5a874 100644
 --- a/robinhood_research/pons_selective_cohort.py
 +++ b/robinhood_research/pons_selective_cohort.py
 @@ -5,6 +5,8 @@ result directory, dedicated wallet-skill ledger, dedicated paper databases, poli
@@ -1179,7 +1179,7 @@ index 080894d..b6a579e 100644
  )
  from .provider_topology import configured_discovery_rpc
  from .sequencer_feed import SequencerBlockClock, SequencerTransportError
-@@ -45,6 +49,10 @@ MAX_TAPE_EVENTS=40_000
+@@ -47,6 +51,10 @@ MAX_TAPE_EVENTS=40_000
  MAX_CONCURRENT_LIFECYCLES=8
  MIN_REEVALUATION_SECONDS=2.0
  POLL_SECONDS=0.5
@@ -1190,7 +1190,7 @@ index 080894d..b6a579e 100644
  CHECKPOINT_SECONDS=15.0
  SEQUENCER_RECONNECT_ATTEMPTS=5
  SEQUENCER_RECONNECT_SLEEP_SECONDS=0.5
-@@ -56,6 +64,10 @@ RATE_LIMIT_PROVIDER_BOUNDARIES=frozenset((
+@@ -58,6 +66,10 @@ RATE_LIMIT_PROVIDER_BOUNDARIES=frozenset((
      "provider_http_429",
      "provider_rpc_429",
  ))
@@ -1201,7 +1201,7 @@ index 080894d..b6a579e 100644
  RECOVERABLE_PROVIDER_BOUNDARIES=frozenset((
      "provider_http_500",
      "provider_http_502",
-@@ -132,13 +144,22 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
+@@ -134,13 +146,22 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
          started_at=result["started_at"],
          canonical_discovery_cursor=int(cursor),
          summary=_summary_snapshot(result),
@@ -1226,7 +1226,7 @@ index 080894d..b6a579e 100644
          persisted_candidate_rows=len(result["rows"]),
          persisted_qualifiers=len(result["qualifiers"]),
      )
-@@ -175,6 +196,7 @@ def _recover_sequencer(feed,cursor,recoveries):
+@@ -177,6 +198,7 @@ def _recover_sequencer(feed,cursor,recoveries):
      raise BoundaryError("sequencer_reconnect_exhausted:"+str(last or "unknown"))
  
  
@@ -1234,7 +1234,7 @@ index 080894d..b6a579e 100644
  def _discovery(endpoint):
      rpc=configured_discovery_rpc(endpoint,limit=200,per_scope=190,retries=0)
      rpc.verify_chain()
-@@ -186,6 +208,7 @@ def _recoverable_provider_boundary(exc):
+@@ -188,6 +210,7 @@ def _recoverable_provider_boundary(exc):
      return (
          boundary in RECOVERABLE_PROVIDER_BOUNDARIES
          or boundary in RATE_LIMIT_PROVIDER_BOUNDARIES
@@ -1242,7 +1242,7 @@ index 080894d..b6a579e 100644
      )
  
  
-@@ -202,6 +225,7 @@ def _recover_discovery(
+@@ -204,6 +227,7 @@ def _recover_discovery(
          on_failure(rpc,boundary,int(cursor))
  
      rate_limited=boundary in RATE_LIMIT_PROVIDER_BOUNDARIES
@@ -1250,7 +1250,7 @@ index 080894d..b6a579e 100644
      pacer=getattr(rpc,"pacer",None)
      rps_before=(
          None if pacer is None
-@@ -217,10 +241,10 @@ def _recover_discovery(
+@@ -219,10 +243,10 @@ def _recover_discovery(
      last=boundary
      attempts=(
          PROVIDER_RATE_LIMIT_ATTEMPTS
@@ -1263,7 +1263,7 @@ index 080894d..b6a579e 100644
              time.sleep(PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS*attempt)
          elif attempt>1:
              time.sleep(PROVIDER_RECOVERY_SLEEP_SECONDS)
-@@ -235,7 +259,8 @@ def _recover_discovery(
+@@ -237,7 +261,8 @@ def _recover_discovery(
                  attempts=max(attempts,PROVIDER_RATE_LIMIT_ATTEMPTS)
              continue
          row=dict(
@@ -1273,7 +1273,7 @@ index 080894d..b6a579e 100644
              recovered_at=time.time(),
              attempt=attempt,
              boundary=boundary,
-@@ -243,7 +268,7 @@ def _recover_discovery(
+@@ -245,7 +270,7 @@ def _recover_discovery(
              canonical_cursor_advanced=False,
              catchup_authority="authenticated_discovery_rpc",
              catchup_from=int(cursor)+1,
@@ -1282,7 +1282,7 @@ index 080894d..b6a579e 100644
              pacer_rps_before=rps_before,
              pacer_rps_after=rps_after,
          )
-@@ -253,6 +278,67 @@ def _recover_discovery(
+@@ -255,6 +280,67 @@ def _recover_discovery(
      raise BoundaryError("provider_recovery_exhausted:"+str(last))
  
  
@@ -1350,7 +1350,7 @@ index 080894d..b6a579e 100644
  def _single_block_range(rpc,start,end):
      rows=[]
      for block in range(int(start),int(end)+1):
-@@ -262,7 +348,7 @@ def _single_block_range(rpc,start,end):
+@@ -264,7 +350,7 @@ def _single_block_range(rpc,start,end):
  
  def _read_curve_range(rpc,first,observed_end):
      try:
@@ -1359,7 +1359,7 @@ index 080894d..b6a579e 100644
      except BoundaryError as exc:
          if str(exc)!="provider_rpc_-32602":
              raise
-@@ -274,9 +360,10 @@ def _read_curve_range(rpc,first,observed_end):
+@@ -276,9 +362,10 @@ def _read_curve_range(rpc,first,observed_end):
          if frontier>=observed_end:
              return observed_end,_single_block_range(rpc,first,observed_end)
          observed_end=min(observed_end,frontier)
@@ -1371,7 +1371,7 @@ index 080894d..b6a579e 100644
  def _poll(
      endpoint,rpc,cursor,tape,feed,sessions,recoveries=None,
      on_provider_failure=None,
-@@ -284,10 +371,17 @@ def _poll(
+@@ -286,10 +373,17 @@ def _poll(
      if recoveries is None:
          recoveries=[]
      if rpc.used>150:
@@ -1393,7 +1393,7 @@ index 080894d..b6a579e 100644
  
      while True:
          try:
-@@ -341,26 +435,79 @@ def _attach_wallet_overlay(vector,skill_book):
+@@ -343,28 +437,81 @@ def _attach_wallet_overlay(vector,skill_book):
      return overlay
  
  
@@ -1477,16 +1477,20 @@ index 080894d..b6a579e 100644
 +        market_observation_scope="all authenticated Pons V2 buy/sell logs for observability",
          selection_rule=(
 -            "every distinct current authenticated Pons V2 buy, with at most one "
--            "evaluation per curve per 2 wall-clock seconds; no outcome reranking"
+-            "evaluation per curve per 2 wall-clock seconds; paper entry requires "
+-            "profitability-v1 qualification and a terminal/flat prior same-curve "
+-            "lifecycle plus a point-in-time regime reset; no outcome reranking"
 +            "distinct Pons V2 buys receive minimal current-state authentication; "
 +            "trajectory/window investment evaluation is admitted only when current "
-+            "ungraduated native-quote state satisfies the strategy-static progress, "
-+            "snipe-tax and creator-tax prospect screen; at most one screen per curve "
-+            "per 2 wall-clock seconds; no outcome reranking"
++            "ungraduated native-quote state satisfies the profitability-v1 progress, "
++            "snipe-tax, creator-tax, maturity, ETA and friction prospect screen; "
++            "paper entry additionally requires a terminal/flat prior same-curve "
++            "lifecycle plus a point-in-time regime reset; at most one screen per "
++            "curve per 2 wall-clock seconds; no outcome reranking"
          ),
+         reentry_policy=dict(REENTRY_POLICY),
          outcome_blind=True,reranking=False,replacement=False,
-         wallet_skill_namespace=STRATEGY_NAMESPACE,
-@@ -369,22 +516,37 @@ def run(endpoint):
+@@ -374,22 +521,37 @@ def run(endpoint):
          sequencer_recoveries=[],evidence_acquisition=None,started_at=started,
      )
  
@@ -1525,7 +1529,7 @@ index 080894d..b6a579e 100644
  
      def _checkpoint_provider_failure(failed_rpc,boundary,current_cursor):
          result["last_transient_provider_boundary"]=str(boundary)
-@@ -393,6 +555,7 @@ def run(endpoint):
+@@ -398,6 +560,7 @@ def run(endpoint):
              phase="provider_recovery",
          )
  
@@ -1533,7 +1537,15 @@ index 080894d..b6a579e 100644
      try:
          warm_deadline=time.monotonic()+TAPE_WARM_SECONDS
          while time.monotonic()<warm_deadline:
-@@ -415,14 +578,15 @@ def run(endpoint):
+@@ -437,6 +600,7 @@ def run(endpoint):
+                 )
+             life["index"]=qindex
+             result["lifecycles"].append(life)
++            _append_jsonl(ROOT/"completed-lifecycles.jsonl",life)
+             last_terminal_by_curve[curve]=life
+             collected_futures.add(id(future))
+             active_curve_futures.pop(curve,None)
+@@ -446,14 +610,17 @@ def run(endpoint):
          next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
          while (
              time.monotonic()<deadline
@@ -1547,11 +1559,13 @@ index 080894d..b6a579e 100644
                  result["sequencer_recoveries"],
                  on_provider_failure=_checkpoint_provider_failure,
              )
-+            futures=_collect_completed(result,futures)
++            for curve_key in list(active_curve_futures):
++                collect_curve_future(curve_key)
++            futures=[item for item in futures if id(item[1]) not in collected_futures]
              now=time.time()
              now_monotonic=time.monotonic()
              for event in fresh:
-@@ -430,6 +594,7 @@ def run(endpoint):
+@@ -461,6 +628,7 @@ def run(endpoint):
                  if identity in seen_event:
                      continue
                  seen_event.add(identity)
@@ -1559,7 +1573,7 @@ index 080894d..b6a579e 100644
                  if (
                      not event.get("topics")
                      or event["topics"][0].lower()!=topic(
-@@ -441,9 +606,14 @@ def run(endpoint):
+@@ -472,9 +640,14 @@ def run(endpoint):
                  if now-last_eval.get(curve,0)<MIN_REEVALUATION_SECONDS:
                      continue
                  last_eval[curve]=now
@@ -1574,7 +1588,7 @@ index 080894d..b6a579e 100644
              if time.monotonic()>=next_checkpoint:
                  _checkpoint(
                      result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery"
-@@ -461,6 +631,18 @@ def run(endpoint):
+@@ -492,6 +665,18 @@ def run(endpoint):
              if observed_monotonic is None:
                  raise BoundaryError("missing_evidence_observation_clock")
              observed_at=float(scheduled["queued_at"])
@@ -1593,7 +1607,7 @@ index 080894d..b6a579e 100644
              try:
                  evaluation=evaluate_candidate(
                      endpoint,event,list(tape),
-@@ -469,7 +651,29 @@ def run(endpoint):
+@@ -500,7 +685,29 @@ def run(endpoint):
                      evidence_observed_at=observed_at,
                      evidence_observed_monotonic=observed_monotonic,
                      evidence_context=evidence_context,
@@ -1623,7 +1637,7 @@ index 080894d..b6a579e 100644
                  overlay=_attach_wallet_overlay(evaluation["vector"],skill)
                  public=public_evaluation(evaluation)
                  public["sequence"]=sequence
-@@ -493,14 +697,27 @@ def run(endpoint):
+@@ -555,15 +762,28 @@ def run(endpoint):
                          phase="qualifier_persisted",
                      )
                      next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
@@ -1633,13 +1647,14 @@ index 080894d..b6a579e 100644
 +                        result['lifecycles'].append(life)
 +                        _append_jsonl(ROOT/'completed-lifecycles.jsonl',life)
 +                        continue
-                     futures.append((
-                         qindex,pool.submit(
-                             run_lifecycle,endpoint,evaluation,
-                             db_path=ROOT/f"trial-{qindex:03d}.sqlite",
-+                            capital_path=ROOT/"pons-selective-cohort-capital.sqlite",
-                         )
-                     ))
+                     future=pool.submit(
+                         run_lifecycle,endpoint,evaluation,
+                         db_path=ROOT/f"trial-{qindex:03d}.sqlite",
++                        capital_path=ROOT/"pons-selective-cohort-capital.sqlite",
+                     )
+                     futures.append((qindex,future))
+                     active_curve_futures[curve]=(qindex,future)
+                     last_authorized_vector[curve]=evaluation["vector"]
              except BoundaryError as exc:
 -                incomplete=dict(
 +                stale_stage=('stale_in_queue' if dispatch-observed_monotonic>5 else
@@ -1652,11 +1667,15 @@ index 080894d..b6a579e 100644
                      sequence=sequence,status="incomplete",
                      source_transaction=event.get("transactionHash"),
                      source_block=event.get("blockNumber"),
-@@ -517,28 +734,36 @@ def run(endpoint):
+@@ -580,33 +800,39 @@ def run(endpoint):
          if not result["target_reached"]:
              result["boundary"]="selective_cohort_target_not_reached_in_bounded_window"
  
+-        for curve in list(active_curve_futures):
+-            collect_curve_future(curve)
 -        for qindex,future in futures:
+-            if id(future) in collected_futures:
+-                continue
 -            try:
 -                life=future.result()
 -            except Exception as exc:
@@ -1666,6 +1685,7 @@ index 080894d..b6a579e 100644
 -                )
 -            life["index"]=qindex
 -            result["lifecycles"].append(life)
+-            collected_futures.add(id(future))
 -        pool.shutdown(wait=True)
      except BoundaryError as exc:
          result["boundary"]=str(exc)
@@ -1678,11 +1698,14 @@ index 080894d..b6a579e 100644
 +            # discovery failed. No future may be discarded from terminal evidence.
 +            try:
 +                for qindex,future in futures:
++                    if id(future) in collected_futures:
++                        continue
 +                    try:life=future.result()
 +                    except Exception as exc:life=dict(status='unexpected_boundary',boundary=type(exc).__name__)
 +                    life['index']=qindex
 +                    result['lifecycles'].append(life)
 +                    _append_jsonl(ROOT/'completed-lifecycles.jsonl',life)
++                    collected_futures.add(id(future))
 +                    _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase='position_drain')
 +            finally:pool.shutdown(wait=True)
 +        # Remaining queued observations retain their original clocks and an
@@ -1700,7 +1723,7 @@ index 080894d..b6a579e 100644
          feed.close();skill.close()
  
      result["lifecycles"].sort(key=lambda row:row.get("index",-1))
-@@ -575,10 +800,7 @@ def run(endpoint):
+@@ -643,10 +869,7 @@ def run(endpoint):
  
  if __name__=="__main__":
      output=run(os.environ.get("MM_ROBINHOOD_READ_RPC_URL",""))
@@ -4558,21 +4581,10 @@ index 0000000..6438c09
 +        self.assertEqual(b['unsettled'],1);self.assertGreater(b['reserved'],0)
 +        self.assertTrue(all(not row['authenticated'] for row in r['provider_session_rotations']))
 diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
-index d8d0a88..9b22cbb 100644
+index ed9c547..8c4e2c7 100644
 --- a/robinhood_tests/test_pons_selective_continuation.py
 +++ b/robinhood_tests/test_pons_selective_continuation.py
-@@ -96,8 +96,8 @@ class PonsSelectivePolicyTests(unittest.TestCase):
-     def test_policy_is_distinct_and_frozen(self):
-         self.assertEqual(POLICY,"pons-selective-continuation-v1")
-         self.assertEqual(len(POLICY_HASH),64)
--        self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],5500)
--        self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],9200)
-+        self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],4500)
-+        self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],9700)
-         self.assertEqual(ENTRY_THRESHOLDS["capital_size_bps"],25)
-         self.assertEqual(EXIT_POLICY["first_profit_bps"],2500)
-         self.assertEqual(EXIT_POLICY["max_total_hold_seconds"],900)
-@@ -112,7 +112,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
+@@ -123,7 +123,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
          self.assertGreaterEqual(v["demand"]["new_independent_groups_15s"],3)
          self.assertEqual(v["current_snipe_bps"],0)
          self.assertGreater(v["proposed_size"]["amount_quote"],0)
@@ -4581,15 +4593,15 @@ index d8d0a88..9b22cbb 100644
  
      def test_chain_timestamp_lag_is_telemetry_not_selective_freshness(self):
          v=vector(
-@@ -149,6 +149,17 @@ class PonsSelectivePolicyTests(unittest.TestCase):
+@@ -160,6 +160,17 @@ class PonsSelectivePolicyTests(unittest.TestCase):
          v=vector(snapshots=flat)
          self.assertIn("curve_velocity",v["all_rejections"])
  
 +    def test_execution_certification_does_not_require_positive_acceleration(self):
 +        decelerating=[
-+            dict(at=185,progress_bps=7300),
-+            dict(at=195,progress_bps=7900),
-+            dict(at=200,progress_bps=8000),
++            dict(at=185,progress_bps=7000),
++            dict(at=195,progress_bps=7400),
++            dict(at=200,progress_bps=7550),
 +        ]
 +        v=vector(snapshots=decelerating)
 +        self.assertFalse(v["trajectory"]["accelerating"])
@@ -4599,7 +4611,7 @@ index d8d0a88..9b22cbb 100644
      def test_non_native_pair_is_research_only(self):
          v=vector(pair_token="0x"+"99"*20,quote_relative_strength_bps=321)
          self.assertIn("non_native_quote_allocation_disabled",v["all_rejections"])
-@@ -376,6 +387,42 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
+@@ -421,6 +432,42 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
          self.assertGreaterEqual(tele.get("header_hash_hit",0),2)
          self.assertGreaterEqual(tele.get("receipt_hit",0),2)
  
