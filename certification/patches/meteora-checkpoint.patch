@@ -1799,12 +1799,59 @@ index c1aef79..046427f 100644
          pnl_bps=pnl*10000/CAPITAL,
          non_sol_inventory_raw=tokens,
          non_sol_inventory_liquidation_lamports=liquidation,
-@@ -1101,10 +1145,62 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
-     return reasons,recent,mark,fee_uplift
- 
- 
+@@ -1101,49 +1145,117 @@
+-    return reasons,recent,mark,fee_uplift
+-
+-
 -def _lifecycle(
 -    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None
+-):
+-    position=_build_position(entry,features,policy)
+-    current=entry;elapsed=0;segments=[];tapes=[]
+-    max_hold=int(policy["range"]["max_holding_seconds"])
+-    segment_seconds=int(policy["exit"]["observation_segment_seconds"])
+-    lower=list(range(features["lower"],entry["active"]))
+-    upper=list(range(entry["active"]+1,features["upper"]+1))
+-    entry_flow=dict(
+-        volume_rate_sol_lamports_per_second=features[
+-            "volume_rate_sol_lamports_per_second"],
+-        fee_density=features["fee_density"],
+-    )
+-    exit_reason="maximum_holding_time"
+-    while elapsed<max_hold:
+-        adapter=_rotate(adapter,pacer,rpcs)
+-        duration=min(segment_seconds,max_hold-elapsed)
+-        phase,tape,terminal,effective_start,adapter=_observe_window(
+-            adapter,address,current,duration,False,pacer,rpcs,deadline,
+-            broker,"position_monitor")
+-        if not phase["verified"]:
+-            return dict(
+-                complete=False,reason=phase["reason"],segments=segments,
+-                verified_hold_seconds=elapsed,
+-            ),adapter
+-        position=_advance_position(position,tape)
+-        reasons,recent,mark,uplift=_segment_exit(
+-            position,effective_start,tape,terminal,entry_flow,policy)
+-        elapsed+=duration;tapes.append(tape)
+-        segments.append(dict(
+-            elapsed_seconds=elapsed,lineage=tape.lineage,
+-            swaps=len(tape.events),recent=recent,mark=mark,
+-            dynamic_fee_uplift=uplift,exit_reasons=reasons,
+-        ))
+-        current=terminal
+-        if reasons:
+-            exit_reason=reasons[0];break
+-    combined=chain_verified_tapes(entry,tapes)
+-    final=_mark(position)
+-    hours=max(elapsed/3600.0,1/3600.0)
+-    final["pnl_bps_per_capital_hour"]=final["pnl_bps"]/hours
+-    return dict(
+-        complete=True,exit_reason=exit_reason,realized_hold_seconds=elapsed,
+-        segments=segments,lineage=combined.lineage,final=final,
+-    ),adapter
++    return reasons,recent,mark,fee_uplift
++
++
 +def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None):
 +    identity=book.identity() if book is not None else None
 +    if book is not None:
@@ -1853,56 +1900,72 @@ index c1aef79..046427f 100644
 +
 +def _position_lifecycle(
 +    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None,identity=None
- ):
-     position=_build_position(entry,features,policy)
++):
++    position=_build_position(entry,features,policy)
 +    if book is not None:
 +        book.append(identity,'entry',dict(capital=CAPITAL,entry_cost=ENTRY_NETWORK_COST,
 +            exit_cost=EXIT_NETWORK_COST,entry_state=entry,position=position,features=features,
 +            policy=policy,mark=_mark(position)))
 +    _stage(address,'deployed',lifecycle_id=identity)
 +    _stage(address,'entry_filled',lifecycle_id=identity)
-     current=entry;elapsed=0;segments=[];tapes=[]
-     max_hold=int(policy["range"]["max_holding_seconds"])
-     segment_seconds=int(policy["exit"]["observation_segment_seconds"])
-@@ -1123,12 +1186,20 @@ def _lifecycle(
-             adapter,address,current,duration,False,pacer,rpcs,deadline,
-             broker,"position_monitor")
-         if not phase["verified"]:
--            return dict(
-+            if book is not None:book.append(identity,'unresolved',dict(reason=phase['reason']))
++    current=entry;elapsed=0;segments=[];tapes=[]
++    max_hold=int(policy["range"]["max_holding_seconds"])
++    segment_seconds=int(policy["exit"]["observation_segment_seconds"])
++    lower=list(range(features["lower"],entry["active"]))
++    upper=list(range(entry["active"]+1,features["upper"]+1))
++    entry_flow=dict(
++        volume_rate_sol_lamports_per_second=features[
++            "volume_rate_sol_lamports_per_second"],
++        fee_density=features["fee_density"],
++    )
++    exit_reason="maximum_holding_time"
++    while elapsed<max_hold:
++        adapter=_rotate(adapter,pacer,rpcs)
++        duration=min(segment_seconds,max_hold-elapsed)
++        phase,tape,terminal,effective_start,adapter,recoveries=(
++            _recover_position_observation(
++                adapter,address,current,duration,pacer,rpcs,deadline,broker))
++        if not phase["verified"]:
++            if book is not None:
++                book.append(identity,'writeoff',dict(
++                    reason=phase['reason'],recovery_attempts=recoveries))
 +            return dict(lifecycle_id=identity,
-                 complete=False,reason=phase["reason"],segments=segments,
-                 verified_hold_seconds=elapsed,
-             ),adapter
-         position=_advance_position(position,tape)
-         reasons,recent,mark,uplift=_segment_exit(
-             position,effective_start,tape,terminal,entry_flow,policy)
++                complete=False,reason=phase["reason"],segments=segments,
++                verified_hold_seconds=elapsed,recovery_attempts=recoveries,
++                terminal_writeoff=True,writeoff_proceeds_lamports=0,
++            ),adapter
++        position=_advance_position(position,tape)
++        reasons,recent,mark,uplift=_segment_exit(
++            position,effective_start,tape,terminal,entry_flow,policy)
 +        if book is not None:
-+            book.append(identity,'mark',dict(tape=asdict(tape),position_hash=digest(position),mark=mark))
++            book.append(identity,'mark',dict(
++                tape=asdict(tape),position_hash=digest(position),mark=mark))
 +        observed_seconds=max(
 +            duration,
 +            max(0,int(terminal.get("time",0))-int(current.get("time",0))))
 +        elapsed+=observed_seconds;tapes.append(tape)
-         segments.append(dict(
-             elapsed_seconds=elapsed,lineage=tape.lineage,
++        segments.append(dict(
++            elapsed_seconds=elapsed,lineage=tape.lineage,
++            swaps=len(tape.events),recent=recent,mark=mark,
++            dynamic_fee_uplift=uplift,exit_reasons=reasons,
 +            evidence_recovery_attempts=recoveries,
-@@ -1139,12 +1205,15 @@ def _lifecycle(
-         current=terminal
-         if reasons:
-             exit_reason=reasons[0];break
++        ))
++        current=terminal
++        if reasons:
++            exit_reason=reasons[0];break
 +    _stage(address,"unwind",lifecycle_id=identity)
-     combined=chain_verified_tapes(entry,tapes)
-     final=_mark(position)
++    combined=chain_verified_tapes(entry,tapes)
++    final=_mark(position)
 +    if book is not None:
-+        book.append(identity,'settle',dict(mark=final,exit_reason=exit_reason,lineage=combined.lineage))
-     hours=max(elapsed/3600.0,1/3600.0)
-     final["pnl_bps_per_capital_hour"]=final["pnl_bps"]/hours
-     return dict(
--        complete=True,exit_reason=exit_reason,realized_hold_seconds=elapsed,
-+        complete=True,lifecycle_id=identity,exit_reason=exit_reason,realized_hold_seconds=elapsed,
-         segments=segments,lineage=combined.lineage,final=final,
-     ),adapter
- 
++        book.append(identity,'settle',dict(
++            mark=final,exit_reason=exit_reason,lineage=combined.lineage))
++    hours=max(elapsed/3600.0,1/3600.0)
++    final["pnl_bps_per_capital_hour"]=final["pnl_bps"]/hours
++    return dict(
++        complete=True,lifecycle_id=identity,exit_reason=exit_reason,
++        realized_hold_seconds=elapsed,segments=segments,
++        lineage=combined.lineage,final=final,
++    ),adapter
 @@ -1220,7 +1289,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
              sigs=[row["signature"] for row in valid]
              txmap,hydration=broker.hydrate_transactions(
