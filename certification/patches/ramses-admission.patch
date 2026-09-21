@@ -677,7 +677,7 @@ index 2afa29e..581ebdc 100644
      return dict(name=spec['name'],signature=signature(spec),args=out)
 diff --git a/robinhood_research/ramses_campaign.py b/robinhood_research/ramses_campaign.py
 new file mode 100644
-index 0000000..79b25ae
+index 0000000..706df40
 --- /dev/null
 +++ b/robinhood_research/ramses_campaign.py
 @@ -0,0 +1,93 @@
