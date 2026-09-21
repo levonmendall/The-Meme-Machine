@@ -150,7 +150,7 @@
     },
     "ramses": {
       "source_branch": "cert/ramses-machinery-proof-v2",
-      "source_sha": "d7c545a8ddb9bfbe5859d450036758ed7f39c13a",
+      "source_sha": "c545ab43676fde30ca6fa1284bb5215d5a678182",
       "strategy_version": "ramses-fee-pulse-v1/execution-certification-machinery-proof-v2",
       "policy_hash": "5e1560af8b4d40f72e60cd93b52ede575aecbac58fd4cad6c02cc2c25fdeeaf0",
       "file_hashes": {
@@ -172,7 +172,9 @@
         "fd984cae1ca474430de9b8a220d5635f21aae916",
         "2b55993ea58b5f81681cd9f4e9391734ec4747cb",
         "493ecd7453b4aa8983626717950c92820ac7eafc",
-        "d7c545a8ddb9bfbe5859d450036758ed7f39c13a"
+        "d7c545a8ddb9bfbe5859d450036758ed7f39c13a",
+        "eb215670c7acec88104069f6398eda6feecaf268",
+        "c545ab43676fde30ca6fa1284bb5215d5a678182"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
@@ -184,7 +186,7 @@
         "machinery_proof_only": true,
         "one_natural_settled_lifecycle_target": true,
         "prior_execution_source_sha": "6b7ddd69940f5c9e056b2dca61c443450ca9965e",
-        "lifecycle_repair": "transient provider rate limits hold open paper positions and retry; isolated paper ledger funds modeled cost envelope without resizing position",
+        "lifecycle_repair": "transient provider rate limits and temporarily incomplete same-pool unwind liquidity hold open paper positions and retry; isolated paper ledger funds modeled cost envelope without resizing position",
         "repeat_entry_repair": "post-loss available-capital admission; available cost-envelope gate; unique per-qualification lifecycle namespace; candidate-local capacity/provider boundaries"
       },
       "prospect_admission": {
