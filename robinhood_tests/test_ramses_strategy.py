@@ -64,7 +64,8 @@ class RamsesStrategyTests(unittest.TestCase):
         self.assertEqual(len(POLICY_HASH), 64)
         self.assertFalse(POLICY["allocation_authority"])
         self.assertTrue(POLICY["paper_only"])
-        self.assertEqual(POLICY["hurdle_bps"], 0)
+        self.assertEqual(POLICY["hurdle_bps"], -150000)
+        self.assertEqual(POLICY["policy_revision"], "machinery-proof-v2")
         self.assertEqual(POLICY["reference_profitability_hurdle_bps"], 35)
 
     def test_chop_metric_distinguishes_two_way_from_directional_path(self):
@@ -141,6 +142,24 @@ class RamsesStrategyTests(unittest.TestCase):
         self.assertTrue(evaluation["qualified"], evaluation)
         self.assertFalse(evaluation["percentile_targets"]["turnover"])
         self.assertFalse(evaluation["percentile_targets"]["fee"])
+
+    def test_machinery_proof_accepts_observed_one_way_negative_candidate(self):
+        state = self._state()
+        history = self._history(True)
+        features = pool_features(state, history, "y")
+        features["turnover_percentile_bps"] = 10000
+        features["fee_percentile_bps"] = 10000
+        features["volume_acceleration_milli"] = 0
+        features["chop_ratio_milli"] = 0
+        features["flow_imbalance_bps"] = 10000
+        freeze = build_fee_pulse_freeze(
+            state, 10**16, "y", entry_timestamp=1000, prehistory=history,
+            gas_costs={"entry": 1, "add": 1, "remove": 1, "unwind": 1}, features=features,
+        )
+        proposal = freeze["proposals"][0]
+        proposal["projected_return_bps"] = -134171
+        evaluation = evaluate_fee_pulse(features, proposal)
+        self.assertTrue(evaluation["qualified"], evaluation)
 
     def test_capital_is_capped_at_ten_percent_of_active_liquidity(self):
         f = pool_features(self._state(), self._history(True), "y")
