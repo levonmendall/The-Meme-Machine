@@ -1483,3 +1483,5 @@ durably uploaded and a fresh flat/reconciled snapshot confirms no exposure, canc
 workflow before any successor hourly observation can become meaningful. No replacement
 run, no new repair, no policy change, no merge, and no additional autonomous work is
 authorized after this handoff.
+
+Cancellation trigger issued after smoke handoff: repository concurrency stop `[cancel-runs]`; no successor hour is authorized.
