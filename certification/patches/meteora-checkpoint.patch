@@ -73,7 +73,7 @@ index 205dcb4..f607c7b 100644
  
 diff --git a/meme_machine/dlmm_independent_accounting.py b/meme_machine/dlmm_independent_accounting.py
 new file mode 100644
-index 0000000..8f200e6
+index 0000000..c79c7f2
 --- /dev/null
 +++ b/meme_machine/dlmm_independent_accounting.py
 @@ -0,0 +1,162 @@
@@ -1539,7 +1539,7 @@ index 0000000..8b7b820
 +def is_default_signature(value):
 +    return value == DEFAULT_SIGNATURE
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
-index c1aef79..046427f 100644
+index c1aef79..9054445 100644
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
 @@ -12,8 +12,10 @@ transport.
@@ -1799,56 +1799,12 @@ index c1aef79..046427f 100644
          pnl_bps=pnl*10000/CAPITAL,
          non_sol_inventory_raw=tokens,
          non_sol_inventory_liquidation_lamports=liquidation,
-@@ -1101,57 +1145,125 @@
+@@ -1101,10 +1145,62 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
      return reasons,recent,mark,fee_uplift
  
  
 -def _lifecycle(
 -    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None
--):
--    position=_build_position(entry,features,policy)
--    current=entry;elapsed=0;segments=[];tapes=[]
--    max_hold=int(policy["range"]["max_holding_seconds"])
--    segment_seconds=int(policy["exit"]["observation_segment_seconds"])
--    lower=list(range(features["lower"],entry["active"]))
--    upper=list(range(entry["active"]+1,features["upper"]+1))
--    entry_flow=dict(
--        volume_rate_sol_lamports_per_second=features[
--            "volume_rate_sol_lamports_per_second"],
--        fee_density=features["fee_density"],
--    )
--    exit_reason="maximum_holding_time"
--    while elapsed<max_hold:
--        adapter=_rotate(adapter,pacer,rpcs)
--        duration=min(segment_seconds,max_hold-elapsed)
--        phase,tape,terminal,effective_start,adapter=_observe_window(
--            adapter,address,current,duration,False,pacer,rpcs,deadline,
--            broker,"position_monitor")
--        if not phase["verified"]:
--            return dict(
--                complete=False,reason=phase["reason"],segments=segments,
--                verified_hold_seconds=elapsed,
--            ),adapter
--        position=_advance_position(position,tape)
--        reasons,recent,mark,uplift=_segment_exit(
--            position,effective_start,tape,terminal,entry_flow,policy)
--        elapsed+=duration;tapes.append(tape)
--        segments.append(dict(
--            elapsed_seconds=elapsed,lineage=tape.lineage,
--            swaps=len(tape.events),recent=recent,mark=mark,
--            dynamic_fee_uplift=uplift,exit_reasons=reasons,
--        ))
--        current=terminal
--        if reasons:
--            exit_reason=reasons[0];break
--    combined=chain_verified_tapes(entry,tapes)
--    final=_mark(position)
--    hours=max(elapsed/3600.0,1/3600.0)
--    final["pnl_bps_per_capital_hour"]=final["pnl_bps"]/hours
--    return dict(
--        complete=True,exit_reason=exit_reason,realized_hold_seconds=elapsed,
--        segments=segments,lineage=combined.lineage,final=final,
--    ),adapter
 +def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None):
 +    identity=book.identity() if book is not None else None
 +    if book is not None:
@@ -1897,43 +1853,42 @@ index c1aef79..046427f 100644
 +
 +def _position_lifecycle(
 +    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None,identity=None
-+):
-+    position=_build_position(entry,features,policy)
+ ):
+     position=_build_position(entry,features,policy)
 +    if book is not None:
 +        book.append(identity,'entry',dict(capital=CAPITAL,entry_cost=ENTRY_NETWORK_COST,
 +            exit_cost=EXIT_NETWORK_COST,entry_state=entry,position=position,features=features,
 +            policy=policy,mark=_mark(position)))
 +    _stage(address,'deployed',lifecycle_id=identity)
 +    _stage(address,'entry_filled',lifecycle_id=identity)
-+    current=entry;elapsed=0;segments=[];tapes=[]
-+    max_hold=int(policy["range"]["max_holding_seconds"])
-+    segment_seconds=int(policy["exit"]["observation_segment_seconds"])
-+    lower=list(range(features["lower"],entry["active"]))
-+    upper=list(range(entry["active"]+1,features["upper"]+1))
-+    entry_flow=dict(
-+        volume_rate_sol_lamports_per_second=features[
-+            "volume_rate_sol_lamports_per_second"],
-+        fee_density=features["fee_density"],
-+    )
-+    exit_reason="maximum_holding_time"
-+    while elapsed<max_hold:
-+        adapter=_rotate(adapter,pacer,rpcs)
-+        duration=min(segment_seconds,max_hold-elapsed)
+     current=entry;elapsed=0;segments=[];tapes=[]
+     max_hold=int(policy["range"]["max_holding_seconds"])
+     segment_seconds=int(policy["exit"]["observation_segment_seconds"])
+@@ -1119,33 +1215,49 @@ def _lifecycle(
+     while elapsed<max_hold:
+         adapter=_rotate(adapter,pacer,rpcs)
+         duration=min(segment_seconds,max_hold-elapsed)
+-        phase,tape,terminal,effective_start,adapter=_observe_window(
+-            adapter,address,current,duration,False,pacer,rpcs,deadline,
+-            broker,"position_monitor")
 +        phase,tape,terminal,effective_start,adapter,recoveries=(
 +            _recover_position_observation(
 +                adapter,address,current,duration,pacer,rpcs,deadline,broker))
-+        if not phase["verified"]:
+         if not phase["verified"]:
+-            return dict(
 +            if book is not None:
 +                book.append(identity,'writeoff',dict(
 +                    reason=phase['reason'],recovery_attempts=recoveries))
 +            return dict(lifecycle_id=identity,
-+                complete=False,reason=phase["reason"],segments=segments,
+                 complete=False,reason=phase["reason"],segments=segments,
+-                verified_hold_seconds=elapsed,
 +                verified_hold_seconds=elapsed,recovery_attempts=recoveries,
 +                terminal_writeoff=True,writeoff_proceeds_lamports=0,
-+            ),adapter
-+        position=_advance_position(position,tape)
-+        reasons,recent,mark,uplift=_segment_exit(
-+            position,effective_start,tape,terminal,entry_flow,policy)
+             ),adapter
+         position=_advance_position(position,tape)
+         reasons,recent,mark,uplift=_segment_exit(
+             position,effective_start,tape,terminal,entry_flow,policy)
+-        elapsed+=duration;tapes.append(tape)
 +        if book is not None:
 +            book.append(identity,'mark',dict(
 +                tape=asdict(tape),position_hash=digest(position),mark=mark))
@@ -1941,37 +1896,33 @@ index c1aef79..046427f 100644
 +            duration,
 +            max(0,int(terminal.get("time",0))-int(current.get("time",0))))
 +        elapsed+=observed_seconds;tapes.append(tape)
-+        segments.append(dict(
-+            elapsed_seconds=elapsed,lineage=tape.lineage,
-+            swaps=len(tape.events),recent=recent,mark=mark,
-+            dynamic_fee_uplift=uplift,exit_reasons=reasons,
+         segments.append(dict(
+             elapsed_seconds=elapsed,lineage=tape.lineage,
+             swaps=len(tape.events),recent=recent,mark=mark,
+             dynamic_fee_uplift=uplift,exit_reasons=reasons,
 +            evidence_recovery_attempts=recoveries,
-+        ))
-+        current=terminal
-+        if reasons:
-+            exit_reason=reasons[0];break
+         ))
+         current=terminal
+         if reasons:
+             exit_reason=reasons[0];break
 +    _stage(address,"unwind",lifecycle_id=identity)
-+    combined=chain_verified_tapes(entry,tapes)
-+    final=_mark(position)
+     combined=chain_verified_tapes(entry,tapes)
+     final=_mark(position)
 +    if book is not None:
 +        book.append(identity,'settle',dict(
 +            mark=final,exit_reason=exit_reason,lineage=combined.lineage))
-+    hours=max(elapsed/3600.0,1/3600.0)
-+    final["pnl_bps_per_capital_hour"]=final["pnl_bps"]/hours
-+    return dict(
+     hours=max(elapsed/3600.0,1/3600.0)
+     final["pnl_bps_per_capital_hour"]=final["pnl_bps"]/hours
+     return dict(
+-        complete=True,exit_reason=exit_reason,realized_hold_seconds=elapsed,
+-        segments=segments,lineage=combined.lineage,final=final,
 +        complete=True,lifecycle_id=identity,exit_reason=exit_reason,
 +        realized_hold_seconds=elapsed,segments=segments,
 +        lineage=combined.lineage,final=final,
-+    ),adapter
+     ),adapter
  
  
- 
- 
- def _regime_pass(candidate,policy):
-     regime=policy["regime"]
-     return (
-         candidate["volume_acceleration"]>=float(
-@@ -1220,7 +1289,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
+@@ -1220,7 +1332,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
              sigs=[row["signature"] for row in valid]
              txmap,hydration=broker.hydrate_transactions(
                  rpc,sigs,kind="dlmm_fresh",
@@ -1981,7 +1932,7 @@ index c1aef79..046427f 100644
              if hydration["pending"]:
                  after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
                      "getTransaction:http_429",0))
-@@ -1487,6 +1557,8 @@ def _await_fresh_swap_trigger(
+@@ -1487,6 +1600,8 @@ def _await_fresh_swap_trigger(
              if swaps:
                  trigger=swaps[0]
                  trigger_slot=int(trigger["slot"])
@@ -1990,7 +1941,7 @@ index c1aef79..046427f 100644
                  adapter=_rotate(adapter,pacer,rpcs)
                  (post,adapter)=_retry_rate_limited_operation(
                      lambda active:_fresh_supported_start(
-@@ -1533,6 +1605,8 @@ def _triggered_warmup(
+@@ -1533,6 +1648,8 @@ def _triggered_warmup(
          return dict(
              aligned=False,reason=trigger["reason"],trigger=trigger,
          ),None,None,None,adapter,current_candidate
@@ -1999,7 +1950,7 @@ index c1aef79..046427f 100644
      warmup_seconds=int(policy["range"]["warmup_seconds"])
      phase,warm,entry,warm_origin,adapter=_observe_window(
          adapter,current_candidate["address"],post_trigger,
-@@ -1551,6 +1625,7 @@ def _triggered_warmup(
+@@ -1551,6 +1668,7 @@ def _triggered_warmup(
          qualifying_window_seconds=warmup_seconds,
          swaps=(None if warm is None else len(warm.events)),
      )
@@ -2007,7 +1958,7 @@ index c1aef79..046427f 100644
      return result,warm,entry,warm_origin,adapter,current_candidate
  
  
-@@ -1628,7 +1703,9 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
+@@ -1628,7 +1746,9 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
      ),None,None,None,None,adapter,current_candidate
  
  
@@ -2018,7 +1969,7 @@ index c1aef79..046427f 100644
      assert_independence()
      policy=load_policy()
      target=int(target or policy["prospective_test"]["target_complete_lifecycles"])
-@@ -1639,11 +1716,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1639,11 +1759,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          raise ValueError("solana_dlmm_attempt_bound")
      max_runtime_seconds=int(
          max_runtime_seconds or DEFAULT_MAX_RUNTIME_SECONDS)
@@ -2035,7 +1986,7 @@ index c1aef79..046427f 100644
      discovery_telemetry=dict(
          rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
      compatibility_rejections=[];compatibility_screened=0
-@@ -1682,7 +1763,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1682,7 +1806,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          evidence_broker=broker.telemetry(),
      )
      attempted=0;complete=0;failure_counts=Counter()
@@ -2056,7 +2007,7 @@ index c1aef79..046427f 100644
          report["wake_stream"]=broker.stream_status(
              DLMM_WAKE_STREAM_KEY,int(time.time()),0)
          report["evidence_broker"]=broker.telemetry()
-@@ -1696,16 +1790,36 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1696,16 +1833,36 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
              elapsed_seconds=max(
                  0.0,time.monotonic()-run_started_monotonic),
          )
@@ -2096,7 +2047,7 @@ index c1aef79..046427f 100644
          try:
              (compatibility_state,adapter)=_retry_rate_limited_operation(
                  lambda active:_fresh_supported_start(
-@@ -1717,10 +1831,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1717,10 +1874,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  reason=str(exc)[:200],
                  rpc=_sum_rpc_metrics(candidate_rpcs),
              ))
@@ -2117,7 +2068,7 @@ index c1aef79..046427f 100644
          handoff_started_at=int(time.time())
          attempt=dict(
              attempt=attempted,pool=candidate["address"],candidate=candidate,
-@@ -1744,12 +1868,18 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1744,12 +1911,18 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  failure_counts[reason]+=1
                  attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                  report["attempts"].append(attempt)
@@ -2136,7 +2087,7 @@ index c1aef79..046427f 100644
              attempt["pre_entry_features"]=features
              attempt["qualification"]=decision
              for failed in decision["failed"]:failure_counts[failed]+=1
-@@ -1757,11 +1887,13 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1757,11 +1930,13 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  attempt["terminal_classification"]="qualification_rejection"
                  attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                  report["attempts"].append(attempt)
@@ -2151,7 +2102,7 @@ index c1aef79..046427f 100644
              for rpc in candidate_rpcs:
                  if rpc not in rpcs:rpcs.append(rpc)
              attempt["lifecycle"]=lifecycle
-@@ -1776,13 +1908,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1776,13 +1951,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                      pre_entry_features=features,qualification=decision,**lifecycle))
              else:
                  failure_counts["lifecycle_unverified"]+=1
@@ -2171,7 +2122,7 @@ index c1aef79..046427f 100644
              checkpoint("candidate_exception")
  
      resolved=[x for x in report["qualified_lifecycles"]
-@@ -1818,12 +1953,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1818,12 +1997,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          elapsed_seconds=max(
              0.0,time.monotonic()-run_started_monotonic),
          conclusion=(
@@ -2187,7 +2138,7 @@ index c1aef79..046427f 100644
      _atomic_checkpoint(
          report,"final",rpcs,pacer,
          attempted_pool_count=attempted,
-@@ -1838,6 +1976,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1838,6 +2020,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          DLMM_WAKE_STREAM_KEY,int(time.time()),0)
      report["evidence_broker"]=broker.telemetry()
      broker.close()
