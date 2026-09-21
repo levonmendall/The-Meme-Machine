@@ -115,7 +115,10 @@ class RamsesStrategyLedger:
         if type(reserved) is not int or reserved <= 0:
             raise BoundaryError("invalid_ramses_strategy_reservation")
         rec = self.reconcile()
-        if rec["committed"] + reserved > self.paper_capital:
+        # Admission must respect post-P&L available paper capital, not immutable
+        # genesis. Otherwise a prior realized loss can be silently re-spent and
+        # the eventual settlement trips the capital invariant.
+        if reserved > rec["available"]:
             raise BoundaryError("ramses_strategy_capital_exhausted")
         body = dict(
             id=identity,
@@ -168,7 +171,7 @@ class RamsesStrategyLedger:
         if type(reserved) is not int or reserved <= 0:
             raise BoundaryError("invalid_ramses_strategy_reservation")
         rec = self.reconcile()
-        if rec["committed"] + reserved > self.paper_capital:
+        if reserved > rec["available"]:
             raise BoundaryError("ramses_strategy_capital_exhausted")
         body = dict(
             id=identity,
