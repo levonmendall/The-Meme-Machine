@@ -17,6 +17,9 @@ jobs:
       - name: Review immutable failed-hour artifact without provider access
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_RUN_ID: "35563114670"
+          REVIEW_SHA: c4572e18d078222fe05d6df9eec55d62dfc59f41
+          REVIEW_PHASE: hourly
         run: python certification/frozen_artifact_review.py
       - name: Preserve complete review and verified artifact metadata
         if: always()

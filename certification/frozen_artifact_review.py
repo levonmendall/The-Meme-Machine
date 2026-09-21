@@ -9,6 +9,8 @@ def api(path):
     req=urllib.request.Request("https://api.github.com/repos/"+REPO+path,
         headers={"Authorization":"Bearer "+os.environ["GITHUB_TOKEN"],"Accept":"application/vnd.github+json"})
     with urllib.request.urlopen(req,timeout=60) as r:return json.load(r)
+run_state=api(f'/actions/runs/{RUN}')
+cancelled=run_state.get('conclusion')=='cancelled'
 artifact=None
 for attempt in range(120):
     data=api(f"/actions/runs/{RUN}/artifacts")
@@ -49,18 +51,23 @@ for life in pons.get("lifecycles",[]):
     row["exit"]=life.get("exit")
     review["native_lifecycles"].append(row)
 for lane in ("pump","meteora","pons","ramses"):
-    stats={"transports":0,"local_rejections":[],"provider_failures":[],"gpa_scans":[],"tx_batches":collections.Counter()}
+    stats={"archive_complete":True,"transports":0,"local_rejections":[],"provider_failures":[],"gpa_scans":[],"tx_batches":collections.Counter()}
     with gzip.open(base/lane/"rpc-evidence.jsonl.gz","rt") as f:
-        for line in f:
-            r=json.loads(line);req=r.get("request") or [];req=req if isinstance(req,list) else [req]
-            methods=[x.get("method") if isinstance(x,dict) else x[0] for x in req]
-            compact={k:v for k,v in r.items() if k!="response"}
-            if r.get("transport_attempted"):
-                stats["transports"]+=1
-                if methods and set(methods)=={"getTransaction"}:stats["tx_batches"][len(req)]+=1
-                if r.get("error") or r.get("json_rpc_error_codes") or (r.get("http_status") or 0)>=400:stats["provider_failures"].append(compact)
-            else:stats["local_rejections"].append(compact)
-            if "getProgramAccounts" in methods:stats["gpa_scans"].append(compact)
+        try:
+            for line in f:
+                r=json.loads(line);req=r.get("request") or [];req=req if isinstance(req,list) else [req]
+                methods=[x.get("method") if isinstance(x,dict) else x[0] for x in req]
+                compact={k:v for k,v in r.items() if k!="response"}
+                if r.get("transport_attempted"):
+                    stats["transports"]+=1
+                    if methods and set(methods)=={"getTransaction"}:stats["tx_batches"][len(req)]+=1
+                    if r.get("error") or r.get("json_rpc_error_codes") or (r.get("http_status") or 0)>=400:stats["provider_failures"].append(compact)
+                else:stats["local_rejections"].append(compact)
+                if "getProgramAccounts" in methods:stats["gpa_scans"].append(compact)
+        except EOFError:
+            if not cancelled:raise
+            stats['archive_complete']=False
+            stats['archive_boundary']='cancelled_archive_missing_gzip_footer; original bytes retained; only complete readable records analyzed'
     review["raw"][lane]=stats
     (OUT/(lane+"-process.log")).write_bytes((base/lane/"process.log").read_bytes())
 for path in base.glob("*.sqlite"):
@@ -101,9 +108,12 @@ summary={"sha":SHA,"run":RUN,"phase":PHASE,"artifact_id":artifact["id"],"sha256"
     "elapsed":result["elapsed_seconds"],
     "lanes":{k:{x:v.get(x) for x in ("exit_code","unexpected_exit","natural_settled","forced_settled","open_positions","accounting_reconciled","cohort_accounting","native_accounting","provider_method_errors","provider_http_status_errors","provider_rpc_error_codes")} for k,v in result["lanes"].items()},
     "pons_summary":pons.get("summary"),
+    "pons_boundary":pons.get("boundary"),"pons_operational_configuration":pons.get("operational_configuration"),
+    "pons_discovery_recoveries":pons.get("sequencer_recoveries"),
+    "pons_lifecycle_sessions":[{"index":l.get("index"),"sessions":l.get("provider_sessions")} for l in pons.get("lifecycles",[])],
     "pons_session_rotations":[{"index":l.get("index"),"rotations":l.get("provider_session_rotations",[])} for l in pons.get("lifecycles",[])],
     "pons_lifecycles":[{k:v for k,v in r.items() if k not in ("entry","exit","cohort_reconciliation")} for r in review["native_lifecycles"]],
-    "raw_summary":{k:{"transports":v["transports"],"local":len(v["local_rejections"]),"provider_failures":len(v["provider_failures"]),"gpa_scans":v["gpa_scans"],"tx_batches":v["tx_batches"]} for k,v in review["raw"].items()},
+    "raw_summary":{k:{"archive_complete":v["archive_complete"],"transports":v["transports"],"local":len(v["local_rejections"]),"provider_failures":len(v["provider_failures"]),"gpa_scans":v["gpa_scans"],"tx_batches":v["tx_batches"]} for k,v in review["raw"].items()},
     "capacity":review["capacity"],
     "pump_settled":pump.get("settled"),"pump_replay":pump.get("accounting_replay")}
 (OUT/"summary.json").write_text(json.dumps(summary,indent=2,sort_keys=True))
