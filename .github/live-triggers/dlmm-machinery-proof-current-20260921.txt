@@ -11,3 +11,8 @@ Workflow control head before trigger: da5a5982ba93931fc4b245ca1d0c51dd30aed534.
 No DLMM thresholds changed by the repair.
 
 Cancellation requested after Ramses post-open failure; preserve failed smoke artifact before replacement.
+
+Fresh replacement after Ramses capital-invariant repair.
+Verified integration head before trigger: 46934b26f7d4b6d7f56bcdafd93432a48d8ad6be.
+Ramses source: fd984cae1ca474430de9b8a220d5635f21aae916.
+Failed smoke 35618493417 cancelled and preserved; no prior observation time reused.
