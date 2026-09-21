@@ -1,4 +1,7 @@
 """Deterministic regression for Meteora post-fill evidence recovery overlay."""
+import os
+import sys
+sys.path.insert(0, os.getcwd())
 from unittest.mock import patch
 from tests import solana_dlmm_independent_v1 as strategy
 from meme_machine.dlmm_independent_accounting import PaperBook
