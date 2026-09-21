@@ -4581,7 +4581,7 @@ index 0000000..6438c09
 +        self.assertEqual(b['unsettled'],1);self.assertGreater(b['reserved'],0)
 +        self.assertTrue(all(not row['authenticated'] for row in r['provider_session_rotations']))
 diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
-index ed9c547..cdcd814 100644
+index ed9c547..8c4e2c7 100644
 --- a/robinhood_tests/test_pons_selective_continuation.py
 +++ b/robinhood_tests/test_pons_selective_continuation.py
 @@ -123,7 +123,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
@@ -4599,9 +4599,9 @@ index ed9c547..cdcd814 100644
  
 +    def test_execution_certification_does_not_require_positive_acceleration(self):
 +        decelerating=[
-+            dict(at=185,progress_bps=7300),
-+            dict(at=195,progress_bps=7900),
-+            dict(at=200,progress_bps=8000),
++            dict(at=185,progress_bps=7000),
++            dict(at=195,progress_bps=7400),
++            dict(at=200,progress_bps=7550),
 +        ]
 +        v=vector(snapshots=decelerating)
 +        self.assertFalse(v["trajectory"]["accelerating"])
