@@ -1,0 +1,35 @@
+name: cancel-old-market-audit
+on:
+  push:
+    branches: [audit/missed-winner-market-replay]
+permissions:
+  contents: read
+  actions: write
+jobs:
+  cancel:
+    if: contains(github.event.head_commit.message, '[cancel-old-audit]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Cancel exact superseded replay
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          rid=35627175143
+          sha="fff1ca842c7b8a50d8b0efe6e5352baf3d4b3d48"
+          base="https://api.github.com/repos/"+os.environ["REPOSITORY"]
+          h={"Authorization":"Bearer "+os.environ["GH_TOKEN"],"Accept":"application/vnd.github+json"}
+          def api(path,method="GET"):
+              req=urllib.request.Request(base+path,headers=h,method=method)
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  b=r.read(); return json.loads(b) if b else {"status":r.status}
+          row=api(f"/actions/runs/{rid}")
+          if row["head_sha"]!=sha or row["head_branch"]!="audit/missed-winner-market-replay" or row["name"]!="missed-winner-market-audit":
+              raise SystemExit("identity_mismatch")
+          print(json.dumps({"before":row["status"],"conclusion":row["conclusion"]}))
+          if row["status"]!="completed":
+              print(json.dumps(api(f"/actions/runs/{rid}/cancel","POST")))
+          PY
