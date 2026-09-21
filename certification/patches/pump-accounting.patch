@@ -1,332 +1,3 @@
-diff --git a/ACQUISITION_REPAIR_HANDOFF.md b/ACQUISITION_REPAIR_HANDOFF.md
-new file mode 100644
-index 0000000..1a89883
---- /dev/null
-+++ b/ACQUISITION_REPAIR_HANDOFF.md
-@@ -0,0 +1,41 @@
-+# Pump acquisition repair
-+
-+Source branch: feat/pump-acceleration-independent-v1, exact source SHA
-+361d90dbfd12226467ac458f92b16a9f0b017fce. Stacked repair base:
-+6377b4c46da95c4591848939c714f7766e789acd (continuous paper campaign).
-+Frozen policy b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246.
-+No strategy, finality, signing or live-money authority changes.
-+
-+Latest retained smoke 35483374004 / 2fa41cd0-88ba-4845-b167-ced816dca812:
-+390 discovered, two complete vectors, zero natural settlements. Read-only
-+acquisition review 35485976103 exposed 6,238 expired Pump-window jobs,
-+959 completed lower-priority research jobs, and candidate windows still marked
-+incomplete despite some body work having completed during the same refresh.
-+The 18 window acquisitions had p50 19.08 / p95 54.39 seconds.
-+
-+Changes:
-+- A six-second decoder deadline applies across chunks; it is not renewed for
-+  every 16-body chunk. Missing evidence still fails qualification closed.
-+- Defer older second-leg history while the current decision window is incomplete.
-+  All frozen strategy modes remain; no history is fabricated or discarded.
-+- Reconcile captured stream misses against the shared immutable cache after
-+  bootstrap/decoder work, without another RPC. Do not preserve an obsolete miss
-+  count after that exact body was hydrated by this or another lane.
-+- Shared broker uses earliest deadline among time-sensitive decision classes,
-+  with open positions still first and background history still last.
-+- Requeue expired pending body work immediately, preserving active leases. This
-+  changes an infrastructure work request, never a candidate observation clock.
-+
-+The existing three-attempt bounded bootstrap, exact 30-second horizon, stream
-+coverage, transaction-version support, global pacing/backpressure, immutable
-+reuse and accounting semantics remain. New budget/deferred-work counters remain
-+observable in history status; raw transport telemetry is unchanged.
-+
-+Five failure cases were reproduced against the pre-repair behavior. Six new
-+regressions pass, including active-lease expiry protection. Full suite:
-+251 tests passed; python -m tests.resource_check passed. Command:
-+python -m unittest discover -v
-+
-+Live throughput gain is not yet measured. Integration must run full gates,
-+clean concurrent smoke and a fresh four-hour window before claiming that gain
-+or natural lifecycle certification. These changes never patch a running lane.
-diff --git a/meme_machine/paper_accounting.py b/meme_machine/paper_accounting.py
-new file mode 100644
-index 0000000..9fabf17
---- /dev/null
-+++ b/meme_machine/paper_accounting.py
-@@ -0,0 +1,193 @@
-+"""Integer, append-only paper accounting, isolated by run and strategy namespace.
-+
-+No signer, transport, strategy thresholds or trade authority. Reservations enforce
-+one caller-supplied genesis across concurrent lifecycles instead of minting capital
-+for each trial. Runtime evidence belongs in the run artifact, never in git.
-+"""
-+from contextlib import contextmanager
-+import hashlib
-+import json
-+import sqlite3
-+import threading
-+
-+
-+def _json(value):
-+    return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
-+
-+
-+def _hash(value):
-+    return hashlib.sha256(_json(value).encode()).hexdigest()
-+
-+
-+def _integer(value):
-+    if type(value) is not int or value < 0:
-+        raise ValueError('nonnegative_native_integer_required')
-+    return value
-+
-+
-+class PaperBook:
-+    def __init__(self, path, *, run_id, lane, policy_hash, initial):
-+        _integer(initial)
-+        self.identity = dict(run_id=run_id, lane=lane, policy_hash=policy_hash, initial=initial)
-+        self.lock = threading.RLock()
-+        self.db = sqlite3.connect(path, isolation_level=None, timeout=30, check_same_thread=False)
-+        self.db.execute('PRAGMA journal_mode=WAL')
-+        self.db.execute('PRAGMA synchronous=FULL')
-+        self.db.executescript('''
-+          CREATE TABLE IF NOT EXISTS genesis(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL);
-+          CREATE TABLE IF NOT EXISTS positions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-+          CREATE TABLE IF NOT EXISTS journal(seq INTEGER PRIMARY KEY,body TEXT NOT NULL,
-+            previous TEXT NOT NULL,hash TEXT NOT NULL);
-+          CREATE TRIGGER IF NOT EXISTS journal_no_update BEFORE UPDATE ON journal
-+            BEGIN SELECT RAISE(ABORT,'append_only'); END;
-+          CREATE TRIGGER IF NOT EXISTS journal_no_delete BEFORE DELETE ON journal
-+            BEGIN SELECT RAISE(ABORT,'append_only'); END;
-+          CREATE TRIGGER IF NOT EXISTS genesis_no_update BEFORE UPDATE ON genesis
-+            BEGIN SELECT RAISE(ABORT,'immutable_genesis'); END;
-+          CREATE TRIGGER IF NOT EXISTS genesis_no_delete BEFORE DELETE ON genesis
-+            BEGIN SELECT RAISE(ABORT,'immutable_genesis'); END;
-+        ''')
-+        self.db.execute('INSERT OR IGNORE INTO genesis VALUES(1,?)', (_json(self.identity),))
-+        if json.loads(self.db.execute('SELECT body FROM genesis').fetchone()[0]) != self.identity:
-+            raise ValueError('paper_book_namespace_or_genesis_mismatch')
-+        self.replay()
-+
-+    @contextmanager
-+    def transaction(self):
-+        with self.lock:
-+            self.db.execute('BEGIN IMMEDIATE')
-+            try:
-+                yield
-+                self.db.execute('COMMIT')
-+            except BaseException:
-+                self.db.execute('ROLLBACK')
-+                raise
-+
-+    def _load(self, identity):
-+        row = self.db.execute('SELECT body FROM positions WHERE id=?', (identity,)).fetchone()
-+        if not row:
-+            raise ValueError('paper_position_missing')
-+        return json.loads(row[0])
-+
-+    def _record(self, position, action, at, evidence):
-+        _integer(at)
-+        old_at = position.get('last_at', at)
-+        if at < old_at:
-+            raise ValueError('paper_accounting_time_regression')
-+        position['last_at'] = at
-+        body = dict(identity=self.identity, action=action, at=at, position=position,
-+                    evidence=evidence, evidence_hash=_hash(evidence))
-+        row = self.db.execute('SELECT seq,hash FROM journal ORDER BY seq DESC LIMIT 1').fetchone()
-+        seq, previous = (row[0] + 1, row[1]) if row else (1, '0' * 64)
-+        self.db.execute('INSERT INTO journal VALUES(?,?,?,?)',
-+                        (seq, _json(body), previous, _hash([seq, previous, body])))
-+        self.db.execute('INSERT OR REPLACE INTO positions VALUES(?,?)',
-+                        (position['id'], _json(position)))
-+
-+    def reserve(self, identity, amount, at, evidence):
-+        _integer(amount)
-+        if amount == 0 or not identity.startswith(self.identity['run_id'] + ':'):
-+            raise ValueError('paper_lifecycle_identity_or_amount')
-+        with self.transaction():
-+            if self.db.execute('SELECT 1 FROM positions WHERE id=?', (identity,)).fetchone():
-+                raise ValueError('duplicate_paper_lifecycle')
-+            if amount > self.reconcile()['cash']:
-+                raise ValueError('paper_capital_exhausted')
-+            position = dict(id=identity, status='reserved', reserved=amount, basis=0,
-+                            mark=0, tokens=0, realized=0, capital_unit_seconds=0,
-+                            capital_at_risk=amount, risk_at=at, last_at=at)
-+            self._record(position, 'reserved', at, evidence)
-+
-+    def transition(self, identity, action, at, *, amount=0, tokens=0, evidence=None):
-+        _integer(amount); _integer(tokens); _integer(at)
-+        with self.transaction():
-+            p = self._load(identity)
-+            if at < p['last_at']:
-+                raise ValueError('paper_accounting_time_regression')
-+            p['capital_unit_seconds'] += p['capital_at_risk'] * (at - p['risk_at'])
-+            p['risk_at'] = at
-+            if action == 'filled':
-+                if p['status'] != 'reserved' or amount > p['reserved'] or not amount or not tokens:
-+                    raise ValueError('invalid_paper_fill')
-+                p.update(status='open', reserved=0, basis=amount, mark=amount,
-+                         tokens=tokens, capital_at_risk=amount)
-+            elif action == 'cancelled':
-+                if p['status'] != 'reserved':
-+                    raise ValueError('invalid_paper_cancel')
-+                p.update(status='cancelled', reserved=0, capital_at_risk=0)
-+            elif action == 'mark':
-+                if p['status'] != 'open':
-+                    raise ValueError('invalid_paper_mark')
-+                p['mark'] = amount
-+            elif action == 'settled':
-+                if p['status'] != 'open':
-+                    raise ValueError('duplicate_or_invalid_paper_settlement')
-+                p.update(status='settled', realized=amount-p['basis'], proceeds=amount,
-+                         basis=0, mark=0, tokens=0, capital_at_risk=0)
-+            else:
-+                raise ValueError('unknown_paper_transition')
-+            self._record(p, action, at, evidence or {})
-+            return self.reconcile()
-+
-+    def reconcile(self):
-+        with self.lock:
-+            positions = [json.loads(x[0]) for x in self.db.execute('SELECT body FROM positions')]
-+            realized = sum(x['realized'] for x in positions)
-+            reserved = sum(x['reserved'] for x in positions)
-+            basis = sum(x['basis'] for x in positions)
-+            marks = sum(x['mark'] for x in positions)
-+            cash = self.identity['initial'] + realized - reserved - basis
-+            if cash < 0:
-+                raise ValueError('paper_capital_conservation')
-+            return dict(**self.identity, cash=cash, reserved=reserved, basis=basis,
-+                        realized=realized, unrealized=marks-basis,
-+                        marked_equity=cash+reserved+marks,
-+                        capital_unit_seconds=sum(x['capital_unit_seconds'] for x in positions),
-+                        capital_hour_denominator=3600,
-+                        open_positions=sum(x['status']=='open' for x in positions),
-+                        pending=sum(x['status']=='reserved' for x in positions),
-+                        settled=sum(x['status']=='settled' for x in positions),
-+                        reconciled=True)
-+
-+    def replay(self):
-+        """Verify immutable chain, then independently rebuild cash and occupations."""
-+        with self.lock:
-+            positions = {}; previous = '0' * 64; count = 0
-+            cash = self.identity['initial']
-+            for seq, raw, prior, checksum in self.db.execute('SELECT * FROM journal ORDER BY seq'):
-+                count += 1; body = json.loads(raw); p = body['position']; identity = p['id']
-+                if (seq != count or prior != previous or body['identity'] != self.identity
-+                        or checksum != _hash([seq, prior, body])
-+                        or body['evidence_hash'] != _hash(body['evidence'])):
-+                    raise ValueError('paper_journal_corruption')
-+                old = positions.get(identity); action = body['action']
-+                if action == 'reserved':
-+                    if old is not None or p['reserved'] > cash:
-+                        raise ValueError('paper_replay_duplicate_or_overdraw')
-+                    cash -= p['reserved']
-+                elif action == 'filled':
-+                    if not old or old['status'] != 'reserved':
-+                        raise ValueError('paper_replay_fill')
-+                    cash += old['reserved'] - p['basis']
-+                elif action == 'cancelled':
-+                    if not old or old['status'] != 'reserved':
-+                        raise ValueError('paper_replay_cancel')
-+                    cash += old['reserved']
-+                elif action == 'settled':
-+                    if not old or old['status'] != 'open' or p['realized'] != p['proceeds']-old['basis']:
-+                        raise ValueError('paper_replay_settlement')
-+                    cash += p['proceeds']
-+                elif action != 'mark' or not old or old['status'] != 'open':
-+                    raise ValueError('paper_replay_transition')
-+                if cash < 0:
-+                    raise ValueError('paper_replay_negative_cash')
-+                positions[identity] = p; previous = checksum
-+            actual = {identity: json.loads(raw) for identity, raw in self.db.execute('SELECT * FROM positions')}
-+            if positions != actual or cash != self.reconcile()['cash']:
-+                raise ValueError('paper_projection_differs_from_replay')
-+            return dict(verified=True, events=count, final_hash=previous, cash=cash)
-+
-+    def close(self):
-+        self.replay()
-+        self.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
-+        self.db.close()
-diff --git a/meme_machine/pipeline.py b/meme_machine/pipeline.py
-new file mode 100644
-index 0000000..3acb8ab
---- /dev/null
-+++ b/meme_machine/pipeline.py
-@@ -0,0 +1,77 @@
-+"""Append-only lane-local opportunity evidence; no strategy or allocation authority."""
-+import json
-+import sqlite3
-+import threading
-+import time
-+from collections import defaultdict
-+
-+class Pipeline:
-+    def __init__(self,path,lane,policy_hash):
-+        self.lane=lane;self.policy_hash=policy_hash;self.lock=threading.RLock()
-+        self.db=sqlite3.connect(str(path),check_same_thread=False)
-+        self.db.execute('PRAGMA journal_mode=WAL')
-+        self.db.executescript('''CREATE TABLE IF NOT EXISTS progress(
-+            sequence INTEGER PRIMARY KEY, lane TEXT NOT NULL, policy_hash TEXT NOT NULL,
-+            candidate TEXT NOT NULL, stage TEXT NOT NULL, reason TEXT, classification TEXT,
-+            at REAL NOT NULL, monotonic REAL NOT NULL, details TEXT NOT NULL);
-+            CREATE TRIGGER IF NOT EXISTS progress_no_update BEFORE UPDATE ON progress
-+            BEGIN SELECT RAISE(ABORT,'append_only'); END;
-+            CREATE TRIGGER IF NOT EXISTS progress_no_delete BEFORE DELETE ON progress
-+            BEGIN SELECT RAISE(ABORT,'append_only'); END;''')
-+        foreign=self.db.execute('SELECT 1 FROM progress WHERE lane!=? OR policy_hash!=? LIMIT 1',(lane,policy_hash)).fetchone()
-+        if foreign:raise ValueError('foreign_pipeline_namespace')
-+        self.stages=defaultdict(set);self.classes=defaultdict(set);self.reasons=defaultdict(set)
-+        self.last=None;self.write_seconds=0.;self.records=0
-+        for c,s,r,k,at,mono in self.db.execute('SELECT candidate,stage,reason,classification,at,monotonic FROM progress ORDER BY sequence'):
-+            self._index(c,s,r,k,at,mono)
-+
-+    def _index(self,c,s,r,k,at,mono):
-+        self.records+=1
-+        self.stages[s].add(c)
-+        if k:self.classes[k].add(c)
-+        if r:self.reasons[r].add(c)
-+        self.last=dict(candidate=c,stage=s,at=at,monotonic=mono)
-+
-+    def record(self,candidate,stage,reason=None,classification=None,**details):
-+        c=str(candidate);at=time.time();mono=time.monotonic()
-+        with self.lock,self.db:
-+            self.db.execute('INSERT INTO progress(lane,policy_hash,candidate,stage,reason,classification,at,monotonic,details) VALUES(?,?,?,?,?,?,?,?,?)',
-+                (self.lane,self.policy_hash,c,stage,reason,classification,at,mono,json.dumps(details,sort_keys=True)))
-+            self._index(c,stage,reason,classification,at,mono)
-+        self.write_seconds+=time.monotonic()-mono
-+
-+    def snapshot(self):
-+        with self.lock:
-+            stages=('discovered','prospect_observed','prospect_incomplete','prospect_admitted',
-+                    'current_state_queued','current_state_requested','current_state_complete','prospect_screened','screened','admitted','evidence_requested','evidence_complete',
-+                    'trigger_observed','trigger_authenticated','fresh_state','warmup_started','warmup_complete',
-+                    'reconstruction_started','reconstruction_complete','prospective_range','economic_vector',
-+                    'trigger_terminal','evaluated','rejected','qualified','entry_reserved','entry_filled','entry_cancelled',
-+                    'deployed','forward_observation','unwind','settled','terminal')
-+            classes=('capacity_censored','provider_failed','stale_before_evidence','stale_during_evidence',
-+                     'stale_after_complete_evidence','reconstruction_incomplete','strategy_rejection',
-+                     'no_authentic_activity','local_budget_exhausted','consumer_deadline')
-+            return dict(schema='lane-opportunity-coverage-v1',lane=self.lane,
-+                identity_scope='native_candidate_identity; stages and classes overlap; never sum as losses',
-+                raw_records=self.records,
-+                authenticated_triggers=len(self.stages['trigger_started']),
-+                terminally_classified_triggers=len(self.stages['trigger_terminal']),
-+                unresolved_triggers=len(self.stages['trigger_started']-self.stages['trigger_terminal']),
-+                stale_stage_counts={s:len(self.reasons[s]) for s in ('stale_on_arrival','stale_in_queue','stale_during_evidence','stale_after_complete_evidence')},
-+                stages={s:len(self.stages[s]) for s in stages},
-+                unique_classes={k:len(self.classes[k]) for k in classes},
-+                unique_terminal_reasons={k:len(v) for k,v in self.reasons.items()},last_transition=self.last)
-+
-+    def close(self):self.db.close()
-+
-+def censor_class(reason):
-+    r=str(reason).lower()
-+    if 'stale_on_arrival' in r or 'stale_in_queue' in r:return 'stale_before_evidence'
-+    if 'stale_after_complete' in r:return 'stale_after_complete_evidence'
-+    if 'stale' in r:return 'stale_during_evidence'
-+    if 'budget' in r:return 'local_budget_exhausted'
-+    if 'capacity' in r or 'queue_deadline' in r:return 'capacity_censored'
-+    if 'deadline' in r:return 'consumer_deadline'
-+    if 'provider' in r or 'null_gettransaction' in r:return 'provider_failed'
-+    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
-+    return 'reconstruction_incomplete'
 diff --git a/meme_machine/provider.py b/meme_machine/provider.py
 index d01cfe6..970a7fe 100644
 --- a/meme_machine/provider.py
@@ -1368,451 +1039,6 @@ index 05dd96f..9c8a344 100644
              except Exception as exc:
                  if stop_event.is_set():
                      break
-diff --git a/meme_machine/solana_evidence_consumers.py b/meme_machine/solana_evidence_consumers.py
-new file mode 100644
-index 0000000..3b20654
---- /dev/null
-+++ b/meme_machine/solana_evidence_consumers.py
-@@ -0,0 +1,288 @@
-+"""Consumer ownership for immutable evidence; never strategy or freshness authority."""
-+from __future__ import annotations
-+
-+import os
-+import json
-+import sqlite3
-+import threading
-+from .solana_signature_identity import DEFAULT_SIGNATURE
-+import time
-+
-+
-+class EvidenceConsumers:
-+    def __init__(self, broker):
-+        self.broker = broker
-+        with broker.lock, broker.db:
-+            broker.db.executescript('''
-+                CREATE TABLE IF NOT EXISTS evidence_consumers(
-+                    owner TEXT NOT NULL, signature TEXT NOT NULL, kind TEXT NOT NULL,
-+                    deadline REAL NOT NULL, created_at REAL NOT NULL,
-+                    state TEXT NOT NULL DEFAULT 'waiting',
-+                    PRIMARY KEY(owner,signature));
-+                CREATE INDEX IF NOT EXISTS consumers_ready
-+                    ON evidence_consumers(state,kind,deadline);
-+                CREATE TABLE IF NOT EXISTS evidence_terminals(
-+                    id INTEGER PRIMARY KEY, owner TEXT NOT NULL, signature TEXT NOT NULL,
-+                    kind TEXT NOT NULL, deadline REAL NOT NULL, observed_at REAL NOT NULL,
-+                    reason TEXT NOT NULL, UNIQUE(owner,signature));
-+                CREATE TABLE IF NOT EXISTS acquisition_phases(
-+                    seq INTEGER PRIMARY KEY,lane TEXT NOT NULL,owner TEXT,kind TEXT,
-+                    phase TEXT NOT NULL,at REAL NOT NULL,deadline REAL,signatures TEXT NOT NULL);
-+                CREATE TRIGGER IF NOT EXISTS acquisition_phases_no_update BEFORE UPDATE ON acquisition_phases
-+                    BEGIN SELECT RAISE(ABORT,'append_only'); END;
-+                CREATE TRIGGER IF NOT EXISTS acquisition_phases_no_delete BEFORE DELETE ON acquisition_phases
-+                    BEGIN SELECT RAISE(ABORT,'append_only'); END;
-+                CREATE TABLE IF NOT EXISTS hydration_attempt_failures(
-+                    seq INTEGER PRIMARY KEY,lane TEXT NOT NULL,owner TEXT,candidate_id TEXT,
-+                    kind TEXT,at REAL NOT NULL,reason TEXT NOT NULL,signatures TEXT NOT NULL);
-+                CREATE TRIGGER IF NOT EXISTS hydration_attempt_no_update BEFORE UPDATE ON hydration_attempt_failures
-+                    BEGIN SELECT RAISE(ABORT,'append_only'); END;
-+                CREATE TRIGGER IF NOT EXISTS hydration_attempt_no_delete BEFORE DELETE ON hydration_attempt_failures
-+                    BEGIN SELECT RAISE(ABORT,'append_only'); END;
-+                CREATE TABLE IF NOT EXISTS attributed_hydration_failures(
-+                    lane TEXT NOT NULL,reason TEXT NOT NULL,count INTEGER NOT NULL,PRIMARY KEY(lane,reason));
-+                CREATE TABLE IF NOT EXISTS hydration_failures(
-+                    reason TEXT PRIMARY KEY, count INTEGER NOT NULL);
-+                CREATE TRIGGER IF NOT EXISTS evidence_terminals_no_update
-+                    BEFORE UPDATE ON evidence_terminals BEGIN
-+                    SELECT RAISE(ABORT,'append_only_evidence_terminals'); END;
-+                CREATE TRIGGER IF NOT EXISTS evidence_terminals_no_delete
-+                    BEFORE DELETE ON evidence_terminals BEGIN
-+                    SELECT RAISE(ABORT,'append_only_evidence_terminals'); END;
-+            ''')
-+
-+            broker.db.execute('BEGIN IMMEDIATE')
-+            columns={r[1] for r in broker.db.execute('PRAGMA table_info(evidence_consumers)')}
-+            for name,decl in (('lane',"TEXT NOT NULL DEFAULT 'unknown'"),
-+                              ('candidate_id','TEXT'),('first_transport_at','REAL')):
-+                if name not in columns:broker.db.execute(f'ALTER TABLE evidence_consumers ADD COLUMN {name} {decl}')
-+
-+    def register(self, owner, signatures, kind, deadline, *, candidate_id=None):
-+        b = self.broker
-+        now = float(b.clock())
-+        with b.lock, b.db:
-+            # A repeated request cannot rejuvenate this consumer's original deadline.
-+            b.db.executemany('INSERT OR IGNORE INTO evidence_consumers '
-+                            '(owner,signature,kind,deadline,created_at,lane,candidate_id) VALUES(?,?,?,?,?,?,?)',
-+                            [(str(owner), str(s), str(kind), float(deadline), now, os.environ.get('MM_CERTIFICATION_LANE','unknown'), candidate_id)
-+                             for s in dict.fromkeys(signatures)])
-+        self.reject_default_signature(str(owner))
-+
-+    def reject_default_signature(self, owner=None):
-+        """Invalid identity is terminal acquisition evidence, never provider failure."""
-+        b=self.broker
-+        with b.lock,b.db:
-+            b.db.execute('BEGIN IMMEDIATE')
-+            rows=b.db.execute("SELECT owner,signature,kind,deadline,lane FROM evidence_consumers c "
-+                "WHERE signature=? AND state='waiting' AND (? IS NULL OR owner=?) "
-+                "AND NOT EXISTS(SELECT 1 FROM evidence_terminals t WHERE t.owner=c.owner AND t.signature=c.signature)",
-+                (DEFAULT_SIGNATURE,owner,owner)).fetchall()
-+            for consumer,signature,kind,deadline,lane in rows:
-+                now=float(b.clock())
-+                b.db.execute('INSERT INTO evidence_terminals(owner,signature,kind,deadline,observed_at,reason) VALUES(?,?,?,?,?,?)',
-+                    (consumer,signature,kind,deadline,now,'invalid_default_transaction_signature'))
-+                b.db.execute('INSERT INTO acquisition_phases(lane,owner,kind,phase,at,deadline,signatures) VALUES(?,?,?,?,?,?,?)',
-+                    (lane,consumer,kind,'invalid_default_transaction_signature',now,deadline,json.dumps([signature])))
-+                b.db.execute("UPDATE evidence_consumers SET state='invalid_default_transaction_signature' WHERE owner=? AND signature=? AND state='waiting'",
-+                    (consumer,signature))
-+
-+    def settle(self, owner=None, reason=None):
-+        self.reject_default_signature()
-+        b = self.broker
-+        now = float(b.clock())
-+        with b.lock, b.db:
-+            # Cache completion takes precedence only if it was acquired before the
-+            # consumer deadline. A late immutable transaction can serve a later consumer.
-+            b.db.execute('''INSERT OR IGNORE INTO evidence_terminals
-+                (owner,signature,kind,deadline,observed_at,reason)
-+                SELECT owner,signature,kind,deadline,?, 'evidence_complete'
-+                FROM evidence_consumers c WHERE state='waiting' AND EXISTS
-+                    (SELECT 1 FROM immutable_transactions t WHERE t.signature=c.signature
-+                     AND t.cached_at<=c.deadline UNION SELECT 1 FROM tx_cache t WHERE t.signature=c.signature AND t.cached_at<=c.deadline)''', (now,))
-+            if owner is not None:
-+                b.db.execute('''INSERT OR IGNORE INTO evidence_terminals
-+                    (owner,signature,kind,deadline,observed_at,reason)
-+                    SELECT owner,signature,kind,deadline,?,? FROM evidence_consumers
-+                    WHERE state='waiting' AND owner=?''', (now, str(reason), str(owner)))
-+            b.db.execute('''INSERT OR IGNORE INTO evidence_terminals
-+                (owner,signature,kind,deadline,observed_at,reason)
-+                SELECT owner,signature,kind,deadline,?, 'consumer_deadline_expired'
-+                FROM evidence_consumers WHERE state='waiting' AND deadline<?''', (now, now))
-+            b.db.execute('''UPDATE evidence_consumers SET state=(SELECT reason
-+                FROM evidence_terminals t WHERE t.owner=evidence_consumers.owner
-+                    AND t.signature=evidence_consumers.signature)
-+                WHERE state='waiting' AND EXISTS(SELECT 1 FROM evidence_terminals t
-+                    WHERE t.owner=evidence_consumers.owner
-+                        AND t.signature=evidence_consumers.signature)''')
-+
-+    def first_transport(self, signatures):
-+        b=self.broker
-+        with b.lock,b.db:
-+            b.db.executemany("UPDATE evidence_consumers SET first_transport_at=? "
-+                "WHERE signature=? AND state='waiting' AND first_transport_at IS NULL",
-+                [(float(b.clock()),str(s)) for s in signatures])
-+
-+    def foreground_pending(self):
-+        b=self.broker
-+        with b.lock:
-+            return b.db.execute("SELECT 1 FROM evidence_consumers WHERE state='waiting' "
-+                "AND kind NOT IN ('stream_prefetch','research_history') AND deadline>? LIMIT 1",
-+                (float(b.clock()),)).fetchone() is not None
-+
-+    def batch(self, limit=8):
-+        self.settle()
-+        b = self.broker
-+        if self.foreground_pending():return []
-+        with b.lock:
-+            # Only already subscribed pool streams may use background acquisition.
-+            # Other consumers retain their lane's synchronous authentication path.
-+            rows = b.db.execute('''SELECT c.signature, MIN(c.deadline)
-+                FROM evidence_consumers c WHERE c.state='waiting'
-+                  AND c.kind='stream_prefetch' AND c.deadline>?
-+                  AND NOT EXISTS(SELECT 1 FROM immutable_transactions t WHERE t.signature=c.signature)
-+                GROUP BY c.signature ORDER BY MIN(c.deadline),c.signature LIMIT ?''',
-+                (float(b.clock()), max(1, min(8, int(limit))))).fetchall()
-+        return rows
-+
-+    def phase(self,phase,*,owner,kind,deadline,signatures):
-+        b=self.broker
-+        with b.lock,b.db:
-+            b.db.execute('INSERT INTO acquisition_phases(lane,owner,kind,phase,at,deadline,signatures) VALUES(?,?,?,?,?,?,?)',
-+                (os.environ.get('MM_CERTIFICATION_LANE','unknown'),str(owner),kind,phase,
-+                 float(b.clock()),float(deadline),json.dumps(list(signatures))))
-+
-+    def failure(self, reason, *, owner=None, candidate_id=None, kind=None, signatures=()):
-+        b = self.broker
-+        with b.lock, b.db:
-+            b.db.execute('INSERT INTO hydration_attempt_failures(lane,owner,candidate_id,kind,at,reason,signatures) VALUES(?,?,?,?,?,?,?)',
-+                (os.environ.get('MM_CERTIFICATION_LANE','unknown'),str(owner) if owner else None,candidate_id,kind,
-+                 float(b.clock()),reason,json.dumps(list(signatures))))
-+            b.db.execute('INSERT INTO attributed_hydration_failures VALUES(?,?,1) '
-+                         'ON CONFLICT(lane,reason) DO UPDATE SET count=count+1',
-+                         (os.environ.get('MM_CERTIFICATION_LANE','unknown'),reason))
-+            b.db.execute('INSERT INTO hydration_failures VALUES(?,1) '
-+                         'ON CONFLICT(reason) DO UPDATE SET count=count+1', (reason,))
-+
-+    def telemetry(self, lane=None):
-+        self.settle()
-+        lane=lane or os.environ.get('MM_CERTIFICATION_LANE','unknown')
-+        b = self.broker
-+        with b.lock:
-+            rows = b.db.execute('SELECT kind,state,COUNT(*) FROM evidence_consumers '
-+                                'WHERE lane=? GROUP BY kind,state',(lane,)).fetchall()
-+            failures = dict(b.db.execute('SELECT reason,count FROM hydration_failures'))
-+            phases=dict(b.db.execute('SELECT phase,count(*) FROM acquisition_phases WHERE lane=? GROUP BY phase',(lane,)))
-+            deadline_rows=b.db.execute('''SELECT kind,
-+                CASE WHEN created_at>=deadline THEN 'already_expired_before_enqueue'
-+                     WHEN first_transport_at IS NULL THEN 'expired_before_transport'
-+                     ELSE 'expired_after_transport_started' END,COUNT(*)
-+                FROM evidence_consumers WHERE lane=? AND state='consumer_deadline_expired'
-+                GROUP BY 1,2''',(lane,)).fetchall()
-+            unique_failures=dict(b.db.execute('SELECT reason,COUNT(DISTINCT candidate_id) FROM hydration_attempt_failures WHERE lane=? AND candidate_id IS NOT NULL GROUP BY reason',(lane,)))
-+            lane_failures=dict(b.db.execute('SELECT reason,count FROM attributed_hydration_failures WHERE lane=?',(lane,)))
-+            overdue = b.db.execute("SELECT COUNT(*) FROM jobs WHERE status IN ('pending','inflight') "
-+                                   'AND deadline<?', (float(b.clock()),)).fetchone()[0]
-+            unique=dict(b.db.execute("SELECT state,COUNT(DISTINCT candidate_id) FROM evidence_consumers "
-+                "WHERE lane=? AND candidate_id IS NOT NULL GROUP BY state",(lane,)))
-+            candidates=b.db.execute("SELECT COUNT(DISTINCT candidate_id) FROM evidence_consumers "
-+                "WHERE lane=? AND candidate_id IS NOT NULL",(lane,)).fetchone()[0]
-+        return dict(scope='lane_attributed_logical_consumers; candidate_states_may_overlap',lane=lane,
-+                    acquisition_phase_attempts=phases,
-+                    deadline_decomposition=[dict(kind=k,stage=s,count=n) for k,s,n in deadline_rows],
-+                    candidate_interests=candidates,unique_candidate_states=unique,
-+                    unique_candidate_acquisition_failures=unique_failures,
-+                    opportunity_denominator_source='native_candidate_funnel_not_consumer_count',
-+                    shared_acquisition_failures=failures,
-+                    consumers=[dict(kind=k, state=s, count=n) for k,s,n in rows],
-+                    by_kind={k:{s:n for kind,s,n in rows if kind==k}
-+                             for k in sorted({kind for kind,_,_ in rows})},
-+                    acquisition_failures=lane_failures, shared_overdue_active_jobs=overdue)
-+
-+
-+class StreamEvidenceService:
-+    """Sparse cache warmer; foreground evidence never depends on prefetch success."""
-+    def __init__(self, broker, rpc_factory):
-+        self.broker, self.rpc_factory = broker, rpc_factory
-+        self.pacer = None
-+        self.stop = threading.Event()
-+        self.thread = None
-+        self.error = None
-+        self.rpc = None
-+        self.sessions = []
-+        self.prefetch_interval_seconds = 2.0
-+        self.next_prefetch_at = -float('inf')
-+        self.provider_busy_deferrals = 0
-+        self.interval_deferrals = 0
-+        self.prefetch_batches = 0
-+
-+    def _shared_provider_idle(self):
-+        path=os.environ.get('MM_CERT_GOVERNOR_DB')
-+        if not path:
-+            return True
-+        if not os.path.exists(path):
-+            return False
-+        try:
-+            db=sqlite3.connect(path,timeout=.1)
-+            try:
-+                row=db.execute("SELECT next_at,cooldown FROM pressure WHERE provider='solana'").fetchone()
-+                queued=db.execute("SELECT COUNT(*) FROM queue WHERE provider='solana'").fetchone()[0]
-+            finally:
-+                db.close()
-+        except sqlite3.Error:
-+            return False
-+        return bool(row and not queued and time.monotonic()>=max(float(row[0]),float(row[1])))
-+
-+    def step(self):
-+        now=float(self.broker.clock())
-+        if now<self.next_prefetch_at:
-+            self.interval_deferrals+=1
-+            return False
-+        if not self._shared_provider_idle():
-+            self.provider_busy_deferrals+=1
-+            return False
-+        rows = self.broker.consumers.batch()
-+        if not rows:
-+            return False
-+        self.next_prefetch_at=now+self.prefetch_interval_seconds
-+        if self.rpc is None or self.rpc.calls + len(rows) + 8 > self.rpc.limit:
-+            if self.rpc is not None:
-+                self.sessions.append(self.rpc.provider_telemetry())
-+            self.rpc = self.rpc_factory()
-+            if self.pacer is not None:
-+                self.rpc.read_pacer=self.pacer
-+                self.rpc.alchemy_pacer=self.pacer
-+            self.pacer=getattr(self.rpc,'read_pacer',None)
-+            self.rpc.evidence_priority = 90
-+        self.broker.hydrate_transactions(
-+            self.rpc, [s for s,_ in rows], kind='stream_prefetch',
-+            deadline=min(float(self.broker.clock()) + 8, min(d for _,d in rows)),
-+            batch_size=8, max_batches=1, owner=False)
-+        self.broker.consumers.settle()
-+        self.prefetch_batches+=1
-+        return True
-+
-+    def start(self):
-+        def run():
-+            try:
-+                while not self.stop.is_set():
-+                    self.step()
-+                    self.stop.wait(.5)
-+            except Exception as exc:
-+                # An unexpected worker failure is visible and stops certification.
-+                self.error = type(exc).__name__
-+        self.thread = threading.Thread(target=run, name='solana-stream-evidence', daemon=True)
-+        self.thread.start()
-+
-+    def check(self):
-+        if self.error:
-+            raise RuntimeError('stream_evidence_service_failed:' + self.error)
-+
-+    def close(self):
-+        self.stop.set()
-+        if self.thread is not None:
-+            self.thread.join(timeout=40)
-+            if self.thread.is_alive():
-+                raise RuntimeError('stream_evidence_service_shutdown_timeout')
-+        self.check()
-+        if self.rpc is not None:
-+            self.sessions.append(self.rpc.provider_telemetry())
-diff --git a/meme_machine/solana_immutable_rpc.py b/meme_machine/solana_immutable_rpc.py
-new file mode 100644
-index 0000000..64c5cc3
---- /dev/null
-+++ b/meme_machine/solana_immutable_rpc.py
-@@ -0,0 +1,145 @@
-+"""Run-scoped, endpoint-bound immutable reads. Dynamic state is never cached here."""
-+import hashlib
-+import json
-+import os
-+import sqlite3
-+import time
-+import uuid
-+from contextlib import contextmanager
-+from .provider import Unavailable
-+
-+
-+class ImmutableReads:
-+    def __init__(self,path,url):
-+        self.path=path
-+        self.endpoint=hashlib.sha256(url.encode()).hexdigest()
-+        with self.connect() as db:
-+            db.executescript('''CREATE TABLE IF NOT EXISTS solana_immutable_reads(
-+                endpoint TEXT,method TEXT,key TEXT,value TEXT,at REAL,lane TEXT,
-+                PRIMARY KEY(endpoint,method,key));
-+                CREATE TABLE IF NOT EXISTS solana_read_leases(endpoint TEXT,method TEXT,key TEXT,owner TEXT,expires REAL,
-+                PRIMARY KEY(endpoint,method,key));
-+                CREATE TABLE IF NOT EXISTS solana_finalized_frontier(endpoint TEXT PRIMARY KEY,slot INTEGER);
-+                CREATE TABLE IF NOT EXISTS solana_reuse_events(id INTEGER PRIMARY KEY,endpoint TEXT,lane TEXT,method TEXT,kind TEXT,at REAL);
-+                CREATE TRIGGER IF NOT EXISTS solana_reuse_no_delete BEFORE DELETE ON solana_reuse_events BEGIN SELECT RAISE(ABORT,'append_only'); END;
-+                CREATE TRIGGER IF NOT EXISTS solana_reuse_no_update BEFORE UPDATE ON solana_reuse_events BEGIN SELECT RAISE(ABORT,'append_only'); END;''')
-+
-+    @contextmanager
-+    def connect(self):
-+        db=sqlite3.connect(self.path,timeout=30)
-+        try:
-+            with db:yield db
-+        finally:db.close()
-+
-+    def finalized(self,slot):
-+        if type(slot) is not int or slot<0:return
-+        with self.connect() as db:db.execute('INSERT INTO solana_finalized_frontier VALUES(?,?) ON CONFLICT(endpoint) DO UPDATE SET slot=MAX(slot,excluded.slot)',(self.endpoint,slot))
-+
-+    def event(self,db,method,kind):
-+        db.execute('INSERT INTO solana_reuse_events(endpoint,lane,method,kind,at) VALUES(?,?,?,?,?)',
-+            (self.endpoint,os.environ.get('MM_CERTIFICATION_LANE','unknown'),method,kind,time.time()))
-+
-+    def eligible(self,method,params):
-+        if method=='getGenesisHash' and not params:return True
-+        if method!='getBlockTime' or len(params)!=1 or type(params[0]) is not int:return False
-+        with self.connect() as db:
-+            row=db.execute('SELECT slot FROM solana_finalized_frontier WHERE endpoint=?',(self.endpoint,)).fetchone()
-+        return row is not None and 0<=params[0]<=row[0]
-+
-+    def call(self,method,params,fetch,deadline=None):
-+        if not self.eligible(method,params):return fetch()
-+        key=json.dumps(params,separators=(',',':'));owner=uuid.uuid4().hex
-+        deadline=time.time()+30 if deadline is None else deadline
-+        while time.time()<deadline:
-+            with self.connect() as db:
-+                db.execute('BEGIN IMMEDIATE')
-+                row=db.execute('SELECT value,lane FROM solana_immutable_reads WHERE endpoint=? AND method=? AND key=?',(self.endpoint,method,key)).fetchone()
-+                if row:
-+                    self.event(db,method,'cross_lane_hit' if row[1]!=os.environ.get('MM_CERTIFICATION_LANE','unknown') else 'hit')
-+                    return json.loads(row[0])
-+                # Lease lasts beyond the bounded HTTP retry path, and cannot be
-+                # stolen during a live fetch merely because a consumer expired.
-+                db.execute('DELETE FROM solana_read_leases WHERE expires<?',(time.time(),))
-+                changed=db.execute('INSERT OR IGNORE INTO solana_read_leases VALUES(?,?,?,?,?)',
-+                    (self.endpoint,method,key,owner,time.time()+60)).rowcount
-+                if changed:self.event(db,method,'miss')
-+            if changed:break
-+            time.sleep(min(.01,max(0,deadline-time.time())))
-+        else:raise Unavailable('immutable_read_consumer_deadline')
-+        try:
-+            value=fetch()
-+            valid=(method=='getGenesisHash' and isinstance(value,str) and bool(value)) or (method=='getBlockTime' and type(value) is int and value>0)
-+            if valid:
-+                with self.connect() as db:
-+                    db.execute('INSERT OR IGNORE INTO solana_immutable_reads VALUES(?,?,?,?,?,?)',
-+                        (self.endpoint,method,key,json.dumps(value),time.time(),os.environ.get('MM_CERTIFICATION_LANE','unknown')))
-+            return value
-+        finally:
-+            with self.connect() as db:db.execute('DELETE FROM solana_read_leases WHERE endpoint=? AND method=? AND key=? AND owner=?',(self.endpoint,method,key,owner))
-+
-+
-+class ImmutableRPCMixin:
-+    def _shared_reads(self):
-+        path=os.environ.get('MM_SOLANA_EVIDENCE_BROKER_DB')
-+        if not path:return None
-+        identity=(path,self.url)
-+        if getattr(self,'_immutable_identity',None)!=identity:
-+            self._immutable_identity=identity
-+            self._immutable_reads=ImmutableReads(path,self.url)
-+            from .solana_evidence_broker import EvidenceBroker
-+            pacer=getattr(self,'read_pacer',self)
-+            if getattr(pacer,'_broker_identity',None)!=(path,self.url):
-+                pacer._broker_identity=(path,self.url)
-+                pacer._immutable_broker=EvidenceBroker(path)
-+            self._immutable_broker=pacer._immutable_broker
-+        return self._immutable_reads
-+
-+    def _assert_transaction_authority(self):
-+        # Genesis proofs can authenticate a newly configured endpoint independently;
-+        # transaction bodies from the previous authority cannot silently follow it.
-+        with self._immutable_broker.lock,self._immutable_broker.db:
-+            db=self._immutable_broker.db
-+            db.execute('CREATE TABLE IF NOT EXISTS transaction_authority(endpoint TEXT PRIMARY KEY)')
-+            prior=db.execute('SELECT endpoint FROM transaction_authority').fetchone()
-+            if prior and prior[0]!=self._immutable_reads.endpoint:
-+                raise Unavailable('shared_transaction_authority_changed')
-+            db.execute('INSERT OR IGNORE INTO transaction_authority VALUES(?)',(self._immutable_reads.endpoint,))
-+
-+    @staticmethod
-+    def _body_params(params):
-+        return (len(params)==2 and isinstance(params[0],str) and isinstance(params[1],dict)
-+                and params[1].get('commitment')=='finalized' and params[1].get('encoding','json')=='json'
-+                and params[1].get('maxSupportedTransactionVersion',0)==1)
-+
-+    def _body_read(self,params_list,batch_size):
-+        self._assert_transaction_authority()
-+        deadline=getattr(self,'evidence_deadline',None) or time.time()+30
-+        priority=getattr(self,'evidence_priority',20)
-+        kind='position_monitor' if priority==0 else 'dlmm_fresh' if os.environ.get('MM_CERTIFICATION_LANE')=='meteora' else 'pump_window'
-+        result,meta=self._immutable_broker.hydrate_transactions(self,[p[0] for p in params_list],
-+            kind=kind,deadline=deadline,batch_size=batch_size,
-+            owner=f'direct:{kind}:{deadline!r}')
-+        if meta['pending']:raise Unavailable('transaction_evidence_incomplete')
-+        return [result[p[0]] for p in params_list]
-+
-+    def call(self,method,params=None,priority=False,**kwargs):
-+        params=params or [];shared=self._shared_reads()
-+        if shared and method=='getTransaction' and not getattr(self,'_broker_transport',False) and self._body_params(params):
-+            return self._body_read([params],1)[0]
-+        fetch=lambda:super(ImmutableRPCMixin,self).call(method,params,priority,**kwargs)
-+        value=shared.call(method,params,fetch,getattr(self,'evidence_deadline',None)) if shared else fetch()
-+        if shared and method=='getMultipleAccounts' and len(params)>1 and params[1].get('commitment')=='finalized' and isinstance(value,dict):
-+            shared.finalized(value.get('context',{}).get('slot'))
-+        if shared and method=='getTransaction' and self._body_params(params) and isinstance(value,dict):shared.finalized(value.get('slot'))
-+        return value
-+
-+    def call_many(self,method,params_list,priority=False,batch_size=8):
-+        shared=self._shared_reads()
-+        if shared and method=='getTransaction' and not getattr(self,'_broker_transport',False) and all(self._body_params(p) for p in params_list):
-+            return self._body_read(params_list,batch_size)
-+        if shared and method=='getTransaction' and all(self._body_params(p) for p in params_list):self._assert_transaction_authority()
-+        values=super().call_many(method,params_list,priority,batch_size=batch_size)
-+        if shared and method=='getTransaction':
-+            for p,v in zip(params_list,values):
-+                if self._body_params(p) and isinstance(v,dict):shared.finalized(v.get('slot'))
-+        return values
 diff --git a/meme_machine/solana_read_rpc.py b/meme_machine/solana_read_rpc.py
 index ac23ca3..4e1679a 100644
 --- a/meme_machine/solana_read_rpc.py
@@ -1829,22 +1055,8 @@ index ac23ca3..4e1679a 100644
      """HTTP transport mixin with OnFinality-primary / Alchemy-rescue semantics."""
  
      def _init_failover(self, secondary_url, pacer, primary_provider=PRIMARY_PROVIDER, secondary_provider=SECONDARY_PROVIDER):
-diff --git a/meme_machine/solana_signature_identity.py b/meme_machine/solana_signature_identity.py
-new file mode 100644
-index 0000000..8b7b820
---- /dev/null
-+++ b/meme_machine/solana_signature_identity.py
-@@ -0,0 +1,8 @@
-+"""Transaction identity checks; no strategy, market, or freshness authority."""
-+
-+# Base58 encoding of the SDK default 64 zero bytes. This is not a signed tx id.
-+DEFAULT_SIGNATURE = "1" * 64
-+
-+
-+def is_default_signature(value):
-+    return value == DEFAULT_SIGNATURE
 diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
-index db17c29..0cff9b0 100644
+index ab28df5..bf2c3a0 100644
 --- a/tests/pump_acceleration_natural_prospective.py
 +++ b/tests/pump_acceleration_natural_prospective.py
 @@ -11,8 +11,9 @@ import json
@@ -1872,12 +1084,10 @@ index db17c29..0cff9b0 100644
  from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
  from meme_machine.pump_acceleration_strategy import (
      MODE_LATE_CURVE,MODE_POSTGRAD,MODE_SECOND_LEG,POLICY,STRATEGY_ID,
-@@ -53,11 +56,25 @@ INITIAL_LAMPORTS=INITIAL_USD_MICROS*1_000_000_000//GENESIS_SOL_USD_MICROS
- ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
+@@ -54,10 +57,24 @@ ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
  ENTRY_DELAY_SECONDS=2
  ENTRY_FILL_TIMEOUT_SECONDS=20
--FROZEN_POLICY_HASH="b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246"
-+FROZEN_POLICY_HASH="bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e"
+ FROZEN_POLICY_HASH="561ce76a334d9cdcd3b4888a9aaee24d11c9eb43f1ca20c5b806940297018bfc"
 +ACCOUNTING=None
 +PIPELINE=None
 +
@@ -1900,7 +1110,7 @@ index db17c29..0cff9b0 100644
  
  
  class Sessions:
-@@ -148,6 +165,45 @@ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
+@@ -172,6 +189,45 @@ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
      ),trajectory,confirmation
  
  
@@ -1946,7 +1156,7 @@ index db17c29..0cff9b0 100644
  def _postgrad_concentration(rpc,snapshot):
      result=rpc.call("getTokenLargestAccounts",
                      [snapshot["mint"],{"commitment":"finalized"}],True)
-@@ -224,9 +280,14 @@ def _reserve_position(report,pending,active,qualification,snapshot,mode,concentr
+@@ -248,9 +304,14 @@ def _reserve_position(report,pending,active,qualification,snapshot,mode,concentr
      if any(x["mint"]==qualification.mint and x["mode"]==mode for x in report["qualifiers"]):
          return
      reserved_at=int(snapshot["available_time"])
@@ -1962,7 +1172,7 @@ index db17c29..0cff9b0 100644
          mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
          score=qualification.score,reasons=list(qualification.reasons),
          confirmations=list(qualification.confirmations),
-@@ -250,6 +311,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -274,6 +335,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
          mint,mode=key
          life=row["lifecycle"]
          try:
@@ -1970,7 +1180,7 @@ index db17c29..0cff9b0 100644
              sessions.ensure(20)
              if mode==MODE_LATE_CURVE:
                  snapshot=sessions.pump.snapshot(mint,now,priority=True)
-@@ -280,7 +342,8 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -304,7 +366,8 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                  entry=dict(tokens=tokens,cost=cost,fee=quote.fee_amount,gas=GAS)
  
              basis=cost+GAS
@@ -1980,7 +1190,7 @@ index db17c29..0cff9b0 100644
              active[key]=dict(
                  lifecycle=life,opened=int(snapshot["available_time"]),
                  next_monitor=int(snapshot["available_time"])+5,
-@@ -291,6 +354,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -315,6 +378,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                  entry_status="filled",filled_at=int(snapshot["available_time"]),
                  fill_slot=int(snapshot["slot"]),entry=entry,
              )
@@ -1988,7 +1198,7 @@ index db17c29..0cff9b0 100644
              pending.pop(key,None)
          except (Unavailable,ValueError,KeyError,TypeError) as exc:
              reason=str(exc) or type(exc).__name__
-@@ -299,6 +363,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -323,6 +387,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                      decision_now-int(row["reserved_at"])>=ENTRY_FILL_TIMEOUT_SECONDS):
                  try:
                      life.cancel(reason,decision_now)
@@ -1996,7 +1206,7 @@ index db17c29..0cff9b0 100644
                  except ValueError:
                      pass
                  row["qualifier_row"].update(
-@@ -307,7 +372,22 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -331,7 +396,22 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
              else:
                  row["qualifier_row"]["last_fill_limitation"]=reason
  
@@ -2019,7 +1229,7 @@ index db17c29..0cff9b0 100644
      row=dict(
          mint=signal.mint,mode=signal.phase,observed_at=signal.observed_at,
          stage=stage,score=q.score,qualified=q.qualified,reasons=list(q.reasons),
-@@ -330,6 +410,10 @@ def _record_attempt(report,signal,q,stage,extra=None):
+@@ -355,6 +435,10 @@ def _record_attempt(report,signal,q,stage,extra=None):
      )
      if extra:
          row.update(extra)
@@ -2030,7 +1240,7 @@ index db17c29..0cff9b0 100644
      if stage=="full_point_in_time":
          # Full-evidence rows are an append-only experiment ledger and are never
          # removed by the rolling UI/debug attempt buffer.
-@@ -338,11 +422,147 @@ def _record_attempt(report,signal,q,stage,extra=None):
+@@ -363,11 +447,147 @@ def _record_attempt(report,signal,q,stage,extra=None):
      report["attempts"]=report["attempts"][-1000:]
  
  
@@ -2179,7 +1389,7 @@ index db17c29..0cff9b0 100644
      report=dict(
          kind="pump_acceleration_natural_prospective",
          strategy_id=STRATEGY_ID,policy_hash=actual_policy_hash,
-@@ -352,6 +572,11 @@ def main():
+@@ -377,6 +597,11 @@ def main():
          order_authority=False,signing_authority=False,transaction_submission_authority=False,
          live_money_authority=False,shared_portfolio_mutation=False,
          discovery_source="finalized_public_pump_logs",
@@ -2191,7 +1401,7 @@ index db17c29..0cff9b0 100644
          evidence_source="alchemy_http_primary_no_rescue",
          evidence_acquisition_mode=(
              "candidate_pool_finalized_stream_plus_bounded_decision_bootstrap_"
-@@ -360,12 +585,20 @@ def main():
+@@ -385,12 +610,20 @@ def main():
          velocity_window_seconds=30,extension_lookback_seconds=10,
          entry_budget_lamports=ENTRY_BUDGET,entry_fraction_bps=POLICY.entry_fraction_bps,
          entry_delay_seconds=ENTRY_DELAY_SECONDS,entry_fill_timeout_seconds=ENTRY_FILL_TIMEOUT_SECONDS,
@@ -2213,7 +1423,7 @@ index db17c29..0cff9b0 100644
      _save(report)
  
      tape=PumpTape()
-@@ -374,8 +607,13 @@ def main():
+@@ -399,8 +632,13 @@ def main():
      broker=EvidenceBroker(broker_path)
      stop=threading.Event();ready=threading.Event();pumpswap_ready=threading.Event()
      stream=PumpLogStream(primary_rpc_url(),tape,ws_url=discovery_ws_url())
@@ -2228,7 +1438,7 @@ index db17c29..0cff9b0 100644
      thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
      pumpswap_thread=threading.Thread(
          target=pumpswap_stream.run,args=(stop,pumpswap_ready),daemon=True)
-@@ -390,12 +628,18 @@ def main():
+@@ -415,12 +653,18 @@ def main():
      sessions=Sessions()
      cursor=0;created={};postgrad={};pending={};active={};full_attempts=0
      last_eval={};last_postgrad_eval={};last_save=0
@@ -2248,7 +1458,7 @@ index db17c29..0cff9b0 100644
              fresh,cursor=tape.events_since(cursor)
              for event in fresh:
                  creation=tape.creation(event["mint"])
-@@ -404,6 +648,7 @@ def main():
+@@ -429,6 +673,7 @@ def main():
                  if event["mint"] not in created:
                      created[event["mint"]]=dict(
                          creation=creation,pregrad_wallets=set(),graduated=False)
@@ -2256,7 +1466,7 @@ index db17c29..0cff9b0 100644
                      confirmations.observe_creation(creation)
                  state=created[event["mint"]]
                  if len(state["pregrad_wallets"])<500 and event.get("wallet"):
-@@ -413,7 +658,8 @@ def main():
+@@ -438,7 +683,8 @@ def main():
                      state["graduation_time"]=int(event["market_time"])
                      confirmations.observe_graduation(
                          event["mint"],int(event.get("available_time") or now))
@@ -2266,7 +1476,7 @@ index db17c29..0cff9b0 100644
                          pool=pumpswap_pool(event["mint"])
                          stream_key=pumpswap_stream.add_address(pool)
                          postgrad[event["mint"]]=dict(
-@@ -425,11 +671,18 @@ def main():
+@@ -450,11 +696,18 @@ def main():
                                  stream_key=stream_key),
                              history_status={},graduation_price=None,
                          )
@@ -2285,7 +1495,7 @@ index db17c29..0cff9b0 100644
                      mint=event.get("mint")
                      state=created.get(mint)
                      if state is None or state.get("graduated"):
-@@ -446,6 +699,33 @@ def main():
+@@ -471,6 +724,33 @@ def main():
                      if progress<POLICY.min_curve_progress_bps:
                          continue
                      last_eval[mint]=now
@@ -2319,7 +1529,7 @@ index db17c29..0cff9b0 100644
                      try:
                          sessions.ensure(25)
                          snapshot=sessions.pump.snapshot(mint,now,priority=True)
-@@ -461,8 +741,11 @@ def main():
+@@ -486,8 +766,11 @@ def main():
                                  {"trajectory":trajectory,
                                   "confirmation_evidence":_confirmation_meta(confirmation)})
                              continue
@@ -2333,7 +1543,7 @@ index db17c29..0cff9b0 100644
                              continue
                          full_attempts+=1
                          concentration,meta=sessions.reader.read(mint,snapshot,priority=True)
-@@ -480,6 +763,7 @@ def main():
+@@ -505,6 +788,7 @@ def main():
                              _reserve_position(
                                  report,pending,active,q,snapshot,MODE_LATE_CURVE,concentration)
                      except (Unavailable,ValueError,KeyError,TypeError) as exc:
@@ -2341,7 +1551,7 @@ index db17c29..0cff9b0 100644
                          report["attempts"].append(dict(
                              mint=mint,mode=MODE_LATE_CURVE,observed_at=now,
                              stage="incomplete",qualified=False,
-@@ -488,12 +772,18 @@ def main():
+@@ -513,12 +797,18 @@ def main():
              # Natural post-graduation and second-leg entries may occur during the
              # follow-up because their decision time is necessarily after migration.
              for mint,state in list(postgrad.items()):
@@ -2360,7 +1570,7 @@ index db17c29..0cff9b0 100644
                  try:
                      sessions.ensure(85)
                      graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
-@@ -537,11 +827,13 @@ def main():
+@@ -562,11 +852,13 @@ def main():
                                  _reserve_position(
                                      report,pending,active,q2,snapshot,MODE_SECOND_LEG,concentration)
                          except (Unavailable,ValueError,KeyError,TypeError) as exc:
@@ -2374,7 +1584,7 @@ index db17c29..0cff9b0 100644
                      report["postgrad"].append(dict(
                          mint=mint,observed_at=now,age_seconds=age,
                          complete=False,limitation=str(exc) or type(exc).__name__,
-@@ -552,84 +844,15 @@ def main():
+@@ -577,84 +869,15 @@ def main():
  
              # Paper entries use the repository-standard two-second delay and a fresh
              # executable quote. This is execution realism, not a strategy threshold.
@@ -2465,7 +1675,7 @@ index db17c29..0cff9b0 100644
                  counts=Counter()
                  for attempt in report["attempts"]:
                      counts[f'{attempt.get("mode")}:{attempt.get("stage")}']+=1
-@@ -649,12 +872,19 @@ def main():
+@@ -674,12 +897,19 @@ def main():
              time.sleep(1)
      finally:
          stop.set();thread.join(timeout=5);pumpswap_thread.join(timeout=5)
@@ -2485,7 +1695,7 @@ index db17c29..0cff9b0 100644
          report["full_evidence_attempts"]=full_attempts
          report["created_mints_observed"]=len(created)
          report["postgrad_candidates"]=len(postgrad)
-@@ -674,6 +904,8 @@ def main():
+@@ -699,6 +929,8 @@ def main():
          report["threshold_changes_made"]=False
          _save(report)
          broker.close()
@@ -2494,634 +1704,6 @@ index db17c29..0cff9b0 100644
      print(json.dumps(report,sort_keys=True))
  
  
-diff --git a/tests/test_broker_startup_wal.py b/tests/test_broker_startup_wal.py
-new file mode 100644
-index 0000000..7d2a8a9
---- /dev/null
-+++ b/tests/test_broker_startup_wal.py
-@@ -0,0 +1,119 @@
-+"""Concurrent cold startup, bounded local lock recovery, and evidence preservation."""
-+import multiprocessing
-+import os
-+import queue
-+import sqlite3
-+import tempfile
-+import unittest
-+from unittest.mock import patch
-+from meme_machine import solana_evidence_broker as module
-+
-+
-+def start_broker(path, barrier, output, identity):
-+    try:
-+        barrier.wait(timeout=20)
-+        broker = module.EvidenceBroker(path)
-+        broker.record_event("startup", slot=identity+1, signature=str(identity))
-+        broker.close()
-+        output.put(("ok", identity))
-+    except BaseException as error:
-+        output.put(("error", type(error).__name__, str(error)))
-+
-+
-+class StartupWALTests(unittest.TestCase):
-+    def test_real_journal_transition_waits_for_existing_reader_then_preserves_data(self):
-+        with tempfile.TemporaryDirectory() as directory:
-+            path = os.path.join(directory, "broker.sqlite")
-+            owner = sqlite3.connect(path)
-+            self.addCleanup(owner.close)
-+            owner.execute("CREATE TABLE retained(value TEXT)")
-+            owner.execute("INSERT INTO retained VALUES('original')")
-+            owner.commit()
-+            owner.execute("BEGIN")
-+            owner.execute("SELECT * FROM retained").fetchall()
-+            db = sqlite3.connect(path)
-+            self.addCleanup(db.close)
-+            waits = []
-+            def release(delay):
-+                waits.append(delay)
-+                owner.rollback()
-+            self.assertEqual(module._enable_wal(db, sleeper=release), "wal")
-+            self.assertEqual(len(waits), 1)
-+            self.assertEqual(db.execute("SELECT * FROM retained").fetchall(), [("original",)])
-+            self.assertEqual(db.execute("PRAGMA busy_timeout").fetchone()[0], 30000)
-+
-+    def test_simultaneous_fresh_processes_share_one_intact_broker(self):
-+        context = multiprocessing.get_context("spawn")
-+        with tempfile.TemporaryDirectory() as directory:
-+            path = os.path.join(directory, "broker.sqlite")
-+            barrier = context.Barrier(6)
-+            output = context.Queue()
-+            processes = [context.Process(target=start_broker,args=(path,barrier,output,i)) for i in range(6)]
-+            try:
-+                for process in processes:process.start()
-+                rows = [output.get(timeout=40) for _ in processes]
-+                for process in processes:process.join(timeout=10)
-+                self.assertEqual(sorted(rows), [("ok", i) for i in range(6)])
-+                self.assertEqual([p.exitcode for p in processes], [0]*6)
-+                broker = module.EvidenceBroker(path)
-+                try:
-+                    self.assertEqual(len(broker.recent_events("startup")), 6)
-+                    self.assertEqual(broker.db.execute("SELECT count(*) FROM stream_signature_archive").fetchone()[0], 6)
-+                    self.assertEqual(broker.db.execute("PRAGMA quick_check").fetchall(), [("ok",)])
-+                    self.assertEqual(broker.db.execute("SELECT count(*) FROM pressure").fetchone()[0], 1)
-+                    with self.assertRaisesRegex(sqlite3.IntegrityError,"append_only"):
-+                        broker.db.execute("DELETE FROM stream_signature_archive")
-+                finally:broker.close()
-+            finally:
-+                for process in processes:
-+                    if process.is_alive():process.terminate()
-+                    if process.pid is not None:process.join(timeout=5)
-+                output.close()
-+                output.join_thread()
-+
-+    def fake_db(self, code):
-+        error = sqlite3.OperationalError("test local startup failure")
-+        if code is not None:error.sqlite_errorcode=code
-+        class DB:
-+            def __init__(self):self.calls=[]
-+            def execute(self, sql):
-+                self.calls.append(sql)
-+                if sql == "PRAGMA journal_mode=WAL":raise error
-+        return DB(), error
-+
-+    def test_persistent_busy_exhausts_single_deadline_and_restores_busy_timeout(self):
-+        for code in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_BUSY | (2<<8)):
-+            with self.subTest(code=code):
-+                db, error = self.fake_db(code)
-+                now=[0.0]
-+                waits=[]
-+                def sleep(delay):
-+                    waits.append(delay);now[0]+=delay
-+                with self.assertRaises(sqlite3.OperationalError) as caught:
-+                    module._enable_wal(db, timeout=0.12, monotonic=lambda:now[0], sleeper=sleep)
-+                self.assertIs(caught.exception,error)
-+                self.assertAlmostEqual(sum(waits),0.12)
-+                self.assertEqual(db.calls.count("PRAGMA journal_mode=WAL"),4)
-+                self.assertEqual(db.calls[-1],"PRAGMA busy_timeout=30000")
-+
-+    def test_non_lock_operational_errors_fail_without_retry(self):
-+        for code in (None,sqlite3.SQLITE_CORRUPT,sqlite3.SQLITE_READONLY,sqlite3.SQLITE_IOERR):
-+            with self.subTest(code=code):
-+                db,error=self.fake_db(code)
-+                with patch.object(module.time,"sleep") as sleep:
-+                    with self.assertRaises(sqlite3.OperationalError) as caught:
-+                        module._enable_wal(db,sleeper=sleep)
-+                self.assertIs(caught.exception,error)
-+                sleep.assert_not_called()
-+                self.assertEqual(db.calls.count("PRAGMA journal_mode=WAL"),1)
-+
-+    def test_failed_constructor_closes_connection_without_initializing_consumers(self):
-+        with patch.object(module.sqlite3,"connect") as connect, patch.object(module,"_enable_wal",side_effect=sqlite3.OperationalError("locked")), patch.object(module,"EvidenceConsumers") as consumers:
-+            with self.assertRaises(sqlite3.OperationalError):module.EvidenceBroker(":memory:")
-+            connect.return_value.close.assert_called_once()
-+            consumers.assert_not_called()
-+
-+    def test_memory_broker_remains_supported(self):
-+        broker=module.EvidenceBroker(":memory:")
-+        try:self.assertEqual(broker.db.execute("PRAGMA journal_mode").fetchone()[0],"memory")
-+        finally:broker.close()
-diff --git a/tests/test_default_signature_admission.py b/tests/test_default_signature_admission.py
-new file mode 100644
-index 0000000..9c1bea1
---- /dev/null
-+++ b/tests/test_default_signature_admission.py
-@@ -0,0 +1,126 @@
-+"""Default SDK signatures remain failed evidence, without physical hydration."""
-+import json
-+import os
-+import sqlite3
-+import tempfile
-+import unittest
-+import zlib
-+from unittest.mock import patch
-+
-+from meme_machine.provider import Unavailable
-+from meme_machine.solana_evidence_broker import EvidenceBroker
-+from meme_machine.solana_evidence_consumers import StreamEvidenceService
-+from meme_machine.solana_read_rpc import ReadOnlyFailoverRPC
-+from meme_machine.solana_signature_identity import DEFAULT_SIGNATURE as ZERO
-+
-+
-+class Clock:
-+    def __init__(self):self.now=1000.
-+    def __call__(self):return self.now
-+    def sleep(self,n):self.now+=n
-+
-+
-+class Rpc:
-+    def __init__(self, result=True):self.requests=[];self.result=result
-+    def call_many(self,method,params,*args,**kwargs):
-+        self.requests.append((method,params))
-+        return [{'slot':1,'blockTime':1} if self.result else None for _ in params]
-+
-+
-+class DefaultSignatureTests(unittest.TestCase):
-+    def setUp(self):
-+        self.clock=Clock()
-+        self.b=EvidenceBroker(':memory:',clock=self.clock,sleeper=self.clock.sleep)
-+        self.addCleanup(self.b.close)
-+
-+    def test_repeated_prefetch_is_terminal_without_constructing_rpc(self):
-+        for i in range(30):
-+            self.b.consumers.register('pool',[ZERO],'stream_prefetch',1001+i)
-+        service=StreamEvidenceService(self.b,lambda:self.fail('invalid identity reached provider'))
-+        with patch.dict(os.environ,{'MM_CERT_GOVERNOR_DB':''}):
-+            for _ in range(3):self.assertFalse(service.step())
-+        self.assertEqual(self.b.db.execute('SELECT deadline,state,first_transport_at FROM evidence_consumers').fetchone(),
-+            (1001.,'invalid_default_transaction_signature',None))
-+        self.assertEqual(self.b.db.execute('SELECT count(*) FROM evidence_terminals').fetchone()[0],1)
-+        self.assertEqual(self.b.db.execute('SELECT count(*) FROM acquisition_phases').fetchone()[0],1)
-+        self.assertEqual(self.b.db.execute('SELECT count(*) FROM jobs').fetchone()[0],0)
-+        self.assertEqual(self.b.consumers.telemetry()['acquisition_failures'],{})
-+        with self.assertRaises(sqlite3.IntegrityError):
-+            with self.b.db:self.b.db.execute('DELETE FROM evidence_terminals')
-+
-+    def test_mixed_batch_acquires_real_identity_once_and_never_qualifies_default(self):
-+        rpc=Rpc()
-+        for owner in ('pump','meteora'):
-+            result,meta=self.b.hydrate_transactions(rpc,[ZERO,'real',ZERO],kind='pump_window',
-+                deadline=self.clock()+4,owner=owner)
-+            self.assertIsNone(result[ZERO]);self.assertEqual(result['real']['slot'],1)
-+            self.assertEqual((meta['hydrated'],meta['pending']),(1,1))
-+        self.assertEqual([[p[0] for p in params] for _,params in rpc.requests],[['real']])
-+        self.assertEqual(self.b.db.execute("SELECT count(*) FROM evidence_terminals WHERE signature=? AND reason='invalid_default_transaction_signature'",(ZERO,)).fetchone()[0],2)
-+        self.assertEqual(self.b.db.execute("SELECT count(*) FROM jobs WHERE job_key=?",('tx:'+ZERO,)).fetchone()[0],0)
-+
-+    def test_foreground_default_preserves_original_deadline_and_no_provider_failure(self):
-+        rpc=Rpc()
-+        result,meta=self.b.hydrate_transactions(rpc,[ZERO],kind='pump_window',deadline=1004,owner='window')
-+        self.assertEqual(result,{ZERO:None});self.assertEqual(meta['acquisition_batches'],0)
-+        self.assertEqual(rpc.requests,[])
-+        self.assertEqual(self.b.db.execute('SELECT deadline,reason FROM evidence_terminals').fetchone(),
-+            (1004.,'invalid_default_transaction_signature'))
-+        stats=self.b.consumers.telemetry()
-+        self.assertEqual(stats['acquisition_phase_attempts'],{'invalid_default_transaction_signature':1})
-+        self.assertEqual(stats['acquisition_failures'],{})
-+
-+    def test_valid_null_can_recover_without_reviving_expired_consumer(self):
-+        rpc=Rpc(False)
-+        self.b.hydrate_transactions(rpc,['real'],kind='pump_window',deadline=1001,owner='old')
-+        self.clock.now=1002;rpc.result=True
-+        result,meta=self.b.hydrate_transactions(rpc,['real'],kind='pump_window',deadline=1004,owner='new')
-+        self.assertEqual(meta['pending'],0);self.assertEqual(len(rpc.requests),2)
-+        self.assertEqual(dict(self.b.db.execute('SELECT owner,state FROM evidence_consumers')),
-+            {'old':'consumer_deadline_expired','new':'evidence_complete'})
-+
-+    def test_distinct_default_observations_preserve_raw_payload_and_valid_reentry(self):
-+        for slot,logs in ((1,['a']),(1,['b']),(2,['b'])):
-+            self.b.record_event('stream',signature=ZERO,address='pool',slot=slot,
-+                payload={'signature':ZERO,'logs':logs})
-+        self.b.record_event('stream',signature='real',address='pool',slot=3)
-+        rows=self.b.db.execute('SELECT signature,payload FROM stream_signature_archive').fetchall()
-+        self.assertEqual(len(rows),4)
-+        self.assertEqual(sum(json.loads(zlib.decompress(p))['signature']==ZERO for s,p in rows if s==ZERO),3)
-+        self.assertIsNone(self.b.get_transaction(ZERO))
-+        result,meta=self.b.hydrate_transactions(Rpc(),['real'],kind='pump_window',deadline=1004)
-+        self.assertEqual(meta['pending'],0)
-+
-+    def test_direct_queue_and_cache_cannot_create_default_job_or_success(self):
-+        self.assertFalse(self.b.queue_transaction(ZERO,kind='pump_window',deadline=1004))
-+        with self.assertRaisesRegex(ValueError,'invalid_default_transaction_signature'):
-+            self.b.put_transaction(ZERO,{'slot':1})
-+        self.assertEqual(self.b.db.execute('SELECT count(*) FROM jobs').fetchone()[0],0)
-+        self.assertEqual(self.b.db.execute('SELECT count(*) FROM immutable_transactions').fetchone()[0],0)
-+
-+    def test_shared_rpc_routes_invalid_identity_to_terminal_without_transport(self):
-+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,
-+            MM_SOLANA_EVIDENCE_BROKER_DB=td+'/broker.db',MM_CERT_GOVERNOR_DB=''):
-+            wire=[]
-+            def transport(q):
-+                wire.append(q);self.fail('default signature reached transport')
-+            rpc=ReadOnlyFailoverRPC('https://solana-mainnet.g.alchemy.com/v2/test',
-+                transport=transport,sleeper=lambda n:None)
-+            try:
-+                with self.assertRaisesRegex(Unavailable,'transaction_evidence_incomplete'):
-+                    rpc.call('getTransaction',[ZERO,dict(commitment='finalized',encoding='json',
-+                        maxSupportedTransactionVersion=1)],True)
-+                self.assertEqual(wire,[])
-+                with sqlite3.connect(td+'/broker.db') as db:
-+                    self.assertEqual(db.execute('SELECT reason FROM evidence_terminals').fetchone()[0],
-+                        'invalid_default_transaction_signature')
-+            finally:
-+                if hasattr(rpc,'_immutable_broker'):rpc._immutable_broker.close()
-+
-+    def test_legacy_waiting_default_is_terminal_before_background_selection(self):
-+        with self.b.db:
-+            self.b.db.execute('INSERT INTO evidence_consumers(owner,signature,kind,deadline,created_at) VALUES(?,?,?,?,?)',
-+                ('legacy',ZERO,'stream_prefetch',1004,1000))
-+        self.assertEqual(self.b.consumers.batch(),[])
-+        self.assertEqual(self.b.db.execute('SELECT reason FROM evidence_terminals').fetchone()[0],
-+            'invalid_default_transaction_signature')
-diff --git a/tests/test_evidence_attribution.py b/tests/test_evidence_attribution.py
-new file mode 100644
-index 0000000..f1224cf
---- /dev/null
-+++ b/tests/test_evidence_attribution.py
-@@ -0,0 +1,37 @@
-+import os
-+import tempfile
-+import unittest
-+from pathlib import Path
-+from unittest.mock import patch
-+from meme_machine.solana_evidence_broker import EvidenceBroker
-+
-+class AttributionTests(unittest.TestCase):
-+    def test_cross_lane_counts_preserve_original_deadline_and_history(self):
-+        with tempfile.TemporaryDirectory() as d:
-+            now=[100.]
-+            broker=EvidenceBroker(str(Path(d)/'e.db'),clock=lambda:now[0],sleeper=lambda _:None)
-+            self.addCleanup(broker.close)
-+            with patch.dict(os.environ,{'MM_CERTIFICATION_LANE':'pump'}):
-+                broker.consumers.register('pump:p',['x','x'],'pump_window',101,candidate_id='p')
-+                broker.consumers.register('pump:p',['x'],'pump_window',110,candidate_id='p')
-+                broker.consumers.failure('provider_unavailable')
-+            with patch.dict(os.environ,{'MM_CERTIFICATION_LANE':'meteora'}):
-+                broker.consumers.register('meteora:q',['y'],'dlmm_fresh',110,candidate_id='q')
-+            broker.consumers.first_transport(['x'])
-+            now[0]=102
-+            p=broker.consumers.telemetry('pump');m=broker.consumers.telemetry('meteora')
-+            self.assertEqual(p['by_kind']['pump_window']['consumer_deadline_expired'],1)
-+            self.assertNotIn('pump_window',m['by_kind'])
-+            self.assertEqual(p['candidate_interests'],1)
-+            self.assertEqual(m['acquisition_failures'],{})
-+            self.assertEqual(broker.db.execute("SELECT deadline,created_at,first_transport_at FROM evidence_consumers WHERE owner='pump:p'").fetchone(),(101,100,100))
-+            self.assertEqual(broker.db.execute('SELECT COUNT(*) FROM evidence_terminals').fetchone()[0],1)
-+    def test_prefetch_yields_to_admitted_foreground_until_original_deadline(self):
-+        broker=EvidenceBroker(':memory:',clock=lambda:100,sleeper=lambda _:None)
-+        self.addCleanup(broker.close)
-+        broker.consumers.register('background',['b'],'stream_prefetch',110)
-+        self.assertEqual(len(broker.consumers.batch()),1)
-+        broker.consumers.register('candidate',['c'],'pump_window',105,candidate_id='c')
-+        self.assertEqual(broker.consumers.batch(),[])
-+        broker.consumers.settle('candidate','explicit_terminal')
-+        self.assertEqual(len(broker.consumers.batch()),1)
-diff --git a/tests/test_evidence_consumers.py b/tests/test_evidence_consumers.py
-new file mode 100644
-index 0000000..d2ca499
---- /dev/null
-+++ b/tests/test_evidence_consumers.py
-@@ -0,0 +1,165 @@
-+import os
-+import sqlite3
-+import tempfile
-+import time
-+import unittest
-+from unittest.mock import patch
-+
-+from meme_machine.provider import Unavailable
-+from meme_machine.solana_evidence_broker import EvidenceBroker, DynamicAddressLogStream
-+from meme_machine.solana_evidence_consumers import StreamEvidenceService
-+from tests.test_solana_evidence_broker import _Clock, _Rpc
-+
-+
-+class PacedRpc(_Rpc):
-+    def __init__(self, clock):
-+        super().__init__()
-+        self.clock, self.calls, self.limit = clock, 0, 240;self.read_pacer=type('P',(),{'minimum_interval':.5})()
-+    def call_many(self, method, params, *args, **kwargs):
-+        self.calls += len(params)
-+        self.clock.sleep(.5)  # Same conservative two-transport/second ceiling.
-+        return super().call_many(method, params, *args, **kwargs)
-+    def provider_telemetry(self): return dict(requests=len(self.batches), logical=self.calls)
-+
-+
-+class EvidenceConsumerTests(unittest.TestCase):
-+    def broker(self):
-+        clock=_Clock()
-+        b=EvidenceBroker(':memory:',clock=clock,sleeper=clock.sleep)
-+        self.addCleanup(b.close)
-+        return b,clock
-+
-+    def test_sparse_prefetch_warms_cache_without_competing_with_foreground(self):
-+        incremental,tick=self.broker()
-+        ahead=PacedRpc(tick)
-+        service=StreamEvidenceService(incremental,lambda:ahead)
-+        signatures=[f's-{i}' for i in range(16)]
-+        incremental.consumers.register(
-+            'pump:pool',signatures,'stream_prefetch',tick()+32)
-+        self.assertTrue(service.step())
-+        for _ in range(2):
-+            tick.sleep(.5)
-+            self.assertFalse(service.step())
-+        self.assertEqual(len(ahead.batches),1)
-+        _,complete=incremental.hydrate_transactions(
-+            ahead,signatures,kind='pump_window',deadline=tick()+4)
-+        self.assertEqual(complete['hydrated'],16)
-+        self.assertEqual(len(ahead.batches),2)
-+        self.assertEqual(service.prefetch_batches,1)
-+
-+    def test_prefetch_defers_while_shared_solana_provider_is_busy(self):
-+        b,c=self.broker();rpc=PacedRpc(c);service=StreamEvidenceService(b,lambda:rpc)
-+        b.consumers.register('pump:pool',['s'],'stream_prefetch',c()+32)
-+        with tempfile.TemporaryDirectory() as td:
-+            path=os.path.join(td,'governor.sqlite')
-+            db=sqlite3.connect(path)
-+            db.execute('CREATE TABLE pressure(provider TEXT PRIMARY KEY,next_at REAL,cooldown REAL,grants INTEGER,rate_errors INTEGER)')
-+            db.execute('CREATE TABLE queue(id TEXT,provider TEXT,lane TEXT,priority INTEGER,created REAL,deadline REAL)')
-+            db.execute('INSERT INTO pressure VALUES(?,?,?,?,?)',
-+                       ('solana',time.monotonic()+10,0,0,0))
-+            db.commit();db.close()
-+            with patch.dict(os.environ,{'MM_CERT_GOVERNOR_DB':path}):
-+                self.assertFalse(service.step())
-+        self.assertEqual(len(rpc.batches),0)
-+        self.assertEqual(service.provider_busy_deferrals,1)
-+
-+    def test_burst_keeps_all_censoring_but_admits_only_serviceable_jobs(self):
-+        b,c=self.broker()
-+        _,meta=b.hydrate_transactions(PacedRpc(c),[str(i) for i in range(2000)],
-+                                     kind='pump_window',deadline=c()+4)
-+        self.assertEqual(meta['pending'],1936)
-+        self.assertLessEqual(b.db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0],72)
-+        c.sleep(.1)
-+        stats=b.consumers.telemetry()
-+        censored=sum(x['count'] for x in stats['consumers'] if x['state']=='consumer_deadline_expired')
-+        self.assertEqual(censored,1936)
-+
-+    def test_retirement_preserves_other_owner_and_original_deadline(self):
-+        b,c=self.broker()
-+        b.consumers.register('pump:pool',['shared'],'stream_prefetch',c()+1)
-+        b.consumers.register('meteora:pool',['shared'],'dlmm_fresh',c()+20)
-+        b.consumers.register('pump:pool',['shared'],'stream_prefetch',c()+99)
-+        self.assertEqual(b.db.execute('SELECT deadline FROM evidence_consumers WHERE owner=?',
-+                                     ('pump:pool',)).fetchone()[0],1001)
-+        b.consumers.settle('pump:pool','consumer_retired')
-+        _,meta=b.hydrate_transactions(_Rpc(),['shared'],kind='dlmm_fresh',deadline=c()+10,
-+                                     owner='meteora:pool')
-+        self.assertEqual(meta['pending'],0)
-+        rows=dict(b.db.execute('SELECT owner,state FROM evidence_consumers'))
-+        self.assertEqual(rows,{'pump:pool':'consumer_retired','meteora:pool':'evidence_complete'})
-+
-+    def test_late_cache_never_relabels_expired_consumer_complete(self):
-+        b,c=self.broker()
-+        b.consumers.register('one',['s'],'pump_window',c()+.1)
-+        c.sleep(.2)
-+        b.put_transaction('s',dict(slot=1,blockTime=1))
-+        b.consumers.settle()
-+        self.assertEqual(b.db.execute('SELECT state FROM evidence_consumers').fetchone()[0],
-+                         'consumer_deadline_expired')
-+
-+    def test_local_budget_failure_is_not_provider_rate_pressure(self):
-+        class Failed(_Rpc):
-+            def call_many(self,*a,**k):raise Unavailable('provider_budget_exhausted')
-+        b,c=self.broker()
-+        b.hydrate_transactions(Failed(),['s'],kind='pump_window',deadline=c()+4)
-+        self.assertEqual(b.telemetry()['pressure']['rate_events'],0)
-+        self.assertEqual(b.consumers.telemetry()['acquisition_failures'],
-+                         {'local_request_budget_exhausted':1})
-+
-+    def test_real_rate_pressure_still_backs_off(self):
-+        class Failed(_Rpc):
-+            failure_methods={}
-+            def call_many(self,*a,**k):
-+                self.failure_methods={'getTransaction:http_429':1}
-+                raise Unavailable('provider_request_failed')
-+        b,c=self.broker()
-+        b.hydrate_transactions(Failed(),['s'],kind='pump_window',deadline=c()+4)
-+        self.assertEqual(b.telemetry()['pressure']['rate_events'],1)
-+
-+    def test_shared_interest_reuses_single_physical_fetch(self):
-+        with tempfile.TemporaryDirectory() as path:
-+            c=_Clock()
-+            a=EvidenceBroker(path+'/shared.sqlite',clock=c,sleeper=c.sleep)
-+            b=EvidenceBroker(path+'/shared.sqlite',clock=c,sleeper=c.sleep)
-+            try:
-+                a.consumers.register('pump',['s'],'pump_window',c()+4)
-+                b.consumers.register('meteora',['s'],'dlmm_fresh',c()+4)
-+                rpc=_Rpc()
-+                a.hydrate_transactions(rpc,['s'],kind='pump_window',deadline=c()+4,owner='pump')
-+                b.hydrate_transactions(rpc,['s'],kind='dlmm_fresh',deadline=c()+4,owner='meteora')
-+                self.assertEqual(len(rpc.batches),1)
-+                self.assertEqual(a.db.execute("SELECT COUNT(*) FROM evidence_terminals WHERE reason='evidence_complete'").fetchone()[0],2)
-+            finally:a.close();b.close()
-+
-+    def test_cached_reuse_does_not_multiply_acquisition_consumers(self):
-+        b,c=self.broker();b.put_transaction('cached',dict(slot=1,blockTime=1))
-+        _,meta=b.hydrate_transactions(_Rpc(),['cached'],kind='pump_window',
-+                                      deadline=c()+4,owner='decision:one')
-+        self.assertEqual(meta['hydrated'],1)
-+        self.assertEqual(b.db.execute('SELECT COUNT(*) FROM evidence_consumers').fetchone()[0],0)
-+
-+    def test_prefetch_filter_reduces_work_without_hiding_stream_signature(self):
-+        b,c=self.broker()
-+        stream=DynamicAddressLogStream('unused',b,'pool',prefetch=True,clock=c,
-+            prefetch_filter=lambda address,value,slot:value.get('economic') is True)
-+        owner=stream.add_address('a')
-+        b.record_event(owner,signature='noise',address='a',slot=1,observed_at=int(c()))
-+        self.assertFalse(stream.should_prefetch('a',{'economic':False},1))
-+        self.assertEqual([x['signature'] for x in b.recent_events(owner,since=c()-1)],['noise'])
-+        self.assertEqual(b.db.execute('SELECT COUNT(*) FROM evidence_consumers').fetchone()[0],0)
-+        self.assertTrue(stream.should_prefetch('a',{'economic':True},2))
-+        self.assertEqual(stream.status()['prefetch_notifications'],2)
-+        self.assertEqual(stream.status()['prefetch_admitted'],1)
-+
-+    def test_stream_retirement_is_durable_and_does_not_fetch_more(self):
-+        b,c=self.broker()
-+        stream=DynamicAddressLogStream('unused',b,'pool',prefetch=True,clock=c)
-+        owner=stream.add_address('a')
-+        b.consumers.register(owner,['s'],'stream_prefetch',c()+32)
-+        stream.remove_address('a')
-+        self.assertEqual(b.consumers.batch(),[])
-+        self.assertEqual(b.db.execute('SELECT reason FROM evidence_terminals').fetchone()[0],
-+                         'consumer_retired')
-+
-+
-+if __name__=='__main__':unittest.main()
-diff --git a/tests/test_local_admission_retry.py b/tests/test_local_admission_retry.py
-new file mode 100644
-index 0000000..4d429e2
---- /dev/null
-+++ b/tests/test_local_admission_retry.py
-@@ -0,0 +1,45 @@
-+import unittest
-+from meme_machine.provider import RPC,Unavailable
-+
-+
-+class LocalAdmissionRetryTests(unittest.TestCase):
-+    def test_local_batch_or_single_rejection_never_retries_or_counts_provider_failure(self):
-+        for batch in (False,True):
-+            for reason in ('evidence_deadline_before_transport','certification_provider_queue_deadline',
-+                           'certification_provider_queue_capacity'):
-+                with self.subTest(batch=batch,reason=reason):
-+                    class AdmissionRpc(RPC):
-+                        attempts=0
-+                        def _http(self,request):
-+                            self.attempts+=1
-+                            self.evidence_local_failure=reason
-+                            raise TimeoutError(reason)
-+                    rpc=AdmissionRpc('https://invalid.example',clock=lambda:10,sleeper=lambda _:None)
-+                    rpc.evidence_deadline=11
-+                    with self.assertRaisesRegex(Unavailable,reason):
-+                        if batch:rpc.call_many('getTransaction',[[str(i)] for i in range(8)])
-+                        else:rpc.call('getTransaction',['sig'])
-+                    self.assertEqual(rpc.attempts,1)
-+                    self.assertEqual(rpc.http_requests,0)
-+                    self.assertEqual(rpc.retries,0)
-+                    self.assertEqual(rpc.failures,0)
-+                    self.assertEqual(rpc.failure_kinds,{})
-+                    self.assertEqual(rpc.evidence_deadline,11)
-+
-+    def test_pacer_cannot_send_after_original_deadline(self):
-+        for batch in (False,True):
-+            for initial in (10,12):
-+                with self.subTest(batch=batch,initial=initial):
-+                    clock=[initial]
-+                    class ExpiringRpc(RPC):
-+                        def _pace(self,*args):clock[0]=12
-+                        def _http(self,request):raise AssertionError('expired request reached transport')
-+                    rpc=ExpiringRpc('https://invalid.example',clock=lambda:clock[0],sleeper=lambda _:None)
-+                    rpc.evidence_deadline=11
-+                    with self.assertRaisesRegex(Unavailable,'evidence_deadline_before_transport'):
-+                        if batch:rpc.call_many('getTransaction',[['sig']])
-+                        else:rpc.call('getTransaction',['sig'])
-+                    self.assertEqual(rpc.calls,0)
-+                    self.assertEqual(rpc.http_requests,0)
-+                    self.assertEqual(rpc.failures,0)
-+                    self.assertEqual(rpc.retries,0)
-diff --git a/tests/test_opportunity_coverage.py b/tests/test_opportunity_coverage.py
-new file mode 100644
-index 0000000..bad967e
---- /dev/null
-+++ b/tests/test_opportunity_coverage.py
-@@ -0,0 +1,23 @@
-+import sqlite3
-+import tempfile
-+import unittest
-+from pathlib import Path
-+from meme_machine.pipeline import Pipeline
-+
-+class OpportunityCoverageTests(unittest.TestCase):
-+    def test_unique_candidates_not_consumer_or_attempt_count_and_replay(self):
-+        with tempfile.TemporaryDirectory() as d:
-+            path=Path(d)/'progress.db'
-+            p=Pipeline(path,'pump','frozen')
-+            for _ in range(10):p.record('mint','evidence_requested')
-+            p.record('mint','terminal','queue_deadline','capacity_censored')
-+            p.record('mint','evidence_complete')
-+            p.record('other','discovered')
-+            expected=p.snapshot()
-+            self.assertEqual(expected['stages']['evidence_requested'],1)
-+            self.assertEqual(expected['unique_classes']['capacity_censored'],1)
-+            self.assertEqual(p.db.execute('SELECT COUNT(*) FROM progress').fetchone()[0],13)
-+            with self.assertRaises(sqlite3.IntegrityError):p.db.execute('DELETE FROM progress')
-+            p.close();q=Pipeline(path,'pump','frozen')
-+            self.assertEqual(q.snapshot(),expected);q.close()
-+            with self.assertRaisesRegex(ValueError,'namespace'):Pipeline(path,'meteora','frozen')
-diff --git a/tests/test_paper_accounting.py b/tests/test_paper_accounting.py
-new file mode 100644
-index 0000000..25ba1d5
---- /dev/null
-+++ b/tests/test_paper_accounting.py
-@@ -0,0 +1,71 @@
-+import json
-+import sqlite3
-+import tempfile
-+from concurrent.futures import ThreadPoolExecutor
-+from pathlib import Path
-+import unittest
-+from meme_machine.paper_accounting import PaperBook
-+from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
-+from tests.test_pump_acceleration_paper import qualification
-+
-+
-+class PaperAccountingTests(unittest.TestCase):
-+    def setUp(self):
-+        self.temp=tempfile.TemporaryDirectory()
-+        self.path=str(Path(self.temp.name)/'book.sqlite')
-+        self.book=self.open()
-+    def tearDown(self):
-+        self.book.db.close()
-+        self.temp.cleanup()
-+    def open(self):
-+        return PaperBook(self.path,run_id='r',lane='pump',policy_hash='frozen',initial=1000)
-+    def test_actual_lifecycle_replays_after_close_without_recycling_genesis(self):
-+        life=PumpAccelerationPaperLifecycle(book=self.book,lifecycle_id='r:one')
-+        life.reserve(qualification(),600,100)
-+        life.fill(100,550,102,'pump.fun',evidence={'gas':10,'fee':5})
-+        life.mark(700,110,80)
-+        life.mark(550,120,20)
-+        life.settle(550,122)
-+        self.assertEqual(self.book.reconcile()['cash'],1000)
-+        self.assertEqual(self.book.reconcile()['capital_unit_seconds'],12200)
-+        self.book.close();self.book=self.open()
-+        self.assertEqual(self.book.replay()['cash'],1000)
-+        self.book.reserve('r:two',600,123,{})
-+        self.assertEqual(self.book.reconcile()['cash'],400)
-+    def test_atomic_reservation_across_independent_connections(self):
-+        other=self.open()
-+        def reserve(pair):
-+            b,name=pair
-+            try:b.reserve(name,600,10,{});return True
-+            except ValueError as e:
-+                self.assertEqual(str(e),'paper_capital_exhausted');return False
-+        with ThreadPoolExecutor(2) as pool:
-+            out=list(pool.map(reserve,[(self.book,'r:a'),(other,'r:b')]))
-+        self.assertEqual(sorted(out),[False,True]);other.close()
-+        self.assertEqual(self.book.reconcile()['reserved'],600)
-+    def test_duplicate_settlement_and_namespace_fail_closed(self):
-+        self.book.reserve('r:a',400,10,{})
-+        self.book.transition('r:a','filled',12,amount=390,tokens=10)
-+        self.book.transition('r:a','settled',20,amount=420)
-+        with self.assertRaisesRegex(ValueError,'duplicate'):
-+            self.book.transition('r:a','settled',21,amount=420)
-+        self.assertEqual(self.book.reconcile()['cash'],1030)
-+        with self.assertRaisesRegex(ValueError,'identity'):
-+            self.book.reserve('other:a',10,21,{})
-+    def test_append_only_and_mutable_projection_corruption_detected(self):
-+        self.book.reserve('r:a',400,10,{})
-+        with self.assertRaises(sqlite3.IntegrityError):
-+            self.book.db.execute('DELETE FROM journal')
-+        p=json.loads(self.book.db.execute('SELECT body FROM positions').fetchone()[0])
-+        p['reserved']=0
-+        self.book.db.execute('UPDATE positions SET body=?',(json.dumps(p),))
-+        with self.assertRaisesRegex(ValueError,'projection'):
-+            self.book.replay()
-+    def test_float_money_time_regression_and_overfill_fail(self):
-+        with self.assertRaises(ValueError):self.book.reserve('r:a',400.0,10,{})
-+        self.book.reserve('r:a',400,10,{})
-+        with self.assertRaises(ValueError):self.book.transition('r:a','filled',12,amount=401,tokens=5)
-+        with self.assertRaises(ValueError):self.book.transition('r:a','cancelled',9)
-+        self.assertEqual(self.book.reconcile()['reserved'],400)
-+
-+if __name__=='__main__':unittest.main()
 diff --git a/tests/test_pump_acceleration_history.py b/tests/test_pump_acceleration_history.py
 index a9eaead..79e2bdc 100644
 --- a/tests/test_pump_acceleration_history.py
@@ -3259,87 +1841,6 @@ index 9e3de78..a5ef025 100644
      def test_harness_is_frozen_and_paper_only(self):
          self.assertEqual(STRATEGY_ID,"pump-acceleration-independent-v1")
          self.assertEqual(len(policy_hash()),64)
-diff --git a/tests/test_pump_continuous_campaign.py b/tests/test_pump_continuous_campaign.py
-new file mode 100644
-index 0000000..80cf79e
---- /dev/null
-+++ b/tests/test_pump_continuous_campaign.py
-@@ -0,0 +1,75 @@
-+import json
-+from pathlib import Path
-+from types import SimpleNamespace
-+import tempfile
-+import threading
-+import unittest
-+from unittest.mock import Mock,patch
-+from meme_machine import solana_evidence_broker as broker_module
-+from tests import pump_acceleration_natural_prospective as strategy
-+
-+
-+class CampaignTests(unittest.TestCase):
-+    def test_rolling_budget_preserves_the_original_rate(self):
-+        budget=strategy.RollingAttemptBudget(limit=2)
-+        self.assertTrue(budget.take(1));self.assertTrue(budget.take(2))
-+        self.assertFalse(budget.take(3300));self.assertTrue(budget.take(3301))
-+        self.assertFalse(budget.take(3301.5));self.assertTrue(budget.take(3302))
-+
-+    def test_retirement_keeps_open_and_pending_state_and_durable_terminal(self):
-+        history=SimpleNamespace(status=lambda now:dict(complete=True,at=now))
-+        postgrad={name:dict(graduation_time=100,pool=name+'-pool',history=history)
-+                  for name in ('expired','open','pending','young')}
-+        postgrad['young']['graduation_time']=1000
-+        stream=Mock();report={}
-+        with tempfile.TemporaryDirectory() as td,patch.object(strategy,'REPORT',Path(td)/'report.json'):
-+            strategy._retire_postgrad(report,postgrad,{('pending','mode'):{}},{('open','mode'):{}},stream,1100)
-+            terminal=json.loads((Path(td)/'report.terminal.jsonl').read_text())
-+        self.assertEqual(set(postgrad),{'open','pending','young'})
-+        stream.remove_address.assert_called_once_with('expired-pool')
-+        self.assertEqual(terminal['terminal_reason'],'postgrad_entry_horizon_expired')
-+        self.assertEqual(terminal['policy_hash'],strategy.FROZEN_POLICY_HASH)
-+        self.assertEqual(report['retired_postgrad_candidates'],1)
-+
-+    def test_extended_runtime_is_explicit_and_does_not_mutate_policy(self):
-+        before=strategy.policy_hash()
-+        with self.assertRaisesRegex(ValueError,'runtime_bound'):strategy.main(discovery_seconds=14400)
-+        with patch.object(strategy.ConfirmationBook,'from_files',side_effect=RuntimeError('offline-boundary')):
-+            with self.assertRaisesRegex(RuntimeError,'offline-boundary'):
-+                strategy.main(campaign=True,discovery_seconds=14400)
-+        self.assertEqual(before,strategy.policy_hash())
-+
-+    def test_stream_retirement_waits_for_ack_and_readd_requires_fresh_begin(self):
-+        stop=threading.Event();broker=Mock();stream=broker_module.DynamicAddressLogStream('unused',broker,'test',clock=lambda:100)
-+        stream.add_address('pool');sent=[];queue=[];subscriptions=[0];steps=[0]
-+        class Socket:
-+            def __enter__(self):return self
-+            def __exit__(self,*args):pass
-+            def send(self,raw):
-+                value=json.loads(raw);sent.append(value)
-+                if value['method']=='logsSubscribe':
-+                    subscriptions[0]+=1
-+                    queue.append(dict(id=value['id'],result=7)) # Provider reuses ID after retirement.
-+                else:
-+                    self_outer.assertEqual(broker.stream_stop.call_count,0)
-+                    queue.append(dict(id=value['id'],result=True))
-+            def recv(self,**kwargs):
-+                if queue:return json.dumps(queue.pop(0))
-+                steps[0]+=1
-+                if steps[0]==1:stream.remove_address('pool')
-+                elif steps[0]==2:
-+                    self_outer.assertEqual(broker.stream_stop.call_count,1)
-+                    stream.add_address('pool')
-+                elif steps[0]==3:
-+                    return json.dumps(dict(method='logsNotification',params=dict(subscription=7,result=dict(
-+                        context=dict(slot=123),value=dict(signature='new-signature',err=None)))))
-+                else:stop.set()
-+                raise TimeoutError()
-+        self_outer=self
-+        with patch.object(broker_module,'connect',return_value=Socket()):stream.run(stop)
-+        self.assertEqual([x['method'] for x in sent],['logsSubscribe','logsUnsubscribe','logsSubscribe'])
-+        self.assertEqual(broker.stream_begin.call_count,2)
-+        broker.record_event.assert_called_once()
-+        self.assertEqual(broker.record_event.call_args.kwargs['signature'],'new-signature')
-+        self.assertEqual(stream.reconnects,0)
-+        broker.stream_gap.assert_not_called()
 diff --git a/tests/test_solana_evidence_broker.py b/tests/test_solana_evidence_broker.py
 index 3115376..e6bd7dc 100644
 --- a/tests/test_solana_evidence_broker.py
@@ -3408,347 +1909,3 @@ index 3115376..e6bd7dc 100644
 +            first._complete_jobs(['tx:needed'])
 +            rpc=_Rpc();values,meta=second.hydrate_transactions(rpc,['needed'],kind='position_monitor',deadline=clock()+2)
 +            self.assertEqual(meta['pending'],0);self.assertEqual(rpc.batches,[])
-diff --git a/tests/test_solana_immutable_efficiency.py b/tests/test_solana_immutable_efficiency.py
-new file mode 100644
-index 0000000..6b52e6c
---- /dev/null
-+++ b/tests/test_solana_immutable_efficiency.py
-@@ -0,0 +1,161 @@
-+import json,os,sqlite3,tempfile,time,unittest
-+from pathlib import Path
-+from unittest.mock import patch
-+from meme_machine.solana_read_rpc import ReadOnlyFailoverRPC
-+from meme_machine.solana_evidence_broker import EvidenceBroker,DynamicAddressLogStream
-+from meme_machine.solana_immutable_rpc import ImmutableReads
-+from meme_machine.provider import Unavailable
-+
-+class SolanaEfficiencyTests(unittest.TestCase):
-+    def setUp(self):
-+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
-+        self.db=str(Path(self.temp.name)/'shared.db')
-+        self.env=patch.dict(os.environ,MM_SOLANA_EVIDENCE_BROKER_DB=self.db,MM_CERTIFICATION_LANE='pump');self.env.start();self.addCleanup(self.env.stop)
-+        self.wire=[]
-+    def rpc(self,url='https://solana-mainnet.g.alchemy.com/v2/test'):
-+        def transport(q):
-+            rows=q if isinstance(q,list) else [q];out=[]
-+            for x in rows:
-+                self.wire.append(x)
-+                result={'getGenesisHash':'mainnet','getBlockTime':123,'getTransaction':{'slot':7,'blockTime':123,'meta':{}},'getMultipleAccounts':{'context':{'slot':7},'value':[]}}[x['method']]
-+                out.append(dict(id=x['id'],jsonrpc='2.0',result=result))
-+            return out if isinstance(q,list) else out[0]
-+        return ReadOnlyFailoverRPC(url,transport=transport,sleeper=lambda s:None)
-+    def params(self):return ['sig',dict(encoding='json',commitment='finalized',maxSupportedTransactionVersion=1)]
-+    def test_pump_meteora_and_rotated_candidates_fetch_one_body(self):
-+        a=self.rpc();first=a.call('getTransaction',self.params(),True)
-+        for lane in ('pump','meteora','pump'):
-+            with patch.dict(os.environ,MM_CERTIFICATION_LANE=lane):self.assertEqual(self.rpc().call('getTransaction',self.params(),True),first)
-+        self.assertEqual(len(self.wire),1)
-+    def test_genesis_proof_survives_rotation_but_not_endpoint_change(self):
-+        self.rpc().call('getGenesisHash');self.rpc().call('getGenesisHash')
-+        self.assertEqual(len(self.wire),1)
-+        self.rpc('https://solana-mainnet.g.alchemy.com/v2/different').call('getGenesisHash')
-+        self.assertEqual(len(self.wire),2)
-+    def test_shared_block_time_requires_finality_proof(self):
-+        a=self.rpc();a.call('getMultipleAccounts',[[],{'commitment':'finalized'}]);a.call('getBlockTime',[7])
-+        self.rpc().call('getBlockTime',[7]);self.assertEqual(sum(q['method']=='getBlockTime' for q in self.wire),1)
-+        self.rpc().call('getBlockTime',[8]);self.rpc().call('getBlockTime',[8])
-+        self.assertEqual(sum(q['method']=='getBlockTime' for q in self.wire),3)
-+    def test_dynamic_accounts_are_not_shared_across_rotations(self):
-+        for _ in range(2):self.rpc().call('getMultipleAccounts',[['a'],{'commitment':'finalized'}])
-+        self.assertEqual(len(self.wire),2)
-+    def test_confirmed_transaction_does_not_populate_finalized_cache(self):
-+        p=self.params();p[1]['commitment']='confirmed';self.rpc().call('getTransaction',p,True)
-+        self.rpc().call('getTransaction',self.params(),True);self.assertEqual(len(self.wire),2)
-+    def test_endpoint_change_cannot_reuse_transaction_authority(self):
-+        self.rpc().call('getTransaction',self.params(),True)
-+        with self.assertRaisesRegex(Unavailable,'authority_changed'):self.rpc('https://other.invalid/').call('getTransaction',self.params(),True)
-+    def test_archive_conflict_fails_closed_and_hot_eviction_preserves_body(self):
-+        b=EvidenceBroker(self.db);self.addCleanup(b.close);b.put_transaction('a',{'slot':1})
-+        with b.db:b.db.execute('DELETE FROM tx_cache')
-+        self.assertEqual(b.get_transaction('a'),{'slot':1})
-+        with self.assertRaisesRegex(ValueError,'immutable_transaction_conflict'):b.put_transaction('a',{'slot':2})
-+        with self.assertRaises(sqlite3.IntegrityError):
-+            with b.db:b.db.execute('DELETE FROM immutable_transactions')
-+    def test_speculative_budget_never_deletes_stream_evidence(self):
-+        b=EvidenceBroker(self.db,clock=lambda:100);self.addCleanup(b.close)
-+        s=DynamicAddressLogStream('wss://hint.invalid',b,'pool',prefetch=True,prefetch_filter=lambda *a:True,clock=lambda:100)
-+        admitted=[]
-+        for i in range(20):
-+            b.record_event('pool:a',signature=str(i),slot=i,observed_at=100)
-+            admitted.append(s.should_prefetch('a',{},i))
-+        self.assertEqual(sum(admitted),8);self.assertEqual(len(b.recent_events('pool:a')),20)
-+        self.assertTrue(s.should_prefetch('b',{},1)) # one hot pool cannot consume every permit
-+    def test_null_or_error_network_proof_is_not_cached(self):
-+        store=ImmutableReads(self.db,'https://same.invalid');calls=[]
-+        for _ in range(2):store.call('getGenesisHash',[],lambda:calls.append(1))
-+        self.assertEqual(len(calls),2)
-+    def test_no_consumer_count_inflation_for_cached_provider_job(self):
-+        self.rpc().call('getTransaction',self.params(),True)
-+        self.rpc().call('getTransaction',self.params(),True)
-+        with sqlite3.connect(self.db) as db:
-+            self.assertEqual(db.execute('SELECT COUNT(*) FROM immutable_transactions').fetchone()[0],1)
-+            self.assertEqual(db.execute('SELECT COUNT(*) FROM evidence_consumers').fetchone()[0],1)
-+
-+    def test_concurrent_consumers_share_one_inflight_fetch(self):
-+        import concurrent.futures
-+        from threading import Lock
-+        count=[0];lock=Lock()
-+        def fetch(q):
-+            with lock:count[0]+=len(q) if isinstance(q,list) else 1
-+            time.sleep(.08)
-+            out=[dict(id=x['id'],result={'slot':7,'blockTime':123}) for x in (q if isinstance(q,list) else [q])]
-+            return out if isinstance(q,list) else out[0]
-+        def consumer():
-+            rpc=ReadOnlyFailoverRPC('https://solana-mainnet.g.alchemy.com/v2/test',transport=fetch)
-+            return rpc.call('getTransaction',self.params(),True)
-+        with concurrent.futures.ThreadPoolExecutor(2) as pool:
-+            a,b=list(pool.map(lambda _:consumer(),range(2)))
-+        self.assertEqual(a,b);self.assertEqual(count[0],1)
-+        broker=EvidenceBroker(self.db);self.addCleanup(broker.close)
-+        self.assertEqual(broker._pressure()['transport_reservations'],1)
-+    def test_cached_body_between_queue_and_claim_cannot_resurrect_provider_job(self):
-+        a=EvidenceBroker(self.db);b=EvidenceBroker(self.db)
-+        self.addCleanup(a.close);self.addCleanup(b.close)
-+        a.queue_transaction('sig',kind='pump_window',deadline=time.time()+5)
-+        b.put_transaction('sig',{'slot':7})
-+        self.assertEqual(a._claim_jobs(8),[])
-+        self.assertFalse(a.queue_transaction('sig',kind='dlmm_fresh',deadline=time.time()+5))
-+        self.assertEqual(a._pressure()['transport_reservations'],0)
-+        self.assertEqual(a.db.execute("SELECT status FROM jobs WHERE job_key='tx:sig'").fetchone()[0],'complete')
-+
-+    def test_recovered_internal_429_still_updates_shared_batch_pressure(self):
-+        class Rpc:
-+            gettransaction_429_events=0
-+            def call_many(self,m,p,*a,**kw):
-+                self.gettransaction_429_events+=1
-+                return [{'slot':1} for _ in p]
-+        a=EvidenceBroker(self.db);b=EvidenceBroker(self.db);self.addCleanup(a.close);self.addCleanup(b.close)
-+        before=b._pressure()['batch_size']
-+        result,meta=a.hydrate_transactions(Rpc(),['sig'],kind='pump_window',deadline=time.time()+5)
-+        self.assertEqual(meta['pending'],0)
-+        self.assertLess(b._pressure()['batch_size'],before)
-+        for _ in range(8):b._note_pressure_success()
-+        self.assertGreater(a._pressure()['batch_size'],before//2)
-+
-+    def test_stream_hint_archive_survives_hot_window_eviction_without_authority(self):
-+        b=EvidenceBroker(self.db);self.addCleanup(b.close)
-+        b.record_event('s',signature='old',slot=1,observed_at=1,payload={'hint':True})
-+        b.record_event('s',signature='new',slot=2,observed_at=10000)
-+        self.assertEqual(len(b.recent_events('s')),1)
-+        self.assertEqual(b.db.execute('SELECT count(*) FROM stream_signature_archive').fetchone()[0],2)
-+        self.assertIsNone(b.get_transaction('old'))
-+
-+    def test_unserviceable_reservation_releases_unique_job_lease(self):
-+        b=EvidenceBroker(self.db);self.addCleanup(b.close)
-+        with b.db:b.db.execute("UPDATE pressure SET cooldown_until=?",(time.time()+60,))
-+        result,meta=b.hydrate_transactions(self.rpc(),['a'],kind='pump_window',deadline=time.time()+.1)
-+        self.assertEqual(meta['pending'],1);self.assertEqual(self.wire,[])
-+        self.assertEqual(b.db.execute("SELECT count(*) FROM jobs WHERE status='inflight'").fetchone()[0],0)
-+
-+    def test_late_body_is_archived_but_does_not_complete_expired_consumer(self):
-+        now=[100.]
-+        b=EvidenceBroker(self.db,clock=lambda:now[0],sleeper=lambda n:now.__setitem__(0,now[0]+n));self.addCleanup(b.close)
-+        class Slow:
-+            def call_many(self,*a,**kw):now[0]=102.;return [{'slot':1}]
-+        values,meta=b.hydrate_transactions(Slow(),['a'],kind='pump_window',deadline=101.)
-+        self.assertIsNone(values['a']);self.assertEqual(meta['pending'],1)
-+        self.assertEqual(b.get_transaction('a'),{'slot':1})
-+        values,meta=b.hydrate_transactions(Slow(),['a'],kind='pump_window',deadline=103.)
-+        self.assertEqual(meta['pending'],0) # later independent consumer can reuse history
-+
-+    def test_local_governor_expiry_is_not_recorded_as_provider_failure(self):
-+        b=EvidenceBroker(self.db);self.addCleanup(b.close)
-+        class LocalFailure:
-+            def call_many(self,*a,**kw):
-+                self.evidence_local_failure='certification_provider_queue_deadline'
-+                raise Unavailable('provider_unavailable')
-+        _,meta=b.hydrate_transactions(LocalFailure(),['sig'],kind='pump_window',deadline=time.time()+1)
-+        self.assertEqual(meta['pending'],1)
-+        telemetry=b.consumers.telemetry()
-+        self.assertEqual(telemetry['acquisition_failures'],{'physical_governor_wait':1})
-+        self.assertEqual(telemetry['acquisition_phase_attempts']['physical_governor_wait'],1)
-+
-+    def test_expired_before_enqueue_is_separate_and_never_transports(self):
-+        b=EvidenceBroker(self.db);self.addCleanup(b.close)
-+        _,meta=b.hydrate_transactions(self.rpc(),['sig'],kind='pump_window',deadline=time.time()-1)
-+        self.assertEqual(self.wire,[])
-+        telemetry=b.consumers.telemetry()
-+        self.assertEqual(telemetry['acquisition_phase_attempts']['already_expired_before_enqueue'],1)
-+        self.assertEqual(telemetry['deadline_decomposition'][0]['stage'],'already_expired_before_enqueue')
-diff --git a/tests/test_strategy_prospect_admission.py b/tests/test_strategy_prospect_admission.py
-new file mode 100644
-index 0000000..2c5b3ed
---- /dev/null
-+++ b/tests/test_strategy_prospect_admission.py
-@@ -0,0 +1,52 @@
-+import unittest
-+from types import SimpleNamespace
-+from unittest.mock import MagicMock
-+
-+from tests import pump_acceleration_natural_prospective as runner
-+
-+
-+class PumpProspectAdmissionTests(unittest.TestCase):
-+    def test_stream_screen_rejects_non_strategy_demand_before_rpc(self):
-+        creation={"initial_real_token_reserves":1000,"creator":"creator"}
-+        rows=[
-+            dict(mint="M",market_time=970,real_token_reserves=430,
-+                 virtual_quote_reserves=1000,virtual_token_reserves=1000,
-+                 slot=1,index=0,wallet="a",amount=10,buy=True),
-+            dict(mint="M",market_time=985,real_token_reserves=420,
-+                 virtual_quote_reserves=1010,virtual_token_reserves=990,
-+                 slot=2,index=0,wallet="a",amount=10,buy=True),
-+            dict(mint="M",market_time=1000,real_token_reserves=410,
-+                 virtual_quote_reserves=1020,virtual_token_reserves=980,
-+                 slot=3,index=0,wallet="a",amount=10,buy=True),
-+        ]
-+        confirmations=MagicMock()
-+        confirmations.signal_inputs.return_value=dict(
-+            cluster_map={},excluded_clusters=[],skilled_wallet_clusters=0,
-+            creator_quality_bps=None,creator_history_launches=0,
-+        )
-+        signal,_,_=runner._late_stream_signal(creation,rows,rows[-1],confirmations)
-+        decision=runner.qualify(signal)
-+        self.assertFalse(decision.qualified)
-+        self.assertIn("independent_buyers",decision.reasons)
-+
-+    def test_same_mint_reenters_when_finalized_demand_improves(self):
-+        creation={"initial_real_token_reserves":1000,"creator":"creator"}
-+        confirmations=MagicMock()
-+        confirmations.signal_inputs.return_value=dict(cluster_map={},excluded_clusters=[],
-+            skilled_wallet_clusters=0,creator_quality_bps=None,creator_history_launches=0)
-+        def event(t,reserve,wallet,index):
-+            return dict(mint='M',market_time=t,real_token_reserves=reserve,
-+                virtual_quote_reserves=1000,virtual_token_reserves=1000,
-+                slot=index,index=0,wallet=wallet,amount=10,buy=True)
-+        weak=[event(970,430,'a',1),event(985,420,'a',2),event(1000,410,'a',3)]
-+        signal,_,_=runner._late_stream_signal(creation,weak,weak[-1],confirmations)
-+        self.assertFalse(runner.qualify(signal).qualified)
-+        improved=[event(1000,410,'a',3),event(1015,300,'a',4),
-+                  event(1025,180,'b',5),event(1030,100,'c',6)]
-+        signal,_,_=runner._late_stream_signal(creation,improved,improved[-1],confirmations)
-+        self.assertTrue(runner.qualify(signal).qualified)
-+        self.assertEqual(signal.concentration_bps,0)  # optimistic only; RPC still required
-+
-+
-+if __name__=="__main__":
-+    unittest.main()
-diff --git a/tests/test_stream_negative_admission.py b/tests/test_stream_negative_admission.py
-new file mode 100644
-index 0000000..ef1e037
---- /dev/null
-+++ b/tests/test_stream_negative_admission.py
-@@ -0,0 +1,61 @@
-+"""Live ingress must wire the existing negative-only PumpSwap prospect screen."""
-+import unittest
-+from unittest.mock import patch
-+from meme_machine.solana_evidence_broker import EvidenceBroker
-+from meme_machine.pump_acceleration_history import IncrementalPumpSwapHistory
-+from meme_machine.pump_acceleration_evidence import PUMPSWAP_PROGRAM
-+from tests.test_stream_payload_retention import ingest
-+
-+
-+class RecordingRPC:
-+    def __init__(self):self.signatures=[]
-+    def call_many(self,method,params,*args,**kwargs):
-+        self.signatures.extend(p[0] for p in params)
-+        return [None for _ in params]
-+
-+
-+class StreamNegativeAdmissionTests(unittest.TestCase):
-+    def setUp(self):
-+        self.b=EvidenceBroker(':memory:',clock=lambda:1000,sleeper=lambda n:None)
-+        self.addCleanup(self.b.close)
-+
-+    def history(self,key):
-+        return IncrementalPumpSwapHistory('pool',900,broker=self.b,stream_key=key)
-+
-+    def test_thousand_proven_unrelated_notifications_remain_observed_without_rpc_consumers(self):
-+        values=[dict(signature='noise-'+str(i),err=None,
-+            logs=['Program Other111 invoke [1]','Program Other111 success']) for i in range(1000)]
-+        key,_=ingest(self.b,values);history=self.history(key);rpc=RecordingRPC()
-+        with patch('meme_machine.pump_acceleration_history.time.time',return_value=1000):
-+            history._ingest_stream_window(rpc,1000)
-+        self.assertEqual(rpc.signatures,[])
-+        self.assertEqual(len(history.stream_prefiltered_signatures),1000)
-+        self.assertEqual(history.status(1000)['stream_prefiltered_signatures'],1000)
-+        self.assertEqual(self.b.db.execute('SELECT count(*) FROM stream_signature_archive').fetchone()[0],1000)
-+        self.assertEqual(self.b.db.execute('SELECT count(*) FROM evidence_consumers').fetchone()[0],0)
-+        self.assertEqual(self.b.db.execute('SELECT count(*) FROM jobs').fetchone()[0],0)
-+        self.assertEqual(history.stream_pending_transactions,0)
-+        self.assertEqual(history.events,{})
-+
-+    def test_missing_empty_truncated_and_possible_pumpswap_logs_still_require_body(self):
-+        values=[dict(signature='missing',err=None),dict(signature='empty',err=None,logs=[]),
-+            dict(signature='truncated',err=None,logs=['Program Other111 invoke [1]','Log truncated']),
-+            dict(signature='possible',err=None,logs=['Program '+PUMPSWAP_PROGRAM+' invoke [1]'])]
-+        key,_=ingest(self.b,values);history=self.history(key);rpc=RecordingRPC()
-+        with patch('meme_machine.pump_acceleration_history.time.time',return_value=1000):
-+            history._ingest_stream_window(rpc,1000)
-+        self.assertEqual(set(rpc.signatures),{v['signature'] for v in values})
-+        self.assertEqual(history.stream_pending_transactions,4)
-+        self.assertEqual(history.events,{})
-+        self.assertEqual(len(history.stream_prefiltered_signatures),0)
-+
-+    def test_later_possible_trade_for_same_pool_is_not_suppressed_by_prior_negative(self):
-+        key,_=ingest(self.b,[dict(signature='noise',err=None,logs=['Program Other111 success'])])
-+        history=self.history(key);rpc=RecordingRPC()
-+        with patch('meme_machine.pump_acceleration_history.time.time',return_value=1000):
-+            history._ingest_stream_window(rpc,1000)
-+            ingest(self.b,[dict(signature='later',err=None,logs=['Program '+PUMPSWAP_PROGRAM+' invoke [1]'])])
-+            history._ingest_stream_window(rpc,1000)
-+        self.assertEqual(rpc.signatures,['later'])
-+        self.assertEqual(history.stream_pending_transactions,1)
-+        self.assertEqual(self.b.db.execute('SELECT count(*) FROM stream_signature_archive').fetchone()[0],2)
-diff --git a/tests/test_stream_payload_retention.py b/tests/test_stream_payload_retention.py
-new file mode 100644
-index 0000000..01af937
---- /dev/null
-+++ b/tests/test_stream_payload_retention.py
-@@ -0,0 +1,46 @@
-+"""Exercise actual finalized log ingress, including durable raw hint retention."""
-+import json
-+import threading
-+import unittest
-+import zlib
-+from unittest.mock import patch
-+from meme_machine import solana_evidence_broker as module
-+
-+
-+def ingest(broker, values, *, stream_name='pumpswap_pool', address='pool'):
-+    stop=threading.Event()
-+    stream=module.DynamicAddressLogStream('wss://test.invalid',broker,stream_name,clock=lambda:1000)
-+    key=stream.add_address(address)
-+    queue=[];incoming=iter(values)
-+    class Socket:
-+        def __enter__(self):return self
-+        def __exit__(self,*args):pass
-+        def send(self,raw):
-+            request=json.loads(raw)
-+            assert request['params'][1]['commitment']=='finalized'
-+            queue.append(dict(id=request['id'],result=7))
-+        def recv(self,**kwargs):
-+            if queue:return json.dumps(queue.pop(0))
-+            try:value=next(incoming)
-+            except StopIteration:
-+                stop.set();raise TimeoutError()
-+            return json.dumps(dict(method='logsNotification',params=dict(subscription=7,
-+                result=dict(context=dict(slot=100),value=value))))
-+    with patch.object(module,'connect',return_value=Socket()):stream.run(stop)
-+    return key,stream
-+
-+
-+class StreamPayloadTests(unittest.TestCase):
-+    def test_real_ingress_retains_all_finalized_log_payloads_without_body_authority(self):
-+        b=module.EvidenceBroker(':memory:',clock=lambda:1000);self.addCleanup(b.close)
-+        values=[dict(signature='noise',err=None,logs=['Program Other111 invoke [1]','Program Other111 success']),
-+                dict(signature='ambiguous',err=None,logs=['Log truncated']),
-+                dict(signature='missing',err=None)]
-+        key,stream=ingest(b,values)
-+        self.assertEqual(stream.last_error_kind,None)
-+        self.assertEqual({r['signature']:r['payload'] for r in b.recent_events(key)},
-+                         {v['signature']:v for v in values})
-+        archived={s:json.loads(zlib.decompress(p)) for s,p in b.db.execute('SELECT signature,payload FROM stream_signature_archive')}
-+        self.assertEqual(archived,{v['signature']:v for v in values})
-+        self.assertEqual(b.db.execute('SELECT count(*) FROM immutable_transactions').fetchone()[0],0)
-+        self.assertEqual(b.db.execute('SELECT count(*) FROM evidence_consumers').fetchone()[0],0)
