@@ -1,0 +1,5 @@
+Profitability-v1 clean four-lane launch.
+Pump/Pons: active profitability-v1 paper authority.
+Meteora/Ramses: current machinery-proof-v2 authority.
+Launch condition satisfied only after all prior active and pending runs reached terminal state.
+Paper only; no live-money authority.
