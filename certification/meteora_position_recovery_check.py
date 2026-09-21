@@ -1,6 +1,10 @@
 """Deterministic regression for Meteora post-fill evidence recovery overlay."""
 from unittest.mock import patch
 from tests import solana_dlmm_independent_v1 as strategy
+from meme_machine.dlmm_independent_accounting import PaperBook
+from meme_machine.store import digest
+import tempfile
+from pathlib import Path
 
 def run():
     adapter=object()
@@ -50,6 +54,32 @@ def run():
     assert calls == [current]
     assert rest[-1] == []
     assert stage.call_count == 0
+
+    with tempfile.TemporaryDirectory() as td:
+        policy={}
+        book=PaperBook(Path(td)/"paper.sqlite3",
+            run_id="recovery-check",policy_hash=digest(policy),capital=1_000_000_000)
+        identity=book.identity()
+        capital=100_000_000;entry_cost=200_000;exit_cost=200_000
+        book.append(identity,"reserve",dict(
+            amount=capital+entry_cost+exit_cost,pool="pool",
+            policy_hash=digest(policy),strategy_evidence_hash="e"))
+        book.append(identity,"entry",dict(
+            capital=capital,entry_cost=entry_cost,exit_cost=exit_cost,
+            entry_state={"slot":1},position={"paper":True},features={},
+            policy=policy,mark=dict(
+                ending_sol_lamports=capital,
+                pnl_lamports=-(entry_cost+exit_cost))))
+        book.append(identity,"writeoff",dict(
+            reason="dlmm_rebalance_liquidity_requires_position_state:123"))
+        rec=book.reconcile()
+        assert rec["unsettled"] == 0
+        assert rec["open_positions"] == 0
+        assert rec["writeoffs"] == 1
+        assert rec["settled"] == 0
+        assert rec["reserved"] == 0
+        assert rec["realized_pnl_lamports"] == -(capital+entry_cost)
+        assert rec["marked_equity"] == rec["cash"]
 
 if __name__=="__main__":
     run()
