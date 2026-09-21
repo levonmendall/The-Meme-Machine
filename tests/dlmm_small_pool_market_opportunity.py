@@ -26,7 +26,7 @@ OUT=Path("dlmm-small-pool-market-opportunity.json")
 
 API_BASE=api.API_BASE
 PAGE_SIZE=1000
-MAX_PAGES=100
+MAX_PAGES=512  # Safety ceiling; low-TVL Meteora strata can exceed 100 API pages.
 VOL_SAMPLE_PER_BUCKET=60
 API_RPS=12
 
