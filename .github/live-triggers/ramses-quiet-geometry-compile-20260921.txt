@@ -1,0 +1,1 @@
+Compile-check the preregistered public-mint geometry fallback. Do not execute market replay.
