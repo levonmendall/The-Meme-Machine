@@ -43,6 +43,26 @@ class SmallPoolMarketOpportunityTests(unittest.TestCase):
         self.assertTrue(status["complete"])
         self.assertEqual([x["address"] for x in out],["a"])
 
+    def test_census_can_complete_stratum_beyond_100_pages(self):
+        calls=[]
+        def fake_get(_path,params):
+            page=params["page"];calls.append(page)
+            return dict(
+                data=[dict(
+                    address=f"a{page}",tvl=5000,created_at=1,is_blacklisted=False,
+                    volume={"24h":1000},fees={"24h":10},dynamic_fee_pct=0.1,
+                    token_x={"address":dlmm.WSOL,"symbol":"SOL"},
+                    token_y={"address":f"x{page}","symbol":"X"},
+                )],
+                total=101,pages=101,current_page=page,page_size=1,
+            )
+        with patch.object(study,"PAGE_SIZE",1), patch.object(study,"_get",side_effect=fake_get):
+            out,status=study.census_bucket("<10k")
+        self.assertTrue(status["complete"])
+        self.assertEqual(status["pages_read"],101)
+        self.assertEqual(len(out),101)
+        self.assertEqual(calls[-1],101)
+
     def test_summary_exposes_fee_and_volume_density(self):
         rows=[
             dict(address="a",tvl_usd=1000,volume_24h_usd=2000,
