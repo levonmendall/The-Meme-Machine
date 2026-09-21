@@ -1,0 +1,38 @@
+name: ramses-historical-market-review
+on:
+  push:
+    branches: [research/ramses-dlmm-historical-market-v1]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  review:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[ramses-historical-market]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    concurrency:
+      group: ramses-historical-market-review
+      cancel-in-progress: false
+    env:
+      MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Compile and regression test
+        run: |
+          python -m py_compile robinhood_research/ramses_historical_market_review.py
+          python -m unittest robinhood_tests.test_ramses_historical_market_review -v
+      - name: Full historical swap census
+        run: python -m robinhood_research.ramses_historical_market_review
+      - name: Preserve historical market evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ramses-historical-market-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ramses-historical-market-census.json
+            ramses-historical-swaps.json.gz
+          if-no-files-found: warn
+          retention-days: 90
