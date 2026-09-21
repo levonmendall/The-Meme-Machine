@@ -1,7 +1,7 @@
 name: ramses-historical-fee-decomposition
 on:
   push:
-    branches: [research/ramses-dlmm-historical-market-v1]
+    branches: [research/ramses-fee-attribution-v1]
 permissions:
   actions: read
   contents: read
