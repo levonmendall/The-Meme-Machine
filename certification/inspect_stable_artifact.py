@@ -117,6 +117,50 @@ stream_audit={'run':state['RUN'],'sha':state['SHA'],'phase':state['PHASE'],
  'archived_hints':dict(hints),'unique_acquired_body_log_shapes':dict(body_shapes),
  'consumer_states':consumers,'deadline_decomposition':deadlines}
 db.close()
+
+# Actual per-pool negative-screen counters, including retired histories.
+screened={}
+def history_count(mint,history):
+    if isinstance(history,dict) and 'stream_prefiltered_signatures' in history:
+        screened[str(mint)]=max(screened.get(str(mint),0),int(history['stream_prefiltered_signatures']))
+pump_report=review['pump_complete']
+for mint,history in (pump_report.get('postgrad_history_status') or {}).items():history_count(mint,history)
+for key in ('postgrad','attempts','full_evidence_attempts'):
+    values=pump_report.get(key)
+    if isinstance(values,list):
+        for value in values:
+            if isinstance(value,dict):history_count(value.get('mint'),value.get('history_status'))
+terminal_sources=[]
+for path in (state['base']/'pump').rglob('*terminal*.jsonl'):
+    terminal_sources.append(str(path.relative_to(root)))
+    with path.open() as file:
+        for line in file:
+            if not line.strip():continue
+            value=json.loads(line);history_count(value.get('mint'),value.get('history_status'))
+stream_audit['actual_prefiltered_unique_by_mint']=screened
+stream_audit['actual_prefiltered_pool_signature_pairs']=sum(screened.values())
+stream_audit['terminal_counter_sources']=terminal_sources
+# Method error counters can describe affected batches; retain actual RPC error members separately.
+rpc_members=[]
+with state['gzip'].open(state['base']/'pons/rpc-evidence.jsonl.gz','rt') as file:
+    try:
+        for line in file:
+            row=json.loads(line);requests=row.get('request') or []
+            requests=requests if isinstance(requests,list) else [requests]
+            request_by_id={r.get('id'):r for r in requests if isinstance(r,dict)}
+            responses=row.get('response');responses=responses if isinstance(responses,list) else [responses]
+            for response in responses:
+                if not isinstance(response,dict) or not isinstance(response.get('error'),dict):continue
+                request=request_by_id.get(response.get('id')) or {}
+                error=response['error']
+                rpc_members.append(dict(physical_request_id=row.get('physical_request_id'),
+                    observed_at_ns=row.get('observed_at_ns'),method=request.get('method'),
+                    code=error.get('code'),message=str(error.get('message',''))[:180],http_status=row.get('http_status')))
+    except EOFError:
+        if not state['cancelled']:raise
+(out/'pons-rpc-member-errors.json').write_text(json.dumps(rpc_members,indent=2,sort_keys=True))
+print('PONS_RPC_MEMBER_ERRORS_BEGIN',flush=True);print(json.dumps(rpc_members,sort_keys=True),flush=True);print('PONS_RPC_MEMBER_ERRORS_END',flush=True)
+
 (out/'stream-admission-attribution.json').write_text(json.dumps(stream_audit,indent=2,sort_keys=True))
 print('STREAM_ADMISSION_AUDIT_BEGIN',flush=True);print(json.dumps(stream_audit,sort_keys=True),flush=True);print('STREAM_ADMISSION_AUDIT_END',flush=True)
 

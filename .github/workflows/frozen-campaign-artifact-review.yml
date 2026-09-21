@@ -14,11 +14,32 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+      - name: Wait only for this exact smoke artifact to finish
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json,os,time,urllib.request
+          base='https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/runs/35578433187'
+          headers={'Authorization':'Bearer '+os.environ['GITHUB_TOKEN'],'Accept':'application/vnd.github+json'}
+          def read(url):
+              with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=30) as response:return json.load(response)
+          deadline=time.monotonic()+1500
+          while time.monotonic()<deadline:
+              run=read(base)
+              if run['head_sha']!='7427d71b685d9a273732b65265a34e49d4f8bbd5':raise SystemExit('sha_mismatch')
+              rows=read(base+'/artifacts')['artifacts']
+              if any(a['name'].startswith('four-lane-certification-') and not a['expired'] for a in rows):
+                  print('Exact smoke artifact finalized; read-only review begins.');break
+              if run['status']=='completed':raise SystemExit('completed_without_smoke_artifact')
+              time.sleep(5)
+          else:raise SystemExit('smoke_artifact_wait_expired')
+          PY
       - name: Review immutable failed-hour artifact without provider access
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          REVIEW_RUN_ID: "35575632874"
-          REVIEW_SHA: dbeef7e872944b352d00c2da2f8a055fe9896c70
+          REVIEW_RUN_ID: "35578433187"
+          REVIEW_SHA: 7427d71b685d9a273732b65265a34e49d4f8bbd5
           REVIEW_PHASE: smoke
         run: python certification/inspect_stable_artifact.py
       - name: Preserve complete review and verified artifact metadata
