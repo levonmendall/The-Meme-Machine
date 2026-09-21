@@ -197,11 +197,28 @@ with state['gzip'].open(state['base']/'pons/rpc-evidence.jsonl.gz','rt') as file
         response_shapes[type(row.get('response')).__name__]+=1
         by_id={x.get('id'):x for x in responses if isinstance(x,dict)}
         at_ns=integer(row.get('observed_at_ns'))
-        for req in requests:
-            if not isinstance(req,dict):continue
-            method=req.get('method');params=req.get('params') or []
-            response=by_id.get(req.get('id')) or {}
-            body=response.get('result')
+        for request_index,req in enumerate(requests):
+            if isinstance(req,dict):
+                method=req.get('method');params=req.get('params') or []
+                response=by_id.get(req.get('id')) or {}
+                body=response.get('result')
+            elif isinstance(req,(list,tuple)) and len(req)==2:
+                # worker.wrap_transport archives native Robinhood call pairs.
+                # _http_batch has already matched wire IDs and returns results
+                # in request order; _http returns its unwrapped result directly.
+                method,params=req
+                response={}
+                raw=row.get('response')
+                if len(requests)>1:
+                    body=raw[request_index] if isinstance(raw,list) and len(raw)==len(requests) else None
+                elif method=='eth_getBlockByNumber':
+                    body=raw[0] if isinstance(raw,list) and len(raw)==1 else raw
+                elif method=='eth_getLogs':
+                    body=raw[0] if isinstance(raw,list) and len(raw)==1 and isinstance(raw[0],list) else raw
+                else:
+                    body=raw
+            else:
+                continue
             if method=='eth_getBlockByNumber' and isinstance(body,dict):
                 number=integer(body.get('number'));timestamp=integer(body.get('timestamp'))
                 frontier_rows.append(dict(physical_request_id=row.get('physical_request_id'),
@@ -213,6 +230,7 @@ with state['gzip'].open(state['base']/'pons/rpc-evidence.jsonl.gz','rt') as file
                 if first is not None and last is not None:
                     log_rows.append(dict(physical_request_id=row.get('physical_request_id'),
                         observed_at_ns=at_ns,first=first,last=last,scope=row.get('scope'),
+                        broad_discovery=params[0].get('address') is None,
                         http_status=row.get('http_status'),error=row.get('error'),
                         rpc_error=response.get('error'),response_logs=len(body) if isinstance(body,list) else None))
 # Preserve every parsed row; compact printed samples stay bounded.
@@ -220,9 +238,16 @@ with state['gzip'].open(state['base']/'pons/rpc-evidence.jsonl.gz','rt') as file
 (out/'pons-discovery-range-rows.json').write_text(json.dumps(log_rows,indent=2,sort_keys=True))
 latest=[x for x in frontier_rows if x['requested_tag'] in ('latest','safe','finalized')]
 final_feed=review['pons_complete'].get('sequencer_discovery') or {}
+broad=[x for x in log_rows if x['broad_discovery']]
+last_broad=broad[-1] if broad else None
+nearby_headers=[x for x in frontier_rows if last_broad and x['observed_at_ns'] and abs(x['observed_at_ns']-last_broad['observed_at_ns'])<=30*10**9]
+if not frontier_rows or not broad:raise RuntimeError('pons_freshness_archive_schema_unparsed')
+
 freshness_audit=dict(run=state['RUN'],sha=state['SHA'],phase=state['PHASE'],
     scope='Auxiliary sequencer header time is not assumed to equal L2 block time. Only authenticated response members establish L2 frontier evidence. Log ranges include all archived Pons roles; no discovery-gap inference is made from mixed roles.',
     response_shapes=dict(response_shapes),header_rows=len(frontier_rows),log_range_rows=len(log_rows),
+    broad_discovery_rows=len(broad),broad_discovery_first=broad[:4],broad_discovery_last=broad[-12:],
+    nearby_newest_headers=sorted(nearby_headers,key=lambda x:x['block'] or -1)[-12:],
     latest_tag_rows=len(latest),latest_tag_first=latest[:4],latest_tag_last=latest[-12:],
     newest_header_samples=sorted(frontier_rows,key=lambda x:x['block'] or -1)[-12:],
     discovery_range_first=log_rows[:4],discovery_range_last=log_rows[-12:],
