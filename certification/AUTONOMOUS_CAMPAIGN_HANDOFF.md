@@ -750,3 +750,25 @@ remain unchanged; protected frozen source/config/policy files passed exact hashi
 This commit composes the verified blobs without a live-launch marker.
 Superseded35563114670 retains lifecycle authority; its fresh replacement must wait
 until that workflow completes and all active/queued market work has been inspected.
+
+
+## 2026-09-21: c4572 hour failed before replacement launch
+
+At elapsed1388.423s, Pons had already exited(code0) unexpectedly after1369.457s
+uptime; four-lane overlap stopped at1369.452s. Terminal snapshot records two
+positions, one liquidity writeoff, one still unresolved, no natural market-sale
+settlement. Cash/basis conservation remains true; capital integral remains
+incomplete. This is an engineering failure, not a clean terminal drain.
+Pump has two settled natural trades and no exposure; Meteora/Ramses remain flat.
+No replacement market run has started. Verified827af68b remains unlaunched.
+
+The previous cancellation guard correctly refused while lifecycle activity existed.
+The situation is now different: the Pons process has already exited and cannot
+continue its unresolved position by waiting. A narrowly targeted cancellation of
+35563114670@c4572 requires a fresh snapshot proving that exact Pons early exit
+and that all still-running lanes are flat, reconciled, have no reserved/pending/
+committed capital, and all their cumulative qualifiers are settled. The complete
+Pons unresolved book is retained in the cancellation audit; cancellation cannot
+relabel it settled. This avoids spending the rest of a failed hour while preserving
+all existing artifacts and raw evidence. Exact terminal boundary and writeoff proof
+must be reviewed before deciding the next implementation repair.

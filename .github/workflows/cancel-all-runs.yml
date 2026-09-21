@@ -35,7 +35,7 @@ jobs:
               with urllib.request.urlopen(urllib.request.Request(url + "/artifacts", headers=headers)) as response:
                   artifacts = json.load(response)
               record = dict(run_id=run_id, sha=sha, before=row["status"],
-                            artifacts=artifacts, reason="supersede candidate after static review found transient replacement-session authentication can be bypassed on next lifecycle iteration; cancel only after fresh snapshot proves no qualifiers or exposure; preserve accepted smoke and partial hour artifacts")
+                            artifacts=artifacts, reason="stop failed superseded hour after Pons already exited unexpectedly with retained unresolved exposure; require every still-running lane flat with no outstanding qualification before cancellation; preserve all artifacts and exact unresolved Pons accounting")
               if row["status"] != "completed":
                   checks_url = "https://api.github.com/repos/" + os.environ["REPOSITORY"] + "/commits/" + sha + "/check-runs?per_page=100"
                   with urllib.request.urlopen(urllib.request.Request(checks_url, headers=headers)) as response:
@@ -43,13 +43,20 @@ jobs:
                   check = next(c for c in checks["check_runs"] if c["name"] == "four-lane-live-hourly")
                   body = check["output"]["text"].strip()
                   snapshot = json.loads(body.removeprefix("```json").removesuffix("```").strip())
-                  flat = snapshot.get("elapsed_seconds") is not None and time.time()-snapshot.get("observed_at",0)<90
+                  flat = snapshot.get("elapsed_seconds") is not None and 0 <= time.time()-snapshot.get("observed_at",0)<45
+                  pons = snapshot["lanes"]["pons"]
+                  flat = flat and pons.get("exit_code")==0 and pons.get("unexpected_exit") is True and pons.get("health")=="exited"
+                  record["already_exited_unresolved_pons"] = pons.get("cohort_accounting")
                   for lane, state in snapshot["lanes"].items():
-                      flat = flat and state.get("open_positions") == 0
+                      if lane=="pons":continue
+                      flat = flat and state.get("open_positions") == 0 and state.get("accounting_reconciled") is True
                       funnel = state.get("funnel") or {}
-                      flat = flat and not funnel.get("qualified",funnel.get("unique_qualified",0))
+                      qualified = funnel.get("qualified",funnel.get("unique_qualified",0))
+                      flat = flat and qualified == state.get("natural_settled",0)
                       book = state.get("cohort_accounting") or state.get("native_accounting") or {}
                       flat = flat and not book.get("reserved",0) and not book.get("pending",0)
+                      for asset in (book.get("by_quote_asset") or {}).values():
+                          flat = flat and not asset.get("open_positions",0) and not asset.get("committed",0)
                   record["pre_cancel_snapshot"] = snapshot
                   pathlib.Path("campaign-cancellations.json").write_text(json.dumps([record], indent=2))
                   if not flat:raise SystemExit("not_proven_flat_do_not_cancel")
