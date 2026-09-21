@@ -76,7 +76,7 @@ new file mode 100644
 index 0000000..8f200e6
 --- /dev/null
 +++ b/meme_machine/dlmm_independent_accounting.py
-@@ -0,0 +1,154 @@
+@@ -0,0 +1,162 @@
 +"""Append-only, integer SOL paper accounting for independent Meteora lifecycles.
 +
 +The journal is the state. Failed evidence leaves inventory and capital occupied.
@@ -1799,7 +1799,7 @@ index c1aef79..046427f 100644
          pnl_bps=pnl*10000/CAPITAL,
          non_sol_inventory_raw=tokens,
          non_sol_inventory_liquidation_lamports=liquidation,
-@@ -1101,10 +1145,29 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
+@@ -1101,10 +1145,62 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
      return reasons,recent,mark,fee_uplift
  
  
@@ -1864,7 +1864,7 @@ index c1aef79..046427f 100644
      current=entry;elapsed=0;segments=[];tapes=[]
      max_hold=int(policy["range"]["max_holding_seconds"])
      segment_seconds=int(policy["exit"]["observation_segment_seconds"])
-@@ -1123,13 +1186,16 @@ def _lifecycle(
+@@ -1123,12 +1186,20 @@ def _lifecycle(
              adapter,address,current,duration,False,pacer,rpcs,deadline,
              broker,"position_monitor")
          if not phase["verified"]:
@@ -2083,7 +2083,7 @@ index c1aef79..046427f 100644
              for rpc in candidate_rpcs:
                  if rpc not in rpcs:rpcs.append(rpc)
              attempt["lifecycle"]=lifecycle
-@@ -1776,13 +1908,16 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1776,13 +1908,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                      pre_entry_features=features,qualification=decision,**lifecycle))
              else:
                  failure_counts["lifecycle_unverified"]+=1
