@@ -144,6 +144,60 @@ def merge_file(lane,path,operational,base,profit):
         raise RuntimeError(f"conflict_marker_remaining:{lane}:{path}")
     return body
 
+def post_merge_adjustments(lane,root):
+    if lane=="pump":
+        runner=root/"tests/pump_acceleration_natural_prospective.py"
+        body=runner.read_text()
+        old='''        concentration_bps=0,
+        extension_bps=int(trajectory["extension_bps"]),
+        skilled_wallet_clusters=int(confirmation["skilled_wallet_clusters"]),'''
+        new='''        concentration_bps=0,
+        extension_bps=int(trajectory["extension_bps"]),
+        # Optimistic prospect preflight only. Authoritative executable downside
+        # requires the account snapshot and remains mandatory before qualification.
+        immediate_roundtrip_loss_bps=0,
+        skilled_wallet_clusters=int(confirmation["skilled_wallet_clusters"]),'''
+        if old not in body:
+            raise RuntimeError("pump_stream_preflight_shape_changed")
+        runner.write_text(body.replace(old,new,1))
+
+        test=root/"tests/test_strategy_prospect_admission.py"
+        body=test.read_text()
+        old='''        improved=[event(1000,410,'a',3),event(1015,300,'a',4),
+                  event(1025,180,'b',5),event(1030,100,'c',6)]
+        signal,_,_=runner._late_stream_signal(creation,improved,improved[-1],confirmations)'''
+        new='''        # Profitability-v1 requires broad expanding independent demand. Keep
+        # the test focused on reconsideration: first observation rejects, a later
+        # genuinely improved finalized state is allowed through to RPC evaluation.
+        improved=[]
+        for i in range(8):
+            improved.append(event(1005+i,400-5*i,f"p{i}",10+i))
+        for i in range(12):
+            improved.append(event(1020+min(i,10),300-9*i,f"r{i}",30+i))
+        improved[-1]=event(1030,200,"r11",41)
+        signal,_,_=runner._late_stream_signal(creation,improved,improved[-1],confirmations)'''
+        if old not in body:
+            raise RuntimeError("pump_reconsideration_fixture_shape_changed")
+        test.write_text(body.replace(old,new,1))
+
+    if lane=="pons":
+        test=root/"robinhood_tests/test_pons_selective_continuation.py"
+        body=test.read_text()
+        old='''        decelerating=[
+            dict(at=185,progress_bps=7300),
+            dict(at=195,progress_bps=7900),
+            dict(at=200,progress_bps=8000),
+        ]'''
+        new='''        decelerating=[
+            dict(at=185,progress_bps=7000),
+            dict(at=195,progress_bps=7400),
+            dict(at=200,progress_bps=7550),
+        ]'''
+        if old not in body:
+            raise RuntimeError("pons_deceleration_fixture_shape_changed")
+        test.write_text(body.replace(old,new,1))
+
+
 def build_lane(lane,spec,outdir):
     run("git","fetch","origin",spec["base"],spec["profit"])
     root=Path(tempfile.mkdtemp(prefix=f"{lane}-combined-"))
@@ -158,6 +212,7 @@ def build_lane(lane,spec,outdir):
             base=show(spec["base"],path)
             profit=show(spec["profit"],path)
             (root/path).write_text(merge_file(lane,path,operational,base,profit))
+        post_merge_adjustments(lane,root)
 
         # Rebase the complete combined tree onto the profitability source head.
         run("git","worktree","add","--detach",str(profitroot),spec["profit"])
