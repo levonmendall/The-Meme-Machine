@@ -1,0 +1,32 @@
+name: profitability-v1-preflight
+on:
+  push:
+    branches: [cert/profitability-v1-current]
+permissions:
+  contents: read
+jobs:
+  deterministic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Supervisor regressions
+        run: python -m unittest discover -s certification/tests -v
+      - name: Create exact-source worktrees and apply operational overlays
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/profitability-v1-worktrees"
+      - name: Full lane deterministic and resource gates
+        run: python -m certification.run verify --worktrees "$RUNNER_TEMP/profitability-v1-worktrees" --output profitability-v1-gates
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: profitability-v1-preflight-${{ github.run_id }}
+          path: profitability-v1-gates/
+          if-no-files-found: warn
+          retention-days: 90
