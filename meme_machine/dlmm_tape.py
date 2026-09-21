@@ -30,6 +30,7 @@ INITIALIZE_BIN_ARRAY_IX = bytes.fromhex('235613b94ed44bd3')
 ADD_LIQUIDITY2_IX = bytes.fromhex('e4a24e1c46db7473')
 ADD_LIQUIDITY_EVT = bytes.fromhex('1f5e7d5ae3343dba')
 ADD_LIQUIDITY_BY_STRATEGY2_IX = bytes.fromhex('03dd95da6f8d76d5')
+REBALANCE_LIQUIDITY_IX = bytes.fromhex('5c04b0c177b95309')
 CLAIM_FEE2_IX = bytes.fromhex('70bf65ab1c907fbb')
 MEMO_PROGRAM = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'
 SYSTEM_PROGRAM = '11111111111111111111111111111111'
@@ -862,6 +863,23 @@ def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
                     raise Unavailable('dlmm_snapshot_reset_slot_unavailable')
                 raise Unavailable(
                     f'dlmm_snapshot_reset_required:add_liquidity_by_strategy2:{slot}')
+            current=None;continue
+        elif raw[:8]==REBALANCE_LIQUIDITY_IX:
+            if trigger_only:
+                current=None;continue
+            if positions:
+                if positions!=[1]:
+                    raise ValueError(
+                        f'dlmm_rebalance_liquidity_identity:pool_positions={positions}')
+                slot=tx.get('slot')
+                if type(slot) is not int or slot<0:
+                    raise Unavailable('dlmm_rebalance_liquidity_slot_unavailable')
+                # RebalanceLiquidityParams references an external PositionV2 and can
+                # remove and re-add shares across bins. The transaction/event surface
+                # does not expose that position's per-bin pre-shares, so exact
+                # counterfactual replay is impossible from the current interval tape.
+                raise Unavailable(
+                    f'dlmm_rebalance_liquidity_requires_position_state:{slot}')
             current=None;continue
         else:
             if trigger_only:
