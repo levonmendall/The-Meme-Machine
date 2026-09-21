@@ -1799,10 +1799,10 @@ index c1aef79..046427f 100644
          pnl_bps=pnl*10000/CAPITAL,
          non_sol_inventory_raw=tokens,
          non_sol_inventory_liquidation_lamports=liquidation,
-@@ -1101,49 +1145,117 @@
--    return reasons,recent,mark,fee_uplift
--
--
+@@ -1101,57 +1145,125 @@
+     return reasons,recent,mark,fee_uplift
+ 
+ 
 -def _lifecycle(
 -    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None
 -):
@@ -1849,9 +1849,6 @@ index c1aef79..046427f 100644
 -        complete=True,exit_reason=exit_reason,realized_hold_seconds=elapsed,
 -        segments=segments,lineage=combined.lineage,final=final,
 -    ),adapter
-+    return reasons,recent,mark,fee_uplift
-+
-+
 +def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None):
 +    identity=book.identity() if book is not None else None
 +    if book is not None:
@@ -1966,6 +1963,14 @@ index c1aef79..046427f 100644
 +        realized_hold_seconds=elapsed,segments=segments,
 +        lineage=combined.lineage,final=final,
 +    ),adapter
+ 
+ 
+ 
+ 
+ def _regime_pass(candidate,policy):
+     regime=policy["regime"]
+     return (
+         candidate["volume_acceleration"]>=float(
 @@ -1220,7 +1289,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
              sigs=[row["signature"] for row in valid]
              txmap,hydration=broker.hydrate_transactions(
