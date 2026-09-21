@@ -1214,3 +1214,7 @@ Currentdbeef7e8smoke supersededfor efficiency certification; letitsauthorizedfol
 
 
 Targeted successor-prevention watcher requested for35575632874@dbeef7e8 only. Itwaits forconcurrent-smoke jobcompletion andnonexpired smokeartifact, preservesjob/artifactmetadata, andonlycancels ifhourly-campaign hasnotstarted andno livehourlycheckexists. It refuses aftersuccessorstart ratherthanrisk lifecycleauthority. No runninglanehotpatch, nooverlap-time reuse. Newimplementationbuild35576999390 atfec13a430b8c7c5f3c1528640bc88dbf50c71a76 remainsdeterministiconly.
+
+
+Stream-retention build35576999390/job106260969777 PASSED: Pump304,Meteora401,Pons305,Ramses269,total1279lane tests;78supervisor;three resourcegates;allfour overlaysbyteidentical/frozenfilesunchanged. Artifact10627984376,217762bytes,SHA256c9bcc9f79b0f55dbb403173971efa759e59473db020f453ec63d835893d6244a.
+Beforecandidatecomposition, exposeexistingunique stream_prefiltered_signatures count inPump history.status (rawnotificationsremainfullyretained), withend-to-endregression assertingthe1000filtered count. This observability addition requiresfullgates again; priorpassedartifactretainedandnewlogsuse separatefolder. Watcher35577124205/job106261367051 remainswaitingforsmokeartifact; latest1268.6stotalallbooksflat, onlyPumpfollow-upactive. No successor orreplacement marketwork.
