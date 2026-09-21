@@ -1,7 +1,7 @@
 name: cancel-all-runs
 on:
   push:
-    branches: [repair/solana-alchemy-efficiency]
+    branches: [repair/frozen-campaign-handoff]
 permissions:
   contents: read
   actions: write
@@ -17,9 +17,9 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           python - <<'PY'
-          import json, os, pathlib, urllib.request
+          import json, os, pathlib, time, urllib.request
           targets = {
-              35547208867: "128d744a795d3a465dbf4b5e7719fd9f75930ee8",
+              35563114670: "c4572e18d078222fe05d6df9eec55d62dfc59f41",
           }
           headers = {"Authorization": "Bearer " + os.environ["GH_TOKEN"],
                      "Accept": "application/vnd.github+json",
@@ -30,18 +30,34 @@ jobs:
               url = base + str(run_id)
               with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as response:
                   row = json.load(response)
-              if row["head_sha"] != sha or row["head_branch"] != "repair/solana-alchemy-efficiency" or row["name"] != "four-lane-certification":
+              if row["head_sha"] != sha or row["head_branch"] != "repair/frozen-campaign-handoff" or row["name"] != "four-lane-certification":
                   raise SystemExit("cancellation_identity_mismatch")
               with urllib.request.urlopen(urllib.request.Request(url + "/artifacts", headers=headers)) as response:
                   artifacts = json.load(response)
               record = dict(run_id=run_id, sha=sha, before=row["status"],
-                            artifacts=artifacts, reason="stop successor hour after smoke artifact proved pending Pump entry starved by research RPC work; latest all-lane snapshot shows zero open exposure; preserve both artifacts")
+                            artifacts=artifacts, reason="supersede candidate after static review found transient replacement-session authentication can be bypassed on next lifecycle iteration; cancel only after fresh snapshot proves no qualifiers or exposure; preserve accepted smoke and partial hour artifacts")
               if row["status"] != "completed":
+                  checks_url = "https://api.github.com/repos/" + os.environ["REPOSITORY"] + "/commits/" + sha + "/check-runs?per_page=100"
+                  with urllib.request.urlopen(urllib.request.Request(checks_url, headers=headers)) as response:
+                      checks = json.load(response)
+                  check = next(c for c in checks["check_runs"] if c["name"] == "four-lane-live-hourly")
+                  body = check["output"]["text"].strip()
+                  snapshot = json.loads(body.removeprefix("```json").removesuffix("```").strip())
+                  flat = snapshot.get("elapsed_seconds") is not None and time.time()-snapshot.get("observed_at",0)<90
+                  for lane, state in snapshot["lanes"].items():
+                      flat = flat and state.get("open_positions") == 0
+                      funnel = state.get("funnel") or {}
+                      flat = flat and not funnel.get("qualified",funnel.get("unique_qualified",0))
+                      book = state.get("cohort_accounting") or state.get("native_accounting") or {}
+                      flat = flat and not book.get("reserved",0) and not book.get("pending",0)
+                  record["pre_cancel_snapshot"] = snapshot
+                  pathlib.Path("campaign-cancellations.json").write_text(json.dumps([record], indent=2))
+                  if not flat:raise SystemExit("not_proven_flat_do_not_cancel")
                   with urllib.request.urlopen(urllib.request.Request(url + "/cancel", headers=headers, method="POST")) as response:
                       record["cancel_response"] = response.status
               evidence.append(record)
               pathlib.Path("campaign-cancellations.json").write_text(json.dumps(evidence, indent=2))
-              print(json.dumps({k:v for k,v in record.items() if k != "artifacts"}))
+              print(json.dumps({k:v for k,v in record.items() if k not in ("artifacts","pre_cancel_snapshot")}))
           PY
       - name: Preserve cancellation audit
         if: always()
