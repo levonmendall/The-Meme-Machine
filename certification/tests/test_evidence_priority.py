@@ -11,6 +11,36 @@ from certification.journal import Journal
 
 
 class EvidencePriorityTests(unittest.TestCase):
+    def test_robinhood_local_deadline_preserves_lane_error_contract(self):
+        import time
+        class LaneBoundaryError(ValueError):pass
+        for batch in (False,True):
+            for failure in ('expired','governor'):
+                with self.subTest(batch=batch,failure=failure),tempfile.TemporaryDirectory() as tmp,patch.dict(os.environ,
+                        {'MM_CERT_GOVERNOR_DB':str(Path(tmp)/'governor.sqlite'),
+                         'MM_CERTIFICATION_PROVIDER_DB':''}):
+                    class Transport:
+                        evidence_deadline=time.monotonic()+(-1 if failure=='expired' else 5)
+                        def send(self,*args):raise AssertionError('must never reach provider')
+                    observer=Observer(Path(tmp)/'lane','pons','frozen')
+                    observer.governor.acquire=lambda *a,**k:(_ for _ in ()).throw(
+                        TimeoutError('certification_provider_queue_deadline'))
+                    observer.wrap_transport(Transport,'send',batch=batch,local_error_type=LaneBoundaryError)
+                    rpc=Transport();original_deadline=rpc.evidence_deadline
+                    reason=('evidence_deadline_before_transport' if failure=='expired'
+                            else 'certification_provider_queue_deadline')
+                    try:
+                        with self.assertRaisesRegex(LaneBoundaryError,reason):
+                            if batch:rpc.send([('eth_call',[])])
+                            else:rpc.send('eth_call',[])
+                        self.assertEqual(rpc.evidence_deadline,original_deadline)
+                        self.assertEqual(observer.requests,0)
+                        self.assertEqual(observer.raw_records,1)
+                        self.assertEqual(observer.provider_method_errors,{})
+                        self.assertEqual(observer.local_admission_errors['eth_call:'+reason],1)
+                        self.assertEqual(rpc.evidence_local_failure,reason)
+                    finally:observer.raw.close();observer.journal.db.close()
+
     def test_shutdown_preserves_unadmitted_consumers_without_mutating_source(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/'broker.sqlite'

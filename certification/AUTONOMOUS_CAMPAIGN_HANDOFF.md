@@ -118,3 +118,54 @@ Live launch requires fresh workflow hygiene, all hosted gates, exact source inte
 ## Final local verification
 
 All 1208 lane tests passed: meteora 390, pons 272, pump 288, ramses 258. All 68 supervisor/capacity/accounting tests and all three resource gates passed. Complete transcripts and SHA256 hashes are in `results/autonomous-local-verification/`. Four overlays are byte-reproducible; current source SHAs and frozen file hashes are unchanged. New regressions cover same-mint re-entry, Pons preflight avoiding trajectory/window calls, pending impossible exits, fresh durable writeoff proof, stale/provider rejection, and local expiry attribution. The prospective candidate still must pass hosted gates before live observation.
+
+## Published candidate and prospective run
+
+Candidate `9ef7addcf9d5fb0ca2cc106f0f0a512b4c475bef`, exact tree `58699261dbbddc0f5384df6c78acb440ab3dd501`, was published by fast-forward to PR93. Combined workflow **35545908034** runs hosted gates, a new 600-second smoke, and only after readiness a separate fresh-process 3,600-second observation. All active/queued/pending/waiting workflows were checked immediately before publication; none conflicted. Paper-milestone workflow 35545908051 passed including all three qualification overlays. No live success is inferred from these gates.
+
+## Failed smoke 35545908034 and implementation replacement
+
+Hosted deterministic/resource/source gates passed at `9ef7addcf9d5fb0ca2cc106f0f0a512b4c475bef`.
+Pons exited unexpectedly after 135.208 seconds; continuous four-lane overlap was only
+135.205191673 seconds. Its traceback proves `worker.py` raised plain TimeoutError for
+an expired pre-transport batch outside the native BoundaryError contract. This escaped
+the cohort's candidate-local failure handler. No position was filled or left open.
+The run is engineering FAIL and NATURAL_INCOMPLETE; no hour launched.
+
+Pump also showed a concrete local scheduling defect: locally rejected batches entered
+provider failed-member fallback and attempted individual retries under the same expired
+deadline. Repairs preserve native Robinhood BoundaryError for local wrapper admission,
+stop Solana local failures before retry/fan-out, check the original deadline on both
+sides of local pacing, and exclude unattempted HTTP from physical/provider failures.
+Single/batch regressions cover expired consumers, pacer expiration, governor deadlines
+and queue capacity. `run.py` now carries the separate local-admission counters into the
+consolidated report. No source strategy/economic/finality threshold changed.
+
+After observation cutoff, all four books reported zero open exposure at elapsed 966s.
+Campaign mode prevents new Pump admissions after that cutoff. The superseded failed run
+was cancelled during idle follow-up by exact-ID/SHA/workflow allowlist, commit
+`28ff61cb112726c6ff4012062035a1659121571f`, cancellation run **35547017619**.
+This is not normal drain or certification time. Cancellation audit artifact 10616674531,
+SHA256 `59971f3ad34fd4b911a4de600a719a19913e3878c96c7b5828782e676e0f7493`.
+Failed-run artifact **10616574835**, SHA256
+`e5a9566fb59b6e7e2df34c974437004b1dcc37bdf7f9ec375e2ba33c8bf36752`, was downloaded
+and checksum-verified. All original bytes remain retained. Pump's gzip footer was
+incomplete on cancellation; complete flushed records remain readable and this limitation
+is recorded rather than silently repaired. Other three raw streams closed normally.
+Structured evidence/traceback is `results/failed-smoke-35545908034.json`.
+
+Final observed physical requests: Pump748, Meteora367, Pons163, Ramses130. No HTTP-status
+or RPC-code provider errors were recorded. Pump had zero getProgramAccounts scans in
+this market sample; no duplicate scan claim is inferred. Local wrapper failures were
+Pump22 expired-before-transport plus10 governor deadlines, Pons1 expiration. Full
+consumer/acquisition phase decomposition is retained in the structured evidence.
+Natural/forced settled counts were zero in every lane, all open-position counts zero.
+Meteora retained broad inventory and completed economic vectors without signature 429s.
+Pons has no natural terminal-drain proof in this failed run because it never filled.
+
+Replacement local verification passed all **1212 lane tests** (Pump290, Meteora392,
+Pons272, Ramses258), **69 supervisor tests**, and all three resource gates. Logs/hashes
+are in `results/local-retry-verification/` and `results/deadline-repair-verification/`.
+Fresh-index overlay reproduction and unchanged protected bytes are in
+`results/deadline-repair-overlay-reproduction.json`. Hosted exact-revision verification
+will rerun before an entirely fresh 600-second smoke and gated independent hour.

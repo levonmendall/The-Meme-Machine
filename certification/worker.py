@@ -157,7 +157,7 @@ class Observer:
             finally:self.context.priority=previous
         setattr(module,name,run)
 
-    def wrap_transport(self, cls, name, *, batch=False, solana=False):
+    def wrap_transport(self, cls, name, *, batch=False, solana=False, local_error_type=TimeoutError):
         original=getattr(cls,name)
         observer=self
         @functools.wraps(original)
@@ -186,7 +186,7 @@ class Observer:
                 if priority!=0:priority=getattr(instance,'evidence_priority',priority)
                 evidence_deadline=getattr(instance,'evidence_deadline',None)
                 remaining=30 if evidence_deadline is None else min(30,evidence_deadline-(time.time() if solana else time.monotonic()))
-                if remaining<=0:raise TimeoutError('evidence_deadline_before_transport')
+                if remaining<=0:raise local_error_type('evidence_deadline_before_transport')
                 queue_wait=(observer.governor.acquire(
                     network,observer.lane,priority,deadline_seconds=remaining,
                     methods=methods)
@@ -210,6 +210,11 @@ class Observer:
                 if match:rpc_error_codes=[int(match[1])]
                 # Only stable code-shaped errors are emitted; no free-form URLs.
                 error=message if message.replace('_','').replace('-','').isalnum() and len(message)<160 else type(exc).__name__
+                # Admission happens outside the native HTTP error boundary. Keep
+                # its lane-native exception contract so one expired consumer
+                # cannot terminate the whole observer/cohort process.
+                if transport_started is None and isinstance(exc,TimeoutError):
+                    raise local_error_type(error) from None
                 raise
             finally:
                 elapsed=(time.monotonic_ns()-started)/1e9
@@ -320,9 +325,10 @@ def main():
         from meme_machine.solana_read_rpc import _ReadOnlyFailoverMixin
         observer.wrap_transport(_ReadOnlyFailoverMixin,'_http',solana=True)
     else:
+        from robinhood_research import BoundaryError
         from robinhood_research.provider import Rpc
-        observer.wrap_transport(Rpc,'_http')
-        observer.wrap_transport(Rpc,'_http_batch',batch=True)
+        observer.wrap_transport(Rpc,'_http',local_error_type=BoundaryError)
+        observer.wrap_transport(Rpc,'_http_batch',batch=True,local_error_type=BoundaryError)
     try:
         if args.lane=='pump':
             os.environ['MM_PUMP_ACCELERATION_DISCOVERY_SECONDS']=str(args.seconds)

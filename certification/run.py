@@ -239,7 +239,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                         if row.get('process_nonce') is not None and row['process_nonce']!=nonce:
                             row['process_restarts']+=1
                         row['process_nonce']=nonce
-                    row.update({k:status[k] for k in ('phase','estimated_alchemy','provider_requests','method_counts','errors','provider_method_errors','provider_http_status_errors','provider_rpc_error_codes','rpc_latency_seconds','telemetry_archive_seconds','telemetry_cost','runtime_resources') if k in status})
+                    row.update({k:status[k] for k in ('phase','estimated_alchemy','provider_requests','method_counts','errors','local_admission_errors','provider_method_errors','provider_http_status_errors','provider_rpc_error_codes','rpc_latency_seconds','telemetry_archive_seconds','telemetry_cost','runtime_resources') if k in status})
                     progress=status.get('last_progress_monotonic')
                     row['progress_age_seconds']=None if progress is None else now-progress
                     if 'exit_code' not in row:row['health']='responsive' if progress is not None and now-progress<300 else 'progress_stalled'
@@ -254,7 +254,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                         if isinstance(at,(int,float)) and 0<=now-at<300:
                             row['health']='responsive';row['transport_activity_age_seconds']=now-at
                         if isinstance(at,(int,float)) and at>(status.get('last_progress_monotonic') or 0):
-                            row.update({k:activity[k] for k in ('provider_requests','method_counts','estimated_alchemy','errors','provider_method_errors','provider_http_status_errors','provider_rpc_error_codes','provider_session_count') if k in activity})
+                            row.update({k:activity[k] for k in ('provider_requests','method_counts','estimated_alchemy','errors','local_admission_errors','provider_method_errors','provider_http_status_errors','provider_rpc_error_codes','provider_session_count') if k in activity})
                 if code is None:
                     alive=True;row['continuous_uptime_seconds']=now-launched
                     last=status.get('last_progress_monotonic') or launched

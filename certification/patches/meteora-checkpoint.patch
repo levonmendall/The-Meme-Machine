@@ -313,6 +313,65 @@ index 0000000..274abdb
 +    if 'provider' in r or 'null_gettransaction' in r:return 'provider_failed'
 +    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
 +    return 'reconstruction_incomplete'
+diff --git a/meme_machine/provider.py b/meme_machine/provider.py
+index 76eb6e8..20919e0 100644
+--- a/meme_machine/provider.py
++++ b/meme_machine/provider.py
+@@ -98,6 +98,12 @@ class RPC:
+             self.sleep(max(0, self.last_request + interval - self.clock()))
+             self.last_request = self.clock()
+ 
++    def _check_evidence_deadline(self):
++        deadline=getattr(self,'evidence_deadline',None)
++        if deadline is not None and float(self.clock())>=float(deadline):
++            self.evidence_local_failure='evidence_deadline_before_transport'
++            raise Unavailable(self.evidence_local_failure)
++
+     def call(self, method, params=None, priority=False, fresh=False):
+         if method not in self.ALLOWED:
+             raise ValueError('read-only method allowlist')
+@@ -116,7 +122,10 @@ class RPC:
+         for attempt in range(attempts):
+             if self.calls >= cap:
+                 raise Unavailable('provider_budget_exhausted')
++            self._check_evidence_deadline()
+             self._pace(0.5)
++            self._check_evidence_deadline()
++            self.evidence_local_failure=None
+             self.calls += 1
+             if self.transport == self._http:
+                 self.http_requests += 1
+@@ -134,6 +143,9 @@ class RPC:
+                 last_error = None
+                 break
+             except Exception as exc:
++                if getattr(self,'evidence_local_failure',None):
++                    if self.transport == self._http:self.http_requests -= 1
++                    raise Unavailable(self.evidence_local_failure) from None
+                 kind=self._failure_kind(exc)
+                 self._record_failure(method,kind)
+                 last_error = exc
+@@ -194,7 +206,10 @@ class RPC:
+             logical=len(chunk)
+             if self.calls + logical > cap:
+                 raise Unavailable('provider_budget_exhausted')
++            self._check_evidence_deadline()
+             self._pace(max(0.5,logical/4.0))
++            self._check_evidence_deadline()
++            self.evidence_local_failure=None
+             first_id=self.calls+1
+             requests=[{'jsonrpc':'2.0','id':first_id+i,'method':method,'params':params}
+                       for i,(_,params,_) in enumerate(chunk)]
+@@ -224,6 +239,9 @@ class RPC:
+                     results[index]=value
+                     self._cache_put(key,value)
+             except Exception as exc:
++                if getattr(self,'evidence_local_failure',None):
++                    self.http_requests -= 1
++                    raise Unavailable(self.evidence_local_failure) from None
+                 kind=self._failure_kind(exc)
+                 self._record_failure(method,kind,logical)
+                 fallback=list(chunk)
 diff --git a/meme_machine/solana_evidence_broker.py b/meme_machine/solana_evidence_broker.py
 index 05dd96f..a10c943 100644
 --- a/meme_machine/solana_evidence_broker.py
@@ -2258,6 +2317,57 @@ index 0000000..099d6d9
 +
 +
 +if __name__=='__main__':unittest.main()
+diff --git a/tests/test_local_admission_retry.py b/tests/test_local_admission_retry.py
+new file mode 100644
+index 0000000..4d429e2
+--- /dev/null
++++ b/tests/test_local_admission_retry.py
+@@ -0,0 +1,45 @@
++import unittest
++from meme_machine.provider import RPC,Unavailable
++
++
++class LocalAdmissionRetryTests(unittest.TestCase):
++    def test_local_batch_or_single_rejection_never_retries_or_counts_provider_failure(self):
++        for batch in (False,True):
++            for reason in ('evidence_deadline_before_transport','certification_provider_queue_deadline',
++                           'certification_provider_queue_capacity'):
++                with self.subTest(batch=batch,reason=reason):
++                    class AdmissionRpc(RPC):
++                        attempts=0
++                        def _http(self,request):
++                            self.attempts+=1
++                            self.evidence_local_failure=reason
++                            raise TimeoutError(reason)
++                    rpc=AdmissionRpc('https://invalid.example',clock=lambda:10,sleeper=lambda _:None)
++                    rpc.evidence_deadline=11
++                    with self.assertRaisesRegex(Unavailable,reason):
++                        if batch:rpc.call_many('getTransaction',[[str(i)] for i in range(8)])
++                        else:rpc.call('getTransaction',['sig'])
++                    self.assertEqual(rpc.attempts,1)
++                    self.assertEqual(rpc.http_requests,0)
++                    self.assertEqual(rpc.retries,0)
++                    self.assertEqual(rpc.failures,0)
++                    self.assertEqual(rpc.failure_kinds,{})
++                    self.assertEqual(rpc.evidence_deadline,11)
++
++    def test_pacer_cannot_send_after_original_deadline(self):
++        for batch in (False,True):
++            for initial in (10,12):
++                with self.subTest(batch=batch,initial=initial):
++                    clock=[initial]
++                    class ExpiringRpc(RPC):
++                        def _pace(self,*args):clock[0]=12
++                        def _http(self,request):raise AssertionError('expired request reached transport')
++                    rpc=ExpiringRpc('https://invalid.example',clock=lambda:clock[0],sleeper=lambda _:None)
++                    rpc.evidence_deadline=11
++                    with self.assertRaisesRegex(Unavailable,'evidence_deadline_before_transport'):
++                        if batch:rpc.call_many('getTransaction',[['sig']])
++                        else:rpc.call('getTransaction',['sig'])
++                    self.assertEqual(rpc.calls,0)
++                    self.assertEqual(rpc.http_requests,0)
++                    self.assertEqual(rpc.failures,0)
++                    self.assertEqual(rpc.retries,0)
 diff --git a/tests/test_meteora_continuous_campaign.py b/tests/test_meteora_continuous_campaign.py
 new file mode 100644
 index 0000000..9c5fe0e
