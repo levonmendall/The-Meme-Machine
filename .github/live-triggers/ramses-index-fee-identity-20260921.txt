@@ -1,0 +1,1 @@
+Recollect complete indexed Ramses DLMM history retaining fee-event logIndex/logIndexNumber so historical LP fee attribution can be joined exactly to user-bin liquidity versions.
