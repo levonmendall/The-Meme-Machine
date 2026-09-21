@@ -131,7 +131,7 @@ for key in ('postgrad','attempts','full_evidence_attempts'):
         for value in values:
             if isinstance(value,dict):history_count(value.get('mint'),value.get('history_status'))
 terminal_sources=[]
-for path in (state['base']/'pump').rglob('*terminal*.jsonl'):
+for path in (state['native']/'pump').rglob('*terminal*.jsonl'):
     terminal_sources.append(str(path.relative_to(root)))
     with path.open() as file:
         for line in file:
@@ -158,8 +158,14 @@ with state['gzip'].open(state['base']/'pons/rpc-evidence.jsonl.gz','rt') as file
                     code=error.get('code'),message=str(error.get('message',''))[:180],http_status=row.get('http_status')))
     except EOFError:
         if not state['cancelled']:raise
-(out/'pons-rpc-member-errors.json').write_text(json.dumps(rpc_members,indent=2,sort_keys=True))
-print('PONS_RPC_MEMBER_ERRORS_BEGIN',flush=True);print(json.dumps(rpc_members,sort_keys=True),flush=True);print('PONS_RPC_MEMBER_ERRORS_END',flush=True)
+rpc_attribution={'scope':'Actual response error members when present; exception-only failures retain affected batch methods without inventing per-member attribution.',
+ 'response_error_members':rpc_members,
+ 'exception_only_failures':[dict(physical_request_id=r.get('physical_request_id'),observed_at_ns=r.get('observed_at_ns'),
+     error=r.get('error'),http_status=r.get('http_status'),json_rpc_error_codes=r.get('json_rpc_error_codes'),
+     affected_batch_methods=sorted(set(x.get('method') if isinstance(x,dict) else x[0] for x in (r.get('request') or []))))
+     for r in review['raw']['pons']['provider_failures']]}
+(out/'pons-rpc-member-errors.json').write_text(json.dumps(rpc_attribution,indent=2,sort_keys=True))
+print('PONS_RPC_MEMBER_ERRORS_BEGIN',flush=True);print(json.dumps(rpc_attribution,sort_keys=True),flush=True);print('PONS_RPC_MEMBER_ERRORS_END',flush=True)
 
 (out/'stream-admission-attribution.json').write_text(json.dumps(stream_audit,indent=2,sort_keys=True))
 print('STREAM_ADMISSION_AUDIT_BEGIN',flush=True);print(json.dumps(stream_audit,sort_keys=True),flush=True);print('STREAM_ADMISSION_AUDIT_END',flush=True)
