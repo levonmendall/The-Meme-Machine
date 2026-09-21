@@ -1,0 +1,1 @@
+Run the preregistered exact quiet-mint counterfactual on six deterministic development signals. Final 20% holdout remains unexamined.\n
