@@ -6,7 +6,7 @@ permissions:
   contents: write
 jobs:
   build:
-    if: ${{ !contains(github.event.head_commit.message, '[profitability-overlay-promoted]') }}
+    if: ${{ contains(github.event.head_commit.message, '[rebuild-profitability-overlays]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
