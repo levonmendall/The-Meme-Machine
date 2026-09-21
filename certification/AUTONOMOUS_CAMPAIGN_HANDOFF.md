@@ -1485,3 +1485,8 @@ run, no new repair, no policy change, no merge, and no additional autonomous wor
 authorized after this handoff.
 
 Cancellation trigger issued after smoke handoff: repository concurrency stop `[cancel-runs]`; no successor hour is authorized.
+
+
+### Explicit user “Update and stop” honored
+The user directly ended this task. No further implementation repairs, replacement smoke, or hourly validation will be launched. Exact92a8smoke35605451168 was cancelled during Pumpfollowup after1463.533804103s total, with600.522587784s completedfourlaneobservation; Pumpfollowup terminated, so NOTa normaldrainengineeringpass. Pons/Meteora/Ramses alreadyexited0, Pons3naturalsettlements aggregate−3811192249048356 nativequoteunits, currentallbooksflat. Successorhour neverstarted. Fullsmokearchive10642572447,144112676bytes,SHA2560e7856666d30c48ce9a62cd42ad5e614bbf1e377647aa2d8293e1f7519f77c7a finalized. Mandatoryfullartifactreview wascancelled, so no complete native replay/archiveaudit claimed for thissmoke. Allhistoricalunresolvedexposure and lossesremainunchanged.
+Stopcommitsbe9bc277 andce35b6f4 lackedqualification-build marker and inadvertentlytriggered legacyshadowdiagnostics35607999418(active) and35608106783(pending). This cleanup targets ONLYthose exactruns/SHAs, queuedfirst, preserves existing artifacts and reliesonexisting always-upload hooks. No marketvalidation orrepair isauthorized. Finalstatusverification follows; PR93remainsdraft/unmerged andmainuntouched.
