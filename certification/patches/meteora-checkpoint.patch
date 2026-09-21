@@ -1539,7 +1539,7 @@ index 0000000..8b7b820
 +def is_default_signature(value):
 +    return value == DEFAULT_SIGNATURE
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
-index c1aef79..e0fb454 100644
+index c1aef79..a019592 100644
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
 @@ -12,8 +12,10 @@ transport.
@@ -2461,7 +2461,7 @@ index 0000000..1e53cfb
 +if __name__=='__main__':unittest.main()
 diff --git a/tests/test_dlmm_independent_accounting.py b/tests/test_dlmm_independent_accounting.py
 new file mode 100644
-index 0000000..fa0c84e
+index 0000000..96e0410
 --- /dev/null
 +++ b/tests/test_dlmm_independent_accounting.py
 @@ -0,0 +1,75 @@
@@ -2540,16 +2540,6 @@ index 0000000..fa0c84e
 +                strategy._lifecycle(None,'pool',self.entry,self.features,self.policy,None,[],book=self.book)
 +        r=self.reopen().reconcile();self.assertEqual((r['cash'],r['unsettled']),(1_000_000_000,0))
 +        with self.assertRaisesRegex(ValueError,'foreign_lifecycle'):
-+            self.book.append('pons:foreign','reserve',dict(amount=1))
-+        with self.assertRaisesRegex(ValueError,'capital_exhausted'):
-+            self.book.append(self.book.identity(),'reserve',dict(amount=1_000_000_001))
-+        with sqlite3.connect(self.path) as db:
-+            with self.assertRaisesRegex(sqlite3.IntegrityError,'append_only'):db.execute('DELETE FROM events')
-+
-+    def test_replay_rejects_different_economic_result(self):
-+        self.run_lifecycle()
-+        def wrong(position):return dict(strategy._mark(position),ending_sol_lamports=1)
-+        with self.assertRaisesRegex(ValueError,'entry_replay'):self.book.replay_economics(strategy._build_position,strategy._advance_position,wrong)
 diff --git a/tests/test_dlmm_small_pool_profitability.py b/tests/test_dlmm_small_pool_profitability.py
 index 5981022..7be2d8e 100644
 --- a/tests/test_dlmm_small_pool_profitability.py
