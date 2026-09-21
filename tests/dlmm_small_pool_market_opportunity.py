@@ -14,6 +14,7 @@ from pathlib import Path
 import statistics
 import threading
 import time
+from datetime import datetime, timezone
 import urllib.parse
 import urllib.request
 
@@ -71,6 +72,39 @@ def _num(value):
     return x if math.isfinite(x) else None
 
 
+
+def _timestamp(value):
+    if isinstance(value,bool):
+        return None
+    if isinstance(value,(int,float)):
+        x=int(value)
+        # Millisecond timestamps are accepted only after explicit normalization.
+        if x>10_000_000_000:
+            x//=1000
+        return x if x>=0 else None
+    if isinstance(value,str):
+        raw=value.strip()
+        if not raw:
+            return None
+        try:
+            x=float(raw)
+        except ValueError:
+            x=None
+        if x is not None and math.isfinite(x):
+            out=int(x)
+            if out>10_000_000_000:
+                out//=1000
+            return out if out>=0 else None
+        try:
+            parsed=datetime.fromisoformat(raw.replace("Z","+00:00"))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed=parsed.replace(tzinfo=timezone.utc)
+        return int(parsed.timestamp())
+    return None
+
+
 def _exact_sol_pair(row):
     x=(row.get("token_x") or {}).get("address")
     y=(row.get("token_y") or {}).get("address")
@@ -107,7 +141,7 @@ def census_bucket(label):
             volume=_num((row.get("volume") or {}).get("24h"))
             fees=_num((row.get("fees") or {}).get("24h"))
             dynamic=_num(row.get("dynamic_fee_pct"))
-            created=row.get("created_at")
+            created=_timestamp(row.get("created_at"))
             out.append(dict(
                 address=address,name=row.get("name"),tvl_usd=tvl,
                 volume_24h_usd=volume,fees_24h_usd=fees,
