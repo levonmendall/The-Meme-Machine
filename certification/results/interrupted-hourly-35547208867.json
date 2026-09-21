@@ -1,0 +1,147 @@
+{
+  "run_id": 35547208867,
+  "phase": "interrupted_hourly",
+  "sha": "128d744a795d3a465dbf4b5e7719fd9f75930ee8",
+  "artifact_id": 10617383134,
+  "artifact_sha256": "a92df116e0628320791313671ddb1e4ced36f2dca412adcd71a315846ecbf59f",
+  "overlap_seconds": 154.815591215,
+  "certification_time_accepted": 0,
+  "reason": "successor_stopped_after_smoke_pending_entry_priority_defect",
+  "lanes": {
+    "meteora": {
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "exit_code": null,
+      "unexpected_exit": null,
+      "cohort_accounting": null,
+      "native_accounting": {
+        "available": 1000000000,
+        "capital_time_through_ns": 0,
+        "capital_unit_nanoseconds": 0,
+        "cash": 1000000000,
+        "economic_replay_verified": false,
+        "genesis": {
+          "asset": "SOL_lamports",
+          "capital": 1000000000,
+          "namespace": "solana_meteora_independent_v1",
+          "paper_only": true,
+          "policy_hash": "21da031409371fee6ddcb28e354dc499c12625661a638faa01ec702c120b4894",
+          "run_id": "a26c9801-1056-4d46-89cd-f59211eb34f1"
+        },
+        "journal_events": 1,
+        "journal_hash": "8ae67211f9192201148d3be5e583412e2d5bf202cca5bb81288af7ceeafcf6d7",
+        "marked_equity": 1000000000,
+        "net_cash_flows": 0,
+        "open_positions": 0,
+        "pending": 0,
+        "realized_pnl_lamports": 0,
+        "reconciled": true,
+        "reserved": 0,
+        "settled": 0,
+        "stale_marks": 0,
+        "unrealized_pnl_lamports": 0,
+        "unsettled": 0
+      }
+    },
+    "pons": {
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "exit_code": null,
+      "unexpected_exit": null,
+      "cohort_accounting": {
+        "available": 1000000000000000000,
+        "booked_realized": 0,
+        "capital_at_risk_unit_nanoseconds": 0,
+        "capital_integral_complete": true,
+        "cash": 1000000000000000000,
+        "cash_basis_conservation": true,
+        "conservation": true,
+        "genesis": 1000000000000000000,
+        "namespace": "pons-selective-continuation-v1",
+        "native_execution_cost": 0,
+        "native_observation_complete": true,
+        "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+        "positions": 0,
+        "realized": 0,
+        "remaining_cost_basis": 0,
+        "reserved": 0,
+        "unobserved_native_positions": [],
+        "unsettled": 0
+      },
+      "native_accounting": null
+    },
+    "pump": {
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "exit_code": null,
+      "unexpected_exit": null,
+      "cohort_accounting": null,
+      "native_accounting": {
+        "basis": 0,
+        "capital_hour_denominator": 3600,
+        "capital_unit_seconds": 0,
+        "cash": 5110384300,
+        "initial": 5110384300,
+        "lane": "pump-acceleration-independent-v1",
+        "marked_equity": 5110384300,
+        "open_positions": 0,
+        "pending": 0,
+        "policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e",
+        "realized": 0,
+        "reconciled": true,
+        "reserved": 0,
+        "run_id": "a26c9801-1056-4d46-89cd-f59211eb34f1",
+        "settled": 0,
+        "unrealized": 0
+      }
+    },
+    "ramses": {
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "exit_code": null,
+      "unexpected_exit": null,
+      "cohort_accounting": null,
+      "native_accounting": {
+        "by_quote_asset": {
+          "0x5fc5360d0400a0fd4f2af552add042d716f1d168": {
+            "allocation_authority": false,
+            "available": 89450188,
+            "committed": 0,
+            "open_positions": 0,
+            "paper_capital": 89450188,
+            "policy_hash": "50d928914df10568a7bc9679f0887ac7786fe17d67f1c57171c17a5a95fc6766",
+            "positions": 0,
+            "quote_asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+            "realized": 0,
+            "shared_allocator": false,
+            "strategy_domain": "robinhood-ramses-dlmm-independent",
+            "strategy_version": "ramses-fee-pulse-v1"
+          }
+        },
+        "conservation": true,
+        "funding_state": "funded_once_from_pinned_screen",
+        "manifest": {
+          "cross_asset_conversion": false,
+          "funding_rule": "one_maximum_frozen_scanner_size_per_quote_asset_from_first_fundable_pinned_screen",
+          "genesis_by_quote_asset": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168": 89450188
+          },
+          "later_assets": "unfunded_capacity_censoring",
+          "paper_only": true,
+          "policy_hash": "50d928914df10568a7bc9679f0887ac7786fe17d67f1c57171c17a5a95fc6766",
+          "run_id": "01377608406444079a0c21c7be249c95",
+          "source_finalized_block": 68372248,
+          "source_finalized_hash": "0x911a4d69fb820e29e62be76f4c9e84b5b90c80d5580a0f6c5ea460f556342098",
+          "source_screen_hash": "b888afa6b896588c3ebcfec9e50d7327942f6da83598a9eebf77bda97f1420ac"
+        },
+        "open_positions": 0,
+        "position_count": 0,
+        "unlike_quote_units_summed": false
+      }
+    }
+  }
+}

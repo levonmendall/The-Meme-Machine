@@ -1730,7 +1730,7 @@ index ac23ca3..4e1679a 100644
  
      def _init_failover(self, secondary_url, pacer, primary_provider=PRIMARY_PROVIDER, secondary_provider=SECONDARY_PROVIDER):
 diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
-index db17c29..bdd0579 100644
+index db17c29..0cff9b0 100644
 --- a/tests/pump_acceleration_natural_prospective.py
 +++ b/tests/pump_acceleration_natural_prospective.py
 @@ -11,8 +11,9 @@ import json
@@ -1848,7 +1848,15 @@ index db17c29..bdd0579 100644
          mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
          score=qualification.score,reasons=list(qualification.reasons),
          confirmations=list(qualification.confirmations),
-@@ -280,7 +341,8 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -250,6 +311,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+         mint,mode=key
+         life=row["lifecycle"]
+         try:
++            _assert_fill_deadline(row)
+             sessions.ensure(20)
+             if mode==MODE_LATE_CURVE:
+                 snapshot=sessions.pump.snapshot(mint,now,priority=True)
+@@ -280,7 +342,8 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                  entry=dict(tokens=tokens,cost=cost,fee=quote.fee_amount,gas=GAS)
  
              basis=cost+GAS
@@ -1858,7 +1866,7 @@ index db17c29..bdd0579 100644
              active[key]=dict(
                  lifecycle=life,opened=int(snapshot["available_time"]),
                  next_monitor=int(snapshot["available_time"])+5,
-@@ -291,6 +353,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -291,6 +354,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                  entry_status="filled",filled_at=int(snapshot["available_time"]),
                  fill_slot=int(snapshot["slot"]),entry=entry,
              )
@@ -1866,7 +1874,7 @@ index db17c29..bdd0579 100644
              pending.pop(key,None)
          except (Unavailable,ValueError,KeyError,TypeError) as exc:
              reason=str(exc) or type(exc).__name__
-@@ -299,6 +362,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -299,6 +363,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                      decision_now-int(row["reserved_at"])>=ENTRY_FILL_TIMEOUT_SECONDS):
                  try:
                      life.cancel(reason,decision_now)
@@ -1874,9 +1882,22 @@ index db17c29..bdd0579 100644
                  except ValueError:
                      pass
                  row["qualifier_row"].update(
-@@ -308,6 +372,9 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -307,7 +372,22 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+             else:
                  row["qualifier_row"]["last_fill_limitation"]=reason
  
++def _service_pending_entries(report,pending,active,sessions,postgrad,*,monitor):
++    """Give reserved entries lifecycle authority before more research can block.
++
++    Stream threads continue broad finalized observation. Pending entries keep their
++    original delay and timeout; a too-early finalized quote schedules another
++    position check, not a long synchronous candidate/history evaluation.
++    """
++    while pending:
++        monitor()
++        _fill_pending(report,pending,active,sessions,postgrad,int(time.time()))
++        if pending:time.sleep(1)
++
  def _record_attempt(report,signal,q,stage,extra=None):
 +    if stage=="full_point_in_time":_progress(signal.mint,"evidence_complete",mode=signal.phase)
 +    _progress(signal.mint,"evaluated",mode=signal.phase)
@@ -1884,7 +1905,7 @@ index db17c29..bdd0579 100644
      row=dict(
          mint=signal.mint,mode=signal.phase,observed_at=signal.observed_at,
          stage=stage,score=q.score,qualified=q.qualified,reasons=list(q.reasons),
-@@ -330,6 +397,10 @@ def _record_attempt(report,signal,q,stage,extra=None):
+@@ -330,6 +410,10 @@ def _record_attempt(report,signal,q,stage,extra=None):
      )
      if extra:
          row.update(extra)
@@ -1895,7 +1916,7 @@ index db17c29..bdd0579 100644
      if stage=="full_point_in_time":
          # Full-evidence rows are an append-only experiment ledger and are never
          # removed by the rolling UI/debug attempt buffer.
-@@ -338,11 +409,147 @@ def _record_attempt(report,signal,q,stage,extra=None):
+@@ -338,11 +422,147 @@ def _record_attempt(report,signal,q,stage,extra=None):
      report["attempts"]=report["attempts"][-1000:]
  
  
@@ -2044,7 +2065,7 @@ index db17c29..bdd0579 100644
      report=dict(
          kind="pump_acceleration_natural_prospective",
          strategy_id=STRATEGY_ID,policy_hash=actual_policy_hash,
-@@ -352,6 +559,11 @@ def main():
+@@ -352,6 +572,11 @@ def main():
          order_authority=False,signing_authority=False,transaction_submission_authority=False,
          live_money_authority=False,shared_portfolio_mutation=False,
          discovery_source="finalized_public_pump_logs",
@@ -2056,7 +2077,7 @@ index db17c29..bdd0579 100644
          evidence_source="alchemy_http_primary_no_rescue",
          evidence_acquisition_mode=(
              "candidate_pool_finalized_stream_plus_bounded_decision_bootstrap_"
-@@ -360,12 +572,20 @@ def main():
+@@ -360,12 +585,20 @@ def main():
          velocity_window_seconds=30,extension_lookback_seconds=10,
          entry_budget_lamports=ENTRY_BUDGET,entry_fraction_bps=POLICY.entry_fraction_bps,
          entry_delay_seconds=ENTRY_DELAY_SECONDS,entry_fill_timeout_seconds=ENTRY_FILL_TIMEOUT_SECONDS,
@@ -2078,7 +2099,7 @@ index db17c29..bdd0579 100644
      _save(report)
  
      tape=PumpTape()
-@@ -374,8 +594,13 @@ def main():
+@@ -374,8 +607,13 @@ def main():
      broker=EvidenceBroker(broker_path)
      stop=threading.Event();ready=threading.Event();pumpswap_ready=threading.Event()
      stream=PumpLogStream(primary_rpc_url(),tape,ws_url=discovery_ws_url())
@@ -2093,7 +2114,7 @@ index db17c29..bdd0579 100644
      thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
      pumpswap_thread=threading.Thread(
          target=pumpswap_stream.run,args=(stop,pumpswap_ready),daemon=True)
-@@ -390,12 +615,18 @@ def main():
+@@ -390,12 +628,18 @@ def main():
      sessions=Sessions()
      cursor=0;created={};postgrad={};pending={};active={};full_attempts=0
      last_eval={};last_postgrad_eval={};last_save=0
@@ -2108,12 +2129,12 @@ index db17c29..bdd0579 100644
 +            if evidence_service:evidence_service.check()
              now=int(time.time())
 +            _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
-+            _fill_pending(report,pending,active,sessions,postgrad,int(time.time()))
++            _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
 +            if campaign:_retire_postgrad(report,postgrad,pending,active,pumpswap_stream,int(time.time()))
              fresh,cursor=tape.events_since(cursor)
              for event in fresh:
                  creation=tape.creation(event["mint"])
-@@ -404,6 +635,7 @@ def main():
+@@ -404,6 +648,7 @@ def main():
                  if event["mint"] not in created:
                      created[event["mint"]]=dict(
                          creation=creation,pregrad_wallets=set(),graduated=False)
@@ -2121,7 +2142,7 @@ index db17c29..bdd0579 100644
                      confirmations.observe_creation(creation)
                  state=created[event["mint"]]
                  if len(state["pregrad_wallets"])<500 and event.get("wallet"):
-@@ -413,7 +645,8 @@ def main():
+@@ -413,7 +658,8 @@ def main():
                      state["graduation_time"]=int(event["market_time"])
                      confirmations.observe_graduation(
                          event["mint"],int(event.get("available_time") or now))
@@ -2131,7 +2152,7 @@ index db17c29..bdd0579 100644
                          pool=pumpswap_pool(event["mint"])
                          stream_key=pumpswap_stream.add_address(pool)
                          postgrad[event["mint"]]=dict(
-@@ -425,11 +658,18 @@ def main():
+@@ -425,11 +671,18 @@ def main():
                                  stream_key=stream_key),
                              history_status={},graduation_price=None,
                          )
@@ -2144,13 +2165,13 @@ index db17c29..bdd0579 100644
              if now<discovery_end and tape.covered(now):
                  for event in fresh:
 +                    _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time()))
-+                    _fill_pending(report,pending,active,sessions,postgrad,int(time.time()))
++                    _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
 +                    now=int(time.time())
 +                    if now>=discovery_end:break
                      mint=event.get("mint")
                      state=created.get(mint)
                      if state is None or state.get("graduated"):
-@@ -446,6 +686,33 @@ def main():
+@@ -446,6 +699,33 @@ def main():
                      if progress<POLICY.min_curve_progress_bps:
                          continue
                      last_eval[mint]=now
@@ -2184,7 +2205,7 @@ index db17c29..bdd0579 100644
                      try:
                          sessions.ensure(25)
                          snapshot=sessions.pump.snapshot(mint,now,priority=True)
-@@ -461,8 +728,11 @@ def main():
+@@ -461,8 +741,11 @@ def main():
                                  {"trajectory":trajectory,
                                   "confirmation_evidence":_confirmation_meta(confirmation)})
                              continue
@@ -2198,7 +2219,7 @@ index db17c29..bdd0579 100644
                              continue
                          full_attempts+=1
                          concentration,meta=sessions.reader.read(mint,snapshot,priority=True)
-@@ -480,6 +750,7 @@ def main():
+@@ -480,6 +763,7 @@ def main():
                              _reserve_position(
                                  report,pending,active,q,snapshot,MODE_LATE_CURVE,concentration)
                      except (Unavailable,ValueError,KeyError,TypeError) as exc:
@@ -2206,12 +2227,12 @@ index db17c29..bdd0579 100644
                          report["attempts"].append(dict(
                              mint=mint,mode=MODE_LATE_CURVE,observed_at=now,
                              stage="incomplete",qualified=False,
-@@ -488,12 +759,18 @@ def main():
+@@ -488,12 +772,18 @@ def main():
              # Natural post-graduation and second-leg entries may occur during the
              # follow-up because their decision time is necessarily after migration.
              for mint,state in list(postgrad.items()):
 +                _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time()))
-+                _fill_pending(report,pending,active,sessions,postgrad,int(time.time()))
++                _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
 +                now=int(time.time())
 +                if campaign and now>=discovery_end:break
                  age=now-int(state["graduation_time"])
@@ -2225,7 +2246,7 @@ index db17c29..bdd0579 100644
                  try:
                      sessions.ensure(85)
                      graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
-@@ -537,11 +814,13 @@ def main():
+@@ -537,11 +827,13 @@ def main():
                                  _reserve_position(
                                      report,pending,active,q2,snapshot,MODE_SECOND_LEG,concentration)
                          except (Unavailable,ValueError,KeyError,TypeError) as exc:
@@ -2239,9 +2260,12 @@ index db17c29..bdd0579 100644
                      report["postgrad"].append(dict(
                          mint=mint,observed_at=now,age_seconds=age,
                          complete=False,limitation=str(exc) or type(exc).__name__,
-@@ -554,82 +833,13 @@ def main():
+@@ -552,84 +844,15 @@ def main():
+ 
+             # Paper entries use the repository-standard two-second delay and a fresh
              # executable quote. This is execution realism, not a strategy threshold.
-             _fill_pending(report,pending,active,sessions,postgrad,now)
+-            _fill_pending(report,pending,active,sessions,postgrad,now)
++            _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
  
 -            # Exact frozen exit controller on natural qualifiers.  Each qualifier is
 -            # an isolated research lifecycle; no shared Store capital is mutated.
@@ -2327,7 +2351,7 @@ index db17c29..bdd0579 100644
                  counts=Counter()
                  for attempt in report["attempts"]:
                      counts[f'{attempt.get("mode")}:{attempt.get("stage")}']+=1
-@@ -649,12 +859,19 @@ def main():
+@@ -649,12 +872,19 @@ def main():
              time.sleep(1)
      finally:
          stop.set();thread.join(timeout=5);pumpswap_thread.join(timeout=5)
@@ -2347,7 +2371,7 @@ index db17c29..bdd0579 100644
          report["full_evidence_attempts"]=full_attempts
          report["created_mints_observed"]=len(created)
          report["postgrad_candidates"]=len(postgrad)
-@@ -674,6 +891,8 @@ def main():
+@@ -674,6 +904,8 @@ def main():
          report["threshold_changes_made"]=False
          _save(report)
          broker.close()
@@ -2791,6 +2815,79 @@ index a9eaead..79e2bdc 100644
 +        self.assertEqual(history.stream_pending_transactions,0)
 +        self.assertTrue(history.decision_window_status(103)['complete'])
 +        self.assertEqual(rpc.tx_calls.count('s3'),1);self.assertNotIn('noise',rpc.tx_calls);self.assertEqual(len(history.stream_prefiltered_signatures),1)
+diff --git a/tests/test_pump_acceleration_natural_harness.py b/tests/test_pump_acceleration_natural_harness.py
+index 9e3de78..a5ef025 100644
+--- a/tests/test_pump_acceleration_natural_harness.py
++++ b/tests/test_pump_acceleration_natural_harness.py
+@@ -1,4 +1,5 @@
+ import unittest
++from unittest.mock import patch
+ 
+ from meme_machine.pump_acceleration_strategy import STRATEGY_ID,policy_hash
+ from tests import pump_acceleration_natural_prospective as prospective
+@@ -6,11 +7,14 @@ from tests import pump_acceleration_natural_prospective as prospective
+ 
+ class NaturalHarnessBoundaryTests(unittest.TestCase):
+     def test_fill_timeout_is_rechecked_after_provider_returns(self):
++        clock=[102]
+         class Life:
+             def __init__(self): self.cancelled=None
+             def cancel(self,reason,now): self.cancelled=(reason,now)
+         class Pump:
+-            def snapshot(self,*_args,**_kwargs): return {}
++            def snapshot(self,*_args,**_kwargs):
++                clock[0]=121
++                return {}
+         class Sessions:
+             pump=Pump()
+             def ensure(self,_needed): return None
+@@ -22,7 +26,7 @@ class NaturalHarnessBoundaryTests(unittest.TestCase):
+             qualifier_row={},last_concentration=0,
+         )}
+         original=prospective.time.time
+-        prospective.time.time=lambda:121
++        prospective.time.time=lambda:clock[0]
+         try:
+             prospective._fill_pending({},pending,{},Sessions(),{},102)
+         finally:
+@@ -30,6 +34,37 @@ class NaturalHarnessBoundaryTests(unittest.TestCase):
+         self.assertEqual(pending,{})
+         self.assertEqual(life.cancelled,("entry_fill_timeout",121))
+ 
++    def test_expired_reservation_never_acquires_another_fill_quote(self):
++        class Life:
++            def cancel(self,reason,now):self.cancelled=(reason,now)
++        class Sessions:
++            def ensure(self,_needed):raise AssertionError('expired entry acquired provider capacity')
++        life=Life();key=('MINT',prospective.MODE_LATE_CURVE)
++        pending={key:dict(lifecycle=life,reserved_at=100,due=102,qualifier_row={})}
++        with patch.object(prospective.time,'time',return_value=120):
++            prospective._fill_pending({},pending,{},Sessions(),{},120)
++        self.assertEqual(life.cancelled,('entry_fill_timeout',120))
++        self.assertFalse(pending)
++
++    def test_too_early_quote_is_rechecked_before_research_resumes(self):
++        # Reproduce the smoke's first quote at reserve+11, too early on the
++        # finalized clock. Research would take ten seconds and miss reserve+20.
++        clock=[111];order=[];row=dict(reserved_at=100,due=102)
++        pending={'entry':row}
++        def fill(*args):
++            order.append(('fill',clock[0]))
++            self.assertEqual(row['reserved_at'],100)
++            if clock[0]>=112:pending.clear()
++        def sleep(seconds):clock[0]+=seconds
++        with patch.object(prospective.time,'time',side_effect=lambda:clock[0]),\
++                patch.object(prospective.time,'sleep',side_effect=sleep),\
++                patch.object(prospective,'_fill_pending',side_effect=fill):
++            prospective._service_pending_entries({},pending,{},None,{},
++                monitor=lambda:order.append(('monitor',clock[0])))
++            order.append(('research',clock[0]))
++        self.assertEqual(order,[('monitor',111),('fill',111),('monitor',112),('fill',112),('research',112)])
++        self.assertLess(clock[0],row['reserved_at']+prospective.ENTRY_FILL_TIMEOUT_SECONDS)
++
+     def test_harness_is_frozen_and_paper_only(self):
+         self.assertEqual(STRATEGY_ID,"pump-acceleration-independent-v1")
+         self.assertEqual(len(policy_hash()),64)
 diff --git a/tests/test_pump_continuous_campaign.py b/tests/test_pump_continuous_campaign.py
 new file mode 100644
 index 0000000..80cf79e

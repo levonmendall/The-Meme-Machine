@@ -1,0 +1,4653 @@
+{
+  "run_id": 35547208867,
+  "phase": "smoke",
+  "sha": "128d744a795d3a465dbf4b5e7719fd9f75930ee8",
+  "artifact_id": 10617471527,
+  "artifact_sha256": "cc7fff38b4de386dcc5803639de8cd5eeee11b9b611e7bd316c9294210047f73",
+  "engineering": {
+    "failures": [],
+    "scope": "ten_minute_engineering_preflight_only; not natural or sustained certification",
+    "status": "PASS"
+  },
+  "overlap_seconds": 600.483357096,
+  "lanes": {
+    "meteora": {
+      "exit_code": 0,
+      "unexpected_exit": false,
+      "process_restarts": 0,
+      "provider_requests": 276,
+      "method_counts": {
+        "getBlockTime": 76,
+        "getGenesisHash": 1,
+        "getMultipleAccounts": 105,
+        "getSignaturesForAddress": 63,
+        "getTransaction": 146
+      },
+      "errors": {},
+      "local_admission_errors": {},
+      "provider_method_errors": {},
+      "provider_http_status_errors": {},
+      "provider_rpc_error_codes": {},
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "funnel": {
+        "complete_economic_vectors": 1,
+        "complete_lifecycles": 0,
+        "complete_observations": 1,
+        "discovered": 64,
+        "screened": 20,
+        "unique_admitted": 9,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 1,
+        "unique_deployed": 0,
+        "unique_discovered": 64,
+        "unique_economic_vector": 1,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 1,
+        "unique_evidence_complete": 1,
+        "unique_evidence_requested": 9,
+        "unique_forward_observation": 5,
+        "unique_fresh_state": 5,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 4,
+        "unique_prospective_range": 1,
+        "unique_provider_failed": 0,
+        "unique_qualified": 0,
+        "unique_reconstruction_complete": 4,
+        "unique_reconstruction_incomplete": 16,
+        "unique_reconstruction_started": 5,
+        "unique_rejected": 1,
+        "unique_screened": 20,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 0,
+        "unique_stale_before_evidence": 0,
+        "unique_stale_during_evidence": 0,
+        "unique_strategy_rejection": 1,
+        "unique_terminal": 20,
+        "unique_trigger_authenticated": 6,
+        "unique_trigger_observed": 6,
+        "unique_trigger_terminal": 7,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 3,
+        "unique_warmup_started": 5
+      },
+      "gates": {
+        "accounting_reconciled": true,
+        "freshness_finality_unchanged": true,
+        "paper_only": true,
+        "policy_unchanged": true,
+        "responsive": true,
+        "state_isolated": true,
+        "telemetry_complete": true
+      },
+      "native_accounting": {
+        "available": 1000000000,
+        "capital_time_through_ns": 0,
+        "capital_unit_nanoseconds": 0,
+        "cash": 1000000000,
+        "economic_replay_verified": false,
+        "genesis": {
+          "asset": "SOL_lamports",
+          "capital": 1000000000,
+          "namespace": "solana_meteora_independent_v1",
+          "paper_only": true,
+          "policy_hash": "21da031409371fee6ddcb28e354dc499c12625661a638faa01ec702c120b4894",
+          "run_id": "e0a89a48-b202-4f56-bc86-7050adaf22fe"
+        },
+        "journal_events": 1,
+        "journal_hash": "98188ea327f2f28080a8b207e755863c7be367db174646713a932ad964759167",
+        "marked_equity": 1000000000,
+        "net_cash_flows": 0,
+        "open_positions": 0,
+        "pending": 0,
+        "realized_pnl_lamports": 0,
+        "reconciled": true,
+        "reserved": 0,
+        "settled": 0,
+        "stale_marks": 0,
+        "unrealized_pnl_lamports": 0,
+        "unsettled": 0
+      },
+      "cohort_accounting": null,
+      "evidence_state": {
+        "consumer_work": {
+          "acquisition_failures": {},
+          "acquisition_phase_attempts": {
+            "enqueued": 24,
+            "provider_transport": 31
+          },
+          "by_kind": {
+            "dlmm_fresh": {
+              "evidence_complete": 146
+            }
+          },
+          "candidate_interests": 8,
+          "consumers": [
+            {
+              "count": 146,
+              "kind": "dlmm_fresh",
+              "state": "evidence_complete"
+            }
+          ],
+          "deadline_decomposition": [],
+          "lane": "meteora",
+          "opportunity_denominator_source": "native_candidate_funnel_not_consumer_count",
+          "scope": "lane_attributed_logical_consumers; candidate_states_may_overlap",
+          "shared_acquisition_failures": {
+            "background_deferred_foreground": 2,
+            "physical_governor_wait": 11
+          },
+          "shared_overdue_active_jobs": 0,
+          "unique_candidate_acquisition_failures": {},
+          "unique_candidate_states": {
+            "evidence_complete": 8
+          }
+        },
+        "expired_jobs": 154,
+        "inflight_jobs": 0,
+        "pending_jobs": 0,
+        "pressure": {
+          "batch_size": 16,
+          "cooldown_until": 0.0,
+          "next_transport_at": 1789950604.1585283,
+          "rate_events": 0,
+          "rate_streak": 0,
+          "recoveries": 8,
+          "reductions": 0,
+          "success_streak": 2,
+          "transport_ready_in_seconds": 0.0,
+          "transport_reservations": 493
+        },
+        "signature_rows": 2494,
+        "stream_events": 20707,
+        "transaction_cache_entries": 3687
+      },
+      "runtime_resources": {
+        "available_logical_cpus": 4,
+        "cpu_system_seconds": 2.28728,
+        "cpu_user_seconds": 11.937917,
+        "maximum_resident_bytes": 59756544,
+        "scope": "lane process including all threads; CPU cumulative, RSS high-water mark"
+      },
+      "local_raw_rejections": []
+    },
+    "pons": {
+      "exit_code": 0,
+      "unexpected_exit": false,
+      "process_restarts": 0,
+      "provider_requests": 1212,
+      "method_counts": {
+        "eth_call": 2783,
+        "eth_chainId": 42,
+        "eth_gasPrice": 373,
+        "eth_getBlockByHash": 46,
+        "eth_getBlockByNumber": 1555,
+        "eth_getCode": 387,
+        "eth_getLogs": 637,
+        "eth_getTransactionReceipt": 448
+      },
+      "errors": {},
+      "local_admission_errors": {},
+      "provider_method_errors": {},
+      "provider_http_status_errors": {},
+      "provider_rpc_error_codes": {},
+      "open_positions": 0,
+      "natural_settled": 1,
+      "forced_settled": 0,
+      "funnel": {
+        "complete_evidence_vectors": 25,
+        "evaluated": 388,
+        "liquidity_writeoffs": 0,
+        "qualified": 1,
+        "unique_admitted": 30,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 1,
+        "unique_current_state_complete": 352,
+        "unique_current_state_queued": 455,
+        "unique_current_state_requested": 388,
+        "unique_deployed": 0,
+        "unique_discovered": 1643,
+        "unique_economic_vector": 0,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 25,
+        "unique_evidence_complete": 25,
+        "unique_evidence_requested": 30,
+        "unique_forward_observation": 0,
+        "unique_fresh_state": 0,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 0,
+        "unique_prospect_admitted": 30,
+        "unique_prospect_incomplete": 0,
+        "unique_prospect_observed": 0,
+        "unique_prospect_screened": 322,
+        "unique_prospective_range": 0,
+        "unique_provider_failed": 0,
+        "unique_qualified": 1,
+        "unique_reconstruction_complete": 0,
+        "unique_reconstruction_incomplete": 31,
+        "unique_reconstruction_started": 0,
+        "unique_rejected": 345,
+        "unique_screened": 455,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 1,
+        "unique_stale_before_evidence": 67,
+        "unique_stale_during_evidence": 9,
+        "unique_strategy_rejection": 345,
+        "unique_terminal": 109,
+        "unique_trigger_authenticated": 0,
+        "unique_trigger_observed": 0,
+        "unique_trigger_terminal": 0,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 0,
+        "unique_warmup_started": 0
+      },
+      "gates": {
+        "accounting_reconciled": true,
+        "freshness_finality_unchanged": true,
+        "paper_only": true,
+        "policy_unchanged": true,
+        "responsive": true,
+        "state_isolated": true,
+        "telemetry_complete": true
+      },
+      "native_accounting": null,
+      "cohort_accounting": {
+        "available": 999931047899911775,
+        "booked_realized": -68952100088225,
+        "capital_at_risk_unit_nanoseconds": 154929738291766905889600000,
+        "capital_integral_complete": true,
+        "cash": 999931047899911775,
+        "cash_basis_conservation": true,
+        "conservation": true,
+        "genesis": 1000000000000000000,
+        "namespace": "pons-selective-continuation-v1",
+        "native_execution_cost": 9541898304000,
+        "native_observation_complete": true,
+        "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+        "positions": 1,
+        "realized": -68952100088225,
+        "remaining_cost_basis": 0,
+        "reserved": 0,
+        "unobserved_native_positions": [],
+        "unsettled": 0
+      },
+      "evidence_state": {
+        "cache": {
+          "header_hash_hit": 940,
+          "header_hash_miss": 100,
+          "header_hashes": 1368,
+          "header_number_hit": 1063,
+          "header_number_miss": 2486,
+          "header_numbers": 1368,
+          "header_store": 1427,
+          "launch_hit": 20,
+          "launch_miss": 10,
+          "launch_store": 8,
+          "launches": 8,
+          "real_quote_miss": 56,
+          "real_quote_store": 402,
+          "real_quotes": 402,
+          "receipt_hit": 1422,
+          "receipt_miss": 521,
+          "receipt_store": 413,
+          "receipts": 413
+        },
+        "completed_sessions": [
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 43,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 6,
+              "eth_gasPrice:hit": 1,
+              "eth_gasPrice:miss": 5,
+              "eth_getBlockByNumber:miss": 112,
+              "eth_getCode:miss": 6,
+              "eth_getTransactionReceipt:miss": 6
+            },
+            "logical_methods": {
+              "eth_call": 43,
+              "eth_chainId": 1,
+              "eth_gasPrice": 5,
+              "eth_getBlockByNumber": 112,
+              "eth_getCode": 6,
+              "eth_getTransactionReceipt": 6
+            },
+            "logical_requests": 173,
+            "methods": {
+              "eth_call": 43,
+              "eth_chainId": 1,
+              "eth_gasPrice": 5,
+              "eth_getBlockByNumber": 112,
+              "eth_getCode": 6,
+              "eth_getTransactionReceipt": 6
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 14,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 0.32852512299996306
+            },
+            "provider_kind": "alchemy",
+            "requests": 173,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 64,
+              "pons_selective_trajectory": 108
+            },
+            "transport_requests": 14
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 76,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 10,
+              "eth_gasPrice:hit": 1,
+              "eth_gasPrice:miss": 9,
+              "eth_getBlockByHash:miss": 7,
+              "eth_getBlockByNumber:miss": 55,
+              "eth_getCode:miss": 10,
+              "eth_getTransactionReceipt:miss": 17
+            },
+            "logical_methods": {
+              "eth_call": 76,
+              "eth_chainId": 1,
+              "eth_gasPrice": 9,
+              "eth_getBlockByHash": 7,
+              "eth_getBlockByNumber": 55,
+              "eth_getCode": 10,
+              "eth_getTransactionReceipt": 17
+            },
+            "logical_requests": 175,
+            "methods": {
+              "eth_call": 76,
+              "eth_chainId": 1,
+              "eth_gasPrice": 9,
+              "eth_getBlockByHash": 7,
+              "eth_getBlockByNumber": 55,
+              "eth_getCode": 10,
+              "eth_getTransactionReceipt": 17
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 35,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 0.6996294750000516
+            },
+            "provider_kind": "alchemy",
+            "requests": 175,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 108,
+              "pons_selective_trajectory": 66
+            },
+            "transport_requests": 21
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 86,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 12,
+              "eth_gasPrice:hit": 2,
+              "eth_gasPrice:miss": 10,
+              "eth_getBlockByNumber:miss": 47,
+              "eth_getCode:miss": 12,
+              "eth_getTransactionReceipt:miss": 12
+            },
+            "logical_methods": {
+              "eth_call": 86,
+              "eth_chainId": 1,
+              "eth_gasPrice": 10,
+              "eth_getBlockByNumber": 47,
+              "eth_getCode": 12,
+              "eth_getTransactionReceipt": 12
+            },
+            "logical_requests": 168,
+            "methods": {
+              "eth_call": 86,
+              "eth_chainId": 1,
+              "eth_gasPrice": 10,
+              "eth_getBlockByNumber": 47,
+              "eth_getCode": 12,
+              "eth_getTransactionReceipt": 12
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 55,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 0.8851924390000931
+            },
+            "provider_kind": "alchemy",
+            "requests": 168,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 128,
+              "pons_selective_trajectory": 39
+            },
+            "transport_requests": 20
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 49,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 6,
+              "eth_gasPrice:miss": 6,
+              "eth_getBlockByNumber:miss": 104,
+              "eth_getCode:miss": 6,
+              "eth_getTransactionReceipt:miss": 8
+            },
+            "logical_methods": {
+              "eth_call": 49,
+              "eth_chainId": 1,
+              "eth_gasPrice": 6,
+              "eth_getBlockByNumber": 104,
+              "eth_getCode": 6,
+              "eth_getTransactionReceipt": 8
+            },
+            "logical_requests": 174,
+            "methods": {
+              "eth_call": 49,
+              "eth_chainId": 1,
+              "eth_gasPrice": 6,
+              "eth_getBlockByNumber": 104,
+              "eth_getCode": 6,
+              "eth_getTransactionReceipt": 8
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 70,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 1.070878822000111
+            },
+            "provider_kind": "alchemy",
+            "requests": 174,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 65,
+              "pons_selective_trajectory": 108
+            },
+            "transport_requests": 15
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 112,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 16,
+              "eth_gasPrice:hit": 1,
+              "eth_gasPrice:miss": 15,
+              "eth_getBlockByNumber:miss": 15,
+              "eth_getCode:miss": 16,
+              "eth_getTransactionReceipt:miss": 16
+            },
+            "logical_methods": {
+              "eth_call": 112,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 16,
+              "eth_getTransactionReceipt": 16
+            },
+            "logical_requests": 175,
+            "methods": {
+              "eth_call": 112,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 16,
+              "eth_getTransactionReceipt": 16
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 95,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 1.2400113760001545
+            },
+            "provider_kind": "alchemy",
+            "requests": 175,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 174
+            },
+            "transport_requests": 25
+          },
+          {
+            "automatic_failover": false,
+            "failures": {
+              "provider_shared_admission_deadline": 2
+            },
+            "immutable_reuse": {
+              "eth_call:miss": 45,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 6,
+              "eth_gasPrice:miss": 6,
+              "eth_getBlockByHash:miss": 2,
+              "eth_getBlockByNumber:miss": 101,
+              "eth_getCode:miss": 6,
+              "eth_getTransactionReceipt:miss": 8
+            },
+            "logical_methods": {
+              "eth_call": 45,
+              "eth_chainId": 1,
+              "eth_gasPrice": 6,
+              "eth_getBlockByHash": 2,
+              "eth_getBlockByNumber": 101,
+              "eth_getCode": 6,
+              "eth_getTransactionReceipt": 8
+            },
+            "logical_requests": 169,
+            "methods": {
+              "eth_call": 45,
+              "eth_chainId": 1,
+              "eth_gasPrice": 6,
+              "eth_getBlockByHash": 2,
+              "eth_getBlockByNumber": 101,
+              "eth_getCode": 6,
+              "eth_getTransactionReceipt": 8
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 106,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 1.738367281000194
+            },
+            "provider_kind": "alchemy",
+            "requests": 169,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 65,
+              "pons_selective_trajectory": 103
+            },
+            "transport_requests": 11
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 79,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 11,
+              "eth_gasPrice:miss": 11,
+              "eth_getBlockByHash:miss": 2,
+              "eth_getBlockByNumber:miss": 56,
+              "eth_getCode:miss": 11,
+              "eth_getTransactionReceipt:miss": 14
+            },
+            "logical_methods": {
+              "eth_call": 79,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByHash": 2,
+              "eth_getBlockByNumber": 56,
+              "eth_getCode": 11,
+              "eth_getTransactionReceipt": 14
+            },
+            "logical_requests": 174,
+            "methods": {
+              "eth_call": 79,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByHash": 2,
+              "eth_getBlockByNumber": 56,
+              "eth_getCode": 11,
+              "eth_getTransactionReceipt": 14
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 122,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 2.3490585420001366
+            },
+            "provider_kind": "alchemy",
+            "requests": 174,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 119,
+              "pons_selective_trajectory": 54
+            },
+            "transport_requests": 16
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 105,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 15,
+              "eth_gasPrice:miss": 15,
+              "eth_getBlockByNumber:miss": 15,
+              "eth_getCode:miss": 15,
+              "eth_getTransactionReceipt:miss": 15
+            },
+            "logical_methods": {
+              "eth_call": 105,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 15,
+              "eth_getTransactionReceipt": 15
+            },
+            "logical_requests": 166,
+            "methods": {
+              "eth_call": 105,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 15,
+              "eth_getTransactionReceipt": 15
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 141,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 2.3856985490001534
+            },
+            "provider_kind": "alchemy",
+            "requests": 166,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 165
+            },
+            "transport_requests": 19
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 112,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 16,
+              "eth_gasPrice:hit": 2,
+              "eth_gasPrice:miss": 14,
+              "eth_getBlockByNumber:miss": 14,
+              "eth_getCode:miss": 16,
+              "eth_getTransactionReceipt:miss": 16
+            },
+            "logical_methods": {
+              "eth_call": 112,
+              "eth_chainId": 1,
+              "eth_gasPrice": 14,
+              "eth_getBlockByNumber": 14,
+              "eth_getCode": 16,
+              "eth_getTransactionReceipt": 16
+            },
+            "logical_requests": 173,
+            "methods": {
+              "eth_call": 112,
+              "eth_chainId": 1,
+              "eth_gasPrice": 14,
+              "eth_getBlockByNumber": 14,
+              "eth_getCode": 16,
+              "eth_getTransactionReceipt": 16
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 163,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 2.6442536780001547
+            },
+            "provider_kind": "alchemy",
+            "requests": 173,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 172
+            },
+            "transport_requests": 22
+          },
+          {
+            "automatic_failover": false,
+            "failures": {
+              "provider_shared_admission_deadline": 1
+            },
+            "immutable_reuse": {
+              "eth_call:miss": 92,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 13,
+              "eth_gasPrice:miss": 13,
+              "eth_getBlockByNumber:miss": 33,
+              "eth_getCode:miss": 13,
+              "eth_getTransactionReceipt:miss": 13
+            },
+            "logical_methods": {
+              "eth_call": 92,
+              "eth_chainId": 1,
+              "eth_gasPrice": 13,
+              "eth_getBlockByNumber": 33,
+              "eth_getCode": 13,
+              "eth_getTransactionReceipt": 13
+            },
+            "logical_requests": 165,
+            "methods": {
+              "eth_call": 92,
+              "eth_chainId": 1,
+              "eth_gasPrice": 13,
+              "eth_getBlockByNumber": 33,
+              "eth_getCode": 13,
+              "eth_getTransactionReceipt": 13
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 180,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 2.8896165270001006
+            },
+            "provider_kind": "alchemy",
+            "requests": 165,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 143,
+              "pons_selective_trajectory": 21
+            },
+            "transport_requests": 17
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 105,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 15,
+              "eth_gasPrice:miss": 15,
+              "eth_getBlockByNumber:miss": 15,
+              "eth_getCode:miss": 15,
+              "eth_getTransactionReceipt:miss": 15
+            },
+            "logical_methods": {
+              "eth_call": 105,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 15,
+              "eth_getTransactionReceipt": 15
+            },
+            "logical_requests": 166,
+            "methods": {
+              "eth_call": 105,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 15,
+              "eth_getTransactionReceipt": 15
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 198,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 3.044700859000102
+            },
+            "provider_kind": "alchemy",
+            "requests": 166,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 165
+            },
+            "transport_requests": 18
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 60,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 8,
+              "eth_gasPrice:hit": 1,
+              "eth_gasPrice:miss": 7,
+              "eth_getBlockByHash:miss": 6,
+              "eth_getBlockByNumber:miss": 59,
+              "eth_getCode:miss": 8,
+              "eth_getTransactionReceipt:miss": 14
+            },
+            "logical_methods": {
+              "eth_call": 60,
+              "eth_chainId": 1,
+              "eth_gasPrice": 7,
+              "eth_getBlockByHash": 6,
+              "eth_getBlockByNumber": 59,
+              "eth_getCode": 8,
+              "eth_getTransactionReceipt": 14
+            },
+            "logical_requests": 155,
+            "methods": {
+              "eth_call": 60,
+              "eth_chainId": 1,
+              "eth_gasPrice": 7,
+              "eth_getBlockByHash": 6,
+              "eth_getBlockByNumber": 59,
+              "eth_getCode": 8,
+              "eth_getTransactionReceipt": 14
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 215,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 3.4881571660000645
+            },
+            "provider_kind": "alchemy",
+            "requests": 155,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 84,
+              "pons_selective_trajectory": 70
+            },
+            "transport_requests": 17
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 80,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 11,
+              "eth_gasPrice:miss": 11,
+              "eth_getBlockByHash:miss": 2,
+              "eth_getBlockByNumber:miss": 47,
+              "eth_getCode:miss": 11,
+              "eth_getTransactionReceipt:miss": 14
+            },
+            "logical_methods": {
+              "eth_call": 80,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByHash": 2,
+              "eth_getBlockByNumber": 47,
+              "eth_getCode": 11,
+              "eth_getTransactionReceipt": 14
+            },
+            "logical_requests": 166,
+            "methods": {
+              "eth_call": 80,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByHash": 2,
+              "eth_getBlockByNumber": 47,
+              "eth_getCode": 11,
+              "eth_getTransactionReceipt": 14
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 231,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 3.978207389000204
+            },
+            "provider_kind": "alchemy",
+            "requests": 166,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 121,
+              "pons_selective_trajectory": 44
+            },
+            "transport_requests": 16
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 112,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 16,
+              "eth_gasPrice:hit": 1,
+              "eth_gasPrice:miss": 15,
+              "eth_getBlockByNumber:miss": 15,
+              "eth_getCode:miss": 16,
+              "eth_getTransactionReceipt:miss": 16
+            },
+            "logical_methods": {
+              "eth_call": 112,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 16,
+              "eth_getTransactionReceipt": 16
+            },
+            "logical_requests": 175,
+            "methods": {
+              "eth_call": 112,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 16,
+              "eth_getTransactionReceipt": 16
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 253,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 4.348582671000372
+            },
+            "provider_kind": "alchemy",
+            "requests": 175,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 174
+            },
+            "transport_requests": 22
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 45,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 6,
+              "eth_gasPrice:miss": 6,
+              "eth_getBlockByHash:miss": 2,
+              "eth_getBlockByNumber:miss": 92,
+              "eth_getCode:miss": 6,
+              "eth_getTransactionReceipt:miss": 9
+            },
+            "logical_methods": {
+              "eth_call": 45,
+              "eth_chainId": 1,
+              "eth_gasPrice": 6,
+              "eth_getBlockByHash": 2,
+              "eth_getBlockByNumber": 92,
+              "eth_getCode": 6,
+              "eth_getTransactionReceipt": 9
+            },
+            "logical_requests": 161,
+            "methods": {
+              "eth_call": 45,
+              "eth_chainId": 1,
+              "eth_gasPrice": 6,
+              "eth_getBlockByHash": 2,
+              "eth_getBlockByNumber": 92,
+              "eth_getCode": 6,
+              "eth_getTransactionReceipt": 9
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 264,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 4.349088079000353
+            },
+            "provider_kind": "alchemy",
+            "requests": 161,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 66,
+              "pons_selective_trajectory": 94
+            },
+            "transport_requests": 11
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 82,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 11,
+              "eth_gasPrice:miss": 11,
+              "eth_getBlockByHash:miss": 10,
+              "eth_getBlockByNumber:miss": 10,
+              "eth_getCode:miss": 11,
+              "eth_getTransactionReceipt:miss": 23
+            },
+            "logical_methods": {
+              "eth_call": 82,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByHash": 10,
+              "eth_getBlockByNumber": 10,
+              "eth_getCode": 11,
+              "eth_getTransactionReceipt": 23
+            },
+            "logical_requests": 148,
+            "methods": {
+              "eth_call": 82,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByHash": 10,
+              "eth_getBlockByNumber": 10,
+              "eth_getCode": 11,
+              "eth_getTransactionReceipt": 23
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 283,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 4.54625562300032
+            },
+            "provider_kind": "alchemy",
+            "requests": 148,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 120,
+              "pons_selective_trajectory": 27
+            },
+            "transport_requests": 19
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 72,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 10,
+              "eth_gasPrice:miss": 10,
+              "eth_getBlockByHash:miss": 5,
+              "eth_getBlockByNumber:miss": 55,
+              "eth_getCode:miss": 10,
+              "eth_getTransactionReceipt:miss": 16
+            },
+            "logical_methods": {
+              "eth_call": 72,
+              "eth_chainId": 1,
+              "eth_gasPrice": 10,
+              "eth_getBlockByHash": 5,
+              "eth_getBlockByNumber": 55,
+              "eth_getCode": 10,
+              "eth_getTransactionReceipt": 16
+            },
+            "logical_requests": 169,
+            "methods": {
+              "eth_call": 72,
+              "eth_chainId": 1,
+              "eth_gasPrice": 10,
+              "eth_getBlockByHash": 5,
+              "eth_getBlockByNumber": 55,
+              "eth_getCode": 10,
+              "eth_getTransactionReceipt": 16
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 301,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 4.712838283000224
+            },
+            "provider_kind": "alchemy",
+            "requests": 169,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 110,
+              "pons_selective_trajectory": 58
+            },
+            "transport_requests": 18
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 105,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 15,
+              "eth_gasPrice:miss": 15,
+              "eth_getBlockByNumber:miss": 15,
+              "eth_getCode:miss": 15,
+              "eth_getTransactionReceipt:miss": 15
+            },
+            "logical_methods": {
+              "eth_call": 105,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 15,
+              "eth_getTransactionReceipt": 15
+            },
+            "logical_requests": 166,
+            "methods": {
+              "eth_call": 105,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 15,
+              "eth_getTransactionReceipt": 15
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 321,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 4.836889992000238
+            },
+            "provider_kind": "alchemy",
+            "requests": 166,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 165
+            },
+            "transport_requests": 20
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 112,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 16,
+              "eth_gasPrice:hit": 1,
+              "eth_gasPrice:miss": 15,
+              "eth_getBlockByNumber:miss": 15,
+              "eth_getCode:miss": 16,
+              "eth_getTransactionReceipt:miss": 16
+            },
+            "logical_methods": {
+              "eth_call": 112,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 16,
+              "eth_getTransactionReceipt": 16
+            },
+            "logical_requests": 175,
+            "methods": {
+              "eth_call": 112,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 16,
+              "eth_getTransactionReceipt": 16
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 343,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 4.996739117000402
+            },
+            "provider_kind": "alchemy",
+            "requests": 175,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 174
+            },
+            "transport_requests": 22
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 80,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 11,
+              "eth_gasPrice:miss": 11,
+              "eth_getBlockByHash:miss": 8,
+              "eth_getBlockByNumber:miss": 33,
+              "eth_getCode:miss": 11,
+              "eth_getTransactionReceipt:miss": 21
+            },
+            "logical_methods": {
+              "eth_call": 80,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByHash": 8,
+              "eth_getBlockByNumber": 33,
+              "eth_getCode": 11,
+              "eth_getTransactionReceipt": 21
+            },
+            "logical_requests": 165,
+            "methods": {
+              "eth_call": 80,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByHash": 8,
+              "eth_getBlockByNumber": 33,
+              "eth_getCode": 11,
+              "eth_getTransactionReceipt": 21
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 362,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 5.780255378000447
+            },
+            "provider_kind": "alchemy",
+            "requests": 165,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 119,
+              "pons_selective_trajectory": 45
+            },
+            "transport_requests": 15
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 79,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 11,
+              "eth_gasPrice:miss": 11,
+              "eth_getBlockByNumber:miss": 58,
+              "eth_getCode:miss": 11,
+              "eth_getTransactionReceipt:miss": 11
+            },
+            "logical_methods": {
+              "eth_call": 79,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByNumber": 58,
+              "eth_getCode": 11,
+              "eth_getTransactionReceipt": 11
+            },
+            "logical_requests": 171,
+            "methods": {
+              "eth_call": 79,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByNumber": 58,
+              "eth_getCode": 11,
+              "eth_getTransactionReceipt": 11
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 395,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 9.493849663000447
+            },
+            "provider_kind": "alchemy",
+            "requests": 171,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 121,
+              "pons_selective_trajectory": 49
+            },
+            "transport_requests": 18
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 86,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 12,
+              "eth_gasPrice:hit": 2,
+              "eth_gasPrice:miss": 10,
+              "eth_getBlockByHash:miss": 1,
+              "eth_getBlockByNumber:hit": 1,
+              "eth_getBlockByNumber:miss": 42,
+              "eth_getCode:miss": 12,
+              "eth_getTransactionReceipt:miss": 14
+            },
+            "logical_methods": {
+              "eth_call": 86,
+              "eth_chainId": 1,
+              "eth_gasPrice": 10,
+              "eth_getBlockByHash": 1,
+              "eth_getBlockByNumber": 42,
+              "eth_getCode": 12,
+              "eth_getTransactionReceipt": 14
+            },
+            "logical_requests": 166,
+            "methods": {
+              "eth_call": 86,
+              "eth_chainId": 1,
+              "eth_gasPrice": 10,
+              "eth_getBlockByHash": 1,
+              "eth_getBlockByNumber": 42,
+              "eth_getCode": 12,
+              "eth_getTransactionReceipt": 14
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 431,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 12.201795683000569
+            },
+            "provider_kind": "alchemy",
+            "requests": 166,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 128,
+              "pons_selective_trajectory": 37
+            },
+            "transport_requests": 19
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 46,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 6,
+              "eth_gasPrice:miss": 6,
+              "eth_getBlockByHash:miss": 1,
+              "eth_getBlockByNumber:hit": 1,
+              "eth_getBlockByNumber:miss": 111,
+              "eth_getCode:miss": 6,
+              "eth_getTransactionReceipt:miss": 9
+            },
+            "logical_methods": {
+              "eth_call": 44,
+              "eth_chainId": 1,
+              "eth_gasPrice": 6,
+              "eth_getBlockByNumber": 111,
+              "eth_getCode": 6,
+              "eth_getTransactionReceipt": 7
+            },
+            "logical_requests": 175,
+            "methods": {
+              "eth_call": 44,
+              "eth_chainId": 1,
+              "eth_gasPrice": 6,
+              "eth_getBlockByNumber": 111,
+              "eth_getCode": 6,
+              "eth_getTransactionReceipt": 7
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 454,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 14.740713890000393
+            },
+            "provider_kind": "alchemy",
+            "requests": 175,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 64,
+              "pons_selective_trajectory": 110
+            },
+            "transport_requests": 14
+          },
+          {
+            "automatic_failover": false,
+            "failures": {
+              "provider_shared_admission_deadline": 1
+            },
+            "immutable_reuse": {
+              "eth_call:miss": 89,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 12,
+              "eth_gasPrice:hit": 1,
+              "eth_gasPrice:miss": 11,
+              "eth_getBlockByHash:miss": 2,
+              "eth_getBlockByNumber:miss": 37,
+              "eth_getCode:miss": 12,
+              "eth_getTransactionReceipt:miss": 17
+            },
+            "logical_methods": {
+              "eth_call": 89,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByHash": 2,
+              "eth_getBlockByNumber": 37,
+              "eth_getCode": 12,
+              "eth_getTransactionReceipt": 17
+            },
+            "logical_requests": 169,
+            "methods": {
+              "eth_call": 89,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByHash": 2,
+              "eth_getBlockByNumber": 37,
+              "eth_getCode": 12,
+              "eth_getTransactionReceipt": 17
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 476,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 16.302996046000317
+            },
+            "provider_kind": "alchemy",
+            "requests": 169,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 128,
+              "pons_selective_trajectory": 40
+            },
+            "transport_requests": 22
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 86,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 12,
+              "eth_gasPrice:hit": 1,
+              "eth_gasPrice:miss": 11,
+              "eth_getBlockByNumber:miss": 46,
+              "eth_getCode:miss": 12,
+              "eth_getTransactionReceipt:miss": 12
+            },
+            "logical_methods": {
+              "eth_call": 86,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByNumber": 46,
+              "eth_getCode": 12,
+              "eth_getTransactionReceipt": 12
+            },
+            "logical_requests": 168,
+            "methods": {
+              "eth_call": 86,
+              "eth_chainId": 1,
+              "eth_gasPrice": 11,
+              "eth_getBlockByNumber": 46,
+              "eth_getCode": 12,
+              "eth_getTransactionReceipt": 12
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 496,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 16.881401343000334
+            },
+            "provider_kind": "alchemy",
+            "requests": 168,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 130,
+              "pons_selective_trajectory": 37
+            },
+            "transport_requests": 20
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 60,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 8,
+              "eth_gasPrice:miss": 8,
+              "eth_getBlockByNumber:hit": 6,
+              "eth_getBlockByNumber:miss": 83,
+              "eth_getCode:miss": 8,
+              "eth_getTransactionReceipt:miss": 8
+            },
+            "logical_methods": {
+              "eth_call": 60,
+              "eth_chainId": 1,
+              "eth_gasPrice": 8,
+              "eth_getBlockByNumber": 83,
+              "eth_getCode": 8,
+              "eth_getTransactionReceipt": 8
+            },
+            "logical_requests": 168,
+            "methods": {
+              "eth_call": 60,
+              "eth_chainId": 1,
+              "eth_gasPrice": 8,
+              "eth_getBlockByNumber": 83,
+              "eth_getCode": 8,
+              "eth_getTransactionReceipt": 8
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 509,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 17.652646054000343
+            },
+            "provider_kind": "alchemy",
+            "requests": 168,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 81,
+              "pons_selective_trajectory": 86
+            },
+            "transport_requests": 13
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 119,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 17,
+              "eth_gasPrice:hit": 1,
+              "eth_gasPrice:miss": 16,
+              "eth_getBlockByNumber:hit": 15,
+              "eth_getBlockByNumber:miss": 1,
+              "eth_getCode:miss": 17,
+              "eth_getTransactionReceipt:miss": 17
+            },
+            "logical_methods": {
+              "eth_call": 119,
+              "eth_chainId": 1,
+              "eth_gasPrice": 16,
+              "eth_getBlockByNumber": 1,
+              "eth_getCode": 17,
+              "eth_getTransactionReceipt": 17
+            },
+            "logical_requests": 171,
+            "methods": {
+              "eth_call": 119,
+              "eth_chainId": 1,
+              "eth_gasPrice": 16,
+              "eth_getBlockByNumber": 1,
+              "eth_getCode": 17,
+              "eth_getTransactionReceipt": 17
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 534,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 17.733966245000374
+            },
+            "provider_kind": "alchemy",
+            "requests": 171,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 170
+            },
+            "transport_requests": 25
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 112,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 16,
+              "eth_gasPrice:hit": 1,
+              "eth_gasPrice:miss": 15,
+              "eth_getBlockByNumber:miss": 15,
+              "eth_getCode:miss": 16,
+              "eth_getTransactionReceipt:miss": 16
+            },
+            "logical_methods": {
+              "eth_call": 112,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 16,
+              "eth_getTransactionReceipt": 16
+            },
+            "logical_requests": 175,
+            "methods": {
+              "eth_call": 112,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 16,
+              "eth_getTransactionReceipt": 16
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 556,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 18.01381378000042
+            },
+            "provider_kind": "alchemy",
+            "requests": 175,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 174
+            },
+            "transport_requests": 22
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 105,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 15,
+              "eth_gasPrice:miss": 15,
+              "eth_getBlockByNumber:miss": 15,
+              "eth_getCode:miss": 15,
+              "eth_getTransactionReceipt:miss": 15
+            },
+            "logical_methods": {
+              "eth_call": 105,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 15,
+              "eth_getTransactionReceipt": 15
+            },
+            "logical_requests": 166,
+            "methods": {
+              "eth_call": 105,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 15,
+              "eth_getTransactionReceipt": 15
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 574,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 18.033636686000477
+            },
+            "provider_kind": "alchemy",
+            "requests": 166,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 165
+            },
+            "transport_requests": 18
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 93,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 13,
+              "eth_gasPrice:miss": 13,
+              "eth_getBlockByHash:miss": 2,
+              "eth_getBlockByNumber:miss": 34,
+              "eth_getCode:miss": 13,
+              "eth_getTransactionReceipt:miss": 16
+            },
+            "logical_methods": {
+              "eth_call": 93,
+              "eth_chainId": 1,
+              "eth_gasPrice": 13,
+              "eth_getBlockByHash": 2,
+              "eth_getBlockByNumber": 34,
+              "eth_getCode": 13,
+              "eth_getTransactionReceipt": 16
+            },
+            "logical_requests": 172,
+            "methods": {
+              "eth_call": 93,
+              "eth_chainId": 1,
+              "eth_gasPrice": 13,
+              "eth_getBlockByHash": 2,
+              "eth_getBlockByNumber": 34,
+              "eth_getCode": 13,
+              "eth_getTransactionReceipt": 16
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 592,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 18.18753289200049
+            },
+            "provider_kind": "alchemy",
+            "requests": 172,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 143,
+              "pons_selective_trajectory": 28
+            },
+            "transport_requests": 18
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 112,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 16,
+              "eth_gasPrice:hit": 1,
+              "eth_gasPrice:miss": 15,
+              "eth_getBlockByNumber:miss": 15,
+              "eth_getCode:miss": 16,
+              "eth_getTransactionReceipt:miss": 16
+            },
+            "logical_methods": {
+              "eth_call": 112,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 16,
+              "eth_getTransactionReceipt": 16
+            },
+            "logical_requests": 175,
+            "methods": {
+              "eth_call": 112,
+              "eth_chainId": 1,
+              "eth_gasPrice": 15,
+              "eth_getBlockByNumber": 15,
+              "eth_getCode": 16,
+              "eth_getTransactionReceipt": 16
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 612,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 18.18753289200049
+            },
+            "provider_kind": "alchemy",
+            "requests": 175,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 174
+            },
+            "transport_requests": 20
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 101,
+              "eth_chainId:miss": 1,
+              "eth_chainId:session_hit": 14,
+              "eth_gasPrice:hit": 1,
+              "eth_gasPrice:miss": 13,
+              "eth_getBlockByNumber:miss": 27,
+              "eth_getCode:miss": 14,
+              "eth_getTransactionReceipt:miss": 14
+            },
+            "logical_methods": {
+              "eth_call": 101,
+              "eth_chainId": 1,
+              "eth_gasPrice": 13,
+              "eth_getBlockByNumber": 27,
+              "eth_getCode": 14,
+              "eth_getTransactionReceipt": 14
+            },
+            "logical_requests": 170,
+            "methods": {
+              "eth_call": 101,
+              "eth_chainId": 1,
+              "eth_gasPrice": 13,
+              "eth_getBlockByNumber": 27,
+              "eth_getCode": 14,
+              "eth_getTransactionReceipt": 14
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 634,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 18.299168275000397
+            },
+            "provider_kind": "alchemy",
+            "requests": 170,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_natural": 150,
+              "pons_selective_trajectory": 19
+            },
+            "transport_requests": 22
+          }
+        ],
+        "current_session": {
+          "automatic_failover": false,
+          "failures": {},
+          "immutable_reuse": {
+            "eth_call:miss": 35,
+            "eth_chainId:miss": 1,
+            "eth_chainId:session_hit": 5,
+            "eth_gasPrice:miss": 5,
+            "eth_getBlockByNumber:miss": 5,
+            "eth_getCode:miss": 5,
+            "eth_getTransactionReceipt:miss": 5
+          },
+          "logical_methods": {
+            "eth_call": 35,
+            "eth_chainId": 1,
+            "eth_gasPrice": 5,
+            "eth_getBlockByNumber": 5,
+            "eth_getCode": 5,
+            "eth_getTransactionReceipt": 5
+          },
+          "logical_requests": 56,
+          "methods": {
+            "eth_call": 35,
+            "eth_chainId": 1,
+            "eth_gasPrice": 5,
+            "eth_getBlockByNumber": 5,
+            "eth_getCode": 5,
+            "eth_getTransactionReceipt": 5
+          },
+          "pacing": {
+            "backpressure_events": 0,
+            "minimum_interval_seconds": 0.5,
+            "paced_requests": 642,
+            "requests_per_second": 2.0,
+            "throttle_sleep_seconds": 18.363115011000332
+          },
+          "provider_kind": "alchemy",
+          "requests": 56,
+          "retries": 0,
+          "role": "directional_evidence_primary",
+          "scopes": {
+            "connectivity": 1,
+            "pons_natural": 55
+          },
+          "transport_requests": 8
+        },
+        "view_batch": {
+          "supported": false
+        }
+      },
+      "runtime_resources": {
+        "available_logical_cpus": 4,
+        "cpu_system_seconds": 2.812251,
+        "cpu_user_seconds": 13.080224,
+        "maximum_resident_bytes": 74625024,
+        "scope": "lane process including all threads; CPU cumulative, RSS high-water mark"
+      },
+      "local_raw_rejections": []
+    },
+    "pump": {
+      "exit_code": 0,
+      "unexpected_exit": false,
+      "process_restarts": 0,
+      "provider_requests": 1233,
+      "method_counts": {
+        "getBlockTime": 126,
+        "getMultipleAccounts": 185,
+        "getProgramAccounts": 1,
+        "getSignaturesForAddress": 3,
+        "getTokenLargestAccounts": 4,
+        "getTransaction": 6630
+      },
+      "errors": {
+        "HTTPError": 1,
+        "certification_provider_queue_deadline": 14,
+        "getProgramAccounts:http_429": 1,
+        "null_getTransaction": 46
+      },
+      "local_admission_errors": {
+        "getTransaction:certification_provider_queue_deadline": 14
+      },
+      "provider_method_errors": {
+        "getProgramAccounts:HTTPError": 1,
+        "getTransaction:null_getTransaction": 46
+      },
+      "provider_http_status_errors": {
+        "getProgramAccounts:429": 1
+      },
+      "provider_rpc_error_codes": {},
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "funnel": {
+        "discovered": 727,
+        "entry_cancelled": 1,
+        "entry_filled": 0,
+        "entry_reserved": 0,
+        "evidence_complete": 4,
+        "qualified": 1,
+        "settled": 0,
+        "unique_admitted": 8,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 0,
+        "unique_current_state_complete": 0,
+        "unique_current_state_queued": 0,
+        "unique_current_state_requested": 0,
+        "unique_deployed": 0,
+        "unique_discovered": 727,
+        "unique_economic_vector": 0,
+        "unique_entry_cancelled": 1,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 1,
+        "unique_evaluated": 8,
+        "unique_evidence_complete": 3,
+        "unique_evidence_requested": 8,
+        "unique_forward_observation": 0,
+        "unique_fresh_state": 0,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 0,
+        "unique_prospect_admitted": 6,
+        "unique_prospect_incomplete": 0,
+        "unique_prospect_observed": 21,
+        "unique_prospect_screened": 20,
+        "unique_prospective_range": 0,
+        "unique_provider_failed": 0,
+        "unique_qualified": 1,
+        "unique_reconstruction_complete": 0,
+        "unique_reconstruction_incomplete": 8,
+        "unique_reconstruction_started": 0,
+        "unique_rejected": 8,
+        "unique_screened": 6,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 0,
+        "unique_stale_before_evidence": 0,
+        "unique_stale_during_evidence": 0,
+        "unique_strategy_rejection": 20,
+        "unique_terminal": 7,
+        "unique_trigger_authenticated": 0,
+        "unique_trigger_observed": 0,
+        "unique_trigger_terminal": 0,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 0,
+        "unique_warmup_started": 0
+      },
+      "gates": {
+        "accounting_reconciled": true,
+        "freshness_finality_unchanged": true,
+        "paper_only": true,
+        "policy_unchanged": true,
+        "responsive": true,
+        "state_isolated": true,
+        "telemetry_complete": true
+      },
+      "native_accounting": {
+        "basis": 0,
+        "capital_hour_denominator": 3600,
+        "capital_unit_seconds": 5622522730,
+        "cash": 5110384300,
+        "initial": 5110384300,
+        "lane": "pump-acceleration-independent-v1",
+        "marked_equity": 5110384300,
+        "open_positions": 0,
+        "pending": 0,
+        "policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e",
+        "realized": 0,
+        "reconciled": true,
+        "reserved": 0,
+        "run_id": "e0a89a48-b202-4f56-bc86-7050adaf22fe",
+        "settled": 0,
+        "unrealized": 0
+      },
+      "cohort_accounting": null,
+      "evidence_state": {
+        "consumer_work": {
+          "acquisition_failures": {
+            "background_deferred_foreground": 2,
+            "expired_before_transport": 4,
+            "physical_governor_wait": 14,
+            "provider_unavailable": 22
+          },
+          "acquisition_phase_attempts": {
+            "already_expired_before_enqueue": 1,
+            "enqueued": 519,
+            "expired_before_transport": 4,
+            "physical_capacity_wait": 16,
+            "physical_governor_wait": 14,
+            "post_transport_late_result": 37,
+            "provider_transport": 914
+          },
+          "by_kind": {
+            "pump_window": {
+              "consumer_deadline_expired": 5966,
+              "evidence_complete": 298
+            },
+            "research_history": {
+              "consumer_deadline_expired": 1,
+              "evidence_complete": 32
+            },
+            "stream_prefetch": {
+              "consumer_deadline_expired": 619,
+              "consumer_retired": 67,
+              "evidence_complete": 3165,
+              "waiting": 133
+            }
+          },
+          "candidate_interests": 14,
+          "consumers": [
+            {
+              "count": 5966,
+              "kind": "pump_window",
+              "state": "consumer_deadline_expired"
+            },
+            {
+              "count": 1,
+              "kind": "research_history",
+              "state": "consumer_deadline_expired"
+            },
+            {
+              "count": 619,
+              "kind": "stream_prefetch",
+              "state": "consumer_deadline_expired"
+            },
+            {
+              "count": 67,
+              "kind": "stream_prefetch",
+              "state": "consumer_retired"
+            },
+            {
+              "count": 298,
+              "kind": "pump_window",
+              "state": "evidence_complete"
+            },
+            {
+              "count": 32,
+              "kind": "research_history",
+              "state": "evidence_complete"
+            },
+            {
+              "count": 3165,
+              "kind": "stream_prefetch",
+              "state": "evidence_complete"
+            },
+            {
+              "count": 133,
+              "kind": "stream_prefetch",
+              "state": "waiting"
+            }
+          ],
+          "deadline_decomposition": [
+            {
+              "count": 30,
+              "kind": "pump_window",
+              "stage": "expired_after_transport_started"
+            },
+            {
+              "count": 5936,
+              "kind": "pump_window",
+              "stage": "expired_before_transport"
+            },
+            {
+              "count": 1,
+              "kind": "research_history",
+              "stage": "expired_after_transport_started"
+            },
+            {
+              "count": 110,
+              "kind": "stream_prefetch",
+              "stage": "expired_after_transport_started"
+            },
+            {
+              "count": 509,
+              "kind": "stream_prefetch",
+              "stage": "expired_before_transport"
+            }
+          ],
+          "lane": "pump",
+          "opportunity_denominator_source": "native_candidate_funnel_not_consumer_count",
+          "scope": "lane_attributed_logical_consumers; candidate_states_may_overlap",
+          "shared_acquisition_failures": {
+            "background_deferred_foreground": 2,
+            "expired_before_transport": 4,
+            "physical_governor_wait": 14,
+            "provider_unavailable": 22
+          },
+          "shared_overdue_active_jobs": 0,
+          "unique_candidate_acquisition_failures": {
+            "physical_governor_wait": 2
+          },
+          "unique_candidate_states": {
+            "consumer_deadline_expired": 13,
+            "consumer_retired": 4,
+            "evidence_complete": 14,
+            "waiting": 7
+          }
+        },
+        "expired_jobs": 216,
+        "inflight_jobs": 0,
+        "pending_jobs": 0,
+        "pressure": {
+          "batch_size": 16,
+          "cooldown_until": 0.0,
+          "next_transport_at": 1789951605.3257256,
+          "rate_events": 0,
+          "rate_streak": 0,
+          "recoveries": 8,
+          "reductions": 0,
+          "success_streak": 1,
+          "transport_ready_in_seconds": 0.0,
+          "transport_reservations": 913
+        },
+        "signature_rows": 2494,
+        "stream_events": 73017,
+        "transaction_cache_entries": 6586
+      },
+      "runtime_resources": {
+        "available_logical_cpus": 4,
+        "cpu_system_seconds": 19.205769,
+        "cpu_user_seconds": 63.314644,
+        "maximum_resident_bytes": 104415232,
+        "scope": "lane process including all threads; CPU cumulative, RSS high-water mark"
+      },
+      "local_raw_rejections": [
+        {
+          "sequence": 85,
+          "session": "6b706536-317b-4a0f-9834-0bc102bdaa5c",
+          "physical_request_id": "6b706536-317b-4a0f-9834-0bc102bdaa5c:85",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789950103.4049134,
+          "observed_at_ns": 1789950103581489424,
+          "request": [
+            {
+              "id": 118,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "Y68aMWKA3Bth9tbTeydp1MVuff4h496Q7i9NF25pKR2Q8KGGKt2MzSR3nxB2VJr7eupUtedtD6zBzDH2VvV8ZvM",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 119,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "39zwQVUZQjfvDoEWrKokK9QetbL8whma5XrzLfnCZY5pfMgwrbdL91VbMigQV9f62TzoY3RnuGVSBEHAcfE5FocL",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 120,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "62rny6TRbKqo1gXuAsGGorhErnWCik89gk5a4vmQup6VnVdDTQ2zim9juSGb2UFy4hQy1uuG1QUFKT7RYBo5f4fN",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 121,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2tdn5qvqLjiAqFC9rzSVChdPURdJ14DYG4xrquyprmMnf9kMWAqg2c4niA8ac19yRavgux7LmJteEyrEp4suwgw",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 122,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5vhRzbnaevLjJz7Uf6ryD4eYYe1QDT4D1Kz5JYjt6ZQ6bUZVEzF6ir3NzbrKT3m397pA9sMHnmyyMsnA4zKvhhHq",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 123,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3LpiNRhZr78jQ2gC8AAkgY3rxhnYZ8a4MrMthmBDCoiqSwRdp7gkPku8eW5WabPUhAWKDBM34gmRFYLFJJtHTgNQ",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 124,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4XVNxzwvtuNy1u3GuxqVAngB5WMbYzk9C3Ybx3ijVLBjcPjMso86ZscHRBhdCgXpfZsJcrfVxtk7eN44UqCvo8Yd",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 125,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5PtWLdmWPZNsKsgYpvC5c7qzXNKS3mht7WT7fwEDjfHFJ3UoejdytFTkanfVj6jEextFzDBU6BDeh1JoKuE82bj4",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 98,
+          "session": "889b7c61-8337-4154-8232-5f68accd36f9",
+          "physical_request_id": "889b7c61-8337-4154-8232-5f68accd36f9:98",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789950113.741238,
+          "observed_at_ns": 1789950113763602987,
+          "request": [
+            {
+              "id": 35,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "361eJ7LC9WZH2kgMvpJxFkBnEAdoZ3PSFQYfQxEv1xdNQ7KPm9U7Bh15XZuiPbYacCEjLhojSHsypUuhdMLcZnRz",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 36,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5GtDR9wdp6DJHaNxtyCbYectYbPjR7xwh2YJywzdB56XnQ392JdpFqGdfJS1iSPhDMdJUTsAcjMoqro4FvxSqGAx",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 37,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2oDL4RcwqPVF5eaZHevs664FYVchZCTzmjKNgcciqUVvDaHLL448oZvMxzvtwBowdvEw4qiMVucYw3EGULCkXo5Z",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 38,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4MLwxd6DA4hE5j1yVuXYhfop3ZmpYdxYq5dmwnig1ufDHmiPYoHSp9Qz12z5Su6YQ3sTgj6CXRKVy3kdssVXr8ss",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 39,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4VCysbZZEiwewtKHkDu2kPZm1YSgTaBEd58mNWu4GqsDHqQz8hJaRaUkEJvLRdg3Z2JB6TThsp2pGNJqfQFaNeNw",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 40,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "XmjEqYWZ7XrwcoM3KnWgegkLspPALsA92Y6ww4xcWoBx6DbbajvzSTjb6KipEULfArz8YjUuUm6fVq6B4zq2MHH",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 41,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2R7Ka1iwA2dqTFTvWceafructwBC4Jwx7AwBxCoX8UNYBB4x717qU7Ptp3ngBhnDDv1R4sKLnMhySpU9QY4ia7Qg",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 42,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5bSQuaK4UAjgXr5sDKjJw3vkCri9Mz9erbQ6FJ7WvD9UswC83jGA3cM492vKbyM4aK5uFiy3RRw2fPNA2sXAZGoq",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 146,
+          "session": "7366025f-c96b-40df-baf5-ce2cf748b1be",
+          "physical_request_id": "7366025f-c96b-40df-baf5-ce2cf748b1be:146",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789950158.6616316,
+          "observed_at_ns": 1789950158976485637,
+          "request": [
+            {
+              "id": 133,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2ub8kNHU1mgJEf9aa3V3M8FbtTGaiU1WDAEi9zL9xhGoY6D6nZuysb71bXpKT9CX4hq9Mwwt855NqAXn5rQHZ2B7",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 134,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "6vz3po24nbaqJi6VpBLAnSBHrQ8Y7ugGTb7hKTyBukKmDQhbd3pFebShKoF2VrZdx9wmLW5MpjyRJpG7eHavozG",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 135,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5ryxkyJjJR4ivqJwVPXaLsHedeQVzVtFjCnhfYimBGGWE5xtAxLj4KHrDVazZtVPzGLVRLiJn7r9cFN98xSSF87A",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 136,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4k5yxUmVoWBnRjpquPqYMcLjAPvvTgjdgZiscgSFMs9jQwsaVoEShz7iXoWwfERjn9JQz4Smnb2sZRXzxxd7YTsJ",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 137,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "mNqidhtdb5tsqJLgKruoLo3jnpAaxe4mdjAjGwZx3y7mx5WZYnS7u4bavNEmKu9JFz5djYB5keQxjRWqTKXaxa8",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 138,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4wZvustrbhoNZh6g1Hm9AGh2Xmo9rZtNarJE6hU1b6QTF7cQKBXYiJYY4rqPezg3DxhCRmdzzMcS7ZDtLGjvW5r9",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 139,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2yYt6pjaETNxryg8XprSnaFpcXmsBCZ7NY57roKyUdwoFP27m6gkL2qxFkux9invGek1sHwkpKqG22puvcaEJFHX",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 140,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "55J1kh7hWmC245Kpuqq1CQKsbKi1ZB5DUcaUcnmLM9DjkG9uW8hoXK6FVXwXny6WKTGg9CpoPhEJ2hDCZAqFJ2vX",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 197,
+          "session": "fd1c5ef5-bccb-484a-a73b-ab1d4af05426",
+          "physical_request_id": "fd1c5ef5-bccb-484a-a73b-ab1d4af05426:197",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789950206.6718476,
+          "observed_at_ns": 1789950206801596435,
+          "request": [
+            {
+              "id": 123,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4GpTZdnEjjfKgHJuNYttQ6cNkdsDFoEUsskTMRKWJJXhRMiJ2JG2a3zz77XUHw7c1jip2Py7cHLrYbD8z927MT8d",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 124,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "21ZuNehe2GhcQRJkWNc9vhGLETYv8AftJhQ6mQM9yXLMGy5BrBBx4BLsPXAVe6pYCzCb4tjgjTZk4yhbiN5GbvvK",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 125,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3ojEU5V6dgbovNSdvXgciMPsAc4XzYKare8dAajyAgLbdJ3VnkH7HGUxhsSCYxc8HDJQXo98zCdLFaPtQ4TrK7XC",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 126,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5w3gvjqadV5uN3cmBRxFmjZsKRJsERcWa3Wjg2kZxM7vdUrDaEfkpE2VcehAgtUxLEsVEzTBdSwWA6cTG1zbBRg1",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 127,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "22wG3AtyQGW2bFn1Y34CsFZUcLcwdVpckxeyaJAJBVkHFRuMKSem9J5Lcp4Py9ygNFnZCBC3svnAUwksqodJkieW",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 128,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3qVEhraT4QPFzLdm143ug3aaYAcNj1oHAi1JDigqCDgi3RXzLgmt4KiqmnWYxAP2gKLWKwLJbAbHiJzdjKeLo2gJ",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 129,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5w3L5Xr6auHeNoAxMFeRRzqxrFPG96S9U3t7F2Srb31FF4CMfFueko67t9m6MKXL4LmjXXZ3hzMYRpeM5ijYAtEC",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 130,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2SpK5L6M7G1G9YTfe5k2QU6Hwt2NxY3n8xLX4gPfZTixbUFqzhGeojyxbrqD9TtPMZndEFNktyBJYt8qQPHAycND",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 310,
+          "session": "6557216b-3230-49e7-b1b9-d7121e17ce41",
+          "physical_request_id": "6557216b-3230-49e7-b1b9-d7121e17ce41:310",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789950286.6406324,
+          "observed_at_ns": 1789950287070845184,
+          "request": [
+            {
+              "id": 125,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5ujt5KbuweNrUW8YaXiyiXt5MYCTFz9DJHoD9Res6r9idtBYCHhPUjvHtSA96ugBuPJUcbDMrjaWjkBiVdAzTSFV",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 126,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "37k6fAoJ1dB55K33hwxAQrYw7m4HqYV71WurrBZTBQmovdSksMmQBufy66c2ixZDqmYrEUfwFNDBgaQaaQn1khKu",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 127,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3jFw8DuZ67TQEHtDiZCHCcH9MTwEcP8jtgThxML91Vyyqn936XHNt63Qk5XSgB1U3sdKTbwkYkDtUpadYGHDSBpC",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 128,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "59KmqiAonzYkCetrVRMsVbJKAnnpzqpw2VGV1FnDPAfsGTNAzMTDFf7qA1SNa9Vn3UYvP82PGdwEaJFDos1DqxRW",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 129,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "cxFx5ExrQ2hxzsrnjYEQqBebHTqMeqNc7P9TG2pSvma3H1GgvCMuFast3W4h2ZZ4UMzwVm7QACPTn13pog5hZxx",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 130,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2rVRWgVUyUyQV9fkt8ScMz4ubFvACtWraSs1sRNTzbK5CkTotywzbbkbuaomYCzcAbwaFvX1HEFyAfeoKPASkaky",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 131,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3EtoagFAigLhnygkpUFnASdn9HWi69kMDQ7oXyUUsLc4xhSwjAeTNVEz4Jgxh7KH7dDEbQ44gyara8jZ9L7RHkio",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 132,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3a9tsdnrnM6JgJq3kKwpxb1yZjAFb5WRKpvGmJYykQwLt2NLxmwJeXykVPpztgC2kd9kWpZA7kAPqgkX8QeQxiq1",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 405,
+          "session": "c1494549-a2f7-4f52-a1e2-f171ad80acb7",
+          "physical_request_id": "c1494549-a2f7-4f52-a1e2-f171ad80acb7:405",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789950358.8197224,
+          "observed_at_ns": 1789950358832627343,
+          "request": [
+            {
+              "id": 62,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "29MBPq335J6yydLYzu59fN5uBWt44MGxfaMjtf1x6RvD4uFinV4ewALRtHeRPw7FomqDTPGLniqWMdaf1vZXqCbi",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 63,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5PQA7fgHCZXiHLgrq5cQXyFLCnh9xQg8YnRyRQpENhpUzGVvF7caM5JDRwErasNB33sV7EJAatS3Bey528WKZArf",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 64,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "WBz5BK8pedw2DTDXv1eeuQyuAti58BA3AN8oZT5zeNgq8MmGAN92BkBtZCh4APLCvq3Vrv94tHhAj3xvXmE7B2h",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 65,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3rjpe5mA52cd8emw4imc79t6CcR6kz3zURHevAPTNoFSLGZG54WKaAsEU42cGQqc4GE5qQKNUk9JDddow9PAVpn",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 66,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4ZY4To8t7D7qk84sGSc8188XqGwG5seohJkZMzPPgyPV2tFC52ZYAdiFzjzL7CNkorJJ5NnCDYFj9BNkeG9ZtVuY",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 67,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "61wGKmJwF35Y41nCNU2FgEZVmGh6hupxt2B7hTVzXMqVPTXSxrXeM6F6vAZKkzz4f88AprzCXac7Ewe1mjd6fThF",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 68,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2U3jtBQz16azRmKJMBpK6eMDBBz4pt9bLYaduhbDdfC21NFruXRD1shLExgQVYHradD6mKfzKKhwj5CBSKPDu8sH",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 69,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4z9ZXgRZ7MzbQsyhLmMyEC8C1N2tpA1fJW2kMwrDCS1nz2gsGxSD84R2YKGH5wcws6VKLPLaQ2wYiKj68kbk8c4m",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 437,
+          "session": "be3e5719-8c71-48dd-a2f5-8dd22617d2e7",
+          "physical_request_id": "be3e5719-8c71-48dd-a2f5-8dd22617d2e7:437",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789950378.9699905,
+          "observed_at_ns": 1789950379120864355,
+          "request": [
+            {
+              "id": 62,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4H7rHbqfuayGXVsEWShrZDFTm55yZZuJgZL7u3kkczXP8EUhK4b68vTgrNmytG9cBNsZZpAuaMNjRdYRbyofpy3u",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 63,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4eBe78s19Jen34paibm2qS6j28kFDPijkjheYYqd8uiD8vCoBoXvHKZCi48onxDdG4bwtNCsWjHEg7fmR9KPAg7j",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 64,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5VbRi4hX6AnR4QMo8CxzZKxavHWYGoDQAGjjNi3H7AK7yG6HSCiujRW3BHFSCvbfo6dgWFHUu9zCakNCXiGydtAD",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 65,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "GZsb3sxXGTavTjkzxtR11VsUrKisXP4xz9yN9beoaFzNheMpRGPeKg5KvvtUFBdDE41L9HdsgTQRoMYesoCeVq6",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 66,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3xLMTem4i7aMc62aezHt92cBjq7ZiZpQNAu798RBVUKSToqxmBDCa8dQzREX6VJ2YLEh1g6SkXjnCtD6kWtAtgiU",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 67,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2sYPgzkjTKkVtjQUbez2XptvXAckZroXokMxj9ooEojH8crfs5wmuA9p5wqeChCboctWF91CkrgHGE9C3yP2o1v3",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 68,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "7Sehs5S51zcuB6PKBvtpMKtXkDTPyM2gToXPny2iGfYyiUvhE44pbH4kidAAjtVaJLGs4kGGEXPRxcSXstM5LEk",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 69,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4SScbxdToEqvVmVhcBVDgdjMDMCScHJKByQnTP2pYZ5DszHKpCPGAnyjL1EsHHdWebJS8s1xmi5F5M9f5Va5zTRb",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 473,
+          "session": "aafb0971-6497-49a9-b0fc-66c6c959470e",
+          "physical_request_id": "aafb0971-6497-49a9-b0fc-66c6c959470e:473",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789950404.9946167,
+          "observed_at_ns": 1789950405033551820,
+          "request": [
+            {
+              "id": 62,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3mNgm6da6gsiotZLNSctXuUviNUF1GLqK6gmmqtgZuNWdx4tACkaUZwQP3zbot2AXg4aPDNHbjcbnm4dj6ndRfdZ",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 63,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4utVVyu8oRWGu9M8VefzY2niWkPuxJacPdmao8CR2F4pfWVqEwDbVW3EkZqXBuiNNVZYP7pCWRHbnaUTDPaxTSJB",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 64,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5NTHsiyKYH3BBnbr9zK35FPYZGeajbMXkhPpS9gdBULULpdfzvHdifaZ32492s4j6Gsyb1aCfr1QMhd4kfgvHXRq",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 65,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5y7jCV75Fyn934tn966hfufDwTbpeRTcBqxQFsbmK9c9EZypTaYUshH13CtSwZaWcoSepVmX4EukfSyW446FdUnc",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 66,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3w3iBrSKLEYSsHfPGXQA7peKw7YuPAyntnNBo88vDXJBLbf7Y5xjFipbv5Pzu6PsrvcTspd45oT2FstJA6M19Hrp",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 67,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "bLBRaKpEB1CR4YoJ61a1kmJ51bC7KpjN561V3NHR4VNedBdbpx79UEN7Xne8f7hXKeSdRZojY8joajSMbvqp2Nd",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 68,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2WoBAAmc1sLDUS2CBUFa9MhCQPu4UzxUfCt6fsJCWptLopjkvWmWgjuaJi4qqLi4KwRej3nbLRFAM94ZPjJ1e53W",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 69,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4KQVrhK99a16bZ2Qj6rW1g7NXzhawGbJC1TMfctvC3qPmvQzMJbCN73Cot4CojzHT5i2bq67H5qAZuj4P8UiEzSX",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 548,
+          "session": "83d14aec-55dd-4d57-a0b0-df60128a6b72",
+          "physical_request_id": "83d14aec-55dd-4d57-a0b0-df60128a6b72:548",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789950460.1764789,
+          "observed_at_ns": 1789950460343737378,
+          "request": [
+            {
+              "id": 62,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3Y39RwRfSdPLTuE1XE37sfCuHa2J6AtdZue8gV13J5kdtzNXfeBMWwzYrgUhWPtC1VuuAuMmtFPrD7GUVdVFa7WK",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 63,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5ya4tr8BYVK7KyDhe3YYLiQPyQ7VMbMqymZ6a3V1G59RB3TuePAcuuiv6UzpPbyo6MRFWUavYqS44GVjze8Xe82H",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 64,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "TPvucX99k1d4a5gqzACfTrDdM9npW5D8n6TUxibmS9ipZUaUnLSfNagsCX8L2ZrgsaDA9bPUE58AnNCoZBGModS",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 65,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4muu4Jda76p8ULiwc4Y7n8duCRPUPrhN5nVMs83jS3avcRfdUrKBFmxYkBXD6goRGJFYpkjvoAM5E9x7Hx7ou9ws",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 66,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2WLk6aHBW2edBjfYFGaLCUNKXZPoAsUbXr3VFo8AsJYSTmRDdmgjbshQ3WNWcxn4oY91sS41AzaCQwe2kGMtXtw3",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 67,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2vQXDei73GwajBKP54CUK9bVNtn2R2CiVszsrKmHeXjfpkVeKYbAsJCrKK9AgNBbedHuX2fGgU4yWqFFMUZc1mXS",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 68,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5MN6b3DkABDc5LUDSuUoE4pEJAKWhnHGVsnHStvZr5tgTULPYA8A2LJYVhUv2BtSV6r414VFrBq5PqmezfLr1n8t",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 69,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4JXpk4VtLi5NDPj3dDih4TsGeHR9gxr3f3DHV4LHvtWosSkuGtUqYGK1vMPfCmkzpR36Znjx8yWk2d5ZtAFn3FGA",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 679,
+          "session": "da8c9954-28db-4346-b76b-2e44ba9673f3",
+          "physical_request_id": "da8c9954-28db-4346-b76b-2e44ba9673f3:679",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789950553.3731353,
+          "observed_at_ns": 1789950553375855044,
+          "request": [
+            {
+              "id": 62,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3P74pv1XoH7bJGCncjpCkbZ7cZUzw4PJBVx8o5WWk9FjiXzYutpMA53nPd2gGZD1BoAQ1zZQjdHzkVYmJSjH3zCu",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 63,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5NUHEMbJ9a4GhWbn94QMNnpe71igbdnihLXTEDmDdMRmMzeKVs4yXH7HPHv8gBGjwnKSSgjHecJHCVrtSrZpKseW",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 64,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5V3vJszYjVqQS7uFeDDePV5wNgnkcwn9L8jTZFPPpqMN58K3vBPbwUZSLh2HadFL3dpDUH1mGm7C1VSJhvsPqwYE",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 65,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4FnwWVGCuKAhf34AuXEfEdRSKCn7MnPqNWEFBFKCRFVab5jyv1jyeTfhgPx369W77j1Mu8xskF4r8XphbdJUJRxy",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 66,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "tNtC7yTTf8vdAUqoQcef6hi3844CP78oAw7bGDrLYBRWbxhUjJxxriUZ8UWrNxwJzEMV7YsoFCN6pVWwhk86mD2",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 67,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2Hw3QGKJaFUFRXKcD6t8f3xQQgDwJSVbBHthfHV7NVupCXmxQFkEZkraLNQyjuVBJAqpx5AujH5b7YnMrFyvzktq",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 68,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2yKk8KMUHai5ogbY6XnTczN2oLvBXdQvDQwpeJddL3Y2yntWbQGJqeJKmAG5kbtg9tBcXea1qWTthGEcvjQ5kcyH",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 69,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "48TXHtvHJT1DjGv9iksfwDLCkHrBAHJPDYVTZphyWjkZ1RfbFdqUvRyG4GAz6yZGDZyEBE79MofJkoYCRAEZGDCf",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 735,
+          "session": "b77236ea-211e-4e6f-90da-02017cbbac91",
+          "physical_request_id": "b77236ea-211e-4e6f-90da-02017cbbac91:735",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789950582.4020486,
+          "observed_at_ns": 1789950582444434348,
+          "request": [
+            {
+              "id": 62,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "48GjagAzyZ878reANUp8qsGsp8G6AzAXNVhxZYNanmJWrLRhfV95dybWDqXMUQZ8P1cnk9mUfFvrqEbChEPpWEy7",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 63,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4gou7b76jUtMquuaX8ZtdGpvXK3gHbsADU5mMzEq7XMBF4N1ruh61XYxH2Dr22Gr8MbPNvomzApWqtT55ptEBmg6",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 64,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5QeuNLd7N26g77HFfPtiH32MFsoiyGb5Ya1UVnin7VuF3K1oJvqDXWrHDkGfzQoVRRd9TqFKGpDTKcj4WdxVsWRE",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 65,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5W8WBr8oJQv5RivZLc3quvsxcRD7aJgcBDfGnSsDjounYvHFvCG7hfzckKtn2YF6fnMaBG1ZzSsLLpBtnub7iDWw",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 66,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5dmxUq4tVMPHuQCUfuxGU7hRjvbgAPmF2SmhUXBDJcksgpSzBkznZ3nSPtMsAprHsBf5pLKarPVn18SQRsByAG28",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 67,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5fhQJBMRMkpzz5g5L4AiBWQR6zNcky2VPSEKhuCqtz4A1zqj8oWsYWL7kznay6JW5ajyXm77RCPnt9WTcvoLtqp2",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 68,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5yjnPuwSZnLb5RVoKN3YN9nYaZeGMpZQLSVuRbPRrsvA3CnGrLp46mUBP3hQx4MSPsrF2x9p5KATGq78vK9etfeD",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 69,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "665hJTAHzyGFwshohQvZpoHUw9oUWnwor9AuBjvfH12XzvRKYZ5g2nvCCwpqaQ5oBjRnG19fKaLDY3zv54v8tneH",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 1142,
+          "session": "183b2850-64d6-42d5-81f4-85490e8cfd40",
+          "physical_request_id": "183b2850-64d6-42d5-81f4-85490e8cfd40:1142",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789951372.964509,
+          "observed_at_ns": 1789951372974768970,
+          "request": [
+            {
+              "id": 201,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2RUntSQ7GgodEaCVAKhELJhmYEPWsTWLEDn1hZiyWiFGLVEPFrbzbveWZdofk9CRdBnvVVa3F55NS8FmSnRiZEXW",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 202,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "KsU3ZtsDd46AedMASH3qaa9BaUQynrFvkhRv43drAEdMjXjTUuHhn26pm4A9WsyT5HojD13MmxK24xkUyWJHhnE",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 203,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4xzwaSEWei9FNafJfDMZAptNRPQWBoRuKrJzNWU9pzn4ppWDYbBcSV65PbHBH25Q85CnMSaLZGFdwUhpr1jgRAft",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 204,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5bqxZ3n6MWceCojMTaVWZbqbMXEeWjgYhYVHFuDwtKDy1uZcSPY9nfvsL4P6ZUWAkzWiKT7AmNfA67ZZmeF9D93T",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 205,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "63LRdgLxqLQBCeri7VVcZApSxphWgix6aQwRkGh8kSLxEbSYXS5o21Ng4iHK9futHnjCbvxfKKKgoS2u4nfF3T8Y",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 206,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2PJRQUrjwNJ3BEw7KL5B6cCziUy6wAA1DW7oSUX1t1EUSGayuWbVF3qWZC8khrDQax6teetjrHeXkY6VNiL8F3oM",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 207,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4H5qfW4T4pdRbWL24fzJQWsKxFb3cKVeaiebFZswtrsNFcfPZ73Bbn2rUvNF9ssGy98DmL43vg2XFPaih6dDSuZM",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 208,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5VwDz179dUrPmMem9gB2Cfi9JbwThbYPSCMPncBkeJDLHreTRjkQ6jbFqJEfhwa7aSMCsfvfp5JR78uuLg4ChYxg",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 1165,
+          "session": "acf2f04b-8802-4901-b9a6-16c4c9f72efa",
+          "physical_request_id": "acf2f04b-8802-4901-b9a6-16c4c9f72efa:1165",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789951423.346553,
+          "observed_at_ns": 1789951423350612761,
+          "request": [
+            {
+              "id": 153,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "67VXLZkdjCJYjqBmnT8MUnJn1j2y12fErNzkFLdd2bD6YWCRtSmV6esf4hHydJByveazwu8v4c5GPrD66wtP2eia",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 154,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "3YDDVbeqREbg4sMPBSbKRQtYbkjh3pnB1tZtzziHtj5d2k51afAVJRDHJBnA6RVFeQNUn3KyQUcMiQoFXGfATV5C",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 155,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "pz7m3tyHAsMSMoVmim9fdhusuPrSfSpxrt8UUm2Gu6YWJLG6j7CB3yKSLirNZqKTK6KGCfYb9Eor2zQ7ocpR2XG",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 156,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2Tr39Z1ejKBkY95ZmRgXaDF6wEzWHiCYWaKMd5iLTmD7sR9U5K96wNpkbDsYqHoGw3yENuPGvLmZR5XLgLoiMFQq",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 157,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5eXdKSxjekwURyQjockha5zzQ4AvVRWYAgikH7UKUrCgNytmQ7fxFsfJ1QK2ye9cfFR7Zhs3jfig9pufz3qweuxV",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 158,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2gGMEw82ikmoxWXCkVdeViWaN3h4BTijDXGGS9tk1erWKoGdiDnb2hEcBT93jEe7So1NttqVCGcKuHNBk6cwZLFj",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 159,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2R95mC7rZmTvvoTMkoCUX8vcGuvPUUx3kfUcKwyEXuZ87wjPN4LAczJHYjxR1ydy4UBTHB8qv7tJM3N5ofHmjpGu",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 160,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4HcmNEV7pTtxxBQWvsTiQWSCz7b9km3RKsiJy4VG7vA7czTjit1SzGr6TfzFQ6WfpueSTSTe9JB8xZcsdSVrR3d9",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "sequence": 1233,
+          "session": "7bad3edd-d6e4-465e-92e8-93d59f01c297",
+          "physical_request_id": "7bad3edd-d6e4-465e-92e8-93d59f01c297:1233",
+          "error": "certification_provider_queue_deadline",
+          "original_deadline": 1789951574.0939283,
+          "observed_at_ns": 1789951574181387729,
+          "request": [
+            {
+              "id": 1,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5GvCSd2oma6zuZLsPoBV68RPiED1eT3GHN63JyigLNjcWMQNXaEAQb7mCUpVJc7kp6awHBPpKunrXYKZki3KWgT2",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 2,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5BgdHga4XK9xCm5AAKst94YcEyGeedEjptWFvLcgd7P6c6MWHWk87QyZEovFtzK6nQpgh8j9wRpVrcSxvvmfG71",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 3,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "5R1KYrHzvHigm8yqvVqru89tghzG9nF8koHdj5RzXbprDRCJAKPt1iLoZvwgXbuuCCsiYEeCK46a98xaoRaPCyoA",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 4,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "4vxD2ZNw1mCxmAH3ciTdMyZGwcegm7k76ZKB3ZaC2bbnMUGL7rtYdSL2qvsky4mLRD66YPKVH7unakfkJEtzhNf9",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 5,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "2jbFBnwvHZe1qGMVa6Fjy9Ln8AFdB63sx2rnAA7qkURzwUxjLQ8TzaCd4RhZyM66ymZxrBNBKtGi3fotVpgLHAc8",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 6,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "35PV4Xw9kCPRdpBAvtz1A1H9qAbgpwqmhwk6KL4iQzGXvUJAEDZdEnKhAEmSsAHmwD38ghMNbnPMHkLh9ZcSGSHY",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 7,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "27HSHGqmSwdTFj1Qusad63dchS1gzNoJZP7poQwUvhjWP8qKUFD2Wf5zJ824gkykSEASPM1VhX3rGzTf5zefobnZ",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            },
+            {
+              "id": 8,
+              "jsonrpc": "2.0",
+              "method": "getTransaction",
+              "params": [
+                "C5Ehvy2c833pUnpf9FLLGLmEeyYCC9sS73Sz6sGqnEMqHUbQ75xoN1i4RPvHUVWagFGX8LbYuz3BKidVBnmHVYs",
+                {
+                  "commitment": "finalized",
+                  "encoding": "json",
+                  "maxSupportedTransactionVersion": 1
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "program_account_scans": [
+        {
+          "sequence": 101,
+          "session": "e07e19f6-784f-4925-9e69-dc60e61252b8",
+          "request": [
+            {
+              "id": 1,
+              "jsonrpc": "2.0",
+              "method": "getProgramAccounts",
+              "params": [
+                "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+                {
+                  "commitment": "finalized",
+                  "dataSlice": {
+                    "length": 8,
+                    "offset": 64
+                  },
+                  "encoding": "base64",
+                  "filters": [
+                    {
+                      "memcmp": {
+                        "bytes": "HS9mD6Au5NzhijuShWSqSceDwzzUbDakVE3bwVynzpKG",
+                        "offset": 0
+                      }
+                    }
+                  ],
+                  "minContextSlot": 448891790,
+                  "withContext": true
+                }
+              ]
+            }
+          ],
+          "http_status": 429,
+          "json_rpc_error_codes": [],
+          "retry_count": 0,
+          "physical_request_id": "e07e19f6-784f-4925-9e69-dc60e61252b8:101",
+          "parameter_identity": "a50f5ad2f573a8f3e40a53ba09bcc4d4cd225ff43525025d8d75a9e12dec7821",
+          "observed_at_ns": 1789950115942076199
+        }
+      ]
+    },
+    "ramses": {
+      "exit_code": 0,
+      "unexpected_exit": false,
+      "process_restarts": 0,
+      "provider_requests": 114,
+      "method_counts": {
+        "eth_call": 413,
+        "eth_chainId": 4,
+        "eth_gasPrice": 3,
+        "eth_getBlockByNumber": 20,
+        "eth_getCode": 26,
+        "eth_getLogs": 90,
+        "eth_getTransactionReceipt": 4
+      },
+      "errors": {},
+      "local_admission_errors": {},
+      "provider_method_errors": {},
+      "provider_http_status_errors": {},
+      "provider_rpc_error_codes": {},
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "funnel": {
+        "active_pools": 4,
+        "scans": 3,
+        "unique_admitted": 4,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 0,
+        "unique_deployed": 0,
+        "unique_discovered": 4,
+        "unique_economic_vector": 0,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 4,
+        "unique_evidence_complete": 0,
+        "unique_evidence_requested": 4,
+        "unique_forward_observation": 0,
+        "unique_fresh_state": 0,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 0,
+        "unique_prospective_range": 0,
+        "unique_provider_failed": 0,
+        "unique_qualified": 0,
+        "unique_reconstruction_complete": 0,
+        "unique_reconstruction_incomplete": 0,
+        "unique_reconstruction_started": 0,
+        "unique_rejected": 4,
+        "unique_screened": 4,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 0,
+        "unique_stale_before_evidence": 0,
+        "unique_stale_during_evidence": 0,
+        "unique_strategy_rejection": 4,
+        "unique_terminal": 0,
+        "unique_trigger_authenticated": 0,
+        "unique_trigger_observed": 0,
+        "unique_trigger_terminal": 0,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 0,
+        "unique_warmup_started": 0
+      },
+      "gates": {
+        "accounting_reconciled": true,
+        "freshness_finality_unchanged": true,
+        "paper_only": true,
+        "policy_unchanged": true,
+        "responsive": true,
+        "state_isolated": true,
+        "telemetry_complete": true
+      },
+      "native_accounting": {
+        "by_quote_asset": {
+          "0x5fc5360d0400a0fd4f2af552add042d716f1d168": {
+            "allocation_authority": false,
+            "available": 20157046,
+            "committed": 0,
+            "open_positions": 0,
+            "paper_capital": 20157046,
+            "policy_hash": "50d928914df10568a7bc9679f0887ac7786fe17d67f1c57171c17a5a95fc6766",
+            "positions": 0,
+            "quote_asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+            "realized": 0,
+            "shared_allocator": false,
+            "strategy_domain": "robinhood-ramses-dlmm-independent",
+            "strategy_version": "ramses-fee-pulse-v1"
+          }
+        },
+        "conservation": true,
+        "funding_state": "funded_once_from_pinned_screen",
+        "manifest": {
+          "cross_asset_conversion": false,
+          "funding_rule": "one_maximum_frozen_scanner_size_per_quote_asset_from_first_fundable_pinned_screen",
+          "genesis_by_quote_asset": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168": 20157046
+          },
+          "later_assets": "unfunded_capacity_censoring",
+          "paper_only": true,
+          "policy_hash": "50d928914df10568a7bc9679f0887ac7786fe17d67f1c57171c17a5a95fc6766",
+          "run_id": "a4471f5588664cd1b638321376b0c73f",
+          "source_finalized_block": 68353121,
+          "source_finalized_hash": "0xdb8e28dd52f391df2650c1903adc3c00d4b1442eee896bead6ec06f1595727a8",
+          "source_screen_hash": "48aada4b9b541a745b1b064bd72dbe9791ece9d47a17d538799fff765ec92c0f"
+        },
+        "open_positions": 0,
+        "position_count": 0,
+        "unlike_quote_units_summed": false
+      },
+      "cohort_accounting": null,
+      "evidence_state": null,
+      "runtime_resources": {
+        "available_logical_cpus": 4,
+        "cpu_system_seconds": 0.34280499999999997,
+        "cpu_user_seconds": 1.061366,
+        "maximum_resident_bytes": 32722944,
+        "scope": "lane process including all threads; CPU cumulative, RSS high-water mark"
+      },
+      "local_raw_rejections": []
+    }
+  },
+  "pons_natural_lifecycle": {
+    "carried_through_graduation": false,
+    "cohort_reconciliation": {
+      "available": 999931047899911775,
+      "booked_realized": -68952100088225,
+      "capital_at_risk_unit_nanoseconds": 154929738291766905889600000,
+      "capital_integral_complete": true,
+      "cash": 999931047899911775,
+      "cash_basis_conservation": true,
+      "conservation": true,
+      "genesis": 1000000000000000000,
+      "namespace": "pons-selective-continuation-v1",
+      "native_execution_cost": 9541898304000,
+      "native_observation_complete": true,
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "positions": 1,
+      "realized": -68952100088225,
+      "remaining_cost_basis": 0,
+      "reserved": 0,
+      "unobserved_native_positions": [],
+      "unsettled": 0
+    },
+    "cohort_reservation": {
+      "at": 1789950424,
+      "decision_hash": "9365c4b4fb7ac1b4daf50d59f812d0ed2e4c281ceaf85c94d9edb0fa07251f90",
+      "id": "pons-selective:fff9080a-5cfd-4857-8025-3ac55adf130e:0xd9e3bc6eccbb7aacf8e8fcc8d807354300fbbc0b:0x16ca4b6c68850a133c19c435bfaccead6b6d420c516e98c334ff8177713ccf7e",
+      "initial_reserved": 3500000000000000,
+      "pnl": 0,
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "reserved": 3500000000000000,
+      "status": "reserved",
+      "trial_path": "pons-selective-continuation-v1-cohort/trial-000.sqlite"
+    },
+    "curve": "0x7ea8f4ffe142102d67d95c03f25f86c9cc4c326b",
+    "ended_at": 1789950489.9101932,
+    "entry": {
+      "position": {
+        "amount": 2500000000000000,
+        "cost": 2504757786400000,
+        "due": 1789950426,
+        "entry_tokens": 298006298460952339660474,
+        "experiment": "pons-selective-continuation-v1",
+        "id": "pons-selective:fff9080a-5cfd-4857-8025-3ac55adf130e:0xd9e3bc6eccbb7aacf8e8fcc8d807354300fbbc0b:0x16ca4b6c68850a133c19c435bfaccead6b6d420c516e98c334ff8177713ccf7e",
+        "kind": "natural",
+        "last_at": 1789950430,
+        "market": "0x7ea8f4ffe142102d67d95c03f25f86c9cc4c326b",
+        "pending_exit_tokens": null,
+        "pnl": 0,
+        "realized_pnl": 0,
+        "realized_proceeds": 0,
+        "reason": null,
+        "remaining_cost": 2504757786400000,
+        "reserved": 3500000000000000,
+        "status": "open",
+        "strategy_namespace": "pons-selective-continuation-v1",
+        "tokens": 298006298460952339660474,
+        "version": 1
+      },
+      "quote": {
+        "amount_in": 2500000000000000,
+        "amount_out": 298006298460952339660474,
+        "block": 68367384,
+        "block_hash": "0x5c026d6c2257ab8e6ba8f8624072ae68e6071f62f394e029d3ac3d5de342283c",
+        "chain_timestamp_lag_seconds": -0.3341042995452881,
+        "event_at": 1789950429,
+        "evidence_acquisition_latency_seconds": 1.539454982000052,
+        "fee_quote": 25000000000000,
+        "gas_price": 52050000,
+        "gas_quote": 4757786400000,
+        "gas_units_proxy": 91408,
+        "observed_at": 1789950430,
+        "state": {
+          "creator_tax_bps": 0,
+          "fee_bps": 100,
+          "graduated": false,
+          "launched_at": 1789950429,
+          "quote_reserve": 3734097393148561598,
+          "real_quote": 2054097393148561598,
+          "reserved_tokens": 285714285714285714285714285,
+          "snipe_seconds": 1,
+          "snipe_start_bps": 0,
+          "timestamp": 1789950429,
+          "token_reserve": 449907922348923310213136470
+        },
+        "venue": "pons_v2_curve"
+      }
+    },
+    "exit": {
+      "position": {
+        "amount": 2500000000000000,
+        "cost": 2504757786400000,
+        "due": 1789950488,
+        "entry_tokens": 298006298460952339660474,
+        "experiment": "pons-selective-continuation-v1",
+        "id": "pons-selective:fff9080a-5cfd-4857-8025-3ac55adf130e:0xd9e3bc6eccbb7aacf8e8fcc8d807354300fbbc0b:0x16ca4b6c68850a133c19c435bfaccead6b6d420c516e98c334ff8177713ccf7e",
+        "kind": "natural",
+        "last_at": 1789950489,
+        "market": "0x7ea8f4ffe142102d67d95c03f25f86c9cc4c326b",
+        "pending_exit_tokens": null,
+        "pnl": -68952100088225,
+        "realized_pnl": -68952100088225,
+        "realized_proceeds": 2435805686311775,
+        "reason": null,
+        "remaining_cost": 0,
+        "reserved": 0,
+        "status": "settled",
+        "strategy_namespace": "pons-selective-continuation-v1",
+        "tokens": 0,
+        "version": 4
+      },
+      "quote": {
+        "amount_in": 298006298460952339660474,
+        "amount_out": 2440589798215775,
+        "block": 68367973,
+        "block_hash": "0xb71e810db2f62e3a24bb898e706a9bba51cc5c22c4785e7c51ef50a4c3dfd736",
+        "chain_timestamp_lag_seconds": 0.5022358894348145,
+        "event_at": 1789950488,
+        "evidence_acquisition_latency_seconds": 1.400818997999977,
+        "fee_quote": 24652422204199,
+        "gas_price": 52338000,
+        "gas_quote": 4784111904000,
+        "gas_units_proxy": 91408,
+        "observed_at": 1789950489,
+        "state": {
+          "creator_tax_bps": 0,
+          "fee_bps": 100,
+          "graduated": false,
+          "launched_at": 1789950488,
+          "quote_reserve": 3729196893148561599,
+          "real_quote": 2049196893148561599,
+          "reserved_tokens": 285714285714285714285714285,
+          "snipe_seconds": 1,
+          "snipe_start_bps": 0,
+          "timestamp": 1789950488,
+          "token_reserve": 450499141808942061809245984
+        },
+        "venue": "pons_v2_curve"
+      },
+      "reason": "momentum_failure"
+    },
+    "exits": [
+      {
+        "position": {
+          "amount": 2500000000000000,
+          "cost": 2504757786400000,
+          "due": 1789950488,
+          "entry_tokens": 298006298460952339660474,
+          "experiment": "pons-selective-continuation-v1",
+          "id": "pons-selective:fff9080a-5cfd-4857-8025-3ac55adf130e:0xd9e3bc6eccbb7aacf8e8fcc8d807354300fbbc0b:0x16ca4b6c68850a133c19c435bfaccead6b6d420c516e98c334ff8177713ccf7e",
+          "kind": "natural",
+          "last_at": 1789950489,
+          "market": "0x7ea8f4ffe142102d67d95c03f25f86c9cc4c326b",
+          "pending_exit_tokens": null,
+          "pnl": -68952100088225,
+          "realized_pnl": -68952100088225,
+          "realized_proceeds": 2435805686311775,
+          "reason": null,
+          "remaining_cost": 0,
+          "reserved": 0,
+          "status": "settled",
+          "strategy_namespace": "pons-selective-continuation-v1",
+          "tokens": 0,
+          "version": 4
+        },
+        "quote": {
+          "amount_in": 298006298460952339660474,
+          "amount_out": 2440589798215775,
+          "block": 68367973,
+          "block_hash": "0xb71e810db2f62e3a24bb898e706a9bba51cc5c22c4785e7c51ef50a4c3dfd736",
+          "chain_timestamp_lag_seconds": 0.5022358894348145,
+          "event_at": 1789950488,
+          "evidence_acquisition_latency_seconds": 1.400818997999977,
+          "fee_quote": 24652422204199,
+          "gas_price": 52338000,
+          "gas_quote": 4784111904000,
+          "gas_units_proxy": 91408,
+          "observed_at": 1789950489,
+          "state": {
+            "creator_tax_bps": 0,
+            "fee_bps": 100,
+            "graduated": false,
+            "launched_at": 1789950488,
+            "quote_reserve": 3729196893148561599,
+            "real_quote": 2049196893148561599,
+            "reserved_tokens": 285714285714285714285714285,
+            "snipe_seconds": 1,
+            "snipe_start_bps": 0,
+            "timestamp": 1789950488,
+            "token_reserve": 450499141808942061809245984
+          },
+          "venue": "pons_v2_curve"
+        },
+        "reason": "momentum_failure"
+      }
+    ],
+    "fill_full_exit_check": {
+      "executable": true,
+      "gross_quote": 2471723430138262,
+      "quote_out": 2447006195836880,
+      "real_quote": 2054097393148561598,
+      "tokens": 298006298460952339660474
+    },
+    "final_position": {
+      "amount": 2500000000000000,
+      "cost": 2504757786400000,
+      "due": 1789950488,
+      "entry_tokens": 298006298460952339660474,
+      "experiment": "pons-selective-continuation-v1",
+      "id": "pons-selective:fff9080a-5cfd-4857-8025-3ac55adf130e:0xd9e3bc6eccbb7aacf8e8fcc8d807354300fbbc0b:0x16ca4b6c68850a133c19c435bfaccead6b6d420c516e98c334ff8177713ccf7e",
+      "kind": "natural",
+      "last_at": 1789950489,
+      "market": "0x7ea8f4ffe142102d67d95c03f25f86c9cc4c326b",
+      "pending_exit_tokens": null,
+      "pnl": -68952100088225,
+      "realized_pnl": -68952100088225,
+      "realized_proceeds": 2435805686311775,
+      "reason": null,
+      "remaining_cost": 0,
+      "reserved": 0,
+      "status": "settled",
+      "strategy_namespace": "pons-selective-continuation-v1",
+      "tokens": 0,
+      "version": 4
+    },
+    "gas_model": {
+      "gas_price": 52484000,
+      "reservation_budget": 1000000000000000,
+      "units_proxy": 91408
+    },
+    "independent_strategy": true,
+    "index": 0,
+    "kind": "pons-selective-continuation-v1-paper",
+    "lifecycle_id": "pons-selective:fff9080a-5cfd-4857-8025-3ac55adf130e:0xd9e3bc6eccbb7aacf8e8fcc8d807354300fbbc0b:0x16ca4b6c68850a133c19c435bfaccead6b6d420c516e98c334ff8177713ccf7e",
+    "live_money": false,
+    "minimum_fill_tokens": 295830805022263091060680,
+    "monitor": [
+      {
+        "action": {
+          "action": "full_exit",
+          "exit_tokens": 298006298460952339660474,
+          "reason": "momentum_failure"
+        },
+        "at": 1789950441,
+        "available": true,
+        "demand": {
+          "buy_sell_ratio_bps": 0,
+          "creator_sell_quote_15s": 0,
+          "current_buy_quote": 0,
+          "current_net_by_group": {},
+          "current_net_quote": 0,
+          "current_sell_quote": 0,
+          "independent_group_ids": [],
+          "independent_groups": 0,
+          "largest_buyer_flow_bps": 0,
+          "new_independent_groups_15s": 0,
+          "prior_net_quote": 0,
+          "recent_buy_groups": [],
+          "top3_buyer_flow_bps": 0
+        },
+        "market": "curve",
+        "pregraduation_exit_reason": "momentum_failure",
+        "profit_taking_deferred_until_post_graduation": true,
+        "quote": {
+          "amount_in": 298006298460952339660474,
+          "amount_out": 2447006195836880,
+          "block": 68367499,
+          "block_hash": "0x53e69531f897e4f3172f1f8eac102201cf9e09dad38b0b760fd02aedd3ebb73d",
+          "chain_timestamp_lag_seconds": 0.0786888599395752,
+          "event_at": 1789950440,
+          "evidence_acquisition_latency_seconds": 1.5076108520000844,
+          "fee_quote": 24717234301382,
+          "gas_price": 52412000,
+          "gas_quote": 4790876096000,
+          "gas_units_proxy": 91408,
+          "observed_at": 1789950441,
+          "state": {
+            "creator_tax_bps": 0,
+            "fee_bps": 100,
+            "graduated": false,
+            "launched_at": 1789950440,
+            "quote_reserve": 3734097393148561598,
+            "real_quote": 2054097393148561598,
+            "reserved_tokens": 285714285714285714285714285,
+            "snipe_seconds": 1,
+            "snipe_start_bps": 0,
+            "timestamp": 1789950440,
+            "token_reserve": 449907922348923310213136470
+          },
+          "venue": "pons_v2_curve"
+        },
+        "return_bps": -250,
+        "trajectory": {
+          "accelerating": false,
+          "complete": true,
+          "current_progress_bps": 4890,
+          "graduation_eta_seconds": null,
+          "prior_progress_bps": 0,
+          "prior_seconds": 10,
+          "progress_15s_bps": 0,
+          "recent_progress_bps": 0,
+          "recent_seconds": 5
+        }
+      }
+    ],
+    "namespace": "pons-selective-continuation-v1",
+    "paper_only": true,
+    "policy": "pons-selective-continuation-v1",
+    "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+    "provider_sessions": [
+      {
+        "batched_recent_headers": true,
+        "cache": {
+          "header_hashes": 200,
+          "header_number_hit": 201,
+          "header_number_miss": 398,
+          "header_numbers": 200,
+          "header_store": 200,
+          "launch_miss": 1,
+          "launch_store": 1,
+          "launches": 1,
+          "real_quote_miss": 2,
+          "real_quote_store": 2,
+          "real_quotes": 2,
+          "receipts": 0
+        },
+        "recent_headers_considered": 200,
+        "sessions": [
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 1,
+              "eth_chainId:miss": 1,
+              "eth_getBlockByNumber:miss": 149
+            },
+            "logical_methods": {
+              "eth_call": 1,
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 149
+            },
+            "logical_requests": 151,
+            "methods": {
+              "eth_call": 1,
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 149
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 393,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 8.980529613000385
+            },
+            "provider_kind": "alchemy",
+            "requests": 151,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_selective_trajectory": 150
+            },
+            "transport_requests": 4
+          },
+          {
+            "automatic_failover": false,
+            "failures": {},
+            "immutable_reuse": {
+              "eth_call:miss": 2,
+              "eth_chainId:miss": 1,
+              "eth_getBlockByNumber:miss": 50
+            },
+            "logical_methods": {
+              "eth_call": 2,
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 50
+            },
+            "logical_requests": 53,
+            "methods": {
+              "eth_call": 2,
+              "eth_chainId": 1,
+              "eth_getBlockByNumber": 50
+            },
+            "pacing": {
+              "backpressure_events": 0,
+              "minimum_interval_seconds": 0.5,
+              "paced_requests": 400,
+              "requests_per_second": 2.0,
+              "throttle_sleep_seconds": 10.53981084800057
+            },
+            "provider_kind": "alchemy",
+            "requests": 53,
+            "retries": 0,
+            "role": "directional_evidence_primary",
+            "scopes": {
+              "connectivity": 1,
+              "pons_selective_trajectory": 52
+            },
+            "transport_requests": 3
+          }
+        ]
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_chainId:miss": 1,
+          "eth_getBlockByNumber:miss": 18
+        },
+        "logical_methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 18
+        },
+        "logical_requests": 19,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getBlockByNumber": 18
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 436,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 12.83953652400055
+        },
+        "provider_kind": "alchemy",
+        "requests": 19,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_selective_trajectory": 18
+        },
+        "transport_requests": 19
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_chainId:miss": 1,
+          "eth_getLogs:miss": 60
+        },
+        "logical_methods": {
+          "eth_chainId": 1,
+          "eth_getLogs": 60
+        },
+        "logical_requests": 61,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getLogs": 60
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 443,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 13.090220295000677
+        },
+        "provider_kind": "alchemy",
+        "requests": 61,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_selective_monitor": 60
+        },
+        "transport_requests": 3
+      },
+      {
+        "automatic_failover": false,
+        "failures": {},
+        "immutable_reuse": {
+          "eth_call:miss": 13,
+          "eth_chainId:miss": 1,
+          "eth_gasPrice:miss": 4,
+          "eth_getBlockByNumber:miss": 7,
+          "eth_getLogs:miss": 7
+        },
+        "logical_methods": {
+          "eth_call": 13,
+          "eth_chainId": 1,
+          "eth_gasPrice": 4,
+          "eth_getBlockByNumber": 7,
+          "eth_getLogs": 7
+        },
+        "logical_requests": 32,
+        "methods": {
+          "eth_call": 13,
+          "eth_chainId": 1,
+          "eth_gasPrice": 4,
+          "eth_getBlockByNumber": 7,
+          "eth_getLogs": 7
+        },
+        "pacing": {
+          "backpressure_events": 0,
+          "minimum_interval_seconds": 0.5,
+          "paced_requests": 447,
+          "requests_per_second": 2.0,
+          "throttle_sleep_seconds": 13.99743175100059
+        },
+        "provider_kind": "alchemy",
+        "requests": 32,
+        "retries": 0,
+        "role": "directional_evidence_primary",
+        "scopes": {
+          "connectivity": 1,
+          "pons_natural": 4,
+          "pons_paper": 8,
+          "pons_selective_paper_quote": 19
+        },
+        "transport_requests": 16
+      }
+    ],
+    "qualification_vector": {
+      "all_rejections": [],
+      "asof": 1789950354,
+      "authority": "frozen_policy_paper",
+      "chain_timestamp_lag_seconds": 67.21584820747375,
+      "complete": true,
+      "creator_history": null,
+      "current_snipe_bps": 0,
+      "current_threshold_pass": true,
+      "decision_state_age_seconds": 3.453350015000069,
+      "demand": {
+        "buy_sell_ratio_bps": 66212,
+        "creator_sell_quote_15s": 0,
+        "current_buy_quote": 631679145245879319,
+        "current_net_by_group": {
+          "0x4dfcb6d061af1966c2e5a6d8ae488c6892621f80": 179861494143566103,
+          "0x510a4567da72aeb7abc153b2dbbb3906efd82df5": 120000000000000000,
+          "0x7cd5f60ab2273c38dacd5b8db734671382b7a819": 1000000000000000,
+          "0x7e0e818b0b23039788e196c85424d632db67b8c4": -28298804942318153,
+          "0x7fa2ddfcf3e52947102cb51087424d110a010d89": 39000000000000000,
+          "0x86c6a8b6424c24d0b842512d262cc81d35ecd3d9": -1103097748107208,
+          "0xc055d1177143ba79ea322c8695c80b0e0a12c7a8": 155817651102313216,
+          "0xf5456ebe9fe3a5921550cf6fc2cb67c8eaed6e73": 45000000000000000,
+          "0xfc057240391405e2392b2d4d7ddc47ae39b64c0c": 25000000000000000
+        },
+        "current_net_quote": 536277242555453958,
+        "current_sell_quote": 95401902690425361,
+        "independent_group_ids": [
+          "0x445f96f56d7dcee20ad24bf2da78d03f43d6e103",
+          "0x4dfcb6d061af1966c2e5a6d8ae488c6892621f80",
+          "0x510a4567da72aeb7abc153b2dbbb3906efd82df5",
+          "0x6e4c44f853e6c560c7bf480868d87bb69ec37679",
+          "0x7cd5f60ab2273c38dacd5b8db734671382b7a819",
+          "0x7e0e818b0b23039788e196c85424d632db67b8c4",
+          "0x7fa2ddfcf3e52947102cb51087424d110a010d89",
+          "0x86c6a8b6424c24d0b842512d262cc81d35ecd3d9",
+          "0xc055d1177143ba79ea322c8695c80b0e0a12c7a8",
+          "0xc813c69217762d355d36c11b5f7fd5f45b290f4f",
+          "0xd6e2e82745d95df70bc61a9f4f9a28491701923e",
+          "0xf5456ebe9fe3a5921550cf6fc2cb67c8eaed6e73",
+          "0xfc057240391405e2392b2d4d7ddc47ae39b64c0c"
+        ],
+        "independent_groups": 13,
+        "largest_buyer_flow_bps": 1916,
+        "new_independent_groups_15s": 8,
+        "prior_net_quote": 298948644721334821,
+        "recent_buy_groups": [
+          "0x4dfcb6d061af1966c2e5a6d8ae488c6892621f80",
+          "0x510a4567da72aeb7abc153b2dbbb3906efd82df5",
+          "0x7cd5f60ab2273c38dacd5b8db734671382b7a819",
+          "0x7fa2ddfcf3e52947102cb51087424d110a010d89",
+          "0xc055d1177143ba79ea322c8695c80b0e0a12c7a8",
+          "0xf5456ebe9fe3a5921550cf6fc2cb67c8eaed6e73",
+          "0xfc057240391405e2392b2d4d7ddc47ae39b64c0c"
+        ],
+        "top3_buyer_flow_bps": 5248
+      },
+      "evidence_acquisition_latency_seconds": 3.453350015000069,
+      "evidence_available_at": 1789950424,
+      "evidence_observed_at": 1789950421.2158482,
+      "pair_token": "0x0000000000000000000000000000000000000000",
+      "policy": "pons-selective-continuation-v1",
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+      "progress_bps": 4878,
+      "proposed_size": {
+        "amount_quote": 2500000000000000,
+        "caps": {
+          "capital": 2500000000000000,
+          "independent_net": 53627724255545395,
+          "real_quote": 40980288992404576
+        },
+        "impact_cap_quote": 2500000000000000
+      },
+      "qualification": "qualified",
+      "qualification_authority": true,
+      "quote_relative_strength_bps": null,
+      "roundtrip_loss_bps": 251,
+      "thresholds": {
+        "capital_size_bps": 25,
+        "independent_net_size_bps": 1000,
+        "max_creator_tax_bps": 200,
+        "max_curve_progress_bps": 9700,
+        "max_entry_impact_bps": 300,
+        "max_graduation_eta_seconds": 300,
+        "max_largest_buyer_flow_bps": 4000,
+        "max_market_events": 512,
+        "max_roundtrip_loss_bps": 800,
+        "max_state_age_seconds": 5,
+        "max_token_age_seconds": 900,
+        "max_top3_buyer_flow_bps": 7500,
+        "min_buy_sell_ratio_bps": 12000,
+        "min_curve_progress_bps": 4500,
+        "min_independent_groups": 3,
+        "min_new_independent_groups_15s": 1,
+        "min_progress_15s_bps": 300,
+        "real_quote_size_bps": 200
+      },
+      "token_age_seconds": 724,
+      "trajectory": {
+        "accelerating": true,
+        "complete": true,
+        "current_progress_bps": 4878,
+        "graduation_eta_seconds": 34,
+        "prior_progress_bps": 503,
+        "prior_seconds": 10,
+        "progress_15s_bps": 1259,
+        "recent_progress_bps": 756,
+        "recent_seconds": 5
+      },
+      "wallet_convergence": {
+        "complete": true,
+        "converged": false,
+        "convergence_count": 0,
+        "qualification_authority": false,
+        "skilled_independent_groups": []
+      }
+    },
+    "realized_pnl_quote": -68952100088225,
+    "reconciliation": {
+      "accounting": {
+        "pons-selective:fff9080a-5cfd-4857-8025-3ac55adf130e:0xd9e3bc6eccbb7aacf8e8fcc8d807354300fbbc0b:0x16ca4b6c68850a133c19c435bfaccead6b6d420c516e98c334ff8177713ccf7e": {
+          "capital_at_risk_unit_nanoseconds": 154929738291766905889600000,
+          "held_reservation_unit_nanoseconds": 214342988114500000000000000,
+          "integral_complete": true,
+          "native_execution_cost": 9541898304000,
+          "replay_verified": true,
+          "through_recorded_at_ns": 1789950489904308364
+        }
+      },
+      "available": 999931047899911775,
+      "booked_realized": -68952100088225,
+      "cash": 999931047899911775,
+      "cash_basis_conservation": true,
+      "committed": 0,
+      "genesis": 1000000000000000000,
+      "mark_times": {},
+      "marked_position_value": 0,
+      "marks_complete": true,
+      "open_exposure": 0,
+      "realized": -68952100088225,
+      "remaining_cost_basis": 0,
+      "unrealized_at_recorded_marks": 0
+    },
+    "reservation": {
+      "amount": 2500000000000000,
+      "cost": 0,
+      "due": 1789950426,
+      "entry_tokens": 0,
+      "experiment": "pons-selective-continuation-v1",
+      "id": "pons-selective:fff9080a-5cfd-4857-8025-3ac55adf130e:0xd9e3bc6eccbb7aacf8e8fcc8d807354300fbbc0b:0x16ca4b6c68850a133c19c435bfaccead6b6d420c516e98c334ff8177713ccf7e",
+      "kind": "natural",
+      "last_at": 1789950424,
+      "market": "0x7ea8f4ffe142102d67d95c03f25f86c9cc4c326b",
+      "pending_exit_tokens": null,
+      "pnl": 0,
+      "realized_pnl": 0,
+      "realized_proceeds": 0,
+      "reason": null,
+      "remaining_cost": 0,
+      "reserved": 3500000000000000,
+      "status": "reserved",
+      "strategy_namespace": "pons-selective-continuation-v1",
+      "tokens": 0,
+      "version": 0
+    },
+    "restart_reconciliation": {
+      "accounting": {
+        "pons-selective:fff9080a-5cfd-4857-8025-3ac55adf130e:0xd9e3bc6eccbb7aacf8e8fcc8d807354300fbbc0b:0x16ca4b6c68850a133c19c435bfaccead6b6d420c516e98c334ff8177713ccf7e": {
+          "capital_at_risk_unit_nanoseconds": 5402519615500000000000000,
+          "held_reservation_unit_nanoseconds": 5402519615500000000000000,
+          "integral_complete": false,
+          "native_execution_cost": 4757786400000,
+          "replay_verified": true,
+          "through_recorded_at_ns": 1789950430207031650
+        }
+      },
+      "available": 996500000000000000,
+      "booked_realized": 0,
+      "cash": 997495242213600000,
+      "cash_basis_conservation": true,
+      "committed": 3500000000000000,
+      "genesis": 1000000000000000000,
+      "mark_times": {
+        "pons-selective:fff9080a-5cfd-4857-8025-3ac55adf130e:0xd9e3bc6eccbb7aacf8e8fcc8d807354300fbbc0b:0x16ca4b6c68850a133c19c435bfaccead6b6d420c516e98c334ff8177713ccf7e": null
+      },
+      "marked_position_value": null,
+      "marks_complete": false,
+      "open_exposure": 298006298460952339660474,
+      "realized": 0,
+      "remaining_cost_basis": 2504757786400000,
+      "unrealized_at_recorded_marks": null
+    },
+    "shared_allocator": false,
+    "source_transaction": "0x16ca4b6c68850a133c19c435bfaccead6b6d420c516e98c334ff8177713ccf7e",
+    "started_at": 1789950424.6814945,
+    "status": "settled",
+    "token": "0xd9e3bc6eccbb7aacf8e8fcc8d807354300fbbc0b"
+  },
+  "campaign_review": {
+    "status": "FAIL",
+    "reason": "pending_entry_starved_by_synchronous_research_after_too_early_quote",
+    "automated_smoke_gate": "PASS_retained_as_observed",
+    "hourly_successor_cancelled": true
+  }
+}

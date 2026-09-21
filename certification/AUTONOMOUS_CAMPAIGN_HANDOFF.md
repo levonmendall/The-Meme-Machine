@@ -169,3 +169,81 @@ are in `results/local-retry-verification/` and `results/deadline-repair-verifica
 Fresh-index overlay reproduction and unchanged protected bytes are in
 `results/deadline-repair-overlay-reproduction.json`. Hosted exact-revision verification
 will rerun before an entirely fresh 600-second smoke and gated independent hour.
+
+## Replacement candidate launched
+
+Candidate `128d744a795d3a465dbf4b5e7719fd9f75930ee8`, workflow **35547208867**,
+starts from fresh processes after all in-progress/queued/pending/waiting runs were
+verified empty. Exact hosted gates precede its new smoke and conditional independent
+hour. The previous run supplies no observation time. PR93 remains draft and unmerged.
+
+Detailed preserved transport inspection: failed smoke Pump getTransaction batches were
+at most eight members (453 eight-member transports), despite the internal adaptive
+controller's higher recovery ceiling. No sixteen-member transport was used. Pump raw
+local rejection groups were nine eight-member batches and 23 singles, consistent with
+the reproduced futile fallback path. Meteora issued 91 getSignaturesForAddress members
+with zero HTTP/RPC errors. This is sample-specific pressure evidence, not certification.
+
+Interim replacement smoke observation: at least 600.483357096 seconds concurrent overlap, no unexpected exits through observation cutoff. Pons completed one natural market-sale lifecycle with realized loss 68,952,100,088,225 native quote units; zero remaining basis/unsettled exposure and both native conservation checks true. Pump one qualifier reserved then cancelled at the unchanged entry-fill timeout, not counted as a trade. One Pump getProgramAccounts HTTP429, no getTransaction or Meteora signature HTTP429 reported through cutoff. Final artifacts/drain still pending; these snapshots are not certification.
+
+## Artifact review supersedes automatic smoke readiness
+
+Smoke artifact **10617471527**, SHA256
+`cc7fff38b4de386dcc5803639de8cd5eeee11b9b611e7bd316c9294210047f73`, was downloaded
+and verified. Automated smoke engineering PASS, normal exit of all four lanes and
+600.483357096-second overlap are retained as observed. Manual campaign review is FAIL
+because the artifact proves a further pending-entry priority defect. Both statuses
+are retained in `results/smoke-35547208867-review.json`; the workflow gate's narrower
+PASS is not represented as full campaign certification.
+
+Exactly one physical Pump getProgramAccounts scan was issued: sequence101,
+session e07e19f6-784f-4925-9e69-dc60e61252b8, mint
+HS9mD6Au5NzhijuShWSqSceDwzzUbDakVE3bwVynzpKG, minContextSlot448891790,
+timestamp1789950115942076199ns, HTTP429, retry_count0. No duplicate physical scan.
+All14 local wrapper rejections were eight-member batches with original deadlines;
+none fanned out to singles. Provider HTTP/RPC attribution remains intact. Full consumer
+loss decomposition and imperfect opportunity completion remain visible in the artifact.
+
+Pump's sole qualifier reserved at1789950115, original due1789950117, original timeout
+20 seconds. Position-priority RPC sequences103–104 returned at1789950126.499 with
+finalized block time1789950116, correctly too early. The same thread then performed
+research priority50 requests105–109 and priority20 hydration110–116 until1789950136.700.
+The next position quote117–118 completed1789950137.493 and was correctly rejected as
+late. The 10.994-second research interval between position checks is the implementation
+defect, not permission to extend the timeout or accept a stale quote.
+
+The repair adds `_service_pending_entries` at every existing main-loop pending-fill
+service point. Reserved entries retain lifecycle authority until fill/cancel; active
+positions are monitored every service cycle. Finalized stream observation continues
+in its existing threads, and research resumes afterward. Delay, economic policy,
+20-second timeout and freshness/finality checks are unchanged. Expired reservations
+are checked before another provider quote and after blocking quote return. Regressions
+reproduce the too-early quote followed by research starvation, prove recheck before
+research resumes, and prove pre/post-transport timeout boundaries.
+
+Successor hourly job was stopped, not reused. Cancellation commit
+`539c289f2f32c079a7bad9f89762a6d353ba2f52`, run **35548993805**, targeted only campaign
+35547208867 at128d744. Latest pre-cancel snapshot had zero exposure in all lanes;
+interrupted artifact last snapshot154.815591215 seconds overlap also has zero exposure.
+Artifact **10617383134**, SHA256
+`a92df116e0628320791313671ddb1e4ced36f2dca412adcd71a315846ecbf59f`, downloaded and
+verified; zero seconds accepted toward certification. Cancellation audit10617522963,
+SHA256 `da5128bec64c40ebe984f4f93843ce1ac47fa2d163c880d845c72a600fe12b1d`.
+All cancelled-run raw bytes remain retained, including incomplete gzip footers.
+
+Pons smoke natural lifecycle is fully retained in the review file: entry native cost
+2504757786400000 (input2500000000000000 plus entry gas4757786400000), exit gross quote
+2440589798215775, exit gas4784111904000, realized net proceeds2435805686311775, realized
+PnL -68952100088225. Quote fees were25000000000000 entry and24652422204199 exit, already
+included by the authenticated curve calculation. Entry tokens298006298460952339660474;
+entry/exit ledger times1789950430/1789950489, reason momentum_failure. Qualification
+vector, quote states, minimum-fill bound, execution-cost model and replay are preserved.
+No separate provider billing is invented from estimated compute units. Immediate
+full-exit check was executable; no writeoff occurred. Native cash999931047899911775,
+remaining basis0, unsettled0, replay verified and both conservation checks true.
+
+Entry-priority replacement verification: **1214 lane tests** (Pump292, Meteora392,
+Pons272, Ramses258), **69 supervisor tests**, all3 resource gates pass. Logs are in
+`results/entry-priority-verification/`; canonical overlays/frozen-file verification in
+`results/entry-priority-overlay-reproduction.json`. A fresh smoke and independent hour
+are still required. No prior failed/superseded observation time is reusable.
