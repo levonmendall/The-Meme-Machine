@@ -44,7 +44,7 @@
     },
     "meteora": {
       "source_branch": "cert/meteora-machinery-proof-v2",
-      "source_sha": "43bbcce60913a9a87404fe6563585159fb72352f",
+      "source_sha": "d1ea201b1f96434d584ba8d3df87415a9d4acbf5",
       "strategy_version": "solana-dlmm-independent-v1.9-execution-certification-machinery-proof-v2",
       "policy_hash": "fce99fc6da25649d2c362973d5c5bb963faf2e9bc23f369a5216b99fbebb27db",
       "file_hashes": {
@@ -70,7 +70,9 @@
         "2e25ed26600697ad8bf094b443631d222f2a2250",
         "0d9176c46e95cb758cdbada1ea4756f3fc3c09c0",
         "226c3fceb9bac5f497ed969ef4c18baeeaaa944f",
-        "29d050b218969e4c7761346737d082bf1db382ec"
+        "29d050b218969e4c7761346737d082bf1db382ec",
+        "f9612354fff7862a920b762418db1b1b058e4d61",
+        "d1ea201b1f96434d584ba8d3df87415a9d4acbf5"
       ],
       "paper_starting_capital_lamports": 1000000000,
       "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
@@ -82,7 +84,8 @@
         "purpose": "natural paper DLMM machinery proof, not profitability",
         "machinery_proof_only": true,
         "one_natural_settled_lifecycle_target": true,
-        "prior_execution_source_sha": "29d050b218969e4c7761346737d082bf1db382ec"
+        "prior_execution_source_sha": "29d050b218969e4c7761346737d082bf1db382ec",
+        "lifecycle_repair": "retry recoverable post-fill evidence gaps; classify rebalance_liquidity explicitly; structurally unreplayable positions close by zero-proceeds paper writeoff instead of remaining stranded"
       },
       "prospect_admission": {
         "market_observation_scope": "observable SOL-paired Meteora DLMM inventory and history",
@@ -210,7 +213,7 @@
     "purpose": "test relaxed Meteora and Ramses qualification on latest repaired four-lane implementation",
     "profitability_authority": false,
     "target_strategy_restrictiveness": "Pump/Pons unchanged; Meteora/Ramses relaxed only for machinery proof",
-    "validation_status": "ramses_overlay_reconciled_preflight",
+    "validation_status": "meteora_lifecycle_repair_preflight",
     "validation_run_requested": false
   },
   "composition": {
