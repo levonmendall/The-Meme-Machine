@@ -858,7 +858,7 @@ def run(
         reconciliation = campaign_ledger.reconcile()
         if reconciliation["open_positions"]:
             raise BoundaryError("connected_campaign_unresolved_exposure")
-        if reconciliation["paper_capital"] < required_paper_capital:
+        if reconciliation["available"] < required_paper_capital:
             raise BoundaryError("connected_campaign_cost_envelope_unfunded")
         ledger = campaign_ledger
     result["ledger_funding"] = dict(
@@ -866,6 +866,7 @@ def run(
         required_execution_cost_envelope=required_paper_capital-position_capital,
         required_paper_capital=required_paper_capital,
         actual_paper_capital=ledger.paper_capital,
+        available_paper_capital=ledger.reconcile()["available"],
         position_size_unchanged=True,
     )
     identity = (
