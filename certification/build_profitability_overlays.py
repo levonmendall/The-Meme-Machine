@@ -148,21 +148,66 @@ def post_merge_adjustments(lane,root):
     if lane=="pump":
         runner=root/"tests/pump_acceleration_natural_prospective.py"
         body=runner.read_text()
-        old='''        concentration_bps=0,
-        extension_bps=int(trajectory["extension_bps"]),
-        skilled_wallet_clusters=int(confirmation["skilled_wallet_clusters"]),'''
-        new='''        concentration_bps=0,
-        extension_bps=int(trajectory["extension_bps"]),
-        # Optimistic prospect preflight only. Authoritative executable downside
-        # requires the account snapshot and remains mandatory before qualification.
-        immediate_roundtrip_loss_bps=0,
-        skilled_wallet_clusters=int(confirmation["skilled_wallet_clusters"]),'''
-        if old not in body:
-            raise RuntimeError("pump_stream_preflight_shape_changed")
-        runner.write_text(body.replace(old,new,1))
+        helper_marker="\ndef _postgrad_concentration(rpc,snapshot):"
+        helper='''
+
+def _late_stream_prospect(signal):
+    """Admit only on evidence available in the finalized stream.
+
+    The missing executable-downside field is a known full-evidence dependency,
+    not a zero-cost assumption. Final qualification remains fail-closed until the
+    authoritative RPC snapshot supplies that evidence.
+    """
+    decision=qualify(signal)
+    reasons=tuple(
+        reason for reason in decision.reasons
+        if reason!="executable_downside_unavailable"
+    )
+    return decision,reasons
+'''
+        if "_late_stream_prospect(signal)" not in body:
+            if helper_marker not in body:
+                raise RuntimeError("pump_stream_helper_marker_missing")
+            body=body.replace(helper_marker,helper+helper_marker,1)
+        body=body.replace(
+            "                        prospect_q=qualify(prospect)\n",
+            "                        prospect_q,prospect_reasons=_late_stream_prospect(prospect)\n",
+        )
+        body=body.replace(
+            "                    if not prospect_q.qualified:\n"
+            "                        reason=\"strategy_prospect:\"+\",\".join(prospect_q.reasons)\n",
+            "                    if prospect_reasons:\n"
+            "                        reason=\"strategy_prospect:\"+\",\".join(prospect_reasons)\n",
+        )
+        body=body.replace(
+            "                        for item in prospect_q.reasons:\n",
+            "                        for item in prospect_reasons:\n",
+        )
+        runner.write_text(body)
 
         test=root/"tests/test_strategy_prospect_admission.py"
         body=test.read_text()
+        body=body.replace(
+'''        signal,_,_=runner._late_stream_signal(creation,rows,rows[-1],confirmations)
+        decision=runner.qualify(signal)
+        self.assertFalse(decision.qualified)
+        self.assertIn("independent_buyers",decision.reasons)
+''',
+'''        signal,_,_=runner._late_stream_signal(creation,rows,rows[-1],confirmations)
+        decision,reasons=runner._late_stream_prospect(signal)
+        self.assertTrue(reasons)
+        self.assertIn("independent_buyers",reasons)
+        self.assertFalse(decision.qualified)
+''')
+        body=body.replace(
+'''        signal,_,_=runner._late_stream_signal(creation,weak,weak[-1],confirmations)
+        self.assertFalse(runner.qualify(signal).qualified)
+''',
+'''        signal,_,_=runner._late_stream_signal(creation,weak,weak[-1],confirmations)
+        _decision,reasons=runner._late_stream_prospect(signal)
+        self.assertTrue(reasons)
+''')
+
         old='''        improved=[event(1000,410,'a',3),event(1015,300,'a',4),
                   event(1025,180,'b',5),event(1030,100,'c',6)]
         signal,_,_=runner._late_stream_signal(creation,improved,improved[-1],confirmations)'''
@@ -178,7 +223,18 @@ def post_merge_adjustments(lane,root):
         signal,_,_=runner._late_stream_signal(creation,improved,improved[-1],confirmations)'''
         if old not in body:
             raise RuntimeError("pump_reconsideration_fixture_shape_changed")
-        test.write_text(body.replace(old,new,1))
+        body=body.replace(old,new,1)
+        body=body.replace(
+'''        self.assertTrue(runner.qualify(signal).qualified)
+        self.assertEqual(signal.concentration_bps,0)  # optimistic only; RPC still required
+''',
+'''        decision,reasons=runner._late_stream_prospect(signal)
+        self.assertFalse(reasons,reasons)
+        self.assertFalse(decision.qualified)
+        self.assertIn("executable_downside_unavailable",decision.reasons)
+        self.assertEqual(signal.concentration_bps,0)  # optimistic only; RPC still required
+''')
+        test.write_text(body)
 
     if lane=="pons":
         test=root/"robinhood_tests/test_pons_selective_continuation.py"
