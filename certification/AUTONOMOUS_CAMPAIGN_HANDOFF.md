@@ -1148,3 +1148,40 @@ of smoke file checksums and exact null-body signature/attempt attribution runs
 separately without provider credentials; it does not modify the running candidate.
 The campaign remains paper-only, original policies unchanged, main unmerged,
 historical unresolved exposure and prior evidence gap explicitly preserved.
+
+
+### Deeper raw smoke audit found repeated default-signature hydration
+
+Read-only audit35574182732/job106252183605 verified71 file checksums and18
+standalone SQLite snapshots, with no errors. Archive10627561998,1035037 bytes,
+SHA2560a753202a88c065ba6047dd0f55f65d7362a3123754eee8389c0b749d57029bb.
+The exact raw attribution is appended with this entry.
+
+The54 null_getTransaction error records all request the same signature:
+1111111111111111111111111111111111111111111111111111111111111111.
+Twenty-nine additional explicit response.result:null records identify that same
+signature (including batch responses); this is not54 independent unavailable
+transactions. Most repeated work is stream_prefetch, with fresh acquisition
+attempts repeatedly renewing transport scheduling for the same unusable identity.
+Raw transport instrumentation preserves request parameters and does not redact
+signatures. Source inspection found no default-signature admission check.
+Primary SDK references establish that this exact base58 value is Signature.default()
+and encodes64 zero bytes:
+https://kevinheavey.github.io/solders/api_reference/signature.html
+https://docs.rs/solana-signature/latest/src/solana_signature/lib.rs.html
+
+The coarse smoke engineering gate passed, but this concrete acquisition defect
+supersedes46b3db01 for sustained-efficiency acceptance. Its independent hour has
+already recorded natural Pump paper activity; the exact-target cancellation here
+requires a fresh<45s flat/reconciled/no-reserved-capital snapshot with every qualifier
+settled. If that guard refuses, existing lifecycle authority continues. No running
+process is patched, no previous observation time will certify the replacement.
+
+Planned implementation repair: retain default-signature stream observations and
+logical consumers with explicit invalid-identity provenance/terminal evidence, but
+do not enqueue or retry physical getTransaction work for that default identifier.
+Ordinary real signatures, unresolved valid null responses, independent original
+deadlines, immutable coalescing, candidate re-entry and full frozen qualification
+remain unchanged. No market/pool is removed and no failed evidence is erased.
+Complete deterministic/concurrency/resource/hash gates and fresh smoke/hour remain
+required after the repair. Historical unresolved positions remain unchanged.
