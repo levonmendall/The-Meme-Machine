@@ -1767,10 +1767,10 @@ index 94c48d6..9fc8803 100644
 +        if self.on_commit:self.on_commit(self,p)
 +        return p
 diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
-index 36ef0b3..279f4f5 100644
+index 36ef0b3..50ae28c 100644
 --- a/robinhood_research/pons_selective_paper.py
 +++ b/robinhood_research/pons_selective_paper.py
-@@ -7,16 +7,20 @@ other strategy signal/threshold/state is imported.
+@@ -7,16 +7,22 @@ other strategy signal/threshold/state is imported.
  """
  from dataclasses import asdict
  import time
@@ -1779,6 +1779,8 @@ index 36ef0b3..279f4f5 100644
  from . import BoundaryError
 -from .abi import topic
 -from .evidence import Store
++from .provider_admission import position_work
++from .position_sessions import PositionSessions
 +from .abi import topic, calldata
 +from .evidence import Store, digest, canonical
 +from .finality import Finality
@@ -1796,7 +1798,7 @@ index 36ef0b3..279f4f5 100644
  )
  from .pons_selective_acquisition import (
      _batched, _header_search, _rpc as evidence_rpc, _trajectory,
-@@ -32,6 +36,114 @@ STRATEGY_NAMESPACE="pons-selective-continuation-v1"
+@@ -32,6 +38,114 @@ STRATEGY_NAMESPACE="pons-selective-continuation-v1"
  STRATEGY_CAPITAL_QUOTE=10**18
  ENTRY_SLIPPAGE_BPS=100
  POST_GRAD_OBSERVE_SECONDS=10
@@ -1911,7 +1913,7 @@ index 36ef0b3..279f4f5 100644
  
  
  def _position_return_bps(position,quote):
-@@ -134,10 +246,16 @@ def _delayed_exit(
+@@ -134,10 +248,16 @@ def _delayed_exit(
      endpoint,*,paper,identity,rpc,candidate,gas_units,store,
      transition,v4_key,label,exit_tokens,
  ):
@@ -1931,16 +1933,17 @@ index 36ef0b3..279f4f5 100644
      time.sleep(max(0,pending["due"]-int(time.time())))
      amount=int(pending["pending_exit_tokens"])
      if transition is None:
-@@ -193,7 +311,7 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
+@@ -193,7 +313,8 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
      return position,meta
  
  
 -def run_lifecycle(endpoint,evaluation,*,db_path):
++@position_work
 +def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
      vector=evaluation["vector"]
      if not vector.get("current_threshold_pass"):
          raise BoundaryError("selective_unqualified_lifecycle")
-@@ -210,7 +328,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -210,7 +331,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
          source_transaction=evaluation["source_transaction"],
          provider_sessions=[],monitor=[],started_at=time.time(),
      )
@@ -1949,7 +1952,7 @@ index 36ef0b3..279f4f5 100644
      try:
          gas_units=_gas_units(candidate["receipt"])
          rpc=paper_rpc(endpoint);rpc.verify_chain()
-@@ -236,9 +354,17 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -236,9 +357,17 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
              token=evaluation["token"],outcome_used_for_selection=False,
          )
          identity=(
@@ -1968,7 +1971,7 @@ index 36ef0b3..279f4f5 100644
          reserved=paper.reserve(
              identity,market=candidate["curve"],amount=amount,gas_budget=gas_budget,
              now=now,features=decision,kind="natural",
-@@ -267,6 +393,30 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -267,6 +396,30 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                  status="entry_failed",entry_failure="entry_slippage",
                  final_position=paper._get(identity),reconciliation=paper.reconcile(),
              )
@@ -1999,7 +2002,7 @@ index 36ef0b3..279f4f5 100644
              return result
          opened=paper.advance(
              identity,now=entry.stamp.observed_at,action="entry",quote=entry,
-@@ -281,6 +431,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -281,6 +434,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
              store,STRATEGY_NAMESPACE,capital,
              delay=EXIT_POLICY["entry_delay_seconds"],
              natural_policy_hash=POLICY_HASH,
@@ -2007,12 +2010,21 @@ index 36ef0b3..279f4f5 100644
          )
          if paper.reconcile()!=before:
              raise BoundaryError("selective_restart_reconciliation")
-@@ -301,253 +452,331 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -301,253 +455,338 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
          entry_largest=int(vector["demand"]["largest_buyer_flow_bps"])
          seen_v4_buyers=set()
          pending_transition_exit_reason=None
 +        recovery_exit_reason=None
 +        recovery_streak=0
++
++        def record_session_rotation(telemetry,row):
++            result["provider_sessions"].append(telemetry)
++            rotations=result.setdefault("provider_session_rotations",[])
++            row=dict(row,at=time.time(),opened_at=opened_at,lifecycle_id=identity,
++                     elapsed_seconds=int(time.time())-opened_at,process_restart=False)
++            rotations.append(row)
++            store.put("selective_provider_session_rotation",identity+":"+str(len(rotations)),row)
++        rpc=PositionSessions(rpc,lambda:paper_rpc(endpoint),record_session_rotation)
  
          while True:
 -            if rpc.used>145:
@@ -2030,9 +2042,7 @@ index 36ef0b3..279f4f5 100644
 -                        paper=paper,identity=identity,rpc=rpc,v4_key=v4_key,
 -                        gas_units=gas_units,store=store,label="selective-timeout-pending-v4-exit",
 +            try:
-+                if rpc.used>145:
-+                    result["provider_sessions"].append(rpc.telemetry())
-+                    rpc=paper_rpc(endpoint);rpc.verify_chain()
++                rpc.rotate_if_needed()
 +                time.sleep(EXIT_POLICY["monitor_seconds"])
 +                header=_latest_header(rpc)
 +                block=int(header["number"],16)
@@ -2366,12 +2376,12 @@ index 36ef0b3..279f4f5 100644
 +                current_header=dict(
 +                    number=hex(int(meta["block"])),hash=meta["block_hash"],
 +                    timestamp=hex(int(mark.stamp.event_at)),
-                 )
++                )
 +                locator=evidence_rpc(endpoint);cache={int(meta["block"]):current_header}
 +                start_header=_header_search(
 +                    locator,int(meta["block"]),mark.stamp.event_at,
 +                    max(graduation_at,mark.stamp.event_at-15),cache,
-+                )
+                 )
 +                result["provider_sessions"].append(locator.telemetry())
                  activity=collect_v4_activity(
                      endpoint,pool_id=position["market"],key=v4_key,
@@ -2550,7 +2560,7 @@ index 36ef0b3..279f4f5 100644
  
          reconciliation=paper.reconcile();store.close();store=None
          store=Store(str(db_path),max_records=8192)
-@@ -562,22 +791,36 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -562,22 +801,36 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
          result["reconciliation"]=reconciliation
          result["realized_pnl_quote"]=result["final_position"]["pnl"]
          result["carried_through_graduation"]=transition is not None
@@ -2593,6 +2603,59 @@ index 36ef0b3..279f4f5 100644
          if rpc is not None:
              result["provider_sessions"].append(rpc.telemetry())
          if store is not None:
+diff --git a/robinhood_research/position_sessions.py b/robinhood_research/position_sessions.py
+new file mode 100644
+index 0000000..28f8396
+--- /dev/null
++++ b/robinhood_research/position_sessions.py
+@@ -0,0 +1,47 @@
++"""Rotate only exhausted local RPC sessions inside an existing paper lifecycle."""
++from . import BoundaryError
++
++
++class PositionSessions:
++    def __init__(self,current,factory,on_rotate):
++        self._current=current
++        self._factory=factory
++        self._on_rotate=on_rotate
++
++    def __getattr__(self,name):
++        return getattr(self._current,name)
++
++    def rotate_if_needed(self):
++        if self._current.used>145:self._rotate('iteration_headroom',None,None)
++
++    def _rotate(self,reason,method,scope):
++        old=self._current
++        row=dict(reason=reason,method=method,scope=scope,previous_used=old.used,
++                 local_session_rotation=True,provider_retry=False,authenticated=False)
++        try:
++            new=self._factory()
++            for name in ('limit','per_scope'):
++                if hasattr(old,name) and getattr(new,name,None)!=getattr(old,name):
++                    raise BoundaryError('position_session_configuration_drift')
++            self._current=new
++            new.verify_chain()
++            row['authenticated']=True
++        except BoundaryError as exc:
++            row['boundary']=str(exc)
++            raise
++        finally:
++            self._on_rotate(old.telemetry(),row)
++
++    def _invoke(self,operation,args,kwargs):
++        try:return getattr(self._current,operation)(*args,**kwargs)
++        except BoundaryError as exc:
++            if str(exc)!='provider_session_budget_exhausted':raise
++        # Budget checks precede transport. Retry only the rejected operation once
++        # on a newly authenticated session, not the monitor/qualification/entry.
++        method=args[0] if operation=='call' and args else operation
++        self._rotate('local_session_budget',method,kwargs.get('scope'))
++        return getattr(self._current,operation)(*args,**kwargs)
++
++    def call(self,*args,**kwargs):return self._invoke('call',args,kwargs)
++    def batch(self,*args,**kwargs):return self._invoke('batch',args,kwargs)
++    def verify_chain(self,*args,**kwargs):return self._invoke('verify_chain',args,kwargs)
 diff --git a/robinhood_research/provider.py b/robinhood_research/provider.py
 index c24ecb4..0aa82cf 100644
 --- a/robinhood_research/provider.py
@@ -2608,10 +2671,10 @@ index c24ecb4..0aa82cf 100644
  
 diff --git a/robinhood_research/provider_admission.py b/robinhood_research/provider_admission.py
 new file mode 100644
-index 0000000..c0fde9f
+index 0000000..4d9bbc7
 --- /dev/null
 +++ b/robinhood_research/provider_admission.py
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,176 @@
 +"""Optional cross-process read-only transport admission for concurrent certification.
 +
 +Endpoint credentials never enter SQLite. Existing role pacers and error recovery
@@ -2624,7 +2687,45 @@ index 0000000..c0fde9f
 +import sqlite3
 +import time
 +import uuid
++from contextvars import ContextVar
++from functools import wraps
 +from . import BoundaryError
++
++
++POSITION_BURST = 8
++FOREGROUND_AGE_SECONDS = 3
++_position_work = ContextVar('provider_position_work',default=False)
++
++
++def position_work(function):
++    @wraps(function)
++    def wrapped(*args,**kwargs):
++        token=_position_work.set(True)
++        try:return function(*args,**kwargs)
++        finally:_position_work.reset(token)
++    return wrapped
++
++
++def next_ticket(db,endpoint,now,interval):
++    first=db.execute("SELECT q.id,q.priority,m.lane,q.deadline FROM queue q "
++        "LEFT JOIN queue_meta m ON m.id=q.id WHERE q.endpoint=? ORDER BY "
++        "CASE WHEN q.priority=0 THEN 0 WHEN q.priority>=50 AND q.created<=? THEN 5 ELSE q.priority END,"
++        "q.deadline,q.created,q.id LIMIT 1",(endpoint,now-FOREGROUND_AGE_SECONDS)).fetchone()
++    if not first or first[1]!=0 or first[3]<=now+interval:return first
++    service=db.execute('SELECT lane,consecutive FROM position_service WHERE endpoint=?',(endpoint,)).fetchone()
++    if not service or service[0]!=first[2] or service[1]<POSITION_BURST:return first
++    aged=db.execute('SELECT q.id,q.priority,m.lane,q.deadline FROM queue q '
++        'JOIN queue_meta m ON m.id=q.id WHERE q.endpoint=? AND q.priority>0 '
++        'AND m.lane<>? AND q.created<=? ORDER BY q.deadline,q.created,q.id LIMIT 1',
++        (endpoint,first[2],now-FOREGROUND_AGE_SECONDS)).fetchone()
++    return aged or first
++
++
++def record_service(db,endpoint,lane,is_position):
++    previous=db.execute('SELECT lane,consecutive FROM position_service WHERE endpoint=?',(endpoint,)).fetchone()
++    count=(previous[1]+1 if previous and previous[0]==lane else 1) if is_position else 0
++    db.execute('INSERT INTO position_service VALUES(?,?,?) ON CONFLICT(endpoint) '
++        'DO UPDATE SET lane=excluded.lane,consecutive=excluded.consecutive',(endpoint,lane,count))
 +
 +
 +def fingerprint(endpoint):
@@ -2636,6 +2737,7 @@ index 0000000..c0fde9f
 +
 +
 +def priority(scope):
++    if _position_work.get():return 0
 +    scope=str(scope).lower()
 +    if any(x in scope for x in ('paper','monitor','exit','unwind','settle','lifecycle')):return 0
 +    if any(x in scope for x in ('selective','evidence','candidate','pons_natural')):return 10
@@ -2654,6 +2756,7 @@ index 0000000..c0fde9f
 +            CREATE TABLE IF NOT EXISTS queue(id TEXT PRIMARY KEY,endpoint TEXT NOT NULL,
 +                priority INTEGER NOT NULL,created REAL NOT NULL,deadline REAL NOT NULL);
 +            CREATE TABLE IF NOT EXISTS queue_meta(id TEXT PRIMARY KEY,lane TEXT NOT NULL);
++            CREATE TABLE IF NOT EXISTS position_service(endpoint TEXT PRIMARY KEY,lane TEXT,consecutive INTEGER NOT NULL);
 +            CREATE TABLE IF NOT EXISTS admissions(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
 +            CREATE TRIGGER IF NOT EXISTS no_admission_update BEFORE UPDATE ON admissions BEGIN SELECT RAISE(ABORT,'append_only'); END;
 +            CREATE TRIGGER IF NOT EXISTS no_admission_delete BEFORE DELETE ON admissions BEGIN SELECT RAISE(ABORT,'append_only'); END;
@@ -2669,12 +2772,12 @@ index 0000000..c0fde9f
 +        db=sqlite3.connect(self.path,timeout=10,isolation_level=None)
 +        db.execute('PRAGMA journal_mode=WAL');db.execute('PRAGMA synchronous=FULL')
 +        return db
-+    def acquire(self,scope,deadline=None):
++    def acquire(self,scope,deadline=None,*,methods=None):
 +        ticket=uuid.uuid4().hex;started=self.clock();deadline=min(started+30,deadline) if deadline is not None else started+30
-+        if deadline<=started:raise BoundaryError('provider_shared_admission_deadline')
-+        granted=False
++        granted=False;failure=None
 +        db=self.connect()
 +        try:
++            if deadline<=started:raise BoundaryError('provider_shared_admission_deadline')
 +            db.execute('BEGIN IMMEDIATE')
 +            db.execute('DELETE FROM queue WHERE deadline<=?',(started,))
 +            db.execute('DELETE FROM queue_meta WHERE id NOT IN (SELECT id FROM queue)')
@@ -2689,17 +2792,18 @@ index 0000000..c0fde9f
 +                if now>=deadline:raise BoundaryError('provider_shared_admission_deadline')
 +                db.execute('BEGIN IMMEDIATE')
 +                db.execute('DELETE FROM queue WHERE deadline<=?',(now,))
-+                first=db.execute("SELECT id FROM queue WHERE endpoint=? ORDER BY "
-+                    "CASE WHEN priority=0 THEN 0 WHEN priority>=50 AND created<=? THEN 5 ELSE priority END,"
-+                    "deadline,created,id LIMIT 1",(self.endpoint,now-3)).fetchone()
 +                next_at,cooldown,interval=db.execute('SELECT next_at,cooldown,interval FROM limits WHERE endpoint=?',(self.endpoint,)).fetchone()
++                first=next_ticket(db,self.endpoint,now,interval)
 +                if first and first[0]==ticket and now>=max(next_at,cooldown):
 +                    db.execute('UPDATE limits SET next_at=? WHERE endpoint=?',(now+interval,self.endpoint))
++                    record_service(db,self.endpoint,self.lane,first[1]==0)
 +                    db.execute('DELETE FROM queue WHERE id=?',(ticket,));db.execute('COMMIT')
 +                    granted=True
 +                    return dict(wait_seconds=now-started,queue_depth=depth,admitted_at=now)
 +                db.execute('COMMIT')
 +                self.sleep(min(0.05,max(0.001,max(next_at,cooldown)-now)))
++        except BoundaryError as exc:
++            failure=str(exc);raise
 +        finally:
 +            if db.in_transaction:db.execute('ROLLBACK')
 +            db.execute('DELETE FROM queue WHERE id=?',(ticket,))
@@ -2707,10 +2811,12 @@ index 0000000..c0fde9f
 +            db.execute('INSERT INTO admissions(body) VALUES(?)',(json.dumps(dict(lane=self.lane,
 +                endpoint_fingerprint=self.endpoint,scope=scope,created=started,deadline=deadline,
 +                ended=self.clock(),wait_seconds=self.clock()-started,granted=granted,
-+                reason='granted' if granted else 'admission_failed')),))
++                request_id=ticket,methods=methods,transport_attempted=False,
++                priority=priority(scope),failure_domain=None if granted else 'local_admission',
++                reason='granted' if granted else failure or 'admission_failed')),))
 +            db.close()
 +    def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None):
-+        admitted=self.acquire(scope,deadline);started=self.clock();boundary=None;http_status=None;rpc_code=None
++        admitted=self.acquire(scope,deadline,methods=methods);started=self.clock();boundary=None;http_status=None;rpc_code=None
 +        if timing is not None:
 +            timing.setdefault("first_transport_monotonic",started)
 +            timing["shared_provider_queue_wait_seconds"]=timing.get("shared_provider_queue_wait_seconds",0)+admitted["wait_seconds"]
@@ -3619,10 +3725,10 @@ index 0000000..62c04e5
 +if __name__=='__main__':unittest.main()
 diff --git a/robinhood_tests/test_pons_position_provider_recovery.py b/robinhood_tests/test_pons_position_provider_recovery.py
 new file mode 100644
-index 0000000..a68fd0a
+index 0000000..05d7463
 --- /dev/null
 +++ b/robinhood_tests/test_pons_position_provider_recovery.py
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,183 @@
 +"""A transport failure after a real paper fill must not abandon its lifecycle."""
 +import json,tempfile,unittest
 +from contextlib import ExitStack
@@ -3647,13 +3753,23 @@ index 0000000..a68fd0a
 +            candidate=dict(receipt={'gasUsed':hex(21000)},curve='m',state=state,report={}),
 +            token='token',curve='m',source_transaction='source',market_events=[])
 +        rpc=MagicMock();rpc.used=0;rpc.telemetry.return_value={}
++        budget_calls=[]
++        def budget_read(*args,**kwargs):
++            budget_calls.append((args,kwargs))
++            if len(budget_calls)==1:raise BoundaryError('provider_session_budget_exhausted')
++            return '0x0'
++        rpc.call.side_effect=budget_read
 +        def sleep(seconds):clock[0]+=max(0,seconds)
 +        def meta():return dict(block=int(clock[0]),block_hash='h'+str(int(clock[0])),event_at=int(clock[0]))
 +        def quote(_rpc,_candidate,side,amount,*args,**kwargs):
++            if fail_at=='session_budget' and side=='sell':
++                _rpc.call('eth_call',[],scope='selective_curve_mark')
 +            return fixture.quote(int(clock[0]),side,amount,1000 if side=='buy' else 98),meta()
 +        def wait_quote(_rpc,_candidate,side,amount,*args,**kwargs):
 +            if side=='sell':
 +                sell_calls.append(int(clock[0]))
++                if fail_at=='pending_session_budget':
++                    _rpc.call('eth_call',[],scope='selective_pending_exit')
 +                if fail_at=='impossible_exit':raise BoundaryError('impossible_full_position_exit')
 +                if fail_at=='exit' and len(sell_calls)==1:raise BoundaryError('provider_rpc_429')
 +            q,m=quote(_rpc,_candidate,side,amount,*args,**kwargs);return q,m,None
@@ -3772,6 +3888,30 @@ index 0000000..a68fd0a
 +        self.assertEqual(b['unsettled'],0)
 +        self.assertTrue(b['cash_basis_conservation'])
 +        self.assertTrue(b['capital_integral_complete'])
++
++    def test_session_exhaustion_inside_monitor_preserves_one_entry_and_settles(self):
++        with tempfile.TemporaryDirectory() as d:r,b,events,_,_=self.run_case(d,'session_budget')
++        self.assertEqual(r['status'],'settled',r.get('boundary'))
++        self.assertEqual(len(r['provider_session_rotations']),1)
++        rotation=r['provider_session_rotations'][0]
++        self.assertEqual(rotation['reason'],'local_session_budget')
++        self.assertEqual(rotation['opened_at'],r['entry']['position']['last_at'])
++        self.assertFalse(rotation['process_restart'])
++        self.assertEqual(sum(e['action']=='entry' for e in events),1)
++        self.assertEqual(sum(e['action']=='exit_intent' for e in events),1)
++        self.assertEqual(sum(e['action']=='exit' for e in events),1)
++        self.assertEqual(b['unsettled'],0);self.assertTrue(b['cash_basis_conservation'])
++        self.assertTrue(b['capital_integral_complete'])
++
++    def test_session_exhaustion_during_pending_exit_preserves_original_due(self):
++        with tempfile.TemporaryDirectory() as d:r,b,events,_,times=self.run_case(d,'pending_session_budget')
++        self.assertEqual(r['status'],'settled',r.get('boundary'))
++        self.assertEqual(len(r['provider_session_rotations']),1)
++        self.assertEqual(sum(e['action']=='exit_intent' for e in events),1)
++        self.assertEqual(sum(e['action']=='exit' for e in events),1)
++        self.assertEqual(r['provider_session_rotations'][0]['scope'],'selective_pending_exit')
++        self.assertEqual(b['unsettled'],0)
++        self.assertEqual(r['exit']['reason'],'test_authenticated_exit')
 diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
 index d8d0a88..9b22cbb 100644
 --- a/robinhood_tests/test_pons_selective_continuation.py
@@ -3912,6 +4052,87 @@ index 0000000..4cb0ace
 +    def test_provider_error_never_becomes_writeoff_evidence(self):
 +        with self.assertRaisesRegex(BoundaryError,'provider_rpc_429'):
 +            self.prove(error=BoundaryError('provider_rpc_429'))
+diff --git a/robinhood_tests/test_position_sessions.py b/robinhood_tests/test_position_sessions.py
+new file mode 100644
+index 0000000..a86bfc4
+--- /dev/null
++++ b/robinhood_tests/test_position_sessions.py
+@@ -0,0 +1,75 @@
++import unittest
++from robinhood_research import BoundaryError
++from robinhood_research.position_sessions import PositionSessions
++
++
++class Rpc:
++    def __init__(self,used=0,boundary=None,auth=None):
++        self.used=used;self.limit=200;self.per_scope=190
++        self.boundary=boundary;self.auth=auth;self.calls=[];self.verified=0
++    def verify_chain(self):
++        self.verified+=1
++        if self.auth:raise BoundaryError(self.auth)
++        self.used+=1
++    def call(self,*args,**kwargs):
++        if self.boundary:raise BoundaryError(self.boundary)
++        if self.used>=self.limit:raise BoundaryError('provider_session_budget_exhausted')
++        self.used+=1;self.calls.append((args,kwargs));return 'value'
++    def batch(self,calls,**kwargs):
++        if self.used+len(calls)>self.limit:raise BoundaryError('provider_session_budget_exhausted')
++        return [self.call(m,p,**kwargs) for m,p in calls]
++    def telemetry(self):return dict(requests=self.used)
++
++
++class PositionSessionTests(unittest.TestCase):
++    def test_one_operation_crosses_session_boundary_without_restarting_prior_work(self):
++        old=Rpc(199);new=Rpc();events=[]
++        rpc=PositionSessions(old,lambda:new,lambda *row:events.append(row))
++        self.assertEqual(rpc.call('head',[],scope='monitor'),'value')
++        self.assertEqual(rpc.call('quote',[],scope='monitor'),'value')
++        self.assertEqual(len(old.calls),1);self.assertEqual(old.used,200)
++        self.assertEqual(new.verified,1);self.assertEqual(new.used,2)
++        self.assertEqual(new.calls[0][0][0],'quote')
++        self.assertEqual(len(events),1);self.assertTrue(events[0][1]['authenticated'])
++        self.assertEqual(new.limit,200);self.assertEqual(new.per_scope,190)
++
++    def test_batch_retries_only_untransported_batch_once_and_retains_arguments(self):
++        old=Rpc(199);new=Rpc();events=[]
++        rpc=PositionSessions(old,lambda:new,lambda *row:events.append(row))
++        calls=[('a',[1]),('b',[2])]
++        self.assertEqual(rpc.batch(calls,scope='exit'),['value','value'])
++        self.assertEqual(old.calls,[]);self.assertEqual(new.used,3)
++        self.assertEqual([x[0] for x in new.calls],[('a',[1]),('b',[2])])
++        self.assertEqual(events[0][1]['scope'],'exit')
++
++    def test_fresh_session_budget_failure_is_bounded(self):
++        old=Rpc(200);new=Rpc(boundary='provider_session_budget_exhausted');events=[]
++        rpc=PositionSessions(old,lambda:new,lambda *row:events.append(row))
++        with self.assertRaisesRegex(BoundaryError,'session_budget'):
++            rpc.call('quote',[],scope='exit')
++        self.assertEqual(len(events),1);self.assertEqual(new.verified,1)
++
++    def test_provider_pressure_authentication_and_scope_budget_do_not_rotate(self):
++        for reason in ('provider_rpc_429','provider_http_401','provider_pool_budget_exhausted'):
++            with self.subTest(reason=reason):
++                old=Rpc(boundary=reason)
++                rpc=PositionSessions(old,lambda:self.fail('unexpected new session'),lambda *a:self.fail('unexpected rotation'))
++                with self.assertRaisesRegex(BoundaryError,reason):rpc.call('quote',[],scope='exit')
++
++    def test_new_session_authentication_failure_is_retained_and_fail_closed(self):
++        old=Rpc(200);new=Rpc(auth='provider_http_401');events=[]
++        rpc=PositionSessions(old,lambda:new,lambda *row:events.append(row))
++        with self.assertRaisesRegex(BoundaryError,'401'):rpc.call('quote',[],scope='exit')
++        self.assertEqual(new.calls,[]);self.assertEqual(len(events),1)
++        self.assertFalse(events[0][1]['authenticated'])
++        self.assertEqual(events[0][1]['boundary'],'provider_http_401')
++
++    def test_iteration_headroom_and_configuration_bounds_remain(self):
++        old=Rpc(146);new=Rpc();events=[]
++        rpc=PositionSessions(old,lambda:new,lambda *row:events.append(row))
++        rpc.rotate_if_needed()
++        self.assertEqual(new.verified,1);self.assertEqual(events[0][1]['reason'],'iteration_headroom')
++        newer=Rpc();newer.limit=201
++        rpc=PositionSessions(Rpc(200),lambda:newer,lambda *a:None)
++        with self.assertRaisesRegex(BoundaryError,'configuration_drift'):rpc.call('quote',[])
++        self.assertEqual(newer.verified,0)
 diff --git a/robinhood_tests/test_provider_admission.py b/robinhood_tests/test_provider_admission.py
 new file mode 100644
 index 0000000..c17a9d4
@@ -4015,6 +4236,98 @@ index 0000000..f4bf49b
 +        self.assertEqual(len(extra),2)
 +        self.assertNotIn('late',[x[1] for x in extra])
 +        self.assertEqual(ctx.prefetch_adjacent_headers([('eth_gasPrice',[])]*50),[])
+diff --git a/robinhood_tests/test_shared_position_fairness.py b/robinhood_tests/test_shared_position_fairness.py
+new file mode 100644
+index 0000000..8f25dd2
+--- /dev/null
++++ b/robinhood_tests/test_shared_position_fairness.py
+@@ -0,0 +1,86 @@
++import json
++from pathlib import Path
++import tempfile
++import unittest
++from robinhood_research import BoundaryError
++from robinhood_research.provider_admission import Admission,next_ticket,record_service,POSITION_BURST,position_work,priority
++
++
++class SustainedPositionFairnessTests(unittest.TestCase):
++    def test_lifecycle_scope_and_thread_exception_isolation(self):
++        from concurrent.futures import ThreadPoolExecutor
++        @position_work
++        def lifecycle():
++            self.assertEqual(priority('pons_natural'),0)
++            self.assertEqual(priority('universe_identity'),0)
++            with ThreadPoolExecutor(max_workers=1) as pool:
++                self.assertEqual(pool.submit(priority,'pons_natural').result(),10)
++            raise BoundaryError('injected_lifecycle_failure')
++        with self.assertRaises(BoundaryError):lifecycle()
++        self.assertEqual(priority('pons_natural'),10)
++        self.assertEqual(priority('universe_identity'),50)
++
++    def exercise(self,lane,deadline):
++        with tempfile.TemporaryDirectory() as td:
++            now=[100.];positions=[];transport=[]
++            def sleep(seconds):
++                now[0]+=seconds
++                db=gate.connect()
++                next_at,cooldown,interval=db.execute('SELECT next_at,cooldown,interval FROM limits').fetchone()
++                first=next_ticket(db,gate.endpoint,now[0],interval)
++                if first and first[0]=='position' and now[0]>=max(next_at,cooldown):
++                    positions.append(now[0]);record_service(db,gate.endpoint,'pons',True)
++                    db.execute('UPDATE limits SET next_at=?',(now[0]+interval,))
++                    db.execute("UPDATE queue SET created=?,deadline=? WHERE id='position'",(now[0],now[0]+30))
++                db.close()
++            gate=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane=lane,clock=lambda:now[0],sleeper=sleep)
++            db=gate.connect()
++            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('position',gate.endpoint,0,100.,130.))
++            db.execute('INSERT INTO queue_meta VALUES(?,?)',('position','pons'));db.close()
++            boundary=None
++            try:gate.invoke(lambda:transport.append(now[0]),['eth_getCode'],'universe_identity',deadline=deadline)
++            except BoundaryError as exc:boundary=str(exc)
++            db=gate.connect()
++            event=json.loads(db.execute('SELECT body FROM admissions').fetchone()[0])
++            physical=db.execute('SELECT count(*) FROM transports').fetchone()[0]
++            interval=db.execute('SELECT interval FROM limits').fetchone()[0]
++            pending=next_ticket(db,gate.endpoint,now[0],interval);db.close()
++            return boundary,positions,transport,event,physical,interval,pending
++
++    def test_other_lane_bounded_service_preserves_ceiling(self):
++        boundary,positions,transport,event,physical,interval,pending=self.exercise('ramses',110.)
++        self.assertIsNone(boundary);self.assertEqual(len(positions),POSITION_BURST)
++        self.assertEqual(len(transport),1);self.assertLess(transport[0],105.)
++        times=positions+transport
++        self.assertTrue(all(b-a>=.5-1e-9 for a,b in zip(times,times[1:])))
++        self.assertEqual(interval,.5);self.assertEqual(physical,1)
++        self.assertEqual(event['deadline'],110.);self.assertEqual(pending[0],'position')
++
++    def test_same_lane_research_cannot_bypass_position_and_never_transports(self):
++        boundary,positions,transport,event,physical,interval,pending=self.exercise('pons',105.)
++        self.assertEqual(boundary,'provider_shared_admission_deadline')
++        self.assertEqual(transport,[]);self.assertEqual(physical,0)
++        self.assertEqual(event['deadline'],105.);self.assertEqual(event['reason'],boundary)
++        self.assertEqual(event['methods'],['eth_getCode'])
++        self.assertEqual(event['failure_domain'],'local_admission')
++        self.assertFalse(event['transport_attempted'])
++
++    def test_imminent_position_deadline_keeps_priority(self):
++        with tempfile.TemporaryDirectory() as td:
++            gate=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane='ramses')
++            db=gate.connect()
++            for identity,lane,priority_value,deadline in [('position','pons',0,104.2),('research','ramses',50,110.)]:
++                db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(identity,gate.endpoint,priority_value,100.,deadline))
++                db.execute('INSERT INTO queue_meta VALUES(?,?)',(identity,lane))
++            for _ in range(POSITION_BURST):record_service(db,gate.endpoint,'pons',True)
++            self.assertEqual(next_ticket(db,gate.endpoint,104.,.5)[0],'position');db.close()
++
++    def test_expired_consumer_never_enqueues_or_transports(self):
++        with tempfile.TemporaryDirectory() as td:
++            gate=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane='ramses',clock=lambda:100.)
++            with self.assertRaisesRegex(BoundaryError,'deadline'):
++                gate.invoke(lambda:self.fail('unexpected transport'),['eth_call'],'universe_identity',deadline=99.)
++            db=gate.connect();row=json.loads(db.execute('SELECT body FROM admissions').fetchone()[0])
++            self.assertEqual(row['deadline'],99.);self.assertEqual(row['methods'],['eth_call'])
++            self.assertEqual(db.execute('SELECT count(*) FROM queue').fetchone()[0],0)
++            self.assertEqual(db.execute('SELECT count(*) FROM transports').fetchone()[0],0);db.close()
 diff --git a/robinhood_tests/test_strategy_prospect_admission.py b/robinhood_tests/test_strategy_prospect_admission.py
 new file mode 100644
 index 0000000..dcf74d7

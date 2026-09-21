@@ -1,8 +1,9 @@
 """Read-only review of one exact failed campaign artifact; no provider credentials."""
 import collections,gzip,hashlib,json,os,pathlib,sqlite3,time,urllib.request,urllib.error,zipfile
 REPO="levonmendall/The-Meme-Machine"
-RUN=35555511322
-SHA="fba42effbe23fe1d3428b95e2280cd4dec0a0d06"
+RUN=int(os.environ.get("REVIEW_RUN_ID","35555511322"))
+PHASE=os.environ.get("REVIEW_PHASE","hourly")
+SHA=os.environ.get("REVIEW_SHA","fba42effbe23fe1d3428b95e2280cd4dec0a0d06")
 OUT=pathlib.Path("frozen-review");OUT.mkdir(exist_ok=True)
 def api(path):
     req=urllib.request.Request("https://api.github.com/repos/"+REPO+path,
@@ -11,7 +12,7 @@ def api(path):
 artifact=None
 for attempt in range(120):
     data=api(f"/actions/runs/{RUN}/artifacts")
-    artifact=next((a for a in data["artifacts"] if a["name"].startswith("four-lane-hourly-")),None)
+    artifact=next((a for a in data["artifacts"] if a["name"].startswith("four-lane-hourly-" if PHASE=="hourly" else "four-lane-certification-")),None)
     if artifact:break
     time.sleep(10)
 if artifact is None:raise RuntimeError("exact_hour_artifact_not_available")
@@ -34,11 +35,11 @@ with zipfile.ZipFile(archive) as z:
     for member in z.infolist():
         if not (root/member.filename).resolve().is_relative_to(root.resolve()):raise RuntimeError("archive_path")
     z.extractall(root)
-result_path=next(root.rglob("certification-hourly/result.json"));base=result_path.parent;root=base.parent
+result_path=next(root.rglob(f"certification-{PHASE}/result.json"));base=result_path.parent;root=base.parent
 result=json.loads(result_path.read_text())
 if result["integration_sha"]!=SHA:raise RuntimeError("result_source_mismatch")
 review={"artifact":artifact,"verified_sha256":actual,"result":result,"native_lifecycles":[],"raw":{},"capacity":{}}
-native=root/"certification-native/hourly"
+native=root/f"certification-native/{PHASE}"
 pons_path=native/"pons/pons-selective-continuation-v1-cohort"
 with gzip.open(pons_path/"complete-result.json.gz","rt") as f:pons=json.load(f)
 review["pons_complete"]=pons
@@ -90,16 +91,17 @@ proofs=[]
 for path in sorted(pons_path.glob("trial-*.sqlite")):
     db=sqlite3.connect(f"file:{path}?mode=ro",uri=True)
     records=[]
-    for category,body in db.execute("select category,body from records where category in ('selective_provider_recovery','pons_selective_paper_journal','selective_writeoff_proof')"):
+    for category,body in db.execute("select category,body from records where category in ('selective_provider_recovery','pons_selective_paper_journal','selective_writeoff_proof','selective_provider_session_rotation')"):
         records.append({"category":category,"body":json.loads(body)})
     proofs.append({"file":path.name,"records":records});db.close()
 review["pons_journals"]=proofs
 (OUT/"complete-review.json").write_text(json.dumps(review,indent=2,sort_keys=True))
-summary={"sha":SHA,"run":RUN,"artifact_id":artifact["id"],"sha256":actual,
-    "engineering":result.get("hourly_engineering"),"overlap":result["continuous_overlap_seconds"],
+summary={"sha":SHA,"run":RUN,"phase":PHASE,"artifact_id":artifact["id"],"sha256":actual,
+    "engineering":result.get("hourly_engineering" if PHASE=="hourly" else "smoke_engineering"),"overlap":result["continuous_overlap_seconds"],
     "elapsed":result["elapsed_seconds"],
     "lanes":{k:{x:v.get(x) for x in ("exit_code","unexpected_exit","natural_settled","forced_settled","open_positions","accounting_reconciled","cohort_accounting","native_accounting","provider_method_errors","provider_http_status_errors","provider_rpc_error_codes")} for k,v in result["lanes"].items()},
     "pons_summary":pons.get("summary"),
+    "pons_session_rotations":[{"index":l.get("index"),"rotations":l.get("provider_session_rotations",[])} for l in pons.get("lifecycles",[])],
     "pons_lifecycles":[{k:v for k,v in r.items() if k not in ("entry","exit","cohort_reconciliation")} for r in review["native_lifecycles"]],
     "raw_summary":{k:{"transports":v["transports"],"local":len(v["local_rejections"]),"provider_failures":len(v["provider_failures"]),"gpa_scans":v["gpa_scans"],"tx_batches":v["tx_batches"]} for k,v in review["raw"].items()},
     "capacity":review["capacity"],
@@ -111,3 +113,14 @@ print("FROZEN_REVIEW_JSON_END",flush=True)
 print("RAMSES_PROCESS_LOG_BEGIN",flush=True)
 print((base/"ramses/process.log").read_text()[-16000:],flush=True)
 print("RAMSES_PROCESS_LOG_END",flush=True)
+
+if PHASE=="smoke":
+    failures=[]
+    if (result.get("smoke_engineering") or {}).get("status")!="PASS":failures.append("smoke_engineering")
+    for lane,data in result["lanes"].items():
+        if data.get("open_positions"):failures.append(lane+":open_positions")
+        if data.get("unexpected_exit") or data.get("process_restarts"):failures.append(lane+":continuity")
+    tx=review["raw"]["pump"]["tx_batches"]
+    if tx and max(tx)>8:failures.append("pump_transaction_batch_above_8")
+    (OUT/"review-gate.json").write_text(json.dumps({"failures":failures,"passed":not failures}))
+    if failures:raise RuntimeError("smoke_artifact_review:"+",".join(failures))

@@ -277,10 +277,10 @@ index c24ecb4..0aa82cf 100644
  
 diff --git a/robinhood_research/provider_admission.py b/robinhood_research/provider_admission.py
 new file mode 100644
-index 0000000..c0fde9f
+index 0000000..4d9bbc7
 --- /dev/null
 +++ b/robinhood_research/provider_admission.py
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,176 @@
 +"""Optional cross-process read-only transport admission for concurrent certification.
 +
 +Endpoint credentials never enter SQLite. Existing role pacers and error recovery
@@ -293,7 +293,45 @@ index 0000000..c0fde9f
 +import sqlite3
 +import time
 +import uuid
++from contextvars import ContextVar
++from functools import wraps
 +from . import BoundaryError
++
++
++POSITION_BURST = 8
++FOREGROUND_AGE_SECONDS = 3
++_position_work = ContextVar('provider_position_work',default=False)
++
++
++def position_work(function):
++    @wraps(function)
++    def wrapped(*args,**kwargs):
++        token=_position_work.set(True)
++        try:return function(*args,**kwargs)
++        finally:_position_work.reset(token)
++    return wrapped
++
++
++def next_ticket(db,endpoint,now,interval):
++    first=db.execute("SELECT q.id,q.priority,m.lane,q.deadline FROM queue q "
++        "LEFT JOIN queue_meta m ON m.id=q.id WHERE q.endpoint=? ORDER BY "
++        "CASE WHEN q.priority=0 THEN 0 WHEN q.priority>=50 AND q.created<=? THEN 5 ELSE q.priority END,"
++        "q.deadline,q.created,q.id LIMIT 1",(endpoint,now-FOREGROUND_AGE_SECONDS)).fetchone()
++    if not first or first[1]!=0 or first[3]<=now+interval:return first
++    service=db.execute('SELECT lane,consecutive FROM position_service WHERE endpoint=?',(endpoint,)).fetchone()
++    if not service or service[0]!=first[2] or service[1]<POSITION_BURST:return first
++    aged=db.execute('SELECT q.id,q.priority,m.lane,q.deadline FROM queue q '
++        'JOIN queue_meta m ON m.id=q.id WHERE q.endpoint=? AND q.priority>0 '
++        'AND m.lane<>? AND q.created<=? ORDER BY q.deadline,q.created,q.id LIMIT 1',
++        (endpoint,first[2],now-FOREGROUND_AGE_SECONDS)).fetchone()
++    return aged or first
++
++
++def record_service(db,endpoint,lane,is_position):
++    previous=db.execute('SELECT lane,consecutive FROM position_service WHERE endpoint=?',(endpoint,)).fetchone()
++    count=(previous[1]+1 if previous and previous[0]==lane else 1) if is_position else 0
++    db.execute('INSERT INTO position_service VALUES(?,?,?) ON CONFLICT(endpoint) '
++        'DO UPDATE SET lane=excluded.lane,consecutive=excluded.consecutive',(endpoint,lane,count))
 +
 +
 +def fingerprint(endpoint):
@@ -305,6 +343,7 @@ index 0000000..c0fde9f
 +
 +
 +def priority(scope):
++    if _position_work.get():return 0
 +    scope=str(scope).lower()
 +    if any(x in scope for x in ('paper','monitor','exit','unwind','settle','lifecycle')):return 0
 +    if any(x in scope for x in ('selective','evidence','candidate','pons_natural')):return 10
@@ -323,6 +362,7 @@ index 0000000..c0fde9f
 +            CREATE TABLE IF NOT EXISTS queue(id TEXT PRIMARY KEY,endpoint TEXT NOT NULL,
 +                priority INTEGER NOT NULL,created REAL NOT NULL,deadline REAL NOT NULL);
 +            CREATE TABLE IF NOT EXISTS queue_meta(id TEXT PRIMARY KEY,lane TEXT NOT NULL);
++            CREATE TABLE IF NOT EXISTS position_service(endpoint TEXT PRIMARY KEY,lane TEXT,consecutive INTEGER NOT NULL);
 +            CREATE TABLE IF NOT EXISTS admissions(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
 +            CREATE TRIGGER IF NOT EXISTS no_admission_update BEFORE UPDATE ON admissions BEGIN SELECT RAISE(ABORT,'append_only'); END;
 +            CREATE TRIGGER IF NOT EXISTS no_admission_delete BEFORE DELETE ON admissions BEGIN SELECT RAISE(ABORT,'append_only'); END;
@@ -338,12 +378,12 @@ index 0000000..c0fde9f
 +        db=sqlite3.connect(self.path,timeout=10,isolation_level=None)
 +        db.execute('PRAGMA journal_mode=WAL');db.execute('PRAGMA synchronous=FULL')
 +        return db
-+    def acquire(self,scope,deadline=None):
++    def acquire(self,scope,deadline=None,*,methods=None):
 +        ticket=uuid.uuid4().hex;started=self.clock();deadline=min(started+30,deadline) if deadline is not None else started+30
-+        if deadline<=started:raise BoundaryError('provider_shared_admission_deadline')
-+        granted=False
++        granted=False;failure=None
 +        db=self.connect()
 +        try:
++            if deadline<=started:raise BoundaryError('provider_shared_admission_deadline')
 +            db.execute('BEGIN IMMEDIATE')
 +            db.execute('DELETE FROM queue WHERE deadline<=?',(started,))
 +            db.execute('DELETE FROM queue_meta WHERE id NOT IN (SELECT id FROM queue)')
@@ -358,17 +398,18 @@ index 0000000..c0fde9f
 +                if now>=deadline:raise BoundaryError('provider_shared_admission_deadline')
 +                db.execute('BEGIN IMMEDIATE')
 +                db.execute('DELETE FROM queue WHERE deadline<=?',(now,))
-+                first=db.execute("SELECT id FROM queue WHERE endpoint=? ORDER BY "
-+                    "CASE WHEN priority=0 THEN 0 WHEN priority>=50 AND created<=? THEN 5 ELSE priority END,"
-+                    "deadline,created,id LIMIT 1",(self.endpoint,now-3)).fetchone()
 +                next_at,cooldown,interval=db.execute('SELECT next_at,cooldown,interval FROM limits WHERE endpoint=?',(self.endpoint,)).fetchone()
++                first=next_ticket(db,self.endpoint,now,interval)
 +                if first and first[0]==ticket and now>=max(next_at,cooldown):
 +                    db.execute('UPDATE limits SET next_at=? WHERE endpoint=?',(now+interval,self.endpoint))
++                    record_service(db,self.endpoint,self.lane,first[1]==0)
 +                    db.execute('DELETE FROM queue WHERE id=?',(ticket,));db.execute('COMMIT')
 +                    granted=True
 +                    return dict(wait_seconds=now-started,queue_depth=depth,admitted_at=now)
 +                db.execute('COMMIT')
 +                self.sleep(min(0.05,max(0.001,max(next_at,cooldown)-now)))
++        except BoundaryError as exc:
++            failure=str(exc);raise
 +        finally:
 +            if db.in_transaction:db.execute('ROLLBACK')
 +            db.execute('DELETE FROM queue WHERE id=?',(ticket,))
@@ -376,10 +417,12 @@ index 0000000..c0fde9f
 +            db.execute('INSERT INTO admissions(body) VALUES(?)',(json.dumps(dict(lane=self.lane,
 +                endpoint_fingerprint=self.endpoint,scope=scope,created=started,deadline=deadline,
 +                ended=self.clock(),wait_seconds=self.clock()-started,granted=granted,
-+                reason='granted' if granted else 'admission_failed')),))
++                request_id=ticket,methods=methods,transport_attempted=False,
++                priority=priority(scope),failure_domain=None if granted else 'local_admission',
++                reason='granted' if granted else failure or 'admission_failed')),))
 +            db.close()
 +    def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None):
-+        admitted=self.acquire(scope,deadline);started=self.clock();boundary=None;http_status=None;rpc_code=None
++        admitted=self.acquire(scope,deadline,methods=methods);started=self.clock();boundary=None;http_status=None;rpc_code=None
 +        if timing is not None:
 +            timing.setdefault("first_transport_monotonic",started)
 +            timing["shared_provider_queue_wait_seconds"]=timing.get("shared_provider_queue_wait_seconds",0)+admitted["wait_seconds"]
@@ -572,10 +615,26 @@ index d723038..d12c53f 100644
          return data
  
 diff --git a/robinhood_research/ramses_all_pool_lifecycle.py b/robinhood_research/ramses_all_pool_lifecycle.py
-index dfccbc7..3450cd9 100644
+index dfccbc7..f9ae500 100644
 --- a/robinhood_research/ramses_all_pool_lifecycle.py
 +++ b/robinhood_research/ramses_all_pool_lifecycle.py
-@@ -669,6 +669,8 @@ def run(
+@@ -17,6 +17,7 @@ from pathlib import Path
+ import time
+ 
+ from . import BoundaryError
++from .provider_admission import position_work
+ from .abi import calldata, topic
+ from .identity import load
+ from .ramses import (
+@@ -659,6 +660,7 @@ def _requalify_current_pool(
+     )
+ 
+ 
++@position_work
+ def run(
+     endpoint,
+     *,
+@@ -669,6 +671,8 @@ def run(
      rescan_seconds=RESCAN_SECONDS,
      initial_screen=None,
      cost_state=None,
@@ -584,7 +643,7 @@ index dfccbc7..3450cd9 100644
  ):
      costs_by_pool = _normalize_context(costs_by_pool)
      signals_by_pool = _normalize_context(signals_by_pool)
-@@ -792,18 +794,24 @@ def run(
+@@ -792,18 +796,24 @@ def run(
      )
  
      db_path = str(db_path or DB)
@@ -616,7 +675,7 @@ index dfccbc7..3450cd9 100644
      segments = []
      controller_log = []
      rebalances = 0
-@@ -1031,7 +1039,7 @@ def run(
+@@ -1031,7 +1041,7 @@ def run(
          result["boundary"] = None
      finally:
          try:
@@ -736,7 +795,7 @@ index 2f2bbc9..edb85f9 100644
  
      def _rate_wait(self,attempt):
 diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ramses_extended_test.py
-index e4ab19d..40e145a 100644
+index e4ab19d..75bdf25 100644
 --- a/robinhood_research/ramses_extended_test.py
 +++ b/robinhood_research/ramses_extended_test.py
 @@ -21,6 +21,7 @@ from __future__ import annotations
@@ -747,7 +806,35 @@ index e4ab19d..40e145a 100644
  import os
  from pathlib import Path
  import time
-@@ -457,8 +458,10 @@ def run(
+@@ -70,6 +71,27 @@ FORCED_FINALITY_LAG_MULTIPLIER = 2
+ FORCED_FINALITY_HEADROOM_SECONDS = 120
+ 
+ 
++
++def _scan_with_capacity_recovery(scan_call,*,deadline,record_failure,clock=None,sleeper=None):
++    """Retry only local admission loss on the same pinned scan and original clock."""
++    clock=time.monotonic if clock is None else clock
++    sleeper=time.sleep if sleeper is None else sleeper
++    for attempt in range(1,4):
++        if clock()>=deadline:return None
++        try:
++            result=scan_call()
++            if result is None:raise BoundaryError('ramses_scan_missing_result')
++            return result
++        except BoundaryError as exc:
++            if str(exc) not in ('provider_shared_admission_deadline','provider_shared_queue_capacity'):raise
++            record_failure(dict(attempt=attempt,reason=str(exc),at_monotonic=clock(),
++                original_deadline=deadline,failure_domain='local_admission',
++                failed_admission_reached_transport=False))
++            if clock()>=deadline:return None
++            if attempt==3:raise BoundaryError('ramses_scan_local_admission_recovery_exhausted') from None
++            sleeper(min(2**(attempt-1),max(0,deadline-clock())))
++
++
+ def _json_env(name):
+     raw = str(os.environ.get(name, "") or "").strip()
+     if not raw:
+@@ -457,8 +479,10 @@ def run(
      discovery_seconds=DISCOVERY_SECONDS,
      discovery_interval_seconds=DISCOVERY_INTERVAL_SECONDS,
      db_path=None,
@@ -759,7 +846,7 @@ index e4ab19d..40e145a 100644
          raise BoundaryError("extended_discovery_seconds")
      if type(discovery_interval_seconds) not in (int,float) or not 20<=discovery_interval_seconds<=300:
          raise BoundaryError("extended_discovery_interval")
-@@ -468,9 +471,12 @@ def run(
+@@ -468,9 +492,12 @@ def run(
      screens=[]
      seen_pools=set()
      cost_state={}
@@ -773,7 +860,7 @@ index e4ab19d..40e145a 100644
          batch_size=1,
          batch_pause=0.0,
          rate_retries=3,
-@@ -499,167 +505,260 @@ def run(
+@@ -499,167 +526,264 @@ def run(
          frontier_poll_seconds=DISCOVERY_FRONTIER_POLL_SECONDS,
          frontier_driven_discovery=True,
          started_at=time.time(),
@@ -861,28 +948,7 @@ index e4ab19d..40e145a 100644
 +
 +            frontier=frontier_rpc.call(
 +                "eth_getBlockByNumber",["finalized",False],scope="extended_frontier"
-             )
--            if (
--                int(screen["finalized_block"])!=identity[0]
--                or screen["finalized_hash"]!=identity[1]
--                or screen.get("finalized_frontier_source")
--                    !="pinned_external_finalized_header"
--            ):
--                raise BoundaryError("extended_frontier_scan_identity_disagreement")
--            last_scanned_identity=identity
--            last_scan_started=scan_started
--            screens.append(screen)
--            for row in screen.get("rows",[]):
--                seen_pools.add(row["pool"])
--            summary=_screen_summary(screen)
--            summary["elapsed_seconds"]=time.monotonic()-started
--            summary["frontier_poll_index"]=frontier_polls
--            result["natural_screens"].append(summary)
--            chosen=select_qualifier(screen)
--            if chosen is not None:
--                result["natural_qualifier_found"]=True
--                result["natural_qualifier_pool"]=chosen["pool"]
--                result["connected_lifecycle"]=run_connected(
++            )
 +            frontier_polls+=1
 +            progress=_frontier_progress(last_observed_frontier,frontier)
 +            if progress=="advanced":
@@ -920,35 +986,18 @@ index e4ab19d..40e145a 100644
 +
 +            if should_scan:
 +                scan_started=time.monotonic()
-+                screen=scan(
-                     endpoint,
--                    costs_by_pool=costs_by_pool,
-+                    gas_costs_by_pool=costs_by_pool,
-                     signals_by_pool=signals_by_pool,
--                    db_path=str(db_path or DB),
--                    initial_screen=screen,
-                     cost_state=cost_state,
-+                    finalized_frontier=frontier,
-+                    progress=checkpoint_scan,
-                 )
--                result["status"]=result["connected_lifecycle"].get("status")
--                result["ended_at"]=time.time()
--                result["unique_active_pools"]=len(seen_pools)
--                result["cost_state_summary"]=dict(
--                    transactions_observed=len(cost_state.get("transactions") or {}),
--                    sample_counts={
--                        k: len(v)
--                        for k,v in (cost_state.get("samples") or {}).items()
--                    },
--                )
--                result["frontier_discovery"]=dict(
--                    polls=frontier_polls,
--                    advances=frontier_advances,
--                    expensive_scans=len(screens),
--                    duplicate_frontier_polls_skipped=duplicate_frontier_polls,
--                    cadence_deferred_polls=cadence_deferred_polls,
--                    provider=frontier_rpc.telemetry(),
--                    observations=frontier_observations,
++                logical_scan_id=f"{identity[0]}:{identity[1]}:{scan_started}"
++                def record_scan_failure(row):
++                    row=dict(row,logical_scan_id=logical_scan_id,scan_started=scan_started,
++                             finalized_block=identity[0],finalized_hash=identity[1])
++                    result.setdefault("scan_recovery_attempts",[]).append(row)
++                    _persist_public_result(result)
++                screen=_scan_with_capacity_recovery(
++                    lambda:scan(endpoint,gas_costs_by_pool=costs_by_pool,
++                        signals_by_pool=signals_by_pool,cost_state=cost_state,
++                        finalized_frontier=frontier,progress=checkpoint_scan),
++                    deadline=started+discovery_seconds,record_failure=record_scan_failure)
++                if screen is None:break
 +                if (
 +                    int(screen["finalized_block"])!=identity[0]
 +                    or screen["finalized_hash"]!=identity[1]
@@ -1053,17 +1102,61 @@ index e4ab19d..40e145a 100644
 +            sleep_for=min(
 +                DISCOVERY_FRONTIER_POLL_SECONDS,
 +                max(0,discovery_seconds-elapsed),
-+            )
-+            if (
+             )
+             if (
+-                int(screen["finalized_block"])!=identity[0]
+-                or screen["finalized_hash"]!=identity[1]
+-                or screen.get("finalized_frontier_source")
+-                    !="pinned_external_finalized_header"
 +                last_scan_started is not None
 +                and last_scanned_identity is not None
 +                and identity!=last_scanned_identity
-+            ):
+             ):
+-                raise BoundaryError("extended_frontier_scan_identity_disagreement")
+-            last_scanned_identity=identity
+-            last_scan_started=scan_started
+-            screens.append(screen)
+-            for row in screen.get("rows",[]):
+-                seen_pools.add(row["pool"])
+-            summary=_screen_summary(screen)
+-            summary["elapsed_seconds"]=time.monotonic()-started
+-            summary["frontier_poll_index"]=frontier_polls
+-            result["natural_screens"].append(summary)
+-            chosen=select_qualifier(screen)
+-            if chosen is not None:
+-                result["natural_qualifier_found"]=True
+-                result["natural_qualifier_pool"]=chosen["pool"]
+-                result["connected_lifecycle"]=run_connected(
+-                    endpoint,
+-                    costs_by_pool=costs_by_pool,
+-                    signals_by_pool=signals_by_pool,
+-                    db_path=str(db_path or DB),
+-                    initial_screen=screen,
+-                    cost_state=cost_state,
 +                until_eligible=max(
 +                    0.0,
 +                    float(discovery_interval_seconds)
 +                    -(time.monotonic()-last_scan_started),
                  )
+-                result["status"]=result["connected_lifecycle"].get("status")
+-                result["ended_at"]=time.time()
+-                result["unique_active_pools"]=len(seen_pools)
+-                result["cost_state_summary"]=dict(
+-                    transactions_observed=len(cost_state.get("transactions") or {}),
+-                    sample_counts={
+-                        k: len(v)
+-                        for k,v in (cost_state.get("samples") or {}).items()
+-                    },
+-                )
+-                result["frontier_discovery"]=dict(
+-                    polls=frontier_polls,
+-                    advances=frontier_advances,
+-                    expensive_scans=len(screens),
+-                    duplicate_frontier_polls_skipped=duplicate_frontier_polls,
+-                    cadence_deferred_polls=cadence_deferred_polls,
+-                    provider=frontier_rpc.telemetry(),
+-                    observations=frontier_observations,
+-                )
 -                return result
 -
 -        elapsed=time.monotonic()-started
@@ -1182,7 +1275,7 @@ index e4ab19d..40e145a 100644
  
  
  def _persist_public_result(result):
-@@ -671,10 +770,12 @@ def _persist_public_result(result):
+@@ -671,10 +795,12 @@ def _persist_public_result(result):
      raw=json.dumps(public_result,sort_keys=True,separators=(",",":")).encode()
      if len(raw)>12_000_000:
          raise BoundaryError("extended_market_report_capacity")
@@ -1197,7 +1290,7 @@ index e4ab19d..40e145a 100644
      costs=_json_env("MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON")
      signals=_json_env("MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON")
      started=time.time()
-@@ -691,7 +792,7 @@ def main():
+@@ -691,7 +817,7 @@ def main():
                  "MM_ROBINHOOD_RAMSES_EXTENDED_INTERVAL_SECONDS",
                  DISCOVERY_INTERVAL_SECONDS,
              )),
@@ -1206,7 +1299,7 @@ index e4ab19d..40e145a 100644
          )
      except BoundaryError as exc:
          result=dict(
-@@ -711,6 +812,11 @@ def main():
+@@ -711,6 +837,11 @@ def main():
              ended_at=time.time(),
              natural_screens=[],
          )
@@ -1851,3 +1944,143 @@ index 711f223..764d886 100644
                  discovery_seconds=75,
                  discovery_interval_seconds=60,
              )
+diff --git a/robinhood_tests/test_ramses_scan_capacity_recovery.py b/robinhood_tests/test_ramses_scan_capacity_recovery.py
+new file mode 100644
+index 0000000..e589449
+--- /dev/null
++++ b/robinhood_tests/test_ramses_scan_capacity_recovery.py
+@@ -0,0 +1,42 @@
++import unittest
++from robinhood_research import BoundaryError
++from robinhood_research.ramses_extended_test import _scan_with_capacity_recovery
++
++
++class ScanRecoveryTests(unittest.TestCase):
++    def test_transient_retry_keeps_closure_frontier_and_original_deadline(self):
++        now=[0.];rows=[];calls=[];frontier={'number':'0x12','hash':'pinned'}
++        def scan():
++            calls.append(frontier.copy())
++            if len(calls)==1:raise BoundaryError('provider_shared_admission_deadline')
++            return {'frontier':frontier.copy()}
++        result=_scan_with_capacity_recovery(scan,deadline=10,record_failure=rows.append,
++            clock=lambda:now[0],sleeper=lambda t:now.__setitem__(0,now[0]+t))
++        self.assertEqual(calls,[frontier,frontier]);self.assertEqual(result['frontier'],frontier)
++        self.assertEqual(rows[0]['original_deadline'],10)
++        self.assertFalse(rows[0]['failed_admission_reached_transport'])
++
++    def test_observation_end_preserves_incomplete_scan_without_retry(self):
++        now=[0.];rows=[];calls=[]
++        def scan():
++            calls.append(1);now[0]=10
++            raise BoundaryError('provider_shared_queue_capacity')
++        self.assertIsNone(_scan_with_capacity_recovery(scan,deadline=10,record_failure=rows.append,
++            clock=lambda:now[0],sleeper=lambda _:self.fail('late retry')))
++        self.assertEqual(calls,[1]);self.assertEqual(len(rows),1)
++
++    def test_persistent_local_loss_is_bounded_and_auth_failure_is_not_recovered(self):
++        for reason,count in [('provider_shared_admission_deadline',3),('header_hash_mismatch',1)]:
++            rows=[];calls=[]
++            def scan():
++                calls.append(1);raise BoundaryError(reason)
++            with self.assertRaises(BoundaryError):
++                _scan_with_capacity_recovery(scan,deadline=100,record_failure=rows.append,
++                    clock=lambda:0,sleeper=lambda _:None)
++            self.assertEqual(len(calls),count)
++            self.assertEqual(len(rows),3 if count==3 else 0)
++
++    def test_missing_result_is_fail_closed_not_completed(self):
++        with self.assertRaisesRegex(BoundaryError,'missing_result'):
++            _scan_with_capacity_recovery(lambda:None,deadline=100,record_failure=lambda _:None,
++                clock=lambda:0,sleeper=lambda _:None)
+diff --git a/robinhood_tests/test_shared_position_fairness.py b/robinhood_tests/test_shared_position_fairness.py
+new file mode 100644
+index 0000000..8f25dd2
+--- /dev/null
++++ b/robinhood_tests/test_shared_position_fairness.py
+@@ -0,0 +1,86 @@
++import json
++from pathlib import Path
++import tempfile
++import unittest
++from robinhood_research import BoundaryError
++from robinhood_research.provider_admission import Admission,next_ticket,record_service,POSITION_BURST,position_work,priority
++
++
++class SustainedPositionFairnessTests(unittest.TestCase):
++    def test_lifecycle_scope_and_thread_exception_isolation(self):
++        from concurrent.futures import ThreadPoolExecutor
++        @position_work
++        def lifecycle():
++            self.assertEqual(priority('pons_natural'),0)
++            self.assertEqual(priority('universe_identity'),0)
++            with ThreadPoolExecutor(max_workers=1) as pool:
++                self.assertEqual(pool.submit(priority,'pons_natural').result(),10)
++            raise BoundaryError('injected_lifecycle_failure')
++        with self.assertRaises(BoundaryError):lifecycle()
++        self.assertEqual(priority('pons_natural'),10)
++        self.assertEqual(priority('universe_identity'),50)
++
++    def exercise(self,lane,deadline):
++        with tempfile.TemporaryDirectory() as td:
++            now=[100.];positions=[];transport=[]
++            def sleep(seconds):
++                now[0]+=seconds
++                db=gate.connect()
++                next_at,cooldown,interval=db.execute('SELECT next_at,cooldown,interval FROM limits').fetchone()
++                first=next_ticket(db,gate.endpoint,now[0],interval)
++                if first and first[0]=='position' and now[0]>=max(next_at,cooldown):
++                    positions.append(now[0]);record_service(db,gate.endpoint,'pons',True)
++                    db.execute('UPDATE limits SET next_at=?',(now[0]+interval,))
++                    db.execute("UPDATE queue SET created=?,deadline=? WHERE id='position'",(now[0],now[0]+30))
++                db.close()
++            gate=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane=lane,clock=lambda:now[0],sleeper=sleep)
++            db=gate.connect()
++            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('position',gate.endpoint,0,100.,130.))
++            db.execute('INSERT INTO queue_meta VALUES(?,?)',('position','pons'));db.close()
++            boundary=None
++            try:gate.invoke(lambda:transport.append(now[0]),['eth_getCode'],'universe_identity',deadline=deadline)
++            except BoundaryError as exc:boundary=str(exc)
++            db=gate.connect()
++            event=json.loads(db.execute('SELECT body FROM admissions').fetchone()[0])
++            physical=db.execute('SELECT count(*) FROM transports').fetchone()[0]
++            interval=db.execute('SELECT interval FROM limits').fetchone()[0]
++            pending=next_ticket(db,gate.endpoint,now[0],interval);db.close()
++            return boundary,positions,transport,event,physical,interval,pending
++
++    def test_other_lane_bounded_service_preserves_ceiling(self):
++        boundary,positions,transport,event,physical,interval,pending=self.exercise('ramses',110.)
++        self.assertIsNone(boundary);self.assertEqual(len(positions),POSITION_BURST)
++        self.assertEqual(len(transport),1);self.assertLess(transport[0],105.)
++        times=positions+transport
++        self.assertTrue(all(b-a>=.5-1e-9 for a,b in zip(times,times[1:])))
++        self.assertEqual(interval,.5);self.assertEqual(physical,1)
++        self.assertEqual(event['deadline'],110.);self.assertEqual(pending[0],'position')
++
++    def test_same_lane_research_cannot_bypass_position_and_never_transports(self):
++        boundary,positions,transport,event,physical,interval,pending=self.exercise('pons',105.)
++        self.assertEqual(boundary,'provider_shared_admission_deadline')
++        self.assertEqual(transport,[]);self.assertEqual(physical,0)
++        self.assertEqual(event['deadline'],105.);self.assertEqual(event['reason'],boundary)
++        self.assertEqual(event['methods'],['eth_getCode'])
++        self.assertEqual(event['failure_domain'],'local_admission')
++        self.assertFalse(event['transport_attempted'])
++
++    def test_imminent_position_deadline_keeps_priority(self):
++        with tempfile.TemporaryDirectory() as td:
++            gate=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane='ramses')
++            db=gate.connect()
++            for identity,lane,priority_value,deadline in [('position','pons',0,104.2),('research','ramses',50,110.)]:
++                db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',(identity,gate.endpoint,priority_value,100.,deadline))
++                db.execute('INSERT INTO queue_meta VALUES(?,?)',(identity,lane))
++            for _ in range(POSITION_BURST):record_service(db,gate.endpoint,'pons',True)
++            self.assertEqual(next_ticket(db,gate.endpoint,104.,.5)[0],'position');db.close()
++
++    def test_expired_consumer_never_enqueues_or_transports(self):
++        with tempfile.TemporaryDirectory() as td:
++            gate=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane='ramses',clock=lambda:100.)
++            with self.assertRaisesRegex(BoundaryError,'deadline'):
++                gate.invoke(lambda:self.fail('unexpected transport'),['eth_call'],'universe_identity',deadline=99.)
++            db=gate.connect();row=json.loads(db.execute('SELECT body FROM admissions').fetchone()[0])
++            self.assertEqual(row['deadline'],99.);self.assertEqual(row['methods'],['eth_call'])
++            self.assertEqual(db.execute('SELECT count(*) FROM queue').fetchone()[0],0)
++            self.assertEqual(db.execute('SELECT count(*) FROM transports').fetchone()[0],0);db.close()

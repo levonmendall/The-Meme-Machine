@@ -653,3 +653,33 @@ The live workflow accepts this isolated branch but no live run is requested by t
 build commit. A subsequent exact canonical candidate must pass all hosted gates and
 active-run checks before a fresh smoke and independent hour. No older time is reused.
 All old failed artifacts and unresolved positions remain historical evidence.
+
+
+## Hosted reconstruction verified; fresh frozen-policy candidate composition
+
+Build35562741730/job106218570560 passed on4d484472aa210e6fd541c38345d0a2c421cc3150.
+Complete suites: Pump292,Meteora392,Pons286,Ramses267 (1237 total),supervisor72,
+all3 resource gates. No test was disabled. The two full Pons lifecycle session-budget
+regressions settled/reconciled with one entry and one exit intent; bounded rotation,
+configuration/authentication failure and unchanged persistent-pressure behavior passed.
+Canonicality and protected source/config/policy hashes passed in a private index.
+The exact verified blobs and complete gate transcripts are composed into this candidate.
+
+New overlay SHA256: Pons7d6a4f963d4e37e687fcdfd5af112c211d9e3bd591bcd06dfc58f8b70d44f859;
+Ramses204fe6ec0927a58e1115427db167fd580c50b41555826de204343651f13bc5f7.
+Pump/Meteora overlays and the original manifest hash7c2505cc65e599929e58511f2463875f86228232d30f053754bf0ec9ef639226
+remain unchanged. Build artifact10622812658,204881 bytes, recorded SHA256
+b4c8beac22837120f22bbb73113a72099b4fcee085fd1a4ca7f77dcf2edc6b96.
+Full logs/canonicality are durable under results/hosted-frozen-repair.
+
+Before composition, active/queued/pending/waiting workflow queries were all empty.
+The candidate requests one fresh600-second smoke, then an independent3600-second
+hour only after smoke engineering and a read-only artifact review pass. The new
+review job verifies the archive digest, exposes complete raw/native failures, and
+checks exposure/continuity/batch bounds before the hourly job can start. A final
+read-only review follows the hour even on failure. Review jobs have no provider
+credentials and consume no market capacity; waiting time is not observation uptime.
+The generalized review script is syntax-checked before any live lane launch.
+Exact candidate SHA/run ID will be recorded in PR93 and the next handoff entry.
+No time from fba42eff or any earlier run is reused; five failed-hour Pons ledgers
+and prior unresolved baseline exposure remain unresolved historical evidence.

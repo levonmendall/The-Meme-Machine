@@ -37,6 +37,7 @@ jobs:
         run: |
           mkdir -p certification-gates
           set -o pipefail
+          python -m py_compile certification/frozen_artifact_review.py
           python -m unittest discover -s certification/tests -v 2>&1 | tee certification-gates/supervisor-tests.log
       - name: Create isolated exact-source worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/four-lane-worktrees"
@@ -94,7 +95,7 @@ jobs:
           retention-days: 90
 
   hourly-campaign:
-    needs: concurrent-smoke
+    needs: [concurrent-smoke, smoke-artifact-review]
     if: inputs.phase == 'hourly' || contains(github.event.head_commit.message, '[four-lane-hourly]')
     runs-on: ubuntu-24.04
     timeout-minutes: 210
@@ -111,6 +112,7 @@ jobs:
         run: |
           mkdir -p certification-gates
           set -o pipefail
+          python -m py_compile certification/frozen_artifact_review.py
           python -m unittest discover -s certification/tests -v 2>&1 | tee certification-gates/supervisor-tests.log
       - name: Create isolated exact-source worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/four-lane-worktrees"
@@ -155,5 +157,55 @@ jobs:
             certification-preflight.json
             certification-contention-history.jsonl
             smoke-readiness.json
+          if-no-files-found: error
+          retention-days: 90
+
+  smoke-artifact-review:
+    needs: concurrent-smoke
+    if: needs.concurrent-smoke.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify artifact digest and inspect all native evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_RUN_ID: ${{ github.run_id }}
+          REVIEW_SHA: ${{ github.sha }}
+          REVIEW_PHASE: smoke
+        run: python certification/frozen_artifact_review.py
+      - name: Preserve complete artifact review
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: smoke-artifact-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: frozen-review/
+          if-no-files-found: error
+          retention-days: 90
+
+  hourly-artifact-review:
+    needs: hourly-campaign
+    if: always() && (needs.hourly-campaign.result == 'success' || needs.hourly-campaign.result == 'failure')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify artifact digest and inspect all native evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_RUN_ID: ${{ github.run_id }}
+          REVIEW_SHA: ${{ github.sha }}
+          REVIEW_PHASE: hourly
+        run: python certification/frozen_artifact_review.py
+      - name: Preserve complete artifact review
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: hourly-artifact-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: frozen-review/
           if-no-files-found: error
           retention-days: 90
