@@ -1,0 +1,1 @@
+Rerun historical Ramses LP outcomes with burn recipient correctly treated as LP owner.\n
