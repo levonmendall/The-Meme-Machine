@@ -1,0 +1,121 @@
+{
+  "kind": "dlmm_blank_slate_market_evidence_v1",
+  "status": "preregistered_before_strategy_derivation",
+  "scope": [
+    "meteora_solana_dlmm",
+    "ramses_robinhood_dlmm"
+  ],
+  "authority": {
+    "research_only": true,
+    "allocation": false,
+    "signing": false,
+    "submission": false,
+    "live_money": false
+  },
+  "independence": {
+    "existing_strategy_policy_is_input": false,
+    "forbidden_strategy_inputs": [
+      "existing TVL gates",
+      "existing hold horizons",
+      "existing width/bin-count choices",
+      "existing fee/volume qualification thresholds",
+      "existing two-way-flow thresholds",
+      "existing 35-bps hurdle",
+      "existing transaction-verifier capacity",
+      "existing strategy labels or pass/fail outcomes"
+    ],
+    "permitted_existing_inputs": [
+      "authenticated market data",
+      "actual historical LP positions and cash flows",
+      "actual gas/network costs",
+      "actual slippage/unwind evidence",
+      "protocol mechanics and contract identity",
+      "provider/finality correctness"
+    ]
+  },
+  "objective": "derive the highest-repeatability after-cost DLMM strategy independently for each venue from market and operator evidence",
+  "outcome_metrics": [
+    "after_actual_cost_realized_pnl_usd",
+    "after_actual_cost_return",
+    "capital_hour_return",
+    "time_weighted_return_when_reconstructable",
+    "fee_income",
+    "inventory_price_pnl",
+    "rebalance_cost",
+    "unwind_slippage",
+    "profitable_position_rate",
+    "max_drawdown",
+    "tail_loss"
+  ],
+  "entry_features": [
+    "pool_tvl_usd",
+    "pool_age",
+    "token_age",
+    "bin_step",
+    "dynamic_or_effective_fee",
+    "volume_5m_30m_1h_24h",
+    "volume_to_tvl",
+    "fee_to_tvl",
+    "active_bin_liquidity",
+    "local_depth_by_distance",
+    "volume_to_active_liquidity",
+    "fee_to_active_liquidity",
+    "realized_volatility",
+    "flow_two_way_balance",
+    "gross_bin_travel",
+    "net_bin_drift",
+    "reversal_count",
+    "volume_acceleration"
+  ],
+  "position_features": [
+    "range_width_bins",
+    "range_width_bps",
+    "active_bin_offset",
+    "sidedness",
+    "liquidity_distribution_shape",
+    "capital_share_of_local_depth",
+    "hold_seconds",
+    "rebalance_count",
+    "rebalance_cadence",
+    "exit_reason"
+  ],
+  "venue_windows": {
+    "meteora": "minimum 120 days plus current complete market census; extend when API history supports it",
+    "ramses": "entire Robinhood DLMM history from deployment through the study cutoff"
+  },
+  "segmentation": {
+    "primary": "empirical quantiles and interactions; do not preselect a preferred TVL/age/fee/width bucket",
+    "reportable_axes": [
+      "TVL",
+      "pool_age",
+      "token_age",
+      "fee_density",
+      "volume_to_tvl",
+      "active_depth",
+      "range_width",
+      "flow_quality",
+      "volatility",
+      "hold_time"
+    ],
+    "interactions": "cross-classify economically meaningful dimensions rather than selecting one variable at a time"
+  },
+  "validation": {
+    "chronological_split": "derive on earlier data; validate on later data; final holdout remains untouched until rule freeze",
+    "operator_leakage_control": "same wallet/fleet cluster may not supply independent support to both derivation and holdout",
+    "minimum_independent_support": "candidate behavior must recur across at least 3 independent operator clusters when operator data exists",
+    "no_post_holdout_retuning": true
+  },
+  "outputs": {
+    "per_venue": [
+      "profit concentration map",
+      "best-supported market segment",
+      "entry rule",
+      "range construction rule",
+      "position size/depth rule",
+      "management/rebalance rule",
+      "exit/hold rule",
+      "expected capacity and failure modes"
+    ],
+    "final_comparison": "Meteora and Ramses strategies are derived separately; similarity is not assumed"
+  }
+}
