@@ -1039,3 +1039,29 @@ For cancelled runs only, the read-only reviewer may inspect the retained checkpo
 and journals while explicitly marking the complete native final report absent.
 It may not infer final lifecycles from that checkpoint. Normal smoke/hour review
 still requires the complete report and unchanged engineering controls.
+
+
+### Partial-hour audit complete; accidental legacy contention removed before replacement
+
+Read-only35571312207/job106243347389 passed65 file checksums and18 standalone
+SQLite checks, no snapshot errors. Pons final report is explicitly absent because
+of cancellation; retained checkpoint/native books show no Pons positions.
+Pump2 naturally settled paper lifecycles, realized+73402696 lamports, nine-event
+replay verified; full original entry/exit/qualification/cost path remains archived.
+Review10625299976,94271 bytes, SHA256
+115e4288ae9e261b7f67ed3fc8276682f344070834704cd962ba5ca4664c9282.
+
+Prelaunch inspection found accidental legacy paper-milestone diagnostics created
+by commits without the existing [qualification-build] suppression marker:
+35570800018@f63e1e7abf87f17e0babc16ec4436aa6bebb3078 (active shadow job106241833964)
+and35571312143@bd2f08ef22790cdc092e917fc8a08b24ed232ff1 (queued shadow diagnostic).
+These read-only finalized-stream shadow jobs have no paper lifecycle authority.
+An exact run/SHA/branch/workflow/job allowlist cancellation is requested here.
+Original success/failure artifacts are preserved by their always-run upload step.
+This accidental overlap affects the already superseded interrupted437a8445 hour,
+not its earlier completed smoke. It is explicitly not certification evidence.
+Every subsequent documentation/build/audit marker will also include
+[qualification-build], using the existing workflow control rather than disabling
+any deterministic test. No replacement market run starts until those jobs terminate.
+Main, all four frozen source heads, prospect branch and separate PR93 policy head
+were refreshed and remain unchanged.

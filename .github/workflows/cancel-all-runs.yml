@@ -19,7 +19,8 @@ jobs:
           python - <<'PY'
           import json, os, pathlib, time, urllib.request
           targets = {
-              35568442889: "437a844579c5d8e982a172dca7cbe160f066d099",
+              35570800018: "f63e1e7abf87f17e0babc16ec4436aa6bebb3078",
+              35571312143: "bd2f08ef22790cdc092e917fc8a08b24ed232ff1",
           }
           headers = {"Authorization": "Bearer " + os.environ["GH_TOKEN"],
                      "Accept": "application/vnd.github+json",
@@ -30,38 +31,19 @@ jobs:
               url = base + str(run_id)
               with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as response:
                   row = json.load(response)
-              if row["head_sha"] != sha or row["head_branch"] != "repair/frozen-campaign-handoff" or row["name"] != "four-lane-certification":
+              if row["head_sha"] != sha or row["head_branch"] != "repair/frozen-campaign-handoff" or row["name"] != "paper-milestone":
                   raise SystemExit("cancellation_identity_mismatch")
               with urllib.request.urlopen(urllib.request.Request(url + "/artifacts", headers=headers)) as response:
                   artifacts = json.load(response)
               record = dict(run_id=run_id, sha=sha, before=row["status"],
-                            artifacts=artifacts, reason="superseded hour: smoke raw evidence proves current-state authentication omitted original five-second deadline and foreground priority, causing five 30-second local waits; require all four lanes flat and reconciled without outstanding qualifiers; preserve prior smoke and all partial hour evidence")
+                            artifacts=artifacts, reason="accidental legacy read-only shadow qualification from documentation/build commit; superseded by frozen four-lane campaign; consumes provider capacity and has no paper lifecycle authority")
+              with urllib.request.urlopen(urllib.request.Request(url + "/jobs?per_page=100", headers=headers)) as response:
+                  jobs=json.load(response)
+              live=[j for j in jobs['jobs'] if j['name']!='test' and j['status']!='completed']
+              if any(j['name']!='live-diagnostic' for j in live):raise SystemExit('unexpected_live_job_do_not_cancel')
+              record['jobs_before']=jobs
+              pathlib.Path("campaign-cancellations.json").write_text(json.dumps([*evidence,record],indent=2))
               if row["status"] != "completed":
-                  checks_url = "https://api.github.com/repos/" + os.environ["REPOSITORY"] + "/commits/" + sha + "/check-runs?per_page=100"
-                  for freshness_attempt in range(19):
-                      with urllib.request.urlopen(urllib.request.Request(checks_url, headers=headers)) as response:
-                          checks = json.load(response)
-                      check = next(c for c in checks["check_runs"] if c["name"] == "four-lane-live-hourly")
-                      body = check["output"]["text"].strip()
-                      snapshot = json.loads(body.removeprefix("```json").removesuffix("```").strip())
-                      if 0 <= time.time()-snapshot.get("observed_at",0)<45:break
-                      if freshness_attempt<18:time.sleep(5)
-                  flat = snapshot.get("elapsed_seconds") is not None and 0 <= time.time()-snapshot.get("observed_at",0)<45
-                  for lane, state in snapshot["lanes"].items():
-                      flat = flat and state.get("open_positions") == 0 and state.get("accounting_reconciled") is True
-                      funnel = state.get("funnel") or {}
-                      qualified = funnel.get("qualified",funnel.get("unique_qualified",0))
-                      flat = flat and qualified == state.get("natural_settled",0)
-                      book = state.get("cohort_accounting") or state.get("native_accounting") or {}
-                      flat = flat and not book.get("reserved",0) and not book.get("pending",0)
-                      for asset in (book.get("by_quote_asset") or {}).values():
-                          flat = flat and not asset.get("open_positions",0) and not asset.get("committed",0)
-                  record["guard_passed"] = bool(flat)
-                  record["snapshot_age"] = time.time()-snapshot.get("observed_at",0)
-                  record["pre_cancel_snapshot"] = snapshot
-                  print(json.dumps(record), flush=True)
-                  pathlib.Path("campaign-cancellations.json").write_text(json.dumps([record], indent=2))
-                  if not flat:raise SystemExit("not_proven_flat_do_not_cancel")
                   with urllib.request.urlopen(urllib.request.Request(url + "/cancel", headers=headers, method="POST")) as response:
                       record["cancel_response"] = response.status
               evidence.append(record)
