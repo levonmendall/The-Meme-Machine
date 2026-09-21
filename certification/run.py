@@ -13,6 +13,7 @@ import time
 import uuid
 from certification.journal import canonical,digest,Journal
 from certification.governor import Governor
+from certification.solana_efficiency import SolanaReuseView
 from certification.pressure import PressureView, ReuseView
 from certification.report import LANES,dashboard,evaluate,summarize,pipeline_health,provider_efficiency
 from certification.controls import (audit_telemetry,broker_snapshot,record_unfinished_broker_jobs,
@@ -52,7 +53,7 @@ def source_integrity(worktrees):
         patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
         expected=(ROOT/'certification/patches'/patch).read_bytes() if patch else b''
         # Compare git's normalized diff to the pinned overlay applied at preparation.
-        if diff.strip()!=expected.strip():raise ValueError('unreviewed_lane_mutation:'+lane)
+        if diff!=expected:raise ValueError('unreviewed_lane_mutation:'+lane)
     return observed
 
 
@@ -203,6 +204,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     atomic(run/'provider-identities.json',provider_config)
     journal=Journal(run/'supervisor.sqlite');governor=Governor(run/'shared-provider.sqlite')
     pressure=PressureView(run/'shared-robinhood-admission.sqlite')
+    solana_reuse=SolanaReuseView(run/'shared-solana-evidence.sqlite')
     reuse=ReuseView(run/'shared-robinhood-evidence.sqlite')
     started=time.monotonic();start_wall=time.time();processes={};files={};rows={};interrupted=False;terminal_times={}
     common_start=started
@@ -237,7 +239,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                         if row.get('process_nonce') is not None and row['process_nonce']!=nonce:
                             row['process_restarts']+=1
                         row['process_nonce']=nonce
-                    row.update({k:status[k] for k in ('phase','estimated_alchemy','provider_requests','method_counts','errors','rpc_latency_seconds','telemetry_archive_seconds','telemetry_cost','runtime_resources') if k in status})
+                    row.update({k:status[k] for k in ('phase','estimated_alchemy','provider_requests','method_counts','errors','local_admission_errors','provider_method_errors','provider_http_status_errors','provider_rpc_error_codes','rpc_latency_seconds','telemetry_archive_seconds','telemetry_cost','runtime_resources') if k in status})
                     progress=status.get('last_progress_monotonic')
                     row['progress_age_seconds']=None if progress is None else now-progress
                     if 'exit_code' not in row:row['health']='responsive' if progress is not None and now-progress<300 else 'progress_stalled'
@@ -252,7 +254,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                         if isinstance(at,(int,float)) and 0<=now-at<300:
                             row['health']='responsive';row['transport_activity_age_seconds']=now-at
                         if isinstance(at,(int,float)) and at>(status.get('last_progress_monotonic') or 0):
-                            row.update({k:activity[k] for k in ('provider_requests','method_counts','estimated_alchemy','errors','provider_session_count') if k in activity})
+                            row.update({k:activity[k] for k in ('provider_requests','method_counts','estimated_alchemy','errors','local_admission_errors','provider_method_errors','provider_http_status_errors','provider_rpc_error_codes','provider_session_count') if k in activity})
                 if code is None:
                     alive=True;row['continuous_uptime_seconds']=now-launched
                     last=status.get('last_progress_monotonic') or launched
@@ -281,7 +283,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                 row['pipeline_health']=pipeline_health(row,time.time())
                 if code is None and row['health']=='responsive' and row['pipeline_health']['state']=='stalled':
                     row['health']='responsive_but_strategy_stalled'
-            result=dict(run_id=run_id,phase=phase,status='RUNNING' if alive else 'FINISHED',started_at=start_wall,observed_at=time.time(),elapsed_seconds=now-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=now)-common_start),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot(),robinhood_reuse=reuse.snapshot()),source_manifest_hash=digest(spec))
+            result=dict(run_id=run_id,phase=phase,status='RUNNING' if alive else 'FINISHED',started_at=start_wall,observed_at=time.time(),elapsed_seconds=now-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=now)-common_start),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot(),robinhood_reuse=reuse.snapshot(),solana_reuse=solana_reuse.snapshot()),source_manifest_hash=digest(spec))
             if now-last_sample>=30:
                 broker=broker_snapshot(run/'shared-solana-evidence.sqlite')
                 max_broker_active=max(max_broker_active,(broker or {}).get('active',0))
@@ -313,7 +315,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         for row in rows.values():
             row['gates']['freshness_finality_unchanged']=source_unchanged
             if not source_unchanged:row['gates']['policy_unchanged']=False
-        result=dict(run_id=run_id,phase=phase,status='FAILED' if interrupted else 'FINISHED',started_at=start_wall,ended_at=time.time(),elapsed_seconds=time.monotonic()-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=time.monotonic())-common_start),source_manifest_hash=digest(spec),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot(),robinhood_reuse=reuse.snapshot()))
+        result=dict(run_id=run_id,phase=phase,status='FAILED' if interrupted else 'FINISHED',started_at=start_wall,ended_at=time.time(),elapsed_seconds=time.monotonic()-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=time.monotonic())-common_start),source_manifest_hash=digest(spec),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot(),robinhood_reuse=reuse.snapshot(),solana_reuse=solana_reuse.snapshot()))
         result.update(supervisor_error=supervisor_error,integration_sha=git('rev-parse','HEAD'),implementation_hash=implementation_hash(),
             maximum_sampled_active_broker_jobs=max_broker_active,broker_shutdown_terminals=broker_terminal,
             source_diff_hashes=gate['source_diff_hashes'])

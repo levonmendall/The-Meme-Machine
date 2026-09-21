@@ -1,0 +1,15 @@
+{
+  "schema": "solana-prefetch-admission-replay-v1",
+  "run_id": 35508695288,
+  "observed_prefetch_signatures": 86590,
+  "admitted": 10593,
+  "deferred_to_foreground": 75997,
+  "observed_hot_bodies_prefetch_only": 9093,
+  "hot_prefetch_only_bodies_deferred": 7639,
+  "all_foreground_interests_preserved": true,
+  "live_latency_or_coverage_proof": false,
+  "limitations": [
+    "Replay changes only speculative admission; every signature remains observable and all foreground requirements are unchanged.",
+    "Hot cache excludes evicted bodies. Counterfactual transport reduction is not a measured live result."
+  ]
+}

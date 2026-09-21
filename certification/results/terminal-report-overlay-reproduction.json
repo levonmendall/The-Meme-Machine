@@ -1,0 +1,26 @@
+{
+  "pump": {
+    "source_sha": "04c99ca3125747dc8bfc6f655fec7533f8ac8156",
+    "patch_sha256": "a8e4effbe55d758ec1e744bfab08d42964e58189fd740cd1b2ea7e1e09d7bcf5",
+    "byte_identical": true,
+    "frozen_files_unchanged": true
+  },
+  "meteora": {
+    "source_sha": "29d050b218969e4c7761346737d082bf1db382ec",
+    "patch_sha256": "1f447a3c83bac236c74497f7e12d1e8307331d60fc71ee6459b4e13429c34f65",
+    "byte_identical": true,
+    "frozen_files_unchanged": true
+  },
+  "pons": {
+    "source_sha": "c692fe446bdee4ea1179da27a3f0c9f2f281f118",
+    "patch_sha256": "64c8170e0800b34c7369932bbf1f3dca96899591932eb314ea76588482158347",
+    "byte_identical": true,
+    "frozen_files_unchanged": true
+  },
+  "ramses": {
+    "source_sha": "6b7ddd69940f5c9e056b2dca61c443450ca9965e",
+    "patch_sha256": "18c45c2c42111ba1a567f42188140fc881c92afeb1c0992f087f43c7729e2dc4",
+    "byte_identical": true,
+    "frozen_files_unchanged": true
+  }
+}

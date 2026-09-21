@@ -1,4 +1,6 @@
 """Read-only preflight: do not overlap existing market jobs or stale lane heads."""
+import argparse
+import time
 import json
 import os
 from pathlib import Path
@@ -25,7 +27,7 @@ def fetch_json(url,token):
     req=Request(url,headers={'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'})
     with urlopen(req,timeout=30) as response:return json.load(response)
 
-def main():
+def check():
     output=Path('certification-preflight.json')
     spec=manifest();lines=subprocess.check_output(['git','ls-remote','origin','refs/heads/*'],cwd=ROOT,text=True).splitlines()
     heads={ref.removeprefix('refs/heads/'):sha for sha,ref in (line.split() for line in lines)}
@@ -49,6 +51,18 @@ def main():
         else:raise RuntimeError('active_run_pagination_bound')
     result=dict(lane_heads_changed=changed,conflicting_market_runs=active,passed=not changed and not active)
     atomic(output,result);print(json.dumps(result))
-    if not result['passed']:raise SystemExit(1)
+    return result
+
+def main():
+    parser=argparse.ArgumentParser();parser.add_argument('--wait-seconds',type=int,default=0);args=parser.parse_args()
+    if not 0<=args.wait_seconds<=3600:raise ValueError('contention_wait_bound')
+    deadline=time.monotonic()+args.wait_seconds
+    while True:
+        result=check()
+        with Path('certification-contention-history.jsonl').open('a') as f:
+            f.write(json.dumps(dict(observed_at=time.time(),**result))+'\n')
+        if result['passed']:return
+        if result['lane_heads_changed'] or time.monotonic()>=deadline:raise SystemExit(1)
+        time.sleep(min(30,max(0,deadline-time.monotonic())))
 
 if __name__=='__main__':main()

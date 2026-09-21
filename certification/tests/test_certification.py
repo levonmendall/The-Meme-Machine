@@ -122,6 +122,17 @@ class CertificationTests(unittest.TestCase):
         x=summarize('pons',dict(lifecycles=[dict(final_position=dict(status='settled',entry_tokens=0))]))
         self.assertEqual(x['natural_settled'],0)
 
+    def test_pons_writeoff_never_counts_as_natural_sale_after_compaction(self):
+        position=dict(status='settled',entry_tokens=10,realized=-100,
+            reason='liquidity_writeoff:impossible_full_position_exit')
+        for life in (dict(final_position=position,settlement_kind='liquidity_writeoff'),
+                     dict(final_position=position)):
+            with self.subTest(explicit_kind='settlement_kind' in life):
+                report=summarize('pons',dict(lifecycles=[life,dict(
+                    final_position=dict(status='settled',entry_tokens=10,reason='momentum_failure'))]))
+                self.assertEqual(report['natural_settled'],1)
+                self.assertEqual(report['funnel']['liquidity_writeoffs'],1)
+
     def test_pump_cancelled_qualification_is_visible_but_not_a_trade(self):
         report=dict(qualifiers=[dict(entry_status='cancelled',entry_limitation='entry_fill_timeout')],
             full_evidence_candidates=[{}],settled=[],attempts=[],open_positions=[],pending_entries=[])
@@ -185,17 +196,58 @@ class CertificationTests(unittest.TestCase):
             self.assertEqual(status['queues'],[])
             self.assertEqual(status['providers'][0]['grants'],4)
 
+class SolanaMethodPressureTests(unittest.TestCase):
+    def test_getprogramaccounts_method_cooldown_fails_before_transport_admission(self):
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'governor.sqlite';g=Governor(path)
+            now=time.monotonic()
+            db=sqlite3.connect(path)
+            db.execute('INSERT OR IGNORE INTO pressure VALUES(?,0,0,0,0)',('solana',))
+            db.execute('INSERT OR REPLACE INTO method_pressure VALUES(?,?,?,?,?,?)',
+                       ('solana','getProgramAccounts',now+30,1,1,0))
+            db.commit();db.close()
+            with self.assertRaisesRegex(TimeoutError,'method_cooldown'):
+                g.acquire('solana','pump',methods=['getProgramAccounts'],
+                          deadline_seconds=1)
+            status=g.status()
+            row=next(x for x in status['method_pressure']
+                     if x['method']=='getProgramAccounts')
+            self.assertEqual(row['rate_errors'],1)
+            self.assertGreater(row['cooldown_remaining_seconds'],20)
+
+    def test_rate_limit_records_exact_method_pressure(self):
+        with tempfile.TemporaryDirectory() as td:
+            g=Governor(Path(td)/'governor.sqlite')
+            g.rate_limited('solana',['getProgramAccounts'])
+            status=g.status()
+            row=next(x for x in status['method_pressure']
+                     if x['method']=='getProgramAccounts')
+            self.assertEqual(row['rate_errors'],1)
+            self.assertEqual(row['rate_streak'],1)
+            self.assertGreaterEqual(row['cooldown_remaining_seconds'],29)
+    def test_signature_rate_limit_uses_longer_method_backoff(self):
+        with tempfile.TemporaryDirectory() as td:
+            g=Governor(Path(td)/'governor.sqlite')
+            before=time.monotonic()
+            g.rate_limited('solana',['getSignaturesForAddress'])
+            row=next(x for x in g.status()['method_pressure']
+                     if x['method']=='getSignaturesForAddress')
+            self.assertEqual(row['rate_errors'],1)
+            self.assertGreaterEqual(row['cooldown_remaining_seconds'],14)
+
+
+
 class IntegrationRegressionTests(unittest.TestCase):
     def test_expired_ticket_and_capacity_are_fail_closed(self):
         with tempfile.TemporaryDirectory() as td:
             path=Path(td)/'gate.sqlite';g=Governor(path)
             db=sqlite3.connect(path)
-            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('stale','solana','dead',0,time.monotonic()-31))
+            db.execute('INSERT INTO queue(id,provider,lane,priority,created) VALUES(?,?,?,?,?)',('stale','solana','dead',0,time.monotonic()-31))
             db.commit()
             g.acquire('solana','pump')
             self.assertEqual(g.status()['queues'],[])
             now=time.monotonic()
-            db.executemany('INSERT INTO queue VALUES(?,?,?,?,?)',[(str(i),'solana','research',50,now) for i in range(256)])
+            db.executemany('INSERT INTO queue(id,provider,lane,priority,created) VALUES(?,?,?,?,?)',[(str(i),'solana','research',50,now) for i in range(256)])
             db.commit()
             with self.assertRaisesRegex(TimeoutError,'capacity'):g.acquire('solana','pump')
             db.close()
@@ -226,6 +278,9 @@ class IntegrationRegressionTests(unittest.TestCase):
             self.assertEqual(activity['provider_requests'],1)
             self.assertEqual(activity['pid'],os.getpid())
             self.assertEqual(activity['lane'],'pump')
+            self.assertEqual(
+                status['provider_rpc_error_codes']['getTransaction:429'],1)
+            self.assertEqual(status['errors']['getTransaction:rpc_429'],1)
 
 class EvidenceDenominatorTests(unittest.TestCase):
     def test_missing_or_late_pons_evidence_is_not_economic_discrimination_sample(self):

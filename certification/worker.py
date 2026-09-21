@@ -9,6 +9,7 @@ import argparse
 import dataclasses
 import functools
 import gzip
+import hashlib
 import importlib
 import json
 import os
@@ -29,6 +30,9 @@ class Observer:
         self.lane,self.policy=lane,policy
         self.lock=threading.RLock();self.sequence=0;self.methods=Counter()
         self.latencies=[];self.errors=Counter();self.started=time.monotonic()
+        self.provider_method_errors=Counter();self.local_admission_errors=Counter()
+        self.provider_http_status_errors=Counter()
+        self.provider_rpc_error_codes=Counter()
         self.journal=Journal(self.root/'telemetry.sqlite')
         self.raw=gzip.open(self.root/'rpc-evidence.jsonl.gz','ab')
         self.archive_ns=0;self.journal_ns=0;self.snapshot_ns=0
@@ -55,8 +59,12 @@ class Observer:
         if now-self.last_activity_write<5:return
         value=dict(lane=self.lane,pid=os.getpid(),process_nonce=PROCESS_NONCE,
             at_monotonic=now,provider_requests=self.requests,method_counts=dict(self.methods),
-            estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods) if self.lane in ('pons','ramses') else None),
-            errors=dict(self.errors),provider_session_count=len(self.provider_sessions),
+            estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods) if self.lane in ('pump','meteora','pons','ramses') else None),
+            errors=dict(self.errors),provider_method_errors=dict(self.provider_method_errors),
+            local_admission_errors=dict(self.local_admission_errors),
+            provider_http_status_errors=dict(self.provider_http_status_errors),
+            provider_rpc_error_codes=dict(self.provider_rpc_error_codes),
+            provider_session_count=len(self.provider_sessions),
             evidence_qualification_inferred=False)
         before=time.monotonic_ns()
         temporary=self.root/'activity.json.tmp';temporary.write_text(canonical(value))
@@ -107,7 +115,11 @@ class Observer:
                       uptime_seconds=time.monotonic()-self.started,
                       last_progress_monotonic=self.last_progress,
                       provider_requests=self.requests,method_counts=dict(self.methods),
-                      errors=dict(self.errors),provider_session_count=len(self.provider_sessions),
+                      errors=dict(self.errors),provider_method_errors=dict(self.provider_method_errors),
+                      local_admission_errors=dict(self.local_admission_errors),
+            provider_http_status_errors=dict(self.provider_http_status_errors),
+                      provider_rpc_error_codes=dict(self.provider_rpc_error_codes),
+                      provider_session_count=len(self.provider_sessions),
                       rpc_latency_seconds=dict(p50=quant(.5),p95=quant(.95),p99=quant(.99)),
                       telemetry_archive_seconds=self.archive_ns/1e9,
                       telemetry_cost=dict(raw_archive_seconds=self.archive_ns/1e9,
@@ -116,7 +128,7 @@ class Observer:
                           scope='serialized observer wall time; excludes strategy-native telemetry, lock wait and final snapshot'),
                       runtime_resources=process_resources(),
                       estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods)
-                          if self.lane in ('pons','ramses') else None),
+                          if self.lane in ('pump','meteora','pons','ramses') else None),
                       report=body,
                       terminal_monotonic=time.monotonic() if phase in ("returned","failed") else None)
             raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
@@ -145,7 +157,7 @@ class Observer:
             finally:self.context.priority=previous
         setattr(module,name,run)
 
-    def wrap_transport(self, cls, name, *, batch=False, solana=False):
+    def wrap_transport(self, cls, name, *, batch=False, solana=False, local_error_type=TimeoutError):
         original=getattr(cls,name)
         observer=self
         @functools.wraps(original)
@@ -168,13 +180,16 @@ class Observer:
                 wire=list(args[0]);methods=[x[0] for x in wire]
             else:
                 methods=[args[0]];wire=[(args[0],args[1])]
+            instance.evidence_local_failure=None
             try:
                 priority=getattr(observer.context,"priority",10 if solana else 50)
                 if priority!=0:priority=getattr(instance,'evidence_priority',priority)
                 evidence_deadline=getattr(instance,'evidence_deadline',None)
                 remaining=30 if evidence_deadline is None else min(30,evidence_deadline-(time.time() if solana else time.monotonic()))
-                if remaining<=0:raise TimeoutError('evidence_deadline_before_transport')
-                queue_wait=(observer.governor.acquire(network,observer.lane,priority,deadline_seconds=remaining)
+                if remaining<=0:raise local_error_type('evidence_deadline_before_transport')
+                queue_wait=(observer.governor.acquire(
+                    network,observer.lane,priority,deadline_seconds=remaining,
+                    methods=methods)
                             if solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB") else None)
                 callback=getattr(instance,'evidence_transport_callback',None)
                 if callback is not None:callback()
@@ -195,6 +210,11 @@ class Observer:
                 if match:rpc_error_codes=[int(match[1])]
                 # Only stable code-shaped errors are emitted; no free-form URLs.
                 error=message if message.replace('_','').replace('-','').isalnum() and len(message)<160 else type(exc).__name__
+                # Admission happens outside the native HTTP error boundary. Keep
+                # its lane-native exception contract so one expired consumer
+                # cannot terminate the whole observer/cohort process.
+                if transport_started is None and isinstance(exc,TimeoutError):
+                    raise local_error_type(error) from None
                 raise
             finally:
                 elapsed=(time.monotonic_ns()-started)/1e9
@@ -204,18 +224,47 @@ class Observer:
                     if transport_started is not None:
                         transport_elapsed=(time.monotonic_ns()-transport_started)/1e9
                         observer.requests+=1;observer.methods.update(methods);observer.latencies.append(transport_elapsed)
+                    unique_methods=list(dict.fromkeys(methods))
                     if error:
                         observer.errors[error]+=1
-                    if (http_status==429 or 429 in rpc_error_codes or (error and "429" in error)) and (solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB")):
-                        observer.governor.rate_limited(network)
+                        for method in unique_methods:
+                            target=(observer.provider_method_errors if transport_started is not None
+                                    else observer.local_admission_errors)
+                            target[f"{method}:{error}"]+=1
+                        if transport_started is None:instance.evidence_local_failure=error
+                    if http_status is not None and http_status!=200:
+                        for method in unique_methods:
+                            observer.provider_http_status_errors[
+                                f"{method}:{int(http_status)}"]+=1
+                            if int(http_status)==429:
+                                observer.errors[f"{method}:http_429"]+=1
+                    for code in rpc_error_codes:
+                        for method in unique_methods:
+                            observer.provider_rpc_error_codes[
+                                f"{method}:{code}"]+=1
+                            if code in (429,-32005):
+                                observer.errors[f"{method}:rpc_{code}"]+=1
+                    limited=(http_status==429 or 429 in rpc_error_codes or -32005 in rpc_error_codes
+                             or (error and "429" in error))
+                    if limited and (solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB")):
+                        observer.governor.rate_limited(network,unique_methods)
+                    elif (transport_started is not None and error is None
+                          and not rpc_error_codes
+                          and (solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB"))):
+                        observer.governor.succeeded(network,unique_methods)
                     before=time.monotonic_ns()
                     record=dict(sequence=observer.raw_records,lane=observer.lane,session=session,
                                 transport_attempted=transport_started is not None,transport_duration_seconds=transport_elapsed,
                                 transport_started_monotonic_ns=transport_started,
                                 observed_at_ns=time.time_ns(),duration_seconds=elapsed,
                                 request=wire,response=result,error=error,queue_wait_seconds=queue_wait,
+                                physical_request_id=f'{session}:{observer.raw_records}',
+                                parameter_identity=digest(wire),original_deadline=evidence_deadline,
+                                failure_domain=('local_admission' if error and transport_started is None
+                                                else 'provider' if error else None),
                                 http_status=http_status,json_rpc_error_codes=rpc_error_codes,
                                 retry_count=getattr(instance,"retry_count",getattr(instance,"retries",None)),
+                                evidence_priority=priority,evidence_kind=getattr(instance,'evidence_kind',None),
                                 authentication='raw_transport_response_requires_lane_verification')
                     observer.raw.write((canonical(record)+'\n').encode());observer.raw.flush();os.fsync(observer.raw.fileno())
                     observer.archive_ns+=time.monotonic_ns()-before
@@ -251,7 +300,13 @@ def policy_for(lane):
         from meme_machine.pump_acceleration_strategy import policy_hash
         return policy_hash()
     if lane=='meteora':
-        return digest(json.loads(Path('SOLANA_DLMM_INDEPENDENT_V1.json').read_text()))
+        path=Path('SOLANA_DLMM_INDEPENDENT_V1.json')
+        source=json.loads((Path(__file__).parent/'sources.json').read_text())['lanes']['meteora']
+        if hashlib.sha256(path.read_bytes()).hexdigest()!=source['file_hashes'][path.name]:
+            raise ValueError('frozen_source_file_drift:meteora')
+        # The execution policy embeds a label predating its description/duplicate-field
+        # synchronization. Bind the label to exact source bytes, never trust it alone.
+        return source['policy_hash']
     name='pons_selective_continuation' if lane=='pons' else 'ramses_strategy'
     return importlib.import_module('robinhood_research.'+name).POLICY_HASH
 
@@ -270,9 +325,10 @@ def main():
         from meme_machine.solana_read_rpc import _ReadOnlyFailoverMixin
         observer.wrap_transport(_ReadOnlyFailoverMixin,'_http',solana=True)
     else:
+        from robinhood_research import BoundaryError
         from robinhood_research.provider import Rpc
-        observer.wrap_transport(Rpc,'_http')
-        observer.wrap_transport(Rpc,'_http_batch',batch=True)
+        observer.wrap_transport(Rpc,'_http',local_error_type=BoundaryError)
+        observer.wrap_transport(Rpc,'_http_batch',batch=True,local_error_type=BoundaryError)
     try:
         if args.lane=='pump':
             os.environ['MM_PUMP_ACCELERATION_DISCOVERY_SECONDS']=str(args.seconds)

@@ -20,7 +20,15 @@
     "eth_call": 26,
     "eth_getLogs": 60,
     "alchemy_getTransactionReceipts": 250,
-    "alchemy_getAssetTransfers": 120
+    "alchemy_getAssetTransfers": 120,
+    "getGenesisHash": 10,
+    "getAccountInfo": 10,
+    "getBlockTime": 20,
+    "getMultipleAccounts": 20,
+    "getProgramAccounts": 20,
+    "getTokenLargestAccounts": 20,
+    "getSignaturesForAddress": 40,
+    "getTransaction": 40
   },
   "throughput_overrides": {
     "eth_chainId": 5,

@@ -97,10 +97,16 @@ def summarize(lane, report):
         summary=report.get('summary') or {}
         result['funnel']=dict(evaluated=summary.get('enrolled',len(report.get('rows',[]))),
                              qualified=summary.get('qualified',len(report.get('qualifiers',[]))))
+        writeoffs=0
         for life in report.get('lifecycles',[]):
             pos=life.get('final_position') or {}
+            if (life.get('settlement_kind')=='liquidity_writeoff' or
+                    pos.get('reason')=='liquidity_writeoff:impossible_full_position_exit'):
+                writeoffs+=1
+                continue
             if pos.get('status')=='settled' and pos.get('entry_tokens',0)>0:
                 result['natural_settled']+=1
+        result['funnel']['liquidity_writeoffs']=writeoffs
         result['open_positions']=sum((x.get('reconciliation') or {}).get('open_exposure',0)>0 for x in report.get('lifecycles',[]))
         result['terminal_reasons']=(report.get('summary') or {}).get('rejection_counts',{})
         result['cohort_accounting']=report.get('cohort_accounting')
@@ -262,4 +268,16 @@ def provider_efficiency(result):
             cu_per_complete_vector=ratio(complete),cu_per_scan=ratio(scans),
             evaluated=evaluated,complete_vectors=complete,scans=scans,
             cache=(result.get('shared_provider',{}).get('robinhood_reuse',{}).get('lanes',{}).get(lane)))
+    from certification.cu import estimate
+    for lane in ('pump','meteora'):
+        row=result.get('lanes',{}).get(lane,{})
+        methods=row.get('method_counts',{});physical=row.get('provider_requests')
+        logical=sum(methods.values()) if methods else None
+        f=row.get('funnel',{});complete=f.get('evidence_complete') if lane=='pump' else f.get('complete_economic_vectors')
+        ratio=lambda value:value/complete if value is not None and isinstance(complete,(int,float)) and complete>0 else None
+        row['rpc_efficiency']=dict(physical_http_transports=physical,logical_rpc_members=logical,methods=methods,
+            estimated_cu=estimate(methods),complete_evidence_vectors=complete,
+            physical_per_complete=ratio(physical),logical_per_complete=ratio(logical),
+            cache=result.get('shared_provider',{}).get('solana_reuse',{}).get('lanes',{}).get(lane),
+            denominator_status='measured' if complete else 'zero_or_unmeasured_no_efficiency_claim')
     return result

@@ -1,3 +1,5 @@
+> Superseded launch instructions: follow SOLANA_ALCHEMY_EFFICIENCY_HANDOFF.md. Robinhood-only validation never launched; the next authorized validation contains both network repairs and current execution-certification sources. Recurring runs remain stopped.
+
 # One-hour paper repair campaign — September 20, 2026
 
 The user replaced the four-hour schedule with successive **one-hour observation
@@ -200,3 +202,13 @@ The later focused Alchemy/Robinhood request supersedes handoff-only: one smoke
 and one independent one-hour comparison are authorized after all exact-revision
 gates and no competing live jobs. See ALCHEMY_EFFICIENCY_HANDOFF.md. The recurring
 overnight loop stays stopped; no automatic successor is authorized.
+
+## Terminal combined smoke and post-fill recovery
+
+Run [35521414965](https://github.com/levonmendall/The-Meme-Machine/actions/runs/35521414965), exact 450ef83c71fa8fdeac5734bb9ac5b8755fc92e9e, ended ENGINEERING_FAIL after 600.133 uninterrupted smoke seconds and normal drain. All four processes exited normally with zero restarts. The hourly job was skipped. Artifact 10608788041 is retained with SHA256 eb72373a2f0d2213d10358395a90600e8ba07ce45bc2fbbf555c4a0aa6ec3b53. Machine-readable review: results/solana-smoke-review-35521414965.json.
+
+The terminal artifact confirms both the publisher overflow and one Pons filled position abandoned after a provider 429 during signal refresh. One separate natural Pons lifecycle settled with replay-verified cost-complete net loss of 67,640,118,788,095 native quote units; zero forced settlements. Historical unresolved exposure remains preserved, never cancelled or relabeled settled. Pump produced 14 complete observations (4 unique complete candidates), Meteora 4 complete economic vectors, Ramses 2 scans. All 86 Solana physical queue deadlines were background prefetch; three foreground attempts expired locally. Two Solana 429s were getProgramAccounts. These are smoke observations, not a successful one-hour comparison.
+
+The new Pons overlay retries only allowlisted transient post-fill provider boundaries, preserving the same lifecycle, original qualification timestamp, original hold clock and any pending exit amount/due. Five bounded recoveries are durable and observable; persistent pressure or authentication failure retains exposure and fails certification. No entry is recreated. Four focused real-ledger regressions cover signal recovery, pending-exit recovery, persistent pressure and authentication rejection.
+
+All 1,185 lane tests (Pump 281, Meteora 385, Pons 261, Ramses 258), 64 supervisor tests and three resource gates pass; exact source/policy/config/overlay integrity passes. Full transcripts: results/solana-recovery-validation/. Remote source heads were re-fetched and remain unchanged. No competing live workflow was active before preparing the replacement. The next marker push must pass its own hosted gates and a fresh 600-second smoke/drain before one independent 3,600-second campaign. Efficiency acceptance remains unproven.

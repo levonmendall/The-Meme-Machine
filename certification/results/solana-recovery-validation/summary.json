@@ -1,0 +1,12 @@
+{
+  "pump": 281,
+  "meteora": 385,
+  "pons": 261,
+  "ramses": 258,
+  "total_lane_tests": 1185,
+  "supervisor_tests": 64,
+  "resource_gates": 3,
+  "failures": 0,
+  "source_policy_config_overlay_integrity": "PASS",
+  "new_position_recovery_regressions": 4
+}

@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-20T08:43:00Z",
+  "verified_at": "2026-09-20-execution-certification-v1",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
-      "source_branch": "feat/pump-acceleration-independent-v1",
-      "source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
-      "strategy_version": "pump-acceleration-independent-v1",
-      "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+      "source_branch": "cert/pump-execution-cert-v1",
+      "source_sha": "04c99ca3125747dc8bfc6f655fec7533f8ac8156",
+      "strategy_version": "pump-acceleration-independent-v1/execution-certification-v1",
+      "policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e",
       "file_hashes": {
-        "meme_machine/pump_acceleration_strategy.py": "e69b14cd077e35398a253a4a27f29b8b5c7f3a2454bdbcd0330a7b929c505570",
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
-        ".github/workflows/pump-acceleration-natural-prospective.yml": "2d5e27c8d1808d5a84b521b42b6b4cbce70eef9b5ad6bcdfe9c1d412e5a27232"
+        ".github/workflows/pump-acceleration-natural-prospective.yml": "2d5e27c8d1808d5a84b521b42b6b4cbce70eef9b5ad6bcdfe9c1d412e5a27232",
+        "meme_machine/pump_acceleration_strategy.py": "ab5f149e315b438d959f623d051b394a44509b7a8af892ba8ad5f9bf197fe9d4"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -23,18 +23,33 @@
         "6377b4c46da95c4591848939c714f7766e789acd",
         "7774ebe0f712a0e12848de1c54aaaf44df8480e7",
         "4d094388b3101f1e8ff11357ac8a044b0ef75c63",
-        "110dbf34b054daf7a35c72d94196ec7ff0c2c331"
+        "110dbf34b054daf7a35c72d94196ec7ff0c2c331",
+        "edfd9c1f23f4f958780e441eb19bf397d2ac82ca",
+        "fa6ffbf0972676202f110f52425872b69f4ea627",
+        "04c99ca3125747dc8bfc6f655fec7533f8ac8156"
       ],
-      "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd"
+      "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
+      "execution_certification": {
+        "profitability_authority": false,
+        "target_restrictiveness": "~5/10",
+        "original_source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce"
+      },
+      "prospect_admission": {
+        "market_observation_scope": "all finalized Pump events remain observable",
+        "investment_evaluation_scope": "late-curve candidates only after finalized-stream progress, trajectory, independent-demand and extension gates can satisfy the frozen Pump strategy; post-graduation modes are limited to authenticated graduations inside their entry horizons",
+        "pre_rpc_strategy_screen": true,
+        "permanent_exclusion_on_screen_failure": false,
+        "strategy_thresholds_changed": false
+      }
     },
     "meteora": {
-      "source_branch": "research/solana-dlmm-independent-v1",
-      "source_sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
-      "strategy_version": "solana-dlmm-independent-v1.7",
-      "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+      "source_branch": "cert/meteora-machinery-proof-v2",
+      "source_sha": "43bbcce60913a9a87404fe6563585159fb72352f",
+      "strategy_version": "solana-dlmm-independent-v1.9-machinery-proof-v2",
+      "policy_hash": "fce99fc6da25649d2c362973d5c5bb963faf2e9bc23f369a5216b99fbebb27db",
       "file_hashes": {
-        "SOLANA_DLMM_INDEPENDENT_V1.json": "4932d8d9e28f24baccc7917ef59a1fa95218facb8667a9683d6bb41296afee20",
-        ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe"
+        ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
+        "SOLANA_DLMM_INDEPENDENT_V1.json": "ee771dedca53711393143c895acc282254cd71af817bf40bab6bafa83d538b01"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -48,19 +63,61 @@
         "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
         "45041de0669c9f0db2dc27793ab2da2a77e72a25",
         "686e1938da1ba1a275b65fe1e7be0694ce697a04",
-        "00ebf7ffb3e13911d6c842898c98312c98d4e628"
+        "00ebf7ffb3e13911d6c842898c98312c98d4e628",
+        "abb276d4ab01be596110c93616ac683f4064f128",
+        "d670e7881863ff74f4a11c74f372d7874397ab30",
+        "9ba576ec66c1dd69936a051c15cf371e3b0c1831",
+        "2e25ed26600697ad8bf094b443631d222f2a2250",
+        "0d9176c46e95cb758cdbada1ea4756f3fc3c09c0",
+        "226c3fceb9bac5f497ed969ef4c18baeeaaa944f",
+        "29d050b218969e4c7761346737d082bf1db382ec",
+        "c8a6b2452dd6a5318a80f835dd75970489255351",
+        "9331b02c4d9ac87612572f263434f8ea20e96542",
+        "43bbcce60913a9a87404fe6563585159fb72352f"
       ],
       "paper_starting_capital_lamports": 1000000000,
-      "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0"
+      "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
+      "execution_certification": {
+        "profitability_authority": false,
+        "target_restrictiveness": "machinery-proof-only",
+        "original_source_sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
+        "revision": "machinery-proof-v2",
+        "purpose": "prove one natural paper DLMM lifecycle before economic tightening",
+        "machinery_proof_only": true,
+        "one_natural_settled_lifecycle_target": true,
+        "prior_execution_certification_source_sha": "29d050b218969e4c7761346737d082bf1db382ec"
+      },
+      "prospect_admission": {
+        "market_observation_scope": "observable SOL-paired Meteora DLMM inventory and history",
+        "investment_evaluation_scope": "exactly-one-WSOL-leg, nonblacklisted pools that pass the frozen volume/fee acceleration regime before fresh-swap warmup and economic reconstruction",
+        "current_behavior_already_strategy_shaped": true,
+        "strategy_thresholds_changed": false
+      },
+      "machinery_proof": {
+        "min_two_way_balance": 0,
+        "min_expected_net_lamports": -1000000,
+        "unchanged": [
+          "fresh_swap_authentication",
+          "12_second_warmup",
+          "5x_capacity",
+          "drift_0.75",
+          "stress_unwind_150bps",
+          "position_size",
+          "costs",
+          "finality",
+          "freshness",
+          "paper_accounting"
+        ]
+      }
     },
     "pons": {
-      "source_branch": "feat/pons-selective-continuation-v1",
-      "source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
-      "strategy_version": "pons-selective-continuation-v1",
-      "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+      "source_branch": "cert/pons-execution-cert-v1",
+      "source_sha": "c692fe446bdee4ea1179da27a3f0c9f2f281f118",
+      "strategy_version": "pons-selective-continuation-v1/execution-certification-v1",
+      "policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
       "file_hashes": {
-        "robinhood_research/pons_selective_continuation.py": "bf872cd83db8d4f187f1abfaacb2537441cee07e38f47b17d73805a23ceb32f8",
-        ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7"
+        ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
+        "robinhood_research/pons_selective_continuation.py": "b2ef248ddcda0c446381fcb307b6115a8bd10c3b84d092366356b60be764adc7"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
@@ -76,16 +133,29 @@
         "38d264c9dd878e2f70ffb461c18bd12ecdd7c1d6",
         "40c66a68704fab147dacbfc25a0819b5a6f9c844"
       ],
-      "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1"
+      "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
+      "execution_certification": {
+        "profitability_authority": false,
+        "target_restrictiveness": "~5/10",
+        "original_source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366"
+      },
+      "prospect_admission": {
+        "market_observation_scope": "all authenticated Pons V2 buy/sell logs remain observable",
+        "investment_evaluation_scope": "after minimal authenticated current-state acquisition, only ungraduated native-quote curves inside the frozen progress band with acceptable snipe and creator tax are promoted to trajectory/window investment evaluation",
+        "minimal_state_preflight": true,
+        "trajectory_window_after_preflight_only": true,
+        "permanent_exclusion_on_screen_failure": false,
+        "strategy_thresholds_changed": false
+      }
     },
     "ramses": {
-      "source_branch": "feat/robinhood-research-foundation",
-      "source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
-      "strategy_version": "ramses-fee-pulse-v1",
-      "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+      "source_branch": "cert/ramses-machinery-proof-v2",
+      "source_sha": "d252724f081a9ca0b3bc5fbd8e28b191568c6499",
+      "strategy_version": "ramses-fee-pulse-v1/machinery-proof-v2",
+      "policy_hash": "5e1560af8b4d40f72e60cd93b52ede575aecbac58fd4cad6c02cc2c25fdeeaf0",
       "file_hashes": {
-        "robinhood_research/ramses_strategy.py": "adefa16bec0a9cb8ebe4de4724ea16be1cd1de90263bc78f976f5ad28bf96fae",
-        ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023"
+        ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
+        "robinhood_research/ramses_strategy.py": "9527e8a8fe3e2302500fd0411da7d52388716a84c693949a6b66146bc0a32733"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
@@ -96,9 +166,71 @@
         "3ec74dfa223d3eecae3c3d525ceb27bcdf63d5f6",
         "b3ec5aaca230f2aa9c0e894c9912722a56f2eef1",
         "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
-        "325c6052056500146b88d1ad3e83bf5db5b9657a"
+        "325c6052056500146b88d1ad3e83bf5db5b9657a",
+        "f9d86beb8c9ac613b483dcceef43d9d661f700e7",
+        "d252724f081a9ca0b3bc5fbd8e28b191568c6499"
       ],
-      "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a"
+      "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
+      "execution_certification": {
+        "profitability_authority": false,
+        "target_restrictiveness": "machinery-proof-only",
+        "original_source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
+        "revision": "machinery-proof-v2",
+        "purpose": "prove one natural paper DLMM lifecycle before economic tightening",
+        "machinery_proof_only": true,
+        "one_natural_settled_lifecycle_target": true,
+        "prior_execution_certification_source_sha": "6b7ddd69940f5c9e056b2dca61c443450ca9965e"
+      },
+      "prospect_admission": {
+        "market_observation_scope": "complete authenticated Ramses factory inventory for observability",
+        "investment_evaluation_scope": "bounded pools with recent finalized swaps; Fee Pulse classification is performed only on that active cohort",
+        "factory_enumeration_is_inventory_not_investment_evaluation": true,
+        "current_behavior_already_strategy_shaped": true,
+        "strategy_thresholds_changed": false
+      },
+      "machinery_proof": {
+        "min_volume_acceleration_milli": 0,
+        "min_chop_ratio_milli": 0,
+        "max_flow_imbalance_bps": 10000,
+        "min_projected_return_bps": -150000,
+        "observed_smoke_candidate_projected_return_bps": -134171,
+        "unchanged": [
+          "authenticated_finalized_swaps",
+          "complete_state",
+          "cost_evidence",
+          "10pct_active_liquidity_position_cap",
+          "controller",
+          "ledger",
+          "replay",
+          "unwind",
+          "paper_only"
+        ]
+      }
     }
+  },
+  "execution_certification": {
+    "revision": "machinery-proof-v2",
+    "purpose": "prove natural paper DLMM machinery before profitability tightening",
+    "profitability_authority": false,
+    "target_strategy_restrictiveness": "machinery-proof-only for Meteora and Ramses; Pump/Pons unchanged",
+    "validation_status": "one_shot_observed_followup_requested",
+    "validation_run_requested": true,
+    "max_additional_observed_runs": 1
+  },
+  "composition": {
+    "execution_integration_sha": "960980c4412f525b15568401a2b8f0c2c25bdbab",
+    "robinhood_efficiency_sha": "a34c5d4dce4dc93445b837cfeeb51901825bdb9f",
+    "four_lane_observability_sha": "acb7e51127c66e89fc524d81408bdb4a0afec629"
+  },
+  "prospect_admission": {
+    "revision": "strategy-prospect-admission-v1",
+    "purpose": "keep broad market observability while limiting investment evaluation to prospects defined by each frozen strategy",
+    "strategy_thresholds_changed": false,
+    "freshness_finality_changed": false,
+    "paper_accounting_changed": false,
+    "validation_status": "deterministic_in_progress",
+    "validation_run_requested": true,
+    "source_sha": "0982519a68222b7cd0640981a7ac4a8ac7c119dd",
+    "integration": "semantic delta composed in canonical overlays"
   }
 }

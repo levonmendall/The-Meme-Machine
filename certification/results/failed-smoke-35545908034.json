@@ -1,0 +1,353 @@
+{
+  "run_id": 35545908034,
+  "sha": "9ef7addcf9d5fb0ca2cc106f0f0a512b4c475bef",
+  "artifact_id": 10616574835,
+  "artifact_sha256": "e5a9566fb59b6e7e2df34c974437004b1dcc37bdf7f9ec375e2ba33c8bf36752",
+  "overlap_seconds": 135.205191673,
+  "engineering": "FAIL",
+  "natural": "NATURAL_INCOMPLETE",
+  "cancelled_after_no_open_exposure": true,
+  "lanes": {
+    "pump": {
+      "physical_requests": 748,
+      "local_raw_failures": {
+        "certification_provider_queue_deadline": 10,
+        "evidence_deadline_before_transport": 22
+      },
+      "http_status_errors": {},
+      "rpc_error_codes": {},
+      "open_positions": 0,
+      "natural": 0,
+      "forced": 0,
+      "funnel": {
+        "discovered": 428,
+        "entry_cancelled": 0,
+        "entry_filled": 0,
+        "entry_reserved": 0,
+        "evidence_complete": 7,
+        "qualified": 0,
+        "settled": 0,
+        "unique_admitted": 11,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 0,
+        "unique_current_state_complete": 0,
+        "unique_current_state_queued": 0,
+        "unique_current_state_requested": 0,
+        "unique_deployed": 0,
+        "unique_discovered": 428,
+        "unique_economic_vector": 0,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 11,
+        "unique_evidence_complete": 2,
+        "unique_evidence_requested": 11,
+        "unique_forward_observation": 0,
+        "unique_fresh_state": 0,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 0,
+        "unique_prospect_admitted": 9,
+        "unique_prospect_incomplete": 6,
+        "unique_prospect_observed": 25,
+        "unique_prospect_screened": 20,
+        "unique_prospective_range": 0,
+        "unique_provider_failed": 0,
+        "unique_qualified": 0,
+        "unique_reconstruction_complete": 0,
+        "unique_reconstruction_incomplete": 9,
+        "unique_reconstruction_started": 0,
+        "unique_rejected": 11,
+        "unique_screened": 9,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 0,
+        "unique_stale_before_evidence": 0,
+        "unique_stale_during_evidence": 0,
+        "unique_strategy_rejection": 20,
+        "unique_terminal": 3,
+        "unique_trigger_authenticated": 0,
+        "unique_trigger_observed": 0,
+        "unique_trigger_terminal": 0,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 0,
+        "unique_warmup_started": 0
+      },
+      "raw_complete_records": 782,
+      "raw_gzip_footer_incomplete": true,
+      "program_account_scans": [],
+      "consumer_work": {
+        "acquisition_failures": {
+          "expired_before_transport": 12,
+          "provider_unavailable": 8
+        },
+        "acquisition_phase_attempts": {
+          "enqueued": 248,
+          "expired_before_transport": 12,
+          "lease_coalescing_wait": 1,
+          "physical_capacity_wait": 4,
+          "post_transport_late_result": 26,
+          "provider_transport": 495
+        },
+        "by_kind": {
+          "pump_window": {
+            "consumer_deadline_expired": 6652,
+            "evidence_complete": 597
+          },
+          "research_history": {
+            "evidence_complete": 22
+          },
+          "stream_prefetch": {
+            "consumer_deadline_expired": 400,
+            "consumer_retired": 17,
+            "evidence_complete": 1691,
+            "waiting": 100
+          }
+        },
+        "candidate_interests": 9,
+        "consumers": [
+          {
+            "count": 6652,
+            "kind": "pump_window",
+            "state": "consumer_deadline_expired"
+          },
+          {
+            "count": 400,
+            "kind": "stream_prefetch",
+            "state": "consumer_deadline_expired"
+          },
+          {
+            "count": 17,
+            "kind": "stream_prefetch",
+            "state": "consumer_retired"
+          },
+          {
+            "count": 597,
+            "kind": "pump_window",
+            "state": "evidence_complete"
+          },
+          {
+            "count": 22,
+            "kind": "research_history",
+            "state": "evidence_complete"
+          },
+          {
+            "count": 1691,
+            "kind": "stream_prefetch",
+            "state": "evidence_complete"
+          },
+          {
+            "count": 100,
+            "kind": "stream_prefetch",
+            "state": "waiting"
+          }
+        ],
+        "deadline_decomposition": [
+          {
+            "count": 80,
+            "kind": "pump_window",
+            "stage": "expired_after_transport_started"
+          },
+          {
+            "count": 6572,
+            "kind": "pump_window",
+            "stage": "expired_before_transport"
+          },
+          {
+            "count": 36,
+            "kind": "stream_prefetch",
+            "stage": "expired_after_transport_started"
+          },
+          {
+            "count": 364,
+            "kind": "stream_prefetch",
+            "stage": "expired_before_transport"
+          }
+        ],
+        "lane": "pump",
+        "opportunity_denominator_source": "native_candidate_funnel_not_consumer_count",
+        "scope": "lane_attributed_logical_consumers; candidate_states_may_overlap",
+        "shared_acquisition_failures": {
+          "expired_before_transport": 12,
+          "provider_unavailable": 8
+        },
+        "shared_overdue_active_jobs": 0,
+        "unique_candidate_acquisition_failures": {
+          "expired_before_transport": 3
+        },
+        "unique_candidate_states": {
+          "consumer_deadline_expired": 9,
+          "consumer_retired": 2,
+          "evidence_complete": 9,
+          "waiting": 6
+        }
+      }
+    },
+    "meteora": {
+      "physical_requests": 367,
+      "local_raw_failures": {},
+      "http_status_errors": {},
+      "rpc_error_codes": {},
+      "open_positions": 0,
+      "natural": 0,
+      "forced": 0,
+      "funnel": {
+        "complete_economic_vectors": 3,
+        "complete_lifecycles": 0,
+        "complete_observations": 3,
+        "discovered": 52,
+        "screened": 21,
+        "unique_admitted": 11,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 1,
+        "unique_deployed": 0,
+        "unique_discovered": 52,
+        "unique_economic_vector": 3,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 3,
+        "unique_evidence_complete": 3,
+        "unique_evidence_requested": 11,
+        "unique_forward_observation": 6,
+        "unique_fresh_state": 6,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 5,
+        "unique_prospective_range": 3,
+        "unique_provider_failed": 0,
+        "unique_qualified": 0,
+        "unique_reconstruction_complete": 6,
+        "unique_reconstruction_incomplete": 16,
+        "unique_reconstruction_started": 6,
+        "unique_rejected": 3,
+        "unique_screened": 21,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 0,
+        "unique_stale_before_evidence": 0,
+        "unique_stale_during_evidence": 0,
+        "unique_strategy_rejection": 3,
+        "unique_terminal": 21,
+        "unique_trigger_authenticated": 7,
+        "unique_trigger_observed": 7,
+        "unique_trigger_terminal": 8,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 4,
+        "unique_warmup_started": 6
+      },
+      "raw_complete_records": 367,
+      "raw_gzip_footer_incomplete": false
+    },
+    "pons": {
+      "physical_requests": 163,
+      "local_raw_failures": {
+        "evidence_deadline_before_transport": 1
+      },
+      "http_status_errors": {},
+      "rpc_error_codes": {},
+      "open_positions": 0,
+      "natural": 0,
+      "forced": 0,
+      "funnel": {
+        "complete_evidence_vectors": 4,
+        "evaluated": 27,
+        "liquidity_writeoffs": 0,
+        "qualified": 0,
+        "unique_admitted": 5,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 1,
+        "unique_current_state_complete": 22,
+        "unique_current_state_queued": 38,
+        "unique_current_state_requested": 28,
+        "unique_deployed": 0,
+        "unique_discovered": 201,
+        "unique_economic_vector": 0,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 4,
+        "unique_evidence_complete": 4,
+        "unique_evidence_requested": 5,
+        "unique_forward_observation": 0,
+        "unique_fresh_state": 0,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 0,
+        "unique_prospect_admitted": 5,
+        "unique_prospect_incomplete": 0,
+        "unique_prospect_observed": 0,
+        "unique_prospect_screened": 17,
+        "unique_prospective_range": 0,
+        "unique_provider_failed": 0,
+        "unique_qualified": 0,
+        "unique_reconstruction_complete": 0,
+        "unique_reconstruction_incomplete": 5,
+        "unique_reconstruction_started": 0,
+        "unique_rejected": 19,
+        "unique_screened": 38,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 2,
+        "unique_stale_before_evidence": 8,
+        "unique_stale_during_evidence": 2,
+        "unique_strategy_rejection": 19,
+        "unique_terminal": 18,
+        "unique_trigger_authenticated": 0,
+        "unique_trigger_observed": 0,
+        "unique_trigger_terminal": 0,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 0,
+        "unique_warmup_started": 0
+      },
+      "raw_complete_records": 164,
+      "raw_gzip_footer_incomplete": false,
+      "traceback": "Traceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/home/runner/work/The-Meme-Machine/The-Meme-Machine/certification/worker.py\", line 388, in <module>\n    if __name__=='__main__':main()\n                            ^^^^^^\n  File \"/home/runner/work/The-Meme-Machine/The-Meme-Machine/certification/worker.py\", line 360, in main\n    result=module.run(os.environ.get('MM_ROBINHOOD_READ_RPC_URL',''),campaign=args.campaign)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/_temp/four-lane-worktrees/pons/robinhood_research/pons_selective_cohort.py\", line 567, in run\n    evaluation=evaluate_candidate(\n               ^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/The-Meme-Machine/The-Meme-Machine/certification/worker.py\", line 142, in measured\n    try:return original(*args,**kwargs)\n               ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/_temp/four-lane-worktrees/pons/robinhood_research/pons_selective_acquisition.py\", line 791, in evaluate_candidate\n    candidate=_authenticate_candidate(\n              ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/_temp/four-lane-worktrees/pons/robinhood_research/pons_natural_observation.py\", line 190, in _authenticate_candidate\n    first=rpc.batch(first_calls,scope=\"pons_natural\")\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/_temp/four-lane-worktrees/pons/robinhood_research/pons_selective_acquisition.py\", line 240, in batch\n    values=view_batch(rpc,[x[1] for x in group],scope,self.view_batch_state) if scope in ('pons_natural','pons_selective_trajectory') else rpc.batch([x[1] for x in group],scope=scope)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/_temp/four-lane-worktrees/pons/robinhood_research/view_batch.py\", line 28, in batch\n    if not state.get('supported'):return rpc.batch(calls,scope=scope)\n                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/_temp/four-lane-worktrees/pons/robinhood_research/provider_topology.py\", line 329, in batch\n    values=super().batch([(m,self._wire_params(m,p,k)) for _,m,p,k in pending],scope=scope)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/_temp/four-lane-worktrees/pons/robinhood_research/provider.py\", line 181, in batch\n    return self._http_batch(calls)\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/_temp/four-lane-worktrees/pons/robinhood_research/provider_topology.py\", line 243, in _http_batch\n    return self.shared_admission.invoke(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/_temp/four-lane-worktrees/pons/robinhood_research/provider_admission.py\", line 104, in invoke\n    result=call()\n           ^^^^^^\n  File \"/home/runner/work/_temp/four-lane-worktrees/pons/robinhood_research/provider_topology.py\", line 244, in <lambda>\n    lambda: parent._http_batch(calls),[x[0] for x in calls],\n            ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/The-Meme-Machine/The-Meme-Machine/certification/worker.py\", line 189, in observed\n    if remaining<=0:raise TimeoutError('evidence_deadline_before_transport')\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTimeoutError: evidence_deadline_before_transport\n"
+    },
+    "ramses": {
+      "physical_requests": 130,
+      "local_raw_failures": {},
+      "http_status_errors": {},
+      "rpc_error_codes": {},
+      "open_positions": 0,
+      "natural": 0,
+      "forced": 0,
+      "funnel": {
+        "active_pools": 5,
+        "scans": 3,
+        "unique_admitted": 5,
+        "unique_capacity_censored": 0,
+        "unique_consumer_deadline": 0,
+        "unique_deployed": 0,
+        "unique_discovered": 5,
+        "unique_economic_vector": 0,
+        "unique_entry_cancelled": 0,
+        "unique_entry_filled": 0,
+        "unique_entry_reserved": 0,
+        "unique_evaluated": 5,
+        "unique_evidence_complete": 0,
+        "unique_evidence_requested": 5,
+        "unique_forward_observation": 0,
+        "unique_fresh_state": 0,
+        "unique_local_budget_exhausted": 0,
+        "unique_no_authentic_activity": 0,
+        "unique_prospective_range": 0,
+        "unique_provider_failed": 0,
+        "unique_qualified": 0,
+        "unique_reconstruction_complete": 0,
+        "unique_reconstruction_incomplete": 0,
+        "unique_reconstruction_started": 0,
+        "unique_rejected": 5,
+        "unique_screened": 5,
+        "unique_settled": 0,
+        "unique_stale_after_complete_evidence": 0,
+        "unique_stale_before_evidence": 0,
+        "unique_stale_during_evidence": 0,
+        "unique_strategy_rejection": 5,
+        "unique_terminal": 0,
+        "unique_trigger_authenticated": 0,
+        "unique_trigger_observed": 0,
+        "unique_trigger_terminal": 0,
+        "unique_unwind": 0,
+        "unique_warmup_complete": 0,
+        "unique_warmup_started": 0
+      },
+      "raw_complete_records": 130,
+      "raw_gzip_footer_incomplete": false
+    }
+  }
+}
