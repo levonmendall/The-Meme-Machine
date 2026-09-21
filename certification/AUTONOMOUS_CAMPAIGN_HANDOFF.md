@@ -732,3 +732,21 @@ test_position_sessions.py, test_pons_position_provider_recovery.py (all Pons).
 The hosted builder will canonicalize overlays, verify protected hashes, run all
 lane/supervisor/concurrency/accounting/resource gates, and publish exact Git blobs.
 No live replacement is authorized by this build marker alone.
+
+
+## 2026-09-21: authentication repair fully verified
+
+Hosted build35565696608/job106226950728 at26cc0c67ffd64e909d4f1c35574038cb276752e1
+passed1243 lane tests (Pump292,Meteora392,Pons292,Ramses267),72 supervisor tests
+and all3 resource gates. Six added authentication regressions passed, including
+full-ledger pending-exit preservation and persistent failure retaining exposure.
+Complete transcripts and canonicality proof are appended under
+results/hosted-frozen-repair/authentication/.
+Build archive10623462758,205953 bytes, recorded SHA256
+0e4b2e01b69ba16f32b39ca1cdebdda7866c3a3de25b59f9f2b7fdec8e56c71f.
+Verified Pons overlay SHA256d2e6e5f8be017121664ef3b2d2c796da52da1f6f586d54950825e36f28763c9c.
+All other overlays and manifest hash7c2505cc65e599929e58511f2463875f86228232d30f053754bf0ec9ef639226
+remain unchanged; protected frozen source/config/policy files passed exact hashing.
+This commit composes the verified blobs without a live-launch marker.
+Superseded35563114670 retains lifecycle authority; its fresh replacement must wait
+until that workflow completes and all active/queued market work has been inspected.

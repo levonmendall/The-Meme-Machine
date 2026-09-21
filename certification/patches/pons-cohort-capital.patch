@@ -1767,7 +1767,7 @@ index 94c48d6..9fc8803 100644
 +        if self.on_commit:self.on_commit(self,p)
 +        return p
 diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
-index 36ef0b3..50ae28c 100644
+index 36ef0b3..a2cc870 100644
 --- a/robinhood_research/pons_selective_paper.py
 +++ b/robinhood_research/pons_selective_paper.py
 @@ -7,16 +7,22 @@ other strategy signal/threshold/state is imported.
@@ -2018,7 +2018,7 @@ index 36ef0b3..50ae28c 100644
 +        recovery_streak=0
 +
 +        def record_session_rotation(telemetry,row):
-+            result["provider_sessions"].append(telemetry)
++            if telemetry is not None:result["provider_sessions"].append(telemetry)
 +            rotations=result.setdefault("provider_session_rotations",[])
 +            row=dict(row,at=time.time(),opened_at=opened_at,lifecycle_id=identity,
 +                     elapsed_seconds=int(time.time())-opened_at,process_restart=False)
@@ -2605,37 +2605,64 @@ index 36ef0b3..50ae28c 100644
          if store is not None:
 diff --git a/robinhood_research/position_sessions.py b/robinhood_research/position_sessions.py
 new file mode 100644
-index 0000000..28f8396
+index 0000000..a6f8f6e
 --- /dev/null
 +++ b/robinhood_research/position_sessions.py
-@@ -0,0 +1,47 @@
-+"""Rotate only exhausted local RPC sessions inside an existing paper lifecycle."""
+@@ -0,0 +1,80 @@
++"""Rotate exhausted local RPC sessions without bypassing chain authentication."""
 +from . import BoundaryError
 +
 +
 +class PositionSessions:
 +    def __init__(self,current,factory,on_rotate):
++        # The lifecycle receives its already authenticated entry session.
 +        self._current=current
 +        self._factory=factory
 +        self._on_rotate=on_rotate
++        self._authenticated=True
++        self._authentication_attempt=0
 +
 +    def __getattr__(self,name):
 +        return getattr(self._current,name)
 +
++    def _ensure_authenticated(self):
++        if self._authenticated:return
++        self._authentication_attempt+=1
++        row=dict(reason='session_authentication_recovery',method='eth_chainId',
++                 scope='connectivity',previous_used=self._current.used,
++                 local_session_rotation=False,provider_retry=True,
++                 authentication_attempt=self._authentication_attempt,authenticated=False)
++        try:
++            self._current.verify_chain()
++            self._authenticated=True
++            row['authenticated']=True
++        except BoundaryError as exc:
++            row['boundary']=str(exc)
++            raise
++        finally:
++            # The current session remains current; do not count its telemetry
++            # twice or create a new session to evade an authentication failure.
++            self._on_rotate(None,row)
++
 +    def rotate_if_needed(self):
++        self._ensure_authenticated()
 +        if self._current.used>145:self._rotate('iteration_headroom',None,None)
 +
 +    def _rotate(self,reason,method,scope):
 +        old=self._current
 +        row=dict(reason=reason,method=method,scope=scope,previous_used=old.used,
-+                 local_session_rotation=True,provider_retry=False,authenticated=False)
++                 local_session_rotation=True,provider_retry=False,
++                 authentication_attempt=1,authenticated=False)
 +        try:
 +            new=self._factory()
 +            for name in ('limit','per_scope'):
 +                if hasattr(old,name) and getattr(new,name,None)!=getattr(old,name):
 +                    raise BoundaryError('position_session_configuration_drift')
 +            self._current=new
++            self._authenticated=False
++            self._authentication_attempt=1
 +            new.verify_chain()
++            self._authenticated=True
 +            row['authenticated']=True
 +        except BoundaryError as exc:
 +            row['boundary']=str(exc)
@@ -2644,13 +2671,19 @@ index 0000000..28f8396
 +            self._on_rotate(old.telemetry(),row)
 +
 +    def _invoke(self,operation,args,kwargs):
-+        try:return getattr(self._current,operation)(*args,**kwargs)
++        self._ensure_authenticated()
++        if operation=='verify_chain':self._authenticated=False
++        try:
++            value=getattr(self._current,operation)(*args,**kwargs)
++            if operation=='verify_chain':self._authenticated=True
++            return value
 +        except BoundaryError as exc:
 +            if str(exc)!='provider_session_budget_exhausted':raise
 +        # Budget checks precede transport. Retry only the rejected operation once
 +        # on a newly authenticated session, not the monitor/qualification/entry.
 +        method=args[0] if operation=='call' and args else operation
 +        self._rotate('local_session_budget',method,kwargs.get('scope'))
++        if operation=='verify_chain':return None
 +        return getattr(self._current,operation)(*args,**kwargs)
 +
 +    def call(self,*args,**kwargs):return self._invoke('call',args,kwargs)
@@ -3725,10 +3758,10 @@ index 0000000..62c04e5
 +if __name__=='__main__':unittest.main()
 diff --git a/robinhood_tests/test_pons_position_provider_recovery.py b/robinhood_tests/test_pons_position_provider_recovery.py
 new file mode 100644
-index 0000000..05d7463
+index 0000000..6438c09
 --- /dev/null
 +++ b/robinhood_tests/test_pons_position_provider_recovery.py
-@@ -0,0 +1,183 @@
+@@ -0,0 +1,220 @@
 +"""A transport failure after a real paper fill must not abandon its lifecycle."""
 +import json,tempfile,unittest
 +from contextlib import ExitStack
@@ -3753,10 +3786,18 @@ index 0000000..05d7463
 +            candidate=dict(receipt={'gasUsed':hex(21000)},curve='m',state=state,report={}),
 +            token='token',curve='m',source_transaction='source',market_events=[])
 +        rpc=MagicMock();rpc.used=0;rpc.telemetry.return_value={}
-+        budget_calls=[]
++        budget_calls=[];auth_calls=[]
++        def authenticate():
++            auth_calls.append(True)
++            if fail_at in ('pending_session_auth','persistent_session_auth') and len(auth_calls)>=2:
++                if fail_at=='persistent_session_auth' or len(auth_calls)==2:
++                    raise BoundaryError('provider_rpc_429')
++        rpc.verify_chain.side_effect=authenticate
 +        def budget_read(*args,**kwargs):
 +            budget_calls.append((args,kwargs))
 +            if len(budget_calls)==1:raise BoundaryError('provider_session_budget_exhausted')
++            if fail_at=='pending_session_auth':self.assertGreaterEqual(len(auth_calls),3)
++            if fail_at=='persistent_session_auth':self.fail('unauthenticated operation dispatched')
 +            return '0x0'
 +        rpc.call.side_effect=budget_read
 +        def sleep(seconds):clock[0]+=max(0,seconds)
@@ -3768,7 +3809,7 @@ index 0000000..05d7463
 +        def wait_quote(_rpc,_candidate,side,amount,*args,**kwargs):
 +            if side=='sell':
 +                sell_calls.append(int(clock[0]))
-+                if fail_at=='pending_session_budget':
++                if fail_at in ('pending_session_budget','pending_session_auth','persistent_session_auth'):
 +                    _rpc.call('eth_call',[],scope='selective_pending_exit')
 +                if fail_at=='impossible_exit':raise BoundaryError('impossible_full_position_exit')
 +                if fail_at=='exit' and len(sell_calls)==1:raise BoundaryError('provider_rpc_429')
@@ -3912,6 +3953,35 @@ index 0000000..05d7463
 +        self.assertEqual(r['provider_session_rotations'][0]['scope'],'selective_pending_exit')
 +        self.assertEqual(b['unsettled'],0)
 +        self.assertEqual(r['exit']['reason'],'test_authenticated_exit')
++
++    def test_pending_exit_session_auth_recovery_keeps_ledger_and_original_clock(self):
++        with tempfile.TemporaryDirectory() as d:r,b,events,_,times=self.run_case(d,'pending_session_auth')
++        self.assertEqual(r['status'],'settled',r.get('boundary'))
++        self.assertEqual(sum(e['action']=='entry' for e in events),1)
++        self.assertEqual(sum(e['action']=='exit_intent' for e in events),1)
++        self.assertEqual(sum(e['action']=='exit' for e in events),1)
++        self.assertEqual(len(r['provider_recoveries']),1)
++        recovery=r['provider_recoveries'][0]
++        self.assertEqual(recovery['pending_due'],times[0])
++        self.assertEqual(recovery['opened_at'],r['entry']['position']['last_at'])
++        self.assertEqual(r['qualification_vector']['evidence_available_at'],100)
++        rotations=r['provider_session_rotations']
++        self.assertEqual(len(rotations),2)
++        self.assertFalse(rotations[0]['authenticated'])
++        self.assertTrue(rotations[1]['authenticated'])
++        self.assertFalse(rotations[1]['local_session_rotation'])
++        self.assertEqual(len(r['provider_sessions']),2)
++        self.assertEqual(b['unsettled'],0);self.assertTrue(b['cash_basis_conservation'])
++
++    def test_persistent_session_auth_failure_remains_bounded_with_pending_exposure(self):
++        with tempfile.TemporaryDirectory() as d:r,b,events,_,_=self.run_case(d,'persistent_session_auth')
++        self.assertEqual(r['boundary'],'selective_position_provider_recovery_exhausted')
++        self.assertEqual(len(r['provider_recoveries']),5)
++        self.assertEqual(sum(e['action']=='entry' for e in events),1)
++        self.assertEqual(sum(e['action']=='exit_intent' for e in events),1)
++        self.assertFalse(any(e['action'] in ('exit','cancel','liquidity_writeoff') for e in events))
++        self.assertEqual(b['unsettled'],1);self.assertGreater(b['reserved'],0)
++        self.assertTrue(all(not row['authenticated'] for row in r['provider_session_rotations']))
 diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
 index d8d0a88..9b22cbb 100644
 --- a/robinhood_tests/test_pons_selective_continuation.py
@@ -4054,10 +4124,10 @@ index 0000000..4cb0ace
 +            self.prove(error=BoundaryError('provider_rpc_429'))
 diff --git a/robinhood_tests/test_position_sessions.py b/robinhood_tests/test_position_sessions.py
 new file mode 100644
-index 0000000..a86bfc4
+index 0000000..4a3446e
 --- /dev/null
 +++ b/robinhood_tests/test_position_sessions.py
-@@ -0,0 +1,75 @@
+@@ -0,0 +1,129 @@
 +import unittest
 +from robinhood_research import BoundaryError
 +from robinhood_research.position_sessions import PositionSessions
@@ -4133,6 +4203,60 @@ index 0000000..a86bfc4
 +        rpc=PositionSessions(Rpc(200),lambda:newer,lambda *a:None)
 +        with self.assertRaisesRegex(BoundaryError,'configuration_drift'):rpc.call('quote',[])
 +        self.assertEqual(newer.verified,0)
++
++    def test_transient_replacement_authentication_retries_before_call(self):
++        old=Rpc(200);new=Rpc(auth='provider_rpc_429');events=[];factories=[]
++        def factory():
++            factories.append(True);return new
++        rpc=PositionSessions(old,factory,lambda *row:events.append(row))
++        with self.assertRaisesRegex(BoundaryError,'429'):rpc.call('quote',[],scope='exit')
++        self.assertEqual(new.calls,[]);self.assertEqual(new.verified,1)
++        new.auth=None
++        self.assertEqual(rpc.call('quote',[],scope='exit'),'value')
++        self.assertEqual(new.verified,2);self.assertEqual(len(factories),1)
++        self.assertEqual(events[-1][0],None)
++        self.assertFalse(events[-1][1]['local_session_rotation'])
++        self.assertEqual(events[-1][1]['authentication_attempt'],2)
++        self.assertTrue(events[-1][1]['authenticated'])
++        self.assertEqual(new.calls,[(('quote',[]),dict(scope='exit'))])
++
++    def test_persistent_replacement_authentication_never_dispatches_reads(self):
++        for reason in ('provider_rpc_429','provider_http_401'):
++            with self.subTest(reason=reason):
++                old=Rpc(200);new=Rpc(auth=reason);events=[];factories=[]
++                def factory():
++                    factories.append(True);return new
++                rpc=PositionSessions(old,factory,lambda *row:events.append(row))
++                with self.assertRaisesRegex(BoundaryError,reason):rpc.call('quote',[])
++                for operation in (lambda:rpc.call('quote',[]),
++                                  lambda:rpc.batch([('quote',[])]),
++                                  rpc.rotate_if_needed):
++                    with self.assertRaisesRegex(BoundaryError,reason):operation()
++                self.assertEqual(new.calls,[]);self.assertEqual(new.verified,4)
++                self.assertEqual(len(factories),1)
++                self.assertEqual([x[1]['authentication_attempt'] for x in events],[1,2,3,4])
++                self.assertTrue(all(not x[1]['authenticated'] for x in events))
++
++    def test_iteration_retry_authenticates_same_session_before_monitor(self):
++        old=Rpc(146);new=Rpc(auth='provider_rpc_429');events=[]
++        rpc=PositionSessions(old,lambda:new,lambda *row:events.append(row))
++        with self.assertRaisesRegex(BoundaryError,'429'):rpc.rotate_if_needed()
++        new.auth=None
++        rpc.rotate_if_needed()
++        rpc.batch([('head',[])],scope='monitor')
++        self.assertEqual(new.verified,2)
++        self.assertEqual(new.calls,[(('head',[]),dict(scope='monitor'))])
++
++    def test_explicit_chain_check_failure_invalidates_session_before_reads(self):
++        old=Rpc();events=[]
++        rpc=PositionSessions(old,lambda:self.fail('unexpected rotation'),lambda *row:events.append(row))
++        old.auth='provider_rpc_429'
++        with self.assertRaisesRegex(BoundaryError,'429'):rpc.verify_chain()
++        with self.assertRaisesRegex(BoundaryError,'429'):rpc.call('quote',[])
++        self.assertEqual(old.calls,[])
++        old.auth=None
++        self.assertEqual(rpc.call('quote',[]),'value')
++        self.assertEqual(old.verified,3)
 diff --git a/robinhood_tests/test_provider_admission.py b/robinhood_tests/test_provider_admission.py
 new file mode 100644
 index 0000000..c17a9d4
