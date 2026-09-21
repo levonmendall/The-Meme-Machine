@@ -9,6 +9,7 @@ natural nomination. Engine.qualify remains frozen and authoritative; the vector 
 counterfactual sensitivity fields are shadow-only and cannot create reservations.
 """
 import json
+import math
 import os
 import tempfile
 import threading
@@ -30,13 +31,23 @@ GENESIS_SOURCE='2026-09-16 recorded validation reference: $97.84/SOL; new shadow
 DEFAULT_OBSERVE_SECONDS=105
 MIN_OBSERVE_SECONDS=30
 MAX_OBSERVE_SECONDS=3300
-MAX_EVIDENCE_CANDIDATE_LIMIT=20
+MAX_EVIDENCE_CANDIDATE_LIMIT=80
 OBSERVE_SECONDS=max(MIN_OBSERVE_SECONDS,min(
     int(os.environ.get('MM_STREAM_OBSERVE_SECONDS',str(DEFAULT_OBSERVE_SECONDS))),
     MAX_OBSERVE_SECONDS))
-MAX_EVIDENCE_CANDIDATES=max(1,min(
-    int(os.environ.get('MM_STREAM_MAX_EVIDENCE_CANDIDATES',str(MAX_EVIDENCE_CANDIDATE_LIMIT))),
-    MAX_EVIDENCE_CANDIDATE_LIMIT))
+def evidence_candidate_budget(observe_seconds, override=None):
+    """Bound evidence work across the full observation window without changing policy."""
+    if override not in (None, ''):
+        return max(1,min(int(override),MAX_EVIDENCE_CANDIDATE_LIMIT))
+    # Prior live evidence exhausted 20 candidates after ~1,299 seconds of a
+    # 3,300-second window. Size the default to cover the requested observation
+    # at ~1.25 completed evidence candidates/minute, with a 20-candidate floor.
+    return max(20,min(
+        MAX_EVIDENCE_CANDIDATE_LIMIT,
+        int(math.ceil((observe_seconds/60.0)*1.25))))
+
+MAX_EVIDENCE_CANDIDATES=evidence_candidate_budget(
+    OBSERVE_SECONDS,os.environ.get('MM_STREAM_MAX_EVIDENCE_CANDIDATES'))
 
 
 def _failure(result, stage, exc):
@@ -200,6 +211,18 @@ def main():
                 report['complete_qualification_vectors']=sum(
                     row.get('evidence_stage')=='complete' and 'qualification_vector' in row
                     for row in report['results'])
+                policy_pass_rows=[
+                    row for row in report['results']
+                    if row.get('evidence_stage')=='complete'
+                    and row.get('qualification_vector',{}).get('current_threshold_pass') is True
+                ]
+                report['research_policy_passes']=len(policy_pass_rows)
+                report['research_policy_pass_mints']=[row['mint'] for row in policy_pass_rows]
+                report['authorized_qualifications']=0
+                report['qualification_semantics']=(
+                    'research_policy_passes counts shadow vectors that satisfy frozen continuation-v1; '
+                    'authorized_qualifications remains zero because this diagnostic has no order authority'
+                )
                 if coverage_ready_at is None and not report['limitations']:
                     report['limitations'].append('stream_never_reached_complete_60_second_warmup')
         except (Unavailable,ValueError) as exc:
