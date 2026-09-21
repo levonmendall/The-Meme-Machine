@@ -1,0 +1,1 @@
+Relaunch the preregistered exact quiet-mint counterfactual after evidence-repair commits. No further branch changes are intended during this diagnostic. Final holdout remains outcome-blind.
