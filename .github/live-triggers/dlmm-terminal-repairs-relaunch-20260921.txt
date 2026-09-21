@@ -1,0 +1,7 @@
+Replacement four-lane DLMM machinery validation after repairing Meteora regression placement.
+Verified canonical qualification head: 60a8a654fd4fe96493a4edd932d63bfe579c6c10
+Qualification workflow 35658400471 passed.
+Meteora: generic monitor failures preserve unresolved exposure/reserve; structural multiple-liquidity-removal boundary closes conservatively.
+Ramses: partial same-pool unwind liquidity holds and retries on later finalized state.
+No competing market workflows were active or queued at launch.
+Paper only. No profitability claim.
