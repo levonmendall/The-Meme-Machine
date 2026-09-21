@@ -10,12 +10,13 @@ import tempfile
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
+OPERATIONAL_REF="d632cbe52220f95844632ac9a5669ee39dfbe082"
 
 LANES={
     "pump": dict(
         base="04c99ca3125747dc8bfc6f655fec7533f8ac8156",
         profit="160985182b043ab41d0418ba5dcfed7dbfbe3cb2",
-        patch=ROOT/"certification/patches/pump-accounting.patch",
+        patch_path="certification/patches/pump-accounting.patch",
         files=[
             "meme_machine/pump_acceleration_strategy.py",
             "tests/pump_acceleration_natural_prospective.py",
@@ -28,7 +29,7 @@ LANES={
     "pons": dict(
         base="c692fe446bdee4ea1179da27a3f0c9f2f281f118",
         profit="a8b560c13f7e1b3696ac7f7aa9f35801f87421e1",
-        patch=ROOT/"certification/patches/pons-cohort-capital.patch",
+        patch_path="certification/patches/pons-cohort-capital.patch",
         files=[
             "robinhood_research/pons_selective_continuation.py",
             "robinhood_research/pons_selective_cohort.py",
@@ -149,7 +150,9 @@ def build_lane(lane,spec,outdir):
     profitroot=Path(tempfile.mkdtemp(prefix=f"{lane}-profit-"))
     try:
         run("git","worktree","add","--detach",str(root),spec["base"])
-        run("git","-C",str(root),"apply","--index",str(spec["patch"]))
+        operational_patch=root.parent/f"{lane}-operational.patch"
+        operational_patch.write_text(show(OPERATIONAL_REF,spec["patch_path"]))
+        run("git","-C",str(root),"apply","--index",str(operational_patch))
         for path in spec["files"]:
             operational=(root/path).read_text()
             base=show(spec["base"],path)
@@ -169,8 +172,10 @@ def build_lane(lane,spec,outdir):
                 target.parent.mkdir(parents=True,exist_ok=True)
                 if source.is_file():shutil.copy2(source,target)
                 else:raise RuntimeError(f"unsupported_overlay_path:{lane}:{status}:{path}")
-        run("git","-C",str(profitroot),"diff","--check")
-        patch=run("git","-C",str(profitroot),"diff","--binary","HEAD").stdout
+        # Stage the rebased tree so overlay-created files are included in the patch.
+        run("git","-C",str(profitroot),"add","-A")
+        run("git","-C",str(profitroot),"diff","--cached","--check")
+        patch=run("git","-C",str(profitroot),"diff","--cached","--binary","HEAD").stdout
         if not patch.strip():raise RuntimeError(f"empty_rebased_patch:{lane}")
         (outdir/f"{lane}-combined.patch").write_text(patch)
     finally:
