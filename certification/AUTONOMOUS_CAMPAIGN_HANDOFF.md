@@ -407,3 +407,87 @@ from estimated compute units. Historical unresolved baseline exposure remains un
 
 A fresh exact-revision600-second smoke and independent3600-second hour will follow
 these two implementation-only reporting repairs. No policy/provider limits changed.
+
+
+## Frozen-policy campaign checkpoint after concurrent policy branch changes
+
+This checkpoint concerns exact integration fba42effbe23fe1d3428b95e2280cd4dec0a0d06
+and workflow35555511322 only. It does not certify the later machinery-proof policies.
+
+The fba42eff smoke passed manual engineering review: job106198284555,
+600.112410083 seconds continuous overlap,1604.410291214 seconds total, normal
+exits, no restarts, zero final exposure and reconciled accounting. Artifact10620836443
+SHA256643e0ed8c2d5a4406fc3e821f550596aa2969f9913be069e41f2e2c2e1fc25d6 was downloaded
+and verified before the local workspace became unavailable. Pump/Meteora/Ramses
+natural certification remained incomplete. Pons had7 natural market-sale settlements,
+all losses totaling -3099014189723880 native quote units; zero forced trades/writeoffs.
+Three genuine post-fill RPC429 recoveries retained ledger identity, reservation,
+entry and original hold clock. Publisher completed without the former60KB overflow.
+
+The independent fba42eff hour, job106202889441, FAILED continuity: Ramses exited1
+at505.60147918199993 seconds during factory_authentication. Shared Robinhood
+admission showed86 requested/85 granted/1 failed, maximum wait30.008014887 seconds
+and no Ramses provider error. Pons recorded30 failed local admissions. At observation
+end it exited0 while still reporting5 open positions,3 natural settlements,
+zero writeoffs, remaining basis/reserved exposure and an incomplete capital integral.
+That is a failed terminal drain, not a successful settlement. Historical unresolved
+baseline exposure also remains unresolved. The exact native boundaries and recovery
+journals require the final artifact; local scheduling starvation is a hypothesis
+until those records are inspected. Pump has2 natural settlements so far; Meteora
+exited0 flat. No time from this hour is eligible for a replacement certification.
+
+Implementation repair prepared locally before workspace loss:
+- Shared Robinhood admission gives one aged other-lane request a slot after8
+  consecutive same-lane position grants, preserving imminent position deadlines,
+  same-lane position priority, original0.5s interval, cooldown, queue limits and
+  consumer deadlines. Deterministic old-code reproduction granted20 Pons position
+  requests while Ramses got zero and expired at its original10-second deadline.
+- A thread-local lifecycle context classifies generic fresh-head reads within Pons
+  and Ramses lifecycle work as position priority; exceptions reset the context.
+- Ramses bounded local scan recovery permits at most3 attempts only for shared
+  admission deadline/capacity loss, preserving pinned frontier and original
+  observation deadline. No missing result advances a frontier.
+- Local admission telemetry retains method/scope/request/deadline/reason/priority,
+  including already-expired requests, without inventing a provider transport.
+
+Local full verification passed1229 lane tests: Pump292, Meteora392, Pons278,
+Ramses267;72 supervisor tests; all3 resource gates. Commands were
+python -m certification.run verify --worktrees /workspace/scratch/6b0f6ba7cc58/lanes
+--output /workspace/scratch/6b0f6ba7cc58/gates-robinhood-fairness-final
+and python -m unittest discover -s certification/tests -v.
+Private-index reproduction verified byte-identical overlays and unchanged protected
+source/config/policy files. Prepared overlay SHA256:
+Pump a8e4effbe55d758ec1e744bfab08d42964e58189fd740cd1b2ea7e1e09d7bcf5;
+Meteora1f447a3c83bac236c74497f7e12d1e8307331d60fc71ee6459b4e13429c34f65;
+Pons c795e113f88f9ec601af7cb5c6cc879a97b526b28fe98507a1044111825a99cc;
+Ramses08ed19dfe5583b0cbed300ec74d7ab15f5ab4942a8476fad863e2fc464ba13fd.
+These repairs and transcripts were written locally but NOT published. Do not infer
+their presence at fba42eff or the current remote head from these test results.
+Local execution and Node filesystem access now report environment_offline; no local
+artifact or file availability is being claimed beyond previously published evidence.
+
+A fresh remote check found PR93 still draft/open but advanced externally through
+3e7121ca3962e7764b2406ae990331411f9f43fc to
+c0b8bfb71c1635f60997d92c681d85298bd2030c. The newer handoff describes a separate
+one-shot user-authorized machinery-proof follow-up. That instruction is recorded
+as repository context, not substituted for this task's explicit frozen-policy controls.
+Its manifest switches Meteora to43bbcce60913a9a87404fe6563585159fb72352f
+and Ramses tod252724f081a9ca0b3bc5fbd8e28b191568c6499, with changed policy hashes
+and loosened economic gates. Meteora two-way balance0.25->0 and expected net
+-200000->-1000000; Ramses acceleration1.2x->0, chop1.5->0, imbalance60%->100%,
+projected return0->-150000bps. This campaign cannot silently adopt those changes.
+Queued successor35558419998 is a separate policy run, not a frozen-policy replacement.
+
+No external policy commits are reverted, no queued separate campaign is canceled,
+and main remains untouched. Because moving the active PR head would interfere with
+that separately queued work, this evidence is checkpointed on
+repair/frozen-campaign-handoff, based on the exact tested fba42eff revision.
+No duplicate repair PR is opened. The existing PR93 will link this checkpoint.
+A read-only hosted artifact review on this branch uses GitHub artifact access only,
+no market/provider credentials, no signing and no transaction authority. It preserves
+the final artifact checksum, full native records and exact failure diagnosis.
+
+Engineering certification for this frozen-policy campaign remains FAIL.
+Natural certification is not inferred from machinery success or changed gates.
+Resuming integration requires resolving which policy campaign/head is authoritative
+and restoring access to or reconstructing the unpublished verified implementation.

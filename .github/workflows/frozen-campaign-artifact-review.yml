@@ -1,0 +1,28 @@
+name: frozen-campaign-artifact-review
+on:
+  push:
+    branches: [repair/frozen-campaign-handoff]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    if: contains(github.event.head_commit.message, '[artifact-review]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Review immutable failed-hour artifact without provider access
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python certification/frozen_artifact_review.py
+      - name: Preserve complete review and verified artifact metadata
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: frozen-campaign-review-${{ github.run_id }}
+          path: frozen-review/
+          if-no-files-found: error
+          retention-days: 90
