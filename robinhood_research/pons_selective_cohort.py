@@ -21,7 +21,9 @@ from .sequencer_feed import SequencerBlockClock, SequencerTransportError
 from .pons_selective_acquisition import (
     SelectiveEvidenceContext, evaluate_candidate, public_evaluation,
 )
-from .pons_selective_continuation import POLICY, POLICY_HASH, wallet_convergence
+from .pons_selective_continuation import (
+    POLICY, POLICY_HASH, REENTRY_POLICY, reentry_regime_reset, wallet_convergence,
+)
 from .pons_selective_paper import (
     STRATEGY_CAPITAL_QUOTE, STRATEGY_NAMESPACE, run_lifecycle,
 )
@@ -360,8 +362,11 @@ def run(endpoint):
         cohort_target=COHORT_TARGET,max_enrolled=MAX_ENROLLED,
         selection_rule=(
             "every distinct current authenticated Pons V2 buy, with at most one "
-            "evaluation per curve per 2 wall-clock seconds; no outcome reranking"
+            "evaluation per curve per 2 wall-clock seconds; paper entry requires "
+            "profitability-v1 qualification and a terminal/flat prior same-curve "
+            "lifecycle plus a point-in-time regime reset; no outcome reranking"
         ),
+        reentry_policy=dict(REENTRY_POLICY),
         outcome_blind=True,reranking=False,replacement=False,
         wallet_skill_namespace=STRATEGY_NAMESPACE,
         strategy_capital_quote=STRATEGY_CAPITAL_QUOTE,
@@ -411,6 +416,32 @@ def run(endpoint):
 
         pool=ThreadPoolExecutor(max_workers=MAX_CONCURRENT_LIFECYCLES)
         futures=[]
+        active_curve_futures={}
+        last_authorized_vector={}
+        last_terminal_by_curve={}
+        collected_futures=set()
+
+        def collect_curve_future(curve):
+            item=active_curve_futures.get(curve)
+            if item is None:
+                return None
+            qindex,future=item
+            if not future.done():
+                return None
+            try:
+                life=future.result()
+            except Exception as exc:
+                life=dict(
+                    index=qindex,status="unexpected_boundary",
+                    boundary=type(exc).__name__,
+                )
+            life["index"]=qindex
+            result["lifecycles"].append(life)
+            last_terminal_by_curve[curve]=life
+            collected_futures.add(id(future))
+            active_curve_futures.pop(curve,None)
+            return life
+
         deadline=time.monotonic()+DISCOVERY_SECONDS
         next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
         while (
@@ -474,17 +505,48 @@ def run(endpoint):
                 public=public_evaluation(evaluation)
                 public["sequence"]=sequence
                 public["wallet_convergence"]=overlay
+                authorization_rejection=None
+                curve=evaluation["curve"]
+                if evaluation["vector"].get("current_threshold_pass"):
+                    completed=collect_curve_future(curve)
+                    active=active_curve_futures.get(curve)
+                    if active is not None and not active[1].done():
+                        authorization_rejection="same_curve_lifecycle_active"
+                    elif curve in last_authorized_vector:
+                        terminal=last_terminal_by_curve.get(curve)
+                        terminal_status=(terminal or {}).get("status")
+                        terminal_reconciliation=(terminal or {}).get("reconciliation") or {}
+                        terminal_flat=bool(
+                            terminal_status in ("settled","entry_failed")
+                            and int(terminal_reconciliation.get("open_exposure",0) or 0)==0
+                        )
+                        if not terminal_flat:
+                            authorization_rejection="prior_curve_lifecycle_not_flat"
+                        elif not reentry_regime_reset(
+                            last_authorized_vector[curve],evaluation["vector"]
+                        ):
+                            authorization_rejection="reentry_regime_not_reset"
+                if authorization_rejection is not None:
+                    public["live_authorization"]="rejected"
+                    public["authorization_rejection"]=authorization_rejection
+                elif evaluation["vector"].get("current_threshold_pass"):
+                    public["live_authorization"]="authorized"
+
                 result["rows"].append(public)
                 result["evidence_acquisition"]=evidence_context.telemetry()
                 _append_jsonl(ROWS_LOG,public)
-                if evaluation["vector"].get("current_threshold_pass"):
+                if (
+                    evaluation["vector"].get("current_threshold_pass")
+                    and authorization_rejection is None
+                ):
                     qindex=len(result["qualifiers"])
                     qualifier=dict(
                         index=qindex,sequence=sequence,token=evaluation["token"],
-                        curve=evaluation["curve"],
+                        curve=curve,
                         source_transaction=evaluation["source_transaction"],
                         vector=evaluation["vector"],
                         wallet_convergence=overlay,
+                        live_authorization="authorized",
                     )
                     result["qualifiers"].append(qualifier)
                     _append_jsonl(QUALIFIERS_LOG,qualifier)
@@ -493,12 +555,13 @@ def run(endpoint):
                         phase="qualifier_persisted",
                     )
                     next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
-                    futures.append((
-                        qindex,pool.submit(
-                            run_lifecycle,endpoint,evaluation,
-                            db_path=ROOT/f"trial-{qindex:03d}.sqlite",
-                        )
-                    ))
+                    future=pool.submit(
+                        run_lifecycle,endpoint,evaluation,
+                        db_path=ROOT/f"trial-{qindex:03d}.sqlite",
+                    )
+                    futures.append((qindex,future))
+                    active_curve_futures[curve]=(qindex,future)
+                    last_authorized_vector[curve]=evaluation["vector"]
             except BoundaryError as exc:
                 incomplete=dict(
                     sequence=sequence,status="incomplete",
@@ -517,7 +580,11 @@ def run(endpoint):
         if not result["target_reached"]:
             result["boundary"]="selective_cohort_target_not_reached_in_bounded_window"
 
+        for curve in list(active_curve_futures):
+            collect_curve_future(curve)
         for qindex,future in futures:
+            if id(future) in collected_futures:
+                continue
             try:
                 life=future.result()
             except Exception as exc:
@@ -527,6 +594,7 @@ def run(endpoint):
                 )
             life["index"]=qindex
             result["lifecycles"].append(life)
+            collected_futures.add(id(future))
         pool.shutdown(wait=True)
     except BoundaryError as exc:
         result["boundary"]=str(exc)
