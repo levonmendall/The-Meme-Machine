@@ -1,1 +1,2 @@
 Canonicalize Ramses overlay after repeat-entry capacity/provider/lifecycle-namespace repair.
+Retry after normalizing unified-diff hunk counts.
