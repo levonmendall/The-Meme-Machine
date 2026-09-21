@@ -57,7 +57,10 @@ jobs:
                       flat = flat and not book.get("reserved",0) and not book.get("pending",0)
                       for asset in (book.get("by_quote_asset") or {}).values():
                           flat = flat and not asset.get("open_positions",0) and not asset.get("committed",0)
+                  record["guard_passed"] = bool(flat)
+                  record["snapshot_age"] = time.time()-snapshot.get("observed_at",0)
                   record["pre_cancel_snapshot"] = snapshot
+                  print(json.dumps(record), flush=True)
                   pathlib.Path("campaign-cancellations.json").write_text(json.dumps([record], indent=2))
                   if not flat:raise SystemExit("not_proven_flat_do_not_cancel")
                   with urllib.request.urlopen(urllib.request.Request(url + "/cancel", headers=headers, method="POST")) as response:
