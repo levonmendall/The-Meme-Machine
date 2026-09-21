@@ -584,6 +584,41 @@ def _segment_costs(costs):
     return dict(costs)
 
 
+_TRANSIENT_PROVIDER_BOUNDARIES = frozenset(
+    set(BoundedMultiRpc.RATE_ERRORS) | {"provider_rate_limit"}
+)
+
+
+def _is_transient_provider_boundary(exc):
+    return isinstance(exc, BoundaryError) and str(exc) in _TRANSIENT_PROVIDER_BOUNDARIES
+
+
+def _paper_ledger_capital(position_capital, costs, max_rebalances):
+    """Fund mechanics-only paper accounting without changing position size."""
+    if type(position_capital) is not int or position_capital <= 0:
+        raise BoundaryError("connected_lifecycle_invalid_position_capital")
+    normalized = _segment_costs(costs)
+    if type(max_rebalances) is not int or max_rebalances < 0:
+        raise BoundaryError("connected_lifecycle_invalid_rebalance_limit")
+    # Every closed segment can incur the explicit modeled cycle-cost envelope.
+    # The ledger funding covers those costs; the strategy position remains exactly
+    # capital_employed and all costs remain charged in after-cost P&L.
+    return position_capital + sum(normalized.values()) * (1 + max_rebalances)
+
+
+def _record_provider_hold(result, ledger, identity, *, stage, boundary, at):
+    row = dict(
+        action="hold",
+        reason="transient_provider_boundary",
+        stage=stage,
+        boundary=str(boundary),
+        at=int(at),
+    )
+    result.setdefault("provider_holds", []).append(row)
+    ledger.checkpoint(identity, action="monitor", detail=row, at=int(at))
+    return row
+
+
 def aggregate_segments(segments):
     """Aggregate fully closed quote-denominated paper segments."""
     if not segments:
@@ -794,7 +829,20 @@ def run(
     db_path = str(db_path or DB)
     if Path(db_path).exists():
         raise BoundaryError("connected_lifecycle_db_already_exists")
-    paper_capital = int(decision["freeze"]["proposals"][0]["capital_employed"])
+    position_capital = int(
+        decision["freeze"]["proposals"][0]["capital_employed"]
+    )
+    paper_capital = _paper_ledger_capital(
+        position_capital,
+        costs,
+        int(POLICY["controller"]["max_rebalances"]),
+    )
+    result["ledger_funding"] = dict(
+        position_capital=position_capital,
+        execution_cost_envelope=paper_capital-position_capital,
+        paper_capital=paper_capital,
+        position_size_unchanged=True,
+    )
     ledger = RamsesStrategyLedger(
         db_path,
         paper_capital=paper_capital,
@@ -812,6 +860,7 @@ def run(
     last_scan_wall = time.monotonic()
     latest_screen = screen
     overall_started = time.monotonic()
+    last_monitor_at = entry_at
 
     try:
         result["ledger_reserved"] = ledger.reserve(
@@ -822,24 +871,43 @@ def run(
 
         while True:
             time.sleep(monitor_poll_seconds)
-            frontier = rpc.call(
-                "eth_getBlockByNumber",
-                ["finalized", False],
-                scope="lifecycle_monitor",
-            )
+            try:
+                frontier = rpc.call(
+                    "eth_getBlockByNumber",
+                    ["finalized", False],
+                    scope="lifecycle_monitor",
+                )
+            except BoundaryError as exc:
+                if not _is_transient_provider_boundary(exc):
+                    raise
+                _record_provider_hold(
+                    result, ledger, identity,
+                    stage="frontier", boundary=exc, at=last_monitor_at,
+                )
+                continue
             block = int(frontier["number"], 16)
             at = int(frontier["timestamp"], 16)
+            last_monitor_at = max(last_monitor_at, at)
             if block <= segment_start:
                 continue
 
             if time.monotonic()-last_scan_wall >= rescan_seconds:
-                latest_screen = scan(
-                    endpoint,
-                    gas_costs_by_pool=costs_by_pool,
-                    signals_by_pool=signals_by_pool,
-                    cost_state=cost_state,
-                )
-                last_scan_wall = time.monotonic()
+                try:
+                    latest_screen = scan(
+                        endpoint,
+                        gas_costs_by_pool=costs_by_pool,
+                        signals_by_pool=signals_by_pool,
+                        cost_state=cost_state,
+                    )
+                except BoundaryError as exc:
+                    if not _is_transient_provider_boundary(exc):
+                        raise
+                    _record_provider_hold(
+                        result, ledger, identity,
+                        stage="rescan", boundary=exc, at=last_monitor_at,
+                    )
+                finally:
+                    last_scan_wall = time.monotonic()
 
             row = next(
                 (
@@ -851,7 +919,16 @@ def run(
             opportunity_qualified = bool(
                 row and (row.get("decision") or {}).get("qualified")
             )
-            state_now = _position_state(rpc, pool, decision, block)
+            try:
+                state_now = _position_state(rpc, pool, decision, block)
+            except BoundaryError as exc:
+                if not _is_transient_provider_boundary(exc):
+                    raise
+                _record_provider_hold(
+                    result, ledger, identity,
+                    stage="position_state", boundary=exc, at=last_monitor_at,
+                )
+                continue
             proposal = decision["freeze"]["proposals"][0]
             expected_fee = max(
                 1, int(proposal.get("estimated_fee_capture") or 0)
@@ -902,12 +979,22 @@ def run(
             if action["action"] == "hold":
                 continue
 
-            capture, replay_result = _build_segment_replay(
-                rpc, pool, decision, segment_start, block
-            )
-            unwind = _unwind(
-                rpc, pool, decision, replay_result, block
-            )
+            try:
+                capture, replay_result = _build_segment_replay(
+                    rpc, pool, decision, segment_start, block
+                )
+                unwind = _unwind(
+                    rpc, pool, decision, replay_result, block
+                )
+            except BoundaryError as exc:
+                if not _is_transient_provider_boundary(exc):
+                    raise
+                _record_provider_hold(
+                    result, ledger, identity,
+                    stage="exit_replay_or_unwind", boundary=exc,
+                    at=last_monitor_at,
+                )
+                continue
             pnl = decompose_pnl(
                 decision,
                 replay_result,
