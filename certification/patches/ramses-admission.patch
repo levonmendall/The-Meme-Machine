@@ -1364,16 +1364,6 @@ index 2b6214c..0ffdeae 100644
          if _digest(body) != row[1]:
              raise BoundaryError("ramses_strategy_ledger_checksum")
          return body
-@@ -114,9 +120,6 @@ class RamsesStrategyLedger:
-         reserved = proposal.get("capital_employed")
-         if type(reserved) is not int or reserved <= 0:
-             raise BoundaryError("invalid_ramses_strategy_reservation")
--        rec = self.reconcile()
--        if rec["committed"] + reserved > self.paper_capital:
--            raise BoundaryError("ramses_strategy_capital_exhausted")
-         body = dict(
-             id=identity,
-             strategy_domain=STRATEGY_DOMAIN,
 @@ -141,6 +144,10 @@ class RamsesStrategyLedger:
          )
          self.db.execute("BEGIN IMMEDIATE")
@@ -1385,16 +1375,6 @@ index 2b6214c..0ffdeae 100644
              self._save(body, "reserve")
              self.db.execute("COMMIT")
          except Exception:
-@@ -167,9 +174,6 @@ class RamsesStrategyLedger:
-         reserved = proposal.get("capital_employed")
-         if type(reserved) is not int or reserved <= 0:
-             raise BoundaryError("invalid_ramses_strategy_reservation")
--        rec = self.reconcile()
--        if rec["committed"] + reserved > self.paper_capital:
--            raise BoundaryError("ramses_strategy_capital_exhausted")
-         body = dict(
-             id=identity,
-             strategy_domain=STRATEGY_DOMAIN,
 @@ -196,6 +200,10 @@ class RamsesStrategyLedger:
          )
          self.db.execute("BEGIN IMMEDIATE")
