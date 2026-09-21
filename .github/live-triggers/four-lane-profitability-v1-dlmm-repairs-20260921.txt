@@ -1,0 +1,10 @@
+Fresh four-lane paper validation using current strategy baseline.
+Verified qualification head: 0e344416ac36bdc03839232485978e9b648c111c
+Qualification workflow 35661157885 completed successfully.
+Pump: profitability-v1.
+Pons: profitability-v1.
+Meteora: repaired machinery-proof-v2 lifecycle.
+Ramses: repaired machinery-proof-v2 lifecycle.
+Superseded run 35658558646 was explicitly cancelled before this launch.
+Certification contention guard remains authoritative before live market observation.
+Paper only.
