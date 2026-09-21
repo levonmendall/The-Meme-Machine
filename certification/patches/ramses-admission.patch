@@ -680,7 +680,7 @@ new file mode 100644
 index 0000000..79b25ae
 --- /dev/null
 +++ b/robinhood_research/ramses_campaign.py
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,93 @@
 +"""One frozen, asset-separated paper budget for a continuous Ramses campaign.
 +
 +Budgets are declared once from the first fundable pinned factory screen, before
