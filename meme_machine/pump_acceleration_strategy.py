@@ -406,7 +406,7 @@ def qualify(signal, policy=POLICY):
             reasons.append("curve_deceleration")
         if signal.independent_buyer_clusters < policy.min_independent_clusters:
             reasons.append("independent_buyers")
-        if signal.buyer_growth < policy.min_postgrad_buyer_growth:
+        if signal.buyer_growth < policy.min_buyer_growth:
             reasons.append("buyer_growth")
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")
@@ -429,7 +429,7 @@ def qualify(signal, policy=POLICY):
             reasons.append("postgrad_age")
         if signal.independent_buyer_clusters < policy.min_postgrad_independent_clusters:
             reasons.append("independent_buyers")
-        if signal.buyer_growth < policy.min_second_leg_buyer_growth:
+        if signal.buyer_growth < policy.min_postgrad_buyer_growth:
             reasons.append("buyer_growth")
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")
@@ -459,7 +459,7 @@ def qualify(signal, policy=POLICY):
             reasons.append("breakout")
         if signal.independent_buyer_clusters < policy.min_postgrad_independent_clusters:
             reasons.append("independent_buyers")
-        if signal.buyer_growth < policy.min_buyer_growth:
+        if signal.buyer_growth < policy.min_second_leg_buyer_growth:
             reasons.append("buyer_growth")
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")
