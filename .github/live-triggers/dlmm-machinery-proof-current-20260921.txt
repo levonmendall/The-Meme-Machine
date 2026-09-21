@@ -9,3 +9,5 @@ Paper only; no profitability claim.
 Relaunch after paper-milestone/live-diagnostic isolation repair.
 Workflow control head before trigger: da5a5982ba93931fc4b245ca1d0c51dd30aed534.
 No DLMM thresholds changed by the repair.
+
+Cancellation requested after Ramses post-open failure; preserve failed smoke artifact before replacement.
