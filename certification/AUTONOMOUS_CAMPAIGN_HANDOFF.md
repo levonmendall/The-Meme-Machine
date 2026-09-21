@@ -1090,3 +1090,61 @@ artifact review pass. Both start from new process state; no previous time is reu
 The new authentication regressions/full suites/resource gates rerun on the candidate.
 The original frozen thresholds, market scopes, provider ceilings and paper-only
 authority remain unchanged. Engineering certification is still pending.
+
+
+## 2026-09-21: 46b3db01 fresh smoke accepted; independent hour started
+
+Exact candidate46b3db017656d2885e9c8d0020d2e95bd6e9c240,
+workflow35571580714: smoke106244151600 and artifact review106251211024 PASS.
+Four-lane overlap600.120825438s; normal follow-up/drain total1604.350171121s.
+All exit0, zero restarts, flat reconciled native books, zero natural/forced fills
+in every lane. NATURAL_INCOMPLETE remains; no forced event is substituted.
+Archive10627252352,96539575 bytes, verified SHA256
+5f22b180e46ec434319a43ced48245b4eab68761945d263174788a72eeed5743.
+Review10627486638,983195 bytes, SHA256
+33ad7c491cb0db9b044e8fb2122e44635f47909429246dd18b37db3be92c2a05.
+Complete raw/native review and exact result are appended under results/.
+
+Final smoke-plus-follow-up aggregates (not600s-only opportunity denominators):
+- Pump1441 physical requests, max getTransaction batch8, zero429/GPA scans.
+  Fifty-four null transaction responses remain incomplete. Full stream42642 trades,
+  392 creation events,381 distinct discovered candidates; no gaps or capacity loss.
+  Eight strategy prospect observations,2 admitted late-curve prospects;7 total
+  admitted including postgrad work,4 unique evidence-complete candidates,
+  21 complete evidence attempts. No qualification.
+- Pump window interests2055 complete,8448 expired:8194 before transport,
+  254 after transport started. Research89 complete/111 expired(7 before,104 after);
+  prefetch2540 complete/715 expired(624 before,91 after),19 retired. Eight waiting
+  consumers explicitly censored at shutdown. These logical signatures are not
+  independent lost opportunities.
+  Attempt phases:1 pump-window expiration before transport,1 physical-governor
+  miss,56 late-result phases,550 window transports;2 prefetch expirations,
+  26 provider-unavailable attempts,9 background-history deferrals to foreground.
+  Queue-capacity/shared-cooldown/lease-wait failure phases zero in retained tables.
+  No local failure is credited as provider429. Unlike-market comparisons do not
+  establish causal improvement in the logical expiration fraction.
+- Meteora59 pools,10 admitted,2 authenticated triggers/reconstructions,0 economic
+  vectors, all2 triggers terminally classified. Unsupported frozen-domain shapes,
+  absent fresh activity and warmup failures remain visible, not loosened.
+  37 signature-history members,zero429,155 grants/no governor misses.
+- Pons1300 events observed,328 current-state attempts,276 complete current states,
+  25 strategy prospects,20 full vectors,zero qualification. Current-state auth
+  missed its already-expired original deadline in0.000352347s atpriority10;
+  the second trajectory admission missed its remaining0.026s deadline after0.053s.
+  No30s authentication wait. Total1180 grants,2 local misses,maxwait0.902104006s,
+  no provider error. Full frozen economic rejections remain visible.
+- Ramses282-pool inventory,frontier-gated scans,1 active-pool economic screen;
+  97 grants,no local/provider failure,maxwait3.474096342s. No qualifier.
+Maximum sampled active broker jobs8. Max RSS Pump102305792,Meteora54591488,
+Pons69709824,Ramses31936512 bytes. Manifest7c2505cc65e599929e58511f2463875f86228232d30f053754bf0ec9ef639226
+and all canonical overlay hashes match the exact candidate.
+
+Before the hour, all active/queued/pending/waiting lists were inspected: only this
+workflow was active, all other queues empty. Fresh hourly job106251255024,
+live check106251726679, reran complete gates and passed source/contention checks.
+It now starts a new independent3600-second four-lane observation with fresh books
+and processes. No smoke/prior-run time is reused. Read-only supplementary inspection
+of smoke file checksums and exact null-body signature/attempt attribution runs
+separately without provider credentials; it does not modify the running candidate.
+The campaign remains paper-only, original policies unchanged, main unmerged,
+historical unresolved exposure and prior evidence gap explicitly preserved.

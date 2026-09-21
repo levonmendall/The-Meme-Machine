@@ -17,9 +17,9 @@ jobs:
       - name: Review immutable failed-hour artifact without provider access
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          REVIEW_RUN_ID: "35568442889"
-          REVIEW_SHA: 437a844579c5d8e982a172dca7cbe160f066d099
-          REVIEW_PHASE: hourly
+          REVIEW_RUN_ID: "35571580714"
+          REVIEW_SHA: 46b3db017656d2885e9c8d0020d2e95bd6e9c240
+          REVIEW_PHASE: smoke
         run: python certification/inspect_stable_artifact.py
       - name: Preserve complete review and verified artifact metadata
         if: always()

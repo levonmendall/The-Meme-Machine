@@ -45,6 +45,34 @@ receipt={'sha':state['SHA'],'run':state['RUN'],'phase':state['PHASE'],
  'pump_complete':review['pump_complete']}
 (out/'stable-archive-audit.json').write_text(json.dumps(receipt,indent=2,sort_keys=True))
 (out/'verified-file-checksums.json').write_text(json.dumps(verified,indent=2,sort_keys=True))
+# Attribute null immutable-body responses without treating absent data as successful reuse.
+nulls=collections.defaultdict(list)
+with state['gzip'].open(state['base']/'pump/rpc-evidence.jsonl.gz','rt') as file:
+    try:
+        for line in file:
+            row=json.loads(line);requests=row.get('request') or []
+            requests=requests if isinstance(requests,list) else [requests]
+            response=row.get('response');responses=response if isinstance(response,list) else [response]
+            by_id={r.get('id'):r for r in responses if isinstance(r,dict) and 'id' in r}
+            for request in requests:
+                if not isinstance(request,dict) or request.get('method')!='getTransaction':continue
+                answer=by_id.get(request.get('id'))
+                if answer is not None and 'result' in answer and answer['result'] is None:
+                    signature=request['params'][0]
+                    nulls[signature].append({k:row.get(k) for k in (
+                        'physical_request_id','observed_at_ns','http_status','json_rpc_error_codes',
+                        'retry_count','original_deadline','evidence_kind','evidence_priority')})
+    except EOFError:
+        if not state['cancelled']:raise
+null_failure_records=[r for r in review['raw']['pump']['provider_failures'] if 'null' in str(r.get('error','')).lower()]
+null_summary={'attribution_scope':'explicit per-member JSON-RPC result:null; exception-only failures retained separately',
+ 'exception_null_records':null_failure_records,'unique_signatures':len(nulls),'null_members':sum(map(len,nulls.values())),
+ 'repeated_null_signatures':{k:v for k,v in nulls.items() if len(v)>1},
+ 'all_null_signatures':dict(nulls)}
+(out/'null-transaction-attribution.json').write_text(json.dumps(null_summary,indent=2,sort_keys=True))
+print('NULL_TRANSACTION_AUDIT_BEGIN',flush=True)
+print(json.dumps(null_summary,sort_keys=True),flush=True)
+print('NULL_TRANSACTION_AUDIT_END',flush=True)
 print('STABLE_ARCHIVE_AUDIT_BEGIN',flush=True)
 printed={k:v for k,v in receipt.items() if k not in ('pons_journals','pump_complete')}
 printed['pons_journal_categories']={p['file']:dict(collections.Counter(r['category'] for r in p['records'])) for p in review['pons_journals']}
