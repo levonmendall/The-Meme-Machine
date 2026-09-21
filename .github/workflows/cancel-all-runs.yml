@@ -38,11 +38,14 @@ jobs:
                             artifacts=artifacts, reason="stop failed superseded hour after Pons already exited unexpectedly with retained unresolved exposure; require every still-running lane flat with no outstanding qualification before cancellation; preserve all artifacts and exact unresolved Pons accounting")
               if row["status"] != "completed":
                   checks_url = "https://api.github.com/repos/" + os.environ["REPOSITORY"] + "/commits/" + sha + "/check-runs?per_page=100"
-                  with urllib.request.urlopen(urllib.request.Request(checks_url, headers=headers)) as response:
-                      checks = json.load(response)
-                  check = next(c for c in checks["check_runs"] if c["name"] == "four-lane-live-hourly")
-                  body = check["output"]["text"].strip()
-                  snapshot = json.loads(body.removeprefix("```json").removesuffix("```").strip())
+                  for freshness_attempt in range(19):
+                      with urllib.request.urlopen(urllib.request.Request(checks_url, headers=headers)) as response:
+                          checks = json.load(response)
+                      check = next(c for c in checks["check_runs"] if c["name"] == "four-lane-live-hourly")
+                      body = check["output"]["text"].strip()
+                      snapshot = json.loads(body.removeprefix("```json").removesuffix("```").strip())
+                      if 0 <= time.time()-snapshot.get("observed_at",0)<45:break
+                      if freshness_attempt<18:time.sleep(5)
                   flat = snapshot.get("elapsed_seconds") is not None and 0 <= time.time()-snapshot.get("observed_at",0)<45
                   pons = snapshot["lanes"]["pons"]
                   flat = flat and pons.get("exit_code")==0 and pons.get("unexpected_exit") is True and pons.get("health")=="exited"
