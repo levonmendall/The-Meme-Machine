@@ -12,6 +12,7 @@ from robinhood_research.ramses_all_pool_lifecycle import (
     _frozen_prestate,
     _is_transient_provider_boundary,
     _paper_ledger_capital,
+    _unwind_has_full_liquidity,
     aggregate_segments,
     compact_lifecycle_result,
     select_qualifier,
@@ -74,6 +75,13 @@ class RamsesConnectedLifecycleTests(unittest.TestCase):
                 lifecycle.BoundaryError("connected_lifecycle_terminal_equality")
             )
         )
+
+    def test_partial_unwind_liquidity_holds_position_open_for_retry(self):
+        self.assertTrue(_unwind_has_full_liquidity(None))
+        self.assertTrue(_unwind_has_full_liquidity(dict(amount_in=10,amount_in_left=0)))
+        self.assertFalse(_unwind_has_full_liquidity(dict(amount_in=10,amount_in_left=3)))
+        with self.assertRaisesRegex(lifecycle.BoundaryError,"unwind_shape"):
+            _unwind_has_full_liquidity(dict(amount_in=10,amount_in_left=11))
 
     def test_machinery_proof_ledger_funds_modeled_cost_envelope_without_resizing_position(self):
         position = 205467
