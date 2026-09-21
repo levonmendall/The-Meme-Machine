@@ -61,6 +61,9 @@ def resolve_pump(path,body):
 
 def resolve_pons(path,body):
     rows=conflicts(body)
+    if path=="robinhood_tests/test_pons_selective_continuation.py" and len(rows)==1:
+        m=rows[0]
+        return body[:m.start()]+m.group(2)+body[m.end():]
     if path!="robinhood_research/pons_selective_cohort.py" or len(rows)!=3:
         raise RuntimeError(f"unexpected_pons_conflict:{path}:{len(rows)}")
     replacements=[
