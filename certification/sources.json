@@ -229,7 +229,7 @@
     "purpose": "active Pump and Pons paper profitability policies on the latest repaired four-lane integration; DLMM lanes retain current machinery-proof-v2 policies",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora/Ramses machinery-proof-v2",
-    "validation_status": "deterministic_verification_rerun_after_staging_fix",
+    "validation_status": "final_deterministic_verification_requested",
     "validation_run_requested": false
   },
   "composition": {
@@ -243,7 +243,7 @@
     "strategy_thresholds_changed": true,
     "freshness_finality_changed": false,
     "paper_accounting_changed": false,
-    "validation_status": "profitability-v1-deterministic-rerun-after-staging-fix",
+    "validation_status": "profitability-v1-final-deterministic-requested",
     "validation_run_requested": false,
     "source_sha": "0982519a68222b7cd0640981a7ac4a8ac7c119dd",
     "integration": "Pump/Pons profitability-v1 authority composed with current DLMM machinery-proof implementation"
