@@ -59,10 +59,6 @@ jobs:
           git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/ramses-admission.patch"
           (cd "$WORKTREE" && python -m unittest             robinhood_tests.test_ramses_connected_lifecycle             robinhood_tests.test_ramses_rate_limit             robinhood_tests.test_ramses_strategy             robinhood_tests.test_ramses_continuous_campaign -v)
           (cd "$WORKTREE" && python -c "from robinhood_research.ramses_campaign import CampaignBooks; from robinhood_research.ramses_strategy import POLICY,POLICY_HASH,STRATEGY_DOMAIN; asset='0x'+'11'*20; costs=dict(entry_overhead=630350,add_liquidity=1260698,remove_liquidity=1260698,unwind=630349); position=204788; screen=dict(policy_hash=POLICY_HASH,strategy_domain=STRATEGY_DOMAIN,finalized_frontier_source='pinned_external_finalized_header',rows=[dict(token_y=asset,paper_capital_quote_raw=205467,gas_costs=costs,decision=dict(freeze=dict(proposals=[dict(capital_employed=position)])))]); expected=max(205467,position+sum(costs.values())*(1+POLICY['controller']['max_rebalances'])); assert CampaignBooks.budgets_from_screen(screen)[asset]==expected")
-          expected=max(205467,position+sum(costs.values())*(1+POLICY['controller']['max_rebalances']))
-          assert CampaignBooks.budgets_from_screen(screen)[asset] == expected
-          PY
-          )
       - run: python -m unittest discover -v
       - run: python -m tests.resource_check
       - run: python -m tests.make_tape && python -m meme_machine --mode synthetic --config config.synthetic.json --db /tmp/meme-ci.db --tape tests/fixtures/synthetic_lifecycle.jsonl
