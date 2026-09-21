@@ -37,7 +37,7 @@ jobs:
         run: |
           mkdir -p certification-gates
           set -o pipefail
-          python -m py_compile certification/frozen_artifact_review.py
+          python -m py_compile certification/frozen_artifact_review.py certification/inspect_stable_artifact.py
           python -m unittest discover -s certification/tests -v 2>&1 | tee certification-gates/supervisor-tests.log
       - name: Create isolated exact-source worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/four-lane-worktrees"
@@ -98,7 +98,7 @@ jobs:
         run: |
           mkdir -p certification-gates
           set -o pipefail
-          python -m py_compile certification/frozen_artifact_review.py
+          python -m py_compile certification/frozen_artifact_review.py certification/inspect_stable_artifact.py
           python -m unittest discover -s certification/tests -v 2>&1 | tee certification-gates/supervisor-tests.log
       - name: Create isolated exact-source worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/four-lane-worktrees"
@@ -157,7 +157,7 @@ jobs:
           REVIEW_RUN_ID: ${{ github.run_id }}
           REVIEW_SHA: ${{ github.sha }}
           REVIEW_PHASE: smoke
-        run: python certification/frozen_artifact_review.py
+        run: python certification/inspect_stable_artifact.py
       - name: Preserve complete artifact review
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -182,7 +182,7 @@ jobs:
           REVIEW_RUN_ID: ${{ github.run_id }}
           REVIEW_SHA: ${{ github.sha }}
           REVIEW_PHASE: hourly
-        run: python certification/frozen_artifact_review.py
+        run: python certification/inspect_stable_artifact.py
       - name: Preserve complete artifact review
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

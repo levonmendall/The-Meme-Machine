@@ -1155,7 +1155,7 @@ index 0000000..38a4454
 +                self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT');return rec
 +            except BaseException:db.execute('ROLLBACK');raise
 diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
-index 080894d..9591210 100644
+index 080894d..b6a579e 100644
 --- a/robinhood_research/pons_selective_cohort.py
 +++ b/robinhood_research/pons_selective_cohort.py
 @@ -5,6 +5,8 @@ result directory, dedicated wallet-skill ledger, dedicated paper databases, poli
@@ -1167,16 +1167,30 @@ index 080894d..9591210 100644
  import json
  import os
  from pathlib import Path
-@@ -13,6 +15,8 @@ import time
+@@ -13,8 +15,10 @@ import time
  from . import BoundaryError
  from .abi import topic
  from .evidence_queue import DeadlineEvidenceQueue
 +from .pipeline import Pipeline,censor_class
 +from .provider_admission import foreground_work
  from .pons_natural_observation import (
-     _current_curve_events, _next_discovery_end,
+-    _current_curve_events, _next_discovery_end,
++    _current_curve_events, _next_discovery_end as _next_single_discovery_end,
  )
-@@ -56,6 +60,10 @@ RATE_LIMIT_PROVIDER_BOUNDARIES=frozenset((
+ from .provider_topology import configured_discovery_rpc
+ from .sequencer_feed import SequencerBlockClock, SequencerTransportError
+@@ -45,6 +49,10 @@ MAX_TAPE_EVENTS=40_000
+ MAX_CONCURRENT_LIFECYCLES=8
+ MIN_REEVALUATION_SECONDS=2.0
+ POLL_SECONDS=0.5
++# Bound transport batching; every logical log read retains the ten-block ceiling.
++DISCOVERY_BATCH_RANGES=4
++DISCOVERY_RANGE_BLOCKS=10
++DISCOVERY_RANGE_EVENTS=1000
+ CHECKPOINT_SECONDS=15.0
+ SEQUENCER_RECONNECT_ATTEMPTS=5
+ SEQUENCER_RECONNECT_SLEEP_SECONDS=0.5
+@@ -56,6 +64,10 @@ RATE_LIMIT_PROVIDER_BOUNDARIES=frozenset((
      "provider_http_429",
      "provider_rpc_429",
  ))
@@ -1187,7 +1201,7 @@ index 080894d..9591210 100644
  RECOVERABLE_PROVIDER_BOUNDARIES=frozenset((
      "provider_http_500",
      "provider_http_502",
-@@ -132,13 +140,22 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
+@@ -132,13 +144,22 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
          started_at=result["started_at"],
          canonical_discovery_cursor=int(cursor),
          summary=_summary_snapshot(result),
@@ -1212,7 +1226,7 @@ index 080894d..9591210 100644
          persisted_candidate_rows=len(result["rows"]),
          persisted_qualifiers=len(result["qualifiers"]),
      )
-@@ -175,6 +192,7 @@ def _recover_sequencer(feed,cursor,recoveries):
+@@ -175,6 +196,7 @@ def _recover_sequencer(feed,cursor,recoveries):
      raise BoundaryError("sequencer_reconnect_exhausted:"+str(last or "unknown"))
  
  
@@ -1220,7 +1234,7 @@ index 080894d..9591210 100644
  def _discovery(endpoint):
      rpc=configured_discovery_rpc(endpoint,limit=200,per_scope=190,retries=0)
      rpc.verify_chain()
-@@ -186,6 +204,7 @@ def _recoverable_provider_boundary(exc):
+@@ -186,6 +208,7 @@ def _recoverable_provider_boundary(exc):
      return (
          boundary in RECOVERABLE_PROVIDER_BOUNDARIES
          or boundary in RATE_LIMIT_PROVIDER_BOUNDARIES
@@ -1228,7 +1242,7 @@ index 080894d..9591210 100644
      )
  
  
-@@ -202,6 +221,7 @@ def _recover_discovery(
+@@ -202,6 +225,7 @@ def _recover_discovery(
          on_failure(rpc,boundary,int(cursor))
  
      rate_limited=boundary in RATE_LIMIT_PROVIDER_BOUNDARIES
@@ -1236,7 +1250,7 @@ index 080894d..9591210 100644
      pacer=getattr(rpc,"pacer",None)
      rps_before=(
          None if pacer is None
-@@ -217,10 +237,10 @@ def _recover_discovery(
+@@ -217,10 +241,10 @@ def _recover_discovery(
      last=boundary
      attempts=(
          PROVIDER_RATE_LIMIT_ATTEMPTS
@@ -1249,7 +1263,7 @@ index 080894d..9591210 100644
              time.sleep(PROVIDER_RATE_LIMIT_BASE_SLEEP_SECONDS*attempt)
          elif attempt>1:
              time.sleep(PROVIDER_RECOVERY_SLEEP_SECONDS)
-@@ -235,7 +255,8 @@ def _recover_discovery(
+@@ -235,7 +259,8 @@ def _recover_discovery(
                  attempts=max(attempts,PROVIDER_RATE_LIMIT_ATTEMPTS)
              continue
          row=dict(
@@ -1259,7 +1273,7 @@ index 080894d..9591210 100644
              recovered_at=time.time(),
              attempt=attempt,
              boundary=boundary,
-@@ -243,7 +264,7 @@ def _recover_discovery(
+@@ -243,7 +268,7 @@ def _recover_discovery(
              canonical_cursor_advanced=False,
              catchup_authority="authenticated_discovery_rpc",
              catchup_from=int(cursor)+1,
@@ -1268,15 +1282,96 @@ index 080894d..9591210 100644
              pacer_rps_before=rps_before,
              pacer_rps_after=rps_after,
          )
-@@ -277,6 +298,7 @@ def _read_curve_range(rpc,first,observed_end):
-         return observed_end,_current_curve_events(rpc,first,observed_end)
+@@ -253,6 +278,67 @@ def _recover_discovery(
+     raise BoundaryError("provider_recovery_exhausted:"+str(last))
+ 
+ 
++def _next_discovery_end(feed,cursor,discovery,*,timeout):
++    """Coalesce queued observation ranges within the original poll clock.
++
++    This does not advance the authenticated discovery cursor. Only _poll can
++    advance that cursor after every requested range has been acquired.
++    """
++    deadline=time.monotonic()+max(0.0,float(timeout))
++    end=int(cursor)
++    for _ in range(DISCOVERY_BATCH_RANGES):
++        remaining=deadline-time.monotonic()
++        if remaining<=0:
++            break
++        latest=_next_single_discovery_end(
++            feed,end,discovery,timeout=remaining,
++        )
++        if latest is None:
++            break
++        latest=int(latest)
++        if not end<latest<=end+DISCOVERY_RANGE_BLOCKS:
++            raise BoundaryError("selective_discovery_range_identity")
++        end=latest
++    return end if end>int(cursor) else None
++
++
++def _discovery_curve_events(rpc,start,end):
++    """One physical batch of separate, bounded, contiguous log queries."""
++    if end<start:
++        return []
++    if end-start+1>DISCOVERY_BATCH_RANGES*DISCOVERY_RANGE_BLOCKS:
++        raise BoundaryError("selective_discovery_batch_capacity")
++    if end-start+1<=DISCOVERY_RANGE_BLOCKS:
++        return _current_curve_events(rpc,start,end)
++    signatures=[
++        topic("CurveBuy(address,address,uint256,uint256,uint256,uint256)"),
++        topic("CurveSell(address,address,uint256,uint256,uint256,uint256)"),
++    ]
++    calls=[
++        ("eth_getLogs",[dict(
++            fromBlock=hex(first),
++            toBlock=hex(min(end,first+DISCOVERY_RANGE_BLOCKS-1)),
++            topics=[signatures],
++        )])
++        for first in range(start,end+1,DISCOVERY_RANGE_BLOCKS)
++    ]
++    pages=rpc.batch(calls,scope="pons_natural")
++    if not isinstance(pages,list) or len(pages)!=len(calls):
++        raise BoundaryError("selective_discovery_batch_shape")
++    rows=[]
++    for page in pages:
++        if not isinstance(page,list):
++            raise BoundaryError("selective_discovery_log_shape")
++        if len(page)>DISCOVERY_RANGE_EVENTS:
++            raise BoundaryError("natural_event_capacity")
++        rows.extend(page)
++    rows.sort(key=lambda event:(
++        int(event["blockNumber"],16),int(event["transactionIndex"],16),
++        int(event["logIndex"],16),
++    ))
++    return rows
++
++
+ def _single_block_range(rpc,start,end):
+     rows=[]
+     for block in range(int(start),int(end)+1):
+@@ -262,7 +348,7 @@ def _single_block_range(rpc,start,end):
+ 
+ def _read_curve_range(rpc,first,observed_end):
+     try:
+-        return observed_end,_current_curve_events(rpc,first,observed_end)
++        return observed_end,_discovery_curve_events(rpc,first,observed_end)
+     except BoundaryError as exc:
+         if str(exc)!="provider_rpc_-32602":
+             raise
+@@ -274,9 +360,10 @@ def _read_curve_range(rpc,first,observed_end):
+         if frontier>=observed_end:
+             return observed_end,_single_block_range(rpc,first,observed_end)
+         observed_end=min(observed_end,frontier)
+-        return observed_end,_current_curve_events(rpc,first,observed_end)
++        return observed_end,_discovery_curve_events(rpc,first,observed_end)
  
  
 +@foreground_work
  def _poll(
      endpoint,rpc,cursor,tape,feed,sessions,recoveries=None,
      on_provider_failure=None,
-@@ -284,10 +306,17 @@ def _poll(
+@@ -284,10 +371,17 @@ def _poll(
      if recoveries is None:
          recoveries=[]
      if rpc.used>150:
@@ -1298,7 +1393,7 @@ index 080894d..9591210 100644
  
      while True:
          try:
-@@ -341,26 +370,79 @@ def _attach_wallet_overlay(vector,skill_book):
+@@ -341,26 +435,79 @@ def _attach_wallet_overlay(vector,skill_book):
      return overlay
  
  
@@ -1391,7 +1486,7 @@ index 080894d..9591210 100644
          ),
          outcome_blind=True,reranking=False,replacement=False,
          wallet_skill_namespace=STRATEGY_NAMESPACE,
-@@ -369,22 +451,37 @@ def run(endpoint):
+@@ -369,22 +516,37 @@ def run(endpoint):
          sequencer_recoveries=[],evidence_acquisition=None,started_at=started,
      )
  
@@ -1430,7 +1525,7 @@ index 080894d..9591210 100644
  
      def _checkpoint_provider_failure(failed_rpc,boundary,current_cursor):
          result["last_transient_provider_boundary"]=str(boundary)
-@@ -393,6 +490,7 @@ def run(endpoint):
+@@ -393,6 +555,7 @@ def run(endpoint):
              phase="provider_recovery",
          )
  
@@ -1438,7 +1533,7 @@ index 080894d..9591210 100644
      try:
          warm_deadline=time.monotonic()+TAPE_WARM_SECONDS
          while time.monotonic()<warm_deadline:
-@@ -415,14 +513,15 @@ def run(endpoint):
+@@ -415,14 +578,15 @@ def run(endpoint):
          next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
          while (
              time.monotonic()<deadline
@@ -1456,7 +1551,7 @@ index 080894d..9591210 100644
              now=time.time()
              now_monotonic=time.monotonic()
              for event in fresh:
-@@ -430,6 +529,7 @@ def run(endpoint):
+@@ -430,6 +594,7 @@ def run(endpoint):
                  if identity in seen_event:
                      continue
                  seen_event.add(identity)
@@ -1464,7 +1559,7 @@ index 080894d..9591210 100644
                  if (
                      not event.get("topics")
                      or event["topics"][0].lower()!=topic(
-@@ -441,9 +541,14 @@ def run(endpoint):
+@@ -441,9 +606,14 @@ def run(endpoint):
                  if now-last_eval.get(curve,0)<MIN_REEVALUATION_SECONDS:
                      continue
                  last_eval[curve]=now
@@ -1479,7 +1574,7 @@ index 080894d..9591210 100644
              if time.monotonic()>=next_checkpoint:
                  _checkpoint(
                      result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery"
-@@ -461,6 +566,18 @@ def run(endpoint):
+@@ -461,6 +631,18 @@ def run(endpoint):
              if observed_monotonic is None:
                  raise BoundaryError("missing_evidence_observation_clock")
              observed_at=float(scheduled["queued_at"])
@@ -1498,7 +1593,7 @@ index 080894d..9591210 100644
              try:
                  evaluation=evaluate_candidate(
                      endpoint,event,list(tape),
-@@ -469,7 +586,29 @@ def run(endpoint):
+@@ -469,7 +651,29 @@ def run(endpoint):
                      evidence_observed_at=observed_at,
                      evidence_observed_monotonic=observed_monotonic,
                      evidence_context=evidence_context,
@@ -1528,7 +1623,7 @@ index 080894d..9591210 100644
                  overlay=_attach_wallet_overlay(evaluation["vector"],skill)
                  public=public_evaluation(evaluation)
                  public["sequence"]=sequence
-@@ -493,14 +632,27 @@ def run(endpoint):
+@@ -493,14 +697,27 @@ def run(endpoint):
                          phase="qualifier_persisted",
                      )
                      next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
@@ -1557,7 +1652,7 @@ index 080894d..9591210 100644
                      sequence=sequence,status="incomplete",
                      source_transaction=event.get("transactionHash"),
                      source_block=event.get("blockNumber"),
-@@ -517,28 +669,36 @@ def run(endpoint):
+@@ -517,28 +734,36 @@ def run(endpoint):
          if not result["target_reached"]:
              result["boundary"]="selective_cohort_target_not_reached_in_bounded_window"
  
@@ -1605,7 +1700,7 @@ index 080894d..9591210 100644
          feed.close();skill.close()
  
      result["lifecycles"].sort(key=lambda row:row.get("index",-1))
-@@ -575,10 +735,7 @@ def run(endpoint):
+@@ -575,10 +800,7 @@ def run(endpoint):
  
  if __name__=="__main__":
      output=run(os.environ.get("MM_ROBINHOOD_READ_RPC_URL",""))
@@ -3420,6 +3515,167 @@ index 0000000..a9a7c17
 +                cohort._poll('unused',old,123,[],object(),[],[])
 +        self.assertEqual(connect.call_count,1)
 +        self.assertEqual(priority('connectivity'),50)
+diff --git a/robinhood_tests/test_discovery_range_batching.py b/robinhood_tests/test_discovery_range_batching.py
+new file mode 100644
+index 0000000..1af2f7a
+--- /dev/null
++++ b/robinhood_tests/test_discovery_range_batching.py
+@@ -0,0 +1,155 @@
++"""Discovery throughput regressions; entirely synthetic, no provider access."""
++import unittest
++from types import SimpleNamespace
++from unittest.mock import patch
++
++from robinhood_research import BoundaryError
++from robinhood_research import pons_selective_cohort as cohort
++
++
++def event(block,index=0):
++    return dict(blockNumber=hex(block),transactionIndex="0x0",
++                logIndex=hex(index),transactionHash="0x"+f"{block:064x}")
++
++
++class Rpc:
++    used=0
++    primary_fallback=True
++    def __init__(self,failure=None):
++        self.batches=[];self.calls=[];self.failure=failure
++    def batch(self,calls,*,scope):
++        self.batches.append((calls,scope))
++        if self.failure:raise BoundaryError(self.failure)
++        return [self.page(params[0]) for method,params in calls]
++    def call(self,method,params,*,scope):
++        self.calls.append((method,params,scope))
++        return self.page(params[0])
++    @staticmethod
++    def page(query):
++        return [event(n) for n in range(int(query["fromBlock"],16),
++                                       int(query["toBlock"],16)+1)]
++
++
++class Feed:
++    def __init__(self,frontier):
++        self.frontier=frontier;self.reads=[]
++    def wait_for_range_after(self,cursor,**kwargs):
++        self.reads.append((cursor,kwargs))
++        return min(cursor+kwargs["max_blocks"],self.frontier) if cursor<self.frontier else None
++
++
++class DiscoveryBatchTests(unittest.TestCase):
++    def test_candidate_work_does_not_accumulate_an_unread_log_frontier(self):
++        # Twenty new blocks arrive while one candidate consumes its work time.
++        # The former one-range loop advanced only ten and accumulated backlog.
++        feed=Feed(100);rpc=Rpc();cursor=100;tape=[]
++        with patch.object(cohort.time,"monotonic",return_value=100.0):
++            for _ in range(20):
++                feed.frontier+=20
++                rpc,cursor,fresh=cohort._poll("unused",rpc,cursor,tape,feed,[])
++                self.assertEqual(cursor,feed.frontier)
++                self.assertEqual(len(fresh),20)
++        self.assertEqual([int(x["blockNumber"],16) for x in tape],list(range(101,501)))
++        self.assertEqual(len(rpc.batches),20)
++        self.assertEqual(len(rpc.calls),0)
++        for calls,scope in rpc.batches:
++            self.assertEqual(scope,"pons_natural")
++            self.assertEqual(len(calls),2)
++            for method,params in calls:
++                self.assertEqual(method,"eth_getLogs")
++                self.assertEqual(int(params[0]["toBlock"],16)-int(params[0]["fromBlock"],16)+1,10)
++                self.assertEqual(len(params[0]["topics"][0]),2)
++
++    def test_cold_backlog_is_bounded_and_never_skips_a_range(self):
++        feed=Feed(1000);rpc=Rpc();tape=[]
++        with patch.object(cohort.time,"monotonic",return_value=100.0):
++            _,cursor,fresh=cohort._poll("unused",rpc,100,tape,feed,[])
++        self.assertEqual(cursor,140)
++        self.assertEqual(len(rpc.batches),1)
++        self.assertEqual(len(rpc.batches[0][0]),4)
++        self.assertEqual([int(x["blockNumber"],16) for x in fresh],list(range(101,141)))
++        self.assertEqual(tape,fresh)
++
++    def test_range_collection_uses_one_original_poll_clock(self):
++        now=[100.0];seen=[]
++        def single(feed,cursor,rpc,*,timeout):
++            seen.append(timeout)
++            now[0]+=min(0.3,timeout)
++            return cursor+10
++        with patch.object(cohort.time,"monotonic",side_effect=lambda:now[0]),patch.object(
++            cohort,"_next_single_discovery_end",side_effect=single):
++            end=cohort._next_discovery_end(None,100,None,timeout=0.5)
++        self.assertEqual(end,120)
++        self.assertEqual(len(seen),2)
++        self.assertAlmostEqual(seen[0],0.5)
++        self.assertAlmostEqual(seen[1],0.2)
++        self.assertAlmostEqual(now[0],100.5)
++
++    def test_no_new_frontier_never_sends_a_log_request(self):
++        rpc=Rpc()
++        with patch.object(cohort.time,"monotonic",return_value=100.0):
++            _,cursor,fresh=cohort._poll("unused",rpc,100,[],Feed(100),[])
++        self.assertEqual((cursor,fresh),(100,[]))
++        self.assertEqual((rpc.calls,rpc.batches),([],[]))
++
++    def test_single_range_preserves_existing_single_transport(self):
++        rpc=Rpc()
++        rows=cohort._discovery_curve_events(rpc,101,110)
++        self.assertEqual(len(rows),10)
++        self.assertEqual(len(rpc.calls),1)
++        self.assertEqual(rpc.batches,[])
++
++    def test_authentication_failure_does_not_advance_cursor_or_retry(self):
++        rpc=Rpc("provider_http_401");tape=[]
++        with patch.object(cohort.time,"monotonic",return_value=100.0),patch.object(
++            cohort,"_recover_discovery") as recover:
++            with self.assertRaisesRegex(BoundaryError,"provider_http_401"):
++                cohort._poll("unused",rpc,100,tape,Feed(140),[])
++        self.assertEqual(tape,[])
++        self.assertEqual(len(rpc.batches),1)
++        recover.assert_not_called()
++
++    def test_transient_batch_recovery_preserves_original_range_identity(self):
++        failed=Rpc("provider_http_429");replacement=Rpc();tape=[]
++        with patch.object(cohort.time,"monotonic",return_value=100.0),patch.object(
++            cohort,"_recover_discovery",return_value=replacement) as recover:
++            returned,cursor,fresh=cohort._poll("unused",failed,100,tape,Feed(140),[])
++        self.assertIs(returned,replacement)
++        self.assertEqual(cursor,140)
++        self.assertEqual(failed.batches,replacement.batches)
++        self.assertEqual(recover.call_args.args[2],100)
++        self.assertEqual(len(tape),40)
++        self.assertEqual(tape,fresh)
++
++    def test_malformed_batch_and_per_range_overflow_fail_closed(self):
++        for pages,reason in (([[]],"batch_shape"),([None,[]],"log_shape"),
++                             ([[],[event(111)]*1001],"natural_event_capacity")):
++            rpc=Rpc()
++            with self.subTest(reason=reason),patch.object(rpc,"batch",return_value=pages):
++                with self.assertRaisesRegex(BoundaryError,reason):
++                    cohort._discovery_curve_events(rpc,101,120)
++
++    def test_batch_capacity_is_checked_before_transport(self):
++        rpc=Rpc()
++        with self.assertRaisesRegex(BoundaryError,"batch_capacity"):
++            cohort._discovery_curve_events(rpc,101,141)
++        self.assertEqual((rpc.calls,rpc.batches),([],[]))
++
++    def test_more_than_one_thousand_events_across_distinct_valid_ranges_are_retained(self):
++        rpc=Rpc()
++        pages=[[event(101,i) for i in range(1000)],[event(111,i) for i in range(1000)]]
++        with patch.object(rpc,"batch",return_value=pages):
++            rows=cohort._discovery_curve_events(rpc,101,120)
++        self.assertEqual(len(rows),2000)
++        self.assertEqual(rows,pages[0]+pages[1])
++
++    def test_invalid_observation_range_never_becomes_canonical(self):
++        for returned in (100,99,111):
++            with self.subTest(returned=returned),patch.object(cohort.time,"monotonic",return_value=100.0),patch.object(
++                cohort,"_next_single_discovery_end",return_value=returned):
++                with self.assertRaisesRegex(BoundaryError,"range_identity"):
++                    cohort._next_discovery_end(None,100,None,timeout=0.5)
++
++
++if __name__=="__main__":
++    unittest.main()
 diff --git a/robinhood_tests/test_immutable_rpc.py b/robinhood_tests/test_immutable_rpc.py
 new file mode 100644
 index 0000000..ba583be
