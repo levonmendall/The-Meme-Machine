@@ -43,7 +43,18 @@ if result["integration_sha"]!=SHA:raise RuntimeError("result_source_mismatch")
 review={"artifact":artifact,"verified_sha256":actual,"result":result,"native_lifecycles":[],"raw":{},"capacity":{}}
 native=root/f"certification-native/{PHASE}"
 pons_path=native/"pons/pons-selective-continuation-v1-cohort"
-with gzip.open(pons_path/"complete-result.json.gz","rt") as f:pons=json.load(f)
+pons_final=pons_path/"complete-result.json.gz"
+pons_final_complete=pons_final.exists()
+if pons_final_complete:
+    with gzip.open(pons_final,"rt") as f:pons=json.load(f)
+elif cancelled:
+    checkpoint=pons_path/"cohort-progress.json"
+    if not checkpoint.exists():raise RuntimeError("cancelled_pons_checkpoint_missing")
+    pons=json.loads(checkpoint.read_text())
+    review["pons_native_boundary"]="cancelled_before_complete_result; checkpoint and raw journals retained; no final lifecycle inference"
+else:
+    raise RuntimeError("normal_pons_complete_result_missing")
+review["pons_native_final_complete"]=pons_final_complete
 review["pons_complete"]=pons
 for life in pons.get("lifecycles",[]):
     row={k:life.get(k) for k in ("index","status","boundary","entry_failure","lifecycle_id","started_at","ended_at","realized_pnl_quote","settlement_kind","reconciliation","cohort_reconciliation","provider_recoveries","final_position")}
@@ -108,6 +119,7 @@ summary={"sha":SHA,"run":RUN,"phase":PHASE,"artifact_id":artifact["id"],"sha256"
     "elapsed":result["elapsed_seconds"],
     "lanes":{k:{x:v.get(x) for x in ("exit_code","unexpected_exit","natural_settled","forced_settled","open_positions","accounting_reconciled","cohort_accounting","native_accounting","provider_method_errors","provider_http_status_errors","provider_rpc_error_codes")} for k,v in result["lanes"].items()},
     "pons_summary":pons.get("summary"),
+    "pons_native_final_complete":pons_final_complete,"pons_native_boundary":review.get("pons_native_boundary"),
     "pons_boundary":pons.get("boundary"),"pons_operational_configuration":pons.get("operational_configuration"),
     "pons_discovery_recoveries":pons.get("sequencer_recoveries"),
     "pons_lifecycle_sessions":[{"index":l.get("index"),"sessions":l.get("provider_sessions")} for l in pons.get("lifecycles",[])],

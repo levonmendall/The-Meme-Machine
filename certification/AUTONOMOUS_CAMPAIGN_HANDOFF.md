@@ -1016,3 +1016,26 @@ The full exact pre-cancellation snapshot is appended in results; no native expos
 was relabelled settled by cancellation, and no prior duration counts for replacement.
 
 Cancellation audit10625792486,11823 bytes, recorded sha256:d5bb48f906eb6d89c50af01749caa36ea07632145502a53364d09cbe07805f2e.
+
+
+### Candidate authentication gates passed; cancellation-aware native review
+
+Build35571033151/job106242525448 atd2db9ed3742f20a6b34ba434a189a76c8df6dde6
+PASS:1258 lane tests (Pump292,Meteora392,Pons305,Ramses269),78 supervisor tests,
+all3 resource gates, byte-for-byte canonicality and original frozen hashes.
+Five new real-admission/authentication regressions pass. Verified Pons overlay
+SHA2565cecafc43872bc5a3517b7b1af7792e38d615d2baa6cab68e8bd3d1ad7a14950.
+Build artifact10625927434,210226 bytes, SHA256
+f95ecf3e484b5d5a584bc4b24874a0a1dd44e1762a6341f5925a8d9d5bca7232.
+Complete verified overlays/transcripts are composed by this commit, without live launch.
+
+Partial-hour review35571142383/job106242846594 verified the archive checksum,
+then failed because it assumed Pons complete-result.json.gz exists after cancellation.
+The runner was deliberately interrupted while flat, before normal Pons finalization;
+the collector retained the checkpoint and native journals. This is not the previous
+lost ZIP failure. Its failed review artifact10626092073 is retained (584 bytes,
+SHA2569d9758d49e963946c6caf998e0644cb0bd816030171d0ed0ba7e62e20b145dbc).
+For cancelled runs only, the read-only reviewer may inspect the retained checkpoint
+and journals while explicitly marking the complete native final report absent.
+It may not infer final lifecycles from that checkpoint. Normal smoke/hour review
+still requires the complete report and unchanged engineering controls.

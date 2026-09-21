@@ -38,6 +38,8 @@ receipt={'sha':state['SHA'],'run':state['RUN'],'phase':state['PHASE'],
  'snapshot_complete':manifest.get('snapshot_complete'),'snapshot_cancelled':manifest.get('cancelled'),
  'verified_file_count':len(verified),'file_kinds':dict(counts),'failures':failures,'source':source,
  'lanes':metrics,'shared_provider':result.get('shared_provider'),
+ 'pons_native_final_complete':review.get('pons_native_final_complete'),
+ 'pons_native_boundary':review.get('pons_native_boundary'),
  'pons_lifecycles':review['native_lifecycles'],
  'pons_journals':review['pons_journals'],
  'pump_complete':review['pump_complete']}

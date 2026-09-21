@@ -386,7 +386,7 @@ index 03a18bd..bf762b8 100644
  
  
 diff --git a/robinhood_research/pons_selective_acquisition.py b/robinhood_research/pons_selective_acquisition.py
-index bf9e1a8..1c4edf5 100644
+index bf9e1a8..89bbb39 100644
 --- a/robinhood_research/pons_selective_acquisition.py
 +++ b/robinhood_research/pons_selective_acquisition.py
 @@ -8,6 +8,10 @@ from __future__ import annotations
@@ -400,7 +400,15 @@ index bf9e1a8..1c4edf5 100644
  
  from . import BoundaryError
  from .abi import calldata
-@@ -24,6 +28,7 @@ HEADER_BATCH=50
+@@ -16,6 +20,7 @@ from .pons_natural_observation import (
+     RESEARCH_RECIPIENT, _authenticate_candidate, _one_word,
+ )
+ from .provider_topology import configured_rpc
++from .provider_admission import foreground_work
+ from .pons_selective_continuation import (
+     ENTRY_THRESHOLDS, curve_progress_bps, normalized_trade, qualification_vector,
+ )
+@@ -24,6 +29,7 @@ HEADER_BATCH=50
  RECEIPT_BATCH=50
  MAX_TRAJECTORY_LOOKBACK_BLOCKS=8192
  CACHE_HEADERS=4096
@@ -408,10 +416,11 @@ index bf9e1a8..1c4edf5 100644
  CACHE_RECEIPTS=8192
  CACHE_LAUNCHES=4096
  EVIDENCE_SESSION_ROTATE_AT=180
-@@ -154,6 +159,23 @@ class SelectiveEvidenceContext:
+@@ -154,13 +160,35 @@ class SelectiveEvidenceContext:
          self.cache=cache or ImmutableEvidenceCache()
          self.rpc=None
          self.completed_sessions=[]
+-
 +        self.adjacent=[]
 +        self.block_reads=OrderedDict()
 +        self.factory_hints=OrderedDict()
@@ -429,10 +438,23 @@ index bf9e1a8..1c4edf5 100644
 +            except (OSError,ValueError,KeyError):pass
 +            try:self.view_batch_state['supported']=json.loads(Path(cap).read_text())['endpoints'][domain]['methods']['eth_callMany']['supported'] is True
 +            except (OSError,ValueError,KeyError):pass
- 
++
++    @foreground_work
      def _rotate(self):
          if self.rpc is not None:
-@@ -177,16 +199,102 @@ class SelectiveEvidenceContext:
+             self.completed_sessions.append(self.rpc.telemetry())
+             if len(self.completed_sessions)>32:
+                 self.completed_sessions=self.completed_sessions[-32:]
+-        self.rpc=_rpc(self.endpoint)
++        # Archive a completed session once, even if replacement authentication fails.
++        # An unauthenticated replacement never becomes the current session.
++        self.rpc=None
++        self.rpc=(_rpc(self.endpoint) if self.deadline is None else
++                  _rpc(self.endpoint,evidence_deadline=self.deadline))
+         return self.rpc
+ 
+     def acquire(self,needed=1,scope="pons_selective"):
+@@ -177,16 +205,102 @@ class SelectiveEvidenceContext:
          return self.rpc
  
      def call(self,method,params,scope):
@@ -541,7 +563,7 @@ index bf9e1a8..1c4edf5 100644
          self.cache.remember_header(candidate["header"])
          self.cache.remember_receipt(
              candidate["receipt"]["transactionHash"],
-@@ -202,7 +310,7 @@ class SelectiveEvidenceContext:
+@@ -202,12 +316,14 @@ class SelectiveEvidenceContext:
          return dict(
              completed_sessions=list(self.completed_sessions),
              current_session=current,
@@ -550,7 +572,15 @@ index bf9e1a8..1c4edf5 100644
          )
  
  
-@@ -228,6 +336,39 @@ def _batched(endpoint,calls,scope,*,evidence_context=None):
+-def _rpc(endpoint):
++def _rpc(endpoint,*,evidence_deadline=None):
+     rpc=configured_rpc(endpoint,limit=200,per_scope=190,retries=0)
++    # Chain authentication is part of this consumer's acquisition budget.
++    rpc.evidence_deadline=evidence_deadline
+     rpc.verify_chain()
+     return rpc
+ 
+@@ -228,6 +344,39 @@ def _batched(endpoint,calls,scope,*,evidence_context=None):
      return out,telemetry
  
  
@@ -590,7 +620,7 @@ index bf9e1a8..1c4edf5 100644
  def _authenticate_window(
      endpoint,candidate,tape,seconds=60,*,evidence_context=None
  ):
-@@ -243,18 +384,13 @@ def _authenticate_window(
+@@ -243,18 +392,13 @@ def _authenticate_window(
      end_time=int(candidate["stamp"].event_at)
      end_block=int(candidate["block"])
      curve=candidate["curve"].lower()
@@ -611,7 +641,7 @@ index bf9e1a8..1c4edf5 100644
      headers={}
      receipts={}
      pending=[]
-@@ -379,7 +515,42 @@ def _header_search(rpc,current_block,current_at,target_at,cache):
+@@ -379,7 +523,42 @@ def _header_search(rpc,current_block,current_at,target_at,cache):
      return read(low)
  
  
@@ -655,7 +685,7 @@ index bf9e1a8..1c4edf5 100644
      """Resolve 5s/15s trajectory anchors from dense batched recent headers.
  
      The old binary search serialized one request per probe. This path walks recent
-@@ -399,12 +570,16 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+@@ -399,12 +578,16 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
      looked=0
      collected={current_block:current_header}
      first=True
@@ -672,7 +702,7 @@ index bf9e1a8..1c4edf5 100644
          labels=[];calls=[]
  
          if first and launch_at is None:
-@@ -422,7 +597,14 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+@@ -422,7 +605,14 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
              else:
                  collected[block]=header
  
@@ -688,7 +718,7 @@ index bf9e1a8..1c4edf5 100644
          for label,value in zip(labels,values):
              kind,key=label
              if kind=="launch":
-@@ -448,9 +630,12 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+@@ -448,9 +638,12 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
              default=current_at,
          )
          looked+=len(blocks)
@@ -703,7 +733,7 @@ index bf9e1a8..1c4edf5 100644
              raise BoundaryError("trajectory_history_incomplete")
          next_block=low-1
          first=False
-@@ -475,7 +660,9 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+@@ -475,7 +668,9 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
          ]
          if not eligible:
              raise BoundaryError("trajectory_history_incomplete")
@@ -714,7 +744,7 @@ index bf9e1a8..1c4edf5 100644
  
      unique_blocks=list(dict.fromkeys(
          int(h["number"],16) for h in prior_headers
-@@ -488,12 +675,18 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+@@ -488,12 +683,18 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
              missing_blocks.append(block)
          else:
              reserve_by_block[block]=cached
@@ -735,7 +765,7 @@ index bf9e1a8..1c4edf5 100644
      for block,raw in zip(missing_blocks,reads):
          reserve_by_block[block]=cache.remember_real_quote(
              curve,block,_one_word(raw)
-@@ -533,43 +726,148 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
+@@ -533,43 +734,148 @@ def _trajectory(endpoint,candidate,*,evidence_context=None):
      )
  
  
@@ -889,7 +919,7 @@ index bf9e1a8..1c4edf5 100644
  
      available=int(time.time())
      completed_monotonic=time.monotonic()
-@@ -578,10 +876,15 @@ def evaluate_candidate(
+@@ -578,10 +884,15 @@ def evaluate_candidate(
          if evidence_observed_monotonic is None
          else completed_monotonic-float(evidence_observed_monotonic)
      )
@@ -905,7 +935,7 @@ index bf9e1a8..1c4edf5 100644
      vector=qualification_vector(
          state=candidate["state"],
          graduation_threshold=candidate["record"]["graduationThreshold"],
-@@ -601,6 +904,9 @@ def evaluate_candidate(
+@@ -601,6 +912,9 @@ def evaluate_candidate(
          creator_history=creator_history,
          quote_relative_strength_bps=quote_relative_strength_bps,
      )
@@ -915,7 +945,7 @@ index bf9e1a8..1c4edf5 100644
      return dict(
          token=candidate["token"],curve=candidate["curve"],
          source_transaction=event["transactionHash"],
-@@ -609,6 +915,8 @@ def evaluate_candidate(
+@@ -609,6 +923,8 @@ def evaluate_candidate(
          candidate=candidate,market_events=market,
          trajectory_snapshots=snapshots,launch_at=launch_at,
          vector=vector,provider_sessions=sessions,
@@ -924,7 +954,7 @@ index bf9e1a8..1c4edf5 100644
          evaluation_completed_at=available,
          evidence_observed_at=evidence_observed_at,
          evidence_acquisition_latency_seconds=acquisition_latency,
-@@ -631,6 +939,9 @@ def public_evaluation(row):
+@@ -631,6 +947,9 @@ def public_evaluation(row):
          market_events=row["market_events"],
          trajectory_snapshots=row["trajectory_snapshots"],
          launch_at=row["launch_at"],vector=row["vector"],
@@ -3213,6 +3243,113 @@ index 0000000..18cb1df
 +    state['grouped_members']=state.get('grouped_members',0)+len(members)
 +    state['groups']=state.get('groups',0)+len(groups)
 +    return out
+diff --git a/robinhood_tests/test_candidate_authentication_deadline.py b/robinhood_tests/test_candidate_authentication_deadline.py
+new file mode 100644
+index 0000000..3fa6a76
+--- /dev/null
++++ b/robinhood_tests/test_candidate_authentication_deadline.py
+@@ -0,0 +1,101 @@
++"""Current-state chain authentication uses the original candidate admission budget."""
++import collections,json,tempfile,unittest
++from pathlib import Path
++from unittest.mock import patch
++from robinhood_research import BoundaryError
++from robinhood_research.pons_selective_acquisition import SelectiveEvidenceContext
++from robinhood_research.provider_admission import Admission,priority,position_work
++
++MODULE='robinhood_research.pons_selective_acquisition'
++
++class RPC:
++    def __init__(self,verify=None,used=0):
++        self.used=used;self.per_scope=190;self.counts=collections.Counter()
++        self.verify=verify;self.auth_calls=0
++    def verify_chain(self):
++        self.auth_calls+=1
++        if self.verify:self.verify(self)
++    def telemetry(self):return {'used':self.used,'auth_calls':self.auth_calls}
++
++class AuthenticationDeadlineTests(unittest.TestCase):
++    def test_first_session_has_original_deadline_and_foreground_priority_before_auth(self):
++        observed=[]
++        rpc=RPC(lambda current:observed.append((current.evidence_deadline,priority('connectivity'))))
++        ctx=SelectiveEvidenceContext('https://unused.invalid');ctx.deadline=104.25
++        with patch(MODULE+'.configured_rpc',return_value=rpc) as factory:
++            self.assertIs(ctx.acquire(16,'pons_natural'),rpc)
++        self.assertEqual(observed,[(104.25,10)])
++        factory.assert_called_once_with('https://unused.invalid',limit=200,per_scope=190,retries=0)
++        self.assertEqual(priority('connectivity'),50)
++
++    def test_shared_wait_expires_at_original_deadline_without_transport(self):
++        now=[100.0]
++        def sleep(seconds):now[0]+=seconds
++        with tempfile.TemporaryDirectory() as tmp:
++            admission=Admission(Path(tmp)/'capacity.sqlite','https://unused.invalid',
++                lane='pons',clock=lambda:now[0],sleeper=sleep)
++            db=admission.connect()
++            db.execute('UPDATE limits SET next_at=1000 WHERE endpoint=?',(admission.endpoint,))
++            db.close()
++            rpc=RPC(lambda current:admission.acquire('connectivity',
++                getattr(current,'evidence_deadline',None),methods=['eth_chainId']))
++            ctx=SelectiveEvidenceContext('https://unused.invalid');ctx.deadline=104.25
++            with patch(MODULE+'.configured_rpc',return_value=rpc):
++                with self.assertRaisesRegex(BoundaryError,'provider_shared_admission_deadline'):
++                    ctx.acquire(16,'pons_natural')
++            self.assertIsNone(ctx.rpc)
++            self.assertGreaterEqual(now[0],104.25);self.assertLess(now[0],104.31)
++            db=admission.connect()
++            row=json.loads(db.execute('SELECT body FROM admissions').fetchone()[0])
++            self.assertEqual(row['deadline'],104.25);self.assertEqual(row['priority'],10)
++            self.assertFalse(row['transport_attempted']);self.assertFalse(row['granted'])
++            self.assertEqual(row['failure_domain'],'local_admission')
++            self.assertEqual(db.execute('SELECT COUNT(*) FROM queue').fetchone()[0],0)
++            db.close()
++        self.assertEqual(priority('connectivity'),50)
++
++    def test_already_expired_authentication_gets_no_transport_or_wait(self):
++        now=[100.0]
++        with tempfile.TemporaryDirectory() as tmp:
++            admission=Admission(Path(tmp)/'capacity.sqlite','https://unused.invalid',
++                lane='pons',clock=lambda:now[0],sleeper=lambda dt:now.__setitem__(0,now[0]+dt))
++            rpc=RPC(lambda current:admission.acquire('connectivity',
++                getattr(current,'evidence_deadline',None),methods=['eth_chainId']))
++            ctx=SelectiveEvidenceContext('https://unused.invalid');ctx.deadline=99.0
++            with patch(MODULE+'.configured_rpc',return_value=rpc):
++                with self.assertRaisesRegex(BoundaryError,'provider_shared_admission_deadline'):
++                    ctx.acquire(16,'pons_natural')
++            self.assertEqual(now[0],100.0);self.assertIsNone(ctx.rpc)
++            db=admission.connect()
++            row=json.loads(db.execute('SELECT body FROM admissions').fetchone()[0])
++            self.assertFalse(row['granted']);self.assertEqual(row['deadline'],99.0)
++            self.assertFalse(row['transport_attempted']);db.close()
++
++    def test_failed_rotation_archives_old_session_once_and_never_reuses_it(self):
++        old=RPC(used=180);deadlines=[]
++        def wrong_chain(current):
++            deadlines.append((current.evidence_deadline,priority('connectivity')))
++            raise BoundaryError('wrong_chain')
++        bad=RPC(wrong_chain)
++        ctx=SelectiveEvidenceContext('https://unused.invalid');ctx.rpc=old;ctx.deadline=105.0
++        with patch(MODULE+'.configured_rpc',return_value=bad):
++            for _ in range(2):
++                with self.assertRaisesRegex(BoundaryError,'wrong_chain'):ctx.acquire(16,'pons_natural')
++                self.assertIsNone(ctx.rpc)
++        self.assertEqual(ctx.completed_sessions,[old.telemetry()])
++        self.assertEqual(deadlines,[(105.0,10),(105.0,10)])
++        self.assertEqual(priority('connectivity'),50)
++        # A separately observed later candidate has its own deadline and can retry authentication.
++        ctx.deadline=111.0;good=RPC()
++        with patch(MODULE+'.configured_rpc',return_value=good):self.assertIs(ctx.acquire(),good)
++        self.assertEqual(good.evidence_deadline,111.0)
++        self.assertEqual(ctx.completed_sessions,[old.telemetry()])
++
++    def test_foreground_authentication_does_not_override_position_context(self):
++        observed=[]
++        rpc=RPC(lambda current:observed.append(priority('connectivity')))
++        ctx=SelectiveEvidenceContext('https://unused.invalid');ctx.deadline=105.0
++        @position_work
++        def acquire():return ctx.acquire(16,'pons_natural')
++        with patch(MODULE+'.configured_rpc',return_value=rpc):acquire()
++        self.assertEqual(observed,[0]);self.assertEqual(priority('connectivity'),50)
 diff --git a/robinhood_tests/test_discovery_capacity.py b/robinhood_tests/test_discovery_capacity.py
 new file mode 100644
 index 0000000..a9a7c17
