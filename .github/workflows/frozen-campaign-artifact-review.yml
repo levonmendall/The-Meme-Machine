@@ -97,3 +97,49 @@ jobs:
           name: failed-check-audit-${{ github.run_id }}
           path: failed-check-audit.json
           retention-days: 90
+
+  finalize-7427-failed-check:
+    if: contains(github.event.head_commit.message, '[record-hourly-failure]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      checks: write
+    steps:
+      - name: Mark only the preserved 7427 hour as failed
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import datetime,json,os,pathlib,urllib.request
+          base='https://api.github.com/repos/levonmendall/The-Meme-Machine'
+          headers={'Authorization':'Bearer '+os.environ['GITHUB_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json'}
+          def api(path,body=None):
+              req=urllib.request.Request(base+path,headers=headers,data=None if body is None else json.dumps(body).encode(),method='GET' if body is None else 'PATCH')
+              with urllib.request.urlopen(req,timeout=30) as response:return json.load(response)
+          run=api('/actions/runs/35578433187');check=api('/check-runs/106274851741')
+          sha='7427d71b685d9a273732b65265a34e49d4f8bbd5'
+          if run['head_sha']!=sha or run['status']!='completed' or run['conclusion']!='cancelled':raise SystemExit('failed_run_identity_mismatch')
+          if check['head_sha']!=sha or check['name']!='four-lane-live-hourly' or check['external_id']!='35578433187:1:hourly':raise SystemExit('failed_check_identity_mismatch')
+          artifact=api('/actions/artifacts/10632897444')
+          if artifact['workflow_run']['head_sha']!=sha or artifact['digest']!='sha256:be3e70c5fae7a90cbfac6070bd04d99f655e0f35a23ff409fc80179ee7b4c1cd':raise SystemExit('failed_artifact_identity_mismatch')
+          audit={'run_id':run['id'],'sha':sha,'before':check,'artifact':artifact}
+          path=pathlib.Path('failed-7427-check-audit.json');path.write_text(json.dumps(audit,indent=2))
+          if check['status']!='completed':
+              result=api('/check-runs/106274851741',dict(status='completed',conclusion='failure',completed_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                  output=dict(title='FAILED: Ramses decoder exit before 3600 seconds; full artifact preserved',
+                    summary='Ramses exited with event_dynamic_capacity after3213.884026284s. Pons and Meteora completed normally; the remaining flat Pump follow-up was stopped only after an audited fresh-book guard. Full hourly artifact10632897444 and native replay evidence are preserved. The JSON below is the retained PRE-CANCELLATION checkpoint, not a successful terminal certification. See certification/AUTONOMOUS_CAMPAIGN_HANDOFF.md on repair/frozen-campaign-handoff.',
+                    text=check['output'].get('text',''))))
+              audit.update(after_status=result['status'],after_conclusion=result['conclusion'])
+          elif check['conclusion']!='failure':raise SystemExit('unexpected_completed_conclusion')
+          path.write_text(json.dumps(audit,indent=2))
+          print(json.dumps({'run':run['id'],'sha':sha,'status':'completed','conclusion':'failure','artifact':artifact['id']}))
+          PY
+      - name: Preserve prior check and exact failed artifact identity
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: failed-7427-check-audit-${{ github.run_id }}
+          path: failed-7427-check-audit.json
+          retention-days: 90
