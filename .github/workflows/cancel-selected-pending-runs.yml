@@ -10,29 +10,26 @@ jobs:
     if: ${{ contains(github.event.head_commit.message, '[cancel-selected-pending]') }}
     runs-on: ubuntu-24.04
     steps:
-      - name: Cancel the two pre-existing pending runs
+      - name: Cancel stale legacy Pump diagnostic and every queued or pending run
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          SELF_RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
-          for id in 35643917106 35640542900 35640057271; do
-            status="$(gh api "repos/$GH_REPO/actions/runs/$id" --jq '.status' 2>/dev/null || true)"
-            case "$status" in
-              queued|pending|waiting|requested)
-                gh api --method POST "repos/$GH_REPO/actions/runs/$id/cancel" >/dev/null || true
-                ;;
-            esac
-          done
 
-      - name: Cancel any same-commit four-lane run created only by this maintenance push
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          gh api "repos/$GH_REPO/actions/runs?head_sha=$HEAD_SHA&per_page=100"             --jq '.workflow_runs[] | select(.name=="four-lane-certification" and (.status=="queued" or .status=="pending" or .status=="waiting" or .status=="requested")) | .id' |
+          # Explicitly stop the obsolete legacy Pump live diagnostic.
+          legacy_status="$(gh api "repos/$GH_REPO/actions/runs/35640057271" --jq '.status' 2>/dev/null || true)"
+          case "$legacy_status" in
+            in_progress|queued|pending|waiting|requested)
+              gh api --method POST "repos/$GH_REPO/actions/runs/35640057271/cancel" >/dev/null || true
+              ;;
+          esac
+
+          # Preserve only the active DLMM hourly campaign and this cleanup run.
+          gh api "repos/$GH_REPO/actions/runs?per_page=100"             --jq '.workflow_runs[] | select((.status=="queued" or .status=="pending" or .status=="waiting" or .status=="requested") and (.id != 35639368850)) | .id' |
           while read -r id; do
-            [ -z "$id" ] || gh api --method POST "repos/$GH_REPO/actions/runs/$id/cancel" >/dev/null || true
+            [ -z "$id" ] && continue
+            [ "$id" = "$SELF_RUN_ID" ] && continue
+            gh api --method POST "repos/$GH_REPO/actions/runs/$id/cancel" >/dev/null || true
           done
