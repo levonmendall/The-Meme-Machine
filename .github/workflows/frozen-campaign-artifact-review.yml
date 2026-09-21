@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-      - name: Wait only for this exact smoke artifact to finish
+      - name: Wait only for this exact hour artifact to finish
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -29,19 +29,19 @@ jobs:
               run=read(base)
               if run['head_sha']!='e552c288e6dd6c9028819cc4883890303dbf9524':raise SystemExit('sha_mismatch')
               rows=read(base+'/artifacts')['artifacts']
-              if any(a['name'].startswith('four-lane-certification-') and not a['expired'] for a in rows):
-                  print('Exact smoke artifact finalized; read-only review begins.');break
-              if run['status']=='completed':raise SystemExit('completed_without_smoke_artifact')
+              if any(a['name'].startswith('four-lane-hourly-') and not a['expired'] for a in rows):
+                  print('Exact hour artifact finalized; read-only review begins.');break
+              if run['status']=='completed':raise SystemExit('completed_without_hour_artifact')
               time.sleep(5)
-          else:raise SystemExit('smoke_artifact_wait_expired')
+          else:raise SystemExit('hour_artifact_wait_expired')
           PY
       - name: Audit exact replacement hour without provider access
         env:
           GITHUB_TOKEN: ${{ github.token }}
           REVIEW_RUN_ID: "35600287474"
           REVIEW_SHA: e552c288e6dd6c9028819cc4883890303dbf9524
-          REVIEW_PHASE: smoke
-        run: python certification/inspect_stable_artifact.py
+          REVIEW_PHASE: hourly
+        run: python certification/inspect_startup_failure.py
       - name: Preserve complete review and verified artifact metadata
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
