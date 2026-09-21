@@ -28,8 +28,13 @@ class SolanaEfficiencyTests(unittest.TestCase):
     def test_execution_source_files_remain_explicitly_hash_pinned(self):
         m=json.loads((Path(__file__).parents[1]/'sources.json').read_text())
         for lane,key in [('pump','meme_machine/pump_acceleration_strategy.py'),('meteora','SOLANA_DLMM_INDEPENDENT_V1.json'),('pons','robinhood_research/pons_selective_continuation.py'),('ramses','robinhood_research/ramses_strategy.py')]:
-            self.assertEqual(len(m['lanes'][lane]['file_hashes'][key]),64)
-            self.assertIn('execution-certification',m['lanes'][lane]['strategy_version'])
+            row=m['lanes'][lane]
+            self.assertEqual(len(row['file_hashes'][key]),64)
+            self.assertEqual(len(row['policy_hash']),64)
+            if row.get('execution_certification',{}).get('profitability_authority'):
+                self.assertIn('profitability-v1',row['strategy_version'])
+            else:
+                self.assertIn('execution-certification',row['strategy_version'])
     def test_both_phases_publish_capabilities_next_to_exact_gate(self):
         text=(Path(__file__).parents[2]/'.github/workflows/four-lane-certification.yml').read_text()
         self.assertEqual(text.count('--output certification-gates/rpc-capabilities.json'),2)
