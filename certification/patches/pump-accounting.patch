@@ -1844,7 +1844,7 @@ index 0000000..8b7b820
 +def is_default_signature(value):
 +    return value == DEFAULT_SIGNATURE
 diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
-index db17c29..0cff9b0 100644
+index ab28df5..5835e6e 100644
 --- a/tests/pump_acceleration_natural_prospective.py
 +++ b/tests/pump_acceleration_natural_prospective.py
 @@ -11,8 +11,9 @@ import json
@@ -1872,12 +1872,10 @@ index db17c29..0cff9b0 100644
  from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
  from meme_machine.pump_acceleration_strategy import (
      MODE_LATE_CURVE,MODE_POSTGRAD,MODE_SECOND_LEG,POLICY,STRATEGY_ID,
-@@ -53,11 +56,25 @@ INITIAL_LAMPORTS=INITIAL_USD_MICROS*1_000_000_000//GENESIS_SOL_USD_MICROS
- ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
+@@ -54,10 +57,24 @@ ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
  ENTRY_DELAY_SECONDS=2
  ENTRY_FILL_TIMEOUT_SECONDS=20
--FROZEN_POLICY_HASH="b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246"
-+FROZEN_POLICY_HASH="bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e"
+ FROZEN_POLICY_HASH="561ce76a334d9cdcd3b4888a9aaee24d11c9eb43f1ca20c5b806940297018bfc"
 +ACCOUNTING=None
 +PIPELINE=None
 +
@@ -1900,7 +1898,7 @@ index db17c29..0cff9b0 100644
  
  
  class Sessions:
-@@ -148,6 +165,45 @@ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
+@@ -172,6 +189,60 @@ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
      ),trajectory,confirmation
  
  
@@ -1943,10 +1941,25 @@ index db17c29..0cff9b0 100644
 +    ),trajectory,confirmation
 +
 +
++
++def _late_stream_prospect(signal):
++    """Admit only on evidence available in the finalized stream.
++
++    The missing executable-downside field is a known full-evidence dependency,
++    not a zero-cost assumption. Final qualification remains fail-closed until the
++    authoritative RPC snapshot supplies that evidence.
++    """
++    decision=qualify(signal)
++    reasons=tuple(
++        reason for reason in decision.reasons
++        if reason!="executable_downside_unavailable"
++    )
++    return decision,reasons
++
  def _postgrad_concentration(rpc,snapshot):
      result=rpc.call("getTokenLargestAccounts",
                      [snapshot["mint"],{"commitment":"finalized"}],True)
-@@ -224,9 +280,14 @@ def _reserve_position(report,pending,active,qualification,snapshot,mode,concentr
+@@ -248,9 +319,14 @@ def _reserve_position(report,pending,active,qualification,snapshot,mode,concentr
      if any(x["mint"]==qualification.mint and x["mode"]==mode for x in report["qualifiers"]):
          return
      reserved_at=int(snapshot["available_time"])
@@ -1962,7 +1975,7 @@ index db17c29..0cff9b0 100644
          mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,
          score=qualification.score,reasons=list(qualification.reasons),
          confirmations=list(qualification.confirmations),
-@@ -250,6 +311,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -274,6 +350,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
          mint,mode=key
          life=row["lifecycle"]
          try:
@@ -1970,7 +1983,7 @@ index db17c29..0cff9b0 100644
              sessions.ensure(20)
              if mode==MODE_LATE_CURVE:
                  snapshot=sessions.pump.snapshot(mint,now,priority=True)
-@@ -280,7 +342,8 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -304,7 +381,8 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                  entry=dict(tokens=tokens,cost=cost,fee=quote.fee_amount,gas=GAS)
  
              basis=cost+GAS
@@ -1980,7 +1993,7 @@ index db17c29..0cff9b0 100644
              active[key]=dict(
                  lifecycle=life,opened=int(snapshot["available_time"]),
                  next_monitor=int(snapshot["available_time"])+5,
-@@ -291,6 +354,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -315,6 +393,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                  entry_status="filled",filled_at=int(snapshot["available_time"]),
                  fill_slot=int(snapshot["slot"]),entry=entry,
              )
@@ -1988,7 +2001,7 @@ index db17c29..0cff9b0 100644
              pending.pop(key,None)
          except (Unavailable,ValueError,KeyError,TypeError) as exc:
              reason=str(exc) or type(exc).__name__
-@@ -299,6 +363,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -323,6 +402,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                      decision_now-int(row["reserved_at"])>=ENTRY_FILL_TIMEOUT_SECONDS):
                  try:
                      life.cancel(reason,decision_now)
@@ -1996,7 +2009,7 @@ index db17c29..0cff9b0 100644
                  except ValueError:
                      pass
                  row["qualifier_row"].update(
-@@ -307,7 +372,22 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
+@@ -331,7 +411,22 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
              else:
                  row["qualifier_row"]["last_fill_limitation"]=reason
  
@@ -2019,7 +2032,7 @@ index db17c29..0cff9b0 100644
      row=dict(
          mint=signal.mint,mode=signal.phase,observed_at=signal.observed_at,
          stage=stage,score=q.score,qualified=q.qualified,reasons=list(q.reasons),
-@@ -330,6 +410,10 @@ def _record_attempt(report,signal,q,stage,extra=None):
+@@ -355,6 +450,10 @@ def _record_attempt(report,signal,q,stage,extra=None):
      )
      if extra:
          row.update(extra)
@@ -2030,7 +2043,7 @@ index db17c29..0cff9b0 100644
      if stage=="full_point_in_time":
          # Full-evidence rows are an append-only experiment ledger and are never
          # removed by the rolling UI/debug attempt buffer.
-@@ -338,11 +422,147 @@ def _record_attempt(report,signal,q,stage,extra=None):
+@@ -363,11 +462,147 @@ def _record_attempt(report,signal,q,stage,extra=None):
      report["attempts"]=report["attempts"][-1000:]
  
  
@@ -2179,7 +2192,7 @@ index db17c29..0cff9b0 100644
      report=dict(
          kind="pump_acceleration_natural_prospective",
          strategy_id=STRATEGY_ID,policy_hash=actual_policy_hash,
-@@ -352,6 +572,11 @@ def main():
+@@ -377,6 +612,11 @@ def main():
          order_authority=False,signing_authority=False,transaction_submission_authority=False,
          live_money_authority=False,shared_portfolio_mutation=False,
          discovery_source="finalized_public_pump_logs",
@@ -2191,7 +2204,7 @@ index db17c29..0cff9b0 100644
          evidence_source="alchemy_http_primary_no_rescue",
          evidence_acquisition_mode=(
              "candidate_pool_finalized_stream_plus_bounded_decision_bootstrap_"
-@@ -360,12 +585,20 @@ def main():
+@@ -385,12 +625,20 @@ def main():
          velocity_window_seconds=30,extension_lookback_seconds=10,
          entry_budget_lamports=ENTRY_BUDGET,entry_fraction_bps=POLICY.entry_fraction_bps,
          entry_delay_seconds=ENTRY_DELAY_SECONDS,entry_fill_timeout_seconds=ENTRY_FILL_TIMEOUT_SECONDS,
@@ -2213,7 +2226,7 @@ index db17c29..0cff9b0 100644
      _save(report)
  
      tape=PumpTape()
-@@ -374,8 +607,13 @@ def main():
+@@ -399,8 +647,13 @@ def main():
      broker=EvidenceBroker(broker_path)
      stop=threading.Event();ready=threading.Event();pumpswap_ready=threading.Event()
      stream=PumpLogStream(primary_rpc_url(),tape,ws_url=discovery_ws_url())
@@ -2228,7 +2241,7 @@ index db17c29..0cff9b0 100644
      thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
      pumpswap_thread=threading.Thread(
          target=pumpswap_stream.run,args=(stop,pumpswap_ready),daemon=True)
-@@ -390,12 +628,18 @@ def main():
+@@ -415,12 +668,18 @@ def main():
      sessions=Sessions()
      cursor=0;created={};postgrad={};pending={};active={};full_attempts=0
      last_eval={};last_postgrad_eval={};last_save=0
@@ -2248,7 +2261,7 @@ index db17c29..0cff9b0 100644
              fresh,cursor=tape.events_since(cursor)
              for event in fresh:
                  creation=tape.creation(event["mint"])
-@@ -404,6 +648,7 @@ def main():
+@@ -429,6 +688,7 @@ def main():
                  if event["mint"] not in created:
                      created[event["mint"]]=dict(
                          creation=creation,pregrad_wallets=set(),graduated=False)
@@ -2256,7 +2269,7 @@ index db17c29..0cff9b0 100644
                      confirmations.observe_creation(creation)
                  state=created[event["mint"]]
                  if len(state["pregrad_wallets"])<500 and event.get("wallet"):
-@@ -413,7 +658,8 @@ def main():
+@@ -438,7 +698,8 @@ def main():
                      state["graduation_time"]=int(event["market_time"])
                      confirmations.observe_graduation(
                          event["mint"],int(event.get("available_time") or now))
@@ -2266,7 +2279,7 @@ index db17c29..0cff9b0 100644
                          pool=pumpswap_pool(event["mint"])
                          stream_key=pumpswap_stream.add_address(pool)
                          postgrad[event["mint"]]=dict(
-@@ -425,11 +671,18 @@ def main():
+@@ -450,11 +711,18 @@ def main():
                                  stream_key=stream_key),
                              history_status={},graduation_price=None,
                          )
@@ -2285,7 +2298,7 @@ index db17c29..0cff9b0 100644
                      mint=event.get("mint")
                      state=created.get(mint)
                      if state is None or state.get("graduated"):
-@@ -446,6 +699,33 @@ def main():
+@@ -471,6 +739,33 @@ def main():
                      if progress<POLICY.min_curve_progress_bps:
                          continue
                      last_eval[mint]=now
@@ -2298,18 +2311,18 @@ index db17c29..0cff9b0 100644
 +                               (int(event["slot"]),int(event.get("index",0)))]
 +                        prospect,prospect_trajectory,prospect_confirmation=_late_stream_signal(
 +                            creation,stream_events,event,confirmations)
-+                        prospect_q=qualify(prospect)
++                        prospect_q,prospect_reasons=_late_stream_prospect(prospect)
 +                    except (ValueError,KeyError,TypeError) as exc:
 +                        reason=str(exc) or type(exc).__name__
 +                        _progress(mint,"prospect_incomplete",reason,mode=MODE_LATE_CURVE)
 +                        counts=report.setdefault("prospect_screen_incomplete_counts",{})
 +                        counts[reason]=counts.get(reason,0)+1
 +                        continue
-+                    if not prospect_q.qualified:
-+                        reason="strategy_prospect:"+",".join(prospect_q.reasons)
++                    if prospect_reasons:
++                        reason="strategy_prospect:"+",".join(prospect_reasons)
 +                        _progress(mint,"prospect_screened",reason,mode=MODE_LATE_CURVE)
 +                        counts=report.setdefault("prospect_screen_rejection_counts",{})
-+                        for item in prospect_q.reasons:
++                        for item in prospect_reasons:
 +                            counts[item]=counts.get(item,0)+1
 +                        continue
 +                    _progress(mint,"prospect_admitted",mode=MODE_LATE_CURVE)
@@ -2319,7 +2332,7 @@ index db17c29..0cff9b0 100644
                      try:
                          sessions.ensure(25)
                          snapshot=sessions.pump.snapshot(mint,now,priority=True)
-@@ -461,8 +741,11 @@ def main():
+@@ -486,8 +781,11 @@ def main():
                                  {"trajectory":trajectory,
                                   "confirmation_evidence":_confirmation_meta(confirmation)})
                              continue
@@ -2333,7 +2346,7 @@ index db17c29..0cff9b0 100644
                              continue
                          full_attempts+=1
                          concentration,meta=sessions.reader.read(mint,snapshot,priority=True)
-@@ -480,6 +763,7 @@ def main():
+@@ -505,6 +803,7 @@ def main():
                              _reserve_position(
                                  report,pending,active,q,snapshot,MODE_LATE_CURVE,concentration)
                      except (Unavailable,ValueError,KeyError,TypeError) as exc:
@@ -2341,7 +2354,7 @@ index db17c29..0cff9b0 100644
                          report["attempts"].append(dict(
                              mint=mint,mode=MODE_LATE_CURVE,observed_at=now,
                              stage="incomplete",qualified=False,
-@@ -488,12 +772,18 @@ def main():
+@@ -513,12 +812,18 @@ def main():
              # Natural post-graduation and second-leg entries may occur during the
              # follow-up because their decision time is necessarily after migration.
              for mint,state in list(postgrad.items()):
@@ -2360,7 +2373,7 @@ index db17c29..0cff9b0 100644
                  try:
                      sessions.ensure(85)
                      graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
-@@ -537,11 +827,13 @@ def main():
+@@ -562,11 +867,13 @@ def main():
                                  _reserve_position(
                                      report,pending,active,q2,snapshot,MODE_SECOND_LEG,concentration)
                          except (Unavailable,ValueError,KeyError,TypeError) as exc:
@@ -2374,7 +2387,7 @@ index db17c29..0cff9b0 100644
                      report["postgrad"].append(dict(
                          mint=mint,observed_at=now,age_seconds=age,
                          complete=False,limitation=str(exc) or type(exc).__name__,
-@@ -552,84 +844,15 @@ def main():
+@@ -577,84 +884,15 @@ def main():
  
              # Paper entries use the repository-standard two-second delay and a fresh
              # executable quote. This is execution realism, not a strategy threshold.
@@ -2465,7 +2478,7 @@ index db17c29..0cff9b0 100644
                  counts=Counter()
                  for attempt in report["attempts"]:
                      counts[f'{attempt.get("mode")}:{attempt.get("stage")}']+=1
-@@ -649,12 +872,19 @@ def main():
+@@ -674,12 +912,19 @@ def main():
              time.sleep(1)
      finally:
          stop.set();thread.join(timeout=5);pumpswap_thread.join(timeout=5)
@@ -2485,7 +2498,7 @@ index db17c29..0cff9b0 100644
          report["full_evidence_attempts"]=full_attempts
          report["created_mints_observed"]=len(created)
          report["postgrad_candidates"]=len(postgrad)
-@@ -674,6 +904,8 @@ def main():
+@@ -699,6 +944,8 @@ def main():
          report["threshold_changes_made"]=False
          _save(report)
          broker.close()
@@ -3577,10 +3590,10 @@ index 0000000..6b52e6c
 +        self.assertEqual(telemetry['deadline_decomposition'][0]['stage'],'already_expired_before_enqueue')
 diff --git a/tests/test_strategy_prospect_admission.py b/tests/test_strategy_prospect_admission.py
 new file mode 100644
-index 0000000..2c5b3ed
+index 0000000..ef55560
 --- /dev/null
 +++ b/tests/test_strategy_prospect_admission.py
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,64 @@
 +import unittest
 +from types import SimpleNamespace
 +from unittest.mock import MagicMock
@@ -3608,9 +3621,10 @@ index 0000000..2c5b3ed
 +            creator_quality_bps=None,creator_history_launches=0,
 +        )
 +        signal,_,_=runner._late_stream_signal(creation,rows,rows[-1],confirmations)
-+        decision=runner.qualify(signal)
++        decision,reasons=runner._late_stream_prospect(signal)
++        self.assertTrue(reasons)
++        self.assertIn("independent_buyers",reasons)
 +        self.assertFalse(decision.qualified)
-+        self.assertIn("independent_buyers",decision.reasons)
 +
 +    def test_same_mint_reenters_when_finalized_demand_improves(self):
 +        creation={"initial_real_token_reserves":1000,"creator":"creator"}
@@ -3623,11 +3637,22 @@ index 0000000..2c5b3ed
 +                slot=index,index=0,wallet=wallet,amount=10,buy=True)
 +        weak=[event(970,430,'a',1),event(985,420,'a',2),event(1000,410,'a',3)]
 +        signal,_,_=runner._late_stream_signal(creation,weak,weak[-1],confirmations)
-+        self.assertFalse(runner.qualify(signal).qualified)
-+        improved=[event(1000,410,'a',3),event(1015,300,'a',4),
-+                  event(1025,180,'b',5),event(1030,100,'c',6)]
++        _decision,reasons=runner._late_stream_prospect(signal)
++        self.assertTrue(reasons)
++        # Profitability-v1 requires broad expanding independent demand. Keep
++        # the test focused on reconsideration: first observation rejects, a later
++        # genuinely improved finalized state is allowed through to RPC evaluation.
++        improved=[]
++        for i in range(8):
++            improved.append(event(1005+i,400-5*i,f"p{i}",10+i))
++        for i in range(12):
++            improved.append(event(1020+min(i,10),300-9*i,f"r{i}",30+i))
++        improved[-1]=event(1030,200,"r11",41)
 +        signal,_,_=runner._late_stream_signal(creation,improved,improved[-1],confirmations)
-+        self.assertTrue(runner.qualify(signal).qualified)
++        decision,reasons=runner._late_stream_prospect(signal)
++        self.assertFalse(reasons,reasons)
++        self.assertFalse(decision.qualified)
++        self.assertIn("executable_downside_unavailable",decision.reasons)
 +        self.assertEqual(signal.concentration_bps,0)  # optimistic only; RPC still required
 +
 +
