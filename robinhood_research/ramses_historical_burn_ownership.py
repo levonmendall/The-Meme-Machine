@@ -38,10 +38,22 @@ def main():
 
     txids=sorted({str(b.get("transaction") or "") for b in burns if b.get("transaction")})
     txmap={}
-    for i in range(0,len(txids),100):
-      ids=txids[i:i+100]
-      q="""query($ids:[String!]!){Transaction(limit:1000,where:{chainId:{_eq:4663},id:{_in:$ids}}){id from to blockNumber timestamp gasUsed gasPrice}}"""
-      for t in gql(q,{"ids":ids})["Transaction"]:txmap[str(t["id"])]=t
+    # Hasura's _in path on this index currently returns no Transaction rows even
+    # for valid IDs. Use bounded GraphQL aliases with exact equality instead.
+    for first in range(0,len(txids),80):
+      ids=txids[first:first+80]
+      parts=[]
+      for n,ident in enumerate(ids):
+        safe=ident.replace("\\","\\\\").replace('"','\\"')
+        parts.append(
+          f'q{n}:Transaction(limit:1,where:{{chainId:{{_eq:{CHAIN}}},id:{{_eq:"{safe}"}}}})'
+          '{id from to blockNumber timestamp gasUsed gasPrice}'
+        )
+      data=gql("query{"+ " ".join(parts) +"}")
+      for n,ident in enumerate(ids):
+        rows=data.get(f"q{n}") or []
+        if len(rows)>1:raise RuntimeError("ramses_burn_transaction_duplicate")
+        if rows:txmap[ident]=rows[0]
 
     resolved=[];reasons=Counter()
     for b in burns:
