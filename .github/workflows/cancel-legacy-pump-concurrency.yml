@@ -1,7 +1,6 @@
 name: cancel-legacy-pump-concurrency
 on:
-  push:
-    branches: [cert/profitability-v1-current]
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
