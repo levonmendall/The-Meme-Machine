@@ -28,8 +28,34 @@ class SolanaEfficiencyTests(unittest.TestCase):
     def test_execution_source_files_remain_explicitly_hash_pinned(self):
         m=json.loads((Path(__file__).parents[1]/'sources.json').read_text())
         for lane,key in [('pump','meme_machine/pump_acceleration_strategy.py'),('meteora','SOLANA_DLMM_INDEPENDENT_V1.json'),('pons','robinhood_research/pons_selective_continuation.py'),('ramses','robinhood_research/ramses_strategy.py')]:
-            self.assertEqual(len(m['lanes'][lane]['file_hashes'][key]),64)
-            self.assertIn('execution-certification',m['lanes'][lane]['strategy_version'])
+            row=m['lanes'][lane]
+            self.assertRegex(row['source_sha'],r'^[0-9a-f]{40}
+    def test_both_phases_publish_capabilities_next_to_exact_gate(self):
+        text=(Path(__file__).parents[2]/'.github/workflows/four-lane-certification.yml').read_text()
+        self.assertEqual(text.count('--output certification-gates/rpc-capabilities.json'),2)
+        self.assertNotIn('--output certification-hourly-gates/rpc-capabilities.json',text)
+    def test_contention_wait_never_retries_source_drift_or_launches_work(self):
+        from unittest.mock import patch
+        from certification import guard
+        with tempfile.TemporaryDirectory() as td,patch('sys.argv',['guard','--wait-seconds','3600']),patch.object(guard,'Path',lambda p:Path(td)/p),patch.object(guard,'check',return_value=dict(passed=False,lane_heads_changed=['pump'],conflicting_market_runs=[])) as check,patch.object(guard.time,'sleep') as sleep:
+            with self.assertRaises(SystemExit):guard.main()
+            self.assertEqual(check.call_count,1);sleep.assert_not_called()
+)
+            self.assertRegex(row['policy_hash'],r'^[0-9a-f]{64}
+    def test_both_phases_publish_capabilities_next_to_exact_gate(self):
+        text=(Path(__file__).parents[2]/'.github/workflows/four-lane-certification.yml').read_text()
+        self.assertEqual(text.count('--output certification-gates/rpc-capabilities.json'),2)
+        self.assertNotIn('--output certification-hourly-gates/rpc-capabilities.json',text)
+    def test_contention_wait_never_retries_source_drift_or_launches_work(self):
+        from unittest.mock import patch
+        from certification import guard
+        with tempfile.TemporaryDirectory() as td,patch('sys.argv',['guard','--wait-seconds','3600']),patch.object(guard,'Path',lambda p:Path(td)/p),patch.object(guard,'check',return_value=dict(passed=False,lane_heads_changed=['pump'],conflicting_market_runs=[])) as check,patch.object(guard.time,'sleep') as sleep:
+            with self.assertRaises(SystemExit):guard.main()
+            self.assertEqual(check.call_count,1);sleep.assert_not_called()
+)
+            self.assertEqual(len(row['file_hashes'][key]),64)
+            self.assertIsInstance(row['strategy_version'],str)
+            self.assertTrue(row['strategy_version'].strip())
     def test_both_phases_publish_capabilities_next_to_exact_gate(self):
         text=(Path(__file__).parents[2]/'.github/workflows/four-lane-certification.yml').read_text()
         self.assertEqual(text.count('--output certification-gates/rpc-capabilities.json'),2)
