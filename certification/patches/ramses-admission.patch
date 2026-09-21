@@ -811,6 +811,24 @@ index e4ab19d..75bdf25 100644
  
  
 +
++CAMPAIGN_CAPACITY_BOUNDARIES=frozenset((
++    'ramses_strategy_capital_exhausted',
++    'ramses_campaign_quote_asset_unfunded',
++    'connected_campaign_cost_envelope_unfunded',
++))
++CAMPAIGN_TRANSIENT_PROVIDER_BOUNDARIES=frozenset((
++    'provider_http_429','provider_rpc_429','provider_rate_limit',
++    'provider_shared_admission_deadline','provider_shared_queue_capacity',
++))
++
++
++def _campaign_candidate_boundary(reason):
++    reason=str(reason)
++    if reason in CAMPAIGN_CAPACITY_BOUNDARIES:return 'capacity_censored'
++    if reason in CAMPAIGN_TRANSIENT_PROVIDER_BOUNDARIES:return 'provider_failed'
++    return None
++
++
 +def _scan_with_capacity_recovery(scan_call,*,deadline,record_failure,clock=None,sleeper=None):
 +    """Retry only local admission loss on the same pinned scan and original clock."""
 +    clock=time.monotonic if clock is None else clock
@@ -1046,9 +1064,15 @@ index e4ab19d..75bdf25 100644
 +                        if campaign_books is None:
 +                            raise BoundaryError('ramses_campaign_quote_asset_unfunded')
 +                        ledger=campaign_books.ledger(chosen['token_y'])
++                        candidate_attempt=(
++                            len(result['natural_lifecycles'])
++                            +len(result.get('campaign_terminals',[]))+1)
++                        lifecycle_prefix=(
++                            f"{campaign_books.run_id}:{screen['finalized_block']}:"
++                            f"{candidate_attempt}")
 +                        life=run_connected(endpoint,costs_by_pool=costs_by_pool,signals_by_pool=signals_by_pool,
 +                            db_path=str(db_path or DB),initial_screen=screen,cost_state=cost_state,
-+                            campaign_ledger=ledger,lifecycle_prefix=campaign_books.run_id)
++                            campaign_ledger=ledger,lifecycle_prefix=lifecycle_prefix)
 +                        campaign_books.record('natural_lifecycle',life)
 +                        result['natural_lifecycles'].append(compact_lifecycle_result(life))
 +                        result['connected_lifecycle']=compact_lifecycle_result(life)
@@ -1056,12 +1080,17 @@ index e4ab19d..75bdf25 100644
 +                        if result['campaign_accounting']['open_positions']:
 +                            raise BoundaryError('ramses_campaign_unresolved_exposure')
 +                    except BoundaryError as exc:
++                        classification=_campaign_candidate_boundary(exc)
 +                        terminal=dict(pool=chosen['pool'],terminal_reason=str(exc),economic_rejection=False,
++                            terminal_classification=classification or 'structural_boundary',
 +                            finalized_block=screen['finalized_block'],finalized_hash=screen['finalized_hash'])
 +                        campaign_books.record('terminal_boundary',terminal)
 +                        result.setdefault('campaign_terminals',[]).append(terminal)
++                        pipeline.record(chosen['pool'],'terminal',str(exc),
++                            classification or 'provider_failed',
++                            frontier=identity,screening_only=False)
 +                        result['campaign_accounting']=campaign_books.reconcile()
-+                        if str(exc) not in ('ramses_strategy_capital_exhausted','ramses_campaign_quote_asset_unfunded'):
++                        if classification is None:
 +                            result.update(status='fail_closed',boundary=str(exc),ended_at=time.time())
 +                            _persist_public_result(result);raise
 +                elif chosen is not None:
@@ -1843,7 +1872,7 @@ index 0000000..e4d0064
 +            finally:books.close()
 +
 +    def test_campaign_keeps_one_process_budget_after_multiple_settlements(self):
-+        clock=[0];calls=[];ledger_ids=[]
++        clock=[0];calls=[];ledger_ids=[];prefixes=[]
 +        class Rpc:
 +            def verify_chain(self):return 4663
 +            def telemetry(self):return {}
@@ -1855,7 +1884,7 @@ index 0000000..e4d0064
 +            value.update(finalized_block=int(header['number'],16),finalized_hash=header['hash'],finalized_timestamp=int(header['timestamp'],16))
 +            return value
 +        def connected(endpoint,**kwargs):
-+            book=kwargs['campaign_ledger'];ledger_ids.append(id(book))
++            book=kwargs['campaign_ledger'];ledger_ids.append(id(book));prefixes.append(kwargs['lifecycle_prefix'])
 +            identity=kwargs['lifecycle_prefix']+':'+str(len(calls));calls.append(identity)
 +            book.reserve(identity,pool='pool',decision=decision(500),at=len(calls)*3)
 +            book.open(identity,at=len(calls)*3+1)
@@ -1870,12 +1899,20 @@ index 0000000..e4d0064
 +            result=extended.run('unused',campaign=True,discovery_seconds=125,db_path=Path(td)/'paper.sqlite')
 +            self.assertEqual(len(result['natural_lifecycles']),3)
 +            self.assertEqual(len(set(calls)),3);self.assertEqual(len(set(ledger_ids)),1)
++            self.assertEqual(len(set(prefixes)),3)
 +            self.assertEqual(result['campaign_accounting']['by_quote_asset'][ASSET]['paper_capital'],1000)
 +            self.assertEqual(result['campaign_accounting']['by_quote_asset'][ASSET]['available'],1030)
 +            self.assertEqual(clock[0],125)
 +            self.assertNotIn('forced_machinery',result)
 +            records=(Path(td)/'paper.sqlite.campaign/lifecycles.jsonl').read_text().splitlines()
 +            self.assertEqual(len(records),3)
++
++    def test_repeat_entry_capacity_and_provider_boundaries_are_candidate_local(self):
++        self.assertEqual(_campaign_candidate_boundary('ramses_strategy_capital_exhausted'),'capacity_censored')
++        self.assertEqual(_campaign_candidate_boundary('connected_campaign_cost_envelope_unfunded'),'capacity_censored')
++        self.assertEqual(_campaign_candidate_boundary('provider_http_429'),'provider_failed')
++        self.assertEqual(_campaign_candidate_boundary('provider_shared_admission_deadline'),'provider_failed')
++        self.assertIsNone(_campaign_candidate_boundary('connected_lifecycle_terminal_equality'))
 +
 +    def test_four_hours_is_explicit_and_session_budget_matches_time_not_rate(self):
 +        with self.assertRaisesRegex(BoundaryError,'discovery_seconds'):extended.run('unused',discovery_seconds=14400)
