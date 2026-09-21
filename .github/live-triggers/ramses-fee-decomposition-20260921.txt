@@ -1,0 +1,1 @@
+Decompose derivation and validation Ramses LP outcomes into attributed LP fee income vs inventory/token-price P&L. Holdout outcomes remain blind.\n
