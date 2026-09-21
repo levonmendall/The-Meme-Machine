@@ -407,3 +407,44 @@ from estimated compute units. Historical unresolved baseline exposure remains un
 
 A fresh exact-revision600-second smoke and independent3600-second hour will follow
 these two implementation-only reporting repairs. No policy/provider limits changed.
+
+
+## DLMM machinery-proof v2 — user-authorized follow-up
+
+The user authorized one additional observed validation after the current exact-revision
+hour, specifically to prove whether both DLMM lanes can traverse their paper machinery.
+This supersedes the prior stop-after-current-run instruction only for this single
+machinery-proof validation. After that follow-up run and artifact review, autonomous
+repair/validation work must stop again unless the user explicitly authorizes more.
+
+The currently running fba42eff validation is not mutated or interrupted. GitHub Actions
+checked out its exact source/worktrees before the one-hour step, so later commits cannot
+change that runner in place. Its results remain valid only for fba42eff.
+
+New frozen source branches:
+- Meteora: cert/meteora-machinery-proof-v2 @ 43bbcce60913a9a87404fe6563585159fb72352f.
+  Machinery-only qualification changes: min_two_way_balance 0.25 -> 0 and
+  min_expected_net_lamports -200000 -> -1000000. Fresh authenticated swap trigger,
+  exact 12-second warmup, 5x competing-liquidity capacity, drift <=0.75,
+  stress-unwind <=150 bps, position size, costs, finality/freshness, accounting and
+  paper-only controls remain unchanged. Policy label
+  fce99fc6da25649d2c362973d5c5bb963faf2e9bc23f369a5216b99fbebb27db.
+- Ramses: cert/ramses-machinery-proof-v2 @ d252724f081a9ca0b3bc5fbd8e28b191568c6499.
+  Machinery-only Fee Pulse changes: minimum volume acceleration 1.2x -> 0,
+  minimum chop 1.5 -> 0, maximum flow imbalance 60% -> 100%, and projected-return
+  hurdle 0 -> -150000 bps. The wide negative hurdle is intentionally not an economic
+  claim: the retained smoke's real active candidate projected -134171 bps because
+  modeled round-trip costs exceeded its small paper capital. Authenticated finalized
+  swaps, complete state/cost evidence, 10% active-liquidity position cap, proposal
+  construction, controller, ledger, replay, unwind and paper-only controls remain.
+  Policy hash 5e1560af8b4d40f72e60cd93b52ede575aecbac58fd4cad6c02cc2c25fdeeaf0.
+
+The follow-up run is machinery proof, not strategy/profitability evidence. A qualifying
+trade may lose money. Success requires the natural candidate to reach reserve/open,
+position monitoring, authenticated unwind, settlement and reconciliation without
+restart or unresolved exposure. If either lane fails after qualification, preserve the
+failure exactly as the machinery result; do not silently widen additional controls.
+
+Only one new integrated observed validation is authorized. Its final integration commit
+will request the normal fresh 600-second four-lane smoke followed by the independent
+3600-second hour. No additional replacement run or repair loop is authorized afterward.
