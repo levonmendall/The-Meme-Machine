@@ -999,3 +999,20 @@ failed rotation without old-session reuse or telemetry duplication, later indepe
 candidate authentication, and position priority/context cleanup.
 All changes are acquisition implementation only. Full hosted canonicality and all
 deterministic/resource gates must pass before composing any replacement candidate.
+
+
+### Superseded hour stopped flat; partial archive successfully retained
+
+Exact targeted cancellation35571032945/job106242524772 succeeded after the fresh
+guard proved all lanes flat and reconciled, including2 settled Pump qualifiers.
+Four-lane overlap309.315109386s; total309.898071626s. This interrupted observation
+is not a completed hour or engineering certification.
+Partial-hour archive10626455341,14391416 bytes, recorded SHA256
+6440ddcce42013962a076ee28bf78e6c9916a69374d5411e0254e505c63b691e.
+Unlike the prior c4572 archive failure, isolated staging/upload completed and the
+hourly check closed as cancelled. A read-only checksum/native/SQLite review of this
+exact partial archive is requested. Original failed cancellation audit is retained.
+The full exact pre-cancellation snapshot is appended in results; no native exposure
+was relabelled settled by cancellation, and no prior duration counts for replacement.
+
+Cancellation audit10625792486,11823 bytes, recorded sha256:d5bb48f906eb6d89c50af01749caa36ea07632145502a53364d09cbe07805f2e.
