@@ -37,6 +37,7 @@ jobs:
           git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/meteora-checkpoint.patch"
           git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/meteora-checkpoint.patch"
           (cd "$WORKTREE" && python -m unittest tests.test_dlmm_alchemy_provider tests.test_solana_dlmm_independent_v1 -v)
+          (cd "$WORKTREE" && PYTHONPATH="$WORKTREE:$GITHUB_WORKSPACE" python "$GITHUB_WORKSPACE/certification/meteora_position_recovery_check.py")
           (cd "$WORKTREE" && python -m tests.dlmm_resource_check)
       - name: Validate qualification Pons overlay
         if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
