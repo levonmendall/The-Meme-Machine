@@ -11,46 +11,41 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Stop only accidental shadow diagnostics from stop commits
+      - name: Cancel exact superseded DLMM run
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
           python - <<'PY'
           import json, os, pathlib, time, urllib.request
+          run_id=35658558646
+          sha="9de34f44c8a4f02cb328aded796e59971ebbc857"
+          expected_branch="cert/dlmm-machinery-proof-current"
+          expected_name="four-lane-certification"
           base="https://api.github.com/repos/"+os.environ["REPOSITORY"]
           headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],"Accept":"application/vnd.github+json"}
           def api(path,method="GET"):
               with urllib.request.urlopen(urllib.request.Request(base+path,headers=headers,method=method),timeout=30) as response:
                   data=response.read()
                   return json.loads(data) if data else {"status":response.status}
-          targets=[(35608106783,"ce35b6f4d2a55d7ee5d93902c681673fc0475dd8"),(35607999418,"be9bc277293dce32bfee3352f1d8008088e1062a")]
-          records=[]
-          for run_id,sha in targets:
-              path="/actions/runs/"+str(run_id)
+          path="/actions/runs/"+str(run_id)
+          row=api(path)
+          if row["head_sha"]!=sha or row["head_branch"]!=expected_branch or row["name"]!=expected_name:
+              raise SystemExit("exact_stop_identity_mismatch")
+          record={"run_id":run_id,"sha":sha,"before":row["status"],
+                  "reason":"explicit user cancellation: superseded run uses old Pump/Pons execution-certification strategies; replacement must use profitability-v1"}
+          record["artifacts_before"]=api(path+"/artifacts")
+          pathlib.Path("campaign-cancellations.json").write_text(json.dumps([record],indent=2))
+          if row["status"]!="completed":
+              record["cancel"]=api(path+"/cancel","POST")
+          for _ in range(30):
               row=api(path)
-              if row["head_sha"]!=sha or row["head_branch"]!="repair/frozen-campaign-handoff" or row["name"]!="paper-milestone":
-                  raise SystemExit("exact_stop_identity_mismatch")
-              record={"run_id":run_id,"sha":sha,"before":row["status"],"reason":"explicit_user_Update_and_stop; accidental legacy shadow diagnostic from stop commit without qualification-build marker; no paper lifecycle authority"}
-              record["artifacts_before"]=api(path+"/artifacts")
-              records.append(record)
-              pathlib.Path("campaign-cancellations.json").write_text(json.dumps(records,indent=2))
-              if row["status"]!="completed":record["cancel"]=api(path+"/cancel","POST")
-              print(json.dumps({k:v for k,v in record.items() if not k.startswith("artifacts")}),flush=True)
-          for attempt in range(15):
-              done=True
-              for record in records:
-                  path="/actions/runs/"+str(record["run_id"])
-                  row=api(path)
-                  record["after"]=row["status"];record["conclusion"]=row["conclusion"]
-                  record["artifacts_after"]=api(path+"/artifacts")
-                  done=done and row["status"]=="completed"
-              pathlib.Path("campaign-cancellations.json").write_text(json.dumps(records,indent=2))
-              if done:break
+              record["after"]=row["status"];record["conclusion"]=row["conclusion"]
+              if row["status"]=="completed":break
               time.sleep(2)
-          print("STOP_AUDIT_BEGIN",flush=True)
-          print(json.dumps(records),flush=True)
-          print("STOP_AUDIT_END",flush=True)
+          record["artifacts_after"]=api(path+"/artifacts")
+          pathlib.Path("campaign-cancellations.json").write_text(json.dumps([record],indent=2))
+          print(json.dumps({k:v for k,v in record.items() if not k.startswith("artifacts")}),flush=True)
           PY
       - name: Preserve cancellation audit
         if: always()
