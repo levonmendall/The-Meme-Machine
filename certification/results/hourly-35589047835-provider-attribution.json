@@ -1,0 +1,1 @@
+{"exception_only_failures": [], "response_error_members": [], "scope": "Actual response error members when present; exception-only failures retain affected batch methods without inventing per-member attribution."}
