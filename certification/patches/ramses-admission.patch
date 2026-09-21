@@ -675,76 +675,6 @@ index 2afa29e..581ebdc 100644
          elif typ in ('bytes','string') or typ.startswith('tuple'): raise BoundaryError('unsupported_dynamic_event')
          else: out[spec_i['name']]=scalar(typ,w)
      return dict(name=spec['name'],signature=signature(spec),args=out)
-diff --git a/robinhood_research/ramses_all_pool_lifecycle.py b/robinhood_research/ramses_all_pool_lifecycle.py
-index dfccbc7..f9ae500 100644
---- a/robinhood_research/ramses_all_pool_lifecycle.py
-+++ b/robinhood_research/ramses_all_pool_lifecycle.py
-@@ -17,6 +17,7 @@ from pathlib import Path
- import time
- 
- from . import BoundaryError
-+from .provider_admission import position_work
- from .abi import calldata, topic
- from .identity import load
- from .ramses import (
-@@ -659,6 +660,7 @@ def _requalify_current_pool(
-     )
- 
- 
-+@position_work
- def run(
-     endpoint,
-     *,
-@@ -669,6 +671,8 @@ def run(
-     rescan_seconds=RESCAN_SECONDS,
-     initial_screen=None,
-     cost_state=None,
-+    campaign_ledger=None,
-+    lifecycle_prefix=None,
- ):
-     costs_by_pool = _normalize_context(costs_by_pool)
-     signals_by_pool = _normalize_context(signals_by_pool)
-@@ -792,18 +796,24 @@ def run(
-     )
- 
-     db_path = str(db_path or DB)
--    if Path(db_path).exists():
--        raise BoundaryError("connected_lifecycle_db_already_exists")
-     paper_capital = int(decision["freeze"]["proposals"][0]["capital_employed"])
--    ledger = RamsesStrategyLedger(
--        db_path,
--        paper_capital=paper_capital,
--        quote_asset=chosen["token_y"],
--    )
-+    if campaign_ledger is None:
-+        if Path(db_path).exists():raise BoundaryError("connected_lifecycle_db_already_exists")
-+        ledger = RamsesStrategyLedger(db_path,paper_capital=paper_capital,quote_asset=chosen["token_y"])
-+    else:
-+        if not isinstance(campaign_ledger,RamsesStrategyLedger) or campaign_ledger.quote_asset!=chosen['token_y'].lower():
-+            raise BoundaryError('connected_campaign_ledger_quote_mismatch')
-+        if not isinstance(lifecycle_prefix,str) or not lifecycle_prefix:
-+            raise BoundaryError('connected_campaign_lifecycle_namespace')
-+        if campaign_ledger.reconcile()['open_positions']:
-+            raise BoundaryError('connected_campaign_unresolved_exposure')
-+        ledger=campaign_ledger
-     identity = (
-         STRATEGY_DOMAIN + ":" + pool + ":" + str(entry_block) + ":"
-         + decision["freeze"]["proposal_hash"]
-     )
-+    if lifecycle_prefix:identity=lifecycle_prefix+':'+identity
-+    result['lifecycle_id']=identity
-     segments = []
-     controller_log = []
-     rebalances = 0
-@@ -1031,7 +1041,7 @@ def run(
-         result["boundary"] = None
-     finally:
-         try:
--            ledger.close()
-+            if campaign_ledger is None:ledger.close()
-         except Exception:
-             pass
- 
 diff --git a/robinhood_research/ramses_campaign.py b/robinhood_research/ramses_campaign.py
 new file mode 100644
 index 0000000..79b25ae
@@ -763,7 +693,7 @@ index 0000000..79b25ae
 +from pathlib import Path
 +import uuid
 +from . import BoundaryError
-+from .ramses_strategy import POLICY_HASH,STRATEGY_DOMAIN
++from .ramses_strategy import POLICY,POLICY_HASH,STRATEGY_DOMAIN
 +from .ramses_strategy_ledger import RamsesStrategyLedger
 +
 +
@@ -783,7 +713,16 @@ index 0000000..79b25ae
 +            asset=row.get('token_y');amount=row.get('paper_capital_quote_raw')
 +            if not isinstance(asset,str) or not asset.startswith('0x') or len(asset)!=42:continue
 +            if type(amount) is not int or amount<=0:continue
-+            asset=asset.lower();budgets[asset]=max(budgets.get(asset,0),amount)
++            decision=row.get('decision') or {};freeze=decision.get('freeze') or {}
++            proposals=freeze.get('proposals') or []
++            employed=(proposals[0].get('capital_employed') if proposals else None)
++            position=employed if type(employed) is int and employed>0 else amount
++            costs=row.get('gas_costs')
++            if isinstance(costs,dict) and costs and all(type(v) is int and v>=0 for v in costs.values()):
++                cost_envelope=sum(costs.values())*(1+int(POLICY['controller']['max_rebalances']))
++                funding=max(amount,position+cost_envelope)
++            else:funding=amount
++            asset=asset.lower();budgets[asset]=max(budgets.get(asset,0),funding)
 +        return budgets
 +
 +    def __init__(self,root,screen):
@@ -799,7 +738,7 @@ index 0000000..79b25ae
 +        self.manifest=dict(run_id=self.run_id,policy_hash=POLICY_HASH,paper_only=True,
 +            source_screen_hash=digest(screen),source_finalized_block=screen.get('finalized_block'),
 +            source_finalized_hash=screen.get('finalized_hash'),genesis_by_quote_asset=budgets,
-+            funding_rule='one_maximum_frozen_scanner_size_per_quote_asset_from_first_fundable_pinned_screen',
++            funding_rule='one_maximum_frozen_scanner_size_plus_modeled_execution_cost_envelope_per_quote_asset_from_first_fundable_pinned_screen',
 +            later_assets='unfunded_capacity_censoring',cross_asset_conversion=False)
 +        manifest=self.root/'capital-manifest.json'
 +        with manifest.open('x') as file:file.write(canonical(self.manifest));file.flush();os.fsync(file.fileno())
