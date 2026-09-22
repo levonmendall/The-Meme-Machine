@@ -1,0 +1,1 @@
+Verify the promoted Active Wide Maker v3 runtime deterministically. No provider calls or market run.\n
