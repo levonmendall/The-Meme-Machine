@@ -458,7 +458,19 @@ index 0000000..15cd061
 +            try:
 +                db.execute('BEGIN IMMEDIATE')
 +                if http_status==429 or rpc_code==429:
-+                    db.execute('UPDATE limits SET cooldown=MAX(cooldown,?) WHERE endpoint=?',(self.clock()+8,self.endpoint))
++                    # A fixed cooldown followed by the same physical rate reproduced
++                    # provider pressure in the natural Pons run.  Adapt only toward
++                    # lower throughput; the configured interval remains the hard
++                    # recovery floor, so this can never raise the existing ceiling.
++                    db.execute('UPDATE limits SET cooldown=MAX(cooldown,?),'
++                        'interval=MIN(2.0,MAX(interval*1.5,?)) WHERE endpoint=?',
++                        (self.clock()+8,self.interval,self.endpoint))
++                elif http_status==200:
++                    # Recover cautiously after successful wire service. This changes
++                    # acquisition scheduling only; candidate deadlines/freshness are
++                    # unchanged and expired work still fails closed in acquire().
++                    db.execute('UPDATE limits SET interval=MAX(?,interval*0.90) '
++                        'WHERE endpoint=?',(self.interval,self.endpoint))
 +                db.execute('INSERT INTO transports(body) VALUES(?)',(json.dumps(row,sort_keys=True),))
 +                db.execute('COMMIT')
 +            finally:db.close()
@@ -2227,6 +2239,26 @@ index 0000000..5a12ca3
 +        self.assertEqual(len(transport),1);self.assertLess(transport[0],105.)
 +        self.assertEqual(event['priority'],10);self.assertEqual(event['deadline'],110.)
 +        self.assertEqual(pending[0],'position');self.assertEqual(interval,.5)
++
++    def test_429_can_only_reduce_shared_rate_and_success_recovers_to_existing_ceiling(self):
++        with tempfile.TemporaryDirectory() as td:
++            now=[100.]
++            gate=Admission(str(Path(td)/'gate.db'),'https://example.com/key',
++                lane='pons',clock=lambda:now[0],sleeper=lambda n:now.__setitem__(0,now[0]+n))
++            with self.assertRaisesRegex(BoundaryError,'provider_http_429'):
++                gate.invoke(lambda:(_ for _ in ()).throw(BoundaryError('provider_http_429')),
++                    ['eth_getLogs'],'pons_natural',deadline=105.)
++            db=gate.connect()
++            _next,cooldown,slowed=db.execute(
++                'SELECT next_at,cooldown,interval FROM limits').fetchone();db.close()
++            self.assertEqual(cooldown,108.)
++            self.assertGreater(slowed,.5);self.assertLessEqual(slowed,2.0)
++            now[0]=109.
++            gate.invoke(lambda:[],['eth_getLogs'],'pons_natural',deadline=114.)
++            db=gate.connect()
++            recovered=db.execute('SELECT interval FROM limits').fetchone()[0];db.close()
++            self.assertGreaterEqual(recovered,.5)
++            self.assertLess(recovered,slowed)
 +
 +    def test_foreground_authentication_retains_position_precedence_and_context_isolation(self):
 +        @foreground_work
