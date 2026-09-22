@@ -390,7 +390,7 @@ index d01cfe6..970a7fe 100644
                          and int(exc.code)==429):
                      rate_limited=list(chunk)
 diff --git a/meme_machine/pump_acceleration_history.py b/meme_machine/pump_acceleration_history.py
-index 0a774b1..849cdb3 100644
+index 0a774b1..e065136 100644
 --- a/meme_machine/pump_acceleration_history.py
 +++ b/meme_machine/pump_acceleration_history.py
 @@ -9,7 +9,7 @@ from __future__ import annotations
@@ -3660,7 +3660,7 @@ index 0000000..ef55560
 +    unittest.main()
 diff --git a/tests/test_stream_negative_admission.py b/tests/test_stream_negative_admission.py
 new file mode 100644
-index 0000000..ef1e037
+index 0000000..929746e
 --- /dev/null
 +++ b/tests/test_stream_negative_admission.py
 @@ -0,0 +1,61 @@
