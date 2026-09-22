@@ -24,7 +24,7 @@ class ObservationCoverageContract(unittest.TestCase):
         workflow=Path('.github/workflows/ci.yml').read_text()
         self.assertIn("MM_STREAM_OBSERVE_SECONDS: '3300'",workflow)
         self.assertNotIn("MM_STREAM_MAX_EVIDENCE_CANDIDATES: '20'",workflow)
-        self.assertIn("!startsWith(github.ref_name, 'cert/dlmm-machinery-proof')",workflow)
+        self.assertIn("contains(github.event.head_commit.message, '[legacy-shadow-connectivity]')",workflow)
         self.assertIn('timeout-minutes: 60',workflow)
 
 

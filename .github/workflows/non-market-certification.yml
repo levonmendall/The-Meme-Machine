@@ -40,6 +40,15 @@ jobs:
           (cd "$RUNNER_TEMP/non-market-lanes/pump" && python -m tests.resource_check) > non-market-evidence/pump-resource.json
           (cd "$RUNNER_TEMP/non-market-lanes/meteora" && python -m tests.resource_check) > non-market-evidence/meteora-resource.json
           (cd "$RUNNER_TEMP/non-market-lanes/meteora" && python -m tests.dlmm_resource_check) > non-market-evidence/meteora-dlmm-resource.json
+      - name: Digest-pinned historical exposure inventory
+        timeout-minutes: 3
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python -m certification.historical_inventory
+          --artifact-id 10719564489
+          --sha256 b3a2c00fc9cb97ac40d83c320ea8cea18015daa7d9d5144dbcde4eeb3da2dfff
+          --output non-market-evidence/historical-inventory.json
       - name: Check for competing market jobs before connectivity
         env:
           GITHUB_TOKEN: ${{ github.token }}
