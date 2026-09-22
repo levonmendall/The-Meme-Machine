@@ -1,0 +1,1 @@
+Force-cancel every other active, queued, waiting, pending, or requested workflow in the repository. After full clearance, only Ramses Branch B repair/strategy design will be relaunched.
