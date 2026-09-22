@@ -174,11 +174,19 @@ jobs:
           import pathlib,sys
           path=pathlib.Path(sys.argv[1])
           text=path.read_text()
-          old='improved.append(event(1005+i,400-5*i,f"p{i}",10+i))'
-          new='improved.append(event(1005+i,400-5*i,f"r{i}",10+i))'
-          if text.count(old)!=1:
-              raise SystemExit("pump_repeat_fixture_anchor")
-          path.write_text(text.replace(old,new,1))
+          replacements={
+              'for i in range(8):':'for i in range(12):',
+              'improved.append(event(1005+i,400-5*i,f"p{i}",10+i))':
+                  'improved.append(event(1005+i,400-5*i,f"r{i}",10+i))',
+              'for i in range(12):':'for i in range(20):',
+              'improved[-1]=event(1030,200,"r11",41)':
+                  'improved[-1]=event(1030,200,"r19",49)',
+          }
+          for old,new in replacements.items():
+              if text.count(old)!=1:
+                  raise SystemExit("pump_repeat_fixture_anchor:"+old)
+              text=text.replace(old,new,1)
+          path.write_text(text)
           PY
               git -C "$WT" add tests/test_strategy_prospect_admission.py
             else
