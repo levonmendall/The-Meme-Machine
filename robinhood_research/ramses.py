@@ -15,6 +15,7 @@ from .abi import decode_event, scalar, signature, topic, words
 from .identity import load, verify_compilation
 
 Q = 1 << 128
+MAX_EVENT_DATA_BYTES = 65536
 MAX = (1 << 256)-1
 PRECISION = 10**18
 MAX_LIQUIDITY = 65251743116719673010965625540244653191619923014385985379600384103134737
@@ -246,10 +247,14 @@ def forced_decay(static,variable,active):
 
 
 def _dynamic_value(typ,raw,offset):
+    if len(raw)>MAX_EVENT_DATA_BYTES:
+        raise BoundaryError('event_data_length')
     if offset%32 or offset<0 or offset+32>len(raw):
         raise BoundaryError('event_dynamic_offset')
     n=int.from_bytes(raw[offset:offset+32],'big')
-    if n>64 or offset+32*(n+1)>len(raw):
+    # Factory-wide liquidity logs can legitimately span more than 64 bins.
+    # Bound work by the already-bounded complete payload, before allocation.
+    if n>(len(raw)-offset-32)//32:
         raise BoundaryError('event_dynamic_capacity')
     base=typ[:-2]
     return [scalar(base,raw[offset+32*(i+1):offset+32*(i+2)]) for i in range(n)]
@@ -265,7 +270,7 @@ def decode_ramses_event(abi,event):
     if len(event['topics'])!=len(indexed)+1: raise BoundaryError('event_topic_count')
     try: raw=bytes.fromhex(event['data'][2:])
     except (ValueError,TypeError): raise BoundaryError('malformed_abi_words') from None
-    if len(raw)%32 or len(raw)<32*len(plain) or len(raw)>65536:
+    if len(raw)%32 or len(raw)<32*len(plain) or len(raw)>MAX_EVENT_DATA_BYTES:
         raise BoundaryError('event_data_length')
     out={}
     for spec_i,value in zip(indexed,event['topics'][1:]):
@@ -274,7 +279,11 @@ def decode_ramses_event(abi,event):
         out[spec_i['name']]=scalar(spec_i['type'],ws[0])
     for pos,spec_i in enumerate(plain):
         w=raw[32*pos:32*(pos+1)];typ=spec_i['type']
-        if typ.endswith('[]'): out[spec_i['name']]=_dynamic_value(typ,raw,int.from_bytes(w,'big'))
+        if typ.endswith('[]'):
+            offset=int.from_bytes(w,'big')
+            if offset<32*len(plain):
+                raise BoundaryError('event_dynamic_offset')
+            out[spec_i['name']]=_dynamic_value(typ,raw,offset)
         elif typ in ('bytes','string') or typ.startswith('tuple'): raise BoundaryError('unsupported_dynamic_event')
         else: out[spec_i['name']]=scalar(typ,w)
     return dict(name=spec['name'],signature=signature(spec),args=out)
