@@ -38,7 +38,7 @@ EXACT_IN = {SWAP_IX,SWAP2_IX}
 EXACT_SWAP = EXACT_IN | {SWAP_EXACT_OUT2_IX}
 EXACT_SWAP_NAME = {SWAP_IX:'swap',SWAP2_IX:'swap2',SWAP_EXACT_OUT2_IX:'swap_exact_out2'}
 EVENT_CPI = bytes.fromhex('e445a52e51cb9a1d')
-MAX_TRANSACTIONS = 16
+MAX_TRANSACTIONS = 32
 
 
 def _un58_data(s):
@@ -945,8 +945,6 @@ def _materialize_removal_effects(start,end,effects):
         if type(slot) is not int or slot==2**63-1:
             raise Unavailable('dlmm_snapshot_reset_slot_unavailable')
         raise Unavailable(f'dlmm_snapshot_reset_required:add_liquidity2:{slot}')
-    if len(removals)>1:
-        raise Unavailable('dlmm_multiple_liquidity_removals_in_interval')
     if not removals:
         if adds:
             return
@@ -955,28 +953,42 @@ def _materialize_removal_effects(start,end,effects):
             if bid not in end['bins'] or end['bins'][bid]['supply']!=b['supply']:
                 raise Unavailable('dlmm_unmodeled_liquidity_supply_change')
         return
-    item=removals[0]
-    lower,upper=item['lower'],item['upper']
-    if upper-lower+1>len(start['bins']):
-        raise Unavailable('dlmm_remove_liquidity_range_not_fully_observed')
-    for bid in range(lower,upper+1):
-        if str(bid) not in start['bins'] or str(bid) not in end['bins']:
+
+    # Multiple removals are exactly reconstructable only when their authenticated
+    # bin ranges are disjoint. Start/end supply deltas can then be assigned to one
+    # and only one removal without inventing intermediate PositionV2 state.
+    ranges=[]
+    for index,item in enumerate(removals):
+        lower,upper=item['lower'],item['upper']
+        if upper-lower+1>len(start['bins']):
             raise Unavailable('dlmm_remove_liquidity_range_not_fully_observed')
-    removed={}
+        for bid in range(lower,upper+1):
+            if str(bid) not in start['bins'] or str(bid) not in end['bins']:
+                raise Unavailable('dlmm_remove_liquidity_range_not_fully_observed')
+        for prior_lower,prior_upper,_ in ranges:
+            if not (upper<prior_lower or lower>prior_upper):
+                raise Unavailable('dlmm_multiple_liquidity_removals_in_interval')
+        ranges.append((lower,upper,index))
+
+    removed=[{} for _ in removals]
     for bid,b in start['bins'].items():
         if bid not in end['bins']:
             raise Unavailable('dlmm_remove_liquidity_terminal_bin_set')
         delta=b['supply']-end['bins'][bid]['supply']
         if delta<0:
             raise Unavailable('dlmm_liquidity_supply_increase_in_interval')
+        if not delta:
+            continue
         numeric=int(bid)
-        if not lower<=numeric<=upper and delta:
+        owners=[index for lower,upper,index in ranges if lower<=numeric<=upper]
+        if len(owners)!=1:
             raise Unavailable('dlmm_liquidity_supply_change_outside_remove_range')
-        if delta:
-            removed[bid]=delta
-    if not removed and (item['amount_x'] or item['amount_y']):
-        raise Unavailable('dlmm_remove_liquidity_missing_supply_delta')
-    item['removed_shares']=removed
+        removed[owners[0]][bid]=delta
+
+    for item,shares in zip(removals,removed):
+        if not shares and (item['amount_x'] or item['amount_y']):
+            raise Unavailable('dlmm_remove_liquidity_missing_supply_delta')
+        item['removed_shares']=shares
 
 
 def apply_external_adjustment(state,item,counterfactual=False):
