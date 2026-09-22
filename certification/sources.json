@@ -139,7 +139,7 @@
     },
     "pons": {
       "source_branch": "repair/pons-sequencer-session-recovery-20260922",
-      "source_sha": "c4c7d9bc17d65c087c309a90ca571865d311acf5",
+      "source_sha": "e63d3099e7e295e7a572e143e6d833dea143c704",
       "strategy_version": "pons-selective-continuation-v1/profitability-v1",
       "policy_hash": "d9f19aa3c9ab23aeab5a5622c8ca2bdefbca46a140ce3f56dbc0d64b14e6e64a",
       "file_hashes": {
@@ -161,7 +161,10 @@
         "40c66a68704fab147dacbfc25a0819b5a6f9c844",
         "a8b560c13f7e1b3696ac7f7aa9f35801f87421e1",
         "5e345fc43682111c17587a53ec19fc9172e6bd9d",
-        "c4c7d9bc17d65c087c309a90ca571865d311acf5"
+        "c4c7d9bc17d65c087c309a90ca571865d311acf5",
+        "e74f95071e205c9a82db96986b54abd54aba268d",
+        "4fa1b75d6b32b00e4957f294d37d20972910391a",
+        "e63d3099e7e295e7a572e143e6d833dea143c704"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
       "execution_certification": {
@@ -188,6 +191,16 @@
           "revision": "foreground-drain-before-discovery-v1",
           "integration_commit": "b47a58a38b046c66cca7c30b22854d5d3521b1f4",
           "purpose": "drain already-observed five-second evidence candidates before spending another polling interval on discovery; original candidate clocks remain authoritative",
+          "freshness_gate_changed": false,
+          "strategy_thresholds_changed": false
+        },
+        "warmup_clock_repair": {
+          "revision": "chain-time-reserve-v1",
+          "source_commit": "e63d3099e7e295e7a572e143e6d833dea143c704",
+          "purpose": "preserve the required 60 seconds of authenticated sequencer chain-time while allowing bounded wall-clock reserve when feed cadence lags wall time",
+          "required_chain_seconds": 60,
+          "minimum_wall_seconds": 65,
+          "maximum_wall_seconds": 120,
           "freshness_gate_changed": false,
           "strategy_thresholds_changed": false
         }
@@ -300,7 +313,7 @@
     "purpose": "Use Pump and Pons profitability-v1 with repaired Meteora/Ramses machinery-proof-v2 execution; Ramses campaign capital now initializes from the first genuine natural qualifier's pinned screen.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora/Ramses machinery-proof-v2",
-    "validation_status": "combined_evidence_repairs_pending_exact_head_qualification",
+    "validation_status": "pons_chain_time_warmup_repair_pending_canonicalization",
     "validation_run_requested": false
   },
   "composition": {
