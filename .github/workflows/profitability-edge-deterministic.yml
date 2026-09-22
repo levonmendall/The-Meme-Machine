@@ -169,6 +169,99 @@ jobs:
               fi
               git -C "$WT" diff --check
             fi
+            if [ "$LANE" = pump ]; then
+              python - "$WT/tests/test_strategy_prospect_admission.py" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          old='improved.append(event(1005+i,400-5*i,f"p{i}",10+i))'
+          new='improved.append(event(1005+i,400-5*i,f"r{i}",10+i))'
+          if text.count(old)!=1:
+              raise SystemExit("pump_repeat_fixture_anchor")
+          path.write_text(text.replace(old,new,1))
+          PY
+              git -C "$WT" add tests/test_strategy_prospect_admission.py
+            else
+              python - "$WT/robinhood_tests/test_pons_position_provider_recovery.py" "$WT/robinhood_tests/test_pons_selective_continuation.py" <<'PY'
+          import pathlib,sys
+          recovery=pathlib.Path(sys.argv[1])
+          policy=pathlib.Path(sys.argv[2])
+          text=recovery.read_text()
+          old='''class PositionRecoveryTests(unittest.TestCase):
+              def run_case(self,folder,fail_at):
+          '''
+          new='''class PositionRecoveryTests(unittest.TestCase):
+              @staticmethod
+              def persistent_entry_signal(*args):
+                  return (
+                      dict(
+                          complete=True,progress_15s_bps=600,accelerating=True,
+                          graduation_eta_seconds=60,
+                      ),
+                      dict(
+                          independent_groups=4,new_independent_groups_15s=2,
+                          buy_sell_ratio_bps=20_000,current_net_quote=20,
+                          prior_net_quote=10,net_flow_accelerating=True,
+                          largest_buyer_flow_bps=1000,top3_buyer_flow_bps=3000,
+                          creator_sell_quote_15s=0,
+                      ),
+                      [],
+                  )
+
+              def run_case(self,folder,fail_at):
+          '''
+          if text.count(old)!=1:
+              raise SystemExit("pons_recovery_class_anchor")
+          text=text.replace(old,new,1)
+          old="""            '_wait_curve_quote':wait_quote,'_curve_quote':quote,
+          """
+          new="""            '_wait_curve_quote':wait_quote,'_curve_quote':quote,
+                      '_refresh_entry_persistence_signal':self.persistent_entry_signal,
+          """
+          if text.count(old)!=1:
+              raise SystemExit("pons_recovery_patch_anchor")
+          text=text.replace(old,new,1)
+          old="""                 patch(MODULE+'_wait_curve_quote',return_value=(entry,meta,None)),\\
+                       patch(MODULE+'_fresh_fill_full_exit_check',
+          """
+          new="""                 patch(MODULE+'_wait_curve_quote',return_value=(entry,meta,None)),\\
+                       patch(MODULE+'_refresh_entry_persistence_signal',
+                             side_effect=self.persistent_entry_signal),\\
+                       patch(MODULE+'_fresh_fill_full_exit_check',
+          """
+          if text.count(old)!=1:
+              raise SystemExit("pons_unexitable_patch_anchor")
+          text=text.replace(old,new,1)
+          recovery.write_text(text)
+
+          text=policy.read_text()
+          start=text.find(
+              "    def test_execution_certification_does_not_require_positive_acceleration(self):\n"
+          )
+          end=text.find("    def test_non_native_pair_is_research_only(self):\n",start)
+          if start<0 or end<0:
+              raise SystemExit("pons_acceleration_policy_test_anchor")
+          replacement='''    def test_execution_policy_requires_positive_acceleration(self):
+                  decelerating=[
+                      dict(at=185,progress_bps=7000),
+                      dict(at=195,progress_bps=7400),
+                      dict(at=200,progress_bps=7550),
+                  ]
+                  v=vector(snapshots=decelerating)
+                  self.assertFalse(v["trajectory"]["accelerating"])
+                  self.assertGreaterEqual(
+                      v["trajectory"]["progress_15s_bps"],
+                      ENTRY_THRESHOLDS["min_progress_15s_bps"],
+                  )
+                  self.assertFalse(v["current_threshold_pass"])
+                  self.assertIn("curve_deceleration",v["all_rejections"])
+
+          '''
+          policy.write_text(text[:start]+replacement+text[end:])
+          PY
+              git -C "$WT" add robinhood_tests/test_pons_position_provider_recovery.py robinhood_tests/test_pons_selective_continuation.py
+            fi
+            git -C "$WT" diff --check
             git -C "$WT" diff --binary HEAD > "$GITHUB_WORKSPACE/certification/patches/$PATCH.next"
             mv "$GITHUB_WORKSPACE/certification/patches/$PATCH.next" "$GITHUB_WORKSPACE/certification/patches/$PATCH"
             git worktree remove --force "$WT"
