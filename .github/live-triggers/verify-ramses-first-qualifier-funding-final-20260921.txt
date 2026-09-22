@@ -1,0 +1,4 @@
+Final exact-head verification for canonical Ramses first-qualified-pinned-screen funding repair.
+Canonical overlay head: 361bf6c1c992f0f199b51d31884d6f021431590b
+Ramses machinery-proof-v2 economic thresholds unchanged.
+Regression covers an unrelated fundable first asset followed by a genuine qualifier on a different quote asset.
