@@ -1,7 +1,7 @@
-# Ramses Rebalance Logic Analysis
+> **Superseded:** This interim simplification was written before reconciling the earlier frozen v1/v2 work. The authoritative current rebalance specification is `RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json`. The v3 rule preserves the v2 hysteresis/overlap controller and adds the pre-holdout capital-preservation gate.\n\n# Ramses Rebalance Logic Analysis
 
-**Status:** REBALANCE LOGIC RESOLVED FOR SHADOW/PAPER V1  
-**Holdout:** untouched  
+**Status:** SUPERSEDED INTERIM ANALYSIS — SEE RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json  
+**Holdout:** historical chronology was already consumed by the earlier frozen v1 rule; it produced zero eligible >=65-bin rebalances and cannot be reused  
 **Data source:** frozen pre-holdout Ramses owner/bin, burn-owner, and swap/fee history
 
 ## Executive conclusion
