@@ -9,6 +9,7 @@ from meme_machine.pump_acceleration_strategy import (
     SignalVector,
     WalletSkillRecord,
     creator_confirmation,
+    entry_signal_persistence,
     flow_metrics,
     policy_hash,
     qualify,
@@ -30,6 +31,8 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
             curve_acceleration_bps_per_s2=5,
             independent_buyer_clusters=30,
             buyer_growth=8,
+            repeat_buyer_clusters=4,
+            repeat_buy_share_bps=3000,
             net_buy_share_bps=8500,
             concentration_bps=1500,
             extension_bps=2500,
@@ -116,6 +119,44 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
         collapse=qualify(self.strong_late(curve_acceleration_bps_per_s2=-20))
         self.assertFalse(collapse.qualified)
         self.assertIn("curve_deceleration",collapse.reasons)
+
+    def test_repeat_buyer_persistence_is_entry_authority(self):
+        weak=qualify(self.strong_late(
+            repeat_buyer_clusters=1,repeat_buy_share_bps=500
+        ))
+        self.assertFalse(weak.qualified)
+        self.assertIn("repeat_buyers",weak.reasons)
+        self.assertIn("repeat_buy_share",weak.reasons)
+
+        durable=qualify(self.strong_late(
+            repeat_buyer_clusters=3,repeat_buy_share_bps=2500
+        ))
+        self.assertTrue(durable.qualified,durable.reasons)
+
+    def test_fill_time_persistence_rejects_decayed_thesis(self):
+        decision=self.strong_late()
+        persistent=self.strong_late(
+            observed_at=1008,independent_buyer_clusters=24,
+            buyer_growth=6,repeat_buyer_clusters=3,repeat_buy_share_bps=2200,
+            net_buy_share_bps=7600,curve_velocity_bps_per_s=50,
+        )
+        kept=entry_signal_persistence(decision,persistent)
+        self.assertTrue(kept["persistent"],kept["reasons"])
+        self.assertGreaterEqual(
+            kept["breadth_retention_bps"],POLICY.min_fill_breadth_retention_bps
+        )
+
+        decayed=self.strong_late(
+            observed_at=1010,independent_buyer_clusters=10,
+            buyer_growth=1,repeat_buyer_clusters=0,repeat_buy_share_bps=0,
+            net_buy_share_bps=4000,curve_velocity_bps_per_s=-5,
+        )
+        rejected=entry_signal_persistence(decision,decayed)
+        self.assertFalse(rejected["persistent"])
+        self.assertIn("fill_buyer_breadth_decay",rejected["reasons"])
+        self.assertTrue(
+            any(reason.startswith("fill_") for reason in rejected["reasons"])
+        )
 
     def test_creator_quality_cannot_override_weak_trajectory(self):
         result=qualify(self.strong_late(
