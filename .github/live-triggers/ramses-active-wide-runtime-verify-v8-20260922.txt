@@ -1,0 +1,1 @@
+Verify complete Active Wide Maker v3 after expanding only the synthetic recenter fixture state coverage.
