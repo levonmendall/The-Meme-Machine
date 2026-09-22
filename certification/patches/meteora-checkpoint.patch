@@ -3109,7 +3109,7 @@ index 0000000..84fb1bf
 +        self.assertLess(after['batch_size'],before['batch_size'])
 +        self.assertEqual(after['rate_events'],before['rate_events'])
 +        phases=b.consumers.telemetry()['acquisition_phase_attempts']
-+        self.assertEqual(phases['provider_transient_retry'],4)
++        self.assertEqual(phases['provider_transient_retry'],1)
 +
 +    def test_repeated_transient_gettransaction_failure_stays_fail_closed(self):
 +        now=[100.]
