@@ -1,0 +1,1 @@
+Verify complete Active Wide Maker v3 runtime including compound-resize overlap, recenter overlap and validation observation wiring.
