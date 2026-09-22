@@ -1,0 +1,3 @@
+Verify canonical Meteora repaired overlay against exact pinned source.
+Approved semantic delta: add dlmm_add_liquidity_by_strategy2_mixed_with_swap_interval to existing structural terminal writeoff classification and update its regression.
+Expected source diff SHA-256: ce328f328c0ea95d3e681da3c8912a095c13cc0aa590999088c161843df48503
