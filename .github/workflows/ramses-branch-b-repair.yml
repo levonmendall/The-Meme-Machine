@@ -28,6 +28,7 @@ jobs:
           PY
 
   provider_clear:
+    name: tests
     if: contains(github.event.head_commit.message, '[ramses-branch-b-repair]')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
