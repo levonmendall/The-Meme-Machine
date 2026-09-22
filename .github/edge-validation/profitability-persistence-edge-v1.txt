@@ -8,3 +8,4 @@ Idempotent Pons semantic resolver retry.
 Expose exact Pump/Pons composed test failures.
 Policy-aligned Pump/Pons fixture repair retry.
 Hardened Pons recovery fixture composition retry.
+Synchronized Pons source and 20-cluster Pump fixture retry.
