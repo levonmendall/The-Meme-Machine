@@ -359,14 +359,30 @@ def _add_liquidity_by_strategy2_record(raw,instruction,keys,pool,order):
     strategy_type=raw[40]
     if min_bin>max_bin or max_slippage<0 or strategy_type>8:
         raise Unavailable('dlmm_add_liquidity_by_strategy2_parameters')
-    _remaining_accounts_info_end(raw,105)
+    # Current deployed StrategyParameters has been observed with both the IDL
+    # 64-byte parameter payload and an eight-byte zero-reserved extension.  Do
+    # not guess a distribution from either representation: authenticate only a
+    # bounded exact RemainingAccountsInfo suffix and carry the raw strategy bytes.
+    info_offset=None
+    for candidate in (105,113):
+        if candidate>len(raw):
+            continue
+        try:
+            _remaining_accounts_info_end(raw,candidate)
+        except Unavailable:
+            continue
+        if candidate==113 and any(raw[105:113]):
+            continue
+        info_offset=candidate;break
+    if info_offset is None:
+        raise Unavailable('dlmm_add_liquidity_by_strategy2_remaining_accounts_shape')
     return dict(
         kind='add_liquidity_by_strategy2',order=list(order),events=[],
         position=keys[accounts[0]],sender=keys[accounts[9]],
         max_amount_x=amount_x,max_amount_y=amount_y,
         observed_active=observed_active,max_active_bin_slippage=max_slippage,
         min_bin=min_bin,max_bin=max_bin,strategy_type=strategy_type,
-        strategy_parameters=raw[41:105].hex(),
+        strategy_parameters=raw[41:info_offset].hex(),
         reserve_x=keys[accounts[5]],reserve_y=keys[accounts[6]],
         token_x_mint=keys[accounts[7]],token_y_mint=keys[accounts[8]],
         reserve_x_index=accounts[5],reserve_y_index=accounts[6],
