@@ -1,0 +1,1 @@
+Run the preregistered Ramses Branch B public-mint-geometry development replay only after the exact competing four-lane market campaign is terminal. Apply frozen cost/breadth gates; freeze and open untouched holdout only if all preregistered development gates pass.
