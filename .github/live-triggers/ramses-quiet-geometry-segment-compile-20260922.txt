@@ -1,0 +1,1 @@
+Compile the preregistered public-mint-geometry fallback after adding contiguous exact long-hold segmentation. No strategy inputs changed.
