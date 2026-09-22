@@ -1,4 +1,4 @@
-"""Connected all-pool Ramses Fee Pulse paper lifecycle.
+"""Connected Ramses Active Wide Maker v3 paper lifecycle.
 
 Canonical path:
 all-pool selector -> authenticated qualifier evidence -> frozen range ->
@@ -24,6 +24,7 @@ from .ramses import (
     decode_ramses_event,
     paper_position,
     paper_removal,
+    paper_fee_capture,
     price,
     quote_value,
     replay,
@@ -55,6 +56,7 @@ DB = Path(os.environ.get(
 
 MONITOR_POLL_SECONDS = 30
 RESCAN_SECONDS = 300
+FEE_RESERVE_REFRESH_SECONDS = 120
 MAX_MUTATED_BINS = 256
 MAX_POOL_LOGS = 5000
 MAX_POOL_TRANSACTIONS = 2500
@@ -359,7 +361,34 @@ def _canonicalize_selected_row(
         directional_signal=context.get("directional"),
         now=int(screen["finalized_timestamp"]),
         pool=canonical["pool"],
+        quote_token=canonical.get("quote_token"),
     )
+    if decision.get("qualified") and decision.get("freeze"):
+        terminal=dict(
+            active=int(frozen_prestate["active"]),
+            step=int(frozen_prestate["step"]),
+            bins={
+                int(b):dict(
+                    reserves=list(row0["reserves"]),
+                    supply=int(row0["supply"]),
+                )
+                for b,row0 in frozen_prestate["bins"].items()
+            },
+        )
+        unwind=_unwind(
+            rpc,canonical["pool"],decision,{"terminal_state":terminal},
+            int(screen["finalized_block"]),
+        )
+        full=_unwind_has_full_liquidity(unwind)
+        auth["preentry_full_unwind"]=bool(full)
+        auth["preentry_unwind"]=deepcopy(unwind)
+        if not full:
+            decision=deepcopy(decision)
+            decision["qualified"]=False
+            decision["mode"]="no_trade"
+            decision["reasons"]=list(decision.get("reasons") or [])+[
+                "preentry_full_unwind_unavailable"
+            ]
     canonical["features"] = decision.get("features") or canonical_feature
     canonical["decision"] = decision
     canonical["evidence_grade"] = "receipt_header_authenticated"
@@ -708,6 +737,8 @@ def _requalify_current_pool(
         directional_signal=context.get("directional"),
         now=int(screen["finalized_timestamp"]),
         pool=pool,
+        quote_token=row.get("quote_token"),
+        rebalance_reference_capital=capital,
     )
 
 
@@ -838,7 +869,7 @@ def run(
     result.update(
         status="qualifier_selected",
         pool=pool,
-        quote_asset=chosen["token_y"].lower(),
+        quote_asset=(chosen.get("quote_token") or chosen["token_y"]).lower(),
         qualifier_decision=decision,
         qualifier_cost_evidence=deepcopy(chosen.get("cost_evidence")),
         qualifier_gas_costs=dict(costs),
@@ -861,12 +892,13 @@ def run(
         ledger = RamsesStrategyLedger(
             db_path,
             paper_capital=required_paper_capital,
-            quote_asset=chosen["token_y"],
+            quote_asset=(chosen.get("quote_token") or chosen["token_y"]),
         )
     else:
         if (
             not isinstance(campaign_ledger, RamsesStrategyLedger)
-            or campaign_ledger.quote_asset != chosen["token_y"].lower()
+            or campaign_ledger.quote_asset
+                != (chosen.get("quote_token") or chosen["token_y"]).lower()
         ):
             raise BoundaryError("connected_campaign_ledger_quote_mismatch")
         if not isinstance(lifecycle_prefix, str) or not lifecycle_prefix:
@@ -901,6 +933,8 @@ def run(
     latest_screen = screen
     overall_started = time.monotonic()
     last_monitor_at = entry_at
+    last_fee_reserve = None
+    last_fee_refresh_wall = 0.0
 
     try:
         result["ledger_reserved"] = ledger.reserve(
@@ -970,20 +1004,28 @@ def run(
                 )
                 continue
             proposal = decision["freeze"]["proposals"][0]
-            expected_fee = max(
-                1, int(proposal.get("estimated_fee_capture") or 0)
-            )
-            remaining_seconds = max(
-                0,
-                int(
-                    POLICY["controller"]["max_holding_seconds"]
-                    - (time.monotonic()-overall_started)
-                ),
-            )
-            expected_remaining_fee = (
-                expected_fee * max(1, remaining_seconds)
-                // max(1, POLICY["controller"]["max_holding_seconds"])
-            )
+            if (
+                last_fee_reserve is None
+                or time.monotonic()-last_fee_refresh_wall
+                    >= FEE_RESERVE_REFRESH_SECONDS
+            ):
+                try:
+                    _fee_capture,_fee_replay=_build_segment_replay(
+                        rpc,pool,decision,segment_start,block
+                    )
+                    _fees=paper_fee_capture(
+                        paper_position(decision["freeze"],0),_fee_replay
+                    )
+                    last_fee_reserve=max(0,int(_fees["quote_value"]))
+                    last_fee_refresh_wall=time.monotonic()
+                except BoundaryError as exc:
+                    if not _is_transient_provider_boundary(exc):
+                        raise
+                    _record_provider_hold(
+                        result,ledger,identity,
+                        stage="fee_reserve",boundary=exc,at=last_monitor_at,
+                    )
+            expected_remaining_fee = last_fee_reserve
             total_cost = sum(costs.values())
             rebalance_cost = int(costs.get("rebalance", total_cost))
             unwind_cost = int(
@@ -1141,6 +1183,8 @@ def run(
             decision = new_decision
             latest_screen = fresh
             segment_start = int(fresh["finalized_block"])
+            last_fee_reserve=None
+            last_fee_refresh_wall=0.0
             rebalances += 1
             rebalance_row = dict(
                 index=rebalances,
