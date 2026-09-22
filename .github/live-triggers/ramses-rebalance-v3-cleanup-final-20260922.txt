@@ -1,0 +1,1 @@
+Re-run deterministic Ramses Active Wide Maker v3 verification after canonical historical-lineage cleanup. No holdout reuse, provider calls, or production promotion.
