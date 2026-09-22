@@ -131,6 +131,16 @@ def _refresh_curve_signal(endpoint,candidate,mark_meta):
     return trajectory,demand,[trajectory_session]+sessions
 
 
+def _refresh_entry_persistence_signal(endpoint,candidate,entry_meta):
+    """Dedicated fill-time thesis revalidation hook.
+
+    Production uses the same authenticated trajectory/demand acquisition as normal
+    monitoring. Keeping the hook separate prevents recovery tests from conflating
+    pre-entry persistence with deliberately injected post-entry provider failures.
+    """
+    return _refresh_curve_signal(endpoint,candidate,entry_meta)
+
+
 def _delayed_exit(
     endpoint,*,paper,identity,rpc,candidate,gas_units,store,
     transition,v4_key,label,exit_tokens,
@@ -259,7 +269,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
             rpc,candidate,"buy",amount,gas_units,store,"selective-entry",
             reserved["due"],seconds=30,local_freshness=True,
         )
-        trajectory_now,demand_now,persistence_sessions=_refresh_curve_signal(
+        trajectory_now,demand_now,persistence_sessions=_refresh_entry_persistence_signal(
             endpoint,candidate,entry_meta
         )
         result["provider_sessions"].extend(persistence_sessions)
