@@ -32,7 +32,7 @@ from meme_machine.pump_acceleration_history import IncrementalPumpSwapHistory
 from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
 from meme_machine.pump_acceleration_strategy import (
     MODE_LATE_CURVE,MODE_POSTGRAD,MODE_SECOND_LEG,POLICY,STRATEGY_ID,
-    SignalVector,flow_metrics,policy_hash,qualify,
+    SignalVector,entry_signal_persistence,flow_metrics,policy_hash,qualify,
 )
 from meme_machine.solana_evidence_broker import (
     DEFAULT_BROKER_DB,DynamicAddressLogStream,EvidenceBroker,
@@ -53,7 +53,8 @@ INITIAL_LAMPORTS=INITIAL_USD_MICROS*1_000_000_000//GENESIS_SOL_USD_MICROS
 ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
 ENTRY_DELAY_SECONDS=2
 ENTRY_FILL_TIMEOUT_SECONDS=20
-FROZEN_POLICY_HASH="b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246"
+FROZEN_POLICY_HASH="d623ff03ad19b2c4dcd8a82d4883c188ba1acd35a721582175d85cd1b0191770"
+FILL_PERSISTENCE_CONTEXT=None
 
 
 def _save(report):
@@ -121,6 +122,29 @@ def _confirmation_meta(value):
     )
 
 
+def _late_roundtrip_loss_bps(snapshot):
+    """Immediate executable after-cost downside for the exact paper entry size."""
+    curve=pump.curve(snapshot["accounts"][0])
+    supply,_=pump.mint_info(snapshot["accounts"][1])
+    entry_rates=pump.fees(snapshot["accounts"][2],curve,supply)
+    tokens,cost,entry_fee=pump.buy(curve,ENTRY_BUDGET,entry_rates)
+    gross=max(0,int(cost)-int(entry_fee))
+    after=pump.Curve(
+        token=int(curve.token)-int(tokens),
+        sol=int(curve.sol)+gross,
+        real_token=int(curve.real_token)-int(tokens),
+        real_sol=int(curve.real_sol)+gross,
+        supply=int(curve.supply),
+        complete=False,
+        creator=curve.creator,
+    )
+    exit_rates=pump.fees(snapshot["accounts"][2],after,supply)
+    proceeds,_=pump.sell(after,tokens,exit_rates)
+    basis=int(cost)+GAS
+    executable=max(0,int(proceeds)-GAS)
+    return max(0,(basis-executable)*10_000//max(1,basis))
+
+
 def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
     now=int(snapshot["market_time"])
     curve=pump.curve(snapshot["accounts"][0])
@@ -138,9 +162,13 @@ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
         curve_velocity_bps_per_s=trajectory["curve_velocity_bps_per_s"],
         curve_acceleration_bps_per_s2=trajectory["curve_acceleration_bps_per_s2"],
         independent_buyer_clusters=flow["independent_buyer_clusters"],
-        buyer_growth=flow["buyer_growth"],net_buy_share_bps=flow["net_buy_share_bps"],
+        buyer_growth=flow["buyer_growth"],
+        repeat_buyer_clusters=flow["repeat_buyer_clusters"],
+        repeat_buy_share_bps=flow["repeat_buy_share_bps"],
+        net_buy_share_bps=flow["net_buy_share_bps"],
         concentration_bps=int(concentration_bps),
         extension_bps=int(trajectory["extension_bps"]),
+        immediate_roundtrip_loss_bps=_late_roundtrip_loss_bps(snapshot),
         skilled_wallet_clusters=int(confirmation["skilled_wallet_clusters"]),
         creator_quality_bps=confirmation["creator_quality_bps"],
         creator_history_launches=int(confirmation["creator_history_launches"]),
@@ -195,7 +223,10 @@ def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_b
     common=dict(
         mint=snapshot["mint"],observed_at=now,surface="pumpswap",phase=mode,
         quote_asset="SOL",independent_buyer_clusters=flow["independent_buyer_clusters"],
-        buyer_growth=flow["buyer_growth"],net_buy_share_bps=flow["net_buy_share_bps"],
+        buyer_growth=flow["buyer_growth"],
+        repeat_buyer_clusters=flow["repeat_buyer_clusters"],
+        repeat_buy_share_bps=flow["repeat_buy_share_bps"],
+        net_buy_share_bps=flow["net_buy_share_bps"],
         concentration_bps=int(concentration),
         skilled_wallet_clusters=int(confirmation["skilled_wallet_clusters"]),
         creator_quality_bps=confirmation["creator_quality_bps"],
@@ -217,7 +248,9 @@ def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_b
     }),confirmation
 
 
-def _reserve_position(report,pending,active,qualification,snapshot,mode,concentration=0):
+def _reserve_position(
+    report,pending,active,signal,qualification,snapshot,mode,concentration=0
+):
     key=(qualification.mint,mode)
     if key in pending or key in active:
         return
@@ -234,16 +267,28 @@ def _reserve_position(report,pending,active,qualification,snapshot,mode,concentr
         entry_status="reserved",reserved_at=reserved_at,
         fill_due=reserved_at+ENTRY_DELAY_SECONDS,
         decision_slot=int(snapshot["slot"]),
+        decision_repeat_buyer_clusters=int(signal.repeat_buyer_clusters),
+        decision_repeat_buy_share_bps=int(signal.repeat_buy_share_bps),
     )
     report["qualifiers"].append(qrow)
     pending[key]=dict(
         lifecycle=life,reserved_at=reserved_at,due=reserved_at+ENTRY_DELAY_SECONDS,
         decision_slot=int(snapshot["slot"]),qualifier_row=qrow,
-        last_concentration=int(concentration),
+        last_concentration=int(concentration),decision_signal=signal,
     )
 
 
-def _fill_pending(report,pending,active,sessions,postgrad,now):
+def _fill_pending(
+    report,pending,active,sessions,postgrad,now,*,
+    tape=None,created=None,confirmations=None
+):
+    context=FILL_PERSISTENCE_CONTEXT or {}
+    tape=tape if tape is not None else context.get("tape")
+    created=created if created is not None else context.get("created")
+    confirmations=(
+        confirmations if confirmations is not None
+        else context.get("confirmations")
+    )
     for key,row in list(pending.items()):
         if now<int(row["due"]):
             continue
@@ -252,6 +297,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
         try:
             sessions.ensure(20)
             if mode==MODE_LATE_CURVE:
+                sessions.ensure(35)
                 snapshot=sessions.pump.snapshot(mint,now,priority=True)
                 _assert_fill_deadline(row)
                 curve=pump.curve(snapshot["accounts"][0])
@@ -259,6 +305,36 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                     raise ValueError("graduated_before_delayed_fill")
                 if int(snapshot["slot"])<=int(row["decision_slot"]) or int(snapshot["market_time"])<int(row["due"]):
                     raise Unavailable("no_fresh_post_delay_quote")
+
+                if tape is None or created is None or confirmations is None:
+                    raise Unavailable("entry_persistence_context_unavailable")
+                creation=created[mint]["creation"]
+                ev=tape.window(
+                    mint,int(snapshot["market_time"]),max_slot=snapshot["slot"]
+                )
+                concentration,meta=sessions.reader.read(
+                    mint,snapshot,priority=True
+                )
+                fill_signal,trajectory,confirmation=_late_signal(
+                    creation,ev,snapshot,concentration,confirmations
+                )
+                persistence=entry_signal_persistence(
+                    row["decision_signal"],fill_signal
+                )
+                row["qualifier_row"]["fill_persistence"]=dict(
+                    persistence,
+                    reasons=list(persistence["reasons"]),
+                    fill_trajectory=trajectory,
+                    concentration_source=meta.get("source"),
+                    confirmation_evidence=_confirmation_meta(confirmation),
+                )
+                if not persistence["persistent"]:
+                    raise ValueError(
+                        "entry_signal_decay:"+",".join(persistence["reasons"])
+                    )
+                row["last_concentration"]=int(concentration)
+                _assert_fill_deadline(row)
+
                 supply,_=pump.mint_info(snapshot["accounts"][1])
                 rates=pump.fees(snapshot["accounts"][2],curve,supply)
                 tokens,cost,fee=pump.buy(curve,ENTRY_BUDGET,rates)
@@ -268,6 +344,9 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                 state=postgrad.get(mint)
                 if state is None:
                     raise Unavailable("missing_postgrad_state")
+                if confirmations is None:
+                    raise Unavailable("entry_persistence_context_unavailable")
+                sessions.ensure(85)
                 graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
                 handoff=graduation_handoff(
                     graduation,max(now,int(graduation["available_time"])))
@@ -275,6 +354,41 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
                 _assert_fill_deadline(row)
                 if int(snapshot["slot"])<=int(row["decision_slot"]) or int(snapshot["market_time"])<int(row["due"]):
                     raise Unavailable("no_fresh_post_delay_quote")
+
+                events=_refresh_pool_events(
+                    state,sessions,now,
+                    research=(mode==MODE_SECOND_LEG),
+                    hydration_kind="entry_persistence",
+                )
+                if mode==MODE_POSTGRAD:
+                    window_status=state["history"].decision_window_status(now,30)
+                    if not window_status["complete"]:
+                        raise Unavailable("incomplete_pumpswap_entry_window")
+                    fill_events=state["history"].decision_rows(now,30)
+                else:
+                    if not state["history"].complete(now):
+                        raise Unavailable("incomplete_pumpswap_entry_history")
+                    fill_events=events
+                concentration=_postgrad_concentration(sessions.rpc,snapshot)
+                fill_signal,confirmation=_volume_price_signal(
+                    state,snapshot,fill_events,mode,concentration,confirmations
+                )
+                persistence=entry_signal_persistence(
+                    row["decision_signal"],fill_signal
+                )
+                row["qualifier_row"]["fill_persistence"]=dict(
+                    persistence,
+                    reasons=list(persistence["reasons"]),
+                    history_status=state["history"].status(now),
+                    confirmation_evidence=_confirmation_meta(confirmation),
+                )
+                if not persistence["persistent"]:
+                    raise ValueError(
+                        "entry_signal_decay:"+",".join(persistence["reasons"])
+                    )
+                row["last_concentration"]=int(concentration)
+                _assert_fill_deadline(row)
+
                 quote=buy_quote(snapshot,ENTRY_BUDGET)
                 tokens=quote.output_amount;cost=quote.input_amount;surface="pumpswap"
                 entry=dict(tokens=tokens,cost=cost,fee=quote.fee_amount,gas=GAS)
@@ -296,6 +410,7 @@ def _fill_pending(report,pending,active,sessions,postgrad,now):
             reason=str(exc) or type(exc).__name__
             decision_now=int(time.time())
             if (reason in ("graduated_before_delayed_fill","entry_fill_timeout") or
+                    reason.startswith("entry_signal_decay:") or
                     decision_now-int(row["reserved_at"])>=ENTRY_FILL_TIMEOUT_SECONDS):
                 try:
                     life.cancel(reason,decision_now)
@@ -316,9 +431,13 @@ def _record_attempt(report,signal,q,stage,extra=None):
         velocity=signal.curve_velocity_bps_per_s,
         acceleration=signal.curve_acceleration_bps_per_s2,
         independent_buyers=signal.independent_buyer_clusters,
-        buyer_growth=signal.buyer_growth,net_buy_share_bps=signal.net_buy_share_bps,
+        buyer_growth=signal.buyer_growth,
+        repeat_buyer_clusters=signal.repeat_buyer_clusters,
+        repeat_buy_share_bps=signal.repeat_buy_share_bps,
+        net_buy_share_bps=signal.net_buy_share_bps,
         concentration_bps=signal.concentration_bps,
         extension_bps=signal.extension_bps,
+        immediate_roundtrip_loss_bps=signal.immediate_roundtrip_loss_bps,
         seconds_since_graduation=signal.seconds_since_graduation,
         price_vs_graduation_bps=signal.price_vs_graduation_bps,
         volume_acceleration_bps=signal.volume_acceleration_bps,
@@ -339,6 +458,7 @@ def _record_attempt(report,signal,q,stage,extra=None):
 
 
 def main():
+    global FILL_PERSISTENCE_CONTEXT
     actual_policy_hash=policy_hash()
     if actual_policy_hash!=FROZEN_POLICY_HASH:
         raise RuntimeError("frozen_policy_hash_changed")
@@ -389,6 +509,9 @@ def main():
 
     sessions=Sessions()
     cursor=0;created={};postgrad={};pending={};active={};full_attempts=0
+    FILL_PERSISTENCE_CONTEXT=dict(
+        tape=tape,created=created,confirmations=confirmations
+    )
     last_eval={};last_postgrad_eval={};last_save=0
     discovery_end=int(time.time())+DISCOVERY_SECONDS
     end=discovery_end+FOLLOWUP_SECONDS
@@ -478,7 +601,8 @@ def main():
                                 x["mint"]==mint and x["mode"]==MODE_LATE_CURVE
                                 for x in report["qualifiers"]):
                             _reserve_position(
-                                report,pending,active,q,snapshot,MODE_LATE_CURVE,concentration)
+                                report,pending,active,signal,q,snapshot,
+                                MODE_LATE_CURVE,concentration)
                     except (Unavailable,ValueError,KeyError,TypeError) as exc:
                         report["attempts"].append(dict(
                             mint=mint,mode=MODE_LATE_CURVE,observed_at=now,
@@ -518,7 +642,8 @@ def main():
                             x["mint"]==mint and x["mode"]==MODE_POSTGRAD
                             for x in report["qualifiers"]):
                         _reserve_position(
-                            report,pending,active,q,snapshot,MODE_POSTGRAD,concentration)
+                            report,pending,active,signal,q,snapshot,
+                            MODE_POSTGRAD,concentration)
 
                     if age>=POLICY.min_second_leg_age_s:
                         try:
@@ -535,7 +660,8 @@ def main():
                                     x["mint"]==mint and x["mode"]==MODE_SECOND_LEG
                                     for x in report["qualifiers"]):
                                 _reserve_position(
-                                    report,pending,active,q2,snapshot,MODE_SECOND_LEG,concentration)
+                                    report,pending,active,second,q2,snapshot,
+                                    MODE_SECOND_LEG,concentration)
                         except (Unavailable,ValueError,KeyError,TypeError) as exc:
                             report["attempts"].append(dict(
                                 mint=mint,mode=MODE_SECOND_LEG,observed_at=now,
@@ -552,7 +678,10 @@ def main():
 
             # Paper entries use the repository-standard two-second delay and a fresh
             # executable quote. This is execution realism, not a strategy threshold.
-            _fill_pending(report,pending,active,sessions,postgrad,now)
+            _fill_pending(
+                report,pending,active,sessions,postgrad,now,
+                tape=tape,created=created,confirmations=confirmations
+            )
 
             # Exact frozen exit controller on natural qualifiers.  Each qualifier is
             # an isolated research lifecycle; no shared Store capital is mutated.
@@ -674,6 +803,7 @@ def main():
         report["threshold_changes_made"]=False
         _save(report)
         broker.close()
+        FILL_PERSISTENCE_CONTEXT=None
     print(json.dumps(report,sort_keys=True))
 
 

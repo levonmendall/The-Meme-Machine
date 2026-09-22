@@ -9,6 +9,7 @@ from meme_machine.pump_acceleration_strategy import (
     SignalVector,
     WalletSkillRecord,
     creator_confirmation,
+    entry_signal_persistence,
     flow_metrics,
     policy_hash,
     qualify,
@@ -28,11 +29,14 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
             curve_progress_bps=8200,
             curve_velocity_bps_per_s=80,
             curve_acceleration_bps_per_s2=5,
-            independent_buyer_clusters=5,
-            buyer_growth=3,
+            independent_buyer_clusters=30,
+            buyer_growth=8,
+            repeat_buyer_clusters=4,
+            repeat_buy_share_bps=3000,
             net_buy_share_bps=8500,
-            concentration_bps=1800,
+            concentration_bps=1500,
             extension_bps=2500,
+            immediate_roundtrip_loss_bps=300,
             skilled_wallet_clusters=2,
             creator_quality_bps=7000,
             creator_history_launches=10,
@@ -77,7 +81,7 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
         self.assertIn("creator_quality",result.confirmations)
         self.assertEqual(result.policy_hash,policy_hash())
 
-    def test_execution_certification_accepts_valid_nonexceptional_late_curve(self):
+    def test_machinery_grade_candidate_no_longer_has_profitability_authority(self):
         result=qualify(self.strong_late(
             curve_progress_bps=6000,
             curve_velocity_bps_per_s=12,
@@ -87,13 +91,72 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
             net_buy_share_bps=5600,
             concentration_bps=4900,
             extension_bps=15000,
+            immediate_roundtrip_loss_bps=300,
             skilled_wallet_clusters=0,
             creator_quality_bps=None,
             creator_history_launches=0,
             quote_relative_return_bps=0,
         ))
-        self.assertTrue(result.qualified,result.reasons)
-        self.assertLess(result.score,65)
+        self.assertFalse(result.qualified)
+        self.assertIn("independent_buyers",result.reasons)
+        self.assertIn("buyer_growth",result.reasons)
+        self.assertIn("concentration",result.reasons)
+
+    def test_profitability_late_curve_rejects_terminal_and_costly_entries(self):
+        too_late=qualify(self.strong_late(curve_progress_bps=9000))
+        self.assertFalse(too_late.qualified)
+        self.assertIn("curve_too_late",too_late.reasons)
+        costly=qualify(self.strong_late(immediate_roundtrip_loss_bps=700))
+        self.assertFalse(costly.qualified)
+        self.assertIn("executable_downside",costly.reasons)
+        missing=qualify(self.strong_late(immediate_roundtrip_loss_bps=None))
+        self.assertFalse(missing.qualified)
+        self.assertIn("executable_downside_unavailable",missing.reasons)
+
+    def test_profitability_late_curve_allows_moderate_deceleration_but_not_collapse(self):
+        moderate=qualify(self.strong_late(curve_acceleration_bps_per_s2=-5))
+        self.assertTrue(moderate.qualified,moderate.reasons)
+        collapse=qualify(self.strong_late(curve_acceleration_bps_per_s2=-20))
+        self.assertFalse(collapse.qualified)
+        self.assertIn("curve_deceleration",collapse.reasons)
+
+    def test_repeat_buyer_persistence_is_entry_authority(self):
+        weak=qualify(self.strong_late(
+            repeat_buyer_clusters=1,repeat_buy_share_bps=500
+        ))
+        self.assertFalse(weak.qualified)
+        self.assertIn("repeat_buyers",weak.reasons)
+        self.assertIn("repeat_buy_share",weak.reasons)
+
+        durable=qualify(self.strong_late(
+            repeat_buyer_clusters=3,repeat_buy_share_bps=2500
+        ))
+        self.assertTrue(durable.qualified,durable.reasons)
+
+    def test_fill_time_persistence_rejects_decayed_thesis(self):
+        decision=self.strong_late()
+        persistent=self.strong_late(
+            observed_at=1008,independent_buyer_clusters=24,
+            buyer_growth=6,repeat_buyer_clusters=3,repeat_buy_share_bps=2200,
+            net_buy_share_bps=7600,curve_velocity_bps_per_s=50,
+        )
+        kept=entry_signal_persistence(decision,persistent)
+        self.assertTrue(kept["persistent"],kept["reasons"])
+        self.assertGreaterEqual(
+            kept["breadth_retention_bps"],POLICY.min_fill_breadth_retention_bps
+        )
+
+        decayed=self.strong_late(
+            observed_at=1010,independent_buyer_clusters=10,
+            buyer_growth=1,repeat_buyer_clusters=0,repeat_buy_share_bps=0,
+            net_buy_share_bps=4000,curve_velocity_bps_per_s=-5,
+        )
+        rejected=entry_signal_persistence(decision,decayed)
+        self.assertFalse(rejected["persistent"])
+        self.assertIn("fill_buyer_breadth_decay",rejected["reasons"])
+        self.assertTrue(
+            any(reason.startswith("fill_") for reason in rejected["reasons"])
+        )
 
     def test_creator_quality_cannot_override_weak_trajectory(self):
         result=qualify(self.strong_late(
@@ -136,7 +199,7 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
     def test_postgrad_requires_graduation_and_new_demand(self):
         strong=SignalVector(
             mint="M",observed_at=1000,surface="pumpswap",phase=MODE_POSTGRAD,
-            graduated=True,seconds_since_graduation=25,independent_buyer_clusters=6,
+            graduated=True,seconds_since_graduation=25,independent_buyer_clusters=10,
             buyer_growth=3,net_buy_share_bps=8500,concentration_bps=1600,
             price_vs_graduation_bps=1400,volume_acceleration_bps=3000,
             early_holder_sell_share_bps=1200,recovery_bps=1000,
@@ -149,7 +212,7 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
     def test_second_leg_requires_pullback_consolidation_and_breakout(self):
         strong=SignalVector(
             mint="M",observed_at=1000,surface="pumpswap",phase=MODE_SECOND_LEG,
-            graduated=True,seconds_since_graduation=120,independent_buyer_clusters=6,
+            graduated=True,seconds_since_graduation=120,independent_buyer_clusters=10,
             buyer_growth=3,net_buy_share_bps=8500,concentration_bps=1700,
             early_holder_sell_share_bps=1000,pullback_depth_bps=1200,
             recovery_bps=1600,consolidation_seconds=45,breakout_bps=1500,

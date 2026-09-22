@@ -40,19 +40,28 @@ def _points(value, low, high, maximum):
 
 @dataclass(frozen=True)
 class FrozenPolicy:
-    version: str = STRATEGY_ID + "-execution-certification-v1"
+    version: str = STRATEGY_ID + "-profitability-v1"
     entry_fraction_bps: int = 500
 
     # Late-curve structural gates.
-    min_curve_progress_bps: int = 5500
+    min_curve_progress_bps: int = 6000
+    max_curve_progress_bps: int = 8500
     min_curve_velocity_bps_per_s: int = 10
-    min_curve_acceleration_bps_per_s2: int = 0
-    min_independent_clusters: int = 2
-    min_buyer_growth: int = 1
+    min_curve_acceleration_bps_per_s2: int = -10
+    min_independent_clusters: int = 20
+    min_buyer_growth: int = 4
     min_net_buy_share_bps: int = 5500
-    max_concentration_bps: int = 5000
+    max_concentration_bps: int = 2500
     max_extension_bps: int = 16000
-    min_late_curve_score: int = 65
+    max_immediate_roundtrip_loss_bps: int = 600
+    # Demand quality must include repeat participation rather than one-shot breadth.
+    min_repeat_buyer_clusters: int = 2
+    min_repeat_buy_share_bps: int = 1000
+    # A delayed fill must retain at least 60% of the decision-time buyer breadth.
+    min_fill_breadth_retention_bps: int = 6000
+    # Retained as an informational field for stable serialization. The old score
+    # was not robustly discriminative and has no entry authority in profitability-v1.
+    min_late_curve_score: int = 0
 
     # Historical confirmation inputs.  These can add score but never authorize
     # a trade on their own.
@@ -64,11 +73,13 @@ class FrozenPolicy:
     # Immediate post-graduation momentum gates.
     min_postgrad_age_s: int = 5
     max_postgrad_entry_age_s: int = 180
-    min_postgrad_independent_clusters: int = 2
+    min_postgrad_independent_clusters: int = 8
+    min_postgrad_buyer_growth: int = 2
     min_postgrad_price_vs_graduation_bps: int = 1
     min_postgrad_volume_acceleration_bps: int = 0
-    max_early_holder_sell_share_bps: int = 5000
-    min_postgrad_score: int = 65
+    max_postgrad_concentration_bps: int = 3500
+    max_early_holder_sell_share_bps: int = 4000
+    min_postgrad_score: int = 0
 
     # PumpSwap second-leg gates.
     min_second_leg_age_s: int = 30
@@ -76,12 +87,13 @@ class FrozenPolicy:
     min_pullback_depth_bps: int = 100
     max_pullback_depth_bps: int = 3500
     min_breakout_bps: int = 200
-    min_second_leg_score: int = 65
+    min_second_leg_buyer_growth: int = 2
+    min_second_leg_score: int = 0
 
     # Independent paper exit policy.
-    hard_stop_bps: int = -1000
+    hard_stop_bps: int = -800
     trailing_drawdown_bps: int = 1200
-    demand_exit_score: int = 45
+    demand_exit_score: int = 50
     late_curve_max_hold_s: int = 900
     postgrad_max_hold_s: int = 300
     second_leg_max_hold_s: int = 600
@@ -135,9 +147,12 @@ class SignalVector:
 
     independent_buyer_clusters: int = 0
     buyer_growth: int = 0
+    repeat_buyer_clusters: int = 0
+    repeat_buy_share_bps: int = 0
     net_buy_share_bps: int = 0
     concentration_bps: int = 10_000
     extension_bps: int = 0
+    immediate_roundtrip_loss_bps: int | None = None
 
     skilled_wallet_clusters: int = 0
     creator_quality_bps: int | None = None
@@ -167,7 +182,7 @@ class SignalVector:
             raise ValueError("unsupported_strategy_phase")
         if not self.point_in_time or self.future_data_used:
             raise ValueError("non_point_in_time_signal")
-        for name in ("net_buy_share_bps","concentration_bps"):
+        for name in ("net_buy_share_bps","repeat_buy_share_bps","concentration_bps"):
             value=int(getattr(self,name))
             if not 0 <= value <= 10_000:
                 raise ValueError("invalid_bps")
@@ -271,12 +286,25 @@ def flow_metrics(events, now, cluster_map=None, excluded_clusters=()):
         accepted.append((t,cluster,amount,buy))
     recent={c for t,c,_,buy in accepted if buy and now-10 <= t <= now}
     prior={c for t,c,_,buy in accepted if buy and now-30 <= t < now-10}
+    persistent=recent & prior
+    recent_buy=sum(
+        a for t,_,a,buy in accepted if buy and now-10 <= t <= now
+    )
+    repeat_buy=sum(
+        a for t,c,a,buy in accepted
+        if buy and now-10 <= t <= now and c in persistent
+    )
     buys=sum(a for _,_,a,b in accepted if b)
     sells=sum(a for _,_,a,b in accepted if not b)
     gross=buys+sells
     return dict(
         independent_buyer_clusters=len({c for _,c,_,buy in accepted if buy}),
         buyer_growth=len(recent)-len(prior),
+        repeat_buyer_clusters=len(persistent),
+        repeat_buy_share_bps=(
+            0 if recent_buy <= 0 else
+            _clamp(repeat_buy*10_000//recent_buy,0,10_000)
+        ),
         gross_buy=buys,
         gross_sell=sells,
         net_buy=buys-sells,
@@ -315,19 +343,26 @@ def creator_confirmation(record, observed_at, policy=POLICY):
 
 
 def _late_score(s):
+    """Profitability-v1 ranking.
+
+    Rank broad, expanding independent demand and low concentration most heavily.
+    Score remains diagnostic/ranking evidence only; the explicit structural gates
+    below retain qualification authority.
+    """
     score=0
-    score+=_points(int(s.curve_progress_bps or 0),7000,9500,20)
-    score+=_points(int(s.curve_velocity_bps_per_s or 0),20,100,25)
-    score+=_points(int(s.curve_acceleration_bps_per_s2 or 0),0,10,10)
-    score+=_points(int(s.independent_buyer_clusters),3,6,10)
-    score+=_points(int(s.buyer_growth),1,5,15)
-    score+=_points(int(s.net_buy_share_bps),6000,9000,15)
-    score+=_points(int(s.skilled_wallet_clusters),0,3,8)
+    score+=_points(int(s.curve_progress_bps or 0),6000,8000,10)
+    score+=_points(int(s.curve_velocity_bps_per_s or 0),10,60,10)
+    score+=_points(int(s.curve_acceleration_bps_per_s2 or -10),-10,5,5)
+    score+=_points(int(s.independent_buyer_clusters),10,30,25)
+    score+=_points(int(s.buyer_growth),2,10,20)
+    score+=_points(int(s.repeat_buyer_clusters),2,8,5)
+    score+=_points(int(s.repeat_buy_share_bps),1000,5000,5)
+    score+=_points(int(s.net_buy_share_bps),5500,8000,5)
+    score+=20-_points(int(s.concentration_bps),1000,2500,20)
+    score+=_points(int(s.skilled_wallet_clusters),0,3,3)
     if s.creator_quality_bps is not None and s.creator_history_launches >= POLICY.creator_min_history_launches:
-        score+=_points(int(s.creator_quality_bps),5000,9000,4)
-    score+=_points(int(s.quote_relative_return_bps),0,2000,3)
-    score-=_points(max(0,int(s.concentration_bps)-2500),0,1000,10)
-    score-=_points(max(0,int(s.extension_bps)-5000),0,7000,10)
+        score+=_points(int(s.creator_quality_bps),5000,9000,1)
+    score+=_points(int(s.quote_relative_return_bps),0,2000,1)
     return _clamp(score,0,100)
 
 
@@ -382,20 +417,33 @@ def qualify(signal, policy=POLICY):
         confirmations.append("quote_relative_strength")
 
     if signal.phase == MODE_LATE_CURVE:
-        if int(signal.curve_progress_bps or 0) < policy.min_curve_progress_bps:
+        progress=int(signal.curve_progress_bps or 0)
+        if progress < policy.min_curve_progress_bps:
             reasons.append("curve_not_late")
+        if progress > policy.max_curve_progress_bps:
+            reasons.append("curve_too_late")
         if int(signal.curve_velocity_bps_per_s or 0) < policy.min_curve_velocity_bps_per_s:
             reasons.append("curve_velocity")
+        if int(signal.curve_acceleration_bps_per_s2 or 0) < policy.min_curve_acceleration_bps_per_s2:
+            reasons.append("curve_deceleration")
         if signal.independent_buyer_clusters < policy.min_independent_clusters:
             reasons.append("independent_buyers")
         if signal.buyer_growth < policy.min_buyer_growth:
             reasons.append("buyer_growth")
+        if signal.repeat_buyer_clusters < policy.min_repeat_buyer_clusters:
+            reasons.append("repeat_buyers")
+        if signal.repeat_buy_share_bps < policy.min_repeat_buy_share_bps:
+            reasons.append("repeat_buy_share")
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")
         if signal.concentration_bps > policy.max_concentration_bps:
             reasons.append("concentration")
         if signal.extension_bps > policy.max_extension_bps:
             reasons.append("extension")
+        if signal.immediate_roundtrip_loss_bps is None:
+            reasons.append("executable_downside_unavailable")
+        elif int(signal.immediate_roundtrip_loss_bps) > policy.max_immediate_roundtrip_loss_bps:
+            reasons.append("executable_downside")
         score=_late_score(signal)
         threshold=policy.min_late_curve_score
 
@@ -407,7 +455,7 @@ def qualify(signal, policy=POLICY):
             reasons.append("postgrad_age")
         if signal.independent_buyer_clusters < policy.min_postgrad_independent_clusters:
             reasons.append("independent_buyers")
-        if signal.buyer_growth < policy.min_buyer_growth:
+        if signal.buyer_growth < policy.min_postgrad_buyer_growth:
             reasons.append("buyer_growth")
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")
@@ -417,7 +465,7 @@ def qualify(signal, policy=POLICY):
             reasons.append("volume_acceleration")
         if int(_value_or(signal.early_holder_sell_share_bps,10_000)) > policy.max_early_holder_sell_share_bps:
             reasons.append("early_holder_distribution")
-        if signal.concentration_bps > policy.max_concentration_bps:
+        if signal.concentration_bps > policy.max_postgrad_concentration_bps:
             reasons.append("concentration")
         score=_postgrad_score(signal)
         threshold=policy.min_postgrad_score
@@ -437,13 +485,13 @@ def qualify(signal, policy=POLICY):
             reasons.append("breakout")
         if signal.independent_buyer_clusters < policy.min_postgrad_independent_clusters:
             reasons.append("independent_buyers")
-        if signal.buyer_growth < policy.min_buyer_growth:
+        if signal.buyer_growth < policy.min_second_leg_buyer_growth:
             reasons.append("buyer_growth")
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")
         if int(_value_or(signal.early_holder_sell_share_bps,10_000)) > policy.max_early_holder_sell_share_bps:
             reasons.append("early_holder_distribution")
-        if signal.concentration_bps > policy.max_concentration_bps:
+        if signal.concentration_bps > policy.max_postgrad_concentration_bps:
             reasons.append("concentration")
         score=_second_leg_score(signal)
         threshold=policy.min_second_leg_score
@@ -459,6 +507,54 @@ def qualify(signal, policy=POLICY):
         confirmations=tuple(confirmations),
         entry_fraction_bps=policy.entry_fraction_bps,
         policy_hash=policy_hash(policy),
+    )
+
+
+def entry_signal_persistence(decision_signal, fill_signal, policy=POLICY):
+    """Revalidate the actual entry moment instead of buying a stale thesis.
+
+    Fresh executable state is necessary but not sufficient: the strategy must still
+    qualify at fill time, and buyer breadth cannot collapse materially between the
+    decision snapshot and the delayed executable quote.
+    """
+    decision_signal.validate()
+    fill_signal.validate()
+    reasons=[]
+    if decision_signal.mint != fill_signal.mint:
+        reasons.append("fill_identity_mismatch")
+    if decision_signal.phase != fill_signal.phase:
+        reasons.append("fill_mode_mismatch")
+    if int(fill_signal.observed_at) < int(decision_signal.observed_at):
+        reasons.append("fill_time_regression")
+
+    fill_qualification=qualify(fill_signal,policy)
+    for reason in fill_qualification.reasons:
+        reasons.append("fill_"+str(reason))
+
+    original_breadth=max(1,int(decision_signal.independent_buyer_clusters))
+    breadth_retention=(
+        int(fill_signal.independent_buyer_clusters)*10_000//original_breadth
+    )
+    if breadth_retention < policy.min_fill_breadth_retention_bps:
+        reasons.append("fill_buyer_breadth_decay")
+
+    return dict(
+        persistent=not reasons,
+        reasons=tuple(dict.fromkeys(reasons)),
+        decision_observed_at=int(decision_signal.observed_at),
+        fill_observed_at=int(fill_signal.observed_at),
+        breadth_retention_bps=int(breadth_retention),
+        decision_independent_buyers=int(decision_signal.independent_buyer_clusters),
+        fill_independent_buyers=int(fill_signal.independent_buyer_clusters),
+        decision_buyer_growth=int(decision_signal.buyer_growth),
+        fill_buyer_growth=int(fill_signal.buyer_growth),
+        decision_repeat_buyer_clusters=int(decision_signal.repeat_buyer_clusters),
+        fill_repeat_buyer_clusters=int(fill_signal.repeat_buyer_clusters),
+        decision_repeat_buy_share_bps=int(decision_signal.repeat_buy_share_bps),
+        fill_repeat_buy_share_bps=int(fill_signal.repeat_buy_share_bps),
+        decision_net_buy_share_bps=int(decision_signal.net_buy_share_bps),
+        fill_net_buy_share_bps=int(fill_signal.net_buy_share_bps),
+        fill_qualification_reasons=tuple(fill_qualification.reasons),
     )
 
 
