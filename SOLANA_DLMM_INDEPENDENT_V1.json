@@ -349,7 +349,7 @@
     }
   },
   "execution_certification": {
-    "policy_hash": "TO_BE_FROZEN_BY_DETERMINISTIC_VERIFIER",
+    "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
     "purpose": "prospective_natural_paper_profitability_validation_of_authenticated_local_fee_density_strategy",
     "profitability_authority": true,
     "paper_only": true,
