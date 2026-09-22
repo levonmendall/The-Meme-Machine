@@ -12,6 +12,8 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import urllib.error
 import urllib.request
@@ -36,7 +38,7 @@ def scalars(body):
             and not (isinstance(v, str) and (len(v) > 200 or '://' in v))}
 
 
-def inspect_archive(data, artifact_id, expected):
+def inspect_archive(data, artifact_id, expected, native_meteora_root=None):
     actual = hashlib.sha256(data).hexdigest()
     if actual != expected:
         raise ValueError('historical_artifact_digest_mismatch')
@@ -75,6 +77,17 @@ def inspect_archive(data, artifact_id, expected):
                             summary.update(projection_states=dict(states), projections=projections)
                         row['tables'][table] = summary
                     db.close()
+                    if native_meteora_root is not None and info.filename.endswith('/solana-dlmm-independent-v1-live.accounting.sqlite3'):
+                        env={k:v for k,v in os.environ.items() if not k.startswith(('MM_','GH_','GITHUB_'))
+                            and not any(x in k.upper() for x in ('TOKEN','SECRET','PRIVATE_KEY'))}
+                        command=[sys.executable,str(Path(__file__).with_name('native_historical_meteora.py')),
+                            '--copy',str(path)]
+                        replay=subprocess.run(command,cwd=native_meteora_root,env=env,
+                            stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=30)
+                        if replay.returncode:
+                            row['native_replay']={'passed':False,'error':'original_native_replay_failed'}
+                        else:
+                            row['native_replay']={'passed':True,**json.loads(replay.stdout)}
                     result['databases'].append(row)
             elif info.filename.endswith(('/result.json', '/status.json')):
                 body = json.loads(archive.read(info))
@@ -95,6 +108,7 @@ def main():
     p.add_argument('--artifact-id', type=int, required=True)
     p.add_argument('--sha256', required=True)
     p.add_argument('--output', required=True)
+    p.add_argument('--native-meteora-root')
     args = p.parse_args()
     url = f'https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/{args.artifact_id}/zip'
     request = urllib.request.Request(url, headers={
@@ -109,7 +123,7 @@ def main():
         # Do not forward the GitHub token to signed artifact storage.
         with urllib.request.urlopen(exc.headers['Location'], timeout=60) as response:
             data = response.read()
-    result = inspect_archive(data, args.artifact_id, args.sha256)
+    result = inspect_archive(data, args.artifact_id, args.sha256,args.native_meteora_root)
     Path(args.output).write_text(json.dumps(result, indent=2, sort_keys=True)+'\n')
     print('HISTORICAL_INVENTORY '+json.dumps(result, sort_keys=True))
 

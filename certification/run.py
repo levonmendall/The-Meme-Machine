@@ -35,6 +35,24 @@ def git(*args,cwd=ROOT):
 def manifest():return json.loads((ROOT/'certification/sources.json').read_text())
 
 
+def historical_exposure():
+    """Known exposure must survive a new output directory or strategy revision.
+
+    This is an admission quarantine, not settlement or a replacement ledger.
+    It has no environment bypass. A future recovery change must retain the
+    original evidence and supply an explicit reviewed resolution.
+    """
+    registry=json.loads((ROOT/'certification/historical_exposure.json').read_text())
+    if registry.get('schema_version')!=1 or not isinstance(registry.get('unresolved'),list):
+        raise ValueError('historical_exposure_registry_invalid')
+    for row in registry['unresolved']:
+        if row.get('lane') not in LANES or row.get('resolution') is not None:
+            raise ValueError('historical_exposure_resolution_requires_verified_recovery')
+        if type(row.get('observed_open_positions')) is not int or row['observed_open_positions']<1:
+            raise ValueError('historical_exposure_inventory_invalid')
+    return registry['unresolved']
+
+
 def implementation_hash():
     files=sorted(p for p in (ROOT/'certification').rglob('*') if p.is_file() and p.suffix in ('.py','.json','.patch'))
     return digest({str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files})
@@ -205,6 +223,14 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     if capabilities.exists():atomic(run/'rpc-capabilities.json',json.loads(capabilities.read_text()))
     atomic(run/'manifest.json',dict(**spec,integration_sha=git('rev-parse','HEAD'),run_id=run_id,
                                   operational_overlay_sha256=hashlib.sha256((ROOT/'certification/patches/meteora-checkpoint.patch').read_bytes()).hexdigest()))
+    unresolved=historical_exposure()
+    if unresolved:
+        result=dict(run_id=run_id,phase=phase,status='BLOCKED',
+            blockers=['historical_unresolved_exposure:'+row['lane'] for row in unresolved],
+            historical_exposure=unresolved,lanes={},elapsed_seconds=0)
+        provider_efficiency(result);result['certification']=evaluate(result)
+        atomic(run/'result.json',result);dashboard(result,run/'status.html')
+        return result
     if phase in ('sustained','hourly'):
         blockers=sustained_readiness(smoke_result,manifest_hash=digest(spec),
             implementation_hash=implementation_hash(),integration_sha=git('rev-parse','HEAD'))

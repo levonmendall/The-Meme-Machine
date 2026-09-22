@@ -40,6 +40,11 @@ jobs:
           (cd "$RUNNER_TEMP/non-market-lanes/pump" && python -m tests.resource_check) > non-market-evidence/pump-resource.json
           (cd "$RUNNER_TEMP/non-market-lanes/meteora" && python -m tests.resource_check) > non-market-evidence/meteora-resource.json
           (cd "$RUNNER_TEMP/non-market-lanes/meteora" && python -m tests.dlmm_resource_check) > non-market-evidence/meteora-dlmm-resource.json
+      - name: Prepare original historical Meteora accounting implementation
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/historical-meteora" 3370a0a3a283b4e3901ae51e294eeb00ef69832d
+          git show 307b005d4042bafa5cfb9952cd60ab978282bd85:certification/patches/meteora-checkpoint.patch > "$RUNNER_TEMP/historical-meteora.patch"
+          git -C "$RUNNER_TEMP/historical-meteora" apply --index "$RUNNER_TEMP/historical-meteora.patch"
       - name: Digest-pinned historical exposure inventory
         timeout-minutes: 3
         env:
@@ -49,6 +54,7 @@ jobs:
           --artifact-id 10719564489
           --sha256 b3a2c00fc9cb97ac40d83c320ea8cea18015daa7d9d5144dbcde4eeb3da2dfff
           --output non-market-evidence/historical-inventory.json
+          --native-meteora-root "$RUNNER_TEMP/historical-meteora"
       - name: Check for competing market jobs before connectivity
         env:
           GITHUB_TOKEN: ${{ github.token }}
