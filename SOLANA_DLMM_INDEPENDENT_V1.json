@@ -35,15 +35,15 @@
     "submission": false,
     "live_money": false
   },
-  "objective": "Maximize expected after-cost SOL PnL per capital-hour by supplying short-duration liquidity only during fee-rich, two-way, capital-efficient regimes.",
+  "objective": "Maximize expected after-cost SOL return by supplying broad executable liquidity only when authenticated fee production relative to usable local range liquidity is high enough to justify multi-hour exposure.",
   "discovery": {
     "require_exactly_one_wsol_leg": true,
     "require_nonblacklisted": true,
     "minimum_pool_tvl_usd": null,
     "minimum_absolute_volume_usd": null,
     "union_sorts": [
-      "volume_5m:desc",
       "fee_tvl_ratio_5m:desc",
+      "volume_5m:desc",
       "volume_30m:desc"
     ],
     "candidate_metrics": [
@@ -61,26 +61,28 @@
     "pool_snapshot_5m_fields_authoritative": false,
     "history_enrichment": "Apply to every unique SOL-paired pool returned by the fixed discovery union before acceleration gating; missing/incomplete six-bucket history fails closed.",
     "completed_bucket_rule": "A 5m history bucket is eligible only when timestamp + 300 <= observation_time. The current partial bucket is excluded.",
-    "execution_mode": "streaming_first_sighting_immediate_handoff",
-    "execution_rule": "Process configured sort/page/row order deterministically. On first sight of each unique SOL pool, compute frozen acceleration; if it passes, hand the pool immediately to fresh on-chain warmup before requesting another pool history.",
-    "no_full_universe_wait_before_handoff": true
+    "execution_mode": "streaming_fee_density_ranked_immediate_handoff",
+    "execution_rule": "Use public API fee/volume fields only to order bounded discovery. They never authorize entry. On first sight of each unique SOL pool, preserve completed-bucket context and hand it to authenticated fresh-swap/on-chain evaluation before reading further history when provider capacity permits.",
+    "no_full_universe_wait_before_handoff": true,
+    "public_fee_density_role": "ranking_context_only_not_entry_authority"
   },
   "regime": {
-    "kind": "opportunistic_fee_density_event",
-    "min_volume_acceleration": 1.25,
-    "min_fee_acceleration": 1,
+    "kind": "authenticated_local_fee_density_harvest",
+    "min_volume_acceleration": 0,
+    "min_fee_acceleration": 0,
     "min_dynamic_fee_uplift_over_base": 1.25,
     "require_verified_warmup_flow": true,
-    "require_two_way_flow": false,
+    "require_two_way_flow": true,
     "entry_clock": "five-minute acceleration is regime-only; a new finalized authenticated Meteora DLMM swap after compatibility screening starts the entry-observation clock",
     "fresh_swap_trigger": {
       "required": true,
       "max_wait_seconds": 120,
       "poll_seconds": 2,
       "acceleration_refresh_seconds": 12,
-      "rule": "While waiting, the execution-certification 1.25x volume and 1.0x fee acceleration gates must remain true. On the first authenticated finalized DLMM swap, capture a fresh post-trigger state and begin one exact 12-second warmup."
+      "rule": "A completed public fee/volume bucket may keep a candidate in the bounded discovery queue, but entry authorization begins only after a new authenticated finalized DLMM swap. Capture fresh state and one exact 12-second warmup; public acceleration is telemetry only."
     },
-    "dynamic_fee_uplift_role": "context_only_not_entry_veto"
+    "dynamic_fee_uplift_role": "context_only_not_entry_veto",
+    "public_acceleration_role": "context_only_not_entry_veto"
   },
   "position": {
     "capital_lamports": 100000000,
@@ -92,75 +94,84 @@
     "rebalance": "none_in_v1; withdraw instead when the thesis fails"
   },
   "range": {
-    "selection": "narrowest range expected to survive the intended holding horizon",
+    "selection": "broad centered executable range sized to survive multi-hour exposure without unnecessary dilution",
     "warmup_seconds": 12,
-    "intended_holding_seconds": 120,
-    "max_holding_seconds": 180,
-    "min_half_width_bins": 4,
-    "max_half_width_bins": 35,
-    "movement_model": "warmup maximum absolute active-bin excursion scaled by sqrt(intended_holding_seconds/warmup_seconds) and multiplied by safety factor",
+    "intended_holding_seconds": 14400,
+    "max_holding_seconds": 86400,
+    "min_half_width_bins": 26,
+    "max_half_width_bins": 50,
+    "movement_model": "warmup active-bin excursion may widen the range within the frozen 26-50 half-width band; it may not narrow below the robust broad-range floor.",
     "movement_safety_factor": 1.5,
     "total_width_bound_bins": [
-      8,
-      70
+      52,
+      100
     ],
     "warmup_alignment": {
       "qualifying_window_seconds": 12,
       "trigger": "first fresh authenticated finalized DLMM swap while frozen acceleration regime remains true",
       "retries_after_trigger": 0,
-      "rule": "The qualifying warmup starts only after the fresh swap trigger and remains exactly 12 seconds. A zero-swap post-trigger warmup is a valid rejection."
-    }
+      "rule": "The qualifying warmup starts only after a fresh authenticated finalized swap and remains exactly 12 seconds. A zero-swap post-trigger warmup is a valid rejection."
+    },
+    "research_band_note": "The historical 51-100-bin band maps to 52-100 supplied bins here because the mechanically modeled centered range deliberately excludes the active bin to avoid unmodeled active-bin composition fees."
   },
   "qualification": {
     "min_competing_range_liquidity_to_capital_multiple": 5,
-    "min_two_way_balance": 0,
+    "min_two_way_balance": 0.25,
     "max_drift_ratio": 0.75,
     "require_reversal": false,
     "stress_inventory_fraction_of_capital": 0.5,
     "max_stress_unwind_loss_bps": 150,
-    "projected_fee_horizon_seconds": 120,
-    "min_expected_net_lamports": -1000000,
-    "expected_net_definition": "projected exact-range fee capture - 400000 lamports modeled network cost - 50%-inventory stress unwind loss",
-    "primary_score": "expected_net_lamports / capital / expected_capital_hours",
-    "ranking_metric": "expected_after_cost_pnl_bps_per_capital_hour",
+    "projected_fee_horizon_seconds": 14400,
+    "min_expected_net_lamports": 1,
+    "expected_net_definition": "projected exact-range fee capture over the 4h minimum core hold - 400000 lamports modeled network cost - 50%-inventory stress unwind loss; must be strictly positive",
+    "primary_score": "authenticated_fee_density_24h_pct, then expected_after_cost_pnl_bps_per_capital_hour",
+    "ranking_metric": "authenticated fee production / executable local range liquidity, 24h-normalized",
     "dynamic_fee_uplift_hard_gate": false,
     "unchanged_hard_risk_gates": [
       "min_competing_range_liquidity_to_capital_multiple = 5",
-      "min_two_way_balance = 0 (machinery-proof only)",
       "max_drift_ratio = 0.75",
-      "require_reversal = false",
       "max_stress_unwind_loss_bps = 150",
-      "min_expected_net_lamports = -1000000 (machinery-proof only)"
-    ]
+      "position sizing from local executable depth",
+      "fresh authenticated finalized swap and exact 12-second warmup",
+      "fail-closed reconstruction and unwind"
+    ],
+    "min_authenticated_fee_density_24h_pct": 5,
+    "high_density_tier_24h_pct": 20
   },
   "fee_model": {
     "require_dynamic_fee_uplift": false,
     "current_fee_source": "authenticated LbPair state",
     "base_fee_source": "authenticated static LbPair parameters",
-    "range_fee_capture": "warmup fees crossing the proposed range times estimated capital share of competing range liquidity",
+    "range_fee_capture": "authenticated warmup LP fees from swaps intersecting the proposed range, converted to SOL at authenticated bin prices",
     "historical_apr_is_not_an_entry_signal": true,
     "dynamic_fee_uplift_role": "recorded context and exit-state feature; not a hard entry gate",
-    "hard_entry_economic_test": "projected exact-range fee capture - 400000 lamports modeled network cost - 50%-inventory stress unwind loss >= -1000000 lamports during machinery proof"
+    "hard_entry_economic_test": "authenticated_fee_density_24h_pct >= 5.0 AND projected 4h exact-range fee capture - 400000 lamports network cost - stress unwind loss > 0",
+    "live_fee_density_metric": "authenticated_fee_density_24h_pct = 100 * range_fee_sol_lamports / range_liquidity_sol_lamports * 86400 / observed_seconds",
+    "live_fee_density_threshold_pct": 5,
+    "live_fee_density_high_tier_pct": 20,
+    "metric_boundary": "Uses only pre-entry authenticated finalized swap tape and executable local range liquidity. Public Meteora feePerTvl24h and current API fee/TVL fields are not entry evidence.",
+    "historical_mapping": "The frozen 5%/day threshold preserves the broad historical positive regime only after its unit is explicitly redefined in authenticated local-liquidity terms; it is not a direct trust of the retrospective API field."
   },
   "flow_model": {
     "two_way_balance_definition": "2 * min(direction_A_volume,direction_B_volume) / total_directional_volume",
-    "min_two_way_balance": 0,
+    "min_two_way_balance": 0.25,
     "adverse_selection_proxy": [
       "near-range drift ratio",
       "one-way flow",
       "stress unwind loss"
-    ]
+    ],
+    "two_way_role": "hard entry gate; event-driven exit if subsequent flow becomes persistently one-way with high drift"
   },
   "exit": {
-    "observation_segment_seconds": 12,
+    "observation_segment_seconds": 300,
     "conditions": [
       "active price reaches within 2 bins of either range boundary",
       "executable non-SOL inventory value exceeds 60% of initial capital",
       "recent verified flow has >=2 swaps, two_way_balance <0.25 and drift_ratio >0.75",
+      "recent fee density falls below 50% of entry authenticated fee density with >=2 swaps",
       "recent volume rate falls below 50% of entry warmup volume rate with >=2 swaps",
-      "recent fee density falls below 50% of entry warmup fee density with >=2 swaps",
-      "dynamic fee uplift falls below 1.05 while recent volume rate is below entry warmup",
-      "maximum holding time reached"
+      "stress-unwind or executable-mark evidence becomes unavailable",
+      "maximum holding time of 24h reached"
     ],
     "settlement": "withdraw all liquidity and liquidate residual non-SOL inventory to SOL on the authenticated virtual state"
   },
@@ -185,18 +196,23 @@
   },
   "prospective_test": {
     "post_freeze_only": true,
-    "target_complete_lifecycles": 6,
+    "target_complete_lifecycles": 20,
     "max_attempted_pools": 48,
     "record_every_rejection": true,
     "no_threshold_changes_after_start": true,
-    "no_retroactive_selection": true
+    "no_retroactive_selection": true,
+    "minimum_distinct_pools": 5,
+    "minimum_profitable_rate": 0.55,
+    "minimum_median_after_cost_return_bps": 0,
+    "minimum_mean_after_cost_return_bps": 0,
+    "minimum_hold_seconds_for_nonrisk_exit": 14400
   },
   "deferred_modes": {
     "fee_earning_directional_conversion": "separate future strategy; not mixed into this core market-making rule",
     "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
     "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
   },
-  "revision": "1.9-machinery-proof-v2",
+  "revision": "2.0-profitability-fee-density-v1",
   "amendment_history": [
     {
       "revision": "1.1",
@@ -333,15 +349,27 @@
     }
   },
   "execution_certification": {
-    "policy_hash": "fce99fc6da25649d2c362973d5c5bb963faf2e9bc23f369a5216b99fbebb27db",
-    "purpose": "natural_paper_machinery_proof_not_profitability_claim",
-    "profitability_authority": false,
+    "policy_hash": "TO_BE_FROZEN_BY_DETERMINISTIC_VERIFIER",
+    "purpose": "prospective_natural_paper_profitability_validation_of_authenticated_local_fee_density_strategy",
+    "profitability_authority": true,
     "paper_only": true,
     "freshness_finality_unchanged": true,
     "exact_warmup_seconds": 12,
-    "reference_profitability_policy_revision": "1.7",
-    "machinery_proof_only": true,
-    "one_natural_settled_lifecycle_target": true,
-    "prior_execution_certification_revision": "1.8-execution-certification-v1"
+    "reference_profitability_policy_revision": "2.0-profitability-fee-density-v1",
+    "machinery_proof_only": false,
+    "one_natural_settled_lifecycle_target": false,
+    "prior_execution_certification_revision": "1.9-machinery-proof-v2",
+    "authenticated_fee_density_threshold_pct": 5,
+    "core_hold_seconds": [
+      14400,
+      86400
+    ],
+    "default_supplied_width_bins": [
+      52,
+      100
+    ],
+    "strategy2_continuity_required": true,
+    "live_fee_density_metric": "authenticated_fee_density_24h_pct = 100 * range_fee_sol_lamports / range_liquidity_sol_lamports * 86400 / observed_seconds",
+    "policy_hash_definition": "sha256(canonical JSON of this artifact with execution_certification.policy_hash set to null)"
   }
 }
