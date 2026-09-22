@@ -273,8 +273,8 @@
       }
     },
     "ramses": {
-      "source_branch": "repair/ramses-cost-route-completion-20260921",
-      "source_sha": "8f4b177fea3965812d4aa80c0ffa5652f11a074f",
+      "source_branch": "repair/ramses-finalized-frontier-monotonicity-20260922",
+      "source_sha": "b2456dbf7adcf0c15caad3311aa86b41931be524",
       "strategy_version": "ramses-fee-pulse-v1/execution-certification-machinery-proof-v2",
       "policy_hash": "5e1560af8b4d40f72e60cd93b52ede575aecbac58fd4cad6c02cc2c25fdeeaf0",
       "file_hashes": {
@@ -300,7 +300,9 @@
         "eb215670c7acec88104069f6398eda6feecaf268",
         "c545ab43676fde30ca6fa1284bb5215d5a678182",
         "c29e9a0e36b5874b143a9a7526e602bfe93a669c",
-        "8f4b177fea3965812d4aa80c0ffa5652f11a074f"
+        "8f4b177fea3965812d4aa80c0ffa5652f11a074f",
+        "0f092dc0d8ea3a7b5134cb225abd40ad56b2fc01",
+        "b2456dbf7adcf0c15caad3311aa86b41931be524"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
@@ -337,6 +339,32 @@
           "fail_closed": true,
           "general_router_search": false,
           "strategy_thresholds_changed": false
+        },
+        "finalized_frontier_monotonicity_repair": {
+          "revision": "explicit-prior-height-reauthentication-v1",
+          "source_commit": "b2456dbf7adcf0c15caad3311aa86b41931be524",
+          "failure_evidence_run": 35763784886,
+          "failure_boundary": "extended_finalized_frontier_regression",
+          "purpose": "when a load-balanced RPC briefly serves a lower finalized tag, never roll the campaign backward; re-authenticate the previously accepted finalized block by explicit height/hash/timestamp and only then treat the lower tag as stale",
+          "stale_tag_can_be_ignored_only_after_explicit_prior_height_authentication": true,
+          "same_height_hash_conflict_fails_closed": true,
+          "forward_timestamp_regression_fails_closed": true,
+          "prior_height_reauthentication_disagreement_fails_closed": true,
+          "strategy_thresholds_changed": false,
+          "cost_model_changed": false,
+          "position_size_changed": false,
+          "finality_standard_weakened": false,
+          "paper_only_unchanged": true
+        },
+        "checkpoint_persistence_hardening": {
+          "revision": "append-only-full-screen-bounded-public-checkpoint-v1",
+          "integration_commits": [
+            "fbea75e7b0cebf9b87b46571cb70757c4c3ce5da",
+            "bdfda3dda3ac89b400ea1360e201d0b74fa9aa4d"
+          ],
+          "purpose": "archive full Ramses screen/terminal/lifecycle evidence once in telemetry.sqlite while keeping repeated public/status checkpoints bounded; preserve sanitized terminal boundary telemetry",
+          "strategy_thresholds_changed": false,
+          "evidence_dropped": false
         }
       },
       "prospect_admission": {
@@ -369,7 +397,7 @@
     "purpose": "Use Pump and Pons profitability-v1 with repaired Meteora/Ramses machinery-proof-v2 execution; Ramses campaign capital now initializes from the first genuine natural qualifier's pinned screen.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora/Ramses machinery-proof-v2",
-    "validation_status": "strategy2_continuity_and_provider_pressure_repairs_qualified",
+    "validation_status": "ramses_frontier_monotonicity_pending_exact_head_qualification",
     "validation_run_requested": false,
     "latest_qualification": {
       "run_id": 35762267123,
