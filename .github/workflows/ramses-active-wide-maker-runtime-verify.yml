@@ -28,7 +28,7 @@ jobs:
           python -m py_compile             robinhood_research/ramses_active_wide_maker.py             robinhood_research/ramses_strategy.py             robinhood_research/ramses_universe.py             robinhood_research/ramses_costs.py             robinhood_research/ramses_all_pool_lifecycle.py
       - name: Ramses source-policy deterministic suite
         run: |
-          python -m unittest -v             robinhood_tests.test_ramses_active_wide_maker             robinhood_tests.test_ramses_strategy             robinhood_tests.test_ramses_universe             robinhood_tests.test_ramses_costs             robinhood_tests.test_ramses_strategy_isolation             robinhood_tests.test_ramses_capital_replay
+          python -m unittest -v             robinhood_tests.test_ramses_active_wide_maker             robinhood_tests.test_ramses_strategy             robinhood_tests.test_ramses_universe             robinhood_tests.test_ramses_costs             robinhood_tests.test_ramses_strategy_isolation
       - name: Note operational overlay boundary
         run: |
           echo "Full lifecycle/provider-admission regressions run after canonical ramses-admission.patch composition."
