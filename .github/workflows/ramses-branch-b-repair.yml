@@ -45,31 +45,27 @@ jobs:
           set -euo pipefail
           for _ in $(seq 1 60); do
             gh api "repos/$REPOSITORY/actions/runs?per_page=100" > /tmp/runs.json
-            python - <<'PY' > /tmp/blockers.json
-          import json,os
-          rows=json.load(open("/tmp/runs.json"))["workflow_runs"]
-          current=int(os.environ["CURRENT_RUN"])
-          names={
-            "four-lane-certification",
-            "robinhood-ramses-extended",
-            "robinhood-ramses-strategy",
-            "robinhood-ramses-universe",
-            "ramses-branch-b-development",
-            "ramses-branch-b-holdout",
-          }
-          blockers=[]
-          for r in rows:
-              if int(r.get("id") or 0)==current:
-                  continue
-              if r.get("status") in {"queued","in_progress","waiting","pending"} and r.get("name") in names:
-                  blockers.append({k:r.get(k) for k in ("id","name","status","head_branch","head_sha")})
-          print(json.dumps(blockers,sort_keys=True))
-          PY
-            if [ "$(cat /tmp/blockers.json)" = "[]" ]; then
+            blockers="$(jq --argjson current "$CURRENT_RUN" '
+              [.workflow_runs[] as $r
+               | select(
+                   ($r.id != $current)
+                   and ($r.status=="queued" or $r.status=="in_progress" or $r.status=="waiting" or $r.status=="pending")
+                   and ([
+                     "four-lane-certification",
+                     "robinhood-ramses-extended",
+                     "robinhood-ramses-strategy",
+                     "robinhood-ramses-universe",
+                     "ramses-branch-b-development",
+                     "ramses-branch-b-holdout"
+                   ] | index($r.name))
+                 )
+               | {id:$r.id,name:$r.name,status:$r.status,head_branch:$r.head_branch,head_sha:$r.head_sha}]
+            ' /tmp/runs.json)"
+            if [ "$blockers" = "[]" ]; then
               echo '{"provider_path_clear":true}'
               exit 0
             fi
-            cat /tmp/blockers.json
+            echo "$blockers"
             sleep 60
           done
           echo "Provider path did not clear; no repair replay was started." >&2
