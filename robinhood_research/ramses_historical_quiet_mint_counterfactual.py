@@ -173,6 +173,19 @@ def main():
     candidates,selection=select_candidates(mints,pools,by_swaps,start,end)
     if len(candidates)<3:
         raise RuntimeError("quiet_mint_candidate_shortfall")
+    all_candidates=list(candidates)
+    candidate_index_raw=str(os.environ.get("MM_QUIET_CANDIDATE_INDEX","") or "").strip()
+    if candidate_index_raw:
+        try:
+            candidate_index=int(candidate_index_raw)
+        except ValueError:
+            raise RuntimeError("quiet_mint_candidate_index") from None
+        if not 0 <= candidate_index < len(all_candidates):
+            raise RuntimeError("quiet_mint_candidate_index")
+        candidates=[all_candidates[candidate_index]]
+        selection=dict(selection)
+        selection["candidate_index"]=candidate_index
+        selection["full_selected"]=len(all_candidates)
 
     prior=[]
     if OUT.exists():
