@@ -1,0 +1,1 @@
+Run the frozen six-candidate Ramses quiet-entry counterfactual from the latest efficiency branch head, including per-candidate checkpoint/resume and 5000-block recursive exact-log retrieval. Economic inputs and evaluation rules are unchanged.
