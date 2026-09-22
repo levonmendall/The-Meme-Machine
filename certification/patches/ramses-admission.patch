@@ -683,8 +683,8 @@ index 0000000..706df40
 @@ -0,0 +1,93 @@
 +"""One frozen, asset-separated paper budget for a continuous Ramses campaign.
 +
-+Budgets are declared once from the first fundable pinned factory screen, before
-+any outcome. Later candidates cannot mint capital or exchange unlike quote units.
++Budgets are declared once from the first genuine qualifier's pinned factory screen,
++before outcome. Later candidates cannot mint capital or exchange unlike quote units.
 +"""
 +import gzip
 +import hashlib
@@ -738,7 +738,7 @@ index 0000000..706df40
 +        self.manifest=dict(run_id=self.run_id,policy_hash=POLICY_HASH,paper_only=True,
 +            source_screen_hash=digest(screen),source_finalized_block=screen.get('finalized_block'),
 +            source_finalized_hash=screen.get('finalized_hash'),genesis_by_quote_asset=budgets,
-+            funding_rule='one_maximum_frozen_scanner_size_plus_modeled_execution_cost_envelope_per_quote_asset_from_first_fundable_pinned_screen',
++            funding_rule='one_maximum_frozen_scanner_size_plus_modeled_execution_cost_envelope_per_quote_asset_from_first_qualified_pinned_screen',
 +            later_assets='unfunded_capacity_censoring',cross_asset_conversion=False)
 +        manifest=self.root/'capital-manifest.json'
 +        with manifest.open('x') as file:file.write(canonical(self.manifest));file.flush();os.fsync(file.fileno())
@@ -1047,11 +1047,11 @@ index e4ab19d..6b27858 100644
 +                result['frontier_discovery']['expensive_scans']=len(screens)
 +                result['last_completed_scan']=dict(block=identity[0],hash=identity[1],
 +                    completed_at=time.time(),duration_seconds=time.monotonic()-scan_started)
-+                if campaign and campaign_books is None and CampaignBooks.budgets_from_screen(screen):
-+                    campaign_books=CampaignBooks(Path(str(db_path or DB)+'.campaign'),screen)
-+                    result['campaign_accounting']=campaign_books.reconcile()
++                # Do not freeze campaign capital from unrelated merely-fundable inventory.
++                # The first genuine qualifier supplies the authenticated pinned genesis screen.
++                # This keeps a later natural qualifier from being censored by another quote asset.
 +                if campaign and campaign_books is None:
-+                    result['campaign_accounting']=dict(funding_state='awaiting_first_fundable_pinned_screen',
++                    result['campaign_accounting']=dict(funding_state='awaiting_first_qualified_pinned_screen',
 +                        by_quote_asset={},open_positions=0,position_count=0,conservation=True,
 +                        unlike_quote_units_summed=False,paper_entry_ready=False,
 +                        policy_hash=POLICY_HASH,allocation_authority=False)
@@ -1062,7 +1062,7 @@ index e4ab19d..6b27858 100644
 +                    result['natural_qualifier_pool']=chosen['pool']
 +                    try:
 +                        if campaign_books is None:
-+                            raise BoundaryError('ramses_campaign_quote_asset_unfunded')
++                            campaign_books=CampaignBooks(Path(str(db_path or DB)+'.campaign'),screen);result['campaign_accounting']=campaign_books.reconcile()
 +                        ledger=campaign_books.ledger(chosen['token_y'])
 +                        candidate_attempt=(
 +                            len(result['natural_lifecycles'])
@@ -1903,7 +1903,7 @@ index 0000000..44e62e1
 +            self.assertEqual(rpc.call_args.kwargs['batch_size'],1)
 +        self.assertEqual(extended.POLICY_HASH,POLICY_HASH)
 +
-+    def test_empty_first_scan_does_not_permanently_disable_later_fundable_activity(self):
++    def test_unqualified_first_asset_does_not_freeze_later_qualified_asset_out(self):
 +        clock=[0];calls=[];ledger_ids=[]
 +        class Rpc:
 +            def verify_chain(self):return 4663
@@ -1913,7 +1913,7 @@ index 0000000..44e62e1
 +                return dict(number=hex(n),hash='0x'+format(n,'064x'),parentHash='0x'+format(n-1,'064x'),timestamp=hex(1000+n))
 +        def scan(endpoint,**kwargs):
 +            header=kwargs['finalized_frontier']
-+            rows=[] if clock[0]<60 else [dict(pool='pool',token_y=ASSET,paper_capital_quote_raw=1000)]
++            rows=[dict(pool='other',token_y=OTHER,paper_capital_quote_raw=2)] if clock[0]<60 else [dict(pool='pool',token_y=ASSET,paper_capital_quote_raw=1000)]
 +            value=screen(rows);value.update(finalized_block=int(header['number'],16),finalized_hash=header['hash'])
 +            return value
 +        def connected(endpoint,**kwargs):
@@ -1923,7 +1923,7 @@ index 0000000..44e62e1
 +            return dict(status='settled',lifecycle_id=identity,ledger_final=final,ledger_reconciliation=book.reconcile(),segments=[dict(terminal_equality=True)])
 +        with tempfile.TemporaryDirectory() as td,patch.object(extended,'REPORT',Path(td)/'report.json'), \
 +            patch.object(extended,'BoundedMultiRpc',return_value=Rpc()),patch.object(extended,'scan',side_effect=scan), \
-+            patch.object(extended,'_screen_summary',side_effect=lambda row:row),patch.object(extended,'select_qualifier',side_effect=lambda row:row['rows'][0] if row['rows'] else None), \
++            patch.object(extended,'_screen_summary',side_effect=lambda row:row),patch.object(extended,'select_qualifier',side_effect=lambda row:next((x for x in row['rows'] if x.get('token_y')==ASSET),None)), \
 +            patch.object(extended,'run_connected',side_effect=connected),patch.object(extended.time,'monotonic',side_effect=lambda:clock[0]), \
 +            patch.object(extended.time,'time',side_effect=lambda:10000+clock[0]),patch.object(extended.time,'sleep',side_effect=lambda n:clock.__setitem__(0,clock[0]+n)):
 +            result=extended.run('unused',campaign=True,discovery_seconds=125,db_path=Path(td)/'paper.sqlite')
@@ -1931,7 +1931,7 @@ index 0000000..44e62e1
 +            self.assertEqual(len(set(ledger_ids)),1)
 +            final=result['campaign_accounting']
 +            self.assertEqual(final['manifest']['source_finalized_block'],101)
-+            self.assertEqual(final['by_quote_asset'][ASSET]['paper_capital'],1000)
++            self.assertEqual(final['by_quote_asset'][ASSET]['paper_capital'],1000);self.assertNotIn(OTHER,final['by_quote_asset'])
 +            self.assertEqual(final['by_quote_asset'][ASSET]['available'],1020)
 +            self.assertEqual(clock[0],125)
 +
