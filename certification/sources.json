@@ -42,6 +42,14 @@
           "purpose": "allow stream prefetch to consume each otherwise-idle shared-governor slot instead of imposing an additional two-second local interval",
           "shared_provider_governor_unchanged": true,
           "strategy_thresholds_changed": false
+        },
+        "transient_body_retry_repair": {
+          "revision": "single-bounded-transient-body-retry-v1",
+          "implementation_commit": "567a9f035f847dbed93f29627b4627fc3dee04a1",
+          "purpose": "after getTransaction timeout/5xx transport failure, reduce shared hydration batch pressure and permit exactly one retry within the original consumer deadline",
+          "rate_limit_telemetry_separate": true,
+          "freshness_deadline_changed": false,
+          "strategy_thresholds_changed": false
         }
       },
       "prospect_admission": {
@@ -243,6 +251,14 @@
           "strategy_thresholds_changed": false,
           "boundary_event_preservation": true,
           "boundary_event_purpose": "stop warmup polling immediately once required chain-time is already satisfied so the first post-warmup discovery event is not consumed before the discovery loop"
+        },
+        "shared_admission_429_backoff": {
+          "revision": "adaptive-shared-physical-backoff-v1",
+          "implementation_commit": "72b6d33c41e4f38b73dd9d5a3c3406da71137845",
+          "purpose": "reduce shared Robinhood physical request rate after HTTP/RPC 429 and cautiously recover toward, never above, the existing two-request-per-second ceiling",
+          "freshness_gate_changed": false,
+          "strategy_thresholds_changed": false,
+          "position_priority_unchanged": true
         }
       },
       "prospect_admission": {
@@ -353,8 +369,23 @@
     "purpose": "Use Pump and Pons profitability-v1 with repaired Meteora/Ramses machinery-proof-v2 execution; Ramses campaign capital now initializes from the first genuine natural qualifier's pinned screen.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora/Ramses machinery-proof-v2",
-    "validation_status": "meteora_strategy2_continuity_pending_exact_head_qualification",
-    "validation_run_requested": false
+    "validation_status": "strategy2_continuity_and_provider_pressure_repairs_qualified",
+    "validation_run_requested": false,
+    "latest_qualification": {
+      "run_id": 35762267123,
+      "verified_parent_head": "545842b5db065946c0264cc0a9430684a4953f43",
+      "result": "success",
+      "market_validation": false,
+      "verified": [
+        "Pump qualification overlay",
+        "Meteora qualification overlay and position-recovery check",
+        "Pons qualification overlay",
+        "Ramses qualification overlay",
+        "repository unit tests",
+        "resource check",
+        "synthetic lifecycle"
+      ]
+    }
   },
   "composition": {
     "execution_integration_sha": "960980c4412f525b15568401a2b8f0c2c25bdbab",
