@@ -290,6 +290,69 @@ jobs:
             rm -rf "$ROOT"
           done
           git diff --check -- certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch
+      - name: Rebase Meteora and Ramses operational overlays onto verified strategy sources
+        run: |
+          set -euo pipefail
+          for LANE in meteora ramses; do
+            if [ "$LANE" = meteora ]; then
+              PATCH="meteora-checkpoint.patch"
+            else
+              PATCH="ramses-admission.patch"
+            fi
+            SHA="$(python -c "import json; print(json.load(open('certification/sources.json'))['lanes']['$LANE']['source_sha'])")"
+            ROOT="$(mktemp -d)"
+            WT="$ROOT/$LANE"
+            git fetch origin "$SHA"
+            git worktree add --detach "$WT" "$SHA"
+            if [ "$LANE" = meteora ]; then
+              python - "$GITHUB_WORKSPACE/certification/patches/$PATCH" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          # Rebase the campaign overlay onto the profitability runtime. The
+          # profitability source deliberately widened the runtime ceiling to
+          # support its multi-hour lifecycle; campaign mode must not restore
+          # the obsolete 2h/6h ceiling or the pre-profitability report identity.
+          text=text.replace(
+              "-    if not 60<=max_runtime_seconds<=7200:",
+              "-    if not 60<=max_runtime_seconds<=90000:",
+              1,
+          )
+          text=text.replace(
+              "+    if not 60<=max_runtime_seconds<=(21600 if campaign else 7200):",
+              "+    if not 60<=max_runtime_seconds<=90000:",
+              1,
+          )
+          text=text.replace(
+              '        kind="solana_dlmm_independent_v1_prospective",',
+              '        kind="solana_dlmm_authenticated_fee_density_v1_prospective",',
+              1,
+          )
+          path.write_text(text)
+          PY
+              if ! git -C "$WT" apply --index "$GITHUB_WORKSPACE/certification/patches/$PATCH"; then
+                echo "::group::meteora overlay rebase failure"
+                git -C "$WT" status --short || true
+                git -C "$WT" diff || true
+                echo "::endgroup::"
+                exit 1
+              fi
+            else
+              if ! git -C "$WT" apply --3way --index "$GITHUB_WORKSPACE/certification/patches/$PATCH"; then
+                echo "::group::ramses overlay rebase failure"
+                git -C "$WT" status --short || true
+                git -C "$WT" diff --cc || true
+                echo "::endgroup::"
+                exit 1
+              fi
+            fi
+            git -C "$WT" diff --check
+            git -C "$WT" diff --binary HEAD > "$GITHUB_WORKSPACE/certification/patches/$PATCH.next"
+            mv "$GITHUB_WORKSPACE/certification/patches/$PATCH.next" "$GITHUB_WORKSPACE/certification/patches/$PATCH"
+            git worktree remove --force "$WT"
+            rm -rf "$ROOT"
+          done
+          git diff --check -- certification/patches/meteora-checkpoint.patch certification/patches/ramses-admission.patch
       - name: Supervisor deterministic suite
         run: python -m unittest discover -s certification/tests -v
       - name: Build exact isolated lane worktrees
@@ -309,12 +372,12 @@ jobs:
           exit "$CODE"
       - name: Preserve canonical rebased overlays on the PR head
         run: |
-          if git diff --quiet -- certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch; then
-            echo "Operational overlays already canonical for the edge sources."
+          if git diff --quiet -- certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch certification/patches/meteora-checkpoint.patch certification/patches/ramses-admission.patch; then
+            echo "All four operational overlays are already canonical for the verified strategy sources."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch
-          git commit -m "[qualification-build] canonicalize profitability persistence edge overlays"
+          git add certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch certification/patches/meteora-checkpoint.patch certification/patches/ramses-admission.patch
+          git commit -m "[qualification-build] canonicalize final four-lane strategy overlays"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
