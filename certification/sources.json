@@ -6,7 +6,7 @@
   "lanes": {
     "pump": {
       "source_branch": "strategy/pump-profitability-v1",
-      "source_sha": "9c11f78922af14ca77ee371e27f6e7df0ed8b46e",
+      "source_sha": "a4003b292014cedf554a4930a9cca10900bfc178",
       "strategy_version": "pump-acceleration-independent-v1/profitability-v1-persistence-edge-v1",
       "policy_hash": "d623ff03ad19b2c4dcd8a82d4883c188ba1acd35a721582175d85cd1b0191770",
       "file_hashes": {
@@ -33,7 +33,8 @@
         "64701faaef5aa94817dc31deafe21b3cd6b9d0f9",
         "728ed29b7a353fe0bb503491a31951227c7aee1f",
         "35703a380fe6c7f1df56bcf5a6ec59ca50d8d502",
-        "9c11f78922af14ca77ee371e27f6e7df0ed8b46e"
+        "9c11f78922af14ca77ee371e27f6e7df0ed8b46e",
+        "a4003b292014cedf554a4930a9cca10900bfc178"
       ],
       "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
       "execution_certification": {
