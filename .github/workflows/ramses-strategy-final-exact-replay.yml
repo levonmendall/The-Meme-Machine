@@ -1,0 +1,84 @@
+name: ramses-strategy-final-exact-replay
+on:
+  push:
+    branches: [research/ramses-strategy-finalization-v2]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  replay:
+    if: contains(github.event.head_commit.message, '[ramses-finalize-exact]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        candidate: [0,1,2,3,4,5]
+    env:
+      MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+      MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+      MM_QUIET_CANDIDATE_INDEX: ${{ matrix.candidate }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Verify exact log equivalence
+        run: |
+          python -m py_compile robinhood_research/ramses_all_pool_lifecycle.py robinhood_research/ramses_historical_quiet_mint_counterfactual.py
+          python -m unittest robinhood_tests.test_ramses_historical_fast_logs -v
+      - name: Download complete Ramses indexed history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aid="$(gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100"             --jq '.artifacts[] | select(.expired == false and (.name | startswith("ramses-historical-index-")) and (.name | contains("summary") | not) and (.name | contains("probe") | not) and (.size_in_bytes > 1000000)) | [.created_at, (.id|tostring)] | @tsv'             | sort -r | head -1 | cut -f2)"
+          test -n "$aid"
+          gh api "repos/${{ github.repository }}/actions/artifacts/$aid/zip" > /tmp/index.zip
+          mkdir -p /tmp/index
+          unzip -q /tmp/index.zip -d /tmp/index
+          cp /tmp/index/ramses-historical-index-data.json.gz .
+      - name: Exact isolated candidate replay
+        run: python -m robinhood_research.ramses_historical_quiet_mint_counterfactual
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: candidate-${{ matrix.candidate }}
+          path: ramses-quiet-mint-counterfactual.json
+          if-no-files-found: error
+          retention-days: 90
+
+  merge:
+    if: always() && needs.replay.result == 'success'
+    needs: replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Download isolated candidate artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ramses-partials
+          for i in 0 1 2 3 4 5; do
+            aid="$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?name=candidate-$i" --jq '.artifacts[0].id')"
+            test -n "$aid"
+            mkdir -p "/tmp/ramses-partials/candidate-$i"
+            gh api "repos/${{ github.repository }}/actions/artifacts/$aid/zip" > "/tmp/candidate-$i.zip"
+            unzip -q "/tmp/candidate-$i.zip" -d "/tmp/ramses-partials/candidate-$i"
+          done
+      - run: python -m py_compile robinhood_research/ramses_quiet_candidate_merge.py
+      - run: RAMSES_PARTIAL_ROOT=/tmp/ramses-partials python -m robinhood_research.ramses_quiet_candidate_merge
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ramses-quiet-mint-counterfactual-final-${{ github.run_id }}
+          path: ramses-quiet-mint-counterfactual.json
+          if-no-files-found: error
+          retention-days: 90
