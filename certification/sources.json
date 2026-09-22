@@ -199,7 +199,23 @@
         "one_natural_settled_lifecycle_target": true,
         "prior_execution_source_sha": "6b7ddd69940f5c9e056b2dca61c443450ca9965e",
         "lifecycle_repair": "transient provider rate limits and temporarily incomplete same-pool unwind liquidity hold open paper positions and retry; isolated paper ledger funds modeled cost envelope without resizing position",
-        "repeat_entry_repair": "post-loss available-capital admission; available cost-envelope gate; unique per-qualification lifecycle namespace; candidate-local capacity/provider boundaries"
+        "repeat_entry_repair": "post-loss available-capital admission; available cost-envelope gate; unique per-qualification lifecycle namespace; candidate-local capacity/provider boundaries",
+        "funding_repair": {
+          "revision": "first-qualified-pinned-screen-genesis-v1",
+          "integration_commit": "4e23805eefeb69e83bdf9fef99039e7b536195e8",
+          "purpose": "initialize the one-time asset-separated Ramses campaign paper budget from the first genuine natural qualifier's authenticated pinned screen rather than unrelated merely-fundable inventory",
+          "preserves": [
+            "natural strategy qualification",
+            "authenticated finalized evidence",
+            "complete state and cost evidence",
+            "position sizing and 10% active-liquidity cap",
+            "no replenishment after losses",
+            "no cross-asset conversion",
+            "append-only lifecycle evidence",
+            "paper-only authority"
+          ],
+          "strategy_thresholds_changed": false
+        }
       },
       "prospect_admission": {
         "market_observation_scope": "complete authenticated Ramses factory inventory for observability",
@@ -227,11 +243,11 @@
     }
   },
   "execution_certification": {
-    "revision": "four-lane-profitability-v1-dlmm-machinery-v2",
-    "purpose": "Use active Pump and Pons profitability-v1 paper policies in every four-lane run while retaining current repaired Meteora and Ramses machinery-proof-v2 policies.",
+    "revision": "four-lane-profitability-v1-dlmm-machinery-v2-ramses-funding-repair",
+    "purpose": "Use Pump and Pons profitability-v1 with repaired Meteora/Ramses machinery-proof-v2 execution; Ramses campaign capital now initializes from the first genuine natural qualifier's pinned screen.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora/Ramses machinery-proof-v2",
-    "validation_status": "profitability_v1_promoted_to_dlmm_repair_baseline",
+    "validation_status": "ramses_first_qualified_funding_repair_qualified",
     "validation_run_requested": false
   },
   "composition": {
