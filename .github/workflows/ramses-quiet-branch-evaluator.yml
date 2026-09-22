@@ -1,0 +1,36 @@
+name: ramses-quiet-branch-evaluator
+on:
+  push:
+    branches: [research/ramses-quiet-escalation-v1]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  evaluate:
+    if: contains(github.event.head_commit.message, '[ramses-quiet-evaluate]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Download latest completed short quiet-mint artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aid="$(gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100"             --jq '.artifacts[] | select(.expired == false and (.name | startswith("ramses-quiet-mint-counterfactual-"))) | [.created_at, (.id|tostring)] | @tsv'             | sort -r | head -1 | cut -f2)"
+          test -n "$aid"
+          gh api "repos/${{ github.repository }}/actions/artifacts/$aid/zip" > /tmp/quiet.zip
+          unzip -p /tmp/quiet.zip ramses-quiet-mint-counterfactual.json > ramses-quiet-mint-counterfactual.json
+      - run: python -m py_compile robinhood_research/ramses_quiet_branch_evaluator.py
+      - run: python -m robinhood_research.ramses_quiet_branch_evaluator
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ramses-quiet-branch-decision-${{ github.run_id }}
+          path: ramses-quiet-branch-decision.json
+          if-no-files-found: warn
+          retention-days: 90
