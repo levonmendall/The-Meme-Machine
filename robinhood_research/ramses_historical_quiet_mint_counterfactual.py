@@ -33,6 +33,7 @@ HOLDS=(3600,14400)
 MAX_CANDIDATES=6
 MAX_PER_POOL=2
 DEPTH_BPS=50
+CANDIDATE_INDEX_ENV="RAMSES_QUIET_CANDIDATE_INDEX"
 
 def f(v):
     try:return float(v or 0)
@@ -173,6 +174,19 @@ def main():
     candidates,selection=select_candidates(mints,pools,by_swaps,start,end)
     if len(candidates)<3:
         raise RuntimeError("quiet_mint_candidate_shortfall")
+    run_candidates=list(candidates)
+    raw_index=str(os.environ.get(CANDIDATE_INDEX_ENV,"") or "").strip()
+    if raw_index:
+        try:
+            candidate_index=int(raw_index)
+        except ValueError:
+            raise RuntimeError("quiet_mint_candidate_index") from None
+        if candidate_index<0 or candidate_index>=len(candidates):
+            raise RuntimeError("quiet_mint_candidate_index")
+        run_candidates=[candidates[candidate_index]]
+        selection=dict(selection)
+        selection["shard_candidate_index"]=candidate_index
+        selection["shard_selection_hash"]=run_candidates[0]["selection_hash"]
 
     prior=[]
     if OUT.exists():
@@ -180,7 +194,7 @@ def main():
         if saved.get("kind")!="ramses_dlmm_quiet_mint_counterfactual_v1":
             raise RuntimeError("quiet_mint_checkpoint_kind")
         prior=saved.get("candidates") or []
-        expected=[r["selection_hash"] for r in candidates]
+        expected=[r["selection_hash"] for r in run_candidates]
         got=[(r.get("candidate") or {}).get("selection_hash") for r in prior]
         if got != expected[:len(got)]:
             raise RuntimeError("quiet_mint_checkpoint_candidate_mismatch")
@@ -199,14 +213,14 @@ def main():
         for r in results
     }
 
-    for cand in candidates:
+    for cand in run_candidates:
         if cand["selection_hash"] in completed_hashes:
             continue
         pool=cand["pool"]
         receipt=rpc.call("eth_getTransactionReceipt",[cand["transaction_hash"]],scope="quiet_mint")
         if not receipt or int(receipt.get("status","0x0"),16)!=1:
             results.append(dict(candidate=cand,boundary="mint_receipt_unavailable"))
-            _write_checkpoint(protocol,selection,results,rpc,candidates)
+            _write_checkpoint(protocol,selection,results,rpc,run_candidates)
             continue
         mint_block=int(receipt["blockNumber"],16)
         entry_block=mint_block+1
