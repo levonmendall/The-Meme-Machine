@@ -381,7 +381,7 @@ index 76eb6e8..20919e0 100644
                  self._record_failure(method,kind,logical)
                  fallback=list(chunk)
 diff --git a/meme_machine/solana_evidence_broker.py b/meme_machine/solana_evidence_broker.py
-index 05dd96f..2cdf6ad 100644
+index 05dd96f..6c62de4 100644
 --- a/meme_machine/solana_evidence_broker.py
 +++ b/meme_machine/solana_evidence_broker.py
 @@ -6,6 +6,8 @@ backpressure. It grants no strategy/allocation/signing authority.
@@ -820,7 +820,7 @@ index 05dd96f..2cdf6ad 100644
              payloads = [json.loads(row[1]) for row in jobs]
              params = [[
                  row["signature"],
-@@ -639,17 +790,97 @@ class EvidenceBroker:
+@@ -639,17 +791,97 @@ class EvidenceBroker:
                      ),
                  ),
              ] for row in payloads]
@@ -920,7 +920,7 @@ index 05dd96f..2cdf6ad 100644
              completed = []
              for job, row, tx in zip(jobs, payloads, values):
                  if isinstance(tx, dict):
-@@ -657,7 +862,7 @@ class EvidenceBroker:
+@@ -657,7 +889,7 @@ class EvidenceBroker:
                      completed.append(job[0])
              if completed:
                  self._complete_jobs(completed)
@@ -929,7 +929,7 @@ index 05dd96f..2cdf6ad 100644
              completed_set=set(completed)
              incomplete=[row[0] for row in jobs if row[0] not in completed_set]
              if incomplete:
-@@ -665,13 +870,21 @@ class EvidenceBroker:
+@@ -665,13 +897,21 @@ class EvidenceBroker:
              if not completed:
                  break
  
@@ -952,7 +952,7 @@ index 05dd96f..2cdf6ad 100644
          )
  
      def cursor(self, name):
-@@ -781,6 +994,7 @@ class EvidenceBroker:
+@@ -781,6 +1021,7 @@ class EvidenceBroker:
                  + " ORDER BY slot DESC,signature DESC",
                  tuple(params),
              ).fetchall()
@@ -960,7 +960,7 @@ index 05dd96f..2cdf6ad 100644
          return [json.loads(row[0]) for row in rows]
  
      def signature_coverage(self, scope, address):
-@@ -824,6 +1038,7 @@ class EvidenceBroker:
+@@ -824,6 +1065,7 @@ class EvidenceBroker:
              stream_events=int(events),
              signature_rows=int(signatures),
              pressure=self._pressure(),
@@ -968,7 +968,7 @@ index 05dd96f..2cdf6ad 100644
          )
  
  
-@@ -967,7 +1182,8 @@ class DynamicAddressLogStream:
+@@ -967,7 +1209,8 @@ class DynamicAddressLogStream:
      """
  
      def __init__(
@@ -978,7 +978,7 @@ index 05dd96f..2cdf6ad 100644
      ):
          self.ws_url=str(ws_url)
          self.broker=broker
-@@ -980,6 +1196,13 @@ class DynamicAddressLogStream:
+@@ -980,6 +1223,13 @@ class DynamicAddressLogStream:
          self.reconnects=0
          self.last_error_kind=None
          self.active_subscriptions=0
@@ -992,7 +992,7 @@ index 05dd96f..2cdf6ad 100644
  
      def stream_key(self,address):
          return self.stream_prefix+":"+str(address)
-@@ -992,6 +1215,13 @@ class DynamicAddressLogStream:
+@@ -992,6 +1242,13 @@ class DynamicAddressLogStream:
              self.addresses.add(address)
          return self.stream_key(address)
  
@@ -1006,7 +1006,7 @@ index 05dd96f..2cdf6ad 100644
      def wanted_addresses(self):
          with self.lock:
              return sorted(self.addresses)
-@@ -1003,8 +1233,40 @@ class DynamicAddressLogStream:
+@@ -1003,8 +1260,40 @@ class DynamicAddressLogStream:
              wanted_addresses=len(self.wanted_addresses()),
              active_subscriptions=int(self.active_subscriptions),
              last_error_kind=self.last_error_kind,
@@ -1047,7 +1047,7 @@ index 05dd96f..2cdf6ad 100644
      def run(self,stop_event,ready_event=None):
          ever_ready=False
          while not stop_event.is_set():
-@@ -1015,6 +1277,8 @@ class DynamicAddressLogStream:
+@@ -1015,6 +1304,8 @@ class DynamicAddressLogStream:
                      close_timeout=5,max_size=2_000_000,max_queue=256,
                  ) as websocket:
                      pending={}
@@ -1056,7 +1056,7 @@ index 05dd96f..2cdf6ad 100644
                      by_address={}
                      by_subscription={}
                      next_id=1
-@@ -1028,6 +1292,12 @@ class DynamicAddressLogStream:
+@@ -1028,6 +1319,12 @@ class DynamicAddressLogStream:
  
                      while not stop_event.is_set():
                          wanted=self.wanted_addresses()
@@ -1069,7 +1069,7 @@ index 05dd96f..2cdf6ad 100644
                          known=set(by_address)|set(pending.values())
                          for address in [a for a in wanted if a not in known][:16]:
                              request_id=next_id;next_id+=1
-@@ -1048,12 +1318,25 @@ class DynamicAddressLogStream:
+@@ -1048,12 +1345,25 @@ class DynamicAddressLogStream:
                          payload=json.loads(message)
                          if "id" in payload:
                              request_id=payload.get("id")
@@ -1095,7 +1095,7 @@ index 05dd96f..2cdf6ad 100644
                              by_address[address]=subscription
                              by_subscription[subscription]=address
                              active_addresses=list(by_address)
-@@ -1064,6 +1347,8 @@ class DynamicAddressLogStream:
+@@ -1064,6 +1374,8 @@ class DynamicAddressLogStream:
                          if payload.get("method")!="logsNotification":
                              continue
                          params=payload.get("params") or {}
@@ -1104,7 +1104,7 @@ index 05dd96f..2cdf6ad 100644
                          address=by_subscription.get(params.get("subscription"))
                          if address is None:
                              raise RuntimeError("address_log_unknown_subscription")
-@@ -1073,10 +1358,18 @@ class DynamicAddressLogStream:
+@@ -1073,10 +1385,18 @@ class DynamicAddressLogStream:
                          self.broker.record_event(
                              self.stream_key(address),
                              signature=value["signature"],
@@ -2982,7 +2982,7 @@ index 3115376..e6bd7dc 100644
 +            self.assertEqual(meta['pending'],0);self.assertEqual(rpc.batches,[])
 diff --git a/tests/test_solana_immutable_efficiency.py b/tests/test_solana_immutable_efficiency.py
 new file mode 100644
-index 0000000..6b52e6c
+index 0000000..84fb1bf
 --- /dev/null
 +++ b/tests/test_solana_immutable_efficiency.py
 @@ -0,0 +1,203 @@
