@@ -1,0 +1,1 @@
+Verify complete v3 runtime after correcting recenter fixture to use governed burn capital.
