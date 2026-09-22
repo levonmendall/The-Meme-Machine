@@ -1,0 +1,41 @@
+name: ramses-branch-b-repair-cancel
+on:
+  push:
+    branches: [research/ramses-branch-b-certification-v1]
+permissions:
+  actions: write
+  contents: read
+jobs:
+  cancel:
+    if: contains(github.event.head_commit.message, '[ramses-branch-b-repair-cancel]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Cancel exact deadlocked Branch B repair orchestration
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TARGET_RUN: "35684570255"
+          TARGET_SHA: "f0ef14282c1d950d4a075c0c30c10e219a722cb3"
+        shell: bash
+        run: |
+          set -euo pipefail
+          row="$(gh api "repos/$REPOSITORY/actions/runs/$TARGET_RUN")"
+          test "$(printf '%s' "$row" | jq -r .name)" = "ramses-branch-b-repair"
+          test "$(printf '%s' "$row" | jq -r .head_branch)" = "research/ramses-branch-b-certification-v1"
+          test "$(printf '%s' "$row" | jq -r .head_sha)" = "$TARGET_SHA"
+          status="$(printf '%s' "$row" | jq -r .status)"
+          if [ "$status" != "completed" ]; then
+            gh api -X POST "repos/$REPOSITORY/actions/runs/$TARGET_RUN/cancel"
+          fi
+          for _ in $(seq 1 30); do
+            row="$(gh api "repos/$REPOSITORY/actions/runs/$TARGET_RUN")"
+            status="$(printf '%s' "$row" | jq -r .status)"
+            if [ "$status" = "completed" ]; then
+              printf '%s\n' "$row" | jq '{id,status,conclusion,head_sha,head_branch,name}'
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Exact Branch B run did not become terminal" >&2
+          exit 1
