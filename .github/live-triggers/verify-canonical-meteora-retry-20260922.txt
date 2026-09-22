@@ -1,0 +1,1 @@
+Verify canonical Meteora overlay after aligning batch-level transient retry telemetry semantics. No market run requested.
