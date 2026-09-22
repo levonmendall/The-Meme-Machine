@@ -677,7 +677,7 @@ index 2afa29e..581ebdc 100644
      return dict(name=spec['name'],signature=signature(spec),args=out)
 diff --git a/robinhood_research/ramses_campaign.py b/robinhood_research/ramses_campaign.py
 new file mode 100644
-index 0000000..706df40
+index 0000000..12fd769
 --- /dev/null
 +++ b/robinhood_research/ramses_campaign.py
 @@ -0,0 +1,93 @@
@@ -795,7 +795,7 @@ index 2f2bbc9..edb85f9 100644
  
      def _rate_wait(self,attempt):
 diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ramses_extended_test.py
-index e4ab19d..6b27858 100644
+index e4ab19d..91b2c99 100644
 --- a/robinhood_research/ramses_extended_test.py
 +++ b/robinhood_research/ramses_extended_test.py
 @@ -21,6 +21,7 @@ from __future__ import annotations
@@ -1806,7 +1806,7 @@ index 0000000..fa2ab1c
 +            finally:ledger.close()
 diff --git a/robinhood_tests/test_ramses_continuous_campaign.py b/robinhood_tests/test_ramses_continuous_campaign.py
 new file mode 100644
-index 0000000..44e62e1
+index 0000000..e083841
 --- /dev/null
 +++ b/robinhood_tests/test_ramses_continuous_campaign.py
 @@ -0,0 +1,133 @@
