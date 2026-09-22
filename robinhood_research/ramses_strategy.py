@@ -715,6 +715,7 @@ def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
         "strategy_version":STRATEGY_VERSION,"strategy_domain":STRATEGY_DOMAIN,
         "allocation_authority":False,"paper_only":True,
         "rebalance_candidate":rebalance,
+        "legacy_signals_ignored":bool(anchor_signal or directional_signal),
         "ignored_legacy_modes":["fee_pulse","anchor_pulse","directional_converter"],
     }
 
