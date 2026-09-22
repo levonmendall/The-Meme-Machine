@@ -1,0 +1,1 @@
+Resume the exact Branch B unresolved-candidate repair after clearing the orchestration deadlock. Re-run only candidates 1,3,4,8,9,12,13,14,19,20; preserve candidates 0,5,18 as genuine rejections; recompute the unchanged development gates; never open holdout unless all gates pass.
