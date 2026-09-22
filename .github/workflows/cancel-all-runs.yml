@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Cancel exact provider-contention workflows
+      - name: Cancel exact queued Ramses research replays
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -19,14 +19,12 @@ jobs:
           python - <<'PY'
           import json, os, pathlib, time, urllib.request
           targets=[
-              dict(run_id=35666976544,sha="1be121774fe37f41dd5f9d54ac606acfd000794a",
-                   branch="research/ramses-dlmm-historical-market-v1",
-                   name="ramses-historical-quiet-mint-counterfactual",
-                   reason="explicit user cancellation so profitability-v1 four-lane hourly campaign can start"),
-              dict(run_id=35670623327,sha="7e9e5db6ca5259fa57136c459afe7aed44c1cbdd",
-                   branch="research/ramses-exact-replay-efficiency-v1",
-                   name="ramses-quiet-mint-fast-replay",
-                   reason="remaining shared Robinhood RPC blocker must stop for clean profitability-v1 hourly campaign"),
+              dict(run_id=35673378778,sha="e5c0c810dd34976f04acf82abf55203137ba205f",
+                   branch="research/ramses-strategy-finalization-v2",name="ramses-strategy-final-exact-replay",
+                   reason="clear queued Robinhood RPC research before repaired natural Ramses machinery campaign"),
+              dict(run_id=35673027429,sha="2543554dd3d4945cb6a8512161270da0c57e447a",
+                   branch="research/ramses-exact-replay-sharded-v1",name="ramses-quiet-mint-sharded-replay",
+                   reason="clear queued Robinhood RPC research before repaired natural Ramses machinery campaign"),
           ]
           base="https://api.github.com/repos/"+os.environ["REPOSITORY"]
           headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],"Accept":"application/vnd.github+json"}
@@ -36,30 +34,26 @@ jobs:
                   return json.loads(data) if data else {"status":response.status}
           records=[]
           for target in targets:
-              path="/actions/runs/"+str(target["run_id"])
-              row=api(path)
+              path="/actions/runs/"+str(target["run_id"]);row=api(path)
               if row["head_sha"]!=target["sha"] or row["head_branch"]!=target["branch"] or row["name"]!=target["name"]:
                   raise SystemExit("exact_stop_identity_mismatch")
-              record={k:target[k] for k in ("run_id","sha","reason")}
-              record["before"]=row["status"]
-              record["artifacts_before"]=api(path+"/artifacts")
-              if row["status"]!="completed":
-                  record["cancel"]=api(path+"/cancel","POST")
-              records.append(record)
+              rec={k:target[k] for k in ("run_id","sha","reason")};rec["before"]=row["status"]
+              rec["artifacts_before"]=api(path+"/artifacts")
+              if row["status"]!="completed":rec["cancel"]=api(path+"/cancel","POST")
+              records.append(rec)
           pathlib.Path("campaign-cancellations.json").write_text(json.dumps(records,indent=2))
           for _ in range(30):
               done=True
-              for record in records:
-                  row=api("/actions/runs/"+str(record["run_id"]))
-                  record["after"]=row["status"];record["conclusion"]=row["conclusion"]
+              for rec in records:
+                  row=api("/actions/runs/"+str(rec["run_id"]))
+                  rec["after"]=row["status"];rec["conclusion"]=row["conclusion"]
                   done=done and row["status"]=="completed"
               pathlib.Path("campaign-cancellations.json").write_text(json.dumps(records,indent=2))
-              if done: break
+              if done:break
               time.sleep(2)
-          for record in records:
-              record["artifacts_after"]=api("/actions/runs/"+str(record["run_id"])+"/artifacts")
+          for rec in records:rec["artifacts_after"]=api("/actions/runs/"+str(rec["run_id"])+"/artifacts")
           pathlib.Path("campaign-cancellations.json").write_text(json.dumps(records,indent=2))
-          print(json.dumps([{k:v for k,v in r.items() if not k.startswith("artifacts")} for r in records]),flush=True)
+          print(json.dumps([{k:v for k,v in rec.items() if not k.startswith("artifacts")} for rec in records]),flush=True)
           PY
       - name: Preserve cancellation audit
         if: always()
