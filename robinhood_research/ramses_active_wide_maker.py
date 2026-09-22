@@ -1,29 +1,35 @@
-"""Evidence-locked shadow controller for Ramses Active Wide Maker rebalance v1.
+"""Frozen research controller for Ramses Active Wide Maker rebalance v3.
 
-Derived from the pre-holdout profitable-operator study. This module has no
-allocation authority, provider calls, signing, or submission capability.
+Independent of the legacy Ramses fee-pulse policy. No allocation authority,
+provider calls, signing, or transaction submission. The controller consumes
+already-authenticated state and candidate economics.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Iterable, Mapping, Sequence
 
 from . import BoundaryError
 
-VERSION = "ramses-active-wide-maker-rebalance-v1"
+VERSION = "ramses-active-wide-maker-rebalance-v3"
 PAPER_ONLY = True
 ALLOCATION_AUTHORITY = False
 
-MIN_WIDTH_BINS = 65
-MAX_WIDTH_BINS = 200
-PROACTIVE_D = 0.50
-HARD_D = 1.00
-CAPITAL_RATIO_MIN = 0.80
-CAPITAL_RATIO_MAX = 1.20
-REMINT_MAX_SECONDS = 180
-
+WIDTH_CANDIDATES = (65, 90, 120, 150, 200)
+MIN_WIDTH = 65
 MAX_LOCAL_LIQUIDITY_BPS = 50
 SIZE_REDUCTION_BPS = (50, 25, 12, 6, 3, 1)
+TARGET_REMINT_SECONDS = 180
+HARD_REMINT_DEADLINE_SECONDS = 210
+
+INSIDE_MAX_D = 1.0
+WATCH_MAX_D = 1.5
+RECENTER_MAX_D = 3.0
+
+COMPOUND_OVERLAP_MIN = 0.50
+RECENTER_OVERLAP_MAX = 0.10
+CAPITAL_RATIO_MIN = 0.80
+CAPITAL_RATIO_MAX = 1.20
 
 
 @dataclass(frozen=True)
@@ -32,8 +38,9 @@ class ReplacementCandidate:
     sidedness: str
     active_inside: bool
     full_unwind_executable: bool
-    after_cost_return_bps: int | float | None
+    after_cost_fee_return_bps: int | float | None
     two_x_cost_return_bps: int | float | None
+    overlap_fraction: float
     capital_preservation_ratio: int | float | None
     size_bps: int | None = None
 
@@ -50,62 +57,47 @@ def normalized_displacement(lower_bin: int, upper_bin: int, active_bin: int) -> 
 def _validate_candidate(candidate: ReplacementCandidate) -> None:
     if candidate.width_bins < 1:
         raise BoundaryError("wide_maker_invalid_width")
+    if not 0.0 <= float(candidate.overlap_fraction) <= 1.0:
+        raise BoundaryError("wide_maker_invalid_overlap")
     if candidate.size_bps is not None and candidate.size_bps not in SIZE_REDUCTION_BPS:
         raise BoundaryError("wide_maker_invalid_size")
 
 
-def candidate_eligible(
-    candidate: ReplacementCandidate,
-    *,
-    allow_directional_repair: bool=False,
-) -> bool:
-    """Hard replacement gates from the operator study.
-
-    Two-sided placement is the v1 default. A directional repair must be
-    explicitly authorized by a separate validated mode.
-    """
+def candidate_eligible(candidate: ReplacementCandidate, *, mode: str) -> bool:
     _validate_candidate(candidate)
-    if not MIN_WIDTH_BINS <= int(candidate.width_bins) <= MAX_WIDTH_BINS:
+    if mode not in ("compound_resize","recenter"):
+        raise BoundaryError("wide_maker_invalid_mode")
+    if candidate.width_bins < MIN_WIDTH or candidate.width_bins not in WIDTH_CANDIDATES:
         return False
-    if not candidate.full_unwind_executable:
+    if candidate.sidedness != "two_sided":
         return False
-    if candidate.after_cost_return_bps is None or float(candidate.after_cost_return_bps) <= 0:
+    if not candidate.active_inside or not candidate.full_unwind_executable:
         return False
-    if candidate.two_x_cost_return_bps is None or float(candidate.two_x_cost_return_bps) <= 0:
+    if candidate.after_cost_fee_return_bps is None or candidate.after_cost_fee_return_bps <= 0:
+        return False
+    if candidate.two_x_cost_return_bps is None or candidate.two_x_cost_return_bps <= 0:
         return False
     ratio=candidate.capital_preservation_ratio
     if ratio is None or not CAPITAL_RATIO_MIN <= float(ratio) <= CAPITAL_RATIO_MAX:
         return False
-    if candidate.sidedness!="two_sided" and not allow_directional_repair:
-        return False
-    return True
+    overlap=float(candidate.overlap_fraction)
+    if mode=="compound_resize":
+        return overlap >= COMPOUND_OVERLAP_MIN
+    return overlap <= RECENTER_OVERLAP_MAX
 
 
-def select_replacement(
-    candidates: Iterable[ReplacementCandidate],
-    *,
-    allow_directional_repair: bool=False,
-):
-    eligible=[
-        c for c in candidates
-        if candidate_eligible(c,allow_directional_repair=allow_directional_repair)
-    ]
+def select_replacement(candidates: Iterable[ReplacementCandidate], *, mode: str):
+    eligible=[c for c in candidates if candidate_eligible(c,mode=mode)]
     if not eligible:
         return None
-    # Economic quality first. On an exact tie, prefer the narrower candidate
-    # within the already-wide 65-200 bin band to avoid unnecessary inventory.
     return max(
         eligible,
-        key=lambda c:(
-            float(c.two_x_cost_return_bps),
-            float(c.after_cost_return_bps),
-            -int(c.width_bins),
-        ),
+        key=lambda c:(float(c.after_cost_fee_return_bps),-int(c.width_bins)),
     )
 
 
 def choose_executable_size(
-    executable_by_bps,
+    executable_by_bps: Mapping[int,bool],
     *,
     governed_target_bps: int=MAX_LOCAL_LIQUIDITY_BPS,
 ):
@@ -117,6 +109,15 @@ def choose_executable_size(
     return None
 
 
+def _risk_exit(
+    *,
+    unwind_deteriorated: bool,
+    inventory_risk_quote: int | float,
+    remaining_fee_reserve_quote: int | float,
+) -> bool:
+    return bool(unwind_deteriorated) or float(inventory_risk_quote) > float(remaining_fee_reserve_quote)
+
+
 def rebalance_decision(
     *,
     lower_bin: int,
@@ -124,68 +125,62 @@ def rebalance_decision(
     active_bin: int,
     evidence_complete: bool,
     current_unwind_executable: bool,
-    candidates: Iterable[ReplacementCandidate],
-    allow_directional_repair: bool=False,
+    fee_reserve_quote: int | float,
+    rebalance_cycle_cost_quote: int | float,
+    inventory_risk_quote: int | float,
+    remaining_fee_reserve_quote: int | float,
+    unwind_deteriorated: bool,
+    candidates: Sequence[ReplacementCandidate],
 ):
-    """Apply the frozen v1 pre-burn state machine.
-
-    Actions:
-      hold       - remain in the current range.
-      rebalance  - burn only with a valid replacement already preflighted.
-      exit       - burn to USDG/cash; do not chase a replacement.
-      fail_closed- evidence is incomplete/stale.
-    """
+    """Apply the frozen v3 hysteresis controller."""
     if not evidence_complete:
         return {"action":"fail_closed","reason":"evidence_incomplete","replacement":None}
+    if rebalance_cycle_cost_quote < 0 or fee_reserve_quote < 0:
+        raise BoundaryError("wide_maker_invalid_cost_or_fee")
 
-    width=int(upper_bin)-int(lower_bin)+1
-    if width <= 0:
-        raise BoundaryError("wide_maker_invalid_range")
     d=normalized_displacement(lower_bin,upper_bin,active_bin)
-    outside=active_bin<lower_bin or active_bin>upper_bin
-    hard=outside or d>=HARD_D or width<MIN_WIDTH_BINS or not current_unwind_executable
-
-    choice=select_replacement(
-        candidates,
-        allow_directional_repair=allow_directional_repair,
+    risk_exit=_risk_exit(
+        unwind_deteriorated=unwind_deteriorated,
+        inventory_risk_quote=inventory_risk_quote,
+        remaining_fee_reserve_quote=remaining_fee_reserve_quote,
     )
 
-    if hard:
+    if d <= INSIDE_MAX_D:
+        if risk_exit:
+            return {"action":"exit","reason":"risk_exit_inside","D":d,"replacement":None}
+        economic_compound=(
+            current_unwind_executable
+            and float(fee_reserve_quote) >= 2.0*float(rebalance_cycle_cost_quote)
+        )
+        if not economic_compound:
+            return {"action":"hold","reason":"inside_productive_range","D":d,"replacement":None}
+        choice=select_replacement(candidates,mode="compound_resize")
         if choice is None:
-            return {"action":"exit","reason":"hard_zone_no_valid_replacement","D":d,"replacement":None}
-        return {"action":"rebalance","reason":"hard_zone_valid_replacement","D":d,
+            return {"action":"hold","reason":"no_valid_compound_replacement","D":d,"replacement":None}
+        return {"action":"compound_resize","reason":"fee_reserve_pays_rebalance","D":d,
                 "replacement":choice.__dict__}
 
-    if d>=PROACTIVE_D:
+    if d < WATCH_MAX_D:
+        if risk_exit or not current_unwind_executable:
+            return {"action":"exit","reason":"edge_watch_risk_exit","D":d,"replacement":None}
+        return {"action":"watch","reason":"hysteresis_no_partial_shift","D":d,"replacement":None}
+
+    if d <= RECENTER_MAX_D:
+        if not current_unwind_executable:
+            return {"action":"exit","reason":"current_unwind_unavailable","D":d,"replacement":None}
+        choice=select_replacement(candidates,mode="recenter")
         if choice is None:
-            return {"action":"hold","reason":"proactive_zone_replacement_not_ready","D":d,
-                    "replacement":None}
-        return {"action":"rebalance","reason":"proactive_zone_valid_replacement","D":d,
+            return {"action":"exit","reason":"no_valid_recenter_replacement","D":d,"replacement":None}
+        return {"action":"recenter","reason":"normalized_displacement_recenter_band","D":d,
                 "replacement":choice.__dict__}
 
-    return {"action":"hold","reason":"inner_half_valid_range","D":d,"replacement":None}
+    return {"action":"exit_no_chase","reason":"normalized_displacement_overrun","D":d,"replacement":None}
 
 
-def post_burn_remint_decision(
-    *,
-    elapsed_seconds: int | float,
-    evidence_complete: bool,
-    candidates: Iterable[ReplacementCandidate],
-    allow_directional_repair: bool=False,
-):
-    """After a burn, remint within 180 seconds or remain in USDG/cash."""
+def remint_deadline_action(elapsed_seconds: int | float):
     elapsed=float(elapsed_seconds)
     if elapsed < 0:
         raise BoundaryError("wide_maker_invalid_elapsed")
-    if not evidence_complete:
-        return {"action":"stay_cash","reason":"post_burn_evidence_incomplete","replacement":None}
-    if elapsed>REMINT_MAX_SECONDS:
-        return {"action":"stay_cash","reason":"remint_window_expired","replacement":None}
-    choice=select_replacement(
-        candidates,
-        allow_directional_repair=allow_directional_repair,
-    )
-    if choice is None:
-        return {"action":"stay_cash","reason":"no_valid_replacement","replacement":None}
-    return {"action":"remint","reason":"replacement_contract_passed",
-            "replacement":choice.__dict__}
+    if elapsed <= HARD_REMINT_DEADLINE_SECONDS:
+        return {"action":"continue_same_decision","stale":False,"elapsed_seconds":elapsed}
+    return {"action":"discard_and_recompute","stale":True,"elapsed_seconds":elapsed}
