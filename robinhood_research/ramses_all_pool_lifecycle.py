@@ -96,26 +96,53 @@ def select_qualifier(screen):
     return None
 
 
+FAST_HISTORICAL_LOG_SPAN = 500
+
+def _historical_log_page(rpc, start, end, address, *, scope, topics):
+    """Fetch one exact historical log interval, splitting only on provider refusal.
+
+    This changes RPC batching only. The returned event set is identical to querying
+    each block individually; all downstream receipt/header authentication and
+    terminal-equality checks remain unchanged.
+    """
+    params = [dict(
+        fromBlock=hex(int(start)),
+        toBlock=hex(int(end)),
+        address=address,
+        **({"topics": topics} if topics is not None else {}),
+    )]
+    try:
+        page = rpc.call("eth_getLogs", params, scope=scope)
+    except BoundaryError:
+        if int(start) >= int(end):
+            raise
+        mid = (int(start) + int(end)) // 2
+        return (
+            _historical_log_page(rpc, start, mid, address, scope=scope, topics=topics)
+            + _historical_log_page(rpc, mid + 1, end, address, scope=scope, topics=topics)
+        )
+    if not isinstance(page, list):
+        raise BoundaryError("connected_lifecycle_log_page_shape")
+    return page
+
 def _batch_logs(rpc, start, end, address, *, scope="lifecycle_logs", topics=None):
     if start > end:
         return []
-    calls = []
-    for first in range(start, end + 1, LOG_BLOCK_CHUNK):
-        calls.append((
-            "eth_getLogs",
-            [dict(
-                fromBlock=hex(first),
-                toBlock=hex(min(end, first + LOG_BLOCK_CHUNK - 1)),
-                address=address,
-                **({"topics": topics} if topics is not None else {}),
-            )],
-        ))
     found = []
-    for i in range(0, len(calls), 20):
-        for page in rpc.batch(calls[i:i + 20], scope=scope):
-            found.extend(page)
-            if len(found) > MAX_POOL_LOGS:
-                raise BoundaryError("connected_lifecycle_log_capacity")
+    for first in range(int(start), int(end) + 1, FAST_HISTORICAL_LOG_SPAN):
+        last = min(int(end), first + FAST_HISTORICAL_LOG_SPAN - 1)
+        found.extend(
+            _historical_log_page(
+                rpc, first, last, address, scope=scope, topics=topics
+            )
+        )
+        if len(found) > MAX_POOL_LOGS:
+            raise BoundaryError("connected_lifecycle_log_capacity")
+    found.sort(key=lambda e: (
+        int(e["blockNumber"], 16),
+        int(e["transactionIndex"], 16),
+        int(e["logIndex"], 16),
+    ))
     return found
 
 
