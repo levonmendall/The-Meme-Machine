@@ -186,7 +186,11 @@
           "cost_model_changed": false,
           "freshness_finality_changed": false,
           "mixed_interval_replay_now_permitted": false,
-          "paper_only_unchanged": true
+          "paper_only_unchanged": true,
+          "canonical_overlay_commit": "196944b60a6162747fbe0d57c05be4a14ca67949",
+          "expected_source_diff_sha256": "ce328f328c0ea95d3e681da3c8912a095c13cc0aa590999088c161843df48503",
+          "integrity_pin_revision": "canonical-git-diff-v1",
+          "deterministic_requalification_status": "pending"
         }
       },
       "prospect_admission": {
@@ -440,7 +444,7 @@
     "purpose": "Compose the requested Pump/Pons persistence edges onto the current four-lane runtime while preserving current Meteora Strategy2 and Ramses finalized-frontier repairs.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora/Ramses machinery-proof-v2",
-    "validation_status": "deterministic_composition_passed",
+    "validation_status": "deterministic_requalification_pending",
     "validation_run_requested": false,
     "latest_qualification": {
       "run_id": 35762267123,
