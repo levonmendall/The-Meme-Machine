@@ -1529,14 +1529,12 @@ index 76f73f5..ce7661c 100644
  
      def _checkpoint_provider_failure(failed_rpc,boundary,current_cursor):
          result["last_transient_provider_boundary"]=str(boundary)
-@@ -398,6 +560,7 @@ def run(endpoint):
+@@ -398,4 +560,5 @@ def run(endpoint):
              phase="provider_recovery",
          )
  
 +    pool=None;futures=[]
      try:
-         warm_deadline=time.monotonic()+TAPE_WARM_SECONDS
-         while time.monotonic()<warm_deadline:
 @@ -437,6 +600,7 @@ def run(endpoint):
                  )
              life["index"]=qindex
