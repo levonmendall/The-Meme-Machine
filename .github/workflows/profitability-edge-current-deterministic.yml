@@ -194,9 +194,10 @@ jobs:
               ),
           ]
           for old,new in replacements:
-              if text.count(old)!=1:
+              if text.count(old)==1:
+                  text=text.replace(old,new,1)
+              elif new not in text:
                   raise SystemExit("pump_repeat_fixture_anchor:"+old)
-              text=text.replace(old,new,1)
           path.write_text(text)
           PY
               git -C "$WT" add tests/test_strategy_prospect_admission.py
@@ -229,26 +230,29 @@ jobs:
 
               def run_case(self,folder,fail_at):
           '''
-          if text.count(old)!=1:
+          if text.count(old)==1:
+              text=text.replace(old,new,1)
+          elif "def persistent_entry_signal(*args):" not in text:
               raise SystemExit("pons_recovery_class_anchor")
-          text=text.replace(old,new,1)
           old="""            '_wait_curve_quote':wait_quote,'_curve_quote':quote,
           """
           new="""            '_wait_curve_quote':wait_quote,'_curve_quote':quote,
                       '_refresh_entry_persistence_signal':self.persistent_entry_signal,
           """
-          if text.count(old)!=1:
+          if text.count(old)==1:
+              text=text.replace(old,new,1)
+          elif "'_refresh_entry_persistence_signal':self.persistent_entry_signal" not in text:
               raise SystemExit("pons_recovery_patch_anchor")
-          text=text.replace(old,new,1)
           old="                 patch(MODULE+'_fresh_fill_full_exit_check',"
           new="""                 patch(MODULE+'_refresh_entry_persistence_signal',
                              side_effect=self.persistent_entry_signal),\\
                        patch(MODULE+'_fresh_fill_full_exit_check',"""
-          if text.count(old)!=1:
+          if text.count(old)==1:
+              text=text.replace(old,new,1)
+          elif "side_effect=self.persistent_entry_signal" not in text:
               raise SystemExit(
                   "pons_unexitable_patch_anchor:"+str(text.count(old))
               )
-          text=text.replace(old,new,1)
           recovery.write_text(text)
 
           text=policy.read_text()
@@ -256,9 +260,8 @@ jobs:
               "    def test_execution_certification_does_not_require_positive_acceleration(self):\n"
           )
           end=text.find("    def test_non_native_pair_is_research_only(self):\n",start)
-          if start<0 or end<0:
-              raise SystemExit("pons_acceleration_policy_test_anchor")
-          replacement='''    def test_execution_policy_requires_positive_acceleration(self):
+          if start>=0 and end>=0:
+              replacement='''    def test_execution_policy_requires_positive_acceleration(self):
                   decelerating=[
                       dict(at=185,progress_bps=7000),
                       dict(at=195,progress_bps=7400),
@@ -274,7 +277,9 @@ jobs:
                   self.assertIn("curve_deceleration",v["all_rejections"])
 
           '''
-          policy.write_text(text[:start]+replacement+text[end:])
+              policy.write_text(text[:start]+replacement+text[end:])
+          elif "def test_execution_policy_requires_positive_acceleration(self):" not in text:
+              raise SystemExit("pons_acceleration_policy_test_anchor")
           PY
               git -C "$WT" add robinhood_tests/test_pons_position_provider_recovery.py robinhood_tests/test_pons_selective_continuation.py
             fi
