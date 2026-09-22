@@ -6,3 +6,4 @@ Workflow syntax repaired; semantic composition retry.
 Pons recovery-overlay semantic resolver added.
 Idempotent Pons semantic resolver retry.
 Expose exact Pump/Pons composed test failures.
+Policy-aligned Pump/Pons fixture repair retry.
