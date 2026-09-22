@@ -1,0 +1,5 @@
+Launch repaired four-lane live paper validation.
+Parent head: 99b60e4745ef24c334f8ef2dbca2d6018b595d13
+Use current Pump/Pons profitability-v1 strategies and current Meteora/Ramses machinery-proof strategies.
+Do not cancel or supersede any existing run.
+Paper only.
