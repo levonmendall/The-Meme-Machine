@@ -408,6 +408,7 @@ class SequencerBlockClock:
         self.transport_failures=0
         self.reconnects=0
         self._completed_sessions=[]
+        self.last_transport_boundary=None
 
     def connect(self):
         if self.client is None:
@@ -429,7 +430,8 @@ class SequencerBlockClock:
         therefore proven by RPC coverage, never assumed from the WebSocket.
         """
         previous=self.state.summary(now=time.time())
-        previous["ended_reason"]="transport_restart"
+        previous["ended_reason"]=self.last_transport_boundary or "transport_restart"
+        self.last_transport_boundary=None
         self._completed_sessions.append(previous)
         if len(self._completed_sessions)>16:
             self._completed_sessions=self._completed_sessions[-16:]
@@ -444,6 +446,10 @@ class SequencerBlockClock:
             raise SequencerTransportError(type(exc).__name__) from exc
 
     def _transport_lost(self, reason):
+        # Reject the violating session completely. The caller may reconnect, but
+        # its canonical RPC cursor is never advanced from this WebSocket frame.
+        # Authenticated RPC catch-up must prove every intervening block.
+        self.last_transport_boundary=str(reason)
         self.transport_failures+=1
         self.close()
         raise SequencerTransportError(str(reason))
@@ -498,6 +504,7 @@ class SequencerBlockClock:
                 if str(exc) in (
                     "sequencer_feed_connection_closed",
                     "sequencer_feed_not_connected",
+                    "sequencer_feed_reserved_bits",
                 ):
                     self._transport_lost(str(exc))
                 raise
