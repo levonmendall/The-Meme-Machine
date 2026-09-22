@@ -296,7 +296,7 @@ index 0000000..274abdb
 +                    'deployed','forward_observation','unwind','settled','terminal')
 +            classes=('capacity_censored','provider_failed','stale_before_evidence','stale_during_evidence',
 +                     'stale_after_complete_evidence','reconstruction_incomplete','strategy_rejection',
-+                     'no_authentic_activity','local_budget_exhausted','consumer_deadline')
++                     'no_authentic_activity','local_budget_exhausted','consumer_deadline','structural_ineligible')
 +            return dict(schema='lane-opportunity-coverage-v1',lane=self.lane,
 +                identity_scope='native_candidate_identity; stages and classes overlap; never sum as losses',
 +                raw_records=self.records,
@@ -2022,7 +2022,7 @@ index c1aef79..a019592 100644
 +            pipeline.record(trigger_id,"trigger_started",pool=pool,slot=details.get("slot"))
 +        if stage in ("terminal","settled") and pool in active_triggers:
 +            pipeline.record(active_triggers.pop(pool),"trigger_terminal",reason or "settled",pool=pool)
-+        pipeline.record(pool,stage,reason,censor_class(reason) if reason else None,**details)
++        pipeline.record(pool,stage,reason,(('structural_ineligible' if any(x in str(reason) for x in ('unsupported','authority','extension')) else censor_class(reason)) if stage=='terminal' and details.get('stage_failed')=='compatibility' else censor_class(reason)) if reason else None,**details)
 +        checkpoint(stage)
 +    PROGRESS_HOOK=progress
      checkpoint("run_initialized")
