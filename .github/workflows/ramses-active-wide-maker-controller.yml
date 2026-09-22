@@ -7,7 +7,7 @@ permissions:
 
 jobs:
   verify:
-    if: contains(github.event.head_commit.message, '[ramses-rebalance-v2]')
+    if: contains(github.event.head_commit.message, '[ramses-rebalance-v3]')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -19,8 +19,8 @@ jobs:
         run: |
           python - <<'PY'
           import json
-          p=json.load(open("RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V2.json"))
-          assert p["kind"]=="ramses_active_wide_maker_rebalance_v2"
+          p=json.load(open("RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json"))
+          assert p["kind"]=="ramses_active_wide_maker_rebalance_v3"
           assert p["research_only"] is True
           assert p["paper_only"] is True
           assert p["allocation_authority"] is False
@@ -30,6 +30,8 @@ jobs:
           assert p["decision_state_machine"]["overrun_exit"]["condition"]=="D > 3.0"
           assert p["replacement"]["hard_min_width_bins"]==65
           assert p["timing"]["hard_same_decision_deadline_seconds"]==210
+          assert p["replacement"]["capital_preservation_ratio_min"]==0.80
+          assert p["replacement"]["capital_preservation_ratio_max"]==1.20
           PY
       - name: Run deterministic controller regressions
         run: |
