@@ -1,0 +1,93 @@
+name: ramses-quiet-mint-sharded-replay
+on:
+  push:
+    branches: [research/ramses-exact-replay-sharded-v1]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  replay:
+    if: contains(github.event.head_commit.message, '[ramses-quiet-sharded]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        candidate: [0,1,2,3,4,5]
+    env:
+      MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+      MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+      RAMSES_QUIET_CANDIDATE_INDEX: ${{ matrix.candidate }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Verify exact log equivalence and compile shard
+        run: |
+          python -m py_compile robinhood_research/ramses_all_pool_lifecycle.py robinhood_research/ramses_historical_quiet_mint_counterfactual.py
+          python -m unittest robinhood_tests.test_ramses_historical_fast_logs -v
+      - name: Download complete Ramses indexed history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aid="$(gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false and (.name | startswith("ramses-historical-index-")) and (.name | contains("summary") | not) and (.name | contains("probe") | not) and (.size_in_bytes > 1000000)) | [.created_at, (.id|tostring)] | @tsv' \
+            | sort -r | head -1 | cut -f2)"
+          test -n "$aid"
+          gh api "repos/${{ github.repository }}/actions/artifacts/$aid/zip" > /tmp/index.zip
+          mkdir -p /tmp/index
+          unzip -q /tmp/index.zip -d /tmp/index
+          cp /tmp/index/ramses-historical-index-data.json.gz .
+      - name: Replay frozen candidate shard
+        run: python -m robinhood_research.ramses_historical_quiet_mint_counterfactual
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ramses-quiet-shard-${{ matrix.candidate }}
+          path: ramses-quiet-mint-counterfactual.json
+          if-no-files-found: warn
+          retention-days: 90
+
+  aggregate:
+    if: always()
+    needs: replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Download all six shard artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ramses-shards
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false and (.name | startswith("ramses-quiet-shard-"))) | [.id,.name] | @tsv' \
+            | sort -k2,2 > /tmp/shards.tsv
+          test "$(wc -l < /tmp/shards.tsv)" -eq 6
+          while IFS=$'\t' read -r aid name; do
+            mkdir -p "/tmp/ramses-shards/$name"
+            gh api "repos/${{ github.repository }}/actions/artifacts/$aid/zip" > "/tmp/$name.zip"
+            unzip -q "/tmp/$name.zip" -d "/tmp/ramses-shards/$name"
+          done < /tmp/shards.tsv
+      - name: Merge exact shards
+        run: python -m robinhood_research.ramses_quiet_shard_merge
+      - name: Apply frozen Branch A/B evaluator
+        run: python -m robinhood_research.ramses_quiet_branch_evaluator
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ramses-quiet-sharded-decision-${{ github.run_id }}
+          path: |
+            ramses-quiet-mint-counterfactual.json
+            ramses-quiet-branch-decision.json
+          if-no-files-found: warn
+          retention-days: 90
