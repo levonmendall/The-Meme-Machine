@@ -1,8 +1,10 @@
+> **Superseded:** Historical v2 design study retained for lineage only. The authoritative current specification is `RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json`. The original chronological v1 holdout has already been consumed and cannot be reused.
+
 # Ramses Exact Rebalance Logic Study
 
-**Status:** REBALANCE LOGIC RESOLVED FOR PRE-HOLDOUT VALIDATION  
+**Status:** HISTORICAL / SUPERSEDED BY RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json  
 **Strategy:** Ramses Active Wide Maker v1  
-**Protected holdout:** untouched  
+**Protected holdout:** consumed by frozen v1; zero v1-eligible >=65-bin rebalance observations; unavailable for reuse  
 **Authority:** research + paper only
 
 ## Executive conclusion
