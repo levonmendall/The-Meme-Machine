@@ -1,0 +1,79 @@
+{
+  "kind": "ramses_profitable_operator_reverse_engineering_protocol_v1",
+  "status": "locked_after_reuse_feasibility_check_before_holdout_access",
+  "research_only": true,
+  "paper_only": true,
+  "strategy_policy_authority": false,
+  "holdout_outcomes_read": false,
+  "source_artifacts": {
+    "position_history": {
+      "run_id": 35661797477,
+      "artifact_id": 10667850006,
+      "digest": "sha256:9f9fc46510c20a8335a5bdf77e953a8d0c515872c160daf68b0fb34e4eda503a"
+    },
+    "burn_ownership": {
+      "run_id": 35663186032,
+      "artifact_id": 10668466591,
+      "digest": "sha256:ad622ea29cc28352b6f2de2e7faf58b0f8b59e0f095a935a79d8c06d2db4e74b"
+    },
+    "clean_lp_outcomes": {
+      "run_id": 35663549930,
+      "artifact_id": 10668780170,
+      "digest": "sha256:2a883745652d140db6ac0357505897fe3433ef938640d3a5f6bd54012c2575d5"
+    },
+    "fee_decomposition": {
+      "run_id": 35667408178,
+      "artifact_id": 10669119524,
+      "digest": "sha256:8ef3563f67c10222c0e228795854197409042a0a33ca774798a1203df033c00f"
+    },
+    "signal_join": {
+      "run_id": 35663820535,
+      "artifact_id": 10668407769,
+      "digest": "sha256:4f701da0dc1f9ae0edae4727e38702a15d24f20ebd646b831d8d040529bd2cf4"
+    },
+    "full_market_index": {
+      "run_id": 35660634784,
+      "artifact_id": 10667753690,
+      "digest": "sha256:c7706e54e198d43b7f10038690b48405da05ffd7d7d75068e94c01091cb838f7"
+    }
+  },
+  "discovery_cutoff_timestamp": 1788949990,
+  "protected_holdout": {
+    "start_timestamp": 1788949990,
+    "end_timestamp": 1789981503,
+    "rule": "Do not read or derive operator outcome metrics from this interval until a transferable operator-derived strategy rule is frozen.",
+    "reuse_for_rejected_branch_b": false
+  },
+  "operator_book_rules": {
+    "owner_identity": "mint recipient must match an indexed Ramses position owner for the pool; burns use frozen burn-ownership resolution",
+    "closed_book": "final DLMMPosition liquidity equals zero, last modification is before discovery cutoff, and no attributed owner mint/burn occurs after cutoff",
+    "pnl": "resolved burn USD minus all owner-attributed mint USD; unresolved burns can only make this a conservative lower bound",
+    "capital_hour_metric": "cash-capital proxy integrating max(0, prior capital + mint USD - burn USD) through time; screening metric only, not exact economic capital",
+    "multi_action": "more than one mint or more than one burn in the owner/pool book"
+  },
+  "repeatable_positive_operator_definition": {
+    "minimum_closed_books": 3,
+    "minimum_distinct_pools": 3,
+    "net_lower_bound_pnl_usd": ">0",
+    "median_book_return": ">0",
+    "book_win_rate": ">=0.6666666667"
+  },
+  "reverse_engineering_dimensions": [
+    "absolute and capital-hour-normalized lower-bound PnL",
+    "pool breadth and book consistency",
+    "mint/burn cadence",
+    "range width and sidedness",
+    "range-center movement and burn-to-mint recentering",
+    "pool age at entry",
+    "pre-entry 30m and 24h swaps and volume",
+    "position placement relative to last active bin",
+    "post-entry 4h LP fee production",
+    "historical per-bin fee attribution versus inventory PnL"
+  ],
+  "targeted_fill_policy": {
+    "market_wide_recollection": false,
+    "allowed": "Only finalists after offline ranking; exact receipts/state, gas, incentives/rewards, and historical terminal unwind where missing.",
+    "provider_overlap": false
+  },
+  "promotion_boundary": "This study may nominate transferable strategy hypotheses. It may not promote a Ramses strategy until a rule is frozen without holdout outcomes and then passes the protected chronological holdout."
+}
