@@ -97,10 +97,68 @@ class BoundedMultiRpc:
             self.rate_limit_sleep_seconds+=delay
         return delay
 
+    @staticmethod
+    def _finalized_fields(row):
+        if not isinstance(row,dict):
+            raise BoundaryError("ramses_finalized_frontier_shape")
+        try:
+            block=int(row["number"],16)
+            timestamp=int(row["timestamp"],16)
+            block_hash=row["hash"]
+            parent_hash=row["parentHash"]
+        except (KeyError,TypeError,ValueError):
+            raise BoundaryError("ramses_finalized_frontier_shape") from None
+        if (block<0 or timestamp<=0 or not isinstance(block_hash,str)
+                or len(block_hash)!=66 or not isinstance(parent_hash,str)
+                or len(parent_hash)!=66):
+            raise BoundaryError("ramses_finalized_frontier_shape")
+        return block,block_hash,timestamp,parent_hash
+
+    def _monotonic_finalized(self,row,scope):
+        """Reject true finality conflicts; recover only a verified stale tag response."""
+        current=self._finalized_fields(row)
+        previous=getattr(self,"_highest_finalized_frontier",None)
+        if previous is None:
+            self._highest_finalized_frontier=dict(row)
+            return row
+        prior=self._finalized_fields(previous)
+        block,block_hash,timestamp,parent_hash=current
+        pblock,phash,pts,pparent=prior
+        if block<pblock:
+            # A load-balanced RPC can briefly serve an older finalized tag.
+            # Never roll the campaign backward. Re-authenticate the previously
+            # accepted finalized block by explicit height before ignoring it.
+            recovered=self.call(
+                "eth_getBlockByNumber",[hex(pblock),False],
+                scope=str(scope)+"_finalized_recovery",
+            )
+            self.finalized_frontier_recovery_reads=int(
+                getattr(self,"finalized_frontier_recovery_reads",0))+1
+            if self._finalized_fields(recovered)!=prior:
+                raise BoundaryError(
+                    "ramses_finalized_frontier_regression_unverified")
+            self.finalized_frontier_stale_responses=int(
+                getattr(self,"finalized_frontier_stale_responses",0))+1
+            return dict(previous)
+        if block==pblock:
+            if (block_hash,timestamp,parent_hash)!=(phash,pts,pparent):
+                raise BoundaryError("ramses_finalized_frontier_conflict")
+            return row
+        if timestamp<pts:
+            raise BoundaryError("ramses_finalized_frontier_timestamp_regression")
+        if block_hash==phash:
+            raise BoundaryError("ramses_finalized_frontier_identity_conflict")
+        self._highest_finalized_frontier=dict(row)
+        return row
+
     def call(self,method,params,*,scope="connectivity"):
         for attempt in range(self.rate_retries+1):
             try:
-                return self._session(1).call(method,params,scope=scope)
+                value=self._session(1).call(method,params,scope=scope)
+                if (method=="eth_getBlockByNumber"
+                        and list(params)==["finalized",False]):
+                    value=self._monotonic_finalized(value,scope)
+                return value
             except BoundaryError as exc:
                 if str(exc) not in self.RATE_ERRORS or attempt>=self.rate_retries:
                     raise
@@ -245,6 +303,10 @@ class BoundedMultiRpc:
             rate_limit_events=self.rate_limit_events,
             rate_limit_cooldown_seconds=self.rate_cooldown,
             rate_limit_sleep_seconds=self.rate_limit_sleep_seconds,
+            finalized_frontier_stale_responses=int(
+                getattr(self,"finalized_frontier_stale_responses",0)),
+            finalized_frontier_recovery_reads=int(
+                getattr(self,"finalized_frontier_recovery_reads",0)),
             receipt_cache_entries=len(self._receipt_cache),
             receipt_cache_hits=self.receipt_cache_hits,
             block_cache_entries=len(self._block_cache),
