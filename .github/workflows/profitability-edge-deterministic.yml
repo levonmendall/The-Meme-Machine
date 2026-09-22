@@ -44,57 +44,57 @@ jobs:
                 exit 1
               fi
               python - "$WT/tests/pump_acceleration_natural_prospective.py" <<'PY'
-import pathlib,sys
-path=pathlib.Path(sys.argv[1])
-text=path.read_text()
-parts=[]
-cursor=0
-index=0
-while True:
-    start=text.find("<<<<<<< ours\n",cursor)
-    if start<0:
-        parts.append(text[cursor:])
-        break
-    parts.append(text[cursor:start])
-    middle=text.find("=======\n",start)
-    end=text.find(">>>>>>> theirs\n",middle)
-    if middle<0 or end<0:
-        raise SystemExit("malformed_pump_merge_conflict")
-    ours=text[start+len("<<<<<<< ours\n"):middle]
-    theirs=text[middle+len("=======\n"):end]
-    if index==0:
-        theirs="\n".join(
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          parts=[]
+          cursor=0
+          index=0
+          while True:
+              start=text.find("<<<<<<< ours\n",cursor)
+              if start<0:
+                  parts.append(text[cursor:])
+                  break
+              parts.append(text[cursor:start])
+              middle=text.find("=======\n",start)
+              end=text.find(">>>>>>> theirs\n",middle)
+              if middle<0 or end<0:
+                  raise SystemExit("malformed_pump_merge_conflict")
+              ours=text[start+len("<<<<<<< ours\n"):middle]
+              theirs=text[middle+len("=======\n"):end]
+              if index==0:
+                  theirs="\n".join(
             line for line in theirs.splitlines()
             if not line.startswith("FROZEN_POLICY_HASH=")
-        )+"\n"
-        resolved=ours+theirs
-    elif index==1:
-        resolved=theirs.replace(
+                  )+"\n"
+                  resolved=ours+theirs
+              elif index==1:
+                  resolved=theirs.replace(
             "global ACCOUNTING,PIPELINE",
             "global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT",
             1,
-        )
-    elif index==2:
-        resolved=theirs
-    elif index==3:
-        resolved=ours+theirs
-    else:
-        raise SystemExit(f"unexpected_pump_conflict_{index}")
-    parts.append(resolved)
-    cursor=end+len(">>>>>>> theirs\n")
-    index+=1
-if index!=4:
-    raise SystemExit(f"expected_4_pump_conflicts_got_{index}")
-merged="".join(parts)
-old='buyer_growth=flow["buyer_growth"],net_buy_share_bps=flow["net_buy_share_bps"],'
-new=('buyer_growth=flow["buyer_growth"],'
-     'repeat_buyer_clusters=flow["repeat_buyer_clusters"],'
-     'repeat_buy_share_bps=flow["repeat_buy_share_bps"],'
-     'net_buy_share_bps=flow["net_buy_share_bps"],')
-if old in merged:
-    merged=merged.replace(old,new,1)
-path.write_text(merged)
-PY
+                  )
+              elif index==2:
+                  resolved=theirs
+              elif index==3:
+                  resolved=ours+theirs
+              else:
+                  raise SystemExit(f"unexpected_pump_conflict_{index}")
+              parts.append(resolved)
+              cursor=end+len(">>>>>>> theirs\n")
+              index+=1
+          if index!=4:
+              raise SystemExit(f"expected_4_pump_conflicts_got_{index}")
+          merged="".join(parts)
+          old='buyer_growth=flow["buyer_growth"],net_buy_share_bps=flow["net_buy_share_bps"],'
+          new=('buyer_growth=flow["buyer_growth"],'
+               'repeat_buyer_clusters=flow["repeat_buyer_clusters"],'
+               'repeat_buy_share_bps=flow["repeat_buy_share_bps"],'
+               'net_buy_share_bps=flow["net_buy_share_bps"],')
+          if old in merged:
+              merged=merged.replace(old,new,1)
+          path.write_text(merged)
+          PY
               git -C "$WT" add tests/pump_acceleration_natural_prospective.py
               if test -n "$(git -C "$WT" diff --name-only --diff-filter=U)"; then
                 git -C "$WT" status --short
