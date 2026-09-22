@@ -26,6 +26,8 @@ ENTRY_THRESHOLDS = dict(
     min_graduation_eta_seconds=20,
     max_graduation_eta_seconds=90,
     min_progress_15s_bps=300,
+    require_curve_acceleration=True,
+    require_flow_acceleration=True,
     min_independent_groups=3,
     min_new_independent_groups_15s=1,
     min_buy_sell_ratio_bps=12_000,
@@ -38,6 +40,7 @@ ENTRY_THRESHOLDS = dict(
     real_quote_size_bps=200,      # 2% of real quote liquidity
     independent_net_size_bps=1000,# 10% of independent net demand
     max_state_age_seconds=5,
+    min_fill_breadth_retention_bps=6000,
     max_market_events=512,
 )
 POST_GRAD_THRESHOLDS = dict(
@@ -260,6 +263,8 @@ def demand_metrics(events, *, asof, creator_groups=()):
         current_sell_quote=current_sell,
         current_net_quote=current_net,
         prior_net_quote=prior_net,
+        net_flow_change_quote=current_net-prior_net,
+        net_flow_accelerating=current_net>prior_net,
         buy_sell_ratio_bps=ratio,
         largest_buyer_flow_bps=largest,
         top3_buyer_flow_bps=top3,
@@ -477,6 +482,8 @@ def qualification_vector(
     else:
         if traj["progress_15s_bps"] < ENTRY_THRESHOLDS["min_progress_15s_bps"]:
             reject("curve_velocity")
+        if ENTRY_THRESHOLDS["require_curve_acceleration"] and not traj["accelerating"]:
+            reject("curve_deceleration")
         eta = traj["graduation_eta_seconds"]
         if (
             eta is None
@@ -492,6 +499,11 @@ def qualification_vector(
         reject("buy_sell_flow")
     if demand["current_net_quote"] <= 0:
         reject("net_demand_nonpositive")
+    if (
+        ENTRY_THRESHOLDS["require_flow_acceleration"]
+        and not demand["net_flow_accelerating"]
+    ):
+        reject("flow_deceleration")
     if demand["largest_buyer_flow_bps"] > ENTRY_THRESHOLDS["max_largest_buyer_flow_bps"]:
         reject("largest_buyer_concentration")
     if demand["top3_buyer_flow_bps"] > ENTRY_THRESHOLDS["max_top3_buyer_flow_bps"]:
@@ -550,14 +562,101 @@ def qualification_vector(
     )
 
 
+def entry_signal_persistence(original_vector, trajectory, demand):
+    """Confirm that the continuation thesis still exists at executable entry time."""
+    reasons=[]
+    if not trajectory.get("complete"):
+        reasons.append("fill_trajectory_incomplete")
+    else:
+        if int(trajectory.get("progress_15s_bps",0)) < ENTRY_THRESHOLDS["min_progress_15s_bps"]:
+            reasons.append("fill_curve_velocity")
+        if (
+            ENTRY_THRESHOLDS["require_curve_acceleration"]
+            and not bool(trajectory.get("accelerating"))
+        ):
+            reasons.append("fill_curve_deceleration")
+        eta=trajectory.get("graduation_eta_seconds")
+        if (
+            eta is None
+            or int(eta) < ENTRY_THRESHOLDS["min_graduation_eta_seconds"]
+            or int(eta) > ENTRY_THRESHOLDS["max_graduation_eta_seconds"]
+        ):
+            reasons.append("fill_graduation_eta")
+
+    if int(demand.get("independent_groups",0)) < ENTRY_THRESHOLDS["min_independent_groups"]:
+        reasons.append("fill_independent_breadth")
+    if int(demand.get("new_independent_groups_15s",0)) < ENTRY_THRESHOLDS["min_new_independent_groups_15s"]:
+        reasons.append("fill_buyer_growth")
+    if int(demand.get("buy_sell_ratio_bps",0)) < ENTRY_THRESHOLDS["min_buy_sell_ratio_bps"]:
+        reasons.append("fill_buy_sell_flow")
+    if int(demand.get("current_net_quote",0)) <= 0:
+        reasons.append("fill_net_demand_nonpositive")
+    if (
+        ENTRY_THRESHOLDS["require_flow_acceleration"]
+        and not bool(demand.get("net_flow_accelerating"))
+    ):
+        reasons.append("fill_flow_deceleration")
+    if int(demand.get("largest_buyer_flow_bps",10_000)) > ENTRY_THRESHOLDS["max_largest_buyer_flow_bps"]:
+        reasons.append("fill_largest_buyer_concentration")
+    if int(demand.get("top3_buyer_flow_bps",10_000)) > ENTRY_THRESHOLDS["max_top3_buyer_flow_bps"]:
+        reasons.append("fill_top3_buyer_concentration")
+    if int(demand.get("creator_sell_quote_15s",0)) > 0:
+        reasons.append("fill_creator_distribution")
+
+    original_demand=(original_vector or {}).get("demand") or {}
+    original_breadth=max(1,int(original_demand.get("independent_groups",1)))
+    breadth_retention=(
+        int(demand.get("independent_groups",0))*10_000//original_breadth
+    )
+    if breadth_retention < ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"]:
+        reasons.append("fill_buyer_breadth_decay")
+
+    return dict(
+        persistent=not reasons,
+        reasons=tuple(dict.fromkeys(reasons)),
+        breadth_retention_bps=int(breadth_retention),
+        original_independent_groups=int(original_demand.get("independent_groups",0)),
+        fill_independent_groups=int(demand.get("independent_groups",0)),
+        original_progress_15s_bps=int(
+            ((original_vector or {}).get("trajectory") or {}).get("progress_15s_bps",0)
+        ),
+        fill_progress_15s_bps=int(trajectory.get("progress_15s_bps",0) or 0),
+        fill_accelerating=bool(trajectory.get("accelerating")),
+        original_current_net_quote=int(original_demand.get("current_net_quote",0)),
+        fill_current_net_quote=int(demand.get("current_net_quote",0)),
+        fill_prior_net_quote=int(demand.get("prior_net_quote",0)),
+        fill_flow_accelerating=bool(demand.get("net_flow_accelerating")),
+    )
+
+
 def pregraduation_exit_reason(
     *, elapsed_seconds, frozen_eta_seconds, trajectory, demand,
-    after_cost_return_bps, creator_adverse=False,
+    after_cost_return_bps, high_water_return_bps=None, creator_adverse=False,
 ):
     if int(after_cost_return_bps) <= EXIT_POLICY["risk_bps"]:
         return "risk"
     if creator_adverse or int(demand.get("creator_sell_quote_15s", 0)) > 0:
         return "creator_distribution"
+
+    current=int(after_cost_return_bps)
+    high=current if high_water_return_bps is None else max(
+        current,int(high_water_return_bps)
+    )
+    if high >= EXIT_POLICY["first_profit_bps"]:
+        drawdown=max(0,high-current)
+        curve_decelerating=bool(
+            trajectory.get("complete") and not trajectory.get("accelerating")
+        )
+        flow_decelerating=(
+            int(demand.get("current_net_quote",0))
+            <= int(demand.get("prior_net_quote",0))
+        )
+        if (
+            drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"]
+            or (current > 0 and (curve_decelerating or flow_decelerating))
+        ):
+            return "pregraduation_profit_lock"
+
     if trajectory.get("complete"):
         if int(trajectory.get("recent_progress_bps", 0)) <= 0:
             return "momentum_failure"
