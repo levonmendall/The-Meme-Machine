@@ -416,11 +416,6 @@ def run(endpoint):
         warm_hard_deadline=warm_started+TAPE_WARM_MAX_SECONDS
         covered=0
         while time.monotonic()<warm_hard_deadline:
-            rpc,cursor,_=_poll(
-                endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
-                result["sequencer_recoveries"],
-                on_provider_failure=_checkpoint_provider_failure,
-            )
             warm_state=_warmup_state(
                 start_ts,feed.state.latest_header_timestamp,
                 time.monotonic()-warm_started,
@@ -428,6 +423,11 @@ def run(endpoint):
             covered=warm_state["covered_seconds"]
             if warm_state["ready"]:
                 break
+            rpc,cursor,_=_poll(
+                endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
+                result["sequencer_recoveries"],
+                on_provider_failure=_checkpoint_provider_failure,
+            )
         wall_seconds=max(0.0,time.monotonic()-warm_started)
         warm_state=_warmup_state(
             start_ts,feed.state.latest_header_timestamp,wall_seconds,
