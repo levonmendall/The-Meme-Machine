@@ -194,9 +194,10 @@ jobs:
               ),
           ]
           for old,new in replacements:
-              if text.count(old)!=1:
+              if text.count(old)==1:
+                  text=text.replace(old,new,1)
+              elif new not in text:
                   raise SystemExit("pump_repeat_fixture_anchor:"+old)
-              text=text.replace(old,new,1)
           path.write_text(text)
           PY
               git -C "$WT" add tests/test_strategy_prospect_admission.py
@@ -229,26 +230,28 @@ jobs:
 
               def run_case(self,folder,fail_at):
           '''
-          if text.count(old)!=1:
+          if text.count(old)==1:
+              text=text.replace(old,new,1)
+          elif "def persistent_entry_signal(*args):" not in text:
               raise SystemExit("pons_recovery_class_anchor")
-          text=text.replace(old,new,1)
-          old="""            '_wait_curve_quote':wait_quote,'_curve_quote':quote,
-          """
-          new="""            '_wait_curve_quote':wait_quote,'_curve_quote':quote,
-                      '_refresh_entry_persistence_signal':self.persistent_entry_signal,
-          """
-          if text.count(old)!=1:
+          anchor="            '_wait_curve_quote':wait_quote,'_curve_quote':quote,\n"
+          refresh="            '_refresh_entry_persistence_signal':self.persistent_entry_signal,\n"
+          if anchor not in text:
               raise SystemExit("pons_recovery_patch_anchor")
-          text=text.replace(old,new,1)
+          while anchor+refresh+refresh in text:
+              text=text.replace(anchor+refresh+refresh,anchor+refresh,1)
+          if anchor+refresh not in text:
+              text=text.replace(anchor,anchor+refresh,1)
           old="                 patch(MODULE+'_fresh_fill_full_exit_check',"
           new="""                 patch(MODULE+'_refresh_entry_persistence_signal',
                              side_effect=self.persistent_entry_signal),\\
                        patch(MODULE+'_fresh_fill_full_exit_check',"""
-          if text.count(old)!=1:
+          if text.count(old)==1:
+              text=text.replace(old,new,1)
+          elif "side_effect=self.persistent_entry_signal" not in text:
               raise SystemExit(
                   "pons_unexitable_patch_anchor:"+str(text.count(old))
               )
-          text=text.replace(old,new,1)
           recovery.write_text(text)
 
           text=policy.read_text()
@@ -256,9 +259,8 @@ jobs:
               "    def test_execution_certification_does_not_require_positive_acceleration(self):\n"
           )
           end=text.find("    def test_non_native_pair_is_research_only(self):\n",start)
-          if start<0 or end<0:
-              raise SystemExit("pons_acceleration_policy_test_anchor")
-          replacement='''    def test_execution_policy_requires_positive_acceleration(self):
+          if start>=0 and end>=0:
+              replacement='''    def test_execution_policy_requires_positive_acceleration(self):
                   decelerating=[
                       dict(at=185,progress_bps=7000),
                       dict(at=195,progress_bps=7400),
@@ -274,7 +276,9 @@ jobs:
                   self.assertIn("curve_deceleration",v["all_rejections"])
 
           '''
-          policy.write_text(text[:start]+replacement+text[end:])
+              policy.write_text(text[:start]+replacement+text[end:])
+          elif "def test_execution_policy_requires_positive_acceleration(self):" not in text:
+              raise SystemExit("pons_acceleration_policy_test_anchor")
           PY
               git -C "$WT" add robinhood_tests/test_pons_position_provider_recovery.py robinhood_tests/test_pons_selective_continuation.py
             fi
@@ -285,6 +289,130 @@ jobs:
             rm -rf "$ROOT"
           done
           git diff --check -- certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch
+      - name: Rebase Meteora and Ramses operational overlays onto verified strategy sources
+        run: |
+          set -euo pipefail
+          for LANE in meteora ramses; do
+            if [ "$LANE" = meteora ]; then
+              PATCH="meteora-checkpoint.patch"
+            else
+              PATCH="ramses-admission.patch"
+            fi
+            SHA="$(python -c "import json; print(json.load(open('certification/sources.json'))['lanes']['$LANE']['source_sha'])")"
+            ROOT="$(mktemp -d)"
+            WT="$ROOT/$LANE"
+            git fetch origin "$SHA"
+            git worktree add --detach "$WT" "$SHA"
+            if [ "$LANE" = meteora ]; then
+              python - "$GITHUB_WORKSPACE/certification/patches/$PATCH" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          # Rebase the campaign overlay onto the profitability runtime. The
+          # profitability source deliberately widened the runtime ceiling to
+          # support its multi-hour lifecycle; campaign mode must not restore
+          # the obsolete 2h/6h ceiling or the pre-profitability report identity.
+          text=text.replace(
+              "-    if not 60<=max_runtime_seconds<=7200:",
+              "-    if not 60<=max_runtime_seconds<=90000:",
+              1,
+          )
+          text=text.replace(
+              "+    if not 60<=max_runtime_seconds<=(21600 if campaign else 7200):",
+              "+    if not 60<=max_runtime_seconds<=90000:",
+              1,
+          )
+          text=text.replace(
+              '        kind="solana_dlmm_independent_v1_prospective",',
+              '        kind="solana_dlmm_authenticated_fee_density_v1_prospective",',
+              1,
+          )
+          path.write_text(text)
+          PY
+              if ! git -C "$WT" apply --index "$GITHUB_WORKSPACE/certification/patches/$PATCH"; then
+                echo "::group::meteora overlay rebase failure"
+                git -C "$WT" status --short || true
+                git -C "$WT" diff || true
+                echo "::endgroup::"
+                exit 1
+              fi
+              python - "$WT/tests/test_meteora_continuous_campaign.py" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          old="return dict(candidate,volume_acceleration=0 if clock[0]==0 else 3,fee_acceleration=3)"
+          new=("return dict(candidate,volume_acceleration=0 if clock[0]==0 else 3,"
+               "fee_acceleration=3,fee_5m_usd=0 if clock[0]==0 else 1,tvl_usd=1000)")
+          if old in text:
+              text=text.replace(old,new,1)
+          elif "fee_5m_usd=0 if clock[0]==0 else 1" not in text:
+              raise SystemExit("meteora_campaign_fee_context_fixture_anchor")
+
+          old_name="    def test_four_hours_requires_explicit_campaign_and_policy_does_not_change(self):\n"
+          new_name="    def test_multi_hour_profitability_runtime_preserves_policy_and_campaign_is_operational_only(self):\n"
+          if old_name in text:
+              start=text.index(old_name)
+              next_def=text.find("\n    def ",start+len(old_name))
+              end=len(text) if next_def<0 else next_def+1
+              replacement="\n".join([
+                  "    def test_multi_hour_profitability_runtime_preserves_policy_and_campaign_is_operational_only(self):",
+                  "        before=strategy.digest(strategy.load_policy())",
+                  "        with self.assertRaisesRegex(ValueError,'runtime_bound'):",
+                  "            strategy.run_live(max_runtime_seconds=90001)",
+                  "        for campaign in (False,True):",
+                  "            with tempfile.TemporaryDirectory() as td,patch.object(strategy,'OUT',Path(td)/'report.json'),patch.object(strategy,'_prove_network_identity',side_effect=RuntimeError('offline-network-boundary')):",
+                  "                with self.assertRaisesRegex(RuntimeError,'offline-network-boundary'):",
+                  "                    strategy.run_live(max_runtime_seconds=14400,campaign=campaign)",
+                  "        self.assertEqual(before,strategy.digest(strategy.load_policy()))",
+                  "",
+              ])
+              text=text[:start]+replacement+text[end:]
+          elif new_name not in text:
+              raise SystemExit("meteora_campaign_runtime_test_anchor")
+          path.write_text(text)
+          PY
+              git -C "$WT" add tests/test_meteora_continuous_campaign.py
+            else
+              if ! git -C "$WT" apply --3way --index "$GITHUB_WORKSPACE/certification/patches/$PATCH"; then
+                python - "$WT/robinhood_research/ramses_universe.py" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          start=text.find("<<<<<<< ours\n")
+          middle=text.find("=======\n",start)
+          end=text.find(">>>>>>> theirs\n",middle)
+          if start<0 or middle<0 or end<0 or text.find("<<<<<<< ours\n",end+1)>=0:
+              raise SystemExit("unexpected_ramses_overlay_conflict_shape")
+          ours=text[start+len("<<<<<<< ours\n"):middle]
+          theirs=text[middle+len("=======\n"):end]
+          if "_window_start_block(" not in ours or "checkpoint('factory_authentication'" not in theirs:
+              raise SystemExit("unexpected_ramses_universe_conflict")
+          resolved=(
+              '    start = _window_start_block(\n'
+              '        rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks\n'
+              '    )\n'
+              "    checkpoint('factory_authentication',frontier_block=end,frontier_hash=frontier['hash'],\n"
+              "        frontier_timestamp=int(frontier['timestamp'],16))\n"
+          )
+          path.write_text(text[:start]+resolved+text[end+len(">>>>>>> theirs\n"):])
+          PY
+                git -C "$WT" add robinhood_research/ramses_universe.py
+                if test -n "$(git -C "$WT" diff --name-only --diff-filter=U)"; then
+                  echo "::group::ramses unresolved overlay conflicts"
+                  git -C "$WT" status --short
+                  git -C "$WT" diff --cc || true
+                  echo "::endgroup::"
+                  exit 1
+                fi
+              fi
+            fi
+            git -C "$WT" diff --check
+            git -C "$WT" diff --binary HEAD > "$GITHUB_WORKSPACE/certification/patches/$PATCH.next"
+            mv "$GITHUB_WORKSPACE/certification/patches/$PATCH.next" "$GITHUB_WORKSPACE/certification/patches/$PATCH"
+            git worktree remove --force "$WT"
+            rm -rf "$ROOT"
+          done
+          git diff --check -- certification/patches/meteora-checkpoint.patch certification/patches/ramses-admission.patch
       - name: Supervisor deterministic suite
         run: python -m unittest discover -s certification/tests -v
       - name: Build exact isolated lane worktrees
@@ -304,12 +432,12 @@ jobs:
           exit "$CODE"
       - name: Preserve canonical rebased overlays on the PR head
         run: |
-          if git diff --quiet -- certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch; then
-            echo "Operational overlays already canonical for the edge sources."
+          if git diff --quiet -- certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch certification/patches/meteora-checkpoint.patch certification/patches/ramses-admission.patch; then
+            echo "All four operational overlays are already canonical for the verified strategy sources."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch
-          git commit -m "[qualification-build] canonicalize profitability persistence edge overlays"
+          git add certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch certification/patches/meteora-checkpoint.patch certification/patches/ramses-admission.patch
+          git commit -m "[qualification-build] canonicalize final four-lane strategy overlays"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}

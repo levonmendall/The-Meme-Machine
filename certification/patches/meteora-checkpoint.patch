@@ -1566,7 +1566,7 @@ index 0000000..8b7b820
 +def is_default_signature(value):
 +    return value == DEFAULT_SIGNATURE
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
-index c1aef79..252db5c 100644
+index 883e333..c7d8270 100644
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
 @@ -12,8 +12,10 @@ transport.
@@ -1786,7 +1786,7 @@ index c1aef79..252db5c 100644
      actions=ordered_tape_actions(tape)
      next_cursor=(list(actions[-1][1].get("cursor") or cursor)
                   if actions else list(cursor))
-@@ -1007,6 +1034,7 @@ def _build_position(entry,features,policy):
+@@ -1013,6 +1040,7 @@ def _build_position(entry,features,policy):
          entry_active=virtual["active"],entry_slot=entry["slot"],
          entry_time=entry["time"],entry_conversion_sol_lamports=conversion,
          entry_conversion_token_raw=token,deposits=deposits,
@@ -1794,7 +1794,7 @@ index c1aef79..252db5c 100644
      )
  
  
-@@ -1046,14 +1074,30 @@ def _mark(position):
+@@ -1052,14 +1080,30 @@ def _mark(position):
      token_side="y" if sol_side=="x" else "x"
      sol=assets[sol_side]+assets["fee_"+sol_side]
      tokens=assets[token_side]+assets["fee_"+token_side]
@@ -1949,7 +1949,7 @@ index c1aef79..252db5c 100644
      ),adapter
  
  
-@@ -1220,7 +1332,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
+@@ -1219,7 +1331,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
              sigs=[row["signature"] for row in valid]
              txmap,hydration=broker.hydrate_transactions(
                  rpc,sigs,kind="dlmm_fresh",
@@ -1959,7 +1959,7 @@ index c1aef79..252db5c 100644
              if hydration["pending"]:
                  after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
                      "getTransaction:http_429",0))
-@@ -1487,6 +1600,8 @@ def _await_fresh_swap_trigger(
+@@ -1486,6 +1599,8 @@ def _await_fresh_swap_trigger(
              if swaps:
                  trigger=swaps[0]
                  trigger_slot=int(trigger["slot"])
@@ -1968,7 +1968,7 @@ index c1aef79..252db5c 100644
                  adapter=_rotate(adapter,pacer,rpcs)
                  (post,adapter)=_retry_rate_limited_operation(
                      lambda active:_fresh_supported_start(
-@@ -1533,6 +1648,8 @@ def _triggered_warmup(
+@@ -1532,6 +1647,8 @@ def _triggered_warmup(
          return dict(
              aligned=False,reason=trigger["reason"],trigger=trigger,
          ),None,None,None,adapter,current_candidate
@@ -1977,7 +1977,7 @@ index c1aef79..252db5c 100644
      warmup_seconds=int(policy["range"]["warmup_seconds"])
      phase,warm,entry,warm_origin,adapter=_observe_window(
          adapter,current_candidate["address"],post_trigger,
-@@ -1551,6 +1668,7 @@ def _triggered_warmup(
+@@ -1550,6 +1667,7 @@ def _triggered_warmup(
          qualifying_window_seconds=warmup_seconds,
          swaps=(None if warm is None else len(warm.events)),
      )
@@ -1985,7 +1985,7 @@ index c1aef79..252db5c 100644
      return result,warm,entry,warm_origin,adapter,current_candidate
  
  
-@@ -1628,7 +1746,9 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
+@@ -1622,7 +1740,9 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
      ),None,None,None,None,adapter,current_candidate
  
  
@@ -1996,13 +1996,12 @@ index c1aef79..252db5c 100644
      assert_independence()
      policy=load_policy()
      target=int(target or policy["prospective_test"]["target_complete_lifecycles"])
-@@ -1639,11 +1759,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1633,11 +1753,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          raise ValueError("solana_dlmm_attempt_bound")
      max_runtime_seconds=int(
          max_runtime_seconds or DEFAULT_MAX_RUNTIME_SECONDS)
--    if not 60<=max_runtime_seconds<=7200:
 +    if type(campaign) is not bool:raise ValueError("solana_dlmm_campaign_flag")
-+    if not 60<=max_runtime_seconds<=(21600 if campaign else 7200):
+     if not 60<=max_runtime_seconds<=90000:
          raise ValueError("solana_dlmm_runtime_bound")
      run_started_monotonic=time.monotonic()
      deadline=run_started_monotonic+max_runtime_seconds
@@ -2013,7 +2012,7 @@ index c1aef79..252db5c 100644
      discovery_telemetry=dict(
          rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
      compatibility_rejections=[];compatibility_screened=0
-@@ -1682,7 +1806,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1676,7 +1800,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          evidence_broker=broker.telemetry(),
      )
      attempted=0;complete=0;failure_counts=Counter()
@@ -2034,7 +2033,7 @@ index c1aef79..252db5c 100644
          report["wake_stream"]=broker.stream_status(
              DLMM_WAKE_STREAM_KEY,int(time.time()),0)
          report["evidence_broker"]=broker.telemetry()
-@@ -1696,16 +1833,36 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1690,16 +1827,36 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
              elapsed_seconds=max(
                  0.0,time.monotonic()-run_started_monotonic),
          )
@@ -2074,7 +2073,7 @@ index c1aef79..252db5c 100644
          try:
              (compatibility_state,adapter)=_retry_rate_limited_operation(
                  lambda active:_fresh_supported_start(
-@@ -1717,10 +1874,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1711,10 +1868,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  reason=str(exc)[:200],
                  rpc=_sum_rpc_metrics(candidate_rpcs),
              ))
@@ -2095,7 +2094,7 @@ index c1aef79..252db5c 100644
          handoff_started_at=int(time.time())
          attempt=dict(
              attempt=attempted,pool=candidate["address"],candidate=candidate,
-@@ -1744,12 +1911,18 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1738,12 +1905,18 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  failure_counts[reason]+=1
                  attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                  report["attempts"].append(attempt)
@@ -2114,7 +2113,7 @@ index c1aef79..252db5c 100644
              attempt["pre_entry_features"]=features
              attempt["qualification"]=decision
              for failed in decision["failed"]:failure_counts[failed]+=1
-@@ -1757,11 +1930,13 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1751,11 +1924,13 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                  attempt["terminal_classification"]="qualification_rejection"
                  attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                  report["attempts"].append(attempt)
@@ -2129,7 +2128,7 @@ index c1aef79..252db5c 100644
              for rpc in candidate_rpcs:
                  if rpc not in rpcs:rpcs.append(rpc)
              attempt["lifecycle"]=lifecycle
-@@ -1776,13 +1951,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1770,13 +1945,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                      pre_entry_features=features,qualification=decision,**lifecycle))
              else:
                  failure_counts["lifecycle_unverified"]+=1
@@ -2149,7 +2148,7 @@ index c1aef79..252db5c 100644
              checkpoint("candidate_exception")
  
      resolved=[x for x in report["qualified_lifecycles"]
-@@ -1818,12 +1997,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1812,12 +1991,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          elapsed_seconds=max(
              0.0,time.monotonic()-run_started_monotonic),
          conclusion=(
@@ -2165,7 +2164,7 @@ index c1aef79..252db5c 100644
      _atomic_checkpoint(
          report,"final",rpcs,pacer,
          attempted_pool_count=attempted,
-@@ -1838,6 +2020,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+@@ -1832,6 +2014,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
          DLMM_WAKE_STREAM_KEY,int(time.time()),0)
      report["evidence_broker"]=broker.telemetry()
      broker.close()
@@ -2840,10 +2839,10 @@ index 0000000..4d429e2
 +                    self.assertEqual(rpc.retries,0)
 diff --git a/tests/test_meteora_continuous_campaign.py b/tests/test_meteora_continuous_campaign.py
 new file mode 100644
-index 0000000..9c5fe0e
+index 0000000..0e9e8a3
 --- /dev/null
 +++ b/tests/test_meteora_continuous_campaign.py
-@@ -0,0 +1,39 @@
+@@ -0,0 +1,41 @@
 +"""Continuous orchestration checks with a deterministic clock and no provider I/O."""
 +from pathlib import Path
 +import tempfile
@@ -2868,7 +2867,7 @@ index 0000000..9c5fe0e
 +        def api(*args,**kw):return dict(data=[row('first')]+([row('new')] if clock[0]>=60 else []))
 +        def acceleration(candidate,at):
 +            history.append((candidate['address'],at))
-+            return dict(candidate,volume_acceleration=0 if clock[0]==0 else 3,fee_acceleration=3)
++            return dict(candidate,volume_acceleration=0 if clock[0]==0 else 3,fee_acceleration=3,fee_5m_usd=0 if clock[0]==0 else 1,tvl_usd=1000)
 +        with patch.object(strategy.time,'monotonic',side_effect=lambda:clock[0]),patch.object(strategy.time,'time',side_effect=lambda:2800+clock[0]),patch.object(strategy.time,'sleep',side_effect=lambda n:clock.__setitem__(0,clock[0]+n)),patch.object(strategy,'_api',side_effect=api),patch.object(strategy,'_history_acceleration',side_effect=acceleration):
 +            candidates=list(strategy._campaign_candidates(strategy.load_policy(),telemetry,121,phases.append))
 +        self.assertEqual(history,[('first',2800),('new',2860)])
@@ -2876,12 +2875,14 @@ index 0000000..9c5fe0e
 +        self.assertEqual(telemetry['seen'],2);self.assertEqual(telemetry['census_cycles'],3)
 +        self.assertEqual(clock[0],121)
 +
-+    def test_four_hours_requires_explicit_campaign_and_policy_does_not_change(self):
++    def test_multi_hour_profitability_runtime_preserves_policy_and_campaign_is_operational_only(self):
 +        before=strategy.digest(strategy.load_policy())
-+        with self.assertRaisesRegex(ValueError,'runtime_bound'):strategy.run_live(max_runtime_seconds=14400)
-+        with tempfile.TemporaryDirectory() as td,patch.object(strategy,'OUT',Path(td)/'report.json'),patch.object(strategy,'_prove_network_identity',side_effect=RuntimeError('offline-network-boundary')):
-+            with self.assertRaisesRegex(RuntimeError,'offline-network-boundary'):
-+                strategy.run_live(max_runtime_seconds=14400,campaign=True)
++        with self.assertRaisesRegex(ValueError,'runtime_bound'):
++            strategy.run_live(max_runtime_seconds=90001)
++        for campaign in (False,True):
++            with tempfile.TemporaryDirectory() as td,patch.object(strategy,'OUT',Path(td)/'report.json'),patch.object(strategy,'_prove_network_identity',side_effect=RuntimeError('offline-network-boundary')):
++                with self.assertRaisesRegex(RuntimeError,'offline-network-boundary'):
++                    strategy.run_live(max_runtime_seconds=14400,campaign=campaign)
 +        self.assertEqual(before,strategy.digest(strategy.load_policy()))
 diff --git a/tests/test_opportunity_coverage.py b/tests/test_opportunity_coverage.py
 new file mode 100644
