@@ -1,0 +1,15 @@
+name: neutralize-solana-live-cancel
+on:
+  push:
+    branches: [strategy/meteora-fee-density-profitability-v1]
+permissions:
+  contents: read
+jobs:
+  neutral-slot:
+    if: contains(github.event.head_commit.message, '[neutralize-solana-live-cancel]')
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: solana-public-rpc-live
+      cancel-in-progress: false
+    steps:
+      - run: echo "Neutral no-op: supersedes the prior pending cancellation without cancelling an in-progress live job."
