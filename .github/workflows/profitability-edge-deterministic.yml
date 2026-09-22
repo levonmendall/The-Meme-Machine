@@ -148,6 +148,7 @@ jobs:
               raise SystemExit("pons_profit_lock_flag_anchor_missing")
           for required in (
               "entry_signal_persistence",
+              "_refresh_entry_persistence_signal",
               'result["entry_persistence"]',
               "PositionSessions",
               "CohortCapital",
@@ -174,15 +175,25 @@ jobs:
           import pathlib,sys
           path=pathlib.Path(sys.argv[1])
           text=path.read_text()
-          replacements={
-              'for i in range(8):':'for i in range(12):',
-              'improved.append(event(1005+i,400-5*i,f"p{i}",10+i))':
-                  'improved.append(event(1005+i,400-5*i,f"r{i}",10+i))',
-              'for i in range(12):':'for i in range(20):',
-              'improved[-1]=event(1030,200,"r11",41)':
+          replacements=[
+              (
+                  'for i in range(12):\n'
+                  '            improved.append(event(1020+min(i,10),300-9*i,f"r{i}",30+i))',
+                  'for i in range(20):\n'
+                  '            improved.append(event(1020+min(i,10),300-9*i,f"r{i}",30+i))',
+              ),
+              (
+                  'for i in range(8):\n'
+                  '            improved.append(event(1005+i,400-5*i,f"p{i}",10+i))',
+                  'for i in range(12):\n'
+                  '            improved.append(event(1005+i,400-5*i,f"r{i}",10+i))',
+              ),
+              (
+                  'improved[-1]=event(1030,200,"r11",41)',
                   'improved[-1]=event(1030,200,"r19",49)',
-          }
-          for old,new in replacements.items():
+              ),
+          ]
+          for old,new in replacements:
               if text.count(old)!=1:
                   raise SystemExit("pump_repeat_fixture_anchor:"+old)
               text=text.replace(old,new,1)
