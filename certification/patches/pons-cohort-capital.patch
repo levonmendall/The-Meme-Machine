@@ -406,7 +406,7 @@ index bf9e1a8..89bbb39 100644
  from .provider_topology import configured_rpc
 +from .provider_admission import foreground_work
  from .pons_selective_continuation import (
-     ENTRY_THRESHOLDS, curve_progress_bps, normalized_trade, qualification_vector,
+     ENTRY_THRESHOLDS, ZERO, curve_progress_bps, normalized_trade, qualification_vector,
  )
 @@ -24,6 +29,7 @@ HEADER_BATCH=50
  RECEIPT_BATCH=50
@@ -780,7 +780,7 @@ index bf9e1a8..89bbb39 100644
 +    record=candidate["record"]
 +    progress=curve_progress_bps(
 +        state.real_quote,record["graduationThreshold"])
-+    reasons=[]
++    reasons=([] if str(record.get("pairToken",ZERO)).lower()==ZERO else ["non_native_quote"])
 +    if state.graduated:
 +        reasons.append("already_graduated")
 +    if int(candidate["current_snipe_bps"])!=0:
@@ -1632,7 +1632,7 @@ index 76f73f5..3f5a874 100644
 +                    pipeline.record(identity,'terminal',evaluation['stale_stage'],censor_class(evaluation['stale_stage']),timing=evaluation.get('timing'))
 +                elif evaluation['vector'].get('current_threshold_pass'):
 +                    pipeline.record(identity,'qualified')
-+                else:pipeline.record(identity,'rejected','strategy_rejection','strategy_rejection')
++                else:pipeline.record(identity,'rejected','strategy_rejection:'+','.join(evaluation['vector'].get('all_rejections') or ['unspecified']),'strategy_rejection')
 +                coverage()
                  overlay=_attach_wallet_overlay(evaluation["vector"],skill)
                  public=public_evaluation(evaluation)
