@@ -221,16 +221,14 @@ jobs:
           if text.count(old)!=1:
               raise SystemExit("pons_recovery_patch_anchor")
           text=text.replace(old,new,1)
-          old="""                 patch(MODULE+'_wait_curve_quote',return_value=(entry,meta,None)),\\
-                       patch(MODULE+'_fresh_fill_full_exit_check',
-          """
-          new="""                 patch(MODULE+'_wait_curve_quote',return_value=(entry,meta,None)),\\
-                       patch(MODULE+'_refresh_entry_persistence_signal',
+          old="                 patch(MODULE+'_fresh_fill_full_exit_check',"
+          new="""                 patch(MODULE+'_refresh_entry_persistence_signal',
                              side_effect=self.persistent_entry_signal),\\
-                       patch(MODULE+'_fresh_fill_full_exit_check',
-          """
+                       patch(MODULE+'_fresh_fill_full_exit_check',"""
           if text.count(old)!=1:
-              raise SystemExit("pons_unexitable_patch_anchor")
+              raise SystemExit(
+                  "pons_unexitable_patch_anchor:"+str(text.count(old))
+              )
           text=text.replace(old,new,1)
           recovery.write_text(text)
 
