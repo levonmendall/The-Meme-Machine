@@ -134,19 +134,18 @@ jobs:
                         high_water_return_bps=high_water,
                     )
           '''
-          if merged.count(old)!=1:
+          if merged.count(old)==1:
+              merged=merged.replace(old,new,1)
+          elif "high_water_return_bps=high_water" not in merged:
               raise SystemExit(
-                  "pons_pregrad_highwater_anchor_count:"+str(merged.count(old))
+                  "pons_pregrad_highwater_anchor_missing"
               )
-          merged=merged.replace(old,new,1)
           old_flag="profit_taking_deferred_until_post_graduation=True,"
-          if merged.count(old_flag)!=1:
-              raise SystemExit(
-                  "pons_profit_lock_flag_anchor_count:"+str(merged.count(old_flag))
-              )
-          merged=merged.replace(
-              old_flag,"pregraduation_profit_lock_enabled=True,",1
-          )
+          new_flag="pregraduation_profit_lock_enabled=True,"
+          if old_flag in merged:
+              merged=merged.replace(old_flag,new_flag,1)
+          elif new_flag not in merged:
+              raise SystemExit("pons_profit_lock_flag_anchor_missing")
           for required in (
               "entry_signal_persistence",
               'result["entry_persistence"]',
