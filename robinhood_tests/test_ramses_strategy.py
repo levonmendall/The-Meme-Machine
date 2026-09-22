@@ -65,7 +65,11 @@ class RamsesStrategyTests(unittest.TestCase):
     def _costs(value=1):
         return {"entry":value,"add":value,"remove":value,"unwind":value}
 
-    def _decision(self, *, history=None, rebalance_reference_capital=None, quote_token=USDG_ADDRESS):
+    def _decision(
+        self, *, history=None, rebalance_reference_capital=None,
+        rebalance_reference_bins=None, rebalance_mode=None,
+        quote_token=USDG_ADDRESS
+    ):
         return classify_pool(
             self._state(),
             self._history(2) if history is None else history,
@@ -76,6 +80,8 @@ class RamsesStrategyTests(unittest.TestCase):
             gas_costs=self._costs(),
             quote_token=quote_token,
             rebalance_reference_capital=rebalance_reference_capital,
+            rebalance_reference_bins=rebalance_reference_bins,
+            rebalance_mode=rebalance_mode,
         )
 
     def test_policy_is_active_wide_maker_v3_and_paper_only(self):
@@ -153,15 +159,45 @@ class RamsesStrategyTests(unittest.TestCase):
         self.assertIn("prior_30m_not_quiet",busy["reasons"])
 
     def test_rebalance_bypasses_initial_quiet_gate_but_requires_economics(self):
+        initial=self._decision()
+        old_bins=initial["freeze"]["proposals"][0]["bins"]
         decision=self._decision(
             history=self._history(8),
             rebalance_reference_capital=10**16,
+            rebalance_reference_bins=old_bins,
+            rebalance_mode="compound_resize",
         )
         self.assertTrue(decision["qualified"],decision)
         self.assertTrue(decision["rebalance_candidate"])
+        self.assertEqual(decision["rebalance_mode"],"compound_resize")
         proposal=decision["freeze"]["proposals"][0]
         self.assertGreater(proposal["projected_after_cost_result"],0)
         self.assertGreater(proposal["two_x_cost_stress_result"],0)
+        self.assertGreaterEqual(
+            proposal["overlap_fraction"],
+            POLICY["active_wide_maker"]["compound_overlap_min"],
+        )
+
+    def test_recenter_requires_low_overlap(self):
+        state=self._state()
+        initial=self._decision()
+        old_bins=initial["freeze"]["proposals"][0]["bins"]
+        # Move the active state far enough that centered replacement has low overlap.
+        state["active"]+=100
+        decision=classify_pool(
+            state,self._history(8),"y",requested_capital=10**16,
+            entry_timestamp=1000,now=1000,gas_costs=self._costs(),
+            quote_token=USDG_ADDRESS,
+            rebalance_reference_capital=10**16,
+            rebalance_reference_bins=old_bins,
+            rebalance_mode="recenter",
+        )
+        self.assertTrue(decision["qualified"],decision)
+        proposal=decision["freeze"]["proposals"][0]
+        self.assertLessEqual(
+            proposal["overlap_fraction"],
+            POLICY["active_wide_maker"]["recenter_overlap_max"],
+        )
 
     def test_legacy_external_signal_cannot_grant_strategy_authority(self):
         signal=dict(
@@ -184,7 +220,7 @@ class RamsesStrategyTests(unittest.TestCase):
         center=(lo+hi)//2
         inside=controller_action(
             decision,current_active_bin=center,elapsed_seconds=60,rebalances_used=0,
-            opportunity_still_qualified=False,expected_remaining_fee_quote=1000,
+            opportunity_still_qualified=False,expected_remaining_fee_quote=19,
             estimated_inventory_loss_quote=10,rebalance_cost_quote=10,unwind_cost_quote=10,
         )
         self.assertEqual(inside["action"],"hold")
@@ -196,6 +232,19 @@ class RamsesStrategyTests(unittest.TestCase):
             estimated_inventory_loss_quote=10,rebalance_cost_quote=10,unwind_cost_quote=10,
         )
         self.assertEqual((watch["action"],watch["reason"]),("hold","hysteresis_no_partial_shift"))
+
+    def test_controller_compounds_inside_when_fee_reserve_pays_cycle(self):
+        decision=self._decision()
+        proposal=decision["freeze"]["proposals"][0]
+        center=(min(proposal["bins"])+max(proposal["bins"]))//2
+        action=controller_action(
+            decision,current_active_bin=center,elapsed_seconds=60,rebalances_used=0,
+            opportunity_still_qualified=True,expected_remaining_fee_quote=20,
+            estimated_inventory_loss_quote=0,rebalance_cost_quote=10,unwind_cost_quote=10,
+        )
+        self.assertEqual(action["action"],"rebalance")
+        self.assertEqual(action["mode"],"compound_resize")
+        self.assertEqual(action["reason"],"fee_reserve_pays_compound")
 
     def test_controller_recenters_only_with_known_positive_remaining_edge(self):
         decision=self._decision()
