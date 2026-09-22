@@ -6,13 +6,13 @@
   "lanes": {
     "pump": {
       "source_branch": "strategy/pump-profitability-v1",
-      "source_sha": "160985182b043ab41d0418ba5dcfed7dbfbe3cb2",
-      "strategy_version": "pump-acceleration-independent-v1/profitability-v1",
-      "policy_hash": "561ce76a334d9cdcd3b4888a9aaee24d11c9eb43f1ca20c5b806940297018bfc",
+      "source_sha": "9c11f78922af14ca77ee371e27f6e7df0ed8b46e",
+      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-persistence-edge-v1",
+      "policy_hash": "d623ff03ad19b2c4dcd8a82d4883c188ba1acd35a721582175d85cd1b0191770",
       "file_hashes": {
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
-        ".github/workflows/pump-acceleration-natural-prospective.yml": "7bc6fe705dd688fbb42e6ecc96112f2f1c56eb510076d6d1cfcfb5904145bf24",
-        "meme_machine/pump_acceleration_strategy.py": "f85adbe235e8d59f418a15561f3453336a6bbd24c74724a4a3cc893335c0dd16"
+        ".github/workflows/pump-acceleration-natural-prospective.yml": "697617d7ade8d42d68d991a5f73b0d8738117b56d2ecd3f9dd91cf03489d2a7f",
+        "meme_machine/pump_acceleration_strategy.py": "5b718204cf33eed122b41e052fa8ce564915b35a685e010c7bd6df889750af14"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -27,25 +27,32 @@
         "edfd9c1f23f4f958780e441eb19bf397d2ac82ca",
         "fa6ffbf0972676202f110f52425872b69f4ea627",
         "04c99ca3125747dc8bfc6f655fec7533f8ac8156",
-        "160985182b043ab41d0418ba5dcfed7dbfbe3cb2"
+        "160985182b043ab41d0418ba5dcfed7dbfbe3cb2",
+        "5ae63e13b3a370c536e5cd310262902049dbea48",
+        "1d831a28346e89ddaaee9ebd33ed07a25a4c70e9",
+        "64701faaef5aa94817dc31deafe21b3cd6b9d0f9",
+        "728ed29b7a353fe0bb503491a31951227c7aee1f",
+        "35703a380fe6c7f1df56bcf5a6ec59ca50d8d502",
+        "9c11f78922af14ca77ee371e27f6e7df0ed8b46e"
       ],
       "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
       "execution_certification": {
         "profitability_authority": true,
         "target_restrictiveness": "profitability-v1",
         "original_source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
-        "revision": "profitability-v1",
-        "purpose": "active paper-trading profitability policy derived from executed-trade, missed-winner, segment and robustness research",
+        "revision": "profitability-v1-persistence-edge-v1",
+        "purpose": "Active paper profitability policy with repeat-buyer demand persistence and executable fill-time signal revalidation.",
         "machinery_baseline_policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e"
       },
       "prospect_admission": {
         "market_observation_scope": "all finalized Pump events remain observable",
-        "investment_evaluation_scope": "profitability-v1 late-curve candidates in the 60-85% progress band with broad expanding independent demand, controlled concentration, non-collapsing trajectory and bounded executable round-trip downside; authenticated post-graduation modes retain separate continuation evidence",
+        "investment_evaluation_scope": "profitability-v1 late-curve candidates in the 60-85% progress band with broad expanding independent demand, repeat-buyer persistence, controlled concentration, bounded executable downside, and mandatory fill-time thesis persistence; post-graduation modes must also remain qualified at fill.",
         "pre_rpc_strategy_screen": true,
         "permanent_exclusion_on_screen_failure": false,
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
-        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
+        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks",
+        "edge_revision": "repeat_buyer_persistence_plus_fill_time_signal_persistence_v1"
       }
     },
     "meteora": {
@@ -118,12 +125,12 @@
     },
     "pons": {
       "source_branch": "strategy/pons-profitability-v1",
-      "source_sha": "a8b560c13f7e1b3696ac7f7aa9f35801f87421e1",
-      "strategy_version": "pons-selective-continuation-v1/profitability-v1",
-      "policy_hash": "d9f19aa3c9ab23aeab5a5622c8ca2bdefbca46a140ce3f56dbc0d64b14e6e64a",
+      "source_sha": "19c0a9840c2c95ef9661c316bf6c0be0729ea5de",
+      "strategy_version": "pons-selective-continuation-v1/profitability-v1-persistence-edge-v1",
+      "policy_hash": "3067732bcfa334b28ac4014a4adb5aee2a0310dee573ad349c3b5412c71c8853",
       "file_hashes": {
         ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
-        "robinhood_research/pons_selective_continuation.py": "09d9611034132f9f3b804e0b49f5d3e78e02f9d27c1745e2c2b9abc66e4eeb0a"
+        "robinhood_research/pons_selective_continuation.py": "c49e7542c2f9a83f7cb14957ec5a545147818d4608463ecec57e30a40bf36aaf"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
@@ -138,26 +145,33 @@
         "44355aaac41a06a80f306f4458bbf200b118f179",
         "38d264c9dd878e2f70ffb461c18bd12ecdd7c1d6",
         "40c66a68704fab147dacbfc25a0819b5a6f9c844",
-        "a8b560c13f7e1b3696ac7f7aa9f35801f87421e1"
+        "a8b560c13f7e1b3696ac7f7aa9f35801f87421e1",
+        "f7b7752c5f48ddae6d97325392cd9413d343ebc9",
+        "b41fc7e8f4e5bcfe994150f293f42d7a5570bd6f",
+        "6dabe5f6c6b4113df236fb737fa0f710ce3f1b6e",
+        "81e05f641154cd167f988a4ab6c419e2d0e10923",
+        "f1a50148d3b27257d0ad45828b3bb7427e54ba81",
+        "19c0a9840c2c95ef9661c316bf6c0be0729ea5de"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
       "execution_certification": {
         "profitability_authority": true,
         "target_restrictiveness": "profitability-v1",
         "original_source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
-        "revision": "profitability-v1",
-        "purpose": "active paper-trading profitability policy emphasizing mature continuation, bounded graduation ETA/friction and regime-reset re-entry",
+        "revision": "profitability-v1-persistence-edge-v1",
+        "purpose": "Active paper profitability policy with curve/flow acceleration, executable fill-time thesis persistence, and pre-graduation high-water protection.",
         "machinery_baseline_policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9"
       },
       "prospect_admission": {
         "market_observation_scope": "all authenticated Pons V2 buy/sell logs remain observable",
-        "investment_evaluation_scope": "ungraduated native-quote curves at 50-85% progress, age 120-600s and graduation ETA 20-90s with the existing demand breadth/flow controls, tighter top-three concentration and <=6% round-trip friction; same-curve re-entry requires a terminal flat prior lifecycle and a material point-in-time regime reset",
+        "investment_evaluation_scope": "ungraduated native-quote curves at 50-85% progress, age 120-600s and graduation ETA 20-90s with accelerating curve trajectory and net flow, existing breadth/concentration/friction controls, mandatory fill-time persistence, and pre-graduation high-water protection.",
         "minimal_state_preflight": true,
         "trajectory_window_after_preflight_only": true,
         "permanent_exclusion_on_screen_failure": false,
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
-        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
+        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks",
+        "edge_revision": "curve_flow_acceleration_fill_persistence_pregrad_highwater_v1"
       }
     },
     "ramses": {
@@ -243,11 +257,11 @@
     }
   },
   "execution_certification": {
-    "revision": "four-lane-profitability-v1-dlmm-machinery-v2-ramses-funding-repair",
-    "purpose": "Use Pump and Pons profitability-v1 with repaired Meteora/Ramses machinery-proof-v2 execution; Ramses campaign capital now initializes from the first genuine natural qualifier's pinned screen.",
+    "revision": "profitability-persistence-edge-v1-staging",
+    "purpose": "Compose Pump/Pons profitability persistence edges onto the latest repaired four-lane operational overlays without launching market validation.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora/Ramses machinery-proof-v2",
-    "validation_status": "ramses_first_qualified_funding_repair_qualified",
+    "validation_status": "overlay_rebase_and_deterministic_verification_pending",
     "validation_run_requested": false
   },
   "composition": {
@@ -261,8 +275,8 @@
     "strategy_thresholds_changed": false,
     "freshness_finality_changed": false,
     "paper_accounting_changed": false,
-    "validation_status": "deterministic_in_progress",
-    "validation_run_requested": true,
+    "validation_status": "profitability-persistence-edge-v1-staging",
+    "validation_run_requested": false,
     "source_sha": "0982519a68222b7cd0640981a7ac4a8ac7c119dd",
     "integration": "semantic delta composed in canonical overlays"
   }
