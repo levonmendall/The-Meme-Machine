@@ -1,0 +1,1 @@
+Verify authenticated Meteora fee-density profitability policy, Strategy2 continuity lineage, full deterministic tests and resource gates.
