@@ -1,0 +1,134 @@
+{
+  "kind": "ramses_active_wide_maker_rebalance_v1",
+  "status": "resolved_pre_holdout_research_rule",
+  "research_only": true,
+  "paper_only": true,
+  "allocation_authority": false,
+  "holdout_outcomes_read": false,
+  "source_branch": "research/ramses-profitable-operator-reverse-engineering-v1",
+  "strategy": "Ramses Active Wide Maker v1",
+  "evidence_scope": {
+    "quote_asset": "USDG",
+    "entry_regime": {
+      "prior_30m_swaps_max": 2,
+      "initial_width_bins_min": 65,
+      "initial_sidedness": "two_sided"
+    },
+    "first_quick_rebalance_books": 18,
+    "profitable_books": 15,
+    "distinct_owners": 12,
+    "distinct_pools": 17,
+    "lower_bound_pnl_usd": 88503.83369074747,
+    "replacement_width_at_least_65": {
+      "books": 10,
+      "wins": 10,
+      "win_rate": 1.0,
+      "owners": 7,
+      "pools": 9,
+      "lower_bound_pnl_usd": 55966.78532089612
+    },
+    "replacement_width_at_least_65_and_delay_at_most_210s": {
+      "books": 9,
+      "wins": 9,
+      "win_rate": 1.0,
+      "owners": 7,
+      "pools": 8,
+      "lower_bound_pnl_usd": 55544.29536198886,
+      "median_book_return": 0.1277762806906185
+    },
+    "replacement_width_at_least_65_two_sided_and_delay_at_most_210s": {
+      "books": 7,
+      "wins": 7,
+      "win_rate": 1.0,
+      "owners": 5,
+      "pools": 6,
+      "lower_bound_pnl_usd": 44014.64955955038
+    },
+    "losing_rebalances": {
+      "books": 3,
+      "replacement_width_bins": [16, 32, 42],
+      "median_replacement_width_bins": 32,
+      "median_burn_to_remint_seconds": 260
+    }
+  },
+  "state_variables": {
+    "lower_bin": "L",
+    "upper_bin": "U",
+    "active_bin": "A",
+    "center_bin": "C=(L+U)/2",
+    "half_width_bins": "H=max(0.5,(U-L)/2)",
+    "normalized_displacement": "D=abs(A-C)/H",
+    "rebalance_cycle_cost_quote": "current conservative remove+add cost; include inventory conversion cost when required",
+    "fee_reserve_quote": "authenticated LP fees attributable to this position since the last mint/resize"
+  },
+  "monitoring": {
+    "state_source": "finalized authenticated Ramses pool state",
+    "evaluate_each_finalized_state": true,
+    "provider_or_identity_failure": "fail_closed_no_rebalance"
+  },
+  "hold_rule": {
+    "condition": "A is inside [L,U] and neither compound_resize nor risk_exit is true",
+    "action": "hold_existing_range"
+  },
+  "compound_resize": {
+    "purpose": "harvest/compound a productive in-range position without converting it into a narrow partial shift",
+    "preconditions": [
+      "A is inside [L,U]",
+      "full current-position unwind is executable",
+      "fee_reserve_quote >= 2 * rebalance_cycle_cost_quote",
+      "a replacement range satisfying all replacement_geometry rules exists"
+    ],
+    "replacement_overlap_with_old_range_min": 0.5,
+    "partial_shift_overlap_band_prohibited": [0.1, 0.5],
+    "note": "Do not churn merely because price moved while still in range; in-range burn/remint requires an economic fee reserve."
+  },
+  "geometric_recenter": {
+    "trigger": "first finalized state where A < L or A > U",
+    "normalized_displacement_trigger": "D > 1.0",
+    "action": "burn_then_recompute_from_fresh_state",
+    "stale_overrun_cutoff": {
+      "condition": "D > 3.0 before a valid replacement is ready",
+      "action": "exit_or_hold_quote; do_not_chase_with_automatic_remint",
+      "evidence": "fee-driven profitable recenter observations were at or below approximately D=2.79; the major failed reset was observed at D=5.51"
+    }
+  },
+  "replacement_geometry": {
+    "candidate_width_bins": [65, 90, 120, 150, 200],
+    "hard_min_width_bins": 65,
+    "default_sidedness": "two_sided",
+    "active_bin_must_be_inside_replacement": true,
+    "full_unwind_at_replacement_state_required": true,
+    "two_x_cost_stress_required": true,
+    "selection": "among executable candidates passing cost stress, choose the candidate with highest expected after-cost fee return; ties choose the narrower width",
+    "recenter_old_new_overlap_max": 0.1,
+    "compound_resize_old_new_overlap_min": 0.5,
+    "intermediate_overlap_0.1_to_0.5": "reject_in_v1",
+    "one_sided_replacement": "not authorized in v1; observed profitable exceptions require separate inventory-specific validation"
+  },
+  "execution_timing": {
+    "target_burn_to_remint_seconds": 180,
+    "hard_same_rebalance_deadline_seconds": 210,
+    "on_deadline_miss": "discard stale replacement, reread finalized state, and rerun the complete decision",
+    "evidence": "wide replacements completed within 210 seconds were 9/9 profitable across 7 owners and 8 pools"
+  },
+  "sizing": {
+    "source": "range-local executable liquidity, not total TVL",
+    "maximum_local_liquidity_fraction_bps": 50,
+    "reduction_schedule_bps": [50, 25, 12, 6, 3, 1],
+    "automatic_size_increase_on_rebalance": false,
+    "rule": "new size <= min(governed target size, largest size with complete executable unwind)"
+  },
+  "exit_instead_of_remint": [
+    "no >=65-bin executable replacement exists",
+    "full unwind cannot be proven",
+    "two_x_cost_stress is nonpositive",
+    "authenticated state becomes incomplete or stale",
+    "stale overrun D > 3.0",
+    "inventory conversion required for a two-sided replacement is uneconomic"
+  ],
+  "promotion_boundary": {
+    "current_state": "research_frozen",
+    "production_strategy_change": false,
+    "next_required_step": "targeted exact replay / paper validation of this frozen rebalance rule before any holdout access or live strategy promotion"
+  }
+}
