@@ -181,14 +181,16 @@ class RamsesStrategyTests(unittest.TestCase):
     def test_recenter_requires_low_overlap(self):
         state=self._state()
         initial=self._decision()
-        old_bins=initial["freeze"]["proposals"][0]["bins"]
+        old_proposal=initial["freeze"]["proposals"][0]
+        old_bins=old_proposal["bins"]
+        burn_capital=int(old_proposal["capital_employed"])
         # Move the active state far enough that centered replacement has low overlap.
         state["active"]+=100
         decision=classify_pool(
-            state,self._history(8),"y",requested_capital=10**16,
+            state,self._history(8),"y",requested_capital=burn_capital,
             entry_timestamp=1000,now=1000,gas_costs=self._costs(),
             quote_token=USDG_ADDRESS,
-            rebalance_reference_capital=10**16,
+            rebalance_reference_capital=burn_capital,
             rebalance_reference_bins=old_bins,
             rebalance_mode="recenter",
         )
