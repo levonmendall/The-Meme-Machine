@@ -1,0 +1,2 @@
+Deterministic composition request for Pump/Pons profitability persistence edges.
+No market validation authorized by this marker.
