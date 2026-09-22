@@ -47,6 +47,8 @@ POLICY = {
         "max_position_local_liquidity_bps": 50,
         "capital_preservation_min_bps": 8000,
         "capital_preservation_max_bps": 12000,
+        "compound_overlap_min": 0.50,
+        "recenter_overlap_max": 0.10,
         "rebalance_requires_positive_after_cost_edge": True,
         "rebalance_requires_positive_two_x_cost_stress": True,
         "initial_entry_requires_positive_projected_edge": False,
@@ -75,7 +77,7 @@ POLICY = {
         "target_remint_seconds": 180,
         "hard_same_decision_deadline_seconds": 210,
         "max_holding_seconds": 604800,
-        "max_rebalances": 8,
+        "max_rebalances": 100,
         "rebalance_edge_to_cost_milli": 1000,
     },
     "signals": {
@@ -576,6 +578,7 @@ def _wide_range_ids(active, width):
 def _active_wide_freezes(
     prestate, capital, quote_side, *, entry_timestamp, prehistory, gas_costs,
     rebalance_reference_capital=None,
+    rebalance_reference_bins=None,
 ):
     active=int(prestate["active"])
     costs=_cost_total(gas_costs)
@@ -613,7 +616,15 @@ def _active_wide_freezes(
             if isinstance(two_x,int) and employed>0
             else None
         )
+        overlap_fraction=None
+        if rebalance_reference_bins is not None:
+            old=set(int(x) for x in rebalance_reference_bins)
+            new=set(int(x) for x in ids)
+            overlap_fraction=(
+                len(old & new)/float(max(1,min(len(old),len(new))))
+            )
         proposal["capital_preservation_bps"]=preservation_bps
+        proposal["overlap_fraction"]=overlap_fraction
         proposal["two_x_cost_stress_result"]=two_x
         proposal["two_x_cost_return_bps"]=two_x_bps
         freeze["proposal_hash"]=hashlib.sha256(
@@ -625,7 +636,7 @@ def _active_wide_freezes(
     return rows
 
 
-def _active_wide_candidate_ok(freeze, *, rebalance):
+def _active_wide_candidate_ok(freeze, *, rebalance, rebalance_mode=None):
     proposal=freeze["proposals"][0]
     p=POLICY["active_wide_maker"]
     if not proposal.get("two_sided"):
@@ -636,6 +647,15 @@ def _active_wide_candidate_ok(freeze, *, rebalance):
     if not p["capital_preservation_min_bps"] <= preservation <= p["capital_preservation_max_bps"]:
         return False
     if rebalance:
+        overlap=proposal.get("overlap_fraction")
+        if rebalance_mode=="compound_resize":
+            if overlap is None or float(overlap)<float(p["compound_overlap_min"]):
+                return False
+        elif rebalance_mode=="recenter":
+            if overlap is None or float(overlap)>float(p["recenter_overlap_max"]):
+                return False
+        elif rebalance_mode is not None:
+            raise BoundaryError("wide_maker_invalid_rebalance_mode")
         if p["rebalance_requires_positive_after_cost_edge"]:
             if not isinstance(proposal.get("projected_after_cost_result"),int) or proposal["projected_after_cost_result"] <= 0:
                 return False
@@ -648,7 +668,8 @@ def _active_wide_candidate_ok(freeze, *, rebalance):
 def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
                   entry_timestamp=None, gas_costs=None, universe_features=None,
                   anchor_signal=None, directional_signal=None, now=None, pool=None,
-                  quote_token=USDG_ADDRESS, rebalance_reference_capital=None):
+                  quote_token=USDG_ADDRESS, rebalance_reference_capital=None,
+                  rebalance_reference_bins=None, rebalance_mode=None):
     """Classify only the Active Wide Maker v3 policy.
 
     Anchor/directional/Fee Pulse arguments remain accepted for call-site
@@ -682,8 +703,14 @@ def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
             prehistory=prehistory,
             gas_costs=gas_costs,
             rebalance_reference_capital=rebalance_reference_capital,
+            rebalance_reference_bins=rebalance_reference_bins,
         )
-        freezes=[f for f in freezes if _active_wide_candidate_ok(f,rebalance=rebalance)]
+        freezes=[
+            f for f in freezes
+            if _active_wide_candidate_ok(
+                f,rebalance=rebalance,rebalance_mode=rebalance_mode
+            )
+        ]
         if not freezes:
             reasons.append(
                 "no_economic_rebalance_candidate"
@@ -715,6 +742,7 @@ def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
         "strategy_version":STRATEGY_VERSION,"strategy_domain":STRATEGY_DOMAIN,
         "allocation_authority":False,"paper_only":True,
         "rebalance_candidate":rebalance,
+        "rebalance_mode":rebalance_mode,
         "legacy_signals_ignored":bool(anchor_signal or directional_signal),
         "ignored_legacy_modes":["fee_pulse","anchor_pulse","directional_converter"],
     }
@@ -742,6 +770,17 @@ def controller_action(decision, *, current_active_bin, elapsed_seconds, rebalanc
     if d <= POLICY["controller"]["inside_hold_max_d"]:
         if risk_exit:
             return {"action":"exit","reason":"inventory_risk_dominates","D":d}
+        if (
+            fee_reserve_known
+            and rebalances_used < POLICY["controller"]["max_rebalances"]
+            and int(expected_remaining_fee_quote) >= 2*int(rebalance_cost_quote)
+        ):
+            return {
+                "action":"rebalance",
+                "reason":"fee_reserve_pays_compound",
+                "mode":"compound_resize",
+                "D":d,
+            }
         return {"action":"hold","reason":"inside_productive_range","D":d}
     if d < POLICY["controller"]["edge_watch_max_d"]:
         if risk_exit:
@@ -764,6 +803,7 @@ def controller_action(decision, *, current_active_bin, elapsed_seconds, rebalanc
             return {
                 "action":"rebalance",
                 "reason":"normalized_displacement_recenter_band",
+                "mode":"recenter",
                 "remaining_edge":remaining_edge,
                 "D":d,
             }
