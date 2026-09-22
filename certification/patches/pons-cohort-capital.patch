@@ -1545,7 +1545,7 @@ index 76f73f5..e92a3b9 100644
              last_terminal_by_curve[curve]=life
              collected_futures.add(id(future))
              active_curve_futures.pop(curve,None)
-@@ -446,14 +610,17 @@ def run(endpoint):
+@@ -446,14 +610,16 @@ def run(endpoint):
          next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
          while (
              time.monotonic()<deadline
