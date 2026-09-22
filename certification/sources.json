@@ -126,7 +126,7 @@
     },
     "pons": {
       "source_branch": "strategy/pons-profitability-v1",
-      "source_sha": "19c0a9840c2c95ef9661c316bf6c0be0729ea5de",
+      "source_sha": "a660fa2fa64e2e5b76849c49d5ffe9e7983ec840",
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-persistence-edge-v1",
       "policy_hash": "3067732bcfa334b28ac4014a4adb5aee2a0310dee573ad349c3b5412c71c8853",
       "file_hashes": {
@@ -152,7 +152,8 @@
         "6dabe5f6c6b4113df236fb737fa0f710ce3f1b6e",
         "81e05f641154cd167f988a4ab6c419e2d0e10923",
         "f1a50148d3b27257d0ad45828b3bb7427e54ba81",
-        "19c0a9840c2c95ef9661c316bf6c0be0729ea5de"
+        "19c0a9840c2c95ef9661c316bf6c0be0729ea5de",
+        "a660fa2fa64e2e5b76849c49d5ffe9e7983ec840"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
       "execution_certification": {
