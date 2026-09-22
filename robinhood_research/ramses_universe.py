@@ -31,15 +31,19 @@ from .ramses_strategy import (
     POLICY_HASH,
     STRATEGY_VERSION,
     STRATEGY_DOMAIN,
+    USDG_ADDRESS,
     attach_universe_percentiles,
     classify_pool,
     pool_features,
 )
 
 LOOKBACK_BLOCKS = 300
+LOOKBACK_SECONDS = 1800
 MAX_RECENT_ACTIVE_POOLS = 32
 WATCH_COHORT_SIZE = 8
-PAPER_ACTIVE_LIQUIDITY_BPS = 100  # 1%, always below the strategy's 10% ceiling.
+WIDE_HYDRATION_COHORT_SIZE = 8
+WIDE_STATE_RADIUS = 100
+PAPER_ACTIVE_LIQUIDITY_BPS = 50  # Active Wide Maker v3: max 0.50% of local liquidity.
 MAX_SWAP_LOGS = 2500
 UNIVERSE_BATCH_SIZE = 8
 UNIVERSE_BATCH_PAUSE_SECONDS = 0.8
@@ -321,7 +325,9 @@ def _decode_histories(logs, addresses):
     return histories
 
 
-def _prestate(rpc, factory, address, block):
+def _prestate(rpc, factory, address, block, *, bin_radius=3):
+    if type(bin_radius) is not int or not 1 <= bin_radius <= WIDE_STATE_RADIUS:
+        raise BoundaryError("ramses_universe_bin_radius")
     calls = [
         ("eth_call", [dict(to=factory, data=calldata("isPool(address)", address)), hex(block)]),
         ("eth_getCode", [address, hex(block)]),
@@ -341,9 +347,9 @@ def _prestate(rpc, factory, address, block):
     if int(hooks, 16):
         raise BoundaryError("ramses_universe_hooks_unsupported")
     active = values(active_raw)[0]
-    if not 3 <= active < 2**24 - 3:
+    if not bin_radius <= active < 2**24 - bin_radius:
         raise BoundaryError("ramses_universe_active_bin_boundary")
-    bins = list(range(active - 3, active + 4))
+    bins = list(range(active - bin_radius, active + bin_radius + 1))
     bin_calls = []
     for bid in bins:
         bin_calls.extend([
@@ -379,6 +385,39 @@ def _selection_key(row):
         int(row.get("latest_swap_block") or 0),
         row["pool"],
     )
+
+
+def _window_start_block(rpc, end_block, end_timestamp, seconds, block_hint):
+    """Find the first finalized block at/after an exact timestamp boundary."""
+    if type(seconds) is not int or seconds <= 0:
+        raise BoundaryError("invalid_ramses_universe_window")
+    target=max(0,int(end_timestamp)-seconds)
+    if target==0 or end_block<=0:
+        return 0
+    stride=max(64,int(block_hint))
+    low=max(0,int(end_block)-stride)
+    while True:
+        row=rpc.call(
+            "eth_getBlockByNumber",[hex(low),False],
+            scope="universe_window",
+        )
+        ts=int(row["timestamp"],16)
+        if ts<=target or low==0:
+            break
+        stride*=2
+        low=max(0,int(end_block)-stride)
+    high=int(end_block)
+    while low<high:
+        mid=(low+high)//2
+        row=rpc.call(
+            "eth_getBlockByNumber",[hex(mid),False],
+            scope="universe_window",
+        )
+        if int(row["timestamp"],16)>=target:
+            high=mid
+        else:
+            low=mid+1
+    return low
 
 
 def scan(
@@ -447,7 +486,9 @@ def scan(
         frontier = dict(finalized_frontier)
         frontier_source = "pinned_external_finalized_header"
     end = int(frontier["number"], 16)
-    start = max(0, end - lookback_blocks + 1)
+    start = _window_start_block(
+        rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks
+    )
 
     factory_pin = load("ramses_factory")
     factory = factory_pin["address"]
@@ -462,8 +503,9 @@ def scan(
     histories, cost_events = _decode_economic_logs(logs, addresses)
     observe_receipt_gas(rpc, cost_events, cost_state)
 
-    # Candidate truncation is pre-entry and outcome-blind: retain the pools with
-    # the densest recent finalized swap tape, breaking ties by latest activity.
+    # Active Wide Maker is intentionally a quiet-entry strategy. Preserve broad
+    # factory observability, but spend bounded state hydration on pools with only
+    # one or two swaps in the exact trailing 30-minute finalized window.
     activity = []
     for address, rows in histories.items():
         activity.append(dict(
@@ -472,21 +514,52 @@ def scan(
             latest_swap_block=max(r["block"] for r in rows),
         ))
     activity.sort(
-        key=lambda r: (r["swaps"], r["latest_swap_block"], r["pool"]),
+        key=lambda r: (
+            1 if 0 < r["swaps"] <= 2 else 0,
+            -abs(r["swaps"]-1),
+            r["latest_swap_block"],
+            r["pool"],
+        ),
         reverse=True,
     )
     active_cohort = activity[:max_recent_active_pools]
 
     rows = []
     exclusions = Counter()
+    wide_hydrated=0
     for activity_row in active_cohort:
         address = activity_row["pool"]
         try:
             auth, prestate = _prestate(rpc, factory, address, end)
-            feature = pool_features(prestate, histories[address], "y", pool=address)
+            tx=auth["token_x"].lower()
+            ty=auth["token_y"].lower()
+            if ty==USDG_ADDRESS:
+                quote_side="y"
+            elif tx==USDG_ADDRESS:
+                quote_side="x"
+            else:
+                quote_side=None
+            quiet=0 < activity_row["swaps"] <= 2
+            if (
+                quote_side is not None
+                and quiet
+                and wide_hydrated < WIDE_HYDRATION_COHORT_SIZE
+            ):
+                auth,prestate=_prestate(
+                    rpc,factory,address,end,bin_radius=WIDE_STATE_RADIUS
+                )
+                wide_hydrated+=1
+            feature = pool_features(
+                prestate,histories[address],quote_side or "y",pool=address
+            )
             rows.append(dict(
                 pool=address,
-                quote_side="y",
+                quote_side=quote_side or "y",
+                quote_token=(
+                    auth["token_y"] if quote_side=="y"
+                    else auth["token_x"] if quote_side=="x"
+                    else None
+                ),
                 token_x=auth["token_x"],
                 token_y=auth["token_y"],
                 bin_step=auth["bin_step"],
@@ -495,6 +568,10 @@ def scan(
                 prestate=prestate,
                 prehistory=histories[address],
                 features=feature,
+                wide_state_hydrated=(
+                    quote_side is not None
+                    and len(prestate.get("bins",{})) >= 201
+                ),
             ))
         except BoundaryError as exc:
             exclusions[str(exc)] += 1
@@ -567,6 +644,7 @@ def scan(
                 directional_signal=signal_context.get("directional"),
                 now=int(frontier["timestamp"], 16),
                 pool=row["pool"],
+                quote_token=row.get("quote_token"),
             )
         except BoundaryError as exc:
             decision = dict(
@@ -584,6 +662,8 @@ def scan(
             "token_x": row["token_x"],
             "token_y": row["token_y"],
             "quote_side": row["quote_side"],
+            "quote_token": row.get("quote_token"),
+            "wide_state_hydrated": row.get("wide_state_hydrated",False),
             "swap_count": row["swap_count"],
             "latest_swap_block": row["latest_swap_block"],
             "features": row["features"],
@@ -609,7 +689,7 @@ def scan(
     watch = [r["pool"] for r in ranked[:WATCH_COHORT_SIZE]]
     no_swap_count = len(addresses) - len(histories)
     result = dict(
-        kind="ramses_all_pool_universe_screen_v1",
+        kind="ramses_active_wide_maker_universe_screen_v1",
         strategy_version=STRATEGY_VERSION,
         strategy_domain=STRATEGY_DOMAIN,
         policy_hash=POLICY_HASH,
