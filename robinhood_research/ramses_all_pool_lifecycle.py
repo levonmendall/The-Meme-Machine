@@ -708,7 +708,8 @@ def aggregate_segments(segments):
 
 
 def _requalify_current_pool(
-    screen, pool, capital, costs_by_pool, signals_by_pool
+    screen, pool, capital, costs_by_pool, signals_by_pool,
+    *, rebalance_mode, reference_bins
 ):
     rows = screen.get("rows") or []
     row = next(
@@ -739,6 +740,8 @@ def _requalify_current_pool(
         pool=pool,
         quote_token=row.get("quote_token"),
         rebalance_reference_capital=capital,
+        rebalance_reference_bins=reference_bins,
+        rebalance_mode=rebalance_mode,
     )
 
 
@@ -1145,12 +1148,15 @@ def run(
                 signals_by_pool=signals_by_pool,
                 cost_state=cost_state,
             )
+            prior_proposal=decision["freeze"]["proposals"][0]
             new_decision = _requalify_current_pool(
                 fresh,
                 pool,
                 current_capital,
                 costs_by_pool,
                 signals_by_pool,
+                rebalance_mode=action.get("mode") or "recenter",
+                reference_bins=prior_proposal["bins"],
             )
             if (
                 not new_decision
@@ -1166,6 +1172,40 @@ def run(
                 ))
                 break
             verify_proposal_hash(new_decision["freeze"])
+            replacement=new_decision["freeze"]["proposals"][0]
+            gross=pnl.get("gross_result_quote")
+            execution=pnl.get("execution_cost_quote")
+            stress2=(
+                int(gross)-2*int(execution)
+                if type(gross) is int and type(execution) is int
+                else None
+            )
+            stress2_bps=(
+                stress2*10000//int(segment["initial_cost_basis"])
+                if type(stress2) is int and int(segment["initial_cost_basis"])>0
+                else None
+            )
+            validation_observation=dict(
+                eligible=True,
+                pool=pool,
+                mode=action.get("mode") or "recenter",
+                D=action.get("D"),
+                closed_segment=segment["index"],
+                old_width_bins=len(prior_proposal["bins"]),
+                new_width_bins=len(replacement["bins"]),
+                overlap_fraction=replacement.get("overlap_fraction"),
+                capital_preservation_bps=replacement.get(
+                    "capital_preservation_bps"),
+                after_cost_return_bps=pnl.get("after_cost_return_bps"),
+                two_x_cost_stress_return_bps=stress2_bps,
+                old_proposal_hash=segment["proposal_hash"],
+                new_proposal_hash=new_decision["freeze"]["proposal_hash"],
+                strategy_version=STRATEGY_VERSION,
+                policy_hash=POLICY_HASH,
+            )
+            result.setdefault("validation_rebalances", []).append(
+                validation_observation
+            )
             fresh_row = next(
                 (
                     r for r in fresh.get("rows", [])
@@ -1192,6 +1232,7 @@ def run(
                 at=int(fresh["finalized_timestamp"]),
                 capital=current_capital,
                 proposal_hash=decision["freeze"]["proposal_hash"],
+                validation_observation=validation_observation,
             )
             result.setdefault("rebalances", []).append(rebalance_row)
             ledger.checkpoint(
