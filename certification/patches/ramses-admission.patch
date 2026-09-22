@@ -886,7 +886,7 @@ index e4ab19d..91b2c99 100644
 +        natural_screens=[],continuous_campaign=campaign,natural_lifecycles=[],
 +        operational_configuration=dict(campaign=campaign,discovery_seconds=discovery_seconds,
 +            frontier_poll_seconds=DISCOVERY_FRONTIER_POLL_SECONDS,frontier_session_budget=frontier_session_budget,
-+            funding_rule='initial_screen_maximum_size_per_quote_asset_no_replenishment' if campaign else 'single_lifecycle'),
++            funding_rule='first_qualified_pinned_screen_maximum_size_per_quote_asset_no_replenishment' if campaign else 'single_lifecycle'),
      )
 +    from .ramses_campaign import CampaignBooks,digest
 +    result['operational_configuration_hash']=digest(result['operational_configuration'])
@@ -894,7 +894,7 @@ index e4ab19d..91b2c99 100644
 +    pipeline=Pipeline(Path(str(db_path or DB)+'.pipeline.sqlite'),'ramses',POLICY_HASH)
 +    result['scan_progress']=dict(state='idle',stage='awaiting_frontier')
 +    if campaign:
-+        result['campaign_accounting']=dict(funding_state='awaiting_first_fundable_pinned_screen',
++        result['campaign_accounting']=dict(funding_state='awaiting_first_qualified_pinned_screen',
 +            by_quote_asset={},open_positions=0,position_count=0,conservation=True,
 +            unlike_quote_units_summed=False,paper_entry_ready=False,
 +            policy_hash=POLICY_HASH,allocation_authority=False)
