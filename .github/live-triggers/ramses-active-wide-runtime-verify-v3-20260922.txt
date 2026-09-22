@@ -1,0 +1,1 @@
+Run source-policy deterministic verification for Active Wide Maker v3; full provider-admission/lifecycle verification remains integration-gated.
