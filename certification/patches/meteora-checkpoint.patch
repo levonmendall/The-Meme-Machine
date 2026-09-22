@@ -1566,7 +1566,7 @@ index 0000000..8b7b820
 +def is_default_signature(value):
 +    return value == DEFAULT_SIGNATURE
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
-index c1aef79..252db5c 100644
+index c1aef79..e643d6d 100644
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
 @@ -12,8 +12,10 @@ transport.
@@ -2488,7 +2488,7 @@ index 0000000..1e53cfb
 +if __name__=='__main__':unittest.main()
 diff --git a/tests/test_dlmm_independent_accounting.py b/tests/test_dlmm_independent_accounting.py
 new file mode 100644
-index 0000000..c2f45b7
+index 0000000..9aaf417
 --- /dev/null
 +++ b/tests/test_dlmm_independent_accounting.py
 @@ -0,0 +1,85 @@
