@@ -1,0 +1,69 @@
+{
+  "kind": "ramses_dlmm_quiet_entry_escalation_v1",
+  "status": "preregistered_before_initial_quiet_counterfactual_result",
+  "research_only": true,
+  "allocation_authority": false,
+  "evidence_basis": {
+    "full_history_swaps": 989796,
+    "clean_realized_lifecycles": 218,
+    "joined_development_validation_lifecycles": 191,
+    "quiet_usdg_development_validation_lifecycles": 28,
+    "historical_quiet_usdg_hold_hours_quartiles_approx": [
+      6.3,
+      25.5,
+      70.8
+    ],
+    "historical_quiet_usdg_median_width_bins": 16,
+    "hot_burst_exact_replay": "negative across 3 candidates / 12 variants",
+    "holdout_outcomes_read": false
+  },
+  "branch_A_short_symmetric_pass": {
+    "condition": [
+      "at least one exact symmetric width/hold variant has median gross return > 0 across the six deterministic candidates",
+      "positive-observation rate >= 0.50",
+      "no systematic executable-unwind failure"
+    ],
+    "action": "expand the exact same signal + width + hold without retuning to at least 20 development counterfactuals across at least 3 pools; apply historical gas/cycle cost sensitivity",
+    "forbidden": "no width/hold/quiet-threshold change before expanded result"
+  },
+  "branch_B_short_symmetric_fail": {
+    "condition": "no branch_A variant satisfies the pass condition",
+    "action": {
+      "signal": "unchanged finalized public USDG DLMMMint after <=2 prior-30m swaps and >=10 prior-24h swaps",
+      "entry": "first block after signal mint",
+      "geometry": "copy the public signal mint's exact bin set and sidedness/distribution, scaled non-impact to governed paper capital",
+      "holds_seconds": [
+        21600,
+        86400,
+        259200
+      ],
+      "rationale": "pre-result historical quiet-USDG hold distribution; public mint geometry is observable at signal time",
+      "size": "0.5% of exact local active/range liquidity, capped by executable unwind",
+      "rebalance": "none in first diagnostic",
+      "exit": "exact full removal plus executable same-pool residual unwind"
+    },
+    "forbidden": [
+      "do not loosen quiet threshold",
+      "do not select pools by future return",
+      "do not open final 20% holdout",
+      "do not add a directional signal after observing outcomes"
+    ]
+  },
+  "freeze_and_holdout": {
+    "prerequisite": [
+      ">=20 exact development counterfactuals",
+      ">=3 pools",
+      "positive median and mean after conservative costs",
+      "positive rate > 0.55",
+      "no single pool contributes >40% of positive PnL"
+    ],
+    "then": "freeze exact signal/range/hold/size rule before opening final 20% chronological holdout",
+    "final_profitability_claim": [
+      "holdout median after-cost return > 0",
+      "holdout mean after-cost return > 0",
+      "holdout win rate > 0.55",
+      ">=3 holdout pools unless strategy is explicitly frozen as pool-specific",
+      "positive under conservative execution-cost sensitivity"
+    ]
+  }
+}
