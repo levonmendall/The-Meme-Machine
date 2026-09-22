@@ -6,7 +6,7 @@ from pathlib import Path
 ANALYSIS=Path("ramses-branch-b-analysis.json")
 COST=Path("ramses-branch-b-cost-anchor.json")
 RULE=Path("RAMSES_BRANCH_B_FROZEN_RULE_V1.json")
-FROZEN_COST=Path("RAMSES_BRANCH_B_FROZEN_COST_ANCHOR_V1.json")
+FROZEN_COST=Path("RAMSES_BRANCH_B_FROZEN_COST_ANCHOR_V1.json")\nCOST_FALLBACK=Path("ramses-branch-b-cost-route-fallback.json")\nFROZEN_COST_FALLBACK=Path("RAMSES_BRANCH_B_FROZEN_COST_ROUTE_FALLBACK_V1.json")
 
 def digest(body):
     return hashlib.sha256(json.dumps(body,sort_keys=True,separators=(",",":")).encode()).hexdigest()
@@ -22,6 +22,17 @@ def main():
     cost_sha=digest(cost)
     if decision.get("cost_anchor_sha256")!=cost_sha or analysis.get("cost_anchor_sha256")!=cost_sha:
         raise RuntimeError("branch_b_freeze_cost_digest")
+    fallback_sha=None
+    if fallback is not None:
+        if (
+            fallback.get("kind")!="ramses_branch_b_cost_route_fallback_v1"
+            or fallback.get("frozen") is not True
+            or fallback.get("strategy_parameters_changed") is not False
+            or fallback.get("cost_model_changed") is not False
+            or fallback.get("cost_anchor_sha256")!=cost_sha
+        ):
+            raise RuntimeError("branch_b_freeze_cost_fallback")
+        fallback_sha=digest(fallback)
     hold=int(decision["hold_seconds"])
     if hold not in (86400,259200):
         raise RuntimeError("branch_b_freeze_hold")
@@ -46,7 +57,7 @@ def main():
         rebalance="none",
         conservative_cost_model="frozen Ramses receipt-gas cycle converted by executable WNATIVE/USDG route",
         two_x_cost_stress_required=True,
-        cost_anchor_sha256=cost_sha,
+        cost_anchor_sha256=cost_sha,\n        cost_route_fallback_sha256=fallback_sha,\n        cost_route_fallback_frozen=(fallback_sha is not None),
         source_development_metrics=selected,
         development_analysis_sha256=digest(analysis),
         holdout_criteria=dict(
@@ -62,7 +73,7 @@ def main():
     FROZEN_COST.write_text(json.dumps(cost,indent=2,sort_keys=True)+"\n")
     print(json.dumps({
         "status":"frozen","hold_seconds":hold,
-        "cost_anchor_sha256":cost_sha,
+        "cost_anchor_sha256":cost_sha,\n        "cost_route_fallback_sha256":fallback_sha,
         "development_analysis_sha256":rule["development_analysis_sha256"],
     },sort_keys=True))
 
