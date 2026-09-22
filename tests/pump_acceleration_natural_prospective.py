@@ -278,7 +278,8 @@ def _reserve_position(
 
 
 def _fill_pending(
-    report,pending,active,sessions,postgrad,tape,created,confirmations,now
+    report,pending,active,sessions,postgrad,now,*,
+    tape=None,created=None,confirmations=None
 ):
     for key,row in list(pending.items()):
         if now<int(row["due"]):
@@ -297,6 +298,8 @@ def _fill_pending(
                 if int(snapshot["slot"])<=int(row["decision_slot"]) or int(snapshot["market_time"])<int(row["due"]):
                     raise Unavailable("no_fresh_post_delay_quote")
 
+                if tape is None or created is None or confirmations is None:
+                    raise Unavailable("entry_persistence_context_unavailable")
                 creation=created[mint]["creation"]
                 ev=tape.window(
                     mint,int(snapshot["market_time"]),max_slot=snapshot["slot"]
@@ -333,6 +336,8 @@ def _fill_pending(
                 state=postgrad.get(mint)
                 if state is None:
                     raise Unavailable("missing_postgrad_state")
+                if confirmations is None:
+                    raise Unavailable("entry_persistence_context_unavailable")
                 sessions.ensure(85)
                 graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
                 handoff=graduation_handoff(
@@ -662,7 +667,8 @@ def main():
             # Paper entries use the repository-standard two-second delay and a fresh
             # executable quote. This is execution realism, not a strategy threshold.
             _fill_pending(
-                report,pending,active,sessions,postgrad,tape,created,confirmations,now
+                report,pending,active,sessions,postgrad,now,
+                tape=tape,created=created,confirmations=confirmations
             )
 
             # Exact frozen exit controller on natural qualifiers.  Each qualifier is
