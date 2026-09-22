@@ -2868,7 +2868,7 @@ index 0000000..9c5fe0e
 +        def api(*args,**kw):return dict(data=[row('first')]+([row('new')] if clock[0]>=60 else []))
 +        def acceleration(candidate,at):
 +            history.append((candidate['address'],at))
-+            return dict(candidate,volume_acceleration=0 if clock[0]==0 else 3,fee_acceleration=3)
++            return dict(candidate,volume_acceleration=0 if clock[0]==0 else 3,fee_acceleration=3,fee_5m_usd=1.0,tvl_usd=candidate['tvl_usd'])
 +        with patch.object(strategy.time,'monotonic',side_effect=lambda:clock[0]),patch.object(strategy.time,'time',side_effect=lambda:2800+clock[0]),patch.object(strategy.time,'sleep',side_effect=lambda n:clock.__setitem__(0,clock[0]+n)),patch.object(strategy,'_api',side_effect=api),patch.object(strategy,'_history_acceleration',side_effect=acceleration):
 +            candidates=list(strategy._campaign_candidates(strategy.load_policy(),telemetry,121,phases.append))
 +        self.assertEqual(history,[('first',2800),('new',2860)])
