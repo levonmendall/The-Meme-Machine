@@ -1,0 +1,3 @@
+Final replacement validation after exact overlay canonicalization and transient-retry telemetry regression correction.
+Prelaunch qualification: all four qualification overlays, repository unit suite, resource check and synthetic lifecycle passed.
+Market validation remains paper-only with unchanged strategy thresholds, position sizing, cost models, freshness/finality and provider ceilings.
