@@ -12,8 +12,10 @@ transport.
 from __future__ import annotations
 
 import argparse
-from collections import Counter
+from collections import Counter,deque
 from copy import deepcopy
+from dataclasses import asdict
+import uuid
 import json
 import math
 import os
@@ -39,7 +41,8 @@ from meme_machine.provider import Unavailable
 from meme_machine.solana_evidence_broker import (
     DEFAULT_BROKER_DB,EvidenceBroker,ProgramAccountWakeStream,
 )
-from meme_machine.store import encode
+from meme_machine.store import encode,digest
+from meme_machine.dlmm_independent_accounting import PaperBook
 from tests import dlmm_alchemy_provider as provider
 
 POLICY_PATH=Path("SOLANA_DLMM_INDEPENDENT_V1.json")
@@ -93,6 +96,11 @@ class _MeteoraPacer:
 METEORA_PACER=_MeteoraPacer()
 
 
+
+PROGRESS_HOOK=None
+
+def _stage(pool,stage,reason=None,**details):
+    if PROGRESS_HOOK is not None:PROGRESS_HOOK(pool,stage,reason,**details)
 
 def assert_independence():
     bad_env=sorted(k for k in os.environ if k.startswith("MM_ROBINHOOD_"))
@@ -254,7 +262,7 @@ def _history_acceleration(candidate,observed_at):
     return out
 
 
-def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None):
+def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None,seen=None):
     """Yield each qualifying pool immediately after its history check.
 
     The order is deterministic: configured sort order, then page, then API row rank.
@@ -267,7 +275,7 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
     telemetry.setdefault("qualified",[])
     telemetry.setdefault("seen",0)
     telemetry.setdefault("history_reads",0)
-    seen=set()
+    seen=set() if seen is None else seen
     regime=policy["regime"]
     for sort_by in DISCOVERY_SORTS:
         for page in range(1,DISCOVERY_PAGES_PER_SORT+1):
@@ -298,6 +306,7 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
                 if not isinstance(address,str) or not address or address in seen:
                     continue
                 seen.add(address);telemetry["seen"]+=1
+                _stage(address,"discovered")
                 raw=_candidate(row)
                 raw["sources"]=[dict(
                     sort=sort_by,rank=(page-1)*DISCOVERY_PAGE_SIZE+raw_rank)]
@@ -338,6 +347,29 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
                 yield item
             if len(rows)<DISCOVERY_PAGE_SIZE:
                 break
+
+
+class CampaignAttemptBudget:
+    """Same default-study attempt capacity per 20 minutes, without a lifetime stop."""
+    def __init__(self,limit,window=1200):self.limit=limit;self.window=window;self.admitted=deque()
+    def take(self,now):
+        while self.admitted and self.admitted[0]<=now-self.window:self.admitted.popleft()
+        if len(self.admitted)>=self.limit:return False
+        self.admitted.append(now);return True
+
+
+def _campaign_candidates(policy,telemetry,deadline,checkpoint):
+    # First sighting remains global for this process. Repeating the public census
+    # finds newly appearing pools, never refreshes a rejected pool's first clock
+    # or revises its priority using later outcomes.
+    seen=set();cycle=0
+    while not _runtime_expired(deadline):
+        cycle_started=time.monotonic();cycle+=1
+        yield from _iter_acceleration_candidates(policy,telemetry,deadline,checkpoint,seen)
+        telemetry['census_cycles']=cycle
+        checkpoint('census_cycle_complete')
+        wait=min(max(0.0,60-(time.monotonic()-cycle_started)),_runtime_remaining(deadline))
+        if wait:time.sleep(wait)
 
 
 def discover(policy,scan_cap):
@@ -428,6 +460,7 @@ def _rotate(adapter,pacer,rpcs):
 
 
 def _atomic_checkpoint(report,stage,rpcs,pacer,**progress):
+    report.update(progress)
     report["checkpoint"]=dict(
         stage=stage,written_at=int(time.time()),**progress)
     report["rpc"]=_sum_rpc_metrics(rpcs)
@@ -557,53 +590,41 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
             before=page[-1]["signature"]
     else:
         coverage=broker.signature_coverage(scope,pool)
-        old_head=coverage.get("newest_signature")
         old_oldest=coverage.get("oldest_slot")
-
-        # Extend the head only once per interval. The "until" cursor avoids
-        # re-reading the already authenticated prefix.
-        if int(coverage.get("covered_through_slot") or 0)<int(end_slot):
-            before=None
+        cached=broker.signature_rows(scope,pool)
+        # Only a previously completed census can supply an incremental cursor.
+        reuse=bool(coverage.get("covered_through_slot") and old_oldest is not None
+                   and int(old_oldest)<=int(start_slot))
+        old_head=coverage.get("newest_signature") if reuse else None
+        pending=[];seen=set();before=None
+        if not reuse or int(coverage["covered_through_slot"])<int(end_slot):
             for _ in range(MAX_SIGNATURE_CENSUS_PAGES):
                 page=fetch_page(before=before,until=old_head)
-                if page:
-                    broker.remember_signatures(scope,pool,page)
-                if not page or len(page)<SIGNATURE_PAGE_LIMIT:
-                    break
-                before=page[-1]["signature"]
-
-        coverage=broker.signature_coverage(scope,pool)
-        # Establish or extend the lower-bound witness only when needed.
-        oldest=coverage.get("oldest_slot")
-        if oldest is None or int(oldest)>int(start_slot):
-            before=None
-            rows=broker.signature_rows(scope,pool)
-            if rows:
-                oldest_row=min(rows,key=lambda row:(row["slot"],row["signature"]))
-                before=oldest_row["signature"]
-            for _ in range(MAX_SIGNATURE_CENSUS_PAGES):
-                page=fetch_page(before=before)
-                if page:
-                    broker.remember_signatures(scope,pool,page)
-                if not page:
-                    break
-                if any(int(row["slot"])<=int(start_slot) for row in page):
+                for row in page:
+                    if row["signature"] in seen:
+                        raise Unavailable("solana_dlmm_signature_census_duplicate")
+                    seen.add(row["signature"]);pending.append(row)
+                relevant=[row for row in pending
+                          if start_slot<row["slot"]<=end_slot and not row.get("err")]
+                if len(relevant)>MAX_TRANSACTIONS:
+                    raise Unavailable("solana_dlmm_transaction_pressure_overflow")
+                # Cold start needs only the exact lower witness, not the pool's
+                # entire history. A warm query must finish its bridge to old_head.
+                if (not old_head and any(row["slot"]<=start_slot for row in page)):
                     break
                 if len(page)<SIGNATURE_PAGE_LIMIT:
                     break
                 before=page[-1]["signature"]
-
-        # A successful finalized query proves the ledger current through this
-        # authenticated interval end even when no new pool transaction occurred.
-        broker.remember_signatures(
-            scope,pool,[],covered_through_slot=int(end_slot))
-        collected=broker.signature_rows(scope,pool,end_slot=end_slot)
-        boundary_rows=[
-            row for row in collected if int(row["slot"])<=int(start_slot)]
-        boundary=(
-            max(boundary_rows,key=lambda row:(row["slot"],row["signature"]))
-            if boundary_rows else None
-        )
+            else:
+                raise Unavailable("solana_dlmm_signature_census_head_incomplete")
+        # Stage new rows until coverage, boundary, cardinality and transaction
+        # ordering fields have all been checked. Failure must not poison the next
+        # request's durable head or claim a missing chain range was authenticated.
+        merged={row["signature"]:row for row in (cached if reuse else [])}
+        merged.update({row["signature"]:row for row in pending})
+        collected=[row for row in merged.values() if row["slot"]<=end_slot]
+        boundary_rows=[row for row in collected if row["slot"]<=start_slot]
+        boundary=max(boundary_rows,key=lambda row:(row["slot"],row["signature"])) if boundary_rows else None
 
     if boundary is None:
         raise Unavailable("solana_dlmm_signature_census_missing_start_boundary")
@@ -622,6 +643,8 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
         if type(item.get("transactionIndex")) is not int:
             raise Unavailable("solana_dlmm_transaction_index_unavailable")
         selected.append(item)
+    if broker is not None:
+        broker.remember_signatures(scope,pool,pending,covered_through_slot=int(end_slot))
     selected.append(witness)
     selected.sort(
         key=lambda row:(row["slot"],row["transactionIndex"]),reverse=True)
@@ -641,7 +664,9 @@ def _capture_chunk(
 ):
     if wait_seconds<=0:
         raise ValueError("solana_dlmm_chunk_wait")
+    _stage(start["pool"],"forward_observation",duration_seconds=wait_seconds)
     time.sleep(wait_seconds)
+    _stage(start["pool"],"reconstruction_started")
     end_snapshot=adapter.snapshot_from_state(
         start,int(time.time()),True,fresh=True)
     signatures,census=_complete_signature_census(
@@ -654,7 +679,8 @@ def _capture_chunk(
         signatures_to_hydrate=[s["signature"] for s in relevant]
         txmap,hydration=broker.hydrate_transactions(
             adapter.rpc,signatures_to_hydrate,kind=hydration_kind,
-            deadline=time.time()+6.0,max_version=1,batch_size=8)
+            deadline=time.time()+6.0,max_version=1,batch_size=8,
+            owner=f'meteora:{start["pool"]}:interval:{start["slot"]}:{end_snapshot["slot"]}',candidate_id=start["pool"])
         if hydration["pending"]:
             raise Unavailable("solana_dlmm_transaction_hydration_incomplete")
         transactions={
@@ -675,6 +701,7 @@ def _capture_chunk(
         raise Unavailable("solana_dlmm_interval_evidence_bound")
     tape=reconstruct(
         start,end_snapshot,signatures,transactions,int(time.time()),cursor)
+    _stage(start["pool"],"reconstruction_complete",lineage=tape.lineage)
     actions=ordered_tape_actions(tape)
     next_cursor=(list(actions[-1][1].get("cursor") or cursor)
                  if actions else list(cursor))
@@ -1007,6 +1034,7 @@ def _build_position(entry,features,policy):
         entry_active=virtual["active"],entry_slot=entry["slot"],
         entry_time=entry["time"],entry_conversion_sol_lamports=conversion,
         entry_conversion_token_raw=token,deposits=deposits,
+        entry_conversion_quote=quote,
     )
 
 
@@ -1046,14 +1074,30 @@ def _mark(position):
     token_side="y" if sol_side=="x" else "x"
     sol=assets[sol_side]+assets["fee_"+sol_side]
     tokens=assets[token_side]+assets["fee_"+token_side]
-    liquidation=0
+    liquidation=0;quote=None
     if tokens:
         _,quote=dlmm.swap(
             deepcopy(state),tokens,sol_side=="y",int(state["time"]))
         liquidation=int(quote["output"]);sol+=liquidation
+    # Allocate the one executable unwind proportionally. A separate dust-size
+    # hypothetical swap must never censor an otherwise executable real unwind.
+    inventory_liquidation=liquidation*assets[token_side]//tokens if tokens else 0
+    inventory_sol=assets[sol_side]+inventory_liquidation
+    fee_value=sol-inventory_sol
+    inventory_spot=assets[sol_side]+_to_sol(state,assets[token_side],state[token_side],state['active'])
+    fee_spot=assets['fee_'+sol_side]+_to_sol(state,assets['fee_'+token_side],state[token_side],state['active'])
+    unwind_cost=inventory_spot+fee_spot-sol
     pnl=sol-CAPITAL-ROUND_TRIP_NETWORK_COST
     return dict(
         resolved=True,ending_sol_lamports=sol,pnl_lamports=pnl,
+        withdrawn_assets_raw=assets,unwind_quote=quote,
+        fee_pnl_lamports=fee_value,inventory_pnl_lamports=inventory_sol-CAPITAL,
+        fee_income_mark_lamports=fee_spot,inventory_mark_pnl_lamports=inventory_spot-CAPITAL,
+        unwind_cost_lamports=unwind_cost,
+        network_cost_lamports=ROUND_TRIP_NETWORK_COST,
+        fee_valuation_method='pro_rata_combined_executable_unwind_output',
+        execution_cost_accounting='swap_and_protocol_fees_embedded_in_executable_quotes_network_cost_separate',
+        unwind_input_token=state[token_side],
         pnl_bps=pnl*10000/CAPITAL,
         non_sol_inventory_raw=tokens,
         non_sol_inventory_liquidation_lamports=liquidation,
@@ -1101,10 +1145,62 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
     return reasons,recent,mark,fee_uplift
 
 
-def _lifecycle(
-    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None
+def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None):
+    identity=book.identity() if book is not None else None
+    if book is not None:
+        book.append(identity,'reserve',dict(amount=CAPITAL+ROUND_TRIP_NETWORK_COST,
+            pool=address,policy_hash=digest(policy),strategy_evidence_hash=digest(dict(entry=entry,features=features))))
+    _stage(address,'entry_reserved',lifecycle_id=identity)
+    try:
+        return _position_lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline,broker,book,identity)
+    except BaseException as exc:
+        if book is not None:book.fail(identity,type(exc).__name__+':'+str(exc)[:200])
+        raise
+
+
+POSITION_EVIDENCE_RECOVERY_MAX=3
+POSITION_EVIDENCE_RECOVERABLE=frozenset((
+    "provider_request_failed",
+    "solana_dlmm_rate_limit_recovery_exhausted",
+    "solana_dlmm_signature_census_missing_start_boundary",
+    "solana_dlmm_transaction_hydration_incomplete",
+    "solana_dlmm_transaction_index_unavailable",
+))
+
+
+def _recover_position_observation(
+    adapter,address,current,duration,pacer,rpcs,deadline,broker
+):
+    recoveries=[]
+    while True:
+        phase,tape,terminal,effective_start,adapter=_observe_window(
+            adapter,address,current,duration,False,pacer,rpcs,deadline,
+            broker,"position_monitor")
+        if phase["verified"]:
+            return phase,tape,terminal,effective_start,adapter,recoveries
+        reason=str(phase.get("reason") or "")
+        if (
+            reason not in POSITION_EVIDENCE_RECOVERABLE
+            or len(recoveries)>=POSITION_EVIDENCE_RECOVERY_MAX
+            or _runtime_expired(deadline)
+        ):
+            return phase,tape,terminal,effective_start,adapter,recoveries
+        recoveries.append(dict(attempt=len(recoveries)+1,reason=reason))
+        _stage(address,"forward_observation",recovery=True,
+            recovery_attempt=len(recoveries),reason=reason)
+        adapter=_rotate(adapter,pacer,rpcs)
+
+
+def _position_lifecycle(
+    adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None,identity=None
 ):
     position=_build_position(entry,features,policy)
+    if book is not None:
+        book.append(identity,'entry',dict(capital=CAPITAL,entry_cost=ENTRY_NETWORK_COST,
+            exit_cost=EXIT_NETWORK_COST,entry_state=entry,position=position,features=features,
+            policy=policy,mark=_mark(position)))
+    _stage(address,'deployed',lifecycle_id=identity)
+    _stage(address,'entry_filled',lifecycle_id=identity)
     current=entry;elapsed=0;segments=[];tapes=[]
     max_hold=int(policy["range"]["max_holding_seconds"])
     segment_seconds=int(policy["exit"]["observation_segment_seconds"])
@@ -1119,33 +1215,49 @@ def _lifecycle(
     while elapsed<max_hold:
         adapter=_rotate(adapter,pacer,rpcs)
         duration=min(segment_seconds,max_hold-elapsed)
-        phase,tape,terminal,effective_start,adapter=_observe_window(
-            adapter,address,current,duration,False,pacer,rpcs,deadline,
-            broker,"position_monitor")
+        phase,tape,terminal,effective_start,adapter,recoveries=(
+            _recover_position_observation(
+                adapter,address,current,duration,pacer,rpcs,deadline,broker))
         if not phase["verified"]:
-            return dict(
+            reason=str(phase.get("reason") or "")
+            terminal_writeoff=(reason in ("dlmm_multiple_liquidity_removals_in_interval","dlmm_add_liquidity_by_strategy2_mixed_with_swap_interval") or reason.startswith("dlmm_rebalance_liquidity_requires_position_state:"))
+            if book is not None:(book.append(identity,'writeoff',dict(reason=reason,recovery_attempts=recoveries)) if terminal_writeoff else book.fail(identity,reason))
+            return dict(lifecycle_id=identity,
                 complete=False,reason=phase["reason"],segments=segments,
-                verified_hold_seconds=elapsed,
+                verified_hold_seconds=elapsed,recovery_attempts=recoveries,terminal_writeoff=terminal_writeoff,
+                **(dict(writeoff_proceeds_lamports=0) if terminal_writeoff else dict(unresolved_position=True)),
             ),adapter
         position=_advance_position(position,tape)
         reasons,recent,mark,uplift=_segment_exit(
             position,effective_start,tape,terminal,entry_flow,policy)
-        elapsed+=duration;tapes.append(tape)
+        if book is not None:
+            book.append(identity,'mark',dict(
+                tape=asdict(tape),position_hash=digest(position),mark=mark))
+        observed_seconds=max(
+            duration,
+            max(0,int(terminal.get("time",0))-int(current.get("time",0))))
+        elapsed+=observed_seconds;tapes.append(tape)
         segments.append(dict(
             elapsed_seconds=elapsed,lineage=tape.lineage,
             swaps=len(tape.events),recent=recent,mark=mark,
             dynamic_fee_uplift=uplift,exit_reasons=reasons,
+            evidence_recovery_attempts=recoveries,
         ))
         current=terminal
         if reasons:
             exit_reason=reasons[0];break
+    _stage(address,"unwind",lifecycle_id=identity)
     combined=chain_verified_tapes(entry,tapes)
     final=_mark(position)
+    if book is not None:
+        book.append(identity,'settle',dict(
+            mark=final,exit_reason=exit_reason,lineage=combined.lineage))
     hours=max(elapsed/3600.0,1/3600.0)
     final["pnl_bps_per_capital_hour"]=final["pnl_bps"]/hours
     return dict(
-        complete=True,exit_reason=exit_reason,realized_hold_seconds=elapsed,
-        segments=segments,lineage=combined.lineage,final=final,
+        complete=True,lifecycle_id=identity,exit_reason=exit_reason,
+        realized_hold_seconds=elapsed,segments=segments,
+        lineage=combined.lineage,final=final,
     ),adapter
 
 
@@ -1220,7 +1332,8 @@ def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
             sigs=[row["signature"] for row in valid]
             txmap,hydration=broker.hydrate_transactions(
                 rpc,sigs,kind="dlmm_fresh",
-                deadline=time.time()+5.0,max_version=1,batch_size=8)
+                deadline=time.time()+5.0,max_version=1,batch_size=8,
+                owner=f'meteora:{pool}:trigger:{after_slot}',candidate_id=pool)
             if hydration["pending"]:
                 after429=int((getattr(rpc,"failure_methods",{}) or {}).get(
                     "getTransaction:http_429",0))
@@ -1487,6 +1600,8 @@ def _await_fresh_swap_trigger(
             if swaps:
                 trigger=swaps[0]
                 trigger_slot=int(trigger["slot"])
+                _stage(candidate["address"],"trigger_observed",slot=trigger_slot)
+                _stage(candidate["address"],"trigger_authenticated",slot=trigger_slot)
                 adapter=_rotate(adapter,pacer,rpcs)
                 (post,adapter)=_retry_rate_limited_operation(
                     lambda active:_fresh_supported_start(
@@ -1533,6 +1648,8 @@ def _triggered_warmup(
         return dict(
             aligned=False,reason=trigger["reason"],trigger=trigger,
         ),None,None,None,adapter,current_candidate
+    _stage(candidate["address"],"fresh_state",slot=post_trigger["slot"])
+    _stage(candidate["address"],"warmup_started")
     warmup_seconds=int(policy["range"]["warmup_seconds"])
     phase,warm,entry,warm_origin,adapter=_observe_window(
         adapter,current_candidate["address"],post_trigger,
@@ -1551,6 +1668,7 @@ def _triggered_warmup(
         qualifying_window_seconds=warmup_seconds,
         swaps=(None if warm is None else len(warm.events)),
     )
+    if phase.get("verified"):_stage(candidate["address"],"warmup_complete")
     return result,warm,entry,warm_origin,adapter,current_candidate
 
 
@@ -1628,7 +1746,9 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
     ),None,None,None,None,adapter,current_candidate
 
 
-def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
+def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=False):
+    global PROGRESS_HOOK
+    from meme_machine.pipeline import Pipeline,censor_class
     assert_independence()
     policy=load_policy()
     target=int(target or policy["prospective_test"]["target_complete_lifecycles"])
@@ -1639,11 +1759,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         raise ValueError("solana_dlmm_attempt_bound")
     max_runtime_seconds=int(
         max_runtime_seconds or DEFAULT_MAX_RUNTIME_SECONDS)
-    if not 60<=max_runtime_seconds<=7200:
+    if type(campaign) is not bool:raise ValueError("solana_dlmm_campaign_flag")
+    if not 60<=max_runtime_seconds<=(21600 if campaign else 7200):
         raise ValueError("solana_dlmm_runtime_bound")
     run_started_monotonic=time.monotonic()
     deadline=run_started_monotonic+max_runtime_seconds
 
+    book=PaperBook(OUT.with_suffix('.accounting.sqlite3'),
+        run_id=os.environ.get('MM_CERTIFICATION_RUN_ID') or str(uuid.uuid4()),
+        policy_hash=digest(policy),capital=1_000_000_000)
     discovery_telemetry=dict(
         rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
     compatibility_rejections=[];compatibility_screened=0
@@ -1682,7 +1806,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         evidence_broker=broker.telemetry(),
     )
     attempted=0;complete=0;failure_counts=Counter()
+    attempt_budget=CampaignAttemptBudget(max_attempted)
+    report['policy_hash']=digest(policy)
+    report["continuous_campaign"]=campaign
+    report["attempt_budget_window_seconds"]=1200 if campaign else None
+    report['operational_configuration']=dict(campaign=campaign,census_interval_seconds=60 if campaign else None,
+        attempt_limit=max_attempted,attempt_window_seconds=1200 if campaign else None,
+        first_sighting_scope='entire_process',paper_starting_capital_lamports=1_000_000_000,
+        runtime_seconds=max_runtime_seconds,position_drain_seconds=int(policy['range']['max_holding_seconds'])+300 if campaign else 0)
+    report['operational_configuration_hash']=digest(report['operational_configuration'])
+    pipeline=Pipeline(OUT.with_suffix(".pipeline.sqlite"),"meteora",digest(policy))
     def checkpoint(stage):
+        report["opportunity_coverage"]=pipeline.snapshot()
+        report["discovery_unique_pool_count"]=int(discovery_telemetry["seen"])
+        report["accounting"]=book.reconcile()
         report["wake_stream"]=broker.stream_status(
             DLMM_WAKE_STREAM_KEY,int(time.time()),0)
         report["evidence_broker"]=broker.telemetry()
@@ -1696,16 +1833,36 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
             elapsed_seconds=max(
                 0.0,time.monotonic()-run_started_monotonic),
         )
+    active_triggers={}
+    def progress(pool,stage,reason=None,**details):
+        if stage=="trigger_authenticated":
+            trigger_id=str(pool)+":"+str(details.get("slot"))
+            previous=active_triggers.get(pool)
+            if previous and previous!=trigger_id:
+                pipeline.record(previous,"trigger_terminal","superseded_before_fresh_state","reconstruction_incomplete",pool=pool)
+            active_triggers[pool]=trigger_id
+            pipeline.record(trigger_id,"trigger_started",pool=pool,slot=details.get("slot"))
+        if stage in ("terminal","settled") and pool in active_triggers:
+            pipeline.record(active_triggers.pop(pool),"trigger_terminal",reason or "settled",pool=pool)
+        pipeline.record(pool,stage,reason,(('structural_ineligible' if any(x in str(reason) for x in ('unsupported','authority','extension')) else censor_class(reason)) if stage=='terminal' and details.get('stage_failed')=='compatibility' else censor_class(reason)) if reason else None,**details)
+        checkpoint(stage)
+    PROGRESS_HOOK=progress
     checkpoint("run_initialized")
-    candidate_stream=_iter_acceleration_candidates(
-        policy,discovery_telemetry,deadline,checkpoint)
+    candidate_stream=(_campaign_candidates(policy,discovery_telemetry,deadline,checkpoint)
+        if campaign else _iter_acceleration_candidates(policy,discovery_telemetry,deadline,checkpoint))
     for candidate in candidate_stream:
         if (_runtime_expired(deadline)
-                or attempted>=max_attempted or complete>=target):
+                or (not campaign and (attempted>=max_attempted or complete>=target))):
             break
+        if book.reconcile()['unsettled']:
+            report['fatal_boundary']='solana_dlmm_unresolved_position_blocks_new_admission'
+            checkpoint('unresolved_position_blocks_new_admission')
+            stream_stop.set();wake_thread.join(timeout=5);broker.close()
+            raise Unavailable(report['fatal_boundary'])
         candidate_rpcs=[]
         adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
         compatibility_screened+=1
+        _stage(candidate["address"],"screened")
         try:
             (compatibility_state,adapter)=_retry_rate_limited_operation(
                 lambda active:_fresh_supported_start(
@@ -1717,10 +1874,20 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                 reason=str(exc)[:200],
                 rpc=_sum_rpc_metrics(candidate_rpcs),
             ))
+            _stage(candidate["address"],"terminal",str(exc),stage_failed="compatibility")
             checkpoint("compatibility_rejection")
             continue
 
+        if campaign and not attempt_budget.take(time.monotonic()):
+            failure_counts['capacity_attempt_window_budget']+=1
+            report['attempts'].append(dict(pool=candidate['address'],candidate=candidate,
+                terminal_classification='capacity_attempt_window_budget',economic_rejection=False))
+            _stage(candidate["address"],"terminal","capacity_attempt_window_budget")
+            checkpoint('capacity_censoring')
+            continue
         attempted+=1
+        _stage(candidate["address"],"admitted")
+        _stage(candidate["address"],"evidence_requested")
         handoff_started_at=int(time.time())
         attempt=dict(
             attempt=attempted,pool=candidate["address"],candidate=candidate,
@@ -1744,12 +1911,18 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                 failure_counts[reason]+=1
                 attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                 report["attempts"].append(attempt)
+                _stage(candidate["address"],"terminal",(alignment.get("warmup") or {}).get("reason",reason),stage_failed=reason)
                 checkpoint("candidate_terminal")
                 continue
             attempt["candidate_at_warmup"]=aligned_candidate
             features=pre_entry_features(
                 warm_origin,warm,entry,aligned_candidate,policy)
+            _stage(candidate["address"],"prospective_range",lower=features.get("lower"),upper=features.get("upper"))
+            _stage(candidate["address"],"economic_vector")
+            _stage(candidate["address"],"evidence_complete")
             decision=qualify(features,policy)
+            _stage(candidate["address"],"evaluated")
+            _stage(candidate["address"],"qualified" if decision["passes"] else "rejected")
             attempt["pre_entry_features"]=features
             attempt["qualification"]=decision
             for failed in decision["failed"]:failure_counts[failed]+=1
@@ -1757,11 +1930,13 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                 attempt["terminal_classification"]="qualification_rejection"
                 attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
                 report["attempts"].append(attempt)
+                pipeline.record(candidate["address"],"terminal","qualification_rejection","strategy_rejection",failed=decision["failed"])
                 checkpoint("qualification_rejection")
                 continue
             lifecycle,adapter=_lifecycle(
                 adapter,candidate["address"],entry,features,policy,pacer,
-                candidate_rpcs,deadline,broker)
+                candidate_rpcs,(deadline+int(policy['range']['max_holding_seconds'])+300
+                    if campaign else deadline),broker,book)
             for rpc in candidate_rpcs:
                 if rpc not in rpcs:rpcs.append(rpc)
             attempt["lifecycle"]=lifecycle
@@ -1776,13 +1951,17 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
                     pre_entry_features=features,qualification=decision,**lifecycle))
             else:
                 failure_counts["lifecycle_unverified"]+=1
+            _stage(candidate["address"],"settled" if lifecycle["complete"] else "terminal",
+                None if lifecycle["complete"] else lifecycle.get("reason","lifecycle_unverified"))
             checkpoint("lifecycle_terminal")
         except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
-            attempt["terminal_classification"]="exception"
+            classification='paper_capital_capacity' if str(exc)=='dlmm_accounting_capital_exhausted' else 'exception'
+            attempt["terminal_classification"]=classification
             attempt["reason"]=str(exc)[:200]
-            failure_counts["exception"]+=1
+            failure_counts[classification]+=1
             attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
             report["attempts"].append(attempt)
+            _stage(candidate["address"],"terminal",str(exc),stage_failed=(pipeline.last or {}).get("stage"))
             checkpoint("candidate_exception")
 
     resolved=[x for x in report["qualified_lifecycles"]
@@ -1818,12 +1997,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         elapsed_seconds=max(
             0.0,time.monotonic()-run_started_monotonic),
         conclusion=(
+            "continuous_campaign_window_complete" if campaign and _runtime_expired(deadline) else
             "prospective_target_complete"
             if complete>=target else
             "prospective_20m_window_complete"
             if _runtime_expired(deadline) else
             "prospective_sample_incomplete_no_threshold_change"),
     )
+    report["accounting"]=book.reconcile()
+    report["accounting_replay"]=book.replay_economics(_build_position,_advance_position,_mark)
     _atomic_checkpoint(
         report,"final",rpcs,pacer,
         attempted_pool_count=attempted,
@@ -1838,6 +2020,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         DLMM_WAKE_STREAM_KEY,int(time.time()),0)
     report["evidence_broker"]=broker.telemetry()
     broker.close()
+    for pool,trigger_id in active_triggers.items():
+        pipeline.record(trigger_id,"trigger_terminal","campaign_shutdown_unresolved_trigger","reconstruction_incomplete",pool=pool)
+    report["opportunity_coverage"]=pipeline.snapshot()
+    PROGRESS_HOOK=None;pipeline.close()
     print(json.dumps(dict(
         conclusion=report["conclusion"],attempted=attempted,complete=complete,
         profitable_rate=report["profitable_rate"],
