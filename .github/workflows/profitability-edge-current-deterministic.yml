@@ -341,34 +341,19 @@ jobs:
           import pathlib,sys
           path=pathlib.Path(sys.argv[1])
           text=path.read_text()
-          old='''        def acceleration(candidate,at):
-              history.append((candidate['address'],at))
-              return dict(candidate,volume_acceleration=0 if clock[0]==0 else 3,fee_acceleration=3)
-          '''
-          new='''        def acceleration(candidate,at):
-              history.append((candidate['address'],at))
-              return dict(
-                  candidate,
-                  volume_acceleration=0 if clock[0]==0 else 3,
-                  fee_acceleration=3,
-                  fee_5m_usd=0 if clock[0]==0 else 1,
-                  tvl_usd=1000,
-              )
-          '''
+          old="return dict(candidate,volume_acceleration=0 if clock[0]==0 else 3,fee_acceleration=3)"
+          new=("return dict(candidate,volume_acceleration=0 if clock[0]==0 else 3,"
+               "fee_acceleration=3,fee_5m_usd=0 if clock[0]==0 else 1,tvl_usd=1000)")
           if old in text:
               text=text.replace(old,new,1)
           elif "fee_5m_usd=0 if clock[0]==0 else 1" not in text:
               raise SystemExit("meteora_campaign_fee_context_fixture_anchor")
 
-          old='''    def test_four_hours_requires_explicit_campaign_and_policy_does_not_change(self):
-              before=strategy.digest(strategy.load_policy())
-              with self.assertRaisesRegex(ValueError,'runtime_bound'):strategy.run_live(max_runtime_seconds=14400)
-              with tempfile.TemporaryDirectory() as td,patch.object(strategy,'OUT',Path(td)/'report.json'),patch.object(strategy,'_prove_network_identity',side_effect=RuntimeError('offline-network-boundary')):
-                  with self.assertRaisesRegex(RuntimeError,'offline-network-boundary'):
-                      strategy.run_live(max_runtime_seconds=14400,campaign=True)
-              self.assertEqual(before,strategy.digest(strategy.load_policy()))
-          '''
-          new='''    def test_multi_hour_profitability_runtime_preserves_policy_and_campaign_is_operational_only(self):
+          old_name="    def test_four_hours_requires_explicit_campaign_and_policy_does_not_change(self):\n"
+          new_name="    def test_multi_hour_profitability_runtime_preserves_policy_and_campaign_is_operational_only(self):\n"
+          if old_name in text:
+              cut=text.index(old_name)
+              text=text[:cut]+'''    def test_multi_hour_profitability_runtime_preserves_policy_and_campaign_is_operational_only(self):
               before=strategy.digest(strategy.load_policy())
               with self.assertRaisesRegex(ValueError,'runtime_bound'):
                   strategy.run_live(max_runtime_seconds=90001)
@@ -378,9 +363,7 @@ jobs:
                           strategy.run_live(max_runtime_seconds=14400,campaign=campaign)
               self.assertEqual(before,strategy.digest(strategy.load_policy()))
           '''
-          if old in text:
-              text=text.replace(old,new,1)
-          elif "test_multi_hour_profitability_runtime_preserves_policy_and_campaign_is_operational_only" not in text:
+          elif new_name not in text:
               raise SystemExit("meteora_campaign_runtime_test_anchor")
           path.write_text(text)
           PY
