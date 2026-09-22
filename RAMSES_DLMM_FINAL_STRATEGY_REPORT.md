@@ -1,6 +1,6 @@
 # Ramses DLMM Final Strategy Report
 
-**Status:** FINAL STRATEGY DEFINITION / PROFITABILITY CERTIFICATION PENDING  
+**Status:** STRATEGY RESEARCH COMPLETE / BRANCH B DEVELOPMENT REJECTED / PROFITABILITY NOT CERTIFIED  
 **Date:** 2026-09-21 / 2026-09-22 UTC evidence cutoff  
 **Venue:** Ramses DLMM, Robinhood Chain (chainId 4663)  
 **Authority:** research + paper only; no signing, submission, shared allocation, or live-money authority
@@ -21,7 +21,7 @@ The final exact terminal-state diagnostic also rejected a fixed symmetric short-
 
 Therefore the strategy should **not** hard-code one 7-, 17-, or 27-bin symmetric range. The range should be derived from the finalized public mint's actual bin set / sidedness / relative deposit geometry and scaled to governed paper capital.
 
-This report finalizes the **strategy definition**. It does **not** claim final profitability certification. The longer-horizon Branch B exact replay and untouched chronological holdout remain the final certification gates.
+This report now records the terminal strategy-design result. The repaired longer-horizon Branch B development replay **failed the preregistered certification gates**, so no exact rule was frozen and the untouched chronological holdout was deliberately **not opened**. Ramses Quiet-Mint Harvest v1 / branch_B_public_mint_geometry is therefore **not historically profitability-certified**.
 
 ---
 
@@ -580,3 +580,71 @@ The data strongly support the **entry regime** and **holding horizon**.
 The terminal exact replay strongly rejects fixed short symmetric ranges and proves that **unwindability is a first-class strategy gate**.
 
 That is the Ramses DLMM strategy definition to carry forward.
+
+
+---
+
+# 12. Terminal Branch B certification result
+
+Final repair/completion workflow: **35685789656**  
+Final decision artifact: **10676927755**  
+Final workflow conclusion: **success** (the research workflow completed; the strategy gate itself failed)  
+Holdout outcomes read: **false**
+
+The final repaired development set overlaid only the ten mechanically repaired candidates onto the original 24-candidate preregistered development cohort. Strategy rules, candidate selection, public-mint geometry, sizing schedule, holding periods, conservative cost anchor, 2x cost stress, breadth criteria, and profitability thresholds were unchanged.
+
+Final coverage:
+- 24 preregistered development candidates
+- **20 completed candidates**
+- **16 distinct completed pools**
+- 4 remaining fail-closed mechanical rejections
+- no holdout observations opened
+
+The four terminal mechanical rejections were:
+- candidate 0: public geometry could not be represented at any permitted size without scale underflow;
+- candidate 18: next-block geometry was wrong-sided at every permitted size;
+- candidates 3 and 5: full executable unwind could not be proven even at the minimum permitted size.
+
+## Certification-eligible 24-hour horizon
+
+- resolved observations: **15**
+- pools: **12**
+- win rate: **0%**
+- median after-cost return: **-510 bps (-5.10%)**
+- mean after-cost return: **-6,581.53 bps (-65.82%)**
+- equal-pool-weighted median: **-740 bps (-7.40%)**
+- equal-pool-weighted mean: **-8,161.79 bps (-81.62%)**
+- 2x-cost-stress median: **-727 bps (-7.27%)**
+- 2x-cost-stress mean: **-12,410.07 bps (-124.10%)**
+- preregistered development gate: **FAIL**
+
+## Certification-eligible 72-hour horizon
+
+- resolved observations: **14**
+- pools: **10**
+- win rate: **14.29%**
+- median after-cost return: **-239.5 bps (-2.395%)**
+- mean after-cost return: **-6,270 bps (-62.70%)**
+- equal-pool-weighted median: **-410 bps (-4.10%)**
+- equal-pool-weighted mean: **-8,685.2 bps (-86.85%)**
+- 2x-cost-stress median: **-498.5 bps (-4.985%)**
+- 2x-cost-stress mean: **-12,244.36 bps (-122.44%)**
+- positive-PnL concentration in the largest contributing pool: **93.70%**, versus the preregistered <=40% ceiling
+- preregistered development gate: **FAIL**
+
+The development prerequisite also required at least **20 resolved observations at the selected certification horizon**. Neither 24h nor 72h reached that minimum. More importantly, the resolved economics themselves were strongly negative, so the failure is not merely a sample-size technicality.
+
+## Final decision
+
+**development_gate_failed**
+
+No Branch B rule was frozen. No profitability claim is granted. The final chronological 20% holdout remains untouched and should remain untouched for this strategy specification. Opening it after a failed development gate would violate the preregistered research protocol and spend the protected holdout on a rule that already lacks development support.
+
+The completed research therefore supports this final interpretation:
+
+- the historical quiet-USDG observation was a useful research lead;
+- fixed short-horizon symmetric geometry was rejected;
+- exact public-mint geometry was the strongest remaining implementation hypothesis;
+- after exact mechanics, executable-unwind requirements, conservative costs, repaired event decoding, repaired cost-route evidence, and broader development coverage, **that hypothesis did not demonstrate a certifiable after-cost edge**.
+
+Any future Ramses strategy would require a **new preregistered strategy hypothesis and a new development protocol**. The untouched holdout from this campaign must not be repurposed to tune the rejected Branch B rule.
