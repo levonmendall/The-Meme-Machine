@@ -184,10 +184,22 @@ class RamsesStrategyTests(unittest.TestCase):
         old_proposal=initial["freeze"]["proposals"][0]
         old_bins=old_proposal["bins"]
         burn_capital=int(old_proposal["capital_employed"])
-        # Move the active state far enough that centered replacement has low overlap.
+        # Move the whole synthetic market state far enough that a centered
+        # replacement has low overlap while preserving realistic local flow.
+        old_active=state["active"]
         state["active"]+=100
+        for bid,row in state["bins"].items():
+            if bid < state["active"]:
+                row["reserves"]=[0,10**18]
+            elif bid > state["active"]:
+                row["reserves"]=[10**18,0]
+            else:
+                row["reserves"]=[10**18,10**18]
+        history=self._history(8)
+        for row in history:
+            row["args"]["id"]+=state["active"]-old_active
         decision=classify_pool(
-            state,self._history(8),"y",requested_capital=burn_capital,
+            state,history,"y",requested_capital=burn_capital,
             entry_timestamp=1000,now=1000,gas_costs=self._costs(),
             quote_token=USDG_ADDRESS,
             rebalance_reference_capital=burn_capital,
