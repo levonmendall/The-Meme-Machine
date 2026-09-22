@@ -397,13 +397,14 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                     endpoint,candidate,meta
                 )
                 result["provider_sessions"].extend(sessions)
+                if rbps>high_water:
+                    high_water=rbps;high_at=int(time.time())
                 reason=pregraduation_exit_reason(
                     elapsed_seconds=elapsed,frozen_eta_seconds=frozen_eta,
                     trajectory=trajectory,demand=demand,
                     after_cost_return_bps=rbps,
+                    high_water_return_bps=high_water,
                 )
-                if rbps>high_water:
-                    high_water=rbps;high_at=int(time.time())
                 action=(
                     dict(action="full_exit",reason=reason,exit_tokens=position["tokens"])
                     if reason is not None else
