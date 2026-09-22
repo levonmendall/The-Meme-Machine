@@ -182,7 +182,7 @@ class SignalVector:
             raise ValueError("unsupported_strategy_phase")
         if not self.point_in_time or self.future_data_used:
             raise ValueError("non_point_in_time_signal")
-        for name in ("net_buy_share_bps","concentration_bps"):
+        for name in ("net_buy_share_bps","repeat_buy_share_bps","concentration_bps"):
             value=int(getattr(self,name))
             if not 0 <= value <= 10_000:
                 raise ValueError("invalid_bps")
