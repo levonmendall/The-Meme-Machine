@@ -11,7 +11,7 @@ from tests import solana_dlmm_independent_v1 as strategy
 
 
 class SolanaDlmmIndependentV1Tests(unittest.TestCase):
-    def test_policy_is_independent_of_robinhood_and_prior_dlmm_strategies(self):
+    def test_policy_is_independent_and_profitability_authoritative(self):
         p=strategy.load_policy()
         independence=p["independence"]
         for key in (
@@ -23,39 +23,34 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             self.assertIs(independence[key],False,key)
         self.assertIsNone(p["discovery"]["minimum_pool_tvl_usd"])
         self.assertIsNone(p["discovery"]["minimum_absolute_volume_usd"])
-        self.assertFalse(p["support_layer"]["strategy_thresholds_changed"])
         self.assertEqual(
-            p["support_layer"]["collect_fee_mode_1_only_y"],
-            "fail_closed until exact fee-growth/swap accounting is implemented")
+            p["discovery"]["union_sorts"][0],"fee_tvl_ratio_5m:desc")
+        self.assertEqual(
+            p["discovery"]["public_fee_density_role"],
+            "ranking_context_only_not_entry_authority")
         self.assertEqual(
             p["range"]["warmup_alignment"]["qualifying_window_seconds"],12)
+        self.assertEqual(p["range"]["intended_holding_seconds"],14400)
+        self.assertEqual(p["range"]["max_holding_seconds"],86400)
+        self.assertEqual(p["range"]["min_half_width_bins"],26)
+        self.assertEqual(p["range"]["max_half_width_bins"],50)
+        self.assertEqual(p["qualification"]["min_two_way_balance"],0.25)
         self.assertEqual(
-            p["range"]["warmup_alignment"]["qualifying_window_seconds"],12)
-        self.assertTrue(p["regime"]["fresh_swap_trigger"]["required"])
+            p["qualification"]["min_authenticated_fee_density_24h_pct"],5.0)
+        self.assertEqual(p["qualification"]["min_expected_net_lamports"],1)
         self.assertEqual(
-            p["regime"]["fresh_swap_trigger"]["max_wait_seconds"],120)
-        self.assertEqual(
-            p["regime"]["dynamic_fee_uplift_role"],
-            "context_only_not_entry_veto")
-        self.assertFalse(p["fee_model"]["require_dynamic_fee_uplift"])
-        self.assertFalse(
-            p["qualification"]["dynamic_fee_uplift_hard_gate"])
+            p["fee_model"]["live_fee_density_threshold_pct"],5.0)
         self.assertIn(
-            "before a pool increments",
-            p["support_layer"]["compatibility_budget_rule"])
-        self.assertEqual(
-            p["discovery"]["execution_mode"],
-            "streaming_first_sighting_immediate_handoff")
+            "range_fee_sol_lamports / range_liquidity_sol_lamports",
+            p["fee_model"]["live_fee_density_metric"])
+        self.assertFalse(p["fee_model"]["require_dynamic_fee_uplift"])
+        self.assertEqual(p["revision"],"2.0-profitability-fee-density-v1")
+        self.assertTrue(p["execution_certification"]["profitability_authority"])
+        self.assertFalse(p["execution_certification"]["machinery_proof_only"])
         self.assertTrue(
-            p["discovery"]["no_full_universe_wait_before_handoff"])
-        self.assertEqual(
-            p["evidence_acquisition"]["interval_transaction_bound"],16)
-        self.assertFalse(
-            p["evidence_acquisition"]["strategy_thresholds_changed"])
-        self.assertEqual(p["revision"],"1.9-machinery-proof-v2")
-        self.assertFalse(p["execution_certification"]["profitability_authority"])
-        self.assertTrue(p["execution_certification"]["machinery_proof_only"])
-        self.assertTrue(p["execution_certification"]["freshness_finality_unchanged"])
+            p["execution_certification"]["strategy2_continuity_required"])
+        self.assertTrue(
+            p["execution_certification"]["freshness_finality_unchanged"])
 
     def test_strategy_import_graph_contains_no_strategy_dependency(self):
         path=Path("tests/solana_dlmm_independent_v1.py")
@@ -144,7 +139,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertIs(adapter.rpc,rpc)
         rpc.call.assert_not_called()
 
-    def test_discovery_uses_acceleration_not_tvl_floor(self):
+    def test_discovery_uses_fee_density_ranking_without_tvl_floor(self):
         p=strategy.load_policy()
         row=dict(
             address="pool",name="pool",tvl=2500,is_blacklisted=False,
@@ -172,8 +167,11 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertEqual(len(accepted),1)
         self.assertEqual(rejected,[])
         self.assertEqual(accepted[0]["address"],"pool")
+        # Public history is retained as ranking/context telemetry only.
         self.assertGreaterEqual(accepted[0]["volume_acceleration"],2)
         self.assertGreaterEqual(accepted[0]["fee_acceleration"],1.25)
+        self.assertGreater(accepted[0]["fee_5m_usd"],0)
+        self.assertEqual(strategy.DISCOVERY_SORTS[0],"fee_tvl_ratio_5m:desc")
         pool_calls=[params for path,params in calls if path=="/pools"]
         self.assertTrue(all("tvl" not in str(c.get("filter_by","")).lower() for c in pool_calls))
         history_calls=[params for path,params in calls if path.endswith("/volume/history")]
@@ -318,42 +316,64 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertGreaterEqual(half,p["range"]["min_half_width_bins"])
         self.assertLessEqual(half,p["range"]["max_half_width_bins"])
 
-    def test_qualification_requires_fee_event_flow_capacity_and_unwind(self):
+    def test_authenticated_fee_density_is_24h_normalized_local_liquidity(self):
+        class Tape:
+            terminal={"time":112}
+            events=[{
+                "observed":{"start":100,"end":101},
+                "for_y":True,
+            }]
+        start={"time":100}
+        with patch.object(strategy,"_range_liquidity_sol",return_value=1_000_000), \
+             patch.object(strategy,"_event_volume_sol",return_value=100), \
+             patch.object(strategy,"_event_fee_sol",return_value=10):
+            row=strategy._range_flow_features(
+                start,Tape(),[99],[101],liquidity_state={})
+        self.assertAlmostEqual(row["fee_density"],0.00001)
+        self.assertAlmostEqual(row["authenticated_fee_density_24h_pct"],7.2)
+        self.assertGreater(
+            row["authenticated_fee_density_24h_pct"],
+            strategy.load_policy()["qualification"][
+                "min_authenticated_fee_density_24h_pct"])
+
+    def test_qualification_requires_authenticated_density_flow_capacity_and_unwind(self):
         p=strategy.load_policy()
         base=dict(
-            volume_acceleration=1.25,
-            fee_acceleration=1.0,
+            volume_acceleration=0.1,
+            fee_acceleration=0.1,
+            authenticated_fee_density_24h_pct=5.0,
             dynamic_fee_uplift=1.0,
             competing_liquidity_to_capital_multiple=5.0,
-            two_way_balance=0.0,
+            two_way_balance=0.25,
             drift_ratio=0.75,
             reversal_count=0,
             stress_inventory_roundtrip={"loss_bps":150.0},
-            expected_net_lamports=-1000000,
+            expected_net_lamports=1,
         )
-        self.assertEqual(p["qualification"]["min_two_way_balance"],0)
-        self.assertEqual(p["qualification"]["min_expected_net_lamports"],-1000000)
+        self.assertEqual(p["qualification"]["min_two_way_balance"],0.25)
+        self.assertEqual(p["qualification"]["min_expected_net_lamports"],1)
         self.assertTrue(strategy.qualify(base,p)["passes"])
         mutations={
-            "volume_acceleration":{"volume_acceleration":1.24},
-            "fee_acceleration":{"fee_acceleration":0.99},
+            "authenticated_fee_density":{
+                "authenticated_fee_density_24h_pct":4.999},
             "capacity":{"competing_liquidity_to_capital_multiple":4.99},
+            "two_way":{"two_way_balance":0.2499},
             "drift":{"drift_ratio":0.7501},
             "unwind":{"stress_inventory_roundtrip":{"loss_bps":150.01}},
-            "expected_net":{"expected_net_lamports":-1000001},
+            "expected_net":{"expected_net_lamports":0},
         }
         for expected,change in mutations.items():
             row=dict(base);row.update(change)
             decision=strategy.qualify(row,p)
             self.assertFalse(decision["passes"],expected)
             self.assertIn(expected,decision["failed"])
-        low_dynamic=dict(base)
-        low_dynamic["dynamic_fee_uplift"]=0.10
-        decision=strategy.qualify(low_dynamic,p)
+        # Acceleration and dynamic-fee uplift no longer authorize or veto entry.
+        low_context=dict(base,volume_acceleration=0.0,fee_acceleration=0.0,
+                         dynamic_fee_uplift=0.10)
+        decision=strategy.qualify(low_context,p)
         self.assertTrue(decision["passes"])
-        no_reversal=dict(base)
-        no_reversal["reversal_count"]=0
-        self.assertTrue(strategy.qualify(no_reversal,p)["passes"])
+        self.assertNotIn("volume_acceleration",decision["checks"])
+        self.assertNotIn("fee_acceleration",decision["checks"])
         self.assertNotIn("dynamic_fee",decision["checks"])
 
     def test_fresh_authenticated_swap_trigger_starts_exact_12s_warmup(self):
@@ -488,7 +508,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         p=strategy.load_policy()
         candidate=dict(
             address="pool",volume_acceleration=2.5,fee_acceleration=1.5,
-            signal_observed_at=1000)
+            fee_5m_usd=5.0,tvl_usd=1000.0,signal_observed_at=1000)
         adapter=MagicMock();adapter.rpc.calls=0
         broker=MagicMock()
         broker.cursor.return_value={"slot":0,"signature":None}
@@ -519,7 +539,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         p=strategy.load_policy()
         candidate=dict(
             address="pool",volume_acceleration=2.5,fee_acceleration=1.5,
-            signal_observed_at=1000)
+            fee_5m_usd=5.0,tvl_usd=1000.0,signal_observed_at=1000)
         adapter=MagicMock();adapter.rpc.calls=0
         broker=MagicMock()
         broker.cursor.return_value={"slot":0,"signature":None}
@@ -549,27 +569,36 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertEqual(trigger["wakeups"],1)
         self.assertEqual(auth.call_count,2)
 
-    def test_regime_expiry_stops_fresh_swap_wait(self):
+    def test_public_fee_context_expiry_stops_fresh_swap_wait(self):
         p=strategy.load_policy()
         candidate=dict(
-            address="pool",volume_acceleration=2.5,fee_acceleration=1.5)
+            address="pool",volume_acceleration=0.1,fee_acceleration=0.1,
+            fee_5m_usd=5.0,tvl_usd=1000.0)
         adapter=MagicMock();adapter.rpc.calls=0
-        expired=dict(candidate,volume_acceleration=1.2,fee_acceleration=1.5)
+        expired=dict(candidate,fee_5m_usd=0.0)
         with patch.object(
                 strategy,"_history_acceleration",return_value=expired), \
              patch.object(strategy.time,"monotonic",return_value=0.0):
             trigger,post,_adapter,_latest=strategy._await_fresh_swap_trigger(
                 adapter,candidate,{"slot":10},p,MagicMock(),[])
         self.assertFalse(trigger["triggered"])
-        self.assertEqual(trigger["reason"],"acceleration_regime_expired")
+        self.assertEqual(trigger["reason"],"public_fee_context_expired")
         self.assertIsNone(post)
 
+    def test_public_acceleration_is_not_a_hard_regime_gate(self):
+        p=strategy.load_policy()
+        candidate=dict(
+            fee_5m_usd=1.0,tvl_usd=1000.0,
+            volume_acceleration=0.0,fee_acceleration=0.0)
+        self.assertTrue(strategy._regime_pass(candidate,p))
+
     def test_centered_range_is_two_sided_and_excludes_active(self):
-        bins={str(i):{} for i in range(50,151)}
+        bins={str(i):{} for i in range(0,201)}
         state={"active":100,"bins":bins}
-        lower,upper=strategy._centered_ids(state,4)
-        self.assertEqual(lower,[96,97,98,99])
-        self.assertEqual(upper,[101,102,103,104])
+        lower,upper=strategy._centered_ids(state,26)
+        self.assertEqual(len(lower+upper),52)
+        self.assertEqual(lower[0],74)
+        self.assertEqual(upper[-1],126)
         self.assertNotIn(100,lower+upper)
 
 
