@@ -136,6 +136,19 @@
           "cost_model_changed": false,
           "freshness_finality_changed": false,
           "paper_only_unchanged": true
+        },
+        "post_entry_strategy2_continuity_repair": {
+          "revision": "authenticated-terminal-bin-delta-v1",
+          "source_commit": "3370a0a3a283b4e3901ae51e294eeb00ef69832d",
+          "failure_evidence_run": 35755168924,
+          "failure_slot": 449436239,
+          "purpose": "authenticate addLiquidityByStrategy2 from its instruction, AddLiquidity event and ordered token transfers; materialize exact one-sided bin/share deltas from the finalized terminal snapshot; replay the external liquidity action through both real and counterfactual open-position state without resetting position identity or economics",
+          "mixed_swap_or_liquidity_intervals_fail_closed": true,
+          "exact_retained_mainnet_shape_regression": true,
+          "strategy_thresholds_changed": false,
+          "transaction_capacity_changed": false,
+          "freshness_finality_changed": false,
+          "paper_only_authority_unchanged": true
         }
       },
       "prospect_admission": {
@@ -340,7 +353,7 @@
     "purpose": "Use Pump and Pons profitability-v1 with repaired Meteora/Ramses machinery-proof-v2 execution; Ramses campaign capital now initializes from the first genuine natural qualifier's pinned screen.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora/Ramses machinery-proof-v2",
-    "validation_status": "strategy2_continuity_and_provider_pressure_repairs_pending_exact_head_qualification",
+    "validation_status": "meteora_strategy2_continuity_pending_exact_head_qualification",
     "validation_run_requested": false
   },
   "composition": {
