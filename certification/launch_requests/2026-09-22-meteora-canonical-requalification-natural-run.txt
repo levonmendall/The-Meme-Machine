@@ -1,0 +1,5 @@
+Natural four-lane paper relaunch after Meteora canonical overlay requalification.
+Canonical verification head: bad8b2b77be0a103f81a41bc04dd925e5a58110f
+Expected Meteora source diff SHA-256: ce328f328c0ea95d3e681da3c8912a095c13cc0aa590999088c161843df48503
+Deterministic prepare + verify must pass before natural smoke.
+Paper only. No threshold, sizing, cost, freshness, finality, or authority changes.
