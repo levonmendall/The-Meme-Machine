@@ -373,4 +373,14 @@ class PressureViewTests(unittest.TestCase):
             self.assertEqual(db.execute('SELECT COUNT(*) FROM transports').fetchone()[0],2)
             db.close()
 
+
+class OverlayCanonicalizationTests(unittest.TestCase):
+    def test_blob_ids_are_metadata_but_patch_content_remains_authoritative(self):
+        from certification.run import canonical_patch_bytes
+        a=b"diff --git a/x.py b/x.py\nindex 1111111..2222222 100644\n--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-old\n+new\n"
+        b=b"diff --git a/x.py b/x.py\nindex aaaaaaa..bbbbbbb 100644\n--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-old\n+new\n"
+        changed=b"diff --git a/x.py b/x.py\nindex aaaaaaa..ccccccc 100644\n--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-old\n+different\n"
+        self.assertEqual(canonical_patch_bytes(a),canonical_patch_bytes(b))
+        self.assertNotEqual(canonical_patch_bytes(a),canonical_patch_bytes(changed))
+
 if __name__=='__main__':unittest.main()
