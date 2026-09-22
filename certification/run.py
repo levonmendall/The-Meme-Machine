@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import signal
 import sqlite3
@@ -58,6 +59,17 @@ def implementation_hash():
     return digest({str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files})
 
 
+def canonical_patch_bytes(value):
+    """Normalize non-semantic Git blob-id metadata while preserving the exact patch."""
+    if not isinstance(value,(bytes,bytearray)):
+        raise TypeError('patch_bytes_required')
+    # The right-hand blob id in an "index old..new" line is derived from the
+    # patched result and changes whenever a reviewed insertion changes. It is not
+    # execution content. Keep modes, paths, hunks and every added/removed byte exact.
+    return re.sub(rb'(?m)^index [0-9a-f]+\.\.[0-9a-f]+(?=(?: [0-7]{6})?$)',
+                  b'index <blob>..<blob>',bytes(value))
+
+
 def source_integrity(worktrees):
     observed={}
     for lane,row in manifest()['lanes'].items():
@@ -79,8 +91,10 @@ def source_integrity(worktrees):
         observed[lane]=hashlib.sha256(diff).hexdigest()
         patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
         expected=(ROOT/'certification/patches'/patch).read_bytes() if patch else b''
-        # Compare git's normalized diff to the pinned overlay applied at preparation.
-        if diff!=expected:raise ValueError('unreviewed_lane_mutation:'+lane)
+        # Compare the exact semantic diff. Git's generated post-image blob id is
+        # metadata, not executable content, so normalize only that index line.
+        if canonical_patch_bytes(diff)!=canonical_patch_bytes(expected):
+            raise ValueError('unreviewed_lane_mutation:'+lane)
     return observed
 
 
