@@ -1,0 +1,1 @@
+Re-run only Branch B development candidates 1,3,4,8,9,12,13,14,19,20 after decoder-capacity and conservative USDG cost-route evidence repairs. Recompute the original 24-candidate aggregate. Freeze/open holdout only if every preregistered development gate passes; otherwise stop with holdout untouched.
