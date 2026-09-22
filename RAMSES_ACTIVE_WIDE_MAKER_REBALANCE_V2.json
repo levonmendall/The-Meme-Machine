@@ -1,6 +1,6 @@
 {
   "kind": "ramses_active_wide_maker_rebalance_v2",
-  "status": "resolved_for_prospective_paper_validation",
+  "status": "historical_superseded_by_v3",
   "research_only": true,
   "paper_only": true,
   "allocation_authority": false,
@@ -48,14 +48,23 @@
     }
   },
   "replacement": {
-    "candidate_width_bins": [65, 90, 120, 150, 200],
+    "candidate_width_bins": [
+      65,
+      90,
+      120,
+      150,
+      200
+    ],
     "hard_min_width_bins": 65,
     "default_sidedness": "two_sided",
     "one_sided_authorized": false,
     "active_bin_must_be_inside": true,
     "complete_unwind_required": true,
     "two_x_cost_stress_required": true,
-    "partial_shift_overlap_band_prohibited": [0.1, 0.5],
+    "partial_shift_overlap_band_prohibited": [
+      0.1,
+      0.5
+    ],
     "selection": "choose highest expected after-cost fee return among candidates passing all gates; ties choose narrower width"
   },
   "timing": {
@@ -66,7 +75,14 @@
   "sizing": {
     "source": "range-local executable liquidity",
     "maximum_local_liquidity_fraction_bps": 50,
-    "reduction_schedule_bps": [50, 25, 12, 6, 3, 1],
+    "reduction_schedule_bps": [
+      50,
+      25,
+      12,
+      6,
+      3,
+      1
+    ],
     "automatic_size_increase_on_rebalance": false,
     "rule": "new size <= min(governed target size, largest fully executable size)"
   },
@@ -100,9 +116,17 @@
       "pools": 6,
       "lower_bound_pnl_usd": 44014.64955955038
     },
-    "replacement_widths_of_losing_quick_rebalances": [16, 32, 42],
+    "replacement_widths_of_losing_quick_rebalances": [
+      16,
+      32,
+      42
+    ],
     "observed_fee_driven_recenter_displacement_cluster": {
-      "normalized_displacement_approx": [2.49, 2.54, 2.79],
+      "normalized_displacement_approx": [
+        2.49,
+        2.54,
+        2.79
+      ],
       "failed_overrun_example": 5.51
     }
   },
@@ -116,5 +140,7 @@
     "mean_after_cost_return_bps": ">0",
     "two_x_cost_stress_median_bps": ">0",
     "two_x_cost_stress_mean_bps": ">0"
-  }
+  },
+  "authoritative_spec": "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json",
+  "note": "Historical v2 hysteresis controller retained for lineage only. V3 preserves these thresholds and adds the 80-120% capital-preservation gate. Do not use v2 for current validation or paper strategy authority."
 }
