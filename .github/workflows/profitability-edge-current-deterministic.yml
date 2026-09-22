@@ -234,15 +234,14 @@ jobs:
               text=text.replace(old,new,1)
           elif "def persistent_entry_signal(*args):" not in text:
               raise SystemExit("pons_recovery_class_anchor")
-          old="""            '_wait_curve_quote':wait_quote,'_curve_quote':quote,
-          """
-          new="""            '_wait_curve_quote':wait_quote,'_curve_quote':quote,
-                      '_refresh_entry_persistence_signal':self.persistent_entry_signal,
-          """
-          if text.count(old)==1:
-              text=text.replace(old,new,1)
-          elif "'_refresh_entry_persistence_signal':self.persistent_entry_signal" not in text:
+          anchor="            '_wait_curve_quote':wait_quote,'_curve_quote':quote,\n"
+          refresh="            '_refresh_entry_persistence_signal':self.persistent_entry_signal,\n"
+          if anchor not in text:
               raise SystemExit("pons_recovery_patch_anchor")
+          while anchor+refresh+refresh in text:
+              text=text.replace(anchor+refresh+refresh,anchor+refresh,1)
+          if anchor+refresh not in text:
+              text=text.replace(anchor,anchor+refresh,1)
           old="                 patch(MODULE+'_fresh_fill_full_exit_check',"
           new="""                 patch(MODULE+'_refresh_entry_persistence_signal',
                              side_effect=self.persistent_entry_signal),\\
