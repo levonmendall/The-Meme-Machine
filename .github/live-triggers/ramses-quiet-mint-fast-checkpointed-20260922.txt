@@ -1,0 +1,1 @@
+Run the identical frozen six-candidate Ramses quiet-mint exact diagnostic using the accelerated exact log reader plus per-candidate checkpoint/resume. No economic parameter changed.
