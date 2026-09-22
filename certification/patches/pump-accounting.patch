@@ -1370,7 +1370,7 @@ index 05dd96f..9c8a344 100644
                      break
 diff --git a/meme_machine/solana_evidence_consumers.py b/meme_machine/solana_evidence_consumers.py
 new file mode 100644
-index 0000000..3b20654
+index 0000000..001e12d
 --- /dev/null
 +++ b/meme_machine/solana_evidence_consumers.py
 @@ -0,0 +1,288 @@
@@ -2809,7 +2809,7 @@ index 0000000..f1224cf
 +        self.assertEqual(len(broker.consumers.batch()),1)
 diff --git a/tests/test_evidence_consumers.py b/tests/test_evidence_consumers.py
 new file mode 100644
-index 0000000..d2ca499
+index 0000000..84b86dd
 --- /dev/null
 +++ b/tests/test_evidence_consumers.py
 @@ -0,0 +1,165 @@
