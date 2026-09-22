@@ -1,17 +1,9 @@
-"""Frozen Robinhood Ramses DLMM strategy research policy.
+"""Ramses Active Wide Maker v1 / rebalance-v3 paper strategy.
 
-This module is deliberately paper/research only.  It converts authenticated
-Ramses pre-entry state plus strictly pre-entry swap history into one of four
-classes:
-
-- fee_pulse: neutral short-duration fee capture;
-- anchor_pulse: externally anchored convergence liquidity;
-- directional_converter: explicitly signalled one-sided conversion;
-- no_trade.
-
-Nothing here signs, submits, or grants allocation authority.  All strategy
-thresholds are constants and the canonical policy hash is emitted with every
-decision so prospective results cannot silently drift.
+The active strategy is the operator-derived USDG, quiet-entry, wide two-sided
+maker policy.  Legacy Fee Pulse helpers remain only as deterministic compatibility
+utilities for older evidence and tests; classify_pool never grants them strategy
+authority.  This module remains paper/research only and cannot sign or submit.
 """
 from __future__ import annotations
 
@@ -20,6 +12,7 @@ import hashlib
 import json
 
 from . import BoundaryError
+from .ramses_active_wide_maker import normalized_displacement
 from .ramses import (
     HURDLE_BPS,
     PRECISION,
@@ -34,15 +27,32 @@ from .ramses import (
     unpack,
 )
 
-STRATEGY_VERSION = "ramses-fee-pulse-v1"
+STRATEGY_VERSION = "ramses-active-wide-maker-v1/rebalance-v3"
 STRATEGY_DOMAIN = "robinhood-ramses-dlmm-independent"
+USDG_ADDRESS = "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
 
 POLICY = {
     "strategy_version": STRATEGY_VERSION,
-    "policy_revision": "machinery-proof-v2",
-    "policy_purpose": "natural_paper_machinery_proof_not_profitability_claim",
-    "machinery_proof_only": True,
-    "one_natural_settled_lifecycle_target": True,
+    "policy_revision": "profitability-v1-active-wide-maker-v3",
+    "policy_purpose": "prospective_natural_paper_validation_of_operator_derived_active_wide_maker",
+    "machinery_proof_only": False,
+    "profitability_authority": True,
+    "one_natural_settled_lifecycle_target": False,
+    "active_wide_maker": {
+        "quote_token": USDG_ADDRESS,
+        "prior_30m_swaps_max": 2,
+        "width_candidates": [65, 90, 120, 150, 200],
+        "min_width_bins": 65,
+        "default_sidedness": "two_sided",
+        "max_position_local_liquidity_bps": 50,
+        "capital_preservation_min_bps": 8000,
+        "capital_preservation_max_bps": 12000,
+        "rebalance_requires_positive_after_cost_edge": True,
+        "rebalance_requires_positive_two_x_cost_stress": True,
+        "initial_entry_requires_positive_projected_edge": False,
+    },
+    # Legacy helpers are retained for historical replay only.  classify_pool
+    # never authorizes these modes under the active policy.
     "fee_pulse": {
         "min_turnover_percentile_bps": 8000,
         "min_fee_percentile_bps": 7000,
@@ -59,9 +69,14 @@ POLICY = {
         "max_outer_width": 3,
     },
     "controller": {
-        "max_holding_seconds": 1800,
-        "max_rebalances": 2,
-        "rebalance_edge_to_cost_milli": 2000,
+        "inside_hold_max_d": 1.0,
+        "edge_watch_max_d": 1.5,
+        "recenter_max_d": 3.0,
+        "target_remint_seconds": 180,
+        "hard_same_decision_deadline_seconds": 210,
+        "max_holding_seconds": 604800,
+        "max_rebalances": 100,
+        "rebalance_edge_to_cost_milli": 1000,
     },
     "signals": {
         "max_age_seconds": 30,
@@ -79,7 +94,17 @@ POLICY = {
         "anchor_source_class": "external_reference",
         "directional_source_class": "ramses_independent_model",
     },
-    "hurdle_bps": -150000,
+    "validation": {
+        "minimum_eligible_rebalances": 20,
+        "minimum_distinct_pools": 5,
+        "minimum_win_rate": 0.55,
+        "median_after_cost_return_bps": ">0",
+        "mean_after_cost_return_bps": ">0",
+        "two_x_cost_stress_median_bps": ">0",
+        "two_x_cost_stress_mean_bps": ">0",
+        "historical_holdout_reuse": False,
+    },
+    "hurdle_bps": 0,
     "reference_profitability_hurdle_bps": HURDLE_BPS,
     "allocation_authority": False,
     "paper_only": True,
@@ -450,7 +475,11 @@ def build_path_freeze(prestate, capital, quote_side, *, direction, mode,
 def recommended_capital(features, requested_capital):
     if type(requested_capital) is not int or requested_capital <= 0:
         raise BoundaryError("invalid_strategy_capital")
-    ceiling = features["active_liquidity_quote"] * POLICY["fee_pulse"]["max_position_active_liquidity_bps"] // 10000
+    ceiling = (
+        features["active_liquidity_quote"]
+        * POLICY["active_wide_maker"]["max_position_local_liquidity_bps"]
+        // 10000
+    )
     return min(requested_capital, ceiling)
 
 
@@ -535,99 +564,207 @@ def _signal_eligible(signal, *, now, kind):
         reasons.append("directional_conversion_side")
     return not reasons, reasons
 
+def _wide_range_ids(active, width):
+    width=int(width)
+    if width < POLICY["active_wide_maker"]["min_width_bins"]:
+        raise BoundaryError("wide_maker_width_below_minimum")
+    left=(width-1)//2
+    right=width-1-left
+    return list(range(int(active)-left,int(active)+right+1))
+
+
+def _active_wide_freezes(
+    prestate, capital, quote_side, *, entry_timestamp, prehistory, gas_costs,
+    rebalance_reference_capital=None,
+):
+    active=int(prestate["active"])
+    costs=_cost_total(gas_costs)
+    rows=[]
+    for width in POLICY["active_wide_maker"]["width_candidates"]:
+        ids=_wide_range_ids(active,width)
+        if any(b not in prestate.get("bins",{}) for b in ids):
+            continue
+        budget_map=_distribute(capital,ids,[1]*len(ids))
+        freeze=_freeze(
+            prestate,capital,quote_side,ids,budget_map,
+            name="active_wide_"+str(width),
+            mode="active_wide_maker",
+            entry_timestamp=entry_timestamp,
+            prehistory=prehistory,
+            gas_costs=gas_costs,
+            extra={"active_wide_width_bins":width,"two_sided":True},
+        )
+        proposal=freeze["proposals"][0]
+        employed=int(proposal["capital_employed"])
+        reference=(
+            int(rebalance_reference_capital)
+            if rebalance_reference_capital is not None
+            else int(capital)
+        )
+        preservation_bps=employed*10000//max(1,reference)
+        before=proposal.get("projected_before_costs")
+        two_x=(
+            int(before)-2*int(costs)
+            if costs is not None and isinstance(before,int)
+            else None
+        )
+        two_x_bps=(
+            two_x*10000//employed
+            if isinstance(two_x,int) and employed>0
+            else None
+        )
+        proposal["capital_preservation_bps"]=preservation_bps
+        proposal["two_x_cost_stress_result"]=two_x
+        proposal["two_x_cost_return_bps"]=two_x_bps
+        freeze["proposal_hash"]=hashlib.sha256(
+            json.dumps(
+                freeze["proposals"],sort_keys=True,separators=(",",":")
+            ).encode()
+        ).hexdigest()
+        rows.append(freeze)
+    return rows
+
+
+def _active_wide_candidate_ok(freeze, *, rebalance):
+    proposal=freeze["proposals"][0]
+    p=POLICY["active_wide_maker"]
+    if not proposal.get("two_sided"):
+        return False
+    if int(proposal.get("active_wide_width_bins") or 0) < p["min_width_bins"]:
+        return False
+    preservation=int(proposal.get("capital_preservation_bps") or 0)
+    if not p["capital_preservation_min_bps"] <= preservation <= p["capital_preservation_max_bps"]:
+        return False
+    if rebalance:
+        if p["rebalance_requires_positive_after_cost_edge"]:
+            if not isinstance(proposal.get("projected_after_cost_result"),int) or proposal["projected_after_cost_result"] <= 0:
+                return False
+        if p["rebalance_requires_positive_two_x_cost_stress"]:
+            if not isinstance(proposal.get("two_x_cost_stress_result"),int) or proposal["two_x_cost_stress_result"] <= 0:
+                return False
+    return True
+
+
 def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
                   entry_timestamp=None, gas_costs=None, universe_features=None,
-                  anchor_signal=None, directional_signal=None, now=None, pool=None):
-    """Return one frozen, outcome-blind class and plan."""
+                  anchor_signal=None, directional_signal=None, now=None, pool=None,
+                  quote_token=USDG_ADDRESS, rebalance_reference_capital=None):
+    """Classify only the Active Wide Maker v3 policy.
+
+    Anchor/directional/Fee Pulse arguments remain accepted for call-site
+    compatibility but cannot grant current strategy authority.
+    """
     if now is None:
         now = entry_timestamp if entry_timestamp is not None else prestate["variable"][3]
-    features = pool_features(prestate, prehistory, quote_side, pool=pool)
+    features=pool_features(prestate,prehistory,quote_side,pool=pool)
     if universe_features:
-        features = attach_universe_percentiles(features, universe_features)
-    capital = recommended_capital(features, requested_capital)
-    if capital <= 0:
-        return {
-            "mode": "no_trade", "qualified": False, "reasons": ["position_cap_zero"],
-            "features": features, "freeze": None, "policy_hash": POLICY_HASH,
-            "strategy_version": STRATEGY_VERSION, "strategy_domain": STRATEGY_DOMAIN, "allocation_authority": False,
-        }
-
-    anchor_ok, anchor_reasons = _signal_eligible(anchor_signal, now=now, kind="anchor")
-    if anchor_ok:
-        freeze = build_path_freeze(
-            prestate, capital, quote_side, direction=anchor_signal["direction"], mode="anchor_pulse",
-            entry_timestamp=entry_timestamp, prehistory=prehistory, gas_costs=gas_costs,
-            width=int(anchor_signal.get("path_width", 1)),
+        features=attach_universe_percentiles(features,universe_features)
+    features["prior_30m_swap_count"]=int(features.get("swap_count") or 0)
+    reasons=[]
+    if str(quote_token or "").lower()!=USDG_ADDRESS:
+        reasons.append("quote_asset_not_usdg")
+    rebalance=rebalance_reference_capital is not None
+    if not rebalance and features["prior_30m_swap_count"] > POLICY["active_wide_maker"]["prior_30m_swaps_max"]:
+        reasons.append("prior_30m_not_quiet")
+    capital=recommended_capital(features,requested_capital)
+    if capital<=0:
+        reasons.append("position_cap_zero")
+    if gas_costs is None:
+        reasons.append("cost_evidence_unavailable")
+    freezes=[]
+    if not reasons:
+        freezes=_active_wide_freezes(
+            prestate,capital,quote_side,
+            entry_timestamp=(
+                prestate["variable"][3]
+                if entry_timestamp is None else int(entry_timestamp)
+            ),
+            prehistory=prehistory,
+            gas_costs=gas_costs,
+            rebalance_reference_capital=rebalance_reference_capital,
         )
+        freezes=[f for f in freezes if _active_wide_candidate_ok(f,rebalance=rebalance)]
+        if not freezes:
+            reasons.append(
+                "no_economic_rebalance_candidate"
+                if rebalance else "no_wide_entry_candidate"
+            )
+    if reasons:
         return {
-            "mode": "anchor_pulse", "qualified": True, "reasons": [], "features": features,
-            "freeze": freeze, "signal": deepcopy(anchor_signal), "policy_hash": POLICY_HASH,
-            "strategy_version": STRATEGY_VERSION, "strategy_domain": STRATEGY_DOMAIN, "allocation_authority": False,
+            "mode":"no_trade","qualified":False,"reasons":reasons,
+            "features":features,"freeze":None,"policy_hash":POLICY_HASH,
+            "strategy_version":STRATEGY_VERSION,"strategy_domain":STRATEGY_DOMAIN,
+            "allocation_authority":False,"paper_only":True,
+            "legacy_signals_ignored":bool(anchor_signal or directional_signal),
         }
-
-    directional_ok, directional_reasons = _signal_eligible(directional_signal, now=now, kind="directional")
-    if directional_ok:
-        freeze = build_path_freeze(
-            prestate, capital, quote_side, direction=directional_signal["direction"], mode="directional_converter",
-            entry_timestamp=entry_timestamp, prehistory=prehistory, gas_costs=gas_costs,
-            width=int(directional_signal.get("path_width", 1)),
-        )
-        return {
-            "mode": "directional_converter", "qualified": True, "reasons": [], "features": features,
-            "freeze": freeze, "signal": deepcopy(directional_signal), "policy_hash": POLICY_HASH,
-            "strategy_version": STRATEGY_VERSION, "strategy_domain": STRATEGY_DOMAIN, "allocation_authority": False,
-        }
-
-    freeze = build_fee_pulse_freeze(
-        prestate, capital, quote_side, entry_timestamp=entry_timestamp,
-        prehistory=prehistory, gas_costs=gas_costs, features=features,
+    choice=max(
+        freezes,
+        key=lambda f:(
+            int(f["proposals"][0].get("projected_after_cost_result") or -10**80),
+            -int(f["proposals"][0]["active_wide_width_bins"]),
+        ),
     )
-    evaluation = evaluate_fee_pulse(features, freeze["proposals"][0])
-    if evaluation["qualified"]:
-        return {
-            "mode": "fee_pulse", "qualified": True, "reasons": [], "features": features,
-            "freeze": freeze, "evaluation": evaluation, "policy_hash": POLICY_HASH,
-            "strategy_version": STRATEGY_VERSION, "strategy_domain": STRATEGY_DOMAIN, "allocation_authority": False,
-        }
+    verify=hashlib.sha256(
+        json.dumps(choice["proposals"],sort_keys=True,separators=(",",":")).encode()
+    ).hexdigest()
+    if verify!=choice["proposal_hash"]:
+        raise BoundaryError("wide_maker_proposal_hash")
     return {
-        "mode": "no_trade", "qualified": False,
-        "reasons": evaluation["reasons"], "features": features, "freeze": freeze,
-        "evaluation": evaluation,
-        "signal_rejections": {"anchor": anchor_reasons, "directional": directional_reasons},
-        "policy_hash": POLICY_HASH, "strategy_version": STRATEGY_VERSION,
-        "strategy_domain": STRATEGY_DOMAIN, "allocation_authority": False,
+        "mode":"active_wide_maker","qualified":True,"reasons":[],
+        "features":features,"freeze":choice,"policy_hash":POLICY_HASH,
+        "strategy_version":STRATEGY_VERSION,"strategy_domain":STRATEGY_DOMAIN,
+        "allocation_authority":False,"paper_only":True,
+        "rebalance_candidate":rebalance,
+        "ignored_legacy_modes":["fee_pulse","anchor_pulse","directional_converter"],
     }
 
 
 def controller_action(decision, *, current_active_bin, elapsed_seconds, rebalances_used,
                       opportunity_still_qualified, expected_remaining_fee_quote,
                       estimated_inventory_loss_quote, rebalance_cost_quote, unwind_cost_quote):
-    """Event-driven hold/rebalance/exit controller; never a timer-only recenter."""
-    if not decision.get("qualified") or not decision.get("freeze"):
-        return {"action": "exit", "reason": "strategy_not_qualified"}
-    if elapsed_seconds >= POLICY["controller"]["max_holding_seconds"]:
-        return {"action": "exit", "reason": "max_holding_period"}
-    if not opportunity_still_qualified:
-        return {"action": "exit", "reason": "fee_opportunity_disappeared"}
-    if estimated_inventory_loss_quote >= expected_remaining_fee_quote:
-        return {"action": "exit", "reason": "inventory_risk_dominates"}
+    """Apply Active Wide Maker v3 displacement hysteresis.
 
-    proposal = decision["freeze"]["proposals"][0]
-    bins = proposal["bins"]
-    lo, hi = min(bins), max(bins)
-    active0 = int(proposal["active_bin"])
-    width = max(active0 - lo, hi - active0, 1)
-    displacement = abs(int(current_active_bin) - active0)
-    near_edge = int(current_active_bin) < lo or int(current_active_bin) > hi or displacement * 4 >= width * 3
-    if near_edge:
-        if rebalances_used >= POLICY["controller"]["max_rebalances"]:
-            return {"action": "exit", "reason": "rebalance_limit"}
-        remaining_edge = expected_remaining_fee_quote - estimated_inventory_loss_quote - unwind_cost_quote
-        required = rebalance_cost_quote * POLICY["controller"]["rebalance_edge_to_cost_milli"] // 1000
-        if remaining_edge > required:
-            return {"action": "rebalance", "reason": "bin_displacement", "remaining_edge": remaining_edge}
-        return {"action": "exit", "reason": "rebalance_not_economic", "remaining_edge": remaining_edge}
-    return {"action": "hold", "reason": "opportunity_intact"}
+    The initial quiet-entry condition is not re-applied to an open position.
+    A pool becoming active after entry is therefore not itself an exit signal.
+    """
+    if not decision.get("qualified") or not decision.get("freeze"):
+        return {"action":"exit","reason":"strategy_not_qualified"}
+    proposal=decision["freeze"]["proposals"][0]
+    bins=proposal["bins"]
+    d=normalized_displacement(min(bins),max(bins),int(current_active_bin))
+    risk_exit=(
+        int(estimated_inventory_loss_quote)
+        > int(expected_remaining_fee_quote)
+    )
+    if d <= POLICY["controller"]["inside_hold_max_d"]:
+        if risk_exit:
+            return {"action":"exit","reason":"inventory_risk_dominates","D":d}
+        return {"action":"hold","reason":"inside_productive_range","D":d}
+    if d < POLICY["controller"]["edge_watch_max_d"]:
+        if risk_exit:
+            return {"action":"exit","reason":"edge_watch_risk_exit","D":d}
+        return {"action":"hold","reason":"hysteresis_no_partial_shift","D":d}
+    if d <= POLICY["controller"]["recenter_max_d"]:
+        remaining_edge=(
+            int(expected_remaining_fee_quote)
+            - int(estimated_inventory_loss_quote)
+            - int(unwind_cost_quote)
+            - int(rebalance_cost_quote)
+        )
+        if remaining_edge > 0:
+            return {
+                "action":"rebalance",
+                "reason":"normalized_displacement_recenter_band",
+                "remaining_edge":remaining_edge,
+                "D":d,
+            }
+        return {
+            "action":"exit",
+            "reason":"recenter_not_economic",
+            "remaining_edge":remaining_edge,
+            "D":d,
+        }
+    return {"action":"exit","reason":"normalized_displacement_overrun_no_chase","D":d}
 
 
 def decompose_pnl(decision, replay_result, *, unwind=None, costs=None):
