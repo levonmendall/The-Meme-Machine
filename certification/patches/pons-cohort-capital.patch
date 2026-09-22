@@ -1155,7 +1155,7 @@ index 0000000..38a4454
 +                self._write(db,row,'settle');rec=self._reconcile(db);db.execute('COMMIT');return rec
 +            except BaseException:db.execute('ROLLBACK');raise
 diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
-index 76f73f5..e92a3b9 100644
+index 76f73f5..ce7661c 100644
 --- a/robinhood_research/pons_selective_cohort.py
 +++ b/robinhood_research/pons_selective_cohort.py
 @@ -5,6 +5,8 @@ result directory, dedicated wallet-skill ledger, dedicated paper databases, poli
@@ -1555,13 +1555,11 @@ index 76f73f5..e92a3b9 100644
 +                              and len(result["qualifiers"])<COHORT_TARGET))
          ):
 -            rpc,cursor,fresh=_poll(
--                endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
--                result["sequencer_recoveries"],
++            rpc,cursor,fresh=(rpc,cursor,[]) if queue.rows else _poll(
+                 endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
+                 result["sequencer_recoveries"],
 -                on_provider_failure=_checkpoint_provider_failure,
 -            )
-+            rpc,cursor,fresh=(rpc,cursor,[]) if queue.rows else _poll(
-+                endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
-+                result["sequencer_recoveries"],
 +                on_provider_failure=_checkpoint_provider_failure)
 +            for curve_key in list(active_curve_futures):
 +                collect_curve_future(curve_key)
@@ -1569,7 +1567,7 @@ index 76f73f5..e92a3b9 100644
              now=time.time()
              now_monotonic=time.monotonic()
              for event in fresh:
-@@ -461,6 +628,7 @@ def run(endpoint):
+@@ -461,6 +627,7 @@ def run(endpoint):
                  if identity in seen_event:
                      continue
                  seen_event.add(identity)
@@ -1577,7 +1575,7 @@ index 76f73f5..e92a3b9 100644
                  if (
                      not event.get("topics")
                      or event["topics"][0].lower()!=topic(
-@@ -472,9 +640,14 @@ def run(endpoint):
+@@ -472,9 +639,14 @@ def run(endpoint):
                  if now-last_eval.get(curve,0)<MIN_REEVALUATION_SECONDS:
                      continue
                  last_eval[curve]=now
@@ -1592,7 +1590,7 @@ index 76f73f5..e92a3b9 100644
              if time.monotonic()>=next_checkpoint:
                  _checkpoint(
                      result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery"
-@@ -492,6 +665,18 @@ def run(endpoint):
+@@ -492,6 +664,18 @@ def run(endpoint):
              if observed_monotonic is None:
                  raise BoundaryError("missing_evidence_observation_clock")
              observed_at=float(scheduled["queued_at"])
@@ -1611,7 +1609,7 @@ index 76f73f5..e92a3b9 100644
              try:
                  evaluation=evaluate_candidate(
                      endpoint,event,list(tape),
-@@ -500,7 +685,29 @@ def run(endpoint):
+@@ -500,7 +684,29 @@ def run(endpoint):
                      evidence_observed_at=observed_at,
                      evidence_observed_monotonic=observed_monotonic,
                      evidence_context=evidence_context,
@@ -1641,7 +1639,7 @@ index 76f73f5..e92a3b9 100644
                  overlay=_attach_wallet_overlay(evaluation["vector"],skill)
                  public=public_evaluation(evaluation)
                  public["sequence"]=sequence
-@@ -555,15 +762,28 @@ def run(endpoint):
+@@ -555,15 +761,28 @@ def run(endpoint):
                          phase="qualifier_persisted",
                      )
                      next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
@@ -1671,7 +1669,7 @@ index 76f73f5..e92a3b9 100644
                      sequence=sequence,status="incomplete",
                      source_transaction=event.get("transactionHash"),
                      source_block=event.get("blockNumber"),
-@@ -580,33 +800,39 @@ def run(endpoint):
+@@ -580,33 +799,39 @@ def run(endpoint):
          if not result["target_reached"]:
              result["boundary"]="selective_cohort_target_not_reached_in_bounded_window"
  
@@ -1727,7 +1725,7 @@ index 76f73f5..e92a3b9 100644
          feed.close();skill.close()
  
      result["lifecycles"].sort(key=lambda row:row.get("index",-1))
-@@ -643,10 +869,7 @@ def run(endpoint):
+@@ -643,10 +868,7 @@ def run(endpoint):
  
  if __name__=="__main__":
      output=run(os.environ.get("MM_ROBINHOOD_READ_RPC_URL",""))
