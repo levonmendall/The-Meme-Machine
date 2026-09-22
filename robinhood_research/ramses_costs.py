@@ -3,10 +3,10 @@
 This module never signs or submits.  It learns gas-unit usage from finalized
 Ramses economic transactions, prices those units at the current read-only gas
 price, and converts the native cycle cost into each candidate pool's quote token
-through an executable direct Ramses WNATIVE route.
+through bounded executable Ramses WNATIVE routes (direct first, then a candidate-token bridge).
 
 Missing operation categories use a conservative 2x worst-observed Ramses gas
-unit proxy.  If no Ramses gas sample or no executable direct conversion exists,
+unit proxy.  If no Ramses gas sample or no bounded executable conversion exists,
 cost evidence remains unavailable and strategy qualification fails closed.
 """
 from __future__ import annotations
@@ -328,6 +328,66 @@ def _factory_direct_routes(rpc, factory, wnative, quote, amount, block):
     return out
 
 
+def _candidate_bridge_routes(
+    rpc, factory, pool, token_x, token_y, wnative, amount, block
+):
+    """Bounded two-hop WNATIVE -> token-X -> token-Y executable conversion.
+
+    The bridge is restricted to the candidate's authenticated token-X and the
+    candidate pool itself.  This is not a general router search: the first hop
+    must be a direct authenticated Ramses WNATIVE/token-X pool and the second
+    hop is the candidate pool's token-X -> quote-token-Y getSwapOut.
+    """
+    if token_x == wnative or token_y == wnative:
+        return []
+    first_hops = _factory_direct_routes(
+        rpc, factory, wnative, token_x, amount, block
+    )
+    usable = [
+        hop for hop in first_hops
+        if 0 < int(hop.get("amount_out") or 0) < 2**128
+    ]
+    if not usable:
+        return []
+    raw_quotes = rpc.batch(
+        [
+            (
+                "eth_call",
+                [
+                    dict(
+                        to=pool,
+                        data=calldata(
+                            "getSwapOut(uint128,bool)",
+                            int(hop["amount_out"]),
+                            1,
+                        ),
+                    ),
+                    hex(block),
+                ],
+            )
+            for hop in usable
+        ],
+        scope="universe_cost_conversion",
+    )
+    out = []
+    for first, raw_quote in zip(usable, raw_quotes):
+        q = values(raw_quote)
+        if len(q) < 3 or q[0] != 0 or q[1] <= 0:
+            continue
+        out.append({
+            "amount_out": q[1],
+            "route_pool": pool,
+            "route_kind": "candidate_token_bridge_two_hop",
+            "swap_for_y": True,
+            "bridge_token": token_x,
+            "hop_count": 2,
+            "first_hop": deepcopy(first),
+            "second_hop_pool": pool,
+            "second_hop_fee_raw": q[2],
+        })
+    return out
+
+
 def quote_native_cycle(rpc, factory, row, block, native_costs, state):
     """Convert native cycle costs into the candidate's token-Y quote units."""
     if not native_costs:
@@ -353,11 +413,16 @@ def quote_native_cycle(rpc, factory, row, block, native_costs, state):
             rpc, factory, wnative, token_y, total_native, block
         )
     if not routes:
+        routes = _candidate_bridge_routes(
+            rpc, factory, pool, token_x, token_y, wnative, total_native, block
+        )
+    if not routes:
         return None, {
             "available": False,
-            "reason": "no_executable_direct_wnative_quote_route",
+            "reason": "no_executable_bounded_wnative_quote_route",
             "model_version": COST_MODEL_VERSION,
             "quote_token": token_y,
+            "bridge_token": (None if token_x == wnative else token_x),
             "wnative": wnative,
         }
     best = max(routes, key=lambda r: int(r["amount_out"]))
