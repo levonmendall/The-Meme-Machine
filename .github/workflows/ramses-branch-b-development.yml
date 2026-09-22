@@ -27,9 +27,63 @@ jobs:
           assert p["holds_seconds"]==[21600,86400,259200]
           PY
 
-  cost_anchor:
-    needs: verify
+  provider_clear:
     if: contains(github.event.head_commit.message, '[ramses-branch-b-development]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Wait for exact competing four-lane campaign to become terminal
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BLOCKING_RUN: "35676727013"
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 90); do
+            row="$(gh api "repos/$REPOSITORY/actions/runs/$BLOCKING_RUN")"
+            status="$(printf '%s' "$row" | jq -r .status)"
+            sha="$(printf '%s' "$row" | jq -r .head_sha)"
+            branch="$(printf '%s' "$row" | jq -r .head_branch)"
+            name="$(printf '%s' "$row" | jq -r .name)"
+            test "$sha" = "71e20fd7b8ca24e5ecad33ff4294289c1c4215f4"
+            test "$branch" = "cert/dlmm-machinery-proof-current"
+            test "$name" = "four-lane-certification"
+            if [ "$status" = "completed" ]; then
+              printf '%s\n' "$row" | jq '{id,status,conclusion,head_sha,head_branch,name}'
+              exit 0
+            fi
+            sleep 60
+          done
+          echo "Exact competing campaign remained active; Branch B provider work not started." >&2
+          exit 1
+      - name: Fail closed if another provider-consuming market workflow is active
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$REPOSITORY/actions/runs?per_page=100" > /tmp/runs.json
+          python - <<'PY'
+          import json
+          rows=json.load(open("/tmp/runs.json"))["workflow_runs"]
+          blockers=[]
+          names={"four-lane-certification","robinhood-ramses-extended","robinhood-ramses-strategy","robinhood-ramses-universe"}
+          for r in rows:
+              if r.get("status") in {"queued","in_progress","waiting","pending"} and r.get("name") in names:
+                  blockers.append({k:r.get(k) for k in ("id","name","status","head_branch","head_sha")})
+          if blockers:
+              raise SystemExit("active_provider_workflows:"+json.dumps(blockers,sort_keys=True))
+          print('{"provider_path_clear":true}')
+          PY
+
+  cost_anchor:
+    needs: [verify, provider_clear]
+    if: contains(github.event.head_commit.message, '[ramses-branch-b-development]') && needs.verify.result == 'success' && needs.provider_clear.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
