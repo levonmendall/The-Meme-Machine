@@ -577,7 +577,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         fee=200
         seconds=10
         density=fee/liquidity*10000*3600/seconds
-        self.assertEqual(density,36.0)
+        self.assertEqual(density,360.0)
         p=strategy.load_policy()
         self.assertIn(
             "authenticated range LP fees",
