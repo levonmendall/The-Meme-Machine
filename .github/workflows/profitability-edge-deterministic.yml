@@ -180,7 +180,18 @@ jobs:
       - name: Build exact isolated lane worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/edge-worktrees"
       - name: Full lane suites and resource gates
-        run: python -m certification.run verify --worktrees "$RUNNER_TEMP/edge-worktrees" --output certification-edge-gates
+        run: |
+          set +e
+          python -m certification.run verify --worktrees "$RUNNER_TEMP/edge-worktrees" --output certification-edge-gates
+          CODE=$?
+          if [ "$CODE" -ne 0 ]; then
+            for LOG in certification-edge-gates/*-gate-*.log; do
+              echo "::group::$LOG"
+              cat "$LOG"
+              echo "::endgroup::"
+            done
+          fi
+          exit "$CODE"
       - name: Preserve canonical rebased overlays on the PR head
         run: |
           if git diff --quiet -- certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch; then
