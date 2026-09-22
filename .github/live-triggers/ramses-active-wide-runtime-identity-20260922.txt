@@ -1,0 +1,1 @@
+Emit canonical Active Wide Maker v3 policy and source identities while rerunning the green deterministic source gate.
