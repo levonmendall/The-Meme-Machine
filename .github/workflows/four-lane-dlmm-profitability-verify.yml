@@ -54,6 +54,11 @@ jobs:
                 git -C "$WT" add tests/solana_dlmm_independent_v1.py
                 CODE=0
               fi
+              if [ "$LANE" = ramses ] && test "$(git -C "$WT" diff --name-only --diff-filter=U)" = "robinhood_research/ramses_universe.py"; then
+                python "$GITHUB_WORKSPACE/certification/resolve_dlmm_profit_overlay.py" ramses "$WT/robinhood_research/ramses_universe.py"
+                git -C "$WT" add robinhood_research/ramses_universe.py
+                CODE=0
+              fi
               if [ "$CODE" -ne 0 ] || test -n "$(git -C "$WT" diff --name-only --diff-filter=U)"; then
                 git -C "$WT" status --short
                 git -C "$WT" diff --cc || true
