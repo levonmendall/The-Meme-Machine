@@ -43,6 +43,8 @@ DISCOVERY_SECONDS=int(os.environ.get("MM_PONS_SELECTIVE_DISCOVERY_SECONDS","1440
 if not 60<=DISCOVERY_SECONDS<=14_400:
     raise BoundaryError("invalid_pons_selective_discovery_seconds")
 TAPE_WARM_SECONDS=65
+TAPE_WARM_REQUIRED_CHAIN_SECONDS=60
+TAPE_WARM_MAX_SECONDS=120
 MAX_TAPE_EVENTS=40_000
 MAX_CONCURRENT_LIFECYCLES=8
 MIN_REEVALUATION_SECONDS=2.0
@@ -399,19 +401,28 @@ def run(endpoint):
         )
 
     try:
-        warm_deadline=time.monotonic()+TAPE_WARM_SECONDS
-        while time.monotonic()<warm_deadline:
+        warm_started=time.monotonic()
+        warm_min_deadline=warm_started+TAPE_WARM_SECONDS
+        warm_hard_deadline=warm_started+TAPE_WARM_MAX_SECONDS
+        covered=0
+        while time.monotonic()<warm_hard_deadline:
             rpc,cursor,_=_poll(
                 endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
                 result["sequencer_recoveries"],
                 on_provider_failure=_checkpoint_provider_failure,
             )
-        covered=int(feed.state.latest_header_timestamp or 0)-int(start_ts)
+            covered=int(feed.state.latest_header_timestamp or 0)-int(start_ts)
+            if (time.monotonic()>=warm_min_deadline
+                    and covered>=TAPE_WARM_REQUIRED_CHAIN_SECONDS):
+                break
         result["warmup"]=dict(
-            covered_seconds=covered,events=len(tape),end_block=cursor
+            covered_seconds=covered,events=len(tape),end_block=cursor,
+            wall_seconds=max(0.0,time.monotonic()-warm_started),
+            required_chain_seconds=TAPE_WARM_REQUIRED_CHAIN_SECONDS,
+            maximum_wall_seconds=TAPE_WARM_MAX_SECONDS,
         )
         _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="warmup_complete")
-        if covered<60:
+        if covered<TAPE_WARM_REQUIRED_CHAIN_SECONDS:
             raise BoundaryError("selective_tape_warmup_incomplete")
 
         pool=ThreadPoolExecutor(max_workers=MAX_CONCURRENT_LIFECYCLES)
