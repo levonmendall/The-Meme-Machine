@@ -1,0 +1,8 @@
+Natural four-lane paper validation request.
+Requested after activation of Pump/Pons profitability persistence edges.
+Expected active sources:
+Pump a4003b292014cedf554a4930a9cca10900bfc178
+Pons 012ea1a23ed892e19e3b1addc152fdcbe8b52ec2
+Meteora 3370a0a3a283b4e3901ae51e294eeb00ef69832d
+Ramses b2456dbf7adcf0c15caad3311aa86b41931be524
+Paper only. Natural discovery and qualification. No threshold changes.
