@@ -75,7 +75,7 @@ POLICY = {
         "target_remint_seconds": 180,
         "hard_same_decision_deadline_seconds": 210,
         "max_holding_seconds": 604800,
-        "max_rebalances": 100,
+        "max_rebalances": 8,
         "rebalance_edge_to_cost_milli": 1000,
     },
     "signals": {
@@ -732,9 +732,11 @@ def controller_action(decision, *, current_active_bin, elapsed_seconds, rebalanc
     proposal=decision["freeze"]["proposals"][0]
     bins=proposal["bins"]
     d=normalized_displacement(min(bins),max(bins),int(current_active_bin))
+    fee_reserve_known=isinstance(expected_remaining_fee_quote,int)
     risk_exit=(
-        int(estimated_inventory_loss_quote)
-        > int(expected_remaining_fee_quote)
+        fee_reserve_known
+        and int(estimated_inventory_loss_quote)
+            > int(expected_remaining_fee_quote)
     )
     if d <= POLICY["controller"]["inside_hold_max_d"]:
         if risk_exit:
@@ -745,6 +747,12 @@ def controller_action(decision, *, current_active_bin, elapsed_seconds, rebalanc
             return {"action":"exit","reason":"edge_watch_risk_exit","D":d}
         return {"action":"hold","reason":"hysteresis_no_partial_shift","D":d}
     if d <= POLICY["controller"]["recenter_max_d"]:
+        if not fee_reserve_known:
+            return {
+                "action":"exit",
+                "reason":"recenter_fee_reserve_unavailable",
+                "D":d,
+            }
         remaining_edge=(
             int(expected_remaining_fee_quote)
             - int(estimated_inventory_loss_quote)
