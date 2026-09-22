@@ -46,6 +46,16 @@ TAPE_WARM_SECONDS=65
 TAPE_WARM_REQUIRED_CHAIN_SECONDS=60
 TAPE_WARM_MAX_SECONDS=120
 MAX_TAPE_EVENTS=40_000
+
+def _warmup_state(start_ts,latest_ts,wall_seconds):
+    covered=max(0,int(latest_ts or 0)-int(start_ts))
+    wall=max(0.0,float(wall_seconds))
+    return dict(
+        covered_seconds=covered,
+        ready=(wall>=TAPE_WARM_SECONDS
+               and covered>=TAPE_WARM_REQUIRED_CHAIN_SECONDS),
+        exhausted=wall>=TAPE_WARM_MAX_SECONDS,
+    )
 MAX_CONCURRENT_LIFECYCLES=8
 MIN_REEVALUATION_SECONDS=2.0
 POLL_SECONDS=0.5
@@ -411,15 +421,24 @@ def run(endpoint):
                 result["sequencer_recoveries"],
                 on_provider_failure=_checkpoint_provider_failure,
             )
-            covered=int(feed.state.latest_header_timestamp or 0)-int(start_ts)
-            if (time.monotonic()>=warm_min_deadline
-                    and covered>=TAPE_WARM_REQUIRED_CHAIN_SECONDS):
+            warm_state=_warmup_state(
+                start_ts,feed.state.latest_header_timestamp,
+                time.monotonic()-warm_started,
+            )
+            covered=warm_state["covered_seconds"]
+            if warm_state["ready"]:
                 break
+        wall_seconds=max(0.0,time.monotonic()-warm_started)
+        warm_state=_warmup_state(
+            start_ts,feed.state.latest_header_timestamp,wall_seconds,
+        )
+        covered=warm_state["covered_seconds"]
         result["warmup"]=dict(
             covered_seconds=covered,events=len(tape),end_block=cursor,
-            wall_seconds=max(0.0,time.monotonic()-warm_started),
+            wall_seconds=wall_seconds,
             required_chain_seconds=TAPE_WARM_REQUIRED_CHAIN_SECONDS,
             maximum_wall_seconds=TAPE_WARM_MAX_SECONDS,
+            ready=warm_state["ready"],exhausted=warm_state["exhausted"],
         )
         _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="warmup_complete")
         if covered<TAPE_WARM_REQUIRED_CHAIN_SECONDS:
