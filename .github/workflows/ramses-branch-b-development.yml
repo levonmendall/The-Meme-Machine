@@ -17,7 +17,7 @@ jobs:
           python-version: '3.12.14'
       - name: Verify Branch B implementation without provider credentials
         run: |
-          python -m py_compile robinhood_research/ramses_branch_b_cost_anchor.py robinhood_research/ramses_branch_b_public_geometry.py robinhood_research/ramses_branch_b_merge_analyze.py
+          python -m py_compile robinhood_research/ramses_branch_b_cost_anchor.py robinhood_research/ramses_branch_b_public_geometry.py robinhood_research/ramses_branch_b_merge_analyze.py robinhood_research/ramses_branch_b_freeze.py
           python -m unittest robinhood_tests.test_ramses_historical_fast_logs -v
           python - <<'PY'
           import json
@@ -137,3 +137,61 @@ jobs:
             ramses-branch-b-cost-anchor.json
           if-no-files-found: warn
           retention-days: 90
+
+  freeze:
+    needs: aggregate
+    if: always() && needs.aggregate.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: research/ramses-branch-b-certification-v1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Download exact development decision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aid="$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100" --jq '.artifacts[] | select(.name | startswith("ramses-branch-b-development-decision-")) | .id' | head -1)"
+          test -n "$aid"
+          gh api "repos/${{ github.repository }}/actions/artifacts/$aid/zip" > /tmp/decision.zip
+          unzip -q /tmp/decision.zip -d /tmp/decision
+          cp /tmp/decision/ramses-branch-b-analysis.json .
+          cp /tmp/decision/ramses-branch-b-cost-anchor.json .
+      - name: Check preregistered development gate
+        id: gate
+        shell: bash
+        run: |
+          status="$(python -c 'import json; print((json.load(open("ramses-branch-b-analysis.json")).get("decision") or {}).get("status",""))')"
+          echo "status=$status"
+          if [ "$status" = "freeze_ready" ]; then
+            echo "freeze_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "freeze_ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Generate immutable frozen rule
+        if: steps.gate.outputs.freeze_ready == 'true'
+        run: python -m robinhood_research.ramses_branch_b_freeze
+      - name: Commit frozen rule before opening holdout
+        if: steps.gate.outputs.freeze_ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin research/ramses-branch-b-certification-v1
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/research/ramses-branch-b-certification-v1)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add RAMSES_BRANCH_B_FROZEN_RULE_V1.json RAMSES_BRANCH_B_FROZEN_COST_ANCHOR_V1.json
+          git commit -m "[ramses-branch-b-holdout] Freeze passing Branch B rule and open untouched holdout"
+          git push origin HEAD:research/ramses-branch-b-certification-v1
+      - name: Record development gate failure without holdout access
+        if: steps.gate.outputs.freeze_ready != 'true'
+        run: |
+          echo "Development did not meet the preregistered freeze gate. Holdout remains unopened."
