@@ -92,7 +92,7 @@ class RamsesAllPoolUniverseTests(unittest.TestCase):
         self.assertEqual(ramses_universe.LOOKBACK_BLOCKS, 300)
         self.assertEqual(ramses_universe.MAX_RECENT_ACTIVE_POOLS, 32)
         self.assertEqual(ramses_universe.WATCH_COHORT_SIZE, 8)
-        self.assertEqual(ramses_universe.PAPER_ACTIVE_LIQUIDITY_BPS, 100)
+        self.assertEqual(ramses_universe.PAPER_ACTIVE_LIQUIDITY_BPS, 50)
         self.assertLess(
             ramses_universe.PAPER_ACTIVE_LIQUIDITY_BPS,
             1000,
