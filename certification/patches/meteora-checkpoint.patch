@@ -719,7 +719,7 @@ index 05dd96f..2cdf6ad 100644
      ):
          deadline = float(self.clock()) + 30.0 if deadline is None else float(deadline)
          requested = []
-@@ -606,28 +696,89 @@ class EvidenceBroker:
+@@ -606,28 +696,90 @@ class EvidenceBroker:
              if sig and sig not in seen:
                  seen.add(sig)
                  requested.append(sig)
@@ -820,7 +820,7 @@ index 05dd96f..2cdf6ad 100644
              payloads = [json.loads(row[1]) for row in jobs]
              params = [[
                  row["signature"],
-@@ -639,17 +790,71 @@ class EvidenceBroker:
+@@ -639,17 +790,97 @@ class EvidenceBroker:
                      ),
                  ),
              ] for row in payloads]
@@ -2985,7 +2985,7 @@ new file mode 100644
 index 0000000..6b52e6c
 --- /dev/null
 +++ b/tests/test_solana_immutable_efficiency.py
-@@ -0,0 +1,161 @@
+@@ -0,0 +1,203 @@
 +import json,os,sqlite3,tempfile,time,unittest
 +from pathlib import Path
 +from unittest.mock import patch
