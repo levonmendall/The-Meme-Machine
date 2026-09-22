@@ -1,0 +1,65 @@
+name: ramses-branch-b-secondary-probe
+on:
+  push:
+    branches: [research/ramses-branch-b-certification-v1]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  probe:
+    if: contains(github.event.head_commit.message, '[ramses-branch-b-secondary-probe]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      MM_ROBINHOOD_QUICKNODE_RPC_URL: ${{ secrets.MM_ROBINHOOD_QUICKNODE_RPC_URL }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Download complete indexed history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aid="$(gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name | startswith("ramses-historical-index-")) and (.name | contains("summary") | not) and (.name | contains("probe") | not) and (.size_in_bytes > 1000000)) | [.created_at, (.id|tostring)] | @tsv' | sort -r | head -1 | cut -f2)"
+          test -n "$aid"
+          gh api "repos/${{ github.repository }}/actions/artifacts/$aid/zip" > /tmp/index.zip
+          unzip -q /tmp/index.zip -d /tmp/index
+          cp /tmp/index/ramses-historical-index-data.json.gz .
+      - name: Probe isolated secondary archive capability
+        run: |
+          python - <<'PY'
+          import gzip,json,os,pathlib,urllib.request
+          out={"kind":"ramses_branch_b_secondary_probe_v1","configured":False,"archive_capable":False}
+          url=os.environ.get("MM_ROBINHOOD_QUICKNODE_RPC_URL","")
+          if not url:
+              pathlib.Path("ramses-branch-b-secondary-probe.json").write_text(json.dumps(out,indent=2))
+              print(json.dumps(out));raise SystemExit(0)
+          out["configured"]=True
+          def rpc(method,params):
+              req=urllib.request.Request(url,data=json.dumps({"jsonrpc":"2.0","id":1,"method":method,"params":params}).encode(),headers={"Content-Type":"application/json"})
+              with urllib.request.urlopen(req,timeout=30) as r: body=json.loads(r.read())
+              if body.get("error"): raise RuntimeError(str(body["error"]))
+              return body.get("result")
+          out["chain_id"]=int(rpc("eth_chainId",[]),16)
+          with gzip.open("ramses-historical-index-data.json.gz","rt",encoding="utf-8") as fh: idx=json.load(fh)
+          events=[e for e in idx.get("fee_events",[]) if e.get("blockNumber")]
+          events.sort(key=lambda e:int(e["blockNumber"]))
+          if not events: raise RuntimeError("no_historical_fee_block")
+          block=int(events[max(0,len(events)//10)]["blockNumber"])
+          header=rpc("eth_getBlockByNumber",[hex(block),False])
+          out["probe_block"]=block
+          out["historical_header_available"]=bool(header and int(header["number"],16)==block)
+          out["archive_capable"]=bool(out["chain_id"]==4663 and out["historical_header_available"])
+          pathlib.Path("ramses-branch-b-secondary-probe.json").write_text(json.dumps(out,indent=2,sort_keys=True))
+          print(json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ramses-branch-b-secondary-probe-${{ github.run_id }}
+          path: ramses-branch-b-secondary-probe.json
+          if-no-files-found: error
+          retention-days: 30
