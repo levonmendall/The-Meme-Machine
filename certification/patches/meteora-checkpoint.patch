@@ -1904,7 +1904,7 @@ index 883e333..c7d8270 100644
          if not phase["verified"]:
 -            return dict(
 +            reason=str(phase.get("reason") or "")
-+            terminal_writeoff=(reason=="dlmm_multiple_liquidity_removals_in_interval" or reason.startswith("dlmm_rebalance_liquidity_requires_position_state:"))
++            terminal_writeoff=(reason in ("dlmm_multiple_liquidity_removals_in_interval","dlmm_add_liquidity_by_strategy2_mixed_with_swap_interval") or reason.startswith("dlmm_rebalance_liquidity_requires_position_state:"))
 +            if book is not None:(book.append(identity,'writeoff',dict(reason=reason,recovery_attempts=recoveries)) if terminal_writeoff else book.fail(identity,reason))
 +            return dict(lifecycle_id=identity,
                  complete=False,reason=phase["reason"],segments=segments,
@@ -2550,8 +2550,8 @@ index 0000000..c2f45b7
 +        self.assertEqual(r['cash'],1_000_000_000-strategy.CAPITAL-strategy.ENTRY_NETWORK_COST)
 +        self.assertEqual(r['settled'],0)
 +
-+    def test_structural_multi_removal_monitor_writes_off_without_stranding(self):
-+        structural='dlmm_multiple_liquidity_removals_in_interval'
++    def test_structural_unreplayable_monitor_writes_off_without_stranding(self):
++        structural='dlmm_add_liquidity_by_strategy2_mixed_with_swap_interval'
 +        def fail(*args):return dict(verified=False,reason=structural),None,None,None,None
 +        with patch.object(strategy,'_rotate',side_effect=lambda a,*args:a),patch.object(strategy,'_observe_window',side_effect=fail):
 +            result=strategy._lifecycle(None,self.entry['pool'],self.entry,self.features,self.policy,None,[],book=self.book)[0]
