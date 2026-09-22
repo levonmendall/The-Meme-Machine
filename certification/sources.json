@@ -172,6 +172,21 @@
           "transaction_capacity_changed": false,
           "freshness_finality_changed": false,
           "paper_only_authority_unchanged": true
+        },
+        "post_entry_lifecycle_exit_repair": {
+          "revision": "structural-strategy2-mixed-terminal-writeoff-v1",
+          "integration_commit": "b9091a3d816ed69301f9e8962f855d193934d7f9",
+          "failure_evidence_run": 35772589541,
+          "failure_boundary": "solana_dlmm_unresolved_position_blocks_new_admission",
+          "post_entry_reason": "dlmm_add_liquidity_by_strategy2_mixed_with_swap_interval",
+          "qualification_run": 35776707077,
+          "purpose": "Preserve the fail-closed mixed Strategy2+swap replay boundary while classifying that structurally unreplayable post-entry interval as the existing zero-proceeds terminal paper writeoff, preventing an unresolved paper position from terminating the Meteora lane on the next candidate.",
+          "strategy_thresholds_changed": false,
+          "position_size_changed": false,
+          "cost_model_changed": false,
+          "freshness_finality_changed": false,
+          "mixed_interval_replay_now_permitted": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
