@@ -1,7 +1,7 @@
 name: canonicalize-pons-overlay
 on:
   push:
-    branches: [repair/solana-alchemy-efficiency, cert/dlmm-machinery-proof-current]
+    branches: [repair/solana-alchemy-efficiency]
 
 permissions:
   contents: write
@@ -33,4 +33,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add certification/patches/pons-cohort-capital.patch
           git commit -m "[qualification-build] canonicalize Pons terminal-lifecycle repair"
-          git push origin HEAD:${GITHUB_REF_NAME}
+          git push origin HEAD:repair/solana-alchemy-efficiency
