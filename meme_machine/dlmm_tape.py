@@ -335,6 +335,46 @@ def _add_liquidity2_record(raw,instruction,keys,pool,order):
     )
 
 
+def _add_liquidity_by_strategy2_record(raw,instruction,keys,pool,order):
+    """Decode enough Strategy2 authority to authenticate a later bin-delta materialization.
+
+    Strategy2 chooses its exact per-bin distribution inside the program.  We never
+    infer that distribution from the strategy formula.  Instead the finalized
+    terminal snapshot must prove the exact one-sided bin deltas, while the
+    instruction/event/ordered transfers authenticate identity and aggregate amounts.
+    """
+    accounts=instruction.get('accounts') or []
+    if len(raw)<105 or len(accounts)<14:
+        raise Unavailable('dlmm_add_liquidity_by_strategy2_identity')
+    if any(type(accounts[i]) is not int or not 0<=accounts[i]<len(keys)
+           for i in range(14)):
+        raise Unavailable('dlmm_add_liquidity_by_strategy2_account_index')
+    if (keys[accounts[1]]!=pool
+            or not _supported_token_program(keys[accounts[10]])
+            or not _supported_token_program(keys[accounts[11]])
+            or keys[accounts[13]]!=dlmm.PROGRAM):
+        raise Unavailable('dlmm_add_liquidity_by_strategy2_identity')
+    amount_x,amount_y,observed_active,max_slippage,min_bin,max_bin=struct.unpack_from(
+        '<QQiiii',raw,8)
+    strategy_type=raw[40]
+    if min_bin>max_bin or max_slippage<0 or strategy_type>8:
+        raise Unavailable('dlmm_add_liquidity_by_strategy2_parameters')
+    _remaining_accounts_info_end(raw,105)
+    return dict(
+        kind='add_liquidity_by_strategy2',order=list(order),events=[],
+        position=keys[accounts[0]],sender=keys[accounts[9]],
+        max_amount_x=amount_x,max_amount_y=amount_y,
+        observed_active=observed_active,max_active_bin_slippage=max_slippage,
+        min_bin=min_bin,max_bin=max_bin,strategy_type=strategy_type,
+        strategy_parameters=raw[41:105].hex(),
+        reserve_x=keys[accounts[5]],reserve_y=keys[accounts[6]],
+        token_x_mint=keys[accounts[7]],token_y_mint=keys[accounts[8]],
+        reserve_x_index=accounts[5],reserve_y_index=accounts[6],
+        user_x_index=accounts[3],user_y_index=accounts[4],
+        mint_x_index=accounts[7],mint_y_index=accounts[8],
+    )
+
+
 def _attach_effect_event(effects,kind,event,order):
     """Bind an EventCpi record to its preceding effect without adjacency assumptions.
 
@@ -342,9 +382,11 @@ def _attach_effect_event(effects,kind,event,order):
     and its event-authority CPI. Bind only inside the same top-level instruction, by
     exact effect kind and PositionV2 identity, and require one unmatched predecessor.
     """
+    kinds=(kind,) if isinstance(kind,str) else tuple(kind)
+    label='_or_'.join(kinds)
     candidates=[
         effect for effect in effects
-        if effect.get('kind')==kind
+        if effect.get('kind') in kinds
         and effect.get('position')==event.get('position')
         and not effect.get('events')
         and len(effect.get('order') or ())==2
@@ -352,11 +394,11 @@ def _attach_effect_event(effects,kind,event,order):
         and tuple(effect['order'])<tuple(order)
     ]
     if not candidates:
-        raise Unavailable(f'dlmm_{kind}_event_without_ordered_call')
+        raise Unavailable(f'dlmm_{label}_event_without_ordered_call')
     latest=max(tuple(effect['order']) for effect in candidates)
     matches=[effect for effect in candidates if tuple(effect['order'])==latest]
     if len(matches)!=1:
-        raise Unavailable(f'dlmm_{kind}_event_ambiguous_order')
+        raise Unavailable(f'dlmm_{label}_event_ambiguous_order')
     matches[0]['events'].append(event)
     matches[0]['event_order']=list(order)
 
@@ -377,26 +419,36 @@ def _resolve_effect_event(effect,pool):
         effect.update(
             amount_x=event['amount_x'],amount_y=event['amount_y'],
             active=event['active'])
-    elif effect['kind']=='add_liquidity2':
+    elif effect['kind'] in ('add_liquidity2','add_liquidity_by_strategy2'):
         if event['position']!=effect['position'] or event['sender']!=effect['sender']:
-            raise Unavailable('dlmm_add_liquidity2_event_identity')
-        if (event['amount_x']!=effect['expected_amount_x']
-                or event['amount_y']!=effect['expected_amount_y']):
-            raise Unavailable('dlmm_add_liquidity2_event_amount_mismatch')
+            raise Unavailable('dlmm_add_liquidity_event_identity')
         active=event['active']
-        deposits=[]
-        for row in effect['distributions']:
-            x=row['x'];y=row['y'];bid=row['bin_id']
-            if not x and not y:
-                continue
-            if (x and bid<=active) or (y and bid>=active):
-                raise Unavailable('dlmm_add_liquidity2_active_composition_unsupported')
-            deposits.append(dict(bin_id=bid,x=x,y=y))
-        if not deposits and (event['amount_x'] or event['amount_y']):
-            raise Unavailable('dlmm_add_liquidity2_empty_distribution')
-        effect.update(
-            amount_x=event['amount_x'],amount_y=event['amount_y'],
-            active=active,bin_deposits=deposits)
+        if effect['kind']=='add_liquidity_by_strategy2':
+            if (event['amount_x']>effect['max_amount_x']
+                    or event['amount_y']>effect['max_amount_y']):
+                raise Unavailable('dlmm_add_liquidity_by_strategy2_event_amount_mismatch')
+            if abs(active-effect['observed_active'])>effect['max_active_bin_slippage']:
+                raise Unavailable('dlmm_add_liquidity_by_strategy2_active_slippage')
+            effect.update(
+                amount_x=event['amount_x'],amount_y=event['amount_y'],
+                active=active)
+        else:
+            if (event['amount_x']!=effect['expected_amount_x']
+                    or event['amount_y']!=effect['expected_amount_y']):
+                raise Unavailable('dlmm_add_liquidity2_event_amount_mismatch')
+            deposits=[]
+            for row in effect['distributions']:
+                x=row['x'];y=row['y'];bid=row['bin_id']
+                if not x and not y:
+                    continue
+                if (x and bid<=active) or (y and bid>=active):
+                    raise Unavailable('dlmm_add_liquidity2_active_composition_unsupported')
+                deposits.append(dict(bin_id=bid,x=x,y=y))
+            if not deposits and (event['amount_x'] or event['amount_y']):
+                raise Unavailable('dlmm_add_liquidity2_empty_distribution')
+            effect.update(
+                amount_x=event['amount_x'],amount_y=event['amount_y'],
+                active=active,bin_deposits=deposits)
     else:
         raise Unavailable('dlmm_unknown_external_effect')
     if min(effect['amount_x'],effect['amount_y'])<0:
@@ -766,7 +818,9 @@ def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
             if event_pool!=pool:
                 continue
             event=decode_add_liquidity(raw[8:],pool)
-            _attach_effect_event(effects,'add_liquidity2',event,[outer,inner])
+            _attach_effect_event(
+                effects,('add_liquidity2','add_liquidity_by_strategy2'),
+                event,[outer,inner])
         elif raw[:8]==EVENT_CPI and raw[8:16]==REMOVE_LIQUIDITY_EVT:
             if trigger_only:
                 continue
@@ -851,19 +905,15 @@ def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
             if trigger_only:
                 current=None;continue
             if positions:
-                accounts=instruction.get('accounts') or []
-                pos=','.join(map(str,positions))
-                if positions!=[1] or len(accounts)<14:
+                if positions!=[1]:
                     raise ValueError(
-                        f'dlmm_add_liquidity_by_strategy2_identity:pool_positions={pos}:accounts={len(accounts)}')
-                if any(type(i) is not int or not 0<=i<len(keys) for i in accounts[:14]):
-                    raise ValueError('dlmm_add_liquidity_by_strategy2_account_index')
-                slot=tx.get('slot')
-                if type(slot) is not int or slot<0:
-                    raise Unavailable('dlmm_snapshot_reset_slot_unavailable')
-                raise Unavailable(
-                    f'dlmm_snapshot_reset_required:add_liquidity_by_strategy2:{slot}')
-            current=None;continue
+                        f'dlmm_add_liquidity_by_strategy2_identity:pool_positions={positions}')
+                effect=_add_liquidity_by_strategy2_record(
+                    raw,instruction,keys,pool,[outer,inner])
+                effects.append(effect);current=dict(kind='effect',effect=effect)
+            else:
+                current=None
+            continue
         elif raw[:8]==REBALANCE_LIQUIDITY_IX:
             if trigger_only:
                 current=None;continue
@@ -920,8 +970,10 @@ def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
         if any(record['target'] for record,_event in resolved) \
                 and any(effect['kind']!='add_liquidity2' for effect in resolved_effects):
             raise Unavailable('dlmm_swap_mixed_with_external_liquidity_effect')
-        adds=[effect for effect in resolved_effects if effect['kind']=='add_liquidity2']
-        others=[effect for effect in resolved_effects if effect['kind']!='add_liquidity2']
+        adds=[effect for effect in resolved_effects
+              if effect['kind'] in ('add_liquidity2','add_liquidity_by_strategy2')]
+        others=[effect for effect in resolved_effects
+                if effect['kind'] not in ('add_liquidity2','add_liquidity_by_strategy2')]
         if adds:
             _authenticate_add_liquidity_transfers(adds,meta,keys,ordered)
         if others:
@@ -940,6 +992,42 @@ def _materialize_removal_effects(start,end,effects):
     removals=[item for item in effects
               if item.get('kind')=='remove_liquidity_by_range2']
     adds=[item for item in effects if item.get('kind')=='add_liquidity2']
+    strategy_adds=[item for item in effects
+                   if item.get('kind')=='add_liquidity_by_strategy2']
+    if strategy_adds:
+        if len(strategy_adds)!=1 or removals or adds:
+            raise Unavailable('dlmm_add_liquidity_by_strategy2_mixed_liquidity_interval')
+        if set(start['bins'])!=set(end['bins']):
+            raise Unavailable('dlmm_add_liquidity_by_strategy2_bin_set_changed')
+        item=strategy_adds[0];deposits=[];totals={'x':0,'y':0}
+        for bid,b in start['bins'].items():
+            terminal=end['bins'][bid]
+            supply=terminal['supply']-b['supply']
+            x=terminal['x']-b['x'];y=terminal['y']-b['y']
+            if min(supply,x,y)<0:
+                raise Unavailable('dlmm_add_liquidity_by_strategy2_negative_delta')
+            if not supply:
+                if x or y:
+                    raise Unavailable('dlmm_add_liquidity_by_strategy2_inventory_without_share')
+                continue
+            numeric=int(bid)
+            if not item['min_bin']<=numeric<=item['max_bin']:
+                raise Unavailable('dlmm_add_liquidity_by_strategy2_delta_outside_strategy_range')
+            if (x and y) or (x and numeric<=item['active']) or (y and numeric>=item['active']):
+                raise Unavailable('dlmm_add_liquidity_by_strategy2_bin_composition')
+            if not x and not y:
+                raise Unavailable('dlmm_add_liquidity_by_strategy2_share_without_inventory')
+            if dlmm.deposit_share(b,x,y)!=supply:
+                raise Unavailable('dlmm_add_liquidity_by_strategy2_share_delta_mismatch')
+            deposits.append(dict(
+                bin_id=numeric,x=x,y=y,observed_share=supply))
+            totals['x']+=x;totals['y']+=y
+        if totals['x']!=item.get('amount_x') or totals['y']!=item.get('amount_y'):
+            raise Unavailable('dlmm_add_liquidity_by_strategy2_total_mismatch')
+        if not deposits and (item.get('amount_x') or item.get('amount_y')):
+            raise Unavailable('dlmm_add_liquidity_by_strategy2_empty_distribution')
+        item['bin_deposits']=deposits
+        return
     if removals and adds:
         slot=min(item.get('slot',2**63-1) for item in adds)
         if type(slot) is not int or slot==2**63-1:
@@ -1033,10 +1121,10 @@ def apply_external_adjustment(state,item,counterfactual=False):
                 totals['x']!=item.get('amount_x')
                 or totals['y']!=item.get('amount_y')):
             raise Unavailable('dlmm_remove_liquidity_event_amount_mismatch')
-    elif kind=='add_liquidity2':
+    elif kind in ('add_liquidity2','add_liquidity_by_strategy2'):
         deposits=item.get('bin_deposits')
         if not isinstance(deposits,list):
-            raise Unavailable('dlmm_add_liquidity2_deposit_shape')
+            raise Unavailable('dlmm_add_liquidity_deposit_shape')
         totals={'x':0,'y':0}
         for row in deposits:
             bid=row.get('bin_id');x=row.get('x');y=row.get('y')
@@ -1048,7 +1136,11 @@ def apply_external_adjustment(state,item,counterfactual=False):
                 raise Unavailable('dlmm_add_liquidity2_bin_not_observed')
             share=dlmm.deposit_share(b,x,y)
             if share<=0:
-                raise Unavailable('dlmm_add_liquidity2_zero_share')
+                raise Unavailable('dlmm_add_liquidity_zero_share')
+            observed=row.get('observed_share')
+            if (not counterfactual and observed is not None
+                    and (type(observed) is not int or share!=observed)):
+                raise Unavailable('dlmm_add_liquidity_observed_share_mismatch')
             b['x']+=x;b['y']+=y;b['supply']+=share
             result['vault_x_amount']+=x;result['vault_y_amount']+=y
             totals['x']+=x;totals['y']+=y
@@ -1173,6 +1265,11 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
         parsed[sig['signature']]=(swaps,tx_effects)
         all_effects.extend(tx_effects)
 
+    strategy_effects=[
+        item for item in all_effects
+        if item.get('kind')=='add_liquidity_by_strategy2']
+    if strategy_effects and any(swaps for swaps,_effects in parsed.values()):
+        raise Unavailable('dlmm_add_liquidity_by_strategy2_mixed_with_swap_interval')
     _materialize_removal_effects(start,end,all_effects)
 
     state=deepcopy(start);events=[];adjustments=[];previous=list(cursor)
