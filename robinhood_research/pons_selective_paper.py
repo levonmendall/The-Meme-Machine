@@ -441,7 +441,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                     at=mark.stamp.observed_at,market="curve",available=True,
                     return_bps=rbps,trajectory=trajectory,demand=demand,
                     action=action,pregraduation_exit_reason=reason,quote=meta,
-                    profit_taking_deferred_until_post_graduation=True,
+                    pregraduation_profit_lock_enabled=True,
                 ))
                 if action["action"]=="full_exit":
                     try:
