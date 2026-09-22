@@ -1,0 +1,1 @@
+Run the frozen six-candidate quiet-USDG exact counterfactual as isolated candidate jobs, merge only after all six complete, then preserve the merged artifact for the preregistered evaluator. No holdout outcomes are read.\n
