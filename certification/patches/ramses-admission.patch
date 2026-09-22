@@ -787,7 +787,7 @@ index 0000000..12fd769
 +    def close(self):
 +        for book in self.books.values():book.close()
 diff --git a/robinhood_research/ramses_capture.py b/robinhood_research/ramses_capture.py
-index 2f2bbc9..edb85f9 100644
+index 9c3cee0..9f6b451 100644
 --- a/robinhood_research/ramses_capture.py
 +++ b/robinhood_research/ramses_capture.py
 @@ -70,6 +70,7 @@ class BoundedMultiRpc:
