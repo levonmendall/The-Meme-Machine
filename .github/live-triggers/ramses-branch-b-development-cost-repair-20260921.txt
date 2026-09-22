@@ -1,0 +1,1 @@
+Launch the repaired Branch B certification chain using canonical historical Ramses receipt/header cost samples. Strategy, geometry, sizing schedule, development gates, cost model, and holdout rules remain unchanged.
