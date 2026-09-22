@@ -795,7 +795,7 @@ index 2f2bbc9..edb85f9 100644
  
      def _rate_wait(self,attempt):
 diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ramses_extended_test.py
-index e4ab19d..91b2c99 100644
+index e4ab19d..e3f48c1 100644
 --- a/robinhood_research/ramses_extended_test.py
 +++ b/robinhood_research/ramses_extended_test.py
 @@ -21,6 +21,7 @@ from __future__ import annotations
