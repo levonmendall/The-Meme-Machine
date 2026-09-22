@@ -1,0 +1,1 @@
+Run the exact same frozen six-candidate Ramses quiet-entry counterfactual as six candidate shards with max three concurrent jobs, then merge and apply the frozen Branch A/B evaluator. No signal, sizing, width, hold, fee, unwind, or terminal-equality rule changes.
