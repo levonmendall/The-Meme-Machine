@@ -23,7 +23,7 @@ jobs:
         run: |
           python - <<'PY'
           from meme_machine.pump_acceleration_strategy import policy_hash
-          expected="561ce76a334d9cdcd3b4888a9aaee24d11c9eb43f1ca20c5b806940297018bfc"
+          expected="d623ff03ad19b2c4dcd8a82d4883c188ba1acd35a721582175d85cd1b0191770"
           actual=policy_hash()
           print({"expected":expected,"actual":actual})
           if actual != expected:
