@@ -14,6 +14,7 @@ evidence.
 from __future__ import annotations
 
 from collections import Counter
+from copy import deepcopy
 import hashlib
 import json
 import os
@@ -24,22 +25,24 @@ import time
 from . import BoundaryError
 from .abi import calldata, topic
 from .identity import authenticate, load
-from .ramses import authenticate_pool, decode_ramses_event, values
+from .ramses import authenticate_pool, decode_ramses_event, unpack, values
 from .ramses_capture import BoundedMultiRpc, LOG_BLOCK_CHUNK, MAX_FACTORY_POOLS
 from .ramses_costs import current_native_cycle, observe_receipt_gas, quote_native_cycle
-from .ramses_strategy import (
+from .ramses_quiet_strategy import (
     POLICY_HASH,
     STRATEGY_VERSION,
     STRATEGY_DOMAIN,
+    USDG,
     attach_universe_percentiles,
     classify_pool,
     pool_features,
 )
+from .ramses_quiet_discovery import discover_quiet_mints
 
 LOOKBACK_BLOCKS = 300
 MAX_RECENT_ACTIVE_POOLS = 32
 WATCH_COHORT_SIZE = 8
-PAPER_ACTIVE_LIQUIDITY_BPS = 100  # 1%, always below the strategy's 10% ceiling.
+PAPER_ACTIVE_LIQUIDITY_BPS = 50  # 0.5%; v2 local-liquidity cap.
 MAX_SWAP_LOGS = 2500
 UNIVERSE_BATCH_SIZE = 8
 UNIVERSE_BATCH_PAUSE_SECONDS = 0.8
@@ -321,7 +324,66 @@ def _decode_histories(logs, addresses):
     return histories
 
 
-def _prestate(rpc, factory, address, block):
+def _authenticate_quiet_signal(rpc, signal, pool, finalized_block):
+    """Promote index nomination to finalized on-chain evidence or fail closed."""
+    if not isinstance(signal, dict):
+        return None
+    tx = str(signal.get("transaction_hash") or "").lower()
+    if not tx.startswith("0x") or len(tx) != 66:
+        raise BoundaryError("quiet_mint_transaction_identity")
+    receipt = rpc.call(
+        "eth_getTransactionReceipt", [tx], scope="quiet_signal_auth"
+    )
+    if not receipt or int(receipt.get("status", "0x0"), 16) != 1:
+        raise BoundaryError("quiet_mint_receipt")
+    block = int(receipt.get("blockNumber", "0x0"), 16)
+    if block <= 0 or block > int(finalized_block):
+        raise BoundaryError("quiet_mint_not_finalized")
+    header = rpc.call(
+        "eth_getBlockByNumber", [hex(block), False], scope="quiet_signal_auth"
+    )
+    if (
+        not header
+        or int(header.get("number", "0x0"), 16) != block
+        or header.get("hash") != receipt.get("blockHash")
+    ):
+        raise BoundaryError("quiet_mint_header_identity")
+
+    wanted_log = int(signal.get("log_index", -1))
+    matches = []
+    for event in receipt.get("logs") or []:
+        if str(event.get("address") or "").lower() != str(pool).lower():
+            continue
+        if int(event.get("logIndex", "-0x1"), 16) != wanted_log:
+            continue
+        decoded = decode_ramses_event(
+            load("ramses_pool_implementation")["abi"], event
+        )
+        if decoded["name"] == "DepositedToBins":
+            matches.append((event, decoded["args"]))
+    if len(matches) != 1:
+        raise BoundaryError("quiet_mint_event_identity")
+    event, args = matches[0]
+    ids = [int(x) for x in args["ids"]]
+    amounts = [unpack(x) for x in args["amounts"]]
+    if ids != [int(x) for x in signal.get("bin_ids") or []]:
+        raise BoundaryError("quiet_mint_bin_identity")
+    expected = [[int(v[0]), int(v[1])] for v in (signal.get("amounts") or [])]
+    if amounts != expected:
+        raise BoundaryError("quiet_mint_amount_identity")
+    out = dict(signal)
+    out.update(
+        finalized=True,
+        block=block,
+        block_hash=receipt["blockHash"],
+        observed_at=int(header["timestamp"], 16),
+        receipt_authenticated=True,
+        index_evidence_only=False,
+    )
+    return out
+
+
+def _prestate(rpc, factory, address, block, *, extra_bins=None):
     calls = [
         ("eth_call", [dict(to=factory, data=calldata("isPool(address)", address)), hex(block)]),
         ("eth_getCode", [address, hex(block)]),
@@ -343,7 +405,11 @@ def _prestate(rpc, factory, address, block):
     active = values(active_raw)[0]
     if not 3 <= active < 2**24 - 3:
         raise BoundaryError("ramses_universe_active_bin_boundary")
-    bins = list(range(active - 3, active + 4))
+    bins = sorted(set(range(active - 3, active + 4)) | {
+        int(b) for b in (extra_bins or [])
+    })
+    if len(bins) > 200 or any(b < 0 or b >= 2**24 for b in bins):
+        raise BoundaryError("ramses_universe_signal_bin_capacity")
     bin_calls = []
     for bid in bins:
         bin_calls.extend([
@@ -369,14 +435,14 @@ def _prestate(rpc, factory, address, block):
 
 
 def _selection_key(row):
+    signal = row.get("quiet_mint_signal") or {}
+    decision = row.get("decision") or {}
     f = row["features"]
     return (
-        int(f.get("turnover_percentile_bps") or 0),
-        int(f.get("fee_percentile_bps") or 0),
-        min(10000, int(f.get("chop_ratio_milli") or 0)),
-        min(10000, int(f.get("volume_acceleration_milli") or 0)),
-        -int(f.get("flow_imbalance_bps") or 10000),
-        int(row.get("latest_swap_block") or 0),
+        1 if decision.get("qualified") and decision.get("mode") == "quiet_mint" else 0,
+        int(signal.get("observed_at") or 0),
+        int(signal.get("prior_24h_swaps") or 0),
+        int(f.get("active_liquidity_quote") or 0),
         row["pool"],
     )
 
@@ -449,6 +515,18 @@ def scan(
     end = int(frontier["number"], 16)
     start = max(0, end - lookback_blocks + 1)
 
+    # Public index nominates quiet-mint candidates; exact chain authentication
+    # below is still mandatory before any candidate can qualify.
+    auto_signals = discover_quiet_mints(now=int(frontier["timestamp"], 16))
+    merged_signals = {str(k).lower(): dict(v) for k, v in auto_signals.items()}
+    for key, value in signals_by_pool.items():
+        if not isinstance(value, dict):
+            raise BoundaryError("invalid_ramses_pool_signal_context")
+        row = dict(merged_signals.get(str(key).lower()) or {})
+        row.update(value)
+        merged_signals[str(key).lower()] = row
+    signals_by_pool = merged_signals
+
     factory_pin = load("ramses_factory")
     factory = factory_pin["address"]
     factory_code = rpc.call("eth_getCode", [factory, hex(end)], scope="universe_identity")
@@ -475,26 +553,77 @@ def scan(
         key=lambda r: (r["swaps"], r["latest_swap_block"], r["pool"]),
         reverse=True,
     )
-    active_cohort = activity[:max_recent_active_pools]
+    # Quiet-mint signal pools are never dropped merely because they are locally
+    # quiet; fill the remaining state budget with the most active pools.
+    signal_pools = [
+        p for p in sorted(signals_by_pool)
+        if p in set(addresses)
+    ]
+    active_by_pool = {r["pool"]: r for r in activity}
+    candidate_pools = list(signal_pools)
+    for item in activity:
+        if item["pool"] not in candidate_pools:
+            candidate_pools.append(item["pool"])
+        if len(candidate_pools) >= max_recent_active_pools:
+            break
+    candidate_pools = candidate_pools[:max_recent_active_pools]
+    active_cohort = [
+        active_by_pool.get(
+            p,
+            dict(pool=p, swaps=0, latest_swap_block=0),
+        )
+        for p in candidate_pools
+    ]
 
     rows = []
     exclusions = Counter()
     for activity_row in active_cohort:
         address = activity_row["pool"]
+        signal_context = signals_by_pool.get(address, {})
+        quiet_nomination = (
+            signal_context.get("quiet_mint")
+            if isinstance(signal_context.get("quiet_mint"), dict)
+            else signal_context
+            if signal_context.get("kind") == "quiet_mint"
+            else None
+        )
         try:
-            auth, prestate = _prestate(rpc, factory, address, end)
-            feature = pool_features(prestate, histories[address], "y", pool=address)
+            # Authenticate the public mint before using its geometry.
+            authenticated_signal = (
+                _authenticate_quiet_signal(rpc, quiet_nomination, address, end)
+                if quiet_nomination is not None
+                else None
+            )
+            extra_bins = (
+                authenticated_signal.get("bin_ids")
+                if authenticated_signal is not None else None
+            )
+            auth, prestate = _prestate(
+                rpc, factory, address, end, extra_bins=extra_bins
+            )
+            if auth["token_y"].lower() == USDG:
+                quote_side = "y"
+            elif auth["token_x"].lower() == USDG:
+                quote_side = "x"
+            else:
+                raise BoundaryError("quiet_mint_non_usdg")
+            if authenticated_signal is not None:
+                authenticated_signal["quote_side"] = quote_side
+                authenticated_signal["quote_token"] = USDG
+            history = histories.get(address, [])
+            feature = pool_features(prestate, history, quote_side, pool=address)
             rows.append(dict(
                 pool=address,
-                quote_side="y",
+                quote_side=quote_side,
                 token_x=auth["token_x"],
                 token_y=auth["token_y"],
                 bin_step=auth["bin_step"],
                 swap_count=activity_row["swaps"],
                 latest_swap_block=activity_row["latest_swap_block"],
                 prestate=prestate,
-                prehistory=histories[address],
+                prehistory=history,
                 features=feature,
+                quiet_mint_signal=authenticated_signal,
             ))
         except BoundaryError as exc:
             exclusions[str(exc)] += 1
@@ -563,8 +692,9 @@ def scan(
                 entry_timestamp=int(frontier["timestamp"], 16),
                 gas_costs=costs,
                 universe_features=features,
-                anchor_signal=signal_context.get("anchor"),
-                directional_signal=signal_context.get("directional"),
+                quiet_mint_signal=row.get("quiet_mint_signal"),
+                anchor_signal=None,
+                directional_signal=None,
                 now=int(frontier["timestamp"], 16),
                 pool=row["pool"],
             )
@@ -598,6 +728,7 @@ def scan(
             "paper_capital_quote_raw": capital,
             "gas_costs": (dict(costs) if isinstance(costs, dict) else None),
             "cost_evidence": cost_evidence,
+            "quiet_mint_signal": deepcopy(row.get("quiet_mint_signal")),
             "decision": decision,
             # Discovery logs are finalized but not individually receipt-authenticated.
             # This scanner ranks; it does not itself create strategy outcome evidence.
