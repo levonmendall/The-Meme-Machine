@@ -128,8 +128,8 @@
       }
     },
     "pons": {
-      "source_branch": "strategy/pons-profitability-v1",
-      "source_sha": "a8b560c13f7e1b3696ac7f7aa9f35801f87421e1",
+      "source_branch": "repair/pons-sequencer-session-recovery-20260922",
+      "source_sha": "c4c7d9bc17d65c087c309a90ca571865d311acf5",
       "strategy_version": "pons-selective-continuation-v1/profitability-v1",
       "policy_hash": "d9f19aa3c9ab23aeab5a5622c8ca2bdefbca46a140ce3f56dbc0d64b14e6e64a",
       "file_hashes": {
@@ -149,7 +149,9 @@
         "44355aaac41a06a80f306f4458bbf200b118f179",
         "38d264c9dd878e2f70ffb461c18bd12ecdd7c1d6",
         "40c66a68704fab147dacbfc25a0819b5a6f9c844",
-        "a8b560c13f7e1b3696ac7f7aa9f35801f87421e1"
+        "a8b560c13f7e1b3696ac7f7aa9f35801f87421e1",
+        "5e345fc43682111c17587a53ec19fc9172e6bd9d",
+        "c4c7d9bc17d65c087c309a90ca571865d311acf5"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
       "execution_certification": {
@@ -163,6 +165,20 @@
           "revision": "native-quote-preflight-v1",
           "purpose": "classify non-native-quote curves at the minimal authenticated strategy-domain preflight instead of downstream reconstruction and preserve rule-level rejection attribution",
           "investment_scope_unchanged": true,
+          "strategy_thresholds_changed": false
+        },
+        "sequencer_session_recovery": {
+          "revision": "reserved-bit-session-recovery-v1",
+          "source_commit": "c4c7d9bc17d65c087c309a90ca571865d311acf5",
+          "purpose": "reject RSV2/RSV3 frames, terminate only the offending WebSocket session, reconnect, and require authenticated RPC cursor backfill before canonical discovery advances",
+          "protocol_violation_ignored": false,
+          "strategy_thresholds_changed": false
+        },
+        "evidence_queue_repair": {
+          "revision": "foreground-drain-before-discovery-v1",
+          "integration_commit": "b47a58a38b046c66cca7c30b22854d5d3521b1f4",
+          "purpose": "drain already-observed five-second evidence candidates before spending another polling interval on discovery; original candidate clocks remain authoritative",
+          "freshness_gate_changed": false,
           "strategy_thresholds_changed": false
         }
       },
