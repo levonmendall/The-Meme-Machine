@@ -109,10 +109,12 @@ def assert_independence():
 
 def load_policy():
     p=json.loads(POLICY_PATH.read_text())
-    if p.get("kind")!="solana_dlmm_independent_v1":
+    if p.get("kind")!="solana_dlmm_fee_density_profitability_v1":
         raise RuntimeError("solana_dlmm_policy_kind")
-    if p.get("status")!="frozen_pre_prospective":
+    if p.get("status")!="frozen_for_prospective_natural_paper_validation":
         raise RuntimeError("solana_dlmm_policy_not_frozen")
+    if p.get("profitability_authority") is not True:
+        raise RuntimeError("solana_dlmm_profitability_authority")
     independence=p.get("independence") or {}
     for key in (
         "wallet_signals","profitable_wallet_labels","prior_dlmm_candidate_outputs",
@@ -316,12 +318,13 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
                         checkpoint("discovery_history_unavailable")
                     continue
                 failed=[]
-                if item["volume_acceleration"]<float(
-                        regime["min_volume_acceleration"]):
-                    failed.append("volume_acceleration")
-                if item["fee_acceleration"]<float(
-                        regime["min_fee_acceleration"]):
-                    failed.append("fee_acceleration")
+                if regime.get("acceleration_hard_gate",True):
+                    if item["volume_acceleration"]<float(
+                            regime["min_volume_acceleration"]):
+                        failed.append("volume_acceleration")
+                    if item["fee_acceleration"]<float(
+                            regime["min_fee_acceleration"]):
+                        failed.append("fee_acceleration")
                 if failed:
                     telemetry["rejections"].append(dict(
                         pool=address,failed=failed,candidate=item))
@@ -862,14 +865,17 @@ def _range_flow_features(start,tape,lower,upper,liquidity_state=None):
             0.0 if range_liquidity<=0 else total_volume/range_liquidity),
         fee_density=(
             0.0 if range_liquidity<=0 else total_fee/range_liquidity),
+        live_fee_density_bps_per_hour=(
+            0.0 if range_liquidity<=0
+            else total_fee/range_liquidity*10000.0*3600.0/seconds),
         two_way_balance=balance,reversal_count=reversals,
         travel_bins=travel,drift_ratio=drift,
         observed_seconds=seconds,
     )
 
 
-def _stress_roundtrip(entry,fraction):
-    sol_input=max(1,int(CAPITAL*float(fraction)))
+def _stress_roundtrip(entry,fraction,capital=CAPITAL):
+    sol_input=max(1,int(capital*float(fraction)))
     sol_is_x=entry["x"]==dlmm.WSOL
     post,quote=dlmm.swap(
         deepcopy(entry),sol_input,sol_is_x,int(entry["time"]))
@@ -891,16 +897,38 @@ def pre_entry_features(warm_start,warm,entry,candidate,policy):
     flow=_range_flow_features(
         warm_start,warm,lower,upper,liquidity_state=entry)
     q=policy["qualification"]
-    liquidity=flow["range_liquidity_sol_lamports"]
+    liquidity=int(flow["range_liquidity_sol_lamports"])
+    max_local_bps=int(policy["position"]["max_local_liquidity_fraction_bps"])
+    capital=(
+        min(CAPITAL,liquidity*max_local_bps//10000)
+        if liquidity>0 else 0
+    )
     capture_share=(
-        0.0 if liquidity<=0 else CAPITAL/(liquidity+CAPITAL))
+        0.0 if liquidity<=0 or capital<=0
+        else capital/(liquidity+capital)
+    )
     projected=(
         flow["range_fee_sol_lamports"]*capture_share
         *float(q["projected_fee_horizon_seconds"])
         /max(1,float(flow["observed_seconds"]))
     )
-    stress=_stress_roundtrip(entry,q["stress_inventory_fraction_of_capital"])
+    stress=_stress_roundtrip(
+        entry,q["stress_inventory_fraction_of_capital"],max(1,capital)
+    )
     expected_net=projected-ROUND_TRIP_NETWORK_COST-stress["loss_lamports"]
+    two_x_cost_stress_net=(
+        projected-2*ROUND_TRIP_NETWORK_COST-stress["loss_lamports"]
+    )
+    horizon_hours=float(q["projected_fee_horizon_seconds"])/3600.0
+    effective_liquidity=float(liquidity)*float(capture_share)
+    required_live_density=(
+        None
+        if effective_liquidity<=0 or horizon_hours<=0
+        else (
+            (2*ROUND_TRIP_NETWORK_COST+stress["loss_lamports"])
+            *10000.0/(effective_liquidity*horizon_hours)
+        )
+    )
     hours=float(policy["range"]["intended_holding_seconds"])/3600.0
     paired_info=(
         entry["token_y_mint_info"] if entry["x"]==dlmm.WSOL
@@ -915,15 +943,22 @@ def pre_entry_features(warm_start,warm,entry,candidate,policy):
         half_width_bins=half,total_width_bins=half*2,
         lower=min(lower),upper=max(upper),
         range_lower_bins=lower,range_upper_bins=upper,
+        recommended_capital_lamports=capital,
+        maximum_paper_capital_lamports=CAPITAL,
+        max_local_liquidity_fraction_bps=max_local_bps,
         capital_to_competing_liquidity_ratio=(
-            None if liquidity<=0 else CAPITAL/liquidity),
-        competing_liquidity_to_capital_multiple=liquidity/CAPITAL,
+            None if liquidity<=0 else capital/liquidity),
+        competing_liquidity_to_capital_multiple=(
+            0.0 if capital<=0 else liquidity/capital),
         estimated_fee_capture_share=capture_share,
         projected_fee_capture_lamports=projected,
         stress_inventory_roundtrip=stress,
         expected_net_lamports=expected_net,
+        two_x_cost_stress_net_lamports=two_x_cost_stress_net,
+        required_live_fee_density_bps_per_hour=required_live_density,
         expected_after_cost_pnl_bps_per_capital_hour=(
-            expected_net/CAPITAL*10000/hours),
+            None if capital<=0
+            else expected_net/capital*10000/hours),
         current_fee_bps=_current_fee_bps(entry),
         base_fee_bps=_base_fee_bps(entry),
         dynamic_fee_uplift=_fee_uplift(entry),
@@ -935,11 +970,20 @@ def pre_entry_features(warm_start,warm,entry,candidate,policy):
 
 def qualify(features,policy):
     r=policy["regime"];q=policy["qualification"]
+    acceleration_hard=bool(r.get("acceleration_hard_gate",True))
+    required_density=features.get("required_live_fee_density_bps_per_hour")
     checks=dict(
-        volume_acceleration=features["volume_acceleration"]>=float(
-            r["min_volume_acceleration"]),
-        fee_acceleration=features["fee_acceleration"]>=float(
-            r["min_fee_acceleration"]),
+        volume_acceleration=(
+            not acceleration_hard
+            or features["volume_acceleration"]>=float(
+                r["min_volume_acceleration"])
+        ),
+        fee_acceleration=(
+            not acceleration_hard
+            or features["fee_acceleration"]>=float(
+                r["min_fee_acceleration"])
+        ),
+        capital=features["recommended_capital_lamports"]>0,
         capacity=features["competing_liquidity_to_capital_multiple"]>=float(
             q["min_competing_range_liquidity_to_capital_multiple"]),
         two_way=features["two_way_balance"]>=float(q["min_two_way_balance"]),
@@ -949,11 +993,22 @@ def qualify(features,policy):
             q["max_stress_unwind_loss_bps"]),
         expected_net=features["expected_net_lamports"]>=int(
             q["min_expected_net_lamports"]),
+        two_x_cost_stress=(
+            not q.get("require_two_x_cost_stress_positive",False)
+            or features["two_x_cost_stress_net_lamports"]>0
+        ),
+        live_fee_density=(
+            required_density is not None
+            and features["live_fee_density_bps_per_hour"]
+                >= float(required_density)
+        ),
     )
     return dict(
         passes=all(checks.values()),checks=checks,
         failed=[k for k,v in checks.items() if not v],
-        rule="solana_dlmm_independent_v1",fitted_thresholds=False,
+        rule="solana_dlmm_fee_density_profitability_v1",
+        fitted_thresholds=False,
+        fee_density_threshold_kind="candidate_specific_2x_cost_breakeven",
     )
 
 
@@ -966,8 +1021,11 @@ def _equal_split(total,count):
 
 def _build_position(entry,features,policy):
     half=int(features["half_width_bins"])
-    conversion=int(CAPITAL*float(policy["position"]["sol_share_before_conversion"]))
-    remaining=CAPITAL-conversion
+    capital=int(features["recommended_capital_lamports"])
+    if capital<=0:
+        raise Unavailable("solana_dlmm_zero_recommended_capital")
+    conversion=int(capital*float(policy["position"]["sol_share_before_conversion"]))
+    remaining=capital-conversion
     sol_is_x=entry["x"]==dlmm.WSOL
     virtual,quote=dlmm.swap(
         deepcopy(entry),conversion,sol_is_x,int(entry["time"]))
@@ -1003,6 +1061,7 @@ def _build_position(entry,features,policy):
         deposits.append(dict(bin=bid,x=x,y=y))
     return dict(
         lower=min(lower+upper),upper=max(lower+upper),half_width=half,
+        capital_lamports=capital,
         shares=shares,fee_start=fee_start,virtual=virtual,
         entry_active=virtual["active"],entry_slot=entry["slot"],
         entry_time=entry["time"],entry_conversion_sol_lamports=conversion,
@@ -1051,13 +1110,15 @@ def _mark(position):
         _,quote=dlmm.swap(
             deepcopy(state),tokens,sol_side=="y",int(state["time"]))
         liquidation=int(quote["output"]);sol+=liquidation
-    pnl=sol-CAPITAL-ROUND_TRIP_NETWORK_COST
+    capital=int(position["capital_lamports"])
+    pnl=sol-capital-ROUND_TRIP_NETWORK_COST
     return dict(
         resolved=True,ending_sol_lamports=sol,pnl_lamports=pnl,
-        pnl_bps=pnl*10000/CAPITAL,
+        pnl_bps=pnl*10000/capital,
+        deployed_capital_lamports=capital,
         non_sol_inventory_raw=tokens,
         non_sol_inventory_liquidation_lamports=liquidation,
-        non_sol_inventory_fraction_of_initial_capital=liquidation/CAPITAL,
+        non_sol_inventory_fraction_of_initial_capital=liquidation/capital,
         active_bin=state["active"],time=state["time"],slot=state["slot"],
     )
 
@@ -1083,7 +1144,8 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
     )
     fee_collapse=(
         recent["touch_swaps"]>=2
-        and recent["fee_density"]<0.50*entry_flow["fee_density"]
+        and recent["live_fee_density_bps_per_hour"]
+            <0.50*entry_flow["live_fee_density_bps_per_hour"]
     )
     fee_uplift=_fee_uplift(real_terminal)
     dynamic_fee_collapse=(
@@ -1114,6 +1176,8 @@ def _lifecycle(
         volume_rate_sol_lamports_per_second=features[
             "volume_rate_sol_lamports_per_second"],
         fee_density=features["fee_density"],
+        live_fee_density_bps_per_hour=features[
+            "live_fee_density_bps_per_hour"],
     )
     exit_reason="maximum_holding_time"
     while elapsed<max_hold:
@@ -1153,6 +1217,8 @@ def _lifecycle(
 
 def _regime_pass(candidate,policy):
     regime=policy["regime"]
+    if not regime.get("acceleration_hard_gate",True):
+        return True
     return (
         candidate["volume_acceleration"]>=float(
             regime["min_volume_acceleration"])
