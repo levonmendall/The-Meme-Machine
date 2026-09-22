@@ -1,0 +1,1 @@
+Run deterministic verification of the frozen Ramses Active Wide Maker v2 rebalance controller. No provider calls and no production strategy changes.
