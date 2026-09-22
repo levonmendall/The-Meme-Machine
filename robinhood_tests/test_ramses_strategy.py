@@ -22,7 +22,7 @@ class RamsesStrategyTests(unittest.TestCase):
     def _state(self):
         active = 1 << 23
         bins = {}
-        for bid in range(active - 110, active + 111):
+        for bid in range(active - 260, active + 261):
             if bid < active:
                 reserves = [0, 10**18]
             elif bid > active:
