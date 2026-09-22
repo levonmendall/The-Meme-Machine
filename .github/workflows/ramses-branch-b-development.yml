@@ -18,7 +18,7 @@ jobs:
       - name: Verify Branch B implementation without provider credentials
         run: |
           python -m py_compile robinhood_research/ramses_branch_b_cost_anchor.py robinhood_research/ramses_branch_b_public_geometry.py robinhood_research/ramses_branch_b_merge_analyze.py robinhood_research/ramses_branch_b_freeze.py
-          python -m unittest robinhood_tests.test_ramses_historical_fast_logs -v
+          python -m unittest robinhood_tests.test_ramses_historical_fast_logs robinhood_tests.test_ramses_branch_b_cost_anchor -v
           python - <<'PY'
           import json
           p=json.load(open("RAMSES_BRANCH_B_CERTIFICATION_V1.json"))
