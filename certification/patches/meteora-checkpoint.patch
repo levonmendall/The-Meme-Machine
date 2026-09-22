@@ -757,6 +757,7 @@ index 05dd96f..2cdf6ad 100644
 +            phase('already_expired_before_enqueue' if float(self.clock())>=deadline else 'enqueued',serviceable_missing)
 +        lease_wait_recorded=False
 +        batches = 0
++        transient_retries={}
          while float(self.clock()) < deadline:
 -            remaining = [sig for sig in requested if self.get_transaction(sig) is None]
 +            remaining = [sig for sig in eligible if self.get_transaction(sig) is None]
@@ -866,6 +867,32 @@ index 05dd96f..2cdf6ad 100644
 +                               'certification_provider_queue_capacity':'queue_capacity_rejection',
 +                               'certification_provider_queue_deadline':'physical_governor_wait',
 +                               'certification_provider_method_cooldown':'shared_cooldown_backpressure'}.get(local_failure))
++                transient_transport=(not local_reason and not throttled and any(
++                    value>prior_failures.get(key,0) and any(tag in key for tag in
++                        ('TimeoutError','http_500','http_502','http_503','http_504',
++                         'URLError','ConnectionError','transport_failure'))
++                    for key,value in failures.items()))
++                retryable=(transient_transport and
++                    all(transient_retries.get(x['signature'],0)<1 for x in payloads) and
++                    float(self.clock())+.25<deadline)
++                if retryable:
++                    # Congestion/timeouts are not provider rate-limit events. Reduce
++                    # only transport batch pressure, preserve the original deadline,
++                    # and allow exactly one smaller retry for each immutable body.
++                    pnow=self._pressure();old_batch=pnow['batch_size']
++                    new_batch=max(1,old_batch//2)
++                    with self.lock,self.db:
++                        self.db.execute("""UPDATE pressure SET batch_size=?,
++                            cooldown_until=MAX(cooldown_until,?),success_streak=0,
++                            reductions=reductions+? WHERE name='transaction_hydration'""",
++                            (new_batch,float(self.clock())+.25,
++                             1 if new_batch<old_batch else 0))
++                    for item in payloads:
++                        transient_retries[item['signature']]=transient_retries.get(
++                            item['signature'],0)+1
++                    phase('provider_transient_retry',
++                          [x['signature'] for x in payloads])
++                    continue
 +                reason=(local_reason if local_reason else 'provider_rate_limited' if throttled else
 +                        'local_request_budget_exhausted' if str(exc)=='provider_budget_exhausted'
 +                        else 'transaction_version_unsupported' if any('32015' in k and v>prior_failures.get(k,0) for k,v in failures.items())
@@ -3060,6 +3087,48 @@ index 0000000..6b52e6c
 +        self.assertFalse(a.queue_transaction('sig',kind='dlmm_fresh',deadline=time.time()+5))
 +        self.assertEqual(a._pressure()['transport_reservations'],0)
 +        self.assertEqual(a.db.execute("SELECT status FROM jobs WHERE job_key='tx:sig'").fetchone()[0],'complete')
++
++    def test_transient_gettransaction_timeout_retries_once_with_lower_batch_pressure(self):
++        now=[100.]
++        b=EvidenceBroker(self.db,clock=lambda:now[0],
++            sleeper=lambda n:now.__setitem__(0,now[0]+n));self.addCleanup(b.close)
++        class Rpc:
++            failure_methods={}
++            attempts=0
++            def call_many(self,_method,params,*_args,**_kwargs):
++                self.attempts+=1
++                if self.attempts==1:
++                    self.failure_methods={'getTransaction:TimeoutError':1}
++                    raise Unavailable('provider_request_failed')
++                return [dict(slot=1,blockTime=1) for _ in params]
++        rpc=Rpc();before=b._pressure()
++        values,meta=b.hydrate_transactions(
++            rpc,['a','b','c','d'],kind='pump_window',deadline=105.,batch_size=8)
++        self.assertEqual(meta['pending'],0);self.assertEqual(rpc.attempts,2)
++        after=b._pressure()
++        self.assertLess(after['batch_size'],before['batch_size'])
++        self.assertEqual(after['rate_events'],before['rate_events'])
++        phases=b.consumers.telemetry()['acquisition_phase_attempts']
++        self.assertEqual(phases['provider_transient_retry'],4)
++
++    def test_repeated_transient_gettransaction_failure_stays_fail_closed(self):
++        now=[100.]
++        b=EvidenceBroker(self.db,clock=lambda:now[0],
++            sleeper=lambda n:now.__setitem__(0,now[0]+n));self.addCleanup(b.close)
++        class Rpc:
++            failure_methods={}
++            attempts=0
++            def call_many(self,*_args,**_kwargs):
++                self.attempts+=1
++                self.failure_methods={'getTransaction:TimeoutError':self.attempts}
++                raise Unavailable('provider_request_failed')
++        rpc=Rpc();values,meta=b.hydrate_transactions(
++            rpc,['a'],kind='pump_window',deadline=105.,batch_size=8)
++        self.assertEqual(rpc.attempts,2);self.assertEqual(meta['pending'],1)
++        self.assertIsNone(values['a'])
++        self.assertEqual(
++            b.consumers.telemetry()['acquisition_failures'],
++            {'provider_unavailable':1})
 +
 +    def test_recovered_internal_429_still_updates_shared_batch_pressure(self):
 +        class Rpc:
