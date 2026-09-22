@@ -31,6 +31,12 @@ jobs:
           test -f RAMSES_BRANCH_B_FROZEN_RULE_V1.json
           test -f RAMSES_BRANCH_B_FROZEN_COST_ANCHOR_V1.json
           cp RAMSES_BRANCH_B_FROZEN_COST_ANCHOR_V1.json ramses-branch-b-cost-anchor.json
+          if [ -f RAMSES_BRANCH_B_FROZEN_COST_ROUTE_FALLBACK_V1.json ]; then
+            cp RAMSES_BRANCH_B_FROZEN_COST_ROUTE_FALLBACK_V1.json ramses-branch-b-cost-route-fallback.json
+          fi
+          if [ -f RAMSES_BRANCH_B_FROZEN_COST_ROUTE_FALLBACK_V1.json ]; then
+            cp RAMSES_BRANCH_B_FROZEN_COST_ROUTE_FALLBACK_V1.json ramses-branch-b-cost-route-fallback.json
+          fi
           python - <<'PY'
           import json
           r=json.load(open("RAMSES_BRANCH_B_FROZEN_RULE_V1.json"))
@@ -38,6 +44,13 @@ jobs:
           assert r["frozen"] is True
           assert r["holdout_outcomes_read_before_freeze"] is False
           assert r["hold_seconds"] in (86400,259200)
+          if r.get("cost_route_fallback_frozen"):
+              import hashlib
+              f=json.load(open("RAMSES_BRANCH_B_FROZEN_COST_ROUTE_FALLBACK_V1.json"))
+              sha=hashlib.sha256(json.dumps(f,sort_keys=True,separators=(",",":")).encode()).hexdigest()
+              assert sha==r["cost_route_fallback_sha256"]
+              assert f["cost_model_changed"] is False
+              assert f["strategy_parameters_changed"] is False
           PY
       - name: Download complete indexed history
         env:
@@ -94,6 +107,10 @@ jobs:
         if: always()
         with:
           name: ramses-branch-b-holdout-decision-${{ github.run_id }}
-          path: ramses-branch-b-analysis.json
+          path: |
+            ramses-branch-b-analysis.json
+            RAMSES_BRANCH_B_FROZEN_RULE_V1.json
+            RAMSES_BRANCH_B_FROZEN_COST_ANCHOR_V1.json
+            RAMSES_BRANCH_B_FROZEN_COST_ROUTE_FALLBACK_V1.json
           if-no-files-found: warn
           retention-days: 90
