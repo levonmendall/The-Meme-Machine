@@ -1,0 +1,85 @@
+{
+  "kind": "ramses_branch_b_public_mint_geometry_certification_v1",
+  "status": "preregistered_before_branch_b_development_outcomes",
+  "created_date": "2026-09-21",
+  "research_only": true,
+  "allocation_authority": false,
+  "source_report": "RAMSES_DLMM_FINAL_STRATEGY_REPORT.md",
+  "source_strategy": "branch_B_public_mint_geometry",
+  "terminal_state_equivalence_required": {
+    "artifact": 10672138725,
+    "run": 35674333987,
+    "exact_equivalence": true
+  },
+  "split": {
+    "development_fraction": 0.8,
+    "holdout_fraction": 0.2,
+    "holdout_outcomes_must_remain_unread_until_rule_freeze": true
+  },
+  "signal": {
+    "quote_asset": "USDG",
+    "prior_30m_max_swaps": 2,
+    "prior_24h_min_swaps": 10,
+    "event": "finalized public DLMMMint",
+    "entry": "first block after signal mint",
+    "candidate_order": "SHA256(pool|timestamp|transaction)",
+    "development_candidate_cap": 24,
+    "holdout_candidate_cap": 24,
+    "max_candidates_per_pool": 4,
+    "minimum_development_candidates": 20,
+    "minimum_distinct_pools": 3
+  },
+  "geometry": {
+    "rule": "copy exact public mint bin set, sidedness, and relative deposited token distribution",
+    "source_amounts": "DLMMMint amountsX/amountsY converted back to raw token units using authenticated ERC20 decimals",
+    "max_geometry_bins": 256,
+    "rebalance": "none"
+  },
+  "sizing": {
+    "local_liquidity_basis": "sum quote value of authenticated entry-state reserves across the public mint bin set",
+    "ceiling_bps": 50,
+    "deterministic_reduction_schedule_bps": [50, 25, 12, 6, 3, 1],
+    "minimum_local_liquidity_bps": 1,
+    "entry_unwind_gate": "full same-pool executable unwind with amount_in_left=0 at the entry block",
+    "failure_rule": "reject if no schedule size can be fully unwound"
+  },
+  "holds_seconds": [21600, 86400, 259200],
+  "certification_eligible_holds_seconds": [86400, 259200],
+  "cost_model": {
+    "source": "current conservative Ramses receipt-gas model from finalized on-chain economic events",
+    "gas_units": "p75 by add/remove/unwind, missing categories use 2x worst observed, plus one worst-observed entry overhead",
+    "quote_conversion": "executable direct WNATIVE-to-quote getSwapOut",
+    "stress_multiplier_bps": 20000,
+    "freeze_native_cycle_before_holdout": true
+  },
+  "development_pass": {
+    "minimum_resolved_candidates": 20,
+    "minimum_distinct_pools": 3,
+    "median_after_cost_return_bps": ">0",
+    "mean_after_cost_return_bps": ">0",
+    "win_rate": ">0.55",
+    "single_pool_positive_pnl_share": "<=0.40",
+    "two_x_cost_stress_median_bps": ">0",
+    "two_x_cost_stress_mean_bps": ">0"
+  },
+  "rule_selection": {
+    "eligible_holds_seconds": [86400, 259200],
+    "ordering": [
+      "equal_pool_weighted_median_after_cost_return_bps",
+      "equal_pool_weighted_mean_after_cost_return_bps",
+      "p10_after_cost_return_bps",
+      "win_rate",
+      "shorter_hold_on_exact_tie"
+    ],
+    "no_threshold_retuning_after_development": true
+  },
+  "holdout_pass": {
+    "median_after_cost_return_bps": ">0",
+    "mean_after_cost_return_bps": ">0",
+    "win_rate": ">0.55",
+    "minimum_distinct_pools": 3,
+    "two_x_cost_stress_median_bps": ">0",
+    "two_x_cost_stress_mean_bps": ">0",
+    "same_frozen_rule_and_native_cost_anchor": true
+  }
+}
