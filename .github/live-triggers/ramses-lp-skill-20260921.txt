@@ -1,0 +1,1 @@
+Test whether quiet USDG Ramses entries from LPs with an observable positive prior closed-position record outperform anonymous quiet mints. Use derivation+validation only; holdout remains absent.\n
