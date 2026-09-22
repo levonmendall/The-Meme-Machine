@@ -37,6 +37,19 @@ jobs:
           mkdir -p /tmp/index
           unzip -q /tmp/index.zip -d /tmp/index
           cp /tmp/index/ramses-historical-index-data.json.gz .
+      - name: Restore latest partial checkpoint when available
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aid="$(gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false and (.name | startswith("ramses-quiet-mint-counterfactual-fast-")) and (.size_in_bytes > 0)) | [.created_at, (.id|tostring)] | @tsv' \
+            | sort -r | head -1 | cut -f2 || true)"
+          if [ -n "$aid" ]; then
+            gh api "repos/${{ github.repository }}/actions/artifacts/$aid/zip" > /tmp/checkpoint.zip
+            unzip -p /tmp/checkpoint.zip ramses-quiet-mint-counterfactual.json > ramses-quiet-mint-counterfactual.json || rm -f ramses-quiet-mint-counterfactual.json
+          fi
       - name: Exact quiet-mint counterfactual replay with equivalent fast log fetch
         run: python -m robinhood_research.ramses_historical_quiet_mint_counterfactual
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
