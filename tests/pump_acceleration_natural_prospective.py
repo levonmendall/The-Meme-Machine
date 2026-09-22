@@ -322,6 +322,7 @@ def _fill_pending(
                         "entry_signal_decay:"+",".join(persistence["reasons"])
                     )
                 row["last_concentration"]=int(concentration)
+                _assert_fill_deadline(row)
 
                 supply,_=pump.mint_info(snapshot["accounts"][1])
                 rates=pump.fees(snapshot["accounts"][2],curve,supply)
@@ -373,6 +374,7 @@ def _fill_pending(
                         "entry_signal_decay:"+",".join(persistence["reasons"])
                     )
                 row["last_concentration"]=int(concentration)
+                _assert_fill_deadline(row)
 
                 quote=buy_quote(snapshot,ENTRY_BUDGET)
                 tokens=quote.output_amount;cost=quote.input_amount;surface="pumpswap"
