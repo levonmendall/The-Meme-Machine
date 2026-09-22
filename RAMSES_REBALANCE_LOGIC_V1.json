@@ -1,0 +1,104 @@
+{
+  "kind": "ramses_active_wide_maker_rebalance_v1",
+  "status": "frozen_shadow_rule_from_pre_holdout_operator_evidence",
+  "research_only": true,
+  "paper_only": true,
+  "holdout_outcomes_read": false,
+  "evidence": {
+    "qualifying_books": 70,
+    "quick_rebalance_books": 19,
+    "quick_rebalance_win_rate": 0.7894736842105263,
+    "quick_rebalance_lower_bound_pnl_usd": 88503.83369074746,
+    "no_quick_rebalance_books": 51,
+    "no_quick_rebalance_win_rate": 0.6078431372549019,
+    "no_quick_rebalance_lower_bound_pnl_usd": 29336.97299380803,
+    "first_quick_transition_books": 18,
+    "first_quick_transition_winners": 15,
+    "all_quick_transition_pairs": 35,
+    "observed_core_contract": {
+      "replacement_width_gte_65_first_transition": {
+        "n": 10,
+        "wins": 10
+      },
+      "remint_within_180s_first_transition": {
+        "n": 13,
+        "wins": 12
+      },
+      "capital_preserved_80_120pct_first_transition": {
+        "n": 10,
+        "wins": 10
+      },
+      "fast_wide_capital_preserved": {
+        "n": 6,
+        "wins": 6,
+        "owners": 5,
+        "pools": 6
+      },
+      "fast_wide_capital_preserved_two_sided_inside": {
+        "n": 5,
+        "wins": 5,
+        "owners": 4,
+        "pools": 5
+      }
+    }
+  },
+  "definitions": {
+    "active_bin": "latest authenticated finalized Ramses active bin",
+    "range_center": "(lower_bin + upper_bin) / 2",
+    "half_width": "max(0.5, (upper_bin - lower_bin) / 2)",
+    "normalized_displacement": "abs(active_bin - range_center) / half_width",
+    "capital_preservation_ratio": "replacement_position_quote_value / burn_proceeds_quote_value"
+  },
+  "state_machine": {
+    "monitor": "Evaluate on every finalized block while position is open.",
+    "proactive_review": {
+      "condition": "normalized_displacement >= 0.50",
+      "action": "precompute replacement and executable unwind; do not wait for range escape if replacement economics remain valid."
+    },
+    "hard_rebalance": {
+      "condition": "normalized_displacement >= 1.00 OR active_bin outside current range",
+      "action": "burn and remint only if the replacement contract below passes; otherwise exit to USDG/cash."
+    },
+    "geometry_failure": {
+      "condition": "current range width < 65 bins OR current position can no longer be fully unwound",
+      "action": "rebalance or exit; never add risk simply to rescue the position."
+    },
+    "no_displacement_only_churn": {
+      "condition": "normalized_displacement < 0.50 and range remains wide, two-sided, fully unwindable",
+      "action": "hold unless a separately validated economic/inventory trigger fires. Fee spike/drop alone is not a rebalance trigger."
+    }
+  },
+  "replacement_contract": {
+    "burn_then_remint_max_seconds": 180,
+    "replacement_width_bins": {
+      "minimum": 65,
+      "preferred_band": [
+        65,
+        200
+      ]
+    },
+    "capital_preservation_ratio": [
+      0.8,
+      1.2
+    ],
+    "default_sidedness": "two-sided",
+    "active_bin_placement": "active bin should be inside replacement range; inner 75% of half-width preferred, not mandatory for v1 because some profitable high-step repairs were edge/outside placements.",
+    "full_unwind_required": true,
+    "no_averaging_down": "Do not inject fresh capital after an adverse move. If 80-120% redeployment cannot be achieved, reduce or exit.",
+    "execution_failure": "If remint cannot complete within 180 seconds or evidence becomes stale/incomplete, remain in USDG/cash rather than chase."
+  },
+  "urgency": {
+    "D<0.50": "hold by default",
+    "0.50<=D<1.00": "proactive rebalance zone",
+    "D>=1.00": "hard rebalance/exit zone"
+  },
+  "rejected_triggers": [
+    "fee spike alone",
+    "fee decline alone",
+    "fixed elapsed-time rebalance",
+    "wait until fully outside range",
+    "add capital after adverse displacement",
+    "narrow replacement range below 65 bins"
+  ],
+  "validation_boundary": "Shadow/paper only until exact historical replay and prospective paper validation confirm this rule; protected chronological holdout remains unopened."
+}
