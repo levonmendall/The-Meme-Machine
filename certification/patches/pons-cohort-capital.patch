@@ -406,7 +406,7 @@ index bf9e1a8..89bbb39 100644
  from .provider_topology import configured_rpc
 +from .provider_admission import foreground_work
  from .pons_selective_continuation import (
-     ENTRY_THRESHOLDS, ZERO, curve_progress_bps, normalized_trade, qualification_vector,
+     ENTRY_THRESHOLDS, curve_progress_bps, normalized_trade, qualification_vector,
  )
 @@ -24,6 +29,7 @@ HEADER_BATCH=50
  RECEIPT_BATCH=50
@@ -780,7 +780,7 @@ index bf9e1a8..89bbb39 100644
 +    record=candidate["record"]
 +    progress=curve_progress_bps(
 +        state.real_quote,record["graduationThreshold"])
-+    reasons=([] if str(record.get("pairToken",ZERO)).lower()==ZERO else ["non_native_quote"])
++    reasons=([] if str(record.get("pairToken","0x"+"00"*20)).lower()==("0x"+"00"*20) else ["non_native_quote"])
 +    if state.graduated:
 +        reasons.append("already_graduated")
 +    if int(candidate["current_snipe_bps"])!=0:
