@@ -1,0 +1,1 @@
+Recompose with reviewed Ramses merge: preserve evidence pin/checkpoint telemetry while retaining exact 30-minute v3 quiet-entry window.
