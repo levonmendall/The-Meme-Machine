@@ -2840,7 +2840,7 @@ index 0000000..4d429e2
 +                    self.assertEqual(rpc.retries,0)
 diff --git a/tests/test_meteora_continuous_campaign.py b/tests/test_meteora_continuous_campaign.py
 new file mode 100644
-index 0000000..9c5fe0e
+index 0000000..655f62e
 --- /dev/null
 +++ b/tests/test_meteora_continuous_campaign.py
 @@ -0,0 +1,39 @@
