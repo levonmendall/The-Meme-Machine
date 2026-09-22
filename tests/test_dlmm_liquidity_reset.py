@@ -56,9 +56,8 @@ class LiquidityMutationIdentity(unittest.TestCase):
             raw,dict(accounts=list(range(14))),keys,pool,[3,1])
         event=decode_add_liquidity(bytes.fromhex(
             '1f5e7d5ae3343dba92a5999e33292a1da65d118d47b774214d1a809653dda67d'
-            'c49e0a72b619a8a7054513a47d79427d6864831921664e8c6d6e675988d9795fc'
-            '1746f6c9719988274991e7673f2cdba5bab2e92d878e598e286a3419d120137713'
-            'd06f83a0d073b054513a47d79427d6864831921664e8c6d6e675988d9795fc174'
+            'c49e0a72b619a8a774991e7673f2cdba5bab2e92d878e598e286a3419d12013771'
+            '3d06f83a0d073b054513a47d79427d6864831921664e8c6d6e675988d9795fc174'
             '6f6c97199882d3d709000000000068b92d0000000000d4010000'),pool)
         effect['events']=[event];effect['event_order']=[3,5]
         resolved=_resolve_effect_event(effect,pool)
