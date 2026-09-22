@@ -7,3 +7,4 @@ Pons recovery-overlay semantic resolver added.
 Idempotent Pons semantic resolver retry.
 Expose exact Pump/Pons composed test failures.
 Policy-aligned Pump/Pons fixture repair retry.
+Hardened Pons recovery fixture composition retry.
