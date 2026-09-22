@@ -1,0 +1,1 @@
+Require 12/12 bit-for-bit equivalence to the previously certified full replay, then evaluate the frozen six quiet-entry candidates using exact entry/exit archive state and executable unwind, merge, and apply the frozen Branch A/B evaluator.
