@@ -133,6 +133,35 @@ def select_candidates(mints,pools,by_swaps,start,end):
         selected_pools=len({r["pool"] for r in out}),
     )
 
+def _write_checkpoint(protocol, selection, results, rpc, candidates):
+    resolved=[
+        v for r in results if "holds" in r
+        for h in r["holds"] for v in h.get("variants",[])
+        if v.get("gross_return_bps") is not None
+    ]
+    body=dict(
+        kind="ramses_dlmm_quiet_mint_counterfactual_v1",
+        research_only=True,existing_strategy_policy_used=False,
+        holdout_outcomes_read=False,protocol=protocol,
+        selection=selection,candidates=results,
+        checkpoint=dict(
+            completed_candidates=len(results),
+            target_candidates=len(candidates),
+            complete=(len(results)==len(candidates)),
+        ),
+        summary=dict(
+            selected_candidates=len(candidates),
+            resolved_variants=len(resolved),
+            positive_variants=sum(v["gross_return_bps"]>0 for v in resolved),
+            median_gross_return_bps=(None if not resolved else
+                sorted(v["gross_return_bps"] for v in resolved)[len(resolved)//2]),
+        ),
+        provider=rpc.telemetry(),
+    )
+    OUT.write_text(json.dumps(body,indent=2,sort_keys=True))
+    return body
+
+
 def main():
     protocol=json.loads(PROTOCOL.read_text())
     if protocol.get("status")!="preregistered_before_counterfactual_outcomes":
@@ -145,6 +174,17 @@ def main():
     if len(candidates)<3:
         raise RuntimeError("quiet_mint_candidate_shortfall")
 
+    prior=[]
+    if OUT.exists():
+        saved=json.loads(OUT.read_text())
+        if saved.get("kind")!="ramses_dlmm_quiet_mint_counterfactual_v1":
+            raise RuntimeError("quiet_mint_checkpoint_kind")
+        prior=saved.get("candidates") or []
+        expected=[r["selection_hash"] for r in candidates]
+        got=[(r.get("candidate") or {}).get("selection_hash") for r in prior]
+        if got != expected[:len(got)]:
+            raise RuntimeError("quiet_mint_checkpoint_candidate_mismatch")
+
     endpoint=os.environ.get("MM_ROBINHOOD_DLMM_RPC_URL") or os.environ.get("MM_ROBINHOOD_READ_RPC_URL") or ""
     rpc=BoundedMultiRpc(
         endpoint,max_sessions=240,batch_size=16,batch_pause=.20,
@@ -153,13 +193,20 @@ def main():
     rpc.verify_chain()
     frontier=rpc.call("eth_getBlockByNumber",["finalized",False],scope="quiet_mint")
     factory=load("ramses_factory")["address"]
-    results=[]
+    results=list(prior)
+    completed_hashes={
+        (r.get("candidate") or {}).get("selection_hash")
+        for r in results
+    }
 
     for cand in candidates:
+        if cand["selection_hash"] in completed_hashes:
+            continue
         pool=cand["pool"]
         receipt=rpc.call("eth_getTransactionReceipt",[cand["transaction_hash"]],scope="quiet_mint")
         if not receipt or int(receipt.get("status","0x0"),16)!=1:
             results.append(dict(candidate=cand,boundary="mint_receipt_unavailable"))
+            _write_checkpoint(protocol,selection,results,rpc,candidates)
             continue
         mint_block=int(receipt["blockNumber"],16)
         entry_block=mint_block+1
@@ -246,29 +293,12 @@ def main():
                     hold_row["replay_boundary"]=str(exc)
                 candidate_result["holds"].append(hold_row)
             results.append(candidate_result)
+            _write_checkpoint(protocol,selection,results,rpc,candidates)
         except BoundaryError as exc:
             results.append(dict(candidate=cand,boundary=str(exc)))
+            _write_checkpoint(protocol,selection,results,rpc,candidates)
 
-    resolved=[
-        v for r in results if "holds" in r
-        for h in r["holds"] for v in h.get("variants",[])
-        if v.get("gross_return_bps") is not None
-    ]
-    body=dict(
-        kind="ramses_dlmm_quiet_mint_counterfactual_v1",
-        research_only=True,existing_strategy_policy_used=False,
-        holdout_outcomes_read=False,protocol=protocol,
-        selection=selection,candidates=results,
-        summary=dict(
-            selected_candidates=len(candidates),
-            resolved_variants=len(resolved),
-            positive_variants=sum(v["gross_return_bps"]>0 for v in resolved),
-            median_gross_return_bps=(None if not resolved else
-                sorted(v["gross_return_bps"] for v in resolved)[len(resolved)//2]),
-        ),
-        provider=rpc.telemetry(),
-    )
-    OUT.write_text(json.dumps(body,indent=2,sort_keys=True))
+    body=_write_checkpoint(protocol,selection,results,rpc,candidates)
     print(json.dumps(dict(status="complete",**body["summary"],selection=selection),sort_keys=True))
 
 if __name__=="__main__":main()
