@@ -35,7 +35,18 @@ jobs:
             WT="$ROOT/$LANE"
             git fetch origin "$SHA"
             git worktree add --detach "$WT" "$SHA"
-            git -C "$WT" apply --3way --index "$GITHUB_WORKSPACE/certification/patches/$PATCH"
+            if ! git -C "$WT" apply --3way --index "$GITHUB_WORKSPACE/certification/patches/$PATCH"; then
+              echo "::group::$LANE overlay conflicts"
+              git -C "$WT" status --short
+              git -C "$WT" diff --cc || true
+              if [ "$LANE" = pump ]; then
+                grep -n -B12 -A28 -E '^(<<<<<<<|=======|>>>>>>>)' "$WT/tests/pump_acceleration_natural_prospective.py" || true
+              else
+                grep -R -n -B12 -A28 -E '^(<<<<<<<|=======|>>>>>>>)' "$WT/robinhood_research" || true
+              fi
+              echo "::endgroup::"
+              exit 1
+            fi
             git -C "$WT" diff --binary HEAD > "$GITHUB_WORKSPACE/certification/patches/$PATCH.next"
             mv "$GITHUB_WORKSPACE/certification/patches/$PATCH.next" "$GITHUB_WORKSPACE/certification/patches/$PATCH"
             git worktree remove --force "$WT"
