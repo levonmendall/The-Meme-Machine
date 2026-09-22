@@ -1,0 +1,1 @@
+Supersede the non-checkpointed duplicate replay with the restart-safe equivalent replay. Economic experiment is unchanged: same six deterministic candidates, widths, holds, sizing, exact integer replay, fees, unwind, and terminal-equality requirements.\n
