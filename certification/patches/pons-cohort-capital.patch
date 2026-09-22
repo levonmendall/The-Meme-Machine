@@ -2004,7 +2004,7 @@ index 94c48d6..9fc8803 100644
 +        if self.on_commit:self.on_commit(self,p)
 +        return p
 diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
-index 36ef0b3..a2cc870 100644
+index 35b9825..01da692 100644
 --- a/robinhood_research/pons_selective_paper.py
 +++ b/robinhood_research/pons_selective_paper.py
 @@ -7,16 +7,22 @@ other strategy signal/threshold/state is imported.
@@ -2035,7 +2035,7 @@ index 36ef0b3..a2cc870 100644
  )
  from .pons_selective_acquisition import (
      _batched, _header_search, _rpc as evidence_rpc, _trajectory,
-@@ -32,6 +38,114 @@ STRATEGY_NAMESPACE="pons-selective-continuation-v1"
+@@ -33,6 +39,114 @@ STRATEGY_NAMESPACE="pons-selective-continuation-v1"
  STRATEGY_CAPITAL_QUOTE=10**18
  ENTRY_SLIPPAGE_BPS=100
  POST_GRAD_OBSERVE_SECONDS=10
@@ -2150,7 +2150,7 @@ index 36ef0b3..a2cc870 100644
  
  
  def _position_return_bps(position,quote):
-@@ -134,10 +248,16 @@ def _delayed_exit(
+@@ -145,10 +259,16 @@ def _delayed_exit(
      endpoint,*,paper,identity,rpc,candidate,gas_units,store,
      transition,v4_key,label,exit_tokens,
  ):
@@ -2170,7 +2170,7 @@ index 36ef0b3..a2cc870 100644
      time.sleep(max(0,pending["due"]-int(time.time())))
      amount=int(pending["pending_exit_tokens"])
      if transition is None:
-@@ -193,7 +313,8 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
+@@ -204,7 +324,8 @@ def _complete_pending_v4_exit(*,paper,identity,rpc,v4_key,gas_units,store,label)
      return position,meta
  
  
@@ -2180,7 +2180,7 @@ index 36ef0b3..a2cc870 100644
      vector=evaluation["vector"]
      if not vector.get("current_threshold_pass"):
          raise BoundaryError("selective_unqualified_lifecycle")
-@@ -210,7 +331,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -221,7 +342,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
          source_transaction=evaluation["source_transaction"],
          provider_sessions=[],monitor=[],started_at=time.time(),
      )
@@ -2189,7 +2189,7 @@ index 36ef0b3..a2cc870 100644
      try:
          gas_units=_gas_units(candidate["receipt"])
          rpc=paper_rpc(endpoint);rpc.verify_chain()
-@@ -236,9 +357,17 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -247,9 +368,17 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
              token=evaluation["token"],outcome_used_for_selection=False,
          )
          identity=(
@@ -2208,7 +2208,7 @@ index 36ef0b3..a2cc870 100644
          reserved=paper.reserve(
              identity,market=candidate["curve"],amount=amount,gas_budget=gas_budget,
              now=now,features=decision,kind="natural",
-@@ -267,6 +396,30 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -304,6 +433,30 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                  status="entry_failed",entry_failure="entry_slippage",
                  final_position=paper._get(identity),reconciliation=paper.reconcile(),
              )
@@ -2239,7 +2239,7 @@ index 36ef0b3..a2cc870 100644
              return result
          opened=paper.advance(
              identity,now=entry.stamp.observed_at,action="entry",quote=entry,
-@@ -281,6 +434,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -318,6 +471,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
              store,STRATEGY_NAMESPACE,capital,
              delay=EXIT_POLICY["entry_delay_seconds"],
              natural_policy_hash=POLICY_HASH,
@@ -2247,7 +2247,7 @@ index 36ef0b3..a2cc870 100644
          )
          if paper.reconcile()!=before:
              raise BoundaryError("selective_restart_reconciliation")
-@@ -301,253 +455,338 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -338,254 +492,338 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
          entry_largest=int(vector["demand"]["largest_buyer_flow_bps"])
          seen_v4_buyers=set()
          pending_transition_exit_reason=None
@@ -2466,7 +2466,7 @@ index 36ef0b3..a2cc870 100644
 +                        at=mark.stamp.observed_at,market="curve",available=True,
 +                        return_bps=rbps,trajectory=trajectory,demand=demand,
 +                        action=action,pregraduation_exit_reason=reason,quote=meta,
-+                        profit_taking_deferred_until_post_graduation=True,
++                        pregraduation_profit_lock_enabled=True,
                      ))
 +                    if action["action"]=="full_exit":
 +                        try:
@@ -2501,13 +2501,14 @@ index 36ef0b3..a2cc870 100644
 -                    endpoint,candidate,meta
 -                )
 -                result["provider_sessions"].extend(sessions)
+-                if rbps>high_water:
+-                    high_water=rbps;high_at=int(time.time())
 -                reason=pregraduation_exit_reason(
 -                    elapsed_seconds=elapsed,frozen_eta_seconds=frozen_eta,
 -                    trajectory=trajectory,demand=demand,
 -                    after_cost_return_bps=rbps,
+-                    high_water_return_bps=high_water,
 -                )
--                if rbps>high_water:
--                    high_water=rbps;high_at=int(time.time())
 -                action=(
 -                    dict(action="full_exit",reason=reason,exit_tokens=position["tokens"])
 -                    if reason is not None else
@@ -2517,7 +2518,7 @@ index 36ef0b3..a2cc870 100644
 -                    at=mark.stamp.observed_at,market="curve",available=True,
 -                    return_bps=rbps,trajectory=trajectory,demand=demand,
 -                    action=action,pregraduation_exit_reason=reason,quote=meta,
--                    profit_taking_deferred_until_post_graduation=True,
+-                    pregraduation_profit_lock_enabled=True,
 -                ))
 -                if action["action"]=="full_exit":
 -                    try:
@@ -2607,7 +2608,7 @@ index 36ef0b3..a2cc870 100644
 -                    "selective-postgrad-mark",local_freshness=True,
 +                    "selective-v4-mark-"+str(len(result["monitor"])),
 +                    local_freshness=True,
-+                )
+                 )
 +                paper.advance(identity,now=mark.stamp.observed_at,action="mark",quote=mark,finality_ledger=ledger)
 +                rbps=_position_return_bps(position,mark)
 +                current_header=dict(
@@ -2618,7 +2619,7 @@ index 36ef0b3..a2cc870 100644
 +                start_header=_header_search(
 +                    locator,int(meta["block"]),mark.stamp.event_at,
 +                    max(graduation_at,mark.stamp.event_at-15),cache,
-                 )
++                )
 +                result["provider_sessions"].append(locator.telemetry())
                  activity=collect_v4_activity(
                      endpoint,pool_id=position["market"],key=v4_key,
@@ -2676,14 +2677,14 @@ index 36ef0b3..a2cc870 100644
 -                        transition=transition,v4_key=v4_key,
 -                        label="selective-postgrad-failure-exit",
 -                        exit_tokens=position["tokens"],
--                    )
--                    result["exit"]=dict(
--                        reason="post_graduation_failure",quote=exit_meta,
--                        position=position,
 +                        endpoint,paper=paper,identity=identity,rpc=rpc,candidate=candidate,
 +                        gas_units=gas_units,store=store,transition=transition,v4_key=v4_key,
 +                        label="selective-v4-exit",exit_tokens=action["exit_tokens"],
                      )
+-                    result["exit"]=dict(
+-                        reason="post_graduation_failure",quote=exit_meta,
+-                        position=position,
+-                    )
 -                    result["status"]="settled"
 -                    break
 -
@@ -2797,7 +2798,7 @@ index 36ef0b3..a2cc870 100644
  
          reconciliation=paper.reconcile();store.close();store=None
          store=Store(str(db_path),max_records=8192)
-@@ -562,22 +801,36 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
+@@ -600,22 +838,36 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
          result["reconciliation"]=reconciliation
          result["realized_pnl_quote"]=result["final_position"]["pnl"]
          result["carried_through_graduation"]=transition is not None
@@ -4356,10 +4357,10 @@ index 0000000..62c04e5
 +if __name__=='__main__':unittest.main()
 diff --git a/robinhood_tests/test_pons_position_provider_recovery.py b/robinhood_tests/test_pons_position_provider_recovery.py
 new file mode 100644
-index 0000000..6438c09
+index 0000000..7dbf657
 --- /dev/null
 +++ b/robinhood_tests/test_pons_position_provider_recovery.py
-@@ -0,0 +1,220 @@
+@@ -0,0 +1,240 @@
 +"""A transport failure after a real paper fill must not abandon its lifecycle."""
 +import json,tempfile,unittest
 +from contextlib import ExitStack
@@ -4375,6 +4376,23 @@ index 0000000..6438c09
 +
 +MODULE='robinhood_research.pons_selective_paper.'
 +class PositionRecoveryTests(unittest.TestCase):
++    @staticmethod
++    def persistent_entry_signal(*args):
++        return (
++            dict(
++                complete=True,progress_15s_bps=600,accelerating=True,
++                graduation_eta_seconds=60,
++            ),
++            dict(
++                independent_groups=4,new_independent_groups_15s=2,
++                buy_sell_ratio_bps=20_000,current_net_quote=20,
++                prior_net_quote=10,net_flow_accelerating=True,
++                largest_buyer_flow_bps=1000,top3_buyer_flow_bps=3000,
++                creator_sell_quote_15s=0,
++            ),
++            [],
++        )
++
 +    def run_case(self,folder,fail_at):
 +        clock=[100];fixture=accounting_fixture.PartialAccountingTests();sell_calls=[];signal_times=[]
 +        state=MagicMock();state.buy_with_snipe.return_value=dict(refund=0,ready_to_graduate=False,tokens_out=1000)
@@ -4421,6 +4439,7 @@ index 0000000..6438c09
 +        db=Path(folder)/'trial.sqlite';capital=Path(folder)/'capital.sqlite'
 +        patches={'paper_rpc':lambda *a:rpc,'_gas_quote':lambda *a:(2,1),
 +            '_wait_curve_quote':wait_quote,'_curve_quote':quote,
++            '_refresh_entry_persistence_signal':self.persistent_entry_signal,
 +            '_fresh_fill_full_exit_check':lambda *a:dict(executable=True),
 +            '_prove_impossible_full_exit':lambda *a:dict(reason='impossible_full_position_exit',sale_proceeds=0),
 +            '_latest_header':lambda *a:dict(number=hex(int(clock[0]))),
@@ -4457,7 +4476,9 @@ index 0000000..6438c09
 +            with patch(MODULE+'paper_rpc',return_value=rpc),\
 +                 patch(MODULE+'_gas_quote',return_value=(2,1)),\
 +                 patch(MODULE+'_wait_curve_quote',return_value=(entry,meta,None)),\
-+                 patch(MODULE+'_fresh_fill_full_exit_check',
++                 patch(MODULE+'_refresh_entry_persistence_signal',
++                   side_effect=self.persistent_entry_signal),\
++             patch(MODULE+'_fresh_fill_full_exit_check',
 +                       side_effect=BoundaryError('impossible_full_position_exit')),\
 +                 patch(MODULE+'time.time',return_value=102),\
 +                 patch(MODULE+'time.sleep'):
@@ -4581,10 +4602,10 @@ index 0000000..6438c09
 +        self.assertEqual(b['unsettled'],1);self.assertGreater(b['reserved'],0)
 +        self.assertTrue(all(not row['authenticated'] for row in r['provider_session_rotations']))
 diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
-index ed9c547..8c4e2c7 100644
+index f1f77f5..0de20e7 100644
 --- a/robinhood_tests/test_pons_selective_continuation.py
 +++ b/robinhood_tests/test_pons_selective_continuation.py
-@@ -123,7 +123,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
+@@ -127,7 +127,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
          self.assertGreaterEqual(v["demand"]["new_independent_groups_15s"],3)
          self.assertEqual(v["current_snipe_bps"],0)
          self.assertGreater(v["proposed_size"]["amount_quote"],0)
@@ -4593,11 +4614,11 @@ index ed9c547..8c4e2c7 100644
  
      def test_chain_timestamp_lag_is_telemetry_not_selective_freshness(self):
          v=vector(
-@@ -160,6 +160,17 @@ class PonsSelectivePolicyTests(unittest.TestCase):
+@@ -164,6 +164,21 @@ class PonsSelectivePolicyTests(unittest.TestCase):
          v=vector(snapshots=flat)
          self.assertIn("curve_velocity",v["all_rejections"])
  
-+    def test_execution_certification_does_not_require_positive_acceleration(self):
++    def test_execution_policy_requires_positive_acceleration(self):
 +        decelerating=[
 +            dict(at=185,progress_bps=7000),
 +            dict(at=195,progress_bps=7400),
@@ -4605,13 +4626,17 @@ index ed9c547..8c4e2c7 100644
 +        ]
 +        v=vector(snapshots=decelerating)
 +        self.assertFalse(v["trajectory"]["accelerating"])
-+        self.assertGreaterEqual(v["trajectory"]["progress_15s_bps"],ENTRY_THRESHOLDS["min_progress_15s_bps"])
-+        self.assertTrue(v["current_threshold_pass"],v["all_rejections"])
++        self.assertGreaterEqual(
++            v["trajectory"]["progress_15s_bps"],
++            ENTRY_THRESHOLDS["min_progress_15s_bps"],
++        )
++        self.assertFalse(v["current_threshold_pass"])
++        self.assertIn("curve_deceleration",v["all_rejections"])
 +
      def test_non_native_pair_is_research_only(self):
          v=vector(pair_token="0x"+"99"*20,quote_relative_strength_bps=321)
          self.assertIn("non_native_quote_allocation_disabled",v["all_rejections"])
-@@ -421,6 +432,42 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
+@@ -489,6 +504,42 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
          self.assertGreaterEqual(tele.get("header_hash_hit",0),2)
          self.assertGreaterEqual(tele.get("receipt_hit",0),2)
  
