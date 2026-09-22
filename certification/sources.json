@@ -36,7 +36,13 @@
         "original_source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
         "revision": "profitability-v1",
         "purpose": "active paper-trading profitability policy derived from executed-trade, missed-winner, segment and robustness research",
-        "machinery_baseline_policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e"
+        "machinery_baseline_policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e",
+        "evidence_completion_repair": {
+          "revision": "idle-governor-prefetch-v1",
+          "purpose": "allow stream prefetch to consume each otherwise-idle shared-governor slot instead of imposing an additional two-second local interval",
+          "shared_provider_governor_unchanged": true,
+          "strategy_thresholds_changed": false
+        }
       },
       "prospect_admission": {
         "market_observation_scope": "all finalized Pump events remain observable",
@@ -91,7 +97,12 @@
         "machinery_proof_only": true,
         "one_natural_settled_lifecycle_target": true,
         "prior_execution_source_sha": "29d050b218969e4c7761346737d082bf1db382ec",
-        "lifecycle_repair": "retry recoverable post-fill evidence gaps; classify rebalance_liquidity explicitly; structurally unreplayable positions close by zero-proceeds paper writeoff instead of remaining stranded"
+        "lifecycle_repair": "retry recoverable post-fill evidence gaps; classify rebalance_liquidity explicitly; structurally unreplayable positions close by zero-proceeds paper writeoff instead of remaining stranded",
+        "evidence_completion_repair": {
+          "revision": "structural-terminal-attribution-v1",
+          "purpose": "separate deterministic unsupported authority/token-extension/fee-mode cases from true reconstruction incompleteness before interpreting decision coverage",
+          "strategy_thresholds_changed": false
+        }
       },
       "prospect_admission": {
         "market_observation_scope": "observable SOL-paired Meteora DLMM inventory and history",
@@ -147,7 +158,13 @@
         "original_source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
         "revision": "profitability-v1",
         "purpose": "active paper-trading profitability policy emphasizing mature continuation, bounded graduation ETA/friction and regime-reset re-entry",
-        "machinery_baseline_policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9"
+        "machinery_baseline_policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+        "evidence_completion_repair": {
+          "revision": "native-quote-preflight-v1",
+          "purpose": "classify non-native-quote curves at the minimal authenticated strategy-domain preflight instead of downstream reconstruction and preserve rule-level rejection attribution",
+          "investment_scope_unchanged": true,
+          "strategy_thresholds_changed": false
+        }
       },
       "prospect_admission": {
         "market_observation_scope": "all authenticated Pons V2 buy/sell logs remain observable",
@@ -161,8 +178,8 @@
       }
     },
     "ramses": {
-      "source_branch": "cert/ramses-machinery-proof-v2",
-      "source_sha": "c545ab43676fde30ca6fa1284bb5215d5a678182",
+      "source_branch": "repair/ramses-cost-route-completion-20260921",
+      "source_sha": "8f4b177fea3965812d4aa80c0ffa5652f11a074f",
       "strategy_version": "ramses-fee-pulse-v1/execution-certification-machinery-proof-v2",
       "policy_hash": "5e1560af8b4d40f72e60cd93b52ede575aecbac58fd4cad6c02cc2c25fdeeaf0",
       "file_hashes": {
@@ -186,7 +203,9 @@
         "493ecd7453b4aa8983626717950c92820ac7eafc",
         "d7c545a8ddb9bfbe5859d450036758ed7f39c13a",
         "eb215670c7acec88104069f6398eda6feecaf268",
-        "c545ab43676fde30ca6fa1284bb5215d5a678182"
+        "c545ab43676fde30ca6fa1284bb5215d5a678182",
+        "c29e9a0e36b5874b143a9a7526e602bfe93a669c",
+        "8f4b177fea3965812d4aa80c0ffa5652f11a074f"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
@@ -214,6 +233,14 @@
             "append-only lifecycle evidence",
             "paper-only authority"
           ],
+          "strategy_thresholds_changed": false
+        },
+        "cost_route_repair": {
+          "revision": "bounded-candidate-bridge-v1",
+          "source_commit": "8f4b177fea3965812d4aa80c0ffa5652f11a074f",
+          "purpose": "complete quote-denominated Ramses paper-cost evidence when no direct WNATIVE/quote pool exists by permitting only WNATIVE-to-candidate-token-X then candidate-pool token-X-to-token-Y executable getSwapOut conversion",
+          "fail_closed": true,
+          "general_router_search": false,
           "strategy_thresholds_changed": false
         }
       },
