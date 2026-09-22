@@ -25,7 +25,7 @@ from .ramses_historical_quiet_mint_counterfactual import (
 
 PROTOCOL=Path("RAMSES_BRANCH_B_CERTIFICATION_V1.json")
 FROZEN=Path("RAMSES_BRANCH_B_FROZEN_RULE_V1.json")
-COST_ANCHOR=Path("ramses-branch-b-cost-anchor.json")
+COST_ANCHOR=Path("ramses-branch-b-cost-anchor.json")\nCOST_FALLBACK=Path("ramses-branch-b-cost-route-fallback.json")
 OUT=Path("ramses-branch-b-candidate.json")
 CHAIN=4663
 MAX_BINS=256
@@ -213,16 +213,45 @@ def _entry_size(rpc,pool,pre,ids,source_amounts,quote_side,entry,entry_at):
             failures.append(dict(bps=bps,reason=str(exc)))
     raise BoundaryError("branch_b_no_executable_size:"+json.dumps(failures,separators=(",",":")))
 
-def _quote_cycle_cost(rpc,factory,entry,native_costs):
+def _quote_cycle_cost(rpc,factory,entry,native_costs,*,cost_anchor_sha256=None):
     total=sum(int(v) for v in native_costs.values())
     if total<=0:
         raise BoundaryError("branch_b_cost_anchor_empty")
     wnative=_wnative(rpc,entry,{})
     routes=_factory_direct_routes(rpc,factory,wnative,USDG,total,entry)
-    if not routes:
-        raise BoundaryError("branch_b_usdg_cost_route_unavailable")
-    best=max(routes,key=lambda r:int(r["amount_out"]))
-    return int(best["amount_out"]),best
+    if routes:
+        best=max(routes,key=lambda r:int(r["amount_out"]))
+        return int(best["amount_out"]),best
+
+    if COST_FALLBACK.exists():
+        fallback=json.loads(COST_FALLBACK.read_text())
+        if (
+            fallback.get("kind")!="ramses_branch_b_cost_route_fallback_v1"
+            or fallback.get("frozen") is not True
+            or fallback.get("cost_model_changed") is not False
+            or int(fallback.get("native_cycle_cost_raw") or 0)!=total
+            or (
+                cost_anchor_sha256 is not None
+                and fallback.get("cost_anchor_sha256")!=cost_anchor_sha256
+            )
+        ):
+            raise BoundaryError("branch_b_cost_route_fallback_identity")
+        quote=int(fallback.get("max_verified_quote_cycle_cost_raw") or 0)
+        if quote<=0:
+            raise BoundaryError("branch_b_cost_route_fallback_value")
+        return quote,dict(
+            route_kind="verified_ramses_direct_route_upper_envelope",
+            amount_out=quote,
+            source=fallback.get("source"),
+            verified_candidate_count=fallback.get("verified_candidate_count"),
+            verified_pool_count=fallback.get("verified_pool_count"),
+            cost_anchor_sha256=fallback.get("cost_anchor_sha256"),
+            supporting_maximum=fallback.get("supporting_maximum"),
+            conservative_upper_envelope=True,
+            candidate_entry_direct_route_available=False,
+        )
+
+    raise BoundaryError("branch_b_usdg_cost_route_unavailable")
 
 def _holds(phase):
     if phase=="development":
@@ -310,8 +339,12 @@ def main():
         )
         decision={"freeze":freeze}
         position=paper_position(freeze,0)
+        cost_anchor_sha256=hashlib.sha256(
+            json.dumps(cost_anchor,sort_keys=True,separators=(",",":")).encode()
+        ).hexdigest()
         cost_quote,cost_route=_quote_cycle_cost(
-            rpc,factory,entry,{k:int(v) for k,v in cost_anchor["native_costs"].items()}
+            rpc,factory,entry,{k:int(v) for k,v in cost_anchor["native_costs"].items()},
+            cost_anchor_sha256=cost_anchor_sha256,
         )
         holds=[]
         for hold in _holds(phase):
@@ -367,9 +400,7 @@ def main():
                 size=size_meta,capital_quote_raw=int(position["initial_cost_basis"]),
                 public_geometry_bins=len(ids),
             ),
-            cost_anchor_sha256=hashlib.sha256(
-                json.dumps(cost_anchor,sort_keys=True,separators=(",",":")).encode()
-            ).hexdigest(),
+            cost_anchor_sha256=cost_anchor_sha256,
             holds=holds,provider=rpc.telemetry(),
         )
     except BoundaryError as exc:
