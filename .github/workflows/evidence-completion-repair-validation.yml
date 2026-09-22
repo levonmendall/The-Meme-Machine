@@ -22,5 +22,12 @@ jobs:
         run: python -m unittest discover -s certification/tests -v
       - name: Prepare exact repaired lane worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/evidence-completion-worktrees"
+      - name: Emit exact overlay blob hashes
+        run: |
+          for lane in pump meteora pons ramses; do
+            echo "OVERLAY_INDEX_BEGIN $lane"
+            git -C "$RUNNER_TEMP/evidence-completion-worktrees/$lane" diff --binary HEAD | grep -E '^(diff --git|index )' || true
+            echo "OVERLAY_INDEX_END $lane"
+          done
       - name: Full deterministic lane suites and resource gates
         run: python -m certification.run verify --worktrees "$RUNNER_TEMP/evidence-completion-worktrees" --output certification-gates
