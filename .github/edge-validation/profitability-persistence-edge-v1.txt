@@ -3,3 +3,4 @@ No market validation authorized by this marker.
 Conflict-diagnostic retry: Pump prospective runner only.
 Semantic Pump overlay conflict resolution retry.
 Workflow syntax repaired; semantic composition retry.
+Pons recovery-overlay semantic resolver added.
