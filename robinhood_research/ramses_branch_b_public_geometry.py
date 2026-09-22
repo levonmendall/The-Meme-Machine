@@ -25,7 +25,8 @@ from .ramses_historical_quiet_mint_counterfactual import (
 
 PROTOCOL=Path("RAMSES_BRANCH_B_CERTIFICATION_V1.json")
 FROZEN=Path("RAMSES_BRANCH_B_FROZEN_RULE_V1.json")
-COST_ANCHOR=Path("ramses-branch-b-cost-anchor.json")\nCOST_FALLBACK=Path("ramses-branch-b-cost-route-fallback.json")
+COST_ANCHOR=Path("ramses-branch-b-cost-anchor.json")
+COST_FALLBACK=Path("ramses-branch-b-cost-route-fallback.json")
 OUT=Path("ramses-branch-b-candidate.json")
 CHAIN=4663
 MAX_BINS=256
