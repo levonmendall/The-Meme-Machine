@@ -1,0 +1,6 @@
+Natural four-lane paper validation after Meteora post-entry lifecycle exit repair.
+Base active head: 0b568c2e4837e8492ce1dba97b7b46ea0945a7a3
+Meteora repair integration: b9091a3d816ed69301f9e8962f855d193934d7f9
+Failure repaired: solana_dlmm_unresolved_position_blocks_new_admission
+Post-entry structural reason: dlmm_add_liquidity_by_strategy2_mixed_with_swap_interval
+Paper only. Natural discovery and qualification. No threshold changes.
