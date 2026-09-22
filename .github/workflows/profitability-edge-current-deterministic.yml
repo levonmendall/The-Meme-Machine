@@ -339,11 +339,36 @@ jobs:
               fi
             else
               if ! git -C "$WT" apply --3way --index "$GITHUB_WORKSPACE/certification/patches/$PATCH"; then
-                echo "::group::ramses overlay rebase failure"
-                git -C "$WT" status --short || true
-                git -C "$WT" diff --cc || true
-                echo "::endgroup::"
-                exit 1
+                python - "$WT/robinhood_research/ramses_universe.py" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          start=text.find("<<<<<<< ours\n")
+          middle=text.find("=======\n",start)
+          end=text.find(">>>>>>> theirs\n",middle)
+          if start<0 or middle<0 or end<0 or text.find("<<<<<<< ours\n",end+1)>=0:
+              raise SystemExit("unexpected_ramses_overlay_conflict_shape")
+          ours=text[start+len("<<<<<<< ours\n"):middle]
+          theirs=text[middle+len("=======\n"):end]
+          if "_window_start_block(" not in ours or "checkpoint('factory_authentication'" not in theirs:
+              raise SystemExit("unexpected_ramses_universe_conflict")
+          resolved=(
+              '    start = _window_start_block(\n'
+              '        rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks\n'
+              '    )\n'
+              "    checkpoint('factory_authentication',frontier_block=end,frontier_hash=frontier['hash'],\n"
+              "        frontier_timestamp=int(frontier['timestamp'],16))\n"
+          )
+          path.write_text(text[:start]+resolved+text[end+len(">>>>>>> theirs\n"):])
+          PY
+                git -C "$WT" add robinhood_research/ramses_universe.py
+                if test -n "$(git -C "$WT" diff --name-only --diff-filter=U)"; then
+                  echo "::group::ramses unresolved overlay conflicts"
+                  git -C "$WT" status --short
+                  git -C "$WT" diff --cc || true
+                  echo "::endgroup::"
+                  exit 1
+                fi
               fi
             fi
             git -C "$WT" diff --check
