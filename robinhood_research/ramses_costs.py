@@ -210,24 +210,31 @@ def _wnative(rpc, block, state):
     return value
 
 
-def _candidate_route_quote(rpc, pool, token_x, token_y, wnative, amount, block):
-    if token_y.lower() == wnative:
+def _candidate_route_quote(
+    rpc, pool, token_x, token_y, wnative, amount, block, *, quote_side="y"
+):
+    quote=token_y.lower() if quote_side=="y" else token_x.lower()
+    bridge=token_x.lower() if quote_side=="y" else token_y.lower()
+    if quote == wnative:
         return {
             "amount_out": amount,
             "route_pool": None,
             "route_kind": "quote_is_wnative",
             "swap_for_y": None,
         }
-    if token_x.lower() != wnative:
+    if bridge != wnative:
         return None
     if amount >= 2**128:
         raise BoundaryError("ramses_cost_native_amount_capacity")
+    swap_for_y=(quote_side=="y")
     raw = rpc.call(
         "eth_call",
         [
             dict(
                 to=pool,
-                data=calldata("getSwapOut(uint128,bool)", amount, 1),
+                data=calldata(
+                    "getSwapOut(uint128,bool)", amount, 1 if swap_for_y else 0
+                ),
             ),
             hex(block),
         ],
@@ -240,7 +247,7 @@ def _candidate_route_quote(rpc, pool, token_x, token_y, wnative, amount, block):
         "amount_out": q[1],
         "route_pool": pool,
         "route_kind": "candidate_wnative_quote_pool",
-        "swap_for_y": True,
+        "swap_for_y": swap_for_y,
         "route_fee_raw": q[2],
     }
 
@@ -329,19 +336,14 @@ def _factory_direct_routes(rpc, factory, wnative, quote, amount, block):
 
 
 def _candidate_bridge_routes(
-    rpc, factory, pool, token_x, token_y, wnative, amount, block
+    rpc, factory, pool, bridge_token, quote_token, wnative, amount, block,
+    *, swap_for_y,
 ):
-    """Bounded two-hop WNATIVE -> token-X -> token-Y executable conversion.
-
-    The bridge is restricted to the candidate's authenticated token-X and the
-    candidate pool itself.  This is not a general router search: the first hop
-    must be a direct authenticated Ramses WNATIVE/token-X pool and the second
-    hop is the candidate pool's token-X -> quote-token-Y getSwapOut.
-    """
-    if token_x == wnative or token_y == wnative:
+    """Bounded WNATIVE -> candidate bridge token -> quote token conversion."""
+    if bridge_token == wnative or quote_token == wnative:
         return []
     first_hops = _factory_direct_routes(
-        rpc, factory, wnative, token_x, amount, block
+        rpc, factory, wnative, bridge_token, amount, block
     )
     usable = [
         hop for hop in first_hops
@@ -359,7 +361,7 @@ def _candidate_bridge_routes(
                         data=calldata(
                             "getSwapOut(uint128,bool)",
                             int(hop["amount_out"]),
-                            1,
+                            1 if swap_for_y else 0,
                         ),
                     ),
                     hex(block),
@@ -378,8 +380,9 @@ def _candidate_bridge_routes(
             "amount_out": q[1],
             "route_pool": pool,
             "route_kind": "candidate_token_bridge_two_hop",
-            "swap_for_y": True,
-            "bridge_token": token_x,
+            "swap_for_y": bool(swap_for_y),
+            "bridge_token": bridge_token,
+            "quote_token": quote_token,
             "hop_count": 2,
             "first_hop": deepcopy(first),
             "second_hop_pool": pool,
@@ -389,7 +392,7 @@ def _candidate_bridge_routes(
 
 
 def quote_native_cycle(rpc, factory, row, block, native_costs, state):
-    """Convert native cycle costs into the candidate's token-Y quote units."""
+    """Convert native cycle costs into the candidate's authenticated quote units."""
     if not native_costs:
         return None, {
             "available": False,
@@ -403,26 +406,34 @@ def quote_native_cycle(rpc, factory, row, block, native_costs, state):
     pool = row["pool"].lower()
     token_x = row["token_x"].lower()
     token_y = row["token_y"].lower()
+    quote_side=str(row.get("quote_side") or "y").lower()
+    if quote_side not in ("x","y"):
+        raise BoundaryError("ramses_cost_quote_side")
+    quote_token=token_y if quote_side=="y" else token_x
+    bridge_token=token_x if quote_side=="y" else token_y
+    swap_for_y=(quote_side=="y")
     wnative = _wnative(rpc, block, state)
     direct = _candidate_route_quote(
-        rpc, pool, token_x, token_y, wnative, total_native, block
+        rpc,pool,token_x,token_y,wnative,total_native,block,
+        quote_side=quote_side,
     )
     routes = [direct] if direct else []
     if not routes:
         routes = _factory_direct_routes(
-            rpc, factory, wnative, token_y, total_native, block
+            rpc, factory, wnative, quote_token, total_native, block
         )
     if not routes:
         routes = _candidate_bridge_routes(
-            rpc, factory, pool, token_x, token_y, wnative, total_native, block
+            rpc,factory,pool,bridge_token,quote_token,wnative,total_native,block,
+            swap_for_y=swap_for_y,
         )
     if not routes:
         return None, {
             "available": False,
             "reason": "no_executable_bounded_wnative_quote_route",
             "model_version": COST_MODEL_VERSION,
-            "quote_token": token_y,
-            "bridge_token": (None if token_x == wnative else token_x),
+            "quote_token": quote_token,
+            "bridge_token": (None if bridge_token == wnative else bridge_token),
             "wnative": wnative,
         }
     best = max(routes, key=lambda r: int(r["amount_out"]))
@@ -439,7 +450,8 @@ def quote_native_cycle(rpc, factory, row, block, native_costs, state):
     return quote_costs, {
         "available": True,
         "model_version": COST_MODEL_VERSION,
-        "quote_token": token_y,
+        "quote_token": quote_token,
+        "quote_side": quote_side,
         "wnative": wnative,
         "native_cycle_cost_raw": total_native,
         "quote_cycle_cost_raw": total_quote,
