@@ -1,0 +1,1 @@
+Run the Ramses Branch B unresolved-candidate repair and strategy-design completion with exclusive provider capacity. Re-run only candidates 1,3,4,8,9,12,13,14,19,20; preserve candidates 0,5,18 as genuine rejections; recompute unchanged preregistered development gates; open the untouched holdout only if every gate passes.
