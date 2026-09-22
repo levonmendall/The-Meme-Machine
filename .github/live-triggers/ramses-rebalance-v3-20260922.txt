@@ -1,0 +1,1 @@
+Run deterministic verification of Ramses Active Wide Maker rebalance v3. No provider calls, no production promotion, and no reuse of the consumed historical holdout.
