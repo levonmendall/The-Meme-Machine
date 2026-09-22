@@ -1585,7 +1585,7 @@ index 0000000..3b20654
 +        self.error = None
 +        self.rpc = None
 +        self.sessions = []
-+        self.prefetch_interval_seconds = 2.0
++        self.prefetch_interval_seconds = 0.5
 +        self.next_prefetch_at = -float('inf')
 +        self.provider_busy_deferrals = 0
 +        self.interval_deferrals = 0
@@ -2852,15 +2852,15 @@ index 0000000..d2ca499
 +        incremental.consumers.register(
 +            'pump:pool',signatures,'stream_prefetch',tick()+32)
 +        self.assertTrue(service.step())
-+        for _ in range(2):
++        for expected in (True,False):
 +            tick.sleep(.5)
-+            self.assertFalse(service.step())
-+        self.assertEqual(len(ahead.batches),1)
++            self.assertEqual(service.step(),expected)
++        self.assertEqual(len(ahead.batches),2)
 +        _,complete=incremental.hydrate_transactions(
 +            ahead,signatures,kind='pump_window',deadline=tick()+4)
 +        self.assertEqual(complete['hydrated'],16)
 +        self.assertEqual(len(ahead.batches),2)
-+        self.assertEqual(service.prefetch_batches,1)
++        self.assertEqual(service.prefetch_batches,2)
 +
 +    def test_prefetch_defers_while_shared_solana_provider_is_busy(self):
 +        b,c=self.broker();rpc=PacedRpc(c);service=StreamEvidenceService(b,lambda:rpc)
