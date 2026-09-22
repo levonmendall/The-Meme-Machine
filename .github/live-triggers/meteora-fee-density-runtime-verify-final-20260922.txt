@@ -1,0 +1,1 @@
+Final source-policy deterministic verification for Meteora fee-density profitability v1 before canonical overlay composition.
