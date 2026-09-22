@@ -3,7 +3,7 @@ import unittest
 import zlib
 
 from robinhood_research import BoundaryError
-from robinhood_research.sequencer_feed import SequencerBlockClock,SequencerFeedState,_WebSocket,feed_url
+from robinhood_research.sequencer_feed import SequencerBlockClock,SequencerFeedState,SequencerTransportError,_WebSocket,feed_url
 
 
 def row(sequence,*,block=100,timestamp=1000,payload="AA==",signed=True):
@@ -69,6 +69,37 @@ class SequencerFeedTests(unittest.TestCase):
         ws._inflater=zlib.decompressobj(wbits=-15)
         decoded=ws._inflate_message(wire)
         self.assertEqual(decoded,raw)
+
+    def test_reserved_bits_frame_is_rejected_before_payload_use(self):
+        class Socket:
+            def __init__(self,raw):
+                self.raw=bytearray(raw)
+            def recv(self,size):
+                out=bytes(self.raw[:size]);del self.raw[:size];return out
+        ws=_WebSocket("wss://feed.mainnet.chain.robinhood.com")
+        ws.sock=Socket(bytes([0xA1,0x00]))  # FIN + RSV2 + text, empty payload
+        with self.assertRaisesRegex(BoundaryError,"reserved_bits"):
+            ws.recv_message()
+
+    def test_reserved_bits_closes_session_and_requires_rpc_backfill_recovery(self):
+        class Socket:
+            def settimeout(self,_):pass
+        class Client:
+            def __init__(self):
+                self.sock=Socket();self.closed=False
+            def recv_message(self):
+                raise BoundaryError("sequencer_feed_reserved_bits")
+            def close(self):
+                self.closed=True
+        clock=SequencerBlockClock()
+        client=Client();clock.client=client;clock.state.last_sequence=100
+        with self.assertRaisesRegex(SequencerTransportError,"reserved_bits"):
+            clock.wait_for_after(100,timeout=0.1)
+        self.assertTrue(client.closed)
+        self.assertIsNone(clock.client)
+        self.assertEqual(clock.last_transport_boundary,"sequencer_feed_reserved_bits")
+        self.assertEqual(clock.transport_failures,1)
+        self.assertEqual(clock.state.last_sequence,100)
 
     def test_startup_sentinel_anchors_to_current_sequence_before_range_cap(self):
         clock=SequencerBlockClock()
