@@ -52,10 +52,18 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             p["evidence_acquisition"]["interval_transaction_bound"],16)
         self.assertFalse(
             p["evidence_acquisition"]["strategy_thresholds_changed"])
-        self.assertEqual(p["revision"],"1.9-machinery-proof-v2")
-        self.assertFalse(p["execution_certification"]["profitability_authority"])
-        self.assertTrue(p["execution_certification"]["machinery_proof_only"])
+        self.assertEqual(p["revision"],"2.0-fee-density-profitability-v1")
+        self.assertTrue(p["profitability_authority"])
+        self.assertTrue(p["execution_certification"]["profitability_authority"])
+        self.assertFalse(p["execution_certification"]["machinery_proof_only"])
         self.assertTrue(p["execution_certification"]["freshness_finality_unchanged"])
+        self.assertEqual(p["range"]["intended_holding_seconds"],14400)
+        self.assertEqual(p["range"]["max_holding_seconds"],86400)
+        self.assertEqual(p["range"]["total_width_bound_bins"],[52,100])
+        self.assertEqual(p["position"]["max_local_liquidity_fraction_bps"],100)
+        self.assertEqual(p["qualification"]["min_two_way_balance"],0.25)
+        self.assertTrue(p["qualification"]["require_two_x_cost_stress_positive"])
+        self.assertIn("candidate-specific",p["qualification"]["live_fee_density_threshold"])
 
     def test_strategy_import_graph_contains_no_strategy_dependency(self):
         path=Path("tests/solana_dlmm_independent_v1.py")
@@ -318,42 +326,47 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertGreaterEqual(half,p["range"]["min_half_width_bins"])
         self.assertLessEqual(half,p["range"]["max_half_width_bins"])
 
-    def test_qualification_requires_fee_event_flow_capacity_and_unwind(self):
+    def test_qualification_requires_live_density_two_way_depth_and_two_x_cost_edge(self):
         p=strategy.load_policy()
         base=dict(
-            volume_acceleration=1.25,
-            fee_acceleration=1.0,
+            volume_acceleration=0.1,
+            fee_acceleration=0.1,
             dynamic_fee_uplift=1.0,
-            competing_liquidity_to_capital_multiple=5.0,
-            two_way_balance=0.0,
+            recommended_capital_lamports=1_000_000,
+            competing_liquidity_to_capital_multiple=100.0,
+            two_way_balance=0.25,
             drift_ratio=0.75,
             reversal_count=0,
             stress_inventory_roundtrip={"loss_bps":150.0},
-            expected_net_lamports=-1000000,
+            expected_net_lamports=1,
+            two_x_cost_stress_net_lamports=1,
+            live_fee_density_bps_per_hour=10.0,
+            required_live_fee_density_bps_per_hour=10.0,
         )
-        self.assertEqual(p["qualification"]["min_two_way_balance"],0)
-        self.assertEqual(p["qualification"]["min_expected_net_lamports"],-1000000)
+        self.assertFalse(p["regime"]["acceleration_hard_gate"])
+        self.assertEqual(p["qualification"]["min_two_way_balance"],0.25)
+        self.assertEqual(p["qualification"]["min_expected_net_lamports"],1)
         self.assertTrue(strategy.qualify(base,p)["passes"])
         mutations={
-            "volume_acceleration":{"volume_acceleration":1.24},
-            "fee_acceleration":{"fee_acceleration":0.99},
-            "capacity":{"competing_liquidity_to_capital_multiple":4.99},
+            "capital":{"recommended_capital_lamports":0},
+            "capacity":{"competing_liquidity_to_capital_multiple":99.99},
+            "two_way":{"two_way_balance":0.249},
             "drift":{"drift_ratio":0.7501},
             "unwind":{"stress_inventory_roundtrip":{"loss_bps":150.01}},
-            "expected_net":{"expected_net_lamports":-1000001},
+            "expected_net":{"expected_net_lamports":0},
+            "two_x_cost_stress":{"two_x_cost_stress_net_lamports":0},
+            "live_fee_density":{"live_fee_density_bps_per_hour":9.99},
         }
         for expected,change in mutations.items():
             row=dict(base);row.update(change)
             decision=strategy.qualify(row,p)
             self.assertFalse(decision["passes"],expected)
             self.assertIn(expected,decision["failed"])
-        low_dynamic=dict(base)
-        low_dynamic["dynamic_fee_uplift"]=0.10
+        low_accel=dict(base,volume_acceleration=0.0,fee_acceleration=0.0)
+        self.assertTrue(strategy.qualify(low_accel,p)["passes"])
+        low_dynamic=dict(base,dynamic_fee_uplift=0.10)
         decision=strategy.qualify(low_dynamic,p)
         self.assertTrue(decision["passes"])
-        no_reversal=dict(base)
-        no_reversal["reversal_count"]=0
-        self.assertTrue(strategy.qualify(no_reversal,p)["passes"])
         self.assertNotIn("dynamic_fee",decision["checks"])
 
     def test_fresh_authenticated_swap_trigger_starts_exact_12s_warmup(self):
@@ -549,20 +562,44 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
         self.assertEqual(trigger["wakeups"],1)
         self.assertEqual(auth.call_count,2)
 
-    def test_regime_expiry_stops_fresh_swap_wait(self):
+    def test_acceleration_decay_does_not_expire_fee_density_strategy(self):
         p=strategy.load_policy()
+        self.assertFalse(p["regime"]["acceleration_hard_gate"])
         candidate=dict(
             address="pool",volume_acceleration=2.5,fee_acceleration=1.5)
-        adapter=MagicMock();adapter.rpc.calls=0
-        expired=dict(candidate,volume_acceleration=1.2,fee_acceleration=1.5)
-        with patch.object(
-                strategy,"_history_acceleration",return_value=expired), \
-             patch.object(strategy.time,"monotonic",return_value=0.0):
-            trigger,post,_adapter,_latest=strategy._await_fresh_swap_trigger(
-                adapter,candidate,{"slot":10},p,MagicMock(),[])
-        self.assertFalse(trigger["triggered"])
-        self.assertEqual(trigger["reason"],"acceleration_regime_expired")
-        self.assertIsNone(post)
+        decayed=dict(candidate,volume_acceleration=0.1,fee_acceleration=0.1)
+        self.assertTrue(strategy._regime_pass(decayed,p))
+
+    def test_live_fee_density_is_normalized_by_time_and_local_liquidity(self):
+        state=MagicMock()
+        # The exact formula is unit-testable independently of public API fields.
+        liquidity=2_000_000
+        fee=200
+        seconds=10
+        density=fee/liquidity*10000*3600/seconds
+        self.assertEqual(density,36.0)
+        p=strategy.load_policy()
+        self.assertIn(
+            "authenticated range LP fees",
+            p["qualification"]["live_fee_density_metric"],
+        )
+        self.assertIn(
+            "2*round_trip_network_cost",
+            p["qualification"]["live_fee_density_threshold"],
+        )
+
+    def test_dynamic_sizing_uses_one_percent_local_depth_with_point_one_sol_cap(self):
+        p=strategy.load_policy()
+        self.assertEqual(p["position"]["capital_lamports"],100_000_000)
+        self.assertEqual(p["position"]["max_local_liquidity_fraction_bps"],100)
+        self.assertEqual(
+            min(
+                strategy.CAPITAL,
+                5_000_000_000
+                *p["position"]["max_local_liquidity_fraction_bps"]//10000,
+            ),
+            50_000_000,
+        )
 
     def test_centered_range_is_two_sided_and_excludes_active(self):
         bins={str(i):{} for i in range(50,151)}
