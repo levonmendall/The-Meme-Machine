@@ -1,9 +1,9 @@
 {
   "kind": "ramses_active_wide_maker_rebalance_v1",
-  "status": "frozen_shadow_rule_from_pre_holdout_operator_evidence",
+  "status": "superseded_after_reconciliation",
   "research_only": true,
   "paper_only": true,
-  "holdout_outcomes_read": false,
+  "holdout_outcomes_read": true,
   "evidence": {
     "qualifying_books": 70,
     "quick_rebalance_books": 19,
@@ -100,5 +100,8 @@
     "add capital after adverse displacement",
     "narrow replacement range below 65 bins"
   ],
-  "validation_boundary": "Shadow/paper only until exact historical replay and prospective paper validation confirm this rule; protected chronological holdout remains unopened."
+  "validation_boundary": "Shadow/paper only until exact historical replay and prospective paper validation confirm this rule; protected chronological holdout remains unopened.",
+  "authoritative_spec": "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json",
+  "note": "Interim simplified rule. Superseded after recovering the prior v1 holdout result and v2 hysteresis study. Do not use for validation or strategy execution.",
+  "holdout_note": "The historical chronological holdout was already opened for the earlier frozen RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V1 rule and produced zero eligible >=65-bin rebalance observations. It cannot be reused."
 }
