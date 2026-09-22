@@ -421,7 +421,7 @@ index 0a774b1..849cdb3 100644
          for row in rows:
              sig=row.get("signature")
 +            payload=row.get("payload") or {};logs=payload.get("logs")
-+            safe_negative=(isinstance(logs,list) and logs and not any("truncat" in str(x).lower() for x in logs) and not any(PUMPSWAP_PROGRAM in str(x) for x in logs))
++            safe_negative=bool(isinstance(logs,list) and logs and not any("truncat" in str(x).lower() for x in logs) and not any(event.get("pool")==self.pool for event in pumpswap_trade_events({"slot":int(row["slot"]),"meta":{"err":payload.get("err"),"logMessages":logs}})))
              if not isinstance(sig,str) or not sig:
                  continue
 +            if safe_negative:self.stream_prefiltered_signatures.add(sig);continue
@@ -3703,15 +3703,15 @@ index 0000000..ef1e037
 +        self.assertEqual(history.stream_pending_transactions,0)
 +        self.assertEqual(history.events,{})
 +
-+    def test_missing_empty_truncated_and_possible_pumpswap_logs_still_require_body(self):
++    def test_only_missing_empty_truncated_or_pool_trade_logs_require_body(self):
 +        values=[dict(signature='missing',err=None),dict(signature='empty',err=None,logs=[]),
 +            dict(signature='truncated',err=None,logs=['Program Other111 invoke [1]','Log truncated']),
 +            dict(signature='possible',err=None,logs=['Program '+PUMPSWAP_PROGRAM+' invoke [1]'])]
 +        key,_=ingest(self.b,values);history=self.history(key);rpc=RecordingRPC()
 +        with patch('meme_machine.pump_acceleration_history.time.time',return_value=1000):
 +            history._ingest_stream_window(rpc,1000)
-+        self.assertEqual(set(rpc.signatures),{v['signature'] for v in values})
-+        self.assertEqual(history.stream_pending_transactions,4)
++        self.assertEqual(set(rpc.signatures),{'missing','empty','truncated'})
++        self.assertEqual(history.stream_pending_transactions,3)
 +        self.assertEqual(history.events,{})
 +        self.assertEqual(len(history.stream_prefiltered_signatures),0)
 +
