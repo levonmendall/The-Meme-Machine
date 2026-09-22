@@ -36,14 +36,8 @@ jobs:
             git fetch origin "$SHA"
             git worktree add --detach "$WT" "$SHA"
             if ! git -C "$WT" apply --3way --index "$GITHUB_WORKSPACE/certification/patches/$PATCH"; then
-              if [ "$LANE" != pump ]; then
-                echo "::group::$LANE overlay conflicts"
-                git -C "$WT" status --short
-                git -C "$WT" diff --cc || true
-                echo "::endgroup::"
-                exit 1
-              fi
-              python - "$WT/tests/pump_acceleration_natural_prospective.py" <<'PY'
+              if [ "$LANE" = pump ]; then
+                python - "$WT/tests/pump_acceleration_natural_prospective.py" <<'PY'
           import pathlib,sys
           path=pathlib.Path(sys.argv[1])
           text=path.read_text()
@@ -64,15 +58,15 @@ jobs:
               theirs=text[middle+len("=======\n"):end]
               if index==0:
                   theirs="\n".join(
-            line for line in theirs.splitlines()
-            if not line.startswith("FROZEN_POLICY_HASH=")
+                      line for line in theirs.splitlines()
+                      if not line.startswith("FROZEN_POLICY_HASH=")
                   )+"\n"
                   resolved=ours+theirs
               elif index==1:
                   resolved=theirs.replace(
-            "global ACCOUNTING,PIPELINE",
-            "global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT",
-            1,
+                      "global ACCOUNTING,PIPELINE",
+                      "global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT",
+                      1,
                   )
               elif index==2:
                   resolved=theirs
@@ -93,11 +87,85 @@ jobs:
                'net_buy_share_bps=flow["net_buy_share_bps"],')
           if old in merged:
               merged=merged.replace(old,new,1)
+          for required in (
+              'FROZEN_POLICY_HASH="d623ff03ad19b2c4dcd8a82d4883c188ba1acd35a721582175d85cd1b0191770"',
+              "FILL_PERSISTENCE_CONTEXT",
+              "_service_pending_entries",
+              "repeat_buyer_clusters",
+              "entry_signal_persistence",
+          ):
+              if required not in merged:
+                  raise SystemExit("pump_composition_missing:"+required)
           path.write_text(merged)
           PY
-              git -C "$WT" add tests/pump_acceleration_natural_prospective.py
+                git -C "$WT" add tests/pump_acceleration_natural_prospective.py
+              else
+                python - "$WT/robinhood_research/pons_selective_paper.py" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          start=text.find("<<<<<<< ours\n")
+          if start<0:
+              raise SystemExit("pons_expected_conflict_missing")
+          middle=text.find("=======\n",start)
+          end=text.find(">>>>>>> theirs\n",middle)
+          if middle<0 or end<0:
+              raise SystemExit("malformed_pons_merge_conflict")
+          if text.find("<<<<<<< ours\n",end+1)>=0:
+              raise SystemExit("unexpected_multiple_pons_conflicts")
+          theirs=text[middle+len("=======\n"):end]
+          merged=text[:start]+theirs+text[end+len(">>>>>>> theirs\n"):]
+          old='''                    result["provider_sessions"].extend(sessions)
+                    reason=pregraduation_exit_reason(
+                        elapsed_seconds=elapsed,frozen_eta_seconds=frozen_eta,
+                        trajectory=trajectory,demand=demand,
+                        after_cost_return_bps=rbps,
+                    )
+                    if rbps>high_water:
+                        high_water=rbps;high_at=int(time.time())
+          '''
+          new='''                    result["provider_sessions"].extend(sessions)
+                    if rbps>high_water:
+                        high_water=rbps;high_at=int(time.time())
+                    reason=pregraduation_exit_reason(
+                        elapsed_seconds=elapsed,frozen_eta_seconds=frozen_eta,
+                        trajectory=trajectory,demand=demand,
+                        after_cost_return_bps=rbps,
+                        high_water_return_bps=high_water,
+                    )
+          '''
+          if merged.count(old)!=1:
+              raise SystemExit(
+                  "pons_pregrad_highwater_anchor_count:"+str(merged.count(old))
+              )
+          merged=merged.replace(old,new,1)
+          old_flag="profit_taking_deferred_until_post_graduation=True,"
+          if merged.count(old_flag)!=1:
+              raise SystemExit(
+                  "pons_profit_lock_flag_anchor_count:"+str(merged.count(old_flag))
+              )
+          merged=merged.replace(
+              old_flag,"pregraduation_profit_lock_enabled=True,",1
+          )
+          for required in (
+              "entry_signal_persistence",
+              'result["entry_persistence"]',
+              "PositionSessions",
+              "CohortCapital",
+              "high_water_return_bps=high_water",
+              "pregraduation_profit_lock_enabled=True",
+          ):
+              if required not in merged:
+                  raise SystemExit("pons_composition_missing:"+required)
+          path.write_text(merged)
+          PY
+                git -C "$WT" add robinhood_research/pons_selective_paper.py
+              fi
               if test -n "$(git -C "$WT" diff --name-only --diff-filter=U)"; then
+                echo "::group::$LANE unresolved overlay conflicts"
                 git -C "$WT" status --short
+                git -C "$WT" diff --cc || true
+                echo "::endgroup::"
                 exit 1
               fi
               git -C "$WT" diff --check
