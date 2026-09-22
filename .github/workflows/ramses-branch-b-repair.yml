@@ -1,0 +1,302 @@
+name: ramses-branch-b-repair
+on:
+  push:
+    branches: [research/ramses-branch-b-certification-v1]
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  verify:
+    if: contains(github.event.head_commit.message, '[ramses-branch-b-repair]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Verify exact unresolved-candidate repairs
+        run: |
+          python -m py_compile robinhood_research/ramses.py robinhood_research/ramses_branch_b_cost_route_fallback.py robinhood_research/ramses_branch_b_public_geometry.py robinhood_research/ramses_branch_b_merge_analyze.py robinhood_research/ramses_branch_b_freeze.py
+          python -m unittest robinhood_tests.test_ramses_branch_b_repairs robinhood_tests.test_ramses_branch_b_cost_anchor robinhood_tests.test_ramses_historical_fast_logs -v
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          raw=Path("robinhood_research/ramses.py").read_bytes()
+          print("ramses_py_sha256",hashlib.sha256(raw).hexdigest())
+          PY
+
+  provider_clear:
+    if: contains(github.event.head_commit.message, '[ramses-branch-b-repair]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Wait for unrelated provider-consuming workflows to clear
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CURRENT_RUN: ${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 60); do
+            gh api "repos/$REPOSITORY/actions/runs?per_page=100" > /tmp/runs.json
+            python - <<'PY' > /tmp/blockers.json
+          import json,os
+          rows=json.load(open("/tmp/runs.json"))["workflow_runs"]
+          current=int(os.environ["CURRENT_RUN"])
+          names={
+            "four-lane-certification",
+            "robinhood-ramses-extended",
+            "robinhood-ramses-strategy",
+            "robinhood-ramses-universe",
+            "ramses-branch-b-development",
+            "ramses-branch-b-holdout",
+          }
+          blockers=[]
+          for r in rows:
+              if int(r.get("id") or 0)==current:
+                  continue
+              if r.get("status") in {"queued","in_progress","waiting","pending"} and r.get("name") in names:
+                  blockers.append({k:r.get(k) for k in ("id","name","status","head_branch","head_sha")})
+          print(json.dumps(blockers,sort_keys=True))
+          PY
+            if [ "$(cat /tmp/blockers.json)" = "[]" ]; then
+              echo '{"provider_path_clear":true}'
+              exit 0
+            fi
+            cat /tmp/blockers.json
+            sleep 60
+          done
+          echo "Provider path did not clear; no repair replay was started." >&2
+          exit 1
+
+  prepare:
+    needs: verify
+    if: needs.verify.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Reconstruct exact prior development inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_RUN: "35682655918"
+          SOURCE_SHA: "402a87cb701dc4fe1ba54b9cab4a2857bf428c4b"
+        shell: bash
+        run: |
+          set -euo pipefail
+          run="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN")"
+          test "$(printf '%s' "$run" | jq -r .status)" = "completed"
+          test "$(printf '%s' "$run" | jq -r .conclusion)" = "success"
+          test "$(printf '%s' "$run" | jq -r .head_sha)" = "$SOURCE_SHA"
+          test "$(printf '%s' "$run" | jq -r .name)" = "ramses-branch-b-development"
+
+          gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN/artifacts?per_page=100" --jq '.artifacts[] | [.id,.name] | @tsv' > /tmp/source-artifacts.tsv
+          cost_aid="$(awk -F '	' '$2 ~ /^ramses-branch-b-cost-anchor-/ {print $1; exit}' /tmp/source-artifacts.tsv)"
+          test -n "$cost_aid"
+          gh api "repos/$REPOSITORY/actions/artifacts/$cost_aid/zip" > /tmp/cost.zip
+          mkdir -p /tmp/cost
+          unzip -q /tmp/cost.zip -d /tmp/cost
+          cp /tmp/cost/ramses-branch-b-cost-anchor.json .
+
+          mkdir -p /tmp/ramses-branch-b-prior
+          awk -F '	' '$2 ~ /^ramses-branch-b-development-[0-9]+$/ {print}' /tmp/source-artifacts.tsv | sort -k2,2V > /tmp/prior.tsv
+          test "$(wc -l < /tmp/prior.tsv)" -eq 24
+          while IFS=$'	' read -r aid name; do
+            idx="${name##*-}"
+            mkdir -p "/tmp/ramses-branch-b-prior/$idx"
+            gh api "repos/$REPOSITORY/actions/artifacts/$aid/zip" > "/tmp/$name.zip"
+            unzip -q "/tmp/$name.zip" -d "/tmp/ramses-branch-b-prior/$idx"
+          done < /tmp/prior.tsv
+      - name: Freeze conservative verified-route fallback
+        env:
+          RAMSES_BRANCH_B_PRIOR_ROOT: /tmp/ramses-branch-b-prior
+          RAMSES_BRANCH_B_COST_ANCHOR: ramses-branch-b-cost-anchor.json
+        run: python -m robinhood_research.ramses_branch_b_cost_route_fallback
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ramses-branch-b-repair-inputs-${{ github.run_id }}
+          path: |
+            ramses-branch-b-cost-anchor.json
+            ramses-branch-b-cost-route-fallback.json
+          if-no-files-found: error
+          retention-days: 90
+
+  rerun:
+    needs: [verify, provider_clear, prepare]
+    if: needs.verify.result == 'success' && needs.provider_clear.result == 'success' && needs.prepare.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        candidate: [1,3,4,8,9,12,13,14,19,20]
+    env:
+      MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+      MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+      RAMSES_BRANCH_B_PHASE: development
+      RAMSES_BRANCH_B_CANDIDATE_INDEX: ${{ matrix.candidate }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Download original cost anchor, conservative fallback, and index
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aid="$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100" --jq '.artifacts[] | select(.name | startswith("ramses-branch-b-repair-inputs-")) | .id' | head -1)"
+          test -n "$aid"
+          gh api "repos/${{ github.repository }}/actions/artifacts/$aid/zip" > /tmp/inputs.zip
+          unzip -q /tmp/inputs.zip -d /tmp/inputs
+          cp /tmp/inputs/ramses-branch-b-cost-anchor.json .
+          cp /tmp/inputs/ramses-branch-b-cost-route-fallback.json .
+
+          index_aid="$(gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false and (.name | startswith("ramses-historical-index-")) and (.name | contains("summary") | not) and (.name | contains("probe") | not) and (.size_in_bytes > 1000000)) | [.created_at, (.id|tostring)] | @tsv' | sort -r | head -1 | cut -f2)"
+          test -n "$index_aid"
+          gh api "repos/${{ github.repository }}/actions/artifacts/$index_aid/zip" > /tmp/index.zip
+          mkdir -p /tmp/index
+          unzip -q /tmp/index.zip -d /tmp/index
+          cp /tmp/index/ramses-historical-index-data.json.gz .
+      - name: Replay only previously unresolved candidate
+        run: python -m robinhood_research.ramses_branch_b_public_geometry
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ramses-branch-b-repair-${{ matrix.candidate }}
+          path: ramses-branch-b-candidate.json
+          if-no-files-found: error
+          retention-days: 90
+
+  aggregate:
+    needs: [prepare, rerun]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Reconstruct original 24 candidates and overlay exactly ten repairs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_RUN: "35682655918"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ramses-branch-b
+          gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN/artifacts?per_page=100" --jq '.artifacts[] | [.id,.name] | @tsv' > /tmp/source.tsv
+          awk -F '	' '$2 ~ /^ramses-branch-b-development-[0-9]+$/ {print}' /tmp/source.tsv | sort -k2,2V > /tmp/prior.tsv
+          test "$(wc -l < /tmp/prior.tsv)" -eq 24
+          while IFS=$'	' read -r aid name; do
+            idx="${name##*-}"
+            mkdir -p "/tmp/ramses-branch-b/$idx"
+            gh api "repos/$REPOSITORY/actions/artifacts/$aid/zip" > "/tmp/$name.zip"
+            unzip -qo "/tmp/$name.zip" -d "/tmp/ramses-branch-b/$idx"
+          done < /tmp/prior.tsv
+
+          gh api "repos/$REPOSITORY/actions/runs/${{ github.run_id }}/artifacts?per_page=100" --jq '.artifacts[] | [.id,.name] | @tsv' > /tmp/current.tsv
+          awk -F '	' '$2 ~ /^ramses-branch-b-repair-[0-9]+$/ {print}' /tmp/current.tsv | sort -k2,2V > /tmp/repair.tsv
+          test "$(wc -l < /tmp/repair.tsv)" -eq 10
+          while IFS=$'	' read -r aid name; do
+            idx="${name##*-}"
+            test "$idx" = "1" -o "$idx" = "3" -o "$idx" = "4" -o "$idx" = "8" -o "$idx" = "9" -o "$idx" = "12" -o "$idx" = "13" -o "$idx" = "14" -o "$idx" = "19" -o "$idx" = "20"
+            gh api "repos/$REPOSITORY/actions/artifacts/$aid/zip" > "/tmp/$name.zip"
+            unzip -qo "/tmp/$name.zip" -d "/tmp/ramses-branch-b/$idx"
+          done < /tmp/repair.tsv
+
+          inputs_aid="$(awk -F '	' '$2 ~ /^ramses-branch-b-repair-inputs-/ {print $1; exit}' /tmp/current.tsv)"
+          test -n "$inputs_aid"
+          gh api "repos/$REPOSITORY/actions/artifacts/$inputs_aid/zip" > /tmp/inputs.zip
+          unzip -q /tmp/inputs.zip -d /tmp/inputs
+          cp /tmp/inputs/ramses-branch-b-cost-anchor.json .
+          cp /tmp/inputs/ramses-branch-b-cost-route-fallback.json .
+
+          test "$(find /tmp/ramses-branch-b -name ramses-branch-b-candidate.json | wc -l)" -eq 24
+      - name: Recompute unchanged preregistered development aggregate
+        env:
+          RAMSES_BRANCH_B_ROOT: /tmp/ramses-branch-b
+        run: python -m robinhood_research.ramses_branch_b_merge_analyze
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ramses-branch-b-repair-decision-${{ github.run_id }}
+          path: |
+            ramses-branch-b-analysis.json
+            ramses-branch-b-cost-anchor.json
+            ramses-branch-b-cost-route-fallback.json
+          if-no-files-found: error
+          retention-days: 90
+
+  freeze_or_stop:
+    needs: aggregate
+    if: always() && needs.aggregate.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: research/ramses-branch-b-certification-v1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Download repaired aggregate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          aid="$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100" --jq '.artifacts[] | select(.name | startswith("ramses-branch-b-repair-decision-")) | .id' | head -1)"
+          test -n "$aid"
+          gh api "repos/${{ github.repository }}/actions/artifacts/$aid/zip" > /tmp/decision.zip
+          unzip -q /tmp/decision.zip -d /tmp/decision
+          cp /tmp/decision/ramses-branch-b-analysis.json .
+          cp /tmp/decision/ramses-branch-b-cost-anchor.json .
+      - name: Apply exact preregistered stop/freeze boundary
+        id: gate
+        shell: bash
+        run: |
+          status="$(python -c 'import json; print((json.load(open("ramses-branch-b-analysis.json")).get("decision") or {}).get("status",""))')"
+          echo "status=$status"
+          if [ "$status" = "freeze_ready" ]; then
+            echo "freeze_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "freeze_ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Freeze exact rule only if every development gate passes
+        if: steps.gate.outputs.freeze_ready == 'true'
+        run: python -m robinhood_research.ramses_branch_b_freeze
+      - name: Commit freeze and open untouched holdout
+        if: steps.gate.outputs.freeze_ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin research/ramses-branch-b-certification-v1
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/research/ramses-branch-b-certification-v1)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add RAMSES_BRANCH_B_FROZEN_RULE_V1.json RAMSES_BRANCH_B_FROZEN_COST_ANCHOR_V1.json
+          git commit -m "[ramses-branch-b-holdout] Freeze passing repaired Branch B rule and open untouched holdout"
+          git push origin HEAD:research/ramses-branch-b-certification-v1
+      - name: Stop with holdout protected when development still fails
+        if: steps.gate.outputs.freeze_ready != 'true'
+        run: |
+          echo "Repaired development sample still failed preregistered gates."
+          echo "No frozen rule written. Untouched chronological holdout remains closed."
