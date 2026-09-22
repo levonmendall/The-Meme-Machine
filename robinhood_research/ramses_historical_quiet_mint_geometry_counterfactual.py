@@ -31,6 +31,7 @@ HOLDS=(21600,86400,259200)
 DEPTH_BPS=50
 MAX_CANDIDATES=6
 MAX_SIGNAL_BINS=192
+SEGMENT_SECONDS=14400
 ZERO="0x"+"00"*20
 
 def add2(a,b): return [a[0]+b[0],a[1]+b[1]]
@@ -116,6 +117,48 @@ def custom_proposal(pre, signal_ids, signal_amounts, target_capital, quote_side,
         public_signal_geometry=True,
     )
     return proposal
+
+def segmented_replay(rpc, pool, decision, entry_block, entry_at, exit_block, exit_at, frontier):
+    """Replay a long hold as contiguous exact segments.
+
+    Every segment independently requires authenticated receipts/headers and
+    terminal equality. Segment boundaries are shared blocks, so logs are covered
+    exactly once by _build_segment_replay(start+1..end).
+    """
+    boundaries=[(int(entry_block),int(entry_at))]
+    target=int(entry_at)+SEGMENT_SECONDS
+    current_block=int(entry_block)
+    while target<int(exit_at):
+        selected,_previous,_reads=_first_finalized_block_at_or_after(
+            rpc,current_block,frontier,target
+        )
+        block=int(selected["number"],16);ts=int(selected["timestamp"],16)
+        if block<=current_block or ts<target:
+            raise BoundaryError("quiet_geometry_segment_boundary")
+        boundaries.append((block,ts))
+        current_block=block
+        target+=SEGMENT_SECONDS
+    if boundaries[-1][0]!=int(exit_block):
+        boundaries.append((int(exit_block),int(exit_at)))
+
+    segments=[]
+    for (start_block,start_at),(end_block,end_at) in zip(boundaries,boundaries[1:]):
+        if end_block<=start_block:
+            raise BoundaryError("quiet_geometry_empty_segment")
+        capture,replayed=_build_segment_replay(
+            rpc,pool,decision,start_block,end_block
+        )
+        if replayed.get("terminal_equality") is not True:
+            raise BoundaryError("quiet_geometry_segment_terminal_equality")
+        segments.append(dict(
+            start_block=start_block,start_timestamp=start_at,
+            end_block=end_block,end_timestamp=end_at,
+            capture=capture,replay=replayed,
+        ))
+    if not segments:
+        raise BoundaryError("quiet_geometry_no_segments")
+    return segments
+
 
 def main():
     protocol=json.loads(PROTOCOL.read_text())
@@ -204,19 +247,47 @@ def main():
                     binary_search_reads=reads,
                 )
                 try:
-                    _capture,replayed=_build_segment_replay(rpc,pool,decision,entry_block,exit_block)
+                    segments=segmented_replay(
+                        rpc,pool,decision,entry_block,entry_at,
+                        exit_block,exit_at,frontier
+                    )
+                    replayed=segments[-1]["replay"]
                     unwind=_unwind(rpc,pool,decision,replayed,exit_block)
                     pos=paper_position(freeze,0)
-                    fees=paper_fee_capture(pos,replayed)
+                    fee_rows=[paper_fee_capture(pos,s["replay"]) for s in segments]
+                    fee_quote=sum(int(x.get("quote_value") or 0) for x in fee_rows)
+                    fee_amounts=[
+                        sum(int(x.get("amounts",[0,0])[side]) for x in fee_rows)
+                        for side in (0,1)
+                    ]
+                    fees=dict(
+                        amounts=fee_amounts,
+                        quote_value=fee_quote,
+                        segments=len(fee_rows),
+                    )
                     outcome=paper_outcome(
                         pos,replayed["terminal_state"],unwind=unwind,costs={},
                         lp_fees_captured=fees,
                     )
                     employed=int(proposal["capital_employed"])
                     row.update(
-                        terminal_equality=replayed.get("terminal_equality"),
-                        event_count=replayed.get("events"),
-                        transaction_count=replayed.get("transactions"),
+                        terminal_equality=all(
+                            s["replay"].get("terminal_equality") is True
+                            for s in segments
+                        ),
+                        segment_count=len(segments),
+                        segment_seconds=SEGMENT_SECONDS,
+                        segments=[dict(
+                            start_block=s["start_block"],
+                            start_timestamp=s["start_timestamp"],
+                            end_block=s["end_block"],
+                            end_timestamp=s["end_timestamp"],
+                            events=s["replay"].get("events"),
+                            transactions=s["replay"].get("transactions"),
+                            terminal_equality=s["replay"].get("terminal_equality"),
+                        ) for s in segments],
+                        event_count=sum(int(s["replay"].get("events") or 0) for s in segments),
+                        transaction_count=sum(int(s["replay"].get("transactions") or 0) for s in segments),
                         fee_capture_quote=fees.get("quote_value"),
                         inventory_effect=outcome.get("inventory_effect"),
                         executable_slippage=outcome.get("executable_slippage"),
