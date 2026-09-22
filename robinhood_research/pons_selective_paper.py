@@ -22,8 +22,9 @@ from .pons_selective_acquisition import (
     _batched, _header_search, _rpc as evidence_rpc, _trajectory,
 )
 from .pons_selective_continuation import (
-    EXIT_POLICY, POLICY, POLICY_HASH, demand_metrics, normalized_trade,
-    post_graduation_vector, pregraduation_exit_reason, runner_action,
+    ENTRY_THRESHOLDS, EXIT_POLICY, POLICY, POLICY_HASH, demand_metrics,
+    entry_signal_persistence, normalized_trade, post_graduation_vector,
+    pregraduation_exit_reason, runner_action,
     trajectory_metrics,
 )
 from .pons_selective_v4 import collect_v4_activity
@@ -128,6 +129,16 @@ def _refresh_curve_signal(endpoint,candidate,mark_meta):
         events,asof=int(mark_meta["event_at"]),creator_groups=creator_groups
     )
     return trajectory,demand,[trajectory_session]+sessions
+
+
+def _refresh_entry_persistence_signal(endpoint,candidate,entry_meta):
+    """Dedicated fill-time thesis revalidation hook.
+
+    Production uses the same authenticated trajectory/demand acquisition as normal
+    monitoring. Keeping the hook separate prevents recovery tests from conflating
+    pre-entry persistence with deliberately injected post-entry provider failures.
+    """
+    return _refresh_curve_signal(endpoint,candidate,entry_meta)
 
 
 def _delayed_exit(
@@ -258,6 +269,32 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
             rpc,candidate,"buy",amount,gas_units,store,"selective-entry",
             reserved["due"],seconds=30,local_freshness=True,
         )
+        trajectory_now,demand_now,persistence_sessions=_refresh_entry_persistence_signal(
+            endpoint,candidate,entry_meta
+        )
+        result["provider_sessions"].extend(persistence_sessions)
+        persistence=entry_signal_persistence(vector,trajectory_now,demand_now)
+        result["entry_persistence"]=dict(
+            persistence,
+            reasons=list(persistence["reasons"]),
+            trajectory=trajectory_now,demand=demand_now,
+        )
+        quote_age=max(0,int(time.time())-int(entry.stamp.observed_at))
+        result["entry_persistence"]["quote_age_after_confirmation_seconds"]=quote_age
+        if not persistence["persistent"] or quote_age>ENTRY_THRESHOLDS["max_state_age_seconds"]:
+            failure=(
+                "entry_signal_decay" if not persistence["persistent"]
+                else "entry_quote_stale_after_confirmation"
+            )
+            paper.advance(
+                identity,now=int(time.time()),action="cancel",
+                cancel_reason=failure,
+            )
+            result.update(
+                status="entry_failed",entry_failure=failure,
+                final_position=paper._get(identity),reconciliation=paper.reconcile(),
+            )
+            return result
         if entry.amount_out<min_tokens:
             paper.advance(
                 identity,now=entry.stamp.observed_at,action="cancel",
@@ -397,13 +434,14 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                     endpoint,candidate,meta
                 )
                 result["provider_sessions"].extend(sessions)
+                if rbps>high_water:
+                    high_water=rbps;high_at=int(time.time())
                 reason=pregraduation_exit_reason(
                     elapsed_seconds=elapsed,frozen_eta_seconds=frozen_eta,
                     trajectory=trajectory,demand=demand,
                     after_cost_return_bps=rbps,
+                    high_water_return_bps=high_water,
                 )
-                if rbps>high_water:
-                    high_water=rbps;high_at=int(time.time())
                 action=(
                     dict(action="full_exit",reason=reason,exit_tokens=position["tokens"])
                     if reason is not None else
@@ -413,7 +451,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                     at=mark.stamp.observed_at,market="curve",available=True,
                     return_bps=rbps,trajectory=trajectory,demand=demand,
                     action=action,pregraduation_exit_reason=reason,quote=meta,
-                    profit_taking_deferred_until_post_graduation=True,
+                    pregraduation_profit_lock_enabled=True,
                 ))
                 if action["action"]=="full_exit":
                     try:

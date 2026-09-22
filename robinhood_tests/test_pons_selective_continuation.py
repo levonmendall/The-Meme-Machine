@@ -28,8 +28,9 @@ from robinhood_research.sequencer_feed import (
 from robinhood_research.pons import CurveState
 from robinhood_research.pons_selective_continuation import (
     POLICY, POLICY_HASH, ENTRY_THRESHOLDS, POST_GRAD_THRESHOLDS, EXIT_POLICY,
-    breakout_vector, demand_metrics, post_graduation_vector,
-    qualification_vector, relative_strength_bps, runner_action,
+    REENTRY_POLICY, breakout_vector, demand_metrics, entry_signal_persistence,
+    post_graduation_vector, pregraduation_exit_reason, qualification_vector,
+    reentry_regime_reset, relative_strength_bps, runner_action,
     wallet_convergence,
 )
 
@@ -56,9 +57,9 @@ def state(**kw):
 
 def snapshots():
     return [
-        dict(at=185,progress_bps=6500),
+        dict(at=185,progress_bps=6800),
         dict(at=195,progress_bps=7400),
-        dict(at=200,progress_bps=8000),
+        dict(at=200,progress_bps=7800),
     ]
 
 
@@ -82,7 +83,7 @@ def events():
 
 def vector(**overrides):
     args=dict(
-        state=state(),graduation_threshold=10**18,launch_at=100,
+        state=state(),graduation_threshold=10**18,launch_at=50,
         snapshots=snapshots(),events=events(),creator_groups=(CREATOR,),
         current_snipe_bps=0,lifecycle_gas_quote=10**10,
         strategy_capital_quote=10**18,asof=200,evidence_available_at=202,
@@ -95,18 +96,32 @@ def vector(**overrides):
 class PonsSelectivePolicyTests(unittest.TestCase):
     def test_policy_is_distinct_and_frozen(self):
         self.assertEqual(POLICY,"pons-selective-continuation-v1")
-        self.assertEqual(len(POLICY_HASH),64)
-        self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],5500)
-        self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],9200)
+        self.assertEqual(
+            POLICY_HASH,
+            "3067732bcfa334b28ac4014a4adb5aee2a0310dee573ad349c3b5412c71c8853",
+        )
+        self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],5000)
+        self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],8500)
+        self.assertEqual(ENTRY_THRESHOLDS["min_token_age_seconds"],120)
+        self.assertEqual(ENTRY_THRESHOLDS["max_token_age_seconds"],600)
+        self.assertEqual(ENTRY_THRESHOLDS["min_graduation_eta_seconds"],20)
+        self.assertEqual(ENTRY_THRESHOLDS["max_graduation_eta_seconds"],90)
+        self.assertEqual(ENTRY_THRESHOLDS["max_roundtrip_loss_bps"],600)
+        self.assertTrue(ENTRY_THRESHOLDS["require_curve_acceleration"])
+        self.assertTrue(ENTRY_THRESHOLDS["require_flow_acceleration"])
+        self.assertEqual(ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"],6000)
         self.assertEqual(ENTRY_THRESHOLDS["capital_size_bps"],25)
-        self.assertEqual(EXIT_POLICY["first_profit_bps"],2500)
+        self.assertEqual(EXIT_POLICY["risk_bps"],-800)
+        self.assertEqual(EXIT_POLICY["first_profit_bps"],1800)
+        self.assertEqual(EXIT_POLICY["first_profit_sell_bps"],3333)
         self.assertEqual(EXIT_POLICY["max_total_hold_seconds"],900)
+        self.assertEqual(REENTRY_POLICY["min_changed_dimensions"],2)
 
     def test_clean_late_curve_acceleration_can_qualify(self):
         v=vector()
         self.assertTrue(v["complete"])
         self.assertTrue(v["current_threshold_pass"],v["all_rejections"])
-        self.assertEqual(v["trajectory"]["progress_15s_bps"],1500)
+        self.assertEqual(v["trajectory"]["progress_15s_bps"],1000)
         self.assertTrue(v["trajectory"]["accelerating"])
         self.assertGreaterEqual(v["demand"]["independent_groups"],5)
         self.assertGreaterEqual(v["demand"]["new_independent_groups_15s"],3)
@@ -154,6 +169,104 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         self.assertIn("non_native_quote_allocation_disabled",v["all_rejections"])
         self.assertEqual(v["quote_relative_strength_bps"],321)
 
+    def test_profitability_v1_rejects_immature_and_stale_lifecycle_segments(self):
+        immature=vector(launch_at=100)
+        self.assertIn("token_age",immature["all_rejections"])
+        stale=vector(launch_at=-500)
+        self.assertIn("token_age",stale["all_rejections"])
+
+    def test_profitability_v1_rejects_terminal_blowoff_eta(self):
+        blowoff=[
+            dict(at=185,progress_bps=6800),
+            dict(at=195,progress_bps=7600),
+            dict(at=200,progress_bps=8400),
+        ]
+        v=vector(snapshots=blowoff)
+        self.assertIn("graduation_eta",v["all_rejections"])
+
+    def test_profitability_v1_requires_curve_and_flow_acceleration(self):
+        decelerating=[
+            dict(at=185,progress_bps=6800),
+            dict(at=195,progress_bps=7600),
+            dict(at=200,progress_bps=7800),
+        ]
+        v=vector(snapshots=decelerating)
+        self.assertIn("curve_deceleration",v["all_rejections"])
+
+        rows=events()
+        # Make the prior 15-second window stronger than the current window while
+        # retaining positive current demand.
+        rows.append(trade("prior-heavy","0x"+"aa"*20,8*10**15,180))
+        v2=vector(events=rows)
+        self.assertIn("flow_deceleration",v2["all_rejections"])
+
+    def test_fill_time_persistence_rejects_decayed_continuation(self):
+        original=vector()
+        traj=dict(original["trajectory"])
+        demand=dict(original["demand"])
+        kept=entry_signal_persistence(original,traj,demand)
+        self.assertTrue(kept["persistent"],kept["reasons"])
+
+        decayed_traj=dict(traj,accelerating=False,progress_15s_bps=100)
+        decayed_demand=dict(
+            demand,
+            independent_groups=1,
+            new_independent_groups_15s=0,
+            current_net_quote=1,
+            prior_net_quote=10,
+            net_flow_accelerating=False,
+        )
+        rejected=entry_signal_persistence(
+            original,decayed_traj,decayed_demand
+        )
+        self.assertFalse(rejected["persistent"])
+        self.assertIn("fill_curve_deceleration",rejected["reasons"])
+        self.assertIn("fill_flow_deceleration",rejected["reasons"])
+        self.assertIn("fill_buyer_breadth_decay",rejected["reasons"])
+
+    def test_pregraduation_high_water_protects_existing_gain(self):
+        trajectory=dict(
+            complete=True,accelerating=False,recent_progress_bps=50
+        )
+        demand=dict(
+            current_buy_quote=10,current_sell_quote=2,
+            current_net_quote=8,prior_net_quote=4,
+            creator_sell_quote_15s=0,
+        )
+        reason=pregraduation_exit_reason(
+            elapsed_seconds=40,frozen_eta_seconds=60,
+            trajectory=trajectory,demand=demand,
+            after_cost_return_bps=900,high_water_return_bps=2200,
+        )
+        self.assertEqual(reason,"pregraduation_profit_lock")
+
+        accelerating=dict(trajectory,accelerating=True)
+        hold=pregraduation_exit_reason(
+            elapsed_seconds=40,frozen_eta_seconds=60,
+            trajectory=accelerating,demand=demand,
+            after_cost_return_bps=2100,high_water_return_bps=2200,
+        )
+        self.assertIsNone(hold)
+
+    def test_profitability_v1_regime_reset_requires_two_material_changes(self):
+        base=vector()
+        later=json.loads(json.dumps(base))
+        later["asof"]=base["asof"]+20
+        later["trajectory"]["graduation_eta_seconds"]=(
+            int(base["trajectory"]["graduation_eta_seconds"])+20
+        )
+        self.assertFalse(reentry_regime_reset(base,later))
+        later["trajectory"]["progress_15s_bps"]=(
+            int(base["trajectory"]["progress_15s_bps"])-300
+        )
+        self.assertTrue(reentry_regime_reset(base,later))
+
+    def test_profitability_v1_regime_reset_rejects_duplicate_observation(self):
+        base=vector()
+        duplicate=json.loads(json.dumps(base))
+        duplicate["asof"]=base["asof"]+20
+        self.assertFalse(reentry_regime_reset(base,duplicate))
+
     def test_demand_uses_equal_recent_windows_and_concentration(self):
         m=demand_metrics(events(),asof=200,creator_groups=(CREATOR,))
         self.assertEqual(m["current_buy_quote"],6*10**15)
@@ -196,11 +309,11 @@ class PonsSelectivePolicyTests(unittest.TestCase):
 
     def test_profit_then_runner_is_asymmetric(self):
         first=runner_action(
-            tokens=1000,partial_taken=False,after_cost_return_bps=2600,
-            high_water_return_bps=2600,seconds_since_high=0,new_buyer_growth=2,
+            tokens=1000,partial_taken=False,after_cost_return_bps=1900,
+            high_water_return_bps=1900,seconds_since_high=0,new_buyer_growth=2,
             buy_quote=10,sell_quote=2,
         )
-        self.assertEqual((first["action"],first["exit_tokens"]),("partial_exit",500))
+        self.assertEqual((first["action"],first["exit_tokens"]),("partial_exit",333))
         trail=runner_action(
             tokens=500,partial_taken=True,after_cost_return_bps=2000,
             high_water_return_bps=4000,seconds_since_high=10,new_buyer_growth=1,
@@ -208,7 +321,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         )
         self.assertEqual(trail["reason"],"runner_trailing_stop")
         risk=runner_action(
-            tokens=500,partial_taken=False,after_cost_return_bps=-1000,
+            tokens=500,partial_taken=False,after_cost_return_bps=-800,
             high_water_return_bps=0,seconds_since_high=0,new_buyer_growth=1,
             buy_quote=1,sell_quote=1,
         )

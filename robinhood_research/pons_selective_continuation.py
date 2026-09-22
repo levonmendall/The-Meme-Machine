@@ -15,27 +15,32 @@ from . import BoundaryError
 from .evidence import digest
 
 POLICY = "pons-selective-continuation-v1"
-POLICY_REVISION = "execution-certification-v1"
+POLICY_REVISION = "profitability-v1"
 ZERO = "0x0000000000000000000000000000000000000000"
 
 ENTRY_THRESHOLDS = dict(
-    min_curve_progress_bps=4500,
-    max_curve_progress_bps=9700,
-    max_token_age_seconds=900,
-    max_graduation_eta_seconds=300,
+    min_curve_progress_bps=5000,
+    max_curve_progress_bps=8500,
+    min_token_age_seconds=120,
+    max_token_age_seconds=600,
+    min_graduation_eta_seconds=20,
+    max_graduation_eta_seconds=90,
     min_progress_15s_bps=300,
+    require_curve_acceleration=True,
+    require_flow_acceleration=True,
     min_independent_groups=3,
     min_new_independent_groups_15s=1,
     min_buy_sell_ratio_bps=12_000,
     max_largest_buyer_flow_bps=4000,
-    max_top3_buyer_flow_bps=7500,
+    max_top3_buyer_flow_bps=6000,
     max_creator_tax_bps=200,
-    max_roundtrip_loss_bps=800,
+    max_roundtrip_loss_bps=600,
     max_entry_impact_bps=300,
     capital_size_bps=25,          # 0.25% of strategy capital
     real_quote_size_bps=200,      # 2% of real quote liquidity
     independent_net_size_bps=1000,# 10% of independent net demand
     max_state_age_seconds=5,
+    min_fill_breadth_retention_bps=6000,
     max_market_events=512,
 )
 POST_GRAD_THRESHOLDS = dict(
@@ -47,11 +52,11 @@ POST_GRAD_THRESHOLDS = dict(
     max_preholder_sell_share_bps=5000,
 )
 EXIT_POLICY = dict(
-    risk_bps=-1000,
-    first_profit_bps=2500,
-    first_profit_sell_bps=5000,
-    runner_trailing_drawdown_bps=1100,
-    no_new_high_seconds=180,
+    risk_bps=-800,
+    first_profit_bps=1800,
+    first_profit_sell_bps=3333,
+    runner_trailing_drawdown_bps=1000,
+    no_new_high_seconds=120,
     entry_delay_seconds=2,
     monitor_seconds=5,
     max_pregraduation_thesis_seconds=180,
@@ -66,6 +71,18 @@ BREAKOUT_THRESHOLDS = dict(
     min_buy_sell_ratio_bps=15_000,
 )
 
+# A new paper lifecycle on the same curve requires a materially different
+# continuation regime. This prevents repeated same-regime entries without banning
+# legitimate re-entry after a genuine reset.
+REENTRY_POLICY = dict(
+    min_seconds=15,
+    min_eta_change_seconds=15,
+    min_progress_15s_change_bps=200,
+    min_top3_concentration_change_bps=750,
+    min_new_buyer_groups=2,
+    min_changed_dimensions=2,
+)
+
 POLICY_HASH = digest(dict(
     policy=POLICY,
     revision=POLICY_REVISION,
@@ -73,6 +90,7 @@ POLICY_HASH = digest(dict(
     post_graduation=POST_GRAD_THRESHOLDS,
     exits=EXIT_POLICY,
     breakout=BREAKOUT_THRESHOLDS,
+    reentry=REENTRY_POLICY,
 ))
 
 
@@ -245,6 +263,8 @@ def demand_metrics(events, *, asof, creator_groups=()):
         current_sell_quote=current_sell,
         current_net_quote=current_net,
         prior_net_quote=prior_net,
+        net_flow_change_quote=current_net-prior_net,
+        net_flow_accelerating=current_net>prior_net,
         buy_sell_ratio_bps=ratio,
         largest_buyer_flow_bps=largest,
         top3_buyer_flow_bps=top3,
@@ -359,6 +379,47 @@ def relative_strength_bps(*, token_usd_start, token_usd_now, quote_usd_start, qu
     return token_return - quote_return
 
 
+def reentry_regime_reset(previous_vector, current_vector, policy=REENTRY_POLICY):
+    """Require multiple point-in-time regime changes before re-entering one curve."""
+    if not previous_vector or not current_vector:
+        return False
+    previous_at=int(previous_vector.get("asof",-1))
+    current_at=int(current_vector.get("asof",-1))
+    if previous_at < 0 or current_at < previous_at+int(policy["min_seconds"]):
+        return False
+
+    previous_trajectory=previous_vector.get("trajectory") or {}
+    current_trajectory=current_vector.get("trajectory") or {}
+    previous_demand=previous_vector.get("demand") or {}
+    current_demand=current_vector.get("demand") or {}
+
+    changed=0
+    previous_eta=previous_trajectory.get("graduation_eta_seconds")
+    current_eta=current_trajectory.get("graduation_eta_seconds")
+    if (
+        previous_eta is not None and current_eta is not None
+        and abs(int(current_eta)-int(previous_eta)) >= int(policy["min_eta_change_seconds"])
+    ):
+        changed+=1
+
+    previous_progress=int(previous_trajectory.get("progress_15s_bps",0))
+    current_progress=int(current_trajectory.get("progress_15s_bps",0))
+    if abs(current_progress-previous_progress) >= int(policy["min_progress_15s_change_bps"]):
+        changed+=1
+
+    previous_top3=int(previous_demand.get("top3_buyer_flow_bps",10_000))
+    current_top3=int(current_demand.get("top3_buyer_flow_bps",10_000))
+    if abs(current_top3-previous_top3) >= int(policy["min_top3_concentration_change_bps"]):
+        changed+=1
+
+    previous_groups=set(previous_demand.get("recent_buy_groups") or ())
+    current_groups=set(current_demand.get("recent_buy_groups") or ())
+    if len(current_groups-previous_groups) >= int(policy["min_new_buyer_groups"]):
+        changed+=1
+
+    return changed >= int(policy["min_changed_dimensions"])
+
+
 def qualification_vector(
     *, state, graduation_threshold, launch_at, snapshots, events,
     creator_groups, current_snipe_bps, lifecycle_gas_quote,
@@ -411,15 +472,24 @@ def qualification_vector(
     if not ENTRY_THRESHOLDS["min_curve_progress_bps"] <= progress <= ENTRY_THRESHOLDS["max_curve_progress_bps"]:
         reject("curve_progress")
     token_age = asof - int(launch_at)
-    if token_age < 0 or token_age > ENTRY_THRESHOLDS["max_token_age_seconds"]:
+    if (
+        token_age < ENTRY_THRESHOLDS["min_token_age_seconds"]
+        or token_age > ENTRY_THRESHOLDS["max_token_age_seconds"]
+    ):
         reject("token_age")
     if not traj.get("complete"):
         reject("trajectory_history")
     else:
         if traj["progress_15s_bps"] < ENTRY_THRESHOLDS["min_progress_15s_bps"]:
             reject("curve_velocity")
+        if ENTRY_THRESHOLDS["require_curve_acceleration"] and not traj["accelerating"]:
+            reject("curve_deceleration")
         eta = traj["graduation_eta_seconds"]
-        if eta is None or eta > ENTRY_THRESHOLDS["max_graduation_eta_seconds"]:
+        if (
+            eta is None
+            or eta < ENTRY_THRESHOLDS["min_graduation_eta_seconds"]
+            or eta > ENTRY_THRESHOLDS["max_graduation_eta_seconds"]
+        ):
             reject("graduation_eta")
     if demand["independent_groups"] < ENTRY_THRESHOLDS["min_independent_groups"]:
         reject("independent_breadth")
@@ -429,6 +499,11 @@ def qualification_vector(
         reject("buy_sell_flow")
     if demand["current_net_quote"] <= 0:
         reject("net_demand_nonpositive")
+    if (
+        ENTRY_THRESHOLDS["require_flow_acceleration"]
+        and not demand["net_flow_accelerating"]
+    ):
+        reject("flow_deceleration")
     if demand["largest_buyer_flow_bps"] > ENTRY_THRESHOLDS["max_largest_buyer_flow_bps"]:
         reject("largest_buyer_concentration")
     if demand["top3_buyer_flow_bps"] > ENTRY_THRESHOLDS["max_top3_buyer_flow_bps"]:
@@ -487,14 +562,101 @@ def qualification_vector(
     )
 
 
+def entry_signal_persistence(original_vector, trajectory, demand):
+    """Confirm that the continuation thesis still exists at executable entry time."""
+    reasons=[]
+    if not trajectory.get("complete"):
+        reasons.append("fill_trajectory_incomplete")
+    else:
+        if int(trajectory.get("progress_15s_bps",0)) < ENTRY_THRESHOLDS["min_progress_15s_bps"]:
+            reasons.append("fill_curve_velocity")
+        if (
+            ENTRY_THRESHOLDS["require_curve_acceleration"]
+            and not bool(trajectory.get("accelerating"))
+        ):
+            reasons.append("fill_curve_deceleration")
+        eta=trajectory.get("graduation_eta_seconds")
+        if (
+            eta is None
+            or int(eta) < ENTRY_THRESHOLDS["min_graduation_eta_seconds"]
+            or int(eta) > ENTRY_THRESHOLDS["max_graduation_eta_seconds"]
+        ):
+            reasons.append("fill_graduation_eta")
+
+    if int(demand.get("independent_groups",0)) < ENTRY_THRESHOLDS["min_independent_groups"]:
+        reasons.append("fill_independent_breadth")
+    if int(demand.get("new_independent_groups_15s",0)) < ENTRY_THRESHOLDS["min_new_independent_groups_15s"]:
+        reasons.append("fill_buyer_growth")
+    if int(demand.get("buy_sell_ratio_bps",0)) < ENTRY_THRESHOLDS["min_buy_sell_ratio_bps"]:
+        reasons.append("fill_buy_sell_flow")
+    if int(demand.get("current_net_quote",0)) <= 0:
+        reasons.append("fill_net_demand_nonpositive")
+    if (
+        ENTRY_THRESHOLDS["require_flow_acceleration"]
+        and not bool(demand.get("net_flow_accelerating"))
+    ):
+        reasons.append("fill_flow_deceleration")
+    if int(demand.get("largest_buyer_flow_bps",10_000)) > ENTRY_THRESHOLDS["max_largest_buyer_flow_bps"]:
+        reasons.append("fill_largest_buyer_concentration")
+    if int(demand.get("top3_buyer_flow_bps",10_000)) > ENTRY_THRESHOLDS["max_top3_buyer_flow_bps"]:
+        reasons.append("fill_top3_buyer_concentration")
+    if int(demand.get("creator_sell_quote_15s",0)) > 0:
+        reasons.append("fill_creator_distribution")
+
+    original_demand=(original_vector or {}).get("demand") or {}
+    original_breadth=max(1,int(original_demand.get("independent_groups",1)))
+    breadth_retention=(
+        int(demand.get("independent_groups",0))*10_000//original_breadth
+    )
+    if breadth_retention < ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"]:
+        reasons.append("fill_buyer_breadth_decay")
+
+    return dict(
+        persistent=not reasons,
+        reasons=tuple(dict.fromkeys(reasons)),
+        breadth_retention_bps=int(breadth_retention),
+        original_independent_groups=int(original_demand.get("independent_groups",0)),
+        fill_independent_groups=int(demand.get("independent_groups",0)),
+        original_progress_15s_bps=int(
+            ((original_vector or {}).get("trajectory") or {}).get("progress_15s_bps",0)
+        ),
+        fill_progress_15s_bps=int(trajectory.get("progress_15s_bps",0) or 0),
+        fill_accelerating=bool(trajectory.get("accelerating")),
+        original_current_net_quote=int(original_demand.get("current_net_quote",0)),
+        fill_current_net_quote=int(demand.get("current_net_quote",0)),
+        fill_prior_net_quote=int(demand.get("prior_net_quote",0)),
+        fill_flow_accelerating=bool(demand.get("net_flow_accelerating")),
+    )
+
+
 def pregraduation_exit_reason(
     *, elapsed_seconds, frozen_eta_seconds, trajectory, demand,
-    after_cost_return_bps, creator_adverse=False,
+    after_cost_return_bps, high_water_return_bps=None, creator_adverse=False,
 ):
     if int(after_cost_return_bps) <= EXIT_POLICY["risk_bps"]:
         return "risk"
     if creator_adverse or int(demand.get("creator_sell_quote_15s", 0)) > 0:
         return "creator_distribution"
+
+    current=int(after_cost_return_bps)
+    high=current if high_water_return_bps is None else max(
+        current,int(high_water_return_bps)
+    )
+    if high >= EXIT_POLICY["first_profit_bps"]:
+        drawdown=max(0,high-current)
+        curve_decelerating=bool(
+            trajectory.get("complete") and not trajectory.get("accelerating")
+        )
+        flow_decelerating=(
+            int(demand.get("current_net_quote",0))
+            <= int(demand.get("prior_net_quote",0))
+        )
+        if (
+            drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"]
+            or (current > 0 and (curve_decelerating or flow_decelerating))
+        ):
+            return "pregraduation_profit_lock"
+
     if trajectory.get("complete"):
         if int(trajectory.get("recent_progress_bps", 0)) <= 0:
             return "momentum_failure"
