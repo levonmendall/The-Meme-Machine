@@ -28,8 +28,9 @@ from robinhood_research.sequencer_feed import (
 from robinhood_research.pons import CurveState
 from robinhood_research.pons_selective_continuation import (
     POLICY, POLICY_HASH, ENTRY_THRESHOLDS, POST_GRAD_THRESHOLDS, EXIT_POLICY,
-    REENTRY_POLICY, breakout_vector, demand_metrics, post_graduation_vector,
-    qualification_vector, reentry_regime_reset, relative_strength_bps, runner_action,
+    REENTRY_POLICY, breakout_vector, demand_metrics, entry_signal_persistence,
+    post_graduation_vector, pregraduation_exit_reason, qualification_vector,
+    reentry_regime_reset, relative_strength_bps, runner_action,
     wallet_convergence,
 )
 
@@ -97,7 +98,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         self.assertEqual(POLICY,"pons-selective-continuation-v1")
         self.assertEqual(
             POLICY_HASH,
-            "d9f19aa3c9ab23aeab5a5622c8ca2bdefbca46a140ce3f56dbc0d64b14e6e64a",
+            "3067732bcfa334b28ac4014a4adb5aee2a0310dee573ad349c3b5412c71c8853",
         )
         self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],5000)
         self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],8500)
@@ -106,6 +107,9 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         self.assertEqual(ENTRY_THRESHOLDS["min_graduation_eta_seconds"],20)
         self.assertEqual(ENTRY_THRESHOLDS["max_graduation_eta_seconds"],90)
         self.assertEqual(ENTRY_THRESHOLDS["max_roundtrip_loss_bps"],600)
+        self.assertTrue(ENTRY_THRESHOLDS["require_curve_acceleration"])
+        self.assertTrue(ENTRY_THRESHOLDS["require_flow_acceleration"])
+        self.assertEqual(ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"],6000)
         self.assertEqual(ENTRY_THRESHOLDS["capital_size_bps"],25)
         self.assertEqual(EXIT_POLICY["risk_bps"],-800)
         self.assertEqual(EXIT_POLICY["first_profit_bps"],1800)
@@ -179,6 +183,70 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         ]
         v=vector(snapshots=blowoff)
         self.assertIn("graduation_eta",v["all_rejections"])
+
+    def test_profitability_v1_requires_curve_and_flow_acceleration(self):
+        decelerating=[
+            dict(at=185,progress_bps=6800),
+            dict(at=195,progress_bps=7600),
+            dict(at=200,progress_bps=7800),
+        ]
+        v=vector(snapshots=decelerating)
+        self.assertIn("curve_deceleration",v["all_rejections"])
+
+        rows=events()
+        # Make the prior 15-second window stronger than the current window while
+        # retaining positive current demand.
+        rows.append(trade("prior-heavy","0x"+"aa"*20,8*10**15,180))
+        v2=vector(events=rows)
+        self.assertIn("flow_deceleration",v2["all_rejections"])
+
+    def test_fill_time_persistence_rejects_decayed_continuation(self):
+        original=vector()
+        traj=dict(original["trajectory"])
+        demand=dict(original["demand"])
+        kept=entry_signal_persistence(original,traj,demand)
+        self.assertTrue(kept["persistent"],kept["reasons"])
+
+        decayed_traj=dict(traj,accelerating=False,progress_15s_bps=100)
+        decayed_demand=dict(
+            demand,
+            independent_groups=1,
+            new_independent_groups_15s=0,
+            current_net_quote=1,
+            prior_net_quote=10,
+            net_flow_accelerating=False,
+        )
+        rejected=entry_signal_persistence(
+            original,decayed_traj,decayed_demand
+        )
+        self.assertFalse(rejected["persistent"])
+        self.assertIn("fill_curve_deceleration",rejected["reasons"])
+        self.assertIn("fill_flow_deceleration",rejected["reasons"])
+        self.assertIn("fill_buyer_breadth_decay",rejected["reasons"])
+
+    def test_pregraduation_high_water_protects_existing_gain(self):
+        trajectory=dict(
+            complete=True,accelerating=False,recent_progress_bps=50
+        )
+        demand=dict(
+            current_buy_quote=10,current_sell_quote=2,
+            current_net_quote=8,prior_net_quote=4,
+            creator_sell_quote_15s=0,
+        )
+        reason=pregraduation_exit_reason(
+            elapsed_seconds=40,frozen_eta_seconds=60,
+            trajectory=trajectory,demand=demand,
+            after_cost_return_bps=900,high_water_return_bps=2200,
+        )
+        self.assertEqual(reason,"pregraduation_profit_lock")
+
+        accelerating=dict(trajectory,accelerating=True)
+        hold=pregraduation_exit_reason(
+            elapsed_seconds=40,frozen_eta_seconds=60,
+            trajectory=accelerating,demand=demand,
+            after_cost_return_bps=2100,high_water_return_bps=2200,
+        )
+        self.assertIsNone(hold)
 
     def test_profitability_v1_regime_reset_requires_two_material_changes(self):
         base=vector()
