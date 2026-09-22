@@ -259,6 +259,32 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
             rpc,candidate,"buy",amount,gas_units,store,"selective-entry",
             reserved["due"],seconds=30,local_freshness=True,
         )
+        trajectory_now,demand_now,persistence_sessions=_refresh_curve_signal(
+            endpoint,candidate,entry_meta
+        )
+        result["provider_sessions"].extend(persistence_sessions)
+        persistence=entry_signal_persistence(vector,trajectory_now,demand_now)
+        result["entry_persistence"]=dict(
+            persistence,
+            reasons=list(persistence["reasons"]),
+            trajectory=trajectory_now,demand=demand_now,
+        )
+        quote_age=max(0,int(time.time())-int(entry.stamp.observed_at))
+        result["entry_persistence"]["quote_age_after_confirmation_seconds"]=quote_age
+        if not persistence["persistent"] or quote_age>ENTRY_THRESHOLDS["max_state_age_seconds"]:
+            failure=(
+                "entry_signal_decay" if not persistence["persistent"]
+                else "entry_quote_stale_after_confirmation"
+            )
+            paper.advance(
+                identity,now=int(time.time()),action="cancel",
+                cancel_reason=failure,
+            )
+            result.update(
+                status="entry_failed",entry_failure=failure,
+                final_position=paper._get(identity),reconciliation=paper.reconcile(),
+            )
+            return result
         if entry.amount_out<min_tokens:
             paper.advance(
                 identity,now=entry.stamp.observed_at,action="cancel",
