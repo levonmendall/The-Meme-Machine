@@ -96,7 +96,7 @@ def select_qualifier(screen):
     return None
 
 
-FAST_HISTORICAL_LOG_SPAN = 500
+FAST_HISTORICAL_LOG_SPAN = 5000
 
 def _historical_log_page(rpc, start, end, address, *, scope, topics):
     """Fetch one exact historical log interval, splitting only on provider refusal.
