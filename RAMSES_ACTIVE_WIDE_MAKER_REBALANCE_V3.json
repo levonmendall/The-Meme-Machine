@@ -1,0 +1,166 @@
+{
+  "kind": "ramses_active_wide_maker_rebalance_v3",
+  "status": "resolved_for_prospective_paper_validation",
+  "research_only": true,
+  "paper_only": true,
+  "allocation_authority": false,
+  "strategy": "Ramses Active Wide Maker v1",
+  "design_evidence": "pre-holdout profitable-operator reverse engineering only",
+  "historical_holdout_available": false,
+  "historical_holdout_note": "The protected chronology was opened only for frozen v1 and contained zero v1-eligible >=65-bin rebalances. It is not used to tune or validate v2/v3.",
+  "change_from_v2": "Adds an 80-120% replacement-notional capital-preservation gate. Hysteresis, overlap, width, sidedness, cost stress, timing, sizing, and no-chase thresholds are unchanged.",
+  "entry_context": {
+    "quote_asset": "USDG",
+    "prior_30m_swaps_max": 2,
+    "initial_width_bins_min": 65,
+    "initial_sidedness": "two_sided"
+  },
+  "state": {
+    "lower_bin": "L",
+    "upper_bin": "U",
+    "active_bin": "A",
+    "center_bin": "C=(L+U)/2",
+    "half_width_bins": "H=max(0.5,(U-L)/2)",
+    "normalized_displacement": "D=abs(A-C)/H"
+  },
+  "decision_state_machine": {
+    "inside_hold": {
+      "condition": "D <= 1.0 and compound_resize is false and no risk exit is active",
+      "action": "hold"
+    },
+    "compound_resize": {
+      "condition": "D <= 1.0 and fee_reserve_quote >= 2 * rebalance_cycle_cost_quote and complete unwind is executable",
+      "action": "burn_and_remint_preserving_range",
+      "required_old_new_overlap_min": 0.5
+    },
+    "edge_watch": {
+      "condition": "1.0 < D < 1.5",
+      "action": "hold_and_monitor; do not partial-shift",
+      "exit_override": "exit if complete unwind deteriorates or inventory risk exceeds remaining fee reserve"
+    },
+    "recenter": {
+      "condition": "1.5 <= D <= 3.0",
+      "action": "burn_then_recompute_from_fresh_finalized_state",
+      "required_old_new_overlap_max": 0.1
+    },
+    "overrun_exit": {
+      "condition": "D > 3.0",
+      "action": "exit_or_hold_quote; no automatic chase/remint"
+    }
+  },
+  "replacement": {
+    "candidate_width_bins": [
+      65,
+      90,
+      120,
+      150,
+      200
+    ],
+    "hard_min_width_bins": 65,
+    "default_sidedness": "two_sided",
+    "one_sided_authorized": false,
+    "active_bin_must_be_inside": true,
+    "complete_unwind_required": true,
+    "two_x_cost_stress_required": true,
+    "capital_preservation_ratio_min": 0.8,
+    "capital_preservation_ratio_max": 1.2,
+    "capital_preservation_definition": "replacement position quote value / burn proceeds quote value",
+    "partial_shift_overlap_band_prohibited": [
+      0.1,
+      0.5
+    ],
+    "selection": "choose highest expected after-cost fee return among candidates passing all gates; ties choose narrower width"
+  },
+  "timing": {
+    "target_burn_to_remint_seconds": 180,
+    "hard_same_decision_deadline_seconds": 210,
+    "deadline_miss": "discard stale geometry, reread finalized state, rerun full decision"
+  },
+  "sizing": {
+    "source": "range-local executable liquidity",
+    "maximum_local_liquidity_fraction_bps": 50,
+    "reduction_schedule_bps": [
+      50,
+      25,
+      12,
+      6,
+      3,
+      1
+    ],
+    "automatic_size_increase_on_rebalance": false,
+    "rule": "new size <= min(governed target size, largest fully executable size) AND replacement notional remains within 80-120% of burn proceeds; otherwise exit/hold quote"
+  },
+  "pre_holdout_evidence": {
+    "intended_segment_first_quick_rebalances": {
+      "books": 18,
+      "wins": 15,
+      "owners": 12,
+      "pools": 17,
+      "lower_bound_pnl_usd": 88503.83369074747
+    },
+    "wide_replacement_65_plus": {
+      "books": 10,
+      "wins": 10,
+      "owners": 7,
+      "pools": 9,
+      "lower_bound_pnl_usd": 55966.78532089612
+    },
+    "wide_replacement_65_plus_within_210s": {
+      "books": 9,
+      "wins": 9,
+      "owners": 7,
+      "pools": 8,
+      "lower_bound_pnl_usd": 55544.29536198886,
+      "median_return": 0.1277762806906185
+    },
+    "capital_preserved_80_120pct_first_quick_rebalance": {
+      "books": 10,
+      "wins": 10,
+      "owners": 9,
+      "pools": 9,
+      "lower_bound_pnl_usd": 84226.5,
+      "median_return": 0.14607044374874478
+    },
+    "fast_180s_wide_65_plus_capital_preserved": {
+      "books": 6,
+      "wins": 6,
+      "owners": 5,
+      "pools": 6,
+      "lower_bound_pnl_usd": 47654.6,
+      "median_return": 0.14607044374874478
+    },
+    "all_quick_transition_pairs": {
+      "pairs": 35,
+      "books": 18,
+      "winning_book_median_share_wide": 1,
+      "winning_book_median_share_fast_180s": 1,
+      "winning_book_median_share_capital_preserved": 1,
+      "losing_book_median_share_wide": 0,
+      "losing_book_median_share_capital_preserved": 0
+    },
+    "replacement_widths_of_losing_first_quick_rebalances": [
+      16,
+      32,
+      42
+    ],
+    "observed_fee_driven_recenter_displacement_cluster": {
+      "normalized_displacement_approx": [
+        2.49,
+        2.54,
+        2.79
+      ],
+      "failed_overrun_example": 5.51
+    }
+  },
+  "validation_boundary": {
+    "threshold_changes_after_start": false,
+    "required_next_evidence": "prospective natural paper observations or future chronological data",
+    "minimum_eligible_rebalances_before_strategy_promotion": 20,
+    "minimum_distinct_pools": 5,
+    "minimum_win_rate": 0.55,
+    "median_after_cost_return_bps": ">0",
+    "mean_after_cost_return_bps": ">0",
+    "two_x_cost_stress_median_bps": ">0",
+    "two_x_cost_stress_mean_bps": ">0"
+  }
+}
