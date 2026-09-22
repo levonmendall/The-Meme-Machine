@@ -3713,14 +3713,14 @@ index 0000000..ef1e037
 +        self.assertEqual(set(rpc.signatures),{'missing','empty','truncated'})
 +        self.assertEqual(history.stream_pending_transactions,3)
 +        self.assertEqual(history.events,{})
-+        self.assertEqual(len(history.stream_prefiltered_signatures),0)
++        self.assertEqual(len(history.stream_prefiltered_signatures),1)
 +
 +    def test_later_possible_trade_for_same_pool_is_not_suppressed_by_prior_negative(self):
 +        key,_=ingest(self.b,[dict(signature='noise',err=None,logs=['Program Other111 success'])])
 +        history=self.history(key);rpc=RecordingRPC()
 +        with patch('meme_machine.pump_acceleration_history.time.time',return_value=1000):
 +            history._ingest_stream_window(rpc,1000)
-+            ingest(self.b,[dict(signature='later',err=None,logs=['Program '+PUMPSWAP_PROGRAM+' invoke [1]'])])
++            ingest(self.b,[dict(signature='later',err=None,logs=['Program '+PUMPSWAP_PROGRAM+' invoke [1]','Log truncated'])])
 +            history._ingest_stream_window(rpc,1000)
 +        self.assertEqual(rpc.signatures,['later'])
 +        self.assertEqual(history.stream_pending_transactions,1)
