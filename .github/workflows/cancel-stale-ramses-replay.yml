@@ -1,0 +1,18 @@
+name: cancel-stale-ramses-replay
+on:
+  push:
+    branches: [research/ramses-exact-replay-efficiency-v1]
+permissions:
+  actions: write
+  contents: read
+jobs:
+  cancel:
+    if: contains(github.event.head_commit.message, '[cancel-stale-ramses]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Cancel stale non-checkpointed replay
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X POST "repos/${{ github.repository }}/actions/runs/35670623327/cancel"
