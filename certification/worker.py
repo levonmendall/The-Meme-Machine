@@ -39,7 +39,7 @@ class Observer:
         self.requests=0;self.raw_records=0;self.provider_sessions={}
         self.last_progress=None;self.last_report=None
         self.last_activity_write=0
-        self.pons_rows=0;self.pons_qualifiers=0;self.pons_lifecycles=set()
+        self.pons_rows=0;self.pons_qualifiers=0;self.pons_lifecycles=set();self.ramses_screens=0;self.ramses_terminals=0;self.ramses_lifecycles=0
         self.governor=Governor(os.environ["MM_CERT_GOVERNOR_DB"])
         self.context=threading.local()
 
@@ -103,6 +103,33 @@ class Observer:
         self.checkpoint(dict(snapshot,lifecycles=result.get('lifecycles',[]),
                              observation_archive=dict(candidate_rows=self.pons_rows,
                                  qualifiers=self.pons_qualifiers,journal='telemetry.sqlite')),phase)
+
+    def ramses_progress(self,result,phase):
+        """Archive full Ramses observations once; keep repeating checkpoints bounded."""
+        screens=result.get('natural_screens') or []
+        terminals=result.get('campaign_terminals') or []
+        lifecycles=result.get('natural_lifecycles') or []
+        for rows,attribute,kind in (
+            (screens,'ramses_screens','ramses_screen_observation'),
+            (terminals,'ramses_terminals','ramses_campaign_terminal'),
+            (lifecycles,'ramses_lifecycles','ramses_natural_lifecycle'),
+        ):
+            previous=getattr(self,attribute)
+            if len(rows)<previous:raise ValueError('ramses_observation_history_regressed')
+            for index in range(previous,len(rows)):
+                self.event(kind,dict(index=index,policy_hash=self.policy,observation=rows[index]))
+            setattr(self,attribute,len(rows))
+        snapshot=dict(result)
+        snapshot['natural_screens']=[compact_ramses_screen(row) for row in screens]
+        snapshot['observation_archive']=dict(
+            ramses_screens=self.ramses_screens,
+            campaign_terminals=self.ramses_terminals,
+            natural_lifecycles=self.ramses_lifecycles,
+            journal='telemetry.sqlite',
+            full_screen_detail='append_only_once',
+        )
+        self.checkpoint(snapshot,phase)
+        return snapshot
 
     def status(self, phase, body=None):
         with self.lock:
@@ -274,6 +301,56 @@ class Observer:
                     if transport_started is not None:observer.transport_activity()
         setattr(cls,name,observed)
 
+def compact_ramses_screen(screen):
+    """Bounded public/checkpoint projection; full screen is retained in telemetry.sqlite."""
+    if not isinstance(screen,dict):raise ValueError('ramses_screen_shape')
+    rows=[]
+    for row in screen.get('rows') or []:
+        if not isinstance(row,dict):continue
+        cost=row.get('cost_evidence') or {}
+        rows.append(dict(
+            pool=row.get('pool'),swaps=row.get('swaps'),
+            turnover_bps=row.get('turnover_bps'),
+            turnover_percentile_bps=row.get('turnover_percentile_bps'),
+            fee_percentile_bps=row.get('fee_percentile_bps'),
+            volume_acceleration_milli=row.get('volume_acceleration_milli'),
+            chop_ratio_milli=row.get('chop_ratio_milli'),
+            flow_imbalance_bps=row.get('flow_imbalance_bps'),
+            mode=row.get('mode'),qualified=row.get('qualified'),
+            reasons=row.get('reasons'),
+            cost_evidence=dict(
+                available=cost.get('available'),
+                source=cost.get('source'),
+                reason=cost.get('reason'),
+            ),
+        ))
+    provider=screen.get('provider') or {}
+    return dict(
+        finalized_block=screen.get('finalized_block'),
+        finalized_timestamp=screen.get('finalized_timestamp'),
+        factory_pool_count=screen.get('factory_pool_count'),
+        pools_with_recent_swaps=screen.get('pools_with_recent_swaps'),
+        state_complete_pools=screen.get('state_complete_pools'),
+        qualified=screen.get('qualified'),
+        rows=rows,
+        cost_model=screen.get('cost_model'),
+        pools_with_automatic_cost_evidence=screen.get('pools_with_automatic_cost_evidence'),
+        elapsed_seconds=screen.get('elapsed_seconds'),
+        frontier_poll_index=screen.get('frontier_poll_index'),
+        provider=dict(
+            requests=provider.get('requests'),
+            transport_requests=provider.get('transport_requests'),
+            logical_requests=provider.get('logical_requests'),
+            retries=provider.get('retries'),
+            failures=provider.get('failures'),
+            sessions=provider.get('sessions'),
+            max_sessions=provider.get('max_sessions'),
+            rate_limit_events=provider.get('rate_limit_events'),
+        ),
+        full_detail_archive='telemetry.sqlite:ramses_screen_observation',
+    )
+
+
 PROCESS_NONCE=str(uuid.uuid4())
 
 
@@ -379,14 +456,23 @@ def main():
             os.environ['MM_ROBINHOOD_RAMSES_EXTENDED_DISCOVERY_SECONDS']=str(args.seconds)
             original_persist=module._persist_public_result
             def persist(result):
-                original_persist(result);observer.checkpoint(result,'campaign_checkpoint')
+                snapshot=observer.ramses_progress(result,'campaign_checkpoint')
+                original_persist(snapshot)
             module._persist_public_result=persist
             module.main(campaign=args.campaign)
         observer.event('process_terminal',dict(status='returned',policy_hash=policy_for(args.lane)))
         observer.status('returned')
     except BaseException as exc:
-        observer.event('process_terminal',dict(status='failed',exception_type=type(exc).__name__))
-        observer.status('failed')
+        terminal=dict(status='failed',exception_type=type(exc).__name__)
+        if args.lane=='ramses' and type(exc).__name__=='BoundaryError':
+            message=str(exc)
+            terminal['boundary']=(message if re.fullmatch(r'[A-Za-z0-9_.:\\-]+',message) and len(message)<160
+                                  else 'non_code_boundary')
+        observer.event('process_terminal',terminal)
+        report=observer.last_report
+        if args.lane=='ramses' and isinstance(report,dict):
+            report=dict(report,process_terminal=terminal)
+        observer.status('failed',report)
         raise
     finally:
         observer.raw.close();observer.journal.close()
