@@ -1,0 +1,1 @@
+Run the identical preregistered six-candidate quiet-mint diagnostic using only accelerated exact eth_getLogs range retrieval. Candidate selection, position construction, holds, fee math, receipt/header authentication, unwind, and terminal equality are unchanged.\n
