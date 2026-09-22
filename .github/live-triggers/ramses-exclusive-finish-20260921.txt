@@ -1,0 +1,1 @@
+Cancel every other active or queued workflow in the repository. After clearance, Ramses Branch B strategy design/repair will be relaunched alone.
