@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Cancel every other active or queued workflow
+      - name: Force-cancel every other active or queued workflow
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -24,6 +24,7 @@ jobs:
           import json, os, subprocess, time
           repo=os.environ["REPOSITORY"]
           current=int(os.environ["CURRENT_RUN"])
+          active_states=("in_progress","queued","waiting","pending","requested")
 
           def gh(path, method="GET"):
               cmd=["gh","api"]
@@ -33,58 +34,43 @@ jobs:
               raw=subprocess.check_output(cmd,text=True)
               return json.loads(raw) if raw.strip() else {}
 
-          cancelled={}
-          for sweep in range(1,31):
-              active=[]
-              page=1
-              while True:
-                  data=gh(f"repos/{repo}/actions/runs?per_page=100&page={page}")
-                  rows=data.get("workflow_runs",[])
-                  for row in rows:
-                      if int(row["id"])==current:
-                          continue
-                      if row.get("status") in {"queued","in_progress","waiting","pending","requested"}:
-                          active.append(row)
-                  if len(rows)<100:
-                      break
-                  page+=1
-                  if page>20:
-                      raise SystemExit("run_pagination_bound")
+          def active_runs():
+              found={}
+              for state in active_states:
+                  for page in range(1,11):
+                      data=gh(f"repos/{repo}/actions/runs?status={state}&per_page=100&page={page}")
+                      rows=data.get("workflow_runs",[])
+                      for row in rows:
+                          rid=int(row["id"])
+                          if rid!=current and row.get("status") in active_states:
+                              found[rid]=row
+                      if len(rows)<100:
+                          break
+                  else:
+                      raise SystemExit("active_run_pagination_bound:"+state)
+              return list(found.values())
 
-              if not active:
+          cancelled={}
+          for _ in range(60):
+              rows=active_runs()
+              if not rows:
                   print(json.dumps({"status":"clear","cancelled":list(cancelled.values())},sort_keys=True))
                   raise SystemExit(0)
-
-              for row in active:
+              for row in rows:
                   rid=int(row["id"])
-                  if rid not in cancelled:
-                      cancelled[rid]={
-                          "id":rid,
-                          "name":row.get("name"),
-                          "head_branch":row.get("head_branch"),
-                          "head_sha":row.get("head_sha"),
-                          "before":row.get("status"),
-                      }
+                  cancelled.setdefault(rid,{
+                      "id":rid,"name":row.get("name"),"head_branch":row.get("head_branch"),
+                      "head_sha":row.get("head_sha"),"before":row.get("status"),
+                  })
                   try:
-                      gh(f"repos/{repo}/actions/runs/{rid}/cancel","POST")
+                      gh(f"repos/{repo}/actions/runs/{rid}/force-cancel","POST")
                   except subprocess.CalledProcessError:
                       refreshed=gh(f"repos/{repo}/actions/runs/{rid}")
                       if refreshed.get("status")!="completed":
                           raise
-              time.sleep(5)
-
-          remaining=[]
-          page=1
-          while True:
-              data=gh(f"repos/{repo}/actions/runs?per_page=100&page={page}")
-              rows=data.get("workflow_runs",[])
-              remaining.extend(
-                  {"id":r["id"],"name":r["name"],"status":r["status"]}
-                  for r in rows
-                  if int(r["id"])!=current and r.get("status") in {"queued","in_progress","waiting","pending","requested"}
-              )
-              if len(rows)<100:
-                  break
-              page+=1
-          raise SystemExit("active_runs_remain:"+json.dumps(remaining,sort_keys=True))
+              time.sleep(3)
+          raise SystemExit("active_runs_remain:"+json.dumps([
+              {"id":r["id"],"name":r["name"],"status":r["status"]}
+              for r in active_runs()
+          ],sort_keys=True))
           PY
