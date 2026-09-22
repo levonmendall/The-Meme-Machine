@@ -54,6 +54,7 @@ ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
 ENTRY_DELAY_SECONDS=2
 ENTRY_FILL_TIMEOUT_SECONDS=20
 FROZEN_POLICY_HASH="d623ff03ad19b2c4dcd8a82d4883c188ba1acd35a721582175d85cd1b0191770"
+FILL_PERSISTENCE_CONTEXT=None
 
 
 def _save(report):
@@ -281,6 +282,13 @@ def _fill_pending(
     report,pending,active,sessions,postgrad,now,*,
     tape=None,created=None,confirmations=None
 ):
+    context=FILL_PERSISTENCE_CONTEXT or {}
+    tape=tape if tape is not None else context.get("tape")
+    created=created if created is not None else context.get("created")
+    confirmations=(
+        confirmations if confirmations is not None
+        else context.get("confirmations")
+    )
     for key,row in list(pending.items()):
         if now<int(row["due"]):
             continue
@@ -450,6 +458,7 @@ def _record_attempt(report,signal,q,stage,extra=None):
 
 
 def main():
+    global FILL_PERSISTENCE_CONTEXT
     actual_policy_hash=policy_hash()
     if actual_policy_hash!=FROZEN_POLICY_HASH:
         raise RuntimeError("frozen_policy_hash_changed")
@@ -500,6 +509,9 @@ def main():
 
     sessions=Sessions()
     cursor=0;created={};postgrad={};pending={};active={};full_attempts=0
+    FILL_PERSISTENCE_CONTEXT=dict(
+        tape=tape,created=created,confirmations=confirmations
+    )
     last_eval={};last_postgrad_eval={};last_save=0
     discovery_end=int(time.time())+DISCOVERY_SECONDS
     end=discovery_end+FOLLOWUP_SECONDS
@@ -791,6 +803,7 @@ def main():
         report["threshold_changes_made"]=False
         _save(report)
         broker.close()
+        FILL_PERSISTENCE_CONTEXT=None
     print(json.dumps(report,sort_keys=True))
 
 
