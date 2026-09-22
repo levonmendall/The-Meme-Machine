@@ -1,0 +1,9 @@
+Launch clean four-lane hourly paper validation after canonical Pump overlay refresh.
+Verified exact qualification head: 62b3fb2324fca0dba1d27eba2b53b6e344d760ba
+Qualification workflow: 35744971547 completed successfully.
+Pump: evidence-repair overlay canonicalized; proven-negative PumpSwap bodies avoid hydration while ambiguous evidence remains authenticated.
+Pons: reserved-bit session recovery and foreground evidence queue drain.
+Ramses: bounded quote-cost completion.
+Meteora: disjoint-removal reconstruction with unchanged 16-transaction cap.
+No active or queued competing workflows at launch.
+Paper only; all strategy/freshness/finality/sizing controls unchanged.
