@@ -34,9 +34,6 @@ jobs:
           if [ -f RAMSES_BRANCH_B_FROZEN_COST_ROUTE_FALLBACK_V1.json ]; then
             cp RAMSES_BRANCH_B_FROZEN_COST_ROUTE_FALLBACK_V1.json ramses-branch-b-cost-route-fallback.json
           fi
-          if [ -f RAMSES_BRANCH_B_FROZEN_COST_ROUTE_FALLBACK_V1.json ]; then
-            cp RAMSES_BRANCH_B_FROZEN_COST_ROUTE_FALLBACK_V1.json ramses-branch-b-cost-route-fallback.json
-          fi
           python - <<'PY'
           import json
           r=json.load(open("RAMSES_BRANCH_B_FROZEN_RULE_V1.json"))
