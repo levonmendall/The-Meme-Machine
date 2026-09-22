@@ -1,0 +1,2 @@
+Deterministic-only current-head Pump/Pons persistence-edge composition.
+No market validation authorized by this marker.
