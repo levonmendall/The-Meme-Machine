@@ -44,6 +44,15 @@ def source_integrity(worktrees):
     observed={}
     for lane,row in manifest()['lanes'].items():
         cwd=Path(worktrees)/lane
+        # git diff omits untracked and ignored files. Such a module can shadow a
+        # pinned import while all tracked source/overlay hashes still match.
+        extras=subprocess.check_output(['git','ls-files','--others','-z'],cwd=cwd).decode().split('\0')
+        for name in filter(None,extras):
+            path=Path(name)
+            if path.suffix.lower() in ('.py','.pyw','.so','.pyd','.pth') or name in ('.env','config.local.json'):
+                raise ValueError('unreviewed_lane_runtime_file:'+lane+':'+name)
+            if path.suffix.lower()=='.pyc' and '__pycache__' not in path.parts:
+                raise ValueError('unreviewed_lane_runtime_file:'+lane+':'+name)
         if git('rev-parse','HEAD',cwd=cwd)!=row.get('execution_sha',row['source_sha']):raise ValueError('worktree_head_drift:'+lane)
         for file,expected_hash in row.get('file_hashes',{}).items():
             if hashlib.sha256((cwd/file).read_bytes()).hexdigest()!=expected_hash:
@@ -55,6 +64,16 @@ def source_integrity(worktrees):
         # Compare git's normalized diff to the pinned overlay applied at preparation.
         if diff!=expected:raise ValueError('unreviewed_lane_mutation:'+lane)
     return observed
+
+
+def integration_integrity():
+    """Bind executable supervisor inputs to the commit named in the evidence."""
+    tracked=subprocess.check_output(['git','diff','--binary','HEAD','--','certification'],cwd=ROOT)
+    if tracked:raise ValueError('uncommitted_integration_source')
+    extras=subprocess.check_output(['git','ls-files','--others','-z','--','certification'],cwd=ROOT).decode().split('\0')
+    for name in filter(None,extras):
+        if Path(name).suffix in ('.py','.patch'):
+            raise ValueError('untracked_integration_source:'+name)
 
 
 def prepare(destination):
@@ -93,6 +112,9 @@ def verify(worktrees,output):
             log.write_bytes(r.stdout)
             complete=index!=0 or ('\nRan ' in log.read_text() and '\nOK' in log.read_text())
             rows[lane].append(dict(command=cmd,exit_code=r.returncode,summary_complete=complete,started_at=started,ended_at=time.time(),log=log.name,sha256=hashlib.sha256(log.read_bytes()).hexdigest()))
+    # Tests may change a worktree; a pre-test check alone cannot certify the
+    # source handed to the subsequent paper worker.
+    if source_integrity(worktrees)!=source_hashes:raise ValueError('source_changed_during_verification')
     result=dict(passed=all(x['exit_code']==0 and x['summary_complete'] for lane in rows.values() for x in lane),lanes=rows,
                 source_manifest_hash=digest(manifest()),integration_sha=git('rev-parse','HEAD'),implementation_hash=implementation_hash(),source_diff_hashes=source_hashes)
     atomic(output/'deterministic.json',result)
@@ -171,6 +193,7 @@ def finish_lanes(processes,files,rows,terminal_times,journal,run):
 def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     if phase=='sustained' and seconds<14400:raise ValueError('four_hour_minimum')
     if phase=='hourly' and seconds!=3600:raise ValueError('one_hour_window_required')
+    integration_integrity()
     gate=json.loads(Path(gate_file).read_text())
     if not gate.get('passed') or gate.get('source_manifest_hash')!=digest(manifest()):raise ValueError('exact_source_deterministic_gate_required')
     if gate.get('integration_sha')!=git('rev-parse','HEAD'):raise ValueError('integration_sha_gate_mismatch')

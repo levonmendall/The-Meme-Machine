@@ -223,7 +223,8 @@
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
-        "MM_ROBINHOOD_DISCOVERY_RPC_URL"
+        "MM_ROBINHOOD_DISCOVERY_RPC_URL",
+        "MM_ROBINHOOD_DLMM_RPC_URL"
       ],
       "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment",
       "repair_commit": "40bc4c4d1fb81900645fcbce109b4be0341320aa",

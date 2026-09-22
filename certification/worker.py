@@ -38,6 +38,7 @@ class Observer:
         self.archive_ns=0;self.journal_ns=0;self.snapshot_ns=0
         self.requests=0;self.raw_records=0;self.provider_sessions={}
         self.last_progress=None;self.last_report=None
+        self.terminal_phase=None
         self.last_activity_write=0
         self.pons_rows=0;self.pons_qualifiers=0;self.pons_lifecycles=set();self.ramses_screens=0;self.ramses_terminals=0;self.ramses_lifecycles=0
         self.governor=Governor(os.environ["MM_CERT_GOVERNOR_DB"])
@@ -133,6 +134,14 @@ class Observer:
 
     def status(self, phase, body=None):
         with self.lock:
+            # A delayed background checkpoint is weaker than process terminal
+            # truth. It must not resurrect a finished lane in status.json.
+            if self.terminal_phase is not None and phase not in ('returned','failed'):
+                return
+            if self.terminal_phase=='failed' and phase=='returned':
+                return
+            if phase in ('returned','failed'):
+                self.terminal_phase=phase
             before=time.monotonic_ns()
             if body is None:body=self.last_report
             lat=sorted(self.latencies)
