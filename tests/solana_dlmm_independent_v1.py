@@ -53,7 +53,7 @@ ROUND_TRIP_NETWORK_COST=ENTRY_NETWORK_COST+EXIT_NETWORK_COST
 
 DISCOVERY_PAGE_SIZE=250
 DISCOVERY_PAGES_PER_SORT=2
-DISCOVERY_SORTS=("volume_5m:desc","fee_tvl_ratio_5m:desc","volume_30m:desc")
+DISCOVERY_SORTS=("fee_tvl_ratio_5m:desc","volume_5m:desc","volume_30m:desc")
 PER_RPC_LIMIT=240
 ROTATE_AT_CALLS=190
 # One-second verification segments retain the exact 12-second warmup and
@@ -64,7 +64,7 @@ SIGNATURE_PAGE_LIMIT=256
 MAX_SIGNATURE_CENSUS_PAGES=4
 SIGNATURE_CENSUS_MAX_ROWS=SIGNATURE_PAGE_LIMIT*MAX_SIGNATURE_CENSUS_PAGES
 FRESH_SWAP_TRIGGER_POLL_SECONDS=2
-FRESH_SWAP_TRIGGER_MAX_SECONDS=60
+FRESH_SWAP_TRIGGER_MAX_SECONDS=120
 FRESH_SWAP_TRIGGER_SIGNATURE_LIMIT=16
 FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS=12
 RATE_LIMIT_RECOVERY_MAX_CONSECUTIVE=8
@@ -316,12 +316,12 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
                         checkpoint("discovery_history_unavailable")
                     continue
                 failed=[]
-                if item["volume_acceleration"]<float(
-                        regime["min_volume_acceleration"]):
-                    failed.append("volume_acceleration")
-                if item["fee_acceleration"]<float(
-                        regime["min_fee_acceleration"]):
-                    failed.append("fee_acceleration")
+                # Public Meteora API data only orders discovery. Entry authority
+                # is reserved for authenticated finalized on-chain range fees.
+                if item["fee_5m_usd"]<=0:
+                    failed.append("public_fee_context_zero")
+                if item["tvl_usd"]<=0:
+                    failed.append("public_liquidity_context_zero")
                 if failed:
                     telemetry["rejections"].append(dict(
                         pool=address,failed=failed,candidate=item))
@@ -852,16 +852,20 @@ def _range_flow_features(start,tape,lower,upper,liquidity_state=None):
     drift=(0.0 if travel<=0 or start_bin is None or end_bin is None
            else abs(end_bin-start_bin)/travel)
     seconds=max(1,int(tape.terminal["time"])-int(start["time"]))
+    density=(0.0 if range_liquidity<=0 else total_fee/range_liquidity)
+    volume_density=(0.0 if range_liquidity<=0 else total_volume/range_liquidity)
     return dict(
         touch_swaps=touches,range_liquidity_sol_lamports=range_liquidity,
         range_volume_sol_lamports=total_volume,
         range_fee_sol_lamports=total_fee,
         volume_rate_sol_lamports_per_second=total_volume/seconds,
         fee_rate_sol_lamports_per_second=total_fee/seconds,
-        volume_to_active_liquidity=(
-            0.0 if range_liquidity<=0 else total_volume/range_liquidity),
-        fee_density=(
-            0.0 if range_liquidity<=0 else total_fee/range_liquidity),
+        volume_to_active_liquidity=volume_density,
+        fee_density=density,
+        authenticated_fee_density_24h_pct=(
+            100.0*density*86400.0/float(seconds)),
+        authenticated_volume_to_liquidity_24h=(
+            volume_density*86400.0/float(seconds)),
         two_way_balance=balance,reversal_count=reversals,
         travel_bins=travel,drift_ratio=drift,
         observed_seconds=seconds,
@@ -934,12 +938,12 @@ def pre_entry_features(warm_start,warm,entry,candidate,policy):
 
 
 def qualify(features,policy):
-    r=policy["regime"];q=policy["qualification"]
+    q=policy["qualification"]
     checks=dict(
-        volume_acceleration=features["volume_acceleration"]>=float(
-            r["min_volume_acceleration"]),
-        fee_acceleration=features["fee_acceleration"]>=float(
-            r["min_fee_acceleration"]),
+        authenticated_fee_density=(
+            features["authenticated_fee_density_24h_pct"]
+            >=float(q["min_authenticated_fee_density_24h_pct"])
+        ),
         capacity=features["competing_liquidity_to_capital_multiple"]>=float(
             q["min_competing_range_liquidity_to_capital_multiple"]),
         two_way=features["two_way_balance"]>=float(q["min_two_way_balance"]),
@@ -953,7 +957,9 @@ def qualify(features,policy):
     return dict(
         passes=all(checks.values()),checks=checks,
         failed=[k for k,v in checks.items() if not v],
-        rule="solana_dlmm_independent_v1",fitted_thresholds=False,
+        rule="solana_dlmm_authenticated_fee_density_v1",
+        fitted_thresholds=False,
+        public_api_entry_authority=False,
     )
 
 
@@ -1086,18 +1092,12 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
         and recent["fee_density"]<0.50*entry_flow["fee_density"]
     )
     fee_uplift=_fee_uplift(real_terminal)
-    dynamic_fee_collapse=(
-        fee_uplift<1.05
-        and recent["volume_rate_sol_lamports_per_second"]
-            <entry_flow["volume_rate_sol_lamports_per_second"]
-    )
     reasons=[]
     if boundary:reasons.append("range_boundary")
     if inventory:reasons.append("inventory_imbalance")
     if directional:reasons.append("one_way_flow")
     if volume_collapse:reasons.append("volume_collapse")
     if fee_collapse:reasons.append("fee_density_collapse")
-    if dynamic_fee_collapse:reasons.append("dynamic_fee_collapse")
     return reasons,recent,mark,fee_uplift
 
 
@@ -1152,12 +1152,11 @@ def _lifecycle(
 
 
 def _regime_pass(candidate,policy):
-    regime=policy["regime"]
+    # Public history remains a bounded freshness/activity context only.
+    # It cannot authorize the trade or impose the profitability threshold.
     return (
-        candidate["volume_acceleration"]>=float(
-            regime["min_volume_acceleration"])
-        and candidate["fee_acceleration"]>=float(
-            regime["min_fee_acceleration"])
+        float(candidate.get("fee_5m_usd") or 0.0)>0.0
+        and float(candidate.get("tvl_usd") or 0.0)>0.0
     )
 
 
@@ -1319,7 +1318,7 @@ def _await_fresh_swap_trigger_polling(
             if not _regime_pass(current_candidate,policy):
                 return dict(
                     triggered=False,
-                    reason="acceleration_regime_expired",
+                    reason="public_fee_context_expired",
                     waited_seconds=elapsed,polls=polls,
                     acceleration_refreshes=refreshes,
                     baseline_slot=baseline_slot,
@@ -1437,7 +1436,7 @@ def _await_fresh_swap_trigger(
             refreshes+=1
             if not _regime_pass(current_candidate,policy):
                 return terminal(
-                    "acceleration_regime_expired",elapsed,
+                    "public_fee_context_expired",elapsed,
                     volume_acceleration=current_candidate["volume_acceleration"],
                     fee_acceleration=current_candidate["fee_acceleration"])
             next_refresh=elapsed+FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS
@@ -1571,12 +1570,7 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
                 aligned=False,reason="acceleration_refresh_unavailable",
                 detail=type(exc).__name__,windows=attempts,
             ),None,None,None,None,adapter,current_candidate
-        acceleration_pass=(
-            current_candidate["volume_acceleration"]>=float(
-                regime["min_volume_acceleration"])
-            and current_candidate["fee_acceleration"]>=float(
-                regime["min_fee_acceleration"])
-        )
+        acceleration_pass=_regime_pass(current_candidate,policy)
         attempt=dict(
             window=index+1,
             observed_at=observed_at,
@@ -1587,7 +1581,7 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
         if not acceleration_pass:
             attempts.append(attempt)
             return dict(
-                aligned=False,reason="acceleration_regime_expired",
+                aligned=False,reason="public_fee_context_expired",
                 windows=attempts,
             ),None,None,None,None,adapter,current_candidate
 
@@ -1639,7 +1633,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         raise ValueError("solana_dlmm_attempt_bound")
     max_runtime_seconds=int(
         max_runtime_seconds or DEFAULT_MAX_RUNTIME_SECONDS)
-    if not 60<=max_runtime_seconds<=7200:
+    if not 60<=max_runtime_seconds<=90000:
         raise ValueError("solana_dlmm_runtime_bound")
     run_started_monotonic=time.monotonic()
     deadline=run_started_monotonic+max_runtime_seconds
@@ -1661,7 +1655,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None):
         broker.close()
         raise Unavailable("dlmm_wake_stream_start_timeout")
     report=dict(
-        kind="solana_dlmm_independent_v1_prospective",
+        kind="solana_dlmm_authenticated_fee_density_v1_prospective",
         policy_revision=policy.get("revision"),frozen_policy=policy,
         allocation_authority=False,signing=False,submission=False,live_money=False,
         independent_of_robinhood=True,independent_of_all_prior_dlmm_strategies=True,
