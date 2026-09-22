@@ -22,8 +22,9 @@ from .pons_selective_acquisition import (
     _batched, _header_search, _rpc as evidence_rpc, _trajectory,
 )
 from .pons_selective_continuation import (
-    EXIT_POLICY, POLICY, POLICY_HASH, demand_metrics, normalized_trade,
-    post_graduation_vector, pregraduation_exit_reason, runner_action,
+    ENTRY_THRESHOLDS, EXIT_POLICY, POLICY, POLICY_HASH, demand_metrics,
+    entry_signal_persistence, normalized_trade, post_graduation_vector,
+    pregraduation_exit_reason, runner_action,
     trajectory_metrics,
 )
 from .pons_selective_v4 import collect_v4_activity
