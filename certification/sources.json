@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-22-final-strategy-integration-v1",
+  "verified_at": "2026-09-22-final-strategy-integration-certified-v1",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -461,21 +461,22 @@
     "purpose": "Compose the current Pump/Pons profitability persistence policies with verified Meteora authenticated fee-density profitability v1 and Ramses Active Wide Maker v3 while preserving current operational overlays and paper-only controls.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora authenticated fee-density profitability-v1; Ramses Active Wide Maker v3",
-    "validation_status": "final_integrated_deterministic_pending",
-    "validation_run_requested": true,
+    "validation_status": "final_integrated_deterministic_passed",
+    "validation_run_requested": false,
     "latest_qualification": {
-      "run_id": 35762267123,
-      "verified_parent_head": "545842b5db065946c0264cc0a9430684a4953f43",
+      "run_id": 35789882265,
+      "verified_parent_head": "2c9de961dbddbd0cbe66c774cf16b98329b1317e",
       "result": "success",
       "market_validation": false,
       "verified": [
-        "Pump qualification overlay",
-        "Meteora qualification overlay and position-recovery check",
-        "Pons qualification overlay",
-        "Ramses qualification overlay",
-        "repository unit tests",
-        "resource check",
-        "synthetic lifecycle"
+        "Pump profitability persistence source plus canonical operational overlay",
+        "Pons profitability persistence source plus canonical operational overlay",
+        "Meteora authenticated fee-density profitability source plus canonical lifecycle overlay",
+        "Ramses Active Wide Maker v3 source plus canonical operational overlay",
+        "supervisor deterministic suite",
+        "all four isolated lane test suites",
+        "Solana resource gates",
+        "canonical overlay idempotence"
       ]
     },
     "source_heads": {
@@ -493,6 +494,13 @@
         "run_id": 35784236046,
         "result": "success"
       }
+    },
+    "canonical_overlay_head": "5893ebb35c769096d6e0cbacc05171ac44747d4a",
+    "exact_head_certification": {
+      "run_id": 35789882265,
+      "head_sha": "2c9de961dbddbd0cbe66c774cf16b98329b1317e",
+      "result": "success",
+      "canonicalization_mutation": false
     }
   },
   "composition": {
@@ -506,8 +514,8 @@
     "strategy_thresholds_changed": false,
     "freshness_finality_changed": false,
     "paper_accounting_changed": false,
-    "validation_status": "final-integrated-deterministic-pending",
-    "validation_run_requested": true,
+    "validation_status": "final-integrated-deterministic-passed",
+    "validation_run_requested": false,
     "source_sha": "0982519a68222b7cd0640981a7ac4a8ac7c119dd",
     "integration": "semantic delta composed in canonical overlays"
   }
