@@ -1,1 +1,0 @@
-Cancel any accidental pending/running generic Solana live diagnostic before the requested deterministic gate completes.\n
