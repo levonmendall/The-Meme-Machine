@@ -1,7 +1,7 @@
 name: canonicalize-pump-overlay
 on:
   push:
-    branches: [repair/solana-alchemy-efficiency]
+    branches: [repair/solana-alchemy-efficiency, cert/profitability-persistence-edge-v1]
 
 permissions:
   contents: write
@@ -21,8 +21,7 @@ jobs:
           WORKTREE="$(mktemp -d)/pump"
           git fetch origin "$PUMP_SHA"
           git worktree add --detach "$WORKTREE" "$PUMP_SHA"
-          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
-          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
+          git -C "$WORKTREE" apply --3way --index "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
           git -C "$WORKTREE" diff --binary HEAD > "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
           git diff --check -- certification/patches/pump-accounting.patch
           if git diff --quiet -- certification/patches/pump-accounting.patch; then
@@ -33,4 +32,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add certification/patches/pump-accounting.patch
           git commit -m "[qualification-build] canonicalize Pump batch-pressure repair"
-          git push origin HEAD:repair/solana-alchemy-efficiency
+          git push origin HEAD:${GITHUB_REF_NAME}
