@@ -526,6 +526,28 @@ class SelectiveDiscoveryFrontierTests(unittest.TestCase):
 
 
 
+
+
+class SelectiveWarmupClockTests(unittest.TestCase):
+    def test_wall_timer_does_not_replace_required_chain_time(self):
+        state=selective_cohort._warmup_state(1_000,1_059,65.0)
+        self.assertEqual(state["covered_seconds"],59)
+        self.assertFalse(state["ready"])
+        self.assertFalse(state["exhausted"])
+
+    def test_chain_time_can_complete_during_bounded_reserve(self):
+        state=selective_cohort._warmup_state(1_000,1_060,72.0)
+        self.assertEqual(state["covered_seconds"],60)
+        self.assertTrue(state["ready"])
+        self.assertFalse(state["exhausted"])
+
+    def test_missing_chain_coverage_still_fails_closed_at_hard_bound(self):
+        state=selective_cohort._warmup_state(1_000,1_059,120.0)
+        self.assertFalse(state["ready"])
+        self.assertTrue(state["exhausted"])
+
+
+
 class SelectiveProviderRecoveryTests(unittest.TestCase):
     def test_curve_range_503_rotates_without_advancing_cursor_first(self):
         rpc1=SelectiveDiscoveryFrontierTests.Rpc(105)
