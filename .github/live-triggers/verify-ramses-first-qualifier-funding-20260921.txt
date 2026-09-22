@@ -1,0 +1,4 @@
+Verify canonical Ramses first-genuine-qualifier funding repair.
+Canonical overlay head: 7104c5405e82911e2e847e3d9384f75cf120f162
+Ramses strategy thresholds unchanged.
+Expected behavior: unrelated fundable quote assets cannot freeze out the first genuine natural qualifier.
