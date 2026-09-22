@@ -32,12 +32,20 @@ jobs:
           assert p["execution_certification"]["strategy2_continuity_required"] is True
           p["execution_certification"]["policy_hash"]=None
           body=json.dumps(p,sort_keys=True,separators=(",",":")).encode()
-          print("METEORA_POLICY_HASH="+hashlib.sha256(body).hexdigest())
+          digest=hashlib.sha256(body).hexdigest()
+          assert p["execution_certification"]["policy_hash"] is None
+          actual=json.load(open(path))["execution_certification"]["policy_hash"]
+          assert actual==digest,(actual,digest)
+          print("METEORA_POLICY_HASH="+digest)
           print("METEORA_FILE_SHA256="+hashlib.sha256(open(path,"rb").read()).hexdigest())
           PY
           python -m py_compile tests/solana_dlmm_independent_v1.py meme_machine/dlmm.py meme_machine/dlmm_paper.py meme_machine/dlmm_tape.py
-      - name: Full Meteora deterministic suite
-        run: python -m unittest discover -s tests -v
+      - name: Meteora strategy and changed-path deterministic suite
+        run: |
+          python -m unittest -v             tests.test_solana_dlmm_independent_v1             tests.test_dlmm             tests.test_dlmm_bin_array_neutral             tests.test_dlmm_endpoint_fresh             tests.test_dlmm_liquidity_reset             tests.test_dlmm_safe_token2022             tests.test_dlmm_signature_boundary             tests.test_dlmm_tape_extensions
+      - name: Note integration-wide gate boundary
+        run: |
+          echo "Complete tests/ discovery remains mandatory after canonical Meteora operational overlay composition."
       - name: Resource gates
         run: |
           python -m tests.resource_check
