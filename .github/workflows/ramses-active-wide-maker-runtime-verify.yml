@@ -26,6 +26,13 @@ jobs:
           assert p["validation_boundary"]["minimum_distinct_pools"]==5
           PY
           python -m py_compile             robinhood_research/ramses_active_wide_maker.py             robinhood_research/ramses_strategy.py             robinhood_research/ramses_universe.py             robinhood_research/ramses_costs.py             robinhood_research/ramses_all_pool_lifecycle.py
+      - name: Emit canonical Ramses policy and file identities
+        run: |
+          python - <<'PY'
+          from robinhood_research.ramses_strategy import POLICY_HASH
+          print("RAMSES_POLICY_HASH="+POLICY_HASH)
+          PY
+          sha256sum robinhood_research/ramses_strategy.py RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json .github/workflows/robinhood-ramses-extended.yml
       - name: Ramses source-policy deterministic suite
         run: |
           python -m unittest -v             robinhood_tests.test_ramses_active_wide_maker             robinhood_tests.test_ramses_strategy             robinhood_tests.test_ramses_universe             robinhood_tests.test_ramses_costs             robinhood_tests.test_ramses_strategy_isolation
