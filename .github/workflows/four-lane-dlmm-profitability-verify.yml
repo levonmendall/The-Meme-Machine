@@ -50,23 +50,7 @@ jobs:
               CODE=$?
               set -e
               if [ "$LANE" = meteora ] && test "$(git -C "$WT" diff --name-only --diff-filter=U)" = "tests/solana_dlmm_independent_v1.py"; then
-                python - "$WT/tests/solana_dlmm_independent_v1.py" <<'PY'
-import pathlib,sys
-path=pathlib.Path(sys.argv[1]);text=path.read_text()
-old='''<<<<<<< ours
-    if not 60<=max_runtime_seconds<=90000:
-=======
-    if type(campaign) is not bool:raise ValueError("solana_dlmm_campaign_flag")
-    if not 60<=max_runtime_seconds<=(21600 if campaign else 7200):
->>>>>>> theirs
-'''
-new='''    if type(campaign) is not bool:raise ValueError("solana_dlmm_campaign_flag")
-    if not 60<=max_runtime_seconds<=(90000 if campaign else 7200):
-'''
-if text.count(old)!=1:
-    raise SystemExit("unexpected_meteora_campaign_conflict")
-path.write_text(text.replace(old,new,1))
-PY
+                python "$GITHUB_WORKSPACE/certification/resolve_dlmm_profit_overlay.py" meteora "$WT/tests/solana_dlmm_independent_v1.py"
                 git -C "$WT" add tests/solana_dlmm_independent_v1.py
                 CODE=0
               fi
