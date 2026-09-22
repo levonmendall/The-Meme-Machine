@@ -1,0 +1,1 @@
+Re-run full four-lane deterministic matrix after updating the operational Meteora campaign fixture to emit the new public fee-context telemetry fields.
