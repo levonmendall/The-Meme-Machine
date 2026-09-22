@@ -1,0 +1,4 @@
+Verify the canonical Ramses finalized-frontier monotonicity repair.
+Failure evidence: run 35763784886 raised extended_finalized_frontier_regression after a lower finalized-tag response.
+Repair: retain the highest accepted finalized frontier only after explicit prior-height hash/timestamp reauthentication; true conflicts still fail closed.
+No strategy, cost, sizing, freshness/finality standard, or paper-authority changes.
