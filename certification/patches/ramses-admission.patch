@@ -1437,10 +1437,10 @@ index 2a2f308..5fdbb9b 100644
              "SELECT body,hash FROM ramses_strategy_position ORDER BY id"
          ).fetchall()
 diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_universe.py
-index ced8b28..794ce79 100644
+index 832ee52..527559a 100644
 --- a/robinhood_research/ramses_universe.py
 +++ b/robinhood_research/ramses_universe.py
-@@ -390,6 +390,7 @@ def scan(
+@@ -429,6 +429,7 @@ def scan(
      signals_by_pool=None,
      cost_state=None,
      finalized_frontier=None,
@@ -1448,7 +1448,7 @@ index ced8b28..794ce79 100644
  ):
      """Scan the complete factory and classify the bounded recently-active cohort."""
      if type(lookback_blocks) is not int or not 10 <= lookback_blocks <= 1200:
-@@ -416,6 +417,12 @@ def scan(
+@@ -455,6 +456,12 @@ def scan(
          adaptive_batch_floor=2,
      )
      started = time.time()
@@ -1461,19 +1461,21 @@ index ced8b28..794ce79 100644
      rpc.verify_chain()
      if finalized_frontier is None:
          frontier = rpc.call(
-@@ -446,8 +453,11 @@ def scan(
+@@ -485,10 +492,13 @@ def scan(
              raise BoundaryError("invalid_ramses_finalized_frontier")
          frontier = dict(finalized_frontier)
          frontier_source = "pinned_external_finalized_header"
 +    rpc.evidence_pins={frontier["number"]:frontier["hash"]}
      end = int(frontier["number"], 16)
-     start = max(0, end - lookback_blocks + 1)
+     start = _window_start_block(
+         rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks
+     )
 +    checkpoint('factory_authentication',frontier_block=end,frontier_hash=frontier['hash'],
 +        frontier_timestamp=int(frontier['timestamp'],16))
  
      factory_pin = load("ramses_factory")
      factory = factory_pin["address"]
-@@ -458,8 +468,10 @@ def scan(
+@@ -499,8 +509,10 @@ def scan(
          rpc,factory,end,
          factory_runtime_sha256=factory_identity["runtime_sha256"],
      )
@@ -1483,9 +1485,9 @@ index ced8b28..794ce79 100644
 +    checkpoint('receipt_cost_authentication')
      observe_receipt_gas(rpc, cost_events, cost_state)
  
-     # Candidate truncation is pre-entry and outcome-blind: retain the pools with
-@@ -481,6 +493,9 @@ def scan(
-     exclusions = Counter()
+     # Active Wide Maker is intentionally a quiet-entry strategy. Preserve broad
+@@ -529,6 +541,9 @@ def scan(
+     wide_hydrated=0
      for activity_row in active_cohort:
          address = activity_row["pool"]
 +        checkpoint('pool_prestate',current_pool=address,
@@ -1493,8 +1495,8 @@ index ced8b28..794ce79 100644
 +            active_cohort_size=len(active_cohort),inactive_pools=len(addresses)-len(histories))
          try:
              auth, prestate = _prestate(rpc, factory, address, end)
-             feature = pool_features(prestate, histories[address], "y", pool=address)
-@@ -498,6 +513,8 @@ def scan(
+             tx=auth["token_x"].lower()
+@@ -575,6 +590,8 @@ def scan(
              ))
          except BoundaryError as exc:
              exclusions[str(exc)] += 1
@@ -1503,7 +1505,7 @@ index ced8b28..794ce79 100644
  
      features = [r["features"] for r in rows]
      for row in rows:
-@@ -513,6 +530,7 @@ def scan(
+@@ -590,6 +607,7 @@ def scan(
  
      classified = []
      for row in rows:
@@ -1511,7 +1513,7 @@ index ced8b28..794ce79 100644
          f = row["features"]
          capital = max(1, f["active_liquidity_quote"] * PAPER_ACTIVE_LIQUIDITY_BPS // 10000)
          signal_context = signals_by_pool.get(row["pool"], {})
-@@ -605,6 +623,8 @@ def scan(
+@@ -685,6 +703,8 @@ def scan(
              "allocation_authority": False,
          })
  

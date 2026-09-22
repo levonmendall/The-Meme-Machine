@@ -4359,10 +4359,10 @@ index 0000000..62c04e5
 +if __name__=='__main__':unittest.main()
 diff --git a/robinhood_tests/test_pons_position_provider_recovery.py b/robinhood_tests/test_pons_position_provider_recovery.py
 new file mode 100644
-index 0000000..7dbf657
+index 0000000..ee12d83
 --- /dev/null
 +++ b/robinhood_tests/test_pons_position_provider_recovery.py
-@@ -0,0 +1,240 @@
+@@ -0,0 +1,241 @@
 +"""A transport failure after a real paper fill must not abandon its lifecycle."""
 +import json,tempfile,unittest
 +from contextlib import ExitStack
@@ -4441,6 +4441,7 @@ index 0000000..7dbf657
 +        db=Path(folder)/'trial.sqlite';capital=Path(folder)/'capital.sqlite'
 +        patches={'paper_rpc':lambda *a:rpc,'_gas_quote':lambda *a:(2,1),
 +            '_wait_curve_quote':wait_quote,'_curve_quote':quote,
++            '_refresh_entry_persistence_signal':self.persistent_entry_signal,
 +            '_refresh_entry_persistence_signal':self.persistent_entry_signal,
 +            '_fresh_fill_full_exit_check':lambda *a:dict(executable=True),
 +            '_prove_impossible_full_exit':lambda *a:dict(reason='impossible_full_position_exit',sale_proceeds=0),
