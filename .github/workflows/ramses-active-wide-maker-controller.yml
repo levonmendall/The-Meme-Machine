@@ -1,0 +1,37 @@
+name: ramses-active-wide-maker-controller
+on:
+  push:
+    branches: [research/ramses-profitable-operator-reverse-engineering-v1]
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: contains(github.event.head_commit.message, '[ramses-rebalance-v2]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Verify frozen specification
+        run: |
+          python - <<'PY'
+          import json
+          p=json.load(open("RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V2.json"))
+          assert p["kind"]=="ramses_active_wide_maker_rebalance_v2"
+          assert p["research_only"] is True
+          assert p["paper_only"] is True
+          assert p["allocation_authority"] is False
+          assert p["decision_state_machine"]["inside_hold"]["condition"].startswith("D <= 1.0")
+          assert p["decision_state_machine"]["edge_watch"]["condition"]=="1.0 < D < 1.5"
+          assert p["decision_state_machine"]["recenter"]["condition"]=="1.5 <= D <= 3.0"
+          assert p["decision_state_machine"]["overrun_exit"]["condition"]=="D > 3.0"
+          assert p["replacement"]["hard_min_width_bins"]==65
+          assert p["timing"]["hard_same_decision_deadline_seconds"]==210
+          PY
+      - name: Run deterministic controller regressions
+        run: |
+          python -m py_compile robinhood_research/ramses_active_wide_maker.py
+          python -m unittest robinhood_tests.test_ramses_active_wide_maker -v
