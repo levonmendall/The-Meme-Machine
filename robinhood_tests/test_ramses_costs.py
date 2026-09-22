@@ -37,6 +37,10 @@ class _CostRpc:
             return _words(0, self.quote_out, 7)
         raise AssertionError((method, params, scope))
 
+    def batch(self, calls, scope="connectivity"):
+        self.calls.append(("batch", calls, scope))
+        return [_words(0, self.quote_out, 7) for _ in calls]
+
 
 class RamsesAutomaticCostTests(unittest.TestCase):
     def test_receipts_build_complete_observed_native_cycle(self):
@@ -115,6 +119,59 @@ class RamsesAutomaticCostTests(unittest.TestCase):
         )
         call = next(x for x in rpc.calls if x[0] == "eth_call")
         self.assertEqual(call[2], "universe_cost_conversion")
+
+
+    def test_candidate_token_bridge_converts_when_direct_quote_route_is_missing(self):
+        wnative = "0x" + "11"*20
+        bridge = "0x" + "22"*20
+        quote = "0x" + "33"*20
+        pool = "0x" + "44"*20
+        native = dict(
+            add_liquidity=100,
+            remove_liquidity=200,
+            unwind=300,
+            entry_overhead=400,
+        )
+        rpc = _CostRpc(quote_out=2500)
+        row = dict(pool=pool, token_x=bridge, token_y=quote)
+        first_hop = dict(
+            amount_out=1500,
+            route_pool="0x" + "55"*20,
+            route_kind="direct_wnative_quote_pool",
+            swap_for_y=True,
+            route_fee_raw=3,
+            route_bin_step=10,
+        )
+        with patch.object(ramses_costs, "_wnative", return_value=wnative), patch.object(
+            ramses_costs, "_candidate_route_quote", return_value=None
+        ), patch.object(
+            ramses_costs, "_factory_direct_routes", side_effect=[[], [first_hop]]
+        ):
+            costs, meta = ramses_costs.quote_native_cycle(
+                rpc, "0x"+"66"*20, row, 123, native, {}
+            )
+        self.assertEqual(sum(costs.values()), 2500)
+        self.assertTrue(meta["conversion_is_executable_get_swap_out"])
+        self.assertEqual(meta["conversion"]["route_kind"], "candidate_token_bridge_two_hop")
+        self.assertEqual(meta["conversion"]["bridge_token"], bridge)
+        self.assertEqual(meta["conversion"]["hop_count"], 2)
+        batch = next(x for x in rpc.calls if x[0] == "batch")
+        self.assertEqual(batch[2], "universe_cost_conversion")
+
+    def test_candidate_bridge_stays_fail_closed_without_executable_first_hop(self):
+        wnative = "0x" + "11"*20
+        bridge = "0x" + "22"*20
+        quote = "0x" + "33"*20
+        row = dict(pool="0x"+"44"*20, token_x=bridge, token_y=quote)
+        with patch.object(ramses_costs, "_wnative", return_value=wnative), patch.object(
+            ramses_costs, "_candidate_route_quote", return_value=None
+        ), patch.object(ramses_costs, "_factory_direct_routes", return_value=[]):
+            costs, meta = ramses_costs.quote_native_cycle(
+                _CostRpc(), "0x"+"66"*20, row, 123,
+                dict(add_liquidity=1, remove_liquidity=1, unwind=1, entry_overhead=1), {}
+            )
+        self.assertIsNone(costs)
+        self.assertEqual(meta["reason"], "no_executable_bounded_wnative_quote_route")
 
     def test_factory_pair_array_decoder_is_strict(self):
         pair = int("0x" + "ab"*20, 16)
