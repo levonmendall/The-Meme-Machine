@@ -1554,11 +1554,15 @@ index 76f73f5..e92a3b9 100644
 +            and (campaign or (len(result["rows"])<MAX_ENROLLED
 +                              and len(result["qualifiers"])<COHORT_TARGET))
          ):
-             rpc,cursor,fresh=_poll(
-                 endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
-                 result["sequencer_recoveries"],
-                 on_provider_failure=_checkpoint_provider_failure,
-             )
+-            rpc,cursor,fresh=_poll(
+-                endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
+-                result["sequencer_recoveries"],
+-                on_provider_failure=_checkpoint_provider_failure,
+-            )
++            rpc,cursor,fresh=(rpc,cursor,[]) if queue.rows else _poll(
++                endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
++                result["sequencer_recoveries"],
++                on_provider_failure=_checkpoint_provider_failure)
 +            for curve_key in list(active_curve_futures):
 +                collect_curve_future(curve_key)
 +            futures=[item for item in futures if id(item[1]) not in collected_futures]
