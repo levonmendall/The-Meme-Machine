@@ -621,7 +621,8 @@ def main():
     from certification.decision_conformance import install
     source=json.loads((Path(__file__).parent/'sources.json').read_text())['lanes'][a.lane]
     os.environ['MM_CERT_SOURCE_SHA']=source['source_sha']
-    os.environ['MM_CERT_INTEGRATION_SHA']=os.environ.get('GITHUB_SHA','')
+    from certification.run import git
+    os.environ['MM_CERT_INTEGRATION_SHA']=git('rev-parse','HEAD')
     # Snapshot the lane book once; subsequent changes must extend its prefix.
     before=native_positions(state_dir,a.lane);_atomic(audit/'position-before.json',before)
     conformance=install(audit,a.lane,source['policy_hash'])

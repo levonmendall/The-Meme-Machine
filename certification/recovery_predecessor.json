@@ -14,5 +14,15 @@
   "schema": "paper-recovery-authority-v1",
   "superseded_candidate_runs": [
     35931988977
-  ]
+  ],
+  "reviewed_recovery_checkpoint": {
+    "run_id": 35931988977,
+    "integration_sha": "e5f45fa6c88aa9228ca8b8a5d15f9ded6cd48c71",
+    "certificate_run_id": 35931988977,
+    "conclusion": "failure",
+    "artifact_id": 10781229175,
+    "artifact_name": "position-continuation-ramses-35931988977-1",
+    "artifact_digest": "sha256:285b2096ce08d02a81f2affe8b4b471a7f7bc9d3720cd9465cbff684d2671ea5",
+    "review": "Ramses original reserve/open journal unchanged; receipt comparison failed before monitor; Pons zero-fill cancellation acknowledgement and cached observation pages retained."
+  }
 }

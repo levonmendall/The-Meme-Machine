@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-profitability-portfolio-autonomy-v1",
-  "cohort_id": "prospective-four-lane-v4-market-assurance-20260923",
+  "cohort_id": "prospective-four-lane-v5-market-assurance-20260923",
   "frozen_parent_integration_sha": "b57835dc50dd4047cefed13cfe0be975779af1e8",
   "paper_only": true,
   "live_money": false,
@@ -47,7 +47,7 @@
       "source_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
       "execution_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
       "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
-      "source_diff_sha256": "da50cd26eac0da8898c926facfcb168579894322871a70752043c6251f602d85"
+      "source_diff_sha256": "fb970b518446b807fb4e2aeba87743cd383ef5cb45132839d009e0b7293c78c4"
     }
   },
   "evidence_quality": {

@@ -23,5 +23,16 @@
     "pump": "73382447eba168503b2c7dc909ecd3498cffabeaa116166c45a3af4c7b74836d",
     "ramses": "da50cd26eac0da8898c926facfcb168579894322871a70752043c6251f602d85"
   },
+  "successor_receipt_set_repair": {
+    "all_passed": true,
+    "frozen_economic_sample_rules_unchanged": true,
+    "independent_overlay_reproduction": true,
+    "protocol_sha256": "d473936a59a5ab309858c5cfa7347a002677467c90984c0ecffe3986dd053664",
+    "ramses_native_tests": 332,
+    "ramses_source_diff_sha256": "fb970b518446b807fb4e2aeba87743cd383ef5cb45132839d009e0b7293c78c4",
+    "scope": "local component and regression evidence; hosted exact-SHA certificate still required",
+    "supervisor_skips": 0,
+    "supervisor_tests": 162
+  },
   "supervisor_tests": 157
 }

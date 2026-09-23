@@ -20,7 +20,7 @@ jobs:
     uses: ./.github/workflows/position-continuation.yml
     with:
       lane: ramses
-      state_run_id: '35921058163'
+      state_run_id: '35931988977'
       slice_seconds: '300'
       expected_sha: ${{ github.sha }}
       engineering_recovery: true

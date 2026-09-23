@@ -108,6 +108,8 @@ def prepare(api,state_dir,worktrees,certificate_run_id,state_run_id=None):
     state_dir=Path(state_dir);source=json.loads(AUTHORITY.read_text());sha=git('rev-parse','HEAD')
     cert=certificate(api,certificate_run_id,sha,worktrees)
     state_run_id=int(state_run_id or source['run_id'])
+    checkpoint=source.get('reviewed_recovery_checkpoint') or {}
+    reviewed_checkpoint=state_run_id==checkpoint.get('run_id')
     if state_run_id==source['run_id']:
         # A superseded candidate may finish certification while its replacement
         # is being prepared. Never fork an already-started recovery from genesis.
@@ -120,6 +122,14 @@ def prepare(api,state_dir,worktrees,certificate_run_id,state_run_id=None):
         archive,item=api.artifact(source['run_id'],source['artifact_name'])
         if item['id']!=source['artifact_id'] or item['digest']!=source['artifact_digest']:
             raise RuntimeError('recovery_predecessor_artifact_identity')
+    elif reviewed_checkpoint:
+        prior=api.request('GET',f'actions/runs/{state_run_id}')
+        if (prior.get('head_sha')!=checkpoint['integration_sha'] or
+                prior.get('status')!='completed' or prior.get('conclusion')!=checkpoint['conclusion']):
+            raise RuntimeError('recovery_reviewed_checkpoint_not_stopped')
+        archive,item=api.artifact(state_run_id,checkpoint['artifact_name'])
+        if item['id']!=checkpoint['artifact_id'] or item['digest']!=checkpoint['artifact_digest']:
+            raise RuntimeError('recovery_reviewed_checkpoint_artifact_identity')
     else:
         prior=api.request('GET',f'actions/runs/{state_run_id}')
         if prior['head_sha']!=sha:raise RuntimeError('recovery_chain_runtime_mismatch')
@@ -132,7 +142,16 @@ def prepare(api,state_dir,worktrees,certificate_run_id,state_run_id=None):
     archive.extractall(state_dir)
     # Immutable receipt of the digest verified before any copied book changes.
     bridge_path=state_dir/'engineering-recovery-authorization.json'
-    if state_run_id==source['run_id']:
+    if state_run_id==source['run_id'] or reviewed_checkpoint:
+        if reviewed_checkpoint:
+            previous=json.loads(bridge_path.read_text())
+            if (any(previous.get(k)!=source.get(k) for k in
+                    ('run_id','integration_sha','implementation_hash','artifact_id','artifact_digest'))
+                    or previous.get('recovery_sha')!=checkpoint['integration_sha']
+                    or previous.get('certificate_run_id')!=checkpoint['certificate_run_id']):
+                raise RuntimeError('recovery_reviewed_checkpoint_authority_mismatch')
+            history=state_dir/'engineering-recovery-history';history.mkdir(exist_ok=True)
+            _atomic(history/(str(state_run_id)+'-authorization.json'),previous)
         bridge=dict(source,certificate_run_id=int(certificate_run_id),recovery_sha=sha,
             full_exact_sha_certificate=cert,prepared_at=time.time())
         _atomic(bridge_path,bridge)

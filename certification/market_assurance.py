@@ -19,10 +19,10 @@ import time
 LANES=('pump','pons','meteora','ramses')
 SCOPE={
  'pump':dict(authority='sources.json:lanes.pump.prospect_admission; pump_acceleration_strategy.POLICY',
-     universe='Finalized Pump events and authenticated PumpSwap graduation/continuation opportunities.',
+     universe='Native-SOL Pump curves in the frozen 60-85% late-curve strategy domain, plus its authenticated PumpSwap graduation/continuation modes; existing positions retain their lifecycle scope.',
      dimensions=['surface','phase','quote_asset'],denominator='Source stream completeness; absolute chain opportunity census unavailable.'),
  'pons':dict(authority='pons_selective_cohort.operational_configuration; pons_selective_continuation.POLICY',
-     universe='All authenticated Pons V2 buy/sell logs; native curve and authenticated graduation lifecycle.',
+     universe='Native-quote Pons curves in the frozen 50-85% progress, 120-600s age and 20-90s graduation-ETA domain, plus its authenticated graduation/re-entry modes; existing positions retain their lifecycle scope.',
      dimensions=['curve','graduation_state','event_at'],denominator='Canonical discovery cursor/log windows; independent all-event denominator unavailable.'),
  'meteora':dict(authority='SOLANA_DLMM_INDEPENDENT_V1.json; solana_dlmm_independent_v1 discovery loop',
      universe='Nonblacklisted Solana Meteora DLMM pools with exactly one WSOL leg, as defined by the frozen strategy; no minimum TVL or absolute volume.',
@@ -233,6 +233,14 @@ def lane_report(lane,row,native,conformance,pipe,proof,ended_at,previous=None):
     classes=pipe.get('classes') or {};scan=row.get('scan_progress') or {}
     observed=stages.get('discovered');target=None;structural=None;discovered=observed
     gaps=[]
+    upstream=dict(native_candidate_discovered_count=observed,native_funnel_stages=stages,
+        broader_source_rows_are_strategy_observations=False)
+    preflight=stages.get('screened',stages.get('evaluated'))
+    if lane in ('pump','pons'):
+        # These native discovery rows precede strategy-domain screening. They
+        # cannot establish how many target opportunities were observed. Keep
+        # acquisition progress visible without relabelling it as target breadth.
+        discovered=None;preflight=None
     if lane=='ramses':
         # Factory census rows include out-of-scope assets. Never count these as
         # observed strategy targets, nor use profitability gates as a denominator.
@@ -245,6 +253,10 @@ def lane_report(lane,row,native,conformance,pipe,proof,ended_at,previous=None):
             gaps.append('factory_census_incomplete_or_unmeasured')
         if scan.get('quiet_activity_deferred',0)>0:gaps.append('target_scope_preflight_capacity_deferred')
         if scan.get('identity_preflight_failures',0)>0:gaps.append('target_scope_identity_unavailable')
+        upstream.update(factory_inventory_count=scan.get('pools_total'),
+            quiet_activity_candidates=scan.get('quiet_activity_candidates'),
+            known_target_candidates=scan.get('strategy_identity_candidates'),
+            scope_exclusions=scan.get('target_scope_exclusions'))
     elif lane=='meteora':
         target=None  # Seen union is a lower bound when pagination completion is not preserved.
         structural=(stages.get('screened',0)-classes['structural_ineligible']
@@ -272,8 +284,10 @@ def lane_report(lane,row,native,conformance,pipe,proof,ended_at,previous=None):
     if proof.get('verified') is not True:failures.append('accounting_unestablished')
     if violations:failures.append('position_invariant_failure')
     progress=pipe.get('last_at_by_stage') or {}
+    upstream['discovery_progress_at']=progress.get('discovered')
     behavior=dict(process_alive=row.get('health')=='responsive',provider_alive=bool(row.get('provider_requests')),
-        target_market_discovery_progressing=progress.get('discovered'),discovery_breadth_healthy=coverage,
+        target_market_discovery_progressing=progress.get('discovered') if discovered is not None else None,
+        discovery_breadth_healthy=coverage,
         evidence_progressing=progress.get('evidence_complete'),qualification_progressing=progress.get('evaluated'),
         position_monitoring_progressing=max(native['last_monitor_times'].values(),default=progress.get('monitor')),
         settlement_progressing=progress.get('settled'),
@@ -281,14 +295,12 @@ def lane_report(lane,row,native,conformance,pipe,proof,ended_at,previous=None):
     return dict(strategy_conformance=conformance.get('status'),current_strategy_phase='position_open' if open_rows else pipe.get('last_stage'),
         last_strategy_progress_at=pipe.get('last_at'),target_market_scope=SCOPE[lane],
         target_market_universe_count=target,structurally_eligible_count=structural,
-        upstream_acquisition=dict(factory_inventory_count=scan.get('pools_total'),
-            quiet_activity_candidates=scan.get('quiet_activity_candidates'),
-            known_target_candidates=scan.get('strategy_identity_candidates'),
-            scope_exclusions=scan.get('target_scope_exclusions'),
-            broader_source_rows_are_strategy_observations=False) if lane=='ramses' else None,
-        discovered_count=discovered,native_candidate_discovered_count=observed,discovery_coverage=ratio(discovered,target),
-        preflight_evaluated_count=stages.get('screened',stages.get('evaluated')),
-        preflight_coverage=ratio(stages.get('screened',stages.get('evaluated')),observed),
+        upstream_acquisition=upstream,
+        discovered_count=discovered,discovery_coverage=ratio(discovered,target),
+        observed_market_count_scope='strategy_target_only',
+        observed_market_count_status='unknown_scope_membership' if discovered is None else 'target_candidates_observed',
+        preflight_evaluated_count=preflight,
+        preflight_coverage=ratio(preflight,discovered),
         full_evidence_attempted=attempts,full_evidence_completed=completed,
         evidence_completion_coverage=ratio(completed,attempts),evidence_attempt_coverage=None,
         candidates_requiring_full_evidence=None,qualified_count=stages.get('qualified'),

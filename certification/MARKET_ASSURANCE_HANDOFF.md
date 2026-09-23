@@ -75,9 +75,11 @@ introduced. Existing infrastructure censoring remains the economic gate.
   are not counted as 287 observed strategy opportunities. New reports preserve
   preflight truncation and identity failures so a complete target denominator is
   claimed only when those counts establish it.
-- Pump/Pons absolute independent target denominators are unavailable. Native
-  funnels, incomplete evidence, latency and source-loss classifications remain
-  visible; they do not become fictitious 100% coverage.
+- Pump/Pons native discovery records precede strategy-domain screening. Those
+  broad event counts are acquisition activity, not observed target market. Both
+  the full target denominator and target observation counts remain unknown where
+  membership is not preserved. The separate acquisition funnel, incomplete
+  evidence, latency and source-loss classifications remain visible.
 
 Coverage is not inferred from profitability. Open position monitoring is allowed
 to follow that same position through state changes under its frozen lifecycle;
@@ -85,7 +87,7 @@ entry-scope filters are not retroactively applied as exits.
 
 ## Recovery and exact-SHA gates
 
-This repair batch requires a new full exact-SHA certificate and successor v4
+This repair batch requires a new full exact-SHA certificate and successor v5
 cohort because actual accounting/lifecycle defects required runtime changes.
 The v3 cohort is not reset merely for optional reporting.
 
@@ -99,7 +101,7 @@ The first recovery slice observes for 300 seconds after initial authentication;
 an open position then continues in the regular 3,000-second slices. This exercises
 one real artifact transfer promptly without changing any strategy clock or exit.
 
-Fresh v4 admission begins only when all four predecessor native books are
+Fresh v5 admission begins only when all four predecessor native books are
 verified flat. There is no forced exit or deadline substitute. A legitimate
 long position may require further bounded continuation workflows. Engineering
 recovery and smoke evidence remain excluded from prospective economics.
@@ -125,3 +127,31 @@ The complete local Meteora suite passed all 421 tests in 142.183 seconds after t
 change, compared with 253.047 seconds before it. Restoring prior marks also avoids
 duplicating old decisions in the new live trace; restoration still verifies their
 saved inputs, counters and outcomes.
+
+## Preserved recovery checkpoint and successor
+
+Run `35931988977` on `e5f45fa6c88aa9228ca8b8a5d15f9ded6cd48c71`
+passed all full non-market gates. Its Ramses recovery then failed at the receipt-set
+equality check before any native monitor or settlement. The individual log check
+already ignored the optional provider `blockTimestamp` annotation; the aggregate
+comparison had not adopted that same contract. The retained public census event
+has `blockTimestamp=0x0`. The repair uses the existing exact identity/payload
+comparison throughout. Matching authenticated headers remain the time authority;
+missing events, changed payloads, unknown extensions and terminal inequality fail.
+
+The successor restores artifact `10781229175`, digest
+`285b2096ce08d02a81f2affe8b4b471a7f7bc9d3720cd9465cbff684d2671ea5`.
+It retains the original two-event Ramses reserve/open journal and its original
+clock/geometry/costs, 73 successful observation pages, the Pons zero-fill cancel
+acknowledgement, the previous authorization and the append-only artifact chain.
+Only this stopped, digest-pinned checkpoint can bridge to the next certified SHA.
+It does not restore the earlier genesis artifact over newer recovery state.
+
+The sanitized worker environment now carries the actual checked-out runtime SHA.
+Continuation traces likewise bind to the checkout instead of the workflow ref.
+The v4 cohort is durably HALTED on state commit
+`52da07457d2fff936ae1dc9f8f9f4c8950c5e081`; it has zero prospective blocks.
+Candidate `0aba736158b3b09a9de6641f9f23ef9044e93d66` also passed its
+full certificate in `35932858225`, then correctly refused to clone the earlier
+genesis because recovery had already started. Neither candidate starts new market
+collection. The v5 successor requires its own full exact-SHA certification.

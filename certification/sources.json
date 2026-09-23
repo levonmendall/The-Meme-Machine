@@ -111,13 +111,15 @@
         }
       },
       "prospect_admission": {
-        "market_observation_scope": "all finalized Pump events remain observable",
+        "market_observation_scope": "Native-SOL Pump curves in the frozen 60-85% late-curve strategy domain, plus its authenticated PumpSwap graduation/continuation modes; existing positions retain their lifecycle scope.",
         "investment_evaluation_scope": "profitability-v1 late-curve candidates in the 60-85% progress band with broad expanding independent demand, repeat-buyer persistence, controlled concentration, non-collapsing trajectory and bounded executable round-trip downside; all delayed entries require fill-time thesis persistence; authenticated post-graduation modes retain separate continuation evidence",
         "pre_rpc_strategy_screen": true,
         "permanent_exclusion_on_screen_failure": false,
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
-        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
+        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks",
+        "upstream_acquisition_scope": "all finalized Pump events remain observable",
+        "broad_source_rows_count_as_observed_market": false
       },
       "source_diff_sha256": "73382447eba168503b2c7dc909ecd3498cffabeaa116166c45a3af4c7b74836d",
       "source_integrity_mode": "declared_overlay_index",
@@ -302,12 +304,14 @@
         }
       },
       "prospect_admission": {
-        "market_observation_scope": "observable SOL-paired Meteora DLMM inventory and history; public fee/volume fields remain ranking context only",
+        "market_observation_scope": "Nonblacklisted Solana Meteora DLMM pools with exactly one WSOL leg, as defined by the frozen strategy; no minimum TVL or absolute volume.",
         "investment_evaluation_scope": "exactly-one-WSOL-leg nonblacklisted pools with a fresh authenticated finalized swap, exact 12-second warmup, authenticated local fee density >=5%/day, two-way balance >=0.25, executable local range depth, bounded drift/stress unwind and strictly positive projected four-hour after-cost net",
         "authenticated_fee_density_entry_authority": true,
         "public_fee_density_role": "ranking_context_only_not_entry_authority",
         "strategy_thresholds_changed": true,
-        "profitability_authority": true
+        "profitability_authority": true,
+        "upstream_acquisition_scope": "observable SOL-paired Meteora DLMM inventory and history; public fee/volume fields remain ranking context only",
+        "broad_source_rows_count_as_observed_market": false
       },
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
@@ -481,14 +485,16 @@
         }
       },
       "prospect_admission": {
-        "market_observation_scope": "all authenticated Pons V2 buy/sell logs remain observable",
+        "market_observation_scope": "Native-quote Pons curves in the frozen 50-85% progress, 120-600s age and 20-90s graduation-ETA domain, plus its authenticated graduation/re-entry modes; existing positions retain their lifecycle scope.",
         "investment_evaluation_scope": "ungraduated native-quote curves at 50-85% progress, age 120-600s and graduation ETA 20-90s with accelerating curve trajectory and net flow, existing demand breadth/concentration/friction controls, mandatory fill-time persistence, and pre-graduation high-water protection; same-curve re-entry still requires terminal-flat prior lifecycle plus a material point-in-time regime reset",
         "minimal_state_preflight": true,
         "trajectory_window_after_preflight_only": true,
         "permanent_exclusion_on_screen_failure": false,
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
-        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
+        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks",
+        "upstream_acquisition_scope": "all authenticated Pons V2 buy/sell logs remain observable",
+        "broad_source_rows_count_as_observed_market": false
       },
       "source_diff_sha256": "8a9d0818606e9c9c8e3ca76ce07f85fe0902aaf761d3de8042b1dd3ff2dd8238",
       "source_integrity_mode": "declared_overlay_index",
@@ -758,13 +764,15 @@
         }
       },
       "prospect_admission": {
-        "market_observation_scope": "complete authenticated Ramses factory inventory remains observable",
+        "market_observation_scope": "Recently active Ramses USDG pools with one or two prior 30-minute swaps, as frozen in sources.json; existing positions retain their lifecycle scope.",
         "investment_evaluation_scope": "recently-active quiet USDG pools with 1-2 observed prior 30-minute swaps, >=65-bin two-sided initial ranges, complete authenticated cost/unwind evidence and governed local-liquidity sizing; zero-swap pools remain broadly observable but are not hydrated without a finalized activity trigger; rebalances use the v3 displacement/overlap/capital-preservation state machine",
         "factory_enumeration_is_inventory_not_investment_evaluation": true,
         "strategy_thresholds_changed": true,
-        "profitability_authority": true
+        "profitability_authority": true,
+        "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
+        "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "da50cd26eac0da8898c926facfcb168579894322871a70752043c6251f602d85",
+      "source_diff_sha256": "fb970b518446b807fb4e2aeba87743cd383ef5cb45132839d009e0b7293c78c4",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -774,7 +782,8 @@
         "certification/patches/ramses-census-budget-progress.patch",
         "certification/patches/ramses-state-hydration-budget.patch",
         "certification/patches/ramses-log-identity-metadata.patch",
-        "certification/patches/market-assurance-ramses.patch"
+        "certification/patches/market-assurance-ramses.patch",
+        "certification/patches/ramses-receipt-set-metadata.patch"
       ]
     }
   },
@@ -970,7 +979,7 @@
   },
   "prospect_admission": {
     "revision": "strategy-prospect-admission-v1",
-    "purpose": "keep broad market observability while limiting investment evaluation to prospects defined by each frozen strategy",
+    "purpose": "Limit observed-market reporting to each frozen strategy target; broader source acquisition is reported separately and never supplies a target denominator.",
     "strategy_thresholds_changed": false,
     "freshness_finality_changed": false,
     "paper_accounting_changed": false,

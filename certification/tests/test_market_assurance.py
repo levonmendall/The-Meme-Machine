@@ -40,6 +40,17 @@ class AssuranceTests(unittest.TestCase):
         row['scan_progress']['identity_preflight_failures']=1
         self.assertIsNone(lane_report('ramses',row,native,dict(status='pass'),pipe,dict(verified=True),100)['discovery_coverage'])
 
+    def test_directional_source_events_do_not_become_target_observations(self):
+        for lane in ('pump','pons'):
+            with self.subTest(lane=lane),tempfile.TemporaryDirectory() as td:
+                native=native_positions(td,lane)
+                pipe=dict(available=True,stages=dict(discovered=1000,screened=100),classes={})
+                report=lane_report(lane,{},native,dict(status='pass'),pipe,dict(verified=True),100)
+                self.assertIsNone(report['discovered_count'])
+                self.assertIsNone(report['preflight_coverage'])
+                self.assertEqual(report['upstream_acquisition']['native_candidate_discovered_count'],1000)
+                self.assertFalse(report['upstream_acquisition']['broader_source_rows_are_strategy_observations'])
+
     def test_lost_open_position_and_eventless_state_changes_fail(self):
         before=dict(positions={'p':dict(status='open',tokens=10)},journals=[dict(id='p',event_hashes=['one'])])
         missing=dict(positions={},journals=[])

@@ -24,9 +24,9 @@
       "evidence_completion_coverage": null,
       "full_evidence_attempted": 5,
       "full_evidence_completed": null,
-      "native_candidate_discovered_count": 17,
       "natural_entries": 0,
       "natural_settlements": 0,
+      "observed_market_count_scope": "strategy_target_only",
       "preflight_evaluated_count": 17,
       "source_coverage": {
         "acquired_source_pages": 1,
@@ -96,7 +96,10 @@
         "universe": "Nonblacklisted Solana Meteora DLMM pools with exactly one WSOL leg, as defined by the frozen strategy; no minimum TVL or absolute volume."
       },
       "target_market_universe_count": null,
-      "upstream_acquisition": null
+      "upstream_acquisition": {
+        "broader_source_rows_are_strategy_observations": false,
+        "native_candidate_discovered_count": 17
+      }
     },
     "pons": {
       "admission_failures": [
@@ -112,15 +115,16 @@
       ],
       "coverage_health": "coverage_invalid",
       "current_open_positions": 0,
-      "discovered_count": 2572,
+      "discovered_count": null,
       "discovery_coverage": null,
       "evidence_completion_coverage": 0.044444444444444446,
       "full_evidence_attempted": 45,
       "full_evidence_completed": 2,
-      "native_candidate_discovered_count": 2572,
       "natural_entries": 0,
       "natural_settlements": 0,
-      "preflight_evaluated_count": 481,
+      "observed_market_count_scope": "strategy_target_only",
+      "observed_market_count_status": "unknown_scope_membership",
+      "preflight_evaluated_count": null,
       "source_coverage": null,
       "strategy_conformance": "unknown",
       "structurally_eligible_count": null,
@@ -132,10 +136,30 @@
           "graduation_state",
           "event_at"
         ],
-        "universe": "All authenticated Pons V2 buy/sell logs; native curve and authenticated graduation lifecycle."
+        "universe": "Native-quote Pons curves in the frozen 50-85% progress, 120-600s age and 20-90s graduation-ETA domain, plus its authenticated graduation/re-entry modes; existing positions retain their lifecycle scope."
       },
       "target_market_universe_count": null,
-      "upstream_acquisition": null
+      "upstream_acquisition": {
+        "broader_source_rows_are_strategy_observations": false,
+        "native_candidate_discovered_count": 2572,
+        "native_funnel_stages": {
+          "admitted": 45,
+          "current_state_complete": 226,
+          "current_state_queued": 481,
+          "current_state_requested": 329,
+          "discovered": 2572,
+          "evaluated": 2,
+          "evidence_complete": 2,
+          "evidence_requested": 45,
+          "prospect_admitted": 45,
+          "prospect_screened": 213,
+          "qualified": 2,
+          "rejected": 213,
+          "screened": 481,
+          "terminal": 266,
+          "trajectory_admitted": 3
+        }
+      }
     },
     "pump": {
       "admission_failures": [
@@ -147,15 +171,16 @@
       ],
       "coverage_health": "coverage_degraded",
       "current_open_positions": 0,
-      "discovered_count": 1062,
+      "discovered_count": null,
       "discovery_coverage": null,
       "evidence_completion_coverage": 0.14285714285714285,
       "full_evidence_attempted": 7,
       "full_evidence_completed": 1,
-      "native_candidate_discovered_count": 1062,
       "natural_entries": 0,
       "natural_settlements": 0,
-      "preflight_evaluated_count": 4,
+      "observed_market_count_scope": "strategy_target_only",
+      "observed_market_count_status": "unknown_scope_membership",
+      "preflight_evaluated_count": null,
       "source_coverage": null,
       "strategy_conformance": "unknown",
       "structurally_eligible_count": null,
@@ -167,10 +192,25 @@
           "phase",
           "quote_asset"
         ],
-        "universe": "Finalized Pump events and authenticated PumpSwap graduation/continuation opportunities."
+        "universe": "Native-SOL Pump curves in the frozen 60-85% late-curve strategy domain, plus its authenticated PumpSwap graduation/continuation modes; existing positions retain their lifecycle scope."
       },
       "target_market_universe_count": null,
-      "upstream_acquisition": null
+      "upstream_acquisition": {
+        "broader_source_rows_are_strategy_observations": false,
+        "native_candidate_discovered_count": 1062,
+        "native_funnel_stages": {
+          "admitted": 7,
+          "discovered": 1062,
+          "evaluated": 4,
+          "evidence_complete": 1,
+          "evidence_requested": 7,
+          "prospect_incomplete": 3,
+          "prospect_observed": 25,
+          "prospect_screened": 22,
+          "rejected": 4,
+          "terminal": 13
+        }
+      }
     },
     "ramses": {
       "admission_failures": [
@@ -189,9 +229,9 @@
       "evidence_completion_coverage": null,
       "full_evidence_attempted": 4,
       "full_evidence_completed": null,
-      "native_candidate_discovered_count": 4,
       "natural_entries": 1,
       "natural_settlements": 0,
+      "observed_market_count_scope": "strategy_target_only",
       "preflight_evaluated_count": 4,
       "source_coverage": null,
       "strategy_conformance": "unknown",
@@ -211,6 +251,7 @@
         "broader_source_rows_are_strategy_observations": false,
         "factory_inventory_count": 287,
         "known_target_candidates": 4,
+        "native_candidate_discovered_count": 4,
         "quiet_activity_candidates": 5,
         "scope_exclusions": null
       }
