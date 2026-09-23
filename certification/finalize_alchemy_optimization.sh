@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PUMP_SHA=9932305ebe83dd3ff2dd45ffe9006cf628962bf3
+METEORA_SHA=581328376581e2a10d4c35eaccc5da2888826a0f
+PONS_SHA=157e3d3a94510ced93976088b5a3f56a672ad9c4
+RAMSES_SHA=b8b62b7528c884d034af6c677a88e7d21e0b2fb1
+export PUMP_SHA METEORA_SHA PONS_SHA RAMSES_SHA
+
+git config user.name "github-actions[bot]"
+git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+: > "$RUNNER_TEMP/recomposed-hashes.txt"
+
+recompose() {
+  lane="$1"; source_sha="$2"; patch="$3"
+  worktree="$RUNNER_TEMP/recompose-$lane"
+  git fetch origin "$source_sha"
+  git worktree add --detach "$worktree" "$source_sha"
+  git -C "$worktree" apply --3way --index "$GITHUB_WORKSPACE/$patch"
+
+  if [ "$lane" = pump ]; then
+    WORKTREE="$worktree" python - <<'PY'
+import os
+from pathlib import Path
+p=Path(os.environ["WORKTREE"])/"tests/pump_acceleration_natural_prospective.py"
+s=p.read_text()
+old1="prefetch=incremental,"
+old2="evidence_service=StreamEvidenceService(broker,lambda:new_rpc(limit=240)) if incremental else None"
+if old1 not in s or old2 not in s:
+    raise SystemExit("pump_runtime_prefetch_shape_changed")
+s=s.replace(old1,"prefetch=False,",1)
+s=s.replace(old2,"evidence_service=None",1)
+p.write_text(s)
+PY
+  fi
+
+  git -C "$worktree" diff --check HEAD
+  git -C "$worktree" diff --binary HEAD > "$GITHUB_WORKSPACE/$patch.tmp"
+  test -s "$GITHUB_WORKSPACE/$patch.tmp"
+  mv "$GITHUB_WORKSPACE/$patch.tmp" "$GITHUB_WORKSPACE/$patch"
+  printf '%s %s\n' "$lane" "$(sha256sum "$GITHUB_WORKSPACE/$patch" | awk '{print $1}')" >> "$RUNNER_TEMP/recomposed-hashes.txt"
+  git worktree remove --force "$worktree"
+}
+
+recompose pump "$PUMP_SHA" certification/patches/pump-accounting.patch
+recompose meteora "$METEORA_SHA" certification/patches/meteora-checkpoint.patch
+recompose pons "$PONS_SHA" certification/patches/pons-cohort-capital.patch
+recompose ramses "$RAMSES_SHA" certification/patches/ramses-admission.patch
+
+python - <<'PY'
+import json,os
+from pathlib import Path
+m_path=Path("certification/sources.json")
+m=json.loads(m_path.read_text())
+hashes={}
+for line in Path(os.environ["RUNNER_TEMP"]).joinpath("recomposed-hashes.txt").read_text().splitlines():
+    lane,value=line.split()
+    hashes[lane]=value
+heads={
+    "pump":os.environ["PUMP_SHA"],
+    "meteora":os.environ["METEORA_SHA"],
+    "pons":os.environ["PONS_SHA"],
+    "ramses":os.environ["RAMSES_SHA"],
+}
+details={
+ "pump":dict(revision="alchemy-scarce-authoritative-evidence-v1",
+   discovery_plane="public_solana_finalized_websocket",
+   alchemy_role="candidate_and_position_authoritative_http_evidence_only",
+   speculative_alchemy_prefetch=False,breadth_changed=False,
+   strategy_thresholds_changed=False,paper_only_unchanged=True),
+ "meteora":dict(revision="alchemy-scarce-authoritative-evidence-v1",
+   discovery_plane="public_solana_program_and_account_wake_streams",
+   alchemy_role="candidate_reconstruction_and_position_authoritative_http_evidence_only",
+   alternate_authenticated_provider=False,breadth_changed=False,
+   strategy_thresholds_changed=False,paper_only_unchanged=True),
+ "pons":dict(revision="public-observation-alchemy-gap-evidence-v1",
+   discovery_plane="official_robinhood_sequencer_plus_public_rpc",
+   alchemy_role="candidate_position_evidence_and_exact_gap_recovery_only",
+   routine_discovery_on_alchemy=False,breadth_changed=False,
+   strategy_thresholds_changed=False,paper_only_unchanged=True),
+ "ramses":dict(revision="public-observation-alchemy-active-cohort-v1",
+   discovery_plane="official_robinhood_public_rpc",
+   alchemy_role="candidate_state_active_cohort_costs_and_lifecycle_only",
+   broad_factory_and_log_observation_on_alchemy=False,
+   receipt_cost_scope="active_cohort_only",breadth_changed=False,
+   strategy_thresholds_changed=False,paper_only_unchanged=True),
+}
+for lane,sha in heads.items():
+    row=m["lanes"][lane]
+    row["source_sha"]=sha
+    row.pop("execution_sha",None)
+    row["source_diff_sha256"]=hashes[lane]
+    repairs=row.setdefault("repair_commits",[])
+    if sha not in repairs: repairs.append(sha)
+    row.setdefault("execution_certification",{})["provider_optimization"]=dict(
+        source_commit=sha,**details[lane])
+m["verified_at"]="2026-09-22-alchemy-optimization-composed-awaiting-certification"
+m_path.write_text(json.dumps(m,indent=2)+"\n")
+PY
+
+while IFS= read -r -d '' path; do
+  lower="$(printf '%s' "$path" | tr '[:upper:]' '[:lower:]')"
+  if [[ "$lower" == *onfinality* ]]; then
+    git rm -f -- "$path"
+  fi
+done < <(git ls-files -z)
+
+cat > certification/no_onfinality.py <<'PY'
+"""Fail closed if the removed Solana provider can re-enter active runtime/config."""
+from __future__ import annotations
+import argparse
+from pathlib import Path
+
+ACTIVE_SUFFIXES={".py",".pyw",".yml",".yaml",".json",".toml",".ini",".cfg",".sh"}
+SKIP_PARTS={".git","__pycache__",".pytest_cache",".mypy_cache",".ruff_cache"}
+
+def scan(root):
+    root=Path(root)
+    bad=[]
+    if not root.exists():
+        return bad
+    paths=[root] if root.is_file() else root.rglob("*")
+    for path in paths:
+        if not path.is_file() or any(part in SKIP_PARTS for part in path.parts):
+            continue
+        if path.suffix.lower() not in ACTIVE_SUFFIXES:
+            continue
+        try:
+            text=path.read_text(errors="strict")
+        except (UnicodeDecodeError,OSError):
+            continue
+        if "onfinality" in text.lower():
+            bad.append(str(path))
+    return bad
+
+def main():
+    p=argparse.ArgumentParser()
+    p.add_argument("--root",action="append",required=True)
+    args=p.parse_args()
+    bad=sorted({x for root in args.root for x in scan(root)})
+    if bad:
+        raise SystemExit("obsolete_provider_reference:"+",".join(bad))
+    print("no_obsolete_provider_references")
+
+if __name__=="__main__":
+    main()
+PY
+
+python - <<'PY'
+from pathlib import Path
+p=Path(".github/workflows/non-market-certification.yml")
+s=p.read_text()
+name="      - name: Reject obsolete provider references in prepared runtime\n"
+if name not in s:
+    marker='      - name: Preserve prepared runtime sources for repair inspection\n'
+    if s.count(marker)!=1:
+        raise SystemExit("non_market_workflow_prepare_marker_changed")
+    step=(
+      '      - name: Reject obsolete provider references in prepared runtime\n'
+      '        run: >-\n'
+      '          python -m certification.no_onfinality\n'
+      '          --root "$RUNNER_TEMP/non-market-lanes/pump"\n'
+      '          --root "$RUNNER_TEMP/non-market-lanes/meteora"\n'
+      '          --root "$RUNNER_TEMP/non-market-lanes/pons"\n'
+      '          --root "$RUNNER_TEMP/non-market-lanes/ramses"\n'
+      '          --root "$GITHUB_WORKSPACE/certification"\n'
+      '          --root "$GITHUB_WORKSPACE/.github/workflows"\n'
+    )
+    s=s.replace(marker,step+marker,1)
+    p.write_text(s)
+PY
+
+python -m certification.run prepare --worktrees "$RUNNER_TEMP/finalize-lanes"
+python -m certification.no_onfinality   --root "$RUNNER_TEMP/finalize-lanes/pump"   --root "$RUNNER_TEMP/finalize-lanes/meteora"   --root "$RUNNER_TEMP/finalize-lanes/pons"   --root "$RUNNER_TEMP/finalize-lanes/ramses"   --root "$GITHUB_WORKSPACE/certification"   --root "$GITHUB_WORKSPACE/.github/workflows"
+
+grep -q 'prefetch=False' "$RUNNER_TEMP/finalize-lanes/pump/tests/pump_acceleration_natural_prospective.py"
+! grep -q 'prefetch=incremental' "$RUNNER_TEMP/finalize-lanes/pump/tests/pump_acceleration_natural_prospective.py"
+grep -q 'pons_discovery_public_observation' "$RUNNER_TEMP/finalize-lanes/pons/robinhood_research/provider_topology.py"
+grep -q 'configured_discovery_recovery_rpc' "$RUNNER_TEMP/finalize-lanes/pons/robinhood_research/provider_topology.py"
+grep -q 'provider_role="public_observation"' "$RUNNER_TEMP/finalize-lanes/ramses/robinhood_research/ramses_universe.py"
+grep -q 'receipt_cost_acquisition="active_cohort_only"' "$RUNNER_TEMP/finalize-lanes/ramses/robinhood_research/ramses_universe.py"
+
+mkdir -p "$RUNNER_TEMP/finalize-evidence"
+python -m unittest discover -s certification/tests -v 2>&1 | tee "$RUNNER_TEMP/finalize-evidence/supervisor.log"
+python -m certification.run verify --worktrees "$RUNNER_TEMP/finalize-lanes" --output "$RUNNER_TEMP/finalize-evidence/deterministic"
+python -m certification.non_market --worktrees "$RUNNER_TEMP/finalize-lanes" --output "$RUNNER_TEMP/finalize-evidence/offline"
+python -m certification.restart_safety --worktrees "$RUNNER_TEMP/finalize-lanes" --output "$RUNNER_TEMP/finalize-evidence/restart-safety"
+python -m certification.integrated_acceptance --worktrees "$RUNNER_TEMP/finalize-lanes" --output "$RUNNER_TEMP/finalize-evidence/integrated-acceptance"
+
+git rm -f .github/workflows/finalize-alchemy-optimization.yml certification/finalize_alchemy_optimization.sh
+git add certification .github/workflows/non-market-certification.yml
+git diff --cached --check
+git commit -m "[non-market-cert] [alchemy-optimization-finalized] Compose scarce-Alchemy provider topology"
+git push origin HEAD:cert/non-market-e2e-20260922
