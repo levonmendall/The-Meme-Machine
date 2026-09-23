@@ -197,9 +197,34 @@ class RamsesAllPoolUniverseTests(unittest.TestCase):
         self.assertTrue(second_rpc._roi_factory_inventory_durable_hit)
         self.assertEqual(second_rpc._roi_factory_inventory_reused,3)
         self.assertNotIn("universe_inventory",second_rpc.indices_by_scope)
-        self.assertEqual(
-            second_rpc.indices_by_scope["universe_inventory_verify"][-1],[0,2]
-        )
+        self.assertNotIn("universe_inventory_verify",second_rpc.indices_by_scope)
+        self.assertEqual(second_rpc.count_calls,1)
+
+    def test_runtime_bound_cache_fetches_only_new_append_without_sentinels(self):
+        factory="0x"+"aa"*20
+        runtime="runtime-sha"
+        addresses=["0x"+"11"*20,"0x"+"22"*20,"0x"+"33"*20]
+        with tempfile.TemporaryDirectory() as td:
+            cache=Path(td)/"inventory.json"
+            with patch.object(ramses_universe,"FACTORY_CACHE",cache):
+                first_rpc=_InventoryRpc(addresses)
+                first=ramses_universe._enumerate_factory(
+                    first_rpc,factory,100,factory_runtime_sha256=runtime
+                )
+                self.assertEqual(first,addresses)
+                with ramses_universe._FACTORY_INVENTORY_LOCK:
+                    ramses_universe._FACTORY_INVENTORY_CACHE.clear()
+                grown=addresses+["0x"+"44"*20]
+                second_rpc=_InventoryRpc(grown)
+                second=ramses_universe._enumerate_factory(
+                    second_rpc,factory,101,factory_runtime_sha256=runtime
+                )
+        self.assertEqual(second,grown)
+        self.assertEqual(second_rpc.count_calls,1)
+        self.assertNotIn("universe_inventory_verify",second_rpc.indices_by_scope)
+        self.assertEqual(second_rpc.indices_by_scope["universe_inventory"],[[3]])
+        self.assertEqual(second_rpc._roi_factory_inventory_reused,3)
+        self.assertEqual(second_rpc._roi_factory_inventory_fetched,1)
 
     def test_invalid_durable_cache_is_not_trusted_and_is_reauthenticated(self):
         factory="0x"+"aa"*20
