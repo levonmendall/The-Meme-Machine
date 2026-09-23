@@ -24,8 +24,8 @@ from .pons_selective_acquisition import (
 from .pons_selective_continuation import (
     ENTRY_THRESHOLDS, EXIT_POLICY, POLICY, POLICY_HASH, demand_metrics,
     entry_signal_persistence, normalized_trade, post_graduation_vector,
-    pregraduation_exit_reason, runner_action,
-    trajectory_metrics,
+    pregraduation_action, pregraduation_soft_deterioration, runner_action,
+    runner_soft_deterioration, trajectory_metrics,
 )
 from .pons_selective_v4 import collect_v4_activity
 
@@ -338,6 +338,8 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
         entry_largest=int(vector["demand"]["largest_buyer_flow_bps"])
         seen_v4_buyers=set()
         pending_transition_exit_reason=None
+        pregrad_soft_deterioration_streak=0
+        runner_soft_deterioration_streak=0
 
         while True:
             if rpc.used>145:
@@ -402,6 +404,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                             quote=exit_meta,position=position,
                         )
                         result.setdefault("exits",[]).append(exit_row)
+                        partial_taken=partial_taken or position["status"]=="open"
                         if position["status"]=="settled":
                             result["exit"]=exit_row
                             result["status"]="settled"
@@ -436,24 +439,26 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                 result["provider_sessions"].extend(sessions)
                 if rbps>high_water:
                     high_water=rbps;high_at=int(time.time())
-                reason=pregraduation_exit_reason(
+                soft=pregraduation_soft_deterioration(trajectory,demand)
+                pregrad_soft_deterioration_streak=(
+                    pregrad_soft_deterioration_streak+1 if soft else 0
+                )
+                action=pregraduation_action(
+                    tokens=position["tokens"],partial_taken=partial_taken,
                     elapsed_seconds=elapsed,frozen_eta_seconds=frozen_eta,
                     trajectory=trajectory,demand=demand,
                     after_cost_return_bps=rbps,
                     high_water_return_bps=high_water,
-                )
-                action=(
-                    dict(action="full_exit",reason=reason,exit_tokens=position["tokens"])
-                    if reason is not None else
-                    dict(action="hold",reason=None,exit_tokens=0)
+                    soft_deterioration_streak=pregrad_soft_deterioration_streak,
                 )
                 result["monitor"].append(dict(
                     at=mark.stamp.observed_at,market="curve",available=True,
                     return_bps=rbps,trajectory=trajectory,demand=demand,
-                    action=action,pregraduation_exit_reason=reason,quote=meta,
-                    pregraduation_profit_lock_enabled=True,
+                    action=action,
+                    soft_deterioration_streak=pregrad_soft_deterioration_streak,
+                    quote=meta,pregraduation_profit_harvest_enabled=True,
                 ))
-                if action["action"]=="full_exit":
+                if action["action"] in ("partial_exit","full_exit"):
                     try:
                         position,exit_meta=_delayed_exit(
                             endpoint,paper=paper,identity=identity,rpc=rpc,
@@ -470,6 +475,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
                     result.setdefault("exits",[]).append(dict(
                         reason=action["reason"],quote=exit_meta,position=position,
                     ))
+                    partial_taken=partial_taken or position["status"]=="open"
                     if position["status"]=="settled":
                         result["exit"]=result["exits"][-1]
                         result["status"]="settled"
@@ -561,16 +567,26 @@ def run_lifecycle(endpoint,evaluation,*,db_path):
             seen_v4_buyers.update(buyers)
             if rbps>high_water:
                 high_water=rbps;high_at=int(time.time())
+            seconds_since_high=max(0,int(time.time())-high_at)
+            soft=runner_soft_deterioration(
+                seconds_since_high=seconds_since_high,
+                new_buyer_growth=growth,
+            )
+            runner_soft_deterioration_streak=(
+                runner_soft_deterioration_streak+1 if soft else 0
+            )
             action=runner_action(
                 tokens=position["tokens"],partial_taken=partial_taken,
                 after_cost_return_bps=rbps,high_water_return_bps=high_water,
-                seconds_since_high=max(0,int(time.time())-high_at),
+                seconds_since_high=seconds_since_high,
                 new_buyer_growth=growth,buy_quote=activity["buy_quote"],
                 sell_quote=activity["sell_quote"],
+                soft_deterioration_streak=runner_soft_deterioration_streak,
             )
             result["monitor"].append(dict(
                 at=mark.stamp.observed_at,market="v4",available=True,
                 return_bps=rbps,activity=activity,action=action,quote=meta,
+                soft_deterioration_streak=runner_soft_deterioration_streak,
             ))
             if action["action"] in ("partial_exit","full_exit"):
                 position,exit_meta=_delayed_exit(
