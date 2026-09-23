@@ -2,11 +2,13 @@ import unittest
 
 from robinhood_research.ramses import pack
 from robinhood_research.ramses_strategy import (
+    ACTIVE_MODE,
     POLICY,
     POLICY_HASH,
     STRATEGY_VERSION,
     STRATEGY_DOMAIN,
     USDG_ADDRESS,
+    assert_active_v3_decision,
     attach_universe_percentiles,
     build_fee_pulse_freeze,
     build_path_freeze,
@@ -297,6 +299,45 @@ class RamsesStrategyTests(unittest.TestCase):
             estimated_inventory_loss_quote=101,rebalance_cost_quote=10,unwind_cost_quote=10,
         )
         self.assertEqual((risk["action"],risk["reason"]),("exit","inventory_risk_dominates"))
+
+    def test_controller_rejects_legacy_mode_even_with_current_identity(self):
+        decision=self._decision()
+        tampered=dict(decision,mode="fee_pulse")
+        with self.assertRaisesRegex(
+            Exception,"ramses_active_v3_mode_required"
+        ):
+            controller_action(
+                tampered,current_active_bin=decision["freeze"]["proposals"][0]["bins"][0],
+                elapsed_seconds=60,rebalances_used=0,
+                opportunity_still_qualified=True,
+                expected_remaining_fee_quote=100,
+                estimated_inventory_loss_quote=0,
+                rebalance_cost_quote=1,unwind_cost_quote=1,
+            )
+
+    def test_controller_enforces_seven_day_maximum_hold(self):
+        decision=self._decision()
+        proposal=decision["freeze"]["proposals"][0]
+        center=(min(proposal["bins"])+max(proposal["bins"]))//2
+        action=controller_action(
+            decision,current_active_bin=center,
+            elapsed_seconds=POLICY["controller"]["max_holding_seconds"],
+            rebalances_used=0,opportunity_still_qualified=True,
+            expected_remaining_fee_quote=1000,
+            estimated_inventory_loss_quote=0,
+            rebalance_cost_quote=10,unwind_cost_quote=10,
+        )
+        self.assertEqual(
+            (action["action"],action["reason"]),
+            ("exit","maximum_holding_time"),
+        )
+
+    def test_current_v3_decision_identity_is_explicit(self):
+        decision=self._decision()
+        self.assertTrue(assert_active_v3_decision(decision))
+        self.assertEqual(decision["mode"],ACTIVE_MODE)
+        self.assertEqual(POLICY["controller"]["hard_same_decision_deadline_seconds"],210)
+        self.assertEqual(POLICY["controller"]["max_holding_seconds"],604800)
 
 
 if __name__=="__main__":
