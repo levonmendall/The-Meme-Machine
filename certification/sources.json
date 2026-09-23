@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-market-scope-efficiency-final-exact-candidate",
+  "verified_at": "2026-09-23-lifecycle-clock-decoupling",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -84,6 +84,11 @@
           "market_observation_scope_changed": false,
           "paper_only_unchanged": true,
           "detail": "post-graduation holder concentration is requested only when zero-concentration optimistic qualification leaves at least one current entry mode viable"
+        },
+        "tail_drain_regression": {
+          "revision": "final-second-900s-timeout-v1",
+          "purpose": "prove a late-curve paper position filled one second before discovery close can remain open through the frozen 900-second maximum hold and settle inside the existing 1000-second follow-up",
+          "policy_changed": false
         }
       },
       "prospect_admission": {
@@ -99,7 +104,8 @@
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
-        "certification/patches/market-scope-efficiency-pump.patch"
+        "certification/patches/market-scope-efficiency-pump.patch",
+        "certification/patches/lifecycle-clock-pump-test.patch"
       ]
     },
     "meteora": {
@@ -246,6 +252,15 @@
           "market_observation_scope_changed": false,
           "paper_only_unchanged": true,
           "detail": "remove per-pool 35-minute public history reads and 12-second history refreshes from active admission; use pool-list snapshot only as non-authoritative public context"
+        },
+        "lifecycle_clock_repair": {
+          "revision": "durable-position-handoff-v1",
+          "purpose": "separate one-hour market discovery from 4-24h position lifecycle; late pre-entry sequences are capacity-censored before starting; open positions remain in append-only PaperBook state for continuation",
+          "trigger_warmup_evidence_reserve_seconds": 162,
+          "strategy_thresholds_changed": false,
+          "finality_changed": false,
+          "position_size_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -259,7 +274,8 @@
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/meteora-checkpoint.patch",
-        "certification/patches/market-scope-efficiency-meteora.patch"
+        "certification/patches/market-scope-efficiency-meteora.patch",
+        "certification/patches/lifecycle-clock-meteora.patch"
       ]
     },
     "pons": {
@@ -584,6 +600,17 @@
           "market_observation_scope_changed": false,
           "paper_only_unchanged": true,
           "detail": "filter to recently-active 1-2-swap pools, authenticate USDG identity before state/cost hydration, and spend the existing eight wide-range hydration slots only on strategy-domain candidates"
+        },
+        "lifecycle_clock_repair": {
+          "revision": "durable-position-handoff-v1",
+          "purpose": "continue factory observation while one long-horizon position is monitored, preserve position in an independent durable strategy ledger, enforce 7-day maximum hold and 210-second same-decision recenter deadline",
+          "maximum_hold_seconds": 604800,
+          "recenter_target_seconds": 180,
+          "recenter_hard_deadline_seconds": 210,
+          "strategy_thresholds_changed": false,
+          "finality_changed": false,
+          "position_size_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
