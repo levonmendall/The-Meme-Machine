@@ -6,7 +6,8 @@ import unittest
 
 from certification.chain_binding import evaluate as chain_binding
 from certification.prospective_acceptance import (
-    evaluate, make_record, protocol as load_protocol
+    amend_continuation_record, evaluate, make_record, merge_records,
+    protocol as load_protocol
 )
 
 class ChainBindingTests(unittest.TestCase):
@@ -130,6 +131,36 @@ class ProspectiveAcceptanceTests(unittest.TestCase):
         self.assertEqual(rec["lanes"]["pons"]["economics"]["block_return"],0)
         self.assertEqual(rec["lanes"]["meteora"]["economics"]["block_return"],0)
         self.assertEqual(rec["lanes"]["ramses"]["economics"]["block_return"],0)
+
+    def test_terminal_continuation_amends_original_block_without_new_sample(self):
+        proto=self._protocol()
+        base=self._record(proto,"original-run",1000,
+            {"pump":.01,"meteora":0.0,"pons":.02,"ramses":.03})
+        base["lanes"]["meteora"].update(
+            natural_settled=0,durable_replay=False,accounting_reconciled=True)
+        base["lanes"]["meteora"]["economics"].update(
+            flat=False,block_return=None,return_per_observed_hour=None,
+            deployed_return_per_capital_hour=None,capital_time_complete=False)
+        terminal={
+            "lane":"meteora","status":"settled","handoff_required":False,
+            "terminal_replay_verified":True,
+            "accounting":{
+                "genesis":{"capital":100},
+                "realized_pnl_lamports":10,
+                "capital_unit_nanoseconds":360000*1_000_000_000,
+                "reconciled":True,"open_positions":0,"pending":0,
+                "unsettled":0,"reserved":0,
+            },
+        }
+        amended=amend_continuation_record(base,"meteora",None,terminal)
+        merged=merge_records([base,amended])
+        self.assertEqual(len(merged),1)
+        row=merged[0]
+        self.assertEqual(row["run_id"],"original-run")
+        self.assertEqual(row["lanes"]["meteora"]["natural_settled"],1)
+        self.assertTrue(row["lanes"]["meteora"]["durable_replay"])
+        self.assertAlmostEqual(row["lanes"]["meteora"]["economics"]["block_return"],.1)
+        self.assertEqual(row["terminal_finalized_lanes"],["meteora"])
 
     def test_identity_drift_blocks_promotion(self):
         proto=self._protocol()
