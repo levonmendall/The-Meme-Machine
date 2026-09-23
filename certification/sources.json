@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-22-alchemy-optimization-composed-certification-rerun",
+  "verified_at": "2026-09-22-alchemy-optimization-final-certification",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
-      "source_branch": "repair/pump-alchemy-only-no-onfinality",
+      "source_branch": "repair/pump-alchemy-authoritative-evidence-20260922",
       "source_sha": "9932305ebe83dd3ff2dd45ffe9006cf628962bf3",
       "strategy_version": "pump-acceleration-independent-v1/profitability-v1-persistence-edge-v1",
       "policy_hash": "d623ff03ad19b2c4dcd8a82d4883c188ba1acd35a721582175d85cd1b0191770",
@@ -90,7 +90,7 @@
       "source_diff_sha256": "24831371273420f3c3ce41ac3206f8bd055005d2a41ba4c377763e04335456aa"
     },
     "meteora": {
-      "source_branch": "repair/meteora-alchemy-only-no-onfinality",
+      "source_branch": "repair/meteora-alchemy-authoritative-evidence-20260922",
       "source_sha": "a616366fbe64e816708d035c15141b7e7e800304",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1",
       "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
