@@ -188,9 +188,35 @@ def resume_ramses(state_dir,*,slice_seconds):
         str(ledger_path),paper_capital=int(state['paper_capital']),
         quote_asset=state['quote_asset'])
     try:
-        if book.position(identity).get('status')=='settled':
+        ledger_position=book.position(identity)
+        if ledger_position.get('status')=='settled':
             return dict(lane='ramses',status='settled',handoff_required=False,
                         accounting=book.reconcile())
+        ledger_proposal=ledger_position.get('proposal_hash')
+        current=deepcopy(state.get('decision'))
+        pending=deepcopy(state.get('pending_rebalance') or {})
+        candidates=[
+            ('current',current),
+            ('pending_old',pending.get('old_decision')),
+            ('pending_new',pending.get('new_decision')),
+        ]
+        matched=next(
+            ((name,value) for name,value in candidates
+             if isinstance(value,dict)
+             and (value.get('freeze') or {}).get('proposal_hash')==ledger_proposal),
+            None,
+        )
+        if matched is None:
+            raise RuntimeError('ramses_continuation_ledger_geometry_mismatch')
+        geometry_source,decision=matched
+        if geometry_source=='pending_new':
+            state['decision']=deepcopy(decision)
+            state['position_phase']='deployed'
+            state.pop('pending_rebalance',None)
+            _atomic(state_path,state)
+        elif geometry_source=='pending_old':
+            state['decision']=deepcopy(decision)
+            _atomic(state_path,state)
         endpoint=os.environ.get('MM_ROBINHOOD_READ_RPC_URL','')
         costs_by_pool=_json_env('MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON')
         signals_by_pool=_json_env('MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON')
@@ -198,7 +224,7 @@ def resume_ramses(state_dir,*,slice_seconds):
         rpc=module.BoundedMultiRpc(endpoint,max_sessions=16,batch_size=20,
             batch_pause=0.5,rate_retries=1)
         rpc.verify_chain()
-        pool=str(state['pool']).lower();decision=deepcopy(state['decision'])
+        pool=str(state['pool']).lower()
         costs=module._segment_costs(state.get('costs'))
         segments=list(state.get('segments') or [])
         current_capital=int(state.get('current_capital')
@@ -210,6 +236,91 @@ def resume_ramses(state_dir,*,slice_seconds):
         last_scan_wall=time.monotonic();last_fee_reserve=None;last_fee_refresh_wall=0.0
         slice_deadline=time.monotonic()+int(slice_seconds)
         terminal_at=max(entry_at,int(book.position(identity).get('at') or entry_at))
+
+        def settle_flat(reason):
+            if not segments:
+                raise RuntimeError('ramses_flat_quote_without_closed_segment')
+            aggregate=module.aggregate_segments(segments)
+            aggregate=dict(aggregate,continuation_terminal_reason=reason)
+            final=book.settle(identity,pnl=aggregate,at=terminal_at)
+            state.update(active=False,result=dict(status=final['status'],pnl=aggregate),
+                         handoff_required=False,position_phase='settled')
+            state.pop('pending_rebalance',None)
+            _atomic(state_path,state)
+            return dict(lane='ramses',status=final['status'],handoff_required=False,
+                        pnl=aggregate,accounting=book.reconcile())
+
+        def prepare_replacement(reference_decision):
+            nonlocal costs,current_capital,segment_start,rebalances,latest_screen,decision
+            started=time.monotonic()
+            fresh=module.scan(endpoint,gas_costs_by_pool=costs_by_pool,
+                signals_by_pool=signals_by_pool,cost_state=cost_state)
+            prior=reference_decision['freeze']['proposals'][0]
+            candidate=module._requalify_current_pool(
+                fresh,pool,current_capital,costs_by_pool,signals_by_pool,
+                rebalance_mode=((state.get('last_controller') or {}).get('action') or {}).get('mode') or 'recenter',
+                reference_bins=prior['bins'])
+            elapsed=time.monotonic()-started
+            if elapsed>210:
+                state.setdefault('recenter_deadline_misses',[]).append(dict(
+                    at=time.time(),elapsed_seconds=elapsed,
+                    action='discard_stale_geometry_and_redecide_from_fresh_scan'))
+                _atomic(state_path,state)
+                started=time.monotonic()
+                fresh=module.scan(endpoint,gas_costs_by_pool=costs_by_pool,
+                    signals_by_pool=signals_by_pool,cost_state=cost_state)
+                candidate=module._requalify_current_pool(
+                    fresh,pool,current_capital,costs_by_pool,signals_by_pool,
+                    rebalance_mode=((state.get('last_controller') or {}).get('action') or {}).get('mode') or 'recenter',
+                    reference_bins=prior['bins'])
+            if time.monotonic()-started>210:
+                state['recenter_hard_deadline_exhausted']=True
+                _atomic(state_path,state)
+                return False
+            if not candidate or candidate.get('qualified') is not True:
+                return False
+            module.verify_proposal_hash(candidate['freeze'])
+            fresh_row=next((r for r in fresh.get('rows',[])
+                            if str(r.get('pool','')).lower()==pool),None)
+            if fresh_row is None:
+                raise BoundaryError('connected_lifecycle_rebalance_row_missing')
+            next_costs=module._segment_costs(
+                fresh_row.get('gas_costs') if fresh_row.get('gas_costs') is not None
+                else costs_by_pool.get(pool))
+            next_block=int(fresh['finalized_block'])
+            next_at=int(fresh['finalized_timestamp'])
+            next_index=rebalances+1
+            pending=dict(
+                old_decision=deepcopy(reference_decision),
+                new_decision=deepcopy(candidate),
+                new_proposal_hash=candidate['freeze']['proposal_hash'],
+                prepared_at=time.time(),
+            )
+            state['pending_rebalance']=pending
+            _atomic(state_path,state)
+            book.checkpoint(identity,action='rebalance',detail=dict(
+                index=next_index,block=next_block,at=next_at,
+                capital=current_capital,proposal_hash=candidate['freeze']['proposal_hash']),
+                at=next_at)
+            decision=candidate;costs=next_costs;latest_screen=fresh
+            segment_start=next_block;rebalances=next_index
+            state.update(decision=deepcopy(candidate),costs=deepcopy(next_costs),
+                segment_start=segment_start,current_capital=current_capital,
+                rebalances=rebalances,position_phase='deployed')
+            state.pop('pending_rebalance',None)
+            _atomic(state_path,state)
+            return True
+
+        if state.get('position_phase')=='flat_quote':
+            last_action=(state.get('last_controller') or {}).get('action') or {}
+            if (max(0,terminal_at-entry_at)>=int(module.POLICY['controller'].get(
+                    'max_holding_seconds',604800))
+                    or last_action.get('action')!='rebalance'
+                    or current_capital<=0):
+                return settle_flat(last_action.get('reason') or 'flat_quote_exit')
+            if not prepare_replacement(decision):
+                return settle_flat('rebalance_requalification_failed_or_stale')
+
         while time.monotonic()<slice_deadline-5:
             time.sleep(min(module.MONITOR_POLL_SECONDS,max(0,slice_deadline-time.monotonic()-5)))
             if time.monotonic()>=slice_deadline-5:break
@@ -299,70 +410,23 @@ def resume_ramses(state_dir,*,slice_seconds):
             book.checkpoint(identity,action='segment_close',detail=dict(
                 segment=segment['index'],end_block=block,exit_reason=action['reason'],
                 net_result_quote=pnl.get('net_result_quote')),at=at)
-            state['segments']=segments;_atomic(state_path,state)
+            state['segments']=segments
+            state['position_phase']='flat_quote'
+            _atomic(state_path,state)
             if pnl.get('unresolved_inventory') or type(pnl.get('net_result_quote')) is not int:
                 break
             current_capital=int(segment['initial_cost_basis'])+int(pnl['net_result_quote'])
             if action['action']!='rebalance' or current_capital<=0:break
 
-            decision_started=time.monotonic()
-            fresh=module.scan(endpoint,gas_costs_by_pool=costs_by_pool,
-                signals_by_pool=signals_by_pool,cost_state=cost_state)
-            prior=decision['freeze']['proposals'][0]
-            new_decision=module._requalify_current_pool(
-                fresh,pool,current_capital,costs_by_pool,signals_by_pool,
-                rebalance_mode=action.get('mode') or 'recenter',
-                reference_bins=prior['bins'])
-            elapsed_decision=time.monotonic()-decision_started
-            if elapsed_decision>210:
-                state.setdefault('recenter_deadline_misses',[]).append(dict(
-                    at=time.time(),elapsed_seconds=elapsed_decision,
-                    action='discard_stale_geometry_and_redecide_from_fresh_scan'))
-                decision_started=time.monotonic()
-                fresh=module.scan(endpoint,gas_costs_by_pool=costs_by_pool,
-                    signals_by_pool=signals_by_pool,cost_state=cost_state)
-                new_decision=module._requalify_current_pool(
-                    fresh,pool,current_capital,costs_by_pool,signals_by_pool,
-                    rebalance_mode=action.get('mode') or 'recenter',
-                    reference_bins=prior['bins'])
-            if time.monotonic()-decision_started>210:
-                state['recenter_hard_deadline_exhausted']=True;break
-            if not new_decision or new_decision.get('qualified') is not True:break
-            module.verify_proposal_hash(new_decision['freeze'])
-            fresh_row=next((r for r in fresh.get('rows',[])
-                            if str(r.get('pool','')).lower()==pool),None)
-            if fresh_row is None:raise BoundaryError('connected_lifecycle_rebalance_row_missing')
-            costs=module._segment_costs(
-                fresh_row.get('gas_costs') if fresh_row.get('gas_costs') is not None
-                else costs_by_pool.get(pool))
-            decision=new_decision;latest_screen=fresh
-            segment_start=int(fresh['finalized_block']);last_fee_reserve=None
-            last_fee_refresh_wall=0.0;rebalances+=1
-            book.checkpoint(identity,action='rebalance',detail=dict(
-                index=rebalances,block=segment_start,at=int(fresh['finalized_timestamp']),
-                capital=current_capital,proposal_hash=decision['freeze']['proposal_hash']),
-                at=int(fresh['finalized_timestamp']))
-            state.update(decision=decision,costs=costs,segment_start=segment_start,
-                current_capital=current_capital,rebalances=rebalances)
-            _atomic(state_path,state)
+            prior_decision=deepcopy(decision)
+            if not prepare_replacement(prior_decision):
+                return settle_flat('rebalance_requalification_failed_or_stale')
+            last_fee_reserve=None
+            last_fee_refresh_wall=0.0
 
         position=book.position(identity)
-        # A closed segment means the LP was fully unwound.  If no replacement was
-        # committed, settle the existing lifecycle rather than inventing exposure.
-        if position.get('status')=='open' and segments:
-            last_action=(state.get('last_controller') or {}).get('action') or {}
-            if last_action.get('action')!='hold' and (
-                last_action.get('action')!='rebalance'
-                or state.get('recenter_hard_deadline_exhausted')
-                or not state.get('decision')
-            ):
-                aggregate=module.aggregate_segments(segments)
-                final=book.settle(identity,pnl=aggregate,at=terminal_at)
-                state.update(active=False,result=dict(status=final['status'],pnl=aggregate),
-                             handoff_required=False)
-                _atomic(state_path,state)
-                return dict(lane='ramses',status=final['status'],handoff_required=False,
-                            pnl=aggregate,accounting=book.reconcile())
+        if position.get('status')=='open' and state.get('position_phase')=='flat_quote':
+            return settle_flat('flat_quote_without_committed_replacement')
         state.update(active=True,handoff_required=True,ledger_path=str(ledger_path),
                      paper_capital=int(state['paper_capital']),quote_asset=state['quote_asset'])
         _atomic(state_path,state)
