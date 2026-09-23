@@ -73,6 +73,16 @@ def _flat(row):
     if row.get("open_positions_unknown") is True:return False
     return True
 
+def _durable_replay_ok(lane,row):
+    if lane in ("pump","meteora"):
+        return (row.get("accounting_replay") or {}).get("verified") is True
+    if lane=="pons":
+        a=row.get("cohort_accounting") or {}
+        return (a.get("conservation") is True and a.get("cash_basis_conservation") is True
+                and a.get("native_observation_complete") is True)
+    a=row.get("native_accounting") or {}
+    return a.get("conservation") is True and a.get("unlike_quote_units_summed") is False
+
 def _ramses_capital_seconds(run_dir,ended_at):
     root=Path(run_dir) if run_dir else None
     if not root or not root.exists():return {}
@@ -175,7 +185,7 @@ def _lane_economics(lane,row,hours,run_dir=None,ended_at=None):
         "capital_time_complete":denominator_complete,"sleeves":sleeves,
     }
 
-def make_record(result,proto,proto_hash,run_dir=None):
+def make_record(result,proto,proto_hash,run_dir=None,chain_binding=None):
     phase=result.get("phase");required=3600 if phase=="hourly" else 14400 if phase=="sustained" else None
     hours=float(result.get("continuous_overlap_seconds") or 0)/3600.0
     engineering=(result.get("hourly_engineering") or {}).get("status")=="PASS" if phase=="hourly" else (
@@ -191,7 +201,19 @@ def make_record(result,proto,proto_hash,run_dir=None):
         "source_manifest_hash":result.get("source_manifest_hash"),
         "implementation_hash":result.get("implementation_hash"),
         "lanes":{},
+        "runtime_control_freeze_passed":False,
+        "chain_binding_passed":False,
     }
+    try:
+        from certification.protocol_freeze import verify as verify_freeze
+        record["runtime_control_freeze_passed"]=verify_freeze().get("passed") is True
+    except Exception:
+        record["runtime_control_freeze_passed"]=False
+    if chain_binding:
+        try:
+            record["chain_binding_passed"]=json.loads(Path(chain_binding).read_text()).get("passed") is True
+        except Exception:
+            record["chain_binding_passed"]=False
     for lane in LANES:
         row=(result.get("lanes") or {}).get(lane) or {}
         frozen=proto["frozen_lanes"][lane]
@@ -212,7 +234,7 @@ def make_record(result,proto,proto_hash,run_dir=None):
             "accounting_reconciled":row.get("accounting_reconciled") is True,
             "telemetry_complete":gates.get("telemetry_complete") is True,
             "freshness_finality_unchanged":gates.get("freshness_finality_unchanged") is True,
-            "durable_replay":gates.get("durable_replay") is True,
+            "durable_replay":_durable_replay_ok(lane,row),
             "infrastructure_censoring_fraction":_infra_fraction(row),
             "economics":economics,
         }
@@ -247,6 +269,7 @@ def _lane_summary(records,lane,proto):
         "accounting":all(r["lanes"][lane].get("accounting_reconciled") for r in eligible),
         "telemetry":all(r["lanes"][lane].get("telemetry_complete") for r in eligible),
         "freshness_finality":all(r["lanes"][lane].get("freshness_finality_unchanged") for r in eligible),
+        "durable_replay":all(r["lanes"][lane].get("durable_replay") for r in eligible),
         "flat_final_records":all(r["lanes"][lane]["economics"].get("flat") for r in eligible),
         "capital_time_complete":all(r["lanes"][lane]["economics"].get("capital_time_complete") for r in eligible),
     }
@@ -338,7 +361,8 @@ def evaluate(records,proto,proto_hash,expected_integration_sha=None):
     a=proto["autonomy_acceptance"]
     autonomy_checks={
         "identity_frozen":identity_ok,
-        "chain_binding_required":a["current_chain_binding_preflight_required"],
+        "runtime_controls_frozen":bool(records) and all(r.get("runtime_control_freeze_passed") is True for r in records),
+        "chain_binding_each_block":bool(records) and all(r.get("chain_binding_passed") is True for r in records),
         "provider_fail_closed":a["provider_fail_closed_required"],
         "automatic_continuation_required":a["automatic_meteora_ramses_position_continuation_required"],
         "no_manual_strategy_intervention":a["manual_strategy_or_policy_intervention_during_cohort_allowed"] is False,
@@ -364,12 +388,12 @@ def evaluate(records,proto,proto_hash,expected_integration_sha=None):
 
 def main():
     p=argparse.ArgumentParser();sub=p.add_subparsers(dest="command",required=True)
-    r=sub.add_parser("record");r.add_argument("--result",required=True);r.add_argument("--run-dir");r.add_argument("--output",required=True)
+    r=sub.add_parser("record");r.add_argument("--result",required=True);r.add_argument("--run-dir");r.add_argument("--chain-binding");r.add_argument("--output",required=True)
     e=sub.add_parser("evaluate");e.add_argument("--record",action="append",default=[]);e.add_argument("--records-dir");e.add_argument("--expected-integration-sha");e.add_argument("--output",required=True)
     a=p.parse_args();proto,ph=protocol()
     if a.command=="record":
         result=json.loads(Path(a.result).read_text())
-        row=make_record(result,proto,ph,a.run_dir)
+        row=make_record(result,proto,ph,a.run_dir,a.chain_binding)
         Path(a.output).parent.mkdir(parents=True,exist_ok=True)
         Path(a.output).write_text(json.dumps(row,sort_keys=True,indent=2)+"\n")
         print(json.dumps({"run_id":row["run_id"],"engineering_pass":row["engineering_pass"],
