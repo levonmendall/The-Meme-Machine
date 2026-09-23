@@ -1,0 +1,3 @@
+Purpose: revalidate The Meme Machine Robinhood Alchemy secrets after user key rotation.
+No relation to Solana ROI is assumed or tested.
+Secret-safe output only: endpoint hash, hostname/shape, HTTP status, chain ID, trace ID.
