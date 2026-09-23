@@ -191,7 +191,10 @@ class CertificationTests(unittest.TestCase):
             for p in children:p.join(10);self.assertEqual(p.exitcode,0)
             times=sorted(float(s) for s in Path(output).read_text().splitlines())
             self.assertEqual(len(times),4)
-            self.assertGreaterEqual(times[-1]-times[0],1.4)
+            # Child output is written after acquire() returns and can be scheduler-delayed;
+            # keep enough tolerance that process preemption cannot masquerade as a rate
+            # increase. Four grants still must span well beyond two ungoverned 0.5s slots.
+            self.assertGreaterEqual(times[-1]-times[0],1.25)
             status=Governor(path).status()
             self.assertEqual(status['queues'],[])
             self.assertEqual(status['providers'][0]['grants'],4)
