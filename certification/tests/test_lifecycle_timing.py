@@ -10,6 +10,8 @@ from certification.lifecycle_timing import (
     RAMSES_RECENTER_TARGET_SECONDS,
     install_meteora,
     meteora_preentry_remaining_ok,
+    ramses_max_hold_reached,
+    ramses_recenter_clock,
 )
 
 
@@ -53,6 +55,14 @@ class LifecycleTimingTests(unittest.TestCase):
             self.assertEqual(module._triggered_warmup(
                 'adapter',{}, {}, {}, 'pacer',[],1,None),('original',))
         self.assertEqual(calls,[1])
+
+    def test_ramses_runtime_enforces_max_hold_and_recenter_deadlines(self):
+        self.assertFalse(ramses_max_hold_reached(604799))
+        self.assertTrue(ramses_max_hold_reached(604800))
+        self.assertEqual(ramses_recenter_clock(180),'within_target')
+        self.assertEqual(ramses_recenter_clock(180.001),'target_miss')
+        self.assertEqual(ramses_recenter_clock(210),'target_miss')
+        self.assertEqual(ramses_recenter_clock(210.001),'hard_deadline')
 
     def test_ramses_frozen_operational_clocks_are_not_relaxed(self):
         self.assertEqual(RAMSES_RECENTER_TARGET_SECONDS,180)
