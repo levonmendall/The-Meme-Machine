@@ -135,4 +135,4 @@ jobs:
             non-market-evidence/
             certification-preflight.json
           if-no-files-found: error
-          retention-days: 365
+          retention-days: 90
