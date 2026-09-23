@@ -2,7 +2,7 @@ diff --git a/tests/test_pump_campaign_tail_drain.py b/tests/test_pump_campaign_t
 new file mode 100644
 --- /dev/null
 +++ b/tests/test_pump_campaign_tail_drain.py
-@@
+@@ -0,0 +1,49 @@
 +import unittest
 +
 +from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
