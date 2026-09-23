@@ -64,6 +64,16 @@ def install_meteora(module):
     if getattr(module, "_cert_lifecycle_timing_installed", False):
         return
     module._cert_lifecycle_timing_installed = True
+    module._cert_continuation_results = []
+    module._cert_continuation_lock = threading.RLock()
+    original_checkpoint = module._atomic_checkpoint
+    def continuation_checkpoint(report,stage,*args,**kwargs):
+        with module._cert_continuation_lock:
+            report["continuation_lifecycles"] = deepcopy(
+                module._cert_continuation_results
+            )
+        return original_checkpoint(report,stage,*args,**kwargs)
+    module._atomic_checkpoint = continuation_checkpoint
 
     original_trigger = module._triggered_warmup
 
@@ -149,6 +159,8 @@ def install_meteora(module):
                 proxy.update(result)
                 proxy["handoff_required"] = not bool(result.get("complete"))
                 proxy["continuation_completed"] = bool(result.get("complete"))
+                with module._cert_continuation_lock:
+                    module._cert_continuation_results.append(deepcopy(result))
                 snapshot(
                     "settled" if result.get("complete") else "handoff_required",
                     lifecycle=result,
@@ -437,6 +449,7 @@ def install_ramses(extended_module):
                 rebalances=0,
                 result=None,
                 error=None,
+                completed_lifecycles=list(_RAMSES_STATE.get("completed_lifecycles") or []),
             )
             _ramses_write_state()
 
@@ -470,6 +483,17 @@ def install_ramses(extended_module):
                     _RAMSES_STATE["active"] = (
                         (book.reconcile() or {}).get("open_positions", 0) > 0
                     )
+                    if not _RAMSES_STATE["active"]:
+                        identity=_RAMSES_STATE["result"].get("lifecycle_id")
+                        seen={
+                            row.get("lifecycle_id")
+                            for row in _RAMSES_STATE.setdefault("completed_lifecycles",[])
+                            if isinstance(row,dict)
+                        }
+                        if identity and identity not in seen:
+                            _RAMSES_STATE["completed_lifecycles"].append(
+                                deepcopy(_RAMSES_STATE["result"])
+                            )
                     proxy.clear()
                     proxy.update(_RAMSES_STATE["result"])
                     proxy["handoff_required"] = bool(_RAMSES_STATE["active"])
@@ -522,6 +546,21 @@ def install_ramses(extended_module):
                 if key not in ("thread", "proxy")
             }
         public["position_continuation"] = continuation
+        completed=[
+            deepcopy(row) for row in continuation.get("completed_lifecycles",[])
+            if isinstance(row,dict)
+        ]
+        if completed:
+            existing=list(public.get("natural_lifecycles") or [])
+            seen={
+                row.get("lifecycle_id") for row in existing if isinstance(row,dict)
+            }
+            existing.extend(
+                row for row in completed
+                if row.get("lifecycle_id") and row.get("lifecycle_id") not in seen
+            )
+            public["natural_lifecycles"]=existing
+            public["connected_lifecycle"]=completed[-1]
         if accounting is not None:
             public["continuation_accounting"] = accounting
         return original_persist(public)
