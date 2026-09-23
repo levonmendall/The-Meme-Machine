@@ -11,6 +11,40 @@ from pathlib import Path
 import sys
 import time
 
+RAMSES_FACTORY='0xdcD5F77697914E27f56FD263EF82923C8524AbAc'
+RAMSES_FACTORY_COUNT_SELECTOR='0x4e937c3a'
+RAMSES_FACTORY_RUNTIME_SHA256='f53b61bb1b43c80d7e1a131856224a8598bf746491880931e9d6bfcd5c6e197b'
+
+def probe_ramses_factory_state(rpc):
+    """Prove exact finalized contract state exists on the authenticated Ramses lane."""
+    rpc.verify_chain()
+    frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='ramses_factory_capability')
+    block_ref={'blockHash':frontier['hash']}
+    code=rpc.call('eth_getCode',[RAMSES_FACTORY,block_ref],scope='ramses_factory_capability')
+    raw=rpc.call('eth_call',[
+        {'to':RAMSES_FACTORY,'data':RAMSES_FACTORY_COUNT_SELECTOR},
+        block_ref,
+    ],scope='ramses_factory_capability')
+    try:
+        count=int(raw,16)
+    except (TypeError,ValueError):
+        raise RuntimeError('ramses_factory_count_shape') from None
+    if not isinstance(code,str) or not code.startswith('0x') or len(code)<=2:
+        raise RuntimeError('ramses_factory_code_missing')
+    runtime_sha256=hashlib.sha256(bytes.fromhex(code[2:])).hexdigest()
+    if runtime_sha256!=RAMSES_FACTORY_RUNTIME_SHA256:
+        raise RuntimeError('ramses_factory_runtime_mismatch')
+    if not 1<=count<=4096:
+        raise RuntimeError('ramses_factory_count_boundary')
+    return dict(
+        exact_finalized_state=True,
+        finalized_block=frontier['number'],
+        finalized_hash=frontier['hash'],
+        factory_runtime_sha256=runtime_sha256,
+        factory_count=count,
+        provider=rpc.telemetry(),
+    )
+
 def probe(rpc, *, require_public_observation=False):
     rpc.verify_chain()
     frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='capability_probe')
@@ -80,5 +114,15 @@ def main():
         public_diagnostic_rpc(limit=12,per_scope=12,retries=0),
         require_public_observation=True,
     )
-    Path(a.output).write_text(json.dumps(dict(observed_at=time.time(),endpoints=results),sort_keys=True,indent=2)+'\n')
+    dlmm_endpoint=os.environ.get('MM_ROBINHOOD_DLMM_RPC_URL')
+    if not dlmm_endpoint:
+        raise RuntimeError('ramses_dlmm_state_endpoint_required')
+    ramses_factory_state=probe_ramses_factory_state(
+        configured_rpc(dlmm_endpoint,limit=8,per_scope=8,retries=0,timeout=3)
+    )
+    Path(a.output).write_text(json.dumps(dict(
+        observed_at=time.time(),
+        endpoints=results,
+        ramses_factory_state=ramses_factory_state,
+    ),sort_keys=True,indent=2)+'\n')
 if __name__=='__main__':main()
