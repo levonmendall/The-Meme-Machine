@@ -9,6 +9,7 @@ from robinhood_research.provider_topology import (
     PacedRpc,
     ProviderPacer,
     configured_discovery_rpc,
+    configured_discovery_recovery_rpc,
     configured_dlmm_rpc,
     configured_rpc,
     configured_shadow_rpc,
@@ -69,32 +70,41 @@ class LaneProviderTests(unittest.TestCase):
         )
         self.assertEqual(rpc.verify_chain(),4663)
         t=rpc.telemetry()
-        self.assertEqual(t["role"],"pons_discovery_primary")
+        self.assertEqual(t["role"],"pons_discovery_observation")
         self.assertEqual(t["provider_kind"],"validation_cloud")
         self.assertEqual(t["pacing"]["requests_per_second"],5.0)
         self.assertFalse(rpc.primary_fallback)
 
-    def test_discovery_can_share_dlmm_endpoint(self):
+    def test_discovery_uses_official_public_rpc_when_only_alchemy_bulk_is_configured(self):
         env={
-            PRIMARY_ENV:"https://primary.invalid/v2/key",
-            DLMM_ENV:"https://rpc.validationcloud.io/key",
+            PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key",
+            DLMM_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/other",
         }
         rpc=configured_discovery_rpc(
             environ=env,limit=10,per_scope=10,retries=0,
             transport=lambda *_:"0x1237",
         )
-        self.assertEqual(rpc.telemetry()["provider_kind"],"validation_cloud")
+        self.assertEqual(rpc.telemetry()["provider_kind"],"robinhood_public")
         self.assertFalse(rpc.primary_fallback)
+        self.assertEqual(rpc.telemetry()["role"],"pons_discovery_public_observation")
+        self.assertEqual(rpc.telemetry()["pacing"]["requests_per_second"],2.0)
 
-    def test_discovery_explicitly_falls_back_to_primary_until_configured(self):
-        env={PRIMARY_ENV:"https://primary.invalid/v2/key"}
-        rpc=configured_discovery_rpc(
+    def test_discovery_defaults_public_and_gap_recovery_uses_primary(self):
+        env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key"}
+        discovery=configured_discovery_rpc(
             environ=env,limit=10,per_scope=10,retries=0,
             transport=lambda *_:"0x1237",
         )
-        self.assertTrue(rpc.primary_fallback)
-        self.assertEqual(rpc.telemetry()["role"],"pons_discovery_primary_fallback")
-        self.assertEqual(rpc.telemetry()["pacing"]["requests_per_second"],2.0)
+        recovery=configured_discovery_recovery_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        self.assertEqual(discovery.telemetry()["provider_kind"],"robinhood_public")
+        self.assertFalse(discovery.primary_fallback)
+        self.assertFalse(discovery.gap_recovery)
+        self.assertEqual(recovery.telemetry()["provider_kind"],"alchemy")
+        self.assertTrue(recovery.primary_fallback)
+        self.assertTrue(recovery.gap_recovery)
 
     def test_dlmm_uses_dedicated_five_rps_lane(self):
         env={
@@ -125,9 +135,13 @@ class LaneProviderTests(unittest.TestCase):
         self.assertEqual(rpc.telemetry()["pacing"]["requests_per_second"],2.0)
         self.assertFalse(rpc.telemetry()["automatic_failover"])
 
-    def test_primary_fallback_lanes_share_directional_pacer(self):
+    def test_primary_evidence_gap_recovery_and_dlmm_fallback_share_directional_pacer(self):
         env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key"}
         directional=configured_rpc(
+            environ=env,limit=10,per_scope=10,retries=0,
+            transport=lambda *_:"0x1237",
+        )
+        recovery=configured_discovery_recovery_rpc(
             environ=env,limit=10,per_scope=10,retries=0,
             transport=lambda *_:"0x1237",
         )
@@ -139,8 +153,9 @@ class LaneProviderTests(unittest.TestCase):
             environ=env,limit=10,per_scope=10,retries=0,
             transport=lambda *_:"0x1237",
         )
-        self.assertIs(directional.pacer,discovery.pacer)
+        self.assertIs(directional.pacer,recovery.pacer)
         self.assertIs(directional.pacer,dlmm.pacer)
+        self.assertIsNot(directional.pacer,discovery.pacer)
         self.assertEqual(directional.pacer.requests_per_second,2.0)
 
     def test_shadow_is_diagnostic_only(self):
@@ -192,6 +207,9 @@ class LaneProviderTests(unittest.TestCase):
         meta=topology_metadata(environ=env)
         body=str(meta)
         self.assertEqual(meta["directional"]["evidence_provider_kind"],"alchemy")
+        self.assertEqual(meta["directional"]["discovery_provider_kind"],"robinhood_public")
+        self.assertEqual(meta["directional"]["gap_recovery_provider_kind"],"alchemy")
+        self.assertIsNone(meta["directional"]["discovery_credential"])
         self.assertEqual(meta["dlmm"]["provider_kind"],"validation_cloud")
         self.assertNotIn("/secret",body)
         self.assertNotIn("https://",body)
