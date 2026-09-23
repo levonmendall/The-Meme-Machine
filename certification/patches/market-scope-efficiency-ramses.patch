@@ -256,6 +256,18 @@
                  "0x" + f"{0:064x}",
                  "0x" + f"{self.active:064x}",
                  self._words([10**18, 2 * 10**18]),
+@@ -245,10 +246,10 @@
+                 got=ramses_universe._enumerate_factory(
+                     rpc,factory,100,factory_runtime_sha256=runtime
+                 )
+                 persisted=json.loads(runtime_path.read_text())
++                self.assertEqual(json.loads(seed_path.read_text()),seed)
+         self.assertEqual(got,addresses)
+         self.assertTrue(rpc._roi_factory_inventory_seed_hit)
+-        self.assertEqual(json.loads(seed_path.read_text()),seed)
+         self.assertEqual(persisted["addresses"],addresses)
+         self.assertEqual(persisted["asof_block"],100)
+         self.assertEqual(rpc.count_calls,1)
 --- /dev/null
 +++ b/robinhood_tests/test_ramses_market_scope_efficiency.py
 @@ -0,0 +1,20 @@
