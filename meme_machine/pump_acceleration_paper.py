@@ -168,6 +168,7 @@ class PumpAccelerationPaperLifecycle:
             if (
                 reason is None
                 and not self.position.partial_harvest_taken
+                and self.position.tokens > 1
                 and ret >= int(POLICY.first_profit_bps)
             )
             else 0
