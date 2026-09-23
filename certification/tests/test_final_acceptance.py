@@ -16,11 +16,18 @@ class FinalAcceptanceTests(unittest.TestCase):
             lanes=[dict(lane=lane,passed=True) for lane in LANES])))
         (root/"restart-safety/result.json").write_text(json.dumps(dict(passed=True)))
         (root/"integrated-acceptance/result.json").write_text(json.dumps(dict(passed=integrated)))
+        receipt="c"*64
         (root/"historical-resolution.json").write_text(json.dumps(dict(
             disposition="certified_historical_unreplayable_zero_proceeds_writeoff",
+            receipt_sha256=receipt,
             immutable_original_artifact_preserved=True,market_settlement_performed=False,
             after=dict(open_positions=0,reserved=0,stale_marks=0,writeoffs=1,
                        realized_pnl_lamports=-100))))
+        (root/"registry.json").write_text(json.dumps(dict(
+            schema_version=1,unresolved=[],resolved=[dict(lane="meteora",
+                resolution=dict(
+                    disposition="certified_historical_unreplayable_zero_proceeds_writeoff",
+                    receipt_sha256=receipt))])))
         for lane in LANES:
             (root/f"{lane}-connectivity.json").write_text(json.dumps(dict(
                 passed=connectivity,scope="bounded")))
@@ -32,7 +39,7 @@ class FinalAcceptanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)/"e";root.mkdir();self.build(root)
             out=Path(td)/"out.json"
-            self.assertEqual(run(root,out,"sha"),0)
+            self.assertEqual(run(root,out,"sha",root/"registry.json"),0)
             result=json.loads(out.read_text())
             self.assertEqual(result["engineering_certification"],"CERTIFIED_NON_MARKET_ENGINEERING")
             self.assertTrue(result["passed"])
@@ -43,7 +50,7 @@ class FinalAcceptanceTests(unittest.TestCase):
                 root=Path(td)/"e";root.mkdir()
                 self.build(root,integrated=key!="integrated",connectivity=key!="connectivity")
                 out=Path(td)/"out.json"
-                self.assertEqual(run(root,out,"sha"),1)
+                self.assertEqual(run(root,out,"sha",root/"registry.json"),1)
                 result=json.loads(out.read_text())
                 self.assertEqual(result["engineering_certification"],"NOT_CERTIFIED")
 
@@ -51,7 +58,7 @@ class FinalAcceptanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)/"e";root.mkdir();self.build(root)
             out=Path(td)/"out.json"
-            self.assertEqual(run(root,out,"different"),1)
+            self.assertEqual(run(root,out,"different",root/"registry.json"),1)
             self.assertFalse(json.loads(out.read_text())["gates"]["exact_integration_identity"])
 
 if __name__=="__main__":unittest.main()
