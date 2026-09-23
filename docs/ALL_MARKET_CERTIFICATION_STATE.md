@@ -53,6 +53,31 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
   "engineering_blockers": [],
   "historical_references": {
     "cancelled_run": 35905479952,
+    "predecessor_recovery": {
+      "all_four_native_books_verified_flat": true,
+      "certificate_artifact_id": 10782437241,
+      "certificate_digest": "sha256:e42f842603ffa071d8374ceb1da0ece47318c49f19f725436e510d39a4b2dfeb",
+      "certified_recovery_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+      "decision_replay_failures": 0,
+      "economic_sample_eligible": false,
+      "exclusion_reason": "engineering recovery of a failed predecessor; fixed before the outcome; original loss preserved",
+      "original_native_event_prefix_retained": true,
+      "original_runtime_sha": "b57835dc50dd4047cefed13cfe0be975779af1e8",
+      "original_smoke_run_id": 35921058163,
+      "pons_natural_entries": 0,
+      "pons_natural_settlements": 0,
+      "pons_unfilled_cancellations": 2,
+      "ramses_decisions_replayed": 5,
+      "ramses_modeled_execution_cost_quote_raw": 908348,
+      "ramses_native_exit_reason": "inventory_risk_dominates",
+      "ramses_original_entry_time_retained": true,
+      "ramses_original_position_settled": true,
+      "ramses_quote_asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "ramses_realized_result_quote_raw": -909334,
+      "recovery_artifact_digest": "sha256:d14e954dad53f1c8828b587d05bd57723054a1419a64fc8196cd34492b996c00",
+      "recovery_artifact_id": 10783125845,
+      "recovery_run_id": 35934526436
+    },
     "previous_nonmarket_run": 35907893183,
     "previous_observations_excluded": true,
     "provider_shape_probe": 35909625490,
@@ -64,6 +89,14 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "action": "dispatch_intent",
       "at": 1790207325.6413314,
       "dispatch_id": "18d4856b9c864d4da0619885d1f8f0cf"
+    },
+    {
+      "action": "independent_preserved_recovery_artifact_audit",
+      "all_four_books_verified_flat": true,
+      "artifact_id": 10783125845,
+      "at": 1790207637.761,
+      "economic_sample_eligible": false,
+      "workflow_run_id": 35934526436
     }
   ],
   "infrastructure_censoring": {
@@ -79,9 +112,12 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "ramses": {}
   },
   "last_completed_action": {
-    "action": "dispatch_intent",
-    "at": 1790207325.6413314,
-    "dispatch_id": "18d4856b9c864d4da0619885d1f8f0cf"
+    "action": "independent_preserved_recovery_artifact_audit",
+    "all_four_books_verified_flat": true,
+    "artifact_id": 10783125845,
+    "at": 1790207637.761,
+    "economic_sample_eligible": false,
+    "workflow_run_id": 35934526436
   },
   "latest_certification_run": 35934526436,
   "latest_market_run": 35935431384,
@@ -130,7 +166,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "accepted_blocks": 0,
     "accepted_observation_hours": 0,
     "censored_blocks": 0,
-    "cohort_age_hours": 0.00514588024881151,
+    "cohort_age_hours": 0.08806485878096687,
     "observed_hours": 0
   },
   "portfolio_reconciliation": {
@@ -187,6 +223,6 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790207339.2526772
+  "updated_at": 1790207637.761
 }
 ```
