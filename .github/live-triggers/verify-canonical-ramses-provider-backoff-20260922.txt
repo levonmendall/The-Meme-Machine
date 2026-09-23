@@ -1,0 +1,1 @@
+Verify the canonical Ramses/shared-Robinhood overlay after adaptive provider-backoff canonicalization. No market validation requested by this commit.

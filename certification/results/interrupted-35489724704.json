@@ -1,0 +1,52 @@
+{
+  "schema": "interrupted-paper-campaign-v1",
+  "workflow_run_id": 35489724704,
+  "integration_sha": "f7ee2b13036abb0171e0001608d589b51d28947e",
+  "result": "USER_CANCELLED_NOT_CERTIFIED",
+  "last_snapshot_at": 1789884785.0353966,
+  "continuous_overlap_seconds": 3750.1373684279997,
+  "terminal_accounting": "UNVERIFIED_AFTER_CANCELLATION",
+  "lanes": {
+    "meteora": {
+      "health_at_snapshot": "responsive",
+      "process_restarts_at_snapshot": 0,
+      "observed_natural_settled": 0,
+      "observed_forced_settled": 0,
+      "open_positions_at_snapshot": 0,
+      "accounting_reconciled_at_snapshot": true,
+      "provider_requests_at_snapshot": 762,
+      "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5"
+    },
+    "pons": {
+      "health_at_snapshot": "responsive",
+      "process_restarts_at_snapshot": 0,
+      "observed_natural_settled": 0,
+      "observed_forced_settled": 0,
+      "open_positions_at_snapshot": 0,
+      "accounting_reconciled_at_snapshot": true,
+      "provider_requests_at_snapshot": 5851,
+      "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81"
+    },
+    "pump": {
+      "health_at_snapshot": "responsive",
+      "process_restarts_at_snapshot": 0,
+      "observed_natural_settled": 0,
+      "observed_forced_settled": 0,
+      "open_positions_at_snapshot": 0,
+      "accounting_reconciled_at_snapshot": true,
+      "provider_requests_at_snapshot": 6076,
+      "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246"
+    },
+    "ramses": {
+      "health_at_snapshot": "responsive",
+      "process_restarts_at_snapshot": 0,
+      "observed_natural_settled": 0,
+      "observed_forced_settled": 0,
+      "open_positions_at_snapshot": null,
+      "accounting_reconciled_at_snapshot": null,
+      "provider_requests_at_snapshot": 471,
+      "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a"
+    }
+  },
+  "source_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/35489724704"
+}

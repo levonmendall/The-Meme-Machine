@@ -1,0 +1,105 @@
+{
+  "run": {
+    "artifacts": [
+      {
+        "id": 10638031918,
+        "name": "four-lane-hourly-35589047835-1",
+        "size_in_bytes": 858505234,
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10638031918",
+        "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10638031918/zip",
+        "expired": false,
+        "created_at": "2026-09-21T12:19:54Z",
+        "expires_at": "2026-12-20T10:29:50Z",
+        "updated_at": "2026-09-21T12:19:54Z",
+        "digest": "sha256:1661557530a552225e131f7bd0d0f5f8559cbeeb1865ffaabbfa1de1dd1e9064",
+        "workflow_run": {
+          "id": 35589047835,
+          "repository_id": 1373661451,
+          "head_repository_id": 1373661451,
+          "head_branch": "repair/frozen-campaign-handoff",
+          "head_sha": "65253887d56e0c692d80bb78092f824749f3b6b3"
+        }
+      },
+      {
+        "id": 10637942194,
+        "name": "hourly-artifact-review-35589047835-1",
+        "size_in_bytes": 10313038,
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10637942194",
+        "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10637942194/zip",
+        "expired": false,
+        "created_at": "2026-09-21T12:20:34Z",
+        "expires_at": "2026-12-20T10:29:50Z",
+        "updated_at": "2026-09-21T12:20:34Z",
+        "digest": "sha256:09a887e4a8e1c469874509ad455690da751dcaa0c8598b71f221b8a4d468336e",
+        "workflow_run": {
+          "id": 35589047835,
+          "repository_id": 1373661451,
+          "head_repository_id": 1373661451,
+          "head_branch": "repair/frozen-campaign-handoff",
+          "head_sha": "65253887d56e0c692d80bb78092f824749f3b6b3"
+        }
+      },
+      {
+        "id": 10634308297,
+        "name": "smoke-artifact-review-35589047835-1",
+        "size_in_bytes": 987429,
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10634308297",
+        "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10634308297/zip",
+        "expired": false,
+        "created_at": "2026-09-21T10:59:02Z",
+        "expires_at": "2026-12-20T10:29:50Z",
+        "updated_at": "2026-09-21T10:59:02Z",
+        "digest": "sha256:231170340620b6f4542334b97c6d6fca7aa7dd08e0e1e95d8ecb653c7863f23d",
+        "workflow_run": {
+          "id": 35589047835,
+          "repository_id": 1373661451,
+          "head_repository_id": 1373661451,
+          "head_branch": "repair/frozen-campaign-handoff",
+          "head_sha": "65253887d56e0c692d80bb78092f824749f3b6b3"
+        }
+      },
+      {
+        "id": 10634148771,
+        "name": "four-lane-certification-35589047835-1",
+        "size_in_bytes": 105671564,
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10634148771",
+        "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10634148771/zip",
+        "expired": false,
+        "created_at": "2026-09-21T10:58:46Z",
+        "expires_at": "2026-12-20T10:29:50Z",
+        "updated_at": "2026-09-21T10:58:46Z",
+        "digest": "sha256:0bcb64abd01db540a0aa8d67e7aaf2f3c1dcd2239874fc76e20b3be0b9f925a9",
+        "workflow_run": {
+          "id": 35589047835,
+          "repository_id": 1373661451,
+          "head_repository_id": 1373661451,
+          "head_branch": "repair/frozen-campaign-handoff",
+          "head_sha": "65253887d56e0c692d80bb78092f824749f3b6b3"
+        }
+      }
+    ]
+  },
+  "audit": {
+    "artifacts": [
+      {
+        "id": 10638121879,
+        "name": "frozen-campaign-review-35597326342",
+        "size_in_bytes": 10496465,
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10638121879",
+        "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10638121879/zip",
+        "expired": false,
+        "created_at": "2026-09-21T12:21:06Z",
+        "expires_at": "2026-12-20T12:03:17Z",
+        "updated_at": "2026-09-21T12:21:06Z",
+        "digest": "sha256:11f19225fb96025e7dff70009a6ed4bad127335b16f2c8f1eeff3a6074a2f46c",
+        "workflow_run": {
+          "id": 35597326342,
+          "repository_id": 1373661451,
+          "head_repository_id": 1373661451,
+          "head_branch": "repair/frozen-campaign-handoff",
+          "head_sha": "3672560429f29a3236fe641582a5703d4ed275f9"
+        }
+      }
+    ]
+  }
+}

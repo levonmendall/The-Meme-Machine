@@ -1,0 +1,9 @@
+Launch clean four-lane hourly paper validation after final Pons warmup-boundary repair.
+Verified exact qualification head: 0664feb87b4ff899274185a5dcfe62c03f1600ee
+Qualification workflow: 35754931923 completed successfully.
+Pons source: c4bfecfbd5af081c54e04bf9ee70ff369c705095.
+Pons preserves the required 60 seconds of sequencer chain-time, allows bounded wall-clock reserve, and stops warmup polling immediately once readiness is satisfied so the first discovery event is preserved.
+Reserved-bit violations remain fail-closed at the offending session and require canonical RPC backfill.
+Pump, Ramses, and Meteora evidence repairs remain pinned; Meteora transaction cap remains 16.
+No strategy thresholds, freshness/finality rules, position sizing, cost model, accounting controls, or paper-only authority changed.
+Only an older read-only test job was active at launch; no provider-consuming market workflow was active or queued.

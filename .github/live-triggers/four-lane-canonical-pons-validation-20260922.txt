@@ -1,0 +1,7 @@
+Launch clean four-lane hourly paper validation after canonical Pons overlay refresh.
+Verified exact qualification head: fbf5f24ab9457e2d40a5c49b50901fbf03de1490
+Qualification workflow: 35748931298 completed successfully.
+Pons overlay canonicalized against source c4c7d9bc17d65c087c309a90ca571865d311acf5.
+Pump overlay canonicalized; Meteora reconstruction cap remains 16; Ramses bounded quote-cost repair pinned.
+No active or queued competing workflows at launch.
+Paper only; all strategy, freshness/finality, sizing and fail-closed controls unchanged.

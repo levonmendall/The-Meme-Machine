@@ -1,0 +1,443 @@
+name: profitability-edge-deterministic
+on:
+  pull_request:
+    branches: [cert/profitability-persistence-edge-current-v1]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  compose-and-verify:
+    if: contains(github.event.pull_request.title, '[edge-overlay-deterministic]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Rebase Pump and Pons operational overlays onto edge sources
+        run: |
+          set -euo pipefail
+          for LANE in pump pons; do
+            if [ "$LANE" = pump ]; then
+              PATCH="pump-accounting.patch"
+            else
+              PATCH="pons-cohort-capital.patch"
+            fi
+            SHA="$(python -c "import json; print(json.load(open('certification/sources.json'))['lanes']['$LANE']['source_sha'])")"
+            ROOT="$(mktemp -d)"
+            WT="$ROOT/$LANE"
+            git fetch origin "$SHA"
+            git worktree add --detach "$WT" "$SHA"
+            if ! git -C "$WT" apply --3way --index "$GITHUB_WORKSPACE/certification/patches/$PATCH"; then
+              if [ "$LANE" = pump ]; then
+                python - "$WT/tests/pump_acceleration_natural_prospective.py" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          parts=[]
+          cursor=0
+          index=0
+          while True:
+              start=text.find("<<<<<<< ours\n",cursor)
+              if start<0:
+                  parts.append(text[cursor:])
+                  break
+              parts.append(text[cursor:start])
+              middle=text.find("=======\n",start)
+              end=text.find(">>>>>>> theirs\n",middle)
+              if middle<0 or end<0:
+                  raise SystemExit("malformed_pump_merge_conflict")
+              ours=text[start+len("<<<<<<< ours\n"):middle]
+              theirs=text[middle+len("=======\n"):end]
+              if index==0:
+                  theirs="\n".join(
+                      line for line in theirs.splitlines()
+                      if not line.startswith("FROZEN_POLICY_HASH=")
+                  )+"\n"
+                  resolved=ours+theirs
+              elif index==1:
+                  resolved=theirs.replace(
+                      "global ACCOUNTING,PIPELINE",
+                      "global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT",
+                      1,
+                  )
+              elif index==2:
+                  resolved=theirs
+              elif index==3:
+                  resolved=ours+theirs
+              else:
+                  raise SystemExit(f"unexpected_pump_conflict_{index}")
+              parts.append(resolved)
+              cursor=end+len(">>>>>>> theirs\n")
+              index+=1
+          if index!=4:
+              raise SystemExit(f"expected_4_pump_conflicts_got_{index}")
+          merged="".join(parts)
+          old='buyer_growth=flow["buyer_growth"],net_buy_share_bps=flow["net_buy_share_bps"],'
+          new=('buyer_growth=flow["buyer_growth"],'
+               'repeat_buyer_clusters=flow["repeat_buyer_clusters"],'
+               'repeat_buy_share_bps=flow["repeat_buy_share_bps"],'
+               'net_buy_share_bps=flow["net_buy_share_bps"],')
+          if old in merged:
+              merged=merged.replace(old,new,1)
+          for required in (
+              'FROZEN_POLICY_HASH="d623ff03ad19b2c4dcd8a82d4883c188ba1acd35a721582175d85cd1b0191770"',
+              "FILL_PERSISTENCE_CONTEXT",
+              "_service_pending_entries",
+              "repeat_buyer_clusters",
+              "entry_signal_persistence",
+          ):
+              if required not in merged:
+                  raise SystemExit("pump_composition_missing:"+required)
+          path.write_text(merged)
+          PY
+                git -C "$WT" add tests/pump_acceleration_natural_prospective.py
+              else
+                python - "$WT/robinhood_research/pons_selective_paper.py" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          start=text.find("<<<<<<< ours\n")
+          if start<0:
+              raise SystemExit("pons_expected_conflict_missing")
+          middle=text.find("=======\n",start)
+          end=text.find(">>>>>>> theirs\n",middle)
+          if middle<0 or end<0:
+              raise SystemExit("malformed_pons_merge_conflict")
+          if text.find("<<<<<<< ours\n",end+1)>=0:
+              raise SystemExit("unexpected_multiple_pons_conflicts")
+          theirs=text[middle+len("=======\n"):end]
+          merged=text[:start]+theirs+text[end+len(">>>>>>> theirs\n"):]
+          old='''                    result["provider_sessions"].extend(sessions)
+                    reason=pregraduation_exit_reason(
+                        elapsed_seconds=elapsed,frozen_eta_seconds=frozen_eta,
+                        trajectory=trajectory,demand=demand,
+                        after_cost_return_bps=rbps,
+                    )
+                    if rbps>high_water:
+                        high_water=rbps;high_at=int(time.time())
+          '''
+          new='''                    result["provider_sessions"].extend(sessions)
+                    if rbps>high_water:
+                        high_water=rbps;high_at=int(time.time())
+                    reason=pregraduation_exit_reason(
+                        elapsed_seconds=elapsed,frozen_eta_seconds=frozen_eta,
+                        trajectory=trajectory,demand=demand,
+                        after_cost_return_bps=rbps,
+                        high_water_return_bps=high_water,
+                    )
+          '''
+          if merged.count(old)==1:
+              merged=merged.replace(old,new,1)
+          elif "high_water_return_bps=high_water" not in merged:
+              raise SystemExit(
+                  "pons_pregrad_highwater_anchor_missing"
+              )
+          old_flag="profit_taking_deferred_until_post_graduation=True,"
+          new_flag="pregraduation_profit_lock_enabled=True,"
+          if old_flag in merged:
+              merged=merged.replace(old_flag,new_flag,1)
+          elif new_flag not in merged:
+              raise SystemExit("pons_profit_lock_flag_anchor_missing")
+          for required in (
+              "entry_signal_persistence",
+              "_refresh_entry_persistence_signal",
+              'result["entry_persistence"]',
+              "PositionSessions",
+              "CohortCapital",
+              "high_water_return_bps=high_water",
+              "pregraduation_profit_lock_enabled=True",
+          ):
+              if required not in merged:
+                  raise SystemExit("pons_composition_missing:"+required)
+          path.write_text(merged)
+          PY
+                git -C "$WT" add robinhood_research/pons_selective_paper.py
+              fi
+              if test -n "$(git -C "$WT" diff --name-only --diff-filter=U)"; then
+                echo "::group::$LANE unresolved overlay conflicts"
+                git -C "$WT" status --short
+                git -C "$WT" diff --cc || true
+                echo "::endgroup::"
+                exit 1
+              fi
+              git -C "$WT" diff --check
+            fi
+            if [ "$LANE" = pump ]; then
+              python - "$WT/tests/test_strategy_prospect_admission.py" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          replacements=[
+              (
+                  'for i in range(12):\n'
+                  '            improved.append(event(1020+min(i,10),300-9*i,f"r{i}",30+i))',
+                  'for i in range(20):\n'
+                  '            improved.append(event(1020+min(i,10),300-9*i,f"r{i}",30+i))',
+              ),
+              (
+                  'for i in range(8):\n'
+                  '            improved.append(event(1005+i,400-5*i,f"p{i}",10+i))',
+                  'for i in range(12):\n'
+                  '            improved.append(event(1005+i,400-5*i,f"r{i}",10+i))',
+              ),
+              (
+                  'improved[-1]=event(1030,200,"r11",41)',
+                  'improved[-1]=event(1030,200,"r19",49)',
+              ),
+          ]
+          for old,new in replacements:
+              if text.count(old)==1:
+                  text=text.replace(old,new,1)
+              elif new not in text:
+                  raise SystemExit("pump_repeat_fixture_anchor:"+old)
+          path.write_text(text)
+          PY
+              git -C "$WT" add tests/test_strategy_prospect_admission.py
+            else
+              python - "$WT/robinhood_tests/test_pons_position_provider_recovery.py" "$WT/robinhood_tests/test_pons_selective_continuation.py" <<'PY'
+          import pathlib,sys
+          recovery=pathlib.Path(sys.argv[1])
+          policy=pathlib.Path(sys.argv[2])
+          text=recovery.read_text()
+          old='''class PositionRecoveryTests(unittest.TestCase):
+              def run_case(self,folder,fail_at):
+          '''
+          new='''class PositionRecoveryTests(unittest.TestCase):
+              @staticmethod
+              def persistent_entry_signal(*args):
+                  return (
+                      dict(
+                          complete=True,progress_15s_bps=600,accelerating=True,
+                          graduation_eta_seconds=60,
+                      ),
+                      dict(
+                          independent_groups=4,new_independent_groups_15s=2,
+                          buy_sell_ratio_bps=20_000,current_net_quote=20,
+                          prior_net_quote=10,net_flow_accelerating=True,
+                          largest_buyer_flow_bps=1000,top3_buyer_flow_bps=3000,
+                          creator_sell_quote_15s=0,
+                      ),
+                      [],
+                  )
+
+              def run_case(self,folder,fail_at):
+          '''
+          if text.count(old)==1:
+              text=text.replace(old,new,1)
+          elif "def persistent_entry_signal(*args):" not in text:
+              raise SystemExit("pons_recovery_class_anchor")
+          anchor="            '_wait_curve_quote':wait_quote,'_curve_quote':quote,\n"
+          refresh="            '_refresh_entry_persistence_signal':self.persistent_entry_signal,\n"
+          if anchor not in text:
+              raise SystemExit("pons_recovery_patch_anchor")
+          while anchor+refresh+refresh in text:
+              text=text.replace(anchor+refresh+refresh,anchor+refresh,1)
+          if anchor+refresh not in text:
+              text=text.replace(anchor,anchor+refresh,1)
+          old="                 patch(MODULE+'_fresh_fill_full_exit_check',"
+          new="""                 patch(MODULE+'_refresh_entry_persistence_signal',
+                             side_effect=self.persistent_entry_signal),\\
+                       patch(MODULE+'_fresh_fill_full_exit_check',"""
+          if text.count(old)==1:
+              text=text.replace(old,new,1)
+          elif "side_effect=self.persistent_entry_signal" not in text:
+              raise SystemExit(
+                  "pons_unexitable_patch_anchor:"+str(text.count(old))
+              )
+          recovery.write_text(text)
+
+          text=policy.read_text()
+          start=text.find(
+              "    def test_execution_certification_does_not_require_positive_acceleration(self):\n"
+          )
+          end=text.find("    def test_non_native_pair_is_research_only(self):\n",start)
+          if start>=0 and end>=0:
+              replacement='''    def test_execution_policy_requires_positive_acceleration(self):
+                  decelerating=[
+                      dict(at=185,progress_bps=7000),
+                      dict(at=195,progress_bps=7400),
+                      dict(at=200,progress_bps=7550),
+                  ]
+                  v=vector(snapshots=decelerating)
+                  self.assertFalse(v["trajectory"]["accelerating"])
+                  self.assertGreaterEqual(
+                      v["trajectory"]["progress_15s_bps"],
+                      ENTRY_THRESHOLDS["min_progress_15s_bps"],
+                  )
+                  self.assertFalse(v["current_threshold_pass"])
+                  self.assertIn("curve_deceleration",v["all_rejections"])
+
+          '''
+              policy.write_text(text[:start]+replacement+text[end:])
+          elif "def test_execution_policy_requires_positive_acceleration(self):" not in text:
+              raise SystemExit("pons_acceleration_policy_test_anchor")
+          PY
+              git -C "$WT" add robinhood_tests/test_pons_position_provider_recovery.py robinhood_tests/test_pons_selective_continuation.py
+            fi
+            git -C "$WT" diff --check
+            git -C "$WT" diff --binary HEAD > "$GITHUB_WORKSPACE/certification/patches/$PATCH.next"
+            mv "$GITHUB_WORKSPACE/certification/patches/$PATCH.next" "$GITHUB_WORKSPACE/certification/patches/$PATCH"
+            git worktree remove --force "$WT"
+            rm -rf "$ROOT"
+          done
+          git diff --check -- certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch
+      - name: Rebase Meteora and Ramses operational overlays onto verified strategy sources
+        run: |
+          set -euo pipefail
+          for LANE in meteora ramses; do
+            if [ "$LANE" = meteora ]; then
+              PATCH="meteora-checkpoint.patch"
+            else
+              PATCH="ramses-admission.patch"
+            fi
+            SHA="$(python -c "import json; print(json.load(open('certification/sources.json'))['lanes']['$LANE']['source_sha'])")"
+            ROOT="$(mktemp -d)"
+            WT="$ROOT/$LANE"
+            git fetch origin "$SHA"
+            git worktree add --detach "$WT" "$SHA"
+            if [ "$LANE" = meteora ]; then
+              python - "$GITHUB_WORKSPACE/certification/patches/$PATCH" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          # Rebase the campaign overlay onto the profitability runtime. The
+          # profitability source deliberately widened the runtime ceiling to
+          # support its multi-hour lifecycle; campaign mode must not restore
+          # the obsolete 2h/6h ceiling or the pre-profitability report identity.
+          text=text.replace(
+              "-    if not 60<=max_runtime_seconds<=7200:",
+              "-    if not 60<=max_runtime_seconds<=90000:",
+              1,
+          )
+          text=text.replace(
+              "+    if not 60<=max_runtime_seconds<=(21600 if campaign else 7200):",
+              "+    if not 60<=max_runtime_seconds<=90000:",
+              1,
+          )
+          text=text.replace(
+              '        kind="solana_dlmm_independent_v1_prospective",',
+              '        kind="solana_dlmm_authenticated_fee_density_v1_prospective",',
+              1,
+          )
+          path.write_text(text)
+          PY
+              if ! git -C "$WT" apply --index "$GITHUB_WORKSPACE/certification/patches/$PATCH"; then
+                echo "::group::meteora overlay rebase failure"
+                git -C "$WT" status --short || true
+                git -C "$WT" diff || true
+                echo "::endgroup::"
+                exit 1
+              fi
+              python - "$WT/tests/test_meteora_continuous_campaign.py" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          old="return dict(candidate,volume_acceleration=0 if clock[0]==0 else 3,fee_acceleration=3)"
+          new=("return dict(candidate,volume_acceleration=0 if clock[0]==0 else 3,"
+               "fee_acceleration=3,fee_5m_usd=0 if clock[0]==0 else 1,tvl_usd=1000)")
+          if old in text:
+              text=text.replace(old,new,1)
+          elif "fee_5m_usd=0 if clock[0]==0 else 1" not in text:
+              raise SystemExit("meteora_campaign_fee_context_fixture_anchor")
+
+          old_name="    def test_four_hours_requires_explicit_campaign_and_policy_does_not_change(self):\n"
+          new_name="    def test_multi_hour_profitability_runtime_preserves_policy_and_campaign_is_operational_only(self):\n"
+          if old_name in text:
+              start=text.index(old_name)
+              next_def=text.find("\n    def ",start+len(old_name))
+              end=len(text) if next_def<0 else next_def+1
+              replacement="\n".join([
+                  "    def test_multi_hour_profitability_runtime_preserves_policy_and_campaign_is_operational_only(self):",
+                  "        before=strategy.digest(strategy.load_policy())",
+                  "        with self.assertRaisesRegex(ValueError,'runtime_bound'):",
+                  "            strategy.run_live(max_runtime_seconds=90001)",
+                  "        for campaign in (False,True):",
+                  "            with tempfile.TemporaryDirectory() as td,patch.object(strategy,'OUT',Path(td)/'report.json'),patch.object(strategy,'_prove_network_identity',side_effect=RuntimeError('offline-network-boundary')):",
+                  "                with self.assertRaisesRegex(RuntimeError,'offline-network-boundary'):",
+                  "                    strategy.run_live(max_runtime_seconds=14400,campaign=campaign)",
+                  "        self.assertEqual(before,strategy.digest(strategy.load_policy()))",
+                  "",
+              ])
+              text=text[:start]+replacement+text[end:]
+          elif new_name not in text:
+              raise SystemExit("meteora_campaign_runtime_test_anchor")
+          path.write_text(text)
+          PY
+              git -C "$WT" add tests/test_meteora_continuous_campaign.py
+            else
+              if ! git -C "$WT" apply --3way --index "$GITHUB_WORKSPACE/certification/patches/$PATCH"; then
+                python - "$WT/robinhood_research/ramses_universe.py" <<'PY'
+          import pathlib,sys
+          path=pathlib.Path(sys.argv[1])
+          text=path.read_text()
+          start=text.find("<<<<<<< ours\n")
+          middle=text.find("=======\n",start)
+          end=text.find(">>>>>>> theirs\n",middle)
+          if start<0 or middle<0 or end<0 or text.find("<<<<<<< ours\n",end+1)>=0:
+              raise SystemExit("unexpected_ramses_overlay_conflict_shape")
+          ours=text[start+len("<<<<<<< ours\n"):middle]
+          theirs=text[middle+len("=======\n"):end]
+          if "_window_start_block(" not in ours or "checkpoint('factory_authentication'" not in theirs:
+              raise SystemExit("unexpected_ramses_universe_conflict")
+          resolved=(
+              '    start = _window_start_block(\n'
+              '        rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks\n'
+              '    )\n'
+              "    checkpoint('factory_authentication',frontier_block=end,frontier_hash=frontier['hash'],\n"
+              "        frontier_timestamp=int(frontier['timestamp'],16))\n"
+          )
+          path.write_text(text[:start]+resolved+text[end+len(">>>>>>> theirs\n"):])
+          PY
+                git -C "$WT" add robinhood_research/ramses_universe.py
+                if test -n "$(git -C "$WT" diff --name-only --diff-filter=U)"; then
+                  echo "::group::ramses unresolved overlay conflicts"
+                  git -C "$WT" status --short
+                  git -C "$WT" diff --cc || true
+                  echo "::endgroup::"
+                  exit 1
+                fi
+              fi
+            fi
+            git -C "$WT" diff --check
+            git -C "$WT" diff --binary HEAD > "$GITHUB_WORKSPACE/certification/patches/$PATCH.next"
+            mv "$GITHUB_WORKSPACE/certification/patches/$PATCH.next" "$GITHUB_WORKSPACE/certification/patches/$PATCH"
+            git worktree remove --force "$WT"
+            rm -rf "$ROOT"
+          done
+          git diff --check -- certification/patches/meteora-checkpoint.patch certification/patches/ramses-admission.patch
+      - name: Supervisor deterministic suite
+        run: python -m unittest discover -s certification/tests -v
+      - name: Build exact isolated lane worktrees
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/edge-worktrees"
+      - name: Full lane suites and resource gates
+        run: |
+          set +e
+          python -m certification.run verify --worktrees "$RUNNER_TEMP/edge-worktrees" --output certification-edge-gates
+          CODE=$?
+          if [ "$CODE" -ne 0 ]; then
+            for LOG in certification-edge-gates/*-gate-*.log; do
+              echo "::group::$LOG"
+              cat "$LOG"
+              echo "::endgroup::"
+            done
+          fi
+          exit "$CODE"
+      - name: Preserve canonical rebased overlays on the PR head
+        run: |
+          if git diff --quiet -- certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch certification/patches/meteora-checkpoint.patch certification/patches/ramses-admission.patch; then
+            echo "All four operational overlays are already canonical for the verified strategy sources."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add certification/patches/pump-accounting.patch certification/patches/pons-cohort-capital.patch certification/patches/meteora-checkpoint.patch certification/patches/ramses-admission.patch
+          git commit -m "[qualification-build] canonicalize final four-lane strategy overlays"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}

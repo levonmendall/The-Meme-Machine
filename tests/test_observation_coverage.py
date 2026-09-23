@@ -10,7 +10,8 @@ class ObservationCoverageContract(unittest.TestCase):
         self.assertEqual(observer.MIN_OBSERVE_SECONDS,30)
         self.assertEqual(observer.DEFAULT_OBSERVE_SECONDS,105)
         self.assertEqual(observer.MAX_OBSERVE_SECONDS,3300)
-        self.assertEqual(observer.MAX_EVIDENCE_CANDIDATE_LIMIT,20)
+        self.assertEqual(observer.MAX_EVIDENCE_CANDIDATE_LIMIT,80)
+        self.assertEqual(observer.evidence_candidate_budget(3300),69)
         source=inspect.getsource(observer.main)
         self.assertIn('while time.monotonic()<deadline:',source)
         self.assertNotIn('while time.monotonic()<deadline and len(attempted)',source)
@@ -22,7 +23,8 @@ class ObservationCoverageContract(unittest.TestCase):
     def test_workflow_requests_55_minutes_of_post_warmup_observation(self):
         workflow=Path('.github/workflows/ci.yml').read_text()
         self.assertIn("MM_STREAM_OBSERVE_SECONDS: '3300'",workflow)
-        self.assertIn("MM_STREAM_MAX_EVIDENCE_CANDIDATES: '20'",workflow)
+        self.assertNotIn("MM_STREAM_MAX_EVIDENCE_CANDIDATES: '20'",workflow)
+        self.assertIn("contains(github.event.head_commit.message, '[legacy-shadow-connectivity]')",workflow)
         self.assertIn('timeout-minutes: 60',workflow)
 
 

@@ -8,6 +8,7 @@ permissions:
   actions: read
 jobs:
   test:
+    if: github.event_name != 'push' || github.event.head_commit.message != '[cancel-runs]'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -16,6 +17,58 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Validate qualification Pump overlay
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
+        run: |
+          PUMP_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["pump"]["source_sha"])')"
+          WORKTREE="$(mktemp -d)/pump"
+          git fetch origin "$PUMP_SHA"
+          git worktree add --detach "$WORKTREE" "$PUMP_SHA"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-pump.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-pump.patch"
+          (cd "$WORKTREE" && python -m unittest tests.test_solana_evidence_broker tests.test_evidence_consumers tests.test_pump_acceleration_history tests.test_market_scope_efficiency -v)
+      - name: Validate qualification Meteora overlay
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
+        run: |
+          METEORA_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["meteora"]["source_sha"])')"
+          WORKTREE="$(mktemp -d)/meteora"
+          git fetch origin "$METEORA_SHA"
+          git worktree add --detach "$WORKTREE" "$METEORA_SHA"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/meteora-checkpoint.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/meteora-checkpoint.patch"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-meteora.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-meteora.patch"
+          (cd "$WORKTREE" && python -m unittest tests.test_dlmm_alchemy_provider tests.test_solana_dlmm_independent_v1 tests.test_dlmm_tape_extensions tests.test_meteora_market_scope_efficiency -v)
+          (cd "$WORKTREE" && PYTHONPATH="$WORKTREE:$GITHUB_WORKSPACE" python "$GITHUB_WORKSPACE/certification/meteora_position_recovery_check.py")
+          (cd "$WORKTREE" && python -m tests.dlmm_resource_check)
+      - name: Validate qualification Pons overlay
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
+        run: |
+          PONS_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["pons"]["source_sha"])')"
+          WORKTREE="$(mktemp -d)/pons"
+          git fetch origin "$PONS_SHA"
+          git worktree add --detach "$WORKTREE" "$PONS_SHA"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/pons-cohort-capital.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/pons-cohort-capital.patch"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-pons.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-pons.patch"
+          (cd "$WORKTREE" && python -m unittest             robinhood_tests.test_pons_partial_accounting             robinhood_tests.test_pons_position_provider_recovery             robinhood_tests.test_pons_cohort_capital             robinhood_tests.test_pons_selective_continuation             robinhood_tests.test_pons_market_scope_efficiency -v)
+      - name: Validate qualification Ramses overlay
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
+        run: |
+          RAMSES_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["ramses"]["source_sha"])')"
+          WORKTREE="$(mktemp -d)/ramses"
+          git fetch origin "$RAMSES_SHA"
+          git worktree add --detach "$WORKTREE" "$RAMSES_SHA"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/ramses-admission.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/ramses-admission.patch"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-ramses.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-ramses.patch"
+          (cd "$WORKTREE" && python -m unittest             robinhood_tests.test_ramses_connected_lifecycle             robinhood_tests.test_ramses_rate_limit             robinhood_tests.test_ramses_strategy             robinhood_tests.test_ramses_strategy_isolation             robinhood_tests.test_ramses_continuous_campaign             robinhood_tests.test_ramses_market_scope_efficiency             robinhood_tests.test_ramses_universe -v)
+          git -C "$WORKTREE" diff --binary HEAD | sha256sum | awk '{print "RAMSES_EXACT_DIFF_SHA256=" $1}'
+          (cd "$WORKTREE" && python -c "from robinhood_research.ramses_campaign import CampaignBooks; from robinhood_research.ramses_strategy import POLICY,POLICY_HASH,STRATEGY_DOMAIN; asset='0x'+'11'*20; costs=dict(entry_overhead=630350,add_liquidity=1260698,remove_liquidity=1260698,unwind=630349); position=204788; screen=dict(policy_hash=POLICY_HASH,strategy_domain=STRATEGY_DOMAIN,finalized_frontier_source='pinned_external_finalized_header',rows=[dict(token_y=asset,paper_capital_quote_raw=205467,gas_costs=costs,decision=dict(freeze=dict(proposals=[dict(capital_employed=position)])))]); expected=max(205467,position+sum(costs.values())*(1+POLICY['controller']['max_rebalances'])); assert CampaignBooks.budgets_from_screen(screen)[asset]==expected")
       - run: python -m unittest discover -v
       - run: python -m tests.resource_check
       - run: python -m tests.make_tape && python -m meme_machine --mode synthetic --config config.synthetic.json --db /tmp/meme-ci.db --tape tests/fixtures/synthetic_lifecycle.jsonl
@@ -75,58 +128,6 @@ jobs:
             legacy-raydium-live-capture.json
           if-no-files-found: warn
           retention-days: 30
-  onfinality-auth-smoke:
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[onfinality-auth-smoke]')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    env:
-      MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
-      MM_ONFINALITY_SOLANA_WS_URL: ${{ secrets.MM_ONFINALITY_SOLANA_WS_URL }}
-      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12.14'
-      - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Authenticated OnFinality HTTP and WebSocket smoke
-        run: python -m tests.onfinality_authenticated_smoke
-      - name: Preserve authenticated primary smoke
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: onfinality-auth-smoke-${{ github.run_id }}-${{ github.run_attempt }}
-          path: onfinality-auth-smoke.json
-          if-no-files-found: warn
-          retention-days: 30
-  pump-stream-parallel-compare:
-    needs: test
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[stream-compare-live]')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    concurrency:
-      group: pump-stream-parallel-compare
-      cancel-in-progress: false
-    env:
-      MM_ONFINALITY_SOLANA_WS_URL: ${{ secrets.MM_ONFINALITY_SOLANA_WS_URL }}
-      MM_STREAM_COMPARE_SECONDS: '300'
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12.14'
-      - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Parallel authenticated OnFinality vs public Solana Pump stream comparison
-        run: python -m tests.parallel_pump_stream_comparison
-      - name: Preserve parallel stream comparison
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: pump-stream-parallel-compare-${{ github.run_id }}-${{ github.run_attempt }}
-          path: pump-stream-parallel-comparison.json
-          if-no-files-found: warn
-          retention-days: 90
-
   high-throughput-e2e-certification:
     needs: test
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[high-throughput-e2e-cert]')
@@ -406,7 +407,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 90
   live-diagnostic:
-    if: github.event_name != 'pull_request' && github.ref_name != 'feat/post-graduation-pumpswap-raydium' && !contains(github.event.head_commit.message, '[forced-canary]') && !contains(github.event.head_commit.message, '[longevity') && !contains(github.event.head_commit.message, '[qualification-build]') && !contains(github.event.head_commit.message, '[postgrad-live]') && !contains(github.event.head_commit.message, '[shadow-discovery-build]') && !contains(github.event.head_commit.message, '[discovery-compare-live]') && !contains(github.event.head_commit.message, '[market-native-priority-live]') && !contains(github.event.head_commit.message, '[market-native-paper-live]') && !contains(github.event.head_commit.message, '[market-native-smoke-live]') && !contains(github.event.head_commit.message, '[post-exit-outcome-live]') && !contains(github.event.head_commit.message, '[market-native-outcomes-live]') && !contains(github.event.head_commit.message, '[market-native-sample-supplement-live]') && !contains(github.event.head_commit.message, '[market-native-cohort-live]') && !contains(github.event.head_commit.message, '[onfinality-auth-smoke]') && !contains(github.event.head_commit.message, '[high-throughput-e2e-cert]') && !contains(github.event.head_commit.message, '[stream-compare-live]') && !contains(github.event.head_commit.message, '[pump-research]') && !contains(github.event.head_commit.message, '[pump-provider]') && !contains(github.event.head_commit.message, '[pump-rejected-winner-study]') && !contains(github.event.head_commit.message, '[onfinality-sustained-probe]')
+    # Historical shadow diagnostic is opt-in; ordinary commits never launch it.
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[legacy-shadow-connectivity]')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     continue-on-error: true
@@ -415,7 +417,6 @@ jobs:
       cancel-in-progress: false
     env:
       MM_STREAM_OBSERVE_SECONDS: '3300'
-      MM_STREAM_MAX_EVIDENCE_CANDIDATES: '20'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065

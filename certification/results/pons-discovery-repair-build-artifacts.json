@@ -1,0 +1,23 @@
+{
+  "artifacts": [
+    {
+      "id": 10637963974,
+      "name": "frozen-repair-gates-35599677494",
+      "size_in_bytes": 225750,
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10637963974",
+      "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10637963974/zip",
+      "expired": false,
+      "created_at": "2026-09-21T12:29:48Z",
+      "expires_at": "2026-12-20T12:27:49Z",
+      "updated_at": "2026-09-21T12:29:48Z",
+      "digest": "sha256:5aa81d57a65e2bfc9625840bb1bcb04dcbb2154f66dc5b3d47cb93dec2719cb9",
+      "workflow_run": {
+        "id": 35599677494,
+        "repository_id": 1373661451,
+        "head_repository_id": 1373661451,
+        "head_branch": "repair/frozen-campaign-handoff",
+        "head_sha": "3765362b899bd3eb14733bdf4444bd56733e451a"
+      }
+    }
+  ]
+}

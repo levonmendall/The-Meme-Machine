@@ -1,0 +1,22 @@
+DLMM machinery-proof current validation.
+Base implementation: 92a8ccabb7ce83f570b495f834e6e18596b68de2.
+Meteora relaxed source: 43bbcce60913a9a87404fe6563585159fb72352f.
+Ramses relaxed source: d252724f081a9ca0b3bc5fbd8e28b191568c6499.
+Pump and Pons policies unchanged.
+Request one fresh 600-second four-lane smoke followed by the normal independent hour only if readiness passes.
+Paper only; no profitability claim.
+
+Relaunch after paper-milestone/live-diagnostic isolation repair.
+Workflow control head before trigger: da5a5982ba93931fc4b245ca1d0c51dd30aed534.
+No DLMM thresholds changed by the repair.
+
+Cancellation requested after Ramses post-open failure; preserve failed smoke artifact before replacement.
+
+Fresh replacement after Ramses capital-invariant repair.
+Verified integration head before trigger: 46934b26f7d4b6d7f56bcdafd93432a48d8ad6be.
+Ramses source: fd984cae1ca474430de9b8a220d5635f21aae916.
+Failed smoke 35618493417 cancelled and preserved; no prior observation time reused.
+
+Final replacement launch after canonical Ramses overlay.
+Canonical integration base: 8981dd9baa982c5267cc31a64c1cdabb50a78291.
+Prior failed smoke 35618493417 is cancelled and archived.

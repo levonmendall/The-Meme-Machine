@@ -1,0 +1,7 @@
+Accepted fresh DLMM machinery validation after canonical terminal lifecycle repairs.
+Canonical verified repair head: 5151770b03127c07826505c15f76b54f3b15120c
+Qualification workflow 35656994873 passed.
+Meteora structural multi-removal replay boundary closes conservatively; generic evidence failures remain unresolved with exit reserve.
+Ramses partial same-pool unwind liquidity remains open and retries on later finalized state.
+Certification guard must clear all competing market jobs before live observation.
+Paper only. No profitability claim.

@@ -1,0 +1,6 @@
+Launch authority: lifecycle-decoupled four-lane composition with fail-closed capability retry repair.
+Parent repair head: f05d06a4a8e24d125710379548fc6fe580c33184
+Capability behavior: one bounded same-endpoint retry only for transport/500/502/503/504.
+All required endpoint identities persist before aggregate failure.
+No fallback provider, no capability relaxation, no provider throughput increase.
+Sequence: fresh 600-second smoke -> smoke artifact review -> fresh 3600-second natural paper campaign.

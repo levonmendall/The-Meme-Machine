@@ -5,7 +5,8 @@ import sqlite3
 import tempfile
 import unittest
 
-from certification.controls import audit_telemetry,record_unfinished_broker_jobs,smoke_engineering,sustained_readiness
+from certification.controls import (audit_telemetry,hourly_engineering,
+    record_unfinished_broker_jobs,smoke_engineering,sustained_readiness)
 from certification.journal import Journal,digest
 from certification.report import LANES,evaluate
 
@@ -19,6 +20,15 @@ class ControlsTests(unittest.TestCase):
                 open_positions=0,accounting_reconciled=True,provider_requests=1,
                 gates={g:True for g in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated')}) for lane in LANES})
 
+    def test_unresolved_immutable_work_fails_smoke_and_hourly_readiness(self):
+        for count in (1,None):
+            result=self.smoke();result['shared_provider']['robinhood_reuse']=dict(state='observed',inflight_jobs=count)
+            self.assertIn('robinhood:immutable_provider_jobs_not_drained',smoke_engineering(result)['failures'])
+            result.update(phase='hourly',continuous_overlap_seconds=3600,certification=dict(failures=[]))
+            self.assertIn('robinhood:immutable_provider_jobs_not_drained',hourly_engineering(result)['failures'])
+        result=self.smoke();result['shared_provider']['robinhood_reuse']=dict(state='observed',inflight_jobs=0)
+        self.assertEqual(smoke_engineering(result)['status'],'PASS')
+
     def test_exact_clean_smoke_can_start_observation_but_never_proves_full_certification(self):
         good=self.smoke();self.assertEqual(smoke_engineering(good)['status'],'PASS')
         self.assertEqual(evaluate(good)['status'],'INCOMPLETE')
@@ -29,6 +39,44 @@ class ControlsTests(unittest.TestCase):
         for field,value in (('unexpected_exit',True),('process_restarts',1),('accounting_reconciled',False),('open_positions',None)):
             bad=self.smoke();bad['lanes']['pons'][field]=value
             self.assertEqual(smoke_engineering(bad)['status'],'FAIL')
+
+    def test_clean_hour_is_not_failed_only_because_natural_opportunity_is_missing(self):
+        result=self.smoke();result.update(phase='hourly',continuous_overlap_seconds=3600)
+        result['certification']=dict(status='INCOMPLETE',failures=[],
+            incomplete=['pump:natural_lifecycle_missing'])
+        self.assertEqual(hourly_engineering(result)['status'],'PASS')
+        result['lanes']['pump']['process_restarts']=1
+        self.assertEqual(hourly_engineering(result)['status'],'FAIL')
+        result=self.smoke();result.update(phase='hourly',continuous_overlap_seconds=3599,
+            certification=dict(status='INCOMPLETE',failures=[]))
+        self.assertEqual(hourly_engineering(result)['status'],'FAIL')
+        result=self.smoke();result.update(phase='hourly',continuous_overlap_seconds=3600,
+            certification=dict(status='FAIL',failures=['pons:accounting_reconciled']))
+        self.assertEqual(hourly_engineering(result)['status'],'FAIL')
+
+    def test_durable_long_horizon_handoff_is_incomplete_not_failed_exposure(self):
+        result=self.smoke();result.update(phase='hourly',continuous_overlap_seconds=3600)
+        for lane in ('meteora','ramses'):
+            result['lanes'][lane]['open_positions']=1
+            result['lanes'][lane]['durable_handoff']=True
+            result['lanes'][lane]['continuous_uptime_seconds']=3600
+            result['lanes'][lane]['gates'].update({
+                'bounded_queue':True,'provider_limits':True,'no_starvation':True,
+                'accounting_reconciled':True,'freshness_finality_unchanged':True,
+                'durable_replay':True,
+            })
+        for lane in ('pump','pons'):
+            result['lanes'][lane]['continuous_uptime_seconds']=3600
+            result['lanes'][lane]['gates'].update({
+                'bounded_queue':True,'provider_limits':True,'no_starvation':True,
+                'accounting_reconciled':True,'freshness_finality_unchanged':True,
+                'durable_replay':True,
+            })
+        verdict=evaluate(result)
+        self.assertNotIn('meteora:unsettled_position',verdict['failures'])
+        self.assertNotIn('ramses:unsettled_position',verdict['failures'])
+        self.assertIn('meteora:position_continuation_pending',verdict['incomplete'])
+        self.assertIn('ramses:position_continuation_pending',verdict['incomplete'])
 
     def test_raw_transport_hash_missing_record_and_terminal_policy_are_checked(self):
         with tempfile.TemporaryDirectory() as tmp:

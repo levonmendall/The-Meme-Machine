@@ -1,0 +1,54 @@
+diff --git a/tests/test_pump_campaign_tail_drain.py b/tests/test_pump_campaign_tail_drain.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_pump_campaign_tail_drain.py
+@@ -0,0 +1,49 @@
++import unittest
++
++from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
++from meme_machine.pump_acceleration_strategy import (
++    MODE_LATE_CURVE, POLICY, Qualification, STRATEGY_ID, policy_hash,
++)
++from tests import pump_acceleration_natural_prospective as runner
++
++
++class PumpCampaignTailDrainTests(unittest.TestCase):
++    def test_final_second_entry_can_reach_full_900_second_timeout_and_settle(self):
++        discovery_end=10_000
++        opened_at=discovery_end-1
++        q=Qualification(
++            strategy_id=STRATEGY_ID,
++            mode=MODE_LATE_CURVE,
++            mint='tail-entry',
++            observed_at=opened_at-2,
++            qualified=True,
++            score=100,
++            reasons=(),
++            confirmations=(),
++            entry_fraction_bps=POLICY.entry_fraction_bps,
++            policy_hash=policy_hash(),
++        )
++        life=PumpAccelerationPaperLifecycle()
++        life.reserve(q,2_000,opened_at-2)
++        life.fill(tokens=100,cost_quote_units=1_000,now=opened_at,surface='pump.fun')
++
++        timeout_at=opened_at+POLICY.late_curve_max_hold_s
++        campaign_drain_end=discovery_end+runner.FOLLOWUP_SECONDS
++        self.assertEqual(POLICY.late_curve_max_hold_s,900)
++        self.assertGreaterEqual(runner.FOLLOWUP_SECONDS,1_000)
++        self.assertLessEqual(timeout_at,campaign_drain_end)
++
++        mark=life.mark(
++            executable_proceeds_quote_units=1_000,
++            now=timeout_at,
++            demand_score=POLICY.demand_exit_score,
++        )
++        self.assertEqual(mark['exit_reason'],'timeout')
++        closed=life.settle(1_000,timeout_at)
++        self.assertEqual(closed['opened_at'],opened_at)
++        self.assertEqual(closed['closed_at']-closed['opened_at'],900)
++        self.assertIsNone(life.position)
++
++
++if __name__=='__main__':
++    unittest.main()

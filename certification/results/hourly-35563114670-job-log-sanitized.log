@@ -1,0 +1,602 @@
+﻿2026-09-21T05:32:15.5274201Z Current runner version: '2.337.0'
+2026-09-21T05:32:15.5295242Z ##[group]Runner Image Provisioner
+2026-09-21T05:32:15.5296078Z Hosted Compute Agent
+2026-09-21T05:32:15.5296594Z Version: 20260828.587
+2026-09-21T05:32:15.5297183Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-21T05:32:15.5297858Z Build Date: 2026-08-28T16:44:25Z
+2026-09-21T05:32:15.5298652Z Worker ID: {cece9581-defd-461a-a397-78a1c5370e27}
+2026-09-21T05:32:15.5299291Z Azure Region: centralus
+2026-09-21T05:32:15.5299860Z ##[endgroup]
+2026-09-21T05:32:15.5301375Z ##[group]Operating System
+2026-09-21T05:32:15.5302127Z Ubuntu
+2026-09-21T05:32:15.5302741Z 24.04.5
+2026-09-21T05:32:15.5303218Z LTS
+2026-09-21T05:32:15.5303669Z ##[endgroup]
+2026-09-21T05:32:15.5304114Z ##[group]Runner Image
+2026-09-21T05:32:15.5304632Z Image: ubuntu-24.04
+2026-09-21T05:32:15.5305136Z Version: 20260907.300.1
+2026-09-21T05:32:15.5306217Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+2026-09-21T05:32:15.5307480Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+2026-09-21T05:32:15.5308380Z ##[endgroup]
+2026-09-21T05:32:15.5309458Z ##[group]GITHUB_TOKEN Permissions
+2026-09-21T05:32:15.5311294Z Actions: read
+2026-09-21T05:32:15.5311752Z Checks: write
+2026-09-21T05:32:15.5312239Z Contents: read
+2026-09-21T05:32:15.5312688Z Metadata: read
+2026-09-21T05:32:15.5313183Z ##[endgroup]
+2026-09-21T05:32:15.5314906Z Secret source: Actions
+2026-09-21T05:32:15.5315698Z Cache mode: write
+2026-09-21T05:32:15.5316276Z Prepare workflow directory
+2026-09-21T05:32:15.6432584Z Prepare all required actions
+2026-09-21T05:32:15.6494741Z Getting action download info
+2026-09-21T05:32:15.8848281Z Download action repository 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' (SHA:11bd71901bbe5b1630ceea73d27597364c9af683)
+2026-09-21T05:32:16.2890617Z Download action repository 'actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-09-21T05:32:16.8565494Z Download action repository 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-09-21T05:32:17.1288551Z Complete job name: hourly-campaign
+2026-09-21T05:32:17.2048035Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: [redacted-non-GitHub-url]
+2026-09-21T05:32:17.2057388Z ##[group]Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+2026-09-21T05:32:17.2058961Z with:
+2026-09-21T05:32:17.2059797Z   fetch-depth: 0
+2026-09-21T05:32:17.2060632Z   persist-credentials: false
+2026-09-21T05:32:17.2061573Z   repository: levonmendall/The-Meme-Machine
+2026-09-21T05:32:17.2068450Z   token: ***
+2026-09-21T05:32:17.2069250Z   ssh-strict: true
+2026-09-21T05:32:17.2070098Z   ssh-user: git
+2026-09-21T05:32:17.2070899Z   clean: true
+2026-09-21T05:32:17.2071721Z   sparse-checkout-cone-mode: true
+2026-09-21T05:32:17.2072668Z   fetch-tags: false
+2026-09-21T05:32:17.2073478Z   show-progress: true
+2026-09-21T05:32:17.2074386Z   lfs: false
+2026-09-21T05:32:17.2075143Z   submodules: false
+2026-09-21T05:32:17.2075972Z   set-safe-directory: true
+2026-09-21T05:32:17.2076971Z ##[endgroup]
+2026-09-21T05:32:17.2959757Z Syncing repository: levonmendall/The-Meme-Machine
+2026-09-21T05:32:17.2963098Z ##[group]Getting Git version info
+2026-09-21T05:32:17.2965108Z Working directory is '/home/runner/work/The-Meme-Machine/The-Meme-Machine'
+2026-09-21T05:32:17.2967851Z [command]/usr/bin/git version
+2026-09-21T05:32:17.2982092Z git version 2.55.0
+2026-09-21T05:32:17.2998504Z ##[endgroup]
+2026-09-21T05:32:17.3007702Z Temporarily overriding HOME='/home/runner/work/_temp/f99af85d-5ff1-443e-808f-a97129dd17e7' before making global git config changes
+2026-09-21T05:32:17.3011265Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-21T05:32:17.3014576Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/The-Meme-Machine/The-Meme-Machine
+2026-09-21T05:32:17.3071777Z Deleting the contents of '/home/runner/work/The-Meme-Machine/The-Meme-Machine'
+2026-09-21T05:32:17.3074686Z ##[group]Initializing the repository
+2026-09-21T05:32:17.3076675Z [command]/usr/bin/git init /home/runner/work/The-Meme-Machine/The-Meme-Machine
+2026-09-21T05:32:17.3169882Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-09-21T05:32:17.3172513Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-09-21T05:32:17.3174910Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-09-21T05:32:17.3176717Z hint: call:
+2026-09-21T05:32:17.3178066Z hint:
+2026-09-21T05:32:17.3179425Z hint: 	git config --global init.defaultBranch <name>
+2026-09-21T05:32:17.3181013Z hint:
+2026-09-21T05:32:17.3182554Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-09-21T05:32:17.3185152Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-09-21T05:32:17.3187067Z hint:
+2026-09-21T05:32:17.3188301Z hint: 	git branch -m <name>
+2026-09-21T05:32:17.3189603Z hint:
+2026-09-21T05:32:17.3191165Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-09-21T05:32:17.3193861Z Initialized empty Git repository in /home/runner/work/The-Meme-Machine/The-Meme-Machine/.git/
+2026-09-21T05:32:17.3201084Z [command]/usr/bin/git remote add origin https://github.com/levonmendall/The-Meme-Machine
+2026-09-21T05:32:17.3218660Z ##[endgroup]
+2026-09-21T05:32:17.3220698Z ##[group]Disabling automatic garbage collection
+2026-09-21T05:32:17.3222424Z [command]/usr/bin/git config --local gc.auto 0
+2026-09-21T05:32:17.3243906Z ##[endgroup]
+2026-09-21T05:32:17.3245265Z ##[group]Setting up auth
+2026-09-21T05:32:17.3251066Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-21T05:32:17.3277708Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-21T05:32:17.3582576Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-21T05:32:17.3615169Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-21T05:32:17.3788311Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-09-21T05:32:17.3819681Z ##[endgroup]
+2026-09-21T05:32:17.3821142Z ##[group]Fetching the repository
+2026-09-21T05:32:17.3828471Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-09-21T05:32:18.3105753Z From https://github.com/levonmendall/The-Meme-Machine
+2026-09-21T05:32:18.3107992Z  * [new branch]      cert/cancel-combined-preflight-20260920 -> origin/cert/cancel-combined-preflight-20260920
+2026-09-21T05:32:18.3109569Z  * [new branch]      cert/cancel-four-hour-20260920 -> origin/cert/cancel-four-hour-20260920
+2026-09-21T05:32:18.3110851Z  * [new branch]      cert/cancel-superseded-20260920 -> origin/cert/cancel-superseded-20260920
+2026-09-21T05:32:18.3111690Z  * [new branch]      cert/execution-certification-v1 -> origin/cert/execution-certification-v1
+2026-09-21T05:32:18.3112516Z  * [new branch]      cert/four-lane-capacity-v2 -> origin/cert/four-lane-capacity-v2
+2026-09-21T05:32:18.3113276Z  * [new branch]      cert/four-lane-run-records -> origin/cert/four-lane-run-records
+2026-09-21T05:32:18.3114075Z  * [new branch]      cert/four-lane-sustained-v1 -> origin/cert/four-lane-sustained-v1
+2026-09-21T05:32:18.3114978Z  * [new branch]      cert/hourly-launch-evidence-35493891947 -> origin/cert/hourly-launch-evidence-35493891947
+2026-09-21T05:32:18.3116416Z  * [new branch]      cert/meteora-execution-cert-v1 -> origin/cert/meteora-execution-cert-v1
+2026-09-21T05:32:18.3117521Z  * [new branch]      cert/meteora-machinery-proof-v2 -> origin/cert/meteora-machinery-proof-v2
+2026-09-21T05:32:18.3118785Z  * [new branch]      cert/one-hour-repair-campaign -> origin/cert/one-hour-repair-campaign
+2026-09-21T05:32:18.3119508Z  * [new branch]      cert/pons-execution-cert-v1 -> origin/cert/pons-execution-cert-v1
+2026-09-21T05:32:18.3120194Z  * [new branch]      cert/pump-execution-cert-v1 -> origin/cert/pump-execution-cert-v1
+2026-09-21T05:32:18.3120922Z  * [new branch]      cert/ramses-execution-cert-v1 -> origin/cert/ramses-execution-cert-v1
+2026-09-21T05:32:18.3121693Z  * [new branch]      cert/ramses-machinery-proof-v2 -> origin/cert/ramses-machinery-proof-v2
+2026-09-21T05:32:18.3122397Z  * [new branch]      cert/solana-consumer-scheduling -> origin/cert/solana-consumer-scheduling
+2026-09-21T05:32:18.3123475Z  * [new branch]      cert/solana-scheduling-verification -> origin/cert/solana-scheduling-verification
+2026-09-21T05:32:18.3124210Z  * [new branch]      cert/tmp-pons-overlay-v1 -> origin/cert/tmp-pons-overlay-v1
+2026-09-21T05:32:18.3125026Z  * [new branch]      certification/four-lane-repair-integration-20260920 -> origin/certification/four-lane-repair-integration-20260920
+2026-09-21T05:32:18.3125924Z  * [new branch]      feat/market-native-active-discovery -> origin/feat/market-native-active-discovery
+2026-09-21T05:32:18.3126670Z  * [new branch]      feat/meteora-dlmm-paper-foundation -> origin/feat/meteora-dlmm-paper-foundation
+2026-09-21T05:32:18.3127432Z  * [new branch]      feat/pons-selective-continuation-v1 -> origin/feat/pons-selective-continuation-v1
+2026-09-21T05:32:18.3128422Z  * [new branch]      feat/post-graduation-pumpswap-raydium -> origin/feat/post-graduation-pumpswap-raydium
+2026-09-21T05:32:18.3129203Z  * [new branch]      feat/pump-acceleration-independent-v1 -> origin/feat/pump-acceleration-independent-v1
+2026-09-21T05:32:18.3129992Z  * [new branch]      feat/pump-alpha-v1-independent -> origin/feat/pump-alpha-v1-independent
+2026-09-21T05:32:18.3130794Z  * [new branch]      feat/pump-directional-paper -> origin/feat/pump-directional-paper
+2026-09-21T05:32:18.3131519Z  * [new branch]      feat/ramses-all-pool-connected-lifecycle -> origin/feat/ramses-all-pool-connected-lifecycle
+2026-09-21T05:32:18.3132277Z  * [new branch]      feat/ramses-all-pool-universe -> origin/feat/ramses-all-pool-universe
+2026-09-21T05:32:18.3133019Z  * [new branch]      feat/ramses-automatic-cost-evidence-20m -> origin/feat/ramses-automatic-cost-evidence-20m
+2026-09-21T05:32:18.3133878Z  * [new branch]      feat/ramses-extended-market-test -> origin/feat/ramses-extended-market-test
+2026-09-21T05:32:18.3134498Z  * [new branch]      feat/ramses-fee-pulse-v1 -> origin/feat/ramses-fee-pulse-v1
+2026-09-21T05:32:18.3135168Z  * [new branch]      feat/robinhood-multisource-observability -> origin/feat/robinhood-multisource-observability
+2026-09-21T05:32:18.3135952Z  * [new branch]      feat/robinhood-research-foundation -> origin/feat/robinhood-research-foundation
+2026-09-21T05:32:18.3136594Z  * [new branch]      fix/ramses-dlmm-rate-limit -> origin/fix/ramses-dlmm-rate-limit
+2026-09-21T05:32:18.3137279Z  * [new branch]      fix/ramses-exact-horizon-inventory-cache -> origin/fix/ramses-exact-horizon-inventory-cache
+2026-09-21T05:32:18.3138260Z  * [new branch]      fix/ramses-finality-cadence-20m-rerun -> origin/fix/ramses-finality-cadence-20m-rerun
+2026-09-21T05:32:18.3139541Z  * [new branch]      fix/ramses-finalized-frontier-driven-discovery -> origin/fix/ramses-finalized-frontier-driven-discovery
+2026-09-21T05:32:18.3140273Z  * [new branch]      fix/ramses-prestate-handoff -> origin/fix/ramses-prestate-handoff
+2026-09-21T05:32:18.3140989Z  * [new branch]      fix/ramses-qualifier-history-handoff -> origin/fix/ramses-qualifier-history-handoff
+2026-09-21T05:32:18.3141701Z  * [new branch]      fix/robinhood-discovery-dlmm-fallback -> origin/fix/robinhood-discovery-dlmm-fallback
+2026-09-21T05:32:18.3142803Z  * [new branch]      fix/robinhood-primary-fallback-pacing -> origin/fix/robinhood-primary-fallback-pacing
+2026-09-21T05:32:18.3143605Z  * [new branch]      fix/robinhood-provider-endpoint-isolation-v2 -> origin/fix/robinhood-provider-endpoint-isolation-v2
+2026-09-21T05:32:18.3144377Z  * [new branch]      fix/robinhood-provider-role-isolation -> origin/fix/robinhood-provider-role-isolation
+2026-09-21T05:32:18.3145216Z  * [new branch]      fix/robinhood-sequencer-compression -> origin/fix/robinhood-sequencer-compression
+2026-09-21T05:32:18.3146332Z  * [new branch]      fix/robinhood-sequencer-nonmessage-envelope -> origin/fix/robinhood-sequencer-nonmessage-envelope
+2026-09-21T05:32:18.3147385Z  * [new branch]      fix/robinhood-sequencer-start-cursor -> origin/fix/robinhood-sequencer-start-cursor
+2026-09-21T05:32:18.3148692Z  * [new branch]      fix/robinhood-shared-primary-capacity -> origin/fix/robinhood-shared-primary-capacity
+2026-09-21T05:32:18.3149500Z  * [new branch]      main       -> origin/main
+2026-09-21T05:32:18.3150173Z  * [new branch]      perf/meme-solana-public-4rps -> origin/perf/meme-solana-public-4rps
+2026-09-21T05:32:18.3151026Z  * [new branch]      perf/robinhood-pons-batched-discovery-auth -> origin/perf/robinhood-pons-batched-discovery-auth
+2026-09-21T05:32:18.3152006Z  * [new branch]      perf/robinhood-pons-batched-followup -> origin/perf/robinhood-pons-batched-followup
+2026-09-21T05:32:18.3152904Z  * [new branch]      proof/market-native-active-paper -> origin/proof/market-native-active-paper
+2026-09-21T05:32:18.3154002Z  * [new branch]      proof/natural-continuation-v1-pumpswap -> origin/proof/natural-continuation-v1-pumpswap
+2026-09-21T05:32:18.3154908Z  * [new branch]      reconcile/pump-pumpswap-ci -> origin/reconcile/pump-pumpswap-ci
+2026-09-21T05:32:18.3155675Z  * [new branch]      refactor/robinhood-solana-style-rpc-governance -> origin/refactor/robinhood-solana-style-rpc-governance
+2026-09-21T05:32:18.3156589Z  * [new branch]      repair/dlmm-durable-state-certification-20260920 -> origin/repair/dlmm-durable-state-certification-20260920
+2026-09-21T05:32:18.3157603Z  * [new branch]      repair/dlmm-json-checkpoint-certification -> origin/repair/dlmm-json-checkpoint-certification
+2026-09-21T05:32:18.3158667Z  * [new branch]      repair/four-lane-acquisition -> origin/repair/four-lane-acquisition
+2026-09-21T05:32:18.3159352Z  * [new branch]      repair/four-lane-observability -> origin/repair/four-lane-observability
+2026-09-21T05:32:18.3160050Z  * [new branch]      repair/frozen-campaign-handoff -> origin/repair/frozen-campaign-handoff
+2026-09-21T05:32:18.3160800Z  * [new branch]      repair/meme-solana-public-primary-failover -> origin/repair/meme-solana-public-primary-failover
+2026-09-21T05:32:18.3161555Z  * [new branch]      repair/meteora-consumer-scheduling -> origin/repair/meteora-consumer-scheduling
+2026-09-21T05:32:18.3162296Z  * [new branch]      repair/meteora-continuous-campaign -> origin/repair/meteora-continuous-campaign
+2026-09-21T05:32:18.3163056Z  * [new branch]      repair/meteora-durable-paper-lifecycle -> origin/repair/meteora-durable-paper-lifecycle
+2026-09-21T05:32:18.3163787Z  * [new branch]      repair/meteora-hydration-deadline -> origin/repair/meteora-hydration-deadline
+2026-09-21T05:32:18.3164524Z  * [new branch]      repair/pons-429-backpressure-20m -> origin/repair/pons-429-backpressure-20m
+2026-09-21T05:32:18.3165246Z  * [new branch]      repair/pons-cohort-capital-certification -> origin/repair/pons-cohort-capital-certification
+2026-09-21T05:32:18.3166028Z  * [new branch]      repair/pons-combined-evidence-batching -> origin/repair/pons-combined-evidence-batching
+2026-09-21T05:32:18.3166909Z  * [new branch]      repair/pons-concurrent-certification-20260920 -> origin/repair/pons-concurrent-certification-20260920
+2026-09-21T05:32:18.3167664Z  * [new branch]      repair/pons-continuous-campaign -> origin/repair/pons-continuous-campaign
+2026-09-21T05:32:18.3168726Z  * [new branch]      repair/pons-partial-accounting-timeline -> origin/repair/pons-partial-accounting-timeline
+2026-09-21T05:32:18.3169762Z  * [new branch]      repair/pons-provider-session-recovery-20m -> origin/repair/pons-provider-session-recovery-20m
+2026-09-21T05:32:18.3170628Z  * [new branch]      repair/pons-unfilled-reservation -> origin/repair/pons-unfilled-reservation
+2026-09-21T05:32:18.3171300Z  * [new branch]      repair/pump-continuous-campaign -> origin/repair/pump-continuous-campaign
+2026-09-21T05:32:18.3172060Z  * [new branch]      repair/pump-decision-window-bootstrap-20m -> origin/repair/pump-decision-window-bootstrap-20m
+2026-09-21T05:32:18.3172770Z  * [new branch]      repair/pump-hydration-deadline -> origin/repair/pump-hydration-deadline
+2026-09-21T05:32:18.3173680Z  * [new branch]      repair/pump-paper-accounting-certification-20260920 -> origin/repair/pump-paper-accounting-certification-20260920
+2026-09-21T05:32:18.3174773Z  * [new branch]      repair/pump-tape-dedup-trajectory-gates -> origin/repair/pump-tape-dedup-trajectory-gates
+2026-09-21T05:32:18.3175562Z  * [new branch]      repair/pump-transaction-pressure -> origin/repair/pump-transaction-pressure
+2026-09-21T05:32:18.3176359Z  * [new branch]      repair/ramses-capital-reservation-replay -> origin/repair/ramses-capital-reservation-replay
+2026-09-21T05:32:18.3177259Z  * [new branch]      repair/ramses-concurrent-certification-20260920 -> origin/repair/ramses-concurrent-certification-20260920
+2026-09-21T05:32:18.3178304Z  * [new branch]      repair/ramses-continuous-campaign -> origin/repair/ramses-continuous-campaign
+2026-09-21T05:32:18.3179160Z  * [new branch]      repair/ramses-deferred-capital-initialization -> origin/repair/ramses-deferred-capital-initialization
+2026-09-21T05:32:18.3180045Z  * [new branch]      repair/ramses-factory-enumeration-20m -> origin/repair/ramses-factory-enumeration-20m
+2026-09-21T05:32:18.3180854Z  * [new branch]      repair/robinhood-cu-efficiency -> origin/repair/robinhood-cu-efficiency
+2026-09-21T05:32:18.3181561Z  * [new branch]      repair/solana-alchemy-efficiency -> origin/repair/solana-alchemy-efficiency
+2026-09-21T05:32:18.3182490Z  * [new branch]      repair/solana-broker-atomic-claims -> origin/repair/solana-broker-atomic-claims
+2026-09-21T05:32:18.3183219Z  * [new branch]      repair/solana-broker-global-pacing -> origin/repair/solana-broker-global-pacing
+2026-09-21T05:32:18.3183903Z  * [new branch]      repair/solana-broker-sync-dlmm -> origin/repair/solana-broker-sync-dlmm
+2026-09-21T05:32:18.3184623Z  * [new branch]      repair/solana-consumer-scheduling -> origin/repair/solana-consumer-scheduling
+2026-09-21T05:32:18.3185409Z  * [new branch]      repair/solana-dlmm-broker-expiry-sync -> origin/repair/solana-dlmm-broker-expiry-sync
+2026-09-21T05:32:18.3186169Z  * [new branch]      repair/solana-dlmm-gap-finalize -> origin/repair/solana-dlmm-gap-finalize
+2026-09-21T05:32:18.3186908Z  * [new branch]      repair/solana-dlmm-trigger-censoring-20m -> origin/repair/solana-dlmm-trigger-censoring-20m
+2026-09-21T05:32:18.3188047Z  * [new branch]      repair/solana-evidence-broker-finalize -> origin/repair/solana-evidence-broker-finalize
+2026-09-21T05:32:18.3189164Z  * [new branch]      repair/solana-evidence-final-v2 -> origin/repair/solana-evidence-final-v2
+2026-09-21T05:32:18.3189957Z  * [new branch]      repair/solana-evidence-queue-expiry -> origin/repair/solana-evidence-queue-expiry
+2026-09-21T05:32:18.3191043Z  * [new branch]      repair/solana-global-pacing-dlmm -> origin/repair/solana-global-pacing-dlmm
+2026-09-21T05:32:18.3191787Z  * [new branch]      repair/solana-provider-error-telemetry -> origin/repair/solana-provider-error-telemetry
+2026-09-21T05:32:18.3192673Z  * [new branch]      repair/solana-pumpswap-address-stream -> origin/repair/solana-pumpswap-address-stream
+2026-09-21T05:32:18.3193664Z  * [new branch]      repair/solana-stream-first-evidence-dlmm -> origin/repair/solana-stream-first-evidence-dlmm
+2026-09-21T05:32:18.3194571Z  * [new branch]      repair/solana-stream-first-evidence-pump -> origin/repair/solana-stream-first-evidence-pump
+2026-09-21T05:32:18.3195585Z  * [new branch]      repair/strategy-prospect-admission -> origin/repair/strategy-prospect-admission
+2026-09-21T05:32:18.3196493Z  * [new branch]      research/dlmm-add-liquidity2-support -> origin/research/dlmm-add-liquidity2-support
+2026-09-21T05:32:18.3197683Z  * [new branch]      research/dlmm-alchemy-pacing-per-pool-budget -> origin/research/dlmm-alchemy-pacing-per-pool-budget
+2026-09-21T05:32:18.3198998Z  * [new branch]      research/dlmm-alchemy-routing -> origin/research/dlmm-alchemy-routing
+2026-09-21T05:32:18.3199977Z  * [new branch]      research/dlmm-capital-case-ranking-v1 -> origin/research/dlmm-capital-case-ranking-v1
+2026-09-21T05:32:18.3200824Z  * [new branch]      research/dlmm-capital-efficiency-v1 -> origin/research/dlmm-capital-efficiency-v1
+2026-09-21T05:32:18.3201570Z  * [new branch]      research/dlmm-claim-event-association -> origin/research/dlmm-claim-event-association
+2026-09-21T05:32:18.3202356Z  * [new branch]      research/dlmm-claim-fee2-reconstruction -> origin/research/dlmm-claim-fee2-reconstruction
+2026-09-21T05:32:18.3203159Z  * [new branch]      research/dlmm-economic-strategy-v1 -> origin/research/dlmm-economic-strategy-v1
+2026-09-21T05:32:18.3204183Z  * [new branch]      research/dlmm-existing-alchemy-secret -> origin/research/dlmm-existing-alchemy-secret
+2026-09-21T05:32:18.3205001Z  * [new branch]      research/dlmm-expanded-observation-universe -> origin/research/dlmm-expanded-observation-universe
+2026-09-21T05:32:18.3205806Z  * [new branch]      research/dlmm-host-fee-route-scope -> origin/research/dlmm-host-fee-route-scope
+2026-09-21T05:32:18.3206573Z  * [new branch]      research/dlmm-host-fee-shape-diagnostic -> origin/research/dlmm-host-fee-shape-diagnostic
+2026-09-21T05:32:18.3207379Z  * [new branch]      research/dlmm-host-fee-terminal-fallback -> origin/research/dlmm-host-fee-terminal-fallback
+2026-09-21T05:32:18.3208423Z  * [new branch]      research/dlmm-host-fee-transfer-attribution -> origin/research/dlmm-host-fee-transfer-attribution
+2026-09-21T05:32:18.3209318Z  * [new branch]      research/dlmm-perpspad-external-effect-transfer -> origin/research/dlmm-perpspad-external-effect-transfer
+2026-09-21T05:32:18.3210295Z  * [new branch]      research/dlmm-perpspad-single-tx-isolation -> origin/research/dlmm-perpspad-single-tx-isolation
+2026-09-21T05:32:18.3211173Z  * [new branch]      research/dlmm-point-in-time-replay -> origin/research/dlmm-point-in-time-replay
+2026-09-21T05:32:18.3211975Z  * [new branch]      research/dlmm-profitability-density-preflight -> origin/research/dlmm-profitability-density-preflight
+2026-09-21T05:32:18.3212869Z  * [new branch]      research/dlmm-profitability-density-preflight-v2 -> origin/research/dlmm-profitability-density-preflight-v2
+2026-09-21T05:32:18.3213731Z  * [new branch]      research/dlmm-profitable-operator-discovery -> origin/research/dlmm-profitable-operator-discovery
+2026-09-21T05:32:18.3214486Z  * [new branch]      research/dlmm-protocol-coverage-v2 -> origin/research/dlmm-protocol-coverage-v2
+2026-09-21T05:32:18.3215257Z  * [new branch]      research/dlmm-small-pool-profitability -> origin/research/dlmm-small-pool-profitability
+2026-09-21T05:32:18.3216099Z  * [new branch]      research/dlmm-solana-roi-alchemy -> origin/research/dlmm-solana-roi-alchemy
+2026-09-21T05:32:18.3216862Z  * [new branch]      research/dlmm-top-roi-wallet-evaluation -> origin/research/dlmm-top-roi-wallet-evaluation
+2026-09-21T05:32:18.3217588Z  * [new branch]      research/dlmm-wallet-derived-discovery -> origin/research/dlmm-wallet-derived-discovery
+2026-09-21T05:32:18.3218557Z  * [new branch]      research/fomo-100-event-study -> origin/research/fomo-100-event-study
+2026-09-21T05:32:18.3219199Z  * [new branch]      research/fomo-active-trader-skill -> origin/research/fomo-active-trader-skill
+2026-09-21T05:32:18.3219840Z  * [new branch]      research/fomo-market-edge-pilot -> origin/research/fomo-market-edge-pilot
+2026-09-21T05:32:18.3220641Z  * [new branch]      research/fomo-offline-intelligence-v1 -> origin/research/fomo-offline-intelligence-v1
+2026-09-21T05:32:18.3221350Z  * [new branch]      research/fomo-prospective-market-test -> origin/research/fomo-prospective-market-test
+2026-09-21T05:32:18.3222054Z  * [new branch]      research/fomo-shadow-scaffold -> origin/research/fomo-shadow-scaffold
+2026-09-21T05:32:18.3222762Z  * [new branch]      research/fomo-top-wallet-lifecycle-study -> origin/research/fomo-top-wallet-lifecycle-study
+2026-09-21T05:32:18.3223499Z  * [new branch]      research/fomo-wallet-alpha-event-study -> origin/research/fomo-wallet-alpha-event-study
+2026-09-21T05:32:18.3224192Z  * [new branch]      research/fomoapi-key-validation -> origin/research/fomoapi-key-validation
+2026-09-21T05:32:18.3224842Z  * [new branch]      research/fomoscan-three-way-check -> origin/research/fomoscan-three-way-check
+2026-09-21T05:32:18.3225603Z  * [new branch]      research/four-lane-shadow-registration -> origin/research/four-lane-shadow-registration
+2026-09-21T05:32:18.3226307Z  * [new branch]      research/hansem-fomoscan-validation -> origin/research/hansem-fomoscan-validation
+2026-09-21T05:32:18.3227273Z  * [new branch]      research/market-native-natural-sample -> origin/research/market-native-natural-sample
+2026-09-21T05:32:18.3228428Z  * [new branch]      research/market-native-opportunity-outcomes -> origin/research/market-native-opportunity-outcomes
+2026-09-21T05:32:18.3229203Z  * [new branch]      research/market-native-prioritizer -> origin/research/market-native-prioritizer
+2026-09-21T05:32:18.3229926Z  * [new branch]      research/market-native-shadow -> origin/research/market-native-shadow
+2026-09-21T05:32:18.3230744Z  * [new branch]      research/meme-continuation-expected-value-v1 -> origin/research/meme-continuation-expected-value-v1
+2026-09-21T05:32:18.3231714Z  * [new branch]      research/solana-dlmm-independent-v1 -> origin/research/solana-dlmm-independent-v1
+2026-09-21T05:32:18.3232725Z  * [new branch]      research/solana-skilled-wallet-alpha -> origin/research/solana-skilled-wallet-alpha
+2026-09-21T05:32:18.3233924Z  * [new branch]      research/solana-skilled-wallet-alpha-24h -> origin/research/solana-skilled-wallet-alpha-24h
+2026-09-21T05:32:18.3235581Z [command]/usr/bin/git branch --list --remote origin/repair/frozen-campaign-handoff
+2026-09-21T05:32:18.3236332Z   origin/repair/frozen-campaign-handoff
+2026-09-21T05:32:18.3237619Z [command]/usr/bin/git rev-parse refs/remotes/origin/repair/frozen-campaign-handoff
+2026-09-21T05:32:18.3238673Z c4572e18d078222fe05d6df9eec55d62dfc59f41
+2026-09-21T05:32:18.3240133Z ##[endgroup]
+2026-09-21T05:32:18.3240764Z ##[group]Determining the checkout info
+2026-09-21T05:32:18.3241410Z ##[endgroup]
+2026-09-21T05:32:18.3241848Z [command]/usr/bin/git sparse-checkout disable
+2026-09-21T05:32:18.3242820Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-09-21T05:32:18.3261996Z ##[group]Checking out the ref
+2026-09-21T05:32:18.3265799Z [command]/usr/bin/git checkout --progress --force -B repair/frozen-campaign-handoff refs/remotes/origin/repair/frozen-campaign-handoff
+2026-09-21T05:32:18.3558451Z Switched to a new branch 'repair/frozen-campaign-handoff'
+2026-09-21T05:32:18.3562881Z branch 'repair/frozen-campaign-handoff' set up to track 'origin/repair/frozen-campaign-handoff'.
+2026-09-21T05:32:18.3567787Z ##[endgroup]
+2026-09-21T05:32:18.3599606Z [command]/usr/bin/git log -1 --format=%H
+2026-09-21T05:32:18.3618247Z c4572e18d078222fe05d6df9eec55d62dfc59f41
+2026-09-21T05:32:18.3625819Z ##[group]Removing auth
+2026-09-21T05:32:18.3629160Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-21T05:32:18.3651740Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-21T05:32:18.3808676Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-21T05:32:18.3829677Z http.https://github.com/.extraheader
+2026-09-21T05:32:18.3835160Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-09-21T05:32:18.3859225Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-21T05:32:18.4013123Z ##[endgroup]
+2026-09-21T05:32:18.4216970Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: [redacted-non-GitHub-url]
+2026-09-21T05:32:18.4218772Z ##[group]Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+2026-09-21T05:32:18.4219313Z with:
+2026-09-21T05:32:18.4219684Z   python-version: 3.12.14
+2026-09-21T05:32:18.4220104Z   check-latest: false
+2026-09-21T05:32:18.4222285Z   token: ***
+2026-09-21T05:32:18.4222653Z   update-environment: true
+2026-09-21T05:32:18.4223049Z   allow-prereleases: false
+2026-09-21T05:32:18.4223447Z   freethreaded: false
+2026-09-21T05:32:18.4223889Z ##[endgroup]
+2026-09-21T05:32:18.5348179Z ##[group]Installed versions
+2026-09-21T05:32:18.5376865Z (node:2060) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-21T05:32:18.5378267Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-21T05:32:18.5379042Z Successfully set up CPython (3.12.14)
+2026-09-21T05:32:18.5379794Z ##[endgroup]
+2026-09-21T05:32:18.5496555Z ##[group]Run python -m pip install --disable-pip-version-check -r requirements.txt
+2026-09-21T05:32:18.5497392Z [36;1mpython -m pip install --disable-pip-version-check -r requirements.txt[0m
+2026-09-21T05:32:18.5536697Z shell: /usr/bin/bash -e {0}
+2026-09-21T05:32:18.5537195Z env:
+2026-09-21T05:32:18.5537717Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:18.5538748Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-21T05:32:18.5539359Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:18.5539905Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:18.5540431Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:18.5541006Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-21T05:32:18.5541496Z ##[endgroup]
+2026-09-21T05:32:19.3546189Z Collecting websockets==17.1 (from -r requirements.txt (line 1))
+2026-09-21T05:32:19.4372634Z   Downloading websockets-17.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.3 kB)
+2026-09-21T05:32:19.4557280Z Downloading websockets-17.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (224 kB)
+2026-09-21T05:32:19.5324833Z Installing collected packages: websockets
+2026-09-21T05:32:19.6259543Z Successfully installed websockets-17.1
+2026-09-21T05:32:19.6742760Z ##[group]Run mkdir -p certification-gates
+2026-09-21T05:32:19.6743214Z [36;1mmkdir -p certification-gates[0m
+2026-09-21T05:32:19.6743527Z [36;1mset -o pipefail[0m
+2026-09-21T05:32:19.6743884Z [36;1mpython -m py_compile certification/frozen_artifact_review.py[0m
+2026-09-21T05:32:19.6744494Z [36;1mpython -m unittest discover -s certification/tests -v 2>&1 | tee certification-gates/supervisor-tests.log[0m
+2026-09-21T05:32:19.6767811Z shell: /usr/bin/bash -e {0}
+2026-09-21T05:32:19.6768421Z env:
+2026-09-21T05:32:19.6768795Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:19.6769249Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-21T05:32:19.6769660Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:19.6770083Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:19.6770543Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:19.6771143Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-21T05:32:19.6771498Z ##[endgroup]
+2026-09-21T05:32:19.9916835Z test_foreign_policy_and_overallocation_fail_closed (test_certification.AccountingTests.test_foreign_policy_and_overallocation_fail_closed) ... ok
+2026-09-21T05:32:19.9920101Z test_partial_exit_recycled_capital_and_exact_replay (test_certification.AccountingTests.test_partial_exit_recycled_capital_and_exact_replay) ... ok
+2026-09-21T05:32:19.9921833Z test_rejects_double_settlement_and_missing_cost_without_mutation (test_certification.AccountingTests.test_rejects_double_settlement_and_missing_cost_without_mutation) ... ok
+2026-09-21T05:32:19.9940512Z test_campaign_counts_distinct_ramses_settlements_without_summing_quote_cash (test_certification.CertificationTests.test_campaign_counts_distinct_ramses_settlements_without_summing_quote_cash) ... ok
+2026-09-21T05:32:19.9942597Z test_environment_does_not_leak_other_lane_secrets (test_certification.CertificationTests.test_environment_does_not_leak_other_lane_secrets) ... ok
+2026-09-21T05:32:19.9944428Z test_forced_zero_missing_unknown_and_restart_cannot_pass (test_certification.CertificationTests.test_forced_zero_missing_unknown_and_restart_cannot_pass) ... ok
+2026-09-21T05:32:21.6388431Z test_global_governor_covers_independent_processes (test_certification.CertificationTests.test_global_governor_covers_independent_processes) ... ok
+2026-09-21T05:32:21.6390149Z test_hourly_retains_natural_and_accounting_requirements (test_certification.CertificationTests.test_hourly_retains_natural_and_accounting_requirements) ... ok
+2026-09-21T05:32:21.6399655Z test_hourly_scope_does_not_satisfy_four_hour_certification (test_certification.CertificationTests.test_hourly_scope_does_not_satisfy_four_hour_certification) ... ok
+2026-09-21T05:32:21.6401059Z test_launch_duration_rejected_before_any_work (test_certification.CertificationTests.test_launch_duration_rejected_before_any_work) ... ok
+2026-09-21T05:32:21.6402207Z test_pons_cancel_not_natural_trade (test_certification.CertificationTests.test_pons_cancel_not_natural_trade) ... ok
+2026-09-21T05:32:21.6403151Z test_pons_writeoff_never_counts_as_natural_sale_after_compaction (test_certification.CertificationTests.test_pons_writeoff_never_counts_as_natural_sale_after_compaction) ... ok
+2026-09-21T05:32:21.6404143Z test_pump_cancelled_qualification_is_visible_but_not_a_trade (test_certification.CertificationTests.test_pump_cancelled_qualification_is_visible_but_not_a_trade) ... ok
+2026-09-21T05:32:21.6405198Z test_ramses_natural_uses_native_ledger_fields_and_terminal_equality (test_certification.CertificationTests.test_ramses_natural_uses_native_ledger_fields_and_terminal_equality) ... ok
+2026-09-21T05:32:21.6406234Z test_terminal_native_report_survives_other_lanes_draining (test_certification.CertificationTests.test_terminal_native_report_survives_other_lanes_draining) ... ok
+2026-09-21T05:32:21.6407704Z test_virtual_meteora_result_is_not_ledger_settlement (test_certification.CertificationTests.test_virtual_meteora_result_is_not_ledger_settlement) ... ok
+2026-09-21T05:32:21.6409094Z test_mixed_ci_live_job_is_not_hidden_by_workflow_name (test_certification.ContentionPreflightTests.test_mixed_ci_live_job_is_not_hidden_by_workflow_name) ... ok
+2026-09-21T05:32:21.6441776Z test_missing_or_late_pons_evidence_is_not_economic_discrimination_sample (test_certification.EvidenceDenominatorTests.test_missing_or_late_pons_evidence_is_not_economic_discrimination_sample) ... ok
+2026-09-21T05:32:21.6622432Z test_stage_timing_preserves_return_and_exception_without_qualification_claim (test_certification.EvidenceWorkTests.test_stage_timing_preserves_return_and_exception_without_qualification_claim) ... ok
+2026-09-21T05:32:21.6792400Z test_expired_ticket_and_capacity_are_fail_closed (test_certification.IntegrationRegressionTests.test_expired_ticket_and_capacity_are_fail_closed) ... ok
+2026-09-21T05:32:21.7056157Z test_terminal_status_keeps_report_and_rpc_error_code (test_certification.IntegrationRegressionTests.test_terminal_status_keeps_report_and_rpc_error_code) ... ok
+2026-09-21T05:32:21.7123360Z test_append_duplicate_conflict_and_sql_mutation (test_certification.JournalTests.test_append_duplicate_conflict_and_sql_mutation) ... ok
+2026-09-21T05:32:21.7328036Z test_compact_progress_retains_each_candidate_once (test_certification.ObservationRetentionTests.test_compact_progress_retains_each_candidate_once) ... ok
+2026-09-21T05:32:21.7411593Z test_incremental_observation_never_rebooks_or_mutates_admission (test_certification.PressureViewTests.test_incremental_observation_never_rebooks_or_mutates_admission) ... ok
+2026-09-21T05:32:21.7562075Z test_getprogramaccounts_method_cooldown_fails_before_transport_admission (test_certification.SolanaMethodPressureTests.test_getprogramaccounts_method_cooldown_fails_before_transport_admission) ... ok
+2026-09-21T05:32:21.7734776Z test_rate_limit_records_exact_method_pressure (test_certification.SolanaMethodPressureTests.test_rate_limit_records_exact_method_pressure) ... ok
+2026-09-21T05:32:21.7989993Z test_signature_rate_limit_uses_longer_method_backoff (test_certification.SolanaMethodPressureTests.test_signature_rate_limit_uses_longer_method_backoff) ... ok
+2026-09-21T05:32:21.8784674Z test_pons_final_report_keeps_native_12mb_contract (test_certification.TerminalReportRegressionTests.test_pons_final_report_keeps_native_12mb_contract) ... ok
+2026-09-21T05:32:21.8786617Z test_clean_hour_is_not_failed_only_because_natural_opportunity_is_missing (test_controls.ControlsTests.test_clean_hour_is_not_failed_only_because_natural_opportunity_is_missing) ... ok
+2026-09-21T05:32:21.8788408Z test_empty_frozen_capital_book_is_not_clean_smoke_or_market_scarcity (test_controls.ControlsTests.test_empty_frozen_capital_book_is_not_clean_smoke_or_market_scarcity) ... ok
+2026-09-21T05:32:21.8792633Z test_exact_clean_smoke_can_start_observation_but_never_proves_full_certification (test_controls.ControlsTests.test_exact_clean_smoke_can_start_observation_but_never_proves_full_certification) ... ok
+2026-09-21T05:32:21.8940665Z test_native_read_only_asset_transfers_are_distinct_from_transaction_submission (test_controls.ControlsTests.test_native_read_only_asset_transfers_are_distinct_from_transaction_submission) ... ok
+2026-09-21T05:32:21.9027276Z test_raw_transport_hash_missing_record_and_terminal_policy_are_checked (test_controls.ControlsTests.test_raw_transport_hash_missing_record_and_terminal_policy_are_checked) ... ok
+2026-09-21T05:32:21.9093066Z test_retry_burden_differences_cumulative_counters_within_each_session (test_controls.ControlsTests.test_retry_burden_differences_cumulative_counters_within_each_session) ... ok
+2026-09-21T05:32:21.9188370Z test_shutdown_retains_native_queue_and_records_explicit_censor_reasons (test_controls.ControlsTests.test_shutdown_retains_native_queue_and_records_explicit_censor_reasons) ... ok
+2026-09-21T05:32:21.9190207Z test_unresolved_immutable_work_fails_smoke_and_hourly_readiness (test_controls.ControlsTests.test_unresolved_immutable_work_fails_smoke_and_hourly_readiness) ... ok
+2026-09-21T05:32:21.9191789Z test_batched_members_are_not_discounted (test_cu.CuTests.test_batched_members_are_not_discounted) ... ok
+2026-09-21T05:32:21.9192970Z test_capability_probe_fallback_and_census_identity (test_cu.CuTests.test_capability_probe_fallback_and_census_identity) ... ok
+2026-09-21T05:32:21.9194759Z test_cu_efficiency_keeps_missing_denominators_unknown (test_cu.CuTests.test_cu_efficiency_keeps_missing_denominators_unknown) ... ok
+2026-09-21T05:32:21.9195989Z test_pons_vector_denominator_uses_its_actual_native_complete_stage (test_cu.CuTests.test_pons_vector_denominator_uses_its_actual_native_complete_stage) ... ok
+2026-09-21T05:32:21.9207373Z test_reduced_spend_with_reduced_coverage_is_not_success (test_cu.CuTests.test_reduced_spend_with_reduced_coverage_is_not_success) ... ok
+2026-09-21T05:32:21.9269752Z test_reuse_snapshot_is_incremental_not_double_counted (test_cu.CuTests.test_reuse_snapshot_is_incremental_not_double_counted) ... ok
+2026-09-21T05:32:21.9271232Z test_unknown_cost_is_unknown_not_free (test_cu.CuTests.test_unknown_cost_is_unknown_not_free) ... ok
+2026-09-21T05:32:21.9477055Z test_background_yields_and_position_context_always_wins (test_evidence_priority.EvidencePriorityTests.test_background_yields_and_position_context_always_wins) ... ok
+2026-09-21T05:32:21.9644770Z test_local_expiry_is_not_provider_failure_or_physical_request (test_evidence_priority.EvidencePriorityTests.test_local_expiry_is_not_provider_failure_or_physical_request) ... ok
+2026-09-21T05:32:22.0479388Z test_robinhood_local_deadline_preserves_lane_error_contract (test_evidence_priority.EvidencePriorityTests.test_robinhood_local_deadline_preserves_lane_error_contract) ... ok
+2026-09-21T05:32:22.0605992Z test_shutdown_preserves_unadmitted_consumers_without_mutating_source (test_evidence_priority.EvidencePriorityTests.test_shutdown_preserves_unadmitted_consumers_without_mutating_source) ... ok
+2026-09-21T05:32:22.0631144Z test_zero_exit_without_full_transcript_is_failed_and_preserved (test_gate_transcript.GateTranscriptTests.test_zero_exit_without_full_transcript_is_failed_and_preserved) ... ok
+2026-09-21T05:32:22.0641106Z test_credentials_and_raw_evidence_are_not_published_or_inherited (test_live_status.LiveStatusTests.test_credentials_and_raw_evidence_are_not_published_or_inherited) ... ok
+2026-09-21T05:32:22.0649244Z test_immutable_cache_labels_survive_without_allowing_arbitrary_strings (test_live_status.LiveStatusTests.test_immutable_cache_labels_survive_without_allowing_arbitrary_strings) ... ok
+2026-09-21T05:32:22.1748181Z test_many_sessions_keep_publication_bounded_and_all_totals_exact (test_live_status.LiveStatusTests.test_many_sessions_keep_publication_bounded_and_all_totals_exact) ... ok
+2026-09-21T05:32:22.1749485Z test_missing_session_counters_remain_unknown (test_live_status.LiveStatusTests.test_missing_session_counters_remain_unknown) ... ok
+2026-09-21T05:32:22.1750986Z test_position_and_provider_counts_are_independent (test_live_status.LiveStatusTests.test_position_and_provider_counts_are_independent) ... ok
+2026-09-21T05:32:22.1811074Z test_publisher_starts_before_child_and_does_not_restart_it (test_live_status.LiveStatusTests.test_publisher_starts_before_child_and_does_not_restart_it) ... ok
+2026-09-21T05:32:22.1812399Z test_smoke_scope_does_not_inherit_four_hour_certification_label (test_live_status.LiveStatusTests.test_smoke_scope_does_not_inherit_four_hour_certification_label) ... ok
+2026-09-21T05:32:22.2220635Z test_terminal_frontier_history_keeps_all_counts_and_only_recent_samples (test_live_status.LiveStatusTests.test_terminal_frontier_history_keeps_all_counts_and_only_recent_samples) ... ok
+2026-09-21T05:32:22.2222166Z test_unknown_is_not_zero_or_healthy_and_stale_is_explicit (test_live_status.LiveStatusTests.test_unknown_is_not_zero_or_healthy_and_stale_is_explicit) ... ok
+2026-09-21T05:32:22.2223906Z test_idle_frontier_is_not_a_stall_but_blocked_scan_is (test_pipeline_reporting.PipelineReportingTests.test_idle_frontier_is_not_a_stall_but_blocked_scan_is) ... ok
+2026-09-21T05:32:22.2225164Z test_live_stage_and_gate_reason_are_retained (test_pipeline_reporting.PipelineReportingTests.test_live_stage_and_gate_reason_are_retained) ... ok
+2026-09-21T05:32:22.2226010Z test_meteora_economics_are_not_settled_lifecycles (test_pipeline_reporting.PipelineReportingTests.test_meteora_economics_are_not_settled_lifecycles) ... ok
+2026-09-21T05:32:22.2321123Z test_local_rejections_are_incremental_and_do_not_fabricate_transports (test_robinhood_local_admission.LocalAdmissionTelemetryTests.test_local_rejections_are_incremental_and_do_not_fabricate_transports) ... ok
+2026-09-21T05:32:22.2327087Z test_late_incomplete_forced_screening_and_post_outcome_never_become_prospective (test_shadow.ShadowTests.test_late_incomplete_forced_screening_and_post_outcome_never_become_prospective) ... ok
+2026-09-21T05:32:22.2328523Z test_missing_fields_are_censored_and_directional_scores_are_exact (test_shadow.ShadowTests.test_missing_fields_are_censored_and_directional_scores_are_exact) ... ok
+2026-09-21T05:32:22.2333515Z test_tiny_or_unjoined_cohorts_cannot_support_discrimination (test_shadow.ShadowTests.test_tiny_or_unjoined_cohorts_cannot_support_discrimination) ... ok
+2026-09-21T05:32:22.3398797Z test_damaged_archive_does_not_leave_other_children_or_skip_audits (test_shutdown.ShutdownTests.test_damaged_archive_does_not_leave_other_children_or_skip_audits) ... ok
+2026-09-21T05:32:22.3418988Z test_live_native_cursor_and_frontier_shapes_render_without_mutation (test_shutdown.ShutdownTests.test_live_native_cursor_and_frontier_shapes_render_without_mutation) ... ok
+2026-09-21T05:32:22.3705314Z test_supervisor_exception_persists_four_lane_failed_terminal_result (test_shutdown.ShutdownTests.test_supervisor_exception_persists_four_lane_failed_terminal_result) ... ok
+2026-09-21T05:32:22.3707270Z test_both_phases_publish_capabilities_next_to_exact_gate (test_solana_efficiency.SolanaEfficiencyTests.test_both_phases_publish_capabilities_next_to_exact_gate) ... ok
+2026-09-21T05:32:22.3715522Z test_contention_wait_never_retries_source_drift_or_launches_work (test_solana_efficiency.SolanaEfficiencyTests.test_contention_wait_never_retries_source_drift_or_launches_work) ... ok
+2026-09-21T05:32:22.3717274Z test_execution_source_files_remain_explicitly_hash_pinned (test_solana_efficiency.SolanaEfficiencyTests.test_execution_source_files_remain_explicitly_hash_pinned) ... ok
+2026-09-21T05:32:22.3719289Z test_member_billing_not_transport_discount_and_zero_vector_unknown (test_solana_efficiency.SolanaEfficiencyTests.test_member_billing_not_transport_discount_and_zero_vector_unknown) ... ok
+2026-09-21T05:32:22.3814866Z test_physical_governor_foreground_fairness_and_position_priority (test_solana_efficiency.SolanaEfficiencyTests.test_physical_governor_foreground_fairness_and_position_priority) ... ok
+2026-09-21T05:32:22.3816713Z 
+2026-09-21T05:32:22.3817452Z ----------------------------------------------------------------------
+2026-09-21T05:32:22.3818400Z Ran 72 tests in 2.390s
+2026-09-21T05:32:22.3818731Z 
+2026-09-21T05:32:22.3819014Z OK
+2026-09-21T05:32:22.4090046Z ##[group]Run python -m certification.run prepare --worktrees "$RUNNER_TEMP/four-lane-worktrees"
+2026-09-21T05:32:22.4090673Z [36;1mpython -m certification.run prepare --worktrees "$RUNNER_TEMP/four-lane-worktrees"[0m
+2026-09-21T05:32:22.4111835Z shell: /usr/bin/bash -e {0}
+2026-09-21T05:32:22.4112160Z env:
+2026-09-21T05:32:22.4112483Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:22.4112957Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-21T05:32:22.4113419Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:22.4113808Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:22.4114205Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:22.4114619Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-21T05:32:22.4115030Z ##[endgroup]
+2026-09-21T05:32:22.6817068Z From https://github.com/levonmendall/The-Meme-Machine
+2026-09-21T05:32:22.6817979Z  * branch            04c99ca3125747dc8bfc6f655fec7533f8ac8156 -> FETCH_HEAD
+2026-09-21T05:32:22.6859341Z Preparing worktree (detached HEAD 04c99ca)
+2026-09-21T05:32:22.6994178Z HEAD is now at 04c99ca test(pump): cover method cooldown and shared program-scan pacing
+2026-09-21T05:32:22.9335459Z From https://github.com/levonmendall/The-Meme-Machine
+2026-09-21T05:32:22.9336095Z  * branch            29d050b218969e4c7761346737d082bf1db382ec -> FETCH_HEAD
+2026-09-21T05:32:22.9372475Z Preparing worktree (detached HEAD 29d050b)
+2026-09-21T05:32:22.9506265Z HEAD is now at 29d050b test(meteora): fix signature-backoff test clock
+2026-09-21T05:32:23.1741381Z From https://github.com/levonmendall/The-Meme-Machine
+2026-09-21T05:32:23.1742068Z  * branch            c692fe446bdee4ea1179da27a3f0c9f2f281f118 -> FETCH_HEAD
+2026-09-21T05:32:23.1777554Z Preparing worktree (detached HEAD c692fe4)
+2026-09-21T05:32:23.1976235Z HEAD is now at c692fe4 [execution-cert] keep Pons overlay diff canonical
+2026-09-21T05:32:23.4621223Z From https://github.com/levonmendall/The-Meme-Machine
+2026-09-21T05:32:23.4622158Z  * branch            6b7ddd69940f5c9e056b2dca61c443450ca9965e -> FETCH_HEAD
+2026-09-21T05:32:23.4659865Z Preparing worktree (detached HEAD 6b7ddd6)
+2026-09-21T05:32:23.4858288Z HEAD is now at 6b7ddd6 [execution-cert] test Ramses ranking-only gates
+2026-09-21T05:32:23.5036028Z /home/runner/work/_temp/four-lane-worktrees
+2026-09-21T05:32:23.5126958Z ##[group]Run python -m certification.run verify --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates
+2026-09-21T05:32:23.5127764Z [36;1mpython -m certification.run verify --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates[0m
+2026-09-21T05:32:23.5149599Z shell: /usr/bin/bash -e {0}
+2026-09-21T05:32:23.5149974Z env:
+2026-09-21T05:32:23.5150339Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:23.5150813Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-21T05:32:23.5151336Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:23.5151763Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:23.5152192Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:32:23.5152601Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-21T05:32:23.5152977Z ##[endgroup]
+2026-09-21T05:33:57.7555131Z {"implementation_hash":"d3c47008de9c24c0e4320edb0c8be68283667e467e86dcbfd93864a06b0a6b25","integration_sha":"c4572e18d078222fe05d6df9eec55d62dfc59f41","lanes":{"meteora":[{"command":["/opt/hostedtoolcache/Python/3.12.14/x64/bin/python","-m","unittest","discover","-v"],"ended_at":1789968783.135262,"exit_code":0,"log":"meteora-gate-0.log","sha256":"bb3bad63579bd4aea2f2a6fc8e7409a4149efa4c839baba588eeb86eb2e32e0a","started_at":1789968777.8630843,"summary_complete":true},{"command":["/opt/hostedtoolcache/Python/3.12.14/x64/bin/python","-m","tests.resource_check"],"ended_at":1789968802.5459297,"exit_code":0,"log":"meteora-gate-1.log","sha256":"3a2e4e917252b66a9d4959be77190322e3932f9bc8a129870586fd898c1e50bc","started_at":1789968783.1353226,"summary_complete":true},{"command":["/opt/hostedtoolcache/Python/3.12.14/x64/bin/python","-m","tests.dlmm_resource_check"],"ended_at":1789968833.408061,"exit_code":0,"log":"meteora-gate-2.log","sha256":"87d33dd55e152643707edbd8334c8e2801ffae99de8f0a93b132d60fe276b346","started_at":1789968802.545959,"summary_complete":true}],"pons":[{"command":["/opt/hostedtoolcache/Python/3.12.14/x64/bin/python","-m","unittest","discover","-s","robinhood_tests","-v"],"ended_at":1789968835.9702172,"exit_code":0,"log":"pons-gate-0.log","sha256":"076ad1addd38d70a6051ce3479d54f4f5dca6ec13a638b14277ab65c9c2a176e","started_at":1789968833.4081144,"summary_complete":true}],"pump":[{"command":["/opt/hostedtoolcache/Python/3.12.14/x64/bin/python","-m","unittest","discover","-v"],"ended_at":1789968753.9521763,"exit_code":0,"log":"pump-gate-0.log","sha256":"c22f0b13ab28df5dbc981bc75477a29000422f3aba8aa71a2ea5ace8c2afbeb6","started_at":1789968743.6082716,"summary_complete":true},{"command":["/opt/hostedtoolcache/Python/3.12.14/x64/bin/python","-m","tests.resource_check"],"ended_at":1789968777.863034,"exit_code":0,"log":"pump-gate-1.log","sha256":"fd26c4cff4861645452147c0796f8ac4a104003609d279f7cdcb445f9986a9fa","started_at":1789968753.952233,"summary_complete":true}],"ramses":[{"command":["/opt/hostedtoolcache/Python/3.12.14/x64/bin/python","-m","unittest","discover","-s","robinhood_tests","-v"],"ended_at":1789968837.7426484,"exit_code":0,"log":"ramses-gate-0.log","sha256":"a2147944d9a308262aece79ae9207017234b647a71ffb5c40a477258b87d2c4d","started_at":1789968835.970287,"summary_complete":true}]},"passed":true,"source_diff_hashes":{"meteora":"1f447a3c83bac236c74497f7e12d1e8307331d60fc71ee6459b4e13429c34f65","pons":"7d6a4f963d4e37e687fcdfd5af112c211d9e3bd591bcd06dfc58f8b70d44f859","pump":"a8e4effbe55d758ec1e744bfab08d42964e58189fd740cd1b2ea7e1e09d7bcf5","ramses":"204fe6ec0927a58e1115427db167fd580c50b41555826de204343651f13bc5f7"},"source_manifest_hash":"7c2505cc65e599929e58511f2463875f86228232d30f053754bf0ec9ef639226"}
+2026-09-21T05:33:57.7651146Z ##[group]Run python -m certification.guard --wait-seconds 3600
+2026-09-21T05:33:57.7651649Z [36;1mpython -m certification.guard --wait-seconds 3600[0m
+2026-09-21T05:33:57.7672911Z shell: /usr/bin/bash -e {0}
+2026-09-21T05:33:57.7673338Z env:
+2026-09-21T05:33:57.7673665Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:33:57.7674131Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-21T05:33:57.7674587Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:33:57.7675012Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:33:57.7675429Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:33:57.7675827Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-21T05:33:57.7678425Z   GITHUB_TOKEN: ***
+2026-09-21T05:33:57.7678737Z ##[endgroup]
+2026-09-21T05:33:58.4442027Z {"lane_heads_changed": [], "conflicting_market_runs": [], "passed": true}
+2026-09-21T05:33:58.4586798Z ##[group]Run python -c 'import os,pathlib,json; value=json.loads(os.environ["SMOKE_READINESS"]); pathlib.Path("smoke-readiness.json").write_text(json.dumps(value))'
+2026-09-21T05:33:58.4588591Z [36;1mpython -c 'import os,pathlib,json; value=json.loads(os.environ["SMOKE_READINESS"]); pathlib.Path("smoke-readiness.json").write_text(json.dumps(value))'[0m
+2026-09-21T05:33:58.4619736Z shell: /usr/bin/bash -e {0}
+2026-09-21T05:33:58.4620173Z env:
+2026-09-21T05:33:58.4620716Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:33:58.4621377Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-21T05:33:58.4622216Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:33:58.4622826Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:33:58.4623416Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:33:58.4624173Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-21T05:33:58.4643081Z   SMOKE_READINESS: {"phase":"smoke","status":"FINISHED","run_id":"3a14633c-b3bc-4e6e-b8a4-9778776b9fa4","continuous_overlap_seconds":600.123617827,"source_manifest_hash":"7c2505cc65e599929e58511f2463875f86228232d30f053754bf0ec9ef639226","implementation_hash":"d3c47008de9c24c0e4320edb0c8be68283667e467e86dcbfd93864a06b0a6b25","integration_sha":"c4572e18d078222fe05d6df9eec55d62dfc59f41","full_smoke_result_sha256":"9dd521caa7316ac8d9c5f7845b8861ae591c0485c42be0ee21e60567e9f14064","shared_provider":{"solana":{"queues":[]},"robinhood":{"queues":[]},"robinhood_reuse":{"state":"observed","inflight_jobs":0}},"lanes":{"pump":{"exit_code":0,"unexpected_exit":false,"process_restarts":0,"open_positions":0,"accounting_reconciled":true,"provider_requests":1327,"gates":{"accounting_reconciled":true,"freshness_finality_unchanged":true,"paper_only":true,"policy_unchanged":true,"responsive":true,"state_isolated":true,"telemetry_complete":true},"native_accounting":{"basis":0,"capital_hour_denominator":3600,"capital_unit_seconds":0,"cash":5110384300,"initial":5110384300,"lane":"pump-acceleration-independent-v1","marked_equity":5110384300,"open_positions":0,"pending":0,"policy_hash":"bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e","realized":0,"reconciled":true,"reserved":0,"run_id":"3a14633c-b3bc-4e6e-b8a4-9778776b9fa4","settled":0,"unrealized":0}},"meteora":{"exit_code":0,"unexpected_exit":false,"process_restarts":0,"open_positions":0,"accounting_reconciled":true,"provider_requests":188,"gates":{"accounting_reconciled":true,"freshness_finality_unchanged":true,"paper_only":true,"policy_unchanged":true,"responsive":true,"state_isolated":true,"telemetry_complete":true},"native_accounting":{"available":1000000000,"capital_time_through_ns":0,"capital_unit_nanoseconds":0,"cash":1000000000,"economic_replay_verified":false,"genesis":{"asset":"SOL_lamports","capital":1000000000,"namespace":"solana_meteora_independent_v1","paper_only":true,"policy_hash":"21da031409371fee6ddcb28e354dc499c12625661a638faa01ec702c120b4894","run_id":"3a14633c-b3bc-4e6e-b8a4-9778776b9fa4"},"journal_events":1,"journal_hash":"50dcecb8a590e9365c833fb4e880e653835e7fe0e34b9d19b4f8a0b9ddf7d5fa","marked_equity":1000000000,"net_cash_flows":0,"open_positions":0,"pending":0,"realized_pnl_lamports":0,"reconciled":true,"reserved":0,"settled":0,"stale_marks":0,"unrealized_pnl_lamports":0,"unsettled":0}},"pons":{"exit_code":0,"unexpected_exit":false,"process_restarts":0,"open_positions":0,"accounting_reconciled":true,"provider_requests":1125,"gates":{"accounting_reconciled":true,"freshness_finality_unchanged":true,"paper_only":true,"policy_unchanged":true,"responsive":true,"state_isolated":true,"telemetry_complete":true},"native_accounting":null},"ramses":{"exit_code":0,"unexpected_exit":false,"process_restarts":0,"open_positions":0,"accounting_reconciled":true,"provider_requests":101,"gates":{"accounting_reconciled":true,"freshness_finality_unchanged":true,"paper_only":true,"policy_unchanged":true,"responsive":true,"state_isolated":true,"telemetry_complete":true},"native_accounting":{"by_quote_asset":{"0x5fc5360d0400a0fd4f2af552add042d716f1d168":{"allocation_authority":false,"available":1038939,"committed":0,"open_positions":0,"paper_capital":1038939,"policy_hash":"50d928914df10568a7bc9679f0887ac7786fe17d67f1c57171c17a5a95fc6766","positions":0,"quote_asset":"0x5fc5360d0400a0fd4f2af552add042d716f1d168","realized":0,"shared_allocator":false,"strategy_domain":"robinhood-ramses-dlmm-independent","strategy_version":"ramses-fee-pulse-v1"}},"conservation":true,"funding_state":"funded_once_from_pinned_screen","manifest":{"cross_asset_conversion":false,"funding_rule":"one_maximum_frozen_scanner_size_per_quote_asset_from_first_fundable_pinned_screen","genesis_by_quote_asset":{"0x5fc5360d0400a0fd4f2af552add042d716f1d168":1038939},"later_assets":"unfunded_capacity_censoring","paper_only":true,"policy_hash":"50d928914df10568a7bc9679f0887ac7786fe17d67f1c57171c17a5a95fc6766","run_id":"c8f8f0f191a240199ba3c94f09009e76","source_finalized_block":68524567,"source_finalized_hash":"0xebf5f10431666a9b9a288348a3a22f43b3a784c059b8b3c9d28019a260089bc2","source_screen_hash":"068e80f8466d02df63d5e9d213fc83e9b72ec4546edd24ade5e1c1b91eecd422"},"open_positions":0,"position_count":0,"unlike_quote_units_summed":false}}}}
+2026-09-21T05:33:58.4661918Z ##[endgroup]
+2026-09-21T05:33:58.4961546Z ##[group]Run python -m certification.capabilities --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates/rpc-capabilities.json
+2026-09-21T05:33:58.4962453Z [36;1mpython -m certification.capabilities --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates/rpc-capabilities.json[0m
+2026-09-21T05:33:58.4981543Z shell: /usr/bin/bash -e {0}
+2026-09-21T05:33:58.4981844Z env:
+2026-09-21T05:33:58.4982199Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:33:58.4982641Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-21T05:33:58.4983101Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:33:58.4983506Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:33:58.4983916Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:33:58.4984297Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-21T05:33:58.4985052Z   MM_ROBINHOOD_READ_RPC_URL: [redacted]
+2026-09-21T05:33:58.4985582Z   MM_ROBINHOOD_DLMM_RPC_URL: [redacted]
+2026-09-21T05:33:58.4985864Z ##[endgroup]
+2026-09-21T05:34:01.6199082Z ##[group]Run python -m certification.live_status --output certification-hourly --phase hourly -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-hourly --gate certification-gates/deterministic.json --phase hourly --seconds 3600 --smoke-result smoke-readiness.json
+2026-09-21T05:34:01.6200791Z [36;1mpython -m certification.live_status --output certification-hourly --phase hourly -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-hourly --gate certification-gates/deterministic.json --phase hourly --seconds 3600 --smoke-result smoke-readiness.json[0m
+2026-09-21T05:34:01.6222430Z shell: /usr/bin/bash -e {0}
+2026-09-21T05:34:01.6222829Z env:
+2026-09-21T05:34:01.6223165Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:34:01.6223583Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-21T05:34:01.6224142Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:34:01.6224562Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:34:01.6224949Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T05:34:01.6225337Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-21T05:34:01.6227551Z   GH_CHECKS_TOKEN: ***
+2026-09-21T05:34:01.6228299Z   MM_SOLANA_READ_RPC_URL: [redacted]
+2026-09-21T05:34:01.6228825Z   MM_ROBINHOOD_READ_RPC_URL: [redacted]
+2026-09-21T05:34:01.6229319Z   MM_ROBINHOOD_DISCOVERY_RPC_URL: [redacted]
+2026-09-21T05:34:01.6229741Z   MM_ROBINHOOD_DLMM_RPC_URL: [redacted]
+2026-09-21T05:34:01.6230119Z   MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON: [redacted]
+2026-09-21T05:34:01.6230756Z ##[endgroup]
+2026-09-21T05:34:02.2461191Z {"elapsed_seconds":0.009549888999998757,"lanes":{"meteora":{"continuous_uptime_seconds":0.007409096000003501,"forced_settled":0,"health":"starting","natural_settled":0},"pons":{"continuous_uptime_seconds":0.005948638000006667,"forced_settled":0,"health":"starting","natural_settled":0},"pump":{"continuous_uptime_seconds":0.008905935999990788,"forced_settled":0,"health":"starting","natural_settled":0},"ramses":{"continuous_uptime_seconds":0.0008299449999924491,"forced_settled":0,"health":"starting","natural_settled":0}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:35:02.4143333Z {"elapsed_seconds":60.17605313499999,"lanes":{"meteora":{"continuous_uptime_seconds":60.173912341999994,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"reconstruction_started","provider_requests":65},"pons":{"continuous_uptime_seconds":60.172451884,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"initializing","provider_requests":79},"pump":{"continuous_uptime_seconds":60.17540918199998,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"lane_checkpoint","provider_requests":0},"ramses":{"continuous_uptime_seconds":60.16733319099998,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":34}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:36:02.6207564Z {"elapsed_seconds":120.381718466,"lanes":{"meteora":{"continuous_uptime_seconds":120.379577673,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"reconstruction_started","provider_requests":118},"pons":{"continuous_uptime_seconds":120.378117215,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"discovery","provider_requests":174},"pump":{"continuous_uptime_seconds":120.38107451299999,"forced_settled":0,"health":"responsive","natural_settled":1,"phase":"lane_checkpoint","provider_requests":8},"ramses":{"continuous_uptime_seconds":120.37299852199999,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":48}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:37:02.8485775Z {"elapsed_seconds":180.60909926800002,"lanes":{"meteora":{"continuous_uptime_seconds":180.60695847500003,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"reconstruction_started","provider_requests":182},"pons":{"continuous_uptime_seconds":180.60549801700003,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"discovery","provider_requests":268},"pump":{"continuous_uptime_seconds":180.60845531500001,"forced_settled":0,"health":"responsive","natural_settled":1,"phase":"lane_checkpoint","provider_requests":59},"ramses":{"continuous_uptime_seconds":180.60037932400002,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":60}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:38:03.1243510Z {"elapsed_seconds":240.883225977,"lanes":{"meteora":{"continuous_uptime_seconds":240.881085184,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":197},"pons":{"continuous_uptime_seconds":240.879624726,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"discovery","provider_requests":362},"pump":{"continuous_uptime_seconds":240.882582024,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":133},"ramses":{"continuous_uptime_seconds":240.874506033,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":64}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:39:03.4252188Z {"elapsed_seconds":301.18383223899997,"lanes":{"meteora":{"continuous_uptime_seconds":301.18169144599995,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"reconstruction_started","provider_requests":266},"pons":{"continuous_uptime_seconds":301.18023098799995,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"discovery","provider_requests":459},"pump":{"continuous_uptime_seconds":301.18318828599996,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":183},"ramses":{"continuous_uptime_seconds":301.17511229499996,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":67}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:40:03.7773387Z {"elapsed_seconds":361.523568691,"lanes":{"meteora":{"continuous_uptime_seconds":361.52142789799996,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"trigger_authenticated","provider_requests":296},"pons":{"continuous_uptime_seconds":361.51996743999996,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"discovery","provider_requests":554},"pump":{"continuous_uptime_seconds":361.522924738,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":279},"ramses":{"continuous_uptime_seconds":361.514848747,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":71}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:41:04.1423687Z {"elapsed_seconds":421.899049888,"lanes":{"meteora":{"continuous_uptime_seconds":421.89690909499996,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"screened","provider_requests":356},"pons":{"continuous_uptime_seconds":421.89544863699996,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"discovery","provider_requests":654},"pump":{"continuous_uptime_seconds":421.89840593499997,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":336},"ramses":{"continuous_uptime_seconds":421.890329944,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":75}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:42:04.5560386Z {"elapsed_seconds":482.31203906699994,"lanes":{"meteora":{"continuous_uptime_seconds":482.3098982739999,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":372},"pons":{"continuous_uptime_seconds":482.3084378159999,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"qualifier_persisted","provider_requests":751},"pump":{"continuous_uptime_seconds":482.31139511399994,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":438},"ramses":{"continuous_uptime_seconds":482.30331912299994,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":79}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:43:05.0193574Z {"elapsed_seconds":542.7739485249999,"lanes":{"meteora":{"continuous_uptime_seconds":542.771807732,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"forward_observation","provider_requests":418},"pons":{"continuous_uptime_seconds":542.770347274,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"discovery","provider_requests":866},"pump":{"continuous_uptime_seconds":542.7733045719999,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":514},"ramses":{"continuous_uptime_seconds":542.765228581,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":82}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:44:05.5420836Z {"elapsed_seconds":603.296375566,"lanes":{"meteora":{"continuous_uptime_seconds":603.294234773,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":452},"pons":{"continuous_uptime_seconds":603.292774315,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"provider_recovery","provider_requests":983},"pump":{"continuous_uptime_seconds":603.295731613,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":599},"ramses":{"continuous_uptime_seconds":603.287655622,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":92}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:45:06.1304433Z {"elapsed_seconds":663.8835952669999,"lanes":{"meteora":{"continuous_uptime_seconds":663.881454474,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"discovered","provider_requests":462},"pons":{"continuous_uptime_seconds":663.879994016,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"provider_recovery","provider_requests":1096},"pump":{"continuous_uptime_seconds":663.8829513139999,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":712},"ramses":{"continuous_uptime_seconds":663.874875323,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":95}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:46:06.7955129Z {"elapsed_seconds":724.548870199,"lanes":{"meteora":{"continuous_uptime_seconds":724.5467294059999,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":468},"pons":{"continuous_uptime_seconds":724.545268948,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"provider_recovery","provider_requests":1209},"pump":{"continuous_uptime_seconds":724.548226246,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":825},"ramses":{"continuous_uptime_seconds":724.540150255,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":98}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:47:07.5378617Z {"elapsed_seconds":785.290380315,"lanes":{"meteora":{"continuous_uptime_seconds":785.288239522,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":516},"pons":{"continuous_uptime_seconds":785.286779064,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"discovery","provider_requests":1330},"pump":{"continuous_uptime_seconds":785.289736362,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":901},"ramses":{"continuous_uptime_seconds":785.281660371,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":102}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:48:08.2940197Z {"elapsed_seconds":846.0466848890001,"lanes":{"meteora":{"continuous_uptime_seconds":846.044544096,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":560},"pons":{"continuous_uptime_seconds":846.043083638,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"provider_recovery","provider_requests":1450},"pump":{"continuous_uptime_seconds":846.046040936,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":973},"ramses":{"continuous_uptime_seconds":846.037964945,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":105}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:49:09.0594045Z {"elapsed_seconds":906.810618962,"lanes":{"meteora":{"continuous_uptime_seconds":906.8084781690001,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"screened","provider_requests":605},"pons":{"continuous_uptime_seconds":906.8070177110001,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"discovery","provider_requests":1564},"pump":{"continuous_uptime_seconds":906.809975009,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":1054},"ramses":{"continuous_uptime_seconds":906.8018990180001,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":108}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:50:09.8814642Z {"elapsed_seconds":967.6325586099999,"lanes":{"meteora":{"continuous_uptime_seconds":967.630417817,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"screened","provider_requests":615},"pons":{"continuous_uptime_seconds":967.628957359,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"provider_recovery","provider_requests":1682},"pump":{"continuous_uptime_seconds":967.6319146569999,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":1163},"ramses":{"continuous_uptime_seconds":967.623838666,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":118}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:51:10.7124218Z {"elapsed_seconds":1028.4639252079999,"lanes":{"meteora":{"continuous_uptime_seconds":1028.461784415,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":640},"pons":{"continuous_uptime_seconds":1028.460323957,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"provider_recovery","provider_requests":1788},"pump":{"continuous_uptime_seconds":1028.4632812549999,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":1252},"ramses":{"continuous_uptime_seconds":1028.455205264,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":131}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:52:11.6026715Z {"elapsed_seconds":1089.353686577,"lanes":{"meteora":{"continuous_uptime_seconds":1089.351545784,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":648},"pons":{"continuous_uptime_seconds":1089.350085326,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"provider_recovery","provider_requests":1906},"pump":{"continuous_uptime_seconds":1089.353042624,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":1372},"ramses":{"continuous_uptime_seconds":1089.344966633,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":137}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:53:12.5580418Z {"elapsed_seconds":1150.306945243,"lanes":{"meteora":{"continuous_uptime_seconds":1150.3048044500001,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":652},"pons":{"continuous_uptime_seconds":1150.303343992,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"provider_recovery","provider_requests":2022},"pump":{"continuous_uptime_seconds":1150.30630129,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":1480},"ramses":{"continuous_uptime_seconds":1150.298225299,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":140}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:54:13.5181787Z {"elapsed_seconds":1211.268761109,"lanes":{"meteora":{"continuous_uptime_seconds":1211.2666203160002,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":676},"pons":{"continuous_uptime_seconds":1211.265159858,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"provider_recovery","provider_requests":2137},"pump":{"continuous_uptime_seconds":1211.268117156,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":1578},"ramses":{"continuous_uptime_seconds":1211.260041165,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":143}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:55:14.5320628Z {"elapsed_seconds":1272.28083957,"lanes":{"meteora":{"continuous_uptime_seconds":1272.278698777,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":684},"pons":{"continuous_uptime_seconds":1272.277238319,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"provider_recovery","provider_requests":2237},"pump":{"continuous_uptime_seconds":1272.280195617,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":1696},"ramses":{"continuous_uptime_seconds":1272.272119626,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":147}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:56:15.5993128Z {"elapsed_seconds":1333.348200379,"lanes":{"meteora":{"continuous_uptime_seconds":1333.3460595860001,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":688},"pons":{"continuous_uptime_seconds":1333.344599128,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"provider_recovery","provider_requests":2355},"pump":{"continuous_uptime_seconds":1333.347556426,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":1811},"ramses":{"continuous_uptime_seconds":1333.339480435,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":155}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:57:16.7273328Z {"elapsed_seconds":1394.476952373,"lanes":{"meteora":{"continuous_uptime_seconds":1394.47481158,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"screened","provider_requests":690},"pons":{"continuous_uptime_seconds":1369.457433612,"forced_settled":0,"health":"exited","natural_settled":0,"phase":"returned","provider_requests":2412,"unexpected_exit":true},"pump":{"continuous_uptime_seconds":1394.47630842,"forced_settled":0,"health":"responsive","natural_settled":2,"phase":"lane_checkpoint","provider_requests":1917},"ramses":{"continuous_uptime_seconds":1394.468232429,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":165}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:58:17.8796069Z {"elapsed_seconds":1455.623599494,"lanes":{"meteora":{"continuous_uptime_seconds":1455.6214587010002,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":694},"pons":{"continuous_uptime_seconds":1369.457433612,"forced_settled":0,"health":"exited","natural_settled":0,"phase":"returned","provider_requests":2412,"unexpected_exit":true},"pump":{"continuous_uptime_seconds":1455.622955541,"forced_settled":0,"health":"responsive","natural_settled":3,"phase":"lane_checkpoint","provider_requests":2038},"ramses":{"continuous_uptime_seconds":1455.61487955,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":169}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T05:59:19.0425118Z {"elapsed_seconds":1516.791025672,"lanes":{"meteora":{"continuous_uptime_seconds":1516.788884879,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":697},"pons":{"continuous_uptime_seconds":1369.457433612,"forced_settled":0,"health":"exited","natural_settled":0,"phase":"returned","provider_requests":2412,"unexpected_exit":true},"pump":{"continuous_uptime_seconds":1516.790381719,"forced_settled":0,"health":"responsive","natural_settled":3,"phase":"lane_checkpoint","provider_requests":2149},"ramses":{"continuous_uptime_seconds":1516.782305728,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":173}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T06:00:20.2382780Z {"elapsed_seconds":1577.986299963,"lanes":{"meteora":{"continuous_uptime_seconds":1577.98415917,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"screened","provider_requests":709},"pons":{"continuous_uptime_seconds":1369.457433612,"forced_settled":0,"health":"exited","natural_settled":0,"phase":"returned","provider_requests":2412,"unexpected_exit":true},"pump":{"continuous_uptime_seconds":1577.98565601,"forced_settled":0,"health":"responsive","natural_settled":3,"phase":"lane_checkpoint","provider_requests":2266},"ramses":{"continuous_uptime_seconds":1577.977580019,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":177}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T06:01:21.5019254Z {"elapsed_seconds":1639.250016253,"lanes":{"meteora":{"continuous_uptime_seconds":1639.2478754600002,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"reconstruction_started","provider_requests":740},"pons":{"continuous_uptime_seconds":1369.457433612,"forced_settled":0,"health":"exited","natural_settled":0,"phase":"returned","provider_requests":2412,"unexpected_exit":true},"pump":{"continuous_uptime_seconds":1639.2493723,"forced_settled":0,"health":"responsive","natural_settled":3,"phase":"lane_checkpoint","provider_requests":2354},"ramses":{"continuous_uptime_seconds":1639.241296309,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":181}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T06:02:22.9197278Z {"elapsed_seconds":1700.6668655629999,"lanes":{"meteora":{"continuous_uptime_seconds":1700.66472477,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"evidence_requested","provider_requests":764},"pons":{"continuous_uptime_seconds":1369.457433612,"forced_settled":0,"health":"exited","natural_settled":0,"phase":"returned","provider_requests":2412,"unexpected_exit":true},"pump":{"continuous_uptime_seconds":1700.6662216099999,"forced_settled":0,"health":"responsive","natural_settled":3,"phase":"lane_checkpoint","provider_requests":2452},"ramses":{"continuous_uptime_seconds":1700.658145619,"forced_settled":0,"health":"responsive","natural_settled":0,"phase":"campaign_checkpoint","provider_requests":194}},"run_id":"5e679c58-1813-410b-a9d2-d0b813049540"}
+2026-09-21T06:02:32.9541573Z ##[error]The operation was canceled.
+2026-09-21T06:02:32.9579366Z ##[group]Run python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-native/hourly
+2026-09-21T06:02:32.9580145Z [36;1mpython -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-native/hourly[0m
+2026-09-21T06:02:32.9603243Z shell: /usr/bin/bash -e {0}
+2026-09-21T06:02:32.9603701Z env:
+2026-09-21T06:02:32.9604163Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T06:02:32.9604586Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-21T06:02:32.9605090Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T06:02:32.9605577Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T06:02:32.9605972Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T06:02:32.9606354Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-21T06:02:32.9606738Z ##[endgroup]
+2026-09-21T06:02:33.0088723Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: [redacted-non-GitHub-url]
+2026-09-21T06:02:33.0089804Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-09-21T06:02:33.0090261Z with:
+2026-09-21T06:02:33.0090563Z   name: four-lane-hourly-35563114670-1
+2026-09-21T06:02:33.0091276Z   path: certification-*-publisher.jsonl
+certification-gates/
+certification-hourly/
+certification-native/
+certification-preflight.json
+certification-contention-history.jsonl
+smoke-readiness.json
+
+2026-09-21T06:02:33.0092022Z   if-no-files-found: error
+2026-09-21T06:02:33.0092299Z   retention-days: 90
+2026-09-21T06:02:33.0092575Z   compression-level: 6
+2026-09-21T06:02:33.0092876Z   overwrite: false
+2026-09-21T06:02:33.0093233Z   include-hidden-files: false
+2026-09-21T06:02:33.0093545Z env:
+2026-09-21T06:02:33.0093847Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T06:02:33.0094305Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-21T06:02:33.0094750Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T06:02:33.0095140Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T06:02:33.0095525Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-21T06:02:33.0095897Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-21T06:02:33.0096302Z ##[endgroup]
+2026-09-21T06:02:33.1562926Z (node:2556) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-21T06:02:33.1563877Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-21T06:02:33.1775330Z With the provided path, there will be 97 files uploaded
+2026-09-21T06:02:33.1780777Z Artifact name is valid!
+2026-09-21T06:02:33.1781548Z Root directory input is valid!
+2026-09-21T06:02:33.4629818Z Beginning upload of artifact content to blob storage
+2026-09-21T06:02:33.4789923Z ##[warning]ENOENT warning during artifact zip creation. No such file or directory
+2026-09-21T06:02:33.4791414Z Error: ENOENT: no such file or directory, lstat '/home/runner/work/The-Meme-Machine/The-Meme-Machine/certification-hourly/shared-provider.sqlite-shm'
+2026-09-21T06:02:33.4792634Z ##[warning]ENOENT warning during artifact zip creation. No such file or directory
+2026-09-21T06:02:33.4793618Z Error: ENOENT: no such file or directory, lstat '/home/runner/work/The-Meme-Machine/The-Meme-Machine/certification-hourly/shared-provider.sqlite-wal'
+2026-09-21T06:02:33.9843077Z (node:2556) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-09-21T06:02:34.4716724Z Uploaded bytes 8388608
+2026-09-21T06:02:34.7934163Z Uploaded bytes 16777216
+2026-09-21T06:02:35.4439346Z Uploaded bytes 25165824
+2026-09-21T06:02:36.0989372Z Uploaded bytes 33554432
+2026-09-21T06:02:36.6632082Z Uploaded bytes 41943040
+2026-09-21T06:02:37.2788843Z Uploaded bytes 50331648
+2026-09-21T06:02:37.8209059Z Uploaded bytes 58720256
+2026-09-21T06:02:38.0769169Z Uploaded bytes 67108864
+2026-09-21T06:02:38.3196985Z Uploaded bytes 75497472
+2026-09-21T06:02:38.4903943Z ##[error]An error has occurred while creating the zip file for upload
+2026-09-21T06:02:38.4905696Z Error: ENOENT: no such file or directory, open '/home/runner/work/The-Meme-Machine/The-Meme-Machine/certification-hourly/shared-robinhood-admission.sqlite-shm'
+2026-09-21T06:02:38.5001319Z /home/runner/work/_actions/actions/upload-artifact/ea165f8d65b6e75b540449e92b4886f43607fa02/dist/upload/index.js:3811
+2026-09-21T06:02:38.5002224Z     throw new Error('An error has occurred during zip creation for the artifact');
+2026-09-21T06:02:38.5002964Z     ^
+2026-09-21T06:02:38.5003114Z 
+2026-09-21T06:02:38.5003323Z Error: An error has occurred during zip creation for the artifact
+2026-09-21T06:02:38.5003944Z     at Archiver.zipErrorCallback (/home/runner/work/_actions/actions/upload-artifact/ea165f8d65b6e75b540449e92b4886f43607fa02/dist/upload/index.js:3811:11)
+2026-09-21T06:02:38.5004468Z     at Archiver.emit (node:events:521:24)
+2026-09-21T06:02:38.5005132Z     at Archiver.<anonymous> (/home/runner/work/_actions/actions/upload-artifact/ea165f8d65b6e75b540449e92b4886f43607fa02/dist/upload/index.js:57606:12)
+2026-09-21T06:02:38.5006378Z     at __webpack_modules__.86454.module.exports.handleStuff (/home/runner/work/_actions/actions/upload-artifact/ea165f8d65b6e75b540449e92b4886f43607fa02/dist/upload/index.js:69663:5)
+2026-09-21T06:02:38.5007268Z     at Object.onceWrapper (node:events:630:28)
+2026-09-21T06:02:38.5007608Z     at DeflateCRC32Stream.emit (node:events:521:24)
+2026-09-21T06:02:38.5008058Z     at endReadableNT (node:internal/streams/readable:1736:12)
+2026-09-21T06:02:38.5008512Z     at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+2026-09-21T06:02:38.5008785Z 
+2026-09-21T06:02:38.5008872Z Node.js v24.19.0
+2026-09-21T06:02:38.5130321Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: [redacted-non-GitHub-url]
+2026-09-21T06:02:38.5131231Z Post job cleanup.
+2026-09-21T06:02:38.5844191Z [command]/usr/bin/git version
+2026-09-21T06:02:38.5874838Z git version 2.55.0
+2026-09-21T06:02:38.5903431Z Temporarily overriding HOME='/home/runner/work/_temp/a2b50b5e-9043-4479-a5c8-26c01bfba21e' before making global git config changes
+2026-09-21T06:02:38.5904602Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-21T06:02:38.5908404Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/The-Meme-Machine/The-Meme-Machine
+2026-09-21T06:02:38.5937090Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-21T06:02:38.5963179Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-21T06:02:38.6148519Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-21T06:02:38.6172081Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-21T06:02:38.6483466Z Cleaning up orphan processes
+2026-09-21T06:02:38.6639083Z Terminate orphan process: pid (2218) (python)
+2026-09-21T06:02:38.6659577Z Terminate orphan process: pid (2219) (python)
+2026-09-21T06:02:38.6673383Z Terminate orphan process: pid (2235) (python)
+2026-09-21T06:02:38.6692137Z Terminate orphan process: pid (2236) (python)
+2026-09-21T06:02:38.6709861Z Terminate orphan process: pid (2238) (python)
+2026-09-21T06:02:38.6769602Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683, actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: [redacted-non-GitHub-url]

@@ -1,0 +1,23 @@
+{
+  "artifacts": [
+    {
+      "id": 10638321902,
+      "name": "frozen-campaign-review-35599677606",
+      "size_in_bytes": 10715632,
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10638321902",
+      "archive_download_url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/actions/artifacts/10638321902/zip",
+      "expired": false,
+      "created_at": "2026-09-21T12:28:52Z",
+      "expires_at": "2026-12-20T12:27:49Z",
+      "updated_at": "2026-09-21T12:28:52Z",
+      "digest": "sha256:d5f122a7a937f021a3b6ef9fddd3e3a8f4be8a825bf7a9835085422d4f0f1a5e",
+      "workflow_run": {
+        "id": 35599677606,
+        "repository_id": 1373661451,
+        "head_repository_id": 1373661451,
+        "head_branch": "repair/frozen-campaign-handoff",
+        "head_sha": "3765362b899bd3eb14733bdf4444bd56733e451a"
+      }
+    }
+  ]
+}

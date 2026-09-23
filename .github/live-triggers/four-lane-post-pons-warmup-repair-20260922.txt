@@ -1,0 +1,9 @@
+Launch clean four-lane hourly paper validation after Pons chain-time warmup repair.
+Verified qualification head: 8e71aaa7acdf025f8ba942687b7671f94ba1120b
+Qualification workflow: 35751265889 completed successfully.
+Pons: chain-time warmup repair and sequencer-session recovery active.
+Pump: canonical evidence-repair overlay.
+Ramses: bounded quote-cost completion.
+Meteora: reconstruction completion with 16-transaction cap preserved.
+No active or queued competing workflows at launch.
+Paper only; strategy, freshness/finality, sizing and fail-closed controls unchanged.

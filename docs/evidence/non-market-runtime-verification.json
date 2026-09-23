@@ -1,0 +1,38 @@
+{
+  "engineering_certification": "NOT_CERTIFIED",
+  "runtime_commit": "76f06834011eb3ef6cac1fed5b31a094cc7d5a1b",
+  "workflow_run": 35797187822,
+  "workflow_job": 106979099218,
+  "workflow_conclusion": "failure",
+  "failed_step": "Check for competing market jobs before connectivity",
+  "provider_blocker": {
+    "run_id": 35794657924,
+    "job_id": 106971032363,
+    "job_name": "live-diagnostic"
+  },
+  "test_counts": {
+    "pump": 315,
+    "pons": 328,
+    "meteora": 414,
+    "ramses": 306,
+    "supervisor": 91,
+    "root_ci": 239
+  },
+  "native_crash_matrix": "passed; five transaction boundaries per lane; not runner recovery",
+  "resource_gates": "passed",
+  "historical_replay": "original native journal and stored entry economics passed; position remains unresolved",
+  "artifact": {
+    "id": 10724682409,
+    "sha256": "106c888668295b2e809353b6c3f2ee6e4ba9a151452febf38e0988f2dad4153f"
+  },
+  "remaining_engineering": [
+    "full current-policy production orchestration per lane",
+    "automatic lifecycle monitoring/management recovery",
+    "all requested failure boundaries",
+    "four complete lifecycles under shared-provider contention",
+    "full live protocol/normalization/HTTP-WebSocket handoff coverage",
+    "current exposure reconciliation beyond inspected historical snapshot"
+  ],
+  "no_natural_campaign_started": true,
+  "paper_only": true
+}

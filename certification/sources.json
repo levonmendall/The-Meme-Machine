@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-20T02:44:01Z",
+  "verified_at": "2026-09-23-profit-protection-v2-exact-hashes-pinned",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
-      "source_branch": "feat/pump-acceleration-independent-v1",
-      "source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
-      "strategy_version": "pump-acceleration-independent-v1",
-      "policy_hash": "b273bc6be47d4f5a65f39d5d4f616777e02cbe547e19b7a07b0fefe23970c246",
+      "source_branch": "strategy/pump-profit-protection-v2-20260923",
+      "source_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
+      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2",
+      "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
       "file_hashes": {
-        "meme_machine/pump_acceleration_strategy.py": "e69b14cd077e35398a253a4a27f29b8b5c7f3a2454bdbcd0330a7b929c505570",
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
-        ".github/workflows/pump-acceleration-natural-prospective.yml": "2d5e27c8d1808d5a84b521b42b6b4cbce70eef9b5ad6bcdfe9c1d412e5a27232"
+        ".github/workflows/pump-acceleration-natural-prospective.yml": "697617d7ade8d42d68d991a5f73b0d8738117b56d2ecd3f9dd91cf03489d2a7f",
+        "meme_machine/pump_acceleration_strategy.py": "d66d4e068d6405d3e2a9bc75db7a584a8fca218a4e94efdb33cf9c8191ec7e4d"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -22,18 +22,120 @@
         "2b2af01299ce99b0f036981bfad57107713c68b7",
         "6377b4c46da95c4591848939c714f7766e789acd",
         "7774ebe0f712a0e12848de1c54aaaf44df8480e7",
-        "4d094388b3101f1e8ff11357ac8a044b0ef75c63"
+        "4d094388b3101f1e8ff11357ac8a044b0ef75c63",
+        "110dbf34b054daf7a35c72d94196ec7ff0c2c331",
+        "edfd9c1f23f4f958780e441eb19bf397d2ac82ca",
+        "fa6ffbf0972676202f110f52425872b69f4ea627",
+        "04c99ca3125747dc8bfc6f655fec7533f8ac8156",
+        "160985182b043ab41d0418ba5dcfed7dbfbe3cb2",
+        "5ae63e13b3a370c536e5cd310262902049dbea48",
+        "1d831a28346e89ddaaee9ebd33ed07a25a4c70e9",
+        "64701faaef5aa94817dc31deafe21b3cd6b9d0f9",
+        "728ed29b7a353fe0bb503491a31951227c7aee1f",
+        "35703a380fe6c7f1df56bcf5a6ec59ca50d8d502",
+        "9c11f78922af14ca77ee371e27f6e7df0ed8b46e",
+        "a4003b292014cedf554a4930a9cca10900bfc178",
+        "9932305ebe83dd3ff2dd45ffe9006cf628962bf3",
+        "40cfa0543f577e1c7cf106127782b4a77f7669ac",
+        "1ed8bc465473875a6423c1e81f5d193f4db4cd50",
+        "03df8e628dc750662473e9c21ce871abfd199b7b",
+        "b0d2e43c22402a0254c7ea34a862450108f27d0e",
+        "6e2390057e31d14ba35a6b23654bcf68f2cbc9c5",
+        "e585590b7632f84f282f6530d1f97fed4b70341d",
+        "324fee081dd7664a30df4d88aaa1448d28e3033e"
       ],
-      "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd"
+      "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
+      "execution_certification": {
+        "profitability_authority": true,
+        "target_restrictiveness": "profitability-v1",
+        "original_source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
+        "revision": "profitability-v1-profit-protection-v2",
+        "purpose": "Active paper profitability policy with repeat-buyer demand persistence and executable fill-time signal revalidation, composed with current acquisition repairs.",
+        "machinery_baseline_policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e",
+        "evidence_completion_repair": {
+          "revision": "idle-governor-prefetch-v1",
+          "purpose": "allow stream prefetch to consume each otherwise-idle shared-governor slot instead of imposing an additional two-second local interval",
+          "shared_provider_governor_unchanged": true,
+          "strategy_thresholds_changed": false
+        },
+        "transient_body_retry_repair": {
+          "revision": "single-bounded-transient-body-retry-v1",
+          "implementation_commit": "567a9f035f847dbed93f29627b4627fc3dee04a1",
+          "purpose": "after getTransaction timeout/5xx transport failure, reduce shared hydration batch pressure and permit exactly one retry within the original consumer deadline",
+          "rate_limit_telemetry_separate": true,
+          "freshness_deadline_changed": false,
+          "strategy_thresholds_changed": false
+        },
+        "persistence_edge": {
+          "revision": "repeat-buyer-plus-fill-persistence-v1",
+          "source_commit": "a4003b292014cedf554a4930a9cca10900bfc178",
+          "purpose": "require sustained buyer participation and revalidate the exact profitability thesis at delayed executable fill time",
+          "entry_fill_timeout_changed": false,
+          "freshness_finality_changed": false,
+          "paper_only_unchanged": true
+        },
+        "provider_optimization": {
+          "source_commit": "9932305ebe83dd3ff2dd45ffe9006cf628962bf3",
+          "revision": "alchemy-scarce-authoritative-evidence-v1",
+          "discovery_plane": "public_solana_finalized_websocket",
+          "alchemy_role": "candidate_and_position_authoritative_http_evidence_only",
+          "speculative_alchemy_prefetch": false,
+          "breadth_changed": false,
+          "strategy_thresholds_changed": false,
+          "paper_only_unchanged": true
+        },
+        "market_scope_efficiency": {
+          "revision": "strategy-domain-funnel-ordering-v1",
+          "purpose": "preserve broad market observability while delaying expensive evidence until existing strategy-domain gates can still be satisfied",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "detail": "post-graduation holder concentration is requested only when zero-concentration optimistic qualification leaves at least one current entry mode viable"
+        },
+        "tail_drain_regression": {
+          "revision": "final-second-900s-timeout-v1",
+          "purpose": "prove a late-curve paper position filled one second before discovery close can remain open through the frozen 900-second maximum hold and settle inside the existing 1000-second follow-up",
+          "policy_changed": false
+        },
+        "profit_protection_v2": {
+          "revision": "staged-harvest-persistent-demand-bounded-continuation-v2",
+          "first_profit_bps": 1500,
+          "first_profit_sell_bps": 2500,
+          "hard_stop_bps": -800,
+          "profitable_demand_deterioration_confirmations": 2,
+          "max_hold_extensions": 1,
+          "continuation_rule": "one additional mode-length interval only while after-cost return is positive, executable state is available and demand remains healthy",
+          "evidence_basis": "retain the prior frozen +15% Pump realization activation while reducing the harvested fraction to 25% because observed winners exhibited materially larger favorable excursions",
+          "entry_thresholds_changed": false,
+          "paper_only_unchanged": true
+        }
+      },
+      "prospect_admission": {
+        "market_observation_scope": "all finalized Pump events remain observable",
+        "investment_evaluation_scope": "profitability-v1 late-curve candidates in the 60-85% progress band with broad expanding independent demand, repeat-buyer persistence, controlled concentration, non-collapsing trajectory and bounded executable round-trip downside; all delayed entries require fill-time thesis persistence; authenticated post-graduation modes retain separate continuation evidence",
+        "pre_rpc_strategy_screen": true,
+        "permanent_exclusion_on_screen_failure": false,
+        "strategy_thresholds_changed": true,
+        "profitability_authority": true,
+        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
+      },
+      "source_diff_sha256": "7139d965818dfa4f093824161a5102e5635b8a0dcc6d831f55d28e0cb33481fe",
+      "source_integrity_mode": "declared_overlay_index",
+      "overlay_patches": [
+        "certification/patches/pump-accounting.patch",
+        "certification/patches/market-scope-efficiency-pump.patch",
+        "certification/patches/lifecycle-clock-pump-test.patch"
+      ]
     },
     "meteora": {
-      "source_branch": "research/solana-dlmm-independent-v1",
-      "source_sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
-      "strategy_version": "solana-dlmm-independent-v1.7",
-      "policy_hash": "171605162c857d90ef7f880fc7f444dff615e452659e78a2f38fd563acfb6ad5",
+      "source_branch": "strategy/meteora-core-hold-v2-20260923",
+      "source_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
+      "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
+      "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+      "source_diff_sha256": "113bbf9013b88a725efc8de7ec2fc98a4f03ca12c61929dbd99bfd90d5da5ccb",
       "file_hashes": {
-        "SOLANA_DLMM_INDEPENDENT_V1.json": "4932d8d9e28f24baccc7917ef59a1fa95218facb8667a9683d6bb41296afee20",
-        ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe"
+        ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
+        "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -46,23 +148,187 @@
         "1b04eca2984f85c9a47d262dc7ea84796a21754e",
         "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
         "45041de0669c9f0db2dc27793ab2da2a77e72a25",
-        "686e1938da1ba1a275b65fe1e7be0694ce697a04"
+        "686e1938da1ba1a275b65fe1e7be0694ce697a04",
+        "00ebf7ffb3e13911d6c842898c98312c98d4e628",
+        "abb276d4ab01be596110c93616ac683f4064f128",
+        "d670e7881863ff74f4a11c74f372d7874397ab30",
+        "9ba576ec66c1dd69936a051c15cf371e3b0c1831",
+        "2e25ed26600697ad8bf094b443631d222f2a2250",
+        "0d9176c46e95cb758cdbada1ea4756f3fc3c09c0",
+        "226c3fceb9bac5f497ed969ef4c18baeeaaa944f",
+        "29d050b218969e4c7761346737d082bf1db382ec",
+        "f9612354fff7862a920b762418db1b1b058e4d61",
+        "d1ea201b1f96434d584ba8d3df87415a9d4acbf5",
+        "a7aa41857e5b4ace6e8dcd23bbf39cfe6654210d",
+        "57d59c9af9f6b9ab7e88ec6a6b5d5efddc815944",
+        "cc2250d6f3473348dd08ccf3742d773ef0e1030f",
+        "cc06d1d48da2f3c188ff8b8e0913ff6cbba7adba",
+        "7ee9745b77eb7a7585af85535f52d645e8199897",
+        "3370a0a3a283b4e3901ae51e294eeb00ef69832d",
+        "864c95d2a0ab0278a40b8f9e0ba97e26d1c7b387",
+        "4ae8061012821abbab62554c00392eec49e5f578",
+        "2a90ccd9fd9f8269461c722dc1e8aeeebbfe9280",
+        "057de42db407c5d65543dc67a45e04add2b8f98c",
+        "c87441ac53fe6936e88380e54969192e455da8cb",
+        "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7",
+        "a616366fbe64e816708d035c15141b7e7e800304",
+        "ed12766d452cc2d5cc3bb5f6260e88cd1bea180b",
+        "403eb4006ae132e89b654c214c39a074de1b51b8",
+        "ec0b96f999f460c35cb63b27cd0387c4f81f9898"
       ],
       "paper_starting_capital_lamports": 1000000000,
-      "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0"
+      "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
+      "execution_certification": {
+        "profitability_authority": true,
+        "target_restrictiveness": "authenticated local fee-density profitability v1",
+        "original_source_sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
+        "revision": "2.0-profitability-fee-density-v1-core-hold-v2",
+        "purpose": "prospective natural paper profitability validation of authenticated local fee-density market making",
+        "machinery_proof_only": false,
+        "one_natural_settled_lifecycle_target": false,
+        "prior_execution_source_sha": "3370a0a3a283b4e3901ae51e294eeb00ef69832d",
+        "lifecycle_repair": "retry recoverable post-fill evidence gaps; classify rebalance_liquidity explicitly; structurally unreplayable positions close by zero-proceeds paper writeoff instead of remaining stranded",
+        "evidence_completion_repair": {
+          "revision": "structural-terminal-attribution-v1",
+          "purpose": "separate deterministic unsupported authority/token-extension/fee-mode cases from true reconstruction incompleteness before interpreting decision coverage",
+          "strategy_thresholds_changed": false
+        },
+        "reconstruction_completion_repair": {
+          "revision": "disjoint-liquidity-and-dense-interval-v1",
+          "source_commit": "57d59c9af9f6b9ab7e88ec6a6b5d5efddc815944",
+          "purpose": "reconstruct genuinely replayable disjoint liquidity removals and bounded denser intervals while preserving deterministic structural exclusions",
+          "structural_fail_closed_unchanged": true,
+          "transaction_capacity_expansion": false,
+          "strategy_thresholds_changed": false
+        },
+        "strategy2_continuity_repair": {
+          "revision": "authenticated-strategy2-external-adjustment-v1",
+          "source_commit": "3370a0a3a283b4e3901ae51e294eeb00ef69832d",
+          "failure_evidence": "run-35755168924-slot-449436239",
+          "purpose": "preserve an already-open Meteora paper position across authenticated addLiquidityByStrategy2 by deriving exact one-sided bin deposits from finalized terminal deltas, authenticating instruction/event/ordered transfers, and replaying the same external token deposit in the counterfactual pool",
+          "fail_closed": [
+            "mixed Strategy2 and target-pool swaps in one interval",
+            "mixed supply-changing liquidity mutations",
+            "changed observed bin set",
+            "negative or out-of-range bin deltas",
+            "share/inventory delta disagreement",
+            "event/transfer/terminal-state disagreement"
+          ],
+          "transaction_capacity_expansion": false,
+          "strategy_thresholds_changed": false,
+          "position_size_changed": false,
+          "cost_model_changed": false,
+          "freshness_finality_changed": false,
+          "paper_only_unchanged": true
+        },
+        "post_entry_strategy2_continuity_repair": {
+          "revision": "authenticated-terminal-bin-delta-v1",
+          "source_commit": "3370a0a3a283b4e3901ae51e294eeb00ef69832d",
+          "failure_evidence_run": 35755168924,
+          "failure_slot": 449436239,
+          "purpose": "authenticate addLiquidityByStrategy2 from its instruction, AddLiquidity event and ordered token transfers; materialize exact one-sided bin/share deltas from the finalized terminal snapshot; replay the external liquidity action through both real and counterfactual open-position state without resetting position identity or economics",
+          "mixed_swap_or_liquidity_intervals_fail_closed": true,
+          "exact_retained_mainnet_shape_regression": true,
+          "strategy_thresholds_changed": false,
+          "transaction_capacity_changed": false,
+          "freshness_finality_changed": false,
+          "paper_only_authority_unchanged": true
+        },
+        "source_verification_run_id": 35783399239,
+        "source_verification_result": "success",
+        "fee_density_profitability": {
+          "revision": "authenticated-local-fee-density-v1",
+          "source_commit": "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7",
+          "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+          "authenticated_fee_density_threshold_pct": 5,
+          "high_density_tier_pct": 20,
+          "projected_fee_horizon_seconds": 14400,
+          "supplied_width_bins": [
+            52,
+            100
+          ],
+          "two_way_balance_min": 0.25,
+          "max_drift_ratio": 0.75,
+          "max_stress_unwind_loss_bps": 150,
+          "purpose": "rank broadly by public fee/volume context but authorize entry only from authenticated pre-entry local fee density, executable local depth, two-way flow and positive after-cost economics",
+          "strategy2_continuity_required": true,
+          "public_fee_tvl_not_entry_authority": true,
+          "freshness_finality_changed": false,
+          "position_size_changed": false,
+          "paper_only_unchanged": true
+        },
+        "provider_optimization": {
+          "source_commit": "a616366fbe64e816708d035c15141b7e7e800304",
+          "revision": "alchemy-scarce-authoritative-evidence-v1",
+          "discovery_plane": "public_solana_program_and_account_wake_streams",
+          "alchemy_role": "candidate_reconstruction_and_position_authoritative_http_evidence_only",
+          "alternate_authenticated_provider": false,
+          "breadth_changed": false,
+          "strategy_thresholds_changed": false,
+          "paper_only_unchanged": true
+        },
+        "market_scope_efficiency": {
+          "revision": "strategy-domain-funnel-ordering-v1",
+          "purpose": "preserve broad market observability while delaying expensive evidence until existing strategy-domain gates can still be satisfied",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "detail": "remove per-pool 35-minute public history reads and 12-second history refreshes from active admission; use pool-list snapshot only as non-authoritative public context"
+        },
+        "lifecycle_clock_repair": {
+          "revision": "durable-position-handoff-v1",
+          "purpose": "separate one-hour market discovery from 4-24h position lifecycle; late pre-entry sequences are capacity-censored before starting; open positions remain in append-only PaperBook state for continuation",
+          "trigger_warmup_evidence_reserve_seconds": 162,
+          "strategy_thresholds_changed": false,
+          "finality_changed": false,
+          "position_size_changed": false,
+          "paper_only_unchanged": true
+        },
+        "core_hold_profit_protection_v2": {
+          "revision": "enforced-4h-core-hold-two-segment-collapse-v2",
+          "core_hold_seconds": 14400,
+          "maximum_hold_seconds": 86400,
+          "economic_collapse_confirmation_segments": 2,
+          "observation_segment_seconds": 300,
+          "immediate_pre_core_risk_exits": [
+            "range_boundary",
+            "inventory_imbalance",
+            "one_way_flow"
+          ],
+          "entry_thresholds_changed": false,
+          "freshness_finality_changed": false,
+          "position_size_changed": false,
+          "paper_only_unchanged": true
+        }
+      },
+      "prospect_admission": {
+        "market_observation_scope": "observable SOL-paired Meteora DLMM inventory and history; public fee/volume fields remain ranking context only",
+        "investment_evaluation_scope": "exactly-one-WSOL-leg nonblacklisted pools with a fresh authenticated finalized swap, exact 12-second warmup, authenticated local fee density >=5%/day, two-way balance >=0.25, executable local range depth, bounded drift/stress unwind and strictly positive projected four-hour after-cost net",
+        "authenticated_fee_density_entry_authority": true,
+        "public_fee_density_role": "ranking_context_only_not_entry_authority",
+        "strategy_thresholds_changed": true,
+        "profitability_authority": true
+      },
+      "source_integrity_mode": "declared_overlay_index",
+      "overlay_patches": [
+        "certification/patches/meteora-checkpoint.patch",
+        "certification/patches/market-scope-efficiency-meteora.patch",
+        "certification/patches/lifecycle-clock-meteora.patch"
+      ]
     },
     "pons": {
-      "source_branch": "feat/pons-selective-continuation-v1",
-      "source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
-      "strategy_version": "pons-selective-continuation-v1",
-      "policy_hash": "eeebfeb8329e602d0291c4da9747eda82706daab06706e3b9cef74053050cb81",
+      "source_branch": "strategy/pons-profit-protection-v2-20260923",
+      "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2",
+      "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
       "file_hashes": {
-        "robinhood_research/pons_selective_continuation.py": "bf872cd83db8d4f187f1abfaacb2537441cee07e38f47b17d73805a23ceb32f8",
-        ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7"
+        ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
+        "robinhood_research/pons_selective_continuation.py": "09763b06f52b771eea1bbe3222cb92672a4a3f2af251bcb50ee61f2b3925a269"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
-        "MM_ROBINHOOD_DISCOVERY_RPC_URL"
+        "MM_ROBINHOOD_DISCOVERY_RPC_URL",
+        "MM_ROBINHOOD_DLMM_RPC_URL"
       ],
       "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment",
       "repair_commit": "40bc4c4d1fb81900645fcbce109b4be0341320aa",
@@ -72,18 +338,163 @@
         "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
         "44355aaac41a06a80f306f4458bbf200b118f179",
         "38d264c9dd878e2f70ffb461c18bd12ecdd7c1d6",
-        "40c66a68704fab147dacbfc25a0819b5a6f9c844"
+        "40c66a68704fab147dacbfc25a0819b5a6f9c844",
+        "a8b560c13f7e1b3696ac7f7aa9f35801f87421e1",
+        "5e345fc43682111c17587a53ec19fc9172e6bd9d",
+        "c4c7d9bc17d65c087c309a90ca571865d311acf5",
+        "e74f95071e205c9a82db96986b54abd54aba268d",
+        "4fa1b75d6b32b00e4957f294d37d20972910391a",
+        "e63d3099e7e295e7a572e143e6d833dea143c704",
+        "c4bfecfbd5af081c54e04bf9ee70ff369c705095",
+        "9d4af223258292a45d5abfa58dc7939174fbee30",
+        "51ed2379c8f3818248a7b86722a792d85bc29a4b",
+        "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2",
+        "157e3d3a94510ced93976088b5a3f56a672ad9c4",
+        "93ccf6faee775b830b590370dbc1e8ce269c668a",
+        "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
+        "2080197f6c19a387f33d33b68570758760239a11",
+        "593a7ac7b6a03c94da2b8b1cd7f052d350e388e8",
+        "b963348285fcedd022fe01872b93f604bc7d47c1",
+        "f8c615fb1613bcaa2d3ccf6386b8ffc9a843f1b8",
+        "9df623a5aa8c001ce9a9f60352b6aaf33b0de25f",
+        "639c7acd180dd04c3db8f1458bc1d116e924becf",
+        "3de3d376847531ccb90e260cfcc96c37587ccb23"
       ],
-      "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1"
+      "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
+      "execution_certification": {
+        "profitability_authority": true,
+        "target_restrictiveness": "profitability-v1",
+        "original_source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
+        "revision": "profitability-v1-profit-protection-v2",
+        "purpose": "Active paper profitability policy with required curve/flow acceleration, executable fill-time thesis persistence, and pre-graduation high-water protection, preserving current sequencer/session/provider repairs.",
+        "machinery_baseline_policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
+        "evidence_completion_repair": {
+          "revision": "native-quote-preflight-v1",
+          "purpose": "classify non-native-quote curves at the minimal authenticated strategy-domain preflight instead of downstream reconstruction and preserve rule-level rejection attribution",
+          "investment_scope_unchanged": true,
+          "strategy_thresholds_changed": false
+        },
+        "sequencer_session_recovery": {
+          "revision": "reserved-bit-session-recovery-v1",
+          "source_commit": "c4c7d9bc17d65c087c309a90ca571865d311acf5",
+          "purpose": "reject RSV2/RSV3 frames, terminate only the offending WebSocket session, reconnect, and require authenticated RPC cursor backfill before canonical discovery advances",
+          "protocol_violation_ignored": false,
+          "strategy_thresholds_changed": false
+        },
+        "evidence_queue_repair": {
+          "revision": "foreground-drain-before-discovery-v1",
+          "integration_commit": "b47a58a38b046c66cca7c30b22854d5d3521b1f4",
+          "purpose": "drain already-observed five-second evidence candidates before spending another polling interval on discovery; original candidate clocks remain authoritative",
+          "freshness_gate_changed": false,
+          "strategy_thresholds_changed": false
+        },
+        "warmup_clock_repair": {
+          "revision": "chain-time-reserve-v1",
+          "source_commit": "c4bfecfbd5af081c54e04bf9ee70ff369c705095",
+          "purpose": "preserve the required 60 seconds of authenticated sequencer chain-time while allowing bounded wall-clock reserve when feed cadence lags wall time",
+          "required_chain_seconds": 60,
+          "minimum_wall_seconds": 65,
+          "maximum_wall_seconds": 120,
+          "freshness_gate_changed": false,
+          "strategy_thresholds_changed": false,
+          "boundary_event_preservation": true,
+          "boundary_event_purpose": "stop warmup polling immediately once required chain-time is already satisfied so the first post-warmup discovery event is not consumed before the discovery loop"
+        },
+        "shared_admission_429_backoff": {
+          "revision": "adaptive-shared-physical-backoff-v1",
+          "implementation_commit": "72b6d33c41e4f38b73dd9d5a3c3406da71137845",
+          "purpose": "reduce shared Robinhood physical request rate after HTTP/RPC 429 and cautiously recover toward, never above, the existing two-request-per-second ceiling",
+          "freshness_gate_changed": false,
+          "strategy_thresholds_changed": false,
+          "position_priority_unchanged": true
+        },
+        "persistence_edge": {
+          "revision": "acceleration-fill-persistence-pregrad-highwater-v1",
+          "source_commit": "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2",
+          "purpose": "use already-calculated acceleration as authorization, reject decayed delayed fills, and protect profitable pre-graduation continuations from material deterioration",
+          "max_state_age_seconds": 5,
+          "freshness_finality_changed": false,
+          "position_size_changed": false,
+          "cost_model_changed": false,
+          "paper_only_unchanged": true
+        },
+        "provider_optimization": {
+          "source_commit": "93ccf6faee775b830b590370dbc1e8ce269c668a",
+          "revision": "public-observation-alchemy-gap-evidence-v1",
+          "discovery_plane": "official_robinhood_sequencer_plus_public_rpc",
+          "alchemy_role": "candidate_position_evidence_and_exact_gap_recovery_only",
+          "routine_discovery_on_alchemy": false,
+          "breadth_changed": false,
+          "strategy_thresholds_changed": false,
+          "paper_only_unchanged": true,
+          "public_access_failure_recovery": "exact_read_only_via_authoritative_primary",
+          "public_rpc_transport_repair": {
+            "revision": "hosted-user-agent-v1",
+            "source_commit": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
+            "failure_run": 35817973734,
+            "header_probe_run": 35819131234,
+            "recompose_probe_run": 35819472776,
+            "failure": "official_robinhood_public_rpc_http_403_with_python_default_request_profile",
+            "repair": "explicit descriptive User-Agent plus Accept application/json on all bounded read transports",
+            "hosted_probe_current_profile_http_status": 403,
+            "hosted_probe_repaired_profile_http_status": 200,
+            "hosted_probe_methods": [
+              "eth_chainId",
+              "eth_getBlockByNumber"
+            ],
+            "alchemy_role_expanded": false,
+            "discovery_breadth_changed": false,
+            "strategy_thresholds_changed": false,
+            "paper_only_unchanged": true
+          }
+        },
+        "market_scope_efficiency": {
+          "revision": "strategy-domain-funnel-ordering-v1",
+          "purpose": "preserve broad market observability while delaying expensive evidence until existing strategy-domain gates can still be satisfied",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "detail": "token age, velocity, acceleration and graduation ETA are adjudicated immediately after authenticated trajectory evidence and before 60-second receipt-window reconstruction"
+        },
+        "profit_protection_v2": {
+          "revision": "harvest-runner-persistent-soft-deterioration-v2",
+          "first_profit_bps": 1800,
+          "first_profit_sell_bps": 3333,
+          "soft_deterioration_confirmations": 2,
+          "stale_high_seconds": 120,
+          "stale_high_alone_is_exit": false,
+          "adverse_flow_and_creator_distribution_remain_immediate": true,
+          "runner_trailing_drawdown_bps": 1000,
+          "entry_thresholds_changed": false,
+          "paper_only_unchanged": true
+        }
+      },
+      "prospect_admission": {
+        "market_observation_scope": "all authenticated Pons V2 buy/sell logs remain observable",
+        "investment_evaluation_scope": "ungraduated native-quote curves at 50-85% progress, age 120-600s and graduation ETA 20-90s with accelerating curve trajectory and net flow, existing demand breadth/concentration/friction controls, mandatory fill-time persistence, and pre-graduation high-water protection; same-curve re-entry still requires terminal-flat prior lifecycle plus a material point-in-time regime reset",
+        "minimal_state_preflight": true,
+        "trajectory_window_after_preflight_only": true,
+        "permanent_exclusion_on_screen_failure": false,
+        "strategy_thresholds_changed": true,
+        "profitability_authority": true,
+        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
+      },
+      "source_diff_sha256": "486b1e2977b62ee9a678ae99946a35ca17c411f92fc3a676ad991c20c94c8ca4",
+      "source_integrity_mode": "declared_overlay_index",
+      "overlay_patches": [
+        "certification/patches/pons-cohort-capital.patch",
+        "certification/patches/market-scope-efficiency-pons.patch"
+      ]
     },
     "ramses": {
-      "source_branch": "feat/robinhood-research-foundation",
-      "source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
-      "strategy_version": "ramses-fee-pulse-v1",
-      "policy_hash": "3b9e02439b32e6857aed86c47ff4c00c227e3ff502b9da70ea55a73abfcdc78a",
+      "source_branch": "repair/ramses-v3-authority-lock-20260923",
+      "source_sha": "888b64b5bf84ed34e13a9118304421266b1a3287",
+      "strategy_version": "ramses-active-wide-maker-v3",
+      "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
       "file_hashes": {
-        "robinhood_research/ramses_strategy.py": "adefa16bec0a9cb8ebe4de4724ea16be1cd1de90263bc78f976f5ad28bf96fae",
-        ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023"
+        ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
+        "robinhood_research/ramses_strategy.py": "b5cff6dced74c5df84340d6e4abc34942d52e473943f43add26f63ccf3785673",
+        "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json": "e83b0255937c891e55f4ad4a473368c57d69f5c02e0340686bdbdd2b4f6d74a0"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
@@ -94,9 +505,390 @@
         "3ec74dfa223d3eecae3c3d525ceb27bcdf63d5f6",
         "b3ec5aaca230f2aa9c0e894c9912722a56f2eef1",
         "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
-        "325c6052056500146b88d1ad3e83bf5db5b9657a"
+        "325c6052056500146b88d1ad3e83bf5db5b9657a",
+        "4db39fbc3729af1fa186ad58ba611333abd69939",
+        "ff757da9bc95656b27047f6bb081092fff6edb87",
+        "fd984cae1ca474430de9b8a220d5635f21aae916",
+        "2b55993ea58b5f81681cd9f4e9391734ec4747cb",
+        "493ecd7453b4aa8983626717950c92820ac7eafc",
+        "d7c545a8ddb9bfbe5859d450036758ed7f39c13a",
+        "eb215670c7acec88104069f6398eda6feecaf268",
+        "c545ab43676fde30ca6fa1284bb5215d5a678182",
+        "c29e9a0e36b5874b143a9a7526e602bfe93a669c",
+        "8f4b177fea3965812d4aa80c0ffa5652f11a074f",
+        "0f092dc0d8ea3a7b5134cb225abd40ad56b2fc01",
+        "b2456dbf7adcf0c15caad3311aa86b41931be524",
+        "3d20975418a3195975a6d9f3ea78c99ef4453e0f",
+        "b534ecc9a1921e682815526185ce5e0e6e0ee675",
+        "03c30f4a7c6e93fe030c2609f784b576fd2a8d76",
+        "76be55b967073ef2190208c6fb2ef743e784916e",
+        "493b9dc396ad20b5b8bebe84a846c660381eb72f",
+        "b4bfede9be182375baf551e5b880811971ab1ea3",
+        "f158615fa1c0fe6e8fbb99d522c82ad7393b3c2a",
+        "f699ef5687d655feabc9314f4429658891e8ad37",
+        "6664f785082d16546e46d13e145790787b7fc1cc",
+        "6b47956b081c48e97a2201b62d4d417cc4be3845",
+        "b8b62b7528c884d034af6c677a88e7d21e0b2fb1",
+        "b53d35a33dddb82db361a9a501daa04c48183142",
+        "631cb0c6d4de044a080927f711f575db8ac6c1d7",
+        "1ef7c5a0974fe841022b8bc44abcbf9023816c32",
+        "608c082f5d72802bbea685675352ab7e057fbba9",
+        "6069981b37dbd0e8f6c6865ce9ba394cf22ba19a",
+        "ecaf90130b402899934cefdb16204e6fef0cc8c8",
+        "6a7910f118e5fa2d0f2134724ee408ca039dbdb4",
+        "888b64b5bf84ed34e13a9118304421266b1a3287"
       ],
-      "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a"
+      "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
+      "execution_certification": {
+        "profitability_authority": true,
+        "target_restrictiveness": "Active Wide Maker v3",
+        "original_source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
+        "revision": "active-wide-maker-v3",
+        "purpose": "prospective natural paper validation of the Active Wide Maker v3 Ramses strategy with governed wide-range recentering and capital preservation",
+        "machinery_proof_only": false,
+        "one_natural_settled_lifecycle_target": false,
+        "prior_execution_source_sha": "b2456dbf7adcf0c15caad3311aa86b41931be524",
+        "lifecycle_repair": "transient provider rate limits and temporarily incomplete same-pool unwind liquidity hold open paper positions and retry; isolated paper ledger funds modeled cost envelope without resizing position",
+        "repeat_entry_repair": "post-loss available-capital admission; available cost-envelope gate; unique per-qualification lifecycle namespace; candidate-local capacity/provider boundaries",
+        "funding_repair": {
+          "revision": "first-qualified-pinned-screen-genesis-v1",
+          "integration_commit": "4e23805eefeb69e83bdf9fef99039e7b536195e8",
+          "purpose": "initialize the one-time asset-separated Ramses campaign paper budget from the first genuine natural qualifier's authenticated pinned screen rather than unrelated merely-fundable inventory",
+          "preserves": [
+            "natural strategy qualification",
+            "authenticated finalized evidence",
+            "complete state and cost evidence",
+            "position sizing and 10% active-liquidity cap",
+            "no replenishment after losses",
+            "no cross-asset conversion",
+            "append-only lifecycle evidence",
+            "paper-only authority"
+          ],
+          "strategy_thresholds_changed": false
+        },
+        "cost_route_repair": {
+          "revision": "bounded-candidate-bridge-v1",
+          "source_commit": "8f4b177fea3965812d4aa80c0ffa5652f11a074f",
+          "purpose": "complete quote-denominated Ramses paper-cost evidence when no direct WNATIVE/quote pool exists by permitting only WNATIVE-to-candidate-token-X then candidate-pool token-X-to-token-Y executable getSwapOut conversion",
+          "fail_closed": true,
+          "general_router_search": false,
+          "strategy_thresholds_changed": false
+        },
+        "finalized_frontier_monotonicity_repair": {
+          "revision": "explicit-prior-height-reauthentication-v1",
+          "source_commit": "b2456dbf7adcf0c15caad3311aa86b41931be524",
+          "failure_evidence_run": 35763784886,
+          "failure_boundary": "extended_finalized_frontier_regression",
+          "purpose": "when a load-balanced RPC briefly serves a lower finalized tag, never roll the campaign backward; re-authenticate the previously accepted finalized block by explicit height/hash/timestamp and only then treat the lower tag as stale",
+          "stale_tag_can_be_ignored_only_after_explicit_prior_height_authentication": true,
+          "same_height_hash_conflict_fails_closed": true,
+          "forward_timestamp_regression_fails_closed": true,
+          "prior_height_reauthentication_disagreement_fails_closed": true,
+          "strategy_thresholds_changed": false,
+          "cost_model_changed": false,
+          "position_size_changed": false,
+          "finality_standard_weakened": false,
+          "paper_only_unchanged": true
+        },
+        "checkpoint_persistence_hardening": {
+          "revision": "append-only-full-screen-bounded-public-checkpoint-v1",
+          "integration_commits": [
+            "fbea75e7b0cebf9b87b46571cb70757c4c3ce5da",
+            "bdfda3dda3ac89b400ea1360e201d0b74fa9aa4d"
+          ],
+          "purpose": "archive full Ramses screen/terminal/lifecycle evidence once in telemetry.sqlite while keeping repeated public/status checkpoints bounded; preserve sanitized terminal boundary telemetry",
+          "strategy_thresholds_changed": false,
+          "evidence_dropped": false
+        },
+        "source_verification_run_id": 35784236046,
+        "source_verification_result": "success",
+        "active_wide_maker_v3": {
+          "source_commit": "6b47956b081c48e97a2201b62d4d417cc4be3845",
+          "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+          "initial_quote_asset": "USDG",
+          "prior_30m_swaps_max": 2,
+          "initial_width_bins_min": 65,
+          "maximum_local_liquidity_fraction_bps": 50,
+          "recenter_displacement_band": [
+            1.5,
+            3
+          ],
+          "overrun_exit_above": 3,
+          "replacement_capital_preservation_ratio": [
+            0.8,
+            1.2
+          ],
+          "target_burn_to_remint_seconds": 180,
+          "hard_decision_deadline_seconds": 210,
+          "complete_unwind_required": true,
+          "two_x_cost_stress_required": true,
+          "no_automatic_chase": true,
+          "freshness_finality_changed": false,
+          "paper_only_unchanged": true
+        },
+        "provider_optimization": {
+          "source_commit": "b8b62b7528c884d034af6c677a88e7d21e0b2fb1",
+          "revision": "public-observation-alchemy-active-cohort-v1",
+          "discovery_plane": "official_robinhood_public_rpc",
+          "alchemy_role": "candidate_state_active_cohort_costs_and_lifecycle_only",
+          "broad_factory_and_log_observation_on_alchemy": false,
+          "receipt_cost_scope": "active_cohort_only",
+          "breadth_changed": false,
+          "strategy_thresholds_changed": false,
+          "paper_only_unchanged": true,
+          "public_rpc_transport_repair": {
+            "revision": "hosted-user-agent-v1",
+            "source_commit": "b53d35a33dddb82db361a9a501daa04c48183142",
+            "failure_run": 35817973734,
+            "header_probe_run": 35819131234,
+            "recompose_probe_run": 35819472776,
+            "failure": "official_robinhood_public_rpc_http_403_with_python_default_request_profile",
+            "repair": "explicit descriptive User-Agent plus Accept application/json on all bounded read transports",
+            "hosted_probe_current_profile_http_status": 403,
+            "hosted_probe_repaired_profile_http_status": 200,
+            "hosted_probe_methods": [
+              "eth_chainId",
+              "eth_getBlockByNumber"
+            ],
+            "alchemy_role_expanded": false,
+            "discovery_breadth_changed": false,
+            "strategy_thresholds_changed": false,
+            "paper_only_unchanged": true
+          }
+        },
+        "market_scope_efficiency": {
+          "revision": "strategy-domain-funnel-ordering-v1",
+          "purpose": "preserve broad market observability while delaying expensive evidence until existing strategy-domain gates can still be satisfied",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "detail": "filter to recently-active 1-2-swap pools, authenticate USDG identity before state/cost hydration, and spend the existing eight wide-range hydration slots only on strategy-domain candidates"
+        },
+        "lifecycle_clock_repair": {
+          "revision": "durable-position-handoff-v1",
+          "purpose": "continue factory observation while one long-horizon position is monitored, preserve position in an independent durable strategy ledger, enforce 7-day maximum hold and 210-second same-decision recenter deadline",
+          "maximum_hold_seconds": 604800,
+          "recenter_target_seconds": 180,
+          "recenter_hard_deadline_seconds": 210,
+          "strategy_thresholds_changed": false,
+          "finality_changed": false,
+          "position_size_changed": false,
+          "paper_only_unchanged": true
+        },
+        "v3_authority_and_timing_lock": {
+          "revision": "active-wide-maker-v3-authority-and-timing-lock",
+          "active_mode_only": "active_wide_maker",
+          "legacy_fee_pulse_runtime_authority": false,
+          "maximum_hold_seconds": 604800,
+          "maximum_hold_clock": "finalized_chain_timestamp_minus_original_entry_timestamp",
+          "recenter_hard_same_decision_deadline_seconds": 210,
+          "deadline_miss_behavior": "discard stale replacement geometry and rerun from a fresh finalized screen; fail closed in quote if the fresh redecision also exceeds the deadline",
+          "economics_changed": false,
+          "paper_only_unchanged": true
+        }
+      },
+      "prospect_admission": {
+        "market_observation_scope": "complete authenticated Ramses factory inventory remains observable",
+        "investment_evaluation_scope": "recently-active quiet USDG pools with 1-2 observed prior 30-minute swaps, >=65-bin two-sided initial ranges, complete authenticated cost/unwind evidence and governed local-liquidity sizing; zero-swap pools remain broadly observable but are not hydrated without a finalized activity trigger; rebalances use the v3 displacement/overlap/capital-preservation state machine",
+        "factory_enumeration_is_inventory_not_investment_evaluation": true,
+        "strategy_thresholds_changed": true,
+        "profitability_authority": true
+      },
+      "source_diff_sha256": "1a7eb4f8fa00bd966d0fdf33283233e9032f69a3e78e78a95983e27daa3fe5e0",
+      "source_integrity_mode": "declared_overlay_index",
+      "overlay_patches": [
+        "certification/patches/ramses-admission.patch",
+        "certification/patches/market-scope-efficiency-ramses.patch",
+        "certification/patches/ramses-ledger-position.patch"
+      ]
     }
+  },
+  "execution_certification": {
+    "revision": "current-four-lane-profit-protection-v2",
+    "purpose": "Compose the current Pump/Pons profit-protection revisions with Meteora enforced core-hold profitability v2 and Ramses Active Wide Maker v3 authority/timing lock while preserving current operational overlays and paper-only controls.",
+    "profitability_authority": true,
+    "target_strategy_restrictiveness": "Pump/Pons profitability-v1 profit-protection-v2; Meteora authenticated fee-density core-hold-v2; Ramses Active Wide Maker v3",
+    "validation_status": "PROFIT_PROTECTION_V2_EXACT_HASHES_PINNED_FINAL_CERTIFICATION_REQUESTED",
+    "validation_run_requested": true,
+    "latest_qualification": {
+      "run_id": 35888605351,
+      "verified_parent_head": "7f59407777d2e482e754acbb91adaeb6b20f1312",
+      "result": "success",
+      "market_validation": false,
+      "verified": [
+        "Pump profit-protection-v2 exact source plus canonical operational overlays",
+        "Pons profit-protection-v2 exact source plus canonical operational overlays",
+        "Meteora core-hold-v2 exact source plus canonical operational overlays",
+        "Ramses Active Wide Maker v3 authority-lock exact source plus canonical operational overlays",
+        "all four isolated lane test suites",
+        "Solana resource gates",
+        "exact applied overlay hashes"
+      ],
+      "scope": "exact four-lane deterministic non-market certification"
+    },
+    "source_heads": {
+      "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
+      "pons": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
+      "ramses": "888b64b5bf84ed34e13a9118304421266b1a3287"
+    },
+    "source_verification": {
+      "meteora": {
+        "run_id": 35783399239,
+        "result": "success"
+      },
+      "ramses": {
+        "run_id": 35784236046,
+        "result": "success"
+      }
+    },
+    "prior_component_suite_evidence": {
+      "validation_status": "final_integrated_deterministic_passed",
+      "latest_qualification": {
+        "run_id": 35789882265,
+        "verified_parent_head": "2c9de961dbddbd0cbe66c774cf16b98329b1317e",
+        "result": "success",
+        "market_validation": false,
+        "verified": [
+          "Pump profitability persistence source plus canonical operational overlay",
+          "Pons profitability persistence source plus canonical operational overlay",
+          "Meteora authenticated fee-density profitability source plus canonical lifecycle overlay",
+          "Ramses Active Wide Maker v3 source plus canonical operational overlay",
+          "supervisor deterministic suite",
+          "all four isolated lane test suites",
+          "Solana resource gates",
+          "canonical overlay idempotence"
+        ],
+        "scope": "historical_component_suites_and_resources_only; not current candidate end-to-end certification"
+      },
+      "exact_head_certification": {
+        "run_id": 35789882265,
+        "head_sha": "2c9de961dbddbd0cbe66c774cf16b98329b1317e",
+        "result": "success",
+        "canonicalization_mutation": false
+      },
+      "canonical_overlay_head": "5893ebb35c769096d6e0cbacc05171ac44747d4a"
+    },
+    "non_market_audit": {
+      "mode": "offline_components_and_native_ledger_fault_injection",
+      "paper_only": true,
+      "strategy_economics_changed": false,
+      "full_end_to_end_certified": false,
+      "report": "docs/NON_MARKET_END_TO_END_CERTIFICATION.md",
+      "runtime_identity": "Git HEAD plus pinned lane sources plus exact normalized overlays; recorded by certification.non_market",
+      "prior_candidate_component_run": 35795249808
+    },
+    "market_scope_efficiency_candidate": {
+      "branch": "repair/market-scope-efficiency-final-20260923",
+      "integration_identity": "git_head_bound_by_certification_runner",
+      "pons_source_sha": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
+      "ramses_source_sha": "631cb0c6d4de044a080927f711f575db8ac6c1d7",
+      "exact_source_diff_sha256": {
+        "pump": "9f3851244dc1cc939caad17b65c240a5d82467eb271d623c108be3f009386eeb",
+        "pons": "b6ebd94cee32100495e3c73506126ef0ac83b4bf22112e38fb87dbc390a075f7",
+        "meteora": "76dad9ea767672d1906cde19b0d5e6301a3dad00a658637a611b5c1d09e37bd4",
+        "ramses": "2b118db437e140becd34dba2594bb485dfa4d83bfd1c2926a687fb4022ce59ab"
+      },
+      "pre_pin_qualification": {
+        "run_id": 35866960015,
+        "head_sha": "27f3707062ad664584b2b1529255752aa5d22f0a",
+        "result": "success",
+        "full_ramses_universe_regression": true
+      },
+      "strategy_thresholds_changed": false,
+      "market_observation_scope_changed": false,
+      "paper_only_unchanged": true,
+      "exact_diff_hashes_pending": false
+    },
+    "lifecycle_clock_repair_candidate": {
+      "branch": "repair/lifecycle-clock-decoupling-20260923",
+      "pre_pin_full_deterministic_run_id": 35873505264,
+      "pre_pin_head_sha": "f3330b6ff8d33dec54547332c5a739c42f79e43f",
+      "result": "success",
+      "exact_source_diff_sha256": {
+        "pump": "c55cb785a451b8963264ba71344a954147582db36f7a7c11e85ea70aaa4da5d3",
+        "meteora": "1d6755eeac5a83afb9b617492d4c90c68ccf093b18d19c836ce38f48612b1d92",
+        "pons": "b6ebd94cee32100495e3c73506126ef0ac83b4bf22112e38fb87dbc390a075f7",
+        "ramses": "2b118db437e140becd34dba2594bb485dfa4d83bfd1c2926a687fb4022ce59ab"
+      },
+      "implementation_scope": [
+        "Meteora one-hour discovery separated from durable 4-24h position continuation",
+        "Meteora 162-second pre-entry trigger/warmup/evidence reserve",
+        "Ramses discovery continues while one long-horizon position owns capital",
+        "Ramses 604800-second maximum hold and 210-second recenter same-decision deadline",
+        "Pump final-second entry can complete 900-second hold inside existing 1000-second drain"
+      ],
+      "strategy_thresholds_changed": false,
+      "market_observation_scope_changed": false,
+      "position_sizing_changed": false,
+      "finality_changed": false,
+      "paper_only_unchanged": true,
+      "exact_post_pin_certification_requested": true
+    },
+    "profit_protection_v2_candidate": {
+      "branch": "cert/profit-protection-v2-four-lane-20260923",
+      "source_heads": {
+        "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
+        "pons": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+        "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
+        "ramses": "888b64b5bf84ed34e13a9118304421266b1a3287"
+      },
+      "policy_hashes": {
+        "pump": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+        "pons": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+        "meteora": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+        "ramses": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef"
+      },
+      "exact_source_diff_sha256": {
+        "pump": "7139d965818dfa4f093824161a5102e5635b8a0dcc6d831f55d28e0cb33481fe",
+        "meteora": "113bbf9013b88a725efc8de7ec2fc98a4f03ca12c61929dbd99bfd90d5da5ccb",
+        "pons": "486b1e2977b62ee9a678ae99946a35ca17c411f92fc3a676ad991c20c94c8ca4",
+        "ramses": "1a7eb4f8fa00bd966d0fdf33283233e9032f69a3e78e78a95983e27daa3fe5e0"
+      },
+      "changes": [
+        "Pons +18%/~33% harvest preserved; profitable runner requires persistent simultaneous soft deterioration or hard adverse evidence",
+        "Pump +15%/25% staged harvest; profitable low demand requires two observations; one bounded healthy continuation beyond each legacy max-hold boundary",
+        "Meteora 4h core hold is executable; fee/volume collapse requires two consecutive verified 300s segments; hard range/inventory/one-way risk exits remain immediate",
+        "Ramses runtime and ledger require Active Wide Maker v3; 7d hold uses durable chain time; 210s same-decision rebalancing deadline is enforced"
+      ],
+      "entry_thresholds_changed": false,
+      "finality_changed": false,
+      "position_sizing_changed": false,
+      "paper_only_unchanged": true,
+      "ramses_ledger_readback_compatibility": {
+        "revision": "explicit-final-ledger-readback-overlay-v1",
+        "strategy_economics_changed": false,
+        "runtime_authority_changed": false,
+        "purpose": "retain durable position readback used by restart/idempotency certification after Ramses admission overlay composition"
+      },
+      "pre_pin_qualification": {
+        "run_id": 35888605351,
+        "head_sha": "7f59407777d2e482e754acbb91adaeb6b20f1312",
+        "result": "success",
+        "source_diff_hashes": {
+          "pump": "7139d965818dfa4f093824161a5102e5635b8a0dcc6d831f55d28e0cb33481fe",
+          "meteora": "113bbf9013b88a725efc8de7ec2fc98a4f03ca12c61929dbd99bfd90d5da5ccb",
+          "pons": "486b1e2977b62ee9a678ae99946a35ca17c411f92fc3a676ad991c20c94c8ca4",
+          "ramses": "1a7eb4f8fa00bd966d0fdf33283233e9032f69a3e78e78a95983e27daa3fe5e0"
+        }
+      },
+      "exact_post_pin_certification_requested": true
+    }
+  },
+  "composition": {
+    "execution_integration_sha": "960980c4412f525b15568401a2b8f0c2c25bdbab",
+    "robinhood_efficiency_sha": "a34c5d4dce4dc93445b837cfeeb51901825bdb9f",
+    "four_lane_observability_sha": "acb7e51127c66e89fc524d81408bdb4a0afec629"
+  },
+  "prospect_admission": {
+    "revision": "strategy-prospect-admission-v1",
+    "purpose": "keep broad market observability while limiting investment evaluation to prospects defined by each frozen strategy",
+    "strategy_thresholds_changed": false,
+    "freshness_finality_changed": false,
+    "paper_accounting_changed": false,
+    "validation_status": "final-integrated-deterministic-passed",
+    "validation_run_requested": false,
+    "source_sha": "0982519a68222b7cd0640981a7ac4a8ac7c119dd",
+    "integration": "semantic delta composed in canonical overlays"
   }
 }

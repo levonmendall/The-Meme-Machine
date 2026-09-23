@@ -1,0 +1,9 @@
+Launch clean four-lane hourly paper validation after combined evidence-path repairs.
+Verified qualification head: b1b774669159230cc32b4837dbbfb6f4a7b915e1
+Qualification workflow: 35741104666 completed successfully.
+Pons: reserved-bit WebSocket session recovery plus foreground queue-drain freshness repair.
+Pump: proven-negative PumpSwap bodies no longer hydrate; ambiguous/missing/truncated evidence still authenticates.
+Ramses: bounded quote-cost route completion pinned.
+Meteora: disjoint-liquidity reconstruction completion pinned with MAX_TRANSACTIONS restored to 16.
+No strategy thresholds, freshness/finality gates, sizing controls, or paper-only authority changed.
+No active or queued competing workflows at launch.

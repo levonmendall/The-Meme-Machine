@@ -37,6 +37,7 @@ def audit_telemetry(folder,lane,policy):
         'eth_chainId','eth_blockNumber','eth_getBlockByNumber','eth_getBlockByHash',
         'eth_getLogs','eth_getTransactionReceipt','eth_getTransactionByHash',
         'eth_getCode','eth_getStorageAt','eth_getBalance','eth_call','eth_gasPrice',
+        'eth_getBlockReceipts','eth_callMany',
         'eth_feeHistory','net_version','web3_clientVersion','eth_estimateGas',
         'alchemy_getAssetTransfers',
     } for method in methods)
@@ -106,8 +107,43 @@ def smoke_engineering(result):
     shared=result.get('shared_provider',{})
     for network in ('solana','robinhood'):
         if network not in shared or shared[network].get('queues')!=[]:failures.append(network+':provider_queue_not_drained')
+    if 'robinhood_reuse' in shared and shared['robinhood_reuse'].get('inflight_jobs')!=0:
+        failures.append('robinhood:immutable_provider_jobs_not_drained')
     return dict(status='PASS' if not failures else 'FAIL',failures=failures,
         scope='ten_minute_engineering_preflight_only; not natural or sustained certification')
+
+
+def hourly_engineering(result):
+    """Execution integrity for one hour, separate from natural certification.
+
+    A scarcity-driven INCOMPLETE result is a valid completed observation, not a
+    supervisor crash. False controls, accounting failures, restarts and short
+    windows still fail this surface.
+    """
+    failures=[]
+    if result.get('phase')!='hourly' or result.get('status')!='FINISHED':
+        failures.append('hourly_not_finished')
+    if result.get('continuous_overlap_seconds',0)<3600:
+        failures.append('one_hour_overlap_missing')
+    if (result.get('certification') or {}).get('failures'):
+        failures.extend('certification:'+x for x in result['certification']['failures'])
+    for lane in LANES:
+        row=result.get('lanes',{}).get(lane,{})
+        if row.get('exit_code')!=0 or row.get('unexpected_exit') or row.get('process_restarts')!=0:
+            failures.append(lane+':process_continuity')
+        if row.get('open_positions')!=0 or row.get('accounting_reconciled') is not True:
+            failures.append(lane+':accounting_or_exposure')
+        if not row.get('provider_requests'):failures.append(lane+':no_provider_activity')
+        for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
+            if row.get('gates',{}).get(gate) is not True:failures.append(lane+':'+gate)
+    shared=result.get('shared_provider',{})
+    for network in ('solana','robinhood'):
+        if network not in shared or shared[network].get('queues')!=[]:
+            failures.append(network+':provider_queue_not_drained')
+    if 'robinhood_reuse' in shared and shared['robinhood_reuse'].get('inflight_jobs')!=0:
+        failures.append('robinhood:immutable_provider_jobs_not_drained')
+    return dict(status='PASS' if not failures else 'FAIL',failures=failures,
+        scope='one_hour_execution_integrity_only; natural certification remains separate')
 
 
 def sustained_readiness(smoke_path,*,manifest_hash,implementation_hash,integration_sha):
@@ -130,6 +166,8 @@ def export_readiness(path,output):
     attestation={key:result[key] for key in keys}
     attestation['full_smoke_result_sha256']=hashlib.sha256(raw).hexdigest()
     attestation['shared_provider']={network:dict(queues=result['shared_provider'][network]['queues']) for network in ('solana','robinhood')}
+    if 'robinhood_reuse' in result['shared_provider']:
+        attestation['shared_provider']['robinhood_reuse']={k:result['shared_provider']['robinhood_reuse'].get(k) for k in ('state','inflight_jobs')}
     lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting')
     attestation['lanes']={lane:{key:result['lanes'][lane].get(key) for key in lane_keys} for lane in LANES}
     with Path(output).open('a') as handle:handle.write('readiness='+json.dumps(attestation,separators=(',',':'))+'\n')

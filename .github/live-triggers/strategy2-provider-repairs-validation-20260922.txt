@@ -1,0 +1,5 @@
+Validate the exact composed Strategy2/provider repair revision.
+Meteora: authenticated addLiquidityByStrategy2 post-entry continuity from retained run 35755168924 / slot 449436239.
+Robinhood: adaptive shared admission backoff after HTTP/RPC 429, preserving the existing 2 RPS ceiling and original freshness deadlines.
+Solana: one bounded smaller-batch retry for transient getTransaction timeout/5xx failures within the original consumer deadline.
+No strategy threshold, position sizing, cost model, freshness/finality, provider ceiling, or paper-only authority changes.

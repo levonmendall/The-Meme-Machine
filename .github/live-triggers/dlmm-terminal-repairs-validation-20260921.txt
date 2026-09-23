@@ -1,0 +1,7 @@
+Fresh DLMM machinery validation after terminal lifecycle repairs.
+Integrated repair base: e8af7f734b740ed78d20f5ebb40bc9ba07cc0429
+Meteora: structural multiple-liquidity-removal replay boundary closes by explicit zero-proceeds paper writeoff; generic monitor failures remain unresolved with exit reserve intact.
+Ramses: partial same-pool unwind liquidity holds the open paper position and retries on later finalized state; malformed unwind evidence still fails closed.
+Qualification workflow 35656679390 passed.
+Do not overlap an existing market workflow; certification.guard must clear contention before live observation.
+Paper only. No profitability claim.

@@ -1,0 +1,36 @@
+name: canonicalize-pons-overlay
+on:
+  push:
+    branches: [repair/solana-alchemy-efficiency]
+
+permissions:
+  contents: write
+
+jobs:
+  canonicalize:
+    if: contains(github.event.head_commit.message, '[canonicalize-pons-overlay]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Regenerate canonical Pons overlay
+        run: |
+          PONS_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["pons"]["source_sha"])')"
+          WORKTREE="$(mktemp -d)/pons"
+          git fetch origin "$PONS_SHA"
+          git worktree add --detach "$WORKTREE" "$PONS_SHA"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/pons-cohort-capital.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/pons-cohort-capital.patch"
+          git -C "$WORKTREE" diff --binary HEAD > "$GITHUB_WORKSPACE/certification/patches/pons-cohort-capital.patch"
+          git diff --check -- certification/patches/pons-cohort-capital.patch
+          if git diff --quiet -- certification/patches/pons-cohort-capital.patch; then
+            echo "Pons overlay already canonical"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add certification/patches/pons-cohort-capital.patch
+          git commit -m "[qualification-build] canonicalize Pons terminal-lifecycle repair"
+          git push origin HEAD:repair/solana-alchemy-efficiency

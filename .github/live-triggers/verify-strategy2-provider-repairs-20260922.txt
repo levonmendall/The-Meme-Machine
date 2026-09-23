@@ -1,0 +1,1 @@
+Verify exact composed qualification after Meteora addLiquidityByStrategy2 post-entry continuity, bounded Solana transient getTransaction retry, and adaptive Robinhood shared-admission 429 backoff. No market run requested by this trigger.

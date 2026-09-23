@@ -1,0 +1,1242 @@
+{
+  "main": {
+    "ref": "refs/heads/main",
+    "node_id": "REF_kwDOUeBpC69yZWZzL2hlYWRzL21haW4",
+    "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/refs/heads/main",
+    "object": {
+      "sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
+      "type": "commit",
+      "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/git/commits/54712c4c6470cc4dc267888f934bd693aac030d0"
+    }
+  },
+  "prs": [
+    {
+      "number": 94,
+      "state": "closed",
+      "head": "7419c6cfc618c1de4d61def15613e5c0e661bcf4"
+    },
+    {
+      "number": 93,
+      "state": "open",
+      "head": "c0b8bfb71c1635f60997d92c681d85298bd2030c"
+    },
+    {
+      "number": 92,
+      "state": "open",
+      "head": "a34c5d4dce4dc93445b837cfeeb51901825bdb9f"
+    },
+    {
+      "number": 91,
+      "state": "open",
+      "head": "acb7e51127c66e89fc524d81408bdb4a0afec629"
+    },
+    {
+      "number": 90,
+      "state": "open",
+      "head": "6964cfe5c501075e53f3f6f809b85bbdeb50a7cc"
+    },
+    {
+      "number": 89,
+      "state": "open",
+      "head": "477c153af8efd41d29aacdad25f6e6899df64e67"
+    },
+    {
+      "number": 88,
+      "state": "open",
+      "head": "00ebf7ffb3e13911d6c842898c98312c98d4e628"
+    },
+    {
+      "number": 87,
+      "state": "open",
+      "head": "110dbf34b054daf7a35c72d94196ec7ff0c2c331"
+    },
+    {
+      "number": 86,
+      "state": "open",
+      "head": "40c66a68704fab147dacbfc25a0819b5a6f9c844"
+    },
+    {
+      "number": 85,
+      "state": "open",
+      "head": "fda85eb923651f13d55488b6893564bfa4df5eb1"
+    }
+  ],
+  "branches": [
+    {
+      "name": "cert/cancel-combined-preflight-20260920",
+      "commit": {
+        "sha": "fef208b3d8e405780413caab4cbc65e262ff87f6",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/fef208b3d8e405780413caab4cbc65e262ff87f6"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/cancel-four-hour-20260920",
+      "commit": {
+        "sha": "55d082e6ed09f2059a8b7e099fe1640131db6da9",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/55d082e6ed09f2059a8b7e099fe1640131db6da9"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/cancel-superseded-20260920",
+      "commit": {
+        "sha": "403f1a76b1c8c9e466128e39127f5a8143ecf752",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/403f1a76b1c8c9e466128e39127f5a8143ecf752"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/execution-certification-v1",
+      "commit": {
+        "sha": "960980c4412f525b15568401a2b8f0c2c25bdbab",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/960980c4412f525b15568401a2b8f0c2c25bdbab"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/four-lane-capacity-v2",
+      "commit": {
+        "sha": "f7ee2b13036abb0171e0001608d589b51d28947e",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/f7ee2b13036abb0171e0001608d589b51d28947e"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/four-lane-run-records",
+      "commit": {
+        "sha": "fda85eb923651f13d55488b6893564bfa4df5eb1",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/fda85eb923651f13d55488b6893564bfa4df5eb1"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/four-lane-sustained-v1",
+      "commit": {
+        "sha": "ebd03f5780eee46cc59f0338f48830e475480d78",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/ebd03f5780eee46cc59f0338f48830e475480d78"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/hourly-launch-evidence-35493891947",
+      "commit": {
+        "sha": "dc1e71e2ccf611294ca24106ef7a66a49a8e599f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/dc1e71e2ccf611294ca24106ef7a66a49a8e599f"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/meteora-execution-cert-v1",
+      "commit": {
+        "sha": "29d050b218969e4c7761346737d082bf1db382ec",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/29d050b218969e4c7761346737d082bf1db382ec"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/meteora-machinery-proof-v2",
+      "commit": {
+        "sha": "43bbcce60913a9a87404fe6563585159fb72352f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/43bbcce60913a9a87404fe6563585159fb72352f"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/one-hour-repair-campaign",
+      "commit": {
+        "sha": "6964cfe5c501075e53f3f6f809b85bbdeb50a7cc",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/6964cfe5c501075e53f3f6f809b85bbdeb50a7cc"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/pons-execution-cert-v1",
+      "commit": {
+        "sha": "c692fe446bdee4ea1179da27a3f0c9f2f281f118",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c692fe446bdee4ea1179da27a3f0c9f2f281f118"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/pump-execution-cert-v1",
+      "commit": {
+        "sha": "04c99ca3125747dc8bfc6f655fec7533f8ac8156",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/04c99ca3125747dc8bfc6f655fec7533f8ac8156"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/ramses-execution-cert-v1",
+      "commit": {
+        "sha": "6b7ddd69940f5c9e056b2dca61c443450ca9965e",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/6b7ddd69940f5c9e056b2dca61c443450ca9965e"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/ramses-machinery-proof-v2",
+      "commit": {
+        "sha": "d252724f081a9ca0b3bc5fbd8e28b191568c6499",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/d252724f081a9ca0b3bc5fbd8e28b191568c6499"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/solana-consumer-scheduling",
+      "commit": {
+        "sha": "477c153af8efd41d29aacdad25f6e6899df64e67",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/477c153af8efd41d29aacdad25f6e6899df64e67"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/solana-scheduling-verification",
+      "commit": {
+        "sha": "56cb0e7e53f3c5a60a4de49b6ceed06b9264ad0f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/56cb0e7e53f3c5a60a4de49b6ceed06b9264ad0f"
+      },
+      "protected": false
+    },
+    {
+      "name": "cert/tmp-pons-overlay-v1",
+      "commit": {
+        "sha": "fa77552baabcb881fe8c512ecdfa00f082e3869d",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/fa77552baabcb881fe8c512ecdfa00f082e3869d"
+      },
+      "protected": false
+    },
+    {
+      "name": "certification/four-lane-repair-integration-20260920",
+      "commit": {
+        "sha": "d9dc1abf55cb2ab37a6181567f616535659dc9a1",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/d9dc1abf55cb2ab37a6181567f616535659dc9a1"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/market-native-active-discovery",
+      "commit": {
+        "sha": "cb7714439c732c48932ab6fd8118c7a2721d4ddf",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/cb7714439c732c48932ab6fd8118c7a2721d4ddf"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/meteora-dlmm-paper-foundation",
+      "commit": {
+        "sha": "f765aad9bc2fa85f8292ca1c32b8b36032ac22aa",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/f765aad9bc2fa85f8292ca1c32b8b36032ac22aa"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/pons-selective-continuation-v1",
+      "commit": {
+        "sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/7ed22d3bdca3680869ef61b41f063389cb006366"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/post-graduation-pumpswap-raydium",
+      "commit": {
+        "sha": "a76155b153ad60262fa961840efdafdc90344f10",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/a76155b153ad60262fa961840efdafdc90344f10"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/pump-acceleration-independent-v1",
+      "commit": {
+        "sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/361d90dbfd12226467ac458f92b16a9f0b017fce"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/pump-alpha-v1-independent",
+      "commit": {
+        "sha": "5f31bdaa01c7d36321319beaf0b907462da7d191",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/5f31bdaa01c7d36321319beaf0b907462da7d191"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/pump-directional-paper",
+      "commit": {
+        "sha": "4800212aa42d2b52d74d4cb332199427e9ef8d31",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/4800212aa42d2b52d74d4cb332199427e9ef8d31"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/ramses-all-pool-connected-lifecycle",
+      "commit": {
+        "sha": "d49bdf269182f06c16d0cc6942ba556e0b43a3de",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/d49bdf269182f06c16d0cc6942ba556e0b43a3de"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/ramses-all-pool-universe",
+      "commit": {
+        "sha": "8820876a5a07d64a47e1dd35b0e690f4c7b3b83a",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/8820876a5a07d64a47e1dd35b0e690f4c7b3b83a"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/ramses-automatic-cost-evidence-20m",
+      "commit": {
+        "sha": "f21764315a1569b4fc8c76eb6468496c9f280a84",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/f21764315a1569b4fc8c76eb6468496c9f280a84"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/ramses-extended-market-test",
+      "commit": {
+        "sha": "229883e204878e22022a1220d8b00e0217ab99a4",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/229883e204878e22022a1220d8b00e0217ab99a4"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/ramses-fee-pulse-v1",
+      "commit": {
+        "sha": "4ab41e7667d3d25a4d5f52c4030cc66e7b41a4a0",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/4ab41e7667d3d25a4d5f52c4030cc66e7b41a4a0"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/robinhood-multisource-observability",
+      "commit": {
+        "sha": "30820481f39708907a17a2f4b8e62a352574ea75",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/30820481f39708907a17a2f4b8e62a352574ea75"
+      },
+      "protected": false
+    },
+    {
+      "name": "feat/robinhood-research-foundation",
+      "commit": {
+        "sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/eebcb9136efa41db9a28f2ac95e4dddde0d17b15"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/ramses-dlmm-rate-limit",
+      "commit": {
+        "sha": "7911a01f4f6f55f8e594def97848e1691fbecf6d",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/7911a01f4f6f55f8e594def97848e1691fbecf6d"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/ramses-exact-horizon-inventory-cache",
+      "commit": {
+        "sha": "211dd824ee28e6e5a1b139e97792e2141b0da6d6",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/211dd824ee28e6e5a1b139e97792e2141b0da6d6"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/ramses-finality-cadence-20m-rerun",
+      "commit": {
+        "sha": "5823d360ee40fae3f5eb7fb61c0caedc09ad2384",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/5823d360ee40fae3f5eb7fb61c0caedc09ad2384"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/ramses-finalized-frontier-driven-discovery",
+      "commit": {
+        "sha": "c0dca0fa44c9617590d0c1c133bbf2bdb7c98e25",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c0dca0fa44c9617590d0c1c133bbf2bdb7c98e25"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/ramses-prestate-handoff",
+      "commit": {
+        "sha": "017613b262affbac2cfc463e0cfe012f9163eb25",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/017613b262affbac2cfc463e0cfe012f9163eb25"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/ramses-qualifier-history-handoff",
+      "commit": {
+        "sha": "c785d34ead045acb854a51d9d0da27daaf60b63a",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c785d34ead045acb854a51d9d0da27daaf60b63a"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/robinhood-discovery-dlmm-fallback",
+      "commit": {
+        "sha": "b6636cca1e806ad32d35972ae0466e8dbd355374",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/b6636cca1e806ad32d35972ae0466e8dbd355374"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/robinhood-primary-fallback-pacing",
+      "commit": {
+        "sha": "bca832940438eb50b0b3a13b6f3a878b3d932510",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/bca832940438eb50b0b3a13b6f3a878b3d932510"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/robinhood-provider-endpoint-isolation-v2",
+      "commit": {
+        "sha": "c0734c4533b9076561205731f1bc19a09b1bcc09",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c0734c4533b9076561205731f1bc19a09b1bcc09"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/robinhood-provider-role-isolation",
+      "commit": {
+        "sha": "2765c3c365e28a50dec7a1ac506f0ca4b4a82f8f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/2765c3c365e28a50dec7a1ac506f0ca4b4a82f8f"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/robinhood-sequencer-compression",
+      "commit": {
+        "sha": "dd4b8404a9d0681ba7c9448212635ca3c2481450",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/dd4b8404a9d0681ba7c9448212635ca3c2481450"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/robinhood-sequencer-nonmessage-envelope",
+      "commit": {
+        "sha": "fdb094602694f13ba40b0ac18cd67e168ab7749a",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/fdb094602694f13ba40b0ac18cd67e168ab7749a"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/robinhood-sequencer-start-cursor",
+      "commit": {
+        "sha": "303aad2892a174f94f66866854a0284965673149",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/303aad2892a174f94f66866854a0284965673149"
+      },
+      "protected": false
+    },
+    {
+      "name": "fix/robinhood-shared-primary-capacity",
+      "commit": {
+        "sha": "2b3ab5e28961f07e72391ad7694a300d84bb9ebd",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/2b3ab5e28961f07e72391ad7694a300d84bb9ebd"
+      },
+      "protected": false
+    },
+    {
+      "name": "main",
+      "commit": {
+        "sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/54712c4c6470cc4dc267888f934bd693aac030d0"
+      },
+      "protected": false
+    },
+    {
+      "name": "perf/meme-solana-public-4rps",
+      "commit": {
+        "sha": "9294d72e83ff1c186d19904ee7395208093928ba",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/9294d72e83ff1c186d19904ee7395208093928ba"
+      },
+      "protected": false
+    },
+    {
+      "name": "perf/robinhood-pons-batched-discovery-auth",
+      "commit": {
+        "sha": "65f2379643a8c2e4350342e9aa567ed7550bb464",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/65f2379643a8c2e4350342e9aa567ed7550bb464"
+      },
+      "protected": false
+    },
+    {
+      "name": "perf/robinhood-pons-batched-followup",
+      "commit": {
+        "sha": "d2e31751065bdb872bc1b60b83c7450750d7483a",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/d2e31751065bdb872bc1b60b83c7450750d7483a"
+      },
+      "protected": false
+    },
+    {
+      "name": "proof/market-native-active-paper",
+      "commit": {
+        "sha": "58372279792621e98889239810fadfbb81353c05",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/58372279792621e98889239810fadfbb81353c05"
+      },
+      "protected": false
+    },
+    {
+      "name": "proof/natural-continuation-v1-pumpswap",
+      "commit": {
+        "sha": "e252268b1cfaccb12c23fadb44ee206e2a49e7ef",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/e252268b1cfaccb12c23fadb44ee206e2a49e7ef"
+      },
+      "protected": false
+    },
+    {
+      "name": "reconcile/pump-pumpswap-ci",
+      "commit": {
+        "sha": "6403621c21ff4c02046dc787354e0cf04f52e70d",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/6403621c21ff4c02046dc787354e0cf04f52e70d"
+      },
+      "protected": false
+    },
+    {
+      "name": "refactor/robinhood-solana-style-rpc-governance",
+      "commit": {
+        "sha": "2f1cc7cab8b5763ac9df0b5e8ad020e5ceb930e4",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/2f1cc7cab8b5763ac9df0b5e8ad020e5ceb930e4"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/dlmm-durable-state-certification-20260920",
+      "commit": {
+        "sha": "6a3be3a2d3c3c45fb3068662a23800e2e3768933",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/6a3be3a2d3c3c45fb3068662a23800e2e3768933"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/dlmm-json-checkpoint-certification",
+      "commit": {
+        "sha": "31763690f939c0baa50c0631b953d09e4f3ca787",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/31763690f939c0baa50c0631b953d09e4f3ca787"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/four-lane-acquisition",
+      "commit": {
+        "sha": "2ff832eac80655217243f5fb7fecd4521ee228d0",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/2ff832eac80655217243f5fb7fecd4521ee228d0"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/four-lane-observability",
+      "commit": {
+        "sha": "acb7e51127c66e89fc524d81408bdb4a0afec629",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/acb7e51127c66e89fc524d81408bdb4a0afec629"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/frozen-campaign-handoff",
+      "commit": {
+        "sha": "1be36b2eb4abd2d77f5876da856de2f765392de4",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/1be36b2eb4abd2d77f5876da856de2f765392de4"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/meme-solana-public-primary-failover",
+      "commit": {
+        "sha": "c23615dcc338df00bc607e410533f2cebc364070",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c23615dcc338df00bc607e410533f2cebc364070"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/meteora-consumer-scheduling",
+      "commit": {
+        "sha": "00ebf7ffb3e13911d6c842898c98312c98d4e628",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/00ebf7ffb3e13911d6c842898c98312c98d4e628"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/meteora-continuous-campaign",
+      "commit": {
+        "sha": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/957ff70af2065c7bf0227f00a7fab0f44e0f81f0"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/meteora-durable-paper-lifecycle",
+      "commit": {
+        "sha": "1b04eca2984f85c9a47d262dc7ea84796a21754e",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/1b04eca2984f85c9a47d262dc7ea84796a21754e"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/meteora-hydration-deadline",
+      "commit": {
+        "sha": "45041de0669c9f0db2dc27793ab2da2a77e72a25",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/45041de0669c9f0db2dc27793ab2da2a77e72a25"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pons-429-backpressure-20m",
+      "commit": {
+        "sha": "4594f5cd0979d09cd9007717175ee253777cab7f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/4594f5cd0979d09cd9007717175ee253777cab7f"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pons-cohort-capital-certification",
+      "commit": {
+        "sha": "40bc4c4d1fb81900645fcbce109b4be0341320aa",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/40bc4c4d1fb81900645fcbce109b4be0341320aa"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pons-combined-evidence-batching",
+      "commit": {
+        "sha": "38d264c9dd878e2f70ffb461c18bd12ecdd7c1d6",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/38d264c9dd878e2f70ffb461c18bd12ecdd7c1d6"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pons-concurrent-certification-20260920",
+      "commit": {
+        "sha": "c96d9092f7645c0def4fb2c237477644280f7041",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c96d9092f7645c0def4fb2c237477644280f7041"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pons-continuous-campaign",
+      "commit": {
+        "sha": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/3378ecc3e7a130e8dcd1fa1ef88105235875c6b1"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pons-partial-accounting-timeline",
+      "commit": {
+        "sha": "44355aaac41a06a80f306f4458bbf200b118f179",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/44355aaac41a06a80f306f4458bbf200b118f179"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pons-provider-session-recovery-20m",
+      "commit": {
+        "sha": "d0e7008d37d89ee3699154fc8b48e98536c2d440",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/d0e7008d37d89ee3699154fc8b48e98536c2d440"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pons-unfilled-reservation",
+      "commit": {
+        "sha": "40c66a68704fab147dacbfc25a0819b5a6f9c844",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/40c66a68704fab147dacbfc25a0819b5a6f9c844"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pump-continuous-campaign",
+      "commit": {
+        "sha": "6377b4c46da95c4591848939c714f7766e789acd",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/6377b4c46da95c4591848939c714f7766e789acd"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pump-decision-window-bootstrap-20m",
+      "commit": {
+        "sha": "777eb9894df43891cbe43a834f47790f6cbb98e3",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/777eb9894df43891cbe43a834f47790f6cbb98e3"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pump-hydration-deadline",
+      "commit": {
+        "sha": "7774ebe0f712a0e12848de1c54aaaf44df8480e7",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/7774ebe0f712a0e12848de1c54aaaf44df8480e7"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pump-paper-accounting-certification-20260920",
+      "commit": {
+        "sha": "2b2af01299ce99b0f036981bfad57107713c68b7",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/2b2af01299ce99b0f036981bfad57107713c68b7"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pump-tape-dedup-trajectory-gates",
+      "commit": {
+        "sha": "9e176f5596ceea3cb68d3fca979d6647eddc9ade",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/9e176f5596ceea3cb68d3fca979d6647eddc9ade"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/pump-transaction-pressure",
+      "commit": {
+        "sha": "7419c6cfc618c1de4d61def15613e5c0e661bcf4",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/7419c6cfc618c1de4d61def15613e5c0e661bcf4"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/ramses-capital-reservation-replay",
+      "commit": {
+        "sha": "b3ec5aaca230f2aa9c0e894c9912722a56f2eef1",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/b3ec5aaca230f2aa9c0e894c9912722a56f2eef1"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/ramses-concurrent-certification-20260920",
+      "commit": {
+        "sha": "3ec74dfa223d3eecae3c3d525ceb27bcdf63d5f6",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/3ec74dfa223d3eecae3c3d525ceb27bcdf63d5f6"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/ramses-continuous-campaign",
+      "commit": {
+        "sha": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/ramses-deferred-capital-initialization",
+      "commit": {
+        "sha": "325c6052056500146b88d1ad3e83bf5db5b9657a",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/325c6052056500146b88d1ad3e83bf5db5b9657a"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/ramses-factory-enumeration-20m",
+      "commit": {
+        "sha": "484a28870e8bbd1cdd0fce022f0357f8440d177f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/484a28870e8bbd1cdd0fce022f0357f8440d177f"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/robinhood-cu-efficiency",
+      "commit": {
+        "sha": "a34c5d4dce4dc93445b837cfeeb51901825bdb9f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/a34c5d4dce4dc93445b837cfeeb51901825bdb9f"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-alchemy-efficiency",
+      "commit": {
+        "sha": "c0b8bfb71c1635f60997d92c681d85298bd2030c",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c0b8bfb71c1635f60997d92c681d85298bd2030c"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-broker-atomic-claims",
+      "commit": {
+        "sha": "b55417e8482b19a73eaa358743ad3e90fca161d4",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/b55417e8482b19a73eaa358743ad3e90fca161d4"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-broker-global-pacing",
+      "commit": {
+        "sha": "7a0708ead6ba87edb8eed92895698ecf5f397033",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/7a0708ead6ba87edb8eed92895698ecf5f397033"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-broker-sync-dlmm",
+      "commit": {
+        "sha": "1f8a31ec0697afa6039b11d413b22e130350d951",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/1f8a31ec0697afa6039b11d413b22e130350d951"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-consumer-scheduling",
+      "commit": {
+        "sha": "110dbf34b054daf7a35c72d94196ec7ff0c2c331",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/110dbf34b054daf7a35c72d94196ec7ff0c2c331"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-dlmm-broker-expiry-sync",
+      "commit": {
+        "sha": "f91f0096f1b9d42d428e2f728a885a7f4e8fa57f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/f91f0096f1b9d42d428e2f728a885a7f4e8fa57f"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-dlmm-gap-finalize",
+      "commit": {
+        "sha": "d62298ab8c44924689d7b27287a065b41f02b22f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/d62298ab8c44924689d7b27287a065b41f02b22f"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-dlmm-trigger-censoring-20m",
+      "commit": {
+        "sha": "b45b9588bfe0ffbda1ac122135bd49be82606976",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/b45b9588bfe0ffbda1ac122135bd49be82606976"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-evidence-broker-finalize",
+      "commit": {
+        "sha": "7df2cc36e5f966e603003b4613279f3515b6d2d5",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/7df2cc36e5f966e603003b4613279f3515b6d2d5"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-evidence-final-v2",
+      "commit": {
+        "sha": "efc3221a67362efb4fe469fae55caf228a5b2748",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/efc3221a67362efb4fe469fae55caf228a5b2748"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-evidence-queue-expiry",
+      "commit": {
+        "sha": "b592e91cb6670d0a99878fac0a6628556f6ff9d2",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/b592e91cb6670d0a99878fac0a6628556f6ff9d2"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-global-pacing-dlmm",
+      "commit": {
+        "sha": "afc7c55c052e616776ff5e9dbb8c445de2d42da3",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/afc7c55c052e616776ff5e9dbb8c445de2d42da3"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-provider-error-telemetry",
+      "commit": {
+        "sha": "c1f968d7cf117f130761899128a1c4e8a8d08bc2",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c1f968d7cf117f130761899128a1c4e8a8d08bc2"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-pumpswap-address-stream",
+      "commit": {
+        "sha": "3c451c51c9603e6af2a07be510c79546d4588b2b",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/3c451c51c9603e6af2a07be510c79546d4588b2b"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-stream-first-evidence-dlmm",
+      "commit": {
+        "sha": "c8cd2ed4e8ce6c6edc9e6c0130bb1ad9c5458556",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c8cd2ed4e8ce6c6edc9e6c0130bb1ad9c5458556"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/solana-stream-first-evidence-pump",
+      "commit": {
+        "sha": "741a7d6b751d86d20bb1abc59d86bae92ceb907a",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/741a7d6b751d86d20bb1abc59d86bae92ceb907a"
+      },
+      "protected": false
+    },
+    {
+      "name": "repair/strategy-prospect-admission",
+      "commit": {
+        "sha": "0982519a68222b7cd0640981a7ac4a8ac7c119dd",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/0982519a68222b7cd0640981a7ac4a8ac7c119dd"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-add-liquidity2-support",
+      "commit": {
+        "sha": "e15e0f22f4f4d3b3b49ec7fbc0f15eb1b7d72323",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/e15e0f22f4f4d3b3b49ec7fbc0f15eb1b7d72323"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-alchemy-pacing-per-pool-budget",
+      "commit": {
+        "sha": "897b05f5bae6a614163007d6a2b7126f5a7ccb81",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/897b05f5bae6a614163007d6a2b7126f5a7ccb81"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-alchemy-routing",
+      "commit": {
+        "sha": "d90b4cd869f028c70f584b9e0b8dbeb233fae153",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/d90b4cd869f028c70f584b9e0b8dbeb233fae153"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-capital-case-ranking-v1",
+      "commit": {
+        "sha": "6d9161b3e06fb2829f6d2766cf3ec353b012e336",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/6d9161b3e06fb2829f6d2766cf3ec353b012e336"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-capital-efficiency-v1",
+      "commit": {
+        "sha": "a1a1f58bcd0228075472d717e45d7b0803f89ba7",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/a1a1f58bcd0228075472d717e45d7b0803f89ba7"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-claim-event-association",
+      "commit": {
+        "sha": "d86206475edcd1f8e844cfb0c71c1ba6c6082f75",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/d86206475edcd1f8e844cfb0c71c1ba6c6082f75"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-claim-fee2-reconstruction",
+      "commit": {
+        "sha": "3971c388d725cfd120f8179bc6d73cebdcdaa40a",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/3971c388d725cfd120f8179bc6d73cebdcdaa40a"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-economic-strategy-v1",
+      "commit": {
+        "sha": "ef344e5f65740d73186b1f7f40712367d5e1a7cb",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/ef344e5f65740d73186b1f7f40712367d5e1a7cb"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-existing-alchemy-secret",
+      "commit": {
+        "sha": "7092acb642c394f1a4c5b051fb652e54cb791f3f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/7092acb642c394f1a4c5b051fb652e54cb791f3f"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-expanded-observation-universe",
+      "commit": {
+        "sha": "3e4fea42fea4ef3b9655658b0548c3d9995cdf8e",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/3e4fea42fea4ef3b9655658b0548c3d9995cdf8e"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-host-fee-route-scope",
+      "commit": {
+        "sha": "402fac6fe5c98096021278303ffbbed6edbd0d39",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/402fac6fe5c98096021278303ffbbed6edbd0d39"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-host-fee-shape-diagnostic",
+      "commit": {
+        "sha": "c8b82f6ee03b452c4acedce8416941bc27dd60da",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c8b82f6ee03b452c4acedce8416941bc27dd60da"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-host-fee-terminal-fallback",
+      "commit": {
+        "sha": "ab4f78d8f5ada03d6048a1bcf8a64bb8cfa3abce",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/ab4f78d8f5ada03d6048a1bcf8a64bb8cfa3abce"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-host-fee-transfer-attribution",
+      "commit": {
+        "sha": "9e707d36c6da6d68a93f630dceefb8ba0ae351c4",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/9e707d36c6da6d68a93f630dceefb8ba0ae351c4"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-perpspad-external-effect-transfer",
+      "commit": {
+        "sha": "c09f9ec630cf7134deccf929dfaa19220e9e8ef3",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c09f9ec630cf7134deccf929dfaa19220e9e8ef3"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-perpspad-single-tx-isolation",
+      "commit": {
+        "sha": "ba9bad1ffba214c267f25b2286c09a6956fd2c2e",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/ba9bad1ffba214c267f25b2286c09a6956fd2c2e"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-point-in-time-replay",
+      "commit": {
+        "sha": "c957750a1a0bb15ab49b8f286920415c20074920",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c957750a1a0bb15ab49b8f286920415c20074920"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-profitability-density-preflight",
+      "commit": {
+        "sha": "0128a5d6cb52050fe01838ca9b26f581075607e8",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/0128a5d6cb52050fe01838ca9b26f581075607e8"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-profitability-density-preflight-v2",
+      "commit": {
+        "sha": "9d2107be6702c29e249246aa5b9c5e3fd514fb3f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/9d2107be6702c29e249246aa5b9c5e3fd514fb3f"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-profitable-operator-discovery",
+      "commit": {
+        "sha": "f54ea0e1a8328197e17daab7ee5614161d6f0f20",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/f54ea0e1a8328197e17daab7ee5614161d6f0f20"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-protocol-coverage-v2",
+      "commit": {
+        "sha": "0bf71bce504662101def207d4d305666928281ac",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/0bf71bce504662101def207d4d305666928281ac"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-small-pool-profitability",
+      "commit": {
+        "sha": "3ac7f29953fb8ba0272dcae529d19c31f3040948",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/3ac7f29953fb8ba0272dcae529d19c31f3040948"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-solana-roi-alchemy",
+      "commit": {
+        "sha": "f575a082d927034d0735c7f5a15961ae9fefcbe2",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/f575a082d927034d0735c7f5a15961ae9fefcbe2"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-top-roi-wallet-evaluation",
+      "commit": {
+        "sha": "3f4ad1ca4bf9750d0c40f7a7f544079597ae970f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/3f4ad1ca4bf9750d0c40f7a7f544079597ae970f"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/dlmm-wallet-derived-discovery",
+      "commit": {
+        "sha": "a54791c73b429ddf0d9bdcd157348f282e5b4874",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/a54791c73b429ddf0d9bdcd157348f282e5b4874"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/fomo-100-event-study",
+      "commit": {
+        "sha": "5c41173536128c9ba0069282cf00e9e945dbdf6a",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/5c41173536128c9ba0069282cf00e9e945dbdf6a"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/fomo-active-trader-skill",
+      "commit": {
+        "sha": "0962cc313b92b6e697b93a51c0bee3830a07ae80",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/0962cc313b92b6e697b93a51c0bee3830a07ae80"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/fomo-market-edge-pilot",
+      "commit": {
+        "sha": "c3e8e237bc1f1db8ea2da718d284530650e145e7",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/c3e8e237bc1f1db8ea2da718d284530650e145e7"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/fomo-offline-intelligence-v1",
+      "commit": {
+        "sha": "d6470efd2452378abaf0016b4b1ddd3726a00234",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/d6470efd2452378abaf0016b4b1ddd3726a00234"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/fomo-prospective-market-test",
+      "commit": {
+        "sha": "735c5f9e326cc2de7046049c6c8c28cde054c6a9",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/735c5f9e326cc2de7046049c6c8c28cde054c6a9"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/fomo-shadow-scaffold",
+      "commit": {
+        "sha": "1f78bfe23e16a7b2217bd2d79876055f3bdd96b8",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/1f78bfe23e16a7b2217bd2d79876055f3bdd96b8"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/fomo-top-wallet-lifecycle-study",
+      "commit": {
+        "sha": "2b2b3303d76dcd64d85d74f0fe4c12543ec4b6f3",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/2b2b3303d76dcd64d85d74f0fe4c12543ec4b6f3"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/fomo-wallet-alpha-event-study",
+      "commit": {
+        "sha": "67eeffde6e4df39fcfb3bd56d834ca183129133e",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/67eeffde6e4df39fcfb3bd56d834ca183129133e"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/fomoapi-key-validation",
+      "commit": {
+        "sha": "7f20d2445a13b6266dba3b2c1d312b6f97abd830",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/7f20d2445a13b6266dba3b2c1d312b6f97abd830"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/fomoscan-three-way-check",
+      "commit": {
+        "sha": "3679275734dce3bfaed6ba8c3660e1666abdbff0",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/3679275734dce3bfaed6ba8c3660e1666abdbff0"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/four-lane-shadow-registration",
+      "commit": {
+        "sha": "8c7c0f2608fd96bccd6f4c44dbde276036c440e3",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/8c7c0f2608fd96bccd6f4c44dbde276036c440e3"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/hansem-fomoscan-validation",
+      "commit": {
+        "sha": "5e6ddb08fc5a5d33435e1fca017a3ea0c0801ea7",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/5e6ddb08fc5a5d33435e1fca017a3ea0c0801ea7"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/market-native-natural-sample",
+      "commit": {
+        "sha": "004b579849ccee4fa512b9c7531bd5d7fdae9b2d",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/004b579849ccee4fa512b9c7531bd5d7fdae9b2d"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/market-native-opportunity-outcomes",
+      "commit": {
+        "sha": "129ccf37d180754c50d126f6ec0da7fc1d76da53",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/129ccf37d180754c50d126f6ec0da7fc1d76da53"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/market-native-prioritizer",
+      "commit": {
+        "sha": "e2d532921065a4bcf6995309049d9f6b45ca1485",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/e2d532921065a4bcf6995309049d9f6b45ca1485"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/market-native-shadow",
+      "commit": {
+        "sha": "6a88e4c043a803e90b8c31cddc1434ceff268d4e",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/6a88e4c043a803e90b8c31cddc1434ceff268d4e"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/meme-continuation-expected-value-v1",
+      "commit": {
+        "sha": "4cef2aed3a9ebfce1a946bbbed007bf0fa74a507",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/4cef2aed3a9ebfce1a946bbbed007bf0fa74a507"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/solana-dlmm-independent-v1",
+      "commit": {
+        "sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/45836b18c9afdda29909ebe9cb68d386a47b074f"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/solana-skilled-wallet-alpha",
+      "commit": {
+        "sha": "dba7aa1f97b4b19d605dd61bb63514f8debb8eb1",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/dba7aa1f97b4b19d605dd61bb63514f8debb8eb1"
+      },
+      "protected": false
+    },
+    {
+      "name": "research/solana-skilled-wallet-alpha-24h",
+      "commit": {
+        "sha": "cfa9009ef51510b0dae5eee4cfff860c1e130e79",
+        "url": "https://api.github.com/repos/levonmendall/The-Meme-Machine/commits/cfa9009ef51510b0dae5eee4cfff860c1e130e79"
+      },
+      "protected": false
+    }
+  ]
+}

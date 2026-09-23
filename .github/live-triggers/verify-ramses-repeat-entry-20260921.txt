@@ -1,0 +1,2 @@
+Validate canonical Ramses repeat-entry repair after source d7c545a and canonical overlay 4e15ead.
+Final verification after canonical overlay commit 23566d39a2a7d32b518acd901fd3077f15b8e715.

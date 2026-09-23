@@ -1,0 +1,6 @@
+Fresh relaxed-DLMM functionality run after:
+- Meteora lifecycle recovery / rebalance_liquidity classification and writeoff handling
+- Ramses post-loss repeat-entry capacity, unique lifecycle namespaces, and candidate-local provider/capacity boundaries
+Base repaired integration: 3372e03d7eb8ce8c62b31c1343eeb839526f8b4a
+Goal: determine natural DLMM qualification -> reserve -> open -> monitor -> unwind/settle functionality for Meteora and Ramses.
+Paper only. No profitability claim.

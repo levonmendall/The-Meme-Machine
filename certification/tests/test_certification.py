@@ -69,6 +69,34 @@ class JournalTests(unittest.TestCase):
             self.assertEqual(len(list(j.records())),1);j.close()
 
 class CertificationTests(unittest.TestCase):
+    def test_hourly_scope_does_not_satisfy_four_hour_certification(self):
+        result=self.complete();result.update(phase='hourly',continuous_overlap_seconds=3600)
+        for row in result['lanes'].values():row['continuous_uptime_seconds']=3600
+        verdict=evaluate(result)
+        self.assertEqual(verdict['status'],'PASS')
+        self.assertEqual(verdict['scope'],'one_hour_paper_campaign')
+        self.assertEqual(verdict['required_observation_seconds'],3600)
+        result['phase']='sustained'
+        self.assertEqual(evaluate(result)['status'],'INCOMPLETE')
+        result['phase']='hourly';result['continuous_overlap_seconds']=3599
+        self.assertEqual(evaluate(result)['status'],'INCOMPLETE')
+
+    def test_hourly_retains_natural_and_accounting_requirements(self):
+        result=self.complete();result['phase']='hourly'
+        result['lanes']['pump']['natural_settled']=0
+        result['lanes']['pump']['forced_settled']=3
+        self.assertEqual(evaluate(result)['status'],'INCOMPLETE')
+        result['lanes']['pons']['gates']['accounting_reconciled']=False
+        self.assertEqual(evaluate(result)['status'],'FAIL')
+
+    def test_launch_duration_rejected_before_any_work(self):
+        from certification.run import launch
+        for phase,seconds,message in [('hourly',3599,'one_hour_window_required'),
+                                      ('hourly',14400,'one_hour_window_required'),
+                                      ('sustained',3600,'four_hour_minimum')]:
+            with self.assertRaisesRegex(ValueError,message):
+                launch(None,None,seconds,phase,None)
+
     def complete(self):
         return dict(elapsed_seconds=14400,continuous_overlap_seconds=14400,lanes={lane:dict(continuous_uptime_seconds=14400,
                     natural_settled=1,open_positions=0,process_restarts=0,gates={g:True for g in REQUIRED}) for lane in LANES})
@@ -93,6 +121,27 @@ class CertificationTests(unittest.TestCase):
     def test_pons_cancel_not_natural_trade(self):
         x=summarize('pons',dict(lifecycles=[dict(final_position=dict(status='settled',entry_tokens=0))]))
         self.assertEqual(x['natural_settled'],0)
+
+    def test_pons_writeoff_never_counts_as_natural_sale_after_compaction(self):
+        position=dict(status='settled',entry_tokens=10,realized=-100,
+            reason='liquidity_writeoff:impossible_full_position_exit')
+        for life in (dict(final_position=position,settlement_kind='liquidity_writeoff'),
+                     dict(final_position=position)):
+            with self.subTest(explicit_kind='settlement_kind' in life):
+                report=summarize('pons',dict(lifecycles=[life,dict(
+                    final_position=dict(status='settled',entry_tokens=10,reason='momentum_failure'))]))
+                self.assertEqual(report['natural_settled'],1)
+                self.assertEqual(report['funnel']['liquidity_writeoffs'],1)
+
+    def test_pump_cancelled_qualification_is_visible_but_not_a_trade(self):
+        report=dict(qualifiers=[dict(entry_status='cancelled',entry_limitation='entry_fill_timeout')],
+            full_evidence_candidates=[{}],settled=[],attempts=[],open_positions=[],pending_entries=[])
+        result=summarize('pump',report)
+        self.assertEqual(result['funnel']['qualified'],1)
+        self.assertEqual(result['funnel']['entry_cancelled'],1)
+        self.assertEqual(result['funnel']['entry_filled'],0)
+        self.assertEqual(result['natural_settled'],0)
+        self.assertEqual(result['terminal_reasons']['entry_cancelled:entry_fill_timeout'],1)
 
     def test_ramses_natural_uses_native_ledger_fields_and_terminal_equality(self):
         report=dict(policy_hash='frozen',natural_qualifier_found=True,connected_lifecycle=dict(
@@ -142,22 +191,66 @@ class CertificationTests(unittest.TestCase):
             for p in children:p.join(10);self.assertEqual(p.exitcode,0)
             times=sorted(float(s) for s in Path(output).read_text().splitlines())
             self.assertEqual(len(times),4)
-            self.assertGreaterEqual(times[-1]-times[0],1.4)
+            # Child output is written after acquire() returns and can be scheduler-delayed;
+            # keep enough tolerance that process preemption cannot masquerade as a rate
+            # increase. Four grants still must span well beyond two ungoverned 0.5s slots.
+            self.assertGreaterEqual(times[-1]-times[0],1.25)
             status=Governor(path).status()
             self.assertEqual(status['queues'],[])
             self.assertEqual(status['providers'][0]['grants'],4)
+
+class SolanaMethodPressureTests(unittest.TestCase):
+    def test_getprogramaccounts_method_cooldown_fails_before_transport_admission(self):
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'governor.sqlite';g=Governor(path)
+            now=time.monotonic()
+            db=sqlite3.connect(path)
+            db.execute('INSERT OR IGNORE INTO pressure VALUES(?,0,0,0,0)',('solana',))
+            db.execute('INSERT OR REPLACE INTO method_pressure VALUES(?,?,?,?,?,?)',
+                       ('solana','getProgramAccounts',now+30,1,1,0))
+            db.commit();db.close()
+            with self.assertRaisesRegex(TimeoutError,'method_cooldown'):
+                g.acquire('solana','pump',methods=['getProgramAccounts'],
+                          deadline_seconds=1)
+            status=g.status()
+            row=next(x for x in status['method_pressure']
+                     if x['method']=='getProgramAccounts')
+            self.assertEqual(row['rate_errors'],1)
+            self.assertGreater(row['cooldown_remaining_seconds'],20)
+
+    def test_rate_limit_records_exact_method_pressure(self):
+        with tempfile.TemporaryDirectory() as td:
+            g=Governor(Path(td)/'governor.sqlite')
+            g.rate_limited('solana',['getProgramAccounts'])
+            status=g.status()
+            row=next(x for x in status['method_pressure']
+                     if x['method']=='getProgramAccounts')
+            self.assertEqual(row['rate_errors'],1)
+            self.assertEqual(row['rate_streak'],1)
+            self.assertGreaterEqual(row['cooldown_remaining_seconds'],29)
+    def test_signature_rate_limit_uses_longer_method_backoff(self):
+        with tempfile.TemporaryDirectory() as td:
+            g=Governor(Path(td)/'governor.sqlite')
+            before=time.monotonic()
+            g.rate_limited('solana',['getSignaturesForAddress'])
+            row=next(x for x in g.status()['method_pressure']
+                     if x['method']=='getSignaturesForAddress')
+            self.assertEqual(row['rate_errors'],1)
+            self.assertGreaterEqual(row['cooldown_remaining_seconds'],14)
+
+
 
 class IntegrationRegressionTests(unittest.TestCase):
     def test_expired_ticket_and_capacity_are_fail_closed(self):
         with tempfile.TemporaryDirectory() as td:
             path=Path(td)/'gate.sqlite';g=Governor(path)
             db=sqlite3.connect(path)
-            db.execute('INSERT INTO queue VALUES(?,?,?,?,?)',('stale','solana','dead',0,time.monotonic()-31))
+            db.execute('INSERT INTO queue(id,provider,lane,priority,created) VALUES(?,?,?,?,?)',('stale','solana','dead',0,time.monotonic()-31))
             db.commit()
             g.acquire('solana','pump')
             self.assertEqual(g.status()['queues'],[])
             now=time.monotonic()
-            db.executemany('INSERT INTO queue VALUES(?,?,?,?,?)',[(str(i),'solana','research',50,now) for i in range(256)])
+            db.executemany('INSERT INTO queue(id,provider,lane,priority,created) VALUES(?,?,?,?,?)',[(str(i),'solana','research',50,now) for i in range(256)])
             db.commit()
             with self.assertRaisesRegex(TimeoutError,'capacity'):g.acquire('solana','pump')
             db.close()
@@ -188,6 +281,9 @@ class IntegrationRegressionTests(unittest.TestCase):
             self.assertEqual(activity['provider_requests'],1)
             self.assertEqual(activity['pid'],os.getpid())
             self.assertEqual(activity['lane'],'pump')
+            self.assertEqual(
+                status['provider_rpc_error_codes']['getTransaction:429'],1)
+            self.assertEqual(status['errors']['getTransaction:rpc_429'],1)
 
 class EvidenceDenominatorTests(unittest.TestCase):
     def test_missing_or_late_pons_evidence_is_not_economic_discrimination_sample(self):
@@ -247,6 +343,13 @@ class ContentionPreflightTests(unittest.TestCase):
         self.assertFalse(active_market_job('paper-milestone',dict(name='live-diagnostic',status='completed')))
         self.assertTrue(active_market_job('unrecognized',dict(name='unknown-market-task',status='in_progress')))
         self.assertTrue(active_market_job('robinhood-ramses-extended',dict(name='probe',status='in_progress')))
+        spec={'lanes':{'pump':{'source_sha':'pump-pinned'}}}
+        run={'head_sha':'pump-pinned'}
+        self.assertFalse(active_market_job(
+            'paper-milestone',dict(name='live-diagnostic',status='in_progress'),run,spec))
+        self.assertTrue(active_market_job(
+            'paper-milestone',dict(name='live-diagnostic',status='in_progress'),
+            {'head_sha':'different'},spec))
 
 class TerminalReportRegressionTests(unittest.TestCase):
     def test_pons_final_report_keeps_native_12mb_contract(self):
@@ -279,5 +382,15 @@ class PressureViewTests(unittest.TestCase):
             self.assertEqual(r['lanes']['ramses']['requests'],1)
             self.assertEqual(db.execute('SELECT COUNT(*) FROM transports').fetchone()[0],2)
             db.close()
+
+
+class OverlayCanonicalizationTests(unittest.TestCase):
+    def test_blob_ids_are_metadata_but_patch_content_remains_authoritative(self):
+        from certification.run import canonical_patch_bytes
+        a=b"diff --git a/x.py b/x.py\nindex 1111111..2222222 100644\n--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-old\n+new\n"
+        b=b"diff --git a/x.py b/x.py\nindex aaaaaaa..bbbbbbb 100644\n--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-old\n+new\n"
+        changed=b"diff --git a/x.py b/x.py\nindex aaaaaaa..ccccccc 100644\n--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-old\n+different\n"
+        self.assertEqual(canonical_patch_bytes(a),canonical_patch_bytes(b))
+        self.assertNotEqual(canonical_patch_bytes(a),canonical_patch_bytes(changed))
 
 if __name__=='__main__':unittest.main()

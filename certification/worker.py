@@ -9,6 +9,7 @@ import argparse
 import dataclasses
 import functools
 import gzip
+import hashlib
 import importlib
 import json
 import os
@@ -29,13 +30,17 @@ class Observer:
         self.lane,self.policy=lane,policy
         self.lock=threading.RLock();self.sequence=0;self.methods=Counter()
         self.latencies=[];self.errors=Counter();self.started=time.monotonic()
+        self.provider_method_errors=Counter();self.local_admission_errors=Counter()
+        self.provider_http_status_errors=Counter()
+        self.provider_rpc_error_codes=Counter()
         self.journal=Journal(self.root/'telemetry.sqlite')
         self.raw=gzip.open(self.root/'rpc-evidence.jsonl.gz','ab')
         self.archive_ns=0;self.journal_ns=0;self.snapshot_ns=0
         self.requests=0;self.raw_records=0;self.provider_sessions={}
         self.last_progress=None;self.last_report=None
+        self.terminal_phase=None
         self.last_activity_write=0
-        self.pons_rows=0;self.pons_qualifiers=0;self.pons_lifecycles=set()
+        self.pons_rows=0;self.pons_qualifiers=0;self.pons_lifecycles=set();self.ramses_screens=0;self.ramses_terminals=0;self.ramses_lifecycles=0
         self.governor=Governor(os.environ["MM_CERT_GOVERNOR_DB"])
         self.context=threading.local()
 
@@ -55,7 +60,12 @@ class Observer:
         if now-self.last_activity_write<5:return
         value=dict(lane=self.lane,pid=os.getpid(),process_nonce=PROCESS_NONCE,
             at_monotonic=now,provider_requests=self.requests,method_counts=dict(self.methods),
-            errors=dict(self.errors),provider_session_count=len(self.provider_sessions),
+            estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods) if self.lane in ('pump','meteora','pons','ramses') else None),
+            errors=dict(self.errors),provider_method_errors=dict(self.provider_method_errors),
+            local_admission_errors=dict(self.local_admission_errors),
+            provider_http_status_errors=dict(self.provider_http_status_errors),
+            provider_rpc_error_codes=dict(self.provider_rpc_error_codes),
+            provider_session_count=len(self.provider_sessions),
             evidence_qualification_inferred=False)
         before=time.monotonic_ns()
         temporary=self.root/'activity.json.tmp';temporary.write_text(canonical(value))
@@ -95,8 +105,43 @@ class Observer:
                              observation_archive=dict(candidate_rows=self.pons_rows,
                                  qualifiers=self.pons_qualifiers,journal='telemetry.sqlite')),phase)
 
+    def ramses_progress(self,result,phase):
+        """Archive full Ramses observations once; keep repeating checkpoints bounded."""
+        screens=result.get('natural_screens') or []
+        terminals=result.get('campaign_terminals') or []
+        lifecycles=result.get('natural_lifecycles') or []
+        for rows,attribute,kind in (
+            (screens,'ramses_screens','ramses_screen_observation'),
+            (terminals,'ramses_terminals','ramses_campaign_terminal'),
+            (lifecycles,'ramses_lifecycles','ramses_natural_lifecycle'),
+        ):
+            previous=getattr(self,attribute)
+            if len(rows)<previous:raise ValueError('ramses_observation_history_regressed')
+            for index in range(previous,len(rows)):
+                self.event(kind,dict(index=index,policy_hash=self.policy,observation=rows[index]))
+            setattr(self,attribute,len(rows))
+        snapshot=dict(result)
+        snapshot['natural_screens']=[compact_ramses_screen(row) for row in screens]
+        snapshot['observation_archive']=dict(
+            ramses_screens=self.ramses_screens,
+            campaign_terminals=self.ramses_terminals,
+            natural_lifecycles=self.ramses_lifecycles,
+            journal='telemetry.sqlite',
+            full_screen_detail='append_only_once',
+        )
+        self.checkpoint(snapshot,phase)
+        return snapshot
+
     def status(self, phase, body=None):
         with self.lock:
+            # A delayed background checkpoint is weaker than process terminal
+            # truth. It must not resurrect a finished lane in status.json.
+            if self.terminal_phase is not None and phase not in ('returned','failed'):
+                return
+            if self.terminal_phase=='failed' and phase=='returned':
+                return
+            if phase in ('returned','failed'):
+                self.terminal_phase=phase
             before=time.monotonic_ns()
             if body is None:body=self.last_report
             lat=sorted(self.latencies)
@@ -106,7 +151,11 @@ class Observer:
                       uptime_seconds=time.monotonic()-self.started,
                       last_progress_monotonic=self.last_progress,
                       provider_requests=self.requests,method_counts=dict(self.methods),
-                      errors=dict(self.errors),provider_session_count=len(self.provider_sessions),
+                      errors=dict(self.errors),provider_method_errors=dict(self.provider_method_errors),
+                      local_admission_errors=dict(self.local_admission_errors),
+            provider_http_status_errors=dict(self.provider_http_status_errors),
+                      provider_rpc_error_codes=dict(self.provider_rpc_error_codes),
+                      provider_session_count=len(self.provider_sessions),
                       rpc_latency_seconds=dict(p50=quant(.5),p95=quant(.95),p99=quant(.99)),
                       telemetry_archive_seconds=self.archive_ns/1e9,
                       telemetry_cost=dict(raw_archive_seconds=self.archive_ns/1e9,
@@ -114,6 +163,8 @@ class Observer:
                           snapshot_seconds=self.snapshot_ns/1e9,
                           scope='serialized observer wall time; excludes strategy-native telemetry, lock wait and final snapshot'),
                       runtime_resources=process_resources(),
+                      estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods)
+                          if self.lane in ('pump','meteora','pons','ramses') else None),
                       report=body,
                       terminal_monotonic=time.monotonic() if phase in ("returned","failed") else None)
             raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
@@ -142,7 +193,7 @@ class Observer:
             finally:self.context.priority=previous
         setattr(module,name,run)
 
-    def wrap_transport(self, cls, name, *, batch=False, solana=False):
+    def wrap_transport(self, cls, name, *, batch=False, solana=False, local_error_type=TimeoutError):
         original=getattr(cls,name)
         observer=self
         @functools.wraps(original)
@@ -165,11 +216,19 @@ class Observer:
                 wire=list(args[0]);methods=[x[0] for x in wire]
             else:
                 methods=[args[0]];wire=[(args[0],args[1])]
+            instance.evidence_local_failure=None
             try:
-                priority=getattr(observer.context,"priority",50)
+                priority=getattr(observer.context,"priority",10 if solana else 50)
                 if priority!=0:priority=getattr(instance,'evidence_priority',priority)
-                queue_wait=(observer.governor.acquire(network,observer.lane,priority)
+                evidence_deadline=getattr(instance,'evidence_deadline',None)
+                remaining=30 if evidence_deadline is None else min(30,evidence_deadline-(time.time() if solana else time.monotonic()))
+                if remaining<=0:raise local_error_type('evidence_deadline_before_transport')
+                queue_wait=(observer.governor.acquire(
+                    network,observer.lane,priority,deadline_seconds=remaining,
+                    methods=methods)
                             if solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB") else None)
+                callback=getattr(instance,'evidence_transport_callback',None)
+                if callback is not None:callback()
                 transport_started=time.monotonic_ns()
                 result=original(instance,*args,**kwargs)
                 http_status=200
@@ -187,6 +246,11 @@ class Observer:
                 if match:rpc_error_codes=[int(match[1])]
                 # Only stable code-shaped errors are emitted; no free-form URLs.
                 error=message if message.replace('_','').replace('-','').isalnum() and len(message)<160 else type(exc).__name__
+                # Admission happens outside the native HTTP error boundary. Keep
+                # its lane-native exception contract so one expired consumer
+                # cannot terminate the whole observer/cohort process.
+                if transport_started is None and isinstance(exc,TimeoutError):
+                    raise local_error_type(error) from None
                 raise
             finally:
                 elapsed=(time.monotonic_ns()-started)/1e9
@@ -196,18 +260,47 @@ class Observer:
                     if transport_started is not None:
                         transport_elapsed=(time.monotonic_ns()-transport_started)/1e9
                         observer.requests+=1;observer.methods.update(methods);observer.latencies.append(transport_elapsed)
+                    unique_methods=list(dict.fromkeys(methods))
                     if error:
                         observer.errors[error]+=1
-                    if (http_status==429 or 429 in rpc_error_codes or (error and "429" in error)) and (solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB")):
-                        observer.governor.rate_limited(network)
+                        for method in unique_methods:
+                            target=(observer.provider_method_errors if transport_started is not None
+                                    else observer.local_admission_errors)
+                            target[f"{method}:{error}"]+=1
+                        if transport_started is None:instance.evidence_local_failure=error
+                    if http_status is not None and http_status!=200:
+                        for method in unique_methods:
+                            observer.provider_http_status_errors[
+                                f"{method}:{int(http_status)}"]+=1
+                            if int(http_status)==429:
+                                observer.errors[f"{method}:http_429"]+=1
+                    for code in rpc_error_codes:
+                        for method in unique_methods:
+                            observer.provider_rpc_error_codes[
+                                f"{method}:{code}"]+=1
+                            if code in (429,-32005):
+                                observer.errors[f"{method}:rpc_{code}"]+=1
+                    limited=(http_status==429 or 429 in rpc_error_codes or -32005 in rpc_error_codes
+                             or (error and "429" in error))
+                    if limited and (solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB")):
+                        observer.governor.rate_limited(network,unique_methods)
+                    elif (transport_started is not None and error is None
+                          and not rpc_error_codes
+                          and (solana or not os.environ.get("MM_CERTIFICATION_PROVIDER_DB"))):
+                        observer.governor.succeeded(network,unique_methods)
                     before=time.monotonic_ns()
                     record=dict(sequence=observer.raw_records,lane=observer.lane,session=session,
                                 transport_attempted=transport_started is not None,transport_duration_seconds=transport_elapsed,
                                 transport_started_monotonic_ns=transport_started,
                                 observed_at_ns=time.time_ns(),duration_seconds=elapsed,
                                 request=wire,response=result,error=error,queue_wait_seconds=queue_wait,
+                                physical_request_id=f'{session}:{observer.raw_records}',
+                                parameter_identity=digest(wire),original_deadline=evidence_deadline,
+                                failure_domain=('local_admission' if error and transport_started is None
+                                                else 'provider' if error else None),
                                 http_status=http_status,json_rpc_error_codes=rpc_error_codes,
                                 retry_count=getattr(instance,"retry_count",getattr(instance,"retries",None)),
+                                evidence_priority=priority,evidence_kind=getattr(instance,'evidence_kind',None),
                                 authentication='raw_transport_response_requires_lane_verification')
                     observer.raw.write((canonical(record)+'\n').encode());observer.raw.flush();os.fsync(observer.raw.fileno())
                     observer.archive_ns+=time.monotonic_ns()-before
@@ -216,6 +309,56 @@ class Observer:
                         json_rpc_error_codes=rpc_error_codes,queue_wait_seconds=queue_wait,raw_hash=digest(record)))
                     if transport_started is not None:observer.transport_activity()
         setattr(cls,name,observed)
+
+def compact_ramses_screen(screen):
+    """Bounded public/checkpoint projection; full screen is retained in telemetry.sqlite."""
+    if not isinstance(screen,dict):raise ValueError('ramses_screen_shape')
+    rows=[]
+    for row in screen.get('rows') or []:
+        if not isinstance(row,dict):continue
+        cost=row.get('cost_evidence') or {}
+        rows.append(dict(
+            pool=row.get('pool'),swaps=row.get('swaps'),
+            turnover_bps=row.get('turnover_bps'),
+            turnover_percentile_bps=row.get('turnover_percentile_bps'),
+            fee_percentile_bps=row.get('fee_percentile_bps'),
+            volume_acceleration_milli=row.get('volume_acceleration_milli'),
+            chop_ratio_milli=row.get('chop_ratio_milli'),
+            flow_imbalance_bps=row.get('flow_imbalance_bps'),
+            mode=row.get('mode'),qualified=row.get('qualified'),
+            reasons=row.get('reasons'),
+            cost_evidence=dict(
+                available=cost.get('available'),
+                source=cost.get('source'),
+                reason=cost.get('reason'),
+            ),
+        ))
+    provider=screen.get('provider') or {}
+    return dict(
+        finalized_block=screen.get('finalized_block'),
+        finalized_timestamp=screen.get('finalized_timestamp'),
+        factory_pool_count=screen.get('factory_pool_count'),
+        pools_with_recent_swaps=screen.get('pools_with_recent_swaps'),
+        state_complete_pools=screen.get('state_complete_pools'),
+        qualified=screen.get('qualified'),
+        rows=rows,
+        cost_model=screen.get('cost_model'),
+        pools_with_automatic_cost_evidence=screen.get('pools_with_automatic_cost_evidence'),
+        elapsed_seconds=screen.get('elapsed_seconds'),
+        frontier_poll_index=screen.get('frontier_poll_index'),
+        provider=dict(
+            requests=provider.get('requests'),
+            transport_requests=provider.get('transport_requests'),
+            logical_requests=provider.get('logical_requests'),
+            retries=provider.get('retries'),
+            failures=provider.get('failures'),
+            sessions=provider.get('sessions'),
+            max_sessions=provider.get('max_sessions'),
+            rate_limit_events=provider.get('rate_limit_events'),
+        ),
+        full_detail_archive='telemetry.sqlite:ramses_screen_observation',
+    )
+
 
 PROCESS_NONCE=str(uuid.uuid4())
 
@@ -243,7 +386,13 @@ def policy_for(lane):
         from meme_machine.pump_acceleration_strategy import policy_hash
         return policy_hash()
     if lane=='meteora':
-        return digest(json.loads(Path('SOLANA_DLMM_INDEPENDENT_V1.json').read_text()))
+        path=Path('SOLANA_DLMM_INDEPENDENT_V1.json')
+        source=json.loads((Path(__file__).parent/'sources.json').read_text())['lanes']['meteora']
+        if hashlib.sha256(path.read_bytes()).hexdigest()!=source['file_hashes'][path.name]:
+            raise ValueError('frozen_source_file_drift:meteora')
+        # The execution policy embeds a label predating its description/duplicate-field
+        # synchronization. Bind the label to exact source bytes, never trust it alone.
+        return source['policy_hash']
     name='pons_selective_continuation' if lane=='pons' else 'ramses_strategy'
     return importlib.import_module('robinhood_research.'+name).POLICY_HASH
 
@@ -262,9 +411,10 @@ def main():
         from meme_machine.solana_read_rpc import _ReadOnlyFailoverMixin
         observer.wrap_transport(_ReadOnlyFailoverMixin,'_http',solana=True)
     else:
+        from robinhood_research import BoundaryError
         from robinhood_research.provider import Rpc
-        observer.wrap_transport(Rpc,'_http')
-        observer.wrap_transport(Rpc,'_http_batch',batch=True)
+        observer.wrap_transport(Rpc,'_http',local_error_type=BoundaryError)
+        observer.wrap_transport(Rpc,'_http_batch',batch=True,local_error_type=BoundaryError)
     try:
         if args.lane=='pump':
             os.environ['MM_PUMP_ACCELERATION_DISCOVERY_SECONDS']=str(args.seconds)
@@ -279,6 +429,8 @@ def main():
             module._save=save;module.main(campaign=args.campaign,discovery_seconds=args.seconds)
         elif args.lane=='meteora':
             module=importlib.import_module('tests.solana_dlmm_independent_v1')
+            from certification.lifecycle_timing import install_meteora
+            install_meteora(module)
             observer.prioritize(module,"_lifecycle")
             observer.observe_work(module,'_triggered_warmup','fresh_trigger_and_exact_warmup')
             observer.observe_work(module,'_await_fresh_swap_trigger','dlmm_fresh_swap_trigger')
@@ -304,30 +456,36 @@ def main():
             observer.checkpoint(result,'lane_result')
         else:
             module=importlib.import_module('robinhood_research.ramses_extended_test')
+            from certification.lifecycle_timing import install_ramses
+            install_ramses(module)
             # Observe completed authentic scans and frontier checks without replacing
             # the discovery or lifecycle algorithm. Startup/scan stalls stay visible.
             observer.prioritize(module,"run_connected")
             observer.prioritize(module,"_forced_machinery")
             observer.observe_work(module,'scan','ramses_finalized_pool_scan')
-            original=module.scan
-            def scan(*a,**kw):
-                result=original(*a,**kw);observer.checkpoint(module._screen_summary(result),'authenticated_scan');return result
-            module.scan=scan
-            gate=module._frontier_scan_gate
-            def frontier(*a,**kw):
-                result=gate(*a,**kw);observer.checkpoint(dict(frontier_gate=result),'frontier_progress');return result
-            module._frontier_scan_gate=frontier
+            # Only the complete native checkpoint can replace the aggregate view.
+            # Gate-only/scan-only dictionaries used to erase completed scans and
+            # durable capital books on every frontier poll.
             os.environ['MM_ROBINHOOD_RAMSES_EXTENDED_DISCOVERY_SECONDS']=str(args.seconds)
             original_persist=module._persist_public_result
             def persist(result):
-                original_persist(result);observer.checkpoint(result,'campaign_checkpoint')
+                snapshot=observer.ramses_progress(result,'campaign_checkpoint')
+                original_persist(snapshot)
             module._persist_public_result=persist
             module.main(campaign=args.campaign)
         observer.event('process_terminal',dict(status='returned',policy_hash=policy_for(args.lane)))
         observer.status('returned')
     except BaseException as exc:
-        observer.event('process_terminal',dict(status='failed',exception_type=type(exc).__name__))
-        observer.status('failed')
+        terminal=dict(status='failed',exception_type=type(exc).__name__)
+        if args.lane=='ramses' and type(exc).__name__=='BoundaryError':
+            message=str(exc)
+            terminal['boundary']=(message if re.fullmatch(r'[A-Za-z0-9_.:\\-]+',message) and len(message)<160
+                                  else 'non_code_boundary')
+        observer.event('process_terminal',terminal)
+        report=observer.last_report
+        if args.lane=='ramses' and isinstance(report,dict):
+            report=dict(report,process_terminal=terminal)
+        observer.status('failed',report)
         raise
     finally:
         observer.raw.close();observer.journal.close()

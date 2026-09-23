@@ -1,0 +1,34 @@
+name: canonicalize-meteora-current-overlay
+on:
+  push:
+    branches: [cert/dlmm-machinery-proof-current]
+permissions:
+  contents: write
+jobs:
+  canonicalize:
+    if: contains(github.event.head_commit.message, '[canonicalize-meteora-current-overlay]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Regenerate canonical Meteora overlay
+        run: |
+          METEORA_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["meteora"]["source_sha"])')"
+          WORKTREE="$(mktemp -d)/meteora"
+          git fetch origin "$METEORA_SHA"
+          git worktree add --detach "$WORKTREE" "$METEORA_SHA"
+          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/meteora-checkpoint.patch"
+          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/meteora-checkpoint.patch"
+          git -C "$WORKTREE" diff --binary HEAD > "$GITHUB_WORKSPACE/certification/patches/meteora-checkpoint.patch"
+          git diff --check -- certification/patches/meteora-checkpoint.patch
+          if git diff --quiet -- certification/patches/meteora-checkpoint.patch; then
+            echo "Meteora overlay already canonical"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add certification/patches/meteora-checkpoint.patch
+          git commit -m "[qualification-build] canonicalize Meteora lifecycle recovery"
+          git push origin HEAD:cert/dlmm-machinery-proof-current

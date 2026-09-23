@@ -1,1 +1,0 @@
-Probe authenticated OnFinality HTTP directly at 1,2,3,4,5 RPS with no Alchemy fallback. Use results to throttle or remove OnFinality from Pump evidence.

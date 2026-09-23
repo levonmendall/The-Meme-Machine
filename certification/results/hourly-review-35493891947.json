@@ -1,0 +1,119 @@
+{
+  "schema": "four-lane-hourly-review-v1",
+  "reviewed_at": "2026-09-20T08:46:00Z",
+  "workflow_run_id": 35493891947,
+  "workflow_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/35493891947",
+  "integration_sha": "93d9b35fd01f119f14e3562baa0f78a60f51df21",
+  "observation": {
+    "required_seconds": 3600,
+    "continuous_overlap_seconds": 3600.127916118,
+    "elapsed_seconds_including_drain": 4621.09882479,
+    "process_restarts": 0,
+    "supervisor_error": null,
+    "engineering_result": "PASS",
+    "natural_certification_result": "INCOMPLETE",
+    "certification_failures": [],
+    "wrapper_workflow_conclusion": "failure",
+    "wrapper_conclusion_is_authoritative": false,
+    "wrapper_defect": "The hourly CLI returned one for an honest natural-opportunity INCOMPLETE, causing live status to overwrite a clean terminal result with supervisor_failed."
+  },
+  "artifacts": {
+    "hourly": {
+      "id": 10600877928,
+      "size_bytes": 430693497,
+      "digest": "sha256:495e3747553227110f32ba661bfdaac3972fbf385f5c930e5b86166ac97f4dbd"
+    },
+    "smoke": {
+      "id": 10600507860,
+      "size_bytes": 122646683,
+      "digest": "sha256:523da163176837d9acf264d641b8f1c9688f5151b37a91949db541bc2c1004d7"
+    }
+  },
+  "provider": {
+    "final_queue_depth": {
+      "solana": 0,
+      "robinhood": 0
+    },
+    "solana_grants": 8517,
+    "solana_rate_errors": 6,
+    "robinhood_requests": 6816,
+    "robinhood_max_queue_depth": 2,
+    "pons_rpc_error_minus_32000": 2,
+    "unbounded_backlog": false
+  },
+  "lanes": {
+    "pump": {
+      "uptime_seconds": 4601.039995,
+      "exit_code": 0,
+      "unexpected_exit": false,
+      "restarts": 0,
+      "requests": 7871,
+      "discovered": 1000,
+      "evidence_complete": 140,
+      "qualified": 0,
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "accounting_reconciled": true,
+      "primary_blocker": "Fifty-six candidates lacked a complete PumpSwap second leg; consumer-registration amplification obscured useful demand and created avoidable work."
+    },
+    "meteora": {
+      "uptime_seconds": 3600.735878,
+      "exit_code": 0,
+      "unexpected_exit": false,
+      "restarts": 0,
+      "requests": 646,
+      "discovered": 514,
+      "screened": 97,
+      "economic_observations_complete": 0,
+      "qualified": 0,
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "accounting_reconciled": true,
+      "primary_blocker": "Authenticated triggers did not progress to a complete economic vector: 36 fresh-swap timeouts and 5 unverified warmups."
+    },
+    "pons": {
+      "uptime_seconds": 3675.155088,
+      "exit_code": 0,
+      "unexpected_exit": false,
+      "restarts": 0,
+      "requests": 6370,
+      "evaluated": 1105,
+      "qualified": 0,
+      "stale_after_evidence": 233,
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "accounting_reconciled": true,
+      "reservation_leak": false,
+      "primary_blocker": "Five-second evidence completion still censored 233 observations; no complete observation qualified under frozen policy."
+    },
+    "ramses": {
+      "uptime_seconds": 3600.127916,
+      "exit_code": 0,
+      "unexpected_exit": false,
+      "restarts": 0,
+      "requests": 446,
+      "finalized_scans": 10,
+      "active_pools": 6,
+      "qualified": 0,
+      "open_positions": 0,
+      "natural_settled": 0,
+      "forced_settled": 0,
+      "accounting_reconciled": true,
+      "primary_blocker": "Observed pools failed frozen cost, flow, acceleration, two-way-chop and related economic gates."
+    }
+  },
+  "natural_lifecycles": 0,
+  "forced_lifecycles": 0,
+  "profitability_claimed": false,
+  "repairs_selected": [
+    "Separate clean hourly execution integrity from natural-opportunity certification status.",
+    "Do not create new acquisition-consumer rows for immutable cache reuse.",
+    "Use stable Pump decision-window ownership across overlapping evaluations.",
+    "Admit proactive PumpSwap prefetch only for authenticated decoded matching trade logs while retaining every stream signature for exact candidate hydration."
+  ],
+  "provider_change_required": false,
+  "provider_change_reason": "Physical queues drained and rate pressure was limited; the demonstrated defect was duplicated/noise logical consumer admission rather than transport capacity."
+}

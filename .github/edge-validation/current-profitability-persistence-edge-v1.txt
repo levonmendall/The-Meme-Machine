@@ -1,0 +1,9 @@
+Final four-lane strategy integration deterministic certification marker.
+Pump source: a4003b292014cedf554a4930a9cca10900bfc178
+Pons source: 012ea1a23ed892e19e3b1addc152fdcbe8b52ec2
+Meteora source: 60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7
+Ramses source: 6b47956b081c48e97a2201b62d4d417cc4be3845
+Canonical overlay commit: 5893ebb35c769096d6e0cbacc05171ac44747d4a
+Idempotence repair: Pons overlay regeneration collapses duplicate persistence fixtures before canonicalization.
+Exact-head integrated deterministic certification requested.
+No market validation authorized by this marker.

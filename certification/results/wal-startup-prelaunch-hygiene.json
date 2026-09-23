@@ -1,0 +1,62 @@
+{
+  "queues": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "status": "in_progress",
+        "runs": []
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "status": "queued",
+        "runs": []
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "status": "pending",
+        "runs": []
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "status": "waiting",
+        "runs": []
+      }
+    }
+  ],
+  "sources": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "lane": "pump",
+        "sha": "04c99ca3125747dc8bfc6f655fec7533f8ac8156"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "lane": "meteora",
+        "sha": "29d050b218969e4c7761346737d082bf1db382ec"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "lane": "pons",
+        "sha": "c692fe446bdee4ea1179da27a3f0c9f2f281f118"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "lane": "ramses",
+        "sha": "6b7ddd69940f5c9e056b2dca61c443450ca9965e"
+      }
+    }
+  ]
+}

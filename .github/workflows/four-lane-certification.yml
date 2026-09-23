@@ -1,27 +1,27 @@
 name: four-lane-certification
 on:
   push:
-    branches: [cert/four-lane-sustained-v1, certification/four-lane-repair-integration-20260920, cert/four-lane-capacity-v2]
+    branches: [cert/one-hour-repair-campaign, cert/dlmm-machinery-proof-current, repair/solana-alchemy-efficiency, repair/frozen-campaign-handoff]
   workflow_dispatch:
     inputs:
       phase:
-        description: Smoke only, or clean smoke followed by a fresh four-hour campaign
+        description: Smoke only, or clean smoke followed by a fresh one-hour campaign
         required: true
         default: smoke
         type: choice
-        options: [smoke, sustained]
+        options: [smoke, hourly]
 permissions:
   contents: read
   actions: read
   checks: write
 concurrency:
   group: meme-machine-four-lane-certification
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' && github.event.head_commit.message == '[cancel-runs]' }}
 jobs:
   concurrent-smoke:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[four-lane-smoke]') || contains(github.event.head_commit.message, '[four-lane-sustained]')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[four-lane-smoke]') || contains(github.event.head_commit.message, '[four-lane-hourly]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    timeout-minutes: 135
     outputs:
       readiness: ${{ steps.readiness.outputs.readiness }}
     steps:
@@ -37,6 +37,7 @@ jobs:
         run: |
           mkdir -p certification-gates
           set -o pipefail
+          python -m py_compile certification/frozen_artifact_review.py certification/inspect_stable_artifact.py
           python -m unittest discover -s certification/tests -v 2>&1 | tee certification-gates/supervisor-tests.log
       - name: Create isolated exact-source worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/four-lane-worktrees"
@@ -45,7 +46,12 @@ jobs:
       - name: Verify current heads and absence of competing market jobs
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -m certification.guard
+        run: python -m certification.guard --wait-seconds 3600
+      - name: Bounded existing-endpoint read-only capability probes
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+        run: python -m certification.capabilities --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates/rpc-capabilities.json
       - name: Concurrent paper smoke with original frozen lane runners
         env:
           GH_CHECKS_TOKEN: ${{ github.token }}
@@ -55,43 +61,30 @@ jobs:
           MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
           MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON }}
           MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON }}
-        run: python -m certification.live_status --output certification-smoke --phase smoke -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-smoke --gate certification-gates/deterministic.json --phase smoke --seconds 600
+        run: exec python -m certification.live_status --output certification-smoke --phase smoke -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-smoke --gate certification-gates/deterministic.json --phase smoke --seconds 600
       - name: Export exact-revision engineering readiness
         id: readiness
         run: python -m certification.controls --smoke-result certification-smoke/result.json --output "$GITHUB_OUTPUT"
-      - name: Preserve smoke native ledgers before creating the sustained study
+      - name: Mark cancelled collection
+        if: cancelled()
+        run: echo "MM_ARCHIVE_CANCELLED=true" >> "$GITHUB_ENV"
+      - name: Preserve smoke native ledgers before creating the hourly study
         if: always()
-        run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-native/smoke
+        run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact --evidence-root . --phase smoke --cancelled "${MM_ARCHIVE_CANCELLED:-false}"
       - name: Preserve success and failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: four-lane-certification-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            certification-*-publisher.jsonl
-            certification-gates/
-            certification-smoke/
-            certification-preflight.json
-            certification-sustained-gates/
-            certification-sustained/
-            certification-native/
-            ${{ runner.temp }}/four-lane-worktrees/pump/pump-acceleration-natural-prospective*
-            ${{ runner.temp }}/four-lane-worktrees/pump/pump-acceleration-natural-prospective.accounting.sqlite3*
-            ${{ runner.temp }}/four-lane-worktrees/pump/pump-acceleration-natural-prospective.candidates.jsonl
-            ${{ runner.temp }}/four-lane-worktrees/meteora/solana-dlmm-independent-v1-live*
-            ${{ runner.temp }}/four-lane-worktrees/pons/pons-selective-continuation-v1-cohort.json
-            ${{ runner.temp }}/four-lane-worktrees/pons/pons-selective-continuation-v1-cohort/
-            ${{ runner.temp }}/four-lane-worktrees/ramses/robinhood-ramses-extended-market-report.json
-            ${{ runner.temp }}/four-lane-worktrees/ramses/robinhood-ramses-extended-market.sqlite*
-            ${{ runner.temp }}/four-lane-worktrees/ramses/robinhood-ramses-all-pool-inventory-cache.json
+          path: certification-artifact/
           if-no-files-found: error
           retention-days: 90
 
-  sustained-campaign:
-    needs: concurrent-smoke
-    if: inputs.phase == 'sustained' || contains(github.event.head_commit.message, '[four-lane-sustained]')
+  hourly-campaign:
+    needs: [concurrent-smoke, smoke-artifact-review]
+    if: inputs.phase == 'hourly' || contains(github.event.head_commit.message, '[four-lane-hourly]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 330
+    timeout-minutes: 210
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -105,6 +98,7 @@ jobs:
         run: |
           mkdir -p certification-gates
           set -o pipefail
+          python -m py_compile certification/frozen_artifact_review.py certification/inspect_stable_artifact.py
           python -m unittest discover -s certification/tests -v 2>&1 | tee certification-gates/supervisor-tests.log
       - name: Create isolated exact-source worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/four-lane-worktrees"
@@ -113,12 +107,17 @@ jobs:
       - name: Verify current heads and absence of competing market jobs
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -m certification.guard
+        run: python -m certification.guard --wait-seconds 3600
       - name: Restore exact smoke readiness
         env:
           SMOKE_READINESS: ${{ needs.concurrent-smoke.outputs.readiness }}
         run: python -c 'import os,pathlib,json; value=json.loads(os.environ["SMOKE_READINESS"]); pathlib.Path("smoke-readiness.json").write_text(json.dumps(value))'
-      - name: Four-hour continuous paper campaign, no process restart
+      - name: Bounded existing-endpoint read-only capability probes
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+        run: python -m certification.capabilities --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates/rpc-capabilities.json
+      - name: One-hour continuous paper campaign, no process restart
         env:
           GH_CHECKS_TOKEN: ${{ github.token }}
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
@@ -127,21 +126,68 @@ jobs:
           MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
           MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON }}
           MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON }}
-        run: python -m certification.live_status --output certification-sustained --phase sustained -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-sustained --gate certification-gates/deterministic.json --phase sustained --seconds 14400 --smoke-result smoke-readiness.json
-      - name: Preserve sustained native ledgers including per-asset Ramses books
+        run: exec python -m certification.live_status --output certification-hourly --phase hourly -- python -m certification.run run --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-hourly --gate certification-gates/deterministic.json --phase hourly --seconds 3600 --smoke-result smoke-readiness.json
+      - name: Mark cancelled collection
+        if: cancelled()
+        run: echo "MM_ARCHIVE_CANCELLED=true" >> "$GITHUB_ENV"
+      - name: Preserve hourly native ledgers including per-asset Ramses books
         if: always()
-        run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-native/sustained
-      - name: Preserve sustained success or failure evidence
+        run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact --evidence-root . --phase hourly --cancelled "${MM_ARCHIVE_CANCELLED:-false}"
+      - name: Preserve hourly success or failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: four-lane-sustained-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            certification-*-publisher.jsonl
-            certification-gates/
-            certification-sustained/
-            certification-native/
-            certification-preflight.json
-            smoke-readiness.json
+          name: four-lane-hourly-${{ github.run_id }}-${{ github.run_attempt }}
+          path: certification-artifact/
+          if-no-files-found: error
+          retention-days: 90
+
+  smoke-artifact-review:
+    needs: concurrent-smoke
+    if: needs.concurrent-smoke.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify artifact digest and inspect all native evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_RUN_ID: ${{ github.run_id }}
+          REVIEW_SHA: ${{ github.sha }}
+          REVIEW_PHASE: smoke
+        run: python certification/inspect_stable_artifact.py
+      - name: Preserve complete artifact review
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: smoke-artifact-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: frozen-review/
+          if-no-files-found: error
+          retention-days: 90
+
+  hourly-artifact-review:
+    needs: hourly-campaign
+    if: always() && (needs.hourly-campaign.result == 'success' || needs.hourly-campaign.result == 'failure')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify artifact digest and inspect all native evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_RUN_ID: ${{ github.run_id }}
+          REVIEW_SHA: ${{ github.sha }}
+          REVIEW_PHASE: hourly
+        run: python certification/inspect_stable_artifact.py
+      - name: Preserve complete artifact review
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: hourly-artifact-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: frozen-review/
           if-no-files-found: error
           retention-days: 90

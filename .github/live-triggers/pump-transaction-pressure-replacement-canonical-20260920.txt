@@ -1,0 +1,1 @@
+Fresh replacement validation after canonicalizing and testing the Pump transaction-hydration pressure repair. Prior attempt 35525808601 failed closed before smoke on noncanonical patch bytes.

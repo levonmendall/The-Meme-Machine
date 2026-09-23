@@ -1,0 +1,6 @@
+Replacement validation after canonical Ramses/shared-provider overlay repair.
+Exact repaired components:
+- Meteora authenticated addLiquidityByStrategy2 post-entry continuity.
+- Robinhood adaptive shared 429 backoff without raising the existing provider ceiling.
+- Solana single bounded smaller-batch retry for transient getTransaction timeout/5xx within original deadlines.
+All four qualification overlays, repository tests, resource checks and synthetic lifecycle passed before launch.

@@ -1,0 +1,13 @@
+Validate the evidence-completion bottleneck repairs after deterministic certification.
+
+Validated integration head: 85c063727d2cc9df07b0995bf9b36b926a09c059
+Deterministic validation: workflow run 35680532335 (passed).
+
+Repairs:
+- Ramses: bounded authenticated WNATIVE -> candidate token-X -> candidate quote token cost conversion when direct conversion is unavailable; fail closed otherwise.
+- Pump: stream prefetch may use each otherwise-idle shared Solana governor slot; governor pacing and foreground priority unchanged.
+- Pons: non-native quote curves stop at the minimal authenticated strategy-domain preflight; complete economic rejects retain rule-level attribution.
+- Meteora: deterministic structural incompatibilities are classified separately from reconstruction incompleteness.
+
+No strategy thresholds, freshness/finality rules, position sizing, live-money authority, or provider-rate limits were relaxed.
+Paper only.

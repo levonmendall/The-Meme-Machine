@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "lane_tests": {
+    "meteora": 382,
+    "pons": 257,
+    "pump": 278,
+    "ramses": 258
+  },
+  "total_lane_tests": 1175,
+  "supervisor_tests": 60,
+  "resource_gates": 3,
+  "source_integrity": "exact heads/files/overlay bytes verified",
+  "working_tree_base": "a34c5d4dce4dc93445b837cfeeb51901825bdb9f",
+  "live_validation_started": false
+}

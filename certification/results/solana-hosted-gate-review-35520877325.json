@@ -1,0 +1,47 @@
+{
+  "schema": "four-lane-preflight-review-v1",
+  "run_id": 35520877325,
+  "integration_sha": "22516a91ca3beb0326bcf1fd2acde4056faba1cc",
+  "classification": "DETERMINISTIC_GATE_FAIL_NO_MARKET_LAUNCH",
+  "artifact_id": 10609010093,
+  "artifact_sha256": "dd64f8f2f907623c4b1d5cde5786f5a86915f4b2bf11c8b661761bf86f6e707f",
+  "supervisor_tests": {
+    "count": 60,
+    "passed": true
+  },
+  "lane_tests": {
+    "pump": {
+      "count": 280,
+      "failures": 1
+    },
+    "meteora": {
+      "count": 384,
+      "failures": 1
+    },
+    "pons": {
+      "count": 257,
+      "failures": 0
+    },
+    "ramses": {
+      "count": 258,
+      "failures": 0
+    }
+  },
+  "resource_gates": {
+    "count": 3,
+    "passed": true
+  },
+  "failed_test": "test_concurrent_consumers_share_one_inflight_fetch",
+  "expected_fetches": 1,
+  "observed_fetches": 2,
+  "diagnosis": "Cross-process cache SELECT and job UPSERT were not one transaction. A sibling could archive and complete the signature in between; the stale UPSERT resurrected the completed job.",
+  "repair": "BEGIN IMMEDIATE covers cache check and queue mutation; atomic claim reconciles queued jobs already satisfied by immutable cache before reserving transport.",
+  "regression": "Deterministically cache a body after queueing and before claiming; require no claimed job or transport reservation. Existing concurrent test retained; 100 repeated concurrent trials passed.",
+  "smoke_started": false,
+  "hourly_started": false,
+  "market_processes_launched": 0,
+  "natural_settled": null,
+  "forced_settled": null,
+  "accounting": null,
+  "policy_changes": false
+}

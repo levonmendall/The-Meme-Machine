@@ -1,0 +1,6 @@
+Validate the repaired Ramses finalized-frontier lifecycle on the exact qualified composition.
+Failure evidence: run 35763784886 exited on extended_finalized_frontier_regression.
+Repair: a lower finalized-tag response is accepted as stale only after explicit reauthentication of the previously accepted finalized block at its exact height/hash/timestamp.
+Same-height hash conflicts, prior-height reauthentication disagreement, and forward timestamp regressions remain fail-closed.
+Ramses checkpoint full evidence is archived append-only once; repeated public snapshots are bounded.
+No strategy threshold, cost model, position sizing, freshness/finality standard, provider ceiling, or paper-only authority changes.

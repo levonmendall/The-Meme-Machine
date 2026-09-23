@@ -12,22 +12,31 @@ REQUIRED=('responsive','bounded_queue','provider_limits','no_starvation','teleme
 
 def evaluate(result):
     failures=[];incomplete=[]
+    hourly=result.get('phase')=='hourly'
+    required_seconds=3600 if hourly else 14400
     if result.get('status')=='FAILED':failures.append('supervisor_failed')
-    if result.get('continuous_overlap_seconds',0)<14400:incomplete.append('continuous_four_hour_window_not_completed')
+    if result.get('continuous_overlap_seconds',0)<required_seconds:
+        incomplete.append('continuous_one_hour_window_not_completed' if hourly else 'continuous_four_hour_window_not_completed')
     for lane in LANES:
         row=result.get('lanes',{}).get(lane,{})
         if row.get('process_restarts',0):failures.append(lane+':process_restart')
         if row.get('unexpected_exit'):failures.append(lane+':unexpected_exit')
         if permanently_unfunded(row):failures.append(lane+':permanently_unfunded_paper_book')
-        if row.get('continuous_uptime_seconds',0)<14400:incomplete.append(lane+':continuous_uptime_short')
+        if row.get('continuous_uptime_seconds',0)<required_seconds:incomplete.append(lane+':continuous_uptime_short')
         for gate in REQUIRED:
             value=row.get('gates',{}).get(gate)
             if value is False:failures.append(lane+':'+gate)
             elif value is not True:incomplete.append(lane+':unproven:'+gate)
         if row.get('natural_settled',0)<1:incomplete.append(lane+':natural_lifecycle_missing')
         if row.get('open_positions') is None:incomplete.append(lane+':open_exposure_unknown')
-        elif row['open_positions']:failures.append(lane+':unsettled_position')
+        elif row['open_positions']:
+            if row.get('durable_handoff') is True:
+                incomplete.append(lane+':position_continuation_pending')
+            else:
+                failures.append(lane+':unsettled_position')
     return dict(status='FAIL' if failures else 'INCOMPLETE' if incomplete else 'PASS',
+                scope='one_hour_paper_campaign' if hourly else 'four_hour_certification',
+                required_observation_seconds=required_seconds,
                 failures=failures,incomplete=incomplete,
                 target_three_per_lane_met=all(result.get('lanes',{}).get(k,{}).get('natural_settled',0)>=3 for k in LANES))
 
@@ -48,27 +57,45 @@ def summarize(lane, report):
     result['evidence_state']=report.get('evidence_broker') or report.get('evidence_acquisition')
     result['provider_state']=report.get('active_provider') or report.get('active_discovery_provider') or report.get('provider')
     result['finality_state']=report.get('frontier_discovery') or report.get('canonical_discovery_cursor')
+    result['opportunity_coverage']=report.get('opportunity_coverage')
+    result['scan_progress']=report.get('scan_progress')
+    result['last_completed_scan']=report.get('last_completed_scan')
     if lane=='pump':
+        qualifiers=report.get('qualifiers',[])
+        entry_status=Counter(x.get('entry_status','unknown') for x in qualifiers)
+        entry_terminals=Counter('entry_cancelled:'+(x.get('entry_limitation') or 'unknown')
+            for x in qualifiers if x.get('entry_status')=='cancelled')
         result['funnel']=dict(discovered=report.get('created_mints_observed'),
-            evidence_complete=len(report.get('full_evidence_candidates',[])),qualified=len(report.get('qualifiers',[])),
-            settled=len(report.get('settled',[])))
+            evidence_complete=len(report.get('full_evidence_candidates',[])),qualified=len(qualifiers),
+            entry_filled=entry_status['filled'],entry_cancelled=entry_status['cancelled'],
+            entry_reserved=entry_status['reserved'],settled=len(report.get('settled',[])))
         result['open_positions']=len(report.get('open_positions',[]))+len(report.get('pending_entries',[]))
         result['natural_settled']=len(report.get('settled',[]))
-        result['terminal_reasons']=dict(Counter(x.get('limitation') or x.get('stage','unknown') for x in report.get('attempts',[])))
+        terminals=Counter(x.get('limitation') or x.get('stage','unknown') for x in report.get('attempts',[]))
+        terminals.update(entry_terminals)
+        result['terminal_reasons']=dict(terminals)
         result['native_accounting']=report.get('accounting')
         result['accounting_replay']=report.get('accounting_replay')
         if (report.get('accounting') or {}).get('reconciled') is True and (report.get('accounting_replay') or {}).get('verified') is True:
             result['accounting_reconciled']=True
         result['limitations'].append('detailed_cost_decomposition_and_complete_economic_replay_require_verification')
     elif lane=='meteora':
-        result['funnel']=dict(discovered=report.get('discovery_unique_pool_count'),screened=report.get('compatibility_screened_count'),
-                              complete_observations=report.get('complete_lifecycle_count'))
+        checkpoint=report.get('checkpoint') or {}
+        economic=sum('pre_entry_features' in x and 'qualification' in x for x in report.get('attempts',[]))
+        result['funnel']=dict(discovered=report.get('discovery_unique_pool_count'),
+            screened=report.get('compatibility_screened_count',checkpoint.get('compatibility_screened_count')),
+            complete_observations=economic,complete_economic_vectors=economic,
+            complete_lifecycles=report.get('complete_lifecycle_count',checkpoint.get('complete_lifecycle_count')))
         result['terminal_reasons']=report.get('qualification_failure_counts',{})
         book=report.get('accounting') or {};replay=report.get('accounting_replay') or {}
         result['native_accounting']=book;result['accounting_replay']=replay
+        handoffs=[x for x in report.get('qualified_lifecycles',[]) if x.get('handoff_required')]
+        if book.get('unsettled') and handoffs:
+            result['durable_handoff']=True
+            result['continuation_state']=handoffs
         if book:
             result['open_positions']=book.get('unsettled')
-            settled=report.get('qualified_lifecycles',[])
+            settled=list(report.get('qualified_lifecycles',[]))+list(report.get('continuation_lifecycles',[]))
             identities={x.get('lifecycle_id') for x in settled if x.get('complete') and x.get('lifecycle_id')}
             if book.get('reconciled') is True and book.get('settled')==len(identities):
                 result['natural_settled']=len(identities)
@@ -78,10 +105,16 @@ def summarize(lane, report):
         summary=report.get('summary') or {}
         result['funnel']=dict(evaluated=summary.get('enrolled',len(report.get('rows',[]))),
                              qualified=summary.get('qualified',len(report.get('qualifiers',[]))))
+        writeoffs=0
         for life in report.get('lifecycles',[]):
             pos=life.get('final_position') or {}
+            if (life.get('settlement_kind')=='liquidity_writeoff' or
+                    pos.get('reason')=='liquidity_writeoff:impossible_full_position_exit'):
+                writeoffs+=1
+                continue
             if pos.get('status')=='settled' and pos.get('entry_tokens',0)>0:
                 result['natural_settled']+=1
+        result['funnel']['liquidity_writeoffs']=writeoffs
         result['open_positions']=sum((x.get('reconciliation') or {}).get('open_exposure',0)>0 for x in report.get('lifecycles',[]))
         result['terminal_reasons']=(report.get('summary') or {}).get('rejection_counts',{})
         result['cohort_accounting']=report.get('cohort_accounting')
@@ -108,7 +141,15 @@ def summarize(lane, report):
                 seen.add(identity)
         result['natural_settled']=len(seen)
         campaign=report.get('campaign_accounting')
-        if campaign:
+        continuation=report.get('continuation_accounting')
+        if continuation:
+            result['native_accounting']=continuation
+            result['open_positions']=continuation.get('open_positions')
+            result['accounting_reconciled']=True
+            if continuation.get('open_positions'):
+                result['durable_handoff']=True
+                result['continuation_state']=report.get('position_continuation')
+        elif campaign:
             result['native_accounting']=campaign
             result['open_positions']=campaign.get('open_positions')
             result['accounting_reconciled']=campaign.get('conservation') is True
@@ -126,7 +167,32 @@ def summarize(lane, report):
             for row in screen.get('rows',[]):reasons.update(row.get('reasons') or [])
         result['terminal_reasons']=dict(reasons)
         result['limitations'].append('quote_assets_require_separate_balances_and_authenticated_valuation_before_consolidation')
+    coverage=result.get('opportunity_coverage') or {}
+    if lane=='pons' and coverage:
+        result['funnel']['complete_evidence_vectors']=coverage.get('stages',{}).get('evidence_complete',0)
+    if coverage:
+        result['funnel'].update({'unique_'+k:v for k,v in coverage.get('stages',{}).items()})
+        result['funnel'].update({'unique_'+k:v for k,v in coverage.get('unique_classes',{}).items()})
     return result
+
+
+def pipeline_health(row,now):
+    """Stage liveness never replaces transport health or authorizes a restart."""
+    scan=row.get('scan_progress') or {}
+    frontier=row.get('finality_state') or {}
+    if scan.get('state')=='in_progress':
+        age=max(0,now-scan.get('updated_at',scan.get('started_at',now)))
+        return dict(state='stalled' if age>300 else 'progressing',stage=scan.get('stage'),
+                    stage_age_seconds=age,scan_age_seconds=max(0,now-scan.get('started_at',now)),
+                    stall_bound_seconds=300)
+    if isinstance(frontier,dict) and frontier.get('last_gate_reason') in ('frontier_unchanged','cadence_floor'):
+        return dict(state='waiting_finalized_frontier',stage=frontier['last_gate_reason'])
+    last=(row.get('opportunity_coverage') or {}).get('last_transition') or {}
+    if not last:return dict(state='unknown',stage=None)
+    age=max(0,now-last.get('at',now))
+    active=last.get('stage') in ('evidence_requested','warmup_started','reconstruction_started','entry_reserved')
+    return dict(state='stalled' if active and age>300 else 'progressing' if active else 'awaiting_market_or_policy',
+                stage=last.get('stage'),stage_age_seconds=age,stall_bound_seconds=300)
 
 
 def dashboard(result,path):
@@ -173,6 +239,8 @@ body{font:14px system-ui;background:#101820;color:#e7eef4;padding:24px;max-width
             'last strategy progress age seconds':r.get('progress_age_seconds'),
             'last transport activity age seconds':r.get('transport_activity_age_seconds')})
         html+='<h3>Opportunity funnel</h3>'+mapping(r.get('funnel'))
+        html+='<h3>Pipeline health</h3>'+mapping(r.get('pipeline_health'))
+        if r.get('scan_progress'):html+='<h3>Pinned scan progress</h3>'+mapping(r['scan_progress'])
         evidence=r.get('evidence_state') or {};stream=r.get('stream_state') or {}
         native_finality=r.get('finality_state')
         finality=native_finality if isinstance(native_finality,dict) else {}
@@ -200,3 +268,32 @@ body{font:14px system-ui;background:#101820;color:#e7eef4;padding:24px;max-width
     html+='</div><details><summary>Complete machine-readable result</summary><pre>'+escape(json.dumps(result,indent=2))+'</pre></details>'
     html+='<p class="note">Raw RPC archives and append-only journals remain available per lane. This view does not replace durable evidence.</p></html>'
     Path(path).write_text(html)
+
+
+def provider_efficiency(result):
+    """Attach estimates to measured denominators; never convert missing evidence to zero."""
+    provider=result.get('shared_provider',{}).get('robinhood',{})
+    for lane in ('pons','ramses'):
+        row=result.get('lanes',{}).get(lane,{})
+        stats=provider.get('lanes',{}).get(lane,{})
+        cu=stats.get('estimated_cu');funnel=row.get('funnel',{})
+        evaluated=funnel.get('evaluated');complete=funnel.get('complete_evidence_vectors');scans=funnel.get('scans')
+        ratio=lambda n:cu/n if cu is not None and isinstance(n,(int,float)) and n>0 else None
+        row['rpc_efficiency']=dict(estimated_cu=cu,physical_http_requests=stats.get('requests'),
+            logical_wire_calls=stats.get('logical_calls'),cu_per_evaluated=ratio(evaluated),
+            cu_per_complete_vector=ratio(complete),cu_per_scan=ratio(scans),
+            evaluated=evaluated,complete_vectors=complete,scans=scans,
+            cache=(result.get('shared_provider',{}).get('robinhood_reuse',{}).get('lanes',{}).get(lane)))
+    from certification.cu import estimate
+    for lane in ('pump','meteora'):
+        row=result.get('lanes',{}).get(lane,{})
+        methods=row.get('method_counts',{});physical=row.get('provider_requests')
+        logical=sum(methods.values()) if methods else None
+        f=row.get('funnel',{});complete=f.get('evidence_complete') if lane=='pump' else f.get('complete_economic_vectors')
+        ratio=lambda value:value/complete if value is not None and isinstance(complete,(int,float)) and complete>0 else None
+        row['rpc_efficiency']=dict(physical_http_transports=physical,logical_rpc_members=logical,methods=methods,
+            estimated_cu=estimate(methods),complete_evidence_vectors=complete,
+            physical_per_complete=ratio(physical),logical_per_complete=ratio(logical),
+            cache=result.get('shared_provider',{}).get('solana_reuse',{}).get('lanes',{}).get(lane),
+            denominator_status='measured' if complete else 'zero_or_unmeasured_no_efficiency_claim')
+    return result
