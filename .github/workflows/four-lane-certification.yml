@@ -1,7 +1,7 @@
 name: four-lane-certification
 on:
   push:
-    branches: [cert/one-hour-repair-campaign, cert/dlmm-machinery-proof-current, repair/solana-alchemy-efficiency, repair/frozen-campaign-handoff]
+    branches: [cert/one-hour-repair-campaign, cert/prospective-market-v1, cert/dlmm-machinery-proof-current, repair/solana-alchemy-efficiency, repair/frozen-campaign-handoff]
   workflow_dispatch:
     inputs:
       phase:
@@ -12,7 +12,7 @@ on:
         options: [smoke, hourly]
 permissions:
   contents: read
-  actions: read
+  actions: write
   checks: write
 concurrency:
   group: meme-machine-four-lane-certification
@@ -47,6 +47,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m certification.guard --wait-seconds 3600
+      - name: Secret-safe Solana and Robinhood chain binding
+        env:
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+        run: python -m certification.chain_binding --output certification-gates/chain-binding.json
       - name: Bounded existing-endpoint read-only capability probes
         env:
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
@@ -78,7 +84,7 @@ jobs:
           name: four-lane-certification-${{ github.run_id }}-${{ github.run_attempt }}
           path: certification-artifact/
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 365
 
   hourly-campaign:
     needs: [concurrent-smoke, smoke-artifact-review]
@@ -112,6 +118,12 @@ jobs:
         env:
           SMOKE_READINESS: ${{ needs.concurrent-smoke.outputs.readiness }}
         run: python -c 'import os,pathlib,json; value=json.loads(os.environ["SMOKE_READINESS"]); pathlib.Path("smoke-readiness.json").write_text(json.dumps(value))'
+      - name: Secret-safe Solana and Robinhood chain binding
+        env:
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+        run: python -m certification.chain_binding --output certification-gates/chain-binding.json
       - name: Bounded existing-endpoint read-only capability probes
         env:
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
@@ -133,6 +145,19 @@ jobs:
       - name: Preserve hourly native ledgers including per-asset Ramses books
         if: always()
         run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact --evidence-root . --phase hourly --cancelled "${MM_ARCHIVE_CANCELLED:-false}"
+      - name: Record prospective economic block without selecting on outcome
+        if: always()
+        run: |
+          if [ -f certification-hourly/result.json ]; then
+            python -m certification.prospective_acceptance record \
+              --result certification-hourly/result.json \
+              --run-dir certification-artifact \
+              --chain-binding certification-gates/chain-binding.json \
+              --output certification-artifact/prospective-observation.json
+          fi
+          if [ -f certification-hourly-live-snapshots.jsonl ]; then
+            cp certification-hourly-live-snapshots.jsonl certification-artifact/
+          fi
       - name: Preserve hourly success or failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -140,7 +165,30 @@ jobs:
           name: four-lane-hourly-${{ github.run_id }}-${{ github.run_attempt }}
           path: certification-artifact/
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 365
+      - name: Start automatic durable continuation for open long-horizon positions
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY' > /tmp/continuation-lanes
+          import json
+          from pathlib import Path
+          row=json.loads(Path("certification-hourly/result.json").read_text())
+          for lane in ("meteora","ramses"):
+              state=(row.get("lanes") or {}).get(lane) or {}
+              if int(state.get("open_positions") or 0)>0 and state.get("durable_handoff") is True:
+                  print(lane)
+          PY
+          while read -r lane; do
+            [ -n "$lane" ] || continue
+            gh workflow run position-continuation.yml \
+              --ref "$GITHUB_REF_NAME" \
+              -f lane="$lane" \
+              -f state_run_id="$GITHUB_RUN_ID" \
+              -f slice_seconds="3000"
+          done < /tmp/continuation-lanes
 
   smoke-artifact-review:
     needs: concurrent-smoke
@@ -165,7 +213,7 @@ jobs:
           name: smoke-artifact-review-${{ github.run_id }}-${{ github.run_attempt }}
           path: frozen-review/
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 365
 
   hourly-artifact-review:
     needs: hourly-campaign
@@ -190,4 +238,4 @@ jobs:
           name: hourly-artifact-review-${{ github.run_id }}-${{ github.run_attempt }}
           path: frozen-review/
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 365
