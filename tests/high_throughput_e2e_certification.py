@@ -58,7 +58,7 @@ class CertificationRPC:
     def provider_telemetry(self):
         return dict(
             topology='certification_authenticated_primary',
-            primary_provider='onfinality_solana_mainnet',
+            primary_provider='alchemy_solana_mainnet',
             secondary_provider='alchemy_solana_mainnet_existing_secret',
             secondary_configured=True,
             logical_calls=self.calls,
