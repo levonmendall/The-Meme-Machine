@@ -262,7 +262,7 @@
   "execution": {
     "meteora_rate_ceiling_rps": 30,
     "planned_meteora_request_cap_rps": 20,
-    "solana_primary": "authenticated OnFinality",
+    "solana_primary": "authenticated Alchemy",
     "solana_read_cap_rps": 5,
     "solana_secondary": "Alchemy rescue-only",
     "checkpointing": true,
