@@ -1,0 +1,122 @@
+{
+  "schema": "meme-machine-profitability-portfolio-autonomy-v1",
+  "cohort_id": "meme-machine-prospective-v1-20260923",
+  "frozen_parent_integration_sha": "fc1870435c7bc6f3a38058d9fc81e3e27694650a",
+  "paper_only": true,
+  "live_money": false,
+  "purpose": "Prospective out-of-sample certification of natural paper profitability, portfolio behavior, and unattended operational readiness without changing strategy economics.",
+  "evidence_authority": {
+    "cohort_begins_only_after_exact_sha_non_market_certification": true,
+    "exact_integration_sha_must_remain_constant_for_entire_cohort": true,
+    "exact_source_manifest_hash_must_remain_constant": true,
+    "exact_implementation_hash_must_remain_constant": true,
+    "historical_or_strategy_development_runs_eligible": false,
+    "forced_or_synthetic_lifecycles_eligible": false,
+    "interrupted_or_failed_windows_count_for_reliability_and_censoring_but_not_as_successful_economic_blocks": true,
+    "strategy_or_policy_change_resets_affected_lane_cohort": true,
+    "integration_or_certification_code_change_resets_entire_cohort": true,
+    "no_threshold_tuning_during_cohort": true,
+    "no_outcome_dependent_run_selection": true,
+    "statistical_block": "one completed natural market campaign window; multiple trades inside one block are not treated as independent statistical samples"
+  },
+  "frozen_lanes": {
+    "pump": {
+      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-persistence-edge-v1",
+      "source_sha": "9932305ebe83dd3ff2dd45ffe9006cf628962bf3",
+      "execution_sha": "9932305ebe83dd3ff2dd45ffe9006cf628962bf3",
+      "policy_hash": "d623ff03ad19b2c4dcd8a82d4883c188ba1acd35a721582175d85cd1b0191770",
+      "source_diff_sha256": "c55cb785a451b8963264ba71344a954147582db36f7a7c11e85ea70aaa4da5d3"
+    },
+    "meteora": {
+      "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1",
+      "source_sha": "a616366fbe64e816708d035c15141b7e7e800304",
+      "execution_sha": "a616366fbe64e816708d035c15141b7e7e800304",
+      "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
+      "source_diff_sha256": "1d6755eeac5a83afb9b617492d4c90c68ccf093b18d19c836ce38f48612b1d92"
+    },
+    "pons": {
+      "strategy_version": "pons-selective-continuation-v1/profitability-v1-persistence-edge-v1",
+      "source_sha": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
+      "execution_sha": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
+      "policy_hash": "3067732bcfa334b28ac4014a4adb5aee2a0310dee573ad349c3b5412c71c8853",
+      "source_diff_sha256": "b6ebd94cee32100495e3c73506126ef0ac83b4bf22112e38fb87dbc390a075f7"
+    },
+    "ramses": {
+      "strategy_version": "ramses-active-wide-maker-v3",
+      "source_sha": "631cb0c6d4de044a080927f711f575db8ac6c1d7",
+      "execution_sha": "631cb0c6d4de044a080927f711f575db8ac6c1d7",
+      "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+      "source_diff_sha256": "2b118db437e140becd34dba2594bb485dfa4d83bfd1c2926a687fb4022ce59ab"
+    }
+  },
+  "evidence_quality": {
+    "minimum_completed_market_blocks_per_lane": 24,
+    "minimum_observation_hours_per_lane": 24,
+    "minimum_calendar_span_hours": 168,
+    "minimum_natural_settlements_per_lane": 20,
+    "minimum_active_blocks_per_lane": 8,
+    "maximum_infrastructure_censoring_fraction": 0.1,
+    "required_forced_settlements": 0,
+    "terminal_accounting_reconciled_required": true,
+    "durable_replay_required": true,
+    "telemetry_complete_required": true,
+    "freshness_finality_unchanged_required": true,
+    "unresolved_exposure_at_final_evaluation_allowed": false,
+    "long_horizon_handoff_allowed_during_collection": true
+  },
+  "lane_economic_acceptance": {
+    "return_basis": "native realized after-cost return divided by lane funded paper capital; no cross-asset unit summation",
+    "campaign_return_per_hour": "normalized realized return divided by accepted market observation hours",
+    "confidence_rule": "mean campaign return per hour minus 1.96 standard errors must be strictly greater than zero",
+    "aggregate_realized_return_must_be_positive": true,
+    "deployed_capital_hour_return_must_be_positive_when_capital_time_nonzero": true,
+    "minimum_profit_factor": 1.2,
+    "maximum_compounded_peak_to_trough_drawdown": 0.15,
+    "minimum_single_campaign_return": -0.05,
+    "ramses_multi_quote_rule": "each funded quote-asset sleeve is evaluated separately; lane block return is the worst sleeve return and unlike quote units are never summed"
+  },
+  "portfolio_acceptance": {
+    "construction": "equal-weight normalized paper sleeves across pump, meteora, pons, ramses; 25% each; certification construct only and not live allocation authority",
+    "lane_weights": {
+      "pump": 0.25,
+      "meteora": 0.25,
+      "pons": 0.25,
+      "ramses": 0.25
+    },
+    "require_all_lanes_economic_pass": true,
+    "minimum_complete_portfolio_blocks": 24,
+    "minimum_calendar_span_hours": 168,
+    "confidence_rule": "mean equal-weight portfolio block return per hour minus 1.96 standard errors must be strictly greater than zero",
+    "minimum_profit_factor": 1.25,
+    "maximum_compounded_peak_to_trough_drawdown": 0.1,
+    "minimum_single_campaign_return": -0.04,
+    "pairwise_correlation": {
+      "minimum_joint_nonzero_blocks": 12,
+      "maximum_absolute_correlation": 0.85,
+      "insufficient_joint_sample_status": "INCOMPLETE"
+    }
+  },
+  "autonomy_acceptance": {
+    "exact_sha_launch_required": true,
+    "current_chain_binding_preflight_required": true,
+    "source_and_policy_integrity_each_run": true,
+    "provider_fail_closed_required": true,
+    "no_hidden_provider_fallback": true,
+    "maximum_process_restarts_per_block": 0,
+    "maximum_unexpected_exits_per_block": 0,
+    "accounting_ambiguity_allowed": false,
+    "telemetry_ambiguity_allowed": false,
+    "automatic_meteora_ramses_position_continuation_required": true,
+    "continuation_must_preserve_exact_integration_and_lane_identity": true,
+    "automatic_new_campaign_scheduler_may_activate_only_after_lane_and_portfolio_economic_pass": true,
+    "manual_strategy_or_policy_intervention_during_cohort_allowed": false,
+    "prospective_artifact_retention_days": 365
+  },
+  "promotion": {
+    "machinery_pass_is_not_profitability_pass": true,
+    "natural_execution_pass_is_not_profitability_pass": true,
+    "profitability_pass_requires_every_lane_economic_pass": true,
+    "autonomous_operation_eligible_only_after_portfolio_and_autonomy_pass": true,
+    "live_money_authority": false
+  }
+}
