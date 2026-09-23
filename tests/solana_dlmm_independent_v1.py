@@ -1101,6 +1101,23 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
     return reasons,recent,mark,fee_uplift
 
 
+def _eligible_exit_reasons(reasons, *, elapsed_seconds, collapse_streaks, policy):
+    """Separate immediate capital-risk exits from ordinary economic deterioration."""
+    hard_risk=("range_boundary","inventory_imbalance","one_way_flow")
+    eligible=[reason for reason in reasons if reason in hard_risk]
+    core_hold=int(policy["prospective_test"]["minimum_hold_seconds_for_nonrisk_exit"])
+    confirmations=int(policy["exit"].get("economic_collapse_confirmation_segments",2))
+    if int(elapsed_seconds) >= core_hold:
+        for reason in ("volume_collapse","fee_density_collapse"):
+            if (
+                reason in reasons
+                and int(collapse_streaks.get(reason,0)) >= confirmations
+                and reason not in eligible
+            ):
+                eligible.append(reason)
+    return eligible
+
+
 def _lifecycle(
     adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None
 ):
@@ -1116,6 +1133,7 @@ def _lifecycle(
         fee_density=features["fee_density"],
     )
     exit_reason="maximum_holding_time"
+    collapse_streaks={"volume_collapse":0,"fee_density_collapse":0}
     while elapsed<max_hold:
         adapter=_rotate(adapter,pacer,rpcs)
         duration=min(segment_seconds,max_hold-elapsed)
@@ -1128,17 +1146,28 @@ def _lifecycle(
                 verified_hold_seconds=elapsed,
             ),adapter
         position=_advance_position(position,tape)
-        reasons,recent,mark,uplift=_segment_exit(
+        raw_reasons,recent,mark,uplift=_segment_exit(
             position,effective_start,tape,terminal,entry_flow,policy)
         elapsed+=duration;tapes.append(tape)
+        for reason in collapse_streaks:
+            collapse_streaks[reason]=(
+                collapse_streaks[reason]+1 if reason in raw_reasons else 0
+            )
+        eligible_reasons=_eligible_exit_reasons(
+            raw_reasons,elapsed_seconds=elapsed,
+            collapse_streaks=collapse_streaks,policy=policy,
+        )
         segments.append(dict(
             elapsed_seconds=elapsed,lineage=tape.lineage,
             swaps=len(tape.events),recent=recent,mark=mark,
-            dynamic_fee_uplift=uplift,exit_reasons=reasons,
+            dynamic_fee_uplift=uplift,
+            raw_exit_reasons=raw_reasons,
+            collapse_streaks=dict(collapse_streaks),
+            exit_reasons=eligible_reasons,
         ))
         current=terminal
-        if reasons:
-            exit_reason=reasons[0];break
+        if eligible_reasons:
+            exit_reason=eligible_reasons[0];break
     combined=chain_verified_tapes(entry,tapes)
     final=_mark(position)
     hours=max(elapsed/3600.0,1/3600.0)
