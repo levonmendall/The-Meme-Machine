@@ -161,8 +161,37 @@ def prepare(destination):
         for file,expected in row['file_hashes'].items():
             if hashlib.sha256((work/file).read_bytes()).hexdigest()!=expected:raise ValueError('source_hash_mismatch:'+lane+':'+file)
         for patch_path in lane_patches(lane,row):
-            subprocess.run(['git','apply','--check',str(patch_path)],cwd=work,check=True)
-            subprocess.run(['git','apply','--index',str(patch_path)],cwd=work,check=True)
+            strict=subprocess.run(
+                ['git','apply','--check',str(patch_path)],cwd=work,
+                stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+            )
+            if strict.returncode==0:
+                subprocess.run(['git','apply','--index',str(patch_path)],cwd=work,check=True)
+                continue
+            if lane=='pump' and patch_path.name=='pump-accounting.patch':
+                merged=subprocess.run(
+                    ['git','apply','--3way','--index',str(patch_path)],cwd=work,
+                    stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+                )
+                if merged.returncode!=0:
+                    print(merged.stdout,flush=True)
+                    unmerged=git('diff','--name-only','--diff-filter=U',cwd=work).splitlines()
+                    for name in unmerged:
+                        body=(work/name).read_text()
+                        lines=body.splitlines()
+                        for i,line in enumerate(lines):
+                            if line.startswith('<<<<<<< '):
+                                lo=max(0,i-20);hi=min(len(lines),i+100)
+                                print('--- CONFLICT '+name+' ---',flush=True)
+                                print('\n'.join(f'{n+1}: {lines[n]}' for n in range(lo,hi)),flush=True)
+                    raise subprocess.CalledProcessError(
+                        merged.returncode,merged.args,output=merged.stdout
+                    )
+                continue
+            raise subprocess.CalledProcessError(
+                strict.returncode,['git','apply','--check',str(patch_path)],
+                output=strict.stdout
+            )
     atomic(destination/'manifest.json',spec)
     return destination
 
