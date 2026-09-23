@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-market-scope-efficiency-current-exact-candidate",
+  "verified_at": "2026-09-23-market-scope-efficiency-final-exact-candidate",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -593,7 +593,7 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true
       },
-      "source_diff_sha256": "c3ff6b32a297bf9e9fdc471f4937223b09817f1e98fbb18263e63c9aa793f0f6",
+      "source_diff_sha256": "2b118db437e140becd34dba2594bb485dfa4d83bfd1c2926a687fb4022ce59ab",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -678,15 +678,21 @@
       "prior_candidate_component_run": 35795249808
     },
     "market_scope_efficiency_candidate": {
-      "branch": "repair/market-scope-efficiency-current-v2-20260923",
-      "integration_sha_pending": true,
+      "branch": "repair/market-scope-efficiency-final-20260923",
+      "integration_identity": "git_head_bound_by_certification_runner",
       "pons_source_sha": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
       "ramses_source_sha": "631cb0c6d4de044a080927f711f575db8ac6c1d7",
       "exact_source_diff_sha256": {
         "pump": "9f3851244dc1cc939caad17b65c240a5d82467eb271d623c108be3f009386eeb",
         "pons": "b6ebd94cee32100495e3c73506126ef0ac83b4bf22112e38fb87dbc390a075f7",
         "meteora": "76dad9ea767672d1906cde19b0d5e6301a3dad00a658637a611b5c1d09e37bd4",
-        "ramses": "c3ff6b32a297bf9e9fdc471f4937223b09817f1e98fbb18263e63c9aa793f0f6"
+        "ramses": "2b118db437e140becd34dba2594bb485dfa4d83bfd1c2926a687fb4022ce59ab"
+      },
+      "pre_pin_qualification": {
+        "run_id": 35866960015,
+        "head_sha": "27f3707062ad664584b2b1529255752aa5d22f0a",
+        "result": "success",
+        "full_ramses_universe_regression": true
       },
       "strategy_thresholds_changed": false,
       "market_observation_scope_changed": false,
