@@ -29,6 +29,7 @@ from .ramses import (
 
 STRATEGY_VERSION = "ramses-active-wide-maker-v1/rebalance-v3"
 STRATEGY_DOMAIN = "robinhood-ramses-dlmm-independent"
+ACTIVE_MODE = "active_wide_maker"
 USDG_ADDRESS = "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
 
 POLICY = {
@@ -737,7 +738,7 @@ def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
     if verify!=choice["proposal_hash"]:
         raise BoundaryError("wide_maker_proposal_hash")
     return {
-        "mode":"active_wide_maker","qualified":True,"reasons":[],
+        "mode":ACTIVE_MODE,"qualified":True,"reasons":[],
         "features":features,"freeze":choice,"policy_hash":POLICY_HASH,
         "strategy_version":STRATEGY_VERSION,"strategy_domain":STRATEGY_DOMAIN,
         "allocation_authority":False,"paper_only":True,
@@ -748,6 +749,27 @@ def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
     }
 
 
+def assert_active_v3_decision(decision, *, require_qualified=True):
+    """Fail closed unless a runtime decision is exactly current Active Wide Maker v3."""
+    if (
+        not isinstance(decision,dict)
+        or decision.get("strategy_domain") != STRATEGY_DOMAIN
+        or decision.get("strategy_version") != STRATEGY_VERSION
+        or decision.get("policy_hash") != POLICY_HASH
+        or decision.get("allocation_authority") is not False
+    ):
+        raise BoundaryError("ramses_active_v3_authority_required")
+    qualified=decision.get("qualified") is True
+    if require_qualified and not qualified:
+        raise BoundaryError("ramses_active_v3_qualified_decision_required")
+    if qualified and (
+        decision.get("mode") != ACTIVE_MODE
+        or not decision.get("freeze")
+    ):
+        raise BoundaryError("ramses_active_v3_mode_required")
+    return True
+
+
 def controller_action(decision, *, current_active_bin, elapsed_seconds, rebalances_used,
                       opportunity_still_qualified, expected_remaining_fee_quote,
                       estimated_inventory_loss_quote, rebalance_cost_quote, unwind_cost_quote):
@@ -756,8 +778,9 @@ def controller_action(decision, *, current_active_bin, elapsed_seconds, rebalanc
     The initial quiet-entry condition is not re-applied to an open position.
     A pool becoming active after entry is therefore not itself an exit signal.
     """
-    if not decision.get("qualified") or not decision.get("freeze"):
-        return {"action":"exit","reason":"strategy_not_qualified"}
+    assert_active_v3_decision(decision)
+    if int(elapsed_seconds) >= int(POLICY["controller"]["max_holding_seconds"]):
+        return {"action":"exit","reason":"maximum_holding_time"}
     proposal=decision["freeze"]["proposals"][0]
     bins=proposal["bins"]
     d=normalized_displacement(min(bins),max(bins),int(current_active_bin))
