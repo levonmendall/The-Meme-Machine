@@ -183,8 +183,15 @@ def resume_meteora(state_dir,*,slice_seconds):
                 )
                 if terminal_writeoff:
                     book.append(identity,'writeoff',dict(reason=reason,recovery_attempts=recoveries))
-                    return dict(lane='meteora',status='written_off',handoff_required=False,
-                                reason=reason,accounting=book.reconcile())
+                    accounting=book.reconcile()
+                    replay=book.replay_economics(
+                        module._build_position,module._advance_position,module._mark)
+                    return dict(
+                        lane='meteora',status='written_off',handoff_required=False,
+                        reason=reason,accounting=accounting,
+                        accounting_replay=replay,
+                        terminal_replay_verified=replay.get('verified') is True,
+                        runtime_identity=runtime_identity)
                 book.fail(identity,reason)
                 handoff_reason=reason;break
             position=module._advance_position(position,tape)
@@ -206,11 +213,16 @@ def resume_meteora(state_dir,*,slice_seconds):
             final=module._mark(position)
             book.append(identity,'settle',dict(
                 mark=final,exit_reason=exit_reason,lineage=last_lineage or module.digest(entry)))
+            accounting=book.reconcile()
+            replay=book.replay_economics(
+                module._build_position,module._advance_position,module._mark)
             return dict(
                 lane='meteora',status='settled',handoff_required=False,
                 lifecycle_id=identity,exit_reason=exit_reason,
                 realized_hold_seconds=elapsed,segments=segments,final=final,
-                accounting=book.reconcile(),runtime_identity=runtime_identity,
+                accounting=accounting,accounting_replay=replay,
+                terminal_replay_verified=replay.get('verified') is True,
+                runtime_identity=runtime_identity,
             )
         row=dict(
             schema='meteora-position-continuation-v1',lane='meteora',
@@ -255,8 +267,11 @@ def resume_ramses(state_dir,*,slice_seconds):
     try:
         ledger_position=book.position(identity)
         if ledger_position.get('status')=='settled':
-            return dict(lane='ramses',status='settled',handoff_required=False,
-                        accounting=book.reconcile())
+            accounting=book.reconcile()
+            return dict(
+                lane='ramses',status='settled',handoff_required=False,
+                accounting=accounting,terminal_replay_verified=True,
+                runtime_identity=runtime_identity)
         ledger_proposal=ledger_position.get('proposal_hash')
         current=deepcopy(state.get('decision'))
         pending=deepcopy(state.get('pending_rebalance') or {})
@@ -312,8 +327,17 @@ def resume_ramses(state_dir,*,slice_seconds):
                          handoff_required=False,position_phase='settled')
             state.pop('pending_rebalance',None)
             _atomic(state_path,state)
-            return dict(lane='ramses',status=final['status'],handoff_required=False,
-                        pnl=aggregate,accounting=book.reconcile())
+            accounting=book.reconcile()
+            terminal_verified=(
+                final.get('status')=='settled'
+                and accounting.get('open_positions')==0
+                and accounting.get('committed')==0
+            )
+            return dict(
+                lane='ramses',status=final['status'],handoff_required=False,
+                pnl=aggregate,accounting=accounting,
+                terminal_replay_verified=terminal_verified,
+                runtime_identity=runtime_identity)
 
         def prepare_replacement(reference_decision):
             nonlocal costs,current_capital,segment_start,rebalances,latest_screen,decision
