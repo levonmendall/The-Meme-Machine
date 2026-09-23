@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-census-context-and-required-state-budget-candidate",
+  "verified_at": "2026-09-23-census-context-state-budget-and-log-metadata-candidate",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -468,6 +468,15 @@
           "runner_trailing_drawdown_bps": 1000,
           "entry_thresholds_changed": false,
           "paper_only_unchanged": true
+        },
+        "rpc_log_timestamp_metadata_repair": {
+          "revision": "ignore-optional-provider-timestamp-v1",
+          "incident_run_id": 35915320840,
+          "observed_pons_identity_failures_replayed": 623,
+          "required_log_identity_and_payload_unchanged": true,
+          "event_time_authority": "authenticated matching block header",
+          "provider_requests_added": 0,
+          "strategy_policy_changed": false
         }
       },
       "prospect_admission": {
@@ -480,11 +489,12 @@
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       },
-      "source_diff_sha256": "f07dc564d97fa6d73deab049bc4aad5f23b1f29833448d28ee064d735c624363",
+      "source_diff_sha256": "b657828bb6cd7852abd7859b16c4f2009e5cb0f4a3cb150c6bd3cb679689a2bb",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
-        "certification/patches/market-scope-efficiency-pons.patch"
+        "certification/patches/market-scope-efficiency-pons.patch",
+        "certification/patches/pons-log-identity-metadata.patch"
       ]
     },
     "ramses": {
@@ -734,6 +744,15 @@
           "market_observation_scope_changed": false,
           "bin_radius_changed": false,
           "paper_only_unchanged": true
+        },
+        "rpc_log_timestamp_metadata_repair": {
+          "revision": "ignore-optional-provider-timestamp-v1",
+          "incident_run_id": 35915320840,
+          "observed_pons_identity_failures_replayed": 623,
+          "required_log_identity_and_payload_unchanged": true,
+          "event_time_authority": "authenticated matching block header",
+          "provider_requests_added": 0,
+          "strategy_policy_changed": false
         }
       },
       "prospect_admission": {
@@ -743,7 +762,7 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true
       },
-      "source_diff_sha256": "bd6800b72c3333053daf5bce393487ceb4f3572d65aaee6853d67d42476bb685",
+      "source_diff_sha256": "d68289955210b4e602090431096078cd1d0cc82abc04f1141eaf87cf3234d082",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -751,7 +770,8 @@
         "certification/patches/ramses-ledger-position.patch",
         "certification/patches/ramses-census-resilience.patch",
         "certification/patches/ramses-census-budget-progress.patch",
-        "certification/patches/ramses-state-hydration-budget.patch"
+        "certification/patches/ramses-state-hydration-budget.patch",
+        "certification/patches/ramses-log-identity-metadata.patch"
       ]
     }
   },

@@ -153,3 +153,25 @@ step independently replays all four archived native books using prepared pinned
 sources, records its proof separately, and retains the original failed engineering
 result. All four replayed with zero exposure. The original failure remains excluded
 from every clean block; no settlement, reserve release or history rewrite occurred.
+
+## Pons public-log metadata mismatch
+
+All 623 `raw_event_identity_disagreement` rows in 35915320840 were reconstructed
+from archived provider responses. For every row the official public getLogs result
+and Alchemy receipt log differed only in optional `blockTimestamp` metadata: the
+public endpoint supplied zero. Transaction hash, block hash/number, transaction/log
+indices, address, topics, data and removed status agreed exactly. The old full-object
+comparison rejected these authentic logs.
+
+The shared ABI helper now omits only that optional provider annotation during
+receipt-log equality; every other field, including unknown extensions, must still
+match. Both strict Pons and Ramses readers use the helper. The authenticated matching
+header remains the sole event-time authority, with the original future-time and
+confirmation checks. Original raw responses are retained unchanged. All 623 cases
+replayed successfully without additional RPC. These are historical authentication
+regressions, not new natural trades or economic observations.
+
+The owned full certification 35919189403 was cancelled during non-market checks
+by pause commit 1004f33cfaa2c15ed8e070a5333885f66777a6af after this defect was
+discovered. Its successful retirement proof remains valid historical evidence;
+certification must restart once on the final source set before any v3 observation.

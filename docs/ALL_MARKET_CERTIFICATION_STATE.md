@@ -30,7 +30,7 @@ Candidate market health and infrastructure censoring are unmeasured. Both stoppe
 predecessors' four native books reconcile with zero exposure; this is historical
 reconciliation evidence, not a completed prospective block.
 
-Cohort: `prospective-four-lane-v3-complete-sample-20260923`. Acceptance-policy SHA-256: `f452db20bc750b5cda37b90fb918a7b72f4fa686bcbf864ff8ef16020236b936`.
+Cohort: `prospective-four-lane-v3-complete-sample-20260923`. Acceptance-policy SHA-256: `74cf0c2cf75a1fac031d5626754381d1fab51d2e2afa36f705a346028665e9a9`.
 Strategy and source identities are frozen below; full execution provenance remains
 in `certification/sources.json` and `certification/profitability_protocol.json`.
 
@@ -38,8 +38,8 @@ in `certification/sources.json` and `certification/profitability_protocol.json`.
 |---|---|---|---|
 | pump | pump-acceleration-independent-v1/profitability-v1-profit-protection-v2 | `b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5` | `73382447eba168503b2c7dc909ecd3498cffabeaa116166c45a3af4c7b74836d` |
 | meteora | solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2 | `90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966` | `a00a177abf1431a274c11f6bac32df5ef17be2893ee9fe23077fa2c4a523237f` |
-| pons | pons-selective-continuation-v1/profitability-v1-profit-protection-v2 | `19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84` | `f07dc564d97fa6d73deab049bc4aad5f23b1f29833448d28ee064d735c624363` |
-| ramses | ramses-active-wide-maker-v3 | `bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef` | `bd6800b72c3333053daf5bce393487ceb4f3572d65aaee6853d67d42476bb685` |
+| pons | pons-selective-continuation-v1/profitability-v1-profit-protection-v2 | `19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84` | `b657828bb6cd7852abd7859b16c4f2009e5cb0f4a3cb150c6bd3cb679689a2bb` |
+| ramses | ramses-active-wide-maker-v3 | `bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef` | `d68289955210b4e602090431096078cd1d0cc82abc04f1141eaf87cf3234d082` |
 
 Last completed action: supervisor/control regressions passed, including actual native
 reserved-capital cancellation replay for all four lanes; fresh preparation reproduced
@@ -101,6 +101,12 @@ Certification pause: run 35919189403 successfully retired the predecessor and
 started full non-market checks. Inspection of retained Pons evidence then exposed
 623 raw-event identity failures; a matched public log and authenticated receipt
 differed only in optional provider blockTimestamp metadata (zero versus the real
-time). Certification is paused before prospective admission while this adapter
-comparison is repaired. Transaction identity, payload, finality and header-time
+time). This adapter comparison was repaired before prospective admission. All 623
+archived mismatches now authenticate under the preserved identity rules. Transaction identity, payload, finality and header-time
 checks remain mandatory. No new cohort observations have been collected.
+
+Latest validation: all 338 Pons tests and 327 Ramses tests pass, including preserved
+raw-log regression fixtures and rejection tests for every identity/payload field.
+An independent prior preparation strictly applied both new overlays and reproduced
+the updated exact hashes. All four repaired terminal readers replay the prior books
+with zero exposure. Full hosted certification is required on the committed successor.
