@@ -2,10 +2,10 @@
 
 Provider policy:
 - Public Solana WebSocket is authoritative Pump discovery.
-- MM_SOLANA_READ_RPC_URL (Alchemy) is the Pump HTTP evidence primary.
-- Authenticated OnFinality is retained only for isolated diagnostics and is not part
-  of Pump evidence acquisition after repeated sustained 429 failures.
+- MM_SOLANA_READ_RPC_URL (Alchemy) is the only authenticated Solana HTTP evidence endpoint.
 - Pump HTTP evidence has no automatic rescue provider: failures are explicit/fail-closed.
+- Public HTTP exists only as an uncredentialed local-development fallback when Alchemy
+  is not required; production certification requires the Alchemy endpoint explicitly.
 - One shared 0.5-second primary pacer bounds Alchemy HTTP evidence at 2 RPS.
 - This module never signs or submits transactions.
 """
@@ -28,11 +28,6 @@ PUBLIC_HTTP_PROVIDER = "solana_public_mainnet_fallback"
 PUBLIC_RPC_URL = "https://api.mainnet-beta.solana.com"
 PUBLIC_RPC_HOST = "api.mainnet-beta.solana.com"
 
-ONFINALITY_PROVIDER = "onfinality_solana_mainnet_diagnostic_only"
-ONFINALITY_RPC_URL = "https://solana.api.onfinality.io/public"
-ONFINALITY_RPC_HOST = "solana.api.onfinality.io"
-AUTHENTICATED_PRIMARY_ENV_NAME = "MM_ONFINALITY_SOLANA_RPC_URL"  # compatibility alias; no longer Pump primary
-AUTHENTICATED_WS_ENV_NAME = "MM_ONFINALITY_SOLANA_WS_URL"
 PUBLIC_OVERRIDE_ENV_NAME = "MM_SOLANA_PUBLIC_RPC_URL"
 
 DISCOVERY_WS_PROVIDER = "solana_public_mainnet"
@@ -53,27 +48,6 @@ def _source(environ=None):
     return os.environ if environ is None else environ
 
 
-def _validate_onfinality_url(value, *, websocket=False, public_only=False):
-    parsed = urlparse(value)
-    expected_scheme = "wss" if websocket else "https"
-    if (
-        parsed.scheme != expected_scheme
-        or parsed.hostname != ONFINALITY_RPC_HOST
-        or parsed.port not in (None, 443)
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.fragment
-    ):
-        raise Unavailable("onfinality_rpc_endpoint_required")
-    if public_only and (
-        parsed.query
-        or parsed.path.rstrip("/") != ("/public-ws" if websocket else "/public")
-    ):
-        raise Unavailable("onfinality_public_rpc_endpoint_required")
-    if not parsed.path or parsed.path == "/":
-        raise Unavailable("onfinality_rpc_endpoint_required")
-    return value
-
 
 def _validate_alchemy_url(value):
     parsed=urlparse(value)
@@ -92,15 +66,6 @@ def _validate_alchemy_url(value):
         raise Unavailable("alchemy_rpc_endpoint_required")
     return value
 
-
-def onfinality_rpc_url(environ=None, *, required=False):
-    source=_source(environ)
-    authenticated=str(source.get(AUTHENTICATED_PRIMARY_ENV_NAME,"") or "").strip()
-    if authenticated:
-        return _validate_onfinality_url(authenticated)
-    if required:
-        raise Unavailable("onfinality_authenticated_rpc_missing")
-    return ONFINALITY_RPC_URL
 
 
 def primary_rpc_url(environ=None, *, required=False):
@@ -125,14 +90,6 @@ def primary_provider(environ=None):
     return PRIMARY_PROVIDER if str(source.get(ALCHEMY_ENV_NAME,"") or "").strip() else PUBLIC_HTTP_PROVIDER
 
 
-def primary_ws_url(environ=None):
-    """Diagnostic-only OnFinality WebSocket helper; never Pump discovery authority."""
-    source = _source(environ)
-    authenticated = str(source.get(AUTHENTICATED_WS_ENV_NAME, "") or "").strip()
-    if authenticated:
-        return _validate_onfinality_url(authenticated, websocket=True)
-    return "wss://solana.api.onfinality.io/public-ws"
-
 
 def discovery_ws_url(environ=None):
     """Canonical Pump discovery stream, intentionally separate from HTTP evidence."""
@@ -148,9 +105,9 @@ def secondary_rpc_url(environ=None, *, required=False):
 class SolanaReadPacer:
     """One conservative request clock shared across bounded RPC objects.
 
-    OnFinality primary is governed at two physical requests per second. The pacer is
-    shared across bounded RPC objects so provider rotations and concentration reads do
-    not multiply the aggregate primary cadence. Alchemy remains rescue-only.
+    Alchemy is governed by one shared physical-request clock. The pacer is shared
+    across bounded RPC objects so provider rotations and concentration reads do not
+    multiply the aggregate HTTP cadence.
     """
 
     def __init__(self, minimum_interval=SOLANA_MIN_REQUEST_INTERVAL_SECONDS):
@@ -262,7 +219,7 @@ class SolanaReadPacer:
 
 
 class _ReadOnlyFailoverMixin:
-    """HTTP transport mixin with OnFinality-primary / Alchemy-rescue semantics."""
+    """Single-provider Alchemy HTTP transport; legacy class name is import-compatible."""
 
     def _init_failover(self, secondary_url, pacer, primary_provider=PRIMARY_PROVIDER, secondary_provider=SECONDARY_PROVIDER):
         self.secondary_url = secondary_url
@@ -337,10 +294,9 @@ class _ReadOnlyFailoverMixin:
     def _response_issue(cls, request, response):
         if not isinstance(request, list):
             return cls._single_response_issue(request, response)
-        # Do not rescue a semantic batch rejection to Alchemy here. The base
-        # call_many() implementation degrades missing/error/null batch items to
-        # bounded individual logical calls. Those individual calls try OnFinality
-        # again first and use Alchemy only if the same item still fails.
+        # A semantic batch rejection is not rerouted to another provider. The base
+        # call_many() implementation may degrade missing/error/null batch members to
+        # bounded individual logical calls against the same Alchemy authority.
         return None
 
     @staticmethod
@@ -595,7 +551,6 @@ def metadata(environ=None):
         network="solana-mainnet",
         discovery_ws_provider=DISCOVERY_WS_PROVIDER,
         discovery_ws_url=DISCOVERY_WS_URL,
-        onfinality_http_role="diagnostic_only_not_pump_evidence",
         signing=False,
         submission=False,
         minimum_request_interval_seconds=SOLANA_MIN_REQUEST_INTERVAL_SECONDS,
