@@ -1,0 +1,69 @@
+name: prospective-cohort-review
+on:
+  workflow_dispatch:
+    inputs:
+      expected_integration_sha:
+        description: Exact certified SHA whose untouched prospective cohort is being reviewed
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.expected_integration_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Verify frozen protocol before reading outcomes
+        run: python -m certification.protocol_freeze --output prospective-review/protocol-freeze.json
+      - name: Download every completed prospective hourly artifact for the exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_integration_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p prospective-review/records
+          gh run list \
+            --workflow four-lane-certification.yml \
+            --branch cert/prospective-market-v1 \
+            --limit 100 \
+            --json databaseId,headSha,status,conclusion,createdAt \
+            > prospective-review/workflow-runs.json
+          python - <<'PY' > /tmp/prospective-run-ids
+          import json,os
+          rows=json.load(open("prospective-review/workflow-runs.json"))
+          expected=os.environ["EXPECTED_SHA"]
+          for row in rows:
+              if row.get("headSha")==expected and row.get("status")=="completed":
+                  print(row["databaseId"])
+          PY
+          while read -r run_id; do
+            [ -n "$run_id" ] || continue
+            mkdir -p "prospective-review/records/$run_id"
+            gh run download "$run_id" \
+              --pattern "four-lane-hourly-$run_id-*" \
+              -D "prospective-review/records/$run_id" || true
+          done < /tmp/prospective-run-ids
+      - name: Evaluate the complete retained prospective cohort
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_integration_sha }}
+        run: |
+          python -m certification.prospective_acceptance evaluate \
+            --records-dir prospective-review/records \
+            --expected-integration-sha "$EXPECTED_SHA" \
+            --output prospective-review/acceptance.json
+      - name: Preserve cohort review
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: prospective-cohort-review-${{ inputs.expected_integration_sha }}-${{ github.run_id }}
+          path: prospective-review/
+          if-no-files-found: error
+          retention-days: 365
