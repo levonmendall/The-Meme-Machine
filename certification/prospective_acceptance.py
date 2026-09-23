@@ -6,6 +6,7 @@ blocks remain zero-return observations.
 """
 from __future__ import annotations
 import argparse
+from copy import deepcopy
 import hashlib
 import json
 import math
@@ -185,6 +186,142 @@ def _lane_economics(lane,row,hours,run_dir=None,ended_at=None):
         "capital_time_complete":denominator_complete,"sleeves":sleeves,
     }
 
+def amend_continuation_record(record,lane,state_dir,continuation_result):
+    """Amend the original statistical block after one long-horizon lane terminates."""
+    if lane not in ("meteora","ramses"):
+        raise ValueError("continuation_amendment_lane")
+    row=deepcopy(record)
+    result=continuation_result
+    if result.get("lane")!=lane:
+        raise ValueError("continuation_amendment_lane_mismatch")
+    if result.get("handoff_required") is True:
+        raise ValueError("continuation_not_terminal")
+    lane_row=(row.get("lanes") or {}).get(lane)
+    if not isinstance(lane_row,dict):
+        raise ValueError("continuation_amendment_record_lane_missing")
+    hours=float(row.get("observation_hours") or 0)
+    terminal_verified=result.get("terminal_replay_verified") is True
+    status=str(result.get("status") or "unknown")
+    accounting=result.get("accounting") or {}
+
+    if lane=="meteora":
+        genesis=accounting.get("genesis") or {}
+        start=genesis.get("capital");realized=accounting.get("realized_pnl_lamports")
+        ns=accounting.get("capital_unit_nanoseconds")
+        capital_seconds=(float(ns)/1e9 if _finite(ns) else None)
+        flat=bool(
+            accounting.get("reconciled") is True
+            and all((accounting.get(k) or 0)==0 for k in
+                    ("open_positions","pending","unsettled","reserved"))
+        )
+        block_return=(float(realized)/float(start)
+                      if _finite(start) and start>0 and _finite(realized) else None)
+        deployed=(float(realized)*3600.0/capital_seconds
+                  if _finite(realized) and _finite(capital_seconds)
+                  and capital_seconds>0 else None)
+        economics={
+            "flat":flat,"starting_capital":start,"realized":realized,
+            "block_return":block_return,
+            "return_per_observed_hour":(
+                block_return/hours if block_return is not None and hours>0 else None),
+            "capital_seconds":capital_seconds,
+            "deployed_return_per_capital_hour":deployed,
+            "capital_time_complete":bool(
+                flat and terminal_verified and _finite(capital_seconds)
+                and capital_seconds>0),
+            "sleeves":{},
+        }
+    else:
+        start=accounting.get("paper_capital");realized=accounting.get("realized")
+        quote=str(accounting.get("quote_asset") or "")
+        cap_by_asset=_ramses_capital_seconds(state_dir,None)
+        capital_seconds=cap_by_asset.get(quote.lower())
+        if capital_seconds is None and len(cap_by_asset)==1:
+            capital_seconds=next(iter(cap_by_asset.values()))
+        flat=bool(
+            accounting.get("open_positions")==0
+            and accounting.get("committed")==0
+        )
+        block_return=(float(realized)/float(start)
+                      if _finite(start) and start>0 and _finite(realized) else None)
+        deployed=(float(realized)*3600.0/float(capital_seconds)
+                  if _finite(realized) and _finite(capital_seconds)
+                  and capital_seconds>0 else None)
+        sleeve={
+            "starting_capital":start,"realized":realized,
+            "block_return":block_return,"capital_seconds":capital_seconds,
+            "deployed_return_per_capital_hour":deployed,"flat":flat,
+        }
+        economics={
+            "flat":flat,"starting_capital":start,"realized":realized,
+            "block_return":block_return,
+            "return_per_observed_hour":(
+                block_return/hours if block_return is not None and hours>0 else None),
+            "capital_seconds":capital_seconds,
+            "deployed_return_per_capital_hour":deployed,
+            "capital_time_complete":bool(
+                flat and terminal_verified and _finite(capital_seconds)
+                and capital_seconds>0),
+            "sleeves":({quote:sleeve} if quote else {}),
+        }
+
+    lane_row["economics"]=economics
+    lane_row["accounting_reconciled"]=economics["flat"]
+    lane_row["durable_replay"]=terminal_verified
+    lane_row["natural_position_terminal"]=True
+    lane_row["continuation_terminal_status"]=status
+    if status=="settled":
+        lane_row["natural_settled"]=int(lane_row.get("natural_settled") or 0)+1
+    updates=row.setdefault("continuation_updates",{})
+    updates[lane]={
+        "status":status,
+        "terminal_replay_verified":terminal_verified,
+        "finalized_at":__import__("time").time(),
+    }
+    row["terminal_finalized_lanes"]=sorted(updates)
+    return row
+
+
+def merge_records(records):
+    """Merge terminal continuation amendments into one immutable statistical block."""
+    groups={}
+    for raw in records:
+        key=(raw.get("cohort_id"),raw.get("protocol_sha256"),raw.get("run_id"))
+        if not all(key):
+            raise ValueError("prospective_record_identity_missing")
+        groups.setdefault(key,[]).append(raw)
+    merged=[]
+    immutable=(
+        "schema","cohort_id","protocol_sha256","run_id","phase","started_at",
+        "observation_hours","integration_sha","source_manifest_hash","implementation_hash",
+    )
+    for key,rows in groups.items():
+        base=deepcopy(rows[0])
+        for other in rows[1:]:
+            for field in immutable:
+                if other.get(field)!=base.get(field):
+                    raise ValueError("prospective_record_amendment_identity_mismatch:"+field)
+        updates={}
+        for candidate in rows:
+            for lane,meta in (candidate.get("continuation_updates") or {}).items():
+                if lane not in ("meteora","ramses"):
+                    raise ValueError("prospective_record_unknown_continuation_lane")
+                prior=updates.get(lane)
+                if prior is None or float(meta.get("finalized_at") or 0)>=float(prior[0].get("finalized_at") or 0):
+                    updates[lane]=(meta,candidate["lanes"][lane])
+        base["continuation_updates"]={}
+        for lane,(meta,lane_row) in updates.items():
+            base["lanes"][lane]=deepcopy(lane_row)
+            base["continuation_updates"][lane]=deepcopy(meta)
+        base["terminal_finalized_lanes"]=sorted(updates)
+        base["runtime_control_freeze_passed"]=all(
+            r.get("runtime_control_freeze_passed") is True for r in rows)
+        base["chain_binding_passed"]=all(
+            r.get("chain_binding_passed") is True for r in rows)
+        merged.append(base)
+    return sorted(merged,key=lambda r:(r.get("started_at") or 0,str(r.get("run_id"))))
+
+
 def make_record(result,proto,proto_hash,run_dir=None,chain_binding=None):
     phase=result.get("phase");required=3600 if phase=="hourly" else 14400 if phase=="sustained" else None
     hours=float(result.get("continuous_overlap_seconds") or 0)/3600.0
@@ -245,7 +382,10 @@ def _lane_summary(records,lane,proto):
     eligible=[r for r in records if r.get("engineering_pass") and r["lanes"][lane].get("identity_match")]
     hours=sum(float(r.get("observation_hours") or 0) for r in eligible)
     settlements=sum(r["lanes"][lane].get("natural_settled",0) for r in eligible)
-    active=sum(r["lanes"][lane].get("natural_settled",0)>0 for r in eligible)
+    active=sum(
+        r["lanes"][lane].get("natural_settled",0)>0
+        or r["lanes"][lane].get("natural_position_terminal") is True
+        for r in eligible)
     returns=[r["lanes"][lane]["economics"].get("block_return") for r in eligible
              if r["lanes"][lane]["economics"].get("flat") and
                 _finite(r["lanes"][lane]["economics"].get("block_return"))]
@@ -296,7 +436,7 @@ def _lane_summary(records,lane,proto):
     }
 
 def evaluate(records,proto,proto_hash,expected_integration_sha=None):
-    records=sorted(records,key=lambda r:(r.get("started_at") or 0,str(r.get("run_id"))))
+    records=merge_records(records)
     identity_sets={
         "protocol_sha256":{r.get("protocol_sha256") for r in records},
         "integration_sha":{r.get("integration_sha") for r in records},
@@ -389,6 +529,7 @@ def evaluate(records,proto,proto_hash,expected_integration_sha=None):
 def main():
     p=argparse.ArgumentParser();sub=p.add_subparsers(dest="command",required=True)
     r=sub.add_parser("record");r.add_argument("--result",required=True);r.add_argument("--run-dir");r.add_argument("--chain-binding");r.add_argument("--output",required=True)
+    m=sub.add_parser("amend-continuation");m.add_argument("--record",required=True);m.add_argument("--lane",choices=("meteora","ramses"),required=True);m.add_argument("--state-dir",required=True);m.add_argument("--continuation-result",required=True);m.add_argument("--output",required=True)
     e=sub.add_parser("evaluate");e.add_argument("--record",action="append",default=[]);e.add_argument("--records-dir");e.add_argument("--expected-integration-sha");e.add_argument("--output",required=True)
     a=p.parse_args();proto,ph=protocol()
     if a.command=="record":
@@ -398,9 +539,18 @@ def main():
         Path(a.output).write_text(json.dumps(row,sort_keys=True,indent=2)+"\n")
         print(json.dumps({"run_id":row["run_id"],"engineering_pass":row["engineering_pass"],
                           "protocol_sha256":ph},sort_keys=True));return
+    if a.command=="amend-continuation":
+        base=json.loads(Path(a.record).read_text())
+        continuation=json.loads(Path(a.continuation_result).read_text())
+        row=amend_continuation_record(base,a.lane,a.state_dir,continuation)
+        Path(a.output).parent.mkdir(parents=True,exist_ok=True)
+        Path(a.output).write_text(json.dumps(row,sort_keys=True,indent=2)+"\n")
+        print(json.dumps({"run_id":row["run_id"],"lane":a.lane,
+                          "terminal_status":row["lanes"][a.lane].get("continuation_terminal_status"),
+                          "durable_replay":row["lanes"][a.lane].get("durable_replay")},sort_keys=True));return
     paths=[Path(x) for x in a.record]
     if a.records_dir:
-        paths.extend(sorted(Path(a.records_dir).rglob("prospective-observation.json")))
+        paths.extend(sorted(Path(a.records_dir).rglob("prospective-observation*.json")))
     records=[json.loads(x.read_text()) for x in paths]
     result=evaluate(records,proto,ph,a.expected_integration_sha)
     Path(a.output).parent.mkdir(parents=True,exist_ok=True)
