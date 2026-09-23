@@ -150,6 +150,319 @@ def integration_integrity():
             raise ValueError('untracked_integration_source:'+name)
 
 
+
+def _resolve_conflict_markers(text,path):
+    pattern=re.compile(r'(?ms)^<<<<<<< ours\n(.*?)^=======\n(.*?)^>>>>>>> theirs\n')
+    blocks=0
+    def choose(match):
+        nonlocal blocks
+        blocks+=1
+        ours,theirs=match.group(1),match.group(2)
+        if path=='meme_machine/pump_acceleration_paper.py':
+            if 'continuation_eligible' in ours and 'policy_hash' in theirs:
+                return ('    POLICY, STRATEGY_ID, ExitObservation, Qualification, '
+                        'continuation_eligible,\n'
+                        '    exit_decision, mode_max_hold_s, policy_hash,\n')
+            if 'realized_quote_units+=' in ours and 'self.book.transition' in theirs:
+                book='\n'.join(
+                    line for line in theirs.splitlines()
+                    if 'self.position.realized_quote_units=' not in line
+                )+'\n'
+                return book+ours
+        if path=='tests/pump_acceleration_natural_prospective.py':
+            if '_monitor_positions(' in theirs and 'partial_harvest_bps' in ours:
+                return theirs
+        raise ValueError('unreviewed_pump_overlay_conflict:'+path)
+    resolved=pattern.sub(choose,text)
+    if '<<<<<<< ' in resolved or '>>>>>>> ' in resolved or '\n=======\n' in resolved:
+        raise ValueError('unresolved_pump_overlay_conflict:'+path)
+    if not blocks:
+        raise ValueError('expected_pump_overlay_conflict_missing:'+path)
+    return resolved
+
+
+def _port_pump_partial_accounting(work):
+    accounting=work/'meme_machine/paper_accounting.py'
+    text=accounting.read_text()
+    old="""            elif action == 'mark':
+                if p['status'] != 'open':
+                    raise ValueError('invalid_paper_mark')
+                p['mark'] = amount
+            elif action == 'settled':
+                if p['status'] != 'open':
+                    raise ValueError('duplicate_or_invalid_paper_settlement')
+                p.update(status='settled', realized=amount-p['basis'], proceeds=amount,
+                         basis=0, mark=0, tokens=0, capital_at_risk=0)
+"""
+    new="""            elif action == 'mark':
+                if p['status'] != 'open':
+                    raise ValueError('invalid_paper_mark')
+                p['mark'] = amount
+            elif action == 'partial_harvest':
+                if p['status'] != 'open' or not tokens or tokens >= p['tokens']:
+                    raise ValueError('invalid_paper_partial_harvest')
+                old_tokens=p['tokens'];old_basis=p['basis']
+                basis_removed=old_basis*tokens//old_tokens
+                if basis_removed <= 0:
+                    raise ValueError('paper_partial_harvest_basis_zero')
+                p.update(
+                    basis=old_basis-basis_removed,
+                    mark=old_basis-basis_removed,
+                    tokens=old_tokens-tokens,
+                    realized=p['realized']+amount-basis_removed,
+                    capital_at_risk=old_basis-basis_removed,
+                )
+            elif action == 'settled':
+                if p['status'] != 'open':
+                    raise ValueError('duplicate_or_invalid_paper_settlement')
+                p.update(
+                    status='settled',
+                    realized=p['realized']+amount-p['basis'],
+                    proceeds=amount,basis=0,mark=0,tokens=0,capital_at_risk=0,
+                )
+"""
+    if text.count(old)!=1:
+        raise ValueError('pump_accounting_transition_anchor')
+    text=text.replace(old,new,1)
+    old="""                elif action == 'settled':
+                    if not old or old['status'] != 'open' or p['realized'] != p['proceeds']-old['basis']:
+                        raise ValueError('paper_replay_settlement')
+                    cash += p['proceeds']
+                elif action != 'mark' or not old or old['status'] != 'open':
+                    raise ValueError('paper_replay_transition')
+"""
+    new="""                elif action == 'partial_harvest':
+                    if not old or old['status'] != 'open':
+                        raise ValueError('paper_replay_partial_harvest')
+                    sold=old['tokens']-p['tokens']
+                    if sold <= 0 or sold >= old['tokens']:
+                        raise ValueError('paper_replay_partial_harvest_tokens')
+                    basis_removed=old['basis']*sold//old['tokens']
+                    proceeds=(p['realized']-old['realized'])+basis_removed
+                    if (basis_removed <= 0
+                            or p['basis'] != old['basis']-basis_removed
+                            or p['capital_at_risk'] != p['basis']
+                            or p['mark'] != p['basis']
+                            or proceeds < 0):
+                        raise ValueError('paper_replay_partial_harvest')
+                    cash += proceeds
+                elif action == 'settled':
+                    if (not old or old['status'] != 'open'
+                            or p['realized'] != old['realized']+p['proceeds']-old['basis']):
+                        raise ValueError('paper_replay_settlement')
+                    cash += p['proceeds']
+                elif action != 'mark' or not old or old['status'] != 'open':
+                    raise ValueError('paper_replay_transition')
+"""
+    if text.count(old)!=1:
+        raise ValueError('pump_accounting_replay_anchor')
+    accounting.write_text(text.replace(old,new,1))
+
+    lifecycle=work/'meme_machine/pump_acceleration_paper.py'
+    text=lifecycle.read_text()
+    old='    def harvest(self, tokens_sold: int, executable_proceeds_quote_units: int, now: int):\n'
+    new='    def harvest(self, tokens_sold: int, executable_proceeds_quote_units: int, now: int, *, evidence=None):\n'
+    if text.count(old)!=1:
+        raise ValueError('pump_harvest_signature_anchor')
+    text=text.replace(old,new,1)
+    old="""        if proceeds < 0:
+            raise ValueError("invalid_partial_harvest")
+        before_tokens=int(self.position.tokens)
+"""
+    new="""        if proceeds < 0:
+            raise ValueError("invalid_partial_harvest")
+        if self.book is not None:
+            self.book.transition(
+                self.lifecycle_id,"partial_harvest",int(now),
+                amount=proceeds,tokens=tokens_sold,
+                evidence=dict(execution=evidence),
+            )
+        before_tokens=int(self.position.tokens)
+"""
+    if text.count(old)!=1:
+        raise ValueError('pump_harvest_book_anchor')
+    lifecycle.write_text(text.replace(old,new,1))
+
+    runner=work/'tests/pump_acceleration_natural_prospective.py'
+    text=runner.read_text()
+    lines=text.splitlines()
+    frozen=[i for i,line in enumerate(lines) if line.startswith('FROZEN_POLICY_HASH=')]
+    if len(frozen)!=1:
+        raise ValueError('pump_frozen_policy_hash_anchor')
+    lines[frozen[0]]='FROZEN_POLICY_HASH="b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5"'
+    text='\n'.join(lines)+'\n'
+    anchor="""            mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
+            age=now-int(row["opened"])
+"""
+    addition="""            mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
+            if mark.get("partial_harvest_bps"):
+                tokens_before=int(life.position.tokens)
+                if tokens_before>1:
+                    harvest_tokens=max(
+                        1,tokens_before*int(mark["partial_harvest_bps"])//10_000)
+                    harvest_tokens=min(tokens_before-1,harvest_tokens)
+                    if life.position.surface=="pump.fun":
+                        curve=pump.curve(snapshot["accounts"][0])
+                        supply,_=pump.mint_info(snapshot["accounts"][1])
+                        rates=pump.fees(snapshot["accounts"][2],curve,supply)
+                        partial_raw,_=pump.sell(curve,harvest_tokens,rates)
+                        harvest_proceeds=max(0,partial_raw-GAS)
+                    else:
+                        partial_quote=sell_quote(snapshot,harvest_tokens)
+                        harvest_proceeds=max(0,partial_quote.output_amount-GAS)
+                    harvest_evidence=dict(
+                        snapshot=snapshot,tokens_sold=harvest_tokens,
+                        net_proceeds=harvest_proceeds,network_cost=GAS)
+                    harvest=life.harvest(
+                        harvest_tokens,harvest_proceeds,now,
+                        evidence=harvest_evidence)
+                    report.setdefault("harvests",[]).append(dict(
+                        lifecycle_id=life.lifecycle_id,mint=mint,mode=mode,
+                        opened=row["opened"],observed_at=now,
+                        return_bps=mark["return_bps"],**harvest))
+            age=now-int(row["opened"])
+"""
+    if text.count(anchor)!=1:
+        raise ValueError('pump_monitor_harvest_anchor')
+    runner.write_text(text.replace(anchor,addition,1))
+
+    tests=work/'tests/test_paper_accounting.py'
+    text=tests.read_text()
+    marker="\nif __name__=='__main__':unittest.main()\n"
+    test="""    def test_partial_harvest_preserves_cash_basis_and_replay(self):
+        self.book.reserve('r:p',600,10,{})
+        self.book.transition('r:p','filled',12,amount=550,tokens=100)
+        self.book.transition('r:p','mark',20,amount=700)
+        self.book.transition('r:p','partial_harvest',21,amount=200,tokens=25)
+        rec=self.book.reconcile()
+        self.assertEqual(rec['cash'],650)
+        self.assertEqual(rec['basis'],413)
+        self.assertEqual(rec['realized'],63)
+        self.assertEqual(self.book.replay()['cash'],650)
+        self.book.transition('r:p','settled',30,amount=500)
+        rec=self.book.reconcile()
+        self.assertEqual(rec['cash'],1150)
+        self.assertEqual(rec['realized'],150)
+        self.assertEqual(self.book.replay()['cash'],1150)
+
+"""
+    if marker not in text:
+        raise ValueError('pump_accounting_test_anchor')
+    tests.write_text(text.replace(marker,'\n'+test+marker,1))
+
+
+def _apply_pump_profit_protection_accounting(work,patch_path):
+    merged=subprocess.run(
+        ['git','apply','--3way','--index',str(patch_path)],cwd=work,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+    )
+    if merged.returncode==0:
+        raise ValueError('pump_profit_protection_expected_rebase_not_needed')
+    unmerged=git('diff','--name-only','--diff-filter=U',cwd=work).splitlines()
+    expected={
+        'meme_machine/pump_acceleration_paper.py',
+        'tests/pump_acceleration_natural_prospective.py',
+    }
+    if set(unmerged)!=expected:
+        raise ValueError('unexpected_pump_overlay_conflicts:'+','.join(sorted(unmerged)))
+    for name in sorted(expected):
+        target=work/name
+        target.write_text(_resolve_conflict_markers(target.read_text(),name))
+    _port_pump_partial_accounting(work)
+    subprocess.run(['git','add','--all'],cwd=work,check=True)
+    if git('diff','--name-only','--diff-filter=U',cwd=work):
+        raise ValueError('unresolved_pump_profit_protection_overlay')
+    subprocess.run(['git','diff','--check','--cached'],cwd=work,check=True)
+
+
+def _resolve_meteora_checkpoint_conflicts(text):
+    pattern=re.compile(r'(?ms)^<<<<<<< ours\n(.*?)^=======\n(.*?)^>>>>>>> theirs\n')
+    count=0
+    def choose(match):
+        nonlocal count
+        count+=1
+        ours,theirs=match.group(1),match.group(2)
+        if '_eligible_exit_reasons' in ours and '_position_lifecycle' in theirs:
+            prefix=ours[:ours.index('def _lifecycle(')]
+            return prefix+theirs
+        if 'collapse_streaks' in ours and "book.append(identity,'mark'" in theirs:
+            return """        if book is not None:
+            book.append(identity,'mark',dict(
+                tape=asdict(tape),position_hash=digest(position),mark=mark))
+        observed_seconds=max(
+            duration,
+            max(0,int(terminal.get("time",0))-int(current.get("time",0))))
+        elapsed+=observed_seconds;tapes.append(tape)
+        for reason in collapse_streaks:
+            collapse_streaks[reason]=(
+                collapse_streaks[reason]+1 if reason in raw_reasons else 0
+            )
+        eligible_reasons=_eligible_exit_reasons(
+            raw_reasons,elapsed_seconds=elapsed,
+            collapse_streaks=collapse_streaks,policy=policy,
+        )
+        segments.append(dict(
+            elapsed_seconds=elapsed,lineage=tape.lineage,
+            swaps=len(tape.events),recent=recent,mark=mark,
+            dynamic_fee_uplift=uplift,
+            raw_exit_reasons=raw_reasons,
+            collapse_streaks=dict(collapse_streaks),
+            exit_reasons=eligible_reasons,
+            evidence_recovery_attempts=recoveries,
+        ))
+        current=terminal
+        if eligible_reasons:
+            exit_reason=eligible_reasons[0];break
+    _stage(address,"unwind",lifecycle_id=identity)
+"""
+        raise ValueError('unreviewed_meteora_checkpoint_conflict')
+    resolved=pattern.sub(choose,text)
+    if count!=2 or '<<<<<<< ' in resolved or '>>>>>>> ' in resolved:
+        raise ValueError('meteora_checkpoint_conflict_shape')
+    return resolved
+
+
+def _apply_meteora_core_hold_checkpoint(work,patch_path):
+    merged=subprocess.run(
+        ['git','apply','--3way','--index',str(patch_path)],cwd=work,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+    )
+    if merged.returncode==0:
+        return
+    unmerged=git('diff','--name-only','--diff-filter=U',cwd=work).splitlines()
+    if unmerged!=['tests/solana_dlmm_independent_v1.py']:
+        raise ValueError('unexpected_meteora_checkpoint_conflicts:'+','.join(unmerged))
+    target=work/unmerged[0]
+    target.write_text(_resolve_meteora_checkpoint_conflicts(target.read_text()))
+    subprocess.run(['git','add','--all'],cwd=work,check=True)
+    if git('diff','--name-only','--diff-filter=U',cwd=work):
+        raise ValueError('unresolved_meteora_checkpoint_overlay')
+    subprocess.run(['git','diff','--check','--cached'],cwd=work,check=True)
+
+
+def _apply_three_way_or_diagnose(work,patch_path,lane):
+    merged=subprocess.run(
+        ['git','apply','--3way','--index',str(patch_path)],cwd=work,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+    )
+    if merged.returncode==0:
+        return
+    print(merged.stdout,flush=True)
+    unmerged=git('diff','--name-only','--diff-filter=U',cwd=work).splitlines()
+    for name in unmerged:
+        body=(work/name).read_text()
+        lines=body.splitlines()
+        for index,line in enumerate(lines):
+            if line.startswith('<<<<<<< '):
+                lo=max(0,index-15);hi=min(len(lines),index+90)
+                print('--- '+lane.upper()+' CONFLICT '+name+' ---',flush=True)
+                print('\n'.join(
+                    f'{number+1}: {lines[number]}' for number in range(lo,hi)
+                ),flush=True)
+    raise subprocess.CalledProcessError(
+        merged.returncode,merged.args,output=merged.stdout)
+
+
 def prepare(destination):
     destination=Path(destination).resolve();destination.mkdir(parents=True,exist_ok=False)
     spec=manifest()
@@ -161,8 +474,21 @@ def prepare(destination):
         for file,expected in row['file_hashes'].items():
             if hashlib.sha256((work/file).read_bytes()).hexdigest()!=expected:raise ValueError('source_hash_mismatch:'+lane+':'+file)
         for patch_path in lane_patches(lane,row):
-            subprocess.run(['git','apply','--check',str(patch_path)],cwd=work,check=True)
-            subprocess.run(['git','apply','--index',str(patch_path)],cwd=work,check=True)
+            strict=subprocess.run(
+                ['git','apply','--check',str(patch_path)],cwd=work,
+                stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+            )
+            if strict.returncode==0:
+                subprocess.run(['git','apply','--index',str(patch_path)],cwd=work,check=True)
+                continue
+            if lane=='pump' and patch_path.name=='pump-accounting.patch':
+                _apply_pump_profit_protection_accounting(work,patch_path)
+                continue
+            if lane=='meteora' and patch_path.name=='meteora-checkpoint.patch':
+                _apply_meteora_core_hold_checkpoint(work,patch_path)
+                continue
+            _apply_three_way_or_diagnose(work,patch_path,lane)
+            continue
     atomic(destination/'manifest.json',spec)
     return destination
 

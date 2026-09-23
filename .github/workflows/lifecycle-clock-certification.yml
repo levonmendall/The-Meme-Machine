@@ -1,7 +1,7 @@
 name: lifecycle-clock-certification
 on:
   push:
-    branches: [repair/lifecycle-clock-decoupling-20260923]
+    branches: [repair/lifecycle-clock-decoupling-20260923, cert/profit-protection-v2-four-lane-20260923]
 permissions:
   contents: read
 concurrency:
