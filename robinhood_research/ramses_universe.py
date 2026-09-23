@@ -50,9 +50,10 @@ UNIVERSE_BATCH_PAUSE_SECONDS = 0.8
 UNIVERSE_RATE_RETRIES = 2
 UNIVERSE_RATE_COOLDOWN_SECONDS = 8.0
 FACTORY_FETCH_CHUNK = 8
+FACTORY_SEED = Path(__file__).resolve().parents[1] / "robinhood-ramses-all-pool-inventory-cache.json"
 FACTORY_CACHE = Path(os.environ.get(
     "MM_ROBINHOOD_RAMSES_FACTORY_CACHE",
-    "robinhood-ramses-all-pool-inventory-cache.json",
+    "robinhood-ramses-all-pool-inventory-runtime-cache.json",
 ))
 REPORT = Path(os.environ.get(
     "MM_ROBINHOOD_RAMSES_UNIVERSE_REPORT",
@@ -113,9 +114,9 @@ def _inventory_digest(addresses):
     return hashlib.sha256(raw).hexdigest()
 
 
-def _load_durable_inventory(factory,runtime_sha256):
+def _load_inventory_path(path,factory,runtime_sha256):
     try:
-        row=json.loads(FACTORY_CACHE.read_text())
+        row=json.loads(Path(path).read_text())
     except FileNotFoundError:
         return None
     except (OSError,ValueError,TypeError):
@@ -135,7 +136,22 @@ def _load_durable_inventory(factory,runtime_sha256):
     return dict(
         addresses=list(addresses),
         asof_block=int(row.get("asof_block") or 0),
+        source_path=str(path),
     )
+
+
+def _load_durable_inventory(factory,runtime_sha256):
+    # Mutable run-state cache wins when valid. The tracked authenticated seed is
+    # read-only bootstrap evidence and is never a persistence destination.
+    candidates=[FACTORY_CACHE]
+    if FACTORY_SEED!=FACTORY_CACHE:
+        candidates.append(FACTORY_SEED)
+    for path in candidates:
+        row=_load_inventory_path(path,factory,runtime_sha256)
+        if row is not None:
+            row["seed_hit"]=Path(path)==FACTORY_SEED
+            return row
+    return None
 
 
 def _persist_durable_inventory(factory,runtime_sha256,block,addresses):
@@ -220,11 +236,13 @@ def _enumerate_factory(rpc, factory, block, *, factory_runtime_sha256=None):
     with _FACTORY_INVENTORY_LOCK:
         cached = dict(_FACTORY_INVENTORY_CACHE.get(key) or {})
     durable_hit=False
+    seed_hit=False
     if not cached and factory_runtime_sha256:
         durable=_load_durable_inventory(factory,factory_runtime_sha256)
         if durable is not None:
             cached=durable
             durable_hit=True
+            seed_hit=bool(durable.get("seed_hit"))
 
     cached_addresses = list(cached.get("addresses") or [])
     cached_block = cached.get("asof_block")
@@ -274,6 +292,7 @@ def _enumerate_factory(rpc, factory, block, *, factory_runtime_sha256=None):
 
     setattr(rpc, "_roi_factory_inventory_cache_hit", bool(cached_addresses))
     setattr(rpc, "_roi_factory_inventory_durable_hit", bool(durable_hit))
+    setattr(rpc, "_roi_factory_inventory_seed_hit", bool(seed_hit))
     setattr(rpc, "_roi_factory_inventory_reused", len(cached_addresses))
     setattr(rpc, "_roi_factory_inventory_fetched", len(appended))
     setattr(rpc, "_roi_factory_inventory_sentinel_reads", len(sentinel_indices))
@@ -740,6 +759,10 @@ def scan(
                 getattr(rpc, "_roi_factory_inventory_durable_hit", False)
             ),
             durable_cache_path=str(FACTORY_CACHE),
+            authenticated_seed_path=str(FACTORY_SEED),
+            authenticated_seed_hit=bool(
+                getattr(rpc, "_roi_factory_inventory_seed_hit", False)
+            ),
             batch_recoveries=int(
                 getattr(rpc, "_roi_factory_batch_recoveries", 0) or 0
             ),
