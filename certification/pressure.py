@@ -1,9 +1,12 @@
 """Incremental read-only view of the lanes' shared provider admission evidence."""
 from collections import Counter
+import hashlib
 import json
+import os
 from pathlib import Path
 import sqlite3
 import time
+from urllib.parse import urlsplit
 from certification.cu import estimate
 
 
@@ -11,6 +14,16 @@ class PressureView:
     def __init__(self, path):
         self.path=Path(path);self.sequence=0;self.lanes={};self.endpoints={};self.retry_counters={}
         self.admission_sequence=0;self.admissions={}
+        self.endpoint_kinds={}
+        endpoints=['https://rpc.mainnet.chain.robinhood.com']+[
+            os.environ.get(k,'') for k in ('MM_ROBINHOOD_READ_RPC_URL','MM_ROBINHOOD_DLMM_RPC_URL','MM_ROBINHOOD_DISCOVERY_RPC_URL')]
+        for endpoint in filter(None,endpoints):
+            p=urlsplit(endpoint.strip());host=(p.hostname or '').lower()
+            normalized=f'{p.scheme.lower()}://{p.netloc.lower()}{p.path.rstrip("/")}'
+            if p.query:normalized+='?'+p.query
+            kind=('alchemy' if host=='alchemy.com' or host.endswith('.alchemy.com') else
+                  'robinhood_public' if host=='rpc.mainnet.chain.robinhood.com' else 'configured_other')
+            self.endpoint_kinds[hashlib.sha256(normalized.encode()).hexdigest()]=kind
 
     def snapshot(self):
         if not self.path.exists():return dict(state='not_initialized',lanes={})
@@ -22,6 +35,8 @@ class PressureView:
                 row=json.loads(body);lane=row['lane'];endpoint=row['endpoint_fingerprint']
                 stats=self.lanes.setdefault(lane,dict(requests=0,methods=Counter(),http_status=Counter(),rpc_errors=Counter(),retries=0,max_queue_depth=0,queue_wait_seconds=0,transport_seconds=0))
                 stats['requests']+=1;stats['methods'].update(row['methods'])
+                kind=self.endpoint_kinds.get(endpoint,'unknown')
+                stats.setdefault('provider_methods',{}).setdefault(kind,Counter()).update(row['methods'])
                 if row.get('http_status') is not None:stats['http_status'][str(row['http_status'])]+=1
                 if row.get('rpc_error_code') is not None:stats['rpc_errors'][str(row['rpc_error_code'])]+=1
                 # provider_topology records Rpc.retry_count: cumulative within
@@ -60,11 +75,20 @@ class PressureView:
             endpoints=[dict(identity=e,interval_seconds=i,cooldown_remaining_seconds=max(0,c-now),requests=self.endpoints.get(e,0)) for e,c,i in db.execute('SELECT endpoint,cooldown,interval FROM limits')]
             queues=[dict(endpoint=e,depth=n,oldest_wait_seconds=max(0,now-oldest)) for e,n,oldest in db.execute('SELECT endpoint,COUNT(*),MIN(created) FROM queue GROUP BY endpoint')]
             for stats in self.lanes.values():
-                stats.update(estimate(stats['methods']))
+                alchemy=stats['provider_methods'].get('alchemy',Counter())
+                stats.update(estimate(alchemy))
+                stats['alchemy_logical_calls']=sum(alchemy.values())
+                stats['logical_calls']=sum(stats['methods'].values())
+                stats['cu_scope']='identified_alchemy_transports_only'
+                stats['unknown_provider_logical_calls']=sum(stats['provider_methods'].get('unknown',{}).values())
+                if stats['unknown_provider_logical_calls']:stats['estimated_cu']=None
                 stats['logical_calls_per_physical_request']=sum(stats['methods'].values())/stats['requests'] if stats['requests'] else None
             total=Counter()
-            for stats in self.lanes.values():total.update(stats['methods'])
-            return dict(state='observed',estimated_cu=estimate(total),last_sequence=self.sequence,lanes=self.lanes,endpoints=endpoints,queues=queues,
+            for stats in self.lanes.values():total.update(stats['provider_methods'].get('alchemy',{}))
+            billing=estimate(total);billing['scope']='identified_alchemy_transports_only'
+            billing['unknown_provider_logical_calls']=sum(s['unknown_provider_logical_calls'] for s in self.lanes.values())
+            if billing['unknown_provider_logical_calls']:billing['estimated_cu']=None
+            return dict(state='observed',estimated_cu=billing,last_sequence=self.sequence,lanes=self.lanes,endpoints=endpoints,queues=queues,
                         admission_by_lane=self.admissions)
         finally:db.close()
 

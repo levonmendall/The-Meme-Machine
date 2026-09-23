@@ -162,5 +162,24 @@ class ControlsTests(unittest.TestCase):
             self.assertEqual(view.snapshot()['lanes']['pons']['retries'],3)
             self.assertEqual(view.snapshot()['lanes']['pons']['retries'],3)
 
+    def test_public_rpc_is_not_billed_as_alchemy_in_shared_pressure(self):
+        import hashlib
+        from certification.pressure import PressureView
+        from unittest.mock import patch
+        public='https://rpc.mainnet.chain.robinhood.com';alchemy='https://robinhood-mainnet.g.alchemy.com/v2/test-secret'
+        with tempfile.TemporaryDirectory() as tmp,patch.dict('os.environ',{'MM_ROBINHOOD_READ_RPC_URL':alchemy}):
+            path=Path(tmp)/'provider.sqlite';db=sqlite3.connect(path)
+            db.executescript('CREATE TABLE transports(seq INTEGER PRIMARY KEY,body TEXT); CREATE TABLE limits(endpoint TEXT,cooldown REAL,interval REAL); CREATE TABLE queue(endpoint TEXT,created REAL);')
+            for url in (public,alchemy):
+                db.execute('INSERT INTO transports(body) VALUES(?)',(json.dumps(dict(lane='pons',
+                    endpoint_fingerprint=hashlib.sha256(url.encode()).hexdigest(),session=url[-1],methods=['eth_getLogs'])),))
+            db.commit();db.close();view=PressureView(path);result=view.snapshot()
+            row=result['lanes']['pons']
+            self.assertEqual(row['logical_calls'],2);self.assertEqual(row['alchemy_logical_calls'],1)
+            from certification.cu import estimate
+            self.assertEqual(row['estimated_cu'],estimate({'eth_getLogs':1})['estimated_cu'])
+            self.assertEqual(row['provider_methods']['robinhood_public']['eth_getLogs'],1)
+            self.assertNotIn('test-secret',json.dumps(result))
+
 
 if __name__=='__main__':unittest.main()

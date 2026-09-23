@@ -3,7 +3,7 @@
 Updated: 2026-09-23 UTC. Phase: candidate stabilized; exact-SHA full certification pending.
 
 Runtime authority is `cert/prospective-market-v1`; its last inspected SHA was
-`44869bbcb1ccb3bb6a9001443d36b77b3eafd14f`. Candidate branch:
+`f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa`. Candidate branch:
 `cert/all-market-certification-20260923`. The candidate SHA is the commit containing
 this checkpoint and must be read from the `all-market-certification` run's `head_sha`.
 No candidate certification or natural profitability claim is made here.
@@ -13,7 +13,7 @@ passes, then dispatch a 10-minute smoke and a fresh hourly paper block. Runtime 
 stays frozen. Subsequent exact identities, run IDs, counts, metrics and next actions
 are recorded on the separate state branch:
 
-[`cert/cohort-state-513baef4b555`](https://github.com/levonmendall/The-Meme-Machine/blob/cert/cohort-state-513baef4b555/docs/ALL_MARKET_CERTIFICATION_STATE.md).
+[`cert/cohort-state-95f602943ed4`](https://github.com/levonmendall/The-Meme-Machine/blob/cert/cohort-state-95f602943ed4/docs/ALL_MARKET_CERTIFICATION_STATE.md).
 
 That branch's data commits are checkpoints, not runtime revisions. The JSON authority
 is `certification/PROSPECTIVE_PROGRAM_STATE.json` on the same branch.
@@ -30,7 +30,7 @@ Candidate market health and infrastructure censoring are unmeasured. The cancell
 predecessor's four native books reconcile with zero exposure; this is historical
 reconciliation evidence, not a completed prospective block.
 
-Cohort: `prospective-four-lane-v2-census-context-20260923`. Acceptance-policy SHA-256: `956c79606c95df9edf249f9f09ed209543a18a12a57bc67dd21a4c4a16b78304`.
+Cohort: `prospective-four-lane-v3-complete-sample-20260923`. Acceptance-policy SHA-256: `8874be21cba68206042e87328f80ef8eeb8fa87b7028cb3fa6bfe34bfd8eca86`.
 Strategy and source identities are frozen below; full execution provenance remains
 in `certification/sources.json` and `certification/profitability_protocol.json`.
 
@@ -41,7 +41,7 @@ in `certification/sources.json` and `certification/profitability_protocol.json`.
 | pons | pons-selective-continuation-v1/profitability-v1-profit-protection-v2 | `19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84` | `f07dc564d97fa6d73deab049bc4aad5f23b1f29833448d28ee064d735c624363` |
 | ramses | ramses-active-wide-maker-v3 | `bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef` | `edad8c4d1fc03b3e90f1d11bda3fcdc5ef7a8a4ba297f3ec50959d3fc40fcf0b` |
 
-Last completed action: 139 supervisor/control tests passed, including actual native
+Last completed action: 142 supervisor/control tests passed, including actual native
 reserved-capital cancellation replay for all four lanes; fresh preparation reproduced
 all four exact source hashes. Ramses census and Meteora missing-context regressions
 passed. Workflow YAML and frozen protocol checks pass. Full lane, crash, restart,
@@ -70,3 +70,16 @@ Historical references: cancelled market run `35905479952`; prior non-market pass
 read-only provider shape probe `35909625490` at
 `e7ce21265884746c921220343caafb6ca10d8c1e`. See
 [incident and repair evidence](ALL_MARKET_INCIDENT_35905479952.md).
+
+The predecessor `f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa` passed all full
+non-market gates in run `35914189762` and launched paper run `35915320840`.
+Its first live minute proved the repaired Ramses census completed all 18 pages
+and Meteora reached authenticated evidence acquisition. All four processes were
+responsive, with zero open positions and zero settlements at that checkpoint.
+
+The successor additionally requires the existing portfolio joint-sample minimum
+before ending collection, and corrects shared-pressure CU attribution so public
+RPC calls cannot appear as Alchemy usage. It must pass its own complete certificate.
+Its workflow retires the owned predecessor after a verified flat smoke or after
+an already-started campaign drains; native exposure is never cancelled away.
+Every predecessor artifact and cohort record is retained separately.

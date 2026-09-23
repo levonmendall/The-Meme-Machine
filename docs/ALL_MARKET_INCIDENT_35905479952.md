@@ -88,3 +88,22 @@ never add a second sample. Engineering/evidence failure is sticky. Losing and
 zero-trade healthy blocks remain in the cohort. No strategy or economic threshold
 is changed by the scheduler. Full artifacts are retained for 90 days; state history
 and run references persist in Git.
+
+## Successor collection controls
+
+Full non-market certificate `35914189762` passed for `f7e053a7`, then live smoke
+`35915320840` showed all four processes responsive. Ramses completed its 18-page
+log census and Meteora began authenticated evidence acquisition. That early smoke
+also exposed that the shared pressure summary still estimated public RPC calls as
+Alchemy compute despite the corrected per-worker ledger. The successor attributes
+shared transport methods through normalized endpoint fingerprints; unknown endpoint
+identity yields an unknown total rather than an invented Alchemy charge.
+
+A deterministic boundary fixture additionally proved lane sample completion could
+stop collection with only eight joint nonzero portfolio observations, below the
+existing twelve-observation correlation requirement. The successor continues until
+both lane and portfolio sample requirements are met, or the predeclared operational
+limit is reached. Economic pass/fail does not select the stopping point. These
+control changes require a new cohort and a full exact-SHA recertification. The owned
+predecessor is retired only after its flat smoke evidence is preserved, or an already
+started campaign has drained; no active position is interrupted to accelerate testing.

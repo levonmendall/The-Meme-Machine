@@ -42,6 +42,24 @@ class ProgramTests(unittest.TestCase):
         state=self.reduce(row)
         self.assertEqual(state['phase'],'HALTED');self.assertEqual(state['records'],[row])
 
+    def test_lane_sample_completion_cannot_hide_incomplete_portfolio_sample(self):
+        evaluation={'lanes':{lane:{'quality_checks':{'complete':True}} for lane in program.LANES},
+                    'portfolio':{'complete_blocks':24,'calendar_span_hours':168,
+                                 'correlations':{'pump__pons':{'joint_nonzero_blocks':8}}}}
+        with patch.object(program,'evaluate',return_value=evaluation):
+            self.assertEqual(self.reduce()['phase'],'READY')
+            evaluation['portfolio']['correlations']['pump__pons']['joint_nonzero_blocks']=12
+            self.assertEqual(self.reduce()['phase'],'EVALUATED')
+
+    def test_retirement_never_cancels_an_active_market_block(self):
+        run={'status':'in_progress'};jobs=[{'name':'concurrent-smoke','conclusion':'success'}]
+        self.assertEqual(program.retirement_action(run,jobs),'cancel_before_new_admission')
+        jobs.append({'name':'hourly-campaign','steps':[{'name':'One-hour continuous paper campaign, no process restart',
+                                                     'status':'in_progress'}]})
+        self.assertEqual(program.retirement_action(run,jobs),'wait_existing_campaign')
+        run['status']='completed'
+        self.assertEqual(program.retirement_action(run,jobs),'verify_terminal')
+
     def test_engineering_failure_halts_and_preserves_even_later_terminal_amendment(self):
         row=copy.deepcopy(self.row);row['lanes']['pump']['accounting_reconciled']=False
         state=self.reduce(row)

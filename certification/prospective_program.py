@@ -168,7 +168,8 @@ def initial_state(sha,certification_run_id,proto,ph,now):
         strategy_identity_by_lane={lane:{k:r[k] for k in ('strategy_version','policy_hash')} for lane,r in proto['frozen_lanes'].items()},
         source_diff_hash_by_lane={lane:r['source_diff_sha256'] for lane,r in proto['frozen_lanes'].items()},
         historical_references=dict(cancelled_run=35905479952,provider_shape_probe=35909625490,
-                                   previous_nonmarket_run=35907893183,previous_observations_excluded=True),
+                                   previous_nonmarket_run=35907893183,superseded_nonmarket_run=35914189762,
+                                   superseded_market_run=35915320840,previous_observations_excluded=True),
         operational_limit=dict(maximum_blocks=192,maximum_calendar_hours=336),paper_only=True,live_money=False)
 
 
@@ -222,6 +223,11 @@ def reduce_record(state,record,event_id,proto,ph,now,base_reviewed=False):
         return state
     state['pending_lanes']=[]
     quality=all(all(row['quality_checks'].values()) for row in state['evaluation']['lanes'].values())
+    portfolio=state['evaluation']['portfolio'];requirements=proto['portfolio_acceptance']
+    quality=quality and portfolio['complete_blocks']>=requirements['minimum_complete_portfolio_blocks']
+    quality=quality and portfolio['calendar_span_hours']>=requirements['minimum_calendar_span_hours']
+    quality=quality and all(row['joint_nonzero_blocks']>=requirements['pairwise_correlation']['minimum_joint_nonzero_blocks']
+                               for row in portfolio['correlations'].values())
     if quality:
         state.update(phase='EVALUATED',next_action='review_frozen_economic_result')
     elif (len(records)>=state['operational_limit']['maximum_blocks']
@@ -270,17 +276,70 @@ def dispatch(api,proto,sha,ph):
     return state
 
 
+def retirement_action(run,jobs):
+    if run['status']=='completed':return 'verify_terminal'
+    hourly=next((j for j in jobs if j['name']=='hourly-campaign'),{})
+    market=next((s for s in hourly.get('steps',[]) if s['name'].startswith('One-hour continuous paper campaign')), {})
+    if market.get('started_at') or market.get('status') in ('in_progress','completed'):
+        return 'wait_existing_campaign'
+    smoke=next((j for j in jobs if j['name']=='concurrent-smoke'),{})
+    return 'cancel_before_new_admission' if smoke.get('conclusion')=='success' else 'wait_smoke'
+
+
+def retire(api,run_id,prior_sha,prior_cohort,prior_ph,proto):
+    prior=deepcopy(proto);prior['cohort_id']=prior_cohort
+    def pause(state):
+        if state is None or state.get('current_workflow_run_id')!=int(run_id):
+            raise ValueError('program_retirement_owner')
+        if state['phase']=='HALTED':return state
+        state.update(phase='HALTED',halt_reason='superseded_collection_controls',
+                     next_action='finish_existing_positions_then_certify_successor')
+        state['history'].append(dict(at=time.time(),action='retire_after_preserving_existing_work',workflow_run_id=int(run_id)))
+        return state
+    commit_transition(api,prior,prior_sha,prior_ph,pause)
+    deadline=time.monotonic()+3600;cancel_requested=False
+    while time.monotonic()<deadline:
+        run=api.request('GET',f'actions/runs/{int(run_id)}')
+        if run['head_sha']!=prior_sha or run['head_branch']!=CANONICAL_BRANCH:
+            raise ValueError('program_retirement_source')
+        jobs=api.pages(f'actions/runs/{int(run_id)}/jobs','jobs')
+        action=retirement_action(run,jobs)
+        if action=='cancel_before_new_admission' and not cancel_requested:
+            # The smoke job uploads evidence only after its flat/native gates pass.
+            api.request('POST',f'actions/runs/{int(run_id)}/cancel');cancel_requested=True
+        if action=='verify_terminal':
+            hourly=next((j for j in jobs if j['name']=='hourly-campaign'),{})
+            market=next((s for s in hourly.get('steps',[]) if s['name'].startswith('One-hour continuous paper campaign')), {})
+            observed=market.get('conclusion') not in (None,'skipped')
+            phase='hourly' if observed else 'smoke'
+            prefix='four-lane-hourly' if observed else 'four-lane-certification'
+            archive,item=api.artifact(run_id,f'{prefix}-{run_id}-{run["run_attempt"]}')
+            result=_member(archive,f'certification-{phase}/result.json')
+            flat=(result.get('integration_sha')==prior_sha and set(result.get('lanes',{}))==set(LANES)
+                  and all(row.get('open_positions')==0 and row.get('accounting_reconciled') is True
+                          for row in result['lanes'].values()))
+            if flat:return dict(phase='RETIRED',prior_sha=prior_sha,prior_run=int(run_id),
+                terminal_artifact_id=item['id'],terminal_artifact_digest=item['digest'],verified_flat=True,
+                next_action='certify_successor',prior_evidence_preserved=True)
+            raise ValueError('program_retirement_exposure_unresolved')
+        time.sleep(5)
+    raise ValueError('program_retirement_wait_bound; existing positions must continue')
+
+
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('command',choices=('certificate','start','claim','advance','halt','review'))
+    parser=argparse.ArgumentParser();parser.add_argument('command',choices=('certificate','start','claim','advance','halt','review','retire'))
     parser.add_argument('--run-id');parser.add_argument('--worktrees');parser.add_argument('--output')
     parser.add_argument('--base-reviewed',action='store_true')
+    parser.add_argument('--prior-sha');parser.add_argument('--prior-cohort');parser.add_argument('--prior-protocol-sha')
     parser.add_argument('--record');parser.add_argument('--reason',default='workflow_failure_or_missing_evidence')
     a=parser.parse_args();api=GitHub();proto,ph=protocol();sha=git('rev-parse','HEAD')
     if os.environ.get('EXPECTED_SHA',sha)!=sha:raise ValueError('program_checkout_identity')
     if a.command=='certificate':
         receipt=certificate(api,a.run_id,sha,a.worktrees)
         path=Path(a.output);path.parent.mkdir(parents=True,exist_ok=True);path.write_text(canonical(receipt)+'\n');return
-    if a.command=='review':
+    if a.command=='retire':
+        state=retire(api,a.run_id,a.prior_sha,a.prior_cohort,a.prior_protocol_sha,proto)
+    elif a.command=='review':
         state,_=commit_transition(api,proto,sha,ph,lambda s:s)
         if state is None:raise ValueError('program_state_missing')
         state['evaluation']=evaluate(state['records'],proto,ph,sha)
