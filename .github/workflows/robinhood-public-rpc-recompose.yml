@@ -21,9 +21,9 @@ jobs:
       - name: Recompose exact Pons and Ramses overlays
         run: |
           set -euo pipefail
-          git fetch origin df095444af5d0566ca16d5ff24ed9d3d76f6d070 e8060eb71877296e55e98659252b9c34aa3c9308
-          git worktree add --detach "$RUNNER_TEMP/pons" df095444af5d0566ca16d5ff24ed9d3d76f6d070
-          git worktree add --detach "$RUNNER_TEMP/ramses" e8060eb71877296e55e98659252b9c34aa3c9308
+          git fetch origin 49373da5d170dfa5ff1c46d21adfc7e87bf2af56 f0f8b5f60e0cded7df9746bc5ad17bbcb87c4b9d
+          git worktree add --detach "$RUNNER_TEMP/pons" 49373da5d170dfa5ff1c46d21adfc7e87bf2af56
+          git worktree add --detach "$RUNNER_TEMP/ramses" f0f8b5f60e0cded7df9746bc5ad17bbcb87c4b9d
           git -C "$RUNNER_TEMP/pons" apply --index "$GITHUB_WORKSPACE/certification/patches/pons-cohort-capital.patch"
           git -C "$RUNNER_TEMP/ramses" apply --index "$GITHUB_WORKSPACE/certification/patches/ramses-admission.patch"
           PONS_HASH="$(git -C "$RUNNER_TEMP/pons" diff --binary HEAD | sha256sum | awk '{print $1}')"
