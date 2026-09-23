@@ -1840,7 +1840,7 @@ index ac23ca3..4e1679a 100644
 +
 +
 +class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
-     """HTTP transport mixin with OnFinality-primary / Alchemy-rescue semantics."""
+     """Single-provider Alchemy HTTP transport; legacy class name is import-compatible."""
  
      def _init_failover(self, secondary_url, pacer, primary_provider=PRIMARY_PROVIDER, secondary_provider=SECONDARY_PROVIDER):
 diff --git a/meme_machine/solana_signature_identity.py b/meme_machine/solana_signature_identity.py
@@ -2245,9 +2245,9 @@ index b190712..983b0c8 100644
      broker=EvidenceBroker(broker_path)
      stop=threading.Event();ready=threading.Event();pumpswap_ready=threading.Event()
      stream=PumpLogStream(primary_rpc_url(),tape,ws_url=discovery_ws_url())
-+    # Additional acquisition concurrency is allowed only underneath the shared
-+    # cross-process governor. Standalone runners retain their original transport cap.
-+    incremental=bool(campaign and os.environ.get('MM_CERT_GOVERNOR_DB'))
++    # Scarce Alchemy policy: public stream hints remain complete, but campaign mode
++    # never hydrates speculative bodies merely because provider capacity is idle.
++    incremental=False
      pumpswap_stream=DynamicAddressLogStream(
 -        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30)
 +        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30,prefetch=incremental,
