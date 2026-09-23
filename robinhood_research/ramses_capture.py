@@ -11,7 +11,7 @@ import zlib
 from . import BoundaryError
 from .abi import calldata, topic
 from .identity import authenticate, load
-from .provider_topology import configured_dlmm_rpc
+from .provider_topology import configured_dlmm_rpc, public_diagnostic_rpc
 from .ramses import (authenticate_pool, decode_ramses_event, freeze_proposals, paper_outcome,
                      paper_fee_capture, paper_position, paper_removal, price, quote_value, replay, state, unpack, values)
 
@@ -47,6 +47,7 @@ class BoundedMultiRpc:
     def __init__(
         self,endpoint,*,max_sessions=4,batch_size=20,batch_pause=0.75,
         rate_retries=1,rate_cooldown=6.0,adaptive_batch_floor=2,
+        provider_role="authoritative",
     ):
         if (
             type(batch_size) is not int or not 1<=batch_size<=50
@@ -54,9 +55,11 @@ class BoundedMultiRpc:
             or not 1<=adaptive_batch_floor<=batch_size
             or float(batch_pause)<0
             or float(rate_cooldown)<0
+            or provider_role not in ("authoritative","public_observation")
         ):
             raise BoundaryError("invalid_ramses_provider_shape")
         self.endpoint=endpoint
+        self.provider_role=provider_role
         self.max_sessions=max_sessions
         self.batch_size=batch_size
         self.batch_pause=float(batch_pause)
@@ -77,9 +80,12 @@ class BoundedMultiRpc:
     def _new(self):
         if len(self.sessions)>=self.max_sessions:
             raise BoundaryError("ramses_provider_program_budget_exhausted")
-        session=configured_dlmm_rpc(
-            self.endpoint,limit=200,per_scope=200,retries=0
-        )
+        if self.provider_role=="public_observation":
+            session=public_diagnostic_rpc(limit=200,per_scope=200,retries=0)
+        else:
+            session=configured_dlmm_rpc(
+                self.endpoint,limit=200,per_scope=200,retries=0
+            )
         self.sessions.append(session)
         return session
 
@@ -311,6 +317,7 @@ class BoundedMultiRpc:
             receipt_cache_hits=self.receipt_cache_hits,
             block_cache_entries=len(self._block_cache),
             block_cache_hits=self.block_cache_hits,
+            provider_role=self.provider_role,
             provider_roles=dict(roles),
             provider_kinds=dict(providers),
             endpoint_fingerprints=dict(fingerprints),
