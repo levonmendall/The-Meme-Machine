@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-22-alchemy-optimization-final-certification-rerun",
+  "verified_at": "2026-09-22-robinhood-public-rpc-hosted-transport-repair",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -238,7 +238,7 @@
     },
     "pons": {
       "source_branch": "repair/pons-alchemy-scarcity-public-discovery",
-      "source_sha": "93ccf6faee775b830b590370dbc1e8ce269c668a",
+      "source_sha": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-persistence-edge-v1",
       "policy_hash": "3067732bcfa334b28ac4014a4adb5aee2a0310dee573ad349c3b5412c71c8853",
       "file_hashes": {
@@ -270,7 +270,8 @@
         "51ed2379c8f3818248a7b86722a792d85bc29a4b",
         "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2",
         "157e3d3a94510ced93976088b5a3f56a672ad9c4",
-        "93ccf6faee775b830b590370dbc1e8ce269c668a"
+        "93ccf6faee775b830b590370dbc1e8ce269c668a",
+        "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
       "execution_certification": {
@@ -339,7 +340,26 @@
           "breadth_changed": false,
           "strategy_thresholds_changed": false,
           "paper_only_unchanged": true,
-          "public_access_failure_recovery": "exact_read_only_via_authoritative_primary"
+          "public_access_failure_recovery": "exact_read_only_via_authoritative_primary",
+          "public_rpc_transport_repair": {
+            "revision": "hosted-user-agent-v1",
+            "source_commit": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
+            "failure_run": 35817973734,
+            "header_probe_run": 35819131234,
+            "recompose_probe_run": 35819472776,
+            "failure": "official_robinhood_public_rpc_http_403_with_python_default_request_profile",
+            "repair": "explicit descriptive User-Agent plus Accept application/json on all bounded read transports",
+            "hosted_probe_current_profile_http_status": 403,
+            "hosted_probe_repaired_profile_http_status": 200,
+            "hosted_probe_methods": [
+              "eth_chainId",
+              "eth_getBlockByNumber"
+            ],
+            "alchemy_role_expanded": false,
+            "discovery_breadth_changed": false,
+            "strategy_thresholds_changed": false,
+            "paper_only_unchanged": true
+          }
         }
       },
       "prospect_admission": {
@@ -351,11 +371,12 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
-      }
+      },
+      "source_diff_sha256": "6972d3cc21f964c1597484dedcf54a9e614d015cc15f064749a5b1bb360fed7f"
     },
     "ramses": {
       "source_branch": "repair/ramses-alchemy-scarcity-public-observation",
-      "source_sha": "b8b62b7528c884d034af6c677a88e7d21e0b2fb1",
+      "source_sha": "b53d35a33dddb82db361a9a501daa04c48183142",
       "strategy_version": "ramses-active-wide-maker-v3",
       "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
       "file_hashes": {
@@ -395,7 +416,8 @@
         "f699ef5687d655feabc9314f4429658891e8ad37",
         "6664f785082d16546e46d13e145790787b7fc1cc",
         "6b47956b081c48e97a2201b62d4d417cc4be3845",
-        "b8b62b7528c884d034af6c677a88e7d21e0b2fb1"
+        "b8b62b7528c884d034af6c677a88e7d21e0b2fb1",
+        "b53d35a33dddb82db361a9a501daa04c48183142"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
@@ -494,7 +516,26 @@
           "receipt_cost_scope": "active_cohort_only",
           "breadth_changed": false,
           "strategy_thresholds_changed": false,
-          "paper_only_unchanged": true
+          "paper_only_unchanged": true,
+          "public_rpc_transport_repair": {
+            "revision": "hosted-user-agent-v1",
+            "source_commit": "b53d35a33dddb82db361a9a501daa04c48183142",
+            "failure_run": 35817973734,
+            "header_probe_run": 35819131234,
+            "recompose_probe_run": 35819472776,
+            "failure": "official_robinhood_public_rpc_http_403_with_python_default_request_profile",
+            "repair": "explicit descriptive User-Agent plus Accept application/json on all bounded read transports",
+            "hosted_probe_current_profile_http_status": 403,
+            "hosted_probe_repaired_profile_http_status": 200,
+            "hosted_probe_methods": [
+              "eth_chainId",
+              "eth_getBlockByNumber"
+            ],
+            "alchemy_role_expanded": false,
+            "discovery_breadth_changed": false,
+            "strategy_thresholds_changed": false,
+            "paper_only_unchanged": true
+          }
         }
       },
       "prospect_admission": {
@@ -504,7 +545,7 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true
       },
-      "source_diff_sha256": "d48087e9de9b841378b057b024df5ed3f4ad7a14e63cb9fd39f31576e76dfa01"
+      "source_diff_sha256": "4d5c9a05268130df7cfdd9387d45d5f5476aa500b3bc095e7c80d3583fbde020"
     }
   },
   "execution_certification": {
