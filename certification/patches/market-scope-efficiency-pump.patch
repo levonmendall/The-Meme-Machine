@@ -1,0 +1,139 @@
+diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
+index 297dcaf..3d9bb8f 100644
+--- a/tests/pump_acceleration_natural_prospective.py
++++ b/tests/pump_acceleration_natural_prospective.py
+@@ -247,6 +247,11 @@ def _late_stream_prospect(signal):
+     )
+     return decision,reasons
+ 
++def _postgrad_concentration_required(*decisions):
++    """Holder concentration can only turn an optimistic pass into a rejection."""
++    return any(row is not None and bool(row.qualified) for row in decisions)
++
++
+ def _postgrad_concentration(rpc,snapshot):
+     result=rpc.call("getTokenLargestAccounts",
+                     [snapshot["mint"],{"commitment":"finalized"}],True)
+@@ -934,44 +939,74 @@ def main(*,campaign=False,discovery_seconds=None):
+                     if not window_status["complete"]:
+                         raise Unavailable("incomplete_pumpswap_decision_window")
+                     decision_events=state["history"].decision_rows(now,30)
+-                    concentration=_postgrad_concentration(sessions.rpc,snapshot)
+-                    signal,confirmation=_volume_price_signal(
+-                        state,snapshot,decision_events,MODE_POSTGRAD,concentration,confirmations)
+-                    q=qualify(signal)
+-                    _record_attempt(
+-                        report,signal,q,"full_point_in_time",
+-                        {"history_status":state["history"].status(now),
+-                         "confirmation_evidence":_confirmation_meta(confirmation)})
+-                    if q.qualified and not any(
+-                            x["mint"]==mint and x["mode"]==MODE_POSTGRAD
+-                            for x in report["qualifiers"]):
+-                        _reserve_position(
+-                            report,pending,active,signal,q,snapshot,
+-                            MODE_POSTGRAD,concentration)
+-
++                    # Concentration is the only expensive holder-level input here.
++                    # First evaluate both entry modes optimistically with zero
++                    # concentration; if neither can qualify, a holder scan cannot
++                    # rescue the candidate and is deliberately skipped.
++                    post_signal0,post_confirmation0=_volume_price_signal(
++                        state,snapshot,decision_events,MODE_POSTGRAD,0,confirmations)
++                    post_q0=qualify(post_signal0)
++                    second_signal0=second_confirmation0=second_q0=None
+                     if age>=POLICY.min_second_leg_age_s:
+                         try:
+                             if not state["history"].complete(now):
+                                 raise Unavailable("incomplete_pumpswap_second_leg_history")
+-                            second,confirmation2=_volume_price_signal(
+-                                state,snapshot,events,MODE_SECOND_LEG,concentration,confirmations)
+-                            q2=qualify(second)
+-                            _record_attempt(
+-                                report,second,q2,"full_point_in_time",
+-                                {"history_status":state["history"].status(now),
+-                                 "confirmation_evidence":_confirmation_meta(confirmation2)})
+-                            if q2.qualified and not any(
+-                                    x["mint"]==mint and x["mode"]==MODE_SECOND_LEG
+-                                    for x in report["qualifiers"]):
+-                                _reserve_position(
+-                                    report,pending,active,second,q2,snapshot,
+-                                    MODE_SECOND_LEG,concentration)
++                            second_signal0,second_confirmation0=_volume_price_signal(
++                                state,snapshot,events,MODE_SECOND_LEG,0,confirmations)
++                            second_q0=qualify(second_signal0)
+                         except (Unavailable,ValueError,KeyError,TypeError) as exc:
+                             _progress(mint,"terminal",str(exc),mode=MODE_SECOND_LEG,history=state["history"].status(now))
+                             report["attempts"].append(dict(
+                                 mint=mint,mode=MODE_SECOND_LEG,observed_at=now,
+                                 stage="shape_incomplete",qualified=False,
+                                 limitation=str(exc) or type(exc).__name__))
++
++                    if not post_q0.qualified:
++                        _record_attempt(
++                            report,post_signal0,post_q0,"optimistic_preflight",
++                            {"history_status":state["history"].status(now),
++                             "concentration_scan_skipped":True,
++                             "confirmation_evidence":_confirmation_meta(post_confirmation0)})
++                    if second_q0 is not None and not second_q0.qualified:
++                        _record_attempt(
++                            report,second_signal0,second_q0,"optimistic_preflight",
++                            {"history_status":state["history"].status(now),
++                             "concentration_scan_skipped":True,
++                             "confirmation_evidence":_confirmation_meta(second_confirmation0)})
++
++                    if not _postgrad_concentration_required(post_q0,second_q0):
++                        continue
++
++                    concentration=_postgrad_concentration(sessions.rpc,snapshot)
++                    if post_q0.qualified:
++                        signal,confirmation=_volume_price_signal(
++                            state,snapshot,decision_events,MODE_POSTGRAD,concentration,confirmations)
++                        q=qualify(signal)
++                        _record_attempt(
++                            report,signal,q,"full_point_in_time",
++                            {"history_status":state["history"].status(now),
++                             "confirmation_evidence":_confirmation_meta(confirmation)})
++                        if q.qualified and not any(
++                                x["mint"]==mint and x["mode"]==MODE_POSTGRAD
++                                for x in report["qualifiers"]):
++                            _reserve_position(
++                                report,pending,active,signal,q,snapshot,
++                                MODE_POSTGRAD,concentration)
++
++                    if second_q0 is not None and second_q0.qualified:
++                        second,confirmation2=_volume_price_signal(
++                            state,snapshot,events,MODE_SECOND_LEG,concentration,confirmations)
++                        q2=qualify(second)
++                        _record_attempt(
++                            report,second,q2,"full_point_in_time",
++                            {"history_status":state["history"].status(now),
++                             "confirmation_evidence":_confirmation_meta(confirmation2)})
++                        if q2.qualified and not any(
++                                x["mint"]==mint and x["mode"]==MODE_SECOND_LEG
++                                for x in report["qualifiers"]):
++                            _reserve_position(
++                                report,pending,active,second,q2,snapshot,
++                                MODE_SECOND_LEG,concentration)
+                 except (Unavailable,ValueError,KeyError,TypeError) as exc:
+                     _progress(mint,"terminal",str(exc),mode=MODE_POSTGRAD)
+                     report["postgrad"].append(dict(
+diff --git a/tests/test_market_scope_efficiency.py b/tests/test_market_scope_efficiency.py
+new file mode 100644
+index 0000000..1ca382c
+--- /dev/null
++++ b/tests/test_market_scope_efficiency.py
+@@ -0,0 +1,14 @@
++import unittest
++from types import SimpleNamespace
++from tests import pump_acceleration_natural_prospective as runner
++
++class MarketScopeEfficiencyTests(unittest.TestCase):
++    def test_postgrad_holder_scan_only_needed_after_optimistic_pass(self):
++        reject=SimpleNamespace(qualified=False)
++        accept=SimpleNamespace(qualified=True)
++        self.assertFalse(runner._postgrad_concentration_required(reject,None))
++        self.assertTrue(runner._postgrad_concentration_required(reject,accept))
++        self.assertTrue(runner._postgrad_concentration_required(accept,reject))
++
++if __name__ == "__main__":
++    unittest.main()
