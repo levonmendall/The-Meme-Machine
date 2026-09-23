@@ -16,7 +16,25 @@ recompose() {
   worktree="$RUNNER_TEMP/recompose-$lane"
   git fetch origin "$source_sha"
   git worktree add --detach "$worktree" "$source_sha"
-  git -C "$worktree" apply --3way --index "$GITHUB_WORKSPACE/$patch"
+  if [ "$lane" = pump ] || [ "$lane" = meteora ]; then
+    git -C "$worktree" apply --3way --index --exclude=meme_machine/solana_read_rpc.py "$GITHUB_WORKSPACE/$patch"
+    WORKTREE="$worktree" python - <<'PY'
+import os
+from pathlib import Path
+p=Path(os.environ["WORKTREE"])/"meme_machine/solana_read_rpc.py"
+s=p.read_text()
+if "from .solana_immutable_rpc import ImmutableRPCMixin" not in s:
+    marker="class _ReadOnlyFailoverMixin:"
+    if marker not in s:
+        raise SystemExit("solana_read_rpc_mixin_shape_changed")
+    s=s.replace(marker,"from .solana_immutable_rpc import ImmutableRPCMixin\n\n\nclass _ReadOnlyFailoverMixin(ImmutableRPCMixin):",1)
+elif "class _ReadOnlyFailoverMixin(ImmutableRPCMixin):" not in s:
+    raise SystemExit("solana_read_rpc_inheritance_shape_changed")
+p.write_text(s)
+PY
+  else
+    git -C "$worktree" apply --3way --index "$GITHUB_WORKSPACE/$patch"
+  fi
 
   if [ "$lane" = pump ]; then
     WORKTREE="$worktree" python - <<'PY'
