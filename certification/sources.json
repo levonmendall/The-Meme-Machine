@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-22-alchemy-optimization-final-certification-rerun",
+  "verified_at": "2026-09-22-four-lane-strategy-scope-efficiency",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -76,6 +76,15 @@
           "breadth_changed": false,
           "strategy_thresholds_changed": false,
           "paper_only_unchanged": true
+        },
+        "scope_efficiency_repair": {
+          "revision": "strategy-domain-evidence-funnel-v1",
+          "purpose": "Screen PumpSwap post-graduation/second-leg modes optimistically before holder-concentration RPC; preserve full concentration authority for otherwise-qualified candidates.",
+          "market_observation_breadth_changed": false,
+          "strategy_thresholds_changed": false,
+          "position_size_changed": false,
+          "freshness_finality_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -87,7 +96,13 @@
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       },
-      "source_diff_sha256": "24831371273420f3c3ce41ac3206f8bd055005d2a41ba4c377763e04335456aa"
+      "source_diff_sha256": "24831371273420f3c3ce41ac3206f8bd055005d2a41ba4c377763e04335456aa",
+      "additional_patches": [
+        {
+          "path": "certification/patches/pump-scope-efficiency.patch",
+          "sha256": "e46330c099c7f1160f7f2f327d2d2adc1fef2b87c9647d0177553b5d23291903"
+        }
+      ]
     },
     "meteora": {
       "source_branch": "repair/meteora-alchemy-authoritative-evidence-20260922",
@@ -225,6 +240,15 @@
           "breadth_changed": false,
           "strategy_thresholds_changed": false,
           "paper_only_unchanged": true
+        },
+        "scope_efficiency_repair": {
+          "revision": "strategy-domain-evidence-funnel-v1",
+          "purpose": "Remove non-authoritative public historical acceleration reads/refreshes from current candidate evaluation; retain public snapshot ranking context and authenticated local entry authority.",
+          "market_observation_breadth_changed": false,
+          "strategy_thresholds_changed": false,
+          "position_size_changed": false,
+          "freshness_finality_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -234,7 +258,13 @@
         "public_fee_density_role": "ranking_context_only_not_entry_authority",
         "strategy_thresholds_changed": true,
         "profitability_authority": true
-      }
+      },
+      "additional_patches": [
+        {
+          "path": "certification/patches/meteora-scope-efficiency.patch",
+          "sha256": "53b038db0e80fec66b1c25750a9d3233f9d5f3707dc9cb07fab269958af1db83"
+        }
+      ]
     },
     "pons": {
       "source_branch": "repair/pons-alchemy-scarcity-public-discovery",
@@ -340,6 +370,15 @@
           "strategy_thresholds_changed": false,
           "paper_only_unchanged": true,
           "public_access_failure_recovery": "exact_read_only_via_authoritative_primary"
+        },
+        "scope_efficiency_repair": {
+          "revision": "strategy-domain-evidence-funnel-v1",
+          "purpose": "Apply frozen age/trajectory/ETA gates immediately after authenticated trajectory evidence and before 60-second receipt-window reconstruction.",
+          "market_observation_breadth_changed": false,
+          "strategy_thresholds_changed": false,
+          "position_size_changed": false,
+          "freshness_finality_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -351,7 +390,13 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
-      }
+      },
+      "additional_patches": [
+        {
+          "path": "certification/patches/pons-scope-efficiency.patch",
+          "sha256": "9b36a2b5d86a35951d1e42823cc8654a105c5cda2544b24110aa9808edde6dc0"
+        }
+      ]
     },
     "ramses": {
       "source_branch": "repair/ramses-alchemy-scarcity-public-observation",
@@ -495,6 +540,15 @@
           "breadth_changed": false,
           "strategy_thresholds_changed": false,
           "paper_only_unchanged": true
+        },
+        "scope_efficiency_repair": {
+          "revision": "strategy-domain-evidence-funnel-v1",
+          "purpose": "Make <=2-swap quiet entry a true prefilter including zero-swap pools, then authenticate USDG identity before receipt, bin-state and cost hydration.",
+          "market_observation_breadth_changed": false,
+          "strategy_thresholds_changed": false,
+          "position_size_changed": false,
+          "freshness_finality_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -504,7 +558,13 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true
       },
-      "source_diff_sha256": "d48087e9de9b841378b057b024df5ed3f4ad7a14e63cb9fd39f31576e76dfa01"
+      "source_diff_sha256": "d48087e9de9b841378b057b024df5ed3f4ad7a14e63cb9fd39f31576e76dfa01",
+      "additional_patches": [
+        {
+          "path": "certification/patches/ramses-scope-efficiency.patch",
+          "sha256": "515ed3a34868d1a1e8f22c7347fbb1722320e33c3ed46a0212fd972e76ae9b52"
+        }
+      ]
     }
   },
   "execution_certification": {
