@@ -1,1 +1,0 @@
-Revalidate canonical Ramses overlay after authenticated factory-state rebase.
