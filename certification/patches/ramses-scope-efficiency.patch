@@ -1,0 +1,210 @@
+diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_universe.py
+--- a/robinhood_research/ramses_universe.py
++++ b/robinhood_research/ramses_universe.py
+@@ -328,21 +328,29 @@
+-def _prestate(rpc, factory, address, block, *, bin_radius=3):
++def _pool_identity(rpc,factory,address,block):
++    """Authenticate immutable pool identity before expensive state/bin hydration."""
++    member,code=rpc.batch([
++        ("eth_call",[dict(to=factory,data=calldata("isPool(address)",address)),hex(block)]),
++        ("eth_getCode",[address,hex(block)]),
++    ],scope="universe_identity_prefilter")
++    if int(member,16)!=1:
++        raise BoundaryError("ramses_universe_pool_membership")
++    return authenticate_pool(code,factory_member=True)
++
++
++def _prestate(rpc, factory, address, block, *, bin_radius=3, auth=None):
+     if type(bin_radius) is not int or not 1 <= bin_radius <= WIDE_STATE_RADIUS:
+         raise BoundaryError("ramses_universe_bin_radius")
++    if auth is None:
++        auth=_pool_identity(rpc,factory,address,block)
+     calls = [
+-        ("eth_call", [dict(to=factory, data=calldata("isPool(address)", address)), hex(block)]),
+-        ("eth_getCode", [address, hex(block)]),
+         ("eth_call", [dict(to=address, data=calldata("getLBHooksParameters()")), hex(block)]),
+         ("eth_call", [dict(to=address, data=calldata("getActiveId()")), hex(block)]),
+         ("eth_call", [dict(to=address, data=calldata("getReserves()")), hex(block)]),
+         ("eth_call", [dict(to=address, data=calldata("getProtocolFees()")), hex(block)]),
+         ("eth_call", [dict(to=address, data=calldata("getStaticFeeParameters()")), hex(block)]),
+         ("eth_call", [dict(to=address, data=calldata("getVariableFeeParameters()")), hex(block)]),
+     ]
+-    member, code, hooks, active_raw, reserves_raw, protocol_raw, static_raw, variable_raw = rpc.batch(
++    hooks, active_raw, reserves_raw, protocol_raw, static_raw, variable_raw = rpc.batch(
+         calls, scope="universe_state"
+     )
+-    if int(member, 16) != 1:
+-        raise BoundaryError("ramses_universe_pool_membership")
+-    auth = authenticate_pool(code, factory_member=True)
+     if int(hooks, 16):
+         raise BoundaryError("ramses_universe_hooks_unsupported")
+@@ -377 +377,24 @@
++def _strategy_activity_cohort(addresses,histories,limit):
++    """Return only the frozen <=2-swap domain, including literal zero-swap pools.
++
++    One/two-swap pools stay ahead of zero-swap pools, while pools already outside
++    the strategy's quiet-entry domain never receive authoritative state work.
++    """
++    rows=[]
++    for address in addresses:
++        history=list(histories.get(address) or ())
++        swaps=len(history)
++        if swaps>2:
++            continue
++        rows.append(dict(
++            pool=address,swaps=swaps,
++            latest_swap_block=max((r["block"] for r in history),default=0),
++        ))
++    rows.sort(key=lambda r:(
++        1 if 0<r["swaps"]<=2 else 0,
++        -abs(r["swaps"]-1),r["latest_swap_block"],r["pool"],
++    ),reverse=True)
++    return rows[:limit]
++
++
+ def _selection_key(row):
+@@ -525,65 +525,51 @@
+-    activity = []
+-    for address, rows in histories.items():
+-        activity.append(dict(
+-            pool=address,
+-            swaps=len(rows),
+-            latest_swap_block=max(r["block"] for r in rows),
+-        ))
+-    activity.sort(
+-        key=lambda r: (
+-            1 if 0 < r["swaps"] <= 2 else 0,
+-            -abs(r["swaps"]-1),
+-            r["latest_swap_block"],
+-            r["pool"],
+-        ),
+-        reverse=True,
+-    )
+-    active_cohort = activity[:max_recent_active_pools]
+-    active_addresses={row["pool"] for row in active_cohort}
+-    checkpoint('receipt_cost_authentication')
+-    # Receipt gas is authoritative evidence, so acquire it only for the bounded
+-    # cohort that can proceed to state hydration. Broad public observation remains
+-    # intact for every factory pool and every economic log.
++    # Quiet-entry is a hard strategy-domain condition, not a ranking preference.
++    # Apply it before any authoritative receipt/state work. Literal <=2 includes
++    # zero-swap pools; one/two-swap pools retain priority within the bounded cohort.
++    active_cohort=_strategy_activity_cohort(
++        addresses,histories,max_recent_active_pools)
++    exclusions=Counter()
++    identity_cohort=[]
++    for activity_row in active_cohort:
++        address=activity_row["pool"]
++        try:
++            auth=_pool_identity(rpc,factory,address,end)
++        except BoundaryError as exc:
++            exclusions[str(exc)]+=1
++            continue
++        tx=auth["token_x"].lower();ty=auth["token_y"].lower()
++        quote_side="y" if ty==USDG_ADDRESS else "x" if tx==USDG_ADDRESS else None
++        if quote_side is None:
++            exclusions["quote_asset_not_usdg_prefilter"]+=1
++            continue
++        identity_cohort.append((activity_row,auth,quote_side))
++
++    active_addresses={row[0]["pool"] for row in identity_cohort}
++    checkpoint('receipt_cost_authentication',strategy_identity_candidates=len(identity_cohort))
++    # Receipt gas is authoritative evidence, so acquire it only for pools already
++    # inside the quiet USDG strategy domain. Broad public observation remains intact.
+     observe_receipt_gas(
+         rpc,[row for row in cost_events if row["pool"] in active_addresses],cost_state
+     )
+
+     rows = []
+-    exclusions = Counter()
+     wide_hydrated=0
+-    for activity_row in active_cohort:
++    for activity_row,auth,quote_side in identity_cohort:
+         address = activity_row["pool"]
+         checkpoint('pool_prestate',current_pool=address,
+             pools_attempted=scan_progress['pools_attempted']+1,
+-            active_cohort_size=len(active_cohort),inactive_pools=len(addresses)-len(histories))
++            active_cohort_size=len(identity_cohort),inactive_pools=len(addresses)-len(histories))
+         try:
+-            auth, prestate = _prestate(rpc, factory, address, end)
+-            tx=auth["token_x"].lower()
+-            ty=auth["token_y"].lower()
+-            if ty==USDG_ADDRESS:
+-                quote_side="y"
+-            elif tx==USDG_ADDRESS:
+-                quote_side="x"
+-            else:
+-                quote_side=None
+-            quiet=0 < activity_row["swaps"] <= 2
+-            if (
+-                quote_side is not None
+-                and quiet
+-                and wide_hydrated < WIDE_HYDRATION_COHORT_SIZE
+-            ):
++            if wide_hydrated < WIDE_HYDRATION_COHORT_SIZE:
+                 auth,prestate=_prestate(
+-                    rpc,factory,address,end,bin_radius=WIDE_STATE_RADIUS
++                    rpc,factory,address,end,bin_radius=WIDE_STATE_RADIUS,auth=auth
+                 )
+                 wide_hydrated+=1
++            else:
++                auth,prestate=_prestate(rpc,factory,address,end,auth=auth)
+             feature = pool_features(
+-                prestate,histories[address],quote_side or "y",pool=address
++                prestate,histories.get(address,[]),quote_side,pool=address
+             )
+             rows.append(dict(
+                 pool=address,
+-                quote_side=quote_side or "y",
+-                quote_token=(
+-                    auth["token_y"] if quote_side=="y"
+-                    else auth["token_x"] if quote_side=="x"
+-                    else None
+-                ),
++                quote_side=quote_side,
++                quote_token=(auth["token_y"] if quote_side=="y" else auth["token_x"]),
+@@ -744,2 +744,3 @@
+-        active_state_candidates=len(active_cohort),
++        quiet_identity_candidates=len(active_cohort),
++        active_state_candidates=len(identity_cohort),
+         state_complete_pools=len(classified),
+diff --git a/robinhood_tests/test_ramses_strategy_scope_efficiency.py b/robinhood_tests/test_ramses_strategy_scope_efficiency.py
+new file mode 100644
+index 0000000..685c961
+--- /dev/null
++++ b/robinhood_tests/test_ramses_strategy_scope_efficiency.py
+@@ -0,0 +1,34 @@
++import unittest
++
++from robinhood_research.ramses_universe import _strategy_activity_cohort
++
++
++class RamsesStrategyScopeEfficiencyTests(unittest.TestCase):
++    def test_quiet_domain_is_filter_not_ranking_preference(self):
++        addresses=['zero','one','two','hot']
++        histories={
++            'one':[{'block':11}],
++            'two':[{'block':12},{'block':13}],
++            'hot':[{'block':14},{'block':15},{'block':16}],
++        }
++        rows=_strategy_activity_cohort(addresses,histories,10)
++        by_pool={row['pool']:row for row in rows}
++        self.assertNotIn('hot',by_pool)
++        self.assertEqual(by_pool['zero']['swaps'],0)
++        self.assertEqual(by_pool['one']['swaps'],1)
++        self.assertEqual(by_pool['two']['swaps'],2)
++        self.assertLess([r['pool'] for r in rows].index('one'),[r['pool'] for r in rows].index('zero'))
++
++    def test_capacity_is_spent_only_inside_quiet_domain(self):
++        addresses=['hot1','hot2','quiet','zero']
++        histories={
++            'hot1':[{'block':1},{'block':2},{'block':3}],
++            'hot2':[{'block':4},{'block':5},{'block':6},{'block':7}],
++            'quiet':[{'block':8}],
++        }
++        rows=_strategy_activity_cohort(addresses,histories,2)
++        self.assertEqual({row['pool'] for row in rows},{'quiet','zero'})
++
++
++if __name__=='__main__':
++    unittest.main()
