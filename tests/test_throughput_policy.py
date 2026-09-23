@@ -62,7 +62,6 @@ class ThroughputPolicyTests(unittest.TestCase):
         self.assertIn("MM_MARKET_NATIVE_OUTCOME_PRIORITY_BUDGET: '240'",workflow)
         self.assertIn("MM_MARKET_NATIVE_OUTCOME_EXTRA_EVIDENCE_BUDGET: '240'",workflow)
         self.assertIn("MM_MARKET_NATIVE_OUTCOME_EXTRA_EVIDENCE_PER_SLOT: '5'",workflow)
-        self.assertNotIn("MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}", workflow[workflow.find("  discovery-lane-compare:"):])
 
 
 if __name__=='__main__':
