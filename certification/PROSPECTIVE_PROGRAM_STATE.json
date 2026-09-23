@@ -4,7 +4,7 @@
   "cohort_id": "prospective-four-lane-v5-market-assurance-20260923",
   "created_at": 1790207320.7275083,
   "current_native_run_id": null,
-  "current_workflow_run_id": null,
+  "current_workflow_run_id": 35935431384,
   "dispatch_id": "18d4856b9c864d4da0619885d1f8f0cf",
   "events": {},
   "historical_references": {
@@ -24,14 +24,14 @@
   ],
   "integration_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
   "live_money": false,
-  "next_action": "claim_exact_dispatch",
+  "next_action": "smoke_then_hourly",
   "operational_limit": {
     "maximum_blocks": 192,
     "maximum_calendar_hours": 336
   },
   "paper_only": true,
   "pending_lanes": [],
-  "phase": "DISPATCH_PENDING",
+  "phase": "RUNNING",
   "protocol_sha256": "d473936a59a5ab309858c5cfa7347a002677467c90984c0ecffe3986dd053664",
   "records": [],
   "reviewed_blocks": [],
@@ -60,5 +60,5 @@
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790207325.641336
+  "updated_at": 1790207339.2526772
 }
