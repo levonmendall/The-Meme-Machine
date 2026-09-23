@@ -195,7 +195,7 @@ def verify(worktrees,output):
     return result
 
 
-def lane_environment(lane,source,run,run_id=None):
+def lane_environment(lane,source,run,run_id=None,phase=None):
     env={k:v for k,v in os.environ.items() if not k.startswith(('MM_','GITHUB_','GH_')) and not any(x in k.upper() for x in ('TOKEN','SECRET','PRIVATE_KEY'))}
     for key in source['rpc_configuration_variables']:
         if os.environ.get(key):env[key]=os.environ[key]
@@ -205,7 +205,8 @@ def lane_environment(lane,source,run,run_id=None):
             if key in os.environ:env[key]=os.environ[key]
     env.update(PYTHONPATH=str(ROOT),PYTHONUNBUFFERED='1',MM_CERT_SOURCE_SHA=source['source_sha'],
                MM_CERT_GOVERNOR_DB=str(run/'shared-provider.sqlite'),
-               MM_CERTIFICATION_RUN_ID=run_id or run.name,MM_CERTIFICATION_LANE=lane)
+               MM_CERTIFICATION_RUN_ID=run_id or run.name,MM_CERTIFICATION_LANE=lane,
+               MM_CERTIFICATION_PHASE=str(phase or 'unknown'))
     if lane in ('pump','meteora'):env['MM_SOLANA_EVIDENCE_BROKER_DB']=str(run/'shared-solana-evidence.sqlite')
     else:env.update(MM_CERTIFICATION_PROVIDER_DB=str(run/'shared-robinhood-admission.sqlite'),MM_CERTIFICATION_LANE=lane,
                     MM_CERTIFICATION_RPC_CACHE_DB=str(run/'shared-robinhood-evidence.sqlite'),
@@ -326,7 +327,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
             folder=run/lane;folder.mkdir()
             out=(folder/'process.log').open('wb');files[lane]=out
             cmd=[sys.executable,'-m','certification.worker','--lane',lane,'--output',str(folder),'--policy-hash',row['policy_hash'],'--seconds',str(seconds),'--campaign']
-            proc=subprocess.Popen(cmd,cwd=Path(worktrees)/lane,env=lane_environment(lane,row,run,run_id),stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
+            proc=subprocess.Popen(cmd,cwd=Path(worktrees)/lane,env=lane_environment(lane,row,run,run_id,phase),stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
             launched=time.monotonic();processes[lane]=(proc,launched)
             rows[lane]=dict(pid=proc.pid,strategy_version=row['strategy_version'],policy_hash=row['policy_hash'],process_restarts=0,health='starting',natural_settled=0,forced_settled=0,
                 max_no_activity_seconds=0,gates=dict(responsive=True,state_isolated=True))
