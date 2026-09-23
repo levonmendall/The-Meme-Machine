@@ -291,4 +291,7 @@ The final report-bearing commit adds documentation/evidence only and triggers th
 The post-entry lifecycle repair for structurally unreplayable mixed Strategy2/swap intervals remains part of the canonical Meteora overlay. The exact reason `dlmm_add_liquidity_by_strategy2_mixed_with_swap_interval` follows the conservative terminal-writeoff path rather than stranding paper capital indefinitely. This changes lifecycle/accounting termination only; it does not change Meteora entry qualification, fee-density authority, range construction, sizing, freshness/finality, holding policy, or profitability thresholds.
 
 The separate historical Meteora v1.9 exposure is resolved only through the digest-pinned conservative historical-resolution proof described above. Its immutable original artifact remains preserved and the registry carries the resolution receipt; no market settlement or current-chain reauthentication is falsely claimed.
+## Final recomposition note
+
+The target branch also contains the deterministic scarce-Alchemy finalization workflow and driver added after the non-market acceptance implementation. Those files are certification/operational tooling only; they do not change any pinned Pump, Pons, Meteora or Ramses lane source, strategy policy, lane overlay, paper authority, sizing, freshness/finality rule or lifecycle economics. The final aggregate non-market workflow is therefore rerun on the recomposed branch head so the integration identity, rather than an earlier pre-Alchemy commit, is the certified source.
 
