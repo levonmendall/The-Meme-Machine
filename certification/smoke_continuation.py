@@ -69,7 +69,11 @@ def readiness(state,run_id):
         raise ValueError('smoke_readiness_revision')
     for lane,proof in state.get('smoke_continuation_proofs',{}).items():
         if proof['result_sha256']!=digest(proof['result']):raise ValueError('smoke_continuation_proof_digest')
-        row['lanes'][lane].update(open_positions=0,accounting_reconciled=True)
+        lane_row=row['lanes'][lane]
+        lane_row['native_accounting_at_smoke_end']=lane_row.get('native_accounting')
+        lane_row.update(open_positions=0,accounting_reconciled=True,
+            native_accounting=proof['result']['accounting'],
+            terminal_reconciliation=dict(verified=True,open_positions=0,accounting=proof['result']['accounting']))
     row['original_artifact']=state['smoke_artifact']
     row['smoke_continuation_proofs']=state.get('smoke_continuation_proofs',{})
     if smoke_engineering(row)['status']!='PASS':raise ValueError('smoke_readiness_invalid')

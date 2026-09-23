@@ -73,6 +73,38 @@ with tempfile.TemporaryDirectory() as td:
 print('hourly thread retains the existing funded native book and its reserve')
 '''
 
+METEORA_SCRIPT=r'''
+import json
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+from certification.position_continuation import resume_meteora,_meteora_events
+from tests.test_dlmm_independent_accounting import DurableIndependentAccounting
+from tests import solana_dlmm_independent_v1 as m
+case=DurableIndependentAccounting();case.setUp()
+try:
+ root=Path(case.tmp.name);case.path=root/'solana-dlmm-independent-v1-live.accounting.sqlite3';case.book=case.reopen()
+ calls=[0]
+ def observe(*args):
+  calls[0]+=1
+  if calls[0]>1:raise RuntimeError('synthetic_process_cut_after_one_mark')
+  return case.observe(*args)
+ with patch.object(m,'_rotate',side_effect=lambda a,*args:a),patch.object(m,'_observe_window',side_effect=observe):
+  try:m._lifecycle(None,case.entry['pool'],case.entry,case.features,case.policy,None,[],book=case.book)
+  except RuntimeError as exc:assert str(exc)=='synthetic_process_cut_after_one_mark'
+ events=_meteora_events(case.path);marks=[e for e in events if e['action']=='mark']
+ assert len(marks)==1
+ progress=marks[0]['data']['strategy_progress']
+ assert progress['effective_start'] is None and progress['effective_start_hash']==m.digest(case.entry)
+ before=case.book.reconcile()
+ with patch('certification.position_continuation._runtime_identity',return_value=dict(phase='hourly')),patch.object(m,'_prove_network_identity'),patch.object(m,'_new_adapter',return_value=None),patch.object(m,'EvidenceBroker',return_value=SimpleNamespace(close=lambda:None)):
+  result=resume_meteora(root,slice_seconds=60)
+ assert result['handoff_required'] and result['verified_hold_seconds']==300
+ assert _meteora_events(case.path)==events and case.book.reconcile()==before
+finally:case.tearDown();case.doCleanups()
+print('Meteora process cut restores compact evidence and elapsed strategy state without a shortened confirmation segment')
+'''
+
 class ContinuityTests(unittest.TestCase):
     def test_async_lifecycle_preserves_campaign_capital(self):
         self.run_native(SHARED_BOOK_SCRIPT)
@@ -80,15 +112,18 @@ class ContinuityTests(unittest.TestCase):
     def test_smoke_boundary_also_preserves_campaign_capital(self):
         self.run_native(SHARED_BOOK_SCRIPT.replace("'MM_CERTIFICATION_PHASE':'hourly'","'MM_CERTIFICATION_PHASE':'smoke'"))
 
+    def test_meteora_process_cut_restores_compact_mark_without_boundary_exit(self):
+        self.run_native(METEORA_SCRIPT,lane='meteora')
+
     def test_native_checkpoint_restart_matrix(self):
         self.run_native(SCRIPT)
 
-    def run_native(self,script):
+    def run_native(self,script,lane='ramses'):
         roots=Path(os.environ.get('MM_TEST_LANE_WORKTREES',str(Path(__file__).resolve().parents[3]/'fresh-lanes')))
-        if not (roots/'ramses').exists():self.skipTest('prepared lane unavailable')
+        if not (roots/lane).exists():self.skipTest('prepared lane unavailable')
         repo=Path(__file__).resolve().parents[2]
-        env=dict(os.environ,PYTHONPATH=str(roots/'ramses')+os.pathsep+str(repo))
-        result=subprocess.run([sys.executable,'-c',script],env=env,cwd=roots/'ramses',capture_output=True,text=True,timeout=30)
+        env=dict(os.environ,PYTHONPATH=str(roots/lane)+os.pathsep+str(repo))
+        result=subprocess.run([sys.executable,'-c',script],env=env,cwd=roots/lane,capture_output=True,text=True,timeout=30)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
 if __name__=='__main__':unittest.main()

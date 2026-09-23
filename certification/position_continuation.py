@@ -148,6 +148,7 @@ def resume_meteora(state_dir,*,slice_seconds):
     from tests import solana_dlmm_independent_v1 as module
     from meme_machine.dlmm_independent_accounting import PaperBook
     from meme_machine.dlmm_tape import VerifiedTape
+    from certification.decision_conformance import restoring_recorded_state
 
     db_path=_find(state_dir,'solana-dlmm-independent-v1-live.accounting.sqlite3')
     events=_meteora_events(db_path)
@@ -174,12 +175,17 @@ def resume_meteora(state_dir,*,slice_seconds):
                           t['terminal'],t['lineage'],tuple(t.get('terminal_adjustments',())))
         position=module._advance_position(position,tape)
         saved=event['data'].get('strategy_progress')
-        raw_reasons,_,_,_=module._segment_exit(position,
-            (saved or {}).get('effective_start',current),tape,tape.terminal,entry_flow,policy)
+        effective_start=(saved or {}).get('effective_start') or current
+        if saved and saved.get('effective_start_hash') not in (None,module.digest(effective_start)):
+            raise RuntimeError('meteora_restored_effective_start_hash')
+        with restoring_recorded_state():
+            raw_reasons,_,_,_=module._segment_exit(position,
+                effective_start,tape,tape.terminal,entry_flow,policy)
         observed=(int(saved['observed_seconds']) if saved else
             max(segment_seconds,max(0,int(tape.terminal['time'])-int(current['time']))))
-        elapsed,collapse_streaks,eligible=_meteora_exit_progress(module,raw_reasons,
-            elapsed=elapsed,observed=observed,streaks=collapse_streaks,policy=policy)
+        with restoring_recorded_state():
+            elapsed,collapse_streaks,eligible=_meteora_exit_progress(module,raw_reasons,
+                elapsed=elapsed,observed=observed,streaks=collapse_streaks,policy=policy)
         if saved and (saved['elapsed_seconds']!=elapsed or
                 saved['collapse_streaks']!=collapse_streaks or
                 saved['eligible_exit_reasons']!=eligible):
@@ -251,7 +257,8 @@ def resume_meteora(state_dir,*,slice_seconds):
                 tape=module.asdict(tape),position_hash=module.digest(position),mark=mark,
                 strategy_progress=dict(observed_seconds=observed,elapsed_seconds=elapsed,
                     collapse_streaks=collapse_streaks,raw_exit_reasons=raw_reasons,
-                    eligible_exit_reasons=reasons,effective_start=effective_start)))
+                    eligible_exit_reasons=reasons,effective_start_hash=module.digest(effective_start),
+                    effective_start=(effective_start if effective_start!=current else None))))
             current=deepcopy(terminal);last_lineage=tape.lineage
             segments.append(dict(
                 elapsed_seconds=elapsed,lineage=tape.lineage,swaps=len(tape.events),

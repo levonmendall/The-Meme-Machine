@@ -95,15 +95,33 @@ acknowledgement and continue the original Ramses position. The recovery bridge
 accepts only the reviewed predecessor, unchanged frozen policy and certified
 successor SHA. Each slice preserves its artifact chain, native event prefix,
 decision replay and accounting proof. It cannot initiate a new position.
+The first recovery slice observes for 300 seconds after initial authentication;
+an open position then continues in the regular 3,000-second slices. This exercises
+one real artifact transfer promptly without changing any strategy clock or exit.
 
 Fresh v4 admission begins only when all four predecessor native books are
 verified flat. There is no forced exit or deadline substitute. A legitimate
 long position may require further bounded continuation workflows. Engineering
 recovery and smoke evidence remain excluded from prospective economics.
 
-Local checks passed: 1,404 native tests, 156 supervisor tests, existing resource
+Local checks passed: 1,404 native tests, 157 supervisor tests, existing resource
 gates, clean overlay reproduction, native decision capture/replay, process-cut
 checkpoint replay, shared smoke/hourly books, and idempotent recovery seeding on
 copies of the sealed evidence. This local result is not a hosted exact-SHA
 certificate or a natural-market lifecycle claim. The workflow artifact and state
 branch remain the durable authority for the next run and its outcomes.
+
+The first hosted candidate, `f24811098a39745ccc8734203bef46992949a704`,
+failed the Meteora component suite's unchanged 300-second limit in run
+`35930615830`. Recovery was skipped. Its artifact `10780584763` has digest
+`01ec27aed616dcffdda1f7d7bb3e8ff3338a4e5e7a0983e8a38b4869da9096ab`.
+The new strategy-progress record had copied the full start snapshot into every
+mark. Repeated native journal replay amplified that avoidable serialization cost.
+Normal marks now reference the already-preserved preceding state by hash; an
+actual recovery change still preserves its full distinct start state. A process-cut
+regression verifies restoration without resetting elapsed time or shortening a
+confirmation segment. The suite timeout and native economic rules are unchanged.
+The complete local Meteora suite passed all 421 tests in 142.183 seconds after the
+change, compared with 253.047 seconds before it. Restoring prior marks also avoids
+duplicating old decisions in the new live trace; restoration still verifies their
+saved inputs, counters and outcomes.

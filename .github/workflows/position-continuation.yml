@@ -196,11 +196,13 @@ jobs:
           print("yes" if row.get("handoff_required") is True else "no")
           PY
           if [ "$(cat /tmp/continuation-next)" = "yes" ]; then
+            next_slice="$CONTINUATION_SLICE"
+            if [ "${{ inputs.engineering_recovery }}" = true ]; then next_slice=3000; fi
             gh workflow run position-continuation.yml \
               --ref "$GITHUB_REF_NAME" \
               -f lane="$CONTINUATION_LANE" \
               -f state_run_id="$GITHUB_RUN_ID" \
-              -f slice_seconds="$CONTINUATION_SLICE" \
+              -f slice_seconds="$next_slice" \
               -f program="${{ inputs.program || false }}" \
               -f expected_sha="${{ inputs.expected_sha || github.sha }}" \
               -f campaign_run_id="${{ inputs.campaign_run_id }}" \

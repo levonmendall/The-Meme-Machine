@@ -20,6 +20,18 @@ lane,output,policy,*names=sys.argv[1:]
 rec=install(output,lane,policy)
 try:
  result=unittest.TextTestRunner(verbosity=0).run(unittest.defaultTestLoader.loadTestsFromNames(names))
+ if lane=='meteora':
+  from copy import deepcopy
+  from meme_machine import dlmm
+  from meme_machine.dlmm_tape import VerifiedTape
+  from meme_machine.store import digest
+  from tests.dlmm_support import snapshot
+  from tests import solana_dlmm_independent_v1 as m
+  start=dlmm.validate(snapshot(),100);end=deepcopy(start);end.update(time=400,slot=101)
+  p=m.load_policy();features=dict(half_width_bins=4,lower=-4,upper=4)
+  position=m._build_position(start,features,p)
+  tape=VerifiedTape(digest(start),digest(end),(),end,digest(dict(synthetic=True)))
+  m._segment_exit(position,start,tape,end,dict(volume_rate_sol_lamports_per_second=1,fee_density=1),p)
 finally:rec.close()
 if not result.wasSuccessful():raise SystemExit(1)
 '''

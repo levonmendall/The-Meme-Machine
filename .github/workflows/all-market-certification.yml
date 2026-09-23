@@ -21,7 +21,7 @@ jobs:
     with:
       lane: ramses
       state_run_id: '35921058163'
-      slice_seconds: '3000'
+      slice_seconds: '300'
       expected_sha: ${{ github.sha }}
       engineering_recovery: true
       certification_run_id: ${{ format('{0}', github.run_id) }}

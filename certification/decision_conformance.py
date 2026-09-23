@@ -5,6 +5,7 @@ provider I/O or native ledger writes are permitted during replay.
 """
 from __future__ import annotations
 import argparse
+from contextlib import contextmanager
 import dataclasses
 from decimal import Decimal
 from fractions import Fraction
@@ -26,15 +27,23 @@ FUNCTIONS={
  'pons':{'robinhood_research.pons_selective_continuation':(
      'qualification_vector','entry_signal_persistence','pregraduation_action',
      'post_graduation_vector','runner_action','breakout_vector','reentry_regime_reset')},
- 'meteora':{'tests.solana_dlmm_independent_v1':('qualify','_eligible_exit_reasons')},
+ 'meteora':{'tests.solana_dlmm_independent_v1':('qualify','_segment_exit','_eligible_exit_reasons')},
  'ramses':{'robinhood_research.ramses_strategy':('classify_pool','controller_action','decompose_pnl')},
 }
 DATA_MODULES=frozenset(('meme_machine.pump_acceleration_strategy',
-    'meme_machine.pump_acceleration_paper',
+    'meme_machine.pump_acceleration_paper','meme_machine.dlmm_tape',
     'robinhood_research.pons','robinhood_research.pons_selective_continuation',
     'robinhood_research.pons_v2'))
 MAX_BYTES=64*1024*1024
 MAX_RECORD_BYTES=4*1024*1024
+_CAPTURE_CONTEXT=threading.local()
+
+@contextmanager
+def restoring_recorded_state():
+    """Journal restoration verifies old decisions; it is not a new live action."""
+    prior=getattr(_CAPTURE_CONTEXT,'restoring',False);_CAPTURE_CONTEXT.restoring=True
+    try:yield
+    finally:_CAPTURE_CONTEXT.restoring=prior
 
 def canonical(value):return json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)
 def digest(value):return hashlib.sha256(canonical(value).encode()).hexdigest()
@@ -121,6 +130,7 @@ class Recorder:
         original=getattr(owner,parts[-1]);signature=inspect.signature(original)
         @functools.wraps(original)
         def recorded(*args,**kwargs):
+            if getattr(_CAPTURE_CONTEXT,'restoring',False):return original(*args,**kwargs)
             began=time.perf_counter();record=None
             try:
                 bound=signature.bind(*args,**kwargs);bound.apply_defaults()
@@ -141,9 +151,10 @@ class Recorder:
                 raise
             if record is not None:
                 try:
+                    post_started=time.perf_counter()
                     record['result']=encode(result)
                     record['inputs_after']=encode(bound.arguments)
-                    self.append(record,capture_seconds)
+                    self.append(record,capture_seconds+time.perf_counter()-post_started)
                 except Exception as exc:self.failure('result:'+type(exc).__name__)
             return result
         # Replace already-imported aliases as well as future imports. Never wrap

@@ -1,5 +1,6 @@
 {
   "clean_overlay_reproduction": true,
+  "compact_checkpoint_process_cut_verified": true,
   "market_io_during_recovery_tests": false,
   "native_test_total": 1404,
   "native_tests": {
@@ -17,10 +18,10 @@
   "schema": "market-assurance-local-validation-v1",
   "scope": "local prepublication checks, not an exact-SHA hosted certificate",
   "source_diff_hashes": {
-    "meteora": "137d23090df3f64d84b50a0d6afc7661a9a41330ea1797d5a245bf1a697124cc",
+    "meteora": "74ee2eaf30ef9df3b370cc6e311bd91d44f2fcf271f67c635d63db27277d9c64",
     "pons": "8a9d0818606e9c9c8e3ca76ce07f85fe0902aaf761d3de8042b1dd3ff2dd8238",
     "pump": "73382447eba168503b2c7dc909ecd3498cffabeaa116166c45a3af4c7b74836d",
     "ramses": "da50cd26eac0da8898c926facfcb168579894322871a70752043c6251f602d85"
   },
-  "supervisor_tests": 156
+  "supervisor_tests": 157
 }
