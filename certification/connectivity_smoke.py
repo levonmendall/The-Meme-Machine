@@ -23,30 +23,54 @@ def probe(lane):
             # machine class here; native transport telemetry remains separate.
             rows.append(dict(lane=lane,role=role,result='FAILED',error_type=type(exc).__name__,seconds=time.time()-started))
     if lane in ('pump','meteora'):
-        from meme_machine.solana_read_rpc import new_rpc,primary_rpc_url
         from meme_machine import pump
         def http():
-            primary_rpc_url(required=True)
-            rpc=new_rpc(limit=40)
-            genesis=rpc.call('getGenesisHash',priority=True,fresh=True)
+            if lane=='pump':
+                from meme_machine.solana_read_rpc import new_rpc,primary_rpc_url
+                primary_rpc_url(required=True)
+                rpc=new_rpc(limit=40)
+                genesis=rpc.call('getGenesisHash',priority=True)
+                provider=(rpc.provider_telemetry() if hasattr(rpc,'provider_telemetry') else None)
+                adapter='pump_solana_read_rpc'
+            else:
+                # Meteora's authoritative reconstruction path is the dedicated
+                # authenticated Alchemy adapter, not the generic Pump HTTP topology.
+                from tests import dlmm_alchemy_provider as provider_module
+                provider_module.alchemy_rpc_url(required=True)
+                rpc=provider_module.new_rpc(limit=40)
+                genesis=rpc.call('getGenesisHash',priority=True,fresh=True)
+                provider=(rpc.provider_telemetry() if hasattr(rpc,'provider_telemetry') else None)
+                adapter='meteora_dlmm_alchemy_provider'
             if genesis!=pump.MAINNET:raise ValueError('wrong_solana_genesis')
-            return dict(network='solana_mainnet',genesis=genesis,
+            return dict(network='solana_mainnet',genesis=genesis,adapter=adapter,
+                provider=provider,
                 authentication='authenticated_endpoint_returned_valid_chain_identity',
                 schema='genesis_only',full_protocol_schema_verified=False)
         check('authoritative_http',http)
         def ws():
-            from meme_machine.solana_read_rpc import DISCOVERY_WS_URL
             from websockets.sync.client import connect
-            program=pump.PROGRAM
-            if lane=='meteora':
+            if lane=='pump':
+                from meme_machine.solana_read_rpc import discovery_ws_url
+                program=pump.PROGRAM;url=discovery_ws_url()
+                request=dict(jsonrpc='2.0',id=1,method='logsSubscribe',
+                    params=[{'mentions':[program]},{'commitment':'finalized'}])
+                expected_method='logsNotification'
+            else:
+                # Mirror ProgramAccountWakeStream exactly: Meteora wakes on
+                # finalized 904-byte DLMM program-account changes.
                 from meme_machine import dlmm
-                program=dlmm.PROGRAM
-            with connect(DISCOVERY_WS_URL,open_timeout=5,close_timeout=2,max_size=2_000_000) as socket:
-                socket.send(json.dumps(dict(jsonrpc='2.0',id=1,method='logsSubscribe',
-                    params=[{'mentions':[program]},{'commitment':'finalized'}])))
+                from tests.solana_dlmm_independent_v1 import DLMM_DISCOVERY_WS_URL
+                program=dlmm.PROGRAM;url=DLMM_DISCOVERY_WS_URL
+                request=dict(jsonrpc='2.0',id=1,method='programSubscribe',
+                    params=[program,{'commitment':'finalized','encoding':'base64',
+                                     'filters':[{'dataSize':904}]}])
+                expected_method='programNotification'
+            with connect(url,open_timeout=5,close_timeout=2,max_size=2_000_000) as socket:
+                socket.send(json.dumps(request))
                 response=json.loads(socket.recv(timeout=5))
                 if response.get('id')!=1 or type(response.get('result')) is not int:raise ValueError('subscription_schema')
             return dict(subscription_acknowledged=True,finalized_requested=True,
+                subscription_method=request['method'],expected_notification=expected_method,
                 event_normalization_verified=False,market_events_required=False)
         check('public_discovery_websocket',ws)
     else:
