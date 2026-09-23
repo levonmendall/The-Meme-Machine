@@ -257,6 +257,12 @@ grep -q 'configured_discovery_recovery_rpc' "$RUNNER_TEMP/finalize-lanes/pons/ro
 grep -q 'provider_role="public_observation"' "$RUNNER_TEMP/finalize-lanes/ramses/robinhood_research/ramses_universe.py"
 grep -q 'receipt_cost_acquisition="active_cohort_only"' "$RUNNER_TEMP/finalize-lanes/ramses/robinhood_research/ramses_universe.py"
 
+# Commit the complete canonical state locally before integrity-sensitive gates.
+# Nothing is pushed unless every deterministic gate below succeeds.
+git add certification .github/workflows/non-market-certification.yml .github/workflows/ci.yml
+git diff --cached --check
+git commit -m "[non-market-cert] [alchemy-optimization-finalized] Compose scarce-Alchemy provider topology"
+
 mkdir -p "$RUNNER_TEMP/finalize-evidence"
 python -m unittest discover -s certification/tests -v 2>&1 | tee "$RUNNER_TEMP/finalize-evidence/supervisor.log"
 python -m certification.run verify --worktrees "$RUNNER_TEMP/finalize-lanes" --output "$RUNNER_TEMP/finalize-evidence/deterministic"
@@ -264,7 +270,4 @@ python -m certification.non_market --worktrees "$RUNNER_TEMP/finalize-lanes" --o
 python -m certification.restart_safety --worktrees "$RUNNER_TEMP/finalize-lanes" --output "$RUNNER_TEMP/finalize-evidence/restart-safety"
 python -m certification.integrated_acceptance --worktrees "$RUNNER_TEMP/finalize-lanes" --output "$RUNNER_TEMP/finalize-evidence/integrated-acceptance"
 
-git add certification .github/workflows/non-market-certification.yml .github/workflows/ci.yml
-git diff --cached --check
-git commit -m "[non-market-cert] [alchemy-optimization-finalized] Compose scarce-Alchemy provider topology"
 git push origin HEAD:cert/non-market-e2e-20260922
