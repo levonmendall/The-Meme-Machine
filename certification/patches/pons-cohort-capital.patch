@@ -5146,7 +5146,9 @@ index 0000000..7dbf657
 +            '_prove_impossible_full_exit':lambda *a:dict(reason='impossible_full_position_exit',sale_proceeds=0),
 +            '_latest_header':lambda *a:dict(number=hex(int(clock[0]))),
 +            '_graduation_transition':lambda *a:None,'_refresh_curve_signal':signal,
-+            'pregraduation_exit_reason':lambda **kw:'test_authenticated_exit',
++            'pregraduation_action':lambda **kw:dict(
++                action='full_exit',reason='test_authenticated_exit',
++                exit_tokens=int(kw['tokens'])),
 +            'time.time':lambda:clock[0],'time.sleep':sleep}
 +        with ExitStack() as stack:
 +            for name,value in patches.items():stack.enter_context(patch(MODULE+name,side_effect=value))
