@@ -9,12 +9,8 @@ from tests import dlmm_alchemy_provider as provider
 
 
 ALCHEMY="https://solana-mainnet.g.alchemy.com/v2/example-key"
-ONFINALITY="https://solana.api.onfinality.io/rpc?apikey=ignored"
-ONFINALITY_WS="wss://solana.api.onfinality.io/ws?apikey=ignored"
 ENV={
     provider.ENV_NAME:ALCHEMY,
-    topology.ONFINALITY_RPC_ENV_NAME:ONFINALITY,
-    topology.ONFINALITY_WS_ENV_NAME:ONFINALITY_WS,
 }
 
 
@@ -27,11 +23,11 @@ class _Clock:
 
 
 class DLMMAlchemyTopologyTests(unittest.TestCase):
-    def test_dlmm_uses_alchemy_directly_and_ignores_onfinality(self):
+    def test_dlmm_uses_alchemy_directly(self):
         self.assertEqual(provider.rpc_url(ENV),ALCHEMY)
         meta=provider.metadata(ENV)
         self.assertEqual(meta["topology"],"dlmm_public_ws_alchemy_http")
-        self.assertEqual(meta["primary_provider"],topology.SECONDARY_PROVIDER)
+        self.assertEqual(meta["primary_provider"],topology.PRIMARY_PROVIDER)
         self.assertEqual(meta["primary_credential"],provider.ENV_NAME)
         self.assertIsNone(meta["secondary_provider"])
         self.assertFalse(meta["secondary_configured"])
@@ -44,7 +40,6 @@ class DLMMAlchemyTopologyTests(unittest.TestCase):
     def test_non_alchemy_routes_are_rejected(self):
         for value in (
             "https://api.mainnet-beta.solana.com",
-            "https://solana.api.onfinality.io/rpc?apikey=key",
             "https://example.com/v2/key",
             "http://solana-mainnet.g.alchemy.com/v2/key",
             "https://solana-devnet.g.alchemy.com/v2/key",
@@ -77,10 +72,10 @@ class DLMMAlchemyTopologyTests(unittest.TestCase):
         self.assertEqual(rpc.http_requests,1)
         t=rpc.provider_telemetry()
         self.assertEqual(t["topology"],"dlmm_public_ws_alchemy_http")
-        self.assertEqual(t["primary_provider"],topology.SECONDARY_PROVIDER)
+        self.assertEqual(t["primary_provider"],topology.PRIMARY_PROVIDER)
         self.assertEqual(t["failover_count"],0)
-        self.assertEqual(t["provider_http_requests"][topology.SECONDARY_PROVIDER],1)
-        self.assertEqual(t["provider_successes"][topology.SECONDARY_PROVIDER],1)
+        self.assertEqual(t["provider_http_requests"][topology.PRIMARY_PROVIDER],1)
+        self.assertEqual(t["provider_successes"][topology.PRIMARY_PROVIDER],1)
 
     def test_point_two_second_single_and_batch_spacing(self):
         clock=_Clock()
