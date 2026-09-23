@@ -3,12 +3,12 @@
 Roles:
 - directional/Pons: authenticated primary evidence RPC, 2 RPS, fail closed, no
   automatic alternate-provider evidence;
-- Ramses/DLMM: dedicated bulk/reconstruction RPC, 5 RPS, bounded sessions, no
-  automatic rescue. Until MM_ROBINHOOD_DLMM_RPC_URL is configured it explicitly
-  falls back to the authenticated primary while preserving separate pacing;
-- shadow: optional independent provider for disagreement/diagnostic reads only;
-- official Robinhood public RPC: diagnostic-only;
-- official sequencer feed: discovery/observation plane, never trade authority.
+- Pons broad discovery: official Robinhood public RPC plus the official sequencer
+  feed; neither is trade authority. Alchemy is not used for routine discovery.
+- Pons discovery gap recovery: the authenticated primary may be used only after
+  public observation cannot recover an exact sequencer-discovered range.
+- Ramses/DLMM: dedicated bulk/reconstruction RPC, 5 RPS, bounded sessions.
+- shadow: optional independent provider for disagreement/diagnostic reads only.
 
 This module never signs or submits transactions and never changes strategy rules.
 """
@@ -35,6 +35,7 @@ SEQUENCER_FEED_URL = "wss://feed.mainnet.chain.robinhood.com"
 
 DIRECTIONAL_RPS = 2.0
 DISCOVERY_RPS = 5.0
+PUBLIC_DISCOVERY_RPS = 2.0
 DLMM_RPS = 5.0
 SHADOW_RPS = 5.0
 
@@ -87,21 +88,22 @@ def primary_endpoint(primary_endpoint=None, *, environ=None):
 
 
 def discovery_endpoint(primary_fallback_endpoint=None, *, environ=None):
+    """Observation-only Pons discovery without routine Alchemy consumption.
+
+    A specifically configured non-Alchemy discovery endpoint may be used. Alchemy
+    endpoints, including a DLMM endpoint, are intentionally bypassed for routine
+    discovery because the official public RPC plus sequencer feed preserve the broad
+    market view without consuming scarce authoritative capacity.
+    """
     value = _env(DISCOVERY_ENV, environ)
     if value:
-        return _require_https(
+        endpoint = _require_https(
             value,
             "MM_ROBINHOOD_DISCOVERY_RPC_URL_requires_full_https_url",
-        ), False
-    # A dedicated DLMM/free-market endpoint may safely serve discovery too because
-    # discovery has no decision authority. Otherwise fall back explicitly to primary.
-    shared = _env(DLMM_ENV, environ)
-    if shared:
-        return _require_https(
-            shared,
-            "MM_ROBINHOOD_DLMM_RPC_URL_requires_full_https_url",
-        ), False
-    return primary_endpoint(primary_fallback_endpoint, environ=environ), True
+        )
+        if _provider_kind(endpoint) != "alchemy":
+            return endpoint, False
+    return PUBLIC_DIAGNOSTIC_RPC_URL, False
 
 
 def dlmm_endpoint(primary_fallback_endpoint=None, *, environ=None):
@@ -271,28 +273,36 @@ def configured_rpc(primary_endpoint_value=None, *, environ=None, **kwargs):
 
 
 def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **kwargs):
-    """Pons discovery/log RPC: 5 RPS, sequencer-triggered, no decision authority."""
-    endpoint, primary_fallback = discovery_endpoint(
+    """Observation-only Pons discovery; public by default and never routine Alchemy."""
+    endpoint, _ = discovery_endpoint(
         primary_fallback_endpoint, environ=environ
     )
-    effective_rps = DIRECTIONAL_RPS if primary_fallback else DISCOVERY_RPS
-    pacer = (
-        _DIRECTIONAL_PACER
-        if primary_fallback
-        else _pacer_for(_DISCOVERY_PACERS, endpoint, DISCOVERY_RPS)
-    )
+    public = _provider_kind(endpoint) == "robinhood_public"
+    rps = PUBLIC_DISCOVERY_RPS if public else DISCOVERY_RPS
     rpc = PacedRpc(
         endpoint,
-        role=(
-            "pons_discovery_primary_fallback"
-            if primary_fallback
-            else "pons_discovery_primary"
-        ),
-        requests_per_second=effective_rps,
-        pacer=pacer,
+        role=("pons_discovery_public_observation" if public else "pons_discovery_observation"),
+        requests_per_second=rps,
+        pacer=_pacer_for(_DISCOVERY_PACERS, endpoint, rps),
         **kwargs,
     )
-    rpc.primary_fallback = bool(primary_fallback)
+    rpc.primary_fallback = False
+    rpc.gap_recovery = False
+    return rpc
+
+
+def configured_discovery_recovery_rpc(primary_endpoint_value=None, *, environ=None, **kwargs):
+    """Exact-gap recovery on the authenticated primary; never routine discovery."""
+    endpoint = primary_endpoint(primary_endpoint_value, environ=environ)
+    rpc = PacedRpc(
+        endpoint,
+        role="pons_discovery_gap_recovery_primary",
+        requests_per_second=DIRECTIONAL_RPS,
+        pacer=_DIRECTIONAL_PACER,
+        **kwargs,
+    )
+    rpc.primary_fallback = True
+    rpc.gap_recovery = True
     return rpc
 
 
@@ -361,13 +371,14 @@ def topology_metadata(*, environ=None):
         directional=dict(
             discovery="official_robinhood_sequencer_feed_plus_discovery_rpc",
             discovery_provider_kind=_provider_kind(discovery),
-            discovery_credential=(PRIMARY_ENV if discovery_fallback else (
-                DISCOVERY_ENV if _env(DISCOVERY_ENV,environ) else DLMM_ENV
-            )),
-            discovery_primary_fallback=discovery_fallback,
+            discovery_credential=(DISCOVERY_ENV if _provider_kind(discovery)!="robinhood_public" else None),
+            discovery_primary_fallback=False,
             discovery_requests_per_second=(
-                DIRECTIONAL_RPS if discovery_fallback else DISCOVERY_RPS
+                PUBLIC_DISCOVERY_RPS if _provider_kind(discovery)=="robinhood_public" else DISCOVERY_RPS
             ),
+            gap_recovery_provider_kind=_provider_kind(primary),
+            gap_recovery_credential=PRIMARY_ENV,
+            gap_recovery_policy="only_after_public_observation_recovery_exhausted",
             evidence_provider_kind=_provider_kind(primary),
             evidence_credential=PRIMARY_ENV,
             requests_per_second=DIRECTIONAL_RPS,
