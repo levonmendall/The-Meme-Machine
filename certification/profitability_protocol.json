@@ -22,8 +22,8 @@
   "frozen_lanes": {
     "pump": {
       "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2",
-      "source_sha": "f743ae6d2b8c4b0af8a47da302cfbd445a30a745",
-      "execution_sha": "f743ae6d2b8c4b0af8a47da302cfbd445a30a745",
+      "source_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
+      "execution_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
       "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
       "source_diff_sha256": "7139d965818dfa4f093824161a5102e5635b8a0dcc6d831f55d28e0cb33481fe"
     },
