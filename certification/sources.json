@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-market-scope-efficiency-final-exact-candidate",
+  "verified_at": "2026-09-23-market-scope-efficiency-current-final-candidate",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -606,7 +606,7 @@
     "purpose": "Compose the current Pump/Pons profitability persistence policies with verified Meteora authenticated fee-density profitability v1 and Ramses Active Wide Maker v3 while preserving current operational overlays and paper-only controls.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora authenticated fee-density profitability-v1; Ramses Active Wide Maker v3",
-    "validation_status": "FINAL_HASH_DERIVATION_PENDING",
+    "validation_status": "EXACT_CURRENT_SOURCE_CERTIFICATION_REQUESTED",
     "validation_run_requested": true,
     "latest_qualification": {
       "run_id": 35789882265,
@@ -680,7 +680,9 @@
     "market_scope_efficiency_candidate": {
       "branch": "repair/market-scope-efficiency-current-v2-20260923",
       "integration_sha_pending": true,
+      "pump_source_sha": "9932305ebe83dd3ff2dd45ffe9006cf628962bf3",
       "pons_source_sha": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
+      "meteora_source_sha": "a616366fbe64e816708d035c15141b7e7e800304",
       "ramses_source_sha": "631cb0c6d4de044a080927f711f575db8ac6c1d7",
       "exact_source_diff_sha256": {
         "pump": "9f3851244dc1cc939caad17b65c240a5d82467eb271d623c108be3f009386eeb",
@@ -691,13 +693,7 @@
       "strategy_thresholds_changed": false,
       "market_observation_scope_changed": false,
       "paper_only_unchanged": true,
-      "exact_diff_hashes_pending": false,
-      "pre_pin_qualification": {
-        "run_id": 35866960015,
-        "head_sha": "27f3707062ad664584b2b1529255752aa5d22f0a",
-        "result": "success",
-        "full_ramses_universe_regression": true
-      }
+      "exact_diff_hashes_pending": false
     }
   },
   "composition": {
