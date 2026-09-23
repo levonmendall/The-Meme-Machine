@@ -182,6 +182,9 @@ def lane_environment(lane,source,run,run_id=None):
         # Optional existing authorized inputs; strategy code still authenticates.
         for key in ('MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON','MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON'):
             if key in os.environ:env[key]=os.environ[key]
+        # The authenticated factory seed is tracked read-only source. Any refreshed
+        # durable inventory belongs to this run's state, never the source worktree.
+        env['MM_ROBINHOOD_RAMSES_FACTORY_CACHE']=str(run/'ramses-factory-cache.json')
     env.update(PYTHONPATH=str(ROOT),PYTHONUNBUFFERED='1',MM_CERT_SOURCE_SHA=source['source_sha'],
                MM_CERT_GOVERNOR_DB=str(run/'shared-provider.sqlite'),
                MM_CERTIFICATION_RUN_ID=run_id or run.name,MM_CERTIFICATION_LANE=lane)
