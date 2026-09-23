@@ -24,6 +24,8 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/non-market-lanes"
+      - name: Verify frozen profitability portfolio autonomy protocol
+        run: python -m certification.protocol_freeze --output non-market-evidence/profitability-protocol-freeze.json
       - name: Reject retired provider references in prepared runtime
         run: >-
           python -m certification.provider_removal_gate
@@ -99,6 +101,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m certification.guard --wait-seconds 0
+      - name: Secret-safe Solana and Robinhood chain binding
+        env:
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+        run: python -m certification.chain_binding --output non-market-evidence/chain-binding.json
       - name: Short production-adapter connectivity probes without paper entries
         timeout-minutes: 3
         env:
@@ -127,4 +135,4 @@ jobs:
             non-market-evidence/
             certification-preflight.json
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 365
