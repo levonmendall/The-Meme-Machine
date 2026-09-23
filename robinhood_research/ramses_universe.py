@@ -453,16 +453,28 @@ def scan(
         rate_retries=UNIVERSE_RATE_RETRIES,
         rate_cooldown=UNIVERSE_RATE_COOLDOWN_SECONDS,
         adaptive_batch_floor=2,
+        provider_role="authoritative",
+    )
+    observation_rpc = BoundedMultiRpc(
+        endpoint,
+        max_sessions=7,
+        batch_size=UNIVERSE_BATCH_SIZE,
+        batch_pause=UNIVERSE_BATCH_PAUSE_SECONDS,
+        rate_retries=UNIVERSE_RATE_RETRIES,
+        rate_cooldown=UNIVERSE_RATE_COOLDOWN_SECONDS,
+        adaptive_batch_floor=2,
+        provider_role="public_observation",
     )
     started = time.time()
     rpc.verify_chain()
+    observation_rpc.verify_chain()
     if finalized_frontier is None:
-        frontier = rpc.call(
+        frontier = observation_rpc.call(
             "eth_getBlockByNumber",
             ["finalized", False],
-            scope="universe_frontier",
+            scope="universe_frontier_observation",
         )
-        frontier_source = "scanner_rpc"
+        frontier_source = "public_observation_rpc"
     else:
         if not isinstance(finalized_frontier, dict):
             raise BoundaryError("invalid_ramses_finalized_frontier")
@@ -487,7 +499,7 @@ def scan(
         frontier_source = "pinned_external_finalized_header"
     end = int(frontier["number"], 16)
     start = _window_start_block(
-        rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks
+        observation_rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks
     )
 
     factory_pin = load("ramses_factory")
@@ -496,12 +508,11 @@ def scan(
     factory_identity = authenticate("ramses_factory", factory, factory_code)
 
     addresses = _enumerate_factory(
-        rpc,factory,end,
+        observation_rpc,factory,end,
         factory_runtime_sha256=factory_identity["runtime_sha256"],
     )
-    logs = _batched_logs(rpc, start, end, addresses)
+    logs = _batched_logs(observation_rpc, start, end, addresses)
     histories, cost_events = _decode_economic_logs(logs, addresses)
-    observe_receipt_gas(rpc, cost_events, cost_state)
 
     # Active Wide Maker is intentionally a quiet-entry strategy. Preserve broad
     # factory observability, but spend bounded state hydration on pools with only
@@ -523,6 +534,13 @@ def scan(
         reverse=True,
     )
     active_cohort = activity[:max_recent_active_pools]
+    active_addresses={row["pool"] for row in active_cohort}
+    # Receipt gas is authoritative evidence, so acquire it only for the bounded
+    # cohort that can proceed to state hydration. Broad public observation remains
+    # intact for every factory pool and every economic log.
+    observe_receipt_gas(
+        rpc,[row for row in cost_events if row["pool"] in active_addresses],cost_state
+    )
 
     rows = []
     exclusions = Counter()
@@ -708,23 +726,23 @@ def scan(
         lookback_blocks=end - start + 1,
         factory_pool_count=len(addresses),
         factory_inventory_cache=dict(
-            hit=bool(getattr(rpc, "_roi_factory_inventory_cache_hit", False)),
+            hit=bool(getattr(observation_rpc, "_roi_factory_inventory_cache_hit", False)),
             durable_hit=bool(
-                getattr(rpc, "_roi_factory_inventory_durable_hit", False)
+                getattr(observation_rpc, "_roi_factory_inventory_durable_hit", False)
             ),
             durable_cache_path=str(FACTORY_CACHE),
             batch_recoveries=int(
-                getattr(rpc, "_roi_factory_batch_recoveries", 0) or 0
+                getattr(observation_rpc, "_roi_factory_batch_recoveries", 0) or 0
             ),
-            member_failure=getattr(rpc, "_roi_factory_member_failure", None),
+            member_failure=getattr(observation_rpc, "_roi_factory_member_failure", None),
             reused_pool_count=int(
-                getattr(rpc, "_roi_factory_inventory_reused", 0) or 0
+                getattr(observation_rpc, "_roi_factory_inventory_reused", 0) or 0
             ),
             fetched_pool_count=int(
-                getattr(rpc, "_roi_factory_inventory_fetched", 0) or 0
+                getattr(observation_rpc, "_roi_factory_inventory_fetched", 0) or 0
             ),
             sentinel_reads=int(
-                getattr(rpc, "_roi_factory_inventory_sentinel_reads", 0) or 0
+                getattr(observation_rpc, "_roi_factory_inventory_sentinel_reads", 0) or 0
             ),
             count_verified_each_scan=True,
             cached_prefix_sentinel_verified=True,
@@ -755,6 +773,13 @@ def scan(
         ),
         rows=ranked,
         provider=rpc.telemetry(),
+        observation_provider=observation_rpc.telemetry(),
+        alchemy_usage_policy=dict(
+            broad_factory_and_log_observation="official_robinhood_public_rpc",
+            authoritative_candidate_state="configured_dlmm_rpc",
+            receipt_cost_acquisition="active_cohort_only",
+            lifecycle_and_unwind="configured_dlmm_rpc",
+        ),
         started_at=started,
         ended_at=time.time(),
     )
