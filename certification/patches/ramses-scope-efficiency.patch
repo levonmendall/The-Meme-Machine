@@ -38,7 +38,7 @@ diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_u
 -    auth = authenticate_pool(code, factory_member=True)
      if int(hooks, 16):
          raise BoundaryError("ramses_universe_hooks_unsupported")
-@@ -377 +377,24 @@
+@@ -377 +385,24 @@
 +def _strategy_activity_cohort(addresses,histories,limit):
 +    """Return only the frozen <=2-swap domain, including literal zero-swap pools.
 +
@@ -63,7 +63,7 @@ diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_u
 +
 +
  def _selection_key(row):
-@@ -525,65 +525,51 @@
+@@ -536,65 +567,51 @@
 -    activity = []
 -    for address, rows in histories.items():
 -        activity.append(dict(
@@ -163,7 +163,7 @@ diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_u
 -                ),
 +                quote_side=quote_side,
 +                quote_token=(auth["token_y"] if quote_side=="y" else auth["token_x"]),
-@@ -744,2 +744,3 @@
+@@ -764,2 +781,3 @@
 -        active_state_candidates=len(active_cohort),
 +        quiet_identity_candidates=len(active_cohort),
 +        active_state_candidates=len(identity_cohort),
