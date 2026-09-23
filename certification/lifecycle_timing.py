@@ -301,7 +301,12 @@ def install_ramses(extended_module):
         value = original_requalify(*args, **kwargs)
         manager = getattr(_RAMSES_TLS, "manager", None)
         if manager is not None and isinstance(value, dict):
-            manager["decision"] = deepcopy(value)
+            manager["pending_rebalance"] = dict(
+                old_decision=deepcopy(manager.get("decision")),
+                new_decision=deepcopy(value),
+                new_proposal_hash=(value.get("freeze") or {}).get("proposal_hash"),
+                prepared_at=time.time(),
+            )
             _ramses_write_state()
         return value
 
@@ -328,6 +333,7 @@ def install_ramses(extended_module):
                 entry_at=int(at),
                 segment_start=int(manager.get("entry_block") or 0),
                 current_capital=int(decision["freeze"]["proposals"][0]["capital_employed"]),
+                position_phase="deployed",
             )
             _ramses_write_state()
         return value
@@ -359,10 +365,18 @@ def install_ramses(extended_module):
                     detail=deepcopy(detail),
                     pnl=deepcopy(getattr(_RAMSES_TLS, "last_pnl", None)),
                 ))
+                manager["position_phase"] = "flat_quote"
             elif action == "rebalance":
+                pending=manager.get("pending_rebalance") or {}
+                proposal_hash=detail.get("proposal_hash")
+                if pending.get("new_proposal_hash")!=proposal_hash:
+                    raise lifecycle.BoundaryError("ramses_recenter_pending_decision_mismatch")
+                manager["decision"] = deepcopy(pending["new_decision"])
+                manager.pop("pending_rebalance",None)
                 manager["segment_start"] = int(detail.get("block") or manager.get("segment_start") or 0)
                 manager["rebalances"] = int(manager.get("rebalances", 0))+1
                 manager["current_capital"] = int(detail.get("capital") or manager.get("current_capital") or 0)
+                manager["position_phase"] = "deployed"
                 _RAMSES_TLS.recenter_started = None
             _ramses_write_state()
         return value
