@@ -18,10 +18,7 @@ def websocket_url(http_url):
     parts=urlsplit(http_url)
     if parts.scheme != 'https' or not parts.netloc:
         raise ValueError('HTTPS RPC required')
-    path = parts.path
-    if parts.hostname == 'solana.api.onfinality.io' and path.rstrip('/') == '/public':
-        path = '/public-ws'
-    return urlunsplit(('wss',parts.netloc,path,parts.query,parts.fragment))
+    return urlunsplit(('wss',parts.netloc,parts.path,parts.query,parts.fragment))
 
 
 class PumpTape:
