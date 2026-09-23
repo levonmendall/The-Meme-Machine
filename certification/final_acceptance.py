@@ -10,6 +10,20 @@ LANES=("pump","pons","meteora","ramses")
 def load(path):
     return json.loads(Path(path).read_text())
 
+def resource_rss_kib(row):
+    """Accept either a top-level peak or the DLMM proof's bounded RSS samples."""
+    peak=row.get("peak_rss_kib")
+    if isinstance(peak,(int,float)) and peak>0:
+        return float(peak)
+    samples=row.get("samples")
+    if not isinstance(samples,list):
+        return 0.0
+    values=[
+        sample.get("rss_kib",0) for sample in samples
+        if isinstance(sample,dict) and isinstance(sample.get("rss_kib",0),(int,float))
+    ]
+    return float(max(values,default=0))
+
 def run(evidence,output,expected_sha=None,registry_path=None):
     root=Path(evidence)
     offline=load(root/"offline/result.json")
@@ -51,9 +65,9 @@ def run(evidence,output,expected_sha=None,registry_path=None):
         resources["pump"].get("real_provider_calls")==0
         and resources["meteora_general"].get("real_provider_calls")==0
         and resources["meteora_dlmm"].get("real_provider_calls")==0
-        and resources["pump"].get("peak_rss_kib",0)>0
-        and resources["meteora_general"].get("peak_rss_kib",0)>0
-        and resources["meteora_dlmm"].get("peak_rss_kib",0)>0
+        and resource_rss_kib(resources["pump"])>0
+        and resource_rss_kib(resources["meteora_general"])>0
+        and resource_rss_kib(resources["meteora_dlmm"])>0
     )
     identity_pass=(not expected_sha or offline.get("integration_sha")==expected_sha)
     gates={
