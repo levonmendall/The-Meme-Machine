@@ -19,7 +19,7 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  actions: write
 
 jobs:
   resume:
@@ -82,4 +82,25 @@ jobs:
           name: position-continuation-${{ inputs.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: continuation-state/
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 365
+      - name: Chain next bounded continuation slice when still open
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONTINUATION_LANE: ${{ inputs.lane }}
+          CONTINUATION_SLICE: ${{ inputs.slice_seconds }}
+        run: |
+          set -euo pipefail
+          python - <<'PY' > /tmp/continuation-next
+          import json
+          from pathlib import Path
+          row=json.loads(Path("continuation-state/position-continuation-result.json").read_text())
+          print("yes" if row.get("handoff_required") is True else "no")
+          PY
+          if [ "$(cat /tmp/continuation-next)" = "yes" ]; then
+            gh workflow run position-continuation.yml \
+              --ref "$GITHUB_REF_NAME" \
+              -f lane="$CONTINUATION_LANE" \
+              -f state_run_id="$GITHUB_RUN_ID" \
+              -f slice_seconds="$CONTINUATION_SLICE"
+          fi
