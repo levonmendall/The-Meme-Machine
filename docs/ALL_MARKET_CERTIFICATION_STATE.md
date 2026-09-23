@@ -96,3 +96,11 @@ reader replayed all four preserved books read-only and verified them flat. The
 successor retirement gate repeats that native replay before full certification.
 Run `35918440394` stopped safely at retirement, before any full certification or
 new observation. See the incident report and retained terminal replay receipt.
+
+Certification pause: run 35919189403 successfully retired the predecessor and
+started full non-market checks. Inspection of retained Pons evidence then exposed
+623 raw-event identity failures; a matched public log and authenticated receipt
+differed only in optional provider blockTimestamp metadata (zero versus the real
+time). Certification is paused before prospective admission while this adapter
+comparison is repaired. Transaction identity, payload, finality and header-time
+checks remain mandatory. No new cohort observations have been collected.
