@@ -37,6 +37,12 @@ class ChainBindingTests(unittest.TestCase):
         self.assertFalse(result["checks"]["solana_correct_host"])
         self.assertFalse(result["checks"]["robinhood_read_correct_host"])
 
+class ProtocolFreezeTests(unittest.TestCase):
+    def test_frozen_protocol_matches_runtime_authority(self):
+        from certification.protocol_freeze import verify
+        result=verify()
+        self.assertTrue(result["passed"],result["failures"])
+
 class ProspectiveAcceptanceTests(unittest.TestCase):
     def _protocol(self):
         p,_=load_protocol()
