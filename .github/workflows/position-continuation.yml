@@ -107,7 +107,7 @@ jobs:
           name: position-continuation-${{ inputs.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: continuation-state/
           if-no-files-found: error
-          retention-days: 365
+          retention-days: 90
       - name: Chain next bounded continuation slice when still open
         if: success()
         env:
