@@ -8,7 +8,7 @@ permissions:
   actions: read
 concurrency:
   group: non-market-certification-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   offline-prerequisites:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[non-market-cert]')
