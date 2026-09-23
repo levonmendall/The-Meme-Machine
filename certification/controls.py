@@ -131,8 +131,14 @@ def hourly_engineering(result):
         row=result.get('lanes',{}).get(lane,{})
         if row.get('exit_code')!=0 or row.get('unexpected_exit') or row.get('process_restarts')!=0:
             failures.append(lane+':process_continuity')
-        if row.get('open_positions')!=0 or row.get('accounting_reconciled') is not True:
+        open_positions=row.get('open_positions')
+        durable_handoff=(open_positions not in (0,None) and row.get('durable_handoff') is True)
+        if row.get('accounting_reconciled') is not True:
             failures.append(lane+':accounting_or_exposure')
+        elif open_positions is None:
+            failures.append(lane+':open_exposure_unknown')
+        elif open_positions and not durable_handoff:
+            failures.append(lane+':unsettled_position_without_durable_handoff')
         if not row.get('provider_requests'):failures.append(lane+':no_provider_activity')
         for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
             if row.get('gates',{}).get(gate) is not True:failures.append(lane+':'+gate)
