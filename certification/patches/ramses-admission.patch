@@ -1846,7 +1846,10 @@ diff --git a/robinhood_research/ramses_strategy_ledger.py b/robinhood_research/r
 +        ).fetchone():
 +            raise BoundaryError("duplicate_ramses_strategy_reservation")
 +        try:
-+            assert_active_v3_decision(decision)
++            # Forced machinery may use a current-v3 rejected/no-trade decision,
++            # but it must retain the exact current strategy identity.  Qualified
++            # legacy modes remain rejected by assert_active_v3_decision itself.
++            assert_active_v3_decision(decision,require_qualified=False)
 +        except BoundaryError:
 +            raise BoundaryError("foreign_forced_machinery_decision") from None
 +        proposal = decision["freeze"]["proposals"][0]
