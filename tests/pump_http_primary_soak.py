@@ -1,4 +1,4 @@
-"""Canonical sustained Pump HTTP provider soak after OnFinality removal.
+"""Canonical sustained Pump HTTP provider soak for the Alchemy-only evidence path.
 
 Success requires the production Alchemy primary to serve every uncached finalized read
 directly. There is no automatic HTTP rescue provider.
