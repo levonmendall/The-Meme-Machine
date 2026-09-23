@@ -429,6 +429,8 @@ def main():
             module._save=save;module.main(campaign=args.campaign,discovery_seconds=args.seconds)
         elif args.lane=='meteora':
             module=importlib.import_module('tests.solana_dlmm_independent_v1')
+            from certification.lifecycle_timing import install_meteora
+            install_meteora(module)
             observer.prioritize(module,"_lifecycle")
             observer.observe_work(module,'_triggered_warmup','fresh_trigger_and_exact_warmup')
             observer.observe_work(module,'_await_fresh_swap_trigger','dlmm_fresh_swap_trigger')
@@ -454,6 +456,8 @@ def main():
             observer.checkpoint(result,'lane_result')
         else:
             module=importlib.import_module('robinhood_research.ramses_extended_test')
+            from certification.lifecycle_timing import install_ramses
+            install_ramses(module)
             # Observe completed authentic scans and frontier checks without replacing
             # the discovery or lifecycle algorithm. Startup/scan stalls stay visible.
             observer.prioritize(module,"run_connected")
