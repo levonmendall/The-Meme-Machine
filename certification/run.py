@@ -256,8 +256,13 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     spec=manifest();run_id=str(uuid.uuid4())
     capabilities=Path(gate_file).parent/'rpc-capabilities.json'
     if capabilities.exists():atomic(run/'rpc-capabilities.json',json.loads(capabilities.read_text()))
-    atomic(run/'manifest.json',dict(**spec,integration_sha=git('rev-parse','HEAD'),run_id=run_id,
-                                  operational_overlay_sha256=hashlib.sha256((ROOT/'certification/patches/meteora-checkpoint.patch').read_bytes()).hexdigest()))
+    runtime_manifest=dict(**spec,integration_sha=git('rev-parse','HEAD'),run_id=run_id)
+    if 'meteora' in spec.get('lanes',{}):
+        overlay=ROOT/'certification/patches/meteora-checkpoint.patch'
+        if not overlay.is_file():
+            raise ValueError('meteora_operational_overlay_missing')
+        runtime_manifest['operational_overlay_sha256']=hashlib.sha256(overlay.read_bytes()).hexdigest()
+    atomic(run/'manifest.json',runtime_manifest)
     unresolved=historical_exposure()
     if unresolved:
         result=dict(run_id=run_id,phase=phase,status='BLOCKED',
