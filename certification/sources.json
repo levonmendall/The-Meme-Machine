@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-profit-protection-v2-candidate",
+  "verified_at": "2026-09-23-profit-protection-v2-compatibility-final",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -318,7 +318,7 @@
     },
     "pons": {
       "source_branch": "strategy/pons-profit-protection-v2-20260923",
-      "source_sha": "639c7acd180dd04c3db8f1458bc1d116e924becf",
+      "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2",
       "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
       "file_hashes": {
@@ -357,7 +357,8 @@
         "b963348285fcedd022fe01872b93f604bc7d47c1",
         "f8c615fb1613bcaa2d3ccf6386b8ffc9a843f1b8",
         "9df623a5aa8c001ce9a9f60352b6aaf33b0de25f",
-        "639c7acd180dd04c3db8f1458bc1d116e924becf"
+        "639c7acd180dd04c3db8f1458bc1d116e924becf",
+        "3de3d376847531ccb90e260cfcc96c37587ccb23"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
       "execution_certification": {
@@ -487,7 +488,7 @@
     },
     "ramses": {
       "source_branch": "repair/ramses-v3-authority-lock-20260923",
-      "source_sha": "6a7910f118e5fa2d0f2134724ee408ca039dbdb4",
+      "source_sha": "888b64b5bf84ed34e13a9118304421266b1a3287",
       "strategy_version": "ramses-active-wide-maker-v3",
       "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
       "file_hashes": {
@@ -534,7 +535,8 @@
         "608c082f5d72802bbea685675352ab7e057fbba9",
         "6069981b37dbd0e8f6c6865ce9ba394cf22ba19a",
         "ecaf90130b402899934cefdb16204e6fef0cc8c8",
-        "6a7910f118e5fa2d0f2134724ee408ca039dbdb4"
+        "6a7910f118e5fa2d0f2134724ee408ca039dbdb4",
+        "888b64b5bf84ed34e13a9118304421266b1a3287"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
@@ -727,9 +729,9 @@
     },
     "source_heads": {
       "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
-      "pons": "639c7acd180dd04c3db8f1458bc1d116e924becf",
+      "pons": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
-      "ramses": "6a7910f118e5fa2d0f2134724ee408ca039dbdb4"
+      "ramses": "888b64b5bf84ed34e13a9118304421266b1a3287"
     },
     "source_verification": {
       "meteora": {
@@ -828,9 +830,9 @@
       "branch": "cert/profit-protection-v2-four-lane-20260923",
       "source_heads": {
         "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
-        "pons": "639c7acd180dd04c3db8f1458bc1d116e924becf",
+        "pons": "3de3d376847531ccb90e260cfcc96c37587ccb23",
         "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
-        "ramses": "6a7910f118e5fa2d0f2134724ee408ca039dbdb4"
+        "ramses": "888b64b5bf84ed34e13a9118304421266b1a3287"
       },
       "policy_hashes": {
         "pump": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
