@@ -308,9 +308,7 @@ def install_ramses(extended_module):
                 "elapsed_seconds": elapsed,
             }
         action = original_controller(decision, **kwargs)
-        if action.get("action") == "rebalance":
-            _RAMSES_TLS.recenter_started = time.monotonic()
-            _RAMSES_TLS.recenter_mode = action.get("mode") or "recenter"
+        _RAMSES_TLS.pending_controller_action = deepcopy(action)
         return action
 
     def requalify(*args, **kwargs):
@@ -387,6 +385,11 @@ def install_ramses(extended_module):
         if manager is not None:
             manager["last_checkpoint"] = dict(action=action, detail=deepcopy(detail), at=int(at))
             if action == "segment_close":
+                intended=getattr(_RAMSES_TLS,"pending_controller_action",{}) or {}
+                if intended.get("action")=="rebalance":
+                    _RAMSES_TLS.recenter_started=time.monotonic()
+                    _RAMSES_TLS.recenter_mode=intended.get("mode") or "recenter"
+                    manager["recenter_started_at"]=time.time()
                 manager.setdefault("segments", []).append(dict(
                     index=len(manager.get("segments",[])),
                     initial_cost_basis=int(
@@ -546,6 +549,8 @@ def install_ramses(extended_module):
                 _RAMSES_TLS.manager = None
                 _RAMSES_TLS.initial_screen = None
                 _RAMSES_TLS.costs_by_pool = None
+                _RAMSES_TLS.pending_controller_action = None
+                _RAMSES_TLS.recenter_started = None
 
         thread = threading.Thread(
             target=target,
