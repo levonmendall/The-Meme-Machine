@@ -15,6 +15,13 @@
   "ramses_entry_seed_idempotent": true,
   "ramses_seed_native_bytes_unchanged": true,
   "resource_gates_passed": true,
+  "restored_native_path_repair": {
+    "all_passed": true,
+    "original_journals_unchanged": true,
+    "preserved_pons_native_proof_verified": true,
+    "supervisor_skips": 0,
+    "supervisor_tests": 163
+  },
   "schema": "market-assurance-local-validation-v1",
   "scope": "local prepublication checks, not an exact-SHA hosted certificate",
   "source_diff_hashes": {

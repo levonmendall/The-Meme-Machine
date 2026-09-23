@@ -22,6 +22,7 @@ class RecoveryCheckpointTests(unittest.TestCase):
             archive.writestr('original-native-book.sqlite',b'preserved-native-bytes')
             archive.writestr('recovery-artifact-chain.jsonl','{"original":true}\n')
         class API:
+            def pages(self,path,key):return []
             def request(self,method,path):
                 return dict(head_sha=checkpoint['integration_sha'],
                     status='completed' if stopped else 'in_progress',conclusion=checkpoint['conclusion'])

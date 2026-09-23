@@ -123,6 +123,12 @@ def prepare(api,state_dir,worktrees,certificate_run_id,state_run_id=None):
         if item['id']!=source['artifact_id'] or item['digest']!=source['artifact_digest']:
             raise RuntimeError('recovery_predecessor_artifact_identity')
     elif reviewed_checkpoint:
+        for previous in source.get('superseded_checkpoint_candidate_runs',[]):
+            jobs=api.pages(f'actions/runs/{previous}/jobs','jobs')
+            if any(j['name'].startswith('recover-preserved-position') and
+                   j['status']!='queued' and j.get('conclusion') not in ('skipped','cancelled')
+                   for j in jobs):
+                raise RuntimeError('checkpoint_recovery_already_started_preserve_existing_chain')
         prior=api.request('GET',f'actions/runs/{state_run_id}')
         if (prior.get('head_sha')!=checkpoint['integration_sha'] or
                 prior.get('status')!='completed' or prior.get('conclusion')!=checkpoint['conclusion']):

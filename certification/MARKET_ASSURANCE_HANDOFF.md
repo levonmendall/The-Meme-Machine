@@ -155,3 +155,13 @@ Candidate `0aba736158b3b09a9de6641f9f23ef9044e93d66` also passed its
 full certificate in `35932858225`, then correctly refused to clone the earlier
 genesis because recovery had already started. Neither candidate starts new market
 collection. The v5 successor requires its own full exact-SHA certification.
+
+A restored-book read-only audit also identified that Pons trial paths are relative
+to the lane directory. Terminal reconciliation now resolves the lane root first
+and replays the native cohort from that directory, retaining every journal byte.
+The real preserved artifact then verifies two zero-fill cancellations, zero
+reserves, complete native observation and cash/basis conservation. A native
+relocation regression verifies byte-for-byte immutability and rejects a missing
+restored trial. Superseded candidate `dfdf2e9e8664d1f7e10e51ea410418814af1c953`
+is stopped only before its recovery job starts; otherwise the replacement refuses
+to fork the preserved checkpoint. No v5 prospective observations are discarded.

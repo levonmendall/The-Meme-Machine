@@ -68,6 +68,44 @@ print(json.dumps({'lane':lane,'read_only':True,'reserve_retained':reserved,'open
 
 
 class NativeTerminalReconciliationTests(unittest.TestCase):
+    def test_restored_pons_relative_trial_paths_replay_without_journal_mutation(self):
+        roots=os.environ.get('MM_TEST_LANE_WORKTREES')
+        if not roots:self.skipTest('requires prepared native lane sources')
+        integration=Path(__file__).resolve().parents[2]
+        script=r'''
+import hashlib,os,shutil,sys,tempfile
+from pathlib import Path
+sys.path.append(sys.argv[1])
+from certification.terminal_reconciliation import reconcile
+from robinhood_research.evidence import Store,digest
+from robinhood_research.pons_selective_capital import CohortCapital
+from robinhood_research.pons_selective_continuation import POLICY_HASH
+from robinhood_research.pons_selective_ledger import SelectivePaper,STRATEGY_NAMESPACE
+from robinhood_tests.test_pons_partial_accounting import PartialAccountingTests
+with tempfile.TemporaryDirectory() as td:
+ root=Path(td);original=root/'original';original.mkdir();os.chdir(original)
+ folder=Path('pons-selective-continuation-v1-cohort');folder.mkdir()
+ trial=folder/'trial-000.sqlite';store=Store(trial)
+ guard=CohortCapital(folder/'pons-selective-cohort-capital.sqlite',1000)
+ paper=SelectivePaper(store,STRATEGY_NAMESPACE,1000,delay=1,natural_policy_hash=POLICY_HASH,on_commit=guard.observe)
+ decision=PartialAccountingTests().features(10)
+ guard.reserve('x',120,at=10,decision_hash=digest(decision),trial_path=trial)
+ paper.reserve('x',market='m',amount=100,gas_budget=20,now=10,features=decision)
+ position=paper.advance('x',now=11,action='cancel',cancel_reason='synthetic_relocation_fixture');guard.settle('x',position,at=11);store.close()
+ restored=root/'restored';shutil.copytree(original,restored);os.chdir(sys.argv[1])
+ def snapshot():return {str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*.sqlite')}
+ before=snapshot();result=reconcile('pons',restored)
+ assert result['verified'] and result['open_positions']==0,result
+ assert result['accounting']['native_observation_complete']
+ assert snapshot()==before,'read-only relocation changed journal bytes'
+ (restored/trial).unlink()
+ assert reconcile('pons',restored)['verified'] is False,'missing restored native trial accepted'
+print('Restored native Pons paths verified read-only; missing trial still fails closed')
+'''
+        result=subprocess.run([sys.executable,'-c',script,str(integration)],
+            cwd=Path(roots)/'pons',text=True,capture_output=True,timeout=20)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
     def test_reserved_capital_survives_cancellation_without_inventing_settlement(self):
         roots=os.environ.get('MM_TEST_LANE_WORKTREES')
         if not roots:self.skipTest('requires prepared native lane sources; required in full certification workflow')

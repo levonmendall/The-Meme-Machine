@@ -18,7 +18,7 @@ def connect(path):
 
 
 def reconcile(lane,root):
-    root=Path(root)
+    root=Path(root).resolve()
     if lane=='pump':
         from meme_machine.paper_accounting import PaperBook
         from meme_machine.pump_acceleration_strategy import policy_hash
@@ -38,7 +38,9 @@ def reconcile(lane,root):
         if genesis['policy_hash']!=POLICY_HASH:raise ValueError('terminal_policy_identity')
         book=CohortCapital.__new__(CohortCapital);book.path=str(path);book.capital=genesis['capital']
         book._connect=lambda:connect(path)
-        accounting=book.reconcile()
+        # Native trial paths are relative to the lane directory. A downloaded
+        # artifact retains those journal bytes and must use that same base.
+        with chdir(root):accounting=book.reconcile()
         verified=(accounting.get('conservation') is True
                   and accounting.get('cash_basis_conservation') is True
                   and accounting.get('native_observation_complete') is True)
