@@ -63,3 +63,51 @@ class ProviderTests(unittest.TestCase):
         result = run('secret-only')
         self.assertEqual(result['status'], 'blocked')
         self.assertNotIn('secret-only', str(result))
+
+
+class ProviderHeaderTests(unittest.TestCase):
+    class _Response:
+        def __init__(self, body):
+            self._body = body
+        def __enter__(self):
+            return self
+        def __exit__(self, *_):
+            return False
+        def read(self, _):
+            return self._body
+
+    def _assert_headers(self, request):
+        self.assertEqual(request.get_header('Accept'), 'application/json')
+        self.assertEqual(
+            request.get_header('User-agent'),
+            'Meme-Machine/1.0 (+https://github.com/levonmendall/The-Meme-Machine)',
+        )
+
+    def test_single_request_uses_explicit_public_compatible_headers(self):
+        def fake_urlopen(request, timeout):
+            self._assert_headers(request)
+            self.assertEqual(timeout, 10)
+            return self._Response(json.dumps(
+                {'jsonrpc':'2.0','id':1,'result':'0x1237'}
+            ).encode())
+        with patch('robinhood_research.provider.urlopen', side_effect=fake_urlopen):
+            rpc = Rpc('https://example.invalid')
+            self.assertEqual(rpc.call('eth_chainId', []), '0x1237')
+
+    def test_batch_request_uses_explicit_public_compatible_headers(self):
+        def fake_urlopen(request, timeout):
+            self._assert_headers(request)
+            self.assertEqual(timeout, 10)
+            return self._Response(json.dumps([
+                {'jsonrpc':'2.0','id':1,'result':'0x1237'},
+                {'jsonrpc':'2.0','id':2,'result':'0x1'},
+            ]).encode())
+        with patch('robinhood_research.provider.urlopen', side_effect=fake_urlopen):
+            rpc = Rpc('https://example.invalid')
+            self.assertEqual(
+                rpc.batch([
+                    ('eth_chainId', []),
+                    ('eth_blockNumber', []),
+                ]),
+                ['0x1237', '0x1'],
+            )
