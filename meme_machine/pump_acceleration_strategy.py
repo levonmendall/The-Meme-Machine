@@ -40,7 +40,7 @@ def _points(value, low, high, maximum):
 
 @dataclass(frozen=True)
 class FrozenPolicy:
-    version: str = STRATEGY_ID + "-profitability-v1"
+    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2"
     entry_fraction_bps: int = 500
 
     # Late-curve structural gates.
@@ -94,9 +94,15 @@ class FrozenPolicy:
     hard_stop_bps: int = -800
     trailing_drawdown_bps: int = 1200
     demand_exit_score: int = 50
+    demand_exit_confirmations: int = 2
+    # Evidence-derived harvest activation: the prior frozen Pump policy used +15%,
+    # while observed winning MFEs extended materially beyond it. Bank only 25%.
+    first_profit_bps: int = 1500
+    first_profit_sell_bps: int = 2500
     late_curve_max_hold_s: int = 900
     postgrad_max_hold_s: int = 300
     second_leg_max_hold_s: int = 600
+    max_hold_extensions: int = 1
     postgrad_confirmation_grace_s: int = 30
 
 
@@ -221,6 +227,9 @@ class ExitObservation:
     graduated: bool = False
     seconds_since_graduation: int | None = None
     postgrad_demand_confirmed: bool = False
+    demand_deterioration_streak: int = 0
+    hold_extensions_used: int = 0
+    executable: bool = True
 
 
 def relative_return_bps(token_usd_return_bps, quote_usd_return_bps):
@@ -558,6 +567,33 @@ def entry_signal_persistence(decision_signal, fill_signal, policy=POLICY):
     )
 
 
+def mode_max_hold_s(mode, policy=POLICY):
+    if mode == MODE_LATE_CURVE:
+        return int(policy.late_curve_max_hold_s)
+    if mode == MODE_POSTGRAD:
+        return int(policy.postgrad_max_hold_s)
+    if mode == MODE_SECOND_LEG:
+        return int(policy.second_leg_max_hold_s)
+    raise ValueError("unknown_strategy_mode")
+
+
+def continuation_eligible(observation, policy=POLICY):
+    """Allow one bounded extension only while the executable thesis remains healthy."""
+    if not bool(observation.executable):
+        return False
+    if int(observation.return_bps) <= 0:
+        return False
+    if int(observation.demand_score) < int(policy.demand_exit_score):
+        return False
+    if (
+        observation.mode == MODE_LATE_CURVE
+        and observation.graduated
+        and not observation.postgrad_demand_confirmed
+    ):
+        return False
+    return True
+
+
 def exit_decision(observation, policy=POLICY):
     if observation.mode not in (MODE_LATE_CURVE,MODE_POSTGRAD,MODE_SECOND_LEG):
         raise ValueError("unknown_strategy_mode")
@@ -572,19 +608,19 @@ def exit_decision(observation, policy=POLICY):
             observation.peak_return_bps-observation.return_bps >= policy.trailing_drawdown_bps):
         return "trailing_momentum_exit"
     if observation.demand_score < policy.demand_exit_score:
-        return "demand_deceleration"
+        if observation.return_bps <= 0:
+            return "demand_deceleration"
+        if int(observation.demand_deterioration_streak) >= int(policy.demand_exit_confirmations):
+            return "persistent_demand_deceleration"
 
-    if observation.mode == MODE_LATE_CURVE:
-        if age >= policy.late_curve_max_hold_s:
-            return "timeout"
-        if observation.graduated:
-            seconds=int(observation.seconds_since_graduation or 0)
-            if seconds >= policy.postgrad_confirmation_grace_s and not observation.postgrad_demand_confirmed:
-                return "graduation_without_continuation"
-        return None
+    if observation.mode == MODE_LATE_CURVE and observation.graduated:
+        seconds=int(observation.seconds_since_graduation or 0)
+        if seconds >= policy.postgrad_confirmation_grace_s and not observation.postgrad_demand_confirmed:
+            return "graduation_without_continuation"
 
-    if observation.mode == MODE_POSTGRAD and age >= policy.postgrad_max_hold_s:
-        return "timeout"
-    if observation.mode == MODE_SECOND_LEG and age >= policy.second_leg_max_hold_s:
+    base=mode_max_hold_s(observation.mode,policy)
+    deadline=base*(1+int(observation.hold_extensions_used))
+    if age >= deadline:
         return "timeout"
     return None
+
