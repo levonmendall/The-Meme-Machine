@@ -1,0 +1,31 @@
+name: export-prepared-market-scope-sources
+on:
+  push:
+    branches: [repair/market-scope-efficiency-20260922]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/lanes"
+      - run: |
+          mkdir -p prepared/{pump,pons,meteora,ramses}
+          cp "$RUNNER_TEMP/lanes/pump/tests/pump_acceleration_natural_prospective.py" prepared/pump/
+          cp "$RUNNER_TEMP/lanes/pons/robinhood_research/pons_selective_acquisition.py" prepared/pons/
+          cp "$RUNNER_TEMP/lanes/pons/robinhood_research/pons_selective_cohort.py" prepared/pons/
+          cp "$RUNNER_TEMP/lanes/meteora/tests/solana_dlmm_independent_v1.py" prepared/meteora/
+          cp "$RUNNER_TEMP/lanes/ramses/robinhood_research/ramses_universe.py" prepared/ramses/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prepared-market-scope-sources
+          path: prepared
+          if-no-files-found: error
