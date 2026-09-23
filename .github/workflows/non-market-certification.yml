@@ -50,6 +50,8 @@ jobs:
         run: |
           python -m certification.crash_matrix --worktrees "$RUNNER_TEMP/non-market-lanes" --output "$RUNNER_TEMP/native-crash" > non-market-evidence/crash.log
           cp "$RUNNER_TEMP/native-crash/result.json" non-market-evidence/crash.json
+      - name: Four-lane restart safety contract
+        run: python -m certification.restart_safety --worktrees "$RUNNER_TEMP/non-market-lanes" --output non-market-evidence/restart-safety
       - name: Resource gates
         run: |
           (cd "$RUNNER_TEMP/non-market-lanes/pump" && python -m tests.resource_check) > non-market-evidence/pump-resource.json
