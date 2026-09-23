@@ -10,7 +10,10 @@ import json
 import sqlite3
 
 from . import BoundaryError
-from .ramses_strategy import POLICY_HASH, STRATEGY_DOMAIN, STRATEGY_VERSION
+from .ramses_strategy import (
+    ACTIVE_MODE, POLICY_HASH, STRATEGY_DOMAIN, STRATEGY_VERSION,
+    assert_active_v3_decision,
+)
 
 
 def _canonical(value):
@@ -100,16 +103,10 @@ class RamsesStrategyLedger:
             "SELECT 1 FROM ramses_strategy_position WHERE id=?", (identity,)
         ).fetchone():
             raise BoundaryError("duplicate_ramses_strategy_reservation")
-        if (
-            not isinstance(decision, dict)
-            or decision.get("strategy_domain") != STRATEGY_DOMAIN
-            or decision.get("strategy_version") != STRATEGY_VERSION
-            or decision.get("policy_hash") != POLICY_HASH
-            or decision.get("allocation_authority") is not False
-            or decision.get("qualified") is not True
-            or not decision.get("freeze")
-        ):
-            raise BoundaryError("foreign_or_unqualified_strategy_decision")
+        try:
+            assert_active_v3_decision(decision)
+        except BoundaryError:
+            raise BoundaryError("foreign_or_unqualified_strategy_decision") from None
         proposal = decision["freeze"]["proposals"][0]
         reserved = proposal.get("capital_employed")
         if type(reserved) is not int or reserved <= 0:
@@ -157,15 +154,10 @@ class RamsesStrategyLedger:
             "SELECT 1 FROM ramses_strategy_position WHERE id=?", (identity,)
         ).fetchone():
             raise BoundaryError("duplicate_ramses_strategy_reservation")
-        if (
-            not isinstance(decision, dict)
-            or decision.get("strategy_domain") != STRATEGY_DOMAIN
-            or decision.get("strategy_version") != STRATEGY_VERSION
-            or decision.get("policy_hash") != POLICY_HASH
-            or decision.get("allocation_authority") is not False
-            or not decision.get("freeze")
-        ):
-            raise BoundaryError("foreign_forced_machinery_decision")
+        try:
+            assert_active_v3_decision(decision)
+        except BoundaryError:
+            raise BoundaryError("foreign_forced_machinery_decision") from None
         proposal = decision["freeze"]["proposals"][0]
         reserved = proposal.get("capital_employed")
         if type(reserved) is not int or reserved <= 0:
