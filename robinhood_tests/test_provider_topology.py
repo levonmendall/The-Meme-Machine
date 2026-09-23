@@ -106,6 +106,27 @@ class LaneProviderTests(unittest.TestCase):
         self.assertTrue(recovery.primary_fallback)
         self.assertTrue(recovery.gap_recovery)
 
+
+    def test_public_discovery_uses_alchemy_only_after_recoverable_failure(self):
+        env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key"}
+        calls=[]
+        def transport(method,params):
+            calls.append(method)
+            if len(calls)==1:
+                raise BoundaryError("provider_transport_failure")
+            return "0x1237"
+        rpc=configured_discovery_rpc(
+            env[PRIMARY_ENV],environ=env,limit=10,per_scope=10,retries=0,
+            transport=transport,
+        )
+        self.assertEqual(rpc.call("eth_chainId",[],scope="discovery"),"0x1237")
+        t=rpc.telemetry()
+        self.assertEqual(t["provider_kind"],"robinhood_public")
+        self.assertEqual(t["alchemy_gap_recovery_requests"],1)
+        self.assertEqual(t["alchemy_gap_recovery_failures"],0)
+        self.assertEqual(t["alchemy_gap_recovery"]["provider_kind"],"alchemy")
+        self.assertEqual(calls,["eth_chainId","eth_chainId"])
+
     def test_dlmm_uses_dedicated_five_rps_lane(self):
         env={
             PRIMARY_ENV:"https://primary.invalid/v2/key",
