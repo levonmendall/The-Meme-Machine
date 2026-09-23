@@ -343,6 +343,13 @@ class ContentionPreflightTests(unittest.TestCase):
         self.assertFalse(active_market_job('paper-milestone',dict(name='live-diagnostic',status='completed')))
         self.assertTrue(active_market_job('unrecognized',dict(name='unknown-market-task',status='in_progress')))
         self.assertTrue(active_market_job('robinhood-ramses-extended',dict(name='probe',status='in_progress')))
+        spec={'lanes':{'pump':{'source_sha':'pump-pinned'}}}
+        run={'head_sha':'pump-pinned'}
+        self.assertFalse(active_market_job(
+            'paper-milestone',dict(name='live-diagnostic',status='in_progress'),run,spec))
+        self.assertTrue(active_market_job(
+            'paper-milestone',dict(name='live-diagnostic',status='in_progress'),
+            {'head_sha':'different'},spec))
 
 class TerminalReportRegressionTests(unittest.TestCase):
     def test_pons_final_report_keeps_native_12mb_contract(self):
