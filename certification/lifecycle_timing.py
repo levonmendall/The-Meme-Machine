@@ -66,14 +66,15 @@ def install_meteora(module):
     module._cert_lifecycle_timing_installed = True
     module._cert_continuation_results = []
     module._cert_continuation_lock = threading.RLock()
-    original_checkpoint = module._atomic_checkpoint
-    def continuation_checkpoint(report,stage,*args,**kwargs):
-        with module._cert_continuation_lock:
-            report["continuation_lifecycles"] = deepcopy(
-                module._cert_continuation_results
-            )
-        return original_checkpoint(report,stage,*args,**kwargs)
-    module._atomic_checkpoint = continuation_checkpoint
+    original_checkpoint = getattr(module,"_atomic_checkpoint",None)
+    if original_checkpoint is not None:
+        def continuation_checkpoint(report,stage,*args,**kwargs):
+            with module._cert_continuation_lock:
+                report["continuation_lifecycles"] = deepcopy(
+                    module._cert_continuation_results
+                )
+            return original_checkpoint(report,stage,*args,**kwargs)
+        module._atomic_checkpoint = continuation_checkpoint
 
     original_trigger = module._triggered_warmup
 
