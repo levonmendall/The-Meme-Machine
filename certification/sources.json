@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-22-robinhood-public-rpc-hosted-transport-repair",
+  "verified_at": "2026-09-23-market-scope-efficiency-current-recomposition-candidate",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -76,6 +76,14 @@
           "breadth_changed": false,
           "strategy_thresholds_changed": false,
           "paper_only_unchanged": true
+        },
+        "market_scope_efficiency": {
+          "revision": "strategy-domain-funnel-ordering-v1",
+          "purpose": "preserve broad market observability while delaying expensive evidence until existing strategy-domain gates can still be satisfied",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "detail": "post-graduation holder concentration is requested only when zero-concentration optimistic qualification leaves at least one current entry mode viable"
         }
       },
       "prospect_admission": {
@@ -87,7 +95,12 @@
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       },
-      "source_diff_sha256": "24831371273420f3c3ce41ac3206f8bd055005d2a41ba4c377763e04335456aa"
+      "source_diff_sha256": "24831371273420f3c3ce41ac3206f8bd055005d2a41ba4c377763e04335456aa",
+      "source_integrity_mode": "declared_overlay_index",
+      "overlay_patches": [
+        "certification/patches/pump-accounting.patch",
+        "certification/patches/market-scope-efficiency-pump.patch"
+      ]
     },
     "meteora": {
       "source_branch": "repair/meteora-alchemy-authoritative-evidence-20260922",
@@ -225,6 +238,14 @@
           "breadth_changed": false,
           "strategy_thresholds_changed": false,
           "paper_only_unchanged": true
+        },
+        "market_scope_efficiency": {
+          "revision": "strategy-domain-funnel-ordering-v1",
+          "purpose": "preserve broad market observability while delaying expensive evidence until existing strategy-domain gates can still be satisfied",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "detail": "remove per-pool 35-minute public history reads and 12-second history refreshes from active admission; use pool-list snapshot only as non-authoritative public context"
         }
       },
       "prospect_admission": {
@@ -234,7 +255,12 @@
         "public_fee_density_role": "ranking_context_only_not_entry_authority",
         "strategy_thresholds_changed": true,
         "profitability_authority": true
-      }
+      },
+      "source_integrity_mode": "declared_overlay_index",
+      "overlay_patches": [
+        "certification/patches/meteora-checkpoint.patch",
+        "certification/patches/market-scope-efficiency-meteora.patch"
+      ]
     },
     "pons": {
       "source_branch": "repair/pons-alchemy-scarcity-public-discovery",
@@ -360,6 +386,14 @@
             "strategy_thresholds_changed": false,
             "paper_only_unchanged": true
           }
+        },
+        "market_scope_efficiency": {
+          "revision": "strategy-domain-funnel-ordering-v1",
+          "purpose": "preserve broad market observability while delaying expensive evidence until existing strategy-domain gates can still be satisfied",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "detail": "token age, velocity, acceleration and graduation ETA are adjudicated immediately after authenticated trajectory evidence and before 60-second receipt-window reconstruction"
         }
       },
       "prospect_admission": {
@@ -372,11 +406,16 @@
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       },
-      "source_diff_sha256": "6972d3cc21f964c1597484dedcf54a9e614d015cc15f064749a5b1bb360fed7f"
+      "source_diff_sha256": "6972d3cc21f964c1597484dedcf54a9e614d015cc15f064749a5b1bb360fed7f",
+      "source_integrity_mode": "declared_overlay_index",
+      "overlay_patches": [
+        "certification/patches/pons-cohort-capital.patch",
+        "certification/patches/market-scope-efficiency-pons.patch"
+      ]
     },
     "ramses": {
       "source_branch": "repair/ramses-alchemy-scarcity-public-observation",
-      "source_sha": "b53d35a33dddb82db361a9a501daa04c48183142",
+      "source_sha": "631cb0c6d4de044a080927f711f575db8ac6c1d7",
       "strategy_version": "ramses-active-wide-maker-v3",
       "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
       "file_hashes": {
@@ -417,7 +456,8 @@
         "6664f785082d16546e46d13e145790787b7fc1cc",
         "6b47956b081c48e97a2201b62d4d417cc4be3845",
         "b8b62b7528c884d034af6c677a88e7d21e0b2fb1",
-        "b53d35a33dddb82db361a9a501daa04c48183142"
+        "b53d35a33dddb82db361a9a501daa04c48183142",
+        "631cb0c6d4de044a080927f711f575db8ac6c1d7"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
@@ -536,16 +576,29 @@
             "strategy_thresholds_changed": false,
             "paper_only_unchanged": true
           }
+        },
+        "market_scope_efficiency": {
+          "revision": "strategy-domain-funnel-ordering-v1",
+          "purpose": "preserve broad market observability while delaying expensive evidence until existing strategy-domain gates can still be satisfied",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "detail": "filter to recently-active 1-2-swap pools, authenticate USDG identity before state/cost hydration, and spend the existing eight wide-range hydration slots only on strategy-domain candidates"
         }
       },
       "prospect_admission": {
         "market_observation_scope": "complete authenticated Ramses factory inventory remains observable",
-        "investment_evaluation_scope": "quiet USDG pools with <=2 prior 30-minute swaps, >=65-bin two-sided initial ranges, complete authenticated cost/unwind evidence and governed local-liquidity sizing; rebalances use the v3 displacement/overlap/capital-preservation state machine",
+        "investment_evaluation_scope": "recently-active quiet USDG pools with 1-2 observed prior 30-minute swaps, >=65-bin two-sided initial ranges, complete authenticated cost/unwind evidence and governed local-liquidity sizing; zero-swap pools remain broadly observable but are not hydrated without a finalized activity trigger; rebalances use the v3 displacement/overlap/capital-preservation state machine",
         "factory_enumeration_is_inventory_not_investment_evaluation": true,
         "strategy_thresholds_changed": true,
         "profitability_authority": true
       },
-      "source_diff_sha256": "4d5c9a05268130df7cfdd9387d45d5f5476aa500b3bc095e7c80d3583fbde020"
+      "source_diff_sha256": "4d5c9a05268130df7cfdd9387d45d5f5476aa500b3bc095e7c80d3583fbde020",
+      "source_integrity_mode": "declared_overlay_index",
+      "overlay_patches": [
+        "certification/patches/ramses-admission.patch",
+        "certification/patches/market-scope-efficiency-ramses.patch"
+      ]
     }
   },
   "execution_certification": {
@@ -623,6 +676,15 @@
       "report": "docs/NON_MARKET_END_TO_END_CERTIFICATION.md",
       "runtime_identity": "Git HEAD plus pinned lane sources plus exact normalized overlays; recorded by certification.non_market",
       "prior_candidate_component_run": 35795249808
+    },
+    "market_scope_efficiency_candidate": {
+      "branch": "repair/market-scope-efficiency-current-v2-20260923",
+      "pons_source_sha": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
+      "ramses_source_sha": "631cb0c6d4de044a080927f711f575db8ac6c1d7",
+      "strategy_thresholds_changed": false,
+      "market_observation_scope_changed": false,
+      "paper_only_unchanged": true,
+      "exact_diff_hashes_pending": true
     }
   },
   "composition": {
