@@ -98,5 +98,22 @@ class TerminalStatusTests(unittest.TestCase):
         self.assertIn("'[legacy-shadow-connectivity]'",condition)
 
 
+class ConnectivityHarnessTests(unittest.TestCase):
+    def test_solana_lane_calls_match_authoritative_adapter_contracts(self):
+        from certification.connectivity_smoke import (
+            solana_genesis_call_kwargs,solana_subscription_request)
+        self.assertEqual(solana_genesis_call_kwargs('pump'),{'priority':True})
+        self.assertEqual(solana_genesis_call_kwargs('meteora'),{'priority':True,'fresh':True})
+        pump=solana_subscription_request('pump','pump-program')
+        self.assertEqual(pump['method'],'logsSubscribe')
+        self.assertEqual(pump['params'][1],{'commitment':'finalized'})
+        meteora=solana_subscription_request('meteora','dlmm-program')
+        self.assertEqual(meteora['method'],'programSubscribe')
+        self.assertEqual(meteora['params'][1]['filters'],[{'dataSize':904}])
+        self.assertEqual(meteora['params'][1]['commitment'],'finalized')
+        with self.assertRaisesRegex(ValueError,'solana_lane_required'):
+            solana_genesis_call_kwargs('pons')
+
+
 if __name__=='__main__':
     unittest.main()
