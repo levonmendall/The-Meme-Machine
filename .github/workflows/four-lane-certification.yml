@@ -152,6 +152,7 @@ jobs:
             python -m certification.prospective_acceptance record \
               --result certification-hourly/result.json \
               --run-dir certification-artifact \
+              --chain-binding certification-gates/chain-binding.json \
               --output certification-artifact/prospective-observation.json
           fi
           if [ -f certification-hourly-live-snapshots.jsonl ]; then
