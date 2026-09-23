@@ -3136,10 +3136,10 @@ index 0000000..15cd061
 +    if not path:return None
 +    return Admission(path,endpoint,lane=os.environ.get('MM_CERTIFICATION_LANE','unknown'))
 diff --git a/robinhood_research/provider_topology.py b/robinhood_research/provider_topology.py
-index 8fffdad..f374bf2 100644
+index b6bd93c..6ac2d8d 100644
 --- a/robinhood_research/provider_topology.py
 +++ b/robinhood_research/provider_topology.py
-@@ -193,7 +193,22 @@ class PacedRpc(Rpc):
+@@ -195,7 +195,22 @@ class PacedRpc(Rpc):
          **kwargs,
      ):
          self.role = str(role)
@@ -3162,7 +3162,7 @@ index 8fffdad..f374bf2 100644
          self.pacer = pacer or ProviderPacer(requests_per_second)
          self._injected_transport = transport
          if transport is None:
-@@ -208,26 +223,114 @@ class PacedRpc(Rpc):
+@@ -210,26 +225,114 @@ class PacedRpc(Rpc):
              super().__init__(endpoint, transport=transport, **kwargs)
  
      def _http(self, method, params):
@@ -3284,7 +3284,7 @@ index 8fffdad..f374bf2 100644
  
      def telemetry(self):
          data = super().telemetry()
-@@ -236,6 +339,7 @@ class PacedRpc(Rpc):
+@@ -238,6 +341,7 @@ class PacedRpc(Rpc):
              provider_kind=self.provider_kind,
              pacing=self.pacer.telemetry(),
              automatic_failover=False,

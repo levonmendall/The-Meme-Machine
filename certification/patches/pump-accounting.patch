@@ -1828,10 +1828,10 @@ index 0000000..64c5cc3
 +                if self._body_params(p) and isinstance(v,dict):shared.finalized(v.get('slot'))
 +        return values
 diff --git a/meme_machine/solana_read_rpc.py b/meme_machine/solana_read_rpc.py
-index ac23ca3..4e1679a 100644
+index 2783e98..8b735fa 100644
 --- a/meme_machine/solana_read_rpc.py
 +++ b/meme_machine/solana_read_rpc.py
-@@ -261,7 +261,10 @@ class SolanaReadPacer:
+@@ -218,7 +218,10 @@ class SolanaReadPacer:
          )
  
  
@@ -1840,7 +1840,7 @@ index ac23ca3..4e1679a 100644
 +
 +
 +class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
-     """HTTP transport mixin with OnFinality-primary / Alchemy-rescue semantics."""
+     """Single-provider Alchemy HTTP transport; legacy class name is import-compatible."""
  
      def _init_failover(self, secondary_url, pacer, primary_provider=PRIMARY_PROVIDER, secondary_provider=SECONDARY_PROVIDER):
 diff --git a/meme_machine/solana_signature_identity.py b/meme_machine/solana_signature_identity.py
@@ -1858,7 +1858,7 @@ index 0000000..8b7b820
 +def is_default_signature(value):
 +    return value == DEFAULT_SIGNATURE
 diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
-index b190712..983b0c8 100644
+index b190712..297dcaf 100644
 --- a/tests/pump_acceleration_natural_prospective.py
 +++ b/tests/pump_acceleration_natural_prospective.py
 @@ -11,8 +11,9 @@ import json
@@ -2250,9 +2250,9 @@ index b190712..983b0c8 100644
 +    incremental=bool(campaign and os.environ.get('MM_CERT_GOVERNOR_DB'))
      pumpswap_stream=DynamicAddressLogStream(
 -        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30)
-+        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30,prefetch=incremental,
++        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30,prefetch=False,
 +        prefetch_filter=_pumpswap_prefetch_filter)
-+    evidence_service=StreamEvidenceService(broker,lambda:new_rpc(limit=240)) if incremental else None
++    evidence_service=None
      thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
      pumpswap_thread=threading.Thread(
          target=pumpswap_stream.run,args=(stop,pumpswap_ready),daemon=True)

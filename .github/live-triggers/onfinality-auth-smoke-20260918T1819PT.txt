@@ -1,1 +1,0 @@
-Authenticated OnFinality primary retry after GitHub secrets were added. Require direct HTTP success and authenticated WebSocket subscription; Alchemy rescue may be configured but must not be used for this smoke.

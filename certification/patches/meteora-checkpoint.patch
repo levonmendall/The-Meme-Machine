@@ -1536,10 +1536,10 @@ index 0000000..64c5cc3
 +                if self._body_params(p) and isinstance(v,dict):shared.finalized(v.get('slot'))
 +        return values
 diff --git a/meme_machine/solana_read_rpc.py b/meme_machine/solana_read_rpc.py
-index f81cf53..5af8098 100644
+index 6bcde30..069a3df 100644
 --- a/meme_machine/solana_read_rpc.py
 +++ b/meme_machine/solana_read_rpc.py
-@@ -183,7 +183,10 @@ class SolanaReadPacer:
+@@ -131,7 +131,10 @@ class SolanaReadPacer:
          )
  
  
@@ -1548,7 +1548,7 @@ index f81cf53..5af8098 100644
 +
 +
 +class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
-     """HTTP transport mixin with OnFinality-primary / Alchemy-rescue semantics."""
+     """Single-provider Alchemy HTTP transport; legacy class name is import-compatible."""
  
      def _init_failover(self, secondary_url, pacer, primary_label=PRIMARY_PROVIDER):
 diff --git a/meme_machine/solana_signature_identity.py b/meme_machine/solana_signature_identity.py
@@ -1566,7 +1566,7 @@ index 0000000..8b7b820
 +def is_default_signature(value):
 +    return value == DEFAULT_SIGNATURE
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
-index 883e333..c7d8270 100644
+index 883e333..af8fbea 100644
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
 @@ -12,8 +12,10 @@ transport.
@@ -2487,7 +2487,7 @@ index 0000000..1e53cfb
 +if __name__=='__main__':unittest.main()
 diff --git a/tests/test_dlmm_independent_accounting.py b/tests/test_dlmm_independent_accounting.py
 new file mode 100644
-index 0000000..c2f45b7
+index 0000000..9aaf417
 --- /dev/null
 +++ b/tests/test_dlmm_independent_accounting.py
 @@ -0,0 +1,85 @@

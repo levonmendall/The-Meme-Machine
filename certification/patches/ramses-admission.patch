@@ -787,10 +787,10 @@ index 0000000..12fd769
 +    def close(self):
 +        for book in self.books.values():book.close()
 diff --git a/robinhood_research/ramses_capture.py b/robinhood_research/ramses_capture.py
-index 9c3cee0..9f6b451 100644
+index 24791a6..78a73b0 100644
 --- a/robinhood_research/ramses_capture.py
 +++ b/robinhood_research/ramses_capture.py
-@@ -70,6 +70,7 @@ class BoundedMultiRpc:
+@@ -73,6 +73,7 @@ class BoundedMultiRpc:
          self.rate_limit_sleep_seconds=0.0
          self._receipt_cache={}
          self._block_cache={}
@@ -798,7 +798,7 @@ index 9c3cee0..9f6b451 100644
          self.receipt_cache_hits=0
          self.block_cache_hits=0
          self._new()
-@@ -87,6 +88,7 @@ class BoundedMultiRpc:
+@@ -93,6 +94,7 @@ class BoundedMultiRpc:
          current=self.sessions[-1]
          if current.used+needed>current.limit:
              current=self._new()
@@ -1465,7 +1465,7 @@ index 2a2f308..dee63e1 100644
              "SELECT body,hash FROM ramses_strategy_position ORDER BY id"
          ).fetchall()
 diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_universe.py
-index 832ee52..527559a 100644
+index 26e7ff5..f54ccd5 100644
 --- a/robinhood_research/ramses_universe.py
 +++ b/robinhood_research/ramses_universe.py
 @@ -429,6 +429,7 @@ def scan(
@@ -1476,8 +1476,8 @@ index 832ee52..527559a 100644
  ):
      """Scan the complete factory and classify the bounded recently-active cohort."""
      if type(lookback_blocks) is not int or not 10 <= lookback_blocks <= 1200:
-@@ -455,6 +456,12 @@ def scan(
-         adaptive_batch_floor=2,
+@@ -466,6 +467,12 @@ def scan(
+         provider_role="public_observation",
      )
      started = time.time()
 +    scan_progress=dict(state='in_progress',started_at=started,stage='chain_authentication',
@@ -1487,34 +1487,39 @@ index 832ee52..527559a 100644
 +        if progress is not None:progress(dict(scan_progress))
 +    checkpoint('chain_authentication')
      rpc.verify_chain()
+     observation_rpc.verify_chain()
      if finalized_frontier is None:
-         frontier = rpc.call(
-@@ -485,10 +492,13 @@ def scan(
+@@ -497,10 +504,13 @@ def scan(
              raise BoundaryError("invalid_ramses_finalized_frontier")
          frontier = dict(finalized_frontier)
          frontier_source = "pinned_external_finalized_header"
 +    rpc.evidence_pins={frontier["number"]:frontier["hash"]}
      end = int(frontier["number"], 16)
      start = _window_start_block(
-         rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks
+         observation_rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks
      )
 +    checkpoint('factory_authentication',frontier_block=end,frontier_hash=frontier['hash'],
 +        frontier_timestamp=int(frontier['timestamp'],16))
  
      factory_pin = load("ramses_factory")
      factory = factory_pin["address"]
-@@ -499,8 +509,10 @@ def scan(
-         rpc,factory,end,
+@@ -511,6 +521,7 @@ def scan(
+         observation_rpc,factory,end,
          factory_runtime_sha256=factory_identity["runtime_sha256"],
      )
 +    checkpoint('economic_log_census',pools_total=len(addresses))
-     logs = _batched_logs(rpc, start, end, addresses)
+     logs = _batched_logs(observation_rpc, start, end, addresses)
      histories, cost_events = _decode_economic_logs(logs, addresses)
-+    checkpoint('receipt_cost_authentication')
-     observe_receipt_gas(rpc, cost_events, cost_state)
  
-     # Active Wide Maker is intentionally a quiet-entry strategy. Preserve broad
-@@ -529,6 +541,9 @@ def scan(
+@@ -535,6 +546,7 @@ def scan(
+     )
+     active_cohort = activity[:max_recent_active_pools]
+     active_addresses={row["pool"] for row in active_cohort}
++    checkpoint('receipt_cost_authentication')
+     # Receipt gas is authoritative evidence, so acquire it only for the bounded
+     # cohort that can proceed to state hydration. Broad public observation remains
+     # intact for every factory pool and every economic log.
+@@ -547,6 +559,9 @@ def scan(
      wide_hydrated=0
      for activity_row in active_cohort:
          address = activity_row["pool"]
@@ -1524,7 +1529,7 @@ index 832ee52..527559a 100644
          try:
              auth, prestate = _prestate(rpc, factory, address, end)
              tx=auth["token_x"].lower()
-@@ -575,6 +590,8 @@ def scan(
+@@ -593,6 +608,8 @@ def scan(
              ))
          except BoundaryError as exc:
              exclusions[str(exc)] += 1
@@ -1533,7 +1538,7 @@ index 832ee52..527559a 100644
  
      features = [r["features"] for r in rows]
      for row in rows:
-@@ -590,6 +607,7 @@ def scan(
+@@ -608,6 +625,7 @@ def scan(
  
      classified = []
      for row in rows:
@@ -1541,7 +1546,7 @@ index 832ee52..527559a 100644
          f = row["features"]
          capital = max(1, f["active_liquidity_quote"] * PAPER_ACTIVE_LIQUIDITY_BPS // 10000)
          signal_context = signals_by_pool.get(row["pool"], {})
-@@ -685,6 +703,8 @@ def scan(
+@@ -703,6 +721,8 @@ def scan(
              "allocation_authority": False,
          })
  
