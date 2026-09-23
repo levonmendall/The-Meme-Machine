@@ -285,8 +285,97 @@ def _port_pump_partial_accounting(work):
 
     runner=work/'tests/pump_acceleration_natural_prospective.py'
     text=runner.read_text()
-    text=re.sub(
-        r'(?m)^FROZEN_POLICY_HASH="[0-9a-f]{64}"
+    lines=text.splitlines()
+    frozen=[i for i,line in enumerate(lines) if line.startswith('FROZEN_POLICY_HASH=')]
+    if len(frozen)!=1:
+        raise ValueError('pump_frozen_policy_hash_anchor')
+    lines[frozen[0]]='FROZEN_POLICY_HASH="b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5"'
+    text='\n'.join(lines)+'\n'
+    anchor="""            mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
+            age=now-int(row["opened"])
+"""
+    addition="""            mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
+            if mark.get("partial_harvest_bps"):
+                tokens_before=int(life.position.tokens)
+                if tokens_before>1:
+                    harvest_tokens=max(
+                        1,tokens_before*int(mark["partial_harvest_bps"])//10_000)
+                    harvest_tokens=min(tokens_before-1,harvest_tokens)
+                    if life.position.surface=="pump.fun":
+                        curve=pump.curve(snapshot["accounts"][0])
+                        supply,_=pump.mint_info(snapshot["accounts"][1])
+                        rates=pump.fees(snapshot["accounts"][2],curve,supply)
+                        partial_raw,_=pump.sell(curve,harvest_tokens,rates)
+                        harvest_proceeds=max(0,partial_raw-GAS)
+                    else:
+                        partial_quote=sell_quote(snapshot,harvest_tokens)
+                        harvest_proceeds=max(0,partial_quote.output_amount-GAS)
+                    harvest_evidence=dict(
+                        snapshot=snapshot,tokens_sold=harvest_tokens,
+                        net_proceeds=harvest_proceeds,network_cost=GAS)
+                    harvest=life.harvest(
+                        harvest_tokens,harvest_proceeds,now,
+                        evidence=harvest_evidence)
+                    report.setdefault("harvests",[]).append(dict(
+                        lifecycle_id=life.lifecycle_id,mint=mint,mode=mode,
+                        opened=row["opened"],observed_at=now,
+                        return_bps=mark["return_bps"],**harvest))
+            age=now-int(row["opened"])
+"""
+    if text.count(anchor)!=1:
+        raise ValueError('pump_monitor_harvest_anchor')
+    runner.write_text(text.replace(anchor,addition,1))
+
+    tests=work/'tests/test_paper_accounting.py'
+    text=tests.read_text()
+    marker="\nif __name__=='__main__':unittest.main()\n"
+    test="""    def test_partial_harvest_preserves_cash_basis_and_replay(self):
+        self.book.reserve('r:p',600,10,{})
+        self.book.transition('r:p','filled',12,amount=550,tokens=100)
+        self.book.transition('r:p','mark',20,amount=700)
+        self.book.transition('r:p','partial_harvest',21,amount=200,tokens=25)
+        rec=self.book.reconcile()
+        self.assertEqual(rec['cash'],650)
+        self.assertEqual(rec['basis'],413)
+        self.assertEqual(rec['realized'],63)
+        self.assertEqual(self.book.replay()['cash'],650)
+        self.book.transition('r:p','settled',30,amount=500)
+        rec=self.book.reconcile()
+        self.assertEqual(rec['cash'],1150)
+        self.assertEqual(rec['realized'],150)
+        self.assertEqual(self.book.replay()['cash'],1150)
+
+"""
+    if marker not in text:
+        raise ValueError('pump_accounting_test_anchor')
+    tests.write_text(text.replace(marker,'\n'+test+marker,1))
+
+
+def _apply_pump_profit_protection_accounting(work,patch_path):
+    merged=subprocess.run(
+        ['git','apply','--3way','--index',str(patch_path)],cwd=work,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+    )
+    if merged.returncode==0:
+        raise ValueError('pump_profit_protection_expected_rebase_not_needed')
+    unmerged=git('diff','--name-only','--diff-filter=U',cwd=work).splitlines()
+    expected={
+        'meme_machine/pump_acceleration_paper.py',
+        'tests/pump_acceleration_natural_prospective.py',
+    }
+    if set(unmerged)!=expected:
+        raise ValueError('unexpected_pump_overlay_conflicts:'+','.join(sorted(unmerged)))
+    for name in sorted(expected):
+        target=work/name
+        target.write_text(_resolve_conflict_markers(target.read_text(),name))
+    _port_pump_partial_accounting(work)
+    subprocess.run(['git','add','--all'],cwd=work,check=True)
+    if git('diff','--name-only','--diff-filter=U',cwd=work):
+        raise ValueError('unresolved_pump_profit_protection_overlay')
+    subprocess.run(['git','diff','--check','--cached'],cwd=work,check=True)
+
+
+def prepare(destination):
     destination=Path(destination).resolve();destination.mkdir(parents=True,exist_ok=False)
     spec=manifest()
     for lane,row in spec['lanes'].items():
