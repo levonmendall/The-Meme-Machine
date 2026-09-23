@@ -346,7 +346,7 @@ def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **
         configured_discovery_recovery_rpc(
             primary_fallback_endpoint, environ=environ,
             limit=kwargs.get("limit",80), per_scope=kwargs.get("per_scope",40),
-            retries=kwargs.get("retries",1),
+            retries=kwargs.get("retries",1), transport=kwargs.get("transport"),
         )
         if public and primary_fallback_endpoint else None
     )
