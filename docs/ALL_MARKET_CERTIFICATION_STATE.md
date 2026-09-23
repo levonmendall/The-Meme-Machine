@@ -50,6 +50,49 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "action": "dispatch_intent",
       "at": 1790197994.096657,
       "dispatch_id": "b6bd76a8cc7f409f834e33cbb9b21706"
+    },
+    {
+      "action": "smoke_progress_checkpoint",
+      "at": 1790198504.250023,
+      "elapsed_seconds": 481.38561878999997,
+      "lanes": {
+        "meteora": {
+          "accounting_reconciled": true,
+          "completed_market_scans": null,
+          "health": "responsive",
+          "infrastructure_censored_scans": null,
+          "natural_settled": 0,
+          "open_positions": 0
+        },
+        "pons": {
+          "accounting_reconciled": true,
+          "completed_market_scans": null,
+          "health": "responsive",
+          "infrastructure_censored_scans": null,
+          "natural_settled": 0,
+          "open_positions": 1
+        },
+        "pump": {
+          "accounting_reconciled": true,
+          "completed_market_scans": null,
+          "health": "responsive",
+          "infrastructure_censored_scans": null,
+          "natural_settled": 0,
+          "open_positions": 0
+        },
+        "ramses": {
+          "accounting_reconciled": true,
+          "completed_market_scans": 1,
+          "health": "responsive",
+          "infrastructure_censored_scans": 0,
+          "natural_settled": 0,
+          "open_positions": 0
+        }
+      },
+      "live_check_run_id": 107384970458,
+      "next_action": "finish_smoke_and_native_lifecycle_then_verify_artifacts_before_hourly_admission",
+      "scope": "engineering smoke only; not an accepted profitability block",
+      "workflow_run_id": 35921058163
     }
   ],
   "infrastructure_censoring": {
@@ -65,9 +108,47 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "ramses": {}
   },
   "last_completed_action": {
-    "action": "dispatch_intent",
-    "at": 1790197994.096657,
-    "dispatch_id": "b6bd76a8cc7f409f834e33cbb9b21706"
+    "action": "smoke_progress_checkpoint",
+    "at": 1790198504.250023,
+    "elapsed_seconds": 481.38561878999997,
+    "lanes": {
+      "meteora": {
+        "accounting_reconciled": true,
+        "completed_market_scans": null,
+        "health": "responsive",
+        "infrastructure_censored_scans": null,
+        "natural_settled": 0,
+        "open_positions": 0
+      },
+      "pons": {
+        "accounting_reconciled": true,
+        "completed_market_scans": null,
+        "health": "responsive",
+        "infrastructure_censored_scans": null,
+        "natural_settled": 0,
+        "open_positions": 1
+      },
+      "pump": {
+        "accounting_reconciled": true,
+        "completed_market_scans": null,
+        "health": "responsive",
+        "infrastructure_censored_scans": null,
+        "natural_settled": 0,
+        "open_positions": 0
+      },
+      "ramses": {
+        "accounting_reconciled": true,
+        "completed_market_scans": 1,
+        "health": "responsive",
+        "infrastructure_censored_scans": 0,
+        "natural_settled": 0,
+        "open_positions": 0
+      }
+    },
+    "live_check_run_id": 107384970458,
+    "next_action": "finish_smoke_and_native_lifecycle_then_verify_artifacts_before_hourly_admission",
+    "scope": "engineering smoke only; not an accepted profitability block",
+    "workflow_run_id": 35921058163
   },
   "latest_certification_run": 35920022541,
   "latest_market_run": 35921058163,
@@ -125,6 +206,6 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790198008.002007
+  "updated_at": 1790198605.4885623
 }
 ```
