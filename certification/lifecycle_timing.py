@@ -40,6 +40,19 @@ _RAMSES_STATE = {
 _RAMSES_TLS = threading.local()
 
 
+def ramses_max_hold_reached(elapsed_seconds, max_holding_seconds=RAMSES_MAX_HOLD_SECONDS):
+    return int(elapsed_seconds) >= int(max_holding_seconds)
+
+
+def ramses_recenter_clock(elapsed_seconds):
+    elapsed=float(elapsed_seconds)
+    if elapsed > RAMSES_RECENTER_DEADLINE_SECONDS:
+        return "hard_deadline"
+    if elapsed > RAMSES_RECENTER_TARGET_SECONDS:
+        return "target_miss"
+    return "within_target"
+
+
 def _atomic_json(path, value):
     path = Path(path)
     tmp = path.with_suffix(path.suffix + ".tmp")
@@ -283,9 +296,12 @@ def install_ramses(extended_module):
 
     def controller(decision, **kwargs):
         elapsed = int(kwargs.get("elapsed_seconds") or 0)
-        if elapsed >= int(lifecycle.POLICY["controller"].get(
-            "max_holding_seconds", RAMSES_MAX_HOLD_SECONDS
-        )):
+        if ramses_max_hold_reached(
+            elapsed,
+            lifecycle.POLICY["controller"].get(
+                "max_holding_seconds", RAMSES_MAX_HOLD_SECONDS
+            ),
+        ):
             return {
                 "action": "exit",
                 "reason": "maximum_holding_time",
@@ -299,7 +315,9 @@ def install_ramses(extended_module):
 
     def requalify(*args, **kwargs):
         started = getattr(_RAMSES_TLS, "recenter_started", None)
-        if started is not None and time.monotonic()-started > RAMSES_RECENTER_DEADLINE_SECONDS:
+        if started is not None and ramses_recenter_clock(
+            time.monotonic()-started
+        )=="hard_deadline":
             manager = getattr(_RAMSES_TLS, "manager", None)
             if manager is not None:
                 manager.setdefault("recenter_deadline_misses", []).append(dict(
@@ -356,10 +374,11 @@ def install_ramses(extended_module):
             started = getattr(_RAMSES_TLS, "recenter_started", None)
             if started is not None:
                 elapsed = time.monotonic()-started
-                if elapsed > RAMSES_RECENTER_DEADLINE_SECONDS:
+                clock_state=ramses_recenter_clock(elapsed)
+                if clock_state=="hard_deadline":
                     raise lifecycle.BoundaryError("ramses_recenter_decision_deadline")
                 manager = getattr(_RAMSES_TLS, "manager", None)
-                if manager is not None and elapsed > RAMSES_RECENTER_TARGET_SECONDS:
+                if manager is not None and clock_state=="target_miss":
                     manager.setdefault("recenter_target_misses", []).append(dict(
                         at=time.time(), elapsed_seconds=elapsed,
                     ))
