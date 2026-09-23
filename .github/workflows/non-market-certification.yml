@@ -1,7 +1,7 @@
 name: non-market-certification
 on:
   push:
-    branches: [cert/non-market-e2e-20260922]
+    branches: [cert/non-market-e2e-20260922, repair/four-lane-strategy-scope-efficiency-20260922]
   workflow_dispatch:
 permissions:
   contents: read
@@ -40,11 +40,13 @@ jobs:
           cp "$RUNNER_TEMP/non-market-lanes/pump/meme_machine/pump_acceleration_paper.py" non-market-evidence/prepared-sources/pump/
           cp "$RUNNER_TEMP/non-market-lanes/pump/meme_machine/pump_paper_accounting.py" non-market-evidence/prepared-sources/pump/ 2>/dev/null || true
           cp "$RUNNER_TEMP/non-market-lanes/pons/robinhood_research/pons_selective_cohort.py" non-market-evidence/prepared-sources/pons/
+          cp "$RUNNER_TEMP/non-market-lanes/pons/robinhood_research/pons_selective_acquisition.py" non-market-evidence/prepared-sources/pons/
           cp "$RUNNER_TEMP/non-market-lanes/pons/robinhood_research/pons_selective_paper.py" non-market-evidence/prepared-sources/pons/
           cp "$RUNNER_TEMP/non-market-lanes/pons/robinhood_research/pons_selective_capital.py" non-market-evidence/prepared-sources/pons/
           cp "$RUNNER_TEMP/non-market-lanes/meteora/tests/solana_dlmm_independent_v1.py" non-market-evidence/prepared-sources/meteora/
           cp "$RUNNER_TEMP/non-market-lanes/meteora/meme_machine/dlmm_independent_accounting.py" non-market-evidence/prepared-sources/meteora/
           cp "$RUNNER_TEMP/non-market-lanes/ramses/robinhood_research/ramses_extended_test.py" non-market-evidence/prepared-sources/ramses/
+          cp "$RUNNER_TEMP/non-market-lanes/ramses/robinhood_research/ramses_universe.py" non-market-evidence/prepared-sources/ramses/
           cp "$RUNNER_TEMP/non-market-lanes/ramses/robinhood_research/ramses_campaign_capital.py" non-market-evidence/prepared-sources/ramses/ 2>/dev/null || true
           cp "$RUNNER_TEMP/non-market-lanes/ramses/robinhood_research/ramses_strategy_ledger.py" non-market-evidence/prepared-sources/ramses/
           git -C "$RUNNER_TEMP/non-market-lanes/meteora" diff --binary HEAD > non-market-evidence/prepared-sources/meteora/git-diff.patch
