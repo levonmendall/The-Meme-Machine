@@ -375,6 +375,29 @@ def _apply_pump_profit_protection_accounting(work,patch_path):
     subprocess.run(['git','diff','--check','--cached'],cwd=work,check=True)
 
 
+def _apply_three_way_or_diagnose(work,patch_path,lane):
+    merged=subprocess.run(
+        ['git','apply','--3way','--index',str(patch_path)],cwd=work,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+    )
+    if merged.returncode==0:
+        return
+    print(merged.stdout,flush=True)
+    unmerged=git('diff','--name-only','--diff-filter=U',cwd=work).splitlines()
+    for name in unmerged:
+        body=(work/name).read_text()
+        lines=body.splitlines()
+        for index,line in enumerate(lines):
+            if line.startswith('<<<<<<< '):
+                lo=max(0,index-15);hi=min(len(lines),index+90)
+                print('--- '+lane.upper()+' CONFLICT '+name+' ---',flush=True)
+                print('\n'.join(
+                    f'{number+1}: {lines[number]}' for number in range(lo,hi)
+                ),flush=True)
+    raise subprocess.CalledProcessError(
+        merged.returncode,merged.args,output=merged.stdout)
+
+
 def prepare(destination):
     destination=Path(destination).resolve();destination.mkdir(parents=True,exist_ok=False)
     spec=manifest()
@@ -396,10 +419,8 @@ def prepare(destination):
             if lane=='pump' and patch_path.name=='pump-accounting.patch':
                 _apply_pump_profit_protection_accounting(work,patch_path)
                 continue
-            raise subprocess.CalledProcessError(
-                strict.returncode,['git','apply','--check',str(patch_path)],
-                output=strict.stdout
-            )
+            _apply_three_way_or_diagnose(work,patch_path,lane)
+            continue
     atomic(destination/'manifest.json',spec)
     return destination
 
