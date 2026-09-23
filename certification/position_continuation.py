@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import sys
 import time
 
 
@@ -30,6 +31,18 @@ def _find(root,pattern):
         if len(exact)==1:return exact[0]
         raise RuntimeError('ambiguous_continuation_state:'+pattern)
     return rows[0]
+
+
+def _activate_lane_root():
+    root=str(os.environ.get('MM_CONTINUATION_LANE_ROOT','') or '').strip()
+    if not root:
+        return None
+    path=str(Path(root).resolve())
+    if not Path(path).is_dir():
+        raise RuntimeError('continuation_lane_root_missing')
+    if path not in sys.path:
+        sys.path.insert(0,path)
+    return path
 
 
 def _runtime_identity(state_dir,lane):
@@ -102,6 +115,8 @@ def _meteora_open_identity(events):
 
 def resume_meteora(state_dir,*,slice_seconds):
     runtime_identity=_runtime_identity(state_dir,'meteora')
+    lane_root=_activate_lane_root()
+    runtime_identity['lane_root']=lane_root
     from tests import solana_dlmm_independent_v1 as module
     from meme_machine.dlmm_independent_accounting import PaperBook
     from meme_machine.dlmm_tape import VerifiedTape
@@ -220,6 +235,8 @@ def _json_env(name):
 
 def resume_ramses(state_dir,*,slice_seconds):
     runtime_identity=_runtime_identity(state_dir,'ramses')
+    lane_root=_activate_lane_root()
+    runtime_identity['lane_root']=lane_root
     from robinhood_research import BoundaryError
     from robinhood_research import ramses_all_pool_lifecycle as module
     from robinhood_research.ramses_strategy_ledger import RamsesStrategyLedger
