@@ -33,7 +33,8 @@ class FinalAcceptanceTests(unittest.TestCase):
                 passed=connectivity,scope="bounded")))
         (root/"pump-resource.json").write_text(json.dumps(dict(real_provider_calls=0,peak_rss_kib=1)))
         (root/"meteora-resource.json").write_text(json.dumps(dict(real_provider_calls=0,peak_rss_kib=1)))
-        (root/"meteora-dlmm-resource.json").write_text(json.dumps(dict(real_provider_calls=0,peak_rss_kib=1)))
+        (root/"meteora-dlmm-resource.json").write_text(json.dumps(dict(
+            real_provider_calls=0,samples=[dict(rss_kib=1),dict(rss_kib=2)])))
 
     def test_every_gate_required_for_non_market_certification(self):
         with tempfile.TemporaryDirectory() as td:
@@ -53,6 +54,15 @@ class FinalAcceptanceTests(unittest.TestCase):
                 self.assertEqual(run(root,out,"sha",root/"registry.json"),1)
                 result=json.loads(out.read_text())
                 self.assertEqual(result["engineering_certification"],"NOT_CERTIFIED")
+
+    def test_dlmm_sample_rss_is_required_when_top_level_peak_is_absent(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)/"e";root.mkdir();self.build(root)
+            (root/"meteora-dlmm-resource.json").write_text(json.dumps(dict(
+                real_provider_calls=0,samples=[dict(rss_kib=0)])))
+            out=Path(td)/"out.json"
+            self.assertEqual(run(root,out,"sha",root/"registry.json"),1)
+            self.assertFalse(json.loads(out.read_text())["gates"]["resource_bounds"])
 
     def test_wrong_integration_sha_fails_closed(self):
         with tempfile.TemporaryDirectory() as td:
