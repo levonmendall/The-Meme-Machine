@@ -100,7 +100,7 @@
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       },
-      "source_diff_sha256": "9f3851244dc1cc939caad17b65c240a5d82467eb271d623c108be3f009386eeb",
+      "source_diff_sha256": "c55cb785a451b8963264ba71344a954147582db36f7a7c11e85ea70aaa4da5d3",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -113,7 +113,7 @@
       "source_sha": "a616366fbe64e816708d035c15141b7e7e800304",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1",
       "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
-      "source_diff_sha256": "76dad9ea767672d1906cde19b0d5e6301a3dad00a658637a611b5c1d09e37bd4",
+      "source_diff_sha256": "1d6755eeac5a83afb9b617492d4c90c68ccf093b18d19c836ce38f48612b1d92",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "d9ca094b0715d8447cd5e98fdc99633d9a5b29e92b0b145bbe4adb052d6fc8e8"
@@ -725,6 +725,31 @@
       "market_observation_scope_changed": false,
       "paper_only_unchanged": true,
       "exact_diff_hashes_pending": false
+    },
+    "lifecycle_clock_repair_candidate": {
+      "branch": "repair/lifecycle-clock-decoupling-20260923",
+      "pre_pin_full_deterministic_run_id": 35873505264,
+      "pre_pin_head_sha": "f3330b6ff8d33dec54547332c5a739c42f79e43f",
+      "result": "success",
+      "exact_source_diff_sha256": {
+        "pump": "c55cb785a451b8963264ba71344a954147582db36f7a7c11e85ea70aaa4da5d3",
+        "meteora": "1d6755eeac5a83afb9b617492d4c90c68ccf093b18d19c836ce38f48612b1d92",
+        "pons": "b6ebd94cee32100495e3c73506126ef0ac83b4bf22112e38fb87dbc390a075f7",
+        "ramses": "2b118db437e140becd34dba2594bb485dfa4d83bfd1c2926a687fb4022ce59ab"
+      },
+      "implementation_scope": [
+        "Meteora one-hour discovery separated from durable 4-24h position continuation",
+        "Meteora 162-second pre-entry trigger/warmup/evidence reserve",
+        "Ramses discovery continues while one long-horizon position owns capital",
+        "Ramses 604800-second maximum hold and 210-second recenter same-decision deadline",
+        "Pump final-second entry can complete 900-second hold inside existing 1000-second drain"
+      ],
+      "strategy_thresholds_changed": false,
+      "market_observation_scope_changed": false,
+      "position_sizing_changed": false,
+      "finality_changed": false,
+      "paper_only_unchanged": true,
+      "exact_post_pin_certification_requested": true
     }
   },
   "composition": {
