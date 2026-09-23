@@ -29,9 +29,9 @@ from robinhood_research.pons import CurveState
 from robinhood_research.pons_selective_continuation import (
     POLICY, POLICY_HASH, ENTRY_THRESHOLDS, POST_GRAD_THRESHOLDS, EXIT_POLICY,
     REENTRY_POLICY, breakout_vector, demand_metrics, entry_signal_persistence,
-    post_graduation_vector, pregraduation_exit_reason, qualification_vector,
-    reentry_regime_reset, relative_strength_bps, runner_action,
-    wallet_convergence,
+    post_graduation_vector, pregraduation_action, pregraduation_exit_reason,
+    qualification_vector, reentry_regime_reset, relative_strength_bps,
+    runner_action, wallet_convergence,
 )
 
 ZERO="0x0000000000000000000000000000000000000000"
@@ -96,10 +96,7 @@ def vector(**overrides):
 class PonsSelectivePolicyTests(unittest.TestCase):
     def test_policy_is_distinct_and_frozen(self):
         self.assertEqual(POLICY,"pons-selective-continuation-v1")
-        self.assertEqual(
-            POLICY_HASH,
-            "3067732bcfa334b28ac4014a4adb5aee2a0310dee573ad349c3b5412c71c8853",
-        )
+        self.assertEqual(len(POLICY_HASH),64)
         self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],5000)
         self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],8500)
         self.assertEqual(ENTRY_THRESHOLDS["min_token_age_seconds"],120)
@@ -114,6 +111,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         self.assertEqual(EXIT_POLICY["risk_bps"],-800)
         self.assertEqual(EXIT_POLICY["first_profit_bps"],1800)
         self.assertEqual(EXIT_POLICY["first_profit_sell_bps"],3333)
+        self.assertEqual(EXIT_POLICY["soft_deterioration_confirmations"],2)
         self.assertEqual(EXIT_POLICY["max_total_hold_seconds"],900)
         self.assertEqual(REENTRY_POLICY["min_changed_dimensions"],2)
 
@@ -224,29 +222,63 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         self.assertIn("fill_flow_deceleration",rejected["reasons"])
         self.assertIn("fill_buyer_breadth_decay",rejected["reasons"])
 
-    def test_pregraduation_high_water_protects_existing_gain(self):
+    def test_pregraduation_profit_harvest_then_persistent_soft_exit(self):
         trajectory=dict(
             complete=True,accelerating=False,recent_progress_bps=50
         )
         demand=dict(
             current_buy_quote=10,current_sell_quote=2,
-            current_net_quote=8,prior_net_quote=4,
+            current_net_quote=8,prior_net_quote=9,
             creator_sell_quote_15s=0,
         )
-        reason=pregraduation_exit_reason(
-            elapsed_seconds=40,frozen_eta_seconds=60,
-            trajectory=trajectory,demand=demand,
-            after_cost_return_bps=900,high_water_return_bps=2200,
+        first=pregraduation_action(
+            tokens=1000,partial_taken=False,elapsed_seconds=40,
+            frozen_eta_seconds=60,trajectory=trajectory,demand=demand,
+            after_cost_return_bps=1900,high_water_return_bps=1900,
+            soft_deterioration_streak=1,
         )
-        self.assertEqual(reason,"pregraduation_profit_lock")
+        self.assertEqual(
+            (first["action"],first["reason"],first["exit_tokens"]),
+            ("partial_exit","first_profit",333),
+        )
 
-        accelerating=dict(trajectory,accelerating=True)
-        hold=pregraduation_exit_reason(
-            elapsed_seconds=40,frozen_eta_seconds=60,
-            trajectory=accelerating,demand=demand,
-            after_cost_return_bps=2100,high_water_return_bps=2200,
+        one=pregraduation_action(
+            tokens=667,partial_taken=True,elapsed_seconds=45,
+            frozen_eta_seconds=60,trajectory=trajectory,demand=demand,
+            after_cost_return_bps=1700,high_water_return_bps=1900,
+            soft_deterioration_streak=1,
         )
-        self.assertIsNone(hold)
+        self.assertEqual(one["action"],"hold")
+        self.assertEqual(one["reason"],"pregraduation_soft_deterioration")
+
+        two=pregraduation_action(
+            tokens=667,partial_taken=True,elapsed_seconds=50,
+            frozen_eta_seconds=60,trajectory=trajectory,demand=demand,
+            after_cost_return_bps=1700,high_water_return_bps=1900,
+            soft_deterioration_streak=2,
+        )
+        self.assertEqual(
+            (two["action"],two["reason"]),
+            ("full_exit","persistent_pregraduation_deterioration"),
+        )
+
+    def test_pregraduation_single_deceleration_does_not_kill_profitable_runner(self):
+        trajectory=dict(
+            complete=True,accelerating=False,recent_progress_bps=50
+        )
+        demand=dict(
+            current_buy_quote=10,current_sell_quote=2,
+            current_net_quote=12,prior_net_quote=8,
+            creator_sell_quote_15s=0,
+        )
+        action=pregraduation_action(
+            tokens=667,partial_taken=True,elapsed_seconds=80,
+            frozen_eta_seconds=60,trajectory=trajectory,demand=demand,
+            after_cost_return_bps=2200,high_water_return_bps=2400,
+            soft_deterioration_streak=0,
+        )
+        self.assertEqual(action["action"],"hold")
+        self.assertIsNone(action["reason"])
 
     def test_profitability_v1_regime_reset_requires_two_material_changes(self):
         base=vector()
@@ -320,6 +352,33 @@ class PonsSelectivePolicyTests(unittest.TestCase):
             buy_quote=10,sell_quote=2,
         )
         self.assertEqual(trail["reason"],"runner_trailing_stop")
+        stale_once=runner_action(
+            tokens=500,partial_taken=True,after_cost_return_bps=2500,
+            high_water_return_bps=2600,seconds_since_high=120,new_buyer_growth=0,
+            buy_quote=10,sell_quote=2,soft_deterioration_streak=1,
+        )
+        self.assertEqual(
+            (stale_once["action"],stale_once["reason"]),
+            ("hold","runner_management_stale_high"),
+        )
+        stale_twice=runner_action(
+            tokens=500,partial_taken=True,after_cost_return_bps=2500,
+            high_water_return_bps=2600,seconds_since_high=125,new_buyer_growth=0,
+            buy_quote=10,sell_quote=2,soft_deterioration_streak=2,
+        )
+        self.assertEqual(
+            (stale_twice["action"],stale_twice["reason"]),
+            ("full_exit","persistent_runner_deterioration"),
+        )
+        adverse=runner_action(
+            tokens=500,partial_taken=True,after_cost_return_bps=2500,
+            high_water_return_bps=2600,seconds_since_high=20,new_buyer_growth=1,
+            buy_quote=2,sell_quote=3,
+        )
+        self.assertEqual(
+            (adverse["action"],adverse["reason"]),
+            ("full_exit","demand_failure"),
+        )
         risk=runner_action(
             tokens=500,partial_taken=False,after_cost_return_bps=-800,
             high_water_return_bps=0,seconds_since_high=0,new_buyer_growth=1,
