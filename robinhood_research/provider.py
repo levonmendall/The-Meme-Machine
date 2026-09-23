@@ -8,7 +8,7 @@ from urllib.request import Request, urlopen
 
 from . import BoundaryError, CHAIN_ID
 
-READ_METHODS = frozenset({
+RPC_HTTP_HEADERS = {\n    'Content-Type': 'application/json',\n    'Accept': 'application/json',\n    'User-Agent': 'Meme-Machine/1.0 (+https://github.com/levonmendall/The-Meme-Machine)',\n}\n\nREAD_METHODS = frozenset({
     'eth_chainId', 'eth_blockNumber', 'eth_getBlockByNumber',
     'eth_getBlockByHash', 'eth_getLogs', 'eth_getTransactionReceipt',
     'eth_getCode', 'eth_call', 'eth_gasPrice', 'eth_getBalance',
@@ -38,7 +38,7 @@ class Rpc:
 
     def _http(self, method, params):
         body = json.dumps(dict(jsonrpc='2.0', id=1, method=method, params=params)).encode()
-        request = Request(self._endpoint, data=body, headers={'Content-Type': 'application/json'})
+        request = Request(self._endpoint, data=body, headers=RPC_HTTP_HEADERS)
         try:
             with urlopen(request, timeout=self.timeout) as response:
                 raw = response.read(self.max_response + 1)
@@ -117,7 +117,7 @@ class Rpc:
             dict(jsonrpc='2.0',id=i+1,method=method,params=params)
             for i,(method,params) in enumerate(calls)
         ]).encode()
-        request=Request(self._endpoint,data=body,headers={'Content-Type':'application/json'})
+        request=Request(self._endpoint,data=body,headers=RPC_HTTP_HEADERS)
         try:
             with urlopen(request,timeout=self.timeout) as response:
                 raw=response.read(self.max_response+1)
