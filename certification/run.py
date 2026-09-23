@@ -536,6 +536,7 @@ def lane_environment(lane,source,run,run_id=None,phase=None):
         for key in ('MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON','MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON'):
             if key in os.environ:env[key]=os.environ[key]
     env.update(PYTHONPATH=str(ROOT),PYTHONUNBUFFERED='1',MM_CERT_SOURCE_SHA=source['source_sha'],
+               MM_CERT_INTEGRATION_SHA=git('rev-parse','HEAD'),
                MM_CERT_GOVERNOR_DB=str(run/'shared-provider.sqlite'),
                MM_CERTIFICATION_RUN_ID=run_id or run.name,MM_CERTIFICATION_LANE=lane,
                MM_CERTIFICATION_PHASE=str(phase or 'unknown'))

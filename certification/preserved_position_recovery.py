@@ -109,6 +109,14 @@ def prepare(api,state_dir,worktrees,certificate_run_id,state_run_id=None):
     cert=certificate(api,certificate_run_id,sha,worktrees)
     state_run_id=int(state_run_id or source['run_id'])
     if state_run_id==source['run_id']:
+        # A superseded candidate may finish certification while its replacement
+        # is being prepared. Never fork an already-started recovery from genesis.
+        for previous in source.get('superseded_candidate_runs',[]):
+            jobs=api.pages(f'actions/runs/{previous}/jobs','jobs')
+            if any(j['name'].startswith('recover-preserved-position') and
+                   j['status']!='queued' and j.get('conclusion') not in ('skipped','cancelled')
+                   for j in jobs):
+                raise RuntimeError('predecessor_recovery_already_started_preserve_existing_chain')
         archive,item=api.artifact(source['run_id'],source['artifact_name'])
         if item['id']!=source['artifact_id'] or item['digest']!=source['artifact_digest']:
             raise RuntimeError('recovery_predecessor_artifact_identity')

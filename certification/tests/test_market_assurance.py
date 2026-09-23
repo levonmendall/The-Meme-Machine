@@ -15,6 +15,13 @@ from certification.position_continuation import _meteora_exit_progress
 def rule(*,amount,limit):return {'authorized':amount<=limit}
 
 class AssuranceTests(unittest.TestCase):
+    def test_worker_identity_survives_secret_sanitized_environment(self):
+        from certification.run import lane_environment
+        with patch.dict(os.environ,{'GITHUB_SHA':'wrong-parent','MM_CERT_INTEGRATION_SHA':'stale'}),patch('certification.run.git',return_value='exact-checked-out-sha'):
+            env=lane_environment('meteora',dict(source_sha='lane',rpc_configuration_variables=[]),Path('/tmp/run'))
+        self.assertEqual(env['MM_CERT_INTEGRATION_SHA'],'exact-checked-out-sha')
+        self.assertNotIn('GITHUB_SHA',env)
+
     def test_unknown_denominator_never_becomes_full_coverage(self):
         self.assertIsNone(ratio(5,None));self.assertIsNone(ratio(0,0))
         self.assertEqual(ratio(5,10),.5)

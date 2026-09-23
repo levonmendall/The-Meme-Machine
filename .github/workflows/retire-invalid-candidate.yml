@@ -1,0 +1,37 @@
+name: retire-invalid-candidate
+on:
+  push:
+    branches: [cert/all-market-certification-20260923]
+permissions:
+  contents: read
+  actions: write
+jobs:
+  stop-invalid-nonmarket-candidate:
+    if: contains(github.event.head_commit.message, '[bind-runtime-sha]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Stop only the superseded candidate before any recovery job starts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json,os
+          from urllib.request import Request,urlopen
+          base='https://api.github.com/repos/levonmendall/The-Meme-Machine/'
+          def api(path,method='GET'):
+              req=Request(base+path,method=method,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urlopen(req,timeout=30) as response:
+                  raw=response.read();return json.loads(raw) if raw else None
+          run_id=35931988977
+          run=api(f'actions/runs/{run_id}')
+          if run['head_sha']!='e5f45fa6c88aa9228ca8b8a5d15f9ded6cd48c71':raise RuntimeError('candidate_identity')
+          jobs=api(f'actions/runs/{run_id}/jobs?per_page=100')['jobs']
+          started=[j for j in jobs if j['name'].startswith('recover-preserved-position') and
+                   j['status']!='queued' and j.get('conclusion')!='skipped']
+          if started:raise RuntimeError('existing_recovery_must_be_preserved; replacement_recovery_is_blocked')
+          if run['status']!='completed':
+              api(f'actions/runs/{run_id}/cancel','POST')
+              print('Stopped invalid non-market candidate before recovery; protected market run unchanged.')
+          else:print('Superseded non-market candidate already completed; no cancellation needed.')
+          PY

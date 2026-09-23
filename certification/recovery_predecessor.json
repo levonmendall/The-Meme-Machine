@@ -1,12 +1,18 @@
 {
-  "schema": "paper-recovery-authority-v1",
-  "run_id": 35921058163,
-  "integration_sha": "b57835dc50dd4047cefed13cfe0be975779af1e8",
-  "implementation_hash": "de4d63df0fb7f4f67e3157793c5d7c946015e8c3047203b1c9e578bb87248b31",
-  "artifact_id": 10777564248,
+  "allowed_recovery": [
+    "append_missing_cohort_acknowledgement_of_proven_zero_fill_cancel",
+    "continue_exact_existing_ramses_position_under_unchanged_policy"
+  ],
   "artifact_digest": "sha256:7675f47346844a4ae0fac4dea0bb8187519b9fbb8b2697b1a51e47aaa17154b4",
+  "artifact_id": 10777564248,
   "artifact_name": "four-lane-certification-35921058163-1",
   "cohort_id": "prospective-four-lane-v3-complete-sample-20260923",
   "economic_evidence_eligible": false,
-  "allowed_recovery": ["append_missing_cohort_acknowledgement_of_proven_zero_fill_cancel", "continue_exact_existing_ramses_position_under_unchanged_policy"]
+  "implementation_hash": "de4d63df0fb7f4f67e3157793c5d7c946015e8c3047203b1c9e578bb87248b31",
+  "integration_sha": "b57835dc50dd4047cefed13cfe0be975779af1e8",
+  "run_id": 35921058163,
+  "schema": "paper-recovery-authority-v1",
+  "superseded_candidate_runs": [
+    35931988977
+  ]
 }
