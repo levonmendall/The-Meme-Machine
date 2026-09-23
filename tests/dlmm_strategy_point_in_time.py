@@ -359,7 +359,7 @@ def run_live(cycles=MAX_CYCLES, window_seconds=18):
         kind="dlmm_point_in_time_strategy_replay_v1",
         base="pr4_verified_simulator",
         research_rpc_provider=alchemy_provider.PROVIDER_LABEL,
-        research_rpc_provider_host="solana.api.onfinality.io",
+        research_rpc_provider_host="solana-mainnet.g.alchemy.com",
         research_rpc_fallback_allowed=True,
         allocation_authority=False,
         prospective_allocation_enabled=False,
