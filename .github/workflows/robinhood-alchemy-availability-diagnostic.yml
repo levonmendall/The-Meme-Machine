@@ -108,9 +108,7 @@ jobs:
                   if i<2: time.sleep(2)
               row["probes"].append({"method":"eth_getBlockByNumber","attempt":1,**one(url,"eth_getBlockByNumber",["finalized",False])})
               report["endpoints"][endpoint_id]=row
-          Path("provider-availability-diagnostic.json").write_text(json.dumps(report,sort_keys=True,indent=2)+"\n")
-          print(json.dumps(report,sort_keys=True,indent=2))
-          PY
+          controls={\n              "alchemy_docs_demo":"https://robinhood-mainnet.g.alchemy.com/v2/docs-demo",\n              "alchemy_invalid_key":"https://robinhood-mainnet.g.alchemy.com/v2/meme-machine-invalid-diagnostic-key",\n          }\n          report["controls"]={}\n          for name,url in controls.items():\n              report["controls"][name]=one(url,"eth_chainId",[])\n          Path("provider-availability-diagnostic.json").write_text(json.dumps(report,sort_keys=True,indent=2)+"\\n")\n          print(json.dumps(report,sort_keys=True,indent=2))\n          PY
       - name: Preserve diagnostic
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
