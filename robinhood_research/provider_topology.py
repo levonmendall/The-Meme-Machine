@@ -242,6 +242,69 @@ class PacedRpc(Rpc):
         return data
 
 
+
+RECOVERABLE_OBSERVATION_BOUNDARIES = frozenset({
+    "provider_transport_failure",
+    "provider_http_429",
+    "provider_http_500",
+    "provider_http_502",
+    "provider_http_503",
+    "provider_http_504",
+    "provider_rpc_429",
+})
+
+
+class ObservationFallbackRpc(PacedRpc):
+    """Public observation first; exact failed reads may recover through Alchemy."""
+
+    def __init__(self, *args, recovery_rpc=None, **kwargs):
+        self.recovery_rpc = recovery_rpc
+        self.recovery_requests = 0
+        self.recovery_failures = 0
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def _recoverable(exc):
+        return str(exc) in RECOVERABLE_OBSERVATION_BOUNDARIES
+
+    def call(self, method, params, *, scope="connectivity"):
+        try:
+            return super().call(method, params, scope=scope)
+        except BoundaryError as exc:
+            if self.recovery_rpc is None or not self._recoverable(exc):
+                raise
+            self.recovery_requests += 1
+            try:
+                return self.recovery_rpc.call(method, params, scope=scope)
+            except BoundaryError:
+                self.recovery_failures += 1
+                raise
+
+    def batch(self, calls, *, scope="connectivity"):
+        try:
+            return super().batch(calls, scope=scope)
+        except BoundaryError as exc:
+            if self.recovery_rpc is None or not self._recoverable(exc):
+                raise
+            self.recovery_requests += 1
+            try:
+                return self.recovery_rpc.batch(calls, scope=scope)
+            except BoundaryError:
+                self.recovery_failures += 1
+                raise
+
+    def telemetry(self):
+        data = super().telemetry()
+        data.update(
+            alchemy_gap_recovery_requests=int(self.recovery_requests),
+            alchemy_gap_recovery_failures=int(self.recovery_failures),
+            alchemy_gap_recovery=(
+                None if self.recovery_rpc is None else self.recovery_rpc.telemetry()
+            ),
+        )
+        return data
+
+
 # Shared clocks prevent session rotation or concurrent candidate evaluation from
 # multiplying provider throughput.
 _DIRECTIONAL_PACER = ProviderPacer(DIRECTIONAL_RPS)
@@ -279,11 +342,20 @@ def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **
     )
     public = _provider_kind(endpoint) == "robinhood_public"
     rps = PUBLIC_DISCOVERY_RPS if public else DISCOVERY_RPS
-    rpc = PacedRpc(
+    recovery = (
+        configured_discovery_recovery_rpc(
+            primary_fallback_endpoint, environ=environ,
+            limit=kwargs.get("limit",80), per_scope=kwargs.get("per_scope",40),
+            retries=kwargs.get("retries",1),
+        )
+        if public and primary_fallback_endpoint else None
+    )
+    rpc = ObservationFallbackRpc(
         endpoint,
         role=("pons_discovery_public_observation" if public else "pons_discovery_observation"),
         requests_per_second=rps,
         pacer=_pacer_for(_DISCOVERY_PACERS, endpoint, rps),
+        recovery_rpc=recovery,
         **kwargs,
     )
     rpc.primary_fallback = False
