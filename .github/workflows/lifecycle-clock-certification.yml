@@ -4,6 +4,9 @@ on:
     branches: [repair/lifecycle-clock-decoupling-20260923]
 permissions:
   contents: read
+concurrency:
+  group: lifecycle-clock-certification-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   deterministic:
     runs-on: ubuntu-24.04
