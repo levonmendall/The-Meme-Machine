@@ -13,6 +13,7 @@ import time
 
 RAMSES_FACTORY='0xdcD5F77697914E27f56FD263EF82923C8524AbAc'
 RAMSES_FACTORY_COUNT_SELECTOR='0x4e937c3a'
+RAMSES_FACTORY_RUNTIME_SHA256='f53b61bb1b43c80d7e1a131856224a8598bf746491880931e9d6bfcd5c6e197b'
 
 def probe_ramses_factory_state(rpc):
     """Prove exact finalized contract state exists on the authenticated Ramses lane."""
@@ -30,13 +31,16 @@ def probe_ramses_factory_state(rpc):
         raise RuntimeError('ramses_factory_count_shape') from None
     if not isinstance(code,str) or not code.startswith('0x') or len(code)<=2:
         raise RuntimeError('ramses_factory_code_missing')
+    runtime_sha256=hashlib.sha256(bytes.fromhex(code[2:])).hexdigest()
+    if runtime_sha256!=RAMSES_FACTORY_RUNTIME_SHA256:
+        raise RuntimeError('ramses_factory_runtime_mismatch')
     if not 1<=count<=4096:
         raise RuntimeError('ramses_factory_count_boundary')
     return dict(
         exact_finalized_state=True,
         finalized_block=frontier['number'],
         finalized_hash=frontier['hash'],
-        factory_runtime_sha256=hashlib.sha256(bytes.fromhex(code[2:])).hexdigest(),
+        factory_runtime_sha256=runtime_sha256,
         factory_count=count,
         provider=rpc.telemetry(),
     )
