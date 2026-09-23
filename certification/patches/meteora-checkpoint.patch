@@ -1548,7 +1548,7 @@ index f81cf53..5af8098 100644
 +
 +
 +class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
-     """HTTP transport mixin with OnFinality-primary / Alchemy-rescue semantics."""
+     """Single-provider Alchemy HTTP transport; legacy class name is import-compatible."""
  
      def _init_failover(self, secondary_url, pacer, primary_label=PRIMARY_PROVIDER):
 diff --git a/meme_machine/solana_signature_identity.py b/meme_machine/solana_signature_identity.py
