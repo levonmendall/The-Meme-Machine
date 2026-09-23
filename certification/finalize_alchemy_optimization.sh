@@ -32,6 +32,62 @@ elif "class _ReadOnlyFailoverMixin(ImmutableRPCMixin):" not in s:
     raise SystemExit("solana_read_rpc_inheritance_shape_changed")
 p.write_text(s)
 PY
+  elif [ "$lane" = ramses ]; then
+    git -C "$worktree" apply --3way --index --exclude=robinhood_research/ramses_universe.py "$GITHUB_WORKSPACE/$patch"
+    WORKTREE="$worktree" python - <<'PY'
+import os
+from pathlib import Path
+p=Path(os.environ["WORKTREE"])/"robinhood_research/ramses_universe.py"
+s=p.read_text()
+s=s.replace(
+    "    finalized_frontier=None,\n):",
+    "    finalized_frontier=None,\n    progress=None,\n):",1)
+needle="    started = time.time()\n    rpc.verify_chain()\n    observation_rpc.verify_chain()"
+replacement="""    started = time.time()
+    scan_progress=dict(state='in_progress',started_at=started,stage='chain_authentication',
+        pools_total=0,pools_attempted=0,pools_completed=0,pools_failed=0)
+    def checkpoint(stage,**fields):
+        scan_progress.update(stage=stage,updated_at=time.time(),**fields)
+        if progress is not None:progress(dict(scan_progress))
+    checkpoint('chain_authentication')
+    rpc.verify_chain()
+    observation_rpc.verify_chain()"""
+if needle not in s: raise SystemExit("ramses_progress_start_shape_changed")
+s=s.replace(needle,replacement,1)
+needle='        frontier_source = "pinned_external_finalized_header"\n    end = int(frontier["number"], 16)'
+replacement='        frontier_source = "pinned_external_finalized_header"\n    rpc.evidence_pins={frontier["number"]:frontier["hash"]}\n    end = int(frontier["number"], 16)'
+if needle not in s: raise SystemExit("ramses_frontier_shape_changed")
+s=s.replace(needle,replacement,1)
+needle='    start = _window_start_block(\n        observation_rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks\n    )\n\n    factory_pin = load("ramses_factory")'
+replacement='    start = _window_start_block(\n        observation_rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks\n    )\n    checkpoint(\'factory_authentication\',frontier_block=end,frontier_hash=frontier[\'hash\'],\n        frontier_timestamp=int(frontier[\'timestamp\'],16))\n\n    factory_pin = load("ramses_factory")'
+if needle not in s: raise SystemExit("ramses_window_shape_changed")
+s=s.replace(needle,replacement,1)
+needle='    addresses = _enumerate_factory(\n        observation_rpc,factory,end,\n        factory_runtime_sha256=factory_identity["runtime_sha256"],\n    )\n    logs = _batched_logs(observation_rpc, start, end, addresses)'
+replacement='    addresses = _enumerate_factory(\n        observation_rpc,factory,end,\n        factory_runtime_sha256=factory_identity["runtime_sha256"],\n    )\n    checkpoint(\'economic_log_census\',pools_total=len(addresses))\n    logs = _batched_logs(observation_rpc, start, end, addresses)'
+if needle not in s: raise SystemExit("ramses_inventory_shape_changed")
+s=s.replace(needle,replacement,1)
+needle='    active_addresses={row["pool"] for row in active_cohort}\n    # Receipt gas is authoritative evidence'
+replacement='    active_addresses={row["pool"] for row in active_cohort}\n    checkpoint(\'receipt_cost_authentication\')\n    # Receipt gas is authoritative evidence'
+if needle not in s: raise SystemExit("ramses_receipt_shape_changed")
+s=s.replace(needle,replacement,1)
+needle='    for activity_row in active_cohort:\n        address = activity_row["pool"]\n        try:'
+replacement='    for activity_row in active_cohort:\n        address = activity_row["pool"]\n        checkpoint(\'pool_prestate\',current_pool=address,\n            pools_attempted=scan_progress[\'pools_attempted\']+1,\n            active_cohort_size=len(active_cohort),inactive_pools=len(addresses)-len(histories))\n        try:'
+if needle not in s: raise SystemExit("ramses_pool_loop_shape_changed")
+s=s.replace(needle,replacement,1)
+needle='        except BoundaryError as exc:\n            exclusions[str(exc)] += 1\n\n    features ='
+replacement='        except BoundaryError as exc:\n            exclusions[str(exc)] += 1\n            checkpoint(\'pool_prestate_failed\',pools_failed=scan_progress[\'pools_failed\']+1,\n                last_reason=str(exc))\n\n    features ='
+if needle not in s: raise SystemExit("ramses_pool_failure_shape_changed")
+s=s.replace(needle,replacement,1)
+needle='    classified = []\n    for row in rows:\n        f = row["features"]'
+replacement='    classified = []\n    for row in rows:\n        checkpoint(\'pool_economic_classification\',current_pool=row[\'pool\'])\n        f = row["features"]'
+if needle not in s: raise SystemExit("ramses_classification_shape_changed")
+s=s.replace(needle,replacement,1)
+needle='            "allocation_authority": False,\n        })\n\n    ranked = sorted(classified, key=_selection_key, reverse=True)'
+replacement='            "allocation_authority": False,\n        })\n\n        checkpoint(\'pool_complete\',pools_completed=len(classified))\n    checkpoint(\'complete\',state=\'complete\',completed_at=time.time())\n    ranked = sorted(classified, key=_selection_key, reverse=True)'
+if needle not in s: raise SystemExit("ramses_complete_shape_changed")
+s=s.replace(needle,replacement,1)
+p.write_text(s)
+PY
   else
     git -C "$worktree" apply --3way --index "$GITHUB_WORKSPACE/$patch"
   fi
