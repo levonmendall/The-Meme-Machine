@@ -1,0 +1,3 @@
+Final exact-SHA certification trigger after repinning Pump to the current green profit-protection-v2 source head.
+No strategy, threshold, sizing, freshness/finality, provider ceiling, or paper-accounting economics change.
+Prospective cohort remains ineligible until this exact SHA passes non-market certification.
