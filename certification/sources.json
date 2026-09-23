@@ -597,7 +597,8 @@
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
-        "certification/patches/market-scope-efficiency-ramses.patch"
+        "certification/patches/market-scope-efficiency-ramses.patch",
+        "certification/patches/ramses-seed-test-scope-fix.patch"
       ]
     }
   },
@@ -606,7 +607,7 @@
     "purpose": "Compose the current Pump/Pons profitability persistence policies with verified Meteora authenticated fee-density profitability v1 and Ramses Active Wide Maker v3 while preserving current operational overlays and paper-only controls.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora authenticated fee-density profitability-v1; Ramses Active Wide Maker v3",
-    "validation_status": "EXACT_CURRENT_SOURCE_CERTIFICATION_REQUESTED",
+    "validation_status": "RECOMPOSITION_TEST_FIX_PENDING",
     "validation_run_requested": true,
     "latest_qualification": {
       "run_id": 35789882265,
