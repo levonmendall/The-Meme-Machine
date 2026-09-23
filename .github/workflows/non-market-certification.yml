@@ -1,7 +1,7 @@
 name: non-market-certification
 on:
   push:
-    branches: [cert/non-market-e2e-20260922, repair/market-scope-efficiency-final-20260923, cert/profitability-portfolio-autonomy-current-v1]
+    branches: [cert/non-market-e2e-20260922, repair/market-scope-efficiency-final-20260923, cert/profitability-portfolio-autonomy-current-v1, cert/profitability-portfolio-autonomy-final-v1]
   workflow_dispatch:
 permissions:
   contents: read
