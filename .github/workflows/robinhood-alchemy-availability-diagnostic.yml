@@ -32,18 +32,14 @@ jobs:
               req=Request(url,data=body,headers={
                   "Content-Type":"application/json",
                   "Accept":"application/json",
-                  "User-Agent":"meme-machine-provider-availability-diagnostic/1",
+                  "User-Agent":"meme-machine-provider-availability-diagnostic/2",
               })
               started=time.monotonic()
               try:
                   with urlopen(req,timeout=5) as resp:
-                      raw=resp.read(65536)
-                      status=resp.status
-                      headers=resp.headers
+                      raw=resp.read(65536);status=resp.status;headers=resp.headers
               except HTTPError as exc:
-                  raw=exc.read(65536)
-                  status=exc.code
-                  headers=exc.headers
+                  raw=exc.read(65536);status=exc.code;headers=exc.headers
               except (URLError,TimeoutError,OSError) as exc:
                   return {"transport_error":type(exc).__name__,"latency_seconds":time.monotonic()-started}
               row={
@@ -67,8 +63,7 @@ jobs:
                       if isinstance(err,dict):
                           row["rpc_error_code"]=err.get("code")
                           msg=err.get("message")
-                          if isinstance(msg,str):
-                              row["rpc_error_message"]=msg[:240]
+                          if isinstance(msg,str):row["rpc_error_message"]=msg[:240]
               except Exception:
                   pass
               return row
@@ -77,13 +72,19 @@ jobs:
               "configured_read":os.environ.get("MM_ROBINHOOD_READ_RPC_URL",""),
               "configured_dlmm":os.environ.get("MM_ROBINHOOD_DLMM_RPC_URL",""),
           }
-          report={"observed_at":time.time(),"same_configured_endpoint":raw["configured_read"]==raw["configured_dlmm"],"endpoints":{}}
+          report={
+              "observed_at":time.time(),
+              "same_configured_endpoint":raw["configured_read"]==raw["configured_dlmm"],
+              "endpoints":{},
+              "controls":{},
+          }
           unique={}
           for role,url in raw.items():
               if not url:
                   report["endpoints"][role]={"configured":False}
                   continue
               unique.setdefault(url,[]).append(role)
+
           for url,roles in unique.items():
               p=urlsplit(url)
               endpoint_id=hashlib.sha256(("4663:"+url).encode()).hexdigest()
@@ -105,10 +106,21 @@ jobs:
               }
               for i in range(3):
                   row["probes"].append({"method":"eth_chainId","attempt":i+1,**one(url,"eth_chainId",[])})
-                  if i<2: time.sleep(2)
+                  if i<2:time.sleep(2)
               row["probes"].append({"method":"eth_getBlockByNumber","attempt":1,**one(url,"eth_getBlockByNumber",["finalized",False])})
               report["endpoints"][endpoint_id]=row
-          controls={\n              "alchemy_docs_demo":"https://robinhood-mainnet.g.alchemy.com/v2/docs-demo",\n              "alchemy_invalid_key":"https://robinhood-mainnet.g.alchemy.com/v2/meme-machine-invalid-diagnostic-key",\n          }\n          report["controls"]={}\n          for name,url in controls.items():\n              report["controls"][name]=one(url,"eth_chainId",[])\n          Path("provider-availability-diagnostic.json").write_text(json.dumps(report,sort_keys=True,indent=2)+"\\n")\n          print(json.dumps(report,sort_keys=True,indent=2))\n          PY
+
+          controls={
+              "alchemy_docs_demo":"https://robinhood-mainnet.g.alchemy.com/v2/docs-demo",
+              "alchemy_invalid_key":"https://robinhood-mainnet.g.alchemy.com/v2/meme-machine-invalid-diagnostic-key",
+          }
+          for name,url in controls.items():
+              report["controls"][name]=one(url,"eth_chainId",[])
+
+          Path("provider-availability-diagnostic.json").write_text(
+              json.dumps(report,sort_keys=True,indent=2)+"\n")
+          print(json.dumps(report,sort_keys=True,indent=2))
+          PY
       - name: Preserve diagnostic
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
