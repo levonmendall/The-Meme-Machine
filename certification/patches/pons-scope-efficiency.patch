@@ -44,7 +44,7 @@ diff --git a/robinhood_research/pons_selective_acquisition.py b/robinhood_resear
 +
 +
  def evaluate_candidate(
-@@ -860,5 +860,43 @@
+@@ -872,5 +905,43 @@
      sessions.append(trajectory_session)
      ctx.timing["trajectory_seconds"]=time.monotonic()-trajectory_started
 +    trajectory_prospect=strategy_trajectory_preflight(candidate,snapshots,launch_at)
