@@ -82,6 +82,11 @@ class ControlsTests(unittest.TestCase):
         result['lanes']['meteora']['durable_handoff']=False
         self.assertIn('meteora:unsettled_position_without_durable_handoff',
                       hourly_engineering(result)['failures'])
+        result=self.smoke();result.update(phase='hourly',continuous_overlap_seconds=3600,
+            certification=dict(status='INCOMPLETE',failures=[]))
+        result['lanes']['pump'].update(open_positions=1,durable_handoff=True)
+        self.assertIn('pump:unsettled_position_without_durable_handoff',
+                      hourly_engineering(result)['failures'])
 
     def test_raw_transport_hash_missing_record_and_terminal_policy_are_checked(self):
         with tempfile.TemporaryDirectory() as tmp:
