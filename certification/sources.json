@@ -232,7 +232,7 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true
       },
-      "source_diff_sha256": "5f3c101e1ee5f3a5869c94ad06791908863dd253ac991d58181675443f5bef21"
+      "source_diff_sha256": "80d88694dfac774b31516b26f065522f3fe8c6a1c57707b8be933150b82089e2"
     },
     "pons": {
       "source_branch": "repair/pons-alchemy-scarcity-public-discovery",
