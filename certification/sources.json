@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-ramses-economic-census-process-and-liveness-final",
+  "verified_at": "2026-09-23-ramses-census-provider-defer-prepin",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -702,6 +702,20 @@
           "market_observation_scope_changed": false,
           "paper_only_unchanged": true,
           "certified_source_diff_sha256": "9f9d544c663eabf932d6a0d585c32f015c9edc422cfdc110e1f160cdd0896d4a"
+        },
+        "economic_log_census_provider_defer": {
+          "revision": "fail-closed-provider-censored-scan-v1",
+          "failure_evidence_run": 35905479952,
+          "observed_failure": "public economic-log census exhausted bounded same-endpoint HTTP 429 retries after remaining alive for approximately 9 minutes",
+          "behavior": "discard incomplete screen, persist infrastructure censoring, preserve process continuity, and retry only after existing frontier/scan cadence permits",
+          "partial_screen_can_qualify": false,
+          "immediate_full_scan_replay": false,
+          "alternate_provider": false,
+          "provider_throughput_changed": false,
+          "retry_budget_changed": false,
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -716,7 +730,8 @@
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
         "certification/patches/market-scope-efficiency-ramses.patch",
-        "certification/patches/ramses-ledger-position.patch"
+        "certification/patches/ramses-ledger-position.patch",
+        "certification/patches/ramses-census-resilience.patch"
       ]
     }
   },
