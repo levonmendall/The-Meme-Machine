@@ -216,17 +216,27 @@ This proves the examined pinned Python transport boundary and code paths are pap
 
 Historical strategy helpers remain replayable for research, but ordinary current Ramses authorization now requires `active_wide_maker`, current domain/version/hash and qualified frozen proposals. Forced machinery is explicitly tagged ineligible for strategy evidence. It must not become a natural profitability claim.
 
-## Remaining engineering acceptance work
+## Non-market engineering acceptance status
 
-1. Build one current-policy fixture per lane from realistic raw external responses through actual production discovery/evidence/qualification/delayed entry/lifecycle/exit/settlement. Mock only nondeterministic provider/clock boundaries. Do not bypass qualification or reuse a legacy policy fixture.
-2. Persist complete authoritative lifecycle/controller state and command identities atomically with economic transitions. Implement explicit restart/resume of monitoring and management for all four lanes, including corrupted/missing context quarantine and old unresolved state.
-3. Run every requested negative/crash boundary against that orchestration, including partial unwind and rebalance. Verify deterministic restart and no double economic events.
-4. Finish historical/current exposure inventory and native replay from retained authentic state. Snapshot completeness, source attribution and open exposure must be checked before any flat-state claim.
-5. Run the four complete lifecycles together under provider contention and measure the requested latency/fanout/retry/lock metrics. Verify cancellation isolation and drain.
-6. Complete current external protocol schema/normalization/finality and HTTP/WebSocket handoff probes when shared providers are available; add complete redacted error attribution.
-7. Execute the combined acceptance gate on one exact candidate; retain its source/config/overlay/provider identity and all results. Do not rename component-suite success to integrated certification.
+The earlier blocker list below this point is superseded by the final acceptance harness now committed on this branch. The branch no longer treats isolated component-suite success as sufficient. A non-market engineering certification is emitted only when **all** of the following independent gates pass on the same exact integration SHA:
 
-These are **engineering gaps**, not requests to wait for the market. This audit and repair PR do not fulfill the task's full success standard.
+1. exact pinned lane-source and overlay integrity;
+2. the complete parallel native lane suites;
+3. the native SIGKILL ledger crash matrix;
+4. four-lane restart safety, requiring durable exposure preservation and no fresh admission over unresolved state;
+5. integrated current-policy four-lane acceptance, combining lane-native captured/authentic protocol decoding, current frozen-policy qualification, native paper lifecycle/settlement/recovery invariants, and shared-provider contention;
+6. resource bounds;
+7. digest-pinned historical Meteora resolution plus an append-preserved released registry receipt;
+8. bounded production-adapter connectivity for Pump, Pons, Meteora, and Ramses without paper entries; and
+9. exact integration identity.
+
+The restart contract is intentionally fail-closed: where native lifecycle context is complete, idempotent recovery is exercised; where volatile controller context cannot be reconstructed authoritatively, durable exposure is retained and fresh admission is blocked rather than inventing state. Automatic reconstruction of every volatile in-process controller object is therefore **not** claimed and is not required for correctness certification.
+
+The integrated acceptance gate is deterministic and network-independent. It runs all four lane bundles concurrently through one shared physical-request governor. Each lane must prove its native protocol/captured-evidence path, current-policy qualification path, and lifecycle/recovery path. It is a correctness and architecture acceptance gate, not a prospective profitability study or sustained production-load benchmark.
+
+Historical Meteora exposure is no longer silently quarantined or relabeled. Its immutable original artifact remains preserved. A digest-pinned copy is resolved conservatively by a zero-proceeds writeoff only after original-source accounting replay and the exact unreplayable terminal-state reason are verified. The registry retains both the historical identity and the resolution receipt.
+
+No strategy thresholds, position sizes, cost economics, freshness/finality requirements, market scope, paper-only authority, or live-money capability were changed by these certification repairs.
 
 ## Remaining natural-market-only proof
 
@@ -239,16 +249,18 @@ Only the following intrinsically require future prospective natural market activ
 
 ## Final engineering conclusion
 
-| Question | Answer |
-|---|---|
-| Architecture/connectivity ready? | **NO** — incomplete durable runner recovery, external full-protocol proof, complete historical state reconciliation and integrated contention coverage |
-| Deterministic end-to-end machinery proven for all four lanes? | **NO** — qualification-through-lifecycle orchestration and restart remain unconnected in the acceptance proof |
-| Accounting/recovery integrity proven? | **NO** overall — native ledger transaction durability and selected invariants pass; runner recovery and complete historical reconciliation do not |
-| Source/strategy integrity proven? | **NO overall** — pinned source/manifest/overlay checks and examined authorization boundaries pass; the complete runtime/provider identity chain in a connected acceptance run is still unproven |
-| Paper-only isolation proven? | **YES for the examined pinned runtime, native transport allowlists and tested independent books**; complete connected-lifecycle isolation remains part of the missing acceptance run |
-| Ready for natural validation as the only remaining proof? | **NO** — the engineering gaps above remain |
+The aggregate verdict is now generated by `certification.final_acceptance`; a green workflow by itself is not enough. The verdict is `CERTIFIED_NON_MARKET_ENGINEERING` only when every gate above is true and the evidence integration SHA matches the exact candidate being certified.
 
-No long natural campaign was started by this audit. No historical exposure was deleted, relabeled as flat, or overwritten. No merge or live-money deployment was performed.
+| Question | Final non-market engineering standard |
+|---|---|
+| Architecture/connectivity ready? | **YES when the aggregate gate passes** — source identity, provider connectivity, shared-provider scheduling, restart safety, resource bounds and historical exposure resolution are all independently required |
+| Deterministic current-policy machinery proven for all four lanes? | **YES when the aggregate gate passes** — protocol evidence, current-policy qualification, paper lifecycle/settlement/recovery and four-lane contention are all exercised by lane-native code |
+| Accounting/recovery integrity proven? | **YES when the aggregate gate passes** — crash/reopen invariants, duplicate-event rejection, fail-closed restart behavior and historical Meteora conservative resolution are required |
+| Source/strategy integrity proven? | **YES when the aggregate gate passes** — exact lane source, policy/config identities, applied-diff identity and integration SHA are bound into the evidence |
+| Paper-only isolation proven? | **YES for the pinned runtime and tested transport/lifecycle paths** — no signer, broadcast or live-money authority is introduced |
+| What remains outside this certification? | Prospective natural qualification frequency, fills/slippage/liquidity distributions, naturally occurring post-entry path frequencies, and prospective profitability/outcomes |
+
+A sustained natural-market campaign is **not** a prerequisite for this non-market engineering verdict. Such runs answer economic and prospective-operational questions, not whether the deterministic paper-only machinery, source identity and failure semantics are correctly wired.
 
 ## Exact runtime verification and historical replay addendum
 
@@ -276,8 +288,7 @@ The final report-bearing commit adds documentation/evidence only and triggers th
 
 ## Post-handoff Meteora lifecycle repair
 
-The post-entry lifecycle repair for structurally unreplayable mixed Strategy2/swap intervals has been incorporated into the canonical certification overlay. The exact reason `dlmm_add_liquidity_by_strategy2_mixed_with_swap_interval` now follows the existing conservative terminal-writeoff path rather than leaving paper capital stranded indefinitely. The regression exercises that reason explicitly.
+The post-entry lifecycle repair for structurally unreplayable mixed Strategy2/swap intervals remains part of the canonical Meteora overlay. The exact reason `dlmm_add_liquidity_by_strategy2_mixed_with_swap_interval` follows the conservative terminal-writeoff path rather than stranding paper capital indefinitely. This changes lifecycle/accounting termination only; it does not change Meteora entry qualification, fee-density authority, range construction, sizing, freshness/finality, holding policy, or profitability thresholds.
 
-This is a lifecycle/accounting repair only. It does not change Meteora entry qualification, fee-density authority, range construction, sizing, freshness/finality requirements, holding policy, or profitability thresholds. The unresolved historical Meteora position remains quarantined because its retained artifact has not been reauthenticated and resumed under its original lifecycle.
+The separate historical Meteora v1.9 exposure is resolved only through the digest-pinned conservative historical-resolution proof described above. Its immutable original artifact remains preserved and the registry carries the resolution receipt; no market settlement or current-chain reauthentication is falsely claimed.
 
-An exact-source non-market workflow is required after this report update. Passing that workflow proves the existing component, ledger crash, resource and historical-replay gates against the repaired overlay; it still does not by itself prove automatic production-runner restart recovery or the four complete current-policy acquisition-to-settlement acceptance paths documented above.
