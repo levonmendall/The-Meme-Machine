@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-ramses-economic-census-429-repair-candidate",
+  "verified_at": "2026-09-23-ramses-economic-census-429-repair-final",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -700,7 +700,8 @@
           "retry_budget_changed": false,
           "strategy_thresholds_changed": false,
           "market_observation_scope_changed": false,
-          "paper_only_unchanged": true
+          "paper_only_unchanged": true,
+          "certified_source_diff_sha256": "9f9d544c663eabf932d6a0d585c32f015c9edc422cfdc110e1f160cdd0896d4a"
         }
       },
       "prospect_admission": {
@@ -710,7 +711,7 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true
       },
-      "source_diff_sha256": "1a7eb4f8fa00bd966d0fdf33283233e9032f69a3e78e78a95983e27daa3fe5e0",
+      "source_diff_sha256": "9f9d544c663eabf932d6a0d585c32f015c9edc422cfdc110e1f160cdd0896d4a",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
