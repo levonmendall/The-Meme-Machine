@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-profit-protection-v2-immutable-pump-source-ref",
+  "verified_at": "2026-09-23-ramses-economic-census-429-repair-candidate",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -487,8 +487,8 @@
       ]
     },
     "ramses": {
-      "source_branch": "repair/ramses-v3-authority-lock-20260923",
-      "source_sha": "888b64b5bf84ed34e13a9118304421266b1a3287",
+      "source_branch": "repair/ramses-economic-census-429-v1-20260923",
+      "source_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
       "strategy_version": "ramses-active-wide-maker-v3",
       "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
       "file_hashes": {
@@ -536,7 +536,9 @@
         "6069981b37dbd0e8f6c6865ce9ba394cf22ba19a",
         "ecaf90130b402899934cefdb16204e6fef0cc8c8",
         "6a7910f118e5fa2d0f2134724ee408ca039dbdb4",
-        "888b64b5bf84ed34e13a9118304421266b1a3287"
+        "888b64b5bf84ed34e13a9118304421266b1a3287",
+        "16aef485b177e2eb70660f4bcf105d324a7aa6d0",
+        "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
@@ -684,6 +686,20 @@
           "recenter_hard_same_decision_deadline_seconds": 210,
           "deadline_miss_behavior": "discard stale replacement geometry and rerun from a fresh finalized screen; fail closed in quote if the fresh redecision also exceeds the deadline",
           "economics_changed": false,
+          "paper_only_unchanged": true
+        },
+        "economic_log_census_rate_limit_repair": {
+          "revision": "same-endpoint-single-request-429-recovery-v1",
+          "source_commit": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
+          "failure_evidence_run": 35897059408,
+          "failure_stage": "economic_log_census",
+          "purpose": "allow the broad Ramses economic-log observation reader to split a rate-limited two-request batch into same-endpoint single requests instead of terminating the lane",
+          "complete_log_range_preserved": true,
+          "alternate_provider": false,
+          "provider_throughput_changed": false,
+          "retry_budget_changed": false,
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
           "paper_only_unchanged": true
         }
       },
