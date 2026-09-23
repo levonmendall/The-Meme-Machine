@@ -5,8 +5,8 @@
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
-      "source_branch": "strategy/pump-profitability-v1",
-      "source_sha": "a4003b292014cedf554a4930a9cca10900bfc178",
+      "source_branch": "repair/pump-alchemy-only-no-onfinality",
+      "source_sha": "9932305ebe83dd3ff2dd45ffe9006cf628962bf3",
       "strategy_version": "pump-acceleration-independent-v1/profitability-v1-persistence-edge-v1",
       "policy_hash": "d623ff03ad19b2c4dcd8a82d4883c188ba1acd35a721582175d85cd1b0191770",
       "file_hashes": {
@@ -34,7 +34,8 @@
         "728ed29b7a353fe0bb503491a31951227c7aee1f",
         "35703a380fe6c7f1df56bcf5a6ec59ca50d8d502",
         "9c11f78922af14ca77ee371e27f6e7df0ed8b46e",
-        "a4003b292014cedf554a4930a9cca10900bfc178"
+        "a4003b292014cedf554a4930a9cca10900bfc178",
+        "9932305ebe83dd3ff2dd45ffe9006cf628962bf3"
       ],
       "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
       "execution_certification": {
@@ -65,6 +66,15 @@
           "entry_fill_timeout_changed": false,
           "freshness_finality_changed": false,
           "paper_only_unchanged": true
+        },
+        "alchemy_scarcity": {
+          "revision": "on-demand-authoritative-hydration-v1",
+          "purpose": "retain all public finalized discovery/log hints but do not proactively hydrate transaction bodies merely because provider capacity is idle; fetch Alchemy evidence only for admitted decisions, reconstruction, or open-position lifecycle work",
+          "discovery_scope_unchanged": true,
+          "raw_observability_unchanged": true,
+          "speculative_body_prefetch": false,
+          "strategy_thresholds_changed": false,
+          "freshness_finality_changed": false
         }
       },
       "prospect_admission": {
@@ -78,8 +88,8 @@
       }
     },
     "meteora": {
-      "source_branch": "strategy/meteora-fee-density-v1-runtime",
-      "source_sha": "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7",
+      "source_branch": "repair/meteora-alchemy-only-no-onfinality",
+      "source_sha": "da571e5c62bda7e88506e71f3d53e9969f75bc83",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1",
       "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
       "source_diff_sha256": "ee346ccd8d061ef442d8bd2414617c06fcb6acdd925eb3f13c5b5ba1b904620a",
@@ -120,7 +130,8 @@
         "2a90ccd9fd9f8269461c722dc1e8aeeebbfe9280",
         "057de42db407c5d65543dc67a45e04add2b8f98c",
         "c87441ac53fe6936e88380e54969192e455da8cb",
-        "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7"
+        "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7",
+        "da571e5c62bda7e88506e71f3d53e9969f75bc83"
       ],
       "paper_starting_capital_lamports": 1000000000,
       "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
@@ -202,6 +213,13 @@
           "freshness_finality_changed": false,
           "position_size_changed": false,
           "paper_only_unchanged": true
+        },
+        "alchemy_scarcity": {
+          "revision": "alchemy-only-http-public-ws-v1",
+          "purpose": "remove all alternate Solana HTTP provider paths; retain public finalized WebSocket discovery and use Alchemy only for authenticated reconstruction/evidence",
+          "discovery_scope_unchanged": true,
+          "strategy_thresholds_changed": false,
+          "freshness_finality_changed": false
         }
       },
       "prospect_admission": {
@@ -214,8 +232,8 @@
       }
     },
     "pons": {
-      "source_branch": "strategy/pons-profitability-persistence-current-v1",
-      "source_sha": "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2",
+      "source_branch": "repair/pons-alchemy-scarcity-public-discovery",
+      "source_sha": "e21115cd921b19e47d349b489e68b840a24d511f",
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-persistence-edge-v1",
       "policy_hash": "3067732bcfa334b28ac4014a4adb5aee2a0310dee573ad349c3b5412c71c8853",
       "file_hashes": {
@@ -245,7 +263,8 @@
         "c4bfecfbd5af081c54e04bf9ee70ff369c705095",
         "9d4af223258292a45d5abfa58dc7939174fbee30",
         "51ed2379c8f3818248a7b86722a792d85bc29a4b",
-        "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2"
+        "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2",
+        "e21115cd921b19e47d349b489e68b840a24d511f"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
       "execution_certification": {
@@ -304,6 +323,15 @@
           "position_size_changed": false,
           "cost_model_changed": false,
           "paper_only_unchanged": true
+        },
+        "alchemy_scarcity": {
+          "revision": "public-discovery-bounded-gap-recovery-v1",
+          "purpose": "use official Robinhood sequencer plus public RPC for routine broad discovery; reserve Alchemy primary for authoritative candidate/position evidence and bounded exact-gap recovery",
+          "discovery_scope_unchanged": true,
+          "routine_discovery_uses_alchemy": false,
+          "alchemy_gap_recovery_only": true,
+          "strategy_thresholds_changed": false,
+          "freshness_finality_changed": false
         }
       },
       "prospect_admission": {
@@ -533,6 +561,13 @@
       "report": "docs/NON_MARKET_END_TO_END_CERTIFICATION.md",
       "runtime_identity": "Git HEAD plus pinned lane sources plus exact normalized overlays; recorded by certification.non_market",
       "prior_candidate_component_run": 35795249808
+    },
+    "alchemy_scarcity": {
+      "revision": "cross-chain-scarce-authoritative-evidence-v1",
+      "solana": "public finalized websocket discovery; Alchemy-only HTTP evidence; no alternate Solana provider",
+      "robinhood": "official sequencer/public RPC observation; Alchemy authoritative evidence and exact-gap recovery; Ramses durable factory inventory reuse",
+      "no_onfinality_runtime": true,
+      "breadth_or_observability_reduced": false
     }
   },
   "composition": {
