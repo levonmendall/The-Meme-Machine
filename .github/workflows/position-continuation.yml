@@ -75,6 +75,31 @@ jobs:
             --state-dir continuation-state \
             --slice-seconds "$CONTINUATION_SLICE" \
             --output continuation-state/position-continuation-result.json
+      - name: Amend original prospective block when this lane reaches a terminal state
+        if: success()
+        env:
+          CONTINUATION_LANE: ${{ inputs.lane }}
+        run: |
+          set -euo pipefail
+          python - <<'PY' > /tmp/continuation-terminal
+          import json
+          from pathlib import Path
+          row=json.loads(Path("continuation-state/position-continuation-result.json").read_text())
+          print("yes" if row.get("handoff_required") is not True else "no")
+          PY
+          if [ "$(cat /tmp/continuation-terminal)" = "yes" ]; then
+            base="$(find continuation-state -type f -name 'prospective-observation.json' -print -quit)"
+            if [ -z "$base" ]; then
+              echo "original prospective observation missing from continuation state" >&2
+              exit 4
+            fi
+            python -m certification.prospective_acceptance amend-continuation \
+              --record "$base" \
+              --lane "$CONTINUATION_LANE" \
+              --state-dir continuation-state \
+              --continuation-result continuation-state/position-continuation-result.json \
+              --output "continuation-state/prospective-observation-${CONTINUATION_LANE}.json"
+          fi
       - name: Preserve updated restart-safe position state
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
