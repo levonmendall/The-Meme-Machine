@@ -696,7 +696,8 @@
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
-        "certification/patches/market-scope-efficiency-ramses.patch"
+        "certification/patches/market-scope-efficiency-ramses.patch",
+        "certification/patches/ramses-ledger-position.patch"
       ]
     }
   },
@@ -847,7 +848,13 @@
       "entry_thresholds_changed": false,
       "finality_changed": false,
       "position_sizing_changed": false,
-      "paper_only_unchanged": true
+      "paper_only_unchanged": true,
+      "ramses_ledger_readback_compatibility": {
+        "revision": "explicit-final-ledger-readback-overlay-v1",
+        "strategy_economics_changed": false,
+        "runtime_authority_changed": false,
+        "purpose": "retain durable position readback used by restart/idempotency certification after Ramses admission overlay composition"
+      }
     }
   },
   "composition": {
