@@ -245,6 +245,7 @@ class PacedRpc(Rpc):
 
 RECOVERABLE_OBSERVATION_BOUNDARIES = frozenset({
     "provider_transport_failure",
+    "provider_http_403",
     "provider_http_429",
     "provider_http_500",
     "provider_http_502",
@@ -348,7 +349,7 @@ def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **
             limit=kwargs.get("limit",80), per_scope=kwargs.get("per_scope",40),
             retries=kwargs.get("retries",1), transport=kwargs.get("transport"),
         )
-        if public and primary_fallback_endpoint else None
+        if public else None
     )
     rpc = ObservationFallbackRpc(
         endpoint,
