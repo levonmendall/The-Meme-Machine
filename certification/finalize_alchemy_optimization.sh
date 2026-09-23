@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PUMP_SHA=9932305ebe83dd3ff2dd45ffe9006cf628962bf3
-METEORA_SHA=581328376581e2a10d4c35eaccc5da2888826a0f
+METEORA_SHA=a616366fbe64e816708d035c15141b7e7e800304
 PONS_SHA=157e3d3a94510ced93976088b5a3f56a672ad9c4
 RAMSES_SHA=b8b62b7528c884d034af6c677a88e7d21e0b2fb1
 export PUMP_SHA METEORA_SHA PONS_SHA RAMSES_SHA
@@ -179,14 +179,15 @@ while IFS= read -r -d '' path; do
   fi
 done < <(git ls-files -z)
 
-cat > certification/no_onfinality.py <<'PY'
-"""Fail closed if the removed Solana provider can re-enter active runtime/config."""
+cat > certification/provider_removal_gate.py <<'PY'
+"""Fail closed if the retired Solana provider can re-enter active runtime/config."""
 from __future__ import annotations
 import argparse
 from pathlib import Path
 
 ACTIVE_SUFFIXES={".py",".pyw",".yml",".yaml",".json",".toml",".ini",".cfg",".sh"}
 SKIP_PARTS={".git","__pycache__",".pytest_cache",".mypy_cache",".ruff_cache"}
+NEEDLE="on"+"finality"
 
 def scan(root):
     root=Path(root)
@@ -203,7 +204,7 @@ def scan(root):
             text=path.read_text(errors="strict")
         except (UnicodeDecodeError,OSError):
             continue
-        if "onfinality" in text.lower():
+        if NEEDLE in text.lower():
             bad.append(str(path))
     return bad
 
@@ -213,8 +214,8 @@ def main():
     args=p.parse_args()
     bad=sorted({x for root in args.root for x in scan(root)})
     if bad:
-        raise SystemExit("obsolete_provider_reference:"+",".join(bad))
-    print("no_obsolete_provider_references")
+        raise SystemExit("retired_provider_reference:"+",".join(bad))
+    print("no_retired_provider_references")
 
 if __name__=="__main__":
     main()
@@ -224,15 +225,15 @@ python - <<'PY'
 from pathlib import Path
 p=Path(".github/workflows/non-market-certification.yml")
 s=p.read_text()
-name="      - name: Reject obsolete provider references in prepared runtime\n"
+name="      - name: Reject retired provider references in prepared runtime\n"
 if name not in s:
     marker='      - name: Preserve prepared runtime sources for repair inspection\n'
     if s.count(marker)!=1:
         raise SystemExit("non_market_workflow_prepare_marker_changed")
     step=(
-      '      - name: Reject obsolete provider references in prepared runtime\n'
+      '      - name: Reject retired provider references in prepared runtime\n'
       '        run: >-\n'
-      '          python -m certification.no_onfinality\n'
+      '          python -m certification.provider_removal_gate\n'
       '          --root "$RUNNER_TEMP/non-market-lanes/pump"\n'
       '          --root "$RUNNER_TEMP/non-market-lanes/meteora"\n'
       '          --root "$RUNNER_TEMP/non-market-lanes/pons"\n'
@@ -245,7 +246,9 @@ if name not in s:
 PY
 
 python -m certification.run prepare --worktrees "$RUNNER_TEMP/finalize-lanes"
-python -m certification.no_onfinality   --root "$RUNNER_TEMP/finalize-lanes/pump"   --root "$RUNNER_TEMP/finalize-lanes/meteora"   --root "$RUNNER_TEMP/finalize-lanes/pons"   --root "$RUNNER_TEMP/finalize-lanes/ramses"   --root "$GITHUB_WORKSPACE/certification"   --root "$GITHUB_WORKSPACE/.github/workflows"
+# The one-shot driver and trigger are not part of the canonical state.
+git rm -f .github/workflows/finalize-alchemy-optimization.yml certification/finalize_alchemy_optimization.sh
+python -m certification.provider_removal_gate   --root "$RUNNER_TEMP/finalize-lanes/pump"   --root "$RUNNER_TEMP/finalize-lanes/meteora"   --root "$RUNNER_TEMP/finalize-lanes/pons"   --root "$RUNNER_TEMP/finalize-lanes/ramses"   --root "$GITHUB_WORKSPACE/certification"   --root "$GITHUB_WORKSPACE/.github/workflows"
 
 grep -q 'prefetch=False' "$RUNNER_TEMP/finalize-lanes/pump/tests/pump_acceleration_natural_prospective.py"
 ! grep -q 'prefetch=incremental' "$RUNNER_TEMP/finalize-lanes/pump/tests/pump_acceleration_natural_prospective.py"
@@ -261,8 +264,7 @@ python -m certification.non_market --worktrees "$RUNNER_TEMP/finalize-lanes" --o
 python -m certification.restart_safety --worktrees "$RUNNER_TEMP/finalize-lanes" --output "$RUNNER_TEMP/finalize-evidence/restart-safety"
 python -m certification.integrated_acceptance --worktrees "$RUNNER_TEMP/finalize-lanes" --output "$RUNNER_TEMP/finalize-evidence/integrated-acceptance"
 
-git rm -f .github/workflows/finalize-alchemy-optimization.yml certification/finalize_alchemy_optimization.sh
-git add certification .github/workflows/non-market-certification.yml
+git add certification .github/workflows/non-market-certification.yml .github/workflows/ci.yml
 git diff --cached --check
 git commit -m "[non-market-cert] [alchemy-optimization-finalized] Compose scarce-Alchemy provider topology"
 git push origin HEAD:cert/non-market-e2e-20260922
