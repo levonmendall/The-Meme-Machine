@@ -34,9 +34,11 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
   },
   "current_cohort_id": "prospective-four-lane-v2-census-context-20260923",
   "current_economic_metrics": {},
-  "current_phase": "RUNNING",
+  "current_phase": "HALTED",
   "economic_acceptance_established": false,
-  "engineering_blockers": [],
+  "engineering_blockers": [
+    "superseded_collection_controls"
+  ],
   "historical_references": {
     "cancelled_run": 35905479952,
     "previous_nonmarket_run": 35907893183,
@@ -48,6 +50,11 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "action": "dispatch_intent",
       "at": 1790194849.3167453,
       "dispatch_id": "21f9d3f2f5ac400c9f3ab9f93b794184"
+    },
+    {
+      "action": "retire_after_preserving_existing_work",
+      "at": 1790195367.940636,
+      "workflow_run_id": 35915320840
     }
   ],
   "infrastructure_censoring": {
@@ -63,9 +70,9 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "ramses": {}
   },
   "last_completed_action": {
-    "action": "dispatch_intent",
-    "at": 1790194849.3167453,
-    "dispatch_id": "21f9d3f2f5ac400c9f3ab9f93b794184"
+    "action": "retire_after_preserving_existing_work",
+    "at": 1790195367.940636,
+    "workflow_run_id": 35915320840
   },
   "latest_certification_run": 35914189762,
   "latest_market_run": 35915320840,
@@ -87,7 +94,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "pump": 0,
     "ramses": 0
   },
-  "next_action": "smoke_then_hourly",
+  "next_action": "finish_existing_positions_then_certify_successor",
   "observation_hours": {
     "meteora": 0,
     "pons": 0,
@@ -123,6 +130,6 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790194863.2611427
+  "updated_at": 1790195367.9406872
 }
 ```
