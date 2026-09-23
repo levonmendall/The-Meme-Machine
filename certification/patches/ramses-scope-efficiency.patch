@@ -63,7 +63,7 @@ diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_u
 +
 +
  def _selection_key(row):
-@@ -536,65 +567,51 @@
+@@ -531,65 +562,51 @@
 -    activity = []
 -    for address, rows in histories.items():
 -        activity.append(dict(
@@ -114,7 +114,7 @@ diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_u
      observe_receipt_gas(
          rpc,[row for row in cost_events if row["pool"] in active_addresses],cost_state
      )
-
+ 
      rows = []
 -    exclusions = Counter()
      wide_hydrated=0
@@ -163,7 +163,7 @@ diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_u
 -                ),
 +                quote_side=quote_side,
 +                quote_token=(auth["token_y"] if quote_side=="y" else auth["token_x"]),
-@@ -764,2 +781,3 @@
+@@ -772,2 +789,3 @@
 -        active_state_candidates=len(active_cohort),
 +        quiet_identity_candidates=len(active_cohort),
 +        active_state_candidates=len(identity_cohort),
