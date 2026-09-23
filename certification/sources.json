@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-profit-protection-v2-exact-hashes-pinned",
+  "verified_at": "2026-09-23-profit-protection-v2-current-pump-marker-repinned",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
       "source_branch": "strategy/pump-profit-protection-v2-20260923",
-      "source_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
+      "source_sha": "f743ae6d2b8c4b0af8a47da302cfbd445a30a745",
       "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2",
       "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
       "file_hashes": {
@@ -42,7 +42,8 @@
         "b0d2e43c22402a0254c7ea34a862450108f27d0e",
         "6e2390057e31d14ba35a6b23654bcf68f2cbc9c5",
         "e585590b7632f84f282f6530d1f97fed4b70341d",
-        "324fee081dd7664a30df4d88aaa1448d28e3033e"
+        "324fee081dd7664a30df4d88aaa1448d28e3033e",
+        "f743ae6d2b8c4b0af8a47da302cfbd445a30a745"
       ],
       "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
       "execution_certification": {
@@ -727,7 +728,7 @@
       "scope": "exact four-lane deterministic non-market certification"
     },
     "source_heads": {
-      "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
+      "pump": "f743ae6d2b8c4b0af8a47da302cfbd445a30a745",
       "pons": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
       "ramses": "888b64b5bf84ed34e13a9118304421266b1a3287"
@@ -828,7 +829,7 @@
     "profit_protection_v2_candidate": {
       "branch": "cert/profit-protection-v2-four-lane-20260923",
       "source_heads": {
-        "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
+        "pump": "f743ae6d2b8c4b0af8a47da302cfbd445a30a745",
         "pons": "3de3d376847531ccb90e260cfcc96c37587ccb23",
         "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
         "ramses": "888b64b5bf84ed34e13a9118304421266b1a3287"
