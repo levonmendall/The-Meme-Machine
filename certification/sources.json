@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-ramses-economic-census-429-repair-final",
+  "verified_at": "2026-09-23-ramses-economic-census-process-and-liveness-final",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -890,6 +890,19 @@
         }
       },
       "exact_post_pin_certification_requested": true
+    },
+    "ramses_census_liveness_telemetry_repair": {
+      "revision": "active-transport-is-scan-progress-v1",
+      "failure_evidence_run": 35905479952,
+      "purpose": "avoid falsely classifying a long Ramses economic-log census as stalled while real bounded RPC transport continues; preserve the 300-second stall classification when both stage checkpoint progress and transport activity are stale",
+      "transport_freshness_seconds": 30,
+      "strategy_economics_changed": false,
+      "strategy_thresholds_changed": false,
+      "market_observation_scope_changed": false,
+      "provider_throughput_changed": false,
+      "retry_budget_changed": false,
+      "provider_topology_changed": false,
+      "paper_only_unchanged": true
     }
   },
   "composition": {
