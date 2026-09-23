@@ -238,7 +238,7 @@
     },
     "pons": {
       "source_branch": "repair/pons-alchemy-scarcity-public-discovery",
-      "source_sha": "157e3d3a94510ced93976088b5a3f56a672ad9c4",
+      "source_sha": "93ccf6faee775b830b590370dbc1e8ce269c668a",
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-persistence-edge-v1",
       "policy_hash": "3067732bcfa334b28ac4014a4adb5aee2a0310dee573ad349c3b5412c71c8853",
       "file_hashes": {
@@ -269,7 +269,8 @@
         "9d4af223258292a45d5abfa58dc7939174fbee30",
         "51ed2379c8f3818248a7b86722a792d85bc29a4b",
         "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2",
-        "157e3d3a94510ced93976088b5a3f56a672ad9c4"
+        "157e3d3a94510ced93976088b5a3f56a672ad9c4",
+        "93ccf6faee775b830b590370dbc1e8ce269c668a"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
       "execution_certification": {
@@ -330,14 +331,15 @@
           "paper_only_unchanged": true
         },
         "provider_optimization": {
-          "source_commit": "157e3d3a94510ced93976088b5a3f56a672ad9c4",
+          "source_commit": "93ccf6faee775b830b590370dbc1e8ce269c668a",
           "revision": "public-observation-alchemy-gap-evidence-v1",
           "discovery_plane": "official_robinhood_sequencer_plus_public_rpc",
           "alchemy_role": "candidate_position_evidence_and_exact_gap_recovery_only",
           "routine_discovery_on_alchemy": false,
           "breadth_changed": false,
           "strategy_thresholds_changed": false,
-          "paper_only_unchanged": true
+          "paper_only_unchanged": true,
+          "public_access_failure_recovery": "exact_read_only_via_authoritative_primary"
         }
       },
       "prospect_admission": {
@@ -349,8 +351,7 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
-      },
-      "source_diff_sha256": "ee1621e86a594dfcb17a5b08932ab6631e25013dbde5222a5fe3ff7dcb2678c3"
+      }
     },
     "ramses": {
       "source_branch": "repair/ramses-alchemy-scarcity-public-observation",
