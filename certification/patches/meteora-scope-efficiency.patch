@@ -165,7 +165,7 @@ new file mode 100644
 index 0000000..02f0ddc
 --- /dev/null
 +++ b/tests/test_meteora_strategy_scope_efficiency.py
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,44 @@
 +import unittest
 +from unittest.mock import patch
 +
