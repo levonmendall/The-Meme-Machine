@@ -41,7 +41,7 @@ class ConcentrationReader:
         if self.program_rpc is None and getattr(primary_rpc, 'transport', None) == getattr(primary_rpc, '_http', None):
             if hasattr(primary_rpc, 'read_pacer') and hasattr(primary_rpc, 'provider_telemetry'):
                 # Keep concentration's isolated 40-call logical budget, but use the
-                # same OnFinality-primary / Alchemy-rescue transport and shared pace.
+                # same Alchemy-only HTTP evidence transport and shared pace.
                 from .solana_read_rpc import new_pool_scan_rpc
                 self.program_rpc = new_pool_scan_rpc(
                     limit=40,
