@@ -1,4 +1,6 @@
+import json
 import unittest
+from unittest.mock import patch
 from robinhood_research import BoundaryError
 from robinhood_research.provider import Rpc
 
