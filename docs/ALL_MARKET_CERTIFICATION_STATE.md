@@ -24,7 +24,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "ramses": 0
   },
   "candidate_sha": "f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa",
-  "canonical_sha": null,
+  "canonical_sha": "f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa",
   "certified_sha": "f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa",
   "completed_blocks_by_lane": {
     "meteora": 0,
@@ -34,7 +34,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
   },
   "current_cohort_id": "prospective-four-lane-v2-census-context-20260923",
   "current_economic_metrics": {},
-  "current_phase": "READY",
+  "current_phase": "DISPATCH_PENDING",
   "economic_acceptance_established": false,
   "engineering_blockers": [],
   "historical_references": {
@@ -43,7 +43,13 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "previous_observations_excluded": true,
     "provider_shape_probe": 35909625490
   },
-  "history": [],
+  "history": [
+    {
+      "action": "dispatch_intent",
+      "at": 1790194849.3167453,
+      "dispatch_id": "21f9d3f2f5ac400c9f3ab9f93b794184"
+    }
+  ],
   "infrastructure_censoring": {
     "meteora": 0,
     "pons": 0,
@@ -56,7 +62,11 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "pump": {},
     "ramses": {}
   },
-  "last_completed_action": {},
+  "last_completed_action": {
+    "action": "dispatch_intent",
+    "at": 1790194849.3167453,
+    "dispatch_id": "21f9d3f2f5ac400c9f3ab9f93b794184"
+  },
   "latest_certification_run": 35914189762,
   "latest_market_run": null,
   "machinery_certified_by_lane": {
@@ -77,7 +87,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "pump": 0,
     "ramses": 0
   },
-  "next_action": "dispatch_smoke_then_hourly",
+  "next_action": "claim_exact_dispatch",
   "observation_hours": {
     "meteora": 0,
     "pons": 0,
@@ -113,6 +123,6 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790194844.7279549
+  "updated_at": 1790194849.3167503
 }
 ```
