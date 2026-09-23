@@ -1,13 +1,16 @@
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
-@@
--        if book.reconcile()['unsettled']:
+@@ -1830,11 +1830,25 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=F
+     for candidate in candidate_stream:
+         if (_runtime_expired(deadline)
+                 or (not campaign and (attempted>=max_attempted or complete>=target))):
+             break
+         if book.reconcile()['unsettled']:
 -            report['fatal_boundary']='solana_dlmm_unresolved_position_blocks_new_admission'
 -            checkpoint('unresolved_position_blocks_new_admission')
 -            stream_stop.set();wake_thread.join(timeout=5);broker.close()
 -            raise Unavailable(report['fatal_boundary'])
-+        if book.reconcile()['unsettled']:
 +            # During the one-hour certification campaign, an already-filled
 +            # multi-hour position owns capital but must not stop market observation.
 +            # New admission is capacity-censored until the durable continuation
@@ -26,3 +29,5 @@ diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent
 +            checkpoint('unresolved_position_blocks_new_admission')
 +            stream_stop.set();wake_thread.join(timeout=5);broker.close()
 +            raise Unavailable(report['fatal_boundary'])
+         candidate_rpcs=[]
+         adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
