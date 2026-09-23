@@ -1,0 +1,211 @@
+diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
+index af8fbea..9e8152e 100644
+--- a/tests/solana_dlmm_independent_v1.py
++++ b/tests/solana_dlmm_independent_v1.py
+@@ -263,7 +263,7 @@ def _history_acceleration(candidate,observed_at):
+
+
+ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None,seen=None):
+-    """Yield each qualifying pool immediately after its history check.
++    """Yield each strategy-domain pool from snapshot ranking context.
+
+     The order is deterministic: configured sort order, then page, then API row rank.
+     A pool is evaluated only on first sighting so no later source can retroactively
+@@ -311,23 +311,15 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
+                 raw["sources"]=[dict(
+                     sort=sort_by,rank=(page-1)*DISCOVERY_PAGE_SIZE+raw_rank)]
+                 observed_at=int(time.time())
+-                try:
+-                    telemetry["history_reads"]+=1
+-                    item=_history_acceleration(raw,observed_at)
+-                except Exception as exc:
+-                    telemetry["rejections"].append(dict(
+-                        pool=address,
+-                        failed=["acceleration_history_unavailable"],
+-                        reason=type(exc).__name__,
+-                        candidate=raw,
+-                    ))
+-                    if checkpoint is not None:
+-                        checkpoint("discovery_history_unavailable")
+-                    continue
++                # The current profitability policy does not use historical public
++                # acceleration as entry authority. The already-returned pool row is
++                # sufficient ranking/activity context; authenticated local range
++                # evidence remains the only economic qualification authority.
++                item=dict(raw)
++                telemetry["public_history_reads_avoided"]=int(
++                    telemetry.get("public_history_reads_avoided",0))+1
+                 failed=[]
+-                # Public Meteora API data only orders discovery. Entry authority
+-                # is reserved for authenticated finalized on-chain range fees.
+-                if item["fee_5m_usd"]<=0:
++                if item["fee_30m_snapshot_usd"]<=0:
+                     failed.append("public_fee_context_zero")
+                 if item["tvl_usd"]<=0:
+                     failed.append("public_liquidity_context_zero")
+@@ -1264,10 +1256,11 @@ def _position_lifecycle(
+
+
+ def _regime_pass(candidate,policy):
+-    # Public history remains a bounded freshness/activity context only.
+-    # It cannot authorize the trade or impose the profitability threshold.
++    # Public API data is ranking/activity context only. The pool-list snapshot
++    # already supplies enough context; no historical acceleration request is
++    # required before authenticated local qualification.
+     return (
+-        float(candidate.get("fee_5m_usd") or 0.0)>0.0
++        float(candidate.get("fee_30m_snapshot_usd") or 0.0)>0.0
+         and float(candidate.get("tvl_usd") or 0.0)>0.0
+     )
+
+@@ -1396,7 +1389,6 @@ def _await_fresh_swap_trigger_polling(
+     polls=0
+     refreshes=0
+     current_candidate=dict(candidate)
+-    next_refresh=0.0
+     while True:
+         elapsed=max(0.0,time.monotonic()-started)
+         if _runtime_expired(deadline):
+@@ -1413,35 +1405,6 @@ def _await_fresh_swap_trigger_polling(
+                 acceleration_refreshes=refreshes,
+                 baseline_slot=baseline_slot,
+             ),None,adapter,current_candidate
+-        if elapsed>=next_refresh:
+-            observed_at=int(time.time())
+-            try:
+-                current_candidate=_history_acceleration(
+-                    current_candidate,observed_at)
+-            except Exception as exc:
+-                return dict(
+-                    triggered=False,
+-                    reason="acceleration_refresh_unavailable",
+-                    detail=type(exc).__name__,
+-                    waited_seconds=elapsed,polls=polls,
+-                    acceleration_refreshes=refreshes,
+-                    baseline_slot=baseline_slot,
+-                ),None,adapter,current_candidate
+-            refreshes+=1
+-            if not _regime_pass(current_candidate,policy):
+-                return dict(
+-                    triggered=False,
+-                    reason="public_fee_context_expired",
+-                    waited_seconds=elapsed,polls=polls,
+-                    acceleration_refreshes=refreshes,
+-                    baseline_slot=baseline_slot,
+-                    volume_acceleration=current_candidate[
+-                        "volume_acceleration"],
+-                    fee_acceleration=current_candidate[
+-                        "fee_acceleration"],
+-                ),None,adapter,current_candidate
+-            next_refresh=elapsed+FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS
+-
+         adapter=_rotate(adapter,pacer,rpcs)
+         swaps,poll_meta=_new_finalized_swaps(
+             adapter.rpc,candidate["address"],cursor_slot)
+@@ -1514,7 +1477,6 @@ def _await_fresh_swap_trigger(
+     cursor_slot=max(baseline_slot,int(durable_cursor.get("slot") or 0))
+     polls=0;wakeups=0;gap_recoveries=0;bootstrap_auth_reads=0;refreshes=0
+     current_candidate=dict(candidate)
+-    next_refresh=0.0
+     initial_status=broker.stream_status(
+         DLMM_WAKE_STREAM_KEY,int(time.time()),0)
+     last_gap_count=int(initial_status.get("gaps") or 0)
+@@ -1537,23 +1499,6 @@ def _await_fresh_swap_trigger(
+         if elapsed>=FRESH_SWAP_TRIGGER_MAX_SECONDS:
+             return terminal("fresh_swap_trigger_timeout",elapsed)
+
+-        if elapsed>=next_refresh:
+-            observed_at=int(time.time())
+-            try:
+-                current_candidate=_history_acceleration(
+-                    current_candidate,observed_at)
+-            except Exception as exc:
+-                return terminal(
+-                    "acceleration_refresh_unavailable",elapsed,
+-                    detail=type(exc).__name__)
+-            refreshes+=1
+-            if not _regime_pass(current_candidate,policy):
+-                return terminal(
+-                    "public_fee_context_expired",elapsed,
+-                    volume_acceleration=current_candidate["volume_acceleration"],
+-                    fee_acceleration=current_candidate["fee_acceleration"])
+-            next_refresh=elapsed+FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS
+-
+         now=int(time.time())
+         status=broker.stream_status(DLMM_WAKE_STREAM_KEY,now,0)
+         gap_count=int(status.get("gaps") or 0)
+@@ -1681,22 +1626,13 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
+     current_candidate=dict(candidate)
+     for index in range(windows):
+         observed_at=int(time.time())
+-        try:
+-            current_candidate=_history_acceleration(current_candidate,observed_at)
+-        except Exception as exc:
+-            return dict(
+-                aligned=False,reason="acceleration_refresh_unavailable",
+-                detail=type(exc).__name__,windows=attempts,
+-            ),None,None,None,None,adapter,current_candidate
+-        acceleration_pass=_regime_pass(current_candidate,policy)
++        context_pass=_regime_pass(current_candidate,policy)
+         attempt=dict(
+             window=index+1,
+             observed_at=observed_at,
+-            volume_acceleration=current_candidate["volume_acceleration"],
+-            fee_acceleration=current_candidate["fee_acceleration"],
+-            acceleration_pass=acceleration_pass,
++            public_context_pass=context_pass,
+         )
+-        if not acceleration_pass:
++        if not context_pass:
+             attempts.append(attempt)
+             return dict(
+                 aligned=False,reason="public_fee_context_expired",
+diff --git a/tests/test_meteora_strategy_scope_efficiency.py b/tests/test_meteora_strategy_scope_efficiency.py
+new file mode 100644
+index 0000000..02f0ddc
+--- /dev/null
++++ b/tests/test_meteora_strategy_scope_efficiency.py
+@@ -0,0 +1,43 @@
++import unittest
++from unittest.mock import patch
++
++from tests import solana_dlmm_independent_v1 as runner
++
++
++class MeteoraStrategyScopeEfficiencyTests(unittest.TestCase):
++    def candidate_row(self):
++        return dict(
++            address='pool',name='pool',
++            token_x={'address':runner.dlmm.WSOL},token_y={'address':'token'},
++            tvl=1000,volume={'30m':100},fees={'30m':10},dynamic_fee_pct=1,
++        )
++
++    def test_discovery_does_not_request_historical_acceleration(self):
++        telemetry={}
++        policy={'regime':{}}
++        with patch.object(runner,'DISCOVERY_SORTS',('fee_tvl_ratio_5m:desc',)), \
++             patch.object(runner,'DISCOVERY_PAGES_PER_SORT',1), \
++             patch.object(runner,'_api',return_value={'data':[self.candidate_row()]}), \
++             patch.object(runner,'_history_acceleration',side_effect=AssertionError('history should not run')) as history:
++            rows=list(runner._iter_acceleration_candidates(policy,telemetry))
++        self.assertEqual(len(rows),1)
++        self.assertEqual(telemetry['history_reads'],0)
++        self.assertEqual(telemetry['public_history_reads_avoided'],1)
++        history.assert_not_called()
++
++    def test_fresh_swap_wait_does_not_refresh_public_history(self):
++        adapter=object();candidate={'address':'pool','fee_30m_snapshot_usd':1,'tvl_usd':100}
++        with patch.object(runner,'_rotate',side_effect=lambda a,p,r:a), \
++             patch.object(runner,'_new_finalized_swaps',return_value=([{'slot':2}],{'rate_limited':False,'head_slot':2})), \
++             patch.object(runner,'_retry_rate_limited_operation',return_value=({'slot':2},adapter)), \
++             patch.object(runner,'_history_acceleration',side_effect=AssertionError('history should not run')) as history:
++            trigger,post,_,_=runner._await_fresh_swap_trigger_polling(
++                adapter,candidate,{'slot':1},{},None,[],deadline=None)
++        self.assertTrue(trigger['triggered'])
++        self.assertEqual(post['slot'],2)
++        self.assertEqual(trigger['acceleration_refreshes'],0)
++        history.assert_not_called()
++
++
++if __name__=='__main__':
++    unittest.main()
