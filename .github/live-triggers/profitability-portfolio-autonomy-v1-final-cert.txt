@@ -1,0 +1,3 @@
+Final certification trigger only.
+No strategy, threshold, sizing, freshness/finality, provider ceiling, or paper accounting economics change.
+Purpose: run exact-SHA non-market certification for the frozen profitability/portfolio/autonomy acceptance layer before any prospective cohort data is eligible.
