@@ -15,7 +15,7 @@ from . import BoundaryError
 from .evidence import digest
 
 POLICY = "pons-selective-continuation-v1"
-POLICY_REVISION = "profitability-v1"
+POLICY_REVISION = "profitability-v1-profit-protection-v2"
 ZERO = "0x0000000000000000000000000000000000000000"
 
 ENTRY_THRESHOLDS = dict(
