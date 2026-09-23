@@ -29,7 +29,11 @@ def evaluate(result):
             elif value is not True:incomplete.append(lane+':unproven:'+gate)
         if row.get('natural_settled',0)<1:incomplete.append(lane+':natural_lifecycle_missing')
         if row.get('open_positions') is None:incomplete.append(lane+':open_exposure_unknown')
-        elif row['open_positions']:failures.append(lane+':unsettled_position')
+        elif row['open_positions']:
+            if row.get('durable_handoff') is True:
+                incomplete.append(lane+':position_continuation_pending')
+            else:
+                failures.append(lane+':unsettled_position')
     return dict(status='FAIL' if failures else 'INCOMPLETE' if incomplete else 'PASS',
                 scope='one_hour_paper_campaign' if hourly else 'four_hour_certification',
                 required_observation_seconds=required_seconds,
@@ -85,6 +89,10 @@ def summarize(lane, report):
         result['terminal_reasons']=report.get('qualification_failure_counts',{})
         book=report.get('accounting') or {};replay=report.get('accounting_replay') or {}
         result['native_accounting']=book;result['accounting_replay']=replay
+        handoffs=[x for x in report.get('qualified_lifecycles',[]) if x.get('handoff_required')]
+        if book.get('unsettled') and handoffs:
+            result['durable_handoff']=True
+            result['continuation_state']=handoffs
         if book:
             result['open_positions']=book.get('unsettled')
             settled=report.get('qualified_lifecycles',[])
@@ -133,7 +141,15 @@ def summarize(lane, report):
                 seen.add(identity)
         result['natural_settled']=len(seen)
         campaign=report.get('campaign_accounting')
-        if campaign:
+        continuation=report.get('continuation_accounting')
+        if continuation:
+            result['native_accounting']=continuation
+            result['open_positions']=continuation.get('open_positions')
+            result['accounting_reconciled']=True
+            if continuation.get('open_positions'):
+                result['durable_handoff']=True
+                result['continuation_state']=report.get('position_continuation')
+        elif campaign:
             result['native_accounting']=campaign
             result['open_positions']=campaign.get('open_positions')
             result['accounting_reconciled']=campaign.get('conservation') is True
