@@ -1,0 +1,121 @@
+name: robinhood-alchemy-availability-diagnostic
+on:
+  push:
+    branches: [diag/robinhood-alchemy-availability-20260923]
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Bounded secret-safe Robinhood Alchemy availability probe
+        env:
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,re,socket,time
+          from pathlib import Path
+          from urllib.parse import urlsplit
+          from urllib.request import Request,urlopen
+          from urllib.error import HTTPError,URLError
+
+          def one(url,method,params):
+              body=json.dumps({"jsonrpc":"2.0","id":1,"method":method,"params":params}).encode()
+              req=Request(url,data=body,headers={
+                  "Content-Type":"application/json",
+                  "Accept":"application/json",
+                  "User-Agent":"meme-machine-provider-availability-diagnostic/1",
+              })
+              started=time.monotonic()
+              try:
+                  with urlopen(req,timeout=5) as resp:
+                      raw=resp.read(65536)
+                      status=resp.status
+                      headers=resp.headers
+              except HTTPError as exc:
+                  raw=exc.read(65536)
+                  status=exc.code
+                  headers=exc.headers
+              except (URLError,TimeoutError,OSError) as exc:
+                  return {"transport_error":type(exc).__name__,"latency_seconds":time.monotonic()-started}
+              row={
+                  "http_status":status,
+                  "latency_seconds":time.monotonic()-started,
+                  "content_type":headers.get("Content-Type"),
+                  "server":headers.get("Server"),
+                  "retry_after":headers.get("Retry-After"),
+                  "cf_ray":headers.get("CF-Ray"),
+                  "x_request_id":headers.get("X-Request-ID"),
+                  "x_alchemy_trace_id":headers.get("X-Alchemy-Trace-Id"),
+                  "body_bytes":len(raw),
+                  "body_sha256":hashlib.sha256(raw).hexdigest(),
+              }
+              try:
+                  obj=json.loads(raw)
+                  if isinstance(obj,dict):
+                      if "result" in obj and method=="eth_chainId":
+                          row["chain_id_result"]=obj["result"]
+                      err=obj.get("error")
+                      if isinstance(err,dict):
+                          row["rpc_error_code"]=err.get("code")
+                          msg=err.get("message")
+                          if isinstance(msg,str):
+                              row["rpc_error_message"]=msg[:240]
+              except Exception:
+                  pass
+              return row
+
+          raw={
+              "configured_read":os.environ.get("MM_ROBINHOOD_READ_RPC_URL",""),
+              "configured_dlmm":os.environ.get("MM_ROBINHOOD_DLMM_RPC_URL",""),
+          }
+          report={"observed_at":time.time(),"same_configured_endpoint":raw["configured_read"]==raw["configured_dlmm"],"endpoints":{}}
+          unique={}
+          for role,url in raw.items():
+              if not url:
+                  report["endpoints"][role]={"configured":False}
+                  continue
+              unique.setdefault(url,[]).append(role)
+          for url,roles in unique.items():
+              p=urlsplit(url)
+              endpoint_id=hashlib.sha256(("4663:"+url).encode()).hexdigest()
+              try:
+                  ips=sorted({x[4][0] for x in socket.getaddrinfo(p.hostname,443,type=socket.SOCK_STREAM)})
+              except Exception as exc:
+                  ips=["dns_error:"+type(exc).__name__]
+              row={
+                  "roles":sorted(roles),
+                  "endpoint_identity":endpoint_id,
+                  "scheme_https":p.scheme=="https",
+                  "hostname":p.hostname,
+                  "expected_robinhood_alchemy_host":p.hostname=="robinhood-mainnet.g.alchemy.com",
+                  "v2_key_path_shape":bool(re.fullmatch(r"/v2/[^/]+",p.path or "")),
+                  "query_present":bool(p.query),
+                  "fragment_present":bool(p.fragment),
+                  "resolved_ips":ips,
+                  "probes":[],
+              }
+              for i in range(3):
+                  row["probes"].append({"method":"eth_chainId","attempt":i+1,**one(url,"eth_chainId",[])})
+                  if i<2: time.sleep(2)
+              row["probes"].append({"method":"eth_getBlockByNumber","attempt":1,**one(url,"eth_getBlockByNumber",["finalized",False])})
+              report["endpoints"][endpoint_id]=row
+          Path("provider-availability-diagnostic.json").write_text(json.dumps(report,sort_keys=True,indent=2)+"\n")
+          print(json.dumps(report,sort_keys=True,indent=2))
+          PY
+      - name: Preserve diagnostic
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: robinhood-alchemy-availability-${{ github.run_id }}-${{ github.run_attempt }}
+          path: provider-availability-diagnostic.json
+          if-no-files-found: error
+          retention-days: 30
