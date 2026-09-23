@@ -194,7 +194,8 @@ index 0000000..02f0ddc
 +        history.assert_not_called()
 +
 +    def test_fresh_swap_wait_does_not_refresh_public_history(self):
-+        adapter=object();candidate={'address':'pool','fee_30m_snapshot_usd':1,'tvl_usd':100}
++        from types import SimpleNamespace
++        adapter=SimpleNamespace(rpc=object());candidate={'address':'pool','fee_30m_snapshot_usd':1,'tvl_usd':100}
 +        with patch.object(runner,'_rotate',side_effect=lambda a,p,r:a), \
 +             patch.object(runner,'_new_finalized_swaps',return_value=([{'slot':2}],{'rate_limited':False,'head_slot':2})), \
 +             patch.object(runner,'_retry_rate_limited_operation',return_value=({'slot':2},adapter)), \
