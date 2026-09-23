@@ -24,7 +24,8 @@ from .pons_selective_acquisition import (
 from .pons_selective_continuation import (
     ENTRY_THRESHOLDS, EXIT_POLICY, POLICY, POLICY_HASH, demand_metrics,
     entry_signal_persistence, normalized_trade, post_graduation_vector,
-    pregraduation_action, pregraduation_soft_deterioration, runner_action,
+    pregraduation_action, pregraduation_exit_reason,
+    pregraduation_soft_deterioration, runner_action,
     runner_soft_deterioration, trajectory_metrics,
 )
 from .pons_selective_v4 import collect_v4_activity
