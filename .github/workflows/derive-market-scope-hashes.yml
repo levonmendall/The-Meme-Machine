@@ -1,0 +1,40 @@
+name: derive-market-scope-hashes
+on:
+  push:
+    branches: [repair/market-scope-efficiency-current-v2-20260923]
+permissions:
+  contents: read
+jobs:
+  derive:
+    if: contains(github.event.head_commit.message, '[derive-market-scope-hashes]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/lanes"
+      - name: Derive exact applied diff identities
+        run: |
+          python - <<'PY'
+          import hashlib, json, pathlib, subprocess, os
+          root=pathlib.Path(os.environ["RUNNER_TEMP"])/"lanes"
+          out={}
+          for lane in ("pump","pons","meteora","ramses"):
+              diff=subprocess.check_output(["git","diff","--binary","HEAD"],cwd=root/lane)
+              out[lane]=hashlib.sha256(diff).hexdigest()
+          pathlib.Path("market-scope-diff-identities.json").write_text(
+              json.dumps(out,sort_keys=True,indent=2)+"\n"
+          )
+          print(json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: market-scope-diff-identities-${{ github.sha }}
+          path: market-scope-diff-identities.json
+          if-no-files-found: error
+          retention-days: 30
