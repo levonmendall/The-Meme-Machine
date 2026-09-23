@@ -103,6 +103,12 @@ jobs:
             (cd "$RUNNER_TEMP/non-market-lanes/$lane" && python "$GITHUB_WORKSPACE/certification/connectivity_smoke.py" --lane "$lane" --output "$GITHUB_WORKSPACE/non-market-evidence/$lane-connectivity.json") || failed=1
           done
           exit "$failed"
+      - name: Aggregate final non-market engineering certification
+        run: >-
+          python -m certification.final_acceptance
+          --evidence non-market-evidence
+          --expected-sha "${{ github.sha }}"
+          --output non-market-evidence/final-acceptance.json
       - name: Preserve success and failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
