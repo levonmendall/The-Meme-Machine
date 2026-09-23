@@ -53,9 +53,9 @@ jobs:
           # Derive using pycryptodome if available, otherwise use the known verified selector.
           selector='0x4ccb20c0'
           addresses=[]
-          for first in range(0,count,20):
+          for first in range(0,count,8):
               calls=[]
-              for index in range(first,min(count,first+20)):
+              for index in range(first,min(count,first+8)):
                   data=selector+index.to_bytes(32,'big').hex()
                   seq+=1
                   calls.append({'jsonrpc':'2.0','id':seq,'method':'eth_call',
@@ -64,6 +64,12 @@ jobs:
               with urlopen(Request(endpoint,data=body,headers=headers),timeout=20) as response:
                   rows=json.loads(response.read(4_000_000))
               by_id={r['id']:r for r in rows}
+              rate_limited=any((by_id.get(req['id']) or {}).get('error',{}).get('code')==429 for req in calls)
+              if rate_limited:
+                  time.sleep(8.0)
+                  with urlopen(Request(endpoint,data=body,headers=headers),timeout=20) as response:
+                      rows=json.loads(response.read(4_000_000))
+                  by_id={r['id']:r for r in rows}
               for req in calls:
                   row=by_id[req['id']]
                   if row.get('error'): raise RuntimeError('member_rpc_error:'+str(row['error'].get('code')))
@@ -71,6 +77,7 @@ jobs:
                   address='0x'+raw[-40:].lower()
                   if int(address,16)==0: raise RuntimeError('zero_address')
                   addresses.append(address)
+              time.sleep(1.0)
           if len(addresses)!=count or len(set(addresses))!=count:
               raise RuntimeError('inventory_shape')
           digest=hashlib.sha256(json.dumps(addresses,separators=(',',':')).encode()).hexdigest()
