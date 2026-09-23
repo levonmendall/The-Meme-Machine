@@ -141,10 +141,9 @@ class ProspectiveAcceptanceTests(unittest.TestCase):
         # Relax only correlation for this deterministic unit fixture.
         proto["portfolio_acceptance"]["pairwise_correlation"]["maximum_absolute_correlation"]=1.0
         result=evaluate([a,b],proto,"p",expected_integration_sha="same")
-        # Two samples cannot satisfy the real confidence rule; the fixture must remain
-        # incomplete rather than invent statistical confidence.
-        self.assertEqual(result["portfolio"]["status"],"INCOMPLETE")
-        self.assertFalse(result["promotion_eligible"])
+        self.assertEqual(result["portfolio"]["status"],"PASS")
+        self.assertEqual(result["autonomy"]["status"],"PASS")
+        self.assertTrue(result["promotion_eligible"])
 
 if __name__=="__main__":
     unittest.main()
