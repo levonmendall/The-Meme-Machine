@@ -90,6 +90,7 @@ class ProspectiveAcceptanceTests(unittest.TestCase):
             "started_at":started,"ended_at":started+3600,"observation_hours":1,
             "engineering_pass":True,"integration_sha":"same",
             "source_manifest_hash":"manifest","implementation_hash":"impl",
+            "runtime_control_freeze_passed":True,"chain_binding_passed":True,
             "lanes":lane,
         }
 
