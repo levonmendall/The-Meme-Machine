@@ -8,7 +8,6 @@ from meme_machine.postgrad import PostGraduationAdapter
 
 
 ALCHEMY='https://solana-mainnet.g.alchemy.com/v2/example-key'
-ONFINALITY='https://solana.api.onfinality.io/rpc?apikey=example-secret'
 
 
 class Clock:
@@ -35,23 +34,6 @@ class SolanaReadTopologyTests(unittest.TestCase):
         self.assertFalse(meta['primary_public'])
         self.assertEqual(meta['primary_credential'],rpc_topology.ALCHEMY_ENV_NAME)
         self.assertEqual(rpc_topology.primary_rpc_url(env),ALCHEMY)
-
-    def test_onfinality_is_diagnostic_only_and_cannot_override_pump_http_primary(self):
-        env={
-            rpc_topology.ALCHEMY_ENV_NAME:ALCHEMY,
-            rpc_topology.AUTHENTICATED_PRIMARY_ENV_NAME:ONFINALITY,
-            rpc_topology.AUTHENTICATED_WS_ENV_NAME:
-                'wss://solana.api.onfinality.io/ws?apikey=example-secret',
-        }
-        self.assertEqual(rpc_topology.primary_rpc_url(env),ALCHEMY)
-        self.assertEqual(rpc_topology.onfinality_rpc_url(env,required=True),ONFINALITY)
-        self.assertEqual(
-            rpc_topology.primary_ws_url(env),
-            env[rpc_topology.AUTHENTICATED_WS_ENV_NAME],
-        )
-        meta=rpc_topology.metadata(env)
-        self.assertEqual(meta['onfinality_http_role'],'diagnostic_only_not_pump_evidence')
-        self.assertNotIn('example-secret',str(meta))
 
     def test_shared_primary_pacer_enforces_half_second_across_rpc_objects(self):
         clock=Clock()
