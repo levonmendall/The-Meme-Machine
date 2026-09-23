@@ -1,0 +1,65 @@
+{
+  "canonical_sha": "b57835dc50dd4047cefed13cfe0be975779af1e8",
+  "certification_run_id": 35931988977,
+  "cohort_id": "prospective-four-lane-v4-market-assurance-20260923",
+  "created_at": 1790205790.645613,
+  "events": {},
+  "halt_reason": "worker_runtime_identity_missing_requires_successor_recertification",
+  "historical_references": {
+    "cancelled_run": 35905479952,
+    "previous_nonmarket_run": 35907893183,
+    "previous_observations_excluded": true,
+    "provider_shape_probe": 35909625490,
+    "superseded_market_run": 35915320840,
+    "superseded_nonmarket_run": 35914189762
+  },
+  "history": [
+    {
+      "accepted_blocks": 0,
+      "action": "halt_before_fresh_admission",
+      "at": 1790205790.645613,
+      "reason": "worker_runtime_identity_missing_requires_successor_recertification",
+      "recovery_preserved": true,
+      "recovery_run_id": 35931988977
+    }
+  ],
+  "integration_sha": "e5f45fa6c88aa9228ca8b8a5d15f9ded6cd48c71",
+  "live_money": false,
+  "next_action": "preserve_recovery_artifact_repair_then_certify_successor",
+  "operational_limit": {
+    "maximum_blocks": 192,
+    "maximum_calendar_hours": 336
+  },
+  "paper_only": true,
+  "pending_lanes": [],
+  "phase": "HALTED",
+  "protocol_sha256": "131d8f5cd875bd3b2bae70864578043546c0959a04defc93fb225521351baa9f",
+  "records": [],
+  "reviewed_blocks": [],
+  "schema": "prospective-program-v1",
+  "source_diff_hash_by_lane": {
+    "meteora": "74ee2eaf30ef9df3b370cc6e311bd91d44f2fcf271f67c635d63db27277d9c64",
+    "pons": "8a9d0818606e9c9c8e3ca76ce07f85fe0902aaf761d3de8042b1dd3ff2dd8238",
+    "pump": "73382447eba168503b2c7dc909ecd3498cffabeaa116166c45a3af4c7b74836d",
+    "ramses": "da50cd26eac0da8898c926facfcb168579894322871a70752043c6251f602d85"
+  },
+  "strategy_identity_by_lane": {
+    "meteora": {
+      "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+      "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2"
+    },
+    "pons": {
+      "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+      "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2"
+    },
+    "pump": {
+      "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2"
+    },
+    "ramses": {
+      "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+      "strategy_version": "ramses-active-wide-maker-v3"
+    }
+  },
+  "updated_at": 1790205790.645613
+}
