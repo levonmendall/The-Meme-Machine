@@ -226,6 +226,36 @@ class RamsesAllPoolUniverseTests(unittest.TestCase):
         self.assertEqual(second_rpc._roi_factory_inventory_reused,3)
         self.assertEqual(second_rpc._roi_factory_inventory_fetched,1)
 
+    def test_tracked_seed_is_read_only_fallback_and_runtime_cache_is_mutable(self):
+        factory="0x"+"aa"*20
+        runtime="runtime-sha"
+        addresses=["0x"+"11"*20,"0x"+"22"*20]
+        seed=dict(
+            kind="ramses_all_pool_inventory_cache_v1",chain_id=4663,
+            factory=factory,factory_runtime_sha256=runtime,count=2,
+            asof_block=99,addresses=addresses,
+            addresses_sha256=ramses_universe._inventory_digest(addresses),
+        )
+        with tempfile.TemporaryDirectory() as td:
+            seed_path=Path(td)/"seed.json"
+            runtime_path=Path(td)/"runtime.json"
+            seed_path.write_text(json.dumps(seed))
+            with patch.object(ramses_universe,"FACTORY_SEED",seed_path), patch.object(
+                ramses_universe,"FACTORY_CACHE",runtime_path
+            ):
+                rpc=_InventoryRpc(addresses)
+                got=ramses_universe._enumerate_factory(
+                    rpc,factory,100,factory_runtime_sha256=runtime
+                )
+                persisted=json.loads(runtime_path.read_text())
+        self.assertEqual(got,addresses)
+        self.assertTrue(rpc._roi_factory_inventory_seed_hit)
+        self.assertEqual(json.loads(seed_path.read_text()),seed)
+        self.assertEqual(persisted["addresses"],addresses)
+        self.assertEqual(persisted["asof_block"],100)
+        self.assertEqual(rpc.count_calls,1)
+        self.assertNotIn("universe_inventory_verify",rpc.indices_by_scope)
+
     def test_invalid_durable_cache_is_not_trusted_and_is_reauthenticated(self):
         factory="0x"+"aa"*20
         runtime="runtime-sha"
