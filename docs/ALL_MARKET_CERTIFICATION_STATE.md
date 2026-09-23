@@ -1,112 +1,182 @@
 # All-market certification state
 
-Updated: 2026-09-23 UTC. Phase: candidate stabilized; exact-SHA full certification pending.
+Runtime remains paper-only. This checkpoint is on the separate state branch; its commit is not the runtime SHA.
 
-Runtime authority is `cert/prospective-market-v1`; its last inspected SHA was
-`f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa`. Candidate branch:
-`cert/all-market-certification-20260923`. The candidate SHA is the commit containing
-this checkpoint and must be read from the `all-market-certification` run's `head_sha`.
-No candidate certification or natural profitability claim is made here.
-
-The workflow will certify that exact SHA, promote it only after every required gate
-passes, then dispatch a 10-minute smoke and a fresh hourly paper block. Runtime code
-stays frozen. Subsequent exact identities, run IDs, counts, metrics and next actions
-are recorded on the separate state branch:
-
-[`cert/cohort-state-95f602943ed4`](https://github.com/levonmendall/The-Meme-Machine/blob/cert/cohort-state-95f602943ed4/docs/ALL_MARKET_CERTIFICATION_STATE.md).
-
-That branch's data commits are checkpoints, not runtime revisions. The JSON authority
-is `certification/PROSPECTIVE_PROGRAM_STATE.json` on the same branch.
-
-| Claim | Pump | Pons | Meteora | Ramses |
-|---|---|---|---|---|
-| Candidate machinery certified | pending | pending | pending | pending |
-| Candidate natural lifecycle observed | false | false | false | false |
-| Candidate economic acceptance established | false | false | false | false |
-| Clean cohort blocks / natural settlements | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
-
-Observation hours, calendar span and active blocks are all zero for the new cohort.
-Candidate market health and infrastructure censoring are unmeasured. Both stopped
-predecessors' four native books reconcile with zero exposure; this is historical
-reconciliation evidence, not a completed prospective block.
-
-Cohort: `prospective-four-lane-v3-complete-sample-20260923`. Acceptance-policy SHA-256: `74cf0c2cf75a1fac031d5626754381d1fab51d2e2afa36f705a346028665e9a9`.
-Strategy and source identities are frozen below; full execution provenance remains
-in `certification/sources.json` and `certification/profitability_protocol.json`.
-
-| Lane | Strategy | Policy SHA-256 | Exact overlay diff SHA-256 |
-|---|---|---|---|
-| pump | pump-acceleration-independent-v1/profitability-v1-profit-protection-v2 | `b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5` | `73382447eba168503b2c7dc909ecd3498cffabeaa116166c45a3af4c7b74836d` |
-| meteora | solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2 | `90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966` | `a00a177abf1431a274c11f6bac32df5ef17be2893ee9fe23077fa2c4a523237f` |
-| pons | pons-selective-continuation-v1/profitability-v1-profit-protection-v2 | `19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84` | `b657828bb6cd7852abd7859b16c4f2009e5cb0f4a3cb150c6bd3cb679689a2bb` |
-| ramses | ramses-active-wide-maker-v3 | `bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef` | `d68289955210b4e602090431096078cd1d0cc82abc04f1141eaf87cf3234d082` |
-
-Last completed action: supervisor/control regressions passed, including actual native
-reserved-capital cancellation replay for all four lanes; fresh preparation reproduced
-all four exact source hashes. Ramses census, exact 8-pool state-budget and Meteora missing-context regressions
-passed. Workflow YAML and frozen protocol checks pass. Full lane, crash, restart,
-integrated acceptance, resource, historical resolution, chain-binding and production
-adapter gates remain mandatory on the committed candidate.
-
-Engineering blockers: no known remaining defect in the repaired paths; full hosted
-certification and smoke are pending. Any failure halts fresh admission and cohort
-counting and requires diagnosis, repair and exact-SHA recertification.
-
-Next action: commit the stabilized candidate with `[all-market-cert] [non-market-cert]`;
-GitHub Actions owns certification and subsequent bounded observation. The program
-retains every accepted block, including zero-trade and losing blocks, and waits for
-all durable positions to become terminal before another fresh campaign. An ambiguous
-dispatch remains `DISPATCH_PENDING`; it is never blindly retried.
-
-Collection is bounded to 192 blocks or 336 calendar hours, whichever occurs first
-at a reconciled block boundary. These operational limits do not change the frozen
-minimums: 24 blocks, 24 observation hours, 168 calendar hours, 20 natural settlements
-and 8 active blocks per lane, at most 10% infrastructure censoring, and the existing
-lane/portfolio return, profit-factor, drawdown and correlation criteria. Insufficient
-samples remain incomplete. Production autonomy and live money are not authorized.
-
-Historical references: cancelled market run `35905479952`; prior non-market pass
-`35907893183` at `ede31189574ac38df280f2cc0018798623b72e22` (not the new candidate);
-read-only provider shape probe `35909625490` at
-`e7ce21265884746c921220343caafb6ca10d8c1e`. See
-[incident and repair evidence](ALL_MARKET_INCIDENT_35905479952.md).
-
-The predecessor `f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa` passed all full
-non-market gates in run `35914189762` and launched paper run `35915320840`.
-Its live smoke proved the repaired Ramses census completed all 18 pages and
-Meteora reached authenticated evidence acquisition. A later Ramses hydration
-failure exposed another impossible local budget: four full pool states require
-1,632 calls before metadata, exceeding 1,400. Both observed scans were censored.
-The successor allocates the exact bounded state workload separately (up to 3,265
-planned reads / 17 sessions for eight pools), preserving endpoint, pacing, retries,
-pool capacity and all 201 bins. At the last checkpoint all four books had zero
-exposure and zero settlements; the predecessor remains excluded from this cohort.
-
-The successor additionally requires the existing portfolio joint-sample minimum
-before ending collection, and corrects shared-pressure CU attribution so public
-RPC calls cannot appear as Alchemy usage. It must pass its own complete certificate.
-Its workflow retires the owned predecessor after a verified flat smoke or after
-an already-started campaign drains; native exposure is never cancelled away.
-Every predecessor artifact and cohort record is retained separately.
-
-Terminal follow-up: run `35915320840` finished with a failed smoke, zero natural
-settlements and zero exposure. Its artifact `10776256813` was digest verified.
-Meteora's independent audit had a policy-file working-directory defect; the corrected
-reader replayed all four preserved books read-only and verified them flat. The
-successor retirement gate repeats that native replay before full certification.
-Run `35918440394` stopped safely at retirement, before any full certification or
-new observation. See the incident report and retained terminal replay receipt.
-
-Certification pause: run 35919189403 successfully retired the predecessor and
-started full non-market checks. Inspection of retained Pons evidence then exposed
-623 raw-event identity failures; a matched public log and authenticated receipt
-differed only in optional provider blockTimestamp metadata (zero versus the real
-time). This adapter comparison was repaired before prospective admission. All 623
-archived mismatches now authenticate under the preserved identity rules. Transaction identity, payload, finality and header-time
-checks remain mandatory. No new cohort observations have been collected.
-
-Latest validation: all 338 Pons tests and 327 Ramses tests pass, including preserved
-raw-log regression fixtures and rejection tests for every identity/payload field.
-An independent prior preparation strictly applied both new overlays and reproduced
-the updated exact hashes. All four repaired terminal readers replay the prior books
-with zero exposure. Full hosted certification is required on the committed successor.
+```json
+{
+  "acceptance_policy_identity": "d473936a59a5ab309858c5cfa7347a002677467c90984c0ecffe3986dd053664",
+  "accounting_reconciliation": {
+    "meteora": null,
+    "pons": null,
+    "pump": null,
+    "ramses": null
+  },
+  "active_blocks": {
+    "meteora": 0,
+    "pons": 0,
+    "pump": 0,
+    "ramses": 0
+  },
+  "assurance_by_lane": {
+    "meteora": {
+      "last_valid_block": null
+    },
+    "pons": {
+      "last_valid_block": null
+    },
+    "pump": {
+      "last_valid_block": null
+    },
+    "ramses": {
+      "last_valid_block": null
+    }
+  },
+  "calendar_span": {
+    "meteora": 0,
+    "pons": 0,
+    "pump": 0,
+    "ramses": 0
+  },
+  "candidate_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+  "canonical_sha": null,
+  "certified_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+  "completed_blocks_by_lane": {
+    "meteora": 0,
+    "pons": 0,
+    "pump": 0,
+    "ramses": 0
+  },
+  "current_cohort_id": "prospective-four-lane-v5-market-assurance-20260923",
+  "current_economic_metrics": {},
+  "current_phase": "READY",
+  "economic_acceptance_established": false,
+  "engineering_blockers": [],
+  "historical_references": {
+    "cancelled_run": 35905479952,
+    "previous_nonmarket_run": 35907893183,
+    "previous_observations_excluded": true,
+    "provider_shape_probe": 35909625490,
+    "superseded_market_run": 35915320840,
+    "superseded_nonmarket_run": 35914189762
+  },
+  "history": [],
+  "infrastructure_censoring": {
+    "meteora": 0,
+    "pons": 0,
+    "pump": 0,
+    "ramses": 0
+  },
+  "lane_health": {
+    "meteora": {},
+    "pons": {},
+    "pump": {},
+    "ramses": {}
+  },
+  "last_completed_action": {},
+  "latest_certification_run": 35934526436,
+  "latest_market_run": null,
+  "machinery_certified_by_lane": {
+    "meteora": true,
+    "pons": true,
+    "pump": true,
+    "ramses": true
+  },
+  "market_observation_validity": {
+    "meteora": "coverage_unknown",
+    "pons": "coverage_unknown",
+    "pump": "coverage_unknown",
+    "ramses": "coverage_unknown"
+  },
+  "material_lane_coverage_gaps": {
+    "meteora": [],
+    "pons": [],
+    "pump": [],
+    "ramses": []
+  },
+  "natural_lifecycle_observed_by_lane": {
+    "meteora": false,
+    "pons": false,
+    "pump": false,
+    "ramses": false
+  },
+  "natural_settlements_by_lane": {
+    "meteora": 0,
+    "pons": 0,
+    "pump": 0,
+    "ramses": 0
+  },
+  "next_action": "dispatch_smoke_then_hourly",
+  "observation_hours": {
+    "meteora": 0,
+    "pons": 0,
+    "pump": 0,
+    "ramses": 0
+  },
+  "operational_limit": {
+    "maximum_blocks": 192,
+    "maximum_calendar_hours": 336
+  },
+  "operational_validity": {
+    "accepted_blocks": 0,
+    "accepted_observation_hours": 0,
+    "censored_blocks": 0,
+    "cohort_age_hours": 4.8219627804226344e-05,
+    "observed_hours": 0
+  },
+  "portfolio_reconciliation": {
+    "all_lane_ledgers_reconciled": false,
+    "native_quote_units_are_never_summed": true,
+    "normalized_portfolio": null
+  },
+  "prospective_sha": null,
+  "realized_and_unrealized_by_lane": {
+    "meteora": {
+      "realized": null,
+      "units": "lamports",
+      "unrealized": null,
+      "unrealized_status": "not_marked_by_native_ledger"
+    },
+    "pons": {
+      "realized": null,
+      "units": "native_quote_raw",
+      "unrealized": null,
+      "unrealized_status": "not_marked_by_native_ledger"
+    },
+    "pump": {
+      "realized": null,
+      "units": "lamports",
+      "unrealized": null,
+      "unrealized_status": "not_marked_by_native_ledger"
+    },
+    "ramses": {
+      "by_quote_asset": {},
+      "unlike_quote_units_summed": false
+    }
+  },
+  "source_diff_hash_by_lane": {
+    "meteora": "74ee2eaf30ef9df3b370cc6e311bd91d44f2fcf271f67c635d63db27277d9c64",
+    "pons": "8a9d0818606e9c9c8e3ca76ce07f85fe0902aaf761d3de8042b1dd3ff2dd8238",
+    "pump": "73382447eba168503b2c7dc909ecd3498cffabeaa116166c45a3af4c7b74836d",
+    "ramses": "fb970b518446b807fb4e2aeba87743cd383ef5cb45132839d009e0b7293c78c4"
+  },
+  "strategy_identity_by_lane": {
+    "meteora": {
+      "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+      "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2"
+    },
+    "pons": {
+      "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+      "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2"
+    },
+    "pump": {
+      "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2"
+    },
+    "ramses": {
+      "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+      "strategy_version": "ramses-active-wide-maker-v3"
+    }
+  },
+  "updated_at": 1790207320.901099
+}
+```
