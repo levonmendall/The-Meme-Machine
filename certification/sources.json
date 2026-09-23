@@ -90,10 +90,9 @@
     },
     "meteora": {
       "source_branch": "repair/meteora-alchemy-only-no-onfinality",
-      "source_sha": "da571e5c62bda7e88506e71f3d53e9969f75bc83",
+      "source_sha": "d32dd7ee28e365aea96ce4d4edae71205968abd7",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1",
       "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
-      "source_diff_sha256": "5f3c101e1ee5f3a5869c94ad06791908863dd253ac991d58181675443f5bef21",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "d9ca094b0715d8447cd5e98fdc99633d9a5b29e92b0b145bbe4adb052d6fc8e8"
@@ -132,7 +131,8 @@
         "057de42db407c5d65543dc67a45e04add2b8f98c",
         "c87441ac53fe6936e88380e54969192e455da8cb",
         "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7",
-        "da571e5c62bda7e88506e71f3d53e9969f75bc83"
+        "da571e5c62bda7e88506e71f3d53e9969f75bc83",
+        "d32dd7ee28e365aea96ce4d4edae71205968abd7"
       ],
       "paper_starting_capital_lamports": 1000000000,
       "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
