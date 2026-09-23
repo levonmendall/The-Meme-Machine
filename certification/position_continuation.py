@@ -361,6 +361,13 @@ def resume_ramses(state_dir,*,slice_seconds):
 
         if state.get('position_phase')=='flat_quote':
             last_action=(state.get('last_controller') or {}).get('action') or {}
+            burn_at=state.get('recenter_started_at')
+            if (last_action.get('action')=='rebalance' and isinstance(burn_at,(int,float))
+                    and time.time()-burn_at>210):
+                state.setdefault('recenter_deadline_misses',[]).append(dict(
+                    at=time.time(),elapsed_seconds=time.time()-burn_at,
+                    action='restart_after_burn_discards_stale_geometry'))
+                _atomic(state_path,state)
             if (max(0,terminal_at-entry_at)>=int(module.POLICY['controller'].get(
                     'max_holding_seconds',604800))
                     or last_action.get('action')!='rebalance'
@@ -460,6 +467,8 @@ def resume_ramses(state_dir,*,slice_seconds):
                 net_result_quote=pnl.get('net_result_quote')),at=at)
             state['segments']=segments
             state['position_phase']='flat_quote'
+            if action.get('action')=='rebalance':
+                state['recenter_started_at']=time.time()
             _atomic(state_path,state)
             if pnl.get('unresolved_inventory') or type(pnl.get('net_result_quote')) is not int:
                 break
