@@ -1,0 +1,111 @@
+diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ramses_extended_test.py
+index e3f48c1..b17aaf3 100644
+--- a/robinhood_research/ramses_extended_test.py
++++ b/robinhood_research/ramses_extended_test.py
+@@ -81,6 +81,9 @@ CAMPAIGN_TRANSIENT_PROVIDER_BOUNDARIES=frozenset((
+     'provider_http_429','provider_rpc_429','provider_rate_limit',
+     'provider_shared_admission_deadline','provider_shared_queue_capacity',
+ ))
++SCAN_TRANSIENT_TRANSPORT_BOUNDARIES=frozenset((
++    'provider_http_429','provider_rpc_429','provider_rate_limit',
++))
+ 
+ 
+ def _campaign_candidate_boundary(reason):
+@@ -91,7 +94,7 @@ def _campaign_candidate_boundary(reason):
+ 
+ 
+ def _scan_with_capacity_recovery(scan_call,*,deadline,record_failure,clock=None,sleeper=None):
+-    """Retry only local admission loss on the same pinned scan and original clock."""
++    """Retry local admission loss; defer exhausted transient transport fail-closed."""
+     clock=time.monotonic if clock is None else clock
+     sleeper=time.sleep if sleeper is None else sleeper
+     for attempt in range(1,4):
+@@ -101,8 +104,20 @@ def _scan_with_capacity_recovery(scan_call,*,deadline,record_failure,clock=None,
+             if result is None:raise BoundaryError('ramses_scan_missing_result')
+             return result
+         except BoundaryError as exc:
+-            if str(exc) not in ('provider_shared_admission_deadline','provider_shared_queue_capacity'):raise
+-            record_failure(dict(attempt=attempt,reason=str(exc),at_monotonic=clock(),
++            reason=str(exc)
++            if reason in SCAN_TRANSIENT_TRANSPORT_BOUNDARIES:
++                record_failure(dict(
++                    attempt=attempt,reason=reason,at_monotonic=clock(),
++                    original_deadline=deadline,failure_domain='provider_transport',
++                    failed_admission_reached_transport=True,market_screen_complete=False,
++                    qualification_inferred=False,infrastructure_censored=True))
++                # BoundedMultiRpc has already exhausted its same-endpoint transport
++                # retries. Do not replay the whole expensive census immediately or
++                # infer a screen from partial logs. The outer frontier loop remains
++                # alive and may retry only after its existing scan cadence permits.
++                return dict(_scan_deferred=True,reason=reason)
++            if reason not in ('provider_shared_admission_deadline','provider_shared_queue_capacity'):raise
++            record_failure(dict(attempt=attempt,reason=reason,at_monotonic=clock(),
+                 original_deadline=deadline,failure_domain='local_admission',
+                 failed_admission_reached_transport=False))
+             if clock()>=deadline:return None
+@@ -632,6 +647,21 @@ def run(
+                         finalized_frontier=frontier,progress=checkpoint_scan),
+                     deadline=started+discovery_seconds,record_failure=record_scan_failure)
+                 if screen is None:break
++                if isinstance(screen,dict) and screen.get('_scan_deferred') is True:
++                    reason=str(screen.get('reason') or 'provider_rate_limit')
++                    last_scan_started=scan_started
++                    frontier_observations[-1].update(
++                        scan_completed=False,scan_boundary=reason,
++                        infrastructure_censored=True,qualification_inferred=False)
++                    result['frontier_discovery'].update(
++                        last_scan_boundary=reason,next_scan_eligibility='cadence_floor')
++                    deferred=dict(result.get('scan_progress') or {})
++                    deferred.update(
++                        state='deferred',stage=deferred.get('stage') or 'economic_log_census',
++                        updated_at=time.time(),boundary=reason,market_screen_complete=False,
++                        qualification_inferred=False,infrastructure_censored=True)
++                    checkpoint_scan(deferred)
++                    continue
+                 if (
+                     int(screen["finalized_block"])!=identity[0]
+                     or screen["finalized_hash"]!=identity[1]
+diff --git a/robinhood_tests/test_ramses_census_provider_defer.py b/robinhood_tests/test_ramses_census_provider_defer.py
+new file mode 100644
+index 0000000..a7a24ef
+--- /dev/null
++++ b/robinhood_tests/test_ramses_census_provider_defer.py
+@@ -0,0 +1,37 @@
++import unittest
++
++from robinhood_research import BoundaryError
++from robinhood_research.ramses_extended_test import _scan_with_capacity_recovery
++
++
++class RamsesCensusProviderDeferTests(unittest.TestCase):
++    def test_exhausted_transient_transport_defers_without_replaying_full_scan(self):
++        calls=[]
++        failures=[]
++        def scan():
++            calls.append('scan')
++            raise BoundaryError('provider_http_429')
++        result=_scan_with_capacity_recovery(
++            scan,deadline=100,record_failure=failures.append,
++            clock=lambda:10,sleeper=lambda _seconds:None,
++        )
++        self.assertEqual(result,{'_scan_deferred':True,'reason':'provider_http_429'})
++        self.assertEqual(calls,['scan'])
++        self.assertEqual(len(failures),1)
++        self.assertEqual(failures[0]['failure_domain'],'provider_transport')
++        self.assertTrue(failures[0]['failed_admission_reached_transport'])
++        self.assertFalse(failures[0]['market_screen_complete'])
++        self.assertFalse(failures[0]['qualification_inferred'])
++        self.assertTrue(failures[0]['infrastructure_censored'])
++
++    def test_nontransient_scan_boundary_still_fails_closed(self):
++        with self.assertRaisesRegex(BoundaryError,'ramses_universe_log_identity'):
++            _scan_with_capacity_recovery(
++                lambda: (_ for _ in ()).throw(BoundaryError('ramses_universe_log_identity')),
++                deadline=100,record_failure=lambda _row:None,
++                clock=lambda:10,sleeper=lambda _seconds:None,
++            )
++
++
++if __name__=='__main__':
++    unittest.main()
