@@ -110,7 +110,8 @@
     "continuation_must_preserve_exact_integration_and_lane_identity": true,
     "automatic_new_campaign_scheduler_may_activate_only_after_lane_and_portfolio_economic_pass": true,
     "manual_strategy_or_policy_intervention_during_cohort_allowed": false,
-    "prospective_artifact_retention_days": 365
+    "prospective_artifact_retention_days": 90,
+    "prospective_artifact_retention_scope": "GitHub Actions repository maximum; exceeds the frozen 168-hour certification span"
   },
   "promotion": {
     "machinery_pass_is_not_profitability_pass": true,
