@@ -82,7 +82,7 @@
       "source_sha": "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1",
       "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
-      "source_diff_sha256": "76ee89f1b7162956f59c13aa0cd4f696af25d89795bc1db7f5c9faf2a353eed8",
+      "source_diff_sha256": "ee346ccd8d061ef442d8bd2414617c06fcb6acdd925eb3f13c5b5ba1b904620a",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "d9ca094b0715d8447cd5e98fdc99633d9a5b29e92b0b145bbe4adb052d6fc8e8"
