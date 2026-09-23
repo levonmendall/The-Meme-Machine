@@ -262,7 +262,7 @@
       "additional_patches": [
         {
           "path": "certification/patches/meteora-scope-efficiency.patch",
-          "sha256": "3da14936de1a2b558b06734e1382fbbbac70eec9e4b09d28a32cb4dee790b394"
+          "sha256": "318cbe3d27736975219bc9b78fb8348486ac9ba6fcd11f98023e1002696a05f9"
         }
       ]
     },
