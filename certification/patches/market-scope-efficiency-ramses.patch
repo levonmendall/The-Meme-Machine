@@ -291,17 +291,3 @@
 +
 +if __name__=="__main__":
 +    unittest.main()
---- a/robinhood_tests/test_ramses_universe.py
-+++ b/robinhood_tests/test_ramses_universe.py
-@@ -249,9 +249,10 @@
-                     rpc,factory,100,factory_runtime_sha256=runtime
-                 )
-                 persisted=json.loads(runtime_path.read_text())
-+                retained_seed=json.loads(seed_path.read_text())
-         self.assertEqual(got,addresses)
-         self.assertTrue(rpc._roi_factory_inventory_seed_hit)
--        self.assertEqual(json.loads(seed_path.read_text()),seed)
-+        self.assertEqual(retained_seed,seed)
-         self.assertEqual(persisted["addresses"],addresses)
-         self.assertEqual(persisted["asof_block"],100)
-         self.assertEqual(rpc.count_calls,1)
