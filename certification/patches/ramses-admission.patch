@@ -1504,7 +1504,7 @@ index 26e7ff5..f54ccd5 100644
      factory_pin = load("ramses_factory")
      factory = factory_pin["address"]
 @@ -511,6 +521,7 @@ def scan(
-         observation_rpc,factory,end,
+         rpc,factory,end,
          factory_runtime_sha256=factory_identity["runtime_sha256"],
      )
 +    checkpoint('economic_log_census',pools_total=len(addresses))
