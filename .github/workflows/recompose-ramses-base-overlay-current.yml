@@ -23,7 +23,6 @@ jobs:
           git -C "$WT" apply --3way --index "$GITHUB_WORKSPACE/certification/patches/ramses-admission.patch"
           git -C "$WT" diff --check --cached
           git -C "$WT" diff --binary --cached HEAD > "$GITHUB_WORKSPACE/certification/patches/ramses-admission.patch"
-          git -C "$WT" apply --check "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-ramses.patch"
       - name: Commit recomposed base overlay
         run: |
           if git diff --quiet -- certification/patches/ramses-admission.patch; then
