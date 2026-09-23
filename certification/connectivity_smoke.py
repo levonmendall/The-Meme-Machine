@@ -12,6 +12,22 @@ import sys
 import time
 
 
+def solana_genesis_call_kwargs(lane):
+    if lane not in ('pump','meteora'):raise ValueError('solana_lane_required')
+    return dict(priority=True,**({'fresh':True} if lane=='meteora' else {}))
+
+
+def solana_subscription_request(lane,program):
+    if lane=='pump':
+        return dict(jsonrpc='2.0',id=1,method='logsSubscribe',
+            params=[{'mentions':[program]},{'commitment':'finalized'}])
+    if lane=='meteora':
+        return dict(jsonrpc='2.0',id=1,method='programSubscribe',
+            params=[program,{'commitment':'finalized','encoding':'base64',
+                             'filters':[{'dataSize':904}]}])
+    raise ValueError('solana_lane_required')
+
+
 def probe(lane):
     sys.path.insert(0,os.getcwd())
     rows=[]
@@ -29,7 +45,7 @@ def probe(lane):
                 from meme_machine.solana_read_rpc import new_rpc,primary_rpc_url
                 primary_rpc_url(required=True)
                 rpc=new_rpc(limit=40)
-                genesis=rpc.call('getGenesisHash',priority=True)
+                genesis=rpc.call('getGenesisHash',**solana_genesis_call_kwargs(lane))
                 provider=(rpc.provider_telemetry() if hasattr(rpc,'provider_telemetry') else None)
                 adapter='pump_solana_read_rpc'
             else:
@@ -38,7 +54,7 @@ def probe(lane):
                 from tests import dlmm_alchemy_provider as provider_module
                 provider_module.alchemy_rpc_url(required=True)
                 rpc=provider_module.new_rpc(limit=40)
-                genesis=rpc.call('getGenesisHash',priority=True,fresh=True)
+                genesis=rpc.call('getGenesisHash',**solana_genesis_call_kwargs(lane))
                 provider=(rpc.provider_telemetry() if hasattr(rpc,'provider_telemetry') else None)
                 adapter='meteora_dlmm_alchemy_provider'
             if genesis!=pump.MAINNET:raise ValueError('wrong_solana_genesis')
@@ -52,8 +68,7 @@ def probe(lane):
             if lane=='pump':
                 from meme_machine.solana_read_rpc import discovery_ws_url
                 program=pump.PROGRAM;url=discovery_ws_url()
-                request=dict(jsonrpc='2.0',id=1,method='logsSubscribe',
-                    params=[{'mentions':[program]},{'commitment':'finalized'}])
+                request=solana_subscription_request(lane,program)
                 expected_method='logsNotification'
             else:
                 # Mirror ProgramAccountWakeStream exactly: Meteora wakes on
@@ -61,9 +76,7 @@ def probe(lane):
                 from meme_machine import dlmm
                 from tests.solana_dlmm_independent_v1 import DLMM_DISCOVERY_WS_URL
                 program=dlmm.PROGRAM;url=DLMM_DISCOVERY_WS_URL
-                request=dict(jsonrpc='2.0',id=1,method='programSubscribe',
-                    params=[program,{'commitment':'finalized','encoding':'base64',
-                                     'filters':[{'dataSize':904}]}])
+                request=solana_subscription_request(lane,program)
                 expected_method='programNotification'
             with connect(url,open_timeout=5,close_timeout=2,max_size=2_000_000) as socket:
                 socket.send(json.dumps(request))
