@@ -17,56 +17,31 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Prepare canonical qualification worktrees
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/qualification-worktrees"
       - name: Validate qualification Pump overlay
         if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
         run: |
-          PUMP_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["pump"]["source_sha"])')"
-          WORKTREE="$(mktemp -d)/pump"
-          git fetch origin "$PUMP_SHA"
-          git worktree add --detach "$WORKTREE" "$PUMP_SHA"
-          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
-          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/pump-accounting.patch"
-          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-pump.patch"
-          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-pump.patch"
+          WORKTREE="$RUNNER_TEMP/qualification-worktrees/pump"
           (cd "$WORKTREE" && python -m unittest tests.test_solana_evidence_broker tests.test_evidence_consumers tests.test_pump_acceleration_history tests.test_market_scope_efficiency -v)
       - name: Validate qualification Meteora overlay
         if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
         run: |
-          METEORA_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["meteora"]["source_sha"])')"
-          WORKTREE="$(mktemp -d)/meteora"
-          git fetch origin "$METEORA_SHA"
-          git worktree add --detach "$WORKTREE" "$METEORA_SHA"
-          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/meteora-checkpoint.patch"
-          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/meteora-checkpoint.patch"
-          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-meteora.patch"
-          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-meteora.patch"
+          WORKTREE="$RUNNER_TEMP/qualification-worktrees/meteora"
           (cd "$WORKTREE" && python -m unittest tests.test_dlmm_alchemy_provider tests.test_solana_dlmm_independent_v1 tests.test_dlmm_tape_extensions tests.test_meteora_market_scope_efficiency -v)
           (cd "$WORKTREE" && PYTHONPATH="$WORKTREE:$GITHUB_WORKSPACE" python "$GITHUB_WORKSPACE/certification/meteora_position_recovery_check.py")
           (cd "$WORKTREE" && python -m tests.dlmm_resource_check)
       - name: Validate qualification Pons overlay
         if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
         run: |
-          PONS_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["pons"]["source_sha"])')"
-          WORKTREE="$(mktemp -d)/pons"
-          git fetch origin "$PONS_SHA"
-          git worktree add --detach "$WORKTREE" "$PONS_SHA"
-          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/pons-cohort-capital.patch"
-          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/pons-cohort-capital.patch"
-          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-pons.patch"
-          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-pons.patch"
-          (cd "$WORKTREE" && python -m unittest             robinhood_tests.test_pons_partial_accounting             robinhood_tests.test_pons_position_provider_recovery             robinhood_tests.test_pons_cohort_capital             robinhood_tests.test_pons_selective_continuation             robinhood_tests.test_pons_market_scope_efficiency -v)
+          WORKTREE="$RUNNER_TEMP/qualification-worktrees/pons"
+          (cd "$WORKTREE" && python -m unittest robinhood_tests.test_pons_partial_accounting robinhood_tests.test_pons_position_provider_recovery robinhood_tests.test_pons_cohort_capital robinhood_tests.test_pons_selective_continuation robinhood_tests.test_pons_market_scope_efficiency -v)
       - name: Validate qualification Ramses overlay
         if: github.event_name == 'push' && contains(github.event.head_commit.message, '[qualification-build]')
         run: |
-          RAMSES_SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["ramses"]["source_sha"])')"
-          WORKTREE="$(mktemp -d)/ramses"
-          git fetch origin "$RAMSES_SHA"
-          git worktree add --detach "$WORKTREE" "$RAMSES_SHA"
-          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/ramses-admission.patch"
-          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/ramses-admission.patch"
-          git -C "$WORKTREE" apply --check "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-ramses.patch"
-          git -C "$WORKTREE" apply --index "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-ramses.patch"
-          (cd "$WORKTREE" && python -m unittest             robinhood_tests.test_ramses_connected_lifecycle             robinhood_tests.test_ramses_rate_limit             robinhood_tests.test_ramses_strategy             robinhood_tests.test_ramses_strategy_isolation             robinhood_tests.test_ramses_continuous_campaign             robinhood_tests.test_ramses_market_scope_efficiency             robinhood_tests.test_ramses_universe -v)
+          WORKTREE="$RUNNER_TEMP/qualification-worktrees/ramses"
+          (cd "$WORKTREE" && python -m unittest robinhood_tests.test_ramses_connected_lifecycle robinhood_tests.test_ramses_rate_limit robinhood_tests.test_ramses_strategy robinhood_tests.test_ramses_strategy_isolation robinhood_tests.test_ramses_continuous_campaign robinhood_tests.test_ramses_market_scope_efficiency robinhood_tests.test_ramses_universe -v)
           git -C "$WORKTREE" diff --binary HEAD | sha256sum | awk '{print "RAMSES_EXACT_DIFF_SHA256=" $1}'
           (cd "$WORKTREE" && python -c "from robinhood_research.ramses_campaign import CampaignBooks; from robinhood_research.ramses_strategy import POLICY,POLICY_HASH,STRATEGY_DOMAIN; asset='0x'+'11'*20; costs=dict(entry_overhead=630350,add_liquidity=1260698,remove_liquidity=1260698,unwind=630349); position=204788; screen=dict(policy_hash=POLICY_HASH,strategy_domain=STRATEGY_DOMAIN,finalized_frontier_source='pinned_external_finalized_header',rows=[dict(token_y=asset,paper_capital_quote_raw=205467,gas_costs=costs,decision=dict(freeze=dict(proposals=[dict(capital_employed=position)])))]); expected=max(205467,position+sum(costs.values())*(1+POLICY['controller']['max_rebalances'])); assert CampaignBooks.budgets_from_screen(screen)[asset]==expected")
       - run: python -m unittest discover -v
