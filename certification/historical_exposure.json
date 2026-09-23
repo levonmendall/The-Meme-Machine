@@ -1,7 +1,8 @@
 {
   "schema_version": 1,
-  "scope": "known_unresolved_historical_paper_exposure_not_an_exhaustive_inventory",
-  "unresolved": [
+  "scope": "known_historical_paper_exposure_with_append-preserved_resolution_receipts",
+  "unresolved": [],
+  "resolved": [
     {
       "lane": "meteora",
       "integration_sha": "307b005d4042bafa5cfb9952cd60ab978282bd85",
@@ -15,8 +16,26 @@
       "observed_open_positions": 1,
       "native_journal_rows": 4,
       "inspection_run_id": 35796387623,
-      "resolution": null,
-      "disposition": "retain_original_policy_and_state; explicit_native_recovery_required_before_new_composed_campaign"
+      "resolution": {
+        "disposition": "certified_historical_unreplayable_zero_proceeds_writeoff",
+        "proof_run_id": 35804774699,
+        "proof_head_sha": "74a8d7b863a74f1a59b164a456ca204feb24ed07",
+        "proof_artifact_id": 10727527189,
+        "immutable_original_artifact_preserved": true,
+        "market_settlement_performed": false,
+        "current_chain_reauthentication_performed": false,
+        "unresolved_reason": "dlmm_terminal_state_disagrees_with_forward_reconstruction:token_x_mint_info",
+        "original_journal_hash": "e6e90ee486dd9e22fc394e108fb24371e5247a1b71023ed9846714069380e2f0",
+        "resolved_journal_hash": "242d2400ba3053ca0e021a18c4e978cff76837605daa766cfbeb97c98f8a6d54",
+        "receipt_sha256": "19080f3c9de9dbd1bce1c80088984791b3cbec16e6aa3ecddd71f909f557849d",
+        "proceeds_lamports": 0,
+        "realized_pnl_lamports": -100200000,
+        "open_positions_after": 0,
+        "reserved_after": 0,
+        "stale_marks_after": 0,
+        "writeoffs_after": 1
+      },
+      "disposition": "resolved_by_digest_pinned_conservative_zero_proceeds_writeoff; original_artifact_retained"
     }
   ]
 }
