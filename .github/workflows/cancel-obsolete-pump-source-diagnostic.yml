@@ -34,9 +34,9 @@ jobs:
           result={"run_id":run_id,"sha":expected_sha,"branch":expected_branch,
                   "before":row.get("status"),"reason":"superseded source-copy live diagnostic blocks final exact-SHA non-market certification; deterministic source-copy tests already passed; current Pump head is separately green"}
           if row.get("status")!="completed":
-              req=urllib.request.Request(url+"/cancel",headers=headers,method="POST")
+              req=urllib.request.Request(url+"/force-cancel",headers=headers,method="POST")
               with urllib.request.urlopen(req) as response:
-                  result["cancel_http_status"]=response.status
+                  result["force_cancel_http_status"]=response.status
           open("obsolete-pump-source-diagnostic-cancellation.json","w").write(json.dumps(result,indent=2)+"\n")
           print(json.dumps(result,sort_keys=True))
           PY
