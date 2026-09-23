@@ -36,6 +36,7 @@ def verify():
     four=(ROOT/".github/workflows/four-lane-certification.yml").read_text()
     cont=(ROOT/".github/workflows/position-continuation.yml").read_text()
     review=(ROOT/".github/workflows/prospective-cohort-review.yml").read_text()
+    nonmarket=(ROOT/".github/workflows/non-market-certification.yml").read_text()
     required_four=(
         "python -m certification.chain_binding",
         "python -m certification.prospective_acceptance record",
@@ -60,6 +61,14 @@ def verify():
         "prospective_acceptance evaluate",
     ):
         if value not in review:failures.append("cohort_review_control_missing:"+value)
+    retention=protocol.get("autonomy_acceptance",{}).get(
+        "prospective_artifact_retention_days")
+    if retention!=90:
+        failures.append("prospective_retention_not_repository_max")
+    for name,text in (("four_lane",four),("continuation",cont),("cohort_review",review),
+                      ("non_market",nonmarket)):
+        if "retention-days: 365" in text:
+            failures.append(name+":unsupported_retention_request")
     if protocol.get("autonomy_acceptance",{}).get(
             "automatic_new_campaign_scheduler_may_activate_only_after_lane_and_portfolio_economic_pass") is not True:
         failures.append("scheduler_activation_not_gated")
