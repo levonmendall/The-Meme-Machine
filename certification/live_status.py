@@ -169,6 +169,7 @@ def main():
     # Supervisor requires an absent output directory, so use a sibling journal.
     folder.rmdir()
     journal=folder.parent/(folder.name+'-publisher.jsonl')
+    snapshots=folder.parent/(folder.name+'-live-snapshots.jsonl')
     context=dict(workflow_run_id=os.environ['GITHUB_RUN_ID'],attempt=os.environ['GITHUB_RUN_ATTEMPT'],
                  integration_sha=os.environ['GITHUB_SHA'],phase=args.phase)
     pending=dict(phase=args.phase,lanes={})
@@ -201,6 +202,10 @@ def main():
                     result=dict(result,supervisor_exit_code=code,supervisor_failed=bool(code))
                     if code:
                         result['certification']=dict(result.get('certification') or {},status='FAIL')
+                view=snapshot(result)
+                with snapshots.open('a') as handle:
+                    handle.write(json.dumps(view,sort_keys=True,separators=(',',':'))+'\n')
+                    handle.flush();os.fsync(handle.fileno())
                 body=dict(output=output(result))
                 if code is not None:
                     body.update(status='completed',conclusion='cancelled' if interrupted else 'failure' if code or broken else 'neutral',
