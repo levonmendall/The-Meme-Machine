@@ -486,7 +486,11 @@ def scan(
         batch_pause=UNIVERSE_BATCH_PAUSE_SECONDS,
         rate_retries=UNIVERSE_RATE_RETRIES,
         rate_cooldown=UNIVERSE_RATE_COOLDOWN_SECONDS,
-        adaptive_batch_floor=2,
+        # Preserve the complete broad economic-log census under transient
+        # endpoint rate pressure. A rate-limited two-call batch may split into
+        # two single requests on this same observation endpoint; no block range
+        # is skipped and no alternate provider or authority is introduced.
+        adaptive_batch_floor=1,
         provider_role="public_observation",
     )
     started = time.time()
