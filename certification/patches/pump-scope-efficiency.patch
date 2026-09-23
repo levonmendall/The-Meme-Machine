@@ -1,0 +1,152 @@
+diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
+index 297dcaf..fe0091f 100644
+--- a/tests/pump_acceleration_natural_prospective.py
++++ b/tests/pump_acceleration_natural_prospective.py
+@@ -247,6 +247,14 @@ def _late_stream_prospect(signal):
+     )
+     return decision,reasons
+ 
++def _needs_postgrad_concentration(postgrad_qualification,second_leg_qualification=None):
++    """Holder concentration is needed only if an optimistic mode can qualify."""
++    return bool(
++        postgrad_qualification.qualified
++        or (second_leg_qualification is not None and second_leg_qualification.qualified)
++    )
++
++
+ def _postgrad_concentration(rpc,snapshot):
+     result=rpc.call("getTokenLargestAccounts",
+                     [snapshot["mint"],{"commitment":"finalized"}],True)
+@@ -934,38 +942,84 @@ def main(*,campaign=False,discovery_seconds=None):
+                     if not window_status["complete"]:
+                         raise Unavailable("incomplete_pumpswap_decision_window")
+                     decision_events=state["history"].decision_rows(now,30)
++                    # Concentration can only make either PumpSwap mode worse. Build
++                    # both strategy vectors optimistically first and pay for the
++                    # holder scan only if at least one mode can otherwise qualify.
++                    optimistic_signal,optimistic_confirmation=_volume_price_signal(
++                        state,snapshot,decision_events,MODE_POSTGRAD,0,confirmations)
++                    optimistic_q=qualify(optimistic_signal)
++                    second_ready=False;optimistic_second=None;optimistic_q2=None;optimistic_confirmation2=None
++                    if age>=POLICY.min_second_leg_age_s and state["history"].complete(now):
++                        optimistic_second,optimistic_confirmation2=_volume_price_signal(
++                            state,snapshot,events,MODE_SECOND_LEG,0,confirmations)
++                        optimistic_q2=qualify(optimistic_second);second_ready=True
++
++                    if not _needs_postgrad_concentration(
++                            optimistic_q,optimistic_q2 if second_ready else None):
++                        _record_attempt(
++                            report,optimistic_signal,optimistic_q,"optimistic_preflight",
++                            {"history_status":state["history"].status(now),
++                             "confirmation_evidence":_confirmation_meta(optimistic_confirmation)})
++                        if age>=POLICY.min_second_leg_age_s:
++                            if second_ready:
++                                _record_attempt(
++                                    report,optimistic_second,optimistic_q2,"optimistic_preflight",
++                                    {"history_status":state["history"].status(now),
++                                     "confirmation_evidence":_confirmation_meta(optimistic_confirmation2)})
++                            else:
++                                report["attempts"].append(dict(
++                                    mint=mint,mode=MODE_SECOND_LEG,observed_at=now,
++                                    stage="shape_incomplete",qualified=False,
++                                    limitation="incomplete_pumpswap_second_leg_history"))
++                        scope=report.setdefault("scope_efficiency",{})
++                        scope["postgrad_concentration_reads_avoided"]=int(
++                            scope.get("postgrad_concentration_reads_avoided",0))+1
++                        continue
++
+                     concentration=_postgrad_concentration(sessions.rpc,snapshot)
+-                    signal,confirmation=_volume_price_signal(
+-                        state,snapshot,decision_events,MODE_POSTGRAD,concentration,confirmations)
+-                    q=qualify(signal)
+-                    _record_attempt(
+-                        report,signal,q,"full_point_in_time",
+-                        {"history_status":state["history"].status(now),
+-                         "confirmation_evidence":_confirmation_meta(confirmation)})
+-                    if q.qualified and not any(
+-                            x["mint"]==mint and x["mode"]==MODE_POSTGRAD
+-                            for x in report["qualifiers"]):
+-                        _reserve_position(
+-                            report,pending,active,signal,q,snapshot,
+-                            MODE_POSTGRAD,concentration)
++                    if optimistic_q.qualified:
++                        signal,confirmation=_volume_price_signal(
++                            state,snapshot,decision_events,MODE_POSTGRAD,concentration,confirmations)
++                        q=qualify(signal)
++                        _record_attempt(
++                            report,signal,q,"full_point_in_time",
++                            {"history_status":state["history"].status(now),
++                             "confirmation_evidence":_confirmation_meta(confirmation)})
++                        if q.qualified and not any(
++                                x["mint"]==mint and x["mode"]==MODE_POSTGRAD
++                                for x in report["qualifiers"]):
++                            _reserve_position(
++                                report,pending,active,signal,q,snapshot,
++                                MODE_POSTGRAD,concentration)
++                    else:
++                        _record_attempt(
++                            report,optimistic_signal,optimistic_q,"optimistic_preflight",
++                            {"history_status":state["history"].status(now),
++                             "confirmation_evidence":_confirmation_meta(optimistic_confirmation)})
+ 
+                     if age>=POLICY.min_second_leg_age_s:
+                         try:
+-                            if not state["history"].complete(now):
++                            if not second_ready:
+                                 raise Unavailable("incomplete_pumpswap_second_leg_history")
+-                            second,confirmation2=_volume_price_signal(
+-                                state,snapshot,events,MODE_SECOND_LEG,concentration,confirmations)
+-                            q2=qualify(second)
+-                            _record_attempt(
+-                                report,second,q2,"full_point_in_time",
+-                                {"history_status":state["history"].status(now),
+-                                 "confirmation_evidence":_confirmation_meta(confirmation2)})
+-                            if q2.qualified and not any(
+-                                    x["mint"]==mint and x["mode"]==MODE_SECOND_LEG
+-                                    for x in report["qualifiers"]):
+-                                _reserve_position(
+-                                    report,pending,active,second,q2,snapshot,
+-                                    MODE_SECOND_LEG,concentration)
++                            if optimistic_q2.qualified:
++                                second,confirmation2=_volume_price_signal(
++                                    state,snapshot,events,MODE_SECOND_LEG,concentration,confirmations)
++                                q2=qualify(second)
++                                _record_attempt(
++                                    report,second,q2,"full_point_in_time",
++                                    {"history_status":state["history"].status(now),
++                                     "confirmation_evidence":_confirmation_meta(confirmation2)})
++                                if q2.qualified and not any(
++                                        x["mint"]==mint and x["mode"]==MODE_SECOND_LEG
++                                        for x in report["qualifiers"]):
++                                    _reserve_position(
++                                        report,pending,active,second,q2,snapshot,
++                                        MODE_SECOND_LEG,concentration)
++                            else:
++                                _record_attempt(
++                                    report,optimistic_second,optimistic_q2,"optimistic_preflight",
++                                    {"history_status":state["history"].status(now),
++                                     "confirmation_evidence":_confirmation_meta(optimistic_confirmation2)})
+                         except (Unavailable,ValueError,KeyError,TypeError) as exc:
+                             _progress(mint,"terminal",str(exc),mode=MODE_SECOND_LEG,history=state["history"].status(now))
+                             report["attempts"].append(dict(
+diff --git a/tests/test_pump_strategy_scope_efficiency.py b/tests/test_pump_strategy_scope_efficiency.py
+new file mode 100644
+index 0000000..f3f41cd
+--- /dev/null
++++ b/tests/test_pump_strategy_scope_efficiency.py
+@@ -0,0 +1,15 @@
++import unittest
++from types import SimpleNamespace
++from tests.pump_acceleration_natural_prospective import _needs_postgrad_concentration
++
++class PumpStrategyScopeEfficiencyTests(unittest.TestCase):
++    def test_holder_scan_only_when_an_optimistic_mode_can_qualify(self):
++        no=SimpleNamespace(qualified=False)
++        yes=SimpleNamespace(qualified=True)
++        self.assertFalse(_needs_postgrad_concentration(no))
++        self.assertFalse(_needs_postgrad_concentration(no,no))
++        self.assertTrue(_needs_postgrad_concentration(yes,no))
++        self.assertTrue(_needs_postgrad_concentration(no,yes))
++
++if __name__=='__main__':
++    unittest.main()
