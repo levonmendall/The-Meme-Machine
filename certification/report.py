@@ -125,6 +125,10 @@ def summarize(lane, report):
         result['limitations'].append('capital_time_uses_durable_event_times; open_marks_are_asof_observations_not_current_prices')
     else:
         result['funnel']=dict(scans=len(report.get('natural_screens',[])),active_pools=report.get('unique_active_pools'))
+        failures=report.get('scan_recovery_attempts') or []
+        failed_scans={r.get('logical_scan_id') for r in failures if r.get('infrastructure_censored') is True}
+        result['funnel'].update(completed_scans=len(report.get('natural_screens',[])),
+            infrastructure_censored_scans=len(failed_scans))
         life=report.get('connected_lifecycle') or {};pos=life.get('ledger_final') or {}
         reconciliation=life.get('ledger_reconciliation') or {}
         lives=report.get('natural_lifecycles') if report.get('continuous_campaign') else [life]
@@ -188,7 +192,9 @@ def pipeline_health(row,now):
             and not isinstance(transport_age,bool)
             and 0<=transport_age<=30
         )
-        stalled=age>300 and not transport_fresh
+        # Provider activity (including repeated errors) is not strategy progress.
+        # The census now emits a checkpoint when authenticated pages complete.
+        stalled=age>300
         return dict(
             state='stalled' if stalled else 'progressing',
             stage=scan.get('stage'),
@@ -196,11 +202,14 @@ def pipeline_health(row,now):
             scan_age_seconds=max(0,now-scan.get('started_at',now)),
             stall_bound_seconds=300,
             progress_source=(
-                'transport_activity' if age>300 and transport_fresh
+                'transport_without_stage_progress' if age>300 and transport_fresh
                 else 'stage_checkpoint'
             ),
             transport_activity_age_seconds=transport_age,
         )
+    if scan.get('state')=='deferred':
+        return dict(state='infrastructure_censored',stage=scan.get('stage'),
+                    boundary=scan.get('boundary'),qualification_inferred=False)
     if isinstance(frontier,dict) and frontier.get('last_gate_reason') in ('frontier_unchanged','cadence_floor'):
         return dict(state='waiting_finalized_frontier',stage=frontier['last_gate_reason'])
     last=(row.get('opportunity_coverage') or {}).get('last_transition') or {}

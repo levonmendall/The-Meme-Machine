@@ -55,9 +55,14 @@ def probe(rpc, *, require_public_observation=False):
         started_at=time.time(),
     )
     if require_public_observation:
+        # Exact census shape proved against all 287 addresses in run 35909625490.
+        # Recheck this same-endpoint range before every campaign. No alternate
+        # provider, rate/budget increase, shortened horizon or inferred support.
+        census_span=1000
+        first=max(0,int(frontier['number'],16)-census_span+1)
         logs=_same_endpoint_retry(
             lambda:rpc.call('eth_getLogs',[{
-                'fromBlock':frontier['number'],
+                'fromBlock':hex(first),
                 'toBlock':frontier['number'],
                 'address':'0x0000000000000000000000000000000000000000',
             }],scope='public_observation_probe'),
@@ -69,6 +74,7 @@ def probe(rpc, *, require_public_observation=False):
             finalized_block=frontier['number'],
             bounded_log_read=True,
             log_rows=len(logs),
+            census_log_span_blocks=census_span,
         )
     # Fixed zero-value empty-code simulation. No signing/submission, no authority.
     call=dict(to='0x0000000000000000000000000000000000000000',data='0x')

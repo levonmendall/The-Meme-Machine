@@ -82,6 +82,17 @@ class SourceIntegrityTests(unittest.TestCase):
             self.check()
 
 
+    def test_declared_overlay_index_cannot_bypass_frozen_diff_identity(self):
+        row=self.spec['lanes']['pump']
+        row.update(source_integrity_mode='declared_overlay_index',
+                   overlay_patches=['certification/patches/pump-accounting.patch'],
+                   source_diff_sha256='0'*64)
+        with self.assertRaisesRegex(ValueError,'declared_overlay_diff_identity_mismatch'):
+            self.check()
+        row['source_diff_sha256']=hashlib.sha256(b'').hexdigest()
+        self.check()
+
+
 class TerminalStatusTests(unittest.TestCase):
     def test_checkpoint_cannot_overwrite_terminal_truth_for_any_lane(self):
         for lane in ('pump','pons','meteora','ramses'):

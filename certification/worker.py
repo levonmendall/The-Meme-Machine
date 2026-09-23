@@ -21,6 +21,7 @@ import threading
 import time
 import uuid
 from collections import Counter
+from urllib.parse import urlsplit
 from certification.journal import Journal, canonical, digest
 from certification.governor import Governor
 
@@ -37,10 +38,13 @@ class Observer:
         self.raw=gzip.open(self.root/'rpc-evidence.jsonl.gz','ab')
         self.archive_ns=0;self.journal_ns=0;self.snapshot_ns=0
         self.requests=0;self.raw_records=0;self.provider_sessions={}
+        self.alchemy_methods=Counter()
         self.last_progress=None;self.last_report=None
         self.terminal_phase=None
         self.last_activity_write=0
         self.pons_rows=0;self.pons_qualifiers=0;self.pons_lifecycles=set();self.ramses_screens=0;self.ramses_terminals=0;self.ramses_lifecycles=0
+        self.meteora_archived={};self.meteora_rejection_counts=Counter()
+        self.public_http_requests=0;self.public_http_errors=Counter()
         self.governor=Governor(os.environ["MM_CERT_GOVERNOR_DB"])
         self.context=threading.local()
 
@@ -60,7 +64,7 @@ class Observer:
         if now-self.last_activity_write<5:return
         value=dict(lane=self.lane,pid=os.getpid(),process_nonce=PROCESS_NONCE,
             at_monotonic=now,provider_requests=self.requests,method_counts=dict(self.methods),
-            estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods) if self.lane in ('pump','meteora','pons','ramses') else None),
+            estimated_alchemy=__import__('certification.cu',fromlist=['estimate']).estimate(self.alchemy_methods),
             errors=dict(self.errors),provider_method_errors=dict(self.provider_method_errors),
             local_admission_errors=dict(self.local_admission_errors),
             provider_http_status_errors=dict(self.provider_http_status_errors),
@@ -132,6 +136,64 @@ class Observer:
         self.checkpoint(snapshot,phase)
         return snapshot
 
+    def meteora_progress(self,result,phase):
+        """Archive growing public observations once, preserving the native report.
+
+        Run 35905479952 wrote the same rejection prefixes 1,441 times (414 MB).
+        The append-only journal retains every full row; repeating checkpoints use
+        counts and locations. Economic/lifecycle fields retain their native shape.
+        """
+        snapshot=dict(result)
+        archived={}
+        for field in ('discovery_api_rejections','discovery_errors','discovery_candidates',
+                      'compatibility_rejections'):
+            rows=result.get(field)
+            if not isinstance(rows,list):continue
+            previous=self.meteora_archived.get(field,0)
+            if len(rows)<previous:raise ValueError('meteora_observation_history_regressed:'+field)
+            for index in range(previous,len(rows)):
+                self.event('meteora_observation',dict(field=field,index=index,
+                    policy_hash=self.policy,observation=rows[index]))
+                if field=='discovery_api_rejections':
+                    self.meteora_rejection_counts.update(rows[index].get('failed') or ['unknown'])
+            self.meteora_archived[field]=len(rows)
+            archived[field]=dict(count=len(rows),journal='telemetry.sqlite',kind='meteora_observation')
+            snapshot.pop(field,None)
+        if 'frozen_policy' in snapshot:
+            frozen=snapshot.pop('frozen_policy');identity=digest(frozen)
+            previous=self.meteora_archived.get('frozen_policy')
+            if previous is None:self.event('meteora_frozen_policy',dict(policy=frozen,sha256=identity))
+            elif previous!=identity:raise ValueError('meteora_frozen_policy_changed')
+            self.meteora_archived['frozen_policy']=identity
+            snapshot['frozen_policy_sha256']=identity
+        snapshot['observation_archive']=archived
+        snapshot['discovery_api_rejection_counts']=dict(self.meteora_rejection_counts)
+        snapshot['public_http_requests']=self.public_http_requests
+        snapshot['public_http_errors']=dict(self.public_http_errors)
+        self.checkpoint(snapshot,phase)
+        return snapshot
+
+    def observe_public_api(self,module):
+        """Capture the existing public Meteora read path without issuing calls."""
+        original=module._api
+        @functools.wraps(original)
+        def observed(path,params=None):
+            started=time.monotonic();response=None;error=None
+            try:
+                response=original(path,params)
+                return response
+            except Exception as exc:
+                error=type(exc).__name__
+                self.public_http_errors[error]+=1
+                raise
+            finally:
+                self.public_http_requests+=1
+                self.event('public_http_evidence',dict(provider='meteora_public_data',
+                    network='solana',path=path,parameters=params,response=response,
+                    error_type=error,duration_seconds=time.monotonic()-started,
+                    qualification_inferred=False))
+        module._api=observed
+
     def status(self, phase, body=None):
         with self.lock:
             # A delayed background checkpoint is weaker than process terminal
@@ -163,8 +225,7 @@ class Observer:
                           snapshot_seconds=self.snapshot_ns/1e9,
                           scope='serialized observer wall time; excludes strategy-native telemetry, lock wait and final snapshot'),
                       runtime_resources=process_resources(),
-                      estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods)
-                          if self.lane in ('pump','meteora','pons','ramses') else None),
+                      estimated_alchemy=__import__('certification.cu',fromlist=['estimate']).estimate(self.alchemy_methods),
                       report=body,
                       terminal_monotonic=time.monotonic() if phase in ("returned","failed") else None)
             raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
@@ -206,6 +267,7 @@ class Observer:
                 session=instance._certification_session_id
                 observer.provider_sessions[session]=True
             network="solana" if solana else "robinhood"
+            provider=provider_identity(instance,network)
             queue_wait=None
             if solana:
                 request=args[0]
@@ -260,6 +322,7 @@ class Observer:
                     if transport_started is not None:
                         transport_elapsed=(time.monotonic_ns()-transport_started)/1e9
                         observer.requests+=1;observer.methods.update(methods);observer.latencies.append(transport_elapsed)
+                        if provider['provider_kind']=='alchemy':observer.alchemy_methods.update(methods)
                     unique_methods=list(dict.fromkeys(methods))
                     if error:
                         observer.errors[error]+=1
@@ -290,6 +353,7 @@ class Observer:
                         observer.governor.succeeded(network,unique_methods)
                     before=time.monotonic_ns()
                     record=dict(sequence=observer.raw_records,lane=observer.lane,session=session,
+                                provider=provider,
                                 transport_attempted=transport_started is not None,transport_duration_seconds=transport_elapsed,
                                 transport_started_monotonic_ns=transport_started,
                                 observed_at_ns=time.time_ns(),duration_seconds=elapsed,
@@ -305,10 +369,23 @@ class Observer:
                     observer.raw.write((canonical(record)+'\n').encode());observer.raw.flush();os.fsync(observer.raw.fileno())
                     observer.archive_ns+=time.monotonic_ns()-before
                     observer.event('rpc_transport',dict(sequence=observer.raw_records,session=session,transport_attempted=transport_started is not None,
+                        provider=provider,
                         methods=methods,duration_seconds=elapsed,transport_duration_seconds=transport_elapsed,error=error,http_status=http_status,
                         json_rpc_error_codes=rpc_error_codes,queue_wait_seconds=queue_wait,raw_hash=digest(record)))
                     if transport_started is not None:observer.transport_activity()
         setattr(cls,name,observed)
+
+def provider_identity(instance,network):
+    endpoint=getattr(instance,'_endpoint',None) or getattr(instance,'url',None)
+    if not isinstance(endpoint,str):endpoint=''
+    host=(urlsplit(endpoint).hostname or '').lower()
+    kind=('alchemy' if host=='alchemy.com' or host.endswith('.alchemy.com')
+          else 'robinhood_public' if host=='rpc.mainnet.chain.robinhood.com'
+          else 'solana_public' if host=='api.mainnet-beta.solana.com'
+          else 'configured_provider' if host else 'unknown')
+    return dict(network=network,endpoint_identity=hashlib.sha256(endpoint.encode()).hexdigest() if endpoint else None,
+                provider_kind=kind,role=getattr(instance,'role',None))
+
 
 def compact_ramses_screen(screen):
     """Bounded public/checkpoint projection; full screen is retained in telemetry.sqlite."""
@@ -431,6 +508,7 @@ def main():
             module=importlib.import_module('tests.solana_dlmm_independent_v1')
             from certification.lifecycle_timing import install_meteora
             install_meteora(module)
+            observer.observe_public_api(module)
             observer.prioritize(module,"_lifecycle")
             observer.observe_work(module,'_triggered_warmup','fresh_trigger_and_exact_warmup')
             observer.observe_work(module,'_await_fresh_swap_trigger','dlmm_fresh_swap_trigger')
@@ -439,7 +517,7 @@ def main():
             original=module._atomic_checkpoint
             def checkpoint(report,stage,*a,**kw):
                 result=original(report,stage,*a,**kw)
-                observer.checkpoint(report,stage);return result
+                observer.meteora_progress(report,stage);return result
             module._atomic_checkpoint=checkpoint
             module.run_live(target=6,max_attempted=48,max_runtime_seconds=args.seconds,campaign=args.campaign)
         elif args.lane=='pons':
@@ -476,7 +554,7 @@ def main():
         observer.event('process_terminal',dict(status='returned',policy_hash=policy_for(args.lane)))
         observer.status('returned')
     except BaseException as exc:
-        terminal=dict(status='failed',exception_type=type(exc).__name__)
+        terminal=dict(status='failed',exception_type=type(exc).__name__,policy_hash=policy_for(args.lane))
         if args.lane=='ramses' and type(exc).__name__=='BoundaryError':
             message=str(exc)
             terminal['boundary']=(message if re.fullmatch(r'[A-Za-z0-9_.:\\-]+',message) and len(message)<160

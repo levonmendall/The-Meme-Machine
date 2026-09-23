@@ -23,63 +23,11 @@ jobs:
           python-version: '3.12.14'
       - name: Verify frozen protocol before reading outcomes
         run: python -m certification.protocol_freeze --output prospective-review/protocol-freeze.json
-      - name: Download every completed prospective hourly artifact for the exact SHA
+      - name: Review the complete append-only program state for this exact SHA
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ inputs.expected_integration_sha }}
-        run: |
-          set -euo pipefail
-          mkdir -p prospective-review/records
-          gh run list \
-            --workflow four-lane-certification.yml \
-            --branch cert/prospective-market-v1 \
-            --limit 100 \
-            --json databaseId,headSha,status,conclusion,createdAt \
-            > prospective-review/hourly-runs.json
-          gh run list \
-            --workflow position-continuation.yml \
-            --branch cert/prospective-market-v1 \
-            --limit 100 \
-            --json databaseId,headSha,status,conclusion,createdAt \
-            > prospective-review/continuation-runs.json
-          python - <<'PY' > /tmp/prospective-hourly-run-ids
-          import json,os
-          rows=json.load(open("prospective-review/hourly-runs.json"))
-          expected=os.environ["EXPECTED_SHA"]
-          for row in rows:
-              if row.get("headSha")==expected and row.get("status")=="completed":
-                  print(row["databaseId"])
-          PY
-          while read -r run_id; do
-            [ -n "$run_id" ] || continue
-            mkdir -p "prospective-review/records/hourly-$run_id"
-            gh run download "$run_id" \
-              --pattern "four-lane-hourly-$run_id-*" \
-              -D "prospective-review/records/hourly-$run_id" || true
-          done < /tmp/prospective-hourly-run-ids
-          python - <<'PY' > /tmp/prospective-continuation-run-ids
-          import json,os
-          rows=json.load(open("prospective-review/continuation-runs.json"))
-          expected=os.environ["EXPECTED_SHA"]
-          for row in rows:
-              if row.get("headSha")==expected and row.get("status")=="completed":
-                  print(row["databaseId"])
-          PY
-          while read -r run_id; do
-            [ -n "$run_id" ] || continue
-            mkdir -p "prospective-review/records/continuation-$run_id"
-            gh run download "$run_id" \
-              --pattern "position-continuation-*-$run_id-*" \
-              -D "prospective-review/records/continuation-$run_id" || true
-          done < /tmp/prospective-continuation-run-ids
-      - name: Evaluate the complete retained prospective cohort
-        env:
-          EXPECTED_SHA: ${{ inputs.expected_integration_sha }}
-        run: |
-          python -m certification.prospective_acceptance evaluate \
-            --records-dir prospective-review/records \
-            --expected-integration-sha "$EXPECTED_SHA" \
-            --output prospective-review/acceptance.json
+        run: python -m certification.prospective_program review --output prospective-review/program-state.json
       - name: Preserve cohort review
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

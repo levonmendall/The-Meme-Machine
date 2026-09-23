@@ -10,6 +10,7 @@ from copy import deepcopy
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import sqlite3
 import statistics
@@ -60,14 +61,16 @@ def _pearson(xs,ys):
 
 def _infra_fraction(row):
     funnel=row.get("funnel") or {}
+    scans=funnel.get('completed_scans',0)+funnel.get('infrastructure_censored_scans',0)
+    scan_fraction=funnel.get('infrastructure_censored_scans',0)/scans if scans else 0.0
     denom=funnel.get("unique_admitted")
     if not isinstance(denom,int) or denom<=0:
         denom=funnel.get("unique_evidence_requested")
-    if not isinstance(denom,int) or denom<=0:return 0.0
+    if not isinstance(denom,int) or denom<=0:return scan_fraction
     keys=("unique_capacity_censored","unique_consumer_deadline",
           "unique_local_budget_exhausted","unique_provider_failed")
     censored=min(denom,sum(max(0,int(funnel.get(k) or 0)) for k in keys))
-    return censored/denom
+    return max(scan_fraction,censored/denom)
 
 def _flat(row):
     if row.get("open_positions") not in (0,None):return False
@@ -292,7 +295,7 @@ def merge_records(records):
         groups.setdefault(key,[]).append(raw)
     merged=[]
     immutable=(
-        "schema","cohort_id","protocol_sha256","run_id","phase","started_at",
+        "schema","cohort_id","protocol_sha256","run_id","workflow_run_id","phase","started_at",
         "observation_hours","integration_sha","source_manifest_hash","implementation_hash",
     )
     for key,rows in groups.items():
@@ -332,6 +335,7 @@ def make_record(result,proto,proto_hash,run_dir=None,chain_binding=None):
         "schema":"meme-machine-prospective-block-v1",
         "cohort_id":proto["cohort_id"],"protocol_sha256":proto_hash,
         "run_id":result.get("run_id"),"phase":phase,"status":result.get("status"),
+        "workflow_run_id":int(os.environ['GITHUB_RUN_ID']) if os.environ.get('GITHUB_RUN_ID') else None,
         "started_at":result.get("started_at"),"ended_at":result.get("ended_at"),
         "observation_hours":hours,"engineering_pass":bool(engineering),
         "integration_sha":result.get("integration_sha"),
@@ -372,6 +376,8 @@ def make_record(result,proto,proto_hash,run_dir=None,chain_binding=None):
             "telemetry_complete":gates.get("telemetry_complete") is True,
             "freshness_finality_unchanged":gates.get("freshness_finality_unchanged") is True,
             "durable_replay":_durable_replay_ok(lane,row),
+            "durable_handoff":row.get('durable_handoff') is True,
+            "native_accounting_replay":(row.get('terminal_reconciliation') or {}).get('verified') is True,
             "infrastructure_censoring_fraction":_infra_fraction(row),
             "economics":economics,
         }

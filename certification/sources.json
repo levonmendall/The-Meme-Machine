@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-ramses-census-provider-defer-prepin",
+  "verified_at": "2026-09-23-census-and-missing-fee-context-candidate",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -119,7 +119,7 @@
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       },
-      "source_diff_sha256": "7139d965818dfa4f093824161a5102e5635b8a0dcc6d831f55d28e0cb33481fe",
+      "source_diff_sha256": "73382447eba168503b2c7dc909ecd3498cffabeaa116166c45a3af4c7b74836d",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -132,7 +132,7 @@
       "source_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "113bbf9013b88a725efc8de7ec2fc98a4f03ca12c61929dbd99bfd90d5da5ccb",
+      "source_diff_sha256": "a00a177abf1431a274c11f6bac32df5ef17be2893ee9fe23077fa2c4a523237f",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -313,7 +313,8 @@
       "overlay_patches": [
         "certification/patches/meteora-checkpoint.patch",
         "certification/patches/market-scope-efficiency-meteora.patch",
-        "certification/patches/lifecycle-clock-meteora.patch"
+        "certification/patches/lifecycle-clock-meteora.patch",
+        "certification/patches/meteora-public-fee-context.patch"
       ]
     },
     "pons": {
@@ -479,7 +480,7 @@
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       },
-      "source_diff_sha256": "486b1e2977b62ee9a678ae99946a35ca17c411f92fc3a676ad991c20c94c8ca4",
+      "source_diff_sha256": "f07dc564d97fa6d73deab049bc4aad5f23b1f29833448d28ee064d735c624363",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
@@ -725,13 +726,14 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true
       },
-      "source_diff_sha256": "9f9d544c663eabf932d6a0d585c32f015c9edc422cfdc110e1f160cdd0896d4a",
+      "source_diff_sha256": "edad8c4d1fc03b3e90f1d11bda3fcdc5ef7a8a4ba297f3ec50959d3fc40fcf0b",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
         "certification/patches/market-scope-efficiency-ramses.patch",
         "certification/patches/ramses-ledger-position.patch",
-        "certification/patches/ramses-census-resilience.patch"
+        "certification/patches/ramses-census-resilience.patch",
+        "certification/patches/ramses-census-budget-progress.patch"
       ]
     }
   },
@@ -935,5 +937,6 @@
     "validation_run_requested": false,
     "source_sha": "0982519a68222b7cd0640981a7ac4a8ac7c119dd",
     "integration": "semantic delta composed in canonical overlays"
-  }
+  },
+  "source_diff_format": "git_binary_full_index_no_renames_v1"
 }

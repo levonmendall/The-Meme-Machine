@@ -8,7 +8,7 @@ from certification.journal import Journal, digest
 from certification.report import LANES,permanently_unfunded
 
 
-def audit_telemetry(folder,lane,policy):
+def audit_telemetry(folder,lane,policy,*,require_returned=True):
     """Verify every raw transport against its append-only journal reference."""
     folder=Path(folder);journal=Journal(folder/'telemetry.sqlite')
     try:
@@ -31,7 +31,9 @@ def audit_telemetry(folder,lane,policy):
             for request in row['request']:
                 methods.add(request['method'] if isinstance(request,dict) else request[0])
     if set(references)!=seen:raise ValueError('missing_raw_transport_record')
-    if len(terminals)!=1 or terminals[0].get('status')!='returned' or terminals[0].get('policy_hash')!=policy:
+    if (len(terminals)!=1 or terminals[0].get('policy_hash')!=policy
+            or terminals[0].get('status') not in ('returned','failed')
+            or (require_returned and terminals[0].get('status')!='returned')):
         raise ValueError('native_terminal_or_policy_mismatch')
     read_only=all(method.startswith('get') if lane in ('pump','meteora') else method in {
         'eth_chainId','eth_blockNumber','eth_getBlockByNumber','eth_getBlockByHash',
@@ -41,7 +43,8 @@ def audit_telemetry(folder,lane,policy):
         'eth_feeHistory','net_version','web3_clientVersion','eth_estimateGas',
         'alchemy_getAssetTransfers',
     } for method in methods)
-    return dict(verified=True,raw_transport_records=len(seen),methods=sorted(methods),read_only=read_only)
+    return dict(verified=True,raw_transport_records=len(seen),methods=sorted(methods),read_only=read_only,
+                process_terminal=terminals[0]['status'],successful_process=terminals[0]['status']=='returned')
 
 
 def broker_snapshot(path):
@@ -102,6 +105,8 @@ def smoke_engineering(result):
         if row.get('open_positions')!=0 or row.get('accounting_reconciled') is not True:
             failures.append(lane+':accounting_or_exposure')
         if not row.get('provider_requests'):failures.append(lane+':no_provider_activity')
+        if lane=='ramses' and (row.get('funnel') or {}).get('completed_scans',0)<1:
+            failures.append(lane+':no_completed_market_census')
         for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
             if row.get('gates',{}).get(gate) is not True:failures.append(lane+':'+gate)
     shared=result.get('shared_provider',{})
@@ -144,6 +149,8 @@ def hourly_engineering(result):
         elif open_positions and not durable_handoff:
             failures.append(lane+':unsettled_position_without_durable_handoff')
         if not row.get('provider_requests'):failures.append(lane+':no_provider_activity')
+        if lane=='ramses' and (row.get('funnel') or {}).get('completed_scans',0)<1:
+            failures.append(lane+':no_completed_market_census')
         for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
             if row.get('gates',{}).get(gate) is not True:failures.append(lane+':'+gate)
     shared=result.get('shared_provider',{})

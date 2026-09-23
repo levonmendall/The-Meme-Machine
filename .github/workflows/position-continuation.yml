@@ -17,8 +17,19 @@ on:
         default: "3000"
         type: string
 
+      program:
+        description: Belongs to the frozen prospective program
+        type: boolean
+        default: false
+      expected_sha:
+        description: Frozen runtime SHA
+        type: string
+      campaign_run_id:
+        description: Original campaign workflow run
+        type: string
+
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 jobs:
@@ -28,6 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ inputs.expected_sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -127,5 +139,58 @@ jobs:
               --ref "$GITHUB_REF_NAME" \
               -f lane="$CONTINUATION_LANE" \
               -f state_run_id="$GITHUB_RUN_ID" \
-              -f slice_seconds="$CONTINUATION_SLICE"
+              -f slice_seconds="$CONTINUATION_SLICE" \
+              -f program="${{ inputs.program || false }}" \
+              -f expected_sha="${{ inputs.expected_sha || github.sha }}" \
+              -f campaign_run_id="${{ inputs.campaign_run_id }}"
           fi
+
+  prospective-program-transition:
+    needs: resume
+    if: always() && inputs.program == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Preserve continuation outcome and resume observation only when every lane is flat
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          CAMPAIGN_RUN_ID: ${{ inputs.campaign_run_id }}
+          CONTINUATION_LANE: ${{ inputs.lane }}
+          RESUME_RESULT: ${{ needs.resume.result }}
+        run: |
+          set -euo pipefail
+          if [ "$RESUME_RESULT" != success ]; then
+            python -m certification.prospective_program halt --reason position_continuation_failed --output program-checkpoint.json
+            exit 0
+          fi
+          gh run download "$GITHUB_RUN_ID" -n "position-continuation-${CONTINUATION_LANE}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" -D program-evidence
+          python - <<'PYCODE'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path('program-evidence')
+          result=json.loads((root/'position-continuation-result.json').read_text())
+          if result.get('handoff_required') is True:
+              print('Same durable position continues in the next bounded slice.')
+          else:
+              lane=os.environ['CONTINUATION_LANE']
+              records=list(root.rglob('prospective-observation-'+lane+'.json'))
+              if len(records)!=1:raise RuntimeError('continuation_amendment_ambiguous')
+              subprocess.run([sys.executable,'-m','certification.prospective_program','advance',
+                  '--record',str(records[0]),'--output','program-checkpoint.json'],check=True)
+          PYCODE
+      - name: Preserve program transition evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: prospective-program-continuation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: program-checkpoint.json
+          if-no-files-found: warn
+          retention-days: 90

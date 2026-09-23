@@ -116,19 +116,25 @@ def source_integrity(worktrees):
         for file,expected_hash in row.get('file_hashes',{}).items():
             if hashlib.sha256((cwd/file).read_bytes()).hexdigest()!=expected_hash:
                 raise ValueError('frozen_source_file_drift:'+lane+':'+file)
-        diff=subprocess.check_output(['git','diff','--binary','HEAD'],cwd=cwd)
+        # Git's default abbreviated index IDs vary with repository object count.
+        # Full IDs make the exact same prepared tree hash identically in CI and
+        # an isolated local checkout. Preserve every content/mode/path byte.
+        diff_args=['git','diff','--binary','--full-index','--no-ext-diff','--no-textconv','--no-renames']
+        diff=subprocess.check_output([*diff_args,'HEAD'],cwd=cwd)
         observed[lane]=hashlib.sha256(diff).hexdigest()
         expected_diff_hash=row.get('source_diff_sha256')
         if row.get('source_integrity_mode')=='declared_overlay_index':
             for patch_path in lane_patches(lane,row):
                 if not patch_path.is_file():
                     raise ValueError('missing_declared_overlay:'+lane+':'+str(patch_path))
-            unstaged=subprocess.check_output(['git','diff','--binary'],cwd=cwd)
+            unstaged=subprocess.check_output(diff_args,cwd=cwd)
             if unstaged:
                 raise ValueError('unreviewed_lane_mutation:'+lane)
-            staged=subprocess.check_output(['git','diff','--binary','--cached','HEAD'],cwd=cwd)
+            staged=subprocess.check_output([*diff_args,'--cached','HEAD'],cwd=cwd)
             if diff!=staged:
                 raise ValueError('lane_index_worktree_disagreement:'+lane)
+            if expected_diff_hash is None or observed[lane]!=expected_diff_hash:
+                raise ValueError('declared_overlay_diff_identity_mismatch:'+lane)
         elif expected_diff_hash is not None:
             if observed[lane]!=expected_diff_hash:
                 raise ValueError('unreviewed_lane_mutation:'+lane)
@@ -142,11 +148,11 @@ def source_integrity(worktrees):
 
 def integration_integrity():
     """Bind executable supervisor inputs to the commit named in the evidence."""
-    tracked=subprocess.check_output(['git','diff','--binary','HEAD','--','certification'],cwd=ROOT)
+    tracked=subprocess.check_output(['git','diff','--binary','HEAD','--','certification','.github/workflows'],cwd=ROOT)
     if tracked:raise ValueError('uncommitted_integration_source')
-    extras=subprocess.check_output(['git','ls-files','--others','-z','--','certification'],cwd=ROOT).decode().split('\0')
+    extras=subprocess.check_output(['git','ls-files','--others','-z','--','certification','.github/workflows'],cwd=ROOT).decode().split('\0')
     for name in filter(None,extras):
-        if Path(name).suffix in ('.py','.patch'):
+        if Path(name).suffix in ('.py','.patch','.yml','.yaml','.json'):
             raise ValueError('untracked_integration_source:'+name)
 
 
@@ -548,7 +554,16 @@ def observe_checkpoint_report(lane,row,status,process_code):
         row.update(summarize(lane,status['report']))
 
 
-def finish_lanes(processes,files,rows,terminal_times,journal,run):
+def reconcile_stopped_lane(lane,worktrees):
+    proof=subprocess.run([sys.executable,str(ROOT/'certification/terminal_reconciliation.py'),
+        '--lane',lane,'--root',str((Path(worktrees)/lane).resolve())],
+        capture_output=True,text=True,timeout=45)
+    receipt=json.loads(proof.stdout)
+    if proof.returncode!=0:receipt['verified']=False
+    return receipt
+
+
+def finish_lanes(processes,files,rows,terminal_times,journal,run,worktrees=None):
     """Stop/reap every child before auditing any lane's possibly damaged evidence."""
     stopped=set()
     # SIGINT lets the worker's BaseException/finally path seal its raw archive.
@@ -575,11 +590,27 @@ def finish_lanes(processes,files,rows,terminal_times,journal,run):
     # suppressing the other three audits or the aggregate terminal result.
     for lane,(proc,launched) in processes.items():
         row=rows[lane]
+        if worktrees is not None:
+            try:
+                receipt=reconcile_stopped_lane(lane,worktrees)
+                row['terminal_reconciliation']=receipt
+                journal.append(lane,'terminal-reconciliation','native_accounting_replay',receipt)
+                if receipt.get('verified') is True:
+                    row['accounting_reconciled']=True
+                    row['open_positions']=receipt['open_positions']
+                    key='cohort_accounting' if lane=='pons' else 'native_accounting'
+                    row[key]=receipt['accounting']
+                    if 'accounting_replay' in receipt:row['accounting_replay']=receipt['accounting_replay']
+                    if lane in stopped:row['shutdown_positions']='durable_native_state_reconciled'
+                else:row['accounting_reconciled']=False
+            except Exception as exc:
+                row['terminal_reconciliation']=dict(verified=False,error_type=type(exc).__name__)
+                row['accounting_reconciled']=False
         if lane in stopped:
             try:journal.append(lane,'supervisor_stop','forced_process_stop',dict(exit_code=proc.returncode))
             except Exception as exc:row['shutdown_journal_error']=type(exc).__name__
         try:
-            audit=audit_telemetry(run/lane,lane,row['policy_hash'])
+            audit=audit_telemetry(run/lane,lane,row['policy_hash'],require_returned=False)
             row['telemetry_audit']=audit
             row['gates'].update(telemetry_complete=True,paper_only=audit['read_only'])
             row['gates'].setdefault('policy_unchanged',True)
@@ -749,7 +780,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         interrupted=True;supervisor_error=dict(error_type=type(exc).__name__)
         raise
     finally:
-        interrupted=finish_lanes(processes,files,rows,terminal_times,journal,run) or interrupted
+        interrupted=finish_lanes(processes,files,rows,terminal_times,journal,run,worktrees) or interrupted
         broker_terminal=record_unfinished_broker_jobs(run/'shared-solana-evidence.sqlite',journal,time.time())
         try:source_unchanged=source_integrity(worktrees)==gate['source_diff_hashes']
         except (ValueError,OSError,subprocess.CalledProcessError):source_unchanged=False

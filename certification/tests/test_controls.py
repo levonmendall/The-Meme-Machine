@@ -18,6 +18,7 @@ class ControlsTests(unittest.TestCase):
             shared_provider={n:dict(queues=[]) for n in ('solana','robinhood')},
             lanes={lane:dict(exit_code=0,unexpected_exit=False,process_restarts=0,
                 open_positions=0,accounting_reconciled=True,provider_requests=1,
+                funnel=dict(completed_scans=1),
                 gates={g:True for g in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated')}) for lane in LANES})
 
     def test_unresolved_immutable_work_fails_smoke_and_hourly_readiness(self):
@@ -28,6 +29,15 @@ class ControlsTests(unittest.TestCase):
             self.assertIn('robinhood:immutable_provider_jobs_not_drained',hourly_engineering(result)['failures'])
         result=self.smoke();result['shared_provider']['robinhood_reuse']=dict(state='observed',inflight_jobs=0)
         self.assertEqual(smoke_engineering(result)['status'],'PASS')
+
+    def test_census_failure_is_not_quiet_market_success(self):
+        result=self.smoke();result['lanes']['ramses']['funnel']={
+            'completed_scans':0,'infrastructure_censored_scans':2}
+        self.assertIn('ramses:no_completed_market_census',smoke_engineering(result)['failures'])
+        from certification.prospective_acceptance import _infra_fraction
+        self.assertEqual(_infra_fraction(result['lanes']['ramses']),1.0)
+        result['lanes']['ramses']['funnel']['completed_scans']=1
+        self.assertAlmostEqual(_infra_fraction(result['lanes']['ramses']),2/3)
 
     def test_exact_clean_smoke_can_start_observation_but_never_proves_full_certification(self):
         good=self.smoke();self.assertEqual(smoke_engineering(good)['status'],'PASS')

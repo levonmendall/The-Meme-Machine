@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-profitability-portfolio-autonomy-v1",
-  "cohort_id": "meme-machine-prospective-v1-20260923-profit-protection-v2",
+  "cohort_id": "prospective-four-lane-v2-census-context-20260923",
   "frozen_parent_integration_sha": "a627a5def86801b19df54090f3ef64bef98990bb",
   "paper_only": true,
   "live_money": false,
@@ -25,28 +25,28 @@
       "source_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
       "execution_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
       "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
-      "source_diff_sha256": "7139d965818dfa4f093824161a5102e5635b8a0dcc6d831f55d28e0cb33481fe"
+      "source_diff_sha256": "73382447eba168503b2c7dc909ecd3498cffabeaa116166c45a3af4c7b74836d"
     },
     "meteora": {
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "source_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
       "execution_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "113bbf9013b88a725efc8de7ec2fc98a4f03ca12c61929dbd99bfd90d5da5ccb"
+      "source_diff_sha256": "a00a177abf1431a274c11f6bac32df5ef17be2893ee9fe23077fa2c4a523237f"
     },
     "pons": {
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2",
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
-      "source_diff_sha256": "486b1e2977b62ee9a678ae99946a35ca17c411f92fc3a676ad991c20c94c8ca4"
+      "source_diff_sha256": "f07dc564d97fa6d73deab049bc4aad5f23b1f29833448d28ee064d735c624363"
     },
     "ramses": {
       "strategy_version": "ramses-active-wide-maker-v3",
       "source_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
       "execution_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
       "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
-      "source_diff_sha256": "9f9d544c663eabf932d6a0d585c32f015c9edc422cfdc110e1f160cdd0896d4a"
+      "source_diff_sha256": "edad8c4d1fc03b3e90f1d11bda3fcdc5ef7a8a4ba297f3ec50959d3fc40fcf0b"
     }
   },
   "evidence_quality": {
@@ -108,10 +108,12 @@
     "telemetry_ambiguity_allowed": false,
     "automatic_meteora_ramses_position_continuation_required": true,
     "continuation_must_preserve_exact_integration_and_lane_identity": true,
-    "automatic_new_campaign_scheduler_may_activate_only_after_lane_and_portfolio_economic_pass": true,
+    "automatic_new_campaign_scheduler_may_activate_only_after_lane_and_portfolio_economic_pass": false,
     "manual_strategy_or_policy_intervention_during_cohort_allowed": false,
     "prospective_artifact_retention_days": 90,
-    "prospective_artifact_retention_scope": "GitHub Actions repository maximum; exceeds the frozen 168-hour certification span"
+    "prospective_artifact_retention_scope": "GitHub Actions repository maximum; exceeds the frozen 168-hour certification span",
+    "frozen_paper_certification_program_authorized_before_economic_acceptance": true,
+    "certification_program_authority": "User instruction 2026-09-23: durable unattended prospective blocks after exact non-market certification and smoke; economics remain frozen."
   },
   "promotion": {
     "machinery_pass_is_not_profitability_pass": true,

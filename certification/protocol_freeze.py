@@ -52,14 +52,7 @@ def verify():
         failures.append("continuation_amendment_command_missing")
     if "actions: write" not in cont:
         failures.append("continuation_actions_write_missing")
-    for value in (
-        "--branch cert/prospective-market-v1",
-        "--expected-integration-sha",
-        "four-lane-hourly-$run_id-*",
-        "position-continuation-*-$run_id-*",
-        "--workflow position-continuation.yml",
-        "prospective_acceptance evaluate",
-    ):
+    for value in ("prospective_program review", "EXPECTED_SHA", "inputs.expected_integration_sha"):
         if value not in review:failures.append("cohort_review_control_missing:"+value)
     retention=protocol.get("autonomy_acceptance",{}).get(
         "prospective_artifact_retention_days")
@@ -69,9 +62,14 @@ def verify():
                       ("non_market",nonmarket)):
         if "retention-days: 365" in text:
             failures.append(name+":unsupported_retention_request")
-    if protocol.get("autonomy_acceptance",{}).get(
-            "automatic_new_campaign_scheduler_may_activate_only_after_lane_and_portfolio_economic_pass") is not True:
-        failures.append("scheduler_activation_not_gated")
+    autonomy=protocol.get("autonomy_acceptance",{})
+    if (autonomy.get("frozen_paper_certification_program_authorized_before_economic_acceptance") is not True
+            or autonomy.get("automatic_new_campaign_scheduler_may_activate_only_after_lane_and_portfolio_economic_pass") is not False):
+        failures.append("explicit_frozen_certification_program_authority_missing")
+    program=(ROOT/"certification/prospective_program.py").read_text()
+    for control in ("program_full_nonmarket_not_passed", "program_dispatch_already_claimed",
+                    "program_canonical_sha_drift", "preserve_repair_recertify_successor_cohort"):
+        if control not in program:failures.append("certification_program_control_missing:"+control)
     digest=hashlib.sha256(canonical(protocol).encode()).hexdigest()
     return {
         "passed":not failures,
