@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-market-scope-efficiency-current-exact-candidate",
+  "verified_at": "2026-09-23-market-scope-efficiency-final-exact-candidate",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -593,7 +593,7 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true
       },
-      "source_diff_sha256": "c3ff6b32a297bf9e9fdc471f4937223b09817f1e98fbb18263e63c9aa793f0f6",
+      "source_diff_sha256": "2b118db437e140becd34dba2594bb485dfa4d83bfd1c2926a687fb4022ce59ab",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -607,7 +607,7 @@
     "purpose": "Compose the current Pump/Pons profitability persistence policies with verified Meteora authenticated fee-density profitability v1 and Ramses Active Wide Maker v3 while preserving current operational overlays and paper-only controls.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora authenticated fee-density profitability-v1; Ramses Active Wide Maker v3",
-    "validation_status": "RECOMPOSITION_TEST_FIX_PENDING",
+    "validation_status": "EXACT_CURRENT_SOURCE_CERTIFICATION_REQUESTED",
     "validation_run_requested": true,
     "latest_qualification": {
       "run_id": 35789882265,
@@ -687,12 +687,18 @@
         "pump": "9f3851244dc1cc939caad17b65c240a5d82467eb271d623c108be3f009386eeb",
         "pons": "b6ebd94cee32100495e3c73506126ef0ac83b4bf22112e38fb87dbc390a075f7",
         "meteora": "76dad9ea767672d1906cde19b0d5e6301a3dad00a658637a611b5c1d09e37bd4",
-        "ramses": "c3ff6b32a297bf9e9fdc471f4937223b09817f1e98fbb18263e63c9aa793f0f6"
+        "ramses": "2b118db437e140becd34dba2594bb485dfa4d83bfd1c2926a687fb4022ce59ab"
       },
       "strategy_thresholds_changed": false,
       "market_observation_scope_changed": false,
       "paper_only_unchanged": true,
-      "exact_diff_hashes_pending": false
+      "exact_diff_hashes_pending": false,
+      "pre_pin_qualification": {
+        "run_id": 35866960015,
+        "head_sha": "27f3707062ad664584b2b1529255752aa5d22f0a",
+        "result": "success",
+        "full_ramses_universe_regression": true
+      }
     }
   },
   "composition": {
