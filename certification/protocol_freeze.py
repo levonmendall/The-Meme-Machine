@@ -35,6 +35,7 @@ def verify():
         failures.append("frozen_lane_set_drift")
     four=(ROOT/".github/workflows/four-lane-certification.yml").read_text()
     cont=(ROOT/".github/workflows/position-continuation.yml").read_text()
+    review=(ROOT/".github/workflows/prospective-cohort-review.yml").read_text()
     required_four=(
         "python -m certification.chain_binding",
         "python -m certification.prospective_acceptance record",
@@ -46,6 +47,13 @@ def verify():
         failures.append("continuation_self_chain_missing")
     if "actions: write" not in cont:
         failures.append("continuation_actions_write_missing")
+    for value in (
+        "--branch cert/prospective-market-v1",
+        "--expected-integration-sha",
+        "four-lane-hourly-$run_id-*",
+        "prospective_acceptance evaluate",
+    ):
+        if value not in review:failures.append("cohort_review_control_missing:"+value)
     if protocol.get("autonomy_acceptance",{}).get(
             "automatic_new_campaign_scheduler_may_activate_only_after_lane_and_portfolio_economic_pass") is not True:
         failures.append("scheduler_activation_not_gated")
