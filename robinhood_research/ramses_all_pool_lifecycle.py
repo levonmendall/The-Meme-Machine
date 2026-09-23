@@ -33,10 +33,12 @@ from .ramses import (
 )
 from .ramses_capture import BoundedMultiRpc, LOG_BLOCK_CHUNK
 from .ramses_strategy import (
+    ACTIVE_MODE,
     POLICY,
     POLICY_HASH,
     STRATEGY_DOMAIN,
     STRATEGY_VERSION,
+    assert_active_v3_decision,
     classify_pool,
     controller_action,
     decompose_pnl,
@@ -91,6 +93,7 @@ def select_qualifier(screen):
             and decision.get("strategy_domain") == STRATEGY_DOMAIN
             and decision.get("strategy_version") == STRATEGY_VERSION
             and decision.get("policy_hash") == POLICY_HASH
+            and decision.get("mode") == ACTIVE_MODE
             and decision.get("allocation_authority") is False
             and decision.get("freeze")
         ):
@@ -745,6 +748,15 @@ def _requalify_current_pool(
     )
 
 
+def _rebalance_deadline_seconds():
+    return int(POLICY["controller"]["hard_same_decision_deadline_seconds"])
+
+
+def _rebalance_deadline_missed(started, now=None):
+    current=time.monotonic() if now is None else float(now)
+    return current-float(started) > _rebalance_deadline_seconds()
+
+
 @position_work
 def run(
     endpoint,
@@ -804,6 +816,7 @@ def run(
             and decision0.get("strategy_domain") == STRATEGY_DOMAIN
             and decision0.get("strategy_version") == STRATEGY_VERSION
             and decision0.get("policy_hash") == POLICY_HASH
+            and decision0.get("mode") == ACTIVE_MODE
             and decision0.get("allocation_authority") is False
             and decision0.get("freeze")
         ):
@@ -934,7 +947,6 @@ def run(
     segment_start = entry_block
     last_scan_wall = time.monotonic()
     latest_screen = screen
-    overall_started = time.monotonic()
     last_monitor_at = entry_at
     last_fee_reserve = None
     last_fee_refresh_wall = 0.0
@@ -1037,13 +1049,17 @@ def run(
             action = controller_action(
                 decision,
                 current_active_bin=state_now["active"],
-                elapsed_seconds=int(time.monotonic()-overall_started),
+                # Chain time preserves the strategy hold clock across process restarts.
+                elapsed_seconds=max(0,int(at)-int(entry_at)),
                 rebalances_used=rebalances,
                 opportunity_still_qualified=opportunity_qualified,
                 expected_remaining_fee_quote=expected_remaining_fee,
                 estimated_inventory_loss_quote=state_now["inventory_loss_quote"],
                 rebalance_cost_quote=rebalance_cost,
                 unwind_cost_quote=unwind_cost,
+            )
+            rebalance_decision_started=(
+                time.monotonic() if action["action"]=="rebalance" else None
             )
             controller_row = dict(
                 at=at,
@@ -1052,6 +1068,7 @@ def run(
                 inventory_value=state_now["inventory_value"],
                 inventory_loss_quote=state_now["inventory_loss_quote"],
                 opportunity_qualified=opportunity_qualified,
+                strategy_elapsed_seconds=max(0,int(at)-int(entry_at)),
                 action=action,
             )
             controller_log.append(controller_row)
@@ -1142,22 +1159,52 @@ def run(
             if action["action"] != "rebalance" or current_capital <= 0:
                 break
 
-            fresh = scan(
-                endpoint,
-                gas_costs_by_pool=costs_by_pool,
-                signals_by_pool=signals_by_pool,
-                cost_state=cost_state,
-            )
             prior_proposal=decision["freeze"]["proposals"][0]
-            new_decision = _requalify_current_pool(
-                fresh,
-                pool,
-                current_capital,
-                costs_by_pool,
-                signals_by_pool,
-                rebalance_mode=action.get("mode") or "recenter",
-                reference_bins=prior_proposal["bins"],
-            )
+
+            def fresh_requalification():
+                fresh_screen=scan(
+                    endpoint,
+                    gas_costs_by_pool=costs_by_pool,
+                    signals_by_pool=signals_by_pool,
+                    cost_state=cost_state,
+                )
+                fresh_decision=_requalify_current_pool(
+                    fresh_screen,
+                    pool,
+                    current_capital,
+                    costs_by_pool,
+                    signals_by_pool,
+                    rebalance_mode=action.get("mode") or "recenter",
+                    reference_bins=prior_proposal["bins"],
+                )
+                return fresh_screen,fresh_decision
+
+            fresh,new_decision=fresh_requalification()
+            if _rebalance_deadline_missed(rebalance_decision_started):
+                controller_log.append(dict(
+                    at=at,
+                    block=block,
+                    action=dict(
+                        action="decision_reset",
+                        reason="rebalance_same_decision_deadline_missed",
+                        hard_deadline_seconds=_rebalance_deadline_seconds(),
+                    ),
+                ))
+                # Discard stale geometry and start a new decision from a fresh
+                # finalized screen, exactly as Active Wide Maker v3 specifies.
+                rebalance_decision_started=time.monotonic()
+                fresh,new_decision=fresh_requalification()
+                if _rebalance_deadline_missed(rebalance_decision_started):
+                    controller_log.append(dict(
+                        at=int(fresh.get("finalized_timestamp",at)),
+                        block=int(fresh.get("finalized_block",block)),
+                        action=dict(
+                            action="exit",
+                            reason="rebalance_redecision_deadline_exhausted",
+                            hard_deadline_seconds=_rebalance_deadline_seconds(),
+                        ),
+                    ))
+                    break
             if (
                 not new_decision
                 or new_decision.get("qualified") is not True
@@ -1171,6 +1218,7 @@ def run(
                     ),
                 ))
                 break
+            assert_active_v3_decision(new_decision)
             verify_proposal_hash(new_decision["freeze"])
             replacement=new_decision["freeze"]["proposals"][0]
             gross=pnl.get("gross_result_quote")
