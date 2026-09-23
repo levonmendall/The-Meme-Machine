@@ -46,31 +46,6 @@ index 0000000..dc336e5
 +
 +Live improvement requires a fresh integrated smoke and four-hour campaign.
 +This repair is not a natural paper lifecycle or profitability claim.
-diff --git a/meme_machine/dlmm.py b/meme_machine/dlmm.py
-index 205dcb4..f607c7b 100644
---- a/meme_machine/dlmm.py
-+++ b/meme_machine/dlmm.py
-@@ -233,6 +233,11 @@ def validate(snapshot, now, kind=None):
-         raise ValueError('dlmm_pool_not_activated')
-     mint_x=_dlmm_mint_info(accounts[p['x']],p['token_x_program'])
-     mint_y=_dlmm_mint_info(accounts[p['y']],p['token_y_program'])
-+    # State crosses the durable JSON boundary. Keep extension identities in the
-+    # same representation before and after reload; tuple/list inequality must not
-+    # invalidate an otherwise exactly equal authenticated replay checkpoint.
-+    mint_x['extensions']=list(mint_x['extensions'])
-+    mint_y['extensions']=list(mint_y['extensions'])
-     for mint,info in ((p['x'],mint_x),(p['y'],mint_y)):
-         if mint == WSOL and (info['decimals']!=9 or info['program']!=pump.TOKEN_PROGRAM):
-             raise ValueError('dlmm_native_decimals_or_program')
-@@ -253,7 +258,7 @@ def validate(snapshot, now, kind=None):
-     return dict(
-         pool=address,**p,bins=bins,vault_x_amount=vx,vault_y_amount=vy,
-         token_x_mint_info=mint_x,token_y_mint_info=mint_y,
--        vault_x_extensions=vx_ext,vault_y_extensions=vy_ext,
-+        vault_x_extensions=list(vx_ext),vault_y_extensions=list(vy_ext),
-         slot=snapshot['slot'],time=snapshot['market_time'])
- 
- 
 diff --git a/meme_machine/dlmm_independent_accounting.py b/meme_machine/dlmm_independent_accounting.py
 new file mode 100644
 index 0000000..c79c7f2
@@ -239,6 +214,31 @@ index 0000000..c79c7f2
 +                    if digest(mark(positions[identity]))!=digest(data['mark']):raise ValueError('dlmm_accounting_settlement_replay')
 +                    checked+=1
 +        return dict(verified=True,checked_economic_events=checked,authentication='existing_lane_verified_tapes',raw_chain_reauthentication=False)
+diff --git a/meme_machine/dlmm.py b/meme_machine/dlmm.py
+index 205dcb4..f607c7b 100644
+--- a/meme_machine/dlmm.py
++++ b/meme_machine/dlmm.py
+@@ -233,6 +233,11 @@ def validate(snapshot, now, kind=None):
+         raise ValueError('dlmm_pool_not_activated')
+     mint_x=_dlmm_mint_info(accounts[p['x']],p['token_x_program'])
+     mint_y=_dlmm_mint_info(accounts[p['y']],p['token_y_program'])
++    # State crosses the durable JSON boundary. Keep extension identities in the
++    # same representation before and after reload; tuple/list inequality must not
++    # invalidate an otherwise exactly equal authenticated replay checkpoint.
++    mint_x['extensions']=list(mint_x['extensions'])
++    mint_y['extensions']=list(mint_y['extensions'])
+     for mint,info in ((p['x'],mint_x),(p['y'],mint_y)):
+         if mint == WSOL and (info['decimals']!=9 or info['program']!=pump.TOKEN_PROGRAM):
+             raise ValueError('dlmm_native_decimals_or_program')
+@@ -253,7 +258,7 @@ def validate(snapshot, now, kind=None):
+     return dict(
+         pool=address,**p,bins=bins,vault_x_amount=vx,vault_y_amount=vy,
+         token_x_mint_info=mint_x,token_y_mint_info=mint_y,
+-        vault_x_extensions=vx_ext,vault_y_extensions=vy_ext,
++        vault_x_extensions=list(vx_ext),vault_y_extensions=list(vy_ext),
+         slot=snapshot['slot'],time=snapshot['market_time'])
+ 
+ 
 diff --git a/meme_machine/pipeline.py b/meme_machine/pipeline.py
 new file mode 100644
 index 0000000..15fecbc
@@ -1565,6 +1565,77 @@ index 0000000..8b7b820
 +
 +def is_default_signature(value):
 +    return value == DEFAULT_SIGNATURE
+diff --git a/tests/dlmm_alchemy_provider.py b/tests/dlmm_alchemy_provider.py
+index 86cdf51..d8501e5 100644
+--- a/tests/dlmm_alchemy_provider.py
++++ b/tests/dlmm_alchemy_provider.py
+@@ -16,13 +16,11 @@
+     PROVIDER_429_MIN_BACKOFF_SECONDS,
+     ReadOnlyFailoverPoolScanRPC,
+     SOLANA_MIN_REQUEST_INTERVAL_SECONDS,
+-    SECONDARY_PROVIDER,
+     SolanaReadPacer,
+     TOPOLOGY_LABEL,
+     metadata as _metadata,
+     primary_provider,
+     primary_rpc_url,
+-    secondary_rpc_url,
+     validate_topology,
+ )
+ 
+@@ -149,7 +147,7 @@ def provider_telemetry(self):
+         data=super().provider_telemetry()
+         data.update(
+             topology="dlmm_public_ws_alchemy_http",
+-            primary_provider=SECONDARY_PROVIDER,
++            primary_provider=PRIMARY_PROVIDER,
+             secondary_provider=None,
+             secondary_configured=False,
+             failover_count=0,
+@@ -164,21 +162,21 @@ def provider_telemetry(self):
+ 
+ def rpc_url(environ=None):
+     """Return the authenticated Alchemy endpoint used directly by DLMM."""
+-    return secondary_rpc_url(environ, required=True)
++    return primary_rpc_url(environ, required=True)
+ 
+ 
+ def alchemy_rpc_url(environ=None, *, required=False):
+-    return secondary_rpc_url(environ, required=required)
++    return primary_rpc_url(environ, required=required)
+ 
+ 
+ def new_rpc(limit=240, pacer=None, environ=None, **kwargs):
+     # DLMM no longer sends reconstruction traffic to OnFinality. Use the existing
+     # authenticated Alchemy endpoint directly and preserve the same 0.2s ceiling.
+     pacer = pacer or AlchemyPacer()
+     return AlchemyPoolScanRPC(
+-        secondary_rpc_url(environ,required=True),
++        primary_rpc_url(environ,required=True),
+         secondary_url=None,
+-        primary_provider=SECONDARY_PROVIDER,
++        primary_provider=PRIMARY_PROVIDER,
+         limit=limit,
+         pacer=pacer,
+         **kwargs,
+@@ -188,7 +186,7 @@ def new_rpc(limit=240, pacer=None, environ=None, **kwargs):
+ def metadata(environ=None):
+     return dict(
+         topology="dlmm_public_ws_alchemy_http",
+-        primary_provider=SECONDARY_PROVIDER,
++        primary_provider=PRIMARY_PROVIDER,
+         primary_credential=ALCHEMY_ENV_NAME,
+         secondary_provider=None,
+         secondary_configured=False,
+@@ -202,7 +200,7 @@ def metadata(environ=None):
+ 
+ 
+ def main():
+-    secondary_rpc_url(required=True)
++    primary_rpc_url(required=True)
+     print(
+         "DLMM Solana read topology validated: public WebSocket discovery; "
+         "authenticated Alchemy HTTP reconstruction at 5 rps; OnFinality disabled"
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
 index 883e333..c7d8270 100644
 --- a/tests/solana_dlmm_independent_v1.py
@@ -2432,6 +2503,33 @@ index 0000000..9c1bea1
 +        self.assertEqual(self.b.consumers.batch(),[])
 +        self.assertEqual(self.b.db.execute('SELECT reason FROM evidence_terminals').fetchone()[0],
 +            'invalid_default_transaction_signature')
+diff --git a/tests/test_dlmm_alchemy_provider.py b/tests/test_dlmm_alchemy_provider.py
+index 2ea2caa..b6a2cad 100644
+--- a/tests/test_dlmm_alchemy_provider.py
++++ b/tests/test_dlmm_alchemy_provider.py
+@@ -31,7 +31,7 @@ def test_dlmm_uses_alchemy_directly_and_ignores_onfinality(self):
+         self.assertEqual(provider.rpc_url(ENV),ALCHEMY)
+         meta=provider.metadata(ENV)
+         self.assertEqual(meta["topology"],"dlmm_public_ws_alchemy_http")
+-        self.assertEqual(meta["primary_provider"],topology.SECONDARY_PROVIDER)
++        self.assertEqual(meta["primary_provider"],topology.PRIMARY_PROVIDER)
+         self.assertEqual(meta["primary_credential"],provider.ENV_NAME)
+         self.assertIsNone(meta["secondary_provider"])
+         self.assertFalse(meta["secondary_configured"])
+@@ -77,10 +77,10 @@ def request(url,request):
+         self.assertEqual(rpc.http_requests,1)
+         t=rpc.provider_telemetry()
+         self.assertEqual(t["topology"],"dlmm_public_ws_alchemy_http")
+-        self.assertEqual(t["primary_provider"],topology.SECONDARY_PROVIDER)
++        self.assertEqual(t["primary_provider"],topology.PRIMARY_PROVIDER)
+         self.assertEqual(t["failover_count"],0)
+-        self.assertEqual(t["provider_http_requests"][topology.SECONDARY_PROVIDER],1)
+-        self.assertEqual(t["provider_successes"][topology.SECONDARY_PROVIDER],1)
++        self.assertEqual(t["provider_http_requests"][topology.PRIMARY_PROVIDER],1)
++        self.assertEqual(t["provider_successes"][topology.PRIMARY_PROVIDER],1)
+ 
+     def test_point_two_second_single_and_batch_spacing(self):
+         clock=_Clock()
 diff --git a/tests/test_dlmm_broker_census.py b/tests/test_dlmm_broker_census.py
 new file mode 100644
 index 0000000..1e53cfb
@@ -3242,101 +3340,3 @@ index 0000000..01af937
 +        self.assertEqual(archived,{v['signature']:v for v in values})
 +        self.assertEqual(b.db.execute('SELECT count(*) FROM immutable_transactions').fetchone()[0],0)
 +        self.assertEqual(b.db.execute('SELECT count(*) FROM evidence_consumers').fetchone()[0],0)\n
-diff --git a/tests/dlmm_alchemy_provider.py b/tests/dlmm_alchemy_provider.py
-index 86cdf51..d8501e5 100644
---- a/tests/dlmm_alchemy_provider.py
-+++ b/tests/dlmm_alchemy_provider.py
-@@ -16,13 +16,11 @@
-     PROVIDER_429_MIN_BACKOFF_SECONDS,
-     ReadOnlyFailoverPoolScanRPC,
-     SOLANA_MIN_REQUEST_INTERVAL_SECONDS,
--    SECONDARY_PROVIDER,
-     SolanaReadPacer,
-     TOPOLOGY_LABEL,
-     metadata as _metadata,
-     primary_provider,
-     primary_rpc_url,
--    secondary_rpc_url,
-     validate_topology,
- )
- 
-@@ -149,7 +147,7 @@ def provider_telemetry(self):
-         data=super().provider_telemetry()
-         data.update(
-             topology="dlmm_public_ws_alchemy_http",
--            primary_provider=SECONDARY_PROVIDER,
-+            primary_provider=PRIMARY_PROVIDER,
-             secondary_provider=None,
-             secondary_configured=False,
-             failover_count=0,
-@@ -164,21 +162,21 @@ def provider_telemetry(self):
- 
- def rpc_url(environ=None):
-     """Return the authenticated Alchemy endpoint used directly by DLMM."""
--    return secondary_rpc_url(environ, required=True)
-+    return primary_rpc_url(environ, required=True)
- 
- 
- def alchemy_rpc_url(environ=None, *, required=False):
--    return secondary_rpc_url(environ, required=required)
-+    return primary_rpc_url(environ, required=required)
- 
- 
- def new_rpc(limit=240, pacer=None, environ=None, **kwargs):
-     # DLMM no longer sends reconstruction traffic to OnFinality. Use the existing
-     # authenticated Alchemy endpoint directly and preserve the same 0.2s ceiling.
-     pacer = pacer or AlchemyPacer()
-     return AlchemyPoolScanRPC(
--        secondary_rpc_url(environ,required=True),
-+        primary_rpc_url(environ,required=True),
-         secondary_url=None,
--        primary_provider=SECONDARY_PROVIDER,
-+        primary_provider=PRIMARY_PROVIDER,
-         limit=limit,
-         pacer=pacer,
-         **kwargs,
-@@ -188,7 +186,7 @@ def new_rpc(limit=240, pacer=None, environ=None, **kwargs):
- def metadata(environ=None):
-     return dict(
-         topology="dlmm_public_ws_alchemy_http",
--        primary_provider=SECONDARY_PROVIDER,
-+        primary_provider=PRIMARY_PROVIDER,
-         primary_credential=ALCHEMY_ENV_NAME,
-         secondary_provider=None,
-         secondary_configured=False,
-@@ -202,7 +200,7 @@ def metadata(environ=None):
- 
- 
- def main():
--    secondary_rpc_url(required=True)
-+    primary_rpc_url(required=True)
-     print(
-         "DLMM Solana read topology validated: public WebSocket discovery; "
-         "authenticated Alchemy HTTP reconstruction at 5 rps; OnFinality disabled"
-diff --git a/tests/test_dlmm_alchemy_provider.py b/tests/test_dlmm_alchemy_provider.py
-index 2ea2caa..b6a2cad 100644
---- a/tests/test_dlmm_alchemy_provider.py
-+++ b/tests/test_dlmm_alchemy_provider.py
-@@ -31,7 +31,7 @@ def test_dlmm_uses_alchemy_directly_and_ignores_onfinality(self):
-         self.assertEqual(provider.rpc_url(ENV),ALCHEMY)
-         meta=provider.metadata(ENV)
-         self.assertEqual(meta["topology"],"dlmm_public_ws_alchemy_http")
--        self.assertEqual(meta["primary_provider"],topology.SECONDARY_PROVIDER)
-+        self.assertEqual(meta["primary_provider"],topology.PRIMARY_PROVIDER)
-         self.assertEqual(meta["primary_credential"],provider.ENV_NAME)
-         self.assertIsNone(meta["secondary_provider"])
-         self.assertFalse(meta["secondary_configured"])
-@@ -77,10 +77,10 @@ def request(url,request):
-         self.assertEqual(rpc.http_requests,1)
-         t=rpc.provider_telemetry()
-         self.assertEqual(t["topology"],"dlmm_public_ws_alchemy_http")
--        self.assertEqual(t["primary_provider"],topology.SECONDARY_PROVIDER)
-+        self.assertEqual(t["primary_provider"],topology.PRIMARY_PROVIDER)
-         self.assertEqual(t["failover_count"],0)
--        self.assertEqual(t["provider_http_requests"][topology.SECONDARY_PROVIDER],1)
--        self.assertEqual(t["provider_successes"][topology.SECONDARY_PROVIDER],1)
-+        self.assertEqual(t["provider_http_requests"][topology.PRIMARY_PROVIDER],1)
-+        self.assertEqual(t["provider_successes"][topology.PRIMARY_PROVIDER],1)
- 
-     def test_point_two_second_single_and_batch_spacing(self):
-         clock=_Clock()
