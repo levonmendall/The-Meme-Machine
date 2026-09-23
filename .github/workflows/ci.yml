@@ -360,9 +360,9 @@ jobs:
     continue-on-error: true
     concurrency:
       group: solana-public-rpc-live
-      cancel-in-progress: ${{ contains(github.event.head_commit.message, '[cancel-obsolete-live]') }}
+      cancel-in-progress: true
     env:
-      MM_STREAM_OBSERVE_SECONDS: ${{ contains(github.event.head_commit.message, '[cancel-obsolete-live]') && '1' || '3300' }}
+      MM_STREAM_OBSERVE_SECONDS: '1'
       MM_STREAM_MAX_EVIDENCE_CANDIDATES: '20'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
