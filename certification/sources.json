@@ -376,7 +376,7 @@
     },
     "ramses": {
       "source_branch": "repair/ramses-alchemy-scarcity-public-observation",
-      "source_sha": "b53d35a33dddb82db361a9a501daa04c48183142",
+      "source_sha": "f18daa4565bbe7e6446bd2228ed3d24ecf6b8ed0",
       "strategy_version": "ramses-active-wide-maker-v3",
       "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
       "file_hashes": {
@@ -417,7 +417,11 @@
         "6664f785082d16546e46d13e145790787b7fc1cc",
         "6b47956b081c48e97a2201b62d4d417cc4be3845",
         "b8b62b7528c884d034af6c677a88e7d21e0b2fb1",
-        "b53d35a33dddb82db361a9a501daa04c48183142"
+        "b53d35a33dddb82db361a9a501daa04c48183142",
+        "4b334faa7a032dc9aa2a1f3e943ce8b0eb51cfb3",
+        "05a426b7ee2af36f089c5c0a863525ed4ad64e80",
+        "a32ad3dd44f86864c38e7fbf577bebb2a10ad80a",
+        "f18daa4565bbe7e6446bd2228ed3d24ecf6b8ed0"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
@@ -508,10 +512,10 @@
           "paper_only_unchanged": true
         },
         "provider_optimization": {
-          "source_commit": "b8b62b7528c884d034af6c677a88e7d21e0b2fb1",
-          "revision": "public-observation-alchemy-active-cohort-v1",
-          "discovery_plane": "official_robinhood_public_rpc",
-          "alchemy_role": "candidate_state_active_cohort_costs_and_lifecycle_only",
+          "source_commit": "f18daa4565bbe7e6446bd2228ed3d24ecf6b8ed0",
+          "revision": "public-logs-authenticated-factory-delta-v2",
+          "discovery_plane": "official_robinhood_public_rpc_for_finalized_economic_logs",
+          "alchemy_role": "exact_factory_count_and_new_append_indices_plus_candidate_state_active_cohort_costs_and_lifecycle_only",
           "broad_factory_and_log_observation_on_alchemy": false,
           "receipt_cost_scope": "active_cohort_only",
           "breadth_changed": false,
@@ -535,7 +539,16 @@
             "discovery_breadth_changed": false,
             "strategy_thresholds_changed": false,
             "paper_only_unchanged": true
-          }
+          },
+          "factory_state_on_alchemy": "exact_count_each_scan_and_new_append_indices_only",
+          "routine_full_factory_reenumeration_on_alchemy": false,
+          "factory_inventory_seed_count": 287,
+          "factory_inventory_seed_finalized_block": 70271628,
+          "factory_inventory_seed_addresses_sha256": "eb40463884c42e766b2f14ca5e2304aee3079b3fe349c028bba3af1f51cffce2",
+          "factory_inventory_runtime_sha256": "f53b61bb1b43c80d7e1a131856224a8598bf746491880931e9d6bfcd5c6e197b",
+          "public_contract_state_required": false,
+          "public_economic_log_observation": true,
+          "preflight_exact_factory_state": true
         }
       },
       "prospect_admission": {
@@ -545,7 +558,7 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true
       },
-      "source_diff_sha256": "4d5c9a05268130df7cfdd9387d45d5f5476aa500b3bc095e7c80d3583fbde020"
+      "source_diff_sha256": "defb4a3358a182ddcea195b66bb5533a9de958155555e24005953e63c72b16a8"
     }
   },
   "execution_certification": {
