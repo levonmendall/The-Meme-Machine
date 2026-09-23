@@ -1,0 +1,97 @@
+name: ramses-factory-call-compatibility-probe
+on:
+  push:
+    branches: [repair/ramses-public-factory-call-20260922]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+      MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Compare pinned factory calls
+        run: |
+          python - <<'PY'
+          import json, os, pathlib, time
+          from urllib.request import Request, urlopen
+          from urllib.error import HTTPError, URLError
+
+          PUBLIC='https://rpc.mainnet.chain.robinhood.com'
+          FACTORY='0xdcD5F77697914E27f56FD263EF82923C8524AbAc'
+          COUNT='0x4e937c3a'
+          HEADERS={
+              'Content-Type':'application/json',
+              'Accept':'application/json',
+              'User-Agent':'Meme-Machine/1.0 (+https://github.com/levonmendall/The-Meme-Machine)',
+          }
+          def rpc(endpoint, method, params):
+              body=json.dumps({'jsonrpc':'2.0','id':1,'method':method,'params':params}).encode()
+              req=Request(endpoint,data=body,headers=HEADERS)
+              try:
+                  with urlopen(req,timeout=10) as response:
+                      raw=response.read(2_000_000)
+                      status=response.status
+              except HTTPError as exc:
+                  raw=exc.read(65536);status=exc.code
+              except (URLError,TimeoutError,OSError) as exc:
+                  return {'transport_error':type(exc).__name__}
+              try: reply=json.loads(raw)
+              except Exception: return {'http_status':status,'invalid_json':True}
+              if reply.get('error'):
+                  err=reply['error']
+                  msg=str(err.get('message',''))
+                  return {'http_status':status,'rpc_error':err.get('code'),'message':msg[:500]}
+              result=reply.get('result')
+              out={'http_status':status,'ok':True,'result_type':type(result).__name__}
+              if isinstance(result,str):
+                  out['result_prefix']=result[:82]
+                  out['result_length']=len(result)
+              elif isinstance(result,dict):
+                  out['result_keys']=sorted(result)[:20]
+              return out
+
+          frontier_reply=rpc(PUBLIC,'eth_getBlockByNumber',['finalized',False])
+          if not frontier_reply.get('ok'):
+              raise SystemExit('public_frontier_failed:'+json.dumps(frontier_reply,sort_keys=True))
+          # Fetch header again to retain exact number/hash without exposing any secret.
+          body=json.dumps({'jsonrpc':'2.0','id':1,'method':'eth_getBlockByNumber','params':['finalized',False]}).encode()
+          req=Request(PUBLIC,data=body,headers=HEADERS)
+          with urlopen(req,timeout=10) as response:
+              frontier=json.loads(response.read())['result']
+          number=frontier['number']; block_hash=frontier['hash']
+          endpoints={
+              'public':PUBLIC,
+              'authoritative_read':os.environ.get('MM_ROBINHOOD_READ_RPC_URL',''),
+              'dlmm':os.environ.get('MM_ROBINHOOD_DLMM_RPC_URL',''),
+          }
+          out={'observed_at':time.time(),'frontier':{'number':number,'hash':block_hash},'providers':{}}
+          for label,endpoint in endpoints.items():
+              if not endpoint:
+                  out['providers'][label]={'configured':False};continue
+              rows={}
+              rows['chain']=rpc(endpoint,'eth_chainId',[])
+              rows['count_block_number']=rpc(endpoint,'eth_call',[{'to':FACTORY,'data':COUNT},number])
+              rows['count_block_hash']=rpc(endpoint,'eth_call',[{'to':FACTORY,'data':COUNT},{'blockHash':block_hash}])
+              rows['count_finalized']=rpc(endpoint,'eth_call',[{'to':FACTORY,'data':COUNT},'finalized'])
+              rows['code_block_number']=rpc(endpoint,'eth_getCode',[FACTORY,number])
+              rows['code_block_hash']=rpc(endpoint,'eth_getCode',[FACTORY,{'blockHash':block_hash}])
+              out['providers'][label]={'configured':True,'rows':rows}
+          pathlib.Path('ramses-factory-call-compatibility.json').write_text(json.dumps(out,sort_keys=True,indent=2)+'\n')
+          print(json.dumps(out,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: ramses-factory-call-compatibility-${{ github.run_id }}
+          path: ramses-factory-call-compatibility.json
+          if-no-files-found: error
+          retention-days: 30
