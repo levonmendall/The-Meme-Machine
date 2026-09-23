@@ -1,0 +1,199 @@
+diff --git a/robinhood_research/pons_selective_acquisition.py b/robinhood_research/pons_selective_acquisition.py
+index ed60831..272b3e5 100644
+--- a/robinhood_research/pons_selective_acquisition.py
++++ b/robinhood_research/pons_selective_acquisition.py
+@@ -23,6 +23,7 @@ from .provider_topology import configured_rpc
+ from .provider_admission import foreground_work
+ from .pons_selective_continuation import (
+     ENTRY_THRESHOLDS, curve_progress_bps, normalized_trade, qualification_vector,
++    trajectory_metrics,
+ )
+ 
+ HEADER_BATCH=50
+@@ -770,6 +771,42 @@ def strategy_prospect_preflight(candidate):
+     )
+ 
+ 
++def strategy_trajectory_preflight(candidate,snapshots,launch_at):
++    """Reject trajectory-domain misses before receipt/window reconstruction.
++
++    Every check is an existing frozen qualification rule using evidence already
++    acquired for trajectory authentication. It never grants entry authority.
++    """
++    asof=int(candidate["stamp"].event_at)
++    trajectory=trajectory_metrics(snapshots,asof)
++    token_age=asof-int(launch_at)
++    reasons=[]
++    if (
++        token_age < ENTRY_THRESHOLDS["min_token_age_seconds"]
++        or token_age > ENTRY_THRESHOLDS["max_token_age_seconds"]
++    ):
++        reasons.append("token_age")
++    if not trajectory.get("complete"):
++        reasons.append("trajectory_history")
++    else:
++        if trajectory["progress_15s_bps"] < ENTRY_THRESHOLDS["min_progress_15s_bps"]:
++            reasons.append("curve_velocity")
++        if ENTRY_THRESHOLDS["require_curve_acceleration"] and not trajectory["accelerating"]:
++            reasons.append("curve_deceleration")
++        eta=trajectory["graduation_eta_seconds"]
++        if (
++            eta is None
++            or eta < ENTRY_THRESHOLDS["min_graduation_eta_seconds"]
++            or eta > ENTRY_THRESHOLDS["max_graduation_eta_seconds"]
++        ):
++            reasons.append("graduation_eta")
++    return dict(
++        eligible=not reasons,reasons=reasons,token_age_seconds=token_age,
++        trajectory=trajectory,screen_authority="strategy_trajectory_admission_only",
++        full_qualification_required=True,
++    )
++
++
+ def evaluate_candidate(
+     endpoint,event,tape,*,strategy_capital_quote,wallet_histories=None,
+     creator_history=None,quote_relative_strength_bps=None,
+@@ -870,6 +907,58 @@ def evaluate_candidate(
+     )
+     sessions.append(trajectory_session)
+     ctx.timing["trajectory_seconds"]=time.monotonic()-trajectory_started
++    trajectory_prospect=strategy_trajectory_preflight(candidate,snapshots,launch_at)
++    if not trajectory_prospect["eligible"]:
++        available=int(time.time())
++        completed_monotonic=time.monotonic()
++        acquisition_latency=(
++            float(available-int(candidate["stamp"].event_at))
++            if evidence_observed_monotonic is None
++            else completed_monotonic-float(evidence_observed_monotonic)
++        )
++        ctx.timing.update(
++            trajectory_screen_only=True,
++            evidence_completed_monotonic=completed_monotonic,
++            evidence_acquisition_seconds=completed_monotonic-started,
++            decision_age_seconds=acquisition_latency,
++            chain_event_at=candidate["stamp"].event_at,
++            chain_timestamp_lag_seconds=(
++                None if evidence_observed_at is None
++                else evidence_observed_at-candidate["stamp"].event_at
++            ),
++        )
++        vector=dict(
++            complete=False,current_threshold_pass=False,
++            qualification="strategy_trajectory_screen",
++            all_rejections=list(trajectory_prospect["reasons"]),
++            progress_bps=int(prospect["progress_bps"]),
++            token_age_seconds=int(trajectory_prospect["token_age_seconds"]),
++            trajectory=trajectory_prospect["trajectory"],
++            asof=int(candidate["stamp"].event_at),
++            demand={"recent_buy_groups":[]},thresholds=dict(ENTRY_THRESHOLDS),
++            prospect_screen_only=False,trajectory_screen_only=True,
++        )
++        return dict(
++            token=candidate["token"],curve=candidate["curve"],
++            source_transaction=event["transactionHash"],
++            source_block=candidate["block"],
++            source_log_index=int(event["logIndex"],16),
++            candidate=candidate,market_events=[],
++            trajectory_snapshots=snapshots,launch_at=launch_at,
++            vector=vector,provider_sessions=sessions,
++            timing=dict(ctx.timing),stale_stage=None,screened_out=True,
++            screened_stage="trajectory",prospect_preflight=prospect,
++            trajectory_preflight=trajectory_prospect,
++            evaluation_completed_at=available,
++            evidence_observed_at=evidence_observed_at,
++            evidence_acquisition_latency_seconds=acquisition_latency,
++            chain_timestamp_lag_seconds=(
++                None if evidence_observed_at is None
++                else float(evidence_observed_at)-float(candidate["stamp"].event_at)
++            ),
++            evidence_context=ctx.telemetry(),
++        )
++    if on_stage is not None:on_stage('trajectory_admitted')
+     window_started=time.monotonic()
+     market,market_sessions=_authenticate_window(
+         endpoint,candidate,list(tape),seconds=60,evidence_context=ctx
+@@ -949,7 +1038,9 @@ def public_evaluation(row):
+         launch_at=row["launch_at"],vector=row["vector"],
+         timing=row.get("timing"),stale_stage=row.get("stale_stage"),
+         screened_out=bool(row.get("screened_out")),
++        screened_stage=row.get("screened_stage"),
+         prospect_preflight=row.get("prospect_preflight"),
++        trajectory_preflight=row.get("trajectory_preflight"),
+         evaluation_completed_at=row["evaluation_completed_at"],
+         evidence_observed_at=row.get("evidence_observed_at"),
+         evidence_acquisition_latency_seconds=row.get(
+diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
+index 7dcf1c9..a7f0a4d 100644
+--- a/robinhood_research/pons_selective_cohort.py
++++ b/robinhood_research/pons_selective_cohort.py
+@@ -518,9 +518,10 @@ def run(endpoint,*,campaign=False):
+         market_observation_scope="all authenticated Pons V2 buy/sell logs for observability",
+         selection_rule=(
+             "distinct Pons V2 buys receive minimal current-state authentication; "
+-            "trajectory/window investment evaluation is admitted only when current "
+-            "ungraduated native-quote state satisfies the profitability-v1 progress, "
+-            "snipe-tax, creator-tax, maturity, ETA and friction prospect screen; "
++            "trajectory evaluation is admitted only when current ungraduated native-quote "
++            "state satisfies profitability-v1 progress, snipe-tax and creator-tax; receipt-window "
++            "reconstruction is admitted only after token-age, velocity, acceleration and ETA "
++            "trajectory gates pass; friction and demand remain full qualification evidence; "
+             "paper entry additionally requires a terminal/flat prior same-curve "
+             "lifecycle plus a point-in-time regime reset; at most one screen per "
+             "curve per 2 wall-clock seconds; no outcome reranking"
+@@ -717,8 +718,12 @@ def run(endpoint,*,campaign=False):
+                     on_stage=lambda stage:pipeline.record(identity,stage),
+                 )
+                 if evaluation.get("screened_out"):
+-                    reasons=(evaluation.get("prospect_preflight") or {}).get("reasons") or ["strategy_prospect"]
+-                    reason="strategy_prospect:"+",".join(reasons)
++                    screen=(evaluation.get("trajectory_preflight")
++                            if evaluation.get("screened_stage")=="trajectory"
++                            else evaluation.get("prospect_preflight")) or {}
++                    reasons=screen.get("reasons") or ["strategy_prospect"]
++                    stage=evaluation.get("screened_stage") or "current_state"
++                    reason="strategy_"+stage+":"+",".join(reasons)
+                     pipeline.record(identity,"prospect_screened",reason,"strategy_rejection")
+                     pipeline.record(identity,"rejected",reason,"strategy_rejection")
+                     coverage()
+diff --git a/robinhood_tests/test_pons_market_scope_efficiency.py b/robinhood_tests/test_pons_market_scope_efficiency.py
+new file mode 100644
+index 0000000..3670a91
+--- /dev/null
++++ b/robinhood_tests/test_pons_market_scope_efficiency.py
+@@ -0,0 +1,36 @@
++import unittest
++from types import SimpleNamespace
++from unittest.mock import patch
++from robinhood_research.pons_selective_acquisition import strategy_trajectory_preflight
++from robinhood_research.pons_selective_continuation import ENTRY_THRESHOLDS
++
++class PonsMarketScopeEfficiencyTests(unittest.TestCase):
++    def candidate(self, asof=500):
++        return {"stamp": SimpleNamespace(event_at=asof)}
++
++    def test_token_age_and_trajectory_rules_screen_before_window(self):
++        trajectory=dict(complete=True,progress_15s_bps=ENTRY_THRESHOLDS["min_progress_15s_bps"],
++            accelerating=True,graduation_eta_seconds=ENTRY_THRESHOLDS["min_graduation_eta_seconds"])
++        with patch("robinhood_research.pons_selective_acquisition.trajectory_metrics",return_value=trajectory):
++            row=strategy_trajectory_preflight(self.candidate(),[],499)
++        self.assertFalse(row["eligible"])
++        self.assertIn("token_age",row["reasons"])
++
++    def test_valid_existing_trajectory_rules_admit_receipt_window(self):
++        trajectory=dict(complete=True,progress_15s_bps=ENTRY_THRESHOLDS["min_progress_15s_bps"],
++            accelerating=True,graduation_eta_seconds=ENTRY_THRESHOLDS["min_graduation_eta_seconds"])
++        launch=500-ENTRY_THRESHOLDS["min_token_age_seconds"]
++        with patch("robinhood_research.pons_selective_acquisition.trajectory_metrics",return_value=trajectory):
++            row=strategy_trajectory_preflight(self.candidate(),[],launch)
++        self.assertTrue(row["eligible"],row)
++
++    def test_existing_eta_and_acceleration_vetoes_are_preserved(self):
++        trajectory=dict(complete=True,progress_15s_bps=ENTRY_THRESHOLDS["min_progress_15s_bps"],
++            accelerating=False,graduation_eta_seconds=ENTRY_THRESHOLDS["max_graduation_eta_seconds"]+1)
++        with patch("robinhood_research.pons_selective_acquisition.trajectory_metrics",return_value=trajectory):
++            row=strategy_trajectory_preflight(self.candidate(),[],300)
++        self.assertIn("curve_deceleration",row["reasons"])
++        self.assertIn("graduation_eta",row["reasons"])
++
++if __name__ == "__main__":
++    unittest.main()

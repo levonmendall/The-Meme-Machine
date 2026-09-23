@@ -1,0 +1,219 @@
+diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
+index af8fbea..52df03a 100644
+--- a/tests/solana_dlmm_independent_v1.py
++++ b/tests/solana_dlmm_independent_v1.py
+@@ -182,20 +182,27 @@ def _sol_pair(row):
+ 
+ 
+ def _candidate(row):
++    """Build public ranking context from the pool-list response only.
++
++    These fields never authorize entry. The prior per-pool 35-minute history read
++    duplicated public context for every candidate even though acceleration is not
++    a profitability-v1 gate.
++    """
+     volume=row.get("volume") or {};fees=row.get("fees") or {}
++    tvl=_num(row.get("tvl"));v5=_num(volume.get("5m"));v30=_num(volume.get("30m"))
++    f5=_num(fees.get("5m"));f30=_num(fees.get("30m"))
++    vacc=_accel(v5,v30,6);facc=_accel(f5,f30,6)
++    density=0.0 if tvl<=0 else f5/tvl
+     return dict(
+         address=row.get("address"),name=row.get("name"),
+         token_x=(row.get("token_x") or {}).get("address"),
+         token_y=(row.get("token_y") or {}).get("address"),
+-        tvl_usd=_num(row.get("tvl")),
+-        volume_30m_snapshot_usd=_num(volume.get("30m")),
+-        fee_30m_snapshot_usd=_num(fees.get("30m")),
++        tvl_usd=tvl,volume_30m_snapshot_usd=v30,fee_30m_snapshot_usd=f30,
+         dynamic_fee_pct=_num(row.get("dynamic_fee_pct")),
+-        volume_5m_usd=None,volume_30m_usd=None,
+-        fee_5m_usd=None,fee_30m_usd=None,
+-        fee_tvl_ratio_5m=None,
+-        volume_acceleration=None,fee_acceleration=None,
+-        event_score=None,
++        volume_5m_usd=v5,volume_30m_usd=v30,fee_5m_usd=f5,fee_30m_usd=f30,
++        fee_tvl_ratio_5m=density,volume_acceleration=vacc,fee_acceleration=facc,
++        event_score=(math.log1p(v5)*max(vacc,0.01)*max(facc,0.01)*max(density,1e-12)),
++        public_context_source="pool_list_snapshot",
+     )
+ 
+ 
+@@ -263,18 +270,18 @@ def _history_acceleration(candidate,observed_at):
+ 
+ 
+ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None,seen=None):
+-    """Yield each qualifying pool immediately after its history check.
++    """Yield SOL-paired candidates from cheap public ranking snapshots.
+ 
+     The order is deterministic: configured sort order, then page, then API row rank.
+-    A pool is evaluated only on first sighting so no later source can retroactively
+-    improve its priority. Most importantly, a qualifying signal is handed to the
+-    caller before the next pool history request is made.
++    No per-pool history request is permitted here; authenticated local fee density,
++    depth, two-way flow and after-cost economics remain the only entry authority.
+     """
+     telemetry.setdefault("rejections",[])
+     telemetry.setdefault("errors",[])
+     telemetry.setdefault("qualified",[])
+     telemetry.setdefault("seen",0)
+     telemetry.setdefault("history_reads",0)
++    telemetry.setdefault("snapshot_context_candidates",0)
+     seen=set() if seen is None else seen
+     regime=policy["regime"]
+     for sort_by in DISCOVERY_SORTS:
+@@ -311,19 +318,8 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
+                 raw["sources"]=[dict(
+                     sort=sort_by,rank=(page-1)*DISCOVERY_PAGE_SIZE+raw_rank)]
+                 observed_at=int(time.time())
+-                try:
+-                    telemetry["history_reads"]+=1
+-                    item=_history_acceleration(raw,observed_at)
+-                except Exception as exc:
+-                    telemetry["rejections"].append(dict(
+-                        pool=address,
+-                        failed=["acceleration_history_unavailable"],
+-                        reason=type(exc).__name__,
+-                        candidate=raw,
+-                    ))
+-                    if checkpoint is not None:
+-                        checkpoint("discovery_history_unavailable")
+-                    continue
++                item=raw
++                telemetry["snapshot_context_candidates"]+=1
+                 failed=[]
+                 # Public Meteora API data only orders discovery. Entry authority
+                 # is reserved for authenticated finalized on-chain range fees.
+@@ -1396,7 +1392,6 @@ def _await_fresh_swap_trigger_polling(
+     polls=0
+     refreshes=0
+     current_candidate=dict(candidate)
+-    next_refresh=0.0
+     while True:
+         elapsed=max(0.0,time.monotonic()-started)
+         if _runtime_expired(deadline):
+@@ -1413,34 +1408,6 @@ def _await_fresh_swap_trigger_polling(
+                 acceleration_refreshes=refreshes,
+                 baseline_slot=baseline_slot,
+             ),None,adapter,current_candidate
+-        if elapsed>=next_refresh:
+-            observed_at=int(time.time())
+-            try:
+-                current_candidate=_history_acceleration(
+-                    current_candidate,observed_at)
+-            except Exception as exc:
+-                return dict(
+-                    triggered=False,
+-                    reason="acceleration_refresh_unavailable",
+-                    detail=type(exc).__name__,
+-                    waited_seconds=elapsed,polls=polls,
+-                    acceleration_refreshes=refreshes,
+-                    baseline_slot=baseline_slot,
+-                ),None,adapter,current_candidate
+-            refreshes+=1
+-            if not _regime_pass(current_candidate,policy):
+-                return dict(
+-                    triggered=False,
+-                    reason="public_fee_context_expired",
+-                    waited_seconds=elapsed,polls=polls,
+-                    acceleration_refreshes=refreshes,
+-                    baseline_slot=baseline_slot,
+-                    volume_acceleration=current_candidate[
+-                        "volume_acceleration"],
+-                    fee_acceleration=current_candidate[
+-                        "fee_acceleration"],
+-                ),None,adapter,current_candidate
+-            next_refresh=elapsed+FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS
+ 
+         adapter=_rotate(adapter,pacer,rpcs)
+         swaps,poll_meta=_new_finalized_swaps(
+@@ -1514,7 +1481,6 @@ def _await_fresh_swap_trigger(
+     cursor_slot=max(baseline_slot,int(durable_cursor.get("slot") or 0))
+     polls=0;wakeups=0;gap_recoveries=0;bootstrap_auth_reads=0;refreshes=0
+     current_candidate=dict(candidate)
+-    next_refresh=0.0
+     initial_status=broker.stream_status(
+         DLMM_WAKE_STREAM_KEY,int(time.time()),0)
+     last_gap_count=int(initial_status.get("gaps") or 0)
+@@ -1537,22 +1503,6 @@ def _await_fresh_swap_trigger(
+         if elapsed>=FRESH_SWAP_TRIGGER_MAX_SECONDS:
+             return terminal("fresh_swap_trigger_timeout",elapsed)
+ 
+-        if elapsed>=next_refresh:
+-            observed_at=int(time.time())
+-            try:
+-                current_candidate=_history_acceleration(
+-                    current_candidate,observed_at)
+-            except Exception as exc:
+-                return terminal(
+-                    "acceleration_refresh_unavailable",elapsed,
+-                    detail=type(exc).__name__)
+-            refreshes+=1
+-            if not _regime_pass(current_candidate,policy):
+-                return terminal(
+-                    "public_fee_context_expired",elapsed,
+-                    volume_acceleration=current_candidate["volume_acceleration"],
+-                    fee_acceleration=current_candidate["fee_acceleration"])
+-            next_refresh=elapsed+FRESH_SWAP_TRIGGER_ACCEL_REFRESH_SECONDS
+ 
+         now=int(time.time())
+         status=broker.stream_status(DLMM_WAKE_STREAM_KEY,now,0)
+@@ -1681,20 +1631,12 @@ def _aligned_warmup(adapter,candidate,policy,pacer,rpcs):
+     current_candidate=dict(candidate)
+     for index in range(windows):
+         observed_at=int(time.time())
+-        try:
+-            current_candidate=_history_acceleration(current_candidate,observed_at)
+-        except Exception as exc:
+-            return dict(
+-                aligned=False,reason="acceleration_refresh_unavailable",
+-                detail=type(exc).__name__,windows=attempts,
+-            ),None,None,None,None,adapter,current_candidate
+         acceleration_pass=_regime_pass(current_candidate,policy)
+         attempt=dict(
+-            window=index+1,
+-            observed_at=observed_at,
++            window=index+1,observed_at=observed_at,
+             volume_acceleration=current_candidate["volume_acceleration"],
+             fee_acceleration=current_candidate["fee_acceleration"],
+-            acceleration_pass=acceleration_pass,
++            acceleration_pass=acceleration_pass,public_context_refreshed=False,
+         )
+         if not acceleration_pass:
+             attempts.append(attempt)
+diff --git a/tests/test_meteora_market_scope_efficiency.py b/tests/test_meteora_market_scope_efficiency.py
+new file mode 100644
+index 0000000..ea7e984
+--- /dev/null
++++ b/tests/test_meteora_market_scope_efficiency.py
+@@ -0,0 +1,31 @@
++import unittest
++from unittest.mock import patch
++from meme_machine import dlmm
++from tests import solana_dlmm_independent_v1 as runner
++
++class MeteoraMarketScopeEfficiencyTests(unittest.TestCase):
++    def test_discovery_uses_pool_snapshot_without_per_pool_history_request(self):
++        calls=[]
++        row={"address":"pool","token_x":{"address":dlmm.WSOL},
++             "token_y":{"address":"token"},"tvl":1000,
++             "volume":{"5m":100,"30m":300},"fees":{"5m":10,"30m":30}}
++        def api(path,params=None):
++            calls.append(path)
++            if path=="/pools":return {"data":[row]}
++            raise AssertionError(path)
++        telemetry={}
++        with patch.object(runner,"_api",side_effect=api):
++            item=next(runner._iter_acceleration_candidates({"regime":{}},telemetry))
++        self.assertEqual(item["public_context_source"],"pool_list_snapshot")
++        self.assertEqual(telemetry["history_reads"],0)
++        self.assertFalse(any("volume/history" in path for path in calls))
++
++    def test_public_context_is_derived_without_an_extra_request(self):
++        item=runner._candidate({"address":"pool","token_x":{"address":dlmm.WSOL},
++            "token_y":{"address":"token"},"tvl":1000,
++            "volume":{"5m":1,"30m":1000},"fees":{"5m":1,"30m":1000}})
++        self.assertIn("volume_acceleration",item)
++        self.assertEqual(item["public_context_source"],"pool_list_snapshot")
++
++if __name__ == "__main__":
++    unittest.main()
