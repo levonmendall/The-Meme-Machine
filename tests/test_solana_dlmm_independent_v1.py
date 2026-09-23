@@ -44,13 +44,61 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
             "range_fee_sol_lamports / range_liquidity_sol_lamports",
             p["fee_model"]["live_fee_density_metric"])
         self.assertFalse(p["fee_model"]["require_dynamic_fee_uplift"])
-        self.assertEqual(p["revision"],"2.0-profitability-fee-density-v1")
+        self.assertEqual(
+            p["revision"],"2.0-profitability-fee-density-v1-core-hold-v2")
+        self.assertEqual(p["exit"]["core_hold_seconds"],14400)
+        self.assertEqual(p["exit"]["economic_collapse_confirmation_segments"],2)
+        self.assertEqual(
+            p["exit"]["pre_core_hard_risk_exit_reasons"],
+            ["range_boundary","inventory_imbalance","one_way_flow"],
+        )
+        self.assertTrue(
+            p["execution_certification"]["core_hold_runtime_enforced"])
         self.assertTrue(p["execution_certification"]["profitability_authority"])
         self.assertFalse(p["execution_certification"]["machinery_proof_only"])
         self.assertTrue(
             p["execution_certification"]["strategy2_continuity_required"])
         self.assertTrue(
             p["execution_certification"]["freshness_finality_unchanged"])
+
+    def test_core_hold_blocks_soft_collapse_but_not_hard_risk(self):
+        p=strategy.load_policy()
+        streaks={"volume_collapse":2,"fee_density_collapse":2}
+        soft=strategy._eligible_exit_reasons(
+            ["volume_collapse","fee_density_collapse"],
+            elapsed_seconds=600,collapse_streaks=streaks,policy=p,
+        )
+        self.assertEqual(soft,[])
+        hard=strategy._eligible_exit_reasons(
+            ["range_boundary","inventory_imbalance","one_way_flow"],
+            elapsed_seconds=300,
+            collapse_streaks={"volume_collapse":0,"fee_density_collapse":0},
+            policy=p,
+        )
+        self.assertEqual(
+            hard,["range_boundary","inventory_imbalance","one_way_flow"])
+
+    def test_economic_collapse_needs_two_verified_segments_after_core_hold(self):
+        p=strategy.load_policy()
+        one=strategy._eligible_exit_reasons(
+            ["fee_density_collapse"],elapsed_seconds=14400,
+            collapse_streaks={"volume_collapse":0,"fee_density_collapse":1},
+            policy=p,
+        )
+        self.assertEqual(one,[])
+        two=strategy._eligible_exit_reasons(
+            ["fee_density_collapse"],elapsed_seconds=14400,
+            collapse_streaks={"volume_collapse":0,"fee_density_collapse":2},
+            policy=p,
+        )
+        self.assertEqual(two,["fee_density_collapse"])
+        reset=strategy._eligible_exit_reasons(
+            ["volume_collapse"],elapsed_seconds=14700,
+            collapse_streaks={"volume_collapse":1,"fee_density_collapse":0},
+            policy=p,
+        )
+        self.assertEqual(reset,[])
+
 
     def test_strategy_import_graph_contains_no_strategy_dependency(self):
         path=Path("tests/solana_dlmm_independent_v1.py")
