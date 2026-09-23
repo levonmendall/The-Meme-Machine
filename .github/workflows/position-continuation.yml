@@ -35,13 +35,23 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Restore exact prior position artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          github-token: ${{ github.token }}
-          run-id: ${{ inputs.state_run_id }}
-          pattern: '*-${{ inputs.state_run_id }}-*'
-          path: continuation-state
-          merge-multiple: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE_RUN_ID: ${{ inputs.state_run_id }}
+          CONTINUATION_LANE: ${{ inputs.lane }}
+        run: |
+          set -euo pipefail
+          mapfile -t names < <(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${STATE_RUN_ID}/artifacts?per_page=100" \
+            --jq '.artifacts[].name' | grep -E \
+            "^(four-lane-hourly-${STATE_RUN_ID}-[0-9]+|position-continuation-${CONTINUATION_LANE}-${STATE_RUN_ID}-[0-9]+)$" || true)
+          if [ "${#names[@]}" -ne 1 ]; then
+            printf 'expected exactly one continuation source artifact, found %s: %s\n' \
+              "${#names[@]}" "${names[*]-}" >&2
+            exit 3
+          fi
+          mkdir -p continuation-state
+          gh run download "${STATE_RUN_ID}" -n "${names[0]}" -D continuation-state
       - name: Prepare exact certified lane worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/continuation-worktrees"
       - name: Resume one bounded position slice
