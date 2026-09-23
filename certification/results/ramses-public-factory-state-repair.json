@@ -1,0 +1,97 @@
+{
+  "kind": "ramses_public_observation_factory_state_repair_v1",
+  "repaired_at": "2026-09-23",
+  "scope": "Robinhood/Ramses provider topology and certification preflight only",
+  "failures": [
+    {
+      "run_id": 35817973734,
+      "phase": "four_lane_smoke",
+      "boundary": "official_public_rpc_http_403",
+      "cause": "urllib request profile lacked explicit User-Agent",
+      "strategy_failure": false
+    },
+    {
+      "run_id": 35820863551,
+      "phase": "replacement_four_lane_smoke",
+      "boundary": "provider_rpc_-32000 during Ramses factory_authentication",
+      "cause": "official Robinhood public RPC does not retain historical contract state",
+      "exact_call": {
+        "contract": "0xdcD5F77697914E27f56FD263EF82923C8524AbAc",
+        "method": "getNumberOfLBPairs()",
+        "selector": "0x4e937c3a"
+      },
+      "public_403_recurrence": false,
+      "strategy_failure": false
+    }
+  ],
+  "proofs": {
+    "public_header_probe": {
+      "run_id": 35819131234,
+      "current_profile_http_status": 403,
+      "explicit_user_agent_http_status": 200,
+      "methods": [
+        "eth_chainId",
+        "eth_getBlockByNumber"
+      ]
+    },
+    "exact_state_compatibility_probe": {
+      "run_id": 35824120625,
+      "public_rpc": {
+        "chain_id": true,
+        "finalized_header": true,
+        "historical_contract_state": false,
+        "error_code": -32000,
+        "error_class": "historical state is not available"
+      },
+      "authenticated_read_rpc": {
+        "historical_contract_state": true,
+        "factory_count": 287
+      },
+      "authenticated_dlmm_rpc": {
+        "historical_contract_state": true,
+        "factory_count": 287
+      }
+    },
+    "authenticated_inventory_seed": {
+      "run_id": 35824644551,
+      "count": 287,
+      "finalized_block": 70271628,
+      "addresses_sha256": "eb40463884c42e766b2f14ca5e2304aee3079b3fe349c028bba3af1f51cffce2",
+      "runtime_sha256": "f53b61bb1b43c80d7e1a131856224a8598bf746491880931e9d6bfcd5c6e197b",
+      "authority": "authenticated_dlmm_rpc_exact_finalized_block"
+    },
+    "final_composed_source_validation": {
+      "run_id": 35825246929,
+      "source_sha": "f18daa4565bbe7e6446bd2228ed3d24ecf6b8ed0",
+      "overlay_sha256": "defb4a3358a182ddcea195b66bb5533a9de958155555e24005953e63c72b16a8",
+      "targeted_tests": 42,
+      "result": "PASS"
+    }
+  },
+  "final_runtime_contract": {
+    "public_plane": "official Robinhood public RPC for finalized frontier and broad economic logs",
+    "authenticated_factory_state": "one exact getNumberOfLBPairs call per scan; exact newly appended getLBPairAtIndex reads only when count grows",
+    "factory_cache": "digest-validated, exact-runtime-bound, append-only 287-pool seed",
+    "routine_full_factory_reenumeration_on_alchemy": false,
+    "candidate_and_lifecycle_state": "configured authenticated DLMM endpoint",
+    "public_contract_state_dependency": false,
+    "fail_closed_on_count_regression": true,
+    "fail_closed_on_runtime_mismatch": true,
+    "fail_closed_on_invalid_cache": true
+  },
+  "certification_preflight": {
+    "public_chain_and_bounded_logs_required": true,
+    "authenticated_exact_factory_state_required": true,
+    "exact_factory_runtime_sha256_required": true
+  },
+  "preserved": {
+    "strategy": "Ramses Active Wide Maker v3",
+    "strategy_thresholds_changed": false,
+    "market_breadth_changed": false,
+    "position_sizing_changed": false,
+    "cost_economics_changed": false,
+    "finality_changed": false,
+    "paper_only": true,
+    "live_money_authority": false
+  }
+}
