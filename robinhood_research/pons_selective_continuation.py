@@ -57,6 +57,7 @@ EXIT_POLICY = dict(
     first_profit_sell_bps=3333,
     runner_trailing_drawdown_bps=1000,
     no_new_high_seconds=120,
+    soft_deterioration_confirmations=2,
     entry_delay_seconds=2,
     monitor_seconds=5,
     max_pregraduation_thesis_seconds=180,
@@ -629,45 +630,101 @@ def entry_signal_persistence(original_vector, trajectory, demand):
     )
 
 
-def pregraduation_exit_reason(
-    *, elapsed_seconds, frozen_eta_seconds, trajectory, demand,
-    after_cost_return_bps, high_water_return_bps=None, creator_adverse=False,
-):
-    if int(after_cost_return_bps) <= EXIT_POLICY["risk_bps"]:
-        return "risk"
-    if creator_adverse or int(demand.get("creator_sell_quote_15s", 0)) > 0:
-        return "creator_distribution"
+def pregraduation_soft_deterioration(trajectory, demand):
+    """Soft momentum decay requires curve *and* flow deterioration together."""
+    return bool(
+        trajectory.get("complete")
+        and not trajectory.get("accelerating")
+        and int(demand.get("current_net_quote", 0))
+            <= int(demand.get("prior_net_quote", 0))
+    )
 
+
+def pregraduation_action(
+    *, tokens, partial_taken, elapsed_seconds, frozen_eta_seconds, trajectory,
+    demand, after_cost_return_bps, high_water_return_bps=None,
+    soft_deterioration_streak=0, creator_adverse=False,
+):
+    """Harvest first profit, then protect the runner without binary soft exits."""
+    tokens=int(tokens)
     current=int(after_cost_return_bps)
     high=current if high_water_return_bps is None else max(
         current,int(high_water_return_bps)
     )
-    if high >= EXIT_POLICY["first_profit_bps"]:
-        drawdown=max(0,high-current)
-        curve_decelerating=bool(
-            trajectory.get("complete") and not trajectory.get("accelerating")
+    if tokens <= 0:
+        return dict(action="none",reason="no_exposure",exit_tokens=0)
+    if current <= EXIT_POLICY["risk_bps"]:
+        return dict(action="full_exit",reason="risk",exit_tokens=tokens)
+    if creator_adverse or int(demand.get("creator_sell_quote_15s",0)) > 0:
+        return dict(action="full_exit",reason="creator_distribution",exit_tokens=tokens)
+
+    if not partial_taken and current >= EXIT_POLICY["first_profit_bps"]:
+        amount=max(1,tokens*EXIT_POLICY["first_profit_sell_bps"]//10_000)
+        return dict(
+            action="partial_exit",reason="first_profit",
+            exit_tokens=min(tokens-1,amount) if tokens>1 else tokens,
         )
-        flow_decelerating=(
-            int(demand.get("current_net_quote",0))
-            <= int(demand.get("prior_net_quote",0))
-        )
+
+    if partial_taken:
+        current_index=max(1,10_000+current)
+        high_index=max(current_index,10_000+high)
+        drawdown=(high_index-current_index)*10_000//high_index
+        if drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"]:
+            return dict(
+                action="full_exit",reason="pregraduation_runner_trailing_stop",
+                exit_tokens=tokens,
+            )
+        if int(demand.get("current_sell_quote",0)) > int(demand.get("current_buy_quote",0)):
+            return dict(action="full_exit",reason="flow_reversal",exit_tokens=tokens)
         if (
-            drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"]
-            or (current > 0 and (curve_decelerating or flow_decelerating))
+            current > 0
+            and pregraduation_soft_deterioration(trajectory,demand)
+            and int(soft_deterioration_streak)
+                >= EXIT_POLICY["soft_deterioration_confirmations"]
         ):
-            return "pregraduation_profit_lock"
+            return dict(
+                action="full_exit",
+                reason="persistent_pregraduation_deterioration",
+                exit_tokens=tokens,
+            )
+        # Once profit has been harvested, a stale graduation ETA or one soft
+        # momentum observation is management telemetry, not a binary liquidation.
+        return dict(
+            action="hold",
+            reason=(
+                "pregraduation_soft_deterioration"
+                if pregraduation_soft_deterioration(trajectory,demand)
+                else None
+            ),
+            exit_tokens=0,
+        )
 
-    if trajectory.get("complete"):
-        if int(trajectory.get("recent_progress_bps", 0)) <= 0:
-            return "momentum_failure"
-    if int(demand.get("current_sell_quote", 0)) > int(demand.get("current_buy_quote", 0)):
-        return "flow_reversal"
-    eta = max(1, int(frozen_eta_seconds or ENTRY_THRESHOLDS["max_graduation_eta_seconds"]))
-    deadline = min(EXIT_POLICY["max_pregraduation_thesis_seconds"], eta * 2)
+    if trajectory.get("complete") and int(trajectory.get("recent_progress_bps",0)) <= 0:
+        return dict(action="full_exit",reason="momentum_failure",exit_tokens=tokens)
+    if int(demand.get("current_sell_quote",0)) > int(demand.get("current_buy_quote",0)):
+        return dict(action="full_exit",reason="flow_reversal",exit_tokens=tokens)
+    eta=max(1,int(frozen_eta_seconds or ENTRY_THRESHOLDS["max_graduation_eta_seconds"]))
+    deadline=min(EXIT_POLICY["max_pregraduation_thesis_seconds"],eta*2)
     if int(elapsed_seconds) > deadline:
-        return "graduation_thesis_timeout"
-    return None
+        return dict(action="full_exit",reason="graduation_thesis_timeout",exit_tokens=tokens)
+    return dict(action="hold",reason=None,exit_tokens=0)
 
+
+def pregraduation_exit_reason(
+    *, elapsed_seconds, frozen_eta_seconds, trajectory, demand,
+    after_cost_return_bps, high_water_return_bps=None, creator_adverse=False,
+    partial_taken=False, soft_deterioration_streak=0,
+):
+    """Compatibility wrapper: partial-harvest/hold actions are not exit reasons."""
+    action=pregraduation_action(
+        tokens=1,partial_taken=partial_taken,elapsed_seconds=elapsed_seconds,
+        frozen_eta_seconds=frozen_eta_seconds,trajectory=trajectory,demand=demand,
+        after_cost_return_bps=after_cost_return_bps,
+        high_water_return_bps=high_water_return_bps,
+        soft_deterioration_streak=soft_deterioration_streak,
+        creator_adverse=creator_adverse,
+    )
+    return action["reason"] if action["action"]=="full_exit" else None
 
 def post_graduation_vector(
     *, observed_seconds, price_retention_bps, new_independent_buyers,
@@ -719,32 +776,59 @@ def post_graduation_vector(
     )
 
 
+def runner_soft_deterioration(*, seconds_since_high, new_buyer_growth):
+    """A stale high is only soft evidence when buyer breadth is also not expanding."""
+    return bool(
+        int(seconds_since_high) >= EXIT_POLICY["no_new_high_seconds"]
+        and int(new_buyer_growth) <= 0
+    )
+
+
 def runner_action(
     *, tokens, partial_taken, after_cost_return_bps, high_water_return_bps,
     seconds_since_high, new_buyer_growth, buy_quote, sell_quote,
+    soft_deterioration_streak=0,
 ):
-    tokens = int(tokens)
-    current = int(after_cost_return_bps)
-    high = max(int(high_water_return_bps), current)
+    tokens=int(tokens)
+    current=int(after_cost_return_bps)
+    high=max(int(high_water_return_bps),current)
     if tokens <= 0:
-        return dict(action="none", reason="no_exposure", exit_tokens=0)
+        return dict(action="none",reason="no_exposure",exit_tokens=0)
     if current <= EXIT_POLICY["risk_bps"]:
-        return dict(action="full_exit", reason="risk", exit_tokens=tokens)
+        return dict(action="full_exit",reason="risk",exit_tokens=tokens)
     if not partial_taken and current >= EXIT_POLICY["first_profit_bps"]:
-        amount = max(1, tokens * EXIT_POLICY["first_profit_sell_bps"] // 10_000)
-        return dict(action="partial_exit", reason="first_profit", exit_tokens=min(tokens, amount))
+        amount=max(1,tokens*EXIT_POLICY["first_profit_sell_bps"]//10_000)
+        return dict(
+            action="partial_exit",reason="first_profit",
+            exit_tokens=min(tokens-1,amount) if tokens>1 else tokens,
+        )
     if partial_taken:
-        current_index = max(1, 10_000 + current)
-        high_index = max(current_index, 10_000 + high)
-        drawdown = (high_index - current_index) * 10_000 // high_index
+        current_index=max(1,10_000+current)
+        high_index=max(current_index,10_000+high)
+        drawdown=(high_index-current_index)*10_000//high_index
         if drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"]:
-            return dict(action="full_exit", reason="runner_trailing_stop", exit_tokens=tokens)
-        if int(new_buyer_growth) <= 0 and int(sell_quote) > int(buy_quote):
-            return dict(action="full_exit", reason="demand_failure", exit_tokens=tokens)
-        if int(seconds_since_high) >= EXIT_POLICY["no_new_high_seconds"]:
-            return dict(action="full_exit", reason="runner_time_exit", exit_tokens=tokens)
-    return dict(action="hold", reason=None, exit_tokens=0)
-
+            return dict(action="full_exit",reason="runner_trailing_stop",exit_tokens=tokens)
+        if int(sell_quote) > int(buy_quote):
+            return dict(action="full_exit",reason="demand_failure",exit_tokens=tokens)
+        soft=runner_soft_deterioration(
+            seconds_since_high=seconds_since_high,
+            new_buyer_growth=new_buyer_growth,
+        )
+        if (
+            soft
+            and int(soft_deterioration_streak)
+                >= EXIT_POLICY["soft_deterioration_confirmations"]
+        ):
+            return dict(
+                action="full_exit",reason="persistent_runner_deterioration",
+                exit_tokens=tokens,
+            )
+        if soft:
+            return dict(
+                action="hold",reason="runner_management_stale_high",
+                exit_tokens=0,
+            )
+    return dict(action="hold",reason=None,exit_tokens=0)
 
 def breakout_vector(
     *, seconds_after_graduation, pullback_bps, current_price_index,
