@@ -29,6 +29,11 @@ PUBLIC_RPC_URL = "https://api.mainnet-beta.solana.com"
 PUBLIC_RPC_HOST = "api.mainnet-beta.solana.com"
 PUBLIC_OVERRIDE_ENV_NAME = "MM_SOLANA_PUBLIC_RPC_URL"
 
+# Backward-compatible import only. Production callers pass required=True and must
+# resolve the authenticated Alchemy endpoint; this constant is not runtime authority.
+PRIMARY_RPC_URL = PUBLIC_RPC_URL
+PRIMARY_RPC_HOST = "solana-mainnet.g.alchemy.com"
+
 
 SECONDARY_PROVIDER = "none"
 ALCHEMY_ENV_NAME = "MM_SOLANA_READ_RPC_URL"
