@@ -51,10 +51,11 @@ def _hourly():
     return os.environ.get("MM_CERTIFICATION_PHASE") == "hourly"
 
 
-def meteora_preentry_remaining_ok(deadline, *, clock=time.monotonic):
+def meteora_preentry_remaining_ok(deadline, *, clock=None):
     """Admission is operationally serviceable only if the whole entry sequence fits."""
     if deadline is None:
         return True
+    clock = time.monotonic if clock is None else clock
     return float(deadline) - float(clock()) >= METEORA_PREENTRY_RESERVE_SECONDS
 
 
