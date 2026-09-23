@@ -12,12 +12,15 @@ from robinhood_research.ramses_all_pool_lifecycle import (
     _frozen_prestate,
     _is_transient_provider_boundary,
     _paper_ledger_capital,
+    _rebalance_deadline_missed,
+    _rebalance_deadline_seconds,
     _unwind_has_full_liquidity,
     aggregate_segments,
     compact_lifecycle_result,
     select_qualifier,
 )
 from robinhood_research.ramses_strategy import (
+    ACTIVE_MODE,
     POLICY_HASH,
     STRATEGY_DOMAIN,
     STRATEGY_VERSION,
@@ -43,7 +46,7 @@ def _freeze():
 
 def _decision(qualified=True):
     return dict(
-        mode="fee_pulse",
+        mode=ACTIVE_MODE,
         qualified=qualified,
         allocation_authority=False,
         strategy_domain=STRATEGY_DOMAIN,
@@ -109,6 +112,20 @@ class RamsesConnectedLifecycleTests(unittest.TestCase):
             ],
         )
         self.assertEqual(select_qualifier(screen)["pool"], "0x"+"22"*20)
+
+    def test_legacy_mode_is_not_a_genuine_qualifier(self):
+        legacy=dict(_decision(True),mode="fee_pulse")
+        screen=dict(
+            strategy_domain=STRATEGY_DOMAIN,
+            rows=[dict(pool="0x"+"11"*20,decision=legacy)],
+        )
+        self.assertIsNone(select_qualifier(screen))
+
+    def test_rebalance_same_decision_deadline_is_exactly_210_seconds(self):
+        self.assertEqual(_rebalance_deadline_seconds(),210)
+        self.assertFalse(_rebalance_deadline_missed(100.0,now=310.0))
+        self.assertTrue(_rebalance_deadline_missed(100.0,now=310.0001))
+
 
     def test_no_qualifier_returns_none(self):
         screen = dict(
