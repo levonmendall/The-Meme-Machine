@@ -220,7 +220,7 @@ index 0000000..ea7e984
 diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_independent_v1.py
 --- a/tests/test_solana_dlmm_independent_v1.py
 +++ b/tests/test_solana_dlmm_independent_v1.py
-@@ -1,655 +1,637 @@
+@@ -1,654 +1,636 @@
 -import ast
 -import json
 -import os
@@ -875,7 +875,6 @@ diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_i
 -
 -if __name__=="__main__":
 -    unittest.main()
--
 +import ast
 +import json
 +import os
@@ -1512,7 +1511,7 @@ diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_i
 +
 +if __name__=="__main__":
 +    unittest.main()
-+
+
 diff --git a/tests/test_meteora_continuous_campaign.py b/tests/test_meteora_continuous_campaign.py
 --- a/tests/test_meteora_continuous_campaign.py
 +++ b/tests/test_meteora_continuous_campaign.py
