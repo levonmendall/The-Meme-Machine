@@ -313,10 +313,17 @@ def install_ramses(extended_module):
         value = original_reserve(self, identity, pool=pool, decision=decision, at=at)
         manager = getattr(_RAMSES_TLS, "manager", None)
         if manager is not None:
+            row=next(
+                (x for x in (getattr(_RAMSES_TLS,"initial_screen",{}) or {}).get("rows",[])
+                 if str(x.get("pool","")).lower()==str(pool).lower()),
+                None,
+            )
+            explicit=(getattr(_RAMSES_TLS,"costs_by_pool",{}) or {}).get(str(pool).lower())
             manager.update(
                 lifecycle_id=identity,
                 pool=pool,
                 decision=deepcopy(decision),
+                costs=deepcopy((row or {}).get("gas_costs") or explicit),
                 entry_at=int(at),
                 segment_start=int(manager.get("entry_block") or 0),
                 current_capital=int(decision["freeze"]["proposals"][0]["capital_employed"]),
@@ -342,6 +349,12 @@ def install_ramses(extended_module):
             manager["last_checkpoint"] = dict(action=action, detail=deepcopy(detail), at=int(at))
             if action == "segment_close":
                 manager.setdefault("segments", []).append(dict(
+                    index=len(manager.get("segments",[])),
+                    initial_cost_basis=int(
+                        manager.get("decision",{}).get("freeze",{}).get("proposals",[{}])[0].get(
+                            "capital_employed", manager.get("current_capital") or 0
+                        )
+                    ),
                     detail=deepcopy(detail),
                     pnl=deepcopy(getattr(_RAMSES_TLS, "last_pnl", None)),
                 ))
@@ -421,6 +434,8 @@ def install_ramses(extended_module):
                     quote_asset=asset,
                 )
                 _RAMSES_TLS.manager = _RAMSES_STATE
+                _RAMSES_TLS.initial_screen = deepcopy(kwargs.get("initial_screen") or {})
+                _RAMSES_TLS.costs_by_pool = deepcopy(kwargs.get("costs_by_pool") or {})
                 value = lifecycle.run(
                     endpoint,
                     costs_by_pool=kwargs.get("costs_by_pool"),
@@ -470,6 +485,8 @@ def install_ramses(extended_module):
                     except Exception:
                         pass
                 _RAMSES_TLS.manager = None
+                _RAMSES_TLS.initial_screen = None
+                _RAMSES_TLS.costs_by_pool = None
 
         thread = threading.Thread(
             target=target,
