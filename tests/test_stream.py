@@ -89,7 +89,7 @@ class StreamTape(unittest.TestCase):
             json.dumps({'jsonrpc':'2.0','id':1,'result':12}),
         ],stop=stop)
         stream=PumpLogStream(
-            'https://solana.api.onfinality.io/public',tape,
+            'https://api.mainnet-beta.solana.com',tape,
             clock=lambda:100,reconnect_delay=0,
         )
         with patch('meme_machine.stream.connect',side_effect=[first,second]):
@@ -133,8 +133,6 @@ class StreamTape(unittest.TestCase):
                          'wss://api.mainnet-beta.solana.com')
         self.assertEqual(websocket_url('https://example.test/v2/key?x=1'),
                          'wss://example.test/v2/key?x=1')
-        self.assertEqual(websocket_url('https://solana.api.onfinality.io/public'),
-                         'wss://solana.api.onfinality.io/public-ws')
         with self.assertRaisesRegex(ValueError,'HTTPS'):
             websocket_url('http://example.test')
 
