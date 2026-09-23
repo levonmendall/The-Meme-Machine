@@ -77,6 +77,11 @@ class ControlsTests(unittest.TestCase):
         self.assertNotIn('ramses:unsettled_position',verdict['failures'])
         self.assertIn('meteora:position_continuation_pending',verdict['incomplete'])
         self.assertIn('ramses:position_continuation_pending',verdict['incomplete'])
+        result['certification']=verdict
+        self.assertEqual(hourly_engineering(result)['status'],'PASS')
+        result['lanes']['meteora']['durable_handoff']=False
+        self.assertIn('meteora:unsettled_position_without_durable_handoff',
+                      hourly_engineering(result)['failures'])
 
     def test_raw_transport_hash_missing_record_and_terminal_policy_are_checked(self):
         with tempfile.TemporaryDirectory() as tmp:
