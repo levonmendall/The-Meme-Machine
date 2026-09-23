@@ -3339,4 +3339,4 @@ index 0000000..01af937
 +        archived={s:json.loads(zlib.decompress(p)) for s,p in b.db.execute('SELECT signature,payload FROM stream_signature_archive')}
 +        self.assertEqual(archived,{v['signature']:v for v in values})
 +        self.assertEqual(b.db.execute('SELECT count(*) FROM immutable_transactions').fetchone()[0],0)
-+        self.assertEqual(b.db.execute('SELECT count(*) FROM evidence_consumers').fetchone()[0],0)\n
++        self.assertEqual(b.db.execute('SELECT count(*) FROM evidence_consumers').fetchone()[0],0)
