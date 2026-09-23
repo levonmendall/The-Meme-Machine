@@ -9,7 +9,7 @@ permissions:
   checks: write
 concurrency:
   group: all-market-certification-candidate
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   retire-superseded-program:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[all-market-cert]')
