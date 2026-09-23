@@ -38,6 +38,7 @@ jobs:
           cp "$RUNNER_TEMP/non-market-lanes/ramses/robinhood_research/ramses_extended_test.py" non-market-evidence/prepared-sources/ramses/
           cp "$RUNNER_TEMP/non-market-lanes/ramses/robinhood_research/ramses_campaign_capital.py" non-market-evidence/prepared-sources/ramses/ 2>/dev/null || true
           cp "$RUNNER_TEMP/non-market-lanes/ramses/robinhood_research/ramses_strategy_ledger.py" non-market-evidence/prepared-sources/ramses/
+          git -C "$RUNNER_TEMP/non-market-lanes/meteora" diff --binary HEAD > non-market-evidence/prepared-sources/meteora/git-diff.patch
       - name: Supervisor, source mutation and terminal truth
         run: |
           mkdir -p non-market-evidence
