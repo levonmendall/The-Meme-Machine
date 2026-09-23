@@ -562,7 +562,7 @@
       "additional_patches": [
         {
           "path": "certification/patches/ramses-scope-efficiency.patch",
-          "sha256": "f168d5d38f3e89566cc41a95d28944500e456c708a65be0cb90242eaca2cba38"
+          "sha256": "08b237f5c70e8c844fe690182bd65a5551f1529b2b2af47e63d111211a7ec0dd"
         }
       ]
     }
