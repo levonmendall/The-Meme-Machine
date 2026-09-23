@@ -1,0 +1,34 @@
+name: export-current-ramses-prepared-base
+on:
+  push:
+    branches: [repair/market-scope-efficiency-current-v2-20260923]
+permissions:
+  contents: read
+jobs:
+  export:
+    if: contains(github.event.head_commit.message, '[export-ramses-prepared-base]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare current Ramses base overlay only
+        run: |
+          set -euo pipefail
+          SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["ramses"]["source_sha"])')"
+          WT="$RUNNER_TEMP/ramses"
+          git fetch origin "$SHA"
+          git worktree add --detach "$WT" "$SHA"
+          git -C "$WT" apply --check "$GITHUB_WORKSPACE/certification/patches/ramses-admission.patch"
+          git -C "$WT" apply --index "$GITHUB_WORKSPACE/certification/patches/ramses-admission.patch"
+          mkdir -p prepared/robinhood_research prepared/robinhood_tests
+          cp "$WT/robinhood_research/ramses_universe.py" prepared/robinhood_research/
+          cp "$WT/robinhood_tests/test_ramses_universe.py" prepared/robinhood_tests/
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: current-ramses-prepared-base-${{ github.sha }}
+          path: prepared
+          if-no-files-found: error
+          retention-days: 30
