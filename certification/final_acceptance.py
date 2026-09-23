@@ -10,14 +10,14 @@ LANES=("pump","pons","meteora","ramses")
 def load(path):
     return json.loads(Path(path).read_text())
 
-def run(evidence,output,expected_sha=None):
+def run(evidence,output,expected_sha=None,registry_path=None):
     root=Path(evidence)
     offline=load(root/"offline/result.json")
     crash=load(root/"crash.json")
     restart=load(root/"restart-safety/result.json")
     integrated=load(root/"integrated-acceptance/result.json")
     historical=load(root/"historical-resolution.json")
-    registry=load(Path(__file__).with_name("historical_exposure.json"))
+    registry=load(registry_path or Path(__file__).with_name("historical_exposure.json"))
     connectivity={lane:load(root/f"{lane}-connectivity.json") for lane in LANES}
     resources={
         "pump":load(root/"pump-resource.json"),
@@ -114,5 +114,6 @@ if __name__=="__main__":
     p.add_argument("--evidence",required=True)
     p.add_argument("--output",required=True)
     p.add_argument("--expected-sha")
+    p.add_argument("--registry")
     a=p.parse_args()
-    raise SystemExit(run(a.evidence,a.output,a.expected_sha))
+    raise SystemExit(run(a.evidence,a.output,a.expected_sha,a.registry))
