@@ -17,6 +17,7 @@ def run(evidence,output,expected_sha=None):
     restart=load(root/"restart-safety/result.json")
     integrated=load(root/"integrated-acceptance/result.json")
     historical=load(root/"historical-resolution.json")
+    registry=load(Path(__file__).with_name("historical_exposure.json"))
     connectivity={lane:load(root/f"{lane}-connectivity.json") for lane in LANES}
     resources={
         "pump":load(root/"pump-resource.json"),
@@ -37,6 +38,15 @@ def run(evidence,output,expected_sha=None):
         and historical.get("after",{}).get("writeoffs")==1
     )
     connectivity_pass=all(row.get("passed") is True for row in connectivity.values())
+    resolved_rows=registry.get("resolved",[])
+    registry_pass=(
+        registry.get("unresolved")==[]
+        and len(resolved_rows)==1
+        and (resolved_rows[0].get("resolution") or {}).get("receipt_sha256")
+            ==historical.get("receipt_sha256")
+        and (resolved_rows[0].get("resolution") or {}).get("disposition")
+            ==historical.get("disposition")
+    )
     resource_pass=(
         resources["pump"].get("real_provider_calls")==0
         and resources["meteora_general"].get("real_provider_calls")==0
@@ -52,6 +62,7 @@ def run(evidence,output,expected_sha=None):
         "restart_safety":restart.get("passed") is True,
         "integrated_current_policy":integrated.get("passed") is True,
         "historical_exposure_resolution":historical_pass,
+        "historical_registry_released":registry_pass,
         "production_adapter_connectivity":connectivity_pass,
         "resource_bounds":resource_pass,
         "exact_integration_identity":identity_pass,
