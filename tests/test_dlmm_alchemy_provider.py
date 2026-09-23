@@ -31,7 +31,7 @@ class DLMMAlchemyTopologyTests(unittest.TestCase):
         self.assertEqual(provider.rpc_url(ENV),ALCHEMY)
         meta=provider.metadata(ENV)
         self.assertEqual(meta["topology"],"dlmm_public_ws_alchemy_http")
-        self.assertEqual(meta["primary_provider"],topology.SECONDARY_PROVIDER)
+        self.assertEqual(meta["primary_provider"],topology.PRIMARY_PROVIDER)
         self.assertEqual(meta["primary_credential"],provider.ENV_NAME)
         self.assertIsNone(meta["secondary_provider"])
         self.assertFalse(meta["secondary_configured"])
@@ -77,10 +77,10 @@ class DLMMAlchemyTopologyTests(unittest.TestCase):
         self.assertEqual(rpc.http_requests,1)
         t=rpc.provider_telemetry()
         self.assertEqual(t["topology"],"dlmm_public_ws_alchemy_http")
-        self.assertEqual(t["primary_provider"],topology.SECONDARY_PROVIDER)
+        self.assertEqual(t["primary_provider"],topology.PRIMARY_PROVIDER)
         self.assertEqual(t["failover_count"],0)
-        self.assertEqual(t["provider_http_requests"][topology.SECONDARY_PROVIDER],1)
-        self.assertEqual(t["provider_successes"][topology.SECONDARY_PROVIDER],1)
+        self.assertEqual(t["provider_http_requests"][topology.PRIMARY_PROVIDER],1)
+        self.assertEqual(t["provider_successes"][topology.PRIMARY_PROVIDER],1)
 
     def test_point_two_second_single_and_batch_spacing(self):
         clock=_Clock()
