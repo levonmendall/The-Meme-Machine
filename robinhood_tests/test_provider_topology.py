@@ -113,10 +113,10 @@ class LaneProviderTests(unittest.TestCase):
         def transport(method,params):
             calls.append(method)
             if len(calls)==1:
-                raise BoundaryError("provider_transport_failure")
+                raise BoundaryError("provider_http_403")
             return "0x1237"
         rpc=configured_discovery_rpc(
-            env[PRIMARY_ENV],environ=env,limit=10,per_scope=10,retries=0,
+            environ=env,limit=10,per_scope=10,retries=0,
             transport=transport,
         )
         self.assertEqual(rpc.call("eth_chainId",[],scope="discovery"),"0x1237")
