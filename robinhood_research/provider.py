@@ -8,7 +8,13 @@ from urllib.request import Request, urlopen
 
 from . import BoundaryError, CHAIN_ID
 
-RPC_HTTP_HEADERS = {\n    'Content-Type': 'application/json',\n    'Accept': 'application/json',\n    'User-Agent': 'Meme-Machine/1.0 (+https://github.com/levonmendall/The-Meme-Machine)',\n}\n\nREAD_METHODS = frozenset({
+RPC_HTTP_HEADERS = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'User-Agent': 'Meme-Machine/1.0 (+https://github.com/levonmendall/The-Meme-Machine)',
+}
+
+READ_METHODS = frozenset({
     'eth_chainId', 'eth_blockNumber', 'eth_getBlockByNumber',
     'eth_getBlockByHash', 'eth_getLogs', 'eth_getTransactionReceipt',
     'eth_getCode', 'eth_call', 'eth_gasPrice', 'eth_getBalance',
