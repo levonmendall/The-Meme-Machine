@@ -7,6 +7,7 @@
   "current_workflow_run_id": 35921058163,
   "dispatch_id": "b6bd76a8cc7f409f834e33cbb9b21706",
   "events": {},
+  "halt_reason": "smoke_hourly_or_artifact_review_failed",
   "historical_references": {
     "cancelled_run": 35905479952,
     "previous_nonmarket_run": 35907893183,
@@ -63,18 +64,24 @@
       "next_action": "finish_smoke_and_native_lifecycle_then_verify_artifacts_before_hourly_admission",
       "scope": "engineering smoke only; not an accepted profitability block",
       "workflow_run_id": 35921058163
+    },
+    {
+      "action": "halt",
+      "at": 1790199651.7116642,
+      "reason": "smoke_hourly_or_artifact_review_failed",
+      "workflow_run_id": "35921058163"
     }
   ],
   "integration_sha": "b57835dc50dd4047cefed13cfe0be975779af1e8",
   "live_money": false,
-  "next_action": "smoke_then_hourly",
+  "next_action": "preserve_repair_recertify_successor_cohort",
   "operational_limit": {
     "maximum_blocks": 192,
     "maximum_calendar_hours": 336
   },
   "paper_only": true,
   "pending_lanes": [],
-  "phase": "RUNNING",
+  "phase": "HALTED",
   "protocol_sha256": "74cf0c2cf75a1fac031d5626754381d1fab51d2e2afa36f705a346028665e9a9",
   "records": [],
   "reviewed_blocks": [],
@@ -103,5 +110,5 @@
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790198605.4885623
+  "updated_at": 1790199651.711675
 }

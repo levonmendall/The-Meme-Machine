@@ -34,9 +34,11 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
   },
   "current_cohort_id": "prospective-four-lane-v3-complete-sample-20260923",
   "current_economic_metrics": {},
-  "current_phase": "RUNNING",
+  "current_phase": "HALTED",
   "economic_acceptance_established": false,
-  "engineering_blockers": [],
+  "engineering_blockers": [
+    "smoke_hourly_or_artifact_review_failed"
+  ],
   "historical_references": {
     "cancelled_run": 35905479952,
     "previous_nonmarket_run": 35907893183,
@@ -93,6 +95,12 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "next_action": "finish_smoke_and_native_lifecycle_then_verify_artifacts_before_hourly_admission",
       "scope": "engineering smoke only; not an accepted profitability block",
       "workflow_run_id": 35921058163
+    },
+    {
+      "action": "halt",
+      "at": 1790199651.7116642,
+      "reason": "smoke_hourly_or_artifact_review_failed",
+      "workflow_run_id": "35921058163"
     }
   ],
   "infrastructure_censoring": {
@@ -108,47 +116,10 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "ramses": {}
   },
   "last_completed_action": {
-    "action": "smoke_progress_checkpoint",
-    "at": 1790198504.250023,
-    "elapsed_seconds": 481.38561878999997,
-    "lanes": {
-      "meteora": {
-        "accounting_reconciled": true,
-        "completed_market_scans": null,
-        "health": "responsive",
-        "infrastructure_censored_scans": null,
-        "natural_settled": 0,
-        "open_positions": 0
-      },
-      "pons": {
-        "accounting_reconciled": true,
-        "completed_market_scans": null,
-        "health": "responsive",
-        "infrastructure_censored_scans": null,
-        "natural_settled": 0,
-        "open_positions": 1
-      },
-      "pump": {
-        "accounting_reconciled": true,
-        "completed_market_scans": null,
-        "health": "responsive",
-        "infrastructure_censored_scans": null,
-        "natural_settled": 0,
-        "open_positions": 0
-      },
-      "ramses": {
-        "accounting_reconciled": true,
-        "completed_market_scans": 1,
-        "health": "responsive",
-        "infrastructure_censored_scans": 0,
-        "natural_settled": 0,
-        "open_positions": 0
-      }
-    },
-    "live_check_run_id": 107384970458,
-    "next_action": "finish_smoke_and_native_lifecycle_then_verify_artifacts_before_hourly_admission",
-    "scope": "engineering smoke only; not an accepted profitability block",
-    "workflow_run_id": 35921058163
+    "action": "halt",
+    "at": 1790199651.7116642,
+    "reason": "smoke_hourly_or_artifact_review_failed",
+    "workflow_run_id": "35921058163"
   },
   "latest_certification_run": 35920022541,
   "latest_market_run": 35921058163,
@@ -170,7 +141,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "pump": 0,
     "ramses": 0
   },
-  "next_action": "smoke_then_hourly",
+  "next_action": "preserve_repair_recertify_successor_cohort",
   "observation_hours": {
     "meteora": 0,
     "pons": 0,
@@ -206,6 +177,6 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790198605.4885623
+  "updated_at": 1790199651.711675
 }
 ```
