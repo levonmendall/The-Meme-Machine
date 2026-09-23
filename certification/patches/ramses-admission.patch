@@ -2068,7 +2068,6 @@ diff --git a/robinhood_research/ramses_strategy_ledger.py b/robinhood_research/r
 +            shared_allocator=False,
 +            allocation_authority=False,
 +        )
-
 diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_universe.py
 index eb83912..c6e785b 100644
 --- a/robinhood_research/ramses_universe.py
