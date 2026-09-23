@@ -36,8 +36,12 @@ def probe(lane):
         try:detail=callback();rows.append(dict(lane=lane,role=role,result='PROVEN',detail=detail,seconds=time.time()-started))
         except Exception as exc:
             # Provider exception strings can contain credentials. Retain only a
-            # machine class here; native transport telemetry remains separate.
-            rows.append(dict(lane=lane,role=role,result='FAILED',error_type=type(exc).__name__,seconds=time.time()-started))
+            # machine class plus explicitly sanitized adapter telemetry.
+            row=dict(lane=lane,role=role,result='FAILED',
+                     error_type=type(exc).__name__,seconds=time.time()-started)
+            detail=getattr(exc,'connectivity_safe_detail',None)
+            if isinstance(detail,dict):row['detail']=detail
+            rows.append(row)
     if lane in ('pump','meteora'):
         from meme_machine import pump
         def http():
@@ -45,19 +49,40 @@ def probe(lane):
                 from meme_machine.solana_read_rpc import new_rpc,primary_rpc_url
                 primary_rpc_url(required=True)
                 rpc=new_rpc(limit=40)
-                genesis=rpc.call('getGenesisHash',**solana_genesis_call_kwargs(lane))
-                provider=(rpc.provider_telemetry() if hasattr(rpc,'provider_telemetry') else None)
                 adapter='pump_solana_read_rpc'
+                try:
+                    genesis=rpc.call('getGenesisHash',**solana_genesis_call_kwargs(lane))
+                except Exception as exc:
+                    try:exc.connectivity_safe_detail=dict(
+                        adapter=adapter,
+                        provider=(rpc.provider_telemetry() if hasattr(rpc,'provider_telemetry') else None))
+                    except Exception:pass
+                    raise
+                provider=(rpc.provider_telemetry() if hasattr(rpc,'provider_telemetry') else None)
             else:
                 # Meteora's authoritative reconstruction path is the dedicated
                 # authenticated Alchemy adapter, not the generic Pump HTTP topology.
                 from tests import dlmm_alchemy_provider as provider_module
                 provider_module.alchemy_rpc_url(required=True)
                 rpc=provider_module.new_rpc(limit=40)
-                genesis=rpc.call('getGenesisHash',**solana_genesis_call_kwargs(lane))
-                provider=(rpc.provider_telemetry() if hasattr(rpc,'provider_telemetry') else None)
                 adapter='meteora_dlmm_alchemy_provider'
-            if genesis!=pump.MAINNET:raise ValueError('wrong_solana_genesis')
+                try:
+                    genesis=rpc.call('getGenesisHash',**solana_genesis_call_kwargs(lane))
+                except Exception as exc:
+                    try:exc.connectivity_safe_detail=dict(
+                        adapter=adapter,
+                        provider=(rpc.provider_telemetry() if hasattr(rpc,'provider_telemetry') else None))
+                    except Exception:pass
+                    raise
+                provider=(rpc.provider_telemetry() if hasattr(rpc,'provider_telemetry') else None)
+            try:
+                if genesis!=pump.MAINNET:raise ValueError('wrong_solana_genesis')
+            except Exception as exc:
+                try:exc.connectivity_safe_detail=dict(
+                    adapter=adapter,
+                    provider=(rpc.provider_telemetry() if hasattr(rpc,'provider_telemetry') else None))
+                except Exception:pass
+                raise
             return dict(network='solana_mainnet',genesis=genesis,adapter=adapter,
                 provider=provider,
                 authentication='authenticated_endpoint_returned_valid_chain_identity',
