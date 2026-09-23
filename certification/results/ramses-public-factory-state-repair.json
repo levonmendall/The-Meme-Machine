@@ -93,5 +93,12 @@
     "finality_changed": false,
     "paper_only": true,
     "live_money_authority": false
+  },
+  "integration": {
+    "target_branch": "cert/one-hour-repair-campaign",
+    "pull_request": 101,
+    "merge_sha": "3a26ab259a1f9da1225beaf32836a99b969b5389",
+    "validation_request": "four_lane_smoke",
+    "purpose": "prove Ramses passes exact factory authentication on the integrated campaign without changing strategy authority"
   }
 }
