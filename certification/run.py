@@ -375,6 +375,71 @@ def _apply_pump_profit_protection_accounting(work,patch_path):
     subprocess.run(['git','diff','--check','--cached'],cwd=work,check=True)
 
 
+def _resolve_meteora_checkpoint_conflicts(text):
+    pattern=re.compile(r'(?ms)^<<<<<<< ours\n(.*?)^=======\n(.*?)^>>>>>>> theirs\n')
+    count=0
+    def choose(match):
+        nonlocal count
+        count+=1
+        ours,theirs=match.group(1),match.group(2)
+        if '_eligible_exit_reasons' in ours and '_position_lifecycle' in theirs:
+            prefix=ours[:ours.index('def _lifecycle(')]
+            return prefix+theirs
+        if 'collapse_streaks' in ours and "book.append(identity,'mark'" in theirs:
+            return """        if book is not None:
+            book.append(identity,'mark',dict(
+                tape=asdict(tape),position_hash=digest(position),mark=mark))
+        observed_seconds=max(
+            duration,
+            max(0,int(terminal.get("time",0))-int(current.get("time",0))))
+        elapsed+=observed_seconds;tapes.append(tape)
+        for reason in collapse_streaks:
+            collapse_streaks[reason]=(
+                collapse_streaks[reason]+1 if reason in raw_reasons else 0
+            )
+        eligible_reasons=_eligible_exit_reasons(
+            raw_reasons,elapsed_seconds=elapsed,
+            collapse_streaks=collapse_streaks,policy=policy,
+        )
+        segments.append(dict(
+            elapsed_seconds=elapsed,lineage=tape.lineage,
+            swaps=len(tape.events),recent=recent,mark=mark,
+            dynamic_fee_uplift=uplift,
+            raw_exit_reasons=raw_reasons,
+            collapse_streaks=dict(collapse_streaks),
+            exit_reasons=eligible_reasons,
+            evidence_recovery_attempts=recoveries,
+        ))
+        current=terminal
+        if eligible_reasons:
+            exit_reason=eligible_reasons[0];break
+    _stage(address,"unwind",lifecycle_id=identity)
+"""
+        raise ValueError('unreviewed_meteora_checkpoint_conflict')
+    resolved=pattern.sub(choose,text)
+    if count!=2 or '<<<<<<< ' in resolved or '>>>>>>> ' in resolved:
+        raise ValueError('meteora_checkpoint_conflict_shape')
+    return resolved
+
+
+def _apply_meteora_core_hold_checkpoint(work,patch_path):
+    merged=subprocess.run(
+        ['git','apply','--3way','--index',str(patch_path)],cwd=work,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+    )
+    if merged.returncode==0:
+        return
+    unmerged=git('diff','--name-only','--diff-filter=U',cwd=work).splitlines()
+    if unmerged!=['tests/solana_dlmm_independent_v1.py']:
+        raise ValueError('unexpected_meteora_checkpoint_conflicts:'+','.join(unmerged))
+    target=work/unmerged[0]
+    target.write_text(_resolve_meteora_checkpoint_conflicts(target.read_text()))
+    subprocess.run(['git','add','--all'],cwd=work,check=True)
+    if git('diff','--name-only','--diff-filter=U',cwd=work):
+        raise ValueError('unresolved_meteora_checkpoint_overlay')
+    subprocess.run(['git','diff','--check','--cached'],cwd=work,check=True)
+
+
 def _apply_three_way_or_diagnose(work,patch_path,lane):
     merged=subprocess.run(
         ['git','apply','--3way','--index',str(patch_path)],cwd=work,
@@ -418,6 +483,9 @@ def prepare(destination):
                 continue
             if lane=='pump' and patch_path.name=='pump-accounting.patch':
                 _apply_pump_profit_protection_accounting(work,patch_path)
+                continue
+            if lane=='meteora' and patch_path.name=='meteora-checkpoint.patch':
+                _apply_meteora_core_hold_checkpoint(work,patch_path)
                 continue
             _apply_three_way_or_diagnose(work,patch_path,lane)
             continue
