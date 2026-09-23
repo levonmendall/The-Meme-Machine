@@ -745,6 +745,28 @@ def main():
                             row["marks"][str(horizon)]=dict(
                                 observed_at=now,return_bps=mark["return_bps"],
                                 proceeds=proceeds)
+                    if mark.get("partial_harvest_bps"):
+                        tokens_before=int(life.position.tokens)
+                        harvest_tokens=max(
+                            1,
+                            tokens_before*int(mark["partial_harvest_bps"])//10_000,
+                        )
+                        harvest_tokens=min(tokens_before-1,harvest_tokens)
+                        if life.position.surface=="pump.fun":
+                            curve=pump.curve(snapshot["accounts"][0])
+                            supply,_=pump.mint_info(snapshot["accounts"][1])
+                            rates=pump.fees(snapshot["accounts"][2],curve,supply)
+                            partial_raw,_=pump.sell(curve,harvest_tokens,rates)
+                            harvest_proceeds=max(0,partial_raw-GAS)
+                        else:
+                            partial_quote=sell_quote(snapshot,harvest_tokens)
+                            harvest_proceeds=max(0,partial_quote.output_amount-GAS)
+                        harvest=life.harvest(harvest_tokens,harvest_proceeds,now)
+                        report.setdefault("harvests",[]).append(dict(
+                            mint=mint,mode=mode,opened=row["opened"],
+                            observed_at=now,return_bps=mark["return_bps"],
+                            **harvest,
+                        ))
                     if mark["exit_reason"] is not None:
                         closed=life.settle(proceeds,now)
                         report["settled"].append(dict(
