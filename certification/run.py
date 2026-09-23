@@ -70,6 +70,20 @@ def canonical_patch_bytes(value):
                   b'index <blob>..<blob>',bytes(value))
 
 
+def _reject_prohibited_solana_provider(cwd,lane):
+    if lane not in ('pump','meteora'):
+        return
+    result=subprocess.run(
+        ['git','grep','-n','-I','-i','onfinality','--','meme_machine','tests','.github/workflows'],
+        cwd=cwd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,
+    )
+    if result.returncode not in (0,1):
+        raise ValueError('provider_reference_scan_failed:'+lane)
+    if result.returncode==0:
+        first=(result.stdout.splitlines() or ['unknown'])[0].split(':',1)[0]
+        raise ValueError('prohibited_onfinality_runtime_reference:'+lane+':'+first)
+
+
 def source_integrity(worktrees):
     observed={}
     for lane,row in manifest()['lanes'].items():
@@ -87,6 +101,7 @@ def source_integrity(worktrees):
         for file,expected_hash in row.get('file_hashes',{}).items():
             if hashlib.sha256((cwd/file).read_bytes()).hexdigest()!=expected_hash:
                 raise ValueError('frozen_source_file_drift:'+lane+':'+file)
+        _reject_prohibited_solana_provider(cwd,lane)
         diff=subprocess.check_output(['git','diff','--binary','HEAD'],cwd=cwd)
         observed[lane]=hashlib.sha256(diff).hexdigest()
         expected_diff_hash=row.get('source_diff_sha256')
