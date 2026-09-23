@@ -45,12 +45,18 @@ def verify():
         if value not in four:failures.append("four_lane_control_missing:"+value)
     if "Chain next bounded continuation slice when still open" not in cont:
         failures.append("continuation_self_chain_missing")
+    if "Amend original prospective block when this lane reaches a terminal state" not in cont:
+        failures.append("continuation_prospective_amendment_missing")
+    if "prospective_acceptance amend-continuation" not in cont:
+        failures.append("continuation_amendment_command_missing")
     if "actions: write" not in cont:
         failures.append("continuation_actions_write_missing")
     for value in (
         "--branch cert/prospective-market-v1",
         "--expected-integration-sha",
         "four-lane-hourly-$run_id-*",
+        "position-continuation-*-$run_id-*",
+        "--workflow position-continuation.yml",
         "prospective_acceptance evaluate",
     ):
         if value not in review:failures.append("cohort_review_control_missing:"+value)
