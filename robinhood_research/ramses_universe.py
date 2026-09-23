@@ -234,8 +234,13 @@ def _enumerate_factory(rpc, factory, block, *, factory_runtime_sha256=None):
     if len(cached_addresses) > count:
         raise BoundaryError("ramses_universe_factory_count_regression")
 
+    # A digest-valid cache tied to the exact runtime authenticated above is safe
+    # to reuse without redundant sentinel state reads: the verified factory runtime
+    # is append-only for _allLBPairs, count regression remains fail-closed, and any
+    # growth is authenticated by exact newly appended index reads. Legacy/unbound
+    # in-memory caches retain sentinel verification.
     sentinel_indices = []
-    if cached_addresses:
+    if cached_addresses and not factory_runtime_sha256:
         sentinel_indices = sorted(set((0, len(cached_addresses) - 1)))
         sentinel_rows = _factory_rows(
             rpc,factory,sentinel_indices,block,"universe_inventory_verify"
@@ -507,8 +512,12 @@ def scan(
     factory_code = rpc.call("eth_getCode", [factory, hex(end)], scope="universe_identity")
     factory_identity = authenticate("ramses_factory", factory, factory_code)
 
+    # The official public RPC is the broad finalized log observation plane, but
+    # it does not retain historical contract state. Authenticate the append-only
+    # factory count/delta on the configured DLMM evidence endpoint, then use the
+    # resulting complete address inventory for broad public log observation.
     addresses = _enumerate_factory(
-        observation_rpc,factory,end,
+        rpc,factory,end,
         factory_runtime_sha256=factory_identity["runtime_sha256"],
     )
     logs = _batched_logs(observation_rpc, start, end, addresses)
