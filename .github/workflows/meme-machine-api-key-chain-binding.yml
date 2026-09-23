@@ -1,0 +1,146 @@
+name: meme-machine-api-key-chain-binding
+on:
+  push:
+    branches: [diag/meme-machine-api-key-chain-binding-20260923]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Verify Meme Machine API keys are bound to the correct chains
+        env:
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+          MM_ROBINHOOD_DISCOVERY_RPC_URL: ${{ secrets.MM_ROBINHOOD_DISCOVERY_RPC_URL }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,re,time
+          from urllib.parse import urlsplit
+          from urllib.request import Request,urlopen
+          from urllib.error import HTTPError,URLError
+
+          SALT="meme-machine-chain-binding-v1"
+
+          def fingerprint(value):
+              return hashlib.sha256((SALT+":"+value).encode()).hexdigest()[:20]
+
+          def rpc(url,method,params):
+              body=json.dumps({"jsonrpc":"2.0","id":1,"method":method,"params":params}).encode()
+              req=Request(url,data=body,headers={
+                  "Content-Type":"application/json",
+                  "Accept":"application/json",
+                  "User-Agent":"meme-machine-chain-binding/1",
+              })
+              started=time.monotonic()
+              try:
+                  with urlopen(req,timeout=8) as resp:
+                      raw=resp.read(65536);status=resp.status;headers=resp.headers
+              except HTTPError as exc:
+                  raw=exc.read(65536);status=exc.code;headers=exc.headers
+              except (URLError,TimeoutError,OSError) as exc:
+                  return {"ok":False,"transport_error":type(exc).__name__,
+                          "latency_seconds":time.monotonic()-started}
+              row={"http_status":status,"latency_seconds":time.monotonic()-started,
+                   "server":headers.get("Server"),"trace_id":headers.get("X-Alchemy-Trace-Id")}
+              try:
+                  obj=json.loads(raw)
+                  if isinstance(obj,dict):
+                      row["result"]=obj.get("result")
+                      if isinstance(obj.get("error"),dict):
+                          row["rpc_error_code"]=obj["error"].get("code")
+                          row["rpc_error_message"]=str(obj["error"].get("message",""))[:200]
+              except Exception:
+                  row["invalid_json"]=True
+              row["ok"]=status==200 and "result" in row
+              return row
+
+          def endpoint_info(url,expected_host):
+              p=urlsplit(url)
+              key_match=re.fullmatch(r"/v2/([^/]+)",p.path or "")
+              key=key_match.group(1) if key_match else ""
+              return {
+                  "configured":bool(url),
+                  "scheme_https":p.scheme=="https",
+                  "hostname":p.hostname,
+                  "expected_host":p.hostname==expected_host,
+                  "v2_key_path_shape":bool(key_match),
+                  "query_present":bool(p.query),
+                  "fragment_present":bool(p.fragment),
+                  "endpoint_identity":fingerprint(url) if url else None,
+                  "key_fingerprint":fingerprint(key) if key else None,
+              }
+
+          sol=os.environ.get("MM_SOLANA_READ_RPC_URL","")
+          rh_read=os.environ.get("MM_ROBINHOOD_READ_RPC_URL","")
+          rh_dlmm=os.environ.get("MM_ROBINHOOD_DLMM_RPC_URL","")
+          rh_disc=os.environ.get("MM_ROBINHOOD_DISCOVERY_RPC_URL","")
+
+          report={
+              "observed_at":time.time(),
+              "solana":endpoint_info(sol,"solana-mainnet.g.alchemy.com"),
+              "robinhood_read":endpoint_info(rh_read,"robinhood-mainnet.g.alchemy.com"),
+              "robinhood_dlmm":endpoint_info(rh_dlmm,"robinhood-mainnet.g.alchemy.com"),
+              "robinhood_discovery": {
+                  "configured":bool(rh_disc),
+                  "endpoint_identity":fingerprint(rh_disc) if rh_disc else None,
+                  "hostname":urlsplit(rh_disc).hostname if rh_disc else None,
+              },
+          }
+
+          # Chain identity controls.
+          sol_probe=rpc(sol,"getGenesisHash",[]) if sol else {"ok":False,"missing":True}
+          sol_public=rpc("https://api.mainnet-beta.solana.com","getGenesisHash",[])
+          report["solana"]["probe"]=sol_probe
+          report["solana"]["public_mainnet_control"]=sol_public
+          report["solana"]["mainnet_identity_match"]=(
+              sol_probe.get("ok") and sol_public.get("ok")
+              and sol_probe.get("result")==sol_public.get("result")
+          )
+
+          rh_public=rpc("https://rpc.mainnet.chain.robinhood.com","eth_chainId",[])
+          report["robinhood_public_control"]=rh_public
+          for name,url in (("robinhood_read",rh_read),("robinhood_dlmm",rh_dlmm)):
+              pr=rpc(url,"eth_chainId",[]) if url else {"ok":False,"missing":True}
+              report[name]["probe"]=pr
+              report[name]["mainnet_identity_match"]=(
+                  pr.get("ok") and pr.get("result")=="0x1237"
+                  and rh_public.get("ok") and rh_public.get("result")=="0x1237"
+              )
+
+          sol_key=report["solana"].get("key_fingerprint")
+          rr_key=report["robinhood_read"].get("key_fingerprint")
+          rd_key=report["robinhood_dlmm"].get("key_fingerprint")
+          report["key_binding"]={
+              "solana_and_robinhood_read_are_distinct":bool(sol_key and rr_key and sol_key!=rr_key),
+              "solana_and_robinhood_dlmm_are_distinct":bool(sol_key and rd_key and sol_key!=rd_key),
+              "robinhood_read_and_dlmm_same_key":bool(rr_key and rd_key and rr_key==rd_key),
+          }
+
+          checks={
+              "solana_configured":report["solana"]["configured"],
+              "solana_correct_host":report["solana"]["expected_host"],
+              "solana_key_path":report["solana"]["v2_key_path_shape"],
+              "solana_mainnet_identity":report["solana"]["mainnet_identity_match"],
+              "robinhood_read_configured":report["robinhood_read"]["configured"],
+              "robinhood_read_correct_host":report["robinhood_read"]["expected_host"],
+              "robinhood_read_key_path":report["robinhood_read"]["v2_key_path_shape"],
+              "robinhood_read_mainnet_identity":report["robinhood_read"]["mainnet_identity_match"],
+              "robinhood_dlmm_configured":report["robinhood_dlmm"]["configured"],
+              "robinhood_dlmm_correct_host":report["robinhood_dlmm"]["expected_host"],
+              "robinhood_dlmm_key_path":report["robinhood_dlmm"]["v2_key_path_shape"],
+              "robinhood_dlmm_mainnet_identity":report["robinhood_dlmm"]["mainnet_identity_match"],
+              "solana_key_distinct_from_robinhood_read":report["key_binding"]["solana_and_robinhood_read_are_distinct"],
+              "solana_key_distinct_from_robinhood_dlmm":report["key_binding"]["solana_and_robinhood_dlmm_are_distinct"],
+          }
+          report["checks"]=checks
+          report["passed"]=all(checks.values())
+          print(json.dumps(report,sort_keys=True,indent=2))
+          if not report["passed"]:
+              raise SystemExit(1)
+          PY
