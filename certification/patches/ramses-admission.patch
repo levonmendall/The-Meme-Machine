@@ -263,10 +263,10 @@ index 0000000..274abdb
 +    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
 +    return 'reconstruction_incomplete'
 diff --git a/robinhood_research/provider.py b/robinhood_research/provider.py
-index c24ecb4..0aa82cf 100644
+index 1ad5f48..cdcb762 100644
 --- a/robinhood_research/provider.py
 +++ b/robinhood_research/provider.py
-@@ -13,7 +13,7 @@ READ_METHODS = frozenset({
+@@ -19,7 +19,7 @@ READ_METHODS = frozenset({
      'eth_getBlockByHash', 'eth_getLogs', 'eth_getTransactionReceipt',
      'eth_getCode', 'eth_call', 'eth_gasPrice', 'eth_getBalance',
      'eth_getStorageAt', 'eth_getTransactionByHash',
@@ -1465,10 +1465,10 @@ index 2a2f308..dee63e1 100644
              "SELECT body,hash FROM ramses_strategy_position ORDER BY id"
          ).fetchall()
 diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_universe.py
-index 26e7ff5..f54ccd5 100644
+index eb83912..c6e785b 100644
 --- a/robinhood_research/ramses_universe.py
 +++ b/robinhood_research/ramses_universe.py
-@@ -429,6 +429,7 @@ def scan(
+@@ -453,6 +453,7 @@ def scan(
      signals_by_pool=None,
      cost_state=None,
      finalized_frontier=None,
@@ -1476,7 +1476,7 @@ index 26e7ff5..f54ccd5 100644
  ):
      """Scan the complete factory and classify the bounded recently-active cohort."""
      if type(lookback_blocks) is not int or not 10 <= lookback_blocks <= 1200:
-@@ -466,6 +467,12 @@ def scan(
+@@ -490,6 +491,12 @@ def scan(
          provider_role="public_observation",
      )
      started = time.time()
@@ -1489,7 +1489,7 @@ index 26e7ff5..f54ccd5 100644
      rpc.verify_chain()
      observation_rpc.verify_chain()
      if finalized_frontier is None:
-@@ -497,10 +504,13 @@ def scan(
+@@ -521,10 +528,13 @@ def scan(
              raise BoundaryError("invalid_ramses_finalized_frontier")
          frontier = dict(finalized_frontier)
          frontier_source = "pinned_external_finalized_header"
@@ -1503,15 +1503,15 @@ index 26e7ff5..f54ccd5 100644
  
      factory_pin = load("ramses_factory")
      factory = factory_pin["address"]
-@@ -511,6 +521,7 @@ def scan(
-         observation_rpc,factory,end,
+@@ -539,6 +549,7 @@ def scan(
+         rpc,factory,end,
          factory_runtime_sha256=factory_identity["runtime_sha256"],
      )
 +    checkpoint('economic_log_census',pools_total=len(addresses))
      logs = _batched_logs(observation_rpc, start, end, addresses)
      histories, cost_events = _decode_economic_logs(logs, addresses)
  
-@@ -535,6 +546,7 @@ def scan(
+@@ -563,6 +574,7 @@ def scan(
      )
      active_cohort = activity[:max_recent_active_pools]
      active_addresses={row["pool"] for row in active_cohort}
@@ -1519,7 +1519,7 @@ index 26e7ff5..f54ccd5 100644
      # Receipt gas is authoritative evidence, so acquire it only for the bounded
      # cohort that can proceed to state hydration. Broad public observation remains
      # intact for every factory pool and every economic log.
-@@ -547,6 +559,9 @@ def scan(
+@@ -575,6 +587,9 @@ def scan(
      wide_hydrated=0
      for activity_row in active_cohort:
          address = activity_row["pool"]
@@ -1529,7 +1529,7 @@ index 26e7ff5..f54ccd5 100644
          try:
              auth, prestate = _prestate(rpc, factory, address, end)
              tx=auth["token_x"].lower()
-@@ -593,6 +608,8 @@ def scan(
+@@ -621,6 +636,8 @@ def scan(
              ))
          except BoundaryError as exc:
              exclusions[str(exc)] += 1
@@ -1538,7 +1538,7 @@ index 26e7ff5..f54ccd5 100644
  
      features = [r["features"] for r in rows]
      for row in rows:
-@@ -608,6 +625,7 @@ def scan(
+@@ -636,6 +653,7 @@ def scan(
  
      classified = []
      for row in rows:
@@ -1546,7 +1546,7 @@ index 26e7ff5..f54ccd5 100644
          f = row["features"]
          capital = max(1, f["active_liquidity_quote"] * PAPER_ACTIVE_LIQUIDITY_BPS // 10000)
          signal_context = signals_by_pool.get(row["pool"], {})
-@@ -703,6 +721,8 @@ def scan(
+@@ -731,6 +749,8 @@ def scan(
              "allocation_authority": False,
          })
  
