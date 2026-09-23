@@ -165,15 +165,22 @@
   "exit": {
     "observation_segment_seconds": 300,
     "conditions": [
-      "active price reaches within 2 bins of either range boundary",
-      "executable non-SOL inventory value exceeds 60% of initial capital",
-      "recent verified flow has >=2 swaps, two_way_balance <0.25 and drift_ratio >0.75",
-      "recent fee density falls below 50% of entry authenticated fee density with >=2 swaps",
-      "recent volume rate falls below 50% of entry warmup volume rate with >=2 swaps",
+      "active price reaches within 2 bins of either range boundary (immediate hard-risk exit)",
+      "executable non-SOL inventory value exceeds 60% of initial capital (immediate hard-risk exit)",
+      "recent verified flow has >=2 swaps, two_way_balance <0.25 and drift_ratio >0.75 (immediate adverse-selection exit)",
+      "after the 4h core hold, recent fee density remains below 50% of entry authenticated fee density for at least 2 consecutive verified 300s segments",
+      "after the 4h core hold, recent volume rate remains below 50% of entry warmup volume rate for at least 2 consecutive verified 300s segments",
       "stress-unwind or executable-mark evidence becomes unavailable",
       "maximum holding time of 24h reached"
     ],
-    "settlement": "withdraw all liquidity and liquidate residual non-SOL inventory to SOL on the authenticated virtual state"
+    "settlement": "withdraw all liquidity and liquidate residual non-SOL inventory to SOL on the authenticated virtual state",
+    "core_hold_seconds": 14400,
+    "economic_collapse_confirmation_segments": 2,
+    "pre_core_hard_risk_exit_reasons": [
+      "range_boundary",
+      "inventory_imbalance",
+      "one_way_flow"
+    ]
   },
   "costs": {
     "entry_network_cost_lamports": 200000,
@@ -212,7 +219,7 @@
     "core_major_pair_harvester": "separate future lower-return/high-capacity sleeve after the opportunistic rule is characterized",
     "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
   },
-  "revision": "2.0-profitability-fee-density-v1",
+  "revision": "2.0-profitability-fee-density-v1-core-hold-v2",
   "amendment_history": [
     {
       "revision": "1.1",
@@ -295,6 +302,15 @@
       "capital_changed": false,
       "live_money_authority_changed": false,
       "profitability_authority": false
+    },
+    {
+      "revision": "2.0-profitability-fee-density-v1-core-hold-v2",
+      "reason": "Make the declared 4-hour minimum non-risk hold executable. Range-boundary, severe inventory-imbalance and severe one-way-drift exits remain immediate; fee-density and volume collapse become eligible only after the core hold and require two consecutive verified 300-second segments.",
+      "strategy_entry_thresholds_changed": false,
+      "freshness_finality_changed": false,
+      "max_holding_seconds_changed": false,
+      "position_size_changed": false,
+      "paper_only_unchanged": true
     }
   ],
   "support_layer": {
@@ -349,13 +365,13 @@
     }
   },
   "execution_certification": {
-    "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
+    "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
     "purpose": "prospective_natural_paper_profitability_validation_of_authenticated_local_fee_density_strategy",
     "profitability_authority": true,
     "paper_only": true,
     "freshness_finality_unchanged": true,
     "exact_warmup_seconds": 12,
-    "reference_profitability_policy_revision": "2.0-profitability-fee-density-v1",
+    "reference_profitability_policy_revision": "2.0-profitability-fee-density-v1-core-hold-v2",
     "machinery_proof_only": false,
     "one_natural_settled_lifecycle_target": false,
     "prior_execution_certification_revision": "1.9-machinery-proof-v2",
@@ -370,6 +386,13 @@
     ],
     "strategy2_continuity_required": true,
     "live_fee_density_metric": "authenticated_fee_density_24h_pct = 100 * range_fee_sol_lamports / range_liquidity_sol_lamports * 86400 / observed_seconds",
-    "policy_hash_definition": "sha256(canonical JSON of this artifact with execution_certification.policy_hash set to null)"
+    "policy_hash_definition": "sha256(canonical JSON of this artifact with execution_certification.policy_hash set to null)",
+    "core_hold_runtime_enforced": true,
+    "economic_collapse_confirmation_segments": 2,
+    "pre_core_hard_risk_exit_reasons": [
+      "range_boundary",
+      "inventory_imbalance",
+      "one_way_flow"
+    ]
   }
 }
