@@ -15,8 +15,17 @@ LIVE_NAMES={'pons-selective-market-test','solana-dlmm-independent-v1',
 READ_ONLY_JOBS={'test','tests','lint','build','inspect-retained-failure'}
 
 
-def active_market_job(workflow,job):
+def active_market_job(workflow,job,run=None,spec=None):
     if job.get('status')!='in_progress':return False
+    # The pinned Pump source's legacy live-diagnostic is public-Solana-only:
+    # its workflow does not inject MM_SOLANA_READ_RPC_URL and its entrypoint uses
+    # MM_SOLANA_RPC_URL/public Solana. A bounded authenticated-Alchemy identity
+    # probe is therefore provider-disjoint. Pin the exception to the exact reviewed
+    # Pump source so any future source revision fails closed back to contention.
+    if (workflow=='paper-milestone' and job.get('name')=='live-diagnostic'
+            and isinstance(run,dict) and isinstance(spec,dict)
+            and run.get('head_sha')==(spec.get('lanes',{}).get('pump',{}).get('source_sha'))):
+        return False
     if workflow in LIVE_NAMES:return True
     # Mixed CI workflows also contain live jobs. Unknown active jobs are not
     # silently assumed to be provider-free. Completed/skipped tests never block.
@@ -44,7 +53,7 @@ def check():
                 if str(row['id'])==os.environ.get('GITHUB_RUN_ID'):continue
                 for job_page in range(1,11):
                     jobs=fetch_json(f'https://api.github.com/repos/{spec["repository"]}/actions/runs/{row["id"]}/jobs?filter=latest&per_page=100&page={job_page}',token).get('jobs',[])
-                    active.extend(dict(id=row['id'],name=row['name'],job_id=job['id'],job_name=job['name'],status=job['status']) for job in jobs if active_market_job(row['name'],job))
+                    active.extend(dict(id=row['id'],name=row['name'],job_id=job['id'],job_name=job['name'],status=job['status']) for job in jobs if active_market_job(row['name'],job,row,spec))
                     if len(jobs)<100:break
                 else:raise RuntimeError('active_job_pagination_bound')
             if len(runs)<100:break

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-22-final-strategy-integration-certified-v1",
+  "verified_at": "2026-09-22-alchemy-optimization-final-certification-rerun",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
-      "source_branch": "strategy/pump-profitability-v1",
-      "source_sha": "a4003b292014cedf554a4930a9cca10900bfc178",
+      "source_branch": "repair/pump-alchemy-authoritative-evidence-20260922",
+      "source_sha": "9932305ebe83dd3ff2dd45ffe9006cf628962bf3",
       "strategy_version": "pump-acceleration-independent-v1/profitability-v1-persistence-edge-v1",
       "policy_hash": "d623ff03ad19b2c4dcd8a82d4883c188ba1acd35a721582175d85cd1b0191770",
       "file_hashes": {
@@ -34,7 +34,8 @@
         "728ed29b7a353fe0bb503491a31951227c7aee1f",
         "35703a380fe6c7f1df56bcf5a6ec59ca50d8d502",
         "9c11f78922af14ca77ee371e27f6e7df0ed8b46e",
-        "a4003b292014cedf554a4930a9cca10900bfc178"
+        "a4003b292014cedf554a4930a9cca10900bfc178",
+        "9932305ebe83dd3ff2dd45ffe9006cf628962bf3"
       ],
       "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
       "execution_certification": {
@@ -65,6 +66,16 @@
           "entry_fill_timeout_changed": false,
           "freshness_finality_changed": false,
           "paper_only_unchanged": true
+        },
+        "provider_optimization": {
+          "source_commit": "9932305ebe83dd3ff2dd45ffe9006cf628962bf3",
+          "revision": "alchemy-scarce-authoritative-evidence-v1",
+          "discovery_plane": "public_solana_finalized_websocket",
+          "alchemy_role": "candidate_and_position_authoritative_http_evidence_only",
+          "speculative_alchemy_prefetch": false,
+          "breadth_changed": false,
+          "strategy_thresholds_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -75,13 +86,15 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
-      }
+      },
+      "source_diff_sha256": "24831371273420f3c3ce41ac3206f8bd055005d2a41ba4c377763e04335456aa"
     },
     "meteora": {
-      "source_branch": "strategy/meteora-fee-density-v1-runtime",
-      "source_sha": "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7",
+      "source_branch": "repair/meteora-alchemy-authoritative-evidence-20260922",
+      "source_sha": "a616366fbe64e816708d035c15141b7e7e800304",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1",
       "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
+      "source_diff_sha256": "80d88694dfac774b31516b26f065522f3fe8c6a1c57707b8be933150b82089e2",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "d9ca094b0715d8447cd5e98fdc99633d9a5b29e92b0b145bbe4adb052d6fc8e8"
@@ -119,7 +132,8 @@
         "2a90ccd9fd9f8269461c722dc1e8aeeebbfe9280",
         "057de42db407c5d65543dc67a45e04add2b8f98c",
         "c87441ac53fe6936e88380e54969192e455da8cb",
-        "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7"
+        "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7",
+        "a616366fbe64e816708d035c15141b7e7e800304"
       ],
       "paper_starting_capital_lamports": 1000000000,
       "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
@@ -201,6 +215,16 @@
           "freshness_finality_changed": false,
           "position_size_changed": false,
           "paper_only_unchanged": true
+        },
+        "provider_optimization": {
+          "source_commit": "a616366fbe64e816708d035c15141b7e7e800304",
+          "revision": "alchemy-scarce-authoritative-evidence-v1",
+          "discovery_plane": "public_solana_program_and_account_wake_streams",
+          "alchemy_role": "candidate_reconstruction_and_position_authoritative_http_evidence_only",
+          "alternate_authenticated_provider": false,
+          "breadth_changed": false,
+          "strategy_thresholds_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -213,8 +237,8 @@
       }
     },
     "pons": {
-      "source_branch": "strategy/pons-profitability-persistence-current-v1",
-      "source_sha": "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2",
+      "source_branch": "repair/pons-alchemy-scarcity-public-discovery",
+      "source_sha": "93ccf6faee775b830b590370dbc1e8ce269c668a",
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-persistence-edge-v1",
       "policy_hash": "3067732bcfa334b28ac4014a4adb5aee2a0310dee573ad349c3b5412c71c8853",
       "file_hashes": {
@@ -223,7 +247,8 @@
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
-        "MM_ROBINHOOD_DISCOVERY_RPC_URL"
+        "MM_ROBINHOOD_DISCOVERY_RPC_URL",
+        "MM_ROBINHOOD_DLMM_RPC_URL"
       ],
       "endpoint_identity": "runtime_required; secrets available only in authorized Actions environment",
       "repair_commit": "40bc4c4d1fb81900645fcbce109b4be0341320aa",
@@ -243,7 +268,9 @@
         "c4bfecfbd5af081c54e04bf9ee70ff369c705095",
         "9d4af223258292a45d5abfa58dc7939174fbee30",
         "51ed2379c8f3818248a7b86722a792d85bc29a4b",
-        "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2"
+        "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2",
+        "157e3d3a94510ced93976088b5a3f56a672ad9c4",
+        "93ccf6faee775b830b590370dbc1e8ce269c668a"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
       "execution_certification": {
@@ -302,6 +329,17 @@
           "position_size_changed": false,
           "cost_model_changed": false,
           "paper_only_unchanged": true
+        },
+        "provider_optimization": {
+          "source_commit": "93ccf6faee775b830b590370dbc1e8ce269c668a",
+          "revision": "public-observation-alchemy-gap-evidence-v1",
+          "discovery_plane": "official_robinhood_sequencer_plus_public_rpc",
+          "alchemy_role": "candidate_position_evidence_and_exact_gap_recovery_only",
+          "routine_discovery_on_alchemy": false,
+          "breadth_changed": false,
+          "strategy_thresholds_changed": false,
+          "paper_only_unchanged": true,
+          "public_access_failure_recovery": "exact_read_only_via_authoritative_primary"
         }
       },
       "prospect_admission": {
@@ -316,8 +354,8 @@
       }
     },
     "ramses": {
-      "source_branch": "strategy/ramses-active-wide-maker-v3-runtime",
-      "source_sha": "6b47956b081c48e97a2201b62d4d417cc4be3845",
+      "source_branch": "repair/ramses-alchemy-scarcity-public-observation",
+      "source_sha": "b8b62b7528c884d034af6c677a88e7d21e0b2fb1",
       "strategy_version": "ramses-active-wide-maker-v3",
       "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
       "file_hashes": {
@@ -356,7 +394,8 @@
         "f158615fa1c0fe6e8fbb99d522c82ad7393b3c2a",
         "f699ef5687d655feabc9314f4429658891e8ad37",
         "6664f785082d16546e46d13e145790787b7fc1cc",
-        "6b47956b081c48e97a2201b62d4d417cc4be3845"
+        "6b47956b081c48e97a2201b62d4d417cc4be3845",
+        "b8b62b7528c884d034af6c677a88e7d21e0b2fb1"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
@@ -445,6 +484,17 @@
           "no_automatic_chase": true,
           "freshness_finality_changed": false,
           "paper_only_unchanged": true
+        },
+        "provider_optimization": {
+          "source_commit": "b8b62b7528c884d034af6c677a88e7d21e0b2fb1",
+          "revision": "public-observation-alchemy-active-cohort-v1",
+          "discovery_plane": "official_robinhood_public_rpc",
+          "alchemy_role": "candidate_state_active_cohort_costs_and_lifecycle_only",
+          "broad_factory_and_log_observation_on_alchemy": false,
+          "receipt_cost_scope": "active_cohort_only",
+          "breadth_changed": false,
+          "strategy_thresholds_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -453,7 +503,8 @@
         "factory_enumeration_is_inventory_not_investment_evaluation": true,
         "strategy_thresholds_changed": true,
         "profitability_authority": true
-      }
+      },
+      "source_diff_sha256": "d48087e9de9b841378b057b024df5ed3f4ad7a14e63cb9fd39f31576e76dfa01"
     }
   },
   "execution_certification": {
@@ -461,8 +512,8 @@
     "purpose": "Compose the current Pump/Pons profitability persistence policies with verified Meteora authenticated fee-density profitability v1 and Ramses Active Wide Maker v3 while preserving current operational overlays and paper-only controls.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora authenticated fee-density profitability-v1; Ramses Active Wide Maker v3",
-    "validation_status": "final_integrated_deterministic_passed",
-    "validation_run_requested": false,
+    "validation_status": "NOT_CERTIFIED_NON_MARKET_END_TO_END",
+    "validation_run_requested": true,
     "latest_qualification": {
       "run_id": 35789882265,
       "verified_parent_head": "2c9de961dbddbd0cbe66c774cf16b98329b1317e",
@@ -477,7 +528,8 @@
         "all four isolated lane test suites",
         "Solana resource gates",
         "canonical overlay idempotence"
-      ]
+      ],
+      "scope": "historical_component_suites_and_resources_only; not current candidate end-to-end certification"
     },
     "source_heads": {
       "pump": "a4003b292014cedf554a4930a9cca10900bfc178",
@@ -495,12 +547,41 @@
         "result": "success"
       }
     },
-    "canonical_overlay_head": "5893ebb35c769096d6e0cbacc05171ac44747d4a",
-    "exact_head_certification": {
-      "run_id": 35789882265,
-      "head_sha": "2c9de961dbddbd0cbe66c774cf16b98329b1317e",
-      "result": "success",
-      "canonicalization_mutation": false
+    "prior_component_suite_evidence": {
+      "validation_status": "final_integrated_deterministic_passed",
+      "latest_qualification": {
+        "run_id": 35789882265,
+        "verified_parent_head": "2c9de961dbddbd0cbe66c774cf16b98329b1317e",
+        "result": "success",
+        "market_validation": false,
+        "verified": [
+          "Pump profitability persistence source plus canonical operational overlay",
+          "Pons profitability persistence source plus canonical operational overlay",
+          "Meteora authenticated fee-density profitability source plus canonical lifecycle overlay",
+          "Ramses Active Wide Maker v3 source plus canonical operational overlay",
+          "supervisor deterministic suite",
+          "all four isolated lane test suites",
+          "Solana resource gates",
+          "canonical overlay idempotence"
+        ],
+        "scope": "historical_component_suites_and_resources_only; not current candidate end-to-end certification"
+      },
+      "exact_head_certification": {
+        "run_id": 35789882265,
+        "head_sha": "2c9de961dbddbd0cbe66c774cf16b98329b1317e",
+        "result": "success",
+        "canonicalization_mutation": false
+      },
+      "canonical_overlay_head": "5893ebb35c769096d6e0cbacc05171ac44747d4a"
+    },
+    "non_market_audit": {
+      "mode": "offline_components_and_native_ledger_fault_injection",
+      "paper_only": true,
+      "strategy_economics_changed": false,
+      "full_end_to_end_certified": false,
+      "report": "docs/NON_MARKET_END_TO_END_CERTIFICATION.md",
+      "runtime_identity": "Git HEAD plus pinned lane sources plus exact normalized overlays; recorded by certification.non_market",
+      "prior_candidate_component_run": 35795249808
     }
   },
   "composition": {

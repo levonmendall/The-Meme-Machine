@@ -545,10 +545,19 @@ index 0a774b1..e065136 100644
              stream_last_slot=self.stream_last_slot,
              decision_bootstrap_attempts=self.decision_bootstrap_attempts,
 diff --git a/meme_machine/pump_acceleration_paper.py b/meme_machine/pump_acceleration_paper.py
-index 3e64d83..7c6e406 100644
+index 3e64d83..591c029 100644
 --- a/meme_machine/pump_acceleration_paper.py
 +++ b/meme_machine/pump_acceleration_paper.py
-@@ -35,10 +35,15 @@ class PaperPosition:
+@@ -10,7 +10,7 @@ from __future__ import annotations
+ from dataclasses import dataclass, asdict
+ 
+ from .pump_acceleration_strategy import (
+-    STRATEGY_ID, ExitObservation, Qualification, exit_decision,
++    STRATEGY_ID, ExitObservation, Qualification, exit_decision, policy_hash,
+ )
+ 
+ 
+@@ -35,20 +35,31 @@ class PaperPosition:
  class PumpAccelerationPaperLifecycle:
      """One independent strategy lifecycle; no shared-capital authority."""
  
@@ -565,7 +574,12 @@ index 3e64d83..7c6e406 100644
  
      def reserve(self, qualification: Qualification, budget_quote_units: int, now: int):
          if qualification.strategy_id != STRATEGY_ID:
-@@ -49,6 +54,10 @@ class PumpAccelerationPaperLifecycle:
+             raise ValueError("foreign_strategy_qualification")
++        if qualification.policy_hash != policy_hash():
++            raise ValueError("stale_strategy_policy_qualification")
+         if not qualification.qualified:
+             raise ValueError("unqualified_strategy_signal")
+         if budget_quote_units <= 0:
              raise ValueError("invalid_budget")
          if self.reservation is not None or self.position is not None:
              raise ValueError("lifecycle_already_active")
@@ -576,7 +590,7 @@ index 3e64d83..7c6e406 100644
          self.reservation=dict(
              strategy_id=STRATEGY_ID,
              mode=qualification.mode,
-@@ -61,7 +70,7 @@ class PumpAccelerationPaperLifecycle:
+@@ -61,7 +72,7 @@ class PumpAccelerationPaperLifecycle:
          self.history.append(dict(event="reserved",**self.reservation))
          return dict(self.reservation)
  
@@ -585,7 +599,7 @@ index 3e64d83..7c6e406 100644
          if self.reservation is None or self.position is not None:
              raise ValueError("no_active_reservation")
          if tokens <= 0 or cost_quote_units <= 0:
-@@ -70,6 +79,10 @@ class PumpAccelerationPaperLifecycle:
+@@ -70,6 +81,10 @@ class PumpAccelerationPaperLifecycle:
              raise ValueError("fill_exceeds_budget")
          if surface not in ("pump.fun","pumpswap"):
              raise ValueError("unsupported_surface")
@@ -596,7 +610,7 @@ index 3e64d83..7c6e406 100644
          self.position=PaperPosition(
              strategy_id=STRATEGY_ID,
              mode=self.reservation["mode"],
-@@ -86,6 +99,9 @@ class PumpAccelerationPaperLifecycle:
+@@ -86,6 +101,9 @@ class PumpAccelerationPaperLifecycle:
      def cancel(self, reason: str, now: int):
          if self.reservation is None:
              raise ValueError("no_active_reservation")
@@ -606,7 +620,7 @@ index 3e64d83..7c6e406 100644
          self.history.append(dict(event="cancelled",reason=str(reason),time=int(now),reservation=dict(self.reservation)))
          self.reservation=None
  
-@@ -103,11 +119,17 @@ class PumpAccelerationPaperLifecycle:
+@@ -103,11 +121,17 @@ class PumpAccelerationPaperLifecycle:
          return asdict(self.position)
  
      def mark(self, executable_proceeds_quote_units: int, now: int, demand_score: int,
@@ -625,7 +639,7 @@ index 3e64d83..7c6e406 100644
          basis=self.position.basis_quote_units
          ret=(int(executable_proceeds_quote_units)-basis)*10_000//basis
          self.position.peak_return_bps=max(self.position.peak_return_bps,ret)
-@@ -135,13 +157,17 @@ class PumpAccelerationPaperLifecycle:
+@@ -135,13 +159,17 @@ class PumpAccelerationPaperLifecycle:
          ))
          return dict(return_bps=int(ret),peak_return_bps=int(self.position.peak_return_bps),exit_reason=reason)
  
@@ -644,7 +658,7 @@ index 3e64d83..7c6e406 100644
          self.position.realized_quote_units=int(executable_proceeds_quote_units)-self.position.basis_quote_units
          self.position.closed_at=int(now)
          closed=asdict(self.position)
-@@ -152,6 +178,7 @@ class PumpAccelerationPaperLifecycle:
+@@ -152,6 +180,7 @@ class PumpAccelerationPaperLifecycle:
      def snapshot(self):
          return dict(
              strategy_id=STRATEGY_ID,
@@ -1814,10 +1828,10 @@ index 0000000..64c5cc3
 +                if self._body_params(p) and isinstance(v,dict):shared.finalized(v.get('slot'))
 +        return values
 diff --git a/meme_machine/solana_read_rpc.py b/meme_machine/solana_read_rpc.py
-index ac23ca3..4e1679a 100644
+index 2783e98..8b735fa 100644
 --- a/meme_machine/solana_read_rpc.py
 +++ b/meme_machine/solana_read_rpc.py
-@@ -261,7 +261,10 @@ class SolanaReadPacer:
+@@ -218,7 +218,10 @@ class SolanaReadPacer:
          )
  
  
@@ -1826,7 +1840,7 @@ index ac23ca3..4e1679a 100644
 +
 +
 +class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
-     """HTTP transport mixin with OnFinality-primary / Alchemy-rescue semantics."""
+     """Single-provider Alchemy HTTP transport; legacy class name is import-compatible."""
  
      def _init_failover(self, secondary_url, pacer, primary_provider=PRIMARY_PROVIDER, secondary_provider=SECONDARY_PROVIDER):
 diff --git a/meme_machine/solana_signature_identity.py b/meme_machine/solana_signature_identity.py
@@ -1844,7 +1858,7 @@ index 0000000..8b7b820
 +def is_default_signature(value):
 +    return value == DEFAULT_SIGNATURE
 diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
-index b190712..983b0c8 100644
+index b190712..297dcaf 100644
 --- a/tests/pump_acceleration_natural_prospective.py
 +++ b/tests/pump_acceleration_natural_prospective.py
 @@ -11,8 +11,9 @@ import json
@@ -2236,9 +2250,9 @@ index b190712..983b0c8 100644
 +    incremental=bool(campaign and os.environ.get('MM_CERT_GOVERNOR_DB'))
      pumpswap_stream=DynamicAddressLogStream(
 -        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30)
-+        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30,prefetch=incremental,
++        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30,prefetch=False,
 +        prefetch_filter=_pumpswap_prefetch_filter)
-+    evidence_service=StreamEvidenceService(broker,lambda:new_rpc(limit=240)) if incremental else None
++    evidence_service=None
      thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
      pumpswap_thread=threading.Thread(
          target=pumpswap_stream.run,args=(stop,pumpswap_ready),daemon=True)
@@ -3276,6 +3290,30 @@ index 9e3de78..a5ef025 100644
      def test_harness_is_frozen_and_paper_only(self):
          self.assertEqual(STRATEGY_ID,"pump-acceleration-independent-v1")
          self.assertEqual(len(policy_hash()),64)
+diff --git a/tests/test_pump_acceleration_paper.py b/tests/test_pump_acceleration_paper.py
+index 83ff3b1..63fba7f 100644
+--- a/tests/test_pump_acceleration_paper.py
++++ b/tests/test_pump_acceleration_paper.py
+@@ -1,4 +1,5 @@
+ import unittest
++from dataclasses import replace
+ 
+ from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
+ from meme_machine.pump_acceleration_strategy import (
+@@ -25,6 +26,13 @@ def qualification(strategy_id=STRATEGY_ID, qualified=True):
+ 
+ 
+ class PumpAccelerationPaperLifecycleTests(unittest.TestCase):
++    def test_same_strategy_name_cannot_authorize_a_superseded_policy(self):
++        life=PumpAccelerationPaperLifecycle()
++        stale=replace(qualification(),policy_hash='0'*64)
++        with self.assertRaisesRegex(ValueError,'stale_strategy_policy_qualification'):
++            life.reserve(stale,1000,100)
++        self.assertIsNone(life.reservation)
++
+     def test_rejects_other_strategy_authority(self):
+         life=PumpAccelerationPaperLifecycle()
+         with self.assertRaises(ValueError):
 diff --git a/tests/test_pump_continuous_campaign.py b/tests/test_pump_continuous_campaign.py
 new file mode 100644
 index 0000000..80cf79e

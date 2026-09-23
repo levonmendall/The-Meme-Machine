@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import signal
 import sqlite3
@@ -35,26 +36,97 @@ def git(*args,cwd=ROOT):
 def manifest():return json.loads((ROOT/'certification/sources.json').read_text())
 
 
+def historical_exposure():
+    """Return only admission-blocking historical exposure.
+
+    Resolved rows are retained permanently with a digest-pinned proof receipt.
+    A resolution never mutates the original artifact or fabricates market settlement.
+    """
+    registry=json.loads((ROOT/'certification/historical_exposure.json').read_text())
+    if (registry.get('schema_version')!=1
+            or not isinstance(registry.get('unresolved'),list)
+            or not isinstance(registry.get('resolved',[]),list)):
+        raise ValueError('historical_exposure_registry_invalid')
+    for row in registry['unresolved']:
+        if row.get('lane') not in LANES or row.get('resolution') is not None:
+            raise ValueError('historical_exposure_resolution_requires_verified_recovery')
+        if type(row.get('observed_open_positions')) is not int or row['observed_open_positions']<1:
+            raise ValueError('historical_exposure_inventory_invalid')
+    for row in registry.get('resolved',[]):
+        proof=row.get('resolution')
+        if (row.get('lane') not in LANES or not isinstance(proof,dict)
+                or proof.get('disposition')!='certified_historical_unreplayable_zero_proceeds_writeoff'
+                or proof.get('immutable_original_artifact_preserved') is not True
+                or proof.get('market_settlement_performed') is not False
+                or proof.get('proceeds_lamports')!=0
+                or proof.get('open_positions_after')!=0
+                or proof.get('reserved_after')!=0
+                or proof.get('stale_marks_after')!=0
+                or proof.get('writeoffs_after')!=1
+                or not isinstance(proof.get('receipt_sha256'),str)
+                or len(proof['receipt_sha256'])!=64):
+            raise ValueError('historical_exposure_resolution_receipt_invalid')
+    return registry['unresolved']
+
+
 def implementation_hash():
     files=sorted(p for p in (ROOT/'certification').rglob('*') if p.is_file() and p.suffix in ('.py','.json','.patch'))
     return digest({str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files})
+
+
+def canonical_patch_bytes(value):
+    """Normalize non-semantic Git blob-id metadata while preserving the exact patch."""
+    if not isinstance(value,(bytes,bytearray)):
+        raise TypeError('patch_bytes_required')
+    # The right-hand blob id in an "index old..new" line is derived from the
+    # patched result and changes whenever a reviewed insertion changes. It is not
+    # execution content. Keep modes, paths, hunks and every added/removed byte exact.
+    return re.sub(rb'(?m)^index [0-9a-f]+\.\.[0-9a-f]+(?=(?: [0-7]{6})?$)',
+                  b'index <blob>..<blob>',bytes(value))
 
 
 def source_integrity(worktrees):
     observed={}
     for lane,row in manifest()['lanes'].items():
         cwd=Path(worktrees)/lane
+        # git diff omits untracked and ignored files. Such a module can shadow a
+        # pinned import while all tracked source/overlay hashes still match.
+        extras=subprocess.check_output(['git','ls-files','--others','-z'],cwd=cwd).decode().split('\0')
+        for name in filter(None,extras):
+            path=Path(name)
+            if path.suffix.lower() in ('.py','.pyw','.so','.pyd','.pth') or name in ('.env','config.local.json'):
+                raise ValueError('unreviewed_lane_runtime_file:'+lane+':'+name)
+            if path.suffix.lower()=='.pyc' and '__pycache__' not in path.parts:
+                raise ValueError('unreviewed_lane_runtime_file:'+lane+':'+name)
         if git('rev-parse','HEAD',cwd=cwd)!=row.get('execution_sha',row['source_sha']):raise ValueError('worktree_head_drift:'+lane)
         for file,expected_hash in row.get('file_hashes',{}).items():
             if hashlib.sha256((cwd/file).read_bytes()).hexdigest()!=expected_hash:
                 raise ValueError('frozen_source_file_drift:'+lane+':'+file)
         diff=subprocess.check_output(['git','diff','--binary','HEAD'],cwd=cwd)
         observed[lane]=hashlib.sha256(diff).hexdigest()
-        patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
-        expected=(ROOT/'certification/patches'/patch).read_bytes() if patch else b''
-        # Compare git's normalized diff to the pinned overlay applied at preparation.
-        if diff!=expected:raise ValueError('unreviewed_lane_mutation:'+lane)
+        expected_diff_hash=row.get('source_diff_sha256')
+        if expected_diff_hash is not None:
+            if observed[lane]!=expected_diff_hash:
+                raise ValueError('unreviewed_lane_mutation:'+lane)
+        else:
+            patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
+            expected=(ROOT/'certification/patches'/patch).read_bytes() if patch else b''
+            # Legacy overlays compare semantic patch bytes. New/recomposed overlays
+            # pin Git's exact applied diff hash, which is insensitive to patch serialization
+            # but still fails closed on any executable source mutation.
+            if canonical_patch_bytes(diff)!=canonical_patch_bytes(expected):
+                raise ValueError('unreviewed_lane_mutation:'+lane)
     return observed
+
+
+def integration_integrity():
+    """Bind executable supervisor inputs to the commit named in the evidence."""
+    tracked=subprocess.check_output(['git','diff','--binary','HEAD','--','certification'],cwd=ROOT)
+    if tracked:raise ValueError('uncommitted_integration_source')
+    extras=subprocess.check_output(['git','ls-files','--others','-z','--','certification'],cwd=ROOT).decode().split('\0')
+    for name in filter(None,extras):
+        if Path(name).suffix in ('.py','.patch'):
+            raise ValueError('untracked_integration_source:'+name)
 
 
 def prepare(destination):
@@ -93,6 +165,9 @@ def verify(worktrees,output):
             log.write_bytes(r.stdout)
             complete=index!=0 or ('\nRan ' in log.read_text() and '\nOK' in log.read_text())
             rows[lane].append(dict(command=cmd,exit_code=r.returncode,summary_complete=complete,started_at=started,ended_at=time.time(),log=log.name,sha256=hashlib.sha256(log.read_bytes()).hexdigest()))
+    # Tests may change a worktree; a pre-test check alone cannot certify the
+    # source handed to the subsequent paper worker.
+    if source_integrity(worktrees)!=source_hashes:raise ValueError('source_changed_during_verification')
     result=dict(passed=all(x['exit_code']==0 and x['summary_complete'] for lane in rows.values() for x in lane),lanes=rows,
                 source_manifest_hash=digest(manifest()),integration_sha=git('rev-parse','HEAD'),implementation_hash=implementation_hash(),source_diff_hashes=source_hashes)
     atomic(output/'deterministic.json',result)
@@ -171,6 +246,7 @@ def finish_lanes(processes,files,rows,terminal_times,journal,run):
 def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     if phase=='sustained' and seconds<14400:raise ValueError('four_hour_minimum')
     if phase=='hourly' and seconds!=3600:raise ValueError('one_hour_window_required')
+    integration_integrity()
     gate=json.loads(Path(gate_file).read_text())
     if not gate.get('passed') or gate.get('source_manifest_hash')!=digest(manifest()):raise ValueError('exact_source_deterministic_gate_required')
     if gate.get('integration_sha')!=git('rev-parse','HEAD'):raise ValueError('integration_sha_gate_mismatch')
@@ -180,8 +256,21 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     spec=manifest();run_id=str(uuid.uuid4())
     capabilities=Path(gate_file).parent/'rpc-capabilities.json'
     if capabilities.exists():atomic(run/'rpc-capabilities.json',json.loads(capabilities.read_text()))
-    atomic(run/'manifest.json',dict(**spec,integration_sha=git('rev-parse','HEAD'),run_id=run_id,
-                                  operational_overlay_sha256=hashlib.sha256((ROOT/'certification/patches/meteora-checkpoint.patch').read_bytes()).hexdigest()))
+    runtime_manifest=dict(**spec,integration_sha=git('rev-parse','HEAD'),run_id=run_id)
+    if 'meteora' in spec.get('lanes',{}):
+        overlay=ROOT/'certification/patches/meteora-checkpoint.patch'
+        if not overlay.is_file():
+            raise ValueError('meteora_operational_overlay_missing')
+        runtime_manifest['operational_overlay_sha256']=hashlib.sha256(overlay.read_bytes()).hexdigest()
+    atomic(run/'manifest.json',runtime_manifest)
+    unresolved=historical_exposure()
+    if unresolved:
+        result=dict(run_id=run_id,phase=phase,status='BLOCKED',
+            blockers=['historical_unresolved_exposure:'+row['lane'] for row in unresolved],
+            historical_exposure=unresolved,lanes={},elapsed_seconds=0)
+        provider_efficiency(result);result['certification']=evaluate(result)
+        atomic(run/'result.json',result);dashboard(result,run/'status.html')
+        return result
     if phase in ('sustained','hourly'):
         blockers=sustained_readiness(smoke_result,manifest_hash=digest(spec),
             implementation_hash=implementation_hash(),integration_sha=git('rev-parse','HEAD'))

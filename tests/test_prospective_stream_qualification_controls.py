@@ -17,7 +17,7 @@ class ProspectiveStreamQualificationControlsTests(unittest.TestCase):
 
     def test_dlmm_certification_branch_cannot_spawn_default_live_diagnostic(self):
         text=(Path(__file__).parents[1]/".github/workflows/ci.yml").read_text()
-        self.assertIn("!startsWith(github.ref_name, 'cert/dlmm-machinery-proof')", text)
+        self.assertIn("contains(github.event.head_commit.message, '[legacy-shadow-connectivity]')", text)
         self.assertNotIn("MM_STREAM_MAX_EVIDENCE_CANDIDATES: '20'", text)
 
     def test_shadow_reporting_never_grants_order_authority(self):

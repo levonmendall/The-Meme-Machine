@@ -787,10 +787,10 @@ index 0000000..12fd769
 +    def close(self):
 +        for book in self.books.values():book.close()
 diff --git a/robinhood_research/ramses_capture.py b/robinhood_research/ramses_capture.py
-index 9c3cee0..9f6b451 100644
+index 24791a6..78a73b0 100644
 --- a/robinhood_research/ramses_capture.py
 +++ b/robinhood_research/ramses_capture.py
-@@ -70,6 +70,7 @@ class BoundedMultiRpc:
+@@ -73,6 +73,7 @@ class BoundedMultiRpc:
          self.rate_limit_sleep_seconds=0.0
          self._receipt_cache={}
          self._block_cache={}
@@ -798,7 +798,7 @@ index 9c3cee0..9f6b451 100644
          self.receipt_cache_hits=0
          self.block_cache_hits=0
          self._new()
-@@ -87,6 +88,7 @@ class BoundedMultiRpc:
+@@ -93,6 +94,7 @@ class BoundedMultiRpc:
          current=self.sessions[-1]
          if current.used+needed>current.limit:
              current=self._new()
@@ -1353,7 +1353,7 @@ index e4ab19d..e3f48c1 100644
          print(json.dumps(dict(
              status=result["status"],boundary=result["boundary"],
 diff --git a/robinhood_research/ramses_strategy_ledger.py b/robinhood_research/ramses_strategy_ledger.py
-index 2a2f308..5fdbb9b 100644
+index 2a2f308..dee63e1 100644
 --- a/robinhood_research/ramses_strategy_ledger.py
 +++ b/robinhood_research/ramses_strategy_ledger.py
 @@ -43,6 +43,10 @@ class RamsesStrategyLedger:
@@ -1376,7 +1376,15 @@ index 2a2f308..5fdbb9b 100644
          if _digest(body) != row[1]:
              raise BoundaryError("ramses_strategy_ledger_checksum")
          return body
-@@ -144,6 +150,10 @@ class RamsesStrategyLedger:
+@@ -107,6 +113,7 @@ class RamsesStrategyLedger:
+             or decision.get("policy_hash") != POLICY_HASH
+             or decision.get("allocation_authority") is not False
+             or decision.get("qualified") is not True
++            or decision.get("mode") != "active_wide_maker"
+             or not decision.get("freeze")
+         ):
+             raise BoundaryError("foreign_or_unqualified_strategy_decision")
+@@ -144,6 +151,10 @@ class RamsesStrategyLedger:
          )
          self.db.execute("BEGIN IMMEDIATE")
          try:
@@ -1387,7 +1395,7 @@ index 2a2f308..5fdbb9b 100644
              self._save(body, "reserve")
              self.db.execute("COMMIT")
          except Exception:
-@@ -199,6 +209,10 @@ class RamsesStrategyLedger:
+@@ -199,6 +210,10 @@ class RamsesStrategyLedger:
          )
          self.db.execute("BEGIN IMMEDIATE")
          try:
@@ -1398,7 +1406,27 @@ index 2a2f308..5fdbb9b 100644
              self._save(body, "forced_machinery_reserve")
              self.db.execute("COMMIT")
          except Exception:
-@@ -285,6 +299,7 @@ class RamsesStrategyLedger:
+@@ -230,6 +245,19 @@ class RamsesStrategyLedger:
+         self.db.execute("BEGIN IMMEDIATE")
+         try:
+             body = self._load(identity)
++            # A committed management command can lose its acknowledgement.
++            # Replay the exact immutable command as a no-op, even if a later
++            # monitor checkpoint already exists. Never count a rebalance twice.
++            for raw,checksum in self.db.execute(
++                'SELECT body,hash FROM ramses_strategy_journal WHERE id=? AND action=?',
++                (identity,action),
++            ):
++                prior=json.loads(raw)
++                if _digest(prior)!=checksum:
++                    raise BoundaryError('ramses_strategy_ledger_checksum')
++                if prior.get('at')==at and prior.get('last_controller')==detail:
++                    self.db.execute('COMMIT')
++                    return body
+             if body["status"] != "open":
+                 raise BoundaryError("ramses_strategy_checkpoint_state")
+             if at < body["at"]:
+@@ -285,6 +313,7 @@ class RamsesStrategyLedger:
                  )
                  action = "settle"
              self._save(body, action)
@@ -1406,7 +1434,7 @@ index 2a2f308..5fdbb9b 100644
              self.db.execute("COMMIT")
          except Exception:
              self.db.execute("ROLLBACK")
-@@ -292,6 +307,29 @@ class RamsesStrategyLedger:
+@@ -292,6 +321,29 @@ class RamsesStrategyLedger:
          return body
  
      def reconcile(self):
@@ -1437,7 +1465,7 @@ index 2a2f308..5fdbb9b 100644
              "SELECT body,hash FROM ramses_strategy_position ORDER BY id"
          ).fetchall()
 diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_universe.py
-index 832ee52..527559a 100644
+index 26e7ff5..f54ccd5 100644
 --- a/robinhood_research/ramses_universe.py
 +++ b/robinhood_research/ramses_universe.py
 @@ -429,6 +429,7 @@ def scan(
@@ -1448,8 +1476,8 @@ index 832ee52..527559a 100644
  ):
      """Scan the complete factory and classify the bounded recently-active cohort."""
      if type(lookback_blocks) is not int or not 10 <= lookback_blocks <= 1200:
-@@ -455,6 +456,12 @@ def scan(
-         adaptive_batch_floor=2,
+@@ -466,6 +467,12 @@ def scan(
+         provider_role="public_observation",
      )
      started = time.time()
 +    scan_progress=dict(state='in_progress',started_at=started,stage='chain_authentication',
@@ -1459,34 +1487,39 @@ index 832ee52..527559a 100644
 +        if progress is not None:progress(dict(scan_progress))
 +    checkpoint('chain_authentication')
      rpc.verify_chain()
+     observation_rpc.verify_chain()
      if finalized_frontier is None:
-         frontier = rpc.call(
-@@ -485,10 +492,13 @@ def scan(
+@@ -497,10 +504,13 @@ def scan(
              raise BoundaryError("invalid_ramses_finalized_frontier")
          frontier = dict(finalized_frontier)
          frontier_source = "pinned_external_finalized_header"
 +    rpc.evidence_pins={frontier["number"]:frontier["hash"]}
      end = int(frontier["number"], 16)
      start = _window_start_block(
-         rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks
+         observation_rpc,end,int(frontier["timestamp"],16),LOOKBACK_SECONDS,lookback_blocks
      )
 +    checkpoint('factory_authentication',frontier_block=end,frontier_hash=frontier['hash'],
 +        frontier_timestamp=int(frontier['timestamp'],16))
  
      factory_pin = load("ramses_factory")
      factory = factory_pin["address"]
-@@ -499,8 +509,10 @@ def scan(
-         rpc,factory,end,
+@@ -511,6 +521,7 @@ def scan(
+         observation_rpc,factory,end,
          factory_runtime_sha256=factory_identity["runtime_sha256"],
      )
 +    checkpoint('economic_log_census',pools_total=len(addresses))
-     logs = _batched_logs(rpc, start, end, addresses)
+     logs = _batched_logs(observation_rpc, start, end, addresses)
      histories, cost_events = _decode_economic_logs(logs, addresses)
-+    checkpoint('receipt_cost_authentication')
-     observe_receipt_gas(rpc, cost_events, cost_state)
  
-     # Active Wide Maker is intentionally a quiet-entry strategy. Preserve broad
-@@ -529,6 +541,9 @@ def scan(
+@@ -535,6 +546,7 @@ def scan(
+     )
+     active_cohort = activity[:max_recent_active_pools]
+     active_addresses={row["pool"] for row in active_cohort}
++    checkpoint('receipt_cost_authentication')
+     # Receipt gas is authoritative evidence, so acquire it only for the bounded
+     # cohort that can proceed to state hydration. Broad public observation remains
+     # intact for every factory pool and every economic log.
+@@ -547,6 +559,9 @@ def scan(
      wide_hydrated=0
      for activity_row in active_cohort:
          address = activity_row["pool"]
@@ -1496,7 +1529,7 @@ index 832ee52..527559a 100644
          try:
              auth, prestate = _prestate(rpc, factory, address, end)
              tx=auth["token_x"].lower()
-@@ -575,6 +590,8 @@ def scan(
+@@ -593,6 +608,8 @@ def scan(
              ))
          except BoundaryError as exc:
              exclusions[str(exc)] += 1
@@ -1505,7 +1538,7 @@ index 832ee52..527559a 100644
  
      features = [r["features"] for r in rows]
      for row in rows:
-@@ -590,6 +607,7 @@ def scan(
+@@ -608,6 +625,7 @@ def scan(
  
      classified = []
      for row in rows:
@@ -1513,7 +1546,7 @@ index 832ee52..527559a 100644
          f = row["features"]
          capital = max(1, f["active_liquidity_quote"] * PAPER_ACTIVE_LIQUIDITY_BPS // 10000)
          signal_context = signals_by_pool.get(row["pool"], {})
-@@ -685,6 +703,8 @@ def scan(
+@@ -703,6 +721,8 @@ def scan(
              "allocation_authority": False,
          })
  
@@ -1760,10 +1793,10 @@ index 0000000..c17a9d4
 +            self.assertEqual(priority('pons_natural'),10)
 diff --git a/robinhood_tests/test_ramses_capital_replay.py b/robinhood_tests/test_ramses_capital_replay.py
 new file mode 100644
-index 0000000..fa2ab1c
+index 0000000..9d82e71
 --- /dev/null
 +++ b/robinhood_tests/test_ramses_capital_replay.py
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,87 @@
 +from concurrent.futures import ThreadPoolExecutor
 +from pathlib import Path
 +import sqlite3
@@ -1775,12 +1808,45 @@ index 0000000..fa2ab1c
 +
 +
 +def decision(amount):
-+    return dict(mode='fee_pulse',qualified=True,allocation_authority=False,
++    return dict(mode='active_wide_maker',qualified=True,allocation_authority=False,
 +        strategy_domain=STRATEGY_DOMAIN,strategy_version=STRATEGY_VERSION,policy_hash=POLICY_HASH,
 +        freeze=dict(proposal_hash='synthetic-test',proposals=[dict(capital_employed=amount)]))
 +
 +
 +class RamsesCapitalReplay(unittest.TestCase):
++    def test_superseded_mode_cannot_borrow_current_policy_authority(self):
++        with tempfile.TemporaryDirectory() as td:
++            ledger=RamsesStrategyLedger(str(Path(td)/'paper.sqlite'),paper_capital=1000,quote_asset='quote')
++            try:
++                before=ledger.reconcile()
++                for mode in ('fee_pulse','anchor_pulse','directional_converter',None):
++                    stale=decision(400);stale['mode']=mode
++                    with self.assertRaisesRegex(BoundaryError,'foreign_or_unqualified'):
++                        ledger.reserve('obsolete',pool='pool',decision=stale,at=1)
++                    self.assertEqual(ledger.reconcile(),before)
++            finally:ledger.close()
++
++    def test_rebalance_lost_ack_retry_after_reopen_does_not_duplicate_management(self):
++        with tempfile.TemporaryDirectory() as td:
++            path=str(Path(td)/'paper.sqlite')
++            ledger=RamsesStrategyLedger(path,paper_capital=1000,quote_asset='quote')
++            ledger.reserve('one',pool='pool',decision=decision(400),at=1)
++            ledger.open('one',at=2)
++            detail=dict(proposal_hash='a'*64)
++            ledger.checkpoint('one',action='rebalance',detail=detail,at=3)
++            ledger.close()
++            ledger=RamsesStrategyLedger(path,paper_capital=1000,quote_asset='quote')
++            try:
++                ledger.checkpoint('one',action='monitor',detail=dict(action='hold'),at=4)
++                before=ledger.position('one');accounting=ledger.reconcile()
++                count=ledger.db.execute('SELECT count(*) FROM ramses_strategy_journal').fetchone()[0]
++                returned=ledger.checkpoint('one',action='rebalance',detail=detail,at=3)
++                self.assertEqual(returned,before)
++                self.assertEqual(ledger.position('one')['rebalances'],1)
++                self.assertEqual(ledger.reconcile(),accounting)
++                self.assertEqual(ledger.db.execute('SELECT count(*) FROM ramses_strategy_journal').fetchone()[0],count)
++            finally:ledger.close()
++
 +    def test_loss_reduces_next_reservation_and_failure_is_atomic(self):
 +        with tempfile.TemporaryDirectory() as td:
 +            ledger=RamsesStrategyLedger(str(Path(td)/'paper.sqlite'),paper_capital=1000,quote_asset='quote')
@@ -1818,6 +1884,19 @@ index 0000000..fa2ab1c
 +                ledger.db.execute('DELETE FROM ramses_strategy_position')
 +                with self.assertRaisesRegex(BoundaryError,'projection_mismatch'):ledger.reconcile()
 +            finally:ledger.close()
+diff --git a/robinhood_tests/test_ramses_connected_lifecycle.py b/robinhood_tests/test_ramses_connected_lifecycle.py
+index fec14e3..70fff2d 100644
+--- a/robinhood_tests/test_ramses_connected_lifecycle.py
++++ b/robinhood_tests/test_ramses_connected_lifecycle.py
+@@ -43,7 +43,7 @@ def _freeze():
+ 
+ def _decision(qualified=True):
+     return dict(
+-        mode="fee_pulse",
++        mode="active_wide_maker",
+         qualified=qualified,
+         allocation_authority=False,
+         strategy_domain=STRATEGY_DOMAIN,
 diff --git a/robinhood_tests/test_ramses_continuous_campaign.py b/robinhood_tests/test_ramses_continuous_campaign.py
 new file mode 100644
 index 0000000..e083841
@@ -2068,7 +2147,7 @@ index 0000000..763ec3f
 +        with self.assertRaisesRegex(BoundaryError,'ramses_universe_log_identity'):
 +            _decode_economic_logs([event],['0x'+'22'*20])
 diff --git a/robinhood_tests/test_ramses_extended_market.py b/robinhood_tests/test_ramses_extended_market.py
-index 711f223..764d886 100644
+index 711f223..30281bf 100644
 --- a/robinhood_tests/test_ramses_extended_market.py
 +++ b/robinhood_tests/test_ramses_extended_market.py
 @@ -1,3 +1,4 @@
@@ -2076,6 +2155,15 @@ index 711f223..764d886 100644
  import hashlib
  import json
  import os
+@@ -43,7 +44,7 @@ def _freeze(capital=100):
+ 
+ def _decision(*,qualified=False,capital=100):
+     return dict(
+-        mode=("fee_pulse" if qualified else "no_trade"),
++        mode=("active_wide_maker" if qualified else "no_trade"),
+         qualified=qualified,
+         allocation_authority=False,
+         strategy_domain=STRATEGY_DOMAIN,
 @@ -376,13 +377,15 @@ class RamsesExtendedMarketTests(unittest.TestCase):
  
          clock=Clock()
@@ -2141,6 +2229,19 @@ index 0000000..e589449
 +        with self.assertRaisesRegex(BoundaryError,'missing_result'):
 +            _scan_with_capacity_recovery(lambda:None,deadline=100,record_failure=lambda _:None,
 +                clock=lambda:0,sleeper=lambda _:None)
+diff --git a/robinhood_tests/test_ramses_strategy_isolation.py b/robinhood_tests/test_ramses_strategy_isolation.py
+index b94aa51..ed2b9c0 100644
+--- a/robinhood_tests/test_ramses_strategy_isolation.py
++++ b/robinhood_tests/test_ramses_strategy_isolation.py
+@@ -23,7 +23,7 @@ class RamsesStrategyIsolationTests(unittest.TestCase):
+ 
+     def _decision(self, capital=100):
+         return dict(
+-            mode="fee_pulse",
++            mode="active_wide_maker",
+             qualified=True,
+             allocation_authority=False,
+             strategy_domain=STRATEGY_DOMAIN,
 diff --git a/robinhood_tests/test_shared_position_fairness.py b/robinhood_tests/test_shared_position_fairness.py
 new file mode 100644
 index 0000000..4619cd0

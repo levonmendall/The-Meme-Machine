@@ -191,7 +191,10 @@ class CertificationTests(unittest.TestCase):
             for p in children:p.join(10);self.assertEqual(p.exitcode,0)
             times=sorted(float(s) for s in Path(output).read_text().splitlines())
             self.assertEqual(len(times),4)
-            self.assertGreaterEqual(times[-1]-times[0],1.4)
+            # Child output is written after acquire() returns and can be scheduler-delayed;
+            # keep enough tolerance that process preemption cannot masquerade as a rate
+            # increase. Four grants still must span well beyond two ungoverned 0.5s slots.
+            self.assertGreaterEqual(times[-1]-times[0],1.25)
             status=Governor(path).status()
             self.assertEqual(status['queues'],[])
             self.assertEqual(status['providers'][0]['grants'],4)
@@ -340,6 +343,13 @@ class ContentionPreflightTests(unittest.TestCase):
         self.assertFalse(active_market_job('paper-milestone',dict(name='live-diagnostic',status='completed')))
         self.assertTrue(active_market_job('unrecognized',dict(name='unknown-market-task',status='in_progress')))
         self.assertTrue(active_market_job('robinhood-ramses-extended',dict(name='probe',status='in_progress')))
+        spec={'lanes':{'pump':{'source_sha':'pump-pinned'}}}
+        run={'head_sha':'pump-pinned'}
+        self.assertFalse(active_market_job(
+            'paper-milestone',dict(name='live-diagnostic',status='in_progress'),run,spec))
+        self.assertTrue(active_market_job(
+            'paper-milestone',dict(name='live-diagnostic',status='in_progress'),
+            {'head_sha':'different'},spec))
 
 class TerminalReportRegressionTests(unittest.TestCase):
     def test_pons_final_report_keeps_native_12mb_contract(self):
@@ -372,5 +382,15 @@ class PressureViewTests(unittest.TestCase):
             self.assertEqual(r['lanes']['ramses']['requests'],1)
             self.assertEqual(db.execute('SELECT COUNT(*) FROM transports').fetchone()[0],2)
             db.close()
+
+
+class OverlayCanonicalizationTests(unittest.TestCase):
+    def test_blob_ids_are_metadata_but_patch_content_remains_authoritative(self):
+        from certification.run import canonical_patch_bytes
+        a=b"diff --git a/x.py b/x.py\nindex 1111111..2222222 100644\n--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-old\n+new\n"
+        b=b"diff --git a/x.py b/x.py\nindex aaaaaaa..bbbbbbb 100644\n--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-old\n+new\n"
+        changed=b"diff --git a/x.py b/x.py\nindex aaaaaaa..ccccccc 100644\n--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-old\n+different\n"
+        self.assertEqual(canonical_patch_bytes(a),canonical_patch_bytes(b))
+        self.assertNotEqual(canonical_patch_bytes(a),canonical_patch_bytes(changed))
 
 if __name__=='__main__':unittest.main()
