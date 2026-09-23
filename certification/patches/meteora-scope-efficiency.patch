@@ -213,11 +213,17 @@ index 0000000..02f0ddc
 diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_independent_v1.py
 --- a/tests/test_solana_dlmm_independent_v1.py
 +++ b/tests/test_solana_dlmm_independent_v1.py
-@@ -157,2 +157,2 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+@@ -158,7 +158,7 @@ def test_discovery_uses_fee_density_ranking_without_tvl_floor(self):
+         def fake(path,params=None):
+             calls.append((path,dict(params or {})))
              if path.endswith("/volume/history"):
 -                return {"data":buckets}
 +                raise AssertionError("historical acceleration must not be requested")
-@@ -169,6 +169,4 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+             return {"data":[row]}
+         with patch.object(strategy,"_api",side_effect=fake), \
+              patch.object(strategy.time,"time",return_value=2800):
+@@ -167,16 +167,13 @@ def fake(path,params=None):
+         self.assertEqual(len(accepted),1)
          self.assertEqual(rejected,[])
          self.assertEqual(accepted[0]["address"],"pool")
 -        # Public history is retained as ranking/context telemetry only.
@@ -226,12 +232,17 @@ diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_i
 -        self.assertGreater(accepted[0]["fee_5m_usd"],0)
 +        self.assertEqual(accepted[0]["fee_30m_snapshot_usd"],120)
 +        self.assertEqual(accepted[0]["volume_30m_snapshot_usd"],6000)
-@@ -177,3 +176,2 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+         self.assertEqual(strategy.DISCOVERY_SORTS[0],"fee_tvl_ratio_5m:desc")
+         pool_calls=[params for path,params in calls if path=="/pools"]
+         self.assertTrue(all("tvl" not in str(c.get("filter_by","")).lower() for c in pool_calls))
          history_calls=[params for path,params in calls if path.endswith("/volume/history")]
 -        self.assertTrue(history_calls)
 -        self.assertTrue(all(c.get("timeframe")=="5m" for c in history_calls))
 +        self.assertEqual(history_calls,[])
-@@ -212,7 +211,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+ 
+     def test_streaming_discovery_yields_before_next_pool_history_read(self):
+         p=strategy.load_policy()
+@@ -212,10 +209,10 @@ def fake_api(path,params=None):
              stream=strategy._iter_acceleration_candidates(p,telemetry)
              first=next(stream)
              self.assertEqual(first["address"],"first")
@@ -241,7 +252,13 @@ diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_i
              self.assertEqual(second["address"],"second")
 -            self.assertEqual(history_reads,["first","second"])
 +            self.assertEqual(history_reads,[])
-@@ -565,22 +564,12 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+ 
+     def test_history_acceleration_requires_six_consecutive_5m_buckets(self):
+         candidate=dict(address="pool",tvl_usd=10000)
+@@ -569,26 +566,16 @@ def test_stream_trigger_does_not_poll_again_until_pool_wakes(self):
+         self.assertEqual(trigger["wakeups"],1)
+         self.assertEqual(auth.call_count,2)
+ 
 -    def test_public_fee_context_expiry_stops_fresh_swap_wait(self):
 +    def test_public_snapshot_context_is_a_discovery_gate(self):
          p=strategy.load_policy()
@@ -268,3 +285,4 @@ diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_i
 +            fee_30m_snapshot_usd=1.0,tvl_usd=1000.0,
              volume_acceleration=0.0,fee_acceleration=0.0)
          self.assertTrue(strategy._regime_pass(candidate,p))
+ 
