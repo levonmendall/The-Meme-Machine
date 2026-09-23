@@ -72,6 +72,18 @@ jobs:
           --sha256 b3a2c00fc9cb97ac40d83c320ea8cea18015daa7d9d5144dbcde4eeb3da2dfff
           --output non-market-evidence/historical-inventory.json
           --native-meteora-root "$RUNNER_TEMP/historical-meteora"
+      - name: Conservative historical Meteora resolution proof
+        timeout-minutes: 3
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python -m certification.historical_resolution
+          --artifact-id 10719564489
+          --sha256 b3a2c00fc9cb97ac40d83c320ea8cea18015daa7d9d5144dbcde4eeb3da2dfff
+          --native-meteora-root "$RUNNER_TEMP/historical-meteora"
+          --expected-journal-hash e6e90ee486dd9e22fc394e108fb24371e5247a1b71023ed9846714069380e2f0
+          --expected-reason dlmm_terminal_state_disagrees_with_forward_reconstruction:token_x_mint_info
+          --output non-market-evidence/historical-resolution.json
       - name: Check for competing market jobs before connectivity
         env:
           GITHUB_TOKEN: ${{ github.token }}
