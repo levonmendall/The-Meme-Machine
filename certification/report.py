@@ -95,7 +95,7 @@ def summarize(lane, report):
             result['continuation_state']=handoffs
         if book:
             result['open_positions']=book.get('unsettled')
-            settled=report.get('qualified_lifecycles',[])
+            settled=list(report.get('qualified_lifecycles',[]))+list(report.get('continuation_lifecycles',[]))
             identities={x.get('lifecycle_id') for x in settled if x.get('complete') and x.get('lifecycle_id')}
             if book.get('reconciled') is True and book.get('settled')==len(identities):
                 result['natural_settled']=len(identities)
