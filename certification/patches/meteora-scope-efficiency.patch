@@ -210,3 +210,61 @@ index 0000000..02f0ddc
 +
 +if __name__=='__main__':
 +    unittest.main()
+diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_independent_v1.py
+--- a/tests/test_solana_dlmm_independent_v1.py
++++ b/tests/test_solana_dlmm_independent_v1.py
+@@ -157,2 +157,2 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+             if path.endswith("/volume/history"):
+-                return {"data":buckets}
++                raise AssertionError("historical acceleration must not be requested")
+@@ -169,6 +169,4 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+         self.assertEqual(rejected,[])
+         self.assertEqual(accepted[0]["address"],"pool")
+-        # Public history is retained as ranking/context telemetry only.
+-        self.assertGreaterEqual(accepted[0]["volume_acceleration"],2)
+-        self.assertGreaterEqual(accepted[0]["fee_acceleration"],1.25)
+-        self.assertGreater(accepted[0]["fee_5m_usd"],0)
++        self.assertEqual(accepted[0]["fee_30m_snapshot_usd"],120)
++        self.assertEqual(accepted[0]["volume_30m_snapshot_usd"],6000)
+@@ -177,3 +176,2 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+         history_calls=[params for path,params in calls if path.endswith("/volume/history")]
+-        self.assertTrue(history_calls)
+-        self.assertTrue(all(c.get("timeframe")=="5m" for c in history_calls))
++        self.assertEqual(history_calls,[])
+@@ -212,7 +211,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+             stream=strategy._iter_acceleration_candidates(p,telemetry)
+             first=next(stream)
+             self.assertEqual(first["address"],"first")
+-            self.assertEqual(history_reads,["first"])
++            self.assertEqual(history_reads,[])
+             second=next(stream)
+             self.assertEqual(second["address"],"second")
+-            self.assertEqual(history_reads,["first","second"])
++            self.assertEqual(history_reads,[])
+@@ -565,22 +564,12 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+-    def test_public_fee_context_expiry_stops_fresh_swap_wait(self):
++    def test_public_snapshot_context_is_a_discovery_gate(self):
+         p=strategy.load_policy()
+         candidate=dict(
+-            address="pool",volume_acceleration=0.1,fee_acceleration=0.1,
+-            fee_5m_usd=5.0,tvl_usd=1000.0)
+-        adapter=MagicMock();adapter.rpc.calls=0
+-        expired=dict(candidate,fee_5m_usd=0.0)
+-        with patch.object(
+-                strategy,"_history_acceleration",return_value=expired), \
+-             patch.object(strategy.time,"monotonic",return_value=0.0):
+-            trigger,post,_adapter,_latest=strategy._await_fresh_swap_trigger(
+-                adapter,candidate,{"slot":10},p,MagicMock(),[])
+-        self.assertFalse(trigger["triggered"])
+-        self.assertEqual(trigger["reason"],"public_fee_context_expired")
+-        self.assertIsNone(post)
++            address="pool",fee_30m_snapshot_usd=0.0,tvl_usd=1000.0)
++        self.assertFalse(strategy._regime_pass(candidate,p))
+ 
+     def test_public_acceleration_is_not_a_hard_regime_gate(self):
+         p=strategy.load_policy()
+         candidate=dict(
+-            fee_5m_usd=1.0,tvl_usd=1000.0,
++            fee_30m_snapshot_usd=1.0,tvl_usd=1000.0,
+             volume_acceleration=0.0,fee_acceleration=0.0)
+         self.assertTrue(strategy._regime_pass(candidate,p))
