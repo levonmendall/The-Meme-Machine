@@ -132,7 +132,11 @@ def hourly_engineering(result):
         if row.get('exit_code')!=0 or row.get('unexpected_exit') or row.get('process_restarts')!=0:
             failures.append(lane+':process_continuity')
         open_positions=row.get('open_positions')
-        durable_handoff=(open_positions not in (0,None) and row.get('durable_handoff') is True)
+        durable_handoff=(
+            lane in ('meteora','ramses')
+            and open_positions==1
+            and row.get('durable_handoff') is True
+        )
         if row.get('accounting_reconciled') is not True:
             failures.append(lane+':accounting_or_exposure')
         elif open_positions is None:
