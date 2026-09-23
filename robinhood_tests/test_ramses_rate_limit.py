@@ -94,6 +94,33 @@ class RamsesRateLimitTests(unittest.TestCase):
             {"0123456789abcdef":1},
         )
 
+    def test_public_census_rate_limit_can_split_to_single_same_endpoint_calls(self):
+        session=_FakeSession(max_batch=1)
+        with patch.object(capture,"configured_dlmm_rpc",return_value=session), \
+             patch.object(capture.time,"sleep",return_value=None):
+            rpc=capture.BoundedMultiRpc(
+                "https://example.invalid/rpc",
+                max_sessions=2,
+                batch_size=4,
+                batch_pause=0,
+                rate_retries=1,
+                rate_cooldown=0,
+                adaptive_batch_floor=1,
+            )
+            got=rpc.batch(
+                [("echo",[i]) for i in range(4)],
+                scope="universe_logs",
+            )
+        self.assertEqual(got,list(range(4)))
+        t=rpc.telemetry()
+        self.assertEqual(t["adaptive_batch_splits"],3)
+        self.assertGreaterEqual(t["rate_limit_events"],3)
+        self.assertGreaterEqual(t["failures"].get("provider_http_429",0),3)
+        self.assertEqual(
+            t["endpoint_fingerprints"],
+            {"0123456789abcdef":1},
+        )
+
     def test_exact_receipts_and_numbered_blocks_are_cached_across_reuse(self):
         session=_FakeSession(max_batch=6)
         tx="0x"+"11"*32
