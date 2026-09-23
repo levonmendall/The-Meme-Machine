@@ -32,6 +32,52 @@ def _find(root,pattern):
     return rows[0]
 
 
+def _runtime_identity(state_dir,lane):
+    """Bind continuation to the exact certified implementation and lane authority."""
+    from certification.run import implementation_hash
+    current=json.loads((Path(__file__).parent/'sources.json').read_text())
+    expected=(current.get('lanes') or {}).get(lane)
+    if not isinstance(expected,dict):
+        raise RuntimeError('continuation_current_lane_missing')
+
+    manifests=[]
+    for path in Path(state_dir).rglob('manifest.json'):
+        try:value=json.loads(path.read_text())
+        except (OSError,ValueError):continue
+        if isinstance(value,dict) and isinstance(value.get('lanes'),dict) and value.get('integration_sha'):
+            manifests.append((path,value))
+    if len(manifests)!=1:
+        raise RuntimeError('continuation_runtime_manifest_ambiguous')
+    manifest_path,manifest=manifests[0]
+    observed=(manifest.get('lanes') or {}).get(lane) or {}
+    for key in ('source_sha','policy_hash','strategy_version'):
+        if observed.get(key)!=expected.get(key):
+            raise RuntimeError('continuation_lane_identity_mismatch:'+key)
+
+    results=[]
+    for path in Path(state_dir).rglob('result.json'):
+        try:value=json.loads(path.read_text())
+        except (OSError,ValueError):continue
+        if isinstance(value,dict) and value.get('phase')=='hourly' and value.get('implementation_hash'):
+            results.append((path,value))
+    if len(results)!=1:
+        raise RuntimeError('continuation_hourly_result_ambiguous')
+    result_path,result=results[0]
+    if result.get('integration_sha')!=manifest.get('integration_sha'):
+        raise RuntimeError('continuation_integration_identity_mismatch')
+    current_hash=implementation_hash()
+    if result.get('implementation_hash')!=current_hash:
+        raise RuntimeError('continuation_implementation_hash_mismatch')
+    return dict(
+        lane=lane,source_sha=observed.get('source_sha'),
+        policy_hash=observed.get('policy_hash'),
+        strategy_version=observed.get('strategy_version'),
+        integration_sha=manifest.get('integration_sha'),
+        implementation_hash=current_hash,
+        manifest_path=str(manifest_path),result_path=str(result_path),
+    )
+
+
 def _meteora_events(path):
     with sqlite3.connect(path) as db:
         return [json.loads(raw) for raw, in db.execute(
@@ -55,6 +101,7 @@ def _meteora_open_identity(events):
 
 
 def resume_meteora(state_dir,*,slice_seconds):
+    runtime_identity=_runtime_identity(state_dir,'meteora')
     from tests import solana_dlmm_independent_v1 as module
     from meme_machine.dlmm_independent_accounting import PaperBook
     from meme_machine.dlmm_tape import VerifiedTape
@@ -148,7 +195,7 @@ def resume_meteora(state_dir,*,slice_seconds):
                 lane='meteora',status='settled',handoff_required=False,
                 lifecycle_id=identity,exit_reason=exit_reason,
                 realized_hold_seconds=elapsed,segments=segments,final=final,
-                accounting=book.reconcile(),
+                accounting=book.reconcile(),runtime_identity=runtime_identity,
             )
         row=dict(
             schema='meteora-position-continuation-v1',lane='meteora',
@@ -172,6 +219,7 @@ def _json_env(name):
 
 
 def resume_ramses(state_dir,*,slice_seconds):
+    runtime_identity=_runtime_identity(state_dir,'ramses')
     from robinhood_research import BoundaryError
     from robinhood_research import ramses_all_pool_lifecycle as module
     from robinhood_research.ramses_strategy_ledger import RamsesStrategyLedger
@@ -431,7 +479,7 @@ def resume_ramses(state_dir,*,slice_seconds):
                      paper_capital=int(state['paper_capital']),quote_asset=state['quote_asset'])
         _atomic(state_path,state)
         return dict(lane='ramses',status='handoff_required',handoff_required=True,
-                    accounting=book.reconcile(),state=state)
+                    accounting=book.reconcile(),state=state,runtime_identity=runtime_identity)
     finally:
         book.close()
 
