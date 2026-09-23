@@ -87,4 +87,4 @@ jobs:
           name: prospective-cohort-review-${{ inputs.expected_integration_sha }}-${{ github.run_id }}
           path: prospective-review/
           if-no-files-found: error
-          retention-days: 365
+          retention-days: 90
