@@ -1,0 +1,43 @@
+{
+  "kind": "robinhood_public_rpc_hosted_transport_repair_v1",
+  "failure_run": 35817973734,
+  "failure_lane": "ramses",
+  "failure_boundary": "provider_http_403",
+  "failure_method": "eth_chainId",
+  "pons_observed_public_403s": true,
+  "header_probe_run": 35819131234,
+  "probe": {
+    "current": {
+      "eth_chainId": 403,
+      "eth_getBlockByNumber": 403
+    },
+    "descriptive_user_agent": {
+      "eth_chainId": 200,
+      "eth_getBlockByNumber": 200
+    },
+    "curl_user_agent": {
+      "eth_chainId": 200,
+      "eth_getBlockByNumber": 200
+    },
+    "browser_user_agent": {
+      "eth_chainId": 200,
+      "eth_getBlockByNumber": 200
+    }
+  },
+  "repaired_sources": {
+    "pons": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
+    "ramses": "b53d35a33dddb82db361a9a501daa04c48183142"
+  },
+  "recomposition": {
+    "run": 35819472776,
+    "pons_source_diff_sha256": "6972d3cc21f964c1597484dedcf54a9e614d015cc15f064749a5b1bb360fed7f",
+    "ramses_source_diff_sha256": "4d5c9a05268130df7cfdd9387d45d5f5476aa500b3bc095e7c80d3583fbde020",
+    "pons_provider_tests": "PASS",
+    "ramses_provider_tests": "PASS",
+    "pons_public_rpc_probe": "PASS",
+    "ramses_public_rpc_probe": "PASS"
+  },
+  "strategy_thresholds_changed": false,
+  "alchemy_role_expanded": false,
+  "paper_only_unchanged": true
+}

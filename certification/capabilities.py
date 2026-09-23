@@ -11,10 +11,24 @@ from pathlib import Path
 import sys
 import time
 
-def probe(rpc):
+def probe(rpc, *, require_public_observation=False):
     rpc.verify_chain()
     frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='capability_probe')
     report=dict(frontier={k:frontier[k] for k in ('number','hash','timestamp')},methods={},started_at=time.time())
+    if require_public_observation:
+        logs=rpc.call('eth_getLogs',[{
+            'fromBlock':frontier['number'],
+            'toBlock':frontier['number'],
+            'address':'0x0000000000000000000000000000000000000000',
+        }],scope='public_observation_probe')
+        if not isinstance(logs,list):
+            raise RuntimeError('public_observation_logs_shape')
+        report['public_observation']=dict(
+            chain_authenticated=True,
+            finalized_block=frontier['number'],
+            bounded_log_read=True,
+            log_rows=len(logs),
+        )
     # Fixed zero-value empty-code simulation. No signing/submission, no authority.
     call=dict(to='0x0000000000000000000000000000000000000000',data='0x')
     cases=[('eip1898_eth_getCode',[call['to'],{'blockHash':frontier['hash']}]),
@@ -54,12 +68,17 @@ def probe(rpc):
 def main():
     p=argparse.ArgumentParser();p.add_argument('--worktrees',required=True);p.add_argument('--output',required=True);a=p.parse_args()
     sys.path.insert(0,str(Path(a.worktrees)/'pons'))
-    from robinhood_research.provider_topology import configured_rpc
+    from robinhood_research.provider_topology import configured_rpc, public_diagnostic_rpc, PUBLIC_DIAGNOSTIC_RPC_URL
     from robinhood_research import CHAIN_ID
     endpoints={os.environ.get(k) for k in ('MM_ROBINHOOD_READ_RPC_URL','MM_ROBINHOOD_DLMM_RPC_URL') if os.environ.get(k)}
     results={}
     for endpoint in endpoints:
         identity=hashlib.sha256((str(CHAIN_ID)+':'+endpoint).encode()).hexdigest()
         results[identity]=probe(configured_rpc(endpoint,limit=12,per_scope=12,retries=0,timeout=3))
+    public_identity=hashlib.sha256((str(CHAIN_ID)+':'+PUBLIC_DIAGNOSTIC_RPC_URL).encode()).hexdigest()
+    results[public_identity]=probe(
+        public_diagnostic_rpc(limit=12,per_scope=12,retries=0),
+        require_public_observation=True,
+    )
     Path(a.output).write_text(json.dumps(dict(observed_at=time.time(),endpoints=results),sort_keys=True,indent=2)+'\n')
 if __name__=='__main__':main()
