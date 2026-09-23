@@ -54,6 +54,30 @@ class ControlsTests(unittest.TestCase):
             certification=dict(status='FAIL',failures=['pons:accounting_reconciled']))
         self.assertEqual(hourly_engineering(result)['status'],'FAIL')
 
+    def test_durable_long_horizon_handoff_is_incomplete_not_failed_exposure(self):
+        result=self.smoke();result.update(phase='hourly',continuous_overlap_seconds=3600)
+        for lane in ('meteora','ramses'):
+            result['lanes'][lane]['open_positions']=1
+            result['lanes'][lane]['durable_handoff']=True
+            result['lanes'][lane]['continuous_uptime_seconds']=3600
+            result['lanes'][lane]['gates'].update({
+                'bounded_queue':True,'provider_limits':True,'no_starvation':True,
+                'accounting_reconciled':True,'freshness_finality_unchanged':True,
+                'durable_replay':True,
+            })
+        for lane in ('pump','pons'):
+            result['lanes'][lane]['continuous_uptime_seconds']=3600
+            result['lanes'][lane]['gates'].update({
+                'bounded_queue':True,'provider_limits':True,'no_starvation':True,
+                'accounting_reconciled':True,'freshness_finality_unchanged':True,
+                'durable_replay':True,
+            })
+        verdict=evaluate(result)
+        self.assertNotIn('meteora:unsettled_position',verdict['failures'])
+        self.assertNotIn('ramses:unsettled_position',verdict['failures'])
+        self.assertIn('meteora:position_continuation_pending',verdict['incomplete'])
+        self.assertIn('ramses:position_continuation_pending',verdict['incomplete'])
+
     def test_raw_transport_hash_missing_record_and_terminal_policy_are_checked(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);journal=Journal(root/'telemetry.sqlite')
