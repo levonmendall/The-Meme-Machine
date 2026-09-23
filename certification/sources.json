@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-profit-protection-v2-compatibility-final",
+  "verified_at": "2026-09-23-profit-protection-v2-exact-hashes-pinned",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -119,7 +119,7 @@
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       },
-      "source_diff_sha256": null,
+      "source_diff_sha256": "7139d965818dfa4f093824161a5102e5635b8a0dcc6d831f55d28e0cb33481fe",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -132,7 +132,7 @@
       "source_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": null,
+      "source_diff_sha256": "113bbf9013b88a725efc8de7ec2fc98a4f03ca12c61929dbd99bfd90d5da5ccb",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -479,7 +479,7 @@
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       },
-      "source_diff_sha256": null,
+      "source_diff_sha256": "486b1e2977b62ee9a678ae99946a35ca17c411f92fc3a676ad991c20c94c8ca4",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
@@ -694,7 +694,7 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true
       },
-      "source_diff_sha256": null,
+      "source_diff_sha256": "1a7eb4f8fa00bd966d0fdf33283233e9032f69a3e78e78a95983e27daa3fe5e0",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -708,24 +708,23 @@
     "purpose": "Compose the current Pump/Pons profit-protection revisions with Meteora enforced core-hold profitability v2 and Ramses Active Wide Maker v3 authority/timing lock while preserving current operational overlays and paper-only controls.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1 profit-protection-v2; Meteora authenticated fee-density core-hold-v2; Ramses Active Wide Maker v3",
-    "validation_status": "PROFIT_PROTECTION_V2_QUALIFICATION_PENDING",
+    "validation_status": "PROFIT_PROTECTION_V2_EXACT_HASHES_PINNED_FINAL_CERTIFICATION_REQUESTED",
     "validation_run_requested": true,
     "latest_qualification": {
-      "run_id": 35789882265,
-      "verified_parent_head": "2c9de961dbddbd0cbe66c774cf16b98329b1317e",
+      "run_id": 35888605351,
+      "verified_parent_head": "7f59407777d2e482e754acbb91adaeb6b20f1312",
       "result": "success",
       "market_validation": false,
       "verified": [
-        "Pump profitability persistence source plus canonical operational overlay",
-        "Pons profitability persistence source plus canonical operational overlay",
-        "Meteora authenticated fee-density profitability source plus canonical lifecycle overlay",
-        "Ramses Active Wide Maker v3 source plus canonical operational overlay",
-        "supervisor deterministic suite",
+        "Pump profit-protection-v2 exact source plus canonical operational overlays",
+        "Pons profit-protection-v2 exact source plus canonical operational overlays",
+        "Meteora core-hold-v2 exact source plus canonical operational overlays",
+        "Ramses Active Wide Maker v3 authority-lock exact source plus canonical operational overlays",
         "all four isolated lane test suites",
         "Solana resource gates",
-        "canonical overlay idempotence"
+        "exact applied overlay hashes"
       ],
-      "scope": "historical_component_suites_and_resources_only; not current candidate end-to-end certification"
+      "scope": "exact four-lane deterministic non-market certification"
     },
     "source_heads": {
       "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
@@ -840,7 +839,12 @@
         "meteora": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
         "ramses": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef"
       },
-      "exact_source_diff_sha256": "pending_exact_certification",
+      "exact_source_diff_sha256": {
+        "pump": "7139d965818dfa4f093824161a5102e5635b8a0dcc6d831f55d28e0cb33481fe",
+        "meteora": "113bbf9013b88a725efc8de7ec2fc98a4f03ca12c61929dbd99bfd90d5da5ccb",
+        "pons": "486b1e2977b62ee9a678ae99946a35ca17c411f92fc3a676ad991c20c94c8ca4",
+        "ramses": "1a7eb4f8fa00bd966d0fdf33283233e9032f69a3e78e78a95983e27daa3fe5e0"
+      },
       "changes": [
         "Pons +18%/~33% harvest preserved; profitable runner requires persistent simultaneous soft deterioration or hard adverse evidence",
         "Pump +15%/25% staged harvest; profitable low demand requires two observations; one bounded healthy continuation beyond each legacy max-hold boundary",
@@ -856,7 +860,19 @@
         "strategy_economics_changed": false,
         "runtime_authority_changed": false,
         "purpose": "retain durable position readback used by restart/idempotency certification after Ramses admission overlay composition"
-      }
+      },
+      "pre_pin_qualification": {
+        "run_id": 35888605351,
+        "head_sha": "7f59407777d2e482e754acbb91adaeb6b20f1312",
+        "result": "success",
+        "source_diff_hashes": {
+          "pump": "7139d965818dfa4f093824161a5102e5635b8a0dcc6d831f55d28e0cb33481fe",
+          "meteora": "113bbf9013b88a725efc8de7ec2fc98a4f03ca12c61929dbd99bfd90d5da5ccb",
+          "pons": "486b1e2977b62ee9a678ae99946a35ca17c411f92fc3a676ad991c20c94c8ca4",
+          "ramses": "1a7eb4f8fa00bd966d0fdf33283233e9032f69a3e78e78a95983e27daa3fe5e0"
+        }
+      },
+      "exact_post_pin_certification_requested": true
     }
   },
   "composition": {
