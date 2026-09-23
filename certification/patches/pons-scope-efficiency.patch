@@ -12,7 +12,7 @@ diff --git a/robinhood_research/pons_selective_acquisition.py b/robinhood_resear
 
 +def strategy_trajectory_preflight(candidate,snapshots,launch_at):
 +    """Reject trajectory-static misses before the 60-second receipt window.
-
++
 +    These are the same frozen token-age, velocity/acceleration and graduation-ETA
 +    rules used by qualification_vector. This stage cannot authorize an entry; it
 +    only prevents full market-window reconstruction when those rules already fail.
