@@ -5,6 +5,8 @@ import hashlib
 import json
 import os
 import re
+import shutil
+import tempfile
 from pathlib import Path
 import signal
 import sqlite3
@@ -23,6 +25,8 @@ from certification.controls import (audit_telemetry,broker_snapshot,record_unfin
 ROOT=Path(__file__).resolve().parents[1]
 REPORTS={'pump':'pump-acceleration-natural-prospective.json','meteora':'solana-dlmm-independent-v1-live.json',
          'pons':'pons-selective-continuation-v1-cohort.json','ramses':'robinhood-ramses-extended-market-report.json'}
+BASE_OVERLAYS={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch',
+               'pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}
 
 
 def atomic(path,data):
@@ -85,6 +89,53 @@ def canonical_patch_bytes(value):
                   b'index <blob>..<blob>',bytes(value))
 
 
+def overlay_patches(lane,row):
+    patches=[]
+    base=BASE_OVERLAYS.get(lane)
+    if base:
+        patches.append(ROOT/'certification/patches'/base)
+    for spec in row.get('additional_patches',[]):
+        if (not isinstance(spec,dict) or not isinstance(spec.get('path'),str)
+                or not isinstance(spec.get('sha256'),str) or len(spec['sha256'])!=64):
+            raise ValueError('invalid_additional_patch_spec:'+lane)
+        path=(ROOT/spec['path']).resolve()
+        patch_root=(ROOT/'certification/patches').resolve()
+        if not path.is_relative_to(patch_root) or not path.is_file():
+            raise ValueError('invalid_additional_patch_path:'+lane)
+        if hashlib.sha256(path.read_bytes()).hexdigest()!=spec['sha256']:
+            raise ValueError('additional_patch_digest_mismatch:'+lane+':'+spec['path'])
+        patches.append(path)
+    return patches
+
+
+def exact_patch_stack(cwd,lane,row):
+    """Prove the indexed worktree is exactly the reviewed patch stack over HEAD."""
+    patches=overlay_patches(lane,row)
+    if subprocess.run(['git','diff','--quiet'],cwd=cwd).returncode!=0:
+        return False
+    index=Path(git('rev-parse','--git-path','index',cwd=cwd))
+    if not index.is_absolute():
+        index=(Path(cwd)/index).resolve()
+    with tempfile.NamedTemporaryFile(prefix='mm-patch-index-',delete=False) as handle:
+        temporary=Path(handle.name)
+    try:
+        shutil.copyfile(index,temporary)
+        env=dict(os.environ,GIT_INDEX_FILE=str(temporary))
+        for patch in reversed(patches):
+            subprocess.run(
+                ['git','apply','--cached','--reverse','--check',str(patch)],
+                cwd=cwd,env=env,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            subprocess.run(
+                ['git','apply','--cached','--reverse',str(patch)],
+                cwd=cwd,env=env,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        return subprocess.run(
+            ['git','diff','--cached','--quiet','HEAD'],cwd=cwd,env=env).returncode==0
+    except subprocess.CalledProcessError:
+        return False
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def source_integrity(worktrees):
     observed={}
     for lane,row in manifest()['lanes'].items():
@@ -105,11 +156,14 @@ def source_integrity(worktrees):
         diff=subprocess.check_output(['git','diff','--binary','HEAD'],cwd=cwd)
         observed[lane]=hashlib.sha256(diff).hexdigest()
         expected_diff_hash=row.get('source_diff_sha256')
-        if expected_diff_hash is not None:
+        if row.get('additional_patches'):
+            if not exact_patch_stack(cwd,lane,row):
+                raise ValueError('unreviewed_lane_mutation:'+lane)
+        elif expected_diff_hash is not None:
             if observed[lane]!=expected_diff_hash:
                 raise ValueError('unreviewed_lane_mutation:'+lane)
         else:
-            patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
+            patch=BASE_OVERLAYS.get(lane)
             expected=(ROOT/'certification/patches'/patch).read_bytes() if patch else b''
             # Legacy overlays compare semantic patch bytes. New/recomposed overlays
             # pin Git's exact applied diff hash, which is insensitive to patch serialization
@@ -139,9 +193,9 @@ def prepare(destination):
         subprocess.run(['git','worktree','add','--detach',str(work),execution],cwd=ROOT,check=True)
         for file,expected in row['file_hashes'].items():
             if hashlib.sha256((work/file).read_bytes()).hexdigest()!=expected:raise ValueError('source_hash_mismatch:'+lane+':'+file)
-        patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
-        if patch:
-            subprocess.run(['git','apply','--index',str(ROOT/'certification/patches'/patch)],cwd=work,check=True)
+        for patch in overlay_patches(lane,row):
+            subprocess.run(['git','apply','--check',str(patch)],cwd=work,check=True)
+            subprocess.run(['git','apply','--index',str(patch)],cwd=work,check=True)
     atomic(destination/'manifest.json',spec)
     return destination
 
