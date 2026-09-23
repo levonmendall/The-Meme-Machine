@@ -35,10 +35,16 @@ jobs:
             --branch cert/prospective-market-v1 \
             --limit 100 \
             --json databaseId,headSha,status,conclusion,createdAt \
-            > prospective-review/workflow-runs.json
-          python - <<'PY' > /tmp/prospective-run-ids
+            > prospective-review/hourly-runs.json
+          gh run list \
+            --workflow position-continuation.yml \
+            --branch cert/prospective-market-v1 \
+            --limit 100 \
+            --json databaseId,headSha,status,conclusion,createdAt \
+            > prospective-review/continuation-runs.json
+          python - <<'PY' > /tmp/prospective-hourly-run-ids
           import json,os
-          rows=json.load(open("prospective-review/workflow-runs.json"))
+          rows=json.load(open("prospective-review/hourly-runs.json"))
           expected=os.environ["EXPECTED_SHA"]
           for row in rows:
               if row.get("headSha")==expected and row.get("status")=="completed":
@@ -46,11 +52,26 @@ jobs:
           PY
           while read -r run_id; do
             [ -n "$run_id" ] || continue
-            mkdir -p "prospective-review/records/$run_id"
+            mkdir -p "prospective-review/records/hourly-$run_id"
             gh run download "$run_id" \
               --pattern "four-lane-hourly-$run_id-*" \
-              -D "prospective-review/records/$run_id" || true
-          done < /tmp/prospective-run-ids
+              -D "prospective-review/records/hourly-$run_id" || true
+          done < /tmp/prospective-hourly-run-ids
+          python - <<'PY' > /tmp/prospective-continuation-run-ids
+          import json,os
+          rows=json.load(open("prospective-review/continuation-runs.json"))
+          expected=os.environ["EXPECTED_SHA"]
+          for row in rows:
+              if row.get("headSha")==expected and row.get("status")=="completed":
+                  print(row["databaseId"])
+          PY
+          while read -r run_id; do
+            [ -n "$run_id" ] || continue
+            mkdir -p "prospective-review/records/continuation-$run_id"
+            gh run download "$run_id" \
+              --pattern "position-continuation-*-$run_id-*" \
+              -D "prospective-review/records/continuation-$run_id" || true
+          done < /tmp/prospective-continuation-run-ids
       - name: Evaluate the complete retained prospective cohort
         env:
           EXPECTED_SHA: ${{ inputs.expected_integration_sha }}
