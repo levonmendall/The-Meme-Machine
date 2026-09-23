@@ -31,10 +31,7 @@ def websocket_url(http_url):
     parts=urlsplit(http_url)
     if parts.scheme != 'https' or not parts.netloc:
         raise ValueError('HTTPS RPC required')
-    path=parts.path
-    if parts.hostname == 'solana.api.onfinality.io' and path.rstrip('/') == '/public':
-        path='/public-ws'
-    return urlunsplit(('wss',parts.netloc,path,parts.query,parts.fragment))
+    return urlunsplit(('wss',parts.netloc,parts.path,parts.query,parts.fragment))
 
 
 class PumpTape:
@@ -194,10 +191,9 @@ class PumpLogStream:
     def __init__(self, rpc_url, tape, clock=time.time, ws_url=None, reconnect_delay=2.0):
         self.url=str(ws_url or websocket_url(rpc_url))
         parts=urlsplit(self.url)
-        approved_hosts={'api.mainnet-beta.solana.com','solana.api.onfinality.io'}
+        approved_hosts={'api.mainnet-beta.solana.com'}
         if parts.scheme != 'wss' or parts.hostname not in approved_hosts:
-            if ws_url is not None:
-                raise ValueError('approved Solana WSS endpoint required')
+            raise ValueError('public Solana WSS endpoint required')
         self.tape=tape
         self.clock=clock
         self.reconnect_delay=max(0.0,float(reconnect_delay))
