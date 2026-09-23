@@ -1,0 +1,37 @@
+name: recompose-ramses-base-overlay-current
+on:
+  push:
+    branches: [repair/market-scope-efficiency-current-v2-20260923]
+permissions:
+  contents: write
+jobs:
+  recompose:
+    if: contains(github.event.head_commit.message, '[recompose-ramses-base]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Three-way recompose Ramses base overlay
+        run: |
+          set -euo pipefail
+          SHA="$(python -c 'import json; print(json.load(open("certification/sources.json"))["lanes"]["ramses"]["source_sha"])')"
+          WT="$RUNNER_TEMP/ramses"
+          git fetch origin "$SHA"
+          git worktree add --detach "$WT" "$SHA"
+          git -C "$WT" apply --3way --index "$GITHUB_WORKSPACE/certification/patches/ramses-admission.patch"
+          git -C "$WT" diff --check --cached
+          git -C "$WT" diff --binary --cached HEAD > "$GITHUB_WORKSPACE/certification/patches/ramses-admission.patch"
+          git -C "$WT" apply --check "$GITHUB_WORKSPACE/certification/patches/market-scope-efficiency-ramses.patch"
+      - name: Commit recomposed base overlay
+        run: |
+          if git diff --quiet -- certification/patches/ramses-admission.patch; then
+            echo "No overlay rewrite required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add certification/patches/ramses-admission.patch
+          git commit -m "[qualification-build] Recompose Ramses base overlay on current source"
+          git push origin HEAD:repair/market-scope-efficiency-current-v2-20260923
