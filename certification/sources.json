@@ -6,7 +6,7 @@
   "lanes": {
     "pump": {
       "source_branch": "strategy/pump-profit-protection-v2-20260923",
-      "source_sha": "6e2390057e31d14ba35a6b23654bcf68f2cbc9c5",
+      "source_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
       "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2",
       "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
       "file_hashes": {
@@ -40,7 +40,9 @@
         "1ed8bc465473875a6423c1e81f5d193f4db4cd50",
         "03df8e628dc750662473e9c21ce871abfd199b7b",
         "b0d2e43c22402a0254c7ea34a862450108f27d0e",
-        "6e2390057e31d14ba35a6b23654bcf68f2cbc9c5"
+        "6e2390057e31d14ba35a6b23654bcf68f2cbc9c5",
+        "e585590b7632f84f282f6530d1f97fed4b70341d",
+        "324fee081dd7664a30df4d88aaa1448d28e3033e"
       ],
       "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
       "execution_certification": {
@@ -723,7 +725,7 @@
       "scope": "historical_component_suites_and_resources_only; not current candidate end-to-end certification"
     },
     "source_heads": {
-      "pump": "6e2390057e31d14ba35a6b23654bcf68f2cbc9c5",
+      "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
       "pons": "639c7acd180dd04c3db8f1458bc1d116e924becf",
       "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
       "ramses": "6a7910f118e5fa2d0f2134724ee408ca039dbdb4"
@@ -824,7 +826,7 @@
     "profit_protection_v2_candidate": {
       "branch": "cert/profit-protection-v2-four-lane-20260923",
       "source_heads": {
-        "pump": "6e2390057e31d14ba35a6b23654bcf68f2cbc9c5",
+        "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
         "pons": "639c7acd180dd04c3db8f1458bc1d116e924becf",
         "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
         "ramses": "6a7910f118e5fa2d0f2134724ee408ca039dbdb4"
