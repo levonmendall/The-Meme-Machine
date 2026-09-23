@@ -394,7 +394,7 @@
       "additional_patches": [
         {
           "path": "certification/patches/pons-scope-efficiency.patch",
-          "sha256": "9b36a2b5d86a35951d1e42823cc8654a105c5cda2544b24110aa9808edde6dc0"
+          "sha256": "b07dca48e0672a08a1d3e95c33f84c6d04d9a60487ca3c18d123d65e1cf8a2cb"
         }
       ]
     },
