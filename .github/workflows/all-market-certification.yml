@@ -25,13 +25,15 @@ jobs:
       - name: Retire only the owned predecessor after preserving flat smoke or draining its campaign
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          python -m certification.prospective_program retire
-          --run-id 35915320840
-          --prior-sha f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa
-          --prior-cohort prospective-four-lane-v2-census-context-20260923
-          --prior-protocol-sha 956c79606c95df9edf249f9f09ed209543a18a12a57bc67dd21a4c4a16b78304
-          --output prior-program-retirement.json
+        run: |
+          python -m certification.run prepare --worktrees "$RUNNER_TEMP/retirement-lanes"
+          python -m certification.prospective_program retire \
+            --run-id 35915320840 \
+            --prior-sha f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa \
+            --prior-cohort prospective-four-lane-v2-census-context-20260923 \
+            --prior-protocol-sha 956c79606c95df9edf249f9f09ed209543a18a12a57bc67dd21a4c4a16b78304 \
+            --worktrees "$RUNNER_TEMP/retirement-lanes" \
+            --output prior-program-retirement.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

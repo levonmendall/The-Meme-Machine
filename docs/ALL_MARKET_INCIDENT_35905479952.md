@@ -135,3 +135,21 @@ Per-pool completion and the bounded state budget are durable progress evidence.
 The intermediate successor workflow 35916280138 was cancelled before certification
 by pause commit 48d02412d3ce160ef8e3614cf4d1e983f397e316. No v3 market observation
 was launched; all final repairs must receive one full certificate on their exact SHA.
+
+## Terminal audit path repair
+
+The preserved f7 smoke artifact `10776256813` is 183,437,471 bytes with SHA-256
+`aa4347cf199363d9724f3eda15213f264c857d9a9f78a52cd883d0e488ec1ef0`.
+It completed all workers in 1,604.835 seconds, with no settlements or exposure.
+Its terminal audit marked Meteora unreconciled because the native policy loader
+looked for `SOLANA_DLMM_INDEPENDENT_V1.json` relative to the integration directory.
+The book was intact. The stopped-worker audit now resolves the policy relative to
+its pinned native source module, preserving every native validation rule. A test
+executes the audit from the integration directory and retains unresolved reserves.
+
+Retirement workflow 35918440394 correctly refused to trust that failed original
+audit; no full certificate or successor market run started. The repaired retirement
+step independently replays all four archived native books using prepared pinned
+sources, records its proof separately, and retains the original failed engineering
+result. All four replayed with zero exposure. The original failure remains excluded
+from every clean block; no settlement, reserve release or history rewrite occurred.

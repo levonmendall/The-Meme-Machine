@@ -9,11 +9,12 @@ import unittest
 
 
 SCRIPT=r'''
-import hashlib,json,sys
+import hashlib,json,sys,os,subprocess
 from pathlib import Path
 sys.path.append(sys.argv[1])
 from certification.terminal_reconciliation import reconcile
 lane,folder=sys.argv[2],Path(sys.argv[3])
+source_root=Path.cwd()
 def snapshot():
  return {str(p.relative_to(folder)):hashlib.sha256(p.read_bytes()).hexdigest()
          for p in folder.rglob('*') if p.is_file() and not p.name.endswith('-shm')
@@ -48,7 +49,11 @@ else:
   'genesis_by_quote_asset':{'synthetic_quote':1000}}))
  book=RamsesStrategyLedger(base/'synthetic_quote.sqlite',paper_capital=1000,quote_asset='synthetic_quote')
  book.reserve('one',pool='fixture',decision=decision(400),at=10);book.db.close()
+os.chdir(sys.argv[1])  # Match the actual supervisor launch directory.
 before=snapshot();receipt=reconcile(lane,folder)
+cli=subprocess.run([sys.executable,str(Path(sys.argv[1])/'certification/terminal_reconciliation.py'),
+ '--lane',lane,'--root',str(folder),'--source-root',str(source_root)],capture_output=True,text=True)
+assert json.loads(cli.stdout)['verified']==receipt['verified'],cli.stdout+cli.stderr
 assert snapshot()==before,'terminal reconciliation mutated native evidence'
 assert receipt['open_positions']==1,receipt
 if lane=='pons':

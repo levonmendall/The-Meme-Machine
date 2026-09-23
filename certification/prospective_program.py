@@ -13,6 +13,9 @@ import io
 import json
 import os
 from pathlib import Path
+import subprocess
+import sys
+import tempfile
 import time
 from urllib.error import HTTPError
 from urllib.request import Request,build_opener,HTTPRedirectHandler,urlopen
@@ -286,7 +289,32 @@ def retirement_action(run,jobs):
     return 'cancel_before_new_admission' if smoke.get('conclusion')=='success' else 'wait_smoke'
 
 
-def retire(api,run_id,prior_sha,prior_cohort,prior_ph,proto):
+def replay_retirement_books(archive,phase,worktrees):
+    """Audit preserved native books without changing the failed run's evidence."""
+    source_integrity(worktrees)
+    prefix=f'certification-native/{phase}/'
+    proofs={};total=0
+    with tempfile.TemporaryDirectory() as folder:
+        root=Path(folder)
+        for item in archive.infolist():
+            if not item.filename.startswith(prefix) or item.is_dir():continue
+            relative=Path(item.filename[len(prefix):])
+            if relative.is_absolute() or '..' in relative.parts:raise ValueError('program_native_archive_path')
+            total+=item.file_size
+            if total>512*1024*1024:raise ValueError('program_native_archive_size')
+            path=root/relative;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(archive.read(item))
+        for lane in LANES:
+            result=subprocess.run([sys.executable,str(ROOT/'certification/terminal_reconciliation.py'),
+                '--lane',lane,'--root',str(root/lane),'--source-root',str((Path(worktrees)/lane).resolve())],
+                text=True,capture_output=True,timeout=45)
+            proof=json.loads(result.stdout)
+            if result.returncode or proof.get('verified') is not True or proof.get('open_positions')!=0:
+                raise ValueError('program_retirement_native_unresolved:'+lane)
+            proofs[lane]=proof
+    return proofs
+
+
+def retire(api,run_id,prior_sha,prior_cohort,prior_ph,proto,worktrees=None):
     prior=deepcopy(proto);prior['cohort_id']=prior_cohort
     def pause(state):
         if state is None or state.get('current_workflow_run_id')!=int(run_id):
@@ -315,11 +343,14 @@ def retire(api,run_id,prior_sha,prior_cohort,prior_ph,proto):
             prefix='four-lane-hourly' if observed else 'four-lane-certification'
             archive,item=api.artifact(run_id,f'{prefix}-{run_id}-{run["run_attempt"]}')
             result=_member(archive,f'certification-{phase}/result.json')
-            flat=(result.get('integration_sha')==prior_sha and set(result.get('lanes',{}))==set(LANES)
-                  and all(row.get('open_positions')==0 and row.get('accounting_reconciled') is True
-                          for row in result['lanes'].values()))
+            identity=(result.get('integration_sha')==prior_sha and set(result.get('lanes',{}))==set(LANES))
+            native_proofs=replay_retirement_books(archive,phase,worktrees) if identity and worktrees else None
+            flat=identity and (native_proofs is not None or all(
+                row.get('open_positions')==0 and row.get('accounting_reconciled') is True
+                for row in result['lanes'].values()))
             if flat:return dict(phase='RETIRED',prior_sha=prior_sha,prior_run=int(run_id),
                 terminal_artifact_id=item['id'],terminal_artifact_digest=item['digest'],verified_flat=True,
+                native_replay=native_proofs,original_engineering_result=result.get('smoke_engineering'),
                 next_action='certify_successor',prior_evidence_preserved=True)
             raise ValueError('program_retirement_exposure_unresolved')
         time.sleep(5)
@@ -338,7 +369,7 @@ def main():
         receipt=certificate(api,a.run_id,sha,a.worktrees)
         path=Path(a.output);path.parent.mkdir(parents=True,exist_ok=True);path.write_text(canonical(receipt)+'\n');return
     if a.command=='retire':
-        state=retire(api,a.run_id,a.prior_sha,a.prior_cohort,a.prior_protocol_sha,proto)
+        state=retire(api,a.run_id,a.prior_sha,a.prior_cohort,a.prior_protocol_sha,proto,a.worktrees)
     elif a.command=='review':
         state,_=commit_transition(api,proto,sha,ph,lambda s:s)
         if state is None:raise ValueError('program_state_missing')

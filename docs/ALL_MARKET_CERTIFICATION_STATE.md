@@ -26,8 +26,8 @@ is `certification/PROSPECTIVE_PROGRAM_STATE.json` on the same branch.
 | Clean cohort blocks / natural settlements | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 
 Observation hours, calendar span and active blocks are all zero for the new cohort.
-Candidate market health and infrastructure censoring are unmeasured. The cancelled
-predecessor's four native books reconcile with zero exposure; this is historical
+Candidate market health and infrastructure censoring are unmeasured. Both stopped
+predecessors' four native books reconcile with zero exposure; this is historical
 reconciliation evidence, not a completed prospective block.
 
 Cohort: `prospective-four-lane-v3-complete-sample-20260923`. Acceptance-policy SHA-256: `f452db20bc750b5cda37b90fb918a7b72f4fa686bcbf864ff8ef16020236b936`.
@@ -88,3 +88,11 @@ RPC calls cannot appear as Alchemy usage. It must pass its own complete certific
 Its workflow retires the owned predecessor after a verified flat smoke or after
 an already-started campaign drains; native exposure is never cancelled away.
 Every predecessor artifact and cohort record is retained separately.
+
+Terminal follow-up: run `35915320840` finished with a failed smoke, zero natural
+settlements and zero exposure. Its artifact `10776256813` was digest verified.
+Meteora's independent audit had a policy-file working-directory defect; the corrected
+reader replayed all four preserved books read-only and verified them flat. The
+successor retirement gate repeats that native replay before full certification.
+Run `35918440394` stopped safely at retirement, before any full certification or
+new observation. See the incident report and retained terminal replay receipt.

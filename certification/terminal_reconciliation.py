@@ -4,7 +4,7 @@ Never creates a book, posts a settlement, releases a reserve, or uses market I/O
 Missing or inconsistent evidence is an explicit failure, never a zero balance.
 """
 import argparse
-from contextlib import closing
+from contextlib import closing,chdir
 import json
 from pathlib import Path
 import sqlite3
@@ -52,7 +52,10 @@ def reconcile(lane,root):
         if event['action']!='genesis':raise ValueError('terminal_genesis_missing')
         book=PaperBook.__new__(PaperBook);book.path=path;book.genesis=event['data']
         book.run_id=book.genesis['run_id'];book.policy_hash=book.genesis['policy_hash']
-        if book.policy_hash!=strategy.digest(strategy.load_policy()):raise ValueError('terminal_policy_identity')
+        # Native policy paths are relative to the lane source, not the supervisor.
+        with chdir(Path(strategy.__file__).resolve().parents[1]):
+            expected_policy=strategy.digest(strategy.load_policy())
+        if book.policy_hash!=expected_policy:raise ValueError('terminal_policy_identity')
         book.connect=lambda:connect(path)
         accounting=book.reconcile()
         return dict(verified=accounting['reconciled'],accounting=accounting,
@@ -91,8 +94,8 @@ def reconcile(lane,root):
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--lane',required=True)
-    parser.add_argument('--root',required=True);args=parser.parse_args()
-    sys.path.insert(0,str(Path(args.root).resolve()))
+    parser.add_argument('--root',required=True);parser.add_argument('--source-root');args=parser.parse_args()
+    sys.path.insert(0,str(Path(args.source_root or args.root).resolve()))
     try:result=reconcile(args.lane,args.root)
     except Exception as exc:result=dict(verified=False,error_type=type(exc).__name__)
     result.update(lane=args.lane,read_only=True,settlement_inferred=False)
