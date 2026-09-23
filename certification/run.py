@@ -37,20 +37,35 @@ def manifest():return json.loads((ROOT/'certification/sources.json').read_text()
 
 
 def historical_exposure():
-    """Known exposure must survive a new output directory or strategy revision.
+    """Return only admission-blocking historical exposure.
 
-    This is an admission quarantine, not settlement or a replacement ledger.
-    It has no environment bypass. A future recovery change must retain the
-    original evidence and supply an explicit reviewed resolution.
+    Resolved rows are retained permanently with a digest-pinned proof receipt.
+    A resolution never mutates the original artifact or fabricates market settlement.
     """
     registry=json.loads((ROOT/'certification/historical_exposure.json').read_text())
-    if registry.get('schema_version')!=1 or not isinstance(registry.get('unresolved'),list):
+    if (registry.get('schema_version')!=1
+            or not isinstance(registry.get('unresolved'),list)
+            or not isinstance(registry.get('resolved',[]),list)):
         raise ValueError('historical_exposure_registry_invalid')
     for row in registry['unresolved']:
         if row.get('lane') not in LANES or row.get('resolution') is not None:
             raise ValueError('historical_exposure_resolution_requires_verified_recovery')
         if type(row.get('observed_open_positions')) is not int or row['observed_open_positions']<1:
             raise ValueError('historical_exposure_inventory_invalid')
+    for row in registry.get('resolved',[]):
+        proof=row.get('resolution')
+        if (row.get('lane') not in LANES or not isinstance(proof,dict)
+                or proof.get('disposition')!='certified_historical_unreplayable_zero_proceeds_writeoff'
+                or proof.get('immutable_original_artifact_preserved') is not True
+                or proof.get('market_settlement_performed') is not False
+                or proof.get('proceeds_lamports')!=0
+                or proof.get('open_positions_after')!=0
+                or proof.get('reserved_after')!=0
+                or proof.get('stale_marks_after')!=0
+                or proof.get('writeoffs_after')!=1
+                or not isinstance(proof.get('receipt_sha256'),str)
+                or len(proof['receipt_sha256'])!=64):
+            raise ValueError('historical_exposure_resolution_receipt_invalid')
     return registry['unresolved']
 
 
