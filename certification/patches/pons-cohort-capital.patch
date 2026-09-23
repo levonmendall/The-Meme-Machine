@@ -2008,7 +2008,7 @@ index 94c48d6..9fc8803 100644
 diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
 --- a/robinhood_research/pons_selective_paper.py
 +++ b/robinhood_research/pons_selective_paper.py
-@@ -1,640 +1,892 @@
+@@ -1,641 +1,893 @@
 -"""Independent paper lifecycle for Pons Selective Continuation v1.
 -
 -Strategy authority, capital, state and results are private to this lane.  The only
