@@ -107,3 +107,31 @@ limit is reached. Economic pass/fail does not select the stopping point. These
 control changes require a new cohort and a full exact-SHA recertification. The owned
 predecessor is retired only after its flat smoke evidence is preserved, or an already
 started campaign has drained; no active position is interrupted to accelerate testing.
+
+## Follow-up state hydration defect in 35915320840
+
+The census fix completed all 18 public log pages, then the first and second Ramses
+scans deferred with local budget exhaustion during full state hydration. Each
+frozen 201-bin prestate requires six header views plus two views per bin: 408
+logical reads per pool. Four eligible quiet USDG pools therefore require 1,632
+state reads before factory, receipt and cost metadata; the old shared budget held
+only 1,400. This is an impossible implementation bound, not a lack of opportunity.
+The live checkpoint recorded zero completed screens, two infrastructure-censored
+scans, 2,768 eth_call members and zero exposure.
+
+The repair leaves the metadata and public census budgets at seven 200-call
+sessions each and creates a separate state reader sized to the exact candidate
+count. It allows one chain authentication plus 408 reads per pool, conservatively
+allowing batch fragmentation within each 200-call session. Eight pools require
+3,265 planned reads and at most 17 sessions (3,400-call absolute cap). Existing
+endpoint, batch size eight, 0.8-second local pause, shared provider pacing, two
+rate retries, cooldown, cohort capacity, bin radius and strategy policy remain
+unchanged. This corrects the unintended budget defect under the user's explicit
+provider-budget exception; it does not accelerate the existing request rate.
+
+Regression tests reproduce the old four-pool failure, then hydrate every bin of
+eight states with exactly 3,265 calls, pinned to the same authenticated frontier.
+Per-pool completion and the bounded state budget are durable progress evidence.
+The intermediate successor workflow 35916280138 was cancelled before certification
+by pause commit 48d02412d3ce160ef8e3614cf4d1e983f397e316. No v3 market observation
+was launched; all final repairs must receive one full certificate on their exact SHA.

@@ -30,7 +30,7 @@ Candidate market health and infrastructure censoring are unmeasured. The cancell
 predecessor's four native books reconcile with zero exposure; this is historical
 reconciliation evidence, not a completed prospective block.
 
-Cohort: `prospective-four-lane-v3-complete-sample-20260923`. Acceptance-policy SHA-256: `8874be21cba68206042e87328f80ef8eeb8fa87b7028cb3fa6bfe34bfd8eca86`.
+Cohort: `prospective-four-lane-v3-complete-sample-20260923`. Acceptance-policy SHA-256: `f452db20bc750b5cda37b90fb918a7b72f4fa686bcbf864ff8ef16020236b936`.
 Strategy and source identities are frozen below; full execution provenance remains
 in `certification/sources.json` and `certification/profitability_protocol.json`.
 
@@ -39,11 +39,11 @@ in `certification/sources.json` and `certification/profitability_protocol.json`.
 | pump | pump-acceleration-independent-v1/profitability-v1-profit-protection-v2 | `b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5` | `73382447eba168503b2c7dc909ecd3498cffabeaa116166c45a3af4c7b74836d` |
 | meteora | solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2 | `90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966` | `a00a177abf1431a274c11f6bac32df5ef17be2893ee9fe23077fa2c4a523237f` |
 | pons | pons-selective-continuation-v1/profitability-v1-profit-protection-v2 | `19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84` | `f07dc564d97fa6d73deab049bc4aad5f23b1f29833448d28ee064d735c624363` |
-| ramses | ramses-active-wide-maker-v3 | `bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef` | `edad8c4d1fc03b3e90f1d11bda3fcdc5ef7a8a4ba297f3ec50959d3fc40fcf0b` |
+| ramses | ramses-active-wide-maker-v3 | `bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef` | `bd6800b72c3333053daf5bce393487ceb4f3572d65aaee6853d67d42476bb685` |
 
-Last completed action: 142 supervisor/control tests passed, including actual native
+Last completed action: supervisor/control regressions passed, including actual native
 reserved-capital cancellation replay for all four lanes; fresh preparation reproduced
-all four exact source hashes. Ramses census and Meteora missing-context regressions
+all four exact source hashes. Ramses census, exact 8-pool state-budget and Meteora missing-context regressions
 passed. Workflow YAML and frozen protocol checks pass. Full lane, crash, restart,
 integrated acceptance, resource, historical resolution, chain-binding and production
 adapter gates remain mandatory on the committed candidate.
@@ -73,9 +73,14 @@ read-only provider shape probe `35909625490` at
 
 The predecessor `f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa` passed all full
 non-market gates in run `35914189762` and launched paper run `35915320840`.
-Its first live minute proved the repaired Ramses census completed all 18 pages
-and Meteora reached authenticated evidence acquisition. All four processes were
-responsive, with zero open positions and zero settlements at that checkpoint.
+Its live smoke proved the repaired Ramses census completed all 18 pages and
+Meteora reached authenticated evidence acquisition. A later Ramses hydration
+failure exposed another impossible local budget: four full pool states require
+1,632 calls before metadata, exceeding 1,400. Both observed scans were censored.
+The successor allocates the exact bounded state workload separately (up to 3,265
+planned reads / 17 sessions for eight pools), preserving endpoint, pacing, retries,
+pool capacity and all 201 bins. At the last checkpoint all four books had zero
+exposure and zero settlements; the predecessor remains excluded from this cohort.
 
 The successor additionally requires the existing portfolio joint-sample minimum
 before ending collection, and corrects shared-pressure CU attribution so public
