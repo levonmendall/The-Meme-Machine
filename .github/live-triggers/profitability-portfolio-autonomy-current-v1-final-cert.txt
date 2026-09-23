@@ -1,0 +1,4 @@
+Final exact-SHA certification trigger for the current four-lane profit-protection composition.
+Parent strategy composition: a627a5def86801b19df54090f3ef64bef98990bb.
+No strategy, threshold, sizing, freshness/finality, provider ceiling, or paper-accounting economics change.
+Prospective cohort remains ineligible until this exact SHA passes non-market certification.
