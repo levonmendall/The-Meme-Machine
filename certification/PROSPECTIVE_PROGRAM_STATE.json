@@ -1,7 +1,11 @@
 {
+  "canonical_sha": "b57835dc50dd4047cefed13cfe0be975779af1e8",
   "certification_run_id": 35920022541,
   "cohort_id": "prospective-four-lane-v3-complete-sample-20260923",
   "created_at": 1790197988.1116061,
+  "current_native_run_id": null,
+  "current_workflow_run_id": null,
+  "dispatch_id": "b6bd76a8cc7f409f834e33cbb9b21706",
   "events": {},
   "historical_references": {
     "cancelled_run": 35905479952,
@@ -11,17 +15,23 @@
     "superseded_market_run": 35915320840,
     "superseded_nonmarket_run": 35914189762
   },
-  "history": [],
+  "history": [
+    {
+      "action": "dispatch_intent",
+      "at": 1790197994.096657,
+      "dispatch_id": "b6bd76a8cc7f409f834e33cbb9b21706"
+    }
+  ],
   "integration_sha": "b57835dc50dd4047cefed13cfe0be975779af1e8",
   "live_money": false,
-  "next_action": "dispatch_smoke_then_hourly",
+  "next_action": "claim_exact_dispatch",
   "operational_limit": {
     "maximum_blocks": 192,
     "maximum_calendar_hours": 336
   },
   "paper_only": true,
   "pending_lanes": [],
-  "phase": "READY",
+  "phase": "DISPATCH_PENDING",
   "protocol_sha256": "74cf0c2cf75a1fac031d5626754381d1fab51d2e2afa36f705a346028665e9a9",
   "records": [],
   "reviewed_blocks": [],
@@ -50,5 +60,5 @@
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790197988.4373374
+  "updated_at": 1790197994.0966623
 }
