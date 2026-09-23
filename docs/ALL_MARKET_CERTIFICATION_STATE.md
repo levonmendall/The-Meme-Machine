@@ -34,7 +34,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
   },
   "current_cohort_id": "prospective-four-lane-v3-complete-sample-20260923",
   "current_economic_metrics": {},
-  "current_phase": "DISPATCH_PENDING",
+  "current_phase": "RUNNING",
   "economic_acceptance_established": false,
   "engineering_blockers": [],
   "historical_references": {
@@ -70,7 +70,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "dispatch_id": "b6bd76a8cc7f409f834e33cbb9b21706"
   },
   "latest_certification_run": 35920022541,
-  "latest_market_run": null,
+  "latest_market_run": 35921058163,
   "machinery_certified_by_lane": {
     "meteora": true,
     "pons": true,
@@ -89,7 +89,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "pump": 0,
     "ramses": 0
   },
-  "next_action": "claim_exact_dispatch",
+  "next_action": "smoke_then_hourly",
   "observation_hours": {
     "meteora": 0,
     "pons": 0,
@@ -100,7 +100,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "maximum_blocks": 192,
     "maximum_calendar_hours": 336
   },
-  "prospective_sha": null,
+  "prospective_sha": "b57835dc50dd4047cefed13cfe0be975779af1e8",
   "source_diff_hash_by_lane": {
     "meteora": "a00a177abf1431a274c11f6bac32df5ef17be2893ee9fe23077fa2c4a523237f",
     "pons": "b657828bb6cd7852abd7859b16c4f2009e5cb0f4a3cb150c6bd3cb679689a2bb",
@@ -125,6 +125,6 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790197994.0966623
+  "updated_at": 1790198008.002007
 }
 ```
