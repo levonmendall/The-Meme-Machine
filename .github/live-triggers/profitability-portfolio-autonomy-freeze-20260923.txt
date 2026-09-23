@@ -1,0 +1,18 @@
+Meme Machine prospective profitability / portfolio / autonomy cohort freeze.
+
+This commit freezes certification tooling and current four-lane strategy authority.
+No pre-freeze market run is eligible for prospective profitability evidence.
+No strategy threshold, sizing, market scope, freshness/finality rule, provider ceiling, or paper-only authority is changed by this marker.
+
+Prospective cohort: meme-machine-prospective-v1-20260923
+Pre-freeze verified parent: 4d2120301bf3ed55e8a73b6929205ce0e7c816f0
+Protocol: certification/profitability_protocol.json
+
+Activation sequence:
+1. full exact-SHA non-market certification must PASS;
+2. cert/prospective-market-v1 is fast-forwarded to this exact certified SHA;
+3. a fresh smoke and fresh one-hour natural paper block run from this same SHA;
+4. only prospective-observation.json records produced at this SHA are eligible;
+5. automatic new-campaign scheduling remains disabled until frozen lane, portfolio, and autonomy acceptance all PASS.
+
+Long-horizon Meteora/Ramses position continuation may self-chain in bounded paper-only slices. No live-money authority is added.
