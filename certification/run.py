@@ -89,12 +89,18 @@ def source_integrity(worktrees):
                 raise ValueError('frozen_source_file_drift:'+lane+':'+file)
         diff=subprocess.check_output(['git','diff','--binary','HEAD'],cwd=cwd)
         observed[lane]=hashlib.sha256(diff).hexdigest()
-        patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
-        expected=(ROOT/'certification/patches'/patch).read_bytes() if patch else b''
-        # Compare the exact semantic diff. Git's generated post-image blob id is
-        # metadata, not executable content, so normalize only that index line.
-        if canonical_patch_bytes(diff)!=canonical_patch_bytes(expected):
-            raise ValueError('unreviewed_lane_mutation:'+lane)
+        expected_diff_hash=row.get('source_diff_sha256')
+        if expected_diff_hash is not None:
+            if observed[lane]!=expected_diff_hash:
+                raise ValueError('unreviewed_lane_mutation:'+lane)
+        else:
+            patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
+            expected=(ROOT/'certification/patches'/patch).read_bytes() if patch else b''
+            # Legacy overlays compare semantic patch bytes. New/recomposed overlays
+            # pin Git's exact applied diff hash, which is insensitive to patch serialization
+            # but still fails closed on any executable source mutation.
+            if canonical_patch_bytes(diff)!=canonical_patch_bytes(expected):
+                raise ValueError('unreviewed_lane_mutation:'+lane)
     return observed
 
 
