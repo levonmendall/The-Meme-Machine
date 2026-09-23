@@ -84,7 +84,7 @@ jobs:
           name: four-lane-certification-${{ github.run_id }}-${{ github.run_attempt }}
           path: certification-artifact/
           if-no-files-found: error
-          retention-days: 365
+          retention-days: 90
 
   hourly-campaign:
     needs: [concurrent-smoke, smoke-artifact-review]
@@ -165,7 +165,7 @@ jobs:
           name: four-lane-hourly-${{ github.run_id }}-${{ github.run_attempt }}
           path: certification-artifact/
           if-no-files-found: error
-          retention-days: 365
+          retention-days: 90
       - name: Start automatic durable continuation for open long-horizon positions
         if: success()
         env:
@@ -213,7 +213,7 @@ jobs:
           name: smoke-artifact-review-${{ github.run_id }}-${{ github.run_attempt }}
           path: frozen-review/
           if-no-files-found: error
-          retention-days: 365
+          retention-days: 90
 
   hourly-artifact-review:
     needs: hourly-campaign
@@ -238,4 +238,4 @@ jobs:
           name: hourly-artifact-review-${{ github.run_id }}-${{ github.run_attempt }}
           path: frozen-review/
           if-no-files-found: error
-          retention-days: 365
+          retention-days: 90
