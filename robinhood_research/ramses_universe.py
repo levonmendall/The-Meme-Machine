@@ -735,26 +735,33 @@ def scan(
         lookback_blocks=end - start + 1,
         factory_pool_count=len(addresses),
         factory_inventory_cache=dict(
-            hit=bool(getattr(observation_rpc, "_roi_factory_inventory_cache_hit", False)),
+            hit=bool(getattr(rpc, "_roi_factory_inventory_cache_hit", False)),
             durable_hit=bool(
-                getattr(observation_rpc, "_roi_factory_inventory_durable_hit", False)
+                getattr(rpc, "_roi_factory_inventory_durable_hit", False)
             ),
             durable_cache_path=str(FACTORY_CACHE),
             batch_recoveries=int(
-                getattr(observation_rpc, "_roi_factory_batch_recoveries", 0) or 0
+                getattr(rpc, "_roi_factory_batch_recoveries", 0) or 0
             ),
-            member_failure=getattr(observation_rpc, "_roi_factory_member_failure", None),
+            member_failure=getattr(rpc, "_roi_factory_member_failure", None),
             reused_pool_count=int(
-                getattr(observation_rpc, "_roi_factory_inventory_reused", 0) or 0
+                getattr(rpc, "_roi_factory_inventory_reused", 0) or 0
             ),
             fetched_pool_count=int(
-                getattr(observation_rpc, "_roi_factory_inventory_fetched", 0) or 0
+                getattr(rpc, "_roi_factory_inventory_fetched", 0) or 0
             ),
             sentinel_reads=int(
-                getattr(observation_rpc, "_roi_factory_inventory_sentinel_reads", 0) or 0
+                getattr(rpc, "_roi_factory_inventory_sentinel_reads", 0) or 0
             ),
             count_verified_each_scan=True,
-            cached_prefix_sentinel_verified=True,
+            cache_authority="exact_runtime_authenticated_append_only_factory",
+            cached_prefix_sentinel_verified=bool(
+                getattr(rpc, "_roi_factory_inventory_sentinel_reads", 0)
+            ),
+            runtime_bound_cache_reuse_without_sentinel=bool(
+                getattr(rpc, "_roi_factory_inventory_cache_hit", False)
+                and not getattr(rpc, "_roi_factory_inventory_sentinel_reads", 0)
+            ),
         ),
         pools_with_recent_swaps=len(histories),
         pools_without_recent_swaps=no_swap_count,
@@ -784,7 +791,11 @@ def scan(
         provider=rpc.telemetry(),
         observation_provider=observation_rpc.telemetry(),
         alchemy_usage_policy=dict(
-            broad_factory_and_log_observation="official_robinhood_public_rpc",
+            broad_economic_log_observation="official_robinhood_public_rpc",
+            factory_inventory_state=(
+                "configured_dlmm_rpc_exact_count_plus_new_append_indices_only"
+            ),
+            factory_cache_reuse="runtime_bound_digest_validated_append_only",
             authoritative_candidate_state="configured_dlmm_rpc",
             receipt_cost_acquisition="active_cohort_only",
             lifecycle_and_unwind="configured_dlmm_rpc",
