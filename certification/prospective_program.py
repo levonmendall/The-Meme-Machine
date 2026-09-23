@@ -309,7 +309,7 @@ def replay_retirement_books(archive,phase,worktrees):
                 text=True,capture_output=True,timeout=45)
             proof=json.loads(result.stdout)
             if result.returncode or proof.get('verified') is not True or proof.get('open_positions')!=0:
-                raise ValueError('program_retirement_native_unresolved:'+lane)
+                raise ValueError('program_retirement_native_unresolved:'+lane+':'+str(proof.get('error_type','ledger_or_exposure')))
             proofs[lane]=proof
     return proofs
 
