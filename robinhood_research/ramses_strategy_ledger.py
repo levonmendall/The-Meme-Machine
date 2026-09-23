@@ -154,10 +154,19 @@ class RamsesStrategyLedger:
             "SELECT 1 FROM ramses_strategy_position WHERE id=?", (identity,)
         ).fetchone():
             raise BoundaryError("duplicate_ramses_strategy_reservation")
-        try:
-            assert_active_v3_decision(decision)
-        except BoundaryError:
-            raise BoundaryError("foreign_forced_machinery_decision") from None
+        # Forced machinery remains explicitly strategy-ineligible.  It may
+        # exercise a rejected/no-trade freeze, but it must still be bound to the
+        # current Ramses strategy identity and can never import foreign authority.
+        if (
+            not isinstance(decision,dict)
+            or decision.get("strategy_domain") != STRATEGY_DOMAIN
+            or decision.get("strategy_version") != STRATEGY_VERSION
+            or decision.get("policy_hash") != POLICY_HASH
+            or decision.get("allocation_authority") is not False
+            or not isinstance(decision.get("freeze"),dict)
+            or not decision["freeze"].get("proposals")
+        ):
+            raise BoundaryError("foreign_forced_machinery_decision")
         proposal = decision["freeze"]["proposals"][0]
         reserved = proposal.get("capital_employed")
         if type(reserved) is not int or reserved <= 0:
