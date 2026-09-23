@@ -1,1 +1,0 @@
-Export current prepared Ramses base for scope overlay rebase.

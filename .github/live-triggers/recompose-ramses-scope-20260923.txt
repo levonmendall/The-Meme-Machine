@@ -1,1 +1,0 @@
-Recompose Ramses market-scope overlay onto prepared current base.

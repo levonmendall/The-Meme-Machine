@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-market-scope-efficiency-current-recomposition-candidate",
+  "verified_at": "2026-09-23-market-scope-efficiency-current-exact-candidate",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -95,7 +95,7 @@
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       },
-      "source_diff_sha256": "24831371273420f3c3ce41ac3206f8bd055005d2a41ba4c377763e04335456aa",
+      "source_diff_sha256": "9f3851244dc1cc939caad17b65c240a5d82467eb271d623c108be3f009386eeb",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -107,7 +107,7 @@
       "source_sha": "a616366fbe64e816708d035c15141b7e7e800304",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1",
       "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
-      "source_diff_sha256": "80d88694dfac774b31516b26f065522f3fe8c6a1c57707b8be933150b82089e2",
+      "source_diff_sha256": "76dad9ea767672d1906cde19b0d5e6301a3dad00a658637a611b5c1d09e37bd4",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "d9ca094b0715d8447cd5e98fdc99633d9a5b29e92b0b145bbe4adb052d6fc8e8"
@@ -406,7 +406,7 @@
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
       },
-      "source_diff_sha256": "6972d3cc21f964c1597484dedcf54a9e614d015cc15f064749a5b1bb360fed7f",
+      "source_diff_sha256": "b6ebd94cee32100495e3c73506126ef0ac83b4bf22112e38fb87dbc390a075f7",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
@@ -593,7 +593,7 @@
         "strategy_thresholds_changed": true,
         "profitability_authority": true
       },
-      "source_diff_sha256": "4d5c9a05268130df7cfdd9387d45d5f5476aa500b3bc095e7c80d3583fbde020",
+      "source_diff_sha256": "c3ff6b32a297bf9e9fdc471f4937223b09817f1e98fbb18263e63c9aa793f0f6",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -606,7 +606,7 @@
     "purpose": "Compose the current Pump/Pons profitability persistence policies with verified Meteora authenticated fee-density profitability v1 and Ramses Active Wide Maker v3 while preserving current operational overlays and paper-only controls.",
     "profitability_authority": true,
     "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora authenticated fee-density profitability-v1; Ramses Active Wide Maker v3",
-    "validation_status": "NOT_CERTIFIED_NON_MARKET_END_TO_END",
+    "validation_status": "EXACT_CURRENT_SOURCE_CERTIFICATION_REQUESTED",
     "validation_run_requested": true,
     "latest_qualification": {
       "run_id": 35789882265,
@@ -679,12 +679,19 @@
     },
     "market_scope_efficiency_candidate": {
       "branch": "repair/market-scope-efficiency-current-v2-20260923",
+      "integration_sha_pending": true,
       "pons_source_sha": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
       "ramses_source_sha": "631cb0c6d4de044a080927f711f575db8ac6c1d7",
+      "exact_source_diff_sha256": {
+        "pump": "9f3851244dc1cc939caad17b65c240a5d82467eb271d623c108be3f009386eeb",
+        "pons": "b6ebd94cee32100495e3c73506126ef0ac83b4bf22112e38fb87dbc390a075f7",
+        "meteora": "76dad9ea767672d1906cde19b0d5e6301a3dad00a658637a611b5c1d09e37bd4",
+        "ramses": "c3ff6b32a297bf9e9fdc471f4937223b09817f1e98fbb18263e63c9aa793f0f6"
+      },
       "strategy_thresholds_changed": false,
       "market_observation_scope_changed": false,
       "paper_only_unchanged": true,
-      "exact_diff_hashes_pending": true
+      "exact_diff_hashes_pending": false
     }
   },
   "composition": {
