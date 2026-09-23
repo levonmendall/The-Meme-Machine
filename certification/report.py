@@ -182,9 +182,25 @@ def pipeline_health(row,now):
     frontier=row.get('finality_state') or {}
     if scan.get('state')=='in_progress':
         age=max(0,now-scan.get('updated_at',scan.get('started_at',now)))
-        return dict(state='stalled' if age>300 else 'progressing',stage=scan.get('stage'),
-                    stage_age_seconds=age,scan_age_seconds=max(0,now-scan.get('started_at',now)),
-                    stall_bound_seconds=300)
+        transport_age=row.get('transport_activity_age_seconds')
+        transport_fresh=(
+            isinstance(transport_age,(int,float))
+            and not isinstance(transport_age,bool)
+            and 0<=transport_age<=30
+        )
+        stalled=age>300 and not transport_fresh
+        return dict(
+            state='stalled' if stalled else 'progressing',
+            stage=scan.get('stage'),
+            stage_age_seconds=age,
+            scan_age_seconds=max(0,now-scan.get('started_at',now)),
+            stall_bound_seconds=300,
+            progress_source=(
+                'transport_activity' if age>300 and transport_fresh
+                else 'stage_checkpoint'
+            ),
+            transport_activity_age_seconds=transport_age,
+        )
     if isinstance(frontier,dict) and frontier.get('last_gate_reason') in ('frontier_unchanged','cadence_floor'):
         return dict(state='waiting_finalized_frontier',stage=frontier['last_gate_reason'])
     last=(row.get('opportunity_coverage') or {}).get('last_transition') or {}
