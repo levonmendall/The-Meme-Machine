@@ -71,6 +71,16 @@ class SourceIntegrityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'frozen_source_file_drift'):
             self.check()
 
+    def test_exact_applied_diff_hash_can_pin_canonical_overlay(self):
+        self.spec['lanes']['pump']['source_diff_sha256']=hashlib.sha256(b'').hexdigest()
+        self.assertEqual(self.check(),{'pump':hashlib.sha256(b'').hexdigest()})
+
+    def test_exact_applied_diff_hash_rejects_unreviewed_tracked_change(self):
+        self.spec['lanes']['pump']['source_diff_sha256']=hashlib.sha256(b'').hexdigest()
+        (self.lane/'.gitignore').write_text('ignored/\n__pycache__/\n*.pyc\nconfig.local.json\nextra/\n')
+        with self.assertRaisesRegex(ValueError,'unreviewed_lane_mutation:pump'):
+            self.check()
+
 
 class TerminalStatusTests(unittest.TestCase):
     def test_checkpoint_cannot_overwrite_terminal_truth_for_any_lane(self):
