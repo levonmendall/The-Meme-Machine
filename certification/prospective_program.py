@@ -161,6 +161,26 @@ def checkpoint(state):
         view[field]={lane:lanes.get(lane,{}).get(key,0) for lane in LANES}
     view['accounting_reconciliation']={lane:rows.get(lane,{}).get('accounting_reconciled') for lane in LANES}
     view['current_economic_metrics']=evaluation
+    from certification.prospective_acceptance import admitted
+    proto,_=protocol()
+    accepted=[r for r in records if admitted(r,proto)]
+    view['assurance_by_lane']={lane:rows.get(lane,{}).get('assurance',{}) for lane in LANES}
+    for lane in LANES:
+        view['assurance_by_lane'][lane]=deepcopy(view['assurance_by_lane'][lane])
+        view['assurance_by_lane'][lane]['last_valid_block']=accepted[-1]['run_id'] if accepted else None
+    view['operational_validity']=dict(accepted_blocks=len(accepted),censored_blocks=len(records)-len(accepted),
+        observed_hours=sum(r.get('observation_hours',0) for r in records),
+        accepted_observation_hours=sum(r.get('observation_hours',0) for r in accepted),
+        cohort_age_hours=max(0,(state.get('updated_at',state['created_at'])-state['created_at'])/3600))
+    view['market_observation_validity']={lane:rows.get(lane,{}).get('assurance',{}).get('coverage_health','coverage_unknown') for lane in LANES}
+    view['material_lane_coverage_gaps']={lane:rows.get(lane,{}).get('assurance',{}).get('coverage_gaps',[]) for lane in LANES}
+    view['portfolio_reconciliation']=dict(
+        all_lane_ledgers_reconciled=bool(rows) and all(rows.get(lane,{}).get('accounting_reconciled') is True for lane in LANES),
+        native_quote_units_are_never_summed=True,
+        normalized_portfolio=evaluation.get('portfolio'))
+    from certification.market_assurance import economic_marks
+    view['realized_and_unrealized_by_lane']={lane:economic_marks(lane,
+        rows.get(lane,{}).get('assurance',{}).get('accounting_reconciliation',{})) for lane in LANES}
     return '# All-market certification state\n\nRuntime remains paper-only. This checkpoint is on the separate state branch; its commit is not the runtime SHA.\n\n```json\n'+json.dumps(view,indent=2,sort_keys=True)+'\n```\n'
 
 
@@ -205,6 +225,8 @@ def reduce_record(state,record,event_id,proto,ph,now,base_reviewed=False):
         return state
     healthy=(current.get('engineering_pass') is True and current.get('runtime_control_freeze_passed') is True
              and current.get('chain_binding_passed') is True)
+    if proto.get('evidence_authority',{}).get('market_assurance_required'):
+        healthy=healthy and current.get('market_assurance_passed') is True and current.get('block_admission_passed') is True
     for lane in LANES:
         row=current['lanes'][lane]
         healthy=healthy and all(row.get(k) is True for k in ('identity_match','accounting_reconciled',
@@ -273,9 +295,11 @@ def dispatch(api,proto,sha,ph):
         return state
     state,created=commit_transition(api,proto,sha,ph,intent)
     if not created:return state
-    api.request('POST','actions/workflows/four-lane-certification.yml/dispatches',dict(ref=CANONICAL_BRANCH,inputs={
+    inputs={
         'phase':'hourly','program':'true','dispatch_id':nonce,
-        'certification_run_id':str(state['certification_run_id']),'expected_sha':state['integration_sha']}))
+        'certification_run_id':str(state['certification_run_id']),'expected_sha':state['integration_sha']}
+    if state.get('smoke_evidence_run_id'):inputs['smoke_run_id']=str(state['smoke_evidence_run_id'])
+    api.request('POST','actions/workflows/four-lane-certification.yml/dispatches',dict(ref=CANONICAL_BRANCH,inputs=inputs))
     return state
 
 

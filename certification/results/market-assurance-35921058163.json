@@ -1,0 +1,232 @@
+{
+  "accepted_blocks": 0,
+  "artifact_digest": "sha256:7675f47346844a4ae0fac4dea0bb8187519b9fbb8b2697b1a51e47aaa17154b4",
+  "artifact_id": 10777564248,
+  "cohort_id": "prospective-four-lane-v3-complete-sample-20260923",
+  "cohort_phase": "HALTED",
+  "cohort_state_commit": "82695be7a2206b8714c528408da05efbaf47d48b",
+  "economic_acceptance_established": false,
+  "lanes": {
+    "meteora": {
+      "admission_failures": [
+        "decision_conformance_unestablished"
+      ],
+      "complete_natural_lifecycles": 0,
+      "coverage_gaps": [
+        "consumer_deadline",
+        "reconstruction_incomplete",
+        "frozen_source_union_not_fully_observed"
+      ],
+      "coverage_health": "coverage_degraded",
+      "current_open_positions": 0,
+      "discovered_count": 17,
+      "discovery_coverage": null,
+      "evidence_completion_coverage": null,
+      "full_evidence_attempted": 5,
+      "full_evidence_completed": null,
+      "native_candidate_discovered_count": 17,
+      "natural_entries": 0,
+      "natural_settlements": 0,
+      "preflight_evaluated_count": 17,
+      "source_coverage": {
+        "acquired_source_pages": 1,
+        "acquired_union_discovery_coverage": 0.0913978494623656,
+        "authority": "Exact frozen DISCOVERY_SORTS, DISCOVERY_PAGES_PER_SORT and DISCOVERY_PAGE_SIZE",
+        "census_complete": false,
+        "discovered_in_acquired_structural_union": 17,
+        "errors": [],
+        "full_strategy_target_universe_count": null,
+        "gap_classification": "ordered_discovery_and_evidence_share_the_bounded_observation_window",
+        "inferred_never_observed_outside_acquired_pages": false,
+        "out_of_target_source_rows": 64,
+        "planned_source_pages": 6,
+        "provider_calls_added": 0,
+        "raw_acquired_source_union_count": 250,
+        "segments": [
+          {
+            "discovered_in_page": 17,
+            "global_api_total": 131748,
+            "global_total_is_strategy_denominator": false,
+            "not_discovered_from_acquired_page": 169,
+            "observed_at": 1790198025.3448455,
+            "one_wsol_pair_count": 186,
+            "page": 1,
+            "preflight_evaluated_in_page": 17,
+            "raw_rows": 250,
+            "sort": "fee_tvl_ratio_5m:desc"
+          }
+        ],
+        "structurally_eligible_acquired_union_count": 186,
+        "target_structural_union_count": null,
+        "undiscovered_in_acquired_structural_union": 169,
+        "union_scope": "acquired ranking pages only; not the full strategy target universe",
+        "unobserved_source_pages": [
+          {
+            "page": 2,
+            "sort": "fee_tvl_ratio_5m:desc"
+          },
+          {
+            "page": 1,
+            "sort": "volume_30m:desc"
+          },
+          {
+            "page": 2,
+            "sort": "volume_30m:desc"
+          },
+          {
+            "page": 1,
+            "sort": "volume_5m:desc"
+          },
+          {
+            "page": 2,
+            "sort": "volume_5m:desc"
+          }
+        ]
+      },
+      "strategy_conformance": "unknown",
+      "structurally_eligible_count": null,
+      "target_market_scope": {
+        "authority": "SOLANA_DLMM_INDEPENDENT_V1.json; solana_dlmm_independent_v1 discovery loop",
+        "denominator": "Full target-pair inventory is unknown. The bounded ranking-page union measures source acquisition only and does not redefine the target market.",
+        "dimensions": [
+          "quote_asset",
+          "public_sort",
+          "pool"
+        ],
+        "universe": "Nonblacklisted Solana Meteora DLMM pools with exactly one WSOL leg, as defined by the frozen strategy; no minimum TVL or absolute volume."
+      },
+      "target_market_universe_count": null,
+      "upstream_acquisition": null
+    },
+    "pons": {
+      "admission_failures": [
+        "decision_conformance_unestablished",
+        "accounting_unestablished",
+        "position_invariant_failure"
+      ],
+      "complete_natural_lifecycles": 0,
+      "coverage_gaps": [
+        "provider_failed",
+        "consumer_deadline",
+        "reconstruction_incomplete"
+      ],
+      "coverage_health": "coverage_invalid",
+      "current_open_positions": 0,
+      "discovered_count": 2572,
+      "discovery_coverage": null,
+      "evidence_completion_coverage": 0.044444444444444446,
+      "full_evidence_attempted": 45,
+      "full_evidence_completed": 2,
+      "native_candidate_discovered_count": 2572,
+      "natural_entries": 0,
+      "natural_settlements": 0,
+      "preflight_evaluated_count": 481,
+      "source_coverage": null,
+      "strategy_conformance": "unknown",
+      "structurally_eligible_count": null,
+      "target_market_scope": {
+        "authority": "pons_selective_cohort.operational_configuration; pons_selective_continuation.POLICY",
+        "denominator": "Canonical discovery cursor/log windows; independent all-event denominator unavailable.",
+        "dimensions": [
+          "curve",
+          "graduation_state",
+          "event_at"
+        ],
+        "universe": "All authenticated Pons V2 buy/sell logs; native curve and authenticated graduation lifecycle."
+      },
+      "target_market_universe_count": null,
+      "upstream_acquisition": null
+    },
+    "pump": {
+      "admission_failures": [
+        "decision_conformance_unestablished"
+      ],
+      "complete_natural_lifecycles": 0,
+      "coverage_gaps": [
+        "reconstruction_incomplete"
+      ],
+      "coverage_health": "coverage_degraded",
+      "current_open_positions": 0,
+      "discovered_count": 1062,
+      "discovery_coverage": null,
+      "evidence_completion_coverage": 0.14285714285714285,
+      "full_evidence_attempted": 7,
+      "full_evidence_completed": 1,
+      "native_candidate_discovered_count": 1062,
+      "natural_entries": 0,
+      "natural_settlements": 0,
+      "preflight_evaluated_count": 4,
+      "source_coverage": null,
+      "strategy_conformance": "unknown",
+      "structurally_eligible_count": null,
+      "target_market_scope": {
+        "authority": "sources.json:lanes.pump.prospect_admission; pump_acceleration_strategy.POLICY",
+        "denominator": "Source stream completeness; absolute chain opportunity census unavailable.",
+        "dimensions": [
+          "surface",
+          "phase",
+          "quote_asset"
+        ],
+        "universe": "Finalized Pump events and authenticated PumpSwap graduation/continuation opportunities."
+      },
+      "target_market_universe_count": null,
+      "upstream_acquisition": null
+    },
+    "ramses": {
+      "admission_failures": [
+        "decision_conformance_unestablished",
+        "process_failed"
+      ],
+      "complete_natural_lifecycles": 0,
+      "coverage_gaps": [
+        "provider_failed",
+        "reconstruction_incomplete"
+      ],
+      "coverage_health": "coverage_degraded",
+      "current_open_positions": 1,
+      "discovered_count": 4,
+      "discovery_coverage": null,
+      "evidence_completion_coverage": null,
+      "full_evidence_attempted": 4,
+      "full_evidence_completed": null,
+      "native_candidate_discovered_count": 4,
+      "natural_entries": 1,
+      "natural_settlements": 0,
+      "preflight_evaluated_count": 4,
+      "source_coverage": null,
+      "strategy_conformance": "unknown",
+      "structurally_eligible_count": null,
+      "target_market_scope": {
+        "authority": "ramses_universe.scan; ramses_strategy.POLICY",
+        "denominator": "Authenticated USDG subset of the complete quiet-entry pool cohort; the broad factory inventory is acquisition overhead.",
+        "dimensions": [
+          "quote_asset",
+          "swap_count",
+          "bin_depth"
+        ],
+        "universe": "Recently active Ramses USDG pools with one or two prior 30-minute swaps, as frozen in sources.json; existing positions retain their lifecycle scope."
+      },
+      "target_market_universe_count": null,
+      "upstream_acquisition": {
+        "broader_source_rows_are_strategy_observations": false,
+        "factory_inventory_count": 287,
+        "known_target_candidates": 4,
+        "quiet_activity_candidates": 5,
+        "scope_exclusions": null
+      }
+    }
+  },
+  "market_observation_validity": {
+    "meteora": "coverage_degraded",
+    "pons": "coverage_invalid",
+    "pump": "coverage_degraded",
+    "ramses": "coverage_degraded"
+  },
+  "operational_validity": "invalid",
+  "original_native_artifact_unchanged": true,
+  "provider_calls_added_by_audit": 0,
+  "runtime_sha": "b57835dc50dd4047cefed13cfe0be975779af1e8",
+  "schema": "sealed-smoke-assurance-review-v1",
+  "workflow_cancelled_by_this_task": false,
+  "workflow_run_id": 35921058163
+}

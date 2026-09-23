@@ -17,6 +17,7 @@ PATTERNS={
               'robinhood-ramses-all-pool-inventory-cache.json','robinhood-ramses-extended-market.sqlite.pipeline.sqlite*',
               'robinhood-ramses-continuation*.sqlite','robinhood-ramses-continuation*.json'],
 }
+PATTERNS['ramses'].append('robinhood-ramses-lifecycle-log-cache.sqlite')
 
 
 def _sqlite(path):

@@ -102,7 +102,10 @@ def smoke_engineering(result):
         if permanently_unfunded(row):failures.append(lane+':permanently_unfunded_paper_book')
         if row.get('exit_code')!=0 or row.get('unexpected_exit') or row.get('process_restarts')!=0:
             failures.append(lane+':process_continuity')
-        if row.get('open_positions')!=0 or row.get('accounting_reconciled') is not True:
+        handoff=(lane in ('meteora','ramses') and row.get('open_positions')==1
+                 and row.get('durable_handoff') is True
+                 and (row.get('terminal_reconciliation') or {}).get('verified') is True)
+        if (row.get('open_positions')!=0 and not handoff) or row.get('accounting_reconciled') is not True:
             failures.append(lane+':accounting_or_exposure')
         if not row.get('provider_requests'):failures.append(lane+':no_provider_activity')
         if lane=='ramses' and (row.get('funnel') or {}).get('completed_scans',0)<1:
@@ -171,6 +174,8 @@ def sustained_readiness(smoke_path,*,manifest_hash,implementation_hash,integrati
     for key,value in (('source_manifest_hash',manifest_hash),('implementation_hash',implementation_hash),('integration_sha',integration_sha)):
         if smoke.get(key)!=value:blockers.append('smoke_revision_mismatch:'+key)
     blockers.extend(smoke_engineering(smoke)['failures'])
+    if any(row.get('open_positions') for row in smoke.get('lanes',{}).values()):
+        blockers.append('smoke_positions_require_verified_continuation_before_fresh_campaign')
     return blockers
 
 
@@ -185,9 +190,11 @@ def export_readiness(path,output):
     attestation['shared_provider']={network:dict(queues=result['shared_provider'][network]['queues']) for network in ('solana','robinhood')}
     if 'robinhood_reuse' in result['shared_provider']:
         attestation['shared_provider']['robinhood_reuse']={k:result['shared_provider']['robinhood_reuse'].get(k) for k in ('state','inflight_jobs')}
-    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting')
+    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting','funnel','durable_handoff','terminal_reconciliation')
     attestation['lanes']={lane:{key:result['lanes'][lane].get(key) for key in lane_keys} for lane in LANES}
-    with Path(output).open('a') as handle:handle.write('readiness='+json.dumps(attestation,separators=(',',':'))+'\n')
+    with Path(output).open('a') as handle:
+        handle.write('readiness='+json.dumps(attestation,separators=(',',':'))+'\n')
+        handle.write('pending_positions='+str(any(r.get('open_positions') for r in result['lanes'].values())).lower()+'\n')
 
 
 if __name__=='__main__':

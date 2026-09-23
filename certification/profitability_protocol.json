@@ -1,7 +1,7 @@
 {
   "schema": "meme-machine-profitability-portfolio-autonomy-v1",
-  "cohort_id": "prospective-four-lane-v3-complete-sample-20260923",
-  "frozen_parent_integration_sha": "a627a5def86801b19df54090f3ef64bef98990bb",
+  "cohort_id": "prospective-four-lane-v4-market-assurance-20260923",
+  "frozen_parent_integration_sha": "b57835dc50dd4047cefed13cfe0be975779af1e8",
   "paper_only": true,
   "live_money": false,
   "purpose": "Prospective out-of-sample certification of natural paper profitability, portfolio behavior, and unattended operational readiness without changing strategy economics.",
@@ -17,7 +17,8 @@
     "integration_or_certification_code_change_resets_entire_cohort": true,
     "no_threshold_tuning_during_cohort": true,
     "no_outcome_dependent_run_selection": true,
-    "statistical_block": "one completed natural market campaign window; multiple trades inside one block are not treated as independent statistical samples"
+    "statistical_block": "one completed natural market campaign window; multiple trades inside one block are not treated as independent statistical samples",
+    "market_assurance_required": true
   },
   "frozen_lanes": {
     "pump": {
@@ -32,21 +33,21 @@
       "source_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
       "execution_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "a00a177abf1431a274c11f6bac32df5ef17be2893ee9fe23077fa2c4a523237f"
+      "source_diff_sha256": "137d23090df3f64d84b50a0d6afc7661a9a41330ea1797d5a245bf1a697124cc"
     },
     "pons": {
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2",
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
-      "source_diff_sha256": "b657828bb6cd7852abd7859b16c4f2009e5cb0f4a3cb150c6bd3cb679689a2bb"
+      "source_diff_sha256": "8a9d0818606e9c9c8e3ca76ce07f85fe0902aaf761d3de8042b1dd3ff2dd8238"
     },
     "ramses": {
       "strategy_version": "ramses-active-wide-maker-v3",
       "source_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
       "execution_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
       "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
-      "source_diff_sha256": "d68289955210b4e602090431096078cd1d0cc82abc04f1141eaf87cf3234d082"
+      "source_diff_sha256": "da50cd26eac0da8898c926facfcb168579894322871a70752043c6251f602d85"
     }
   },
   "evidence_quality": {

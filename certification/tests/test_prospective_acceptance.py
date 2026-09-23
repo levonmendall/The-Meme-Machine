@@ -90,10 +90,27 @@ class ProspectiveAcceptanceTests(unittest.TestCase):
             "run_id":run_id,"phase":"hourly","status":"FINISHED",
             "started_at":started,"ended_at":started+3600,"observation_hours":1,
             "engineering_pass":True,"integration_sha":"same",
+            "market_assurance_passed":True,"block_admission_passed":True,
             "source_manifest_hash":"manifest","implementation_hash":"impl",
             "runtime_control_freeze_passed":True,"chain_binding_passed":True,
             "lanes":lane,
         }
+
+    def test_profitable_but_conformance_invalid_block_is_excluded_from_economics(self):
+        p=self._protocol()
+        p['evidence_authority']['market_assurance_required']=True
+        row=self._record(p,'invalid',0,{lane:.5 for lane in p['frozen_lanes']})
+        row['market_assurance_passed']=False;row['block_admission_passed']=False
+        result=evaluate([row],p,'p','same')
+        self.assertEqual(result['portfolio']['complete_blocks'],0)
+        self.assertTrue(all(r['completed_blocks']==0 for r in result['lanes'].values()))
+
+    def test_terminal_continuation_cannot_skip_required_assurance(self):
+        p=self._protocol()
+        row=self._record(p,'block',0,{lane:.01 for lane in p['frozen_lanes']})
+        row['market_assurance_required']=True
+        with self.assertRaisesRegex(ValueError,'assurance'):
+            amend_continuation_record(row,'ramses',None,dict(lane='ramses',status='settled',handoff_required=False))
 
     def test_zero_trade_completed_block_is_retained(self):
         proto,_=load_protocol()

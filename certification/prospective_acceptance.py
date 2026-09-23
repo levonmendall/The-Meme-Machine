@@ -199,6 +199,8 @@ def amend_continuation_record(record,lane,state_dir,continuation_result):
         raise ValueError("continuation_amendment_lane_mismatch")
     if result.get("handoff_required") is True:
         raise ValueError("continuation_not_terminal")
+    if record.get('market_assurance_required') and result.get('assurance_passed') is not True:
+        raise ValueError('continuation_assurance_not_passed')
     lane_row=(row.get("lanes") or {}).get(lane)
     if not isinstance(lane_row,dict):
         raise ValueError("continuation_amendment_record_lane_missing")
@@ -280,7 +282,15 @@ def amend_continuation_record(record,lane,state_dir,continuation_result):
         "status":status,
         "terminal_replay_verified":terminal_verified,
         "finalized_at":__import__("time").time(),
+        "assurance_passed":result.get('assurance_passed'),
+        "conformance":result.get('conformance'),
+        "continuity":result.get('continuity'),
     }
+    if result.get('assurance_passed') is True:
+        lane_row.setdefault('assurance',{}).update(
+            continuation_assurance=updates[lane],current_open_positions=0,
+            accounting_reconciliation=dict(verified=terminal_verified,accounting=accounting),
+            oldest_open_position_age=None)
     row["terminal_finalized_lanes"]=sorted(updates)
     return row
 
@@ -321,6 +331,8 @@ def merge_records(records):
             r.get("runtime_control_freeze_passed") is True for r in rows)
         base["chain_binding_passed"]=all(
             r.get("chain_binding_passed") is True for r in rows)
+        for field in ('market_assurance_passed','block_admission_passed'):
+            base[field]=all(r.get(field) is True for r in rows)
         merged.append(base)
     return sorted(merged,key=lambda r:(r.get("started_at") or 0,str(r.get("run_id"))))
 
@@ -381,11 +393,40 @@ def make_record(result,proto,proto_hash,run_dir=None,chain_binding=None):
             "infrastructure_censoring_fraction":_infra_fraction(row),
             "economics":economics,
         }
+    assurance_path=Path(run_dir)/'assurance/market-assurance.json' if run_dir else None
+    assurance=json.loads(assurance_path.read_text()) if assurance_path and assurance_path.exists() else None
+    required=proto.get('evidence_authority',{}).get('market_assurance_required') is True
+    record['market_assurance_required']=required
+    assurance_pass=(isinstance(assurance,dict) and assurance.get('runtime_sha')==record['integration_sha']
+        and assurance.get('run_id')==record['run_id'] and assurance.get('operational_validity')=='valid')
+    record['market_assurance_passed']=assurance_pass
+    record['market_assurance_sha256']=hashlib.sha256(canonical(assurance).encode()).hexdigest() if assurance else None
+    for lane in LANES:
+        detail=((assurance or {}).get('lanes') or {}).get(lane,{})
+        record['lanes'][lane]['assurance']={k:v for k,v in detail.items() if k!='snapshot'}
+    record['block_admission_passed']=bool(record['engineering_pass'] and (assurance_pass or not required)
+        and record['runtime_control_freeze_passed'] and record['chain_binding_passed']
+        and all(r['identity_match'] and r['accounting_reconciled'] and r['telemetry_complete']
+            and r['freshness_finality_unchanged'] and not r['unexpected_exit']
+            and not r['process_restarts'] and not r['forced_settled']
+            and r['infrastructure_censoring_fraction']<=proto['evidence_quality']['maximum_infrastructure_censoring_fraction']
+            for r in record['lanes'].values()))
     return record
+
+def admitted(record,proto):
+    required=proto.get('evidence_authority',{}).get('market_assurance_required')
+    if not required:return bool(record.get('engineering_pass'))
+    return bool(record.get('engineering_pass') and record.get('block_admission_passed') is True
+        and record.get('market_assurance_passed') is True
+        and all(r.get('identity_match') is True and r.get('accounting_reconciled') is True
+            and not r.get('unexpected_exit') and not r.get('process_restarts') and not r.get('forced_settled')
+            and _finite(r.get('infrastructure_censoring_fraction'))
+            and 0<=r['infrastructure_censoring_fraction']<=proto['evidence_quality']['maximum_infrastructure_censoring_fraction']
+            for r in record.get('lanes',{}).values()) and set(record.get('lanes',{}))==set(LANES))
 
 def _lane_summary(records,lane,proto):
     q=proto["evidence_quality"];e=proto["lane_economic_acceptance"]
-    eligible=[r for r in records if r.get("engineering_pass") and r["lanes"][lane].get("identity_match")]
+    eligible=[r for r in records if admitted(r,proto) and r["lanes"][lane].get("identity_match")]
     hours=sum(float(r.get("observation_hours") or 0) for r in eligible)
     settlements=sum(r["lanes"][lane].get("natural_settled",0) for r in eligible)
     active=sum(
@@ -463,7 +504,7 @@ def evaluate(records,proto,proto_hash,expected_integration_sha=None):
     weights=proto["portfolio_acceptance"]["lane_weights"]
     for r in records:
         vals={}
-        ok=r.get("engineering_pass")
+        ok=admitted(r,proto)
         for lane in LANES:
             econ=r["lanes"][lane]["economics"]
             value=econ.get("block_return")

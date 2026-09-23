@@ -9,71 +9,21 @@ permissions:
   checks: write
 concurrency:
   group: all-market-certification-candidate
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
-  retire-superseded-program:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[all-market-cert]')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 65
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12.14'
-      - name: Install pinned native replay dependencies
-        run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Retire only the owned predecessor after preserving flat smoke or draining its campaign
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          python -m certification.run prepare --worktrees "$RUNNER_TEMP/retirement-lanes"
-          python -m certification.prospective_program retire \
-            --run-id 35915320840 \
-            --prior-sha f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa \
-            --prior-cohort prospective-four-lane-v2-census-context-20260923 \
-            --prior-protocol-sha 956c79606c95df9edf249f9f09ed209543a18a12a57bc67dd21a4c4a16b78304 \
-            --worktrees "$RUNNER_TEMP/retirement-lanes" \
-            --output prior-program-retirement.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: prior-program-retirement-${{ github.run_id }}
-          path: prior-program-retirement.json
-          if-no-files-found: warn
-          retention-days: 90
   certify:
-    needs: retire-superseded-program
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[all-market-cert]')
     uses: ./.github/workflows/non-market-certification.yml
     secrets: inherit
-  activate-certified-program:
+  recover-preserved-position:
     needs: certify
-    runs-on: ubuntu-24.04
-    timeout-minutes: 75
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12.14'
-      - name: Preserve isolation from any existing market campaign
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: python -m certification.guard --wait-seconds 3600
-      - name: Promote only the fully certified SHA and dispatch bounded paper observation
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA: ${{ github.sha }}
-        run: python -m certification.prospective_program start --run-id "$GITHUB_RUN_ID" --output program-activation.json
-      - name: Preserve activation or failure checkpoint
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: program-activation-${{ github.run_id }}
-          path: program-activation.json
-          if-no-files-found: warn
-          retention-days: 90
+    uses: ./.github/workflows/position-continuation.yml
+    with:
+      lane: ramses
+      state_run_id: '35921058163'
+      slice_seconds: '3000'
+      expected_sha: ${{ github.sha }}
+      engineering_recovery: true
+      certification_run_id: ${{ format('{0}', github.run_id) }}
+      program: false
+    secrets: inherit

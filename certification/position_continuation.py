@@ -8,6 +8,7 @@ strategy decision, changes thresholds, signs, or submits transactions.
 from __future__ import annotations
 
 import argparse
+from contextlib import chdir
 from copy import deepcopy
 import json
 import os
@@ -67,11 +68,23 @@ def _runtime_identity(state_dir,lane):
         if observed.get(key)!=expected.get(key):
             raise RuntimeError('continuation_lane_identity_mismatch:'+key)
 
+    bridge_path=Path(state_dir)/'engineering-recovery-authorization.json'
+    bridge=json.loads(bridge_path.read_text()) if bridge_path.exists() else None
+    if bridge:
+        authority=json.loads((Path(__file__).parent/'recovery_predecessor.json').read_text())
+        from certification.run import git
+        certificate=bridge.get('full_exact_sha_certificate') or {}
+        if (any(bridge.get(k)!=authority.get(k) for k in ('run_id','integration_sha','implementation_hash','artifact_id','artifact_digest'))
+                or bridge.get('recovery_sha')!=git('rev-parse','HEAD')
+                or certificate.get('integration_sha')!=bridge.get('recovery_sha')
+                or certificate.get('passed') is not True
+                or certificate.get('implementation_hash')!=implementation_hash()):
+            raise RuntimeError('continuation_recovery_authority_mismatch')
     results=[]
     for path in Path(state_dir).rglob('result.json'):
         try:value=json.loads(path.read_text())
         except (OSError,ValueError):continue
-        if isinstance(value,dict) and value.get('phase')=='hourly' and value.get('implementation_hash'):
+        if isinstance(value,dict) and value.get('phase') in ('hourly','smoke') and value.get('implementation_hash'):
             results.append((path,value))
     if len(results)!=1:
         raise RuntimeError('continuation_hourly_result_ambiguous')
@@ -79,20 +92,25 @@ def _runtime_identity(state_dir,lane):
     if result.get('integration_sha')!=manifest.get('integration_sha'):
         raise RuntimeError('continuation_integration_identity_mismatch')
     current_hash=implementation_hash()
-    if result.get('implementation_hash')!=current_hash:
+    if bridge:
+        if (result.get('integration_sha')!=bridge['integration_sha'] or
+                result.get('implementation_hash')!=bridge['implementation_hash']):
+            raise RuntimeError('continuation_recovery_predecessor_mismatch')
+    elif result.get('implementation_hash')!=current_hash:
         raise RuntimeError('continuation_implementation_hash_mismatch')
     return dict(
-        lane=lane,source_sha=observed.get('source_sha'),
+        lane=lane,phase=result.get('phase'),source_sha=observed.get('source_sha'),
         policy_hash=observed.get('policy_hash'),
         strategy_version=observed.get('strategy_version'),
         integration_sha=manifest.get('integration_sha'),
         implementation_hash=current_hash,
         manifest_path=str(manifest_path),result_path=str(result_path),
+        engineering_recovery=bool(bridge),economic_sample_eligible=not bool(bridge),
     )
 
 
 def _meteora_events(path):
-    with sqlite3.connect(path) as db:
+    with sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True) as db:
         return [json.loads(raw) for raw, in db.execute(
             'SELECT body FROM events ORDER BY seq')]
 
@@ -111,6 +129,16 @@ def _meteora_open_identity(events):
     identity=open_ids[0]
     if identity not in entry:raise RuntimeError('meteora_continuation_entry_missing')
     return identity,entry[identity]
+
+
+def _meteora_exit_progress(module,raw_reasons,*,elapsed,observed,streaks,policy):
+    """Apply the native frozen exit filter, carrying counters across process cuts."""
+    elapsed+=observed
+    streaks={reason:(count+1 if reason in raw_reasons else 0)
+             for reason,count in streaks.items()}
+    eligible=module._eligible_exit_reasons(raw_reasons,elapsed_seconds=elapsed,
+        collapse_streaks=streaks,policy=policy)
+    return elapsed,streaks,eligible
 
 
 def resume_meteora(state_dir,*,slice_seconds):
@@ -132,15 +160,32 @@ def resume_meteora(state_dir,*,slice_seconds):
 
     position=module._build_position(entry,features,policy)
     current=deepcopy(entry);elapsed=max(0,int(current['time'])-int(entry['time']))
-    last_lineage=None
+    entry_flow={key:features[key] for key in
+        ('volume_rate_sol_lamports_per_second','fee_density')}
+    collapse_streaks={'volume_collapse':0,'fee_density_collapse':0}
+    segment_seconds=int(policy['exit']['observation_segment_seconds'])
+    last_lineage=None;restored_exit=None
     for event in events:
         if event.get('identity')!=identity or event.get('action')!='mark':continue
+        if restored_exit is not None:
+            raise RuntimeError('strategy_conformance_failure:mark_after_eligible_exit')
         t=event['data']['tape']
         tape=VerifiedTape(t['start_hash'],t['end_hash'],tuple(t['events']),
                           t['terminal'],t['lineage'],tuple(t.get('terminal_adjustments',())))
         position=module._advance_position(position,tape)
+        saved=event['data'].get('strategy_progress')
+        raw_reasons,_,_,_=module._segment_exit(position,
+            (saved or {}).get('effective_start',current),tape,tape.terminal,entry_flow,policy)
+        observed=(int(saved['observed_seconds']) if saved else
+            max(segment_seconds,max(0,int(tape.terminal['time'])-int(current['time']))))
+        elapsed,collapse_streaks,eligible=_meteora_exit_progress(module,raw_reasons,
+            elapsed=elapsed,observed=observed,streaks=collapse_streaks,policy=policy)
+        if saved and (saved['elapsed_seconds']!=elapsed or
+                saved['collapse_streaks']!=collapse_streaks or
+                saved['eligible_exit_reasons']!=eligible):
+            raise RuntimeError('strategy_conformance_failure:meteora_restored_exit_state')
+        restored_exit=eligible[0] if eligible else None
         current=deepcopy(tape.terminal);last_lineage=tape.lineage
-        elapsed=max(elapsed,max(0,int(current['time'])-int(entry['time'])))
 
     max_hold=int(policy['range']['max_holding_seconds'])
     segment_seconds=int(policy['exit']['observation_segment_seconds'])
@@ -160,12 +205,14 @@ def resume_meteora(state_dir,*,slice_seconds):
     os.environ['MM_SOLANA_EVIDENCE_BROKER_DB']=str(broker_path)
     broker=module.EvidenceBroker(str(broker_path))
     slice_deadline=time.monotonic()+int(slice_seconds)
-    segments=[];exit_reason=None;handoff_reason='continuation_slice_complete'
+    segments=[];exit_reason=restored_exit;handoff_reason='continuation_slice_complete'
     try:
-        while elapsed<max_hold:
+        while elapsed<max_hold and exit_reason is None:
             available=int(slice_deadline-time.monotonic()-10)
             if available<=0:break
-            duration=min(segment_seconds,max_hold-elapsed,available)
+            duration=min(segment_seconds,max_hold-elapsed)
+            # A block cut cannot create an extra short confirmation segment.
+            if duration>available:break
             if duration<=0:break
             adapter=module._rotate(adapter,pacer,rpcs)
             phase,tape,terminal,effective_start,adapter,recoveries=(
@@ -195,15 +242,21 @@ def resume_meteora(state_dir,*,slice_seconds):
                 book.fail(identity,reason)
                 handoff_reason=reason;break
             position=module._advance_position(position,tape)
-            reasons,recent,mark,uplift=module._segment_exit(
+            raw_reasons,recent,mark,uplift=module._segment_exit(
                 position,effective_start,tape,terminal,entry_flow,policy)
-            book.append(identity,'mark',dict(
-                tape=module.asdict(tape),position_hash=module.digest(position),mark=mark))
             observed=max(duration,max(0,int(terminal.get('time',0))-int(current.get('time',0))))
-            elapsed+=observed;current=deepcopy(terminal);last_lineage=tape.lineage
+            elapsed,collapse_streaks,reasons=_meteora_exit_progress(module,raw_reasons,
+                elapsed=elapsed,observed=observed,streaks=collapse_streaks,policy=policy)
+            book.append(identity,'mark',dict(
+                tape=module.asdict(tape),position_hash=module.digest(position),mark=mark,
+                strategy_progress=dict(observed_seconds=observed,elapsed_seconds=elapsed,
+                    collapse_streaks=collapse_streaks,raw_exit_reasons=raw_reasons,
+                    eligible_exit_reasons=reasons,effective_start=effective_start)))
+            current=deepcopy(terminal);last_lineage=tape.lineage
             segments.append(dict(
                 elapsed_seconds=elapsed,lineage=tape.lineage,swaps=len(tape.events),
                 recent=recent,mark=mark,dynamic_fee_uplift=uplift,
+                raw_exit_reasons=raw_reasons,collapse_streaks=dict(collapse_streaks),
                 exit_reasons=reasons,evidence_recovery_attempts=recoveries))
             if reasons:
                 exit_reason=reasons[0];break
@@ -265,6 +318,8 @@ def resume_ramses(state_dir,*,slice_seconds):
         str(ledger_path),paper_capital=int(state['paper_capital']),
         quote_asset=state['quote_asset'])
     try:
+        from certification.continuity_state import recover as recover_checkpoint,checkpoint as durable_checkpoint,fields
+        recover_checkpoint(book,identity,state,state_path)
         ledger_position=book.position(identity)
         if ledger_position.get('status')=='settled':
             accounting=book.reconcile()
@@ -289,6 +344,10 @@ def resume_ramses(state_dir,*,slice_seconds):
         if matched is None:
             raise RuntimeError('ramses_continuation_ledger_geometry_mismatch')
         geometry_source,decision=matched
+        if ledger_position.get('status')=='reserved':
+            # Complete the already-authorized, durable reserve/open operation.
+            # The identity, geometry and original strategy time are unchanged.
+            book.open(identity,at=ledger_position['at'])
         if geometry_source=='pending_new':
             state['decision']=deepcopy(decision)
             state['position_phase']='deployed'
@@ -387,10 +446,15 @@ def resume_ramses(state_dir,*,slice_seconds):
             )
             state['pending_rebalance']=pending
             _atomic(state_path,state)
-            book.checkpoint(identity,action='rebalance',detail=dict(
+            next_state=fields(state)
+            next_state.update(decision=deepcopy(candidate),costs=deepcopy(next_costs),
+                segment_start=next_block,current_capital=current_capital,
+                rebalances=next_index,position_phase='deployed')
+            next_state.pop('pending_rebalance',None)
+            durable_checkpoint(book,identity,state=state,path=state_path,action='rebalance',detail=dict(
                 index=next_index,block=next_block,at=next_at,
                 capital=current_capital,proposal_hash=candidate['freeze']['proposal_hash']),
-                at=next_at)
+                at=next_at,next_state=next_state)
             decision=candidate;costs=next_costs;latest_screen=fresh
             segment_start=next_block;rebalances=next_index
             state.update(decision=deepcopy(candidate),costs=deepcopy(next_costs),
@@ -421,6 +485,7 @@ def resume_ramses(state_dir,*,slice_seconds):
             time.sleep(min(module.MONITOR_POLL_SECONDS,max(0,slice_deadline-time.monotonic()-5)))
             if time.monotonic()>=slice_deadline-5:break
             try:
+                rpc=module._new_position_reader(endpoint,rpc)
                 frontier=rpc.call('eth_getBlockByNumber',['finalized',False],scope='lifecycle_monitor')
             except BoundaryError as exc:
                 if not module._is_transient_provider_boundary(exc):raise
@@ -462,21 +527,19 @@ def resume_ramses(state_dir,*,slice_seconds):
             total_cost=sum(costs.values());rebalance_cost=int(costs.get('rebalance',total_cost))
             unwind_cost=int(costs.get('unwind',costs.get('unwind_gas',0)))
             elapsed=max(0,at-entry_at)
-            if elapsed>=int(module.POLICY['controller'].get('max_holding_seconds',604800)):
-                action=dict(action='exit',reason='maximum_holding_time',elapsed_seconds=elapsed)
-            else:
-                action=module.controller_action(
-                    decision,current_active_bin=state_now['active'],elapsed_seconds=elapsed,
-                    rebalances_used=rebalances,opportunity_still_qualified=opportunity_qualified,
-                    expected_remaining_fee_quote=last_fee_reserve,
-                    estimated_inventory_loss_quote=state_now['inventory_loss_quote'],
-                    rebalance_cost_quote=rebalance_cost,unwind_cost_quote=unwind_cost)
+            action=module.controller_action(
+                decision,current_active_bin=state_now['active'],elapsed_seconds=elapsed,
+                rebalances_used=rebalances,opportunity_still_qualified=opportunity_qualified,
+                expected_remaining_fee_quote=last_fee_reserve,
+                estimated_inventory_loss_quote=state_now['inventory_loss_quote'],
+                rebalance_cost_quote=rebalance_cost,unwind_cost_quote=unwind_cost)
             controller_row=dict(at=at,block=block,active_bin=state_now['active'],
                 inventory_value=state_now['inventory_value'],
                 inventory_loss_quote=state_now['inventory_loss_quote'],
                 opportunity_qualified=opportunity_qualified,action=action)
-            book.checkpoint(identity,action='monitor',detail=controller_row,at=at)
-            state['last_controller']=controller_row;_atomic(state_path,state)
+            next_state=fields(state);next_state['last_controller']=controller_row
+            durable_checkpoint(book,identity,state=state,path=state_path,action='monitor',
+                detail=controller_row,at=at,next_state=next_state)
             if action['action']=='hold':continue
             try:
                 capture,replay_result=module._build_segment_replay(
@@ -503,14 +566,14 @@ def resume_ramses(state_dir,*,slice_seconds):
                 events=replay_result['events'],transactions=replay_result['transactions'],
                 pnl=pnl)
             segments.append(segment)
-            book.checkpoint(identity,action='segment_close',detail=dict(
+            next_state=fields(state);next_state['segments']=deepcopy(segments)
+            next_state['position_phase']='flat_quote'
+            if type(pnl.get('net_result_quote')) is int:
+                next_state['current_capital']=int(segment['initial_cost_basis'])+int(pnl['net_result_quote'])
+            if action.get('action')=='rebalance':next_state['recenter_started_at']=time.time()
+            durable_checkpoint(book,identity,state=state,path=state_path,action='segment_close',detail=dict(
                 segment=segment['index'],end_block=block,exit_reason=action['reason'],
-                net_result_quote=pnl.get('net_result_quote')),at=at)
-            state['segments']=segments
-            state['position_phase']='flat_quote'
-            if action.get('action')=='rebalance':
-                state['recenter_started_at']=time.time()
-            _atomic(state_path,state)
+                net_result_quote=pnl.get('net_result_quote')),at=at,next_state=next_state)
             if pnl.get('unresolved_inventory') or type(pnl.get('net_result_quote')) is not int:
                 break
             current_capital=int(segment['initial_cost_basis'])+int(pnl['net_result_quote'])
@@ -540,13 +603,47 @@ def main():
     p.add_argument('--state-dir',required=True)
     p.add_argument('--slice-seconds',type=int,default=3000)
     p.add_argument('--output',default='position-continuation-result.json')
+    p.add_argument('--audit-output')
     a=p.parse_args()
     if not 60<=a.slice_seconds<=3300:raise SystemExit('continuation_slice_bound')
-    result=(resume_meteora(a.state_dir,slice_seconds=a.slice_seconds)
-            if a.lane=='meteora' else
-            resume_ramses(a.state_dir,slice_seconds=a.slice_seconds))
-    _atomic(a.output,result)
-    print(json.dumps(result,sort_keys=True))
+    state_dir=Path(a.state_dir).resolve();output=Path(a.output).resolve()
+    audit=Path(a.audit_output).resolve() if a.audit_output else state_dir/'continuation-audits'/str(time.time_ns())
+    audit.mkdir(parents=True,exist_ok=True)
+    _activate_lane_root()
+    from certification.market_assurance import native_positions,continuity
+    from certification.decision_conformance import install
+    source=json.loads((Path(__file__).parent/'sources.json').read_text())['lanes'][a.lane]
+    os.environ['MM_CERT_SOURCE_SHA']=source['source_sha']
+    os.environ['MM_CERT_INTEGRATION_SHA']=os.environ.get('GITHUB_SHA','')
+    # Snapshot the lane book once; subsequent changes must extend its prefix.
+    before=native_positions(state_dir,a.lane);_atomic(audit/'position-before.json',before)
+    conformance=install(audit,a.lane,source['policy_hash'])
+    try:
+        native_paths=sorted(state_dir.glob('certification-native/*/'+a.lane))
+        cwd=native_paths[0] if len(native_paths)==1 else state_dir
+        with chdir(cwd):
+            result=(resume_meteora(state_dir,slice_seconds=a.slice_seconds)
+                    if a.lane=='meteora' else resume_ramses(state_dir,slice_seconds=a.slice_seconds))
+    finally:
+        conformance.close()
+        after=native_positions(state_dir,a.lane);_atomic(audit/'position-after.json',after)
+        transfer=continuity(before,after);_atomic(audit/'continuity.json',transfer)
+    import subprocess
+    replay=subprocess.run([sys.executable,'-m','certification.decision_conformance',
+        '--lane',a.lane,'--trace',str(audit/'decision-trace.jsonl'),
+        '--source-root',os.environ['MM_CONTINUATION_LANE_ROOT'],
+        '--policy-hash',source['policy_hash'],'--runtime-sha',os.environ['MM_CERT_INTEGRATION_SHA'],
+        '--output',str(audit/'conformance.json')],capture_output=True,text=True,timeout=180)
+    result['conformance']=json.loads((audit/'conformance.json').read_text())
+    result['continuity']=transfer
+    if replay.returncode or transfer['status']!='pass' or after['violations']:
+        result['assurance_passed']=False;_atomic(output,result)
+        raise RuntimeError('continuation_assurance_failed_state_preserved')
+    result['assurance_passed']=True
+    result['economic_sample_eligible']=(not (state_dir/'engineering-recovery-authorization.json').exists()
+        and (result.get('runtime_identity') or {}).get('phase')=='hourly')
+    _atomic(output,result)
+    print(json.dumps({k:result.get(k) for k in ('lane','status','handoff_required','terminal_replay_verified','assurance_passed','economic_sample_eligible')},sort_keys=True))
 
 
 if __name__=='__main__':main()

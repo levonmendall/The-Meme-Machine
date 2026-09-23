@@ -483,6 +483,8 @@ def main():
     actual=policy_for(args.lane)
     if actual!=args.policy_hash:raise ValueError('frozen_policy_hash_changed')
     observer=Observer(args.output,args.lane,actual)
+    from certification.decision_conformance import install as install_conformance
+    conformance=install_conformance(args.output,args.lane,actual)
     observer.checkpoint(dict(source_sha=os.environ['MM_CERT_SOURCE_SHA']),'initializing')
     if args.lane in ('pump','meteora'):
         from meme_machine.solana_read_rpc import _ReadOnlyFailoverMixin
@@ -566,6 +568,7 @@ def main():
         observer.status('failed',report)
         raise
     finally:
+        conformance.close()
         observer.raw.close();observer.journal.close()
 
 if __name__=='__main__':main()

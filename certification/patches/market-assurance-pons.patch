@@ -1,0 +1,54 @@
+diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
+index d6c5f61e3373f4256064c46349455e69b8670e93..d5f982d93cf2ff0d2b035cbdc213daba968bbc6d 100644
+--- a/robinhood_research/pons_selective_paper.py
++++ b/robinhood_research/pons_selective_paper.py
+@@ -424,6 +424,9 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
+                 status="entry_failed",entry_failure=failure,
+                 final_position=paper._get(identity),reconciliation=paper.reconcile(),
+             )
++            if capital_guard is not None:
++                result["cohort_reconciliation"]=capital_guard.settle(
++                    identity,result["final_position"],at=int(time.time()))
+             return result
+         if entry.amount_out<min_tokens:
+             paper.advance(
+diff --git a/robinhood_tests/test_pons_execution_acquisition.py b/robinhood_tests/test_pons_execution_acquisition.py
+index 2f71d094be3b6b4ef3c1b08fc8893381b2e23325..fca4e1ae0962430af36f6e2f79da264472bc14a8 100644
+--- a/robinhood_tests/test_pons_execution_acquisition.py
++++ b/robinhood_tests/test_pons_execution_acquisition.py
+@@ -39,6 +39,35 @@ class FakeRPC:
+ def candidate():return dict(curve=CURVE,auth={'immutables':{'feeBps':100,'creatorTaxBps':50}},report={'reads':[]})
+ 
+ class ExecutionAcquisitionTests(unittest.TestCase):
++    def test_fill_signal_decay_releases_both_books_without_a_trade(self):
++        from robinhood_tests.test_pons_partial_accounting import PartialAccountingTests
++        from robinhood_research.pons_selective_ledger import JOURNAL_CATEGORY
++        import json
++        fixture=PartialAccountingTests()
++        for persistent,age,expected in ((False,0,'entry_signal_decay'),(True,20,'entry_quote_stale_after_confirmation')):
++            with self.subTest(expected=expected),tempfile.TemporaryDirectory() as tmp:
++                db=Path(tmp)/'paper.sqlite';capital=Path(tmp)/'capital.sqlite'
++                curve=MagicMock();curve.buy_with_snipe.return_value=dict(refund=0,ready_to_graduate=False,tokens_out=1000)
++                evaluation=dict(vector=dict(current_threshold_pass=True,policy_hash=POLICY_HASH,
++                    proposed_size={'amount_quote':100},evidence_available_at=100),
++                    candidate=dict(receipt={'gasUsed':hex(21000)},curve='m',state=curve),
++                    token='token',curve='m',source_transaction='source')
++                rpc=MagicMock();rpc.telemetry.return_value={}
++                prefix='robinhood_research.pons_selective_paper.'
++                with patch(prefix+'paper_rpc',return_value=rpc),patch(prefix+'_gas_quote',return_value=(2,1)),\
++                     patch(prefix+'_wait_curve_quote',return_value=(fixture.quote(102,'buy',100,1000),{},None)),\
++                     patch(prefix+'_refresh_entry_persistence_signal',return_value=({}, {}, [])),\
++                     patch(prefix+'entry_signal_persistence',return_value={'persistent':persistent,'reasons':[]}),\
++                     patch(prefix+'time.sleep'),patch(prefix+'time.time',return_value=102+age):
++                    result=run_lifecycle('unused',evaluation,db_path=db,capital_path=capital)
++                self.assertEqual(result['entry_failure'],expected)
++                rec=CohortCapital(capital,STRATEGY_CAPITAL_QUOTE).reconcile()
++                self.assertEqual((rec['reserved'],rec['unsettled'],rec['realized']),(0,0,0))
++                store=Store(db)
++                events=[json.loads(x[0]) for x in store.db.execute('SELECT body FROM records WHERE category=?',(JOURNAL_CATEGORY,))]
++                self.assertEqual([e['action'] for e in sorted(events,key=lambda e:e['position']['version'])],['reserve','cancel'])
++                store.close()
++
+     def test_identical_native_buy_and_sell_quotes_use_two_transports(self):
+         for side,amount in [('buy',10**15),('sell',10**20)]:
+             outputs=[];counts=[]

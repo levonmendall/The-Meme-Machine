@@ -63,6 +63,9 @@ def _atomic_json(path, value):
 def _hourly():
     return os.environ.get("MM_CERTIFICATION_PHASE") == "hourly"
 
+def _measurement_window():
+    return os.environ.get('MM_CERTIFICATION_PHASE') in ('smoke','hourly')
+
 
 def meteora_preentry_remaining_ok(deadline, *, clock=None):
     """Admission is operationally serviceable only if the whole entry sequence fits."""
@@ -119,7 +122,7 @@ def install_meteora(module):
 
     def lifecycle(adapter, address, entry, features, policy, pacer, rpcs,
                   deadline=None, broker=None, book=None):
-        if not _hourly() or book is None:
+        if not _measurement_window() or book is None:
             return original_lifecycle(
                 adapter, address, entry, features, policy, pacer, rpcs,
                 deadline, broker, book
@@ -291,22 +294,13 @@ def install_ramses(extended_module):
     original_controller = lifecycle.controller_action
     original_requalify = lifecycle._requalify_current_pool
     original_decompose = lifecycle.decompose_pnl
+    original_segment_costs = lifecycle._segment_costs
     original_checkpoint = RamsesStrategyLedger.checkpoint
     original_reserve = RamsesStrategyLedger.reserve
 
     def controller(decision, **kwargs):
-        elapsed = int(kwargs.get("elapsed_seconds") or 0)
-        if ramses_max_hold_reached(
-            elapsed,
-            lifecycle.POLICY["controller"].get(
-                "max_holding_seconds", RAMSES_MAX_HOLD_SECONDS
-            ),
-        ):
-            return {
-                "action": "exit",
-                "reason": "maximum_holding_time",
-                "elapsed_seconds": elapsed,
-            }
+        # The promoted v3 controller owns the frozen maximum-hold rule too.
+        # Keeping one authority also makes every action independently replayable.
         action = original_controller(decision, **kwargs)
         _RAMSES_TLS.pending_controller_action = deepcopy(action)
         return action
@@ -344,8 +338,12 @@ def install_ramses(extended_module):
         _RAMSES_TLS.last_pnl = deepcopy(value)
         return value
 
+    def segment_costs(*args,**kwargs):
+        value=original_segment_costs(*args,**kwargs)
+        _RAMSES_TLS.current_costs=deepcopy(value)
+        return value
+
     def reserve(self, identity, *, pool, decision, at):
-        value = original_reserve(self, identity, pool=pool, decision=decision, at=at)
         manager = getattr(_RAMSES_TLS, "manager", None)
         if manager is not None:
             row=next(
@@ -364,7 +362,11 @@ def install_ramses(extended_module):
                 current_capital=int(decision["freeze"]["proposals"][0]["capital_employed"]),
                 position_phase="deployed",
             )
+            manager.pop('pending_rebalance',None)
             _ramses_write_state()
+        # The durable decision precedes the native reserve. A crash between the
+        # reserve and open acknowledgements retains enough state to resume once.
+        value = original_reserve(self, identity, pool=pool, decision=decision, at=at)
         return value
 
     def checkpoint(self, identity, *, action, detail, at):
@@ -380,11 +382,16 @@ def install_ramses(extended_module):
                     manager.setdefault("recenter_target_misses", []).append(dict(
                         at=time.time(), elapsed_seconds=elapsed,
                     ))
-        value = original_checkpoint(self, identity, action=action, detail=detail, at=at)
-        manager = getattr(_RAMSES_TLS, "manager", None)
+        live_manager = getattr(_RAMSES_TLS, "manager", None)
+        if live_manager is None:
+            return original_checkpoint(self,identity,action=action,detail=detail,at=at)
+        from certification.continuity_state import checkpoint as durable_checkpoint,fields
+        manager=fields(live_manager)
         if manager is not None:
             manager["last_checkpoint"] = dict(action=action, detail=deepcopy(detail), at=int(at))
-            if action == "segment_close":
+            if action == 'monitor':
+                manager['last_controller']=deepcopy(detail)
+            elif action == "segment_close":
                 intended=getattr(_RAMSES_TLS,"pending_controller_action",{}) or {}
                 if intended.get("action")=="rebalance":
                     _RAMSES_TLS.recenter_started=time.monotonic()
@@ -401,6 +408,9 @@ def install_ramses(extended_module):
                     pnl=deepcopy(getattr(_RAMSES_TLS, "last_pnl", None)),
                 ))
                 manager["position_phase"] = "flat_quote"
+                segment=manager['segments'][-1]
+                net=(segment.get('pnl') or {}).get('net_result_quote')
+                if type(net) is int:manager['current_capital']=segment['initial_cost_basis']+net
             elif action == "rebalance":
                 pending=manager.get("pending_rebalance") or {}
                 proposal_hash=detail.get("proposal_hash")
@@ -412,13 +422,18 @@ def install_ramses(extended_module):
                 manager["rebalances"] = int(manager.get("rebalances", 0))+1
                 manager["current_capital"] = int(detail.get("capital") or manager.get("current_capital") or 0)
                 manager["position_phase"] = "deployed"
+                manager['costs']=deepcopy(getattr(_RAMSES_TLS,'current_costs',manager.get('costs')))
                 _RAMSES_TLS.recenter_started = None
-            _ramses_write_state()
+            manager['updated_at']=time.time()
+        value=durable_checkpoint(self,identity,state=live_manager,path=live_manager['state_path'],
+            action=action,detail=detail,at=at,next_state=manager,
+            commit=lambda identity,**kw:original_checkpoint(self,identity,**kw))
         return value
 
     lifecycle.controller_action = controller
     lifecycle._requalify_current_pool = requalify
     lifecycle.decompose_pnl = decompose
+    lifecycle._segment_costs = segment_costs
     RamsesStrategyLedger.reserve = reserve
     RamsesStrategyLedger.checkpoint = checkpoint
 
@@ -427,7 +442,7 @@ def install_ramses(extended_module):
     original_persist = extended_module._persist_public_result
 
     def select_qualifier(screen):
-        if _hourly():
+        if _measurement_window():
             with _RAMSES_LOCK:
                 if _RAMSES_STATE.get("active"):
                     _RAMSES_STATE["observations_while_occupied"] += 1
@@ -437,8 +452,32 @@ def install_ramses(extended_module):
 
     def run_connected(endpoint, **kwargs):
         campaign_ledger = kwargs.get("campaign_ledger")
-        if not _hourly() or campaign_ledger is None:
+        if campaign_ledger is None:
             return original_run_connected(endpoint, **kwargs)
+
+        if not _measurement_window():
+            # Smoke can own a real position as well. Preserve its exact decision
+            # and phase before reserve/open; an exception must not erase handoff.
+            screen=kwargs.get('initial_screen') or {}
+            _RAMSES_STATE.update(active=True,ledger_path=str(campaign_ledger.path),
+                paper_capital=int(campaign_ledger.paper_capital),quote_asset=campaign_ledger.quote_asset,
+                entry_block=int(screen.get('finalized_block') or 0),entry_at=int(screen.get('finalized_timestamp') or 0),
+                segments=[],rebalances=0,error=None,result=None)
+            _RAMSES_TLS.manager=_RAMSES_STATE
+            _RAMSES_TLS.initial_screen=deepcopy(screen)
+            _RAMSES_TLS.costs_by_pool=deepcopy(kwargs.get('costs_by_pool') or {})
+            _ramses_write_state()
+            try:
+                value=original_run_connected(endpoint,**kwargs)
+                _RAMSES_STATE['result']=lifecycle.compact_lifecycle_result(value)
+                return value
+            except BaseException as exc:
+                _RAMSES_STATE['error']=dict(type=type(exc).__name__,message=str(exc)[:200])
+                raise
+            finally:
+                _RAMSES_STATE['active']=campaign_ledger.reconcile().get('open_positions',0)>0
+                _ramses_write_state()
+                _RAMSES_TLS.manager=None;_RAMSES_TLS.initial_screen=None;_RAMSES_TLS.costs_by_pool=None
 
         with _RAMSES_LOCK:
             if _RAMSES_STATE.get("active"):
@@ -451,7 +490,8 @@ def install_ramses(extended_module):
                 )
             asset = campaign_ledger.quote_asset
             safe_asset = "".join(c for c in asset.lower() if c.isalnum())[:24] or "quote"
-            ledger_path = f"robinhood-ramses-continuation-{safe_asset}.sqlite"
+            # A new thread needs a new connection, not a newly funded book.
+            ledger_path = str(campaign_ledger.path)
             proxy = dict(
                 status="continuation_active",
                 handoff_required=True,

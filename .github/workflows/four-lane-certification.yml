@@ -24,6 +24,9 @@ on:
       certification_run_id:
         description: Run containing the full exact-SHA non-market certificate
         type: string
+      smoke_run_id:
+        description: Previously admitted exact-SHA smoke with every original position verified flat
+        type: string
 permissions:
   contents: write
   actions: write
@@ -33,11 +36,12 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'push' && github.event.head_commit.message == '[cancel-runs]' }}
 jobs:
   concurrent-smoke:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[four-lane-smoke]') || contains(github.event.head_commit.message, '[four-lane-hourly]')
+    if: inputs.smoke_run_id == '' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[four-lane-smoke]') || contains(github.event.head_commit.message, '[four-lane-hourly]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 135
     outputs:
       readiness: ${{ steps.readiness.outputs.readiness }}
+      pending_positions: ${{ steps.readiness.outputs.pending_positions }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -106,6 +110,9 @@ jobs:
       - name: Preserve smoke native ledgers before creating the hourly study
         if: always()
         run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact --evidence-root . --phase smoke --cancelled "${MM_ARCHIVE_CANCELLED:-false}"
+      - name: Replay frozen decisions and audit native breadth and continuity
+        if: always()
+        run: python -m certification.market_assurance --artifact certification-artifact --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact/assurance
       - name: Preserve success and failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -115,9 +122,34 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  reused-smoke:
+    if: inputs.program == true && inputs.smoke_run_id != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      readiness: ${{ steps.readiness.outputs.readiness }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Claim exact dispatch and verify preserved smoke with terminal native proofs
+        id: readiness
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          DISPATCH_ID: ${{ inputs.dispatch_id }}
+          SMOKE_RUN: ${{ inputs.smoke_run_id }}
+        run: |
+          python -m certification.prospective_program claim
+          python -m certification.smoke_continuation readiness --run-id "$SMOKE_RUN" --output smoke-readiness.json
+
   hourly-campaign:
-    needs: [concurrent-smoke, smoke-artifact-review]
-    if: inputs.phase == 'hourly' || contains(github.event.head_commit.message, '[four-lane-hourly]')
+    needs: [concurrent-smoke, smoke-artifact-review, reused-smoke]
+    if: always() && !cancelled() && (inputs.phase == 'hourly' || contains(github.event.head_commit.message, '[four-lane-hourly]')) && (needs.reused-smoke.result == 'success' || (needs.concurrent-smoke.result == 'success' && needs.smoke-artifact-review.result == 'success' && needs.concurrent-smoke.outputs.pending_positions == 'false'))
     runs-on: ubuntu-24.04
     timeout-minutes: 210
     steps:
@@ -153,7 +185,7 @@ jobs:
         run: python -m certification.guard --wait-seconds 3600
       - name: Restore exact smoke readiness
         env:
-          SMOKE_READINESS: ${{ needs.concurrent-smoke.outputs.readiness }}
+          SMOKE_READINESS: ${{ needs.reused-smoke.outputs.readiness || needs.concurrent-smoke.outputs.readiness }}
         run: python -c 'import os,pathlib,json; value=json.loads(os.environ["SMOKE_READINESS"]); pathlib.Path("smoke-readiness.json").write_text(json.dumps(value))'
       - name: Secret-safe Solana and Robinhood chain binding
         env:
@@ -182,6 +214,9 @@ jobs:
       - name: Preserve hourly native ledgers including per-asset Ramses books
         if: always()
         run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact --evidence-root . --phase hourly --cancelled "${MM_ARCHIVE_CANCELLED:-false}"
+      - name: Replay frozen decisions and audit native breadth and continuity
+        if: always()
+        run: python -m certification.market_assurance --artifact certification-artifact --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact/assurance
       - name: Record prospective economic block without selecting on outcome
         if: always()
         run: |
@@ -281,7 +316,7 @@ jobs:
           retention-days: 90
 
   prospective-program-transition:
-    needs: [concurrent-smoke, hourly-campaign, smoke-artifact-review, hourly-artifact-review]
+    needs: [concurrent-smoke, hourly-campaign, smoke-artifact-review, hourly-artifact-review, reused-smoke]
     if: always() && inputs.program == true
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -298,8 +333,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
           HOURLY_REVIEW: ${{ needs.hourly-artifact-review.result }}
+          SMOKE_REVIEW: ${{ needs.smoke-artifact-review.result }}
+          SMOKE_PENDING: ${{ needs.concurrent-smoke.outputs.pending_positions }}
         run: |
           set -euo pipefail
+          if [ "$SMOKE_REVIEW" = success ]; then
+            python -m certification.smoke_continuation register --run-id "$GITHUB_RUN_ID" --output program-checkpoint.json
+            if [ "$SMOKE_PENDING" = true ]; then exit 0; fi
+          fi
           if [ "$HOURLY_REVIEW" != success ]; then
             python -m certification.prospective_program halt --reason smoke_hourly_or_artifact_review_failed --output program-checkpoint.json
             exit 0
