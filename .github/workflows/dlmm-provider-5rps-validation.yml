@@ -11,10 +11,7 @@ jobs:
     if: contains(github.event.head_commit.message, '[dlmm-provider-5rps-validate]')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    env:
-      MM_ONFINALITY_SOLANA_RPC_URL: ${{ secrets.MM_ONFINALITY_SOLANA_RPC_URL }}
-      MM_ONFINALITY_SOLANA_WS_URL: ${{ secrets.MM_ONFINALITY_SOLANA_WS_URL }}
-      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+    env:      MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
     concurrency:
       group: dlmm-provider-5rps-validation
       cancel-in-progress: false
