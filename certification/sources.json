@@ -90,7 +90,7 @@
     },
     "meteora": {
       "source_branch": "repair/meteora-alchemy-only-no-onfinality",
-      "source_sha": "d32dd7ee28e365aea96ce4d4edae71205968abd7",
+      "source_sha": "581328376581e2a10d4c35eaccc5da2888826a0f",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1",
       "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
       "file_hashes": {
@@ -132,7 +132,8 @@
         "c87441ac53fe6936e88380e54969192e455da8cb",
         "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7",
         "da571e5c62bda7e88506e71f3d53e9969f75bc83",
-        "d32dd7ee28e365aea96ce4d4edae71205968abd7"
+        "d32dd7ee28e365aea96ce4d4edae71205968abd7",
+        "581328376581e2a10d4c35eaccc5da2888826a0f"
       ],
       "paper_starting_capital_lamports": 1000000000,
       "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
