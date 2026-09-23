@@ -1,0 +1,28 @@
+diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
+--- a/tests/solana_dlmm_independent_v1.py
++++ b/tests/solana_dlmm_independent_v1.py
+@@
+-        if book.reconcile()['unsettled']:
+-            report['fatal_boundary']='solana_dlmm_unresolved_position_blocks_new_admission'
+-            checkpoint('unresolved_position_blocks_new_admission')
+-            stream_stop.set();wake_thread.join(timeout=5);broker.close()
+-            raise Unavailable(report['fatal_boundary'])
++        if book.reconcile()['unsettled']:
++            # During the one-hour certification campaign, an already-filled
++            # multi-hour position owns capital but must not stop market observation.
++            # New admission is capacity-censored until the durable continuation
++            # settles; smoke/standalone behavior remains unchanged.
++            if os.environ.get('MM_CERTIFICATION_PHASE')=='hourly':
++                failure_counts['paper_capital_occupied']+=1
++                report['attempts'].append(dict(
++                    pool=candidate['address'],candidate=candidate,
++                    terminal_classification='paper_capital_occupied',
++                    economic_rejection=False,
++                ))
++                _stage(candidate['address'],'terminal','paper_capital_occupied')
++                checkpoint('paper_capital_occupied')
++                continue
++            report['fatal_boundary']='solana_dlmm_unresolved_position_blocks_new_admission'
++            checkpoint('unresolved_position_blocks_new_admission')
++            stream_stop.set();wake_thread.join(timeout=5);broker.close()
++            raise Unavailable(report['fatal_boundary'])
