@@ -24,6 +24,7 @@ from certification.prospective_acceptance import LANES, protocol
 
 CONFIG = ROOT / 'certification/single_campaign_authorization.json'
 STATE_PATH = 'certification/SINGLE_CAMPAIGN_STATE.json'
+CONTINUATION_STATE_PATH = 'certification/SINGLE_CAMPAIGN_CONTINUATION_STATE.json'
 MARKET_WORKFLOW = '.github/workflows/four-lane-certification.yml'
 ACTIVE_STATUSES = ('queued', 'in_progress', 'waiting', 'pending', 'requested')
 OFFLINE_WORKFLOWS = {
@@ -50,7 +51,7 @@ def configuration():
     row = json.loads(CONFIG.read_text())
     expected = dict(enabled=True, maximum_market_workflows=1,
         phases_in_same_workflow=['smoke', 'hourly'], fresh_smoke_required=True,
-        automatic_successors=False, position_continuation_workflows=False,
+        automatic_successors=False, position_continuation_workflows=True,
         workflow_reruns=False, dispatch_retries=False, live_money=False)
     if (row.get('schema') != 'meme-machine-single-campaign-authorization-v1'
             or not re.fullmatch(r'[a-z0-9-]{8,100}', row.get('authorization_id', ''))
@@ -188,9 +189,10 @@ def contention(api, exclude_run=None, owned_launcher=None):
 
 class StateStore:
     """Append-only commits with a single non-forced ref CAS; no mutation retry."""
-    def __init__(self, api, config):
+    def __init__(self, api, config, *, ref=None, path=STATE_PATH):
         self.api = api
-        self.ref = 'cert/single-campaign-' + digest(config['authorization_id'])[:16]
+        self.ref = ref or ('cert/single-campaign-' + digest(config['authorization_id'])[:16])
+        self.path = str(path)
         self.head = None
         self.tree = None
 
@@ -205,7 +207,7 @@ class StateStore:
         tree = self.api.request('GET', 'git/trees/' + self.tree + '?recursive=1')
         if tree.get('truncated'):
             raise ValueError('single_campaign_state_tree_truncated')
-        items = [item for item in tree['tree'] if item['path'] == STATE_PATH]
+        items = [item for item in tree['tree'] if item['path'] == self.path]
         if len(items) != 1:
             raise ValueError('single_campaign_state_missing')
         blob = self.api.request('GET', 'git/blobs/' + items[0]['sha'])
@@ -216,7 +218,7 @@ class StateStore:
         base = self.tree or self.api.request('GET', 'git/commits/' + parent)['tree']['sha']
         state['updated_at'] = time.time()
         tree = self.api.request('POST', 'git/trees', dict(base_tree=base, tree=[dict(
-            path=STATE_PATH, mode='100644', type='blob', content=canonical(state) + '\n')]))
+            path=self.path, mode='100644', type='blob', content=canonical(state) + '\n')]))
         commit = self.api.request('POST', 'git/commits', dict(
             message='Preserve consumed single campaign authorization [skip ci]',
             tree=tree['sha'], parents=[parent]))
@@ -225,6 +227,101 @@ class StateStore:
         else:
             self.api.request('POST', 'git/refs', dict(ref='refs/heads/' + self.ref, sha=commit['sha']))
         self.head, self.tree = commit['sha'], tree['sha']
+
+
+def continuation_store(api,config,lane):
+    if lane not in ('meteora','ramses'):
+        raise ValueError('single_campaign_continuation_lane')
+    ref='cert/single-campaign-continuation-'+digest(
+        config['authorization_id']+':'+lane)[:16]
+    return StateStore(api,config,ref=ref,path=CONTINUATION_STATE_PATH)
+
+
+def continuation_run(api,run_id,state):
+    run=api.request('GET',f'actions/runs/{int(run_id)}')
+    if (run.get('head_sha')!=state['identity']['integration_sha']
+            or run.get('head_branch')!=state['runtime_ref']
+            or str(run.get('run_attempt'))!='1'
+            or run.get('event')!='workflow_dispatch'
+            or str(run.get('path','')).split('@')[0] !=
+                '.github/workflows/position-continuation.yml'):
+        raise ValueError('single_campaign_continuation_run_identity')
+    return run
+
+
+def continuation_claim(api,config,identity,lane,campaign_run_id,state_run_id,run_id,attempt):
+    first_attempt(attempt)
+    if config.get('position_continuation_workflows') is not True:
+        raise ValueError('single_campaign_continuation_not_authorized')
+    main=StateStore(api,config).read()
+    if (not main or main.get('identity')!=identity
+            or main.get('workflow_run_id')!=int(campaign_run_id)
+            or main.get('phase')!='POSITION_CONTINUATION'
+            or main.get('continuation_allowed') is not True):
+        raise ValueError('single_campaign_continuation_parent_state')
+    position=((main.get('phase_records') or {}).get('hourly') or {}).get(
+        'native_positions',{}).get(lane) or {}
+    if (position.get('open_positions')!=1
+            or position.get('open_positions_unknown') is True
+            or position.get('accounting_reconciled') is not True
+            or position.get('durable_handoff') is not True):
+        raise ValueError('single_campaign_continuation_position_not_authorized')
+    continuation_run(api,run_id,main)
+    store=continuation_store(api,config,lane)
+    state=store.read()
+    if state is None:
+        if int(state_run_id)!=int(campaign_run_id):
+            raise ValueError('single_campaign_continuation_initial_source')
+        state=dict(
+            schema='meme-machine-single-campaign-continuation-v1',
+            authorization_id=config['authorization_id'],
+            authorization_sha256=digest(config),identity=identity,
+            runtime_ref=main['runtime_ref'],campaign_run_id=int(campaign_run_id),
+            lane=lane,status='OPEN',last_state_run_id=int(campaign_run_id),
+            history=[])
+    if (state.get('identity')!=identity
+            or state.get('authorization_sha256')!=digest(config)
+            or state.get('campaign_run_id')!=int(campaign_run_id)
+            or state.get('lane')!=lane
+            or state.get('status')!='OPEN'
+            or state.get('last_state_run_id')!=int(state_run_id)):
+        raise ValueError('single_campaign_continuation_chain_identity')
+    state.update(status='RUNNING',active_run_id=int(run_id),
+                 source_state_run_id=int(state_run_id))
+    state['history'].append(dict(action='claim_position_only_continuation',
+                                 run_id=int(run_id),state_run_id=int(state_run_id)))
+    store.write(state)
+    return state
+
+
+def continuation_record(api,config,identity,lane,campaign_run_id,run_id,result,job_result):
+    store=continuation_store(api,config,lane)
+    state=store.read()
+    if (not state or state.get('identity')!=identity
+            or state.get('campaign_run_id')!=int(campaign_run_id)
+            or state.get('status')!='RUNNING'
+            or state.get('active_run_id')!=int(run_id)):
+        raise ValueError('single_campaign_continuation_record_identity')
+    if (job_result!='success' or not isinstance(result,dict)
+            or result.get('lane')!=lane
+            or result.get('assurance_passed') is not True):
+        state.update(status='HALTED_UNRESOLVED',active_run_id=None,
+                     failure='continuation_job_or_assurance_failure')
+        state['history'].append(dict(action='halt_position_continuation',
+                                     run_id=int(run_id),job_result=job_result))
+    elif result.get('handoff_required') is True:
+        state.update(status='OPEN',active_run_id=None,last_state_run_id=int(run_id))
+        state['history'].append(dict(action='continue_same_position',
+                                     run_id=int(run_id)))
+    else:
+        accounting=result.get('accounting') or {}
+        if int(accounting.get('unsettled',accounting.get('open_positions',0)) or 0)!=0:
+            raise ValueError('single_campaign_continuation_terminal_not_flat')
+        state.update(status='SETTLED',active_run_id=None,last_state_run_id=int(run_id))
+        state['history'].append(dict(action='position_terminal',
+                                     run_id=int(run_id),status=result.get('status')))
+    store.write(state)
+    return state
 
 
 def exact_ref(api, runtime_ref, sha):
@@ -280,7 +377,9 @@ def dispatch_once(api, config, identity, certificate_run_id, runtime_ref, launch
         workflow_run_id=None, launcher_run_id=int(launcher_run), launcher_sha=launcher['head_sha'],
         dispatch_payload_sha256=digest(inputs),
         dispatch_may_have_been_sent=True, retry_allowed=False, successor_allowed=False,
-        continuation_allowed=False, created_at=time.time(), phase_records={},
+        continuation_allowed=False,
+        position_continuation_authorized=bool(config.get('position_continuation_workflows')),
+        created_at=time.time(), phase_records={},
         quiet_before_claim=quiet, history=[dict(action='consume_authorization_before_dispatch')])
     store.write(state)  # Any timeout/collision here stops before POST; never retry.
     exact_ref(api, runtime_ref, sha)
@@ -347,11 +446,28 @@ def end_phase(state, phase, result, job_result):
         for lane in LANES}
     known_flat = all(row['open_positions'] == 0 and row['open_positions_unknown'] is not True
                      and row['accounting_reconciled'] is True for row in observations.values())
+    durable_open=[lane for lane,row in observations.items()
+                  if row['open_positions']==1
+                  and row['open_positions_unknown'] is not True
+                  and row['accounting_reconciled'] is True
+                  and row['durable_handoff'] is True]
+    unsafe_open=[lane for lane,row in observations.items()
+                 if row['open_positions'] not in (0,None)
+                 and lane not in durable_open]
     state['phase_records'][phase].update(ended_at=time.time(), job_result=job_result,
-        native_exposure='flat' if known_flat else 'unresolved', native_positions=observations,
+        native_exposure='flat' if known_flat else 'durable_open' if durable_open and not unsafe_open else 'unresolved',
+        native_positions=observations,
         native_run_id=(result or {}).get('run_id'), native_result_status=(result or {}).get('status'))
-    if job_result != 'success' or not known_flat or phase == 'hourly':
+    if phase=='hourly' and job_result=='success' and durable_open and not unsafe_open:
+        if state.get('position_continuation_authorized') is not True:
+            state.update(phase='HALTED_UNRESOLVED',continuation_allowed=False,
+                next_action='owner_review_only; durable positions exist but continuation authority is absent')
+        else:
+            state.update(phase='POSITION_CONTINUATION',continuation_allowed=True,
+                next_action='position_only_continuation; no new discovery, qualification, entry, retry, replacement or successor campaign')
+    elif job_result != 'success' or not known_flat or phase == 'hourly':
         state.update(phase='HALTED' if known_flat else 'HALTED_UNRESOLVED',
+            continuation_allowed=False,
             next_action='owner_review_only; no successor, retry, replacement or continuation')
     return state
 
@@ -359,11 +475,14 @@ def end_phase(state, phase, result, job_result):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('command', choices=('dispatch', 'claim', 'begin-phase', 'end-phase',
-                                            'finish', 'review', 'contention', 'prohibit'))
+                                            'finish', 'review', 'contention', 'prohibit',
+                                            'continuation-claim','continuation-record'))
     parser.add_argument('--phase', choices=('smoke', 'hourly'))
     parser.add_argument('--result'); parser.add_argument('--job-result')
     parser.add_argument('--certificate-run-id'); parser.add_argument('--runtime-ref')
     parser.add_argument('--output'); parser.add_argument('--action', default='continuation')
+    parser.add_argument('--lane',choices=('meteora','ramses'))
+    parser.add_argument('--campaign-run-id'); parser.add_argument('--state-run-id')
     args = parser.parse_args()
     config = configuration()
     if args.command == 'prohibit':
@@ -382,7 +501,15 @@ def main():
             raise ValueError('single_campaign_checkout_identity')
         identity = identities(sha, config)
         run_id = int(os.environ['GITHUB_RUN_ID']); attempt = os.environ['GITHUB_RUN_ATTEMPT']
-        if args.command == 'dispatch':
+        if args.command == 'continuation-claim':
+            state=continuation_claim(api,config,identity,args.lane,
+                int(args.campaign_run_id),int(args.state_run_id),run_id,attempt)
+        elif args.command == 'continuation-record':
+            path=Path(args.result) if args.result else None
+            result=(json.loads(path.read_text()) if path is not None and path.exists() else None)
+            state=continuation_record(api,config,identity,args.lane,
+                int(args.campaign_run_id),run_id,result,args.job_result)
+        elif args.command == 'dispatch':
             if os.environ.get('SINGLE_AUTHORIZATION_ID') != config['authorization_id']:
                 raise ValueError('single_campaign_launch_authorization_identity')
             state = dispatch_once(api, config, identity, args.certificate_run_id,
@@ -410,9 +537,13 @@ def main():
                     result = json.loads(path.read_text()) if path.exists() else None
                     state = end_phase(state, args.phase, result, args.job_result)
                 else:
-                    last = state['phase_records'].get('hourly', state['phase_records'].get('smoke', {}))
-                    state.update(phase='HALTED' if last.get('native_exposure') == 'flat' else 'HALTED_UNRESOLVED',
-                        next_action='owner_review_only; no successor, retry, replacement or continuation')
+                    if state.get('phase')=='POSITION_CONTINUATION':
+                        state['history'].append(dict(action='finish_preserved_position_only_continuation'))
+                    else:
+                        last = state['phase_records'].get('hourly', state['phase_records'].get('smoke', {}))
+                        state.update(phase='HALTED' if last.get('native_exposure') == 'flat' else 'HALTED_UNRESOLVED',
+                            continuation_allowed=False,
+                            next_action='owner_review_only; no successor, retry, replacement or continuation')
                 store.write(state)
     if args.output:
         path = Path(args.output); path.parent.mkdir(parents=True, exist_ok=True)
