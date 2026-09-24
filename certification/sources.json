@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-24-evidence-reconstruction-single-run-candidate",
+  "verified_at": "2026-09-24-meteora-one-side-replay-v8-candidate",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -154,7 +154,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "1e27b8b2cbbe83d2643fadb1fda5d22544b66eea659938bab3a62f51b7e9305b",
+      "source_diff_sha256": "3a2d3b6f6c2c117c3fd2f7d6824231a87fab39a52b0faf8b9633b5df09d8d689",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -344,14 +344,25 @@
           "revision": "authenticated-weighted-one-side-y-v1",
           "source_commit": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
           "historical_evidence_run": 35949285193,
-          "historical_slot": 449907325,
+          "historical_projection_artifact": 10791522985,
+          "historical_interval": {
+            "pool": "FtwzPjTqoFuy8aF8bMBi7QF7UxpdYN5n9YUH6R7DcHjB",
+            "start_slot": 449907316,
+            "end_slot": 449907330,
+            "transactions": 5,
+            "swaps": 1,
+            "terminal_match": true
+          },
+          "offline_projection_run": 36013677709,
+          "prepared_source_diff_sha256": "3a2d3b6f6c2c117c3fd2f7d6824231a87fab39a52b0faf8b9633b5df09d8d689",
+          "full_meteora_tests": 447,
           "strategy_thresholds_changed": false,
           "target_scope_changed": false,
           "provider_limits_changed": false,
           "evidence_requirements_changed": false,
           "accounting_changed": false,
           "paper_only_unchanged": true,
-          "status": "prepared_source_projection_pending"
+          "status": "offline_verified_pending_exact_sha_nonmarket_certification"
         }
       },
       "prospect_admission": {
@@ -373,7 +384,8 @@
         "certification/patches/market-assurance-meteora.patch",
         "certification/patches/target-coverage-repair-meteora.patch",
         "certification/patches/evidence-reconstruction-meteora.patch"
-      ]
+      ],
+      "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b"
     },
     "pons": {
       "source_branch": "strategy/pons-profit-protection-v2-20260923",
