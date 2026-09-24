@@ -17,6 +17,47 @@ def connect(path):
                            isolation_level=None,timeout=10)
 
 
+def meteora_handoff(events,accounting,replay):
+    """Prove that one open Meteora journal can resume without inventing state."""
+    if accounting.get('unsettled')!=1 or replay.get('verified') is not True:
+        return None
+    from certification.position_continuation import _meteora_open_identity
+    try:
+        identity,entry=_meteora_open_identity(events)
+    except RuntimeError:
+        return None
+    data=entry.get('data') or {}
+    required=('policy','features','entry_state','position','mark')
+    if any(not isinstance(data.get(key),dict) for key in required):
+        return None
+    marks=[event for event in events
+           if event.get('identity')==identity and event.get('action')=='mark']
+    for event in marks:
+        body=event.get('data') or {}
+        tape=body.get('tape');progress=body.get('strategy_progress')
+        if (not isinstance(tape,dict) or not tape.get('lineage')
+                or not isinstance(tape.get('terminal'),dict)
+                or not isinstance(progress,dict)
+                or type(progress.get('observed_seconds')) is not int
+                or type(progress.get('elapsed_seconds')) is not int
+                or not isinstance(progress.get('collapse_streaks'),dict)
+                or not isinstance(progress.get('raw_exit_reasons'),list)
+                or not isinstance(progress.get('eligible_exit_reasons'),list)
+                or not isinstance(progress.get('effective_start_hash'),str)):
+            return None
+    return dict(
+        schema='meteora-durable-position-handoff-v1',
+        lane='meteora',lifecycle_id=identity,
+        mark_count=len(marks),
+        verified_hold_seconds=(0 if not marks else
+            int(marks[-1]['data']['strategy_progress']['elapsed_seconds'])),
+        accounting_reconciled=True,
+        economic_replay_verified=True,
+        append_only_journal=True,
+        policy_hash=accounting.get('genesis',{}).get('policy_hash'),
+    )
+
+
 def reconcile(lane,root):
     root=Path(root).resolve()
     if lane=='pump':
@@ -60,8 +101,19 @@ def reconcile(lane,root):
         if book.policy_hash!=expected_policy:raise ValueError('terminal_policy_identity')
         book.connect=lambda:connect(path)
         accounting=book.reconcile()
-        return dict(verified=accounting['reconciled'],accounting=accounting,
-                    open_positions=accounting['unsettled'],economic_replay_claimed=False)
+        with chdir(Path(strategy.__file__).resolve().parents[1]):
+            replay=book.replay_economics(
+                strategy._build_position,strategy._advance_position,strategy._mark)
+        with closing(connect(path)) as db:
+            events=[json.loads(raw) for raw, in db.execute(
+                'SELECT body FROM events ORDER BY seq')]
+        handoff=meteora_handoff(events,accounting,replay)
+        return dict(verified=accounting['reconciled'] and replay.get('verified') is True,
+                    accounting=accounting,accounting_replay=replay,
+                    open_positions=accounting['unsettled'],
+                    durable_handoff=handoff is not None,
+                    continuation_state=handoff,
+                    economic_replay_claimed=True)
     if lane=='ramses':
         from robinhood_research.ramses_strategy_ledger import RamsesStrategyLedger,_digest
         from robinhood_research.ramses_strategy import POLICY_HASH
