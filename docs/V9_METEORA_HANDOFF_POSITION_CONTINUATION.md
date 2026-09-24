@@ -16,3 +16,5 @@ artifact or authorize another entry.
 
 Fresh cohort identity:
 `prospective-four-lane-v9-pump-log-durable-continuation-20260924`.
+
+Focused deterministic validation is required before exact-SHA non-market certification.
