@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark"><title>The Meme Machine · Paper portfolio</title>
+  <link rel="stylesheet" href="/dashboard/style.css"><script src="/dashboard/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#overview" aria-label="The Meme Machine overview">
+      <svg viewBox="0 0 48 40" aria-hidden="true"><path class="logo-a" d="M3 36 17 9 31 36M14 36 29 6 45 36"/><path class="logo-b" d="m13 36 10-19 10 19"/></svg>
+      <span>THE <strong>MEME MACHINE</strong></span>
+    </a>
+    <nav aria-label="Main navigation"><a href="#overview">Overview</a><a href="#lanes">Lanes</a><a href="#positions">Positions</a><a href="#trades">Trades</a><a href="#analytics">Analytics</a><a href="#system">System</a></nav>
+    <div class="paper-tag">PAPER TRADING</div>
+  </header>
+  <main id="main" tabindex="-1"><div class="empty">Loading local paper observations…</div></main>
+  <footer><span>THE MEME MACHINE <span class="muted">/ Read-only paper portfolio</span></span><span>No live-money execution</span></footer>
+  <dialog id="detail"><button id="close-detail" class="close" aria-label="Close position details">×</button><div id="detail-content"></div></dialog>
+  <noscript>This read-only dashboard requires JavaScript. Its JSON endpoints are available under /api/dashboard/.</noscript>
+</body>
+</html>

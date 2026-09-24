@@ -1,0 +1,99 @@
+{
+  "canonical_base_branch": "cert/prospective-market-v1",
+  "starting_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
+  "implementation_branch": "feat/read-only-portfolio-dashboard",
+  "canonical_portfolio": "NOT_INITIALIZED",
+  "verification": {
+    "baseline": {
+      "command": "python -m unittest tests.test_lifecycle certification.tests.test_live_status -v",
+      "passed": 33
+    },
+    "full": {
+      "command": "python -m unittest discover -v",
+      "run": 457,
+      "passed": 449,
+      "skipped": 8,
+      "skip_reason": "Existing tests require separately prepared exact native lane worktrees; no strategy/lane source changed."
+    },
+    "dashboard": {
+      "included_in_full": true,
+      "passed": 54
+    },
+    "frontend": {
+      "command": "node dashboard/tests/frontend.mjs",
+      "status": "PASS",
+      "rendered_routes": 10,
+      "includes_uninitialized_mode": true,
+      "real_loopback_api": true,
+      "browser_geometry_verified": false
+    },
+    "syntax": {
+      "commands": [
+        "node --check dashboard/static/app.js",
+        "python -m compileall -q dashboard meme_machine/__main__.py",
+        "git diff --check"
+      ],
+      "status": "PASS"
+    },
+    "resource": {
+      "admitted_events_per_frame": 100,
+      "db_bytes": 1257472,
+      "decisions": 100,
+      "elapsed_seconds": 12.366,
+      "frames": 2000,
+      "gaps": 20,
+      "journal_rows": 4002,
+      "label": "synthetic bounded intake/rejection workload",
+      "limitation": "temporary filesystem; not continuous-market or physical disk durability proof",
+      "peak_rss_kib": 18844,
+      "real_provider_calls": 0,
+      "seen": 1000,
+      "submitted_events": 240000,
+      "wal_bytes": 642752
+    },
+    "browser": {
+      "status": "BLOCKED",
+      "reason": "Cloud browser rejects loopback HTTP; browser security policy prohibits file URLs. No workaround attempted after policy block.",
+      "screenshots": []
+    },
+    "frontend_build": "No bundler or dependency installation; shipped static assets are the production assets.",
+    "lint_typecheck": "No existing frontend lint/typecheck configuration; JavaScript syntax, Python compilation, unit/integration/render checks used."
+  },
+  "fixture_reconciliation": {
+    "equity": "512.34",
+    "starting_capital": "500.00",
+    "realized": "8.34",
+    "unrealized": "4.00",
+    "cash": "403.34",
+    "reserved": "10.00",
+    "basis": "95.00",
+    "shared_costs": "0.12",
+    "total_costs": "1.12",
+    "all_five_checks": true
+  },
+  "scope": {
+    "strategy_changes": false,
+    "canonical_accounting_repairs": false,
+    "canonical_writes": false,
+    "provider_acquisition_added": false,
+    "market_workflows_started_by_this_task": false,
+    "render_accounts_accessed": false,
+    "portfolio_initialized": false,
+    "merged": false,
+    "deployed": false
+  },
+  "source_sha256": {
+    "dashboard/__init__.py": "44160907349640f3fb8787e4a7313e6be3e1e9e2c395082f2c51408ec2b106ed",
+    "dashboard/__main__.py": "4b80b61b5e2a48dd4edf48c827dea61be6177dfa0ebf5b2879c4577ede89deae",
+    "dashboard/api.py": "144aac287b4ed1175b227ca3843ebf5a1822a005c760f3e69682a1521138ac65",
+    "dashboard/fixtures.py": "a5d24532bc3f461ba80629ad40891b6d8fadbf6b16eaeee2db6059ab93d07844",
+    "dashboard/model.py": "ec799f5e8070a5d2a2be85409ff9439e810c545b9dff4df4d244e1f7bda8cffb",
+    "dashboard/static/app.js": "9d549866e2a900249801d46ef5711ec5d64dd6ce8ada637bc7c9061c93078177",
+    "dashboard/static/index.html": "85743fc475bd10ba1de4feaffe9ca760d0260f302d62deb39bf1632d2f3d44d7",
+    "dashboard/static/style.css": "6a3123ed10ded0739f8c870184774d4ab6a7c9fa8fa25eee5d84c5037832b7fb",
+    "dashboard/tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "dashboard/tests/frontend.mjs": "fb6f1b3b5d71a0baae6478c161fd0d87ad1e03c75636d8df6b9770e2f9ecf4c1",
+    "dashboard/tests/test_dashboard.py": "3e5b8cbabbbc90c43b807e43eae3323c62e6a6c2db7b97b04b239f16fd529d72",
+    "meme_machine/__main__.py": "faa4c06915e571ec30a2f4421b4adb4166664ef2243af06c8e52eeee18b9b5fb"
+  }
+}
