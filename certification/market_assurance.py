@@ -15,6 +15,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+from certification.evidence_obligations import summarize as summarize_obligations
 
 LANES=('pump','pons','meteora','ramses')
 SCOPE={
@@ -63,8 +64,9 @@ def pipeline(root):
         reasons={k:n for k,n in db.execute('SELECT reason,COUNT(DISTINCT candidate) FROM progress WHERE reason IS NOT NULL GROUP BY reason')}
         last=db.execute('SELECT stage,at FROM progress ORDER BY sequence DESC LIMIT 1').fetchone()
         stage_times={stage:at for stage,at in db.execute('SELECT stage,MAX(at) FROM progress GROUP BY stage')}
-        gaps=Counter();latencies={};by_candidate={}
+        gaps=Counter();latencies={};by_candidate={};obligation_records=[]
         for candidate,stage,at,details,classification in db.execute('SELECT candidate,stage,at,details,classification FROM progress ORDER BY sequence'):
+            obligation_records.append(dict(candidate=candidate,stage=stage,classification=classification,details=json.loads(details)))
             by_candidate.setdefault(candidate,{}).setdefault(stage,at)
             d=json.loads(details)
             if classification in ('provider_failed','capacity_censored','consumer_deadline','reconstruction_incomplete','local_budget_exhausted'):
@@ -75,6 +77,7 @@ def pipeline(root):
             vals=[d[end]-d[start] for d in by_candidate.values() if start in d and end in d and d[end]>=d[start]]
             latencies[start+'__'+end]=dict(count=len(vals),p50=percentile(vals,.5),p95=percentile(vals,.95),max=max(vals) if vals else None)
     return dict(available=True,stages=stages,classes=classes,reasons=reasons,
+        evidence_obligations=summarize_obligations(obligation_records),
         last_stage=last[0] if last else None,last_at=last[1] if last else None,
         last_at_by_stage=stage_times,latency_seconds=latencies,
         gaps_by_segment=[dict(segment=json.loads(k),transition_records=n) for k,n in gaps.items()],
@@ -281,7 +284,15 @@ def lane_report(lane,row,native,conformance,pipe,proof,ended_at,previous=None):
     violations.extend(transfer['failures'])
     if violations:coverage='coverage_invalid'
     attempts=stages.get('evidence_requested');completed=stages.get('evidence_complete')
-    if lane=='ramses' and completed==0:completed=None  # Screening is not authenticated full entry evidence.
+    obligations=pipe.get('evidence_obligations') or {}
+    if obligations.get('available'):
+        attempts=obligations['evidence_requested']
+        completed=obligations['evidence_completed_in_time']
+    if lane=='ramses' and completed==0 and not obligations.get('available'):
+        completed=None  # Legacy screening did not measure authenticated full entry evidence.
+    required=obligations.get('observations_requiring_full_evidence')
+    unnecessary=obligations.get('became_unnecessary_after_valid_earlier_rejection')
+    decision_supported=(completed+unnecessary if isinstance(completed,int) and isinstance(unnecessary,int) else None)
     open_rows=[r for r in native['positions'].values() if r.get('status') not in ('settled','cancelled','written_off')]
     times=[native['entry_times'].get(r['id']) for r in open_rows]
     times=[x for x in times if isinstance(x,(int,float))]
@@ -310,13 +321,24 @@ def lane_report(lane,row,native,conformance,pipe,proof,ended_at,previous=None):
         preflight_evaluated_count=preflight,
         preflight_coverage=ratio(preflight,discovered),
         full_evidence_attempted=attempts,full_evidence_completed=completed,
-        evidence_completion_coverage=ratio(completed,attempts),evidence_attempt_coverage=None,
-        candidates_requiring_full_evidence=None,qualified_count=stages.get('qualified'),
+        full_evidence_count_scope='explicit_required_observations' if obligations.get('available') else 'legacy_candidate_stages',
+        evidence_completion_coverage=ratio(completed,required if obligations.get('available') else attempts),
+        evidence_attempt_coverage=ratio(attempts,required),
+        strategy_decision_evidence_coverage=ratio(decision_supported,required),
+        candidates_requiring_full_evidence=obligations.get('candidates_requiring_full_evidence'),
+        required_evidence=obligations,qualified_count=stages.get('qualified'),
         authorized_count=native['natural_entries'],
         discovered_too_late=classes.get('stale_before_evidence'),never_discovered=None,
         queue_saturation=dict(classified_candidates={k:classes.get(k,0) for k in ('capacity_censored','consumer_deadline','local_budget_exhausted')},
             queue_time_at_capacity_seconds=None,maximum_concurrent_evaluations=None),
         coverage_health=coverage,coverage_gaps=gaps,coverage_gaps_by_segment=pipe.get('gaps_by_segment',[]),
+        stream_continuity=dict(
+            historical_gap_events=stream.get('gaps',stream.get('gap_events')),
+            last_loss_until=stream.get('loss_until'),
+            final_snapshot_connected=stream.get('connected'),
+            final_snapshot_covered=stream.get('covered'),
+            historical_missing_events_recovered=None,
+            interpretation='Cumulative interruptions do not prove current outage or complete historical event recovery; final disconnect may be orderly shutdown.'),
         acquisition_latency_seconds=pipe.get('latency_seconds'),behavioral_liveness=behavior,
         current_open_positions=sum(r.get('status') in ('open','exit_pending','unresolved') for r in open_rows),
         native_unsettled_records=proof.get('open_positions'),native_position_records_open=len(open_rows),

@@ -1,0 +1,232 @@
+diff --git a/meme_machine/pipeline.py b/meme_machine/pipeline.py
+index 3acb8abc9c0d471ee88ea7668cca0681fcb9b98c..e8e135fa3e4e0711f9f43ef7aa9ef638ddd71dfe 100644
+--- a/meme_machine/pipeline.py
++++ b/meme_machine/pipeline.py
+@@ -58,8 +58,8 @@ class Pipeline:
+                 terminally_classified_triggers=len(self.stages['trigger_terminal']),
+                 unresolved_triggers=len(self.stages['trigger_started']-self.stages['trigger_terminal']),
+                 stale_stage_counts={s:len(self.reasons[s]) for s in ('stale_on_arrival','stale_in_queue','stale_during_evidence','stale_after_complete_evidence')},
+-                stages={s:len(self.stages[s]) for s in stages},
+-                unique_classes={k:len(self.classes[k]) for k in classes},
++                stages={s:len(self.stages[s]) for s in sorted(set(stages) | set(self.stages))},
++                unique_classes={k:len(self.classes[k]) for k in sorted(set(classes) | set(self.classes))},
+                 unique_terminal_reasons={k:len(v) for k,v in self.reasons.items()},last_transition=self.last)
+ 
+     def close(self):self.db.close()
+diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
+index a956f5a5bd788d64954859dbe36c0471b79e4f89..1cae8b75616839bb3b93e84c2cb5348fe2c0b9f3 100644
+--- a/tests/pump_acceleration_natural_prospective.py
++++ b/tests/pump_acceleration_natural_prospective.py
+@@ -63,8 +63,27 @@ PIPELINE=None
+ 
+ def _progress(candidate,stage,reason=None,**details):
+     if PIPELINE is not None:
+-        classification=("strategy_rejection" if stage=="prospect_screened"
+-                        else (censor_class(reason) if reason else None))
++        if stage in ("prospect_screened","rejected","evidence_not_required"):
++            classification="strategy_rejection"
++        elif stage=="prospect_incomplete":
++            # No full-evidence request has been authorized at this point. Keep
++            # the missing prospect signal visible without inventing an admitted
++            # reconstruction failure or a successful strategy rejection.
++            classification="pre_admission_evidence_incomplete"
++        elif reason=="postgrad_entry_horizon_expired":
++            # Normal candidate retirement is not an acquisition failure. Earlier
++            # incomplete attempts remain append-only and retain their own class.
++            classification="superseded_candidate_state"
++        elif (details.get("mode")==MODE_SECOND_LEG
++              and (details.get("history") or {}).get("complete") is True
++              and reason in ("insufficient_second_leg_history",
++                             "missing_preconsolidation_peak","missing_pullback",
++                             "missing_consolidation")):
++            # An authenticated complete history can simply have no required
++            # second-leg shape; collecting more old transactions cannot rescue it.
++            classification="strategy_rejection"
++        else:
++            classification=censor_class(reason) if reason else None
+         PIPELINE.record(candidate,stage,reason,classification,**details)
+ 
+ 
+@@ -520,7 +539,13 @@ def _service_pending_entries(report,pending,active,sessions,postgrad,*,monitor):
+         if pending:time.sleep(1)
+ 
+ def _record_attempt(report,signal,q,stage,extra=None):
+-    if stage=="full_point_in_time":_progress(signal.mint,"evidence_complete",mode=signal.phase)
++    if stage=="full_point_in_time":
++        _progress(signal.mint,"evidence_complete",mode=signal.phase,
++                  decision_at=signal.observed_at)
++    elif stage=="optimistic_preflight" and not q.qualified:
++        _progress(signal.mint,"evidence_not_required",mode=signal.phase,
++                  decision_at=signal.observed_at,
++                  reasons=list(q.reasons),remaining_evidence="concentration")
+     _progress(signal.mint,"evaluated",mode=signal.phase)
+     _progress(signal.mint,"qualified" if q.qualified else "rejected",mode=signal.phase)
+     row=dict(
+@@ -893,12 +918,15 @@ def main(*,campaign=False,discovery_seconds=None):
+                     _progress(mint,"screened",mode=MODE_LATE_CURVE)
+                     _progress(mint,"admitted",mode=MODE_LATE_CURVE)
+                     _progress(mint,"evidence_requested",mode=MODE_LATE_CURVE,decision_at=now)
++                    _progress(mint,"decision_evidence_requested",mode=MODE_LATE_CURVE,decision_at=now)
+                     try:
+                         sessions.ensure(25)
+                         snapshot=sessions.pump.snapshot(mint,now,priority=True)
+                         ev=tape.window(mint,int(snapshot["market_time"]),max_slot=snapshot["slot"])
+                         pre_signal,trajectory,confirmation=_late_signal(
+                             creation,ev,snapshot,0,confirmations)
++                        _progress(mint,"decision_evidence_complete",mode=MODE_LATE_CURVE,
++                                  decision_at=now,signal_at=pre_signal.observed_at)
+                         preq=qualify(pre_signal)
+                         # concentration=0 is the optimistic preflight.  If even that
+                         # cannot qualify, an expensive holder scan cannot rescue it.
+@@ -908,6 +936,9 @@ def main(*,campaign=False,discovery_seconds=None):
+                                 {"trajectory":trajectory,
+                                  "confirmation_evidence":_confirmation_meta(confirmation)})
+                             continue
++                        _progress(mint,"evidence_required",mode=MODE_LATE_CURVE,
++                                  decision_at=pre_signal.observed_at,
++                                  remaining_evidence="concentration")
+                         if (not attempt_budget.take(time.monotonic()) if campaign else full_attempts>=MAX_FULL_ATTEMPTS):
+                             _terminal(report,dict(mint=mint,observed_at=now,
+                                 terminal_reason='full_evidence_attempt_cap',economic_rejection=False))
+@@ -915,6 +946,9 @@ def main(*,campaign=False,discovery_seconds=None):
+                                 report["limitations"].append("full_evidence_attempt_cap")
+                             continue
+                         full_attempts+=1
++                        _progress(mint,"full_evidence_requested",mode=MODE_LATE_CURVE,
++                                  decision_at=pre_signal.observed_at,
++                                  remaining_evidence="concentration")
+                         concentration,meta=sessions.reader.read(mint,snapshot,priority=True)
+                         signal,trajectory,confirmation=_late_signal(
+                             creation,ev,snapshot,concentration,confirmations)
+@@ -952,6 +986,7 @@ def main(*,campaign=False,discovery_seconds=None):
+                 last_postgrad_eval[mint]=now
+                 _progress(mint,"admitted")
+                 _progress(mint,"evidence_requested",mode=MODE_POSTGRAD,decision_at=now)
++                _progress(mint,"decision_evidence_requested",mode=MODE_POSTGRAD,decision_at=now)
+                 try:
+                     sessions.ensure(85)
+                     graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
+@@ -963,6 +998,8 @@ def main(*,campaign=False,discovery_seconds=None):
+                     window_status=state["history"].decision_window_status(now,30)
+                     if not window_status["complete"]:
+                         raise Unavailable("incomplete_pumpswap_decision_window")
++                    _progress(mint,"decision_evidence_complete",mode=MODE_POSTGRAD,
++                              decision_at=now,history_window=window_status)
+                     decision_events=state["history"].decision_rows(now,30)
+                     # Concentration is the only expensive holder-level input here.
+                     # First evaluate both entry modes optimistically with zero
+@@ -980,7 +1017,8 @@ def main(*,campaign=False,discovery_seconds=None):
+                                 state,snapshot,events,MODE_SECOND_LEG,0,confirmations)
+                             second_q0=qualify(second_signal0)
+                         except (Unavailable,ValueError,KeyError,TypeError) as exc:
+-                            _progress(mint,"terminal",str(exc),mode=MODE_SECOND_LEG,history=state["history"].status(now))
++                            _progress(mint,"terminal",str(exc),mode=MODE_SECOND_LEG,
++                                      decision_at=now,history=state["history"].status(now))
+                             report["attempts"].append(dict(
+                                 mint=mint,mode=MODE_SECOND_LEG,observed_at=now,
+                                 stage="shape_incomplete",qualified=False,
+@@ -1002,6 +1040,14 @@ def main(*,campaign=False,discovery_seconds=None):
+                     if not _postgrad_concentration_required(post_q0,second_q0):
+                         continue
+ 
++                    for candidate_signal,candidate_q in ((post_signal0,post_q0),(second_signal0,second_q0)):
++                        if candidate_q is not None and candidate_q.qualified:
++                            _progress(mint,"evidence_required",mode=candidate_signal.phase,
++                                      decision_at=candidate_signal.observed_at,
++                                      remaining_evidence="concentration")
++                            _progress(mint,"full_evidence_requested",mode=candidate_signal.phase,
++                                      decision_at=candidate_signal.observed_at,
++                                      remaining_evidence="concentration")
+                     concentration=_postgrad_concentration(sessions.rpc,snapshot)
+                     if post_q0.qualified:
+                         signal,confirmation=_volume_price_signal(
+@@ -1033,7 +1079,8 @@ def main(*,campaign=False,discovery_seconds=None):
+                                 report,pending,active,second,q2,snapshot,
+                                 MODE_SECOND_LEG,concentration)
+                 except (Unavailable,ValueError,KeyError,TypeError) as exc:
+-                    _progress(mint,"terminal",str(exc),mode=MODE_POSTGRAD)
++                    _progress(mint,"terminal",str(exc),mode=MODE_POSTGRAD,
++                              decision_at=now,history=state["history"].status(now))
+                     report["postgrad"].append(dict(
+                         mint=mint,observed_at=now,age_seconds=age,
+                         complete=False,limitation=str(exc) or type(exc).__name__,
+diff --git a/tests/test_pump_evidence_classification.py b/tests/test_pump_evidence_classification.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..2b3c63193cca37d6a308f0ab9390b16b27fb379e
+--- /dev/null
++++ b/tests/test_pump_evidence_classification.py
+@@ -0,0 +1,74 @@
++"""Lane-local attribution must not relabel normal screening as evidence loss."""
++import tempfile
++import unittest
++import json
++from pathlib import Path
++from unittest.mock import patch
++
++from meme_machine.pipeline import Pipeline
++from meme_machine.pump_acceleration_strategy import SignalVector,qualify
++from tests import pump_acceleration_natural_prospective as runner
++
++
++class EvidenceClassificationTests(unittest.TestCase):
++    def setUp(self):
++        self.directory=tempfile.TemporaryDirectory()
++        self.addCleanup(self.directory.cleanup)
++        self.pipeline=Pipeline(Path(self.directory.name)/"pipeline.sqlite","pump",
++                               runner.FROZEN_POLICY_HASH)
++        self.addCleanup(self.pipeline.close)
++        self.patch=patch.object(runner,"PIPELINE",self.pipeline)
++        self.patch.start()
++        self.addCleanup(self.patch.stop)
++
++    def test_retirement_does_not_create_or_erase_reconstruction_loss(self):
++        runner._progress("incomplete","terminal","incomplete_pumpswap_decision_window",
++                         mode=runner.MODE_POSTGRAD)
++        runner._progress("incomplete","terminal","postgrad_entry_horizon_expired")
++        runner._progress("fully_screened","terminal","postgrad_entry_horizon_expired")
++        self.assertEqual(self.pipeline.classes["reconstruction_incomplete"],{"incomplete"})
++        self.assertEqual(self.pipeline.classes["superseded_candidate_state"],
++                         {"incomplete","fully_screened"})
++        self.assertEqual(self.pipeline.records,3)
++
++    def test_prospect_missing_trajectory_is_neither_full_failure_nor_rejection(self):
++        runner._progress("prospect","prospect_incomplete","insufficient_curve_trajectory",
++                         mode=runner.MODE_LATE_CURVE)
++        self.assertEqual(self.pipeline.classes["pre_admission_evidence_incomplete"],{"prospect"})
++        self.assertEqual(self.pipeline.classes["reconstruction_incomplete"],set())
++        self.assertEqual(self.pipeline.classes["strategy_rejection"],set())
++        self.assertEqual(self.pipeline.stages["evidence_requested"],set())
++
++    def test_missing_shape_is_rejection_only_after_complete_authenticated_history(self):
++        runner._progress("complete","terminal","missing_pullback",
++                         mode=runner.MODE_SECOND_LEG,history={"complete":True})
++        runner._progress("unknown","terminal","missing_pullback",
++                         mode=runner.MODE_SECOND_LEG)
++        runner._progress("incomplete","terminal","incomplete_pumpswap_second_leg_history",
++                         mode=runner.MODE_SECOND_LEG,history={"complete":False})
++        self.assertEqual(self.pipeline.classes["strategy_rejection"],{"complete"})
++        self.assertEqual(self.pipeline.classes["reconstruction_incomplete"],{"unknown","incomplete"})
++
++    def test_valid_preflight_rejection_remains_distinct_from_full_completion(self):
++        signal=SignalVector(mint="screened",observed_at=1000,surface="pumpswap",
++                            phase=runner.MODE_POSTGRAD,graduated=True,
++                            seconds_since_graduation=60,independent_buyer_clusters=1)
++        report={"attempts":[],"full_evidence_candidates":[]}
++        with patch.object(runner,"ACCOUNTING",None):
++            runner._record_attempt(report,signal,qualify(signal),"optimistic_preflight")
++        self.assertEqual(self.pipeline.classes["strategy_rejection"],{"screened"})
++        self.assertEqual(self.pipeline.stages["evidence_complete"],set())
++        self.assertEqual(self.pipeline.stages["evidence_not_required"],{"screened"})
++        details=json.loads(self.pipeline.db.execute(
++            "SELECT details FROM progress WHERE stage='evidence_not_required'").fetchone()[0])
++        self.assertEqual(details["decision_at"],1000)
++        self.assertIn("independent_buyers",details["reasons"])
++        self.assertEqual(details["remaining_evidence"],"concentration")
++        # A new state of this same mint can still require evidence and fail. The
++        # earlier valid rejection never clears that later acquisition failure.
++        runner._progress("screened","terminal","incomplete_pumpswap_decision_window",
++                         mode=runner.MODE_POSTGRAD,decision_at=1010)
++        self.assertEqual(self.pipeline.classes["reconstruction_incomplete"],{"screened"})
++
++if __name__=="__main__":
++    unittest.main()

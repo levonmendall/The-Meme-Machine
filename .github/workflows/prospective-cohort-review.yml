@@ -27,7 +27,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA: ${{ inputs.expected_integration_sha }}
-        run: python -m certification.prospective_program review --output prospective-review/program-state.json
+        run: |
+          # Read-only single-run review; prospective_program review never dispatches either.
+          python -m certification.single_campaign_control review --output prospective-review/program-state.json
       - name: Preserve cohort review
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

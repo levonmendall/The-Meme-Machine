@@ -70,6 +70,28 @@ def verify():
     for control in ("program_full_nonmarket_not_passed", "program_dispatch_already_claimed",
                     "program_canonical_sha_drift", "preserve_repair_recertify_successor_cohort"):
         if control not in program:failures.append("certification_program_control_missing:"+control)
+    # Owner's later one-workflow authorization narrows scheduling authority only;
+    # historical profitability/autonomy qualification criteria remain unchanged.
+    try:
+        from certification.single_campaign_control import configuration
+        one=configuration()
+        for text,control in ((four,'single_campaign_control claim'),
+                             (four,'single_campaign_control begin-phase'),
+                             (four,'single_campaign_control end-phase'),
+                             (four,'single_campaign_control finish'),
+                             (cont,'single_campaign_control prohibit --action continuation'),
+                             (review,'single_campaign_control review'),
+                             (program,"prohibit_if_enabled('successor_dispatch')")):
+            if control not in text:failures.append('single_campaign_control_missing:'+control)
+        smoke=(ROOT/'certification/smoke_continuation.py').read_text()
+        if "prohibit_if_enabled('smoke_continuation_'+a.command)" not in smoke:
+            failures.append('single_campaign_smoke_continuation_not_disabled')
+        if '\n  push:' in four.split('permissions:',1)[0]:
+            failures.append('single_campaign_implicit_push_market_trigger')
+        if 'if: success() && inputs.single_campaign != true' not in four:
+            failures.append('single_campaign_continuation_not_disabled')
+    except (OSError,ValueError):
+        failures.append('single_campaign_authorization_invalid_or_missing')
     digest=hashlib.sha256(canonical(protocol).encode()).hexdigest()
     return {
         "passed":not failures,

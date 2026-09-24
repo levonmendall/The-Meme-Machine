@@ -1,0 +1,18 @@
+{
+  "schema": "meme-machine-single-campaign-authorization-v1",
+  "authorization_id": "evidence-reconstruction-20260924-one-market-v1",
+  "enabled": true,
+  "maximum_market_workflows": 1,
+  "phases_in_same_workflow": ["smoke", "hourly"],
+  "fresh_smoke_required": true,
+  "automatic_successors": false,
+  "position_continuation_workflows": false,
+  "workflow_reruns": false,
+  "dispatch_retries": false,
+  "live_money": false,
+  "prior_run_observation": {
+    "run_id": 35956802640,
+    "status": "cancelled",
+    "source": "Observed terminal external state; this repair did not request cancellation."
+  }
+}

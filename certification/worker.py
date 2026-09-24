@@ -405,6 +405,7 @@ def compact_ramses_screen(screen):
             flow_imbalance_bps=row.get('flow_imbalance_bps'),
             mode=row.get('mode'),qualified=row.get('qualified'),
             reasons=row.get('reasons'),
+            evidence_status=row.get('evidence_status'),
             cost_evidence=dict(
                 available=cost.get('available'),
                 source=cost.get('source'),

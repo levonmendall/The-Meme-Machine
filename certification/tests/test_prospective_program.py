@@ -113,7 +113,8 @@ class ProgramTests(unittest.TestCase):
                 if method=='GET':return {'object':{'sha':'same'}}
                 s.posts+=1;raise TimeoutError('ambiguous dispatch response')
         api=API()
-        with patch.object(program,'StateStore',Store):
+        with patch.object(program,'StateStore',Store), \
+             patch('certification.single_campaign_control.prohibit_if_enabled'):
             with self.assertRaises(TimeoutError):program.dispatch(api,self.proto,'same','p')
             self.assertEqual(memory['state']['phase'],'DISPATCH_PENDING')
             program.dispatch(api,self.proto,'same','p')

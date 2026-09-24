@@ -82,6 +82,9 @@ def readiness(state,run_id):
 def main():
     p=argparse.ArgumentParser();p.add_argument('command',choices=('register','complete','readiness'))
     p.add_argument('--run-id',required=True);p.add_argument('--result');p.add_argument('--output',required=True);a=p.parse_args()
+    if a.command in ('register','complete'):
+        from certification.single_campaign_control import prohibit_if_enabled
+        prohibit_if_enabled('smoke_continuation_'+a.command)
     api=GitHub();proto,ph=protocol();sha=git('rev-parse','HEAD')
     if a.command=='register':
         run=api.request('GET',f'actions/runs/{int(a.run_id)}')

@@ -39,6 +39,8 @@ def screen():
             'mode': 'no_trade',
             'qualified': False,
             'reasons': ['cost_evidence_unavailable'],
+            'evidence_status': {'required_for_strategy_decision': False,
+                                'classification': 'structural_rejection'},
             'cost_evidence': {
                 'available': False,
                 'source': 'automatic_onchain',
@@ -62,6 +64,7 @@ class RamsesCheckpointCompactionTests(unittest.TestCase):
             'no_executable_bounded_wnative_quote_route',
         )
         self.assertEqual(compact['rows'][0]['reasons'],['cost_evidence_unavailable'])
+        self.assertEqual(compact['rows'][0]['evidence_status'], original['rows'][0]['evidence_status'])
         self.assertEqual(compact['full_detail_archive'],
                          'telemetry.sqlite:ramses_screen_observation')
         self.assertIn('completed_sessions',original['provider'])

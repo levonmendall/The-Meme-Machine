@@ -1,7 +1,7 @@
 {
   "schema": "meme-machine-profitability-portfolio-autonomy-v1",
-  "cohort_id": "prospective-four-lane-v6-coverage-repair-20260924",
-  "frozen_parent_integration_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+  "cohort_id": "prospective-four-lane-v7-evidence-reconstruction-single-run-20260924",
+  "frozen_parent_integration_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
   "paper_only": true,
   "live_money": false,
   "purpose": "Prospective out-of-sample certification of natural paper profitability, portfolio behavior, and unattended operational readiness without changing strategy economics.",
@@ -26,28 +26,28 @@
       "source_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
       "execution_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
       "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
-      "source_diff_sha256": "924799d001c51f898422a2494b75b1afcf2869583572af471f1bcc42d2176cd8"
+      "source_diff_sha256": "5f7928a599fd8867c50f7964c826d3cad2d810ee721c179d0f61c37094ff5cfa"
     },
     "meteora": {
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "source_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
       "execution_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "c6906c074f683f44a220281579f1c0ab86c8ce34e05f2ed1703b5eda4557e5af"
+      "source_diff_sha256": "1e27b8b2cbbe83d2643fadb1fda5d22544b66eea659938bab3a62f51b7e9305b"
     },
     "pons": {
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2",
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
-      "source_diff_sha256": "eba51a72058bb6a72a0e7e5d78db4fbc4d8c0b6e3a8327b0e8adc44bd507558e"
+      "source_diff_sha256": "de0fd8813d677edb1a818126dcfc6090683ed13ef33c97b532ebe6ae128830bc"
     },
     "ramses": {
       "strategy_version": "ramses-active-wide-maker-v3",
       "source_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
       "execution_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
       "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
-      "source_diff_sha256": "1264b5213376b8f1fa7b8e2c5d0359b20be1ef44f7dddd4a1c6441e811a05173"
+      "source_diff_sha256": "3e848957c0835ef5f9805e009414c049513e4f9f291b8199804ce22567cd862e"
     }
   },
   "evidence_quality": {

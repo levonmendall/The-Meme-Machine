@@ -289,6 +289,8 @@ def commit_transition(api,proto,sha,ph,transition):
 
 
 def dispatch(api,proto,sha,ph):
+    from certification.single_campaign_control import prohibit_if_enabled
+    prohibit_if_enabled('successor_dispatch')
     nonce=uuid.uuid4().hex
     def intent(state):
         if state is None:raise ValueError('program_state_missing')
@@ -393,7 +395,11 @@ def main():
     parser.add_argument('--base-reviewed',action='store_true')
     parser.add_argument('--prior-sha');parser.add_argument('--prior-cohort');parser.add_argument('--prior-protocol-sha')
     parser.add_argument('--record');parser.add_argument('--reason',default='workflow_failure_or_missing_evidence')
-    a=parser.parse_args();api=GitHub();proto,ph=protocol();sha=git('rev-parse','HEAD')
+    a=parser.parse_args()
+    if a.command in ('start','claim','advance','retire'):
+        from certification.single_campaign_control import prohibit_if_enabled
+        prohibit_if_enabled('legacy_program_'+a.command)
+    api=GitHub();proto,ph=protocol();sha=git('rev-parse','HEAD')
     if os.environ.get('EXPECTED_SHA',sha)!=sha:raise ValueError('program_checkout_identity')
     if a.command=='certificate':
         receipt=certificate(api,a.run_id,sha,a.worktrees)

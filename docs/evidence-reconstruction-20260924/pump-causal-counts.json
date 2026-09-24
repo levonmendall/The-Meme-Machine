@@ -1,0 +1,275 @@
+{
+  "source_run": 35949285193,
+  "source_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
+  "historical_artifacts_modified": false,
+  "scope": "immutable diagnostic reconstruction; not changed cohort admission",
+  "decision_history_requested": {
+    "episodes": 500,
+    "candidates": 25
+  },
+  "decision_history_supported": {
+    "episodes": 239,
+    "candidates": 20
+  },
+  "known_residual_full_vector_required": {
+    "episodes": 1,
+    "candidates": 1
+  },
+  "full_vector_completed": {
+    "episodes": 1,
+    "candidates": 1
+  },
+  "optimistic_preflight_rejections": {
+    "episodes": 385,
+    "candidates": 20
+  },
+  "causal_counts": {
+    "incomplete_pumpswap_decision_window": {
+      "episodes": 261,
+      "candidates": 22
+    },
+    "incomplete_pumpswap_second_leg_history": {
+      "episodes": 81,
+      "candidates": 14
+    },
+    "missing_pullback": {
+      "episodes": 4,
+      "candidates": 2
+    },
+    "insufficient_curve_trajectory": {
+      "episodes": 159,
+      "candidates": 25
+    },
+    "postgrad_entry_horizon_expired": {
+      "episodes": 32,
+      "candidates": 32
+    }
+  },
+  "candidates": [
+    {
+      "mint": "2bG3H9xUvvrrURQ5DbD6z2TYixswAXzjqRUG8LGMpump",
+      "decision_history_requests": 16,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 13,
+      "second_leg_history_failure_episodes": 0,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "2zXLR6BXB8GuXLkNkF7XAFX6LEika1G4mBwgktwWy7yy",
+      "decision_history_requests": 16,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 14,
+      "second_leg_history_failure_episodes": 2,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "3whmkC3YdkMGXKxtk43AGQRiB2qrkbP9T6KrPz9spump",
+      "decision_history_requests": 23,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 3,
+      "second_leg_history_failure_episodes": 11,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "4aA7C3X5RdV1d8vri6N76hXLhK1f5vCN2sNb3mAJhg63",
+      "decision_history_requests": 17,
+      "decision_supported": false,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 17,
+      "second_leg_history_failure_episodes": 0,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "5yRMyd99UjtQJX7MKkH97AmBjVQVQMqEUxDezewfpump",
+      "decision_history_requests": 19,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 0,
+      "second_leg_history_failure_episodes": 4,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "6CEdJHjtNkU4FE8rx46DVViFcmYBGXa65vv7pkGhpump",
+      "decision_history_requests": 36,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 25,
+      "second_leg_history_failure_episodes": 0,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "7g1KqzPuPXW972HWxgSNCYkunjes86pckhg6WxiYpump",
+      "decision_history_requests": 18,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 11,
+      "second_leg_history_failure_episodes": 0,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "891mada1XAi4ma6os8MpTM2NPQBopwiuX971SZinpump",
+      "decision_history_requests": 20,
+      "decision_supported": true,
+      "full_vector_complete": true,
+      "decision_window_failure_episodes": 1,
+      "second_leg_history_failure_episodes": 15,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "8nEqXVqEKNfyHrV3kaSSBgTpyzMDGgpL35CGZ9d3pump",
+      "decision_history_requests": 17,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 2,
+      "second_leg_history_failure_episodes": 0,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "8xkvAYMZGLR8HDXCzCoafo3SLSQaiBd6RGhyE5qUpump",
+      "decision_history_requests": 21,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 15,
+      "second_leg_history_failure_episodes": 1,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "95bdhn7cRPffFYJ7sKrifHw8PNNtofJNTzhppDxMpump",
+      "decision_history_requests": 17,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 0,
+      "second_leg_history_failure_episodes": 2,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "CC45Y5yE7gLvGtqhPGPL73aKcpcwcmLgT5KJkfW4pump",
+      "decision_history_requests": 31,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 20,
+      "second_leg_history_failure_episodes": 0,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "CdZasTVby3LChoMqhqX3SYZe6U43KB2J8RUGZmkPmNE9",
+      "decision_history_requests": 19,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 15,
+      "second_leg_history_failure_episodes": 4,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "EvaWRi4m1NxgU2ZpxQz8UGYQTpAYtFUMqfb4YztDFuoP",
+      "decision_history_requests": 6,
+      "decision_supported": false,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 6,
+      "second_leg_history_failure_episodes": 0,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "FYJM1qz9zT9yCVEVJpzqWSCMHZcUiWQCSfcU8PYypump",
+      "decision_history_requests": 20,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 0,
+      "second_leg_history_failure_episodes": 3,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "FnEQ3N4E1VMh2GeBj69cU4LfaYxjsktrAD9jKexwpump",
+      "decision_history_requests": 18,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 13,
+      "second_leg_history_failure_episodes": 0,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "GC6t9umfTUpibSRdtwtKy6MX1XEZjUUr3LVUUdTLYCuq",
+      "decision_history_requests": 15,
+      "decision_supported": false,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 15,
+      "second_leg_history_failure_episodes": 0,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "GFKg5wMi5GJowq1qhAzopejnPaqxcoLgVCrjGM4fpump",
+      "decision_history_requests": 20,
+      "decision_supported": false,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 20,
+      "second_leg_history_failure_episodes": 0,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "GWi9k566WBsGawVky9XoVpCFWb3t5gADjexQm5yE5YCV",
+      "decision_history_requests": 29,
+      "decision_supported": false,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 29,
+      "second_leg_history_failure_episodes": 0,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "HsM7uGQsw2FVBRKaGHbnh9EgFqiXHu6sNnfG7QAkpump",
+      "decision_history_requests": 21,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 1,
+      "second_leg_history_failure_episodes": 7,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "JrUzdNLYM2PLtCSo9j9q7pr1WuG13wikfgRSgm6pump",
+      "decision_history_requests": 23,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 2,
+      "second_leg_history_failure_episodes": 2,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "Vyz6M65DuBSghKBaGwKGtpDAmWTLM1J1dgY1XoMpump",
+      "decision_history_requests": 17,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 1,
+      "second_leg_history_failure_episodes": 15,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "cotZeLVbgYKcZo3t2kfaW7VMnG2xbSTdkNGRmfvpump",
+      "decision_history_requests": 24,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 19,
+      "second_leg_history_failure_episodes": 1,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "fKoq1tcLRDn5WKzDkLqPmkUfHGLDS1nbfeSraJ5pump",
+      "decision_history_requests": 17,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 1,
+      "second_leg_history_failure_episodes": 12,
+      "terminal_horizon_expired": true
+    },
+    {
+      "mint": "fdLgyBb3qPCAt91oXCPER8xcRvxVXbokbBsvWNKpump",
+      "decision_history_requests": 20,
+      "decision_supported": true,
+      "full_vector_complete": false,
+      "decision_window_failure_episodes": 18,
+      "second_leg_history_failure_episodes": 2,
+      "terminal_horizon_expired": true
+    }
+  ]
+}
