@@ -1,7 +1,7 @@
 {
   "schema": "meme-machine-profitability-portfolio-autonomy-v1",
-  "cohort_id": "prospective-four-lane-v7-evidence-reconstruction-single-run-20260924",
-  "frozen_parent_integration_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
+  "cohort_id": "prospective-four-lane-v8-meteora-one-side-replay-20260924",
+  "frozen_parent_integration_sha": "029e7a851f122825e19343a9e8a79652a86f6bb4",
   "paper_only": true,
   "live_money": false,
   "purpose": "Prospective out-of-sample certification of natural paper profitability, portfolio behavior, and unattended operational readiness without changing strategy economics.",
@@ -30,10 +30,10 @@
     },
     "meteora": {
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
-      "source_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
-      "execution_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
+      "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+      "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "1e27b8b2cbbe83d2643fadb1fda5d22544b66eea659938bab3a62f51b7e9305b"
+      "source_diff_sha256": "3a2d3b6f6c2c117c3fd2f7d6824231a87fab39a52b0faf8b9633b5df09d8d689"
     },
     "pons": {
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2",
