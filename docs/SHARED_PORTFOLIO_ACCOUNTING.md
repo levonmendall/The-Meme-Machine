@@ -65,6 +65,69 @@ represented as unavailable for marks.
 
 ## Native lane integration boundary
 
+**The genuine portfolio remains `NOT_INITIALIZED`.** The integration added in
+`meme_machine.portfolio_lane_integration` does not call `establish_inception` and
+does not create a database, receipt, epoch, timestamp, balance, or export. With no
+explicit binding it returns a dormant no-I/O producer, so existing lane imports,
+startup, research runs, and native paper books behave exactly as before.
+
+After a separately authorized inception, one `PortfolioLaneProducer` owns the one
+`PortfolioAccounting` writer. It must be opened against an already-existing database
+with the exact active epoch and inception SHA. All four adapters share that producer;
+there are no per-lane USD ledgers or shadow cash balances. The producer serializes
+competing calls through the accountant transaction, so a reservation accepted for
+one lane immediately reduces cash available to every other lane.
+
+The normalized native-event contract is
+`meme-machine-portfolio-lane-event-v1`. Every delivery contains the exact epoch,
+lane, native lifecycle ID, native event ID, per-lifecycle sequence, native journal
+hash, source time, action, and action data. Canonical portfolio event and reservation
+IDs are deterministic functions of those immutable identities. The producer records
+a hash of the complete normalized event in canonical provenance. Redelivery of the
+same fact is idempotent; the same event identity with changed content, a sequence
+gap/regression, a wrong epoch, or changed inception/source binding fails closed.
+
+The concrete lane hooks are:
+
+| Lane | Native boundary | Shared adapter boundary |
+| --- | --- | --- |
+| Pump | native paper reserve/fill/partial-harvest/mark/settle journal (`PaperBook` / `PumpAccelerationPaperLifecycle`) | `reserve_before_fill`, `release_failed_fill`, `fill_committed`, `partial_harvest`, `mark`, `settlement` |
+| Pons | `SelectivePaper.reserve` and `SelectivePaper.advance` entry/partial exit/runner/settlement | `reserve_before_entry`, `release_cancelled_entry`, `entry_committed`, `partial_exit`, `runner_mark`, `settlement` |
+| Ramses | `RamsesStrategyLedger.reserve/open/checkpoint/settle` | `reserve_before_open`, `release_failed_open`, `open_committed`, `reserve_rebalance`, `checkpoint_rebalance`, `mark`, `settlement` |
+| Meteora | `Replay.reserve/deposit/mark/withdraw/settle` and any genuine native range rebalance | `reserve_before_deposit`, `release_cancelled_deposit`, `deposit_committed`, `reserve_rebalance`, `range_rebalance`, `mark`, `settlement` |
+
+The caller invokes reservation at the last safe point before the corresponding
+native entry can commit. A rejected/failed native entry delivers the deterministic
+release event. Once genuine native exposure is durable, the entry event converts
+that same reservation to common deployed basis. If acknowledgement is lost at any
+boundary, restart replays the unchanged native journal event: the producer returns
+the existing receipt rather than debiting cash, P&L, or fees again. A reservation
+left by interruption remains visible and is never silently released; recovery must
+replay the durable native entry or an authoritative native cancellation.
+
+The existing native lifecycle identities map one-to-one to canonical IDs as
+`<lane>:<native-lifecycle-id>`. Partial exits, harvests, runner transitions, and
+rebalances retain that ID. Only terminal settlement completes it. Position fees are
+sent with their actual entry/realization/rebalance/settlement fact. True portfolio
+shared costs continue to use the accountant's existing `charge_shared_cost` operation
+and are never allocated to a lane merely to balance reconciliation.
+
+Valued events require an explicit authoritative USD evidence ID/hash with the source
+`as_of` and source-established `valid_until`. The adapter does not read a provider,
+perform FX, extend freshness, or accept binary floating point. The present native
+lane books do not themselves establish a common native-to-USD conversion; therefore
+an activated caller without separately authoritative USD evidence fails closed at
+entry/realization/rebalance/settlement. Current marks accept the same bounded proof.
+Missing, unknown, fail-closed, or already-stale marks remain explicit and do not
+block unrelated immutable lifecycle facts.
+
+For later protected runtime composition, `producer_from_environment` recognizes only
+a complete binding: `MM_PORTFOLIO_ACCOUNTING_DB`, `MM_PORTFOLIO_EPOCH_ID`, and
+`MM_PORTFOLIO_INCEPTION_SHA256`. If none are present it is dormant. A partial binding,
+missing database, uninitialized database, epoch mismatch, or receipt-hash mismatch
+fails closed. Receipt/export projection paths are optional and do not grant inception
+authority.
+
 The current native books remain evidence rather than consolidated USD balances:
 
 | Lane | Current canonical source | Native accounting retained |
@@ -114,8 +177,9 @@ After merge and deployment readiness review, a separately authorized operation m
 2. construct and review the exact `$500.00 USD`, `paper_only: true` receipt;
 3. bind the deployed portfolio and four lane source/policy/config identities;
 4. call `establish_inception` once against a new empty durable database;
-5. wire epoch-bound lane lifecycle events and authoritative USD evidence into this
-   producer without importing earlier campaigns;
+5. configure the already-implemented epoch-bound lane adapters with the initialized
+   database/epoch/hash and supply authoritative USD facts at each native boundary,
+   without importing earlier campaigns;
 6. publish the first export and mount its receipt/export paths read-only in the
    protected dashboard deployment.
 
@@ -124,11 +188,13 @@ This implementation does not perform any of those production activation steps.
 ## Deterministic verification
 
 ```sh
-python -m unittest tests.test_portfolio_accounting dashboard.tests.test_dashboard -v
+python -m unittest tests.test_portfolio_accounting tests.test_portfolio_lane_integration dashboard.tests.test_dashboard -v
 python -m unittest discover -v
 python -m tests.resource_check
 ```
 
-The producer tests use synthetic epochs and canonical facts in temporary directories.
-They invoke the actual PR #104 `dashboard.model.Reader` for the compatibility gate and
-install a network acquisition failure while exercising the producer.
+The producer/integration tests use synthetic epochs and canonical facts in temporary
+directories. They drive all four lane adapter surfaces, competing reservations,
+restart/redelivery, partial/runner/rebalance/settlement behavior, and invoke the actual
+PR #104 `dashboard.model.Reader` for the compatibility gate. Network acquisition is
+installed as an immediate failure while the producer and adapters are exercised.

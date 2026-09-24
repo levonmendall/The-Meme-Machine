@@ -140,7 +140,8 @@ def _provenance(value, at, *, valued):
         raise ValueError("canonical_provenance_required")
     allowed = {
         "source_event_id", "source_kind", "source_sha", "policy_hash", "config_hash",
-        "source_diff_sha256", "native_lifecycle_id", "native_journal_hash", "value_evidence",
+        "source_diff_sha256", "native_lifecycle_id", "native_journal_hash",
+        "native_event_sha256", "native_sequence", "value_evidence",
     }
     if set(value) - allowed:
         raise ValueError("unsafe_provenance_field")
@@ -154,6 +155,13 @@ def _provenance(value, at, *, valued):
     for key in ("source_diff_sha256", "native_journal_hash"):
         if value.get(key) is not None:
             result[key] = _hash(value[key])
+    if value.get("native_event_sha256") is not None:
+        result["native_event_sha256"] = _hash(value["native_event_sha256"])
+    if value.get("native_sequence") is not None:
+        sequence = value["native_sequence"]
+        if type(sequence) is not int or sequence < 1:
+            raise ValueError("native_sequence_required")
+        result["native_sequence"] = sequence
     if value.get("native_lifecycle_id") is not None:
         result["native_lifecycle_id"] = _identity(value["native_lifecycle_id"])
     evidence = value.get("value_evidence")
@@ -249,7 +257,9 @@ class PortfolioAccounting:
             self._lock_file.close()
             raise RuntimeError("portfolio_writer_already_running") from None
         try:
-            self.db = sqlite3.connect(self.path, isolation_level=None, timeout=30)
+            self.db = sqlite3.connect(
+                self.path, isolation_level=None, timeout=30, check_same_thread=False
+            )
             self.db.execute("PRAGMA journal_mode=WAL")
             self.db.execute("PRAGMA synchronous=FULL")
             self.db.executescript("""
@@ -346,6 +356,50 @@ class PortfolioAccounting:
             "inception_sha256": value[1],
             "sequence": state["sequence"],
         }
+
+    def binding(self):
+        """Return the immutable epoch/source binding without exposing writer state."""
+        value = self._inception()
+        if value is None:
+            return None
+        receipt, receipt_hash, identities = value
+        return {
+            "receipt": deepcopy(receipt),
+            "inception_sha256": receipt_hash,
+            "identities": deepcopy(identities),
+        }
+
+    def canonical_event(self, event_id):
+        """Return one immutable journal event for delivery-idempotency checks."""
+        event_id = _identity(event_id)
+        row = self.db.execute(
+            "SELECT sequence,body,hash FROM portfolio_events WHERE event_id=?",
+            (event_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        try:
+            body = json.loads(row[1], parse_float=Decimal)
+        except (ValueError, TypeError) as error:
+            raise PortfolioIntegrityError("portfolio_journal_json") from error
+        return {"sequence": row[0], "body": body, "hash": row[2]}
+
+    def canonical_events(self):
+        """Return immutable journal events in canonical order for adapter recovery."""
+        rows = []
+        for sequence, raw, checksum in self.db.execute(
+            "SELECT sequence,body,hash FROM portfolio_events ORDER BY sequence"
+        ):
+            try:
+                body = json.loads(raw, parse_float=Decimal)
+            except (ValueError, TypeError) as error:
+                raise PortfolioIntegrityError("portfolio_journal_json") from error
+            rows.append({"sequence": sequence, "body": body, "hash": checksum})
+        return rows
+
+    def snapshot(self):
+        """Return a defensive copy of replayed canonical state for integration receipts."""
+        return deepcopy(self._state)
 
     def establish_inception(self, receipt, *, portfolio_identities, lane_identities):
         """Persist the one immutable inception. Never called automatically."""
@@ -523,7 +577,7 @@ class PortfolioAccounting:
                     "state": "CURRENT", "net_liquidation_value": _amount(value),
                     "as_of": mark["as_of"], "valid_until": mark["valid_until"],
                 }
-            elif mark["state"] in ("UNAVAILABLE", "FAIL_CLOSED", "UNKNOWN"):
+            elif mark["state"] in ("STALE", "UNAVAILABLE", "FAIL_CLOSED", "UNKNOWN"):
                 position["mark"] = {"state": mark["state"]}
             else:
                 raise ValueError("invalid_mark_state")
@@ -716,6 +770,7 @@ class PortfolioAccounting:
         position["realized_pnl"] += gross_proceeds - released - fee
         position["rebalance_count"] += 1
         position["rebalance_state"] = "MONITORING"
+        position.update(_lane_state(position["lane"], data.get("lane_state")))
         position["provenance"].append(provenance)
         position["lifecycle"].append({"stage": "rebalance", "at": event["at"]})
 
@@ -827,7 +882,11 @@ class PortfolioAccounting:
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action=action, data=data)
 
     def rebalance(self, *, epoch_id, event_id, lifecycle_id, reservation_id, basis_released,
-                  gross_proceeds, basis_added, fee, at, provenance):
+                  gross_proceeds, basis_added, fee, at, provenance, lane_state=None):
+        current = deepcopy(self._state)
+        if current is None:
+            raise PortfolioIntegrityError("portfolio_not_initialized")
+        lane = self._open_position(current, lifecycle_id)["lane"]
         data = {
             "lifecycle_id": _identity(lifecycle_id),
             "reservation_id": _identity(reservation_id),
@@ -835,6 +894,7 @@ class PortfolioAccounting:
             "gross_proceeds": _amount(_money(gross_proceeds, nonnegative=True)),
             "basis_added": _amount(_money(basis_added, nonnegative=True)),
             "fee": _amount(_money(fee, nonnegative=True)),
+            "lane_state": _lane_state(lane, lane_state),
             "provenance": _provenance(provenance, at, valued=True),
         }
         return self._append(epoch_id=epoch_id, event_id=event_id, at=at, action="rebalance", data=data)
@@ -870,7 +930,7 @@ class PortfolioAccounting:
             }:
                 raise ValueError("mark_and_value_evidence_disagree")
             source = _provenance(provenance, at, valued=True)
-        elif state in ("UNAVAILABLE", "FAIL_CLOSED", "UNKNOWN"):
+        elif state in ("STALE", "UNAVAILABLE", "FAIL_CLOSED", "UNKNOWN"):
             mark = {"state": state}
             source = _provenance(provenance, at, valued=False)
         else:
