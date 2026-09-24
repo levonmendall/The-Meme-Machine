@@ -50,4 +50,4 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = "1"
-          gh workflow run position-continuation.yml             --ref cert/single-market-v9-monitored-20260924             -f lane=meteora             -f state_run_id=36043064083             -f slice_seconds=3000             -f program=false             -f expected_sha=07ec67a2b7967fd3e97c056307967ce1738f6d20             -f campaign_run_id=36043064083             -f engineering_recovery=false             -f certification_run_id=36041821324             -f smoke_continuation=false             -f single_campaign=true
+          gh workflow run position-continuation.yml -R "$GITHUB_REPOSITORY"             --ref cert/single-market-v9-monitored-20260924             -f lane=meteora             -f state_run_id=36043064083             -f slice_seconds=3000             -f program=false             -f expected_sha=07ec67a2b7967fd3e97c056307967ce1738f6d20             -f campaign_run_id=36043064083             -f engineering_recovery=false             -f certification_run_id=36041821324             -f smoke_continuation=false             -f single_campaign=true
