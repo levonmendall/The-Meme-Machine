@@ -12,7 +12,10 @@ LIVE_NAMES={'pons-selective-market-test','solana-dlmm-independent-v1',
             'pump-acceleration-natural-prospective','robinhood-ramses-extended-test','robinhood-ramses-extended',
             'four-lane-certification'}
 
-READ_ONLY_JOBS={'test','tests','lint','build','inspect-retained-failure'}
+READ_ONLY_JOBS={'test','tests','lint','build','inspect-retained-failure',
+                'offline-prerequisites','review','deterministic','qualification'}
+READ_ONLY_WORKFLOWS={'non-market-certification',
+                     'v9-handoff-continuation-nonmarket-certification'}
 
 
 def active_market_job(workflow,job,run=None,spec=None):
@@ -27,9 +30,12 @@ def active_market_job(workflow,job,run=None,spec=None):
             and run.get('head_sha')==(spec.get('lanes',{}).get('pump',{}).get('source_sha'))):
         return False
     if workflow in LIVE_NAMES:return True
-    # Mixed CI workflows also contain live jobs. Unknown active jobs are not
-    # silently assumed to be provider-free. Completed/skipped tests never block.
-    return job.get('name') not in READ_ONLY_JOBS
+    name=str(job.get('name') or '').split(' / ')[-1]
+    if workflow in READ_ONLY_WORKFLOWS and name in READ_ONLY_JOBS:
+        return False
+    # Mixed/unknown workflows fail closed. Merely naming a job "offline" is not
+    # sufficient unless the workflow itself is explicitly reviewed as read-only.
+    return name not in READ_ONLY_JOBS or workflow not in READ_ONLY_WORKFLOWS
 
 
 def fetch_json(url,token):
