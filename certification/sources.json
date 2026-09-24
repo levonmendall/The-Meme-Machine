@@ -339,6 +339,17 @@
           "evidence_requirements_changed": false,
           "accounting_changed": false,
           "paper_only_unchanged": true
+        },
+        "legacy_one_side_replay_candidate": {
+          "revision": "authenticated-weighted-one-side-y-v1",
+          "historical_evidence_run": 35949285193,
+          "historical_slot": 449907325,
+          "instruction_discriminator": "5e9b6797465fdca5",
+          "strategy_thresholds_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "paper_only_unchanged": true,
+          "status": "projection_pending_exact_source_diff"
         }
       },
       "prospect_admission": {
@@ -359,7 +370,8 @@
         "certification/patches/meteora-public-fee-context.patch",
         "certification/patches/market-assurance-meteora.patch",
         "certification/patches/target-coverage-repair-meteora.patch",
-        "certification/patches/evidence-reconstruction-meteora.patch"
+        "certification/patches/evidence-reconstruction-meteora.patch",
+        "certification/patches/meteora-legacy-one-side-replay.patch"
       ]
     },
     "pons": {
