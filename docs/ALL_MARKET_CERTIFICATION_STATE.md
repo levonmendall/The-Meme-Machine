@@ -48,7 +48,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
   },
   "current_cohort_id": "prospective-four-lane-v6-coverage-repair-20260924",
   "current_economic_metrics": {},
-  "current_phase": "DISPATCH_PENDING",
+  "current_phase": "RUNNING",
   "economic_acceptance_established": false,
   "engineering_blockers": [],
   "historical_references": {
@@ -112,7 +112,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "dispatch_id": "532c587923464dd3af571397b49c198f"
   },
   "latest_certification_run": 35948638345,
-  "latest_market_run": null,
+  "latest_market_run": 35949285193,
   "machinery_certified_by_lane": {
     "meteora": true,
     "pons": true,
@@ -143,7 +143,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "pump": 0,
     "ramses": 0
   },
-  "next_action": "claim_exact_dispatch",
+  "next_action": "smoke_then_hourly",
   "observation_hours": {
     "meteora": 0,
     "pons": 0,
@@ -158,7 +158,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "accepted_blocks": 0,
     "accepted_observation_hours": 0,
     "censored_blocks": 0,
-    "cohort_age_hours": 0.001612228751182556,
+    "cohort_age_hours": 0.005322170390023126,
     "observed_hours": 0
   },
   "portfolio_reconciliation": {
@@ -166,7 +166,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "native_quote_units_are_never_summed": true,
     "normalized_portfolio": null
   },
-  "prospective_sha": null,
+  "prospective_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
   "realized_and_unrealized_by_lane": {
     "meteora": {
       "realized": null,
@@ -215,6 +215,6 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790218524.0877855
+  "updated_at": 1790218537.4435754
 }
 ```

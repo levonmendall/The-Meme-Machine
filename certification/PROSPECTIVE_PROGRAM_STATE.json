@@ -4,7 +4,7 @@
   "cohort_id": "prospective-four-lane-v6-coverage-repair-20260924",
   "created_at": 1790218518.283762,
   "current_native_run_id": null,
-  "current_workflow_run_id": null,
+  "current_workflow_run_id": 35949285193,
   "dispatch_id": "532c587923464dd3af571397b49c198f",
   "events": {},
   "historical_references": {
@@ -52,14 +52,14 @@
   ],
   "integration_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
   "live_money": false,
-  "next_action": "claim_exact_dispatch",
+  "next_action": "smoke_then_hourly",
   "operational_limit": {
     "maximum_blocks": 192,
     "maximum_calendar_hours": 336
   },
   "paper_only": true,
   "pending_lanes": [],
-  "phase": "DISPATCH_PENDING",
+  "phase": "RUNNING",
   "protocol_sha256": "d4c0b1b29b976fc034f768a3180f2c58a3b62dedae4d76dbceec0cb39edd9936",
   "records": [],
   "reviewed_blocks": [],
@@ -88,5 +88,5 @@
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790218524.0877855
+  "updated_at": 1790218537.4435754
 }
