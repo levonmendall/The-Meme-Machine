@@ -9,3 +9,5 @@ reviewed v9 handoff non-market wrapper's offline-prerequisites job as non-market
 
 No strategy, provider, market scope, evidence, accounting, or lifecycle economics
 change. Authorization v2 is required because v1 was durably consumed.
+
+Focused validation follows.
