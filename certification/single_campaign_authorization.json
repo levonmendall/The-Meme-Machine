@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "v8-dlmm-monitor-20260924-one-market-v2",
+  "authorization_id": "v9-pump-log-durable-continuation-20260924-one-market-v1",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -9,13 +9,13 @@
   ],
   "fresh_smoke_required": true,
   "automatic_successors": false,
-  "position_continuation_workflows": false,
+  "position_continuation_workflows": true,
   "workflow_reruns": false,
   "dispatch_retries": false,
   "live_money": false,
   "prior_run_observation": {
-    "run_id": 36018938335,
-    "status": "claim_failed_before_provider_work",
-    "source": "v1 monitored authorization was consumed by dispatch but claim failed closed on a transient filtered-list total_count race; no smoke/hourly provider work started."
+    "run_id": 36020434038,
+    "status": "completed_unresolved_boundary",
+    "source": "v8 monitored campaign completed its one-hour observation but left Meteora and Ramses positions open; v9 permits only those already-open positions to continue under frozen lifecycle rules, with no successor discovery campaign."
   }
 }
