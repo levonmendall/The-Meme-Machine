@@ -1,0 +1,28 @@
+name: pump-finalized-log-authority-diagnostic
+on:
+  push:
+    branches: [repair/pump-finalized-log-authority-20260924]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Prepare exact declared sources
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/lanes"
+      - name: Captured finalized-log authority parity and fallback
+        run: (cd "$RUNNER_TEMP/lanes/pump" && python -m unittest tests.test_pump_finalized_log_authority -v)
+      - name: Focused Pump history/broker regressions
+        run: (cd "$RUNNER_TEMP/lanes/pump" && python -m unittest tests.test_pump_acceleration_history tests.test_stream_negative_admission tests.test_solana_evidence_broker tests.test_evidence_consumers -v)
+      - name: Compute exact Pump prepared diff identity
+        run: |
+          git -C "$RUNNER_TEMP/lanes/pump" diff --binary --full-index --no-ext-diff --no-textconv --no-renames HEAD > "$RUNNER_TEMP/pump.diff"
+          python -c 'import hashlib,os; p=os.environ["RUNNER_TEMP"]+"/pump.diff"; print("PUMP_SOURCE_DIFF_SHA256="+hashlib.sha256(open(p,"rb").read()).hexdigest())'

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-24-meteora-one-side-replay-v8-candidate",
+  "verified_at": "2026-09-24-pump-finalized-log-authority-diagnostic",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -126,6 +126,32 @@
           "evidence_requirements_changed": false,
           "accounting_changed": false,
           "paper_only_unchanged": true
+        },
+        "finalized_log_trade_authority": {
+          "revision": "finalized-pumpswap-trade-event-authority-v1",
+          "diagnostic_run_id": 36020434038,
+          "diagnostic_artifact_id": 10819505196,
+          "purpose": "Use complete finalized candidate-pool PumpSwap program logs as authoritative evidence only for the exact trade-event fields emitted by the program; retain getTransaction fallback for truncation, ambiguity, gaps, unsupported events, and all non-log evidence.",
+          "authoritative_fields": [
+            "pool",
+            "wallet",
+            "buy",
+            "amount",
+            "tokens",
+            "market_time",
+            "pool_base_reserve",
+            "pool_quote_reserve",
+            "user_quote_amount",
+            "slot",
+            "event_index"
+          ],
+          "transaction_body_fallback": true,
+          "stream_gap_fail_closed": true,
+          "provider_limits_changed": false,
+          "strategy_thresholds_changed": false,
+          "target_scope_changed": false,
+          "timing_windows_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -146,7 +172,8 @@
         "certification/patches/market-scope-efficiency-pump.patch",
         "certification/patches/lifecycle-clock-pump-test.patch",
         "certification/patches/target-coverage-repair-pump.patch",
-        "certification/patches/evidence-reconstruction-pump.patch"
+        "certification/patches/evidence-reconstruction-pump.patch",
+        "certification/patches/pump-finalized-log-authority.patch"
       ]
     },
     "meteora": {
