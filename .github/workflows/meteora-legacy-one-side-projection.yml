@@ -4,6 +4,7 @@ on:
     branches: [repair/meteora-legacy-one-side-replay-20260924]
 permissions:
   contents: read
+  actions: read
 jobs:
   project:
     if: contains(github.event.head_commit.message, '[meteora-one-side-projection]')
@@ -31,6 +32,14 @@ jobs:
           set -o pipefail
           cd "$RUNNER_TEMP/worktrees/meteora"
           python -m unittest tests.test_dlmm_tape -v 2>&1 | tee "$GITHUB_WORKSPACE/projection/focused-tests.log"
+      - name: Download immutable retained Meteora evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/10791522985/zip" > "$RUNNER_TEMP/reconstruction-evidence.zip"
+      - name: Replay exact historical mixed-liquidity interval
+        env:
+          PYTHONPATH: ${{ runner.temp }}/worktrees/meteora:${{ github.workspace }}
+        run: python certification/verify_meteora_legacy_interval.py --artifact "$RUNNER_TEMP/reconstruction-evidence.zip" --output projection/historical-replay.json
       - name: Full Meteora offline suite
         run: |
           set -o pipefail
