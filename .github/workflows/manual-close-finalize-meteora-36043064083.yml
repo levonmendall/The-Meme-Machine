@@ -212,10 +212,35 @@ jobs:
           print("Continuation authority terminalized.")
           PY
 
-      - name: Preserve forced-close evidence
-        uses: actions/upload-artifact@ea165f8d65e75b540449e92b4886f43607fa02
-        with:
-          name: owner-forced-close-meteora-36043064083-${{ github.run_id }}
-          path: manual-close-state/
-          if-no-files-found: error
-          retention-days: 90
+      - name: Preserve compact forced-close receipt on ops branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path("manual-close-state")
+          result=json.loads((root/"position-continuation-result.json").read_text())
+          amended=json.loads((root/"prospective-observation-meteora.json").read_text())
+          db=next(root.rglob("solana-dlmm-independent-v1-live.accounting.sqlite3"))
+          receipt={
+              "schema":"meme-machine-owner-forced-close-receipt-v1",
+              "campaign_run_id":36043064083,
+              "source_state_run_id":36069111430,
+              "runtime_sha":"07ec67a2b7967fd3e97c056307967ce1738f6d20",
+              "lane":"meteora",
+              "manual_intervention":"owner_forced_manual_close",
+              "natural_settlement_credit":False,
+              "result":result,
+              "prospective_amendment":amended,
+              "accounting_sqlite_sha256":hashlib.sha256(db.read_bytes()).hexdigest(),
+          }
+          Path("/tmp/owner-forced-close-receipt.json").write_text(
+              json.dumps(receipt,sort_keys=True,indent=2)+"\\n")
+          PY
+          encoded="$(base64 -w0 /tmp/owner-forced-close-receipt.json)"
+          gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/docs/OWNER_FORCED_CLOSE_METEORA_36043064083.json" \
+            -f message='Preserve owner-forced Meteora close receipt [skip ci]' \
+            -f content="$encoded" \
+            -f branch='ops/manual-close-meteora-36043064083-20260924' >/dev/null
