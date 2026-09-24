@@ -1,0 +1,28 @@
+name: v10-retained-evidence
+on:
+  push:
+    branches: [repair/v10-postrun-repairs-20260924]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect-retained-failure:
+    if: contains(github.event.head_commit.message, '[v10-retained-evidence]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Project digest-pinned historical bytes without provider access
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/levonmendall/The-Meme-Machine/actions/artifacts/10832096927/zip > "$RUNNER_TEMP/history.zip"
+          python certification/project_v9_evidence.py "$RUNNER_TEMP/history.zip" retained-evidence
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v10-retained-evidence-${{ github.sha }}
+          path: retained-evidence/
+          retention-days: 90
