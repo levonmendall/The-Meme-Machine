@@ -26,3 +26,5 @@ jobs:
           certification.tests.test_terminal_reconciliation
           certification.tests.test_position_continuation
           certification.tests.test_single_campaign_control -v
+      - name: Verify updated frozen authority contract
+        run: python -m certification.protocol_freeze --output v9-handoff-protocol-freeze.json
