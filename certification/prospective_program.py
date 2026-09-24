@@ -185,7 +185,7 @@ def checkpoint(state):
 
 
 def initial_state(sha,certification_run_id,proto,ph,now):
-    return dict(schema='prospective-program-v1',integration_sha=sha,certification_run_id=int(certification_run_id),
+    state=dict(schema='prospective-program-v1',integration_sha=sha,certification_run_id=int(certification_run_id),
         cohort_id=proto['cohort_id'],protocol_sha256=ph,created_at=now,updated_at=now,
         phase='READY',records=[],events={},history=[],reviewed_blocks=[],pending_lanes=[],next_action='dispatch_smoke_then_hourly',
         strategy_identity_by_lane={lane:{k:r[k] for k in ('strategy_version','policy_hash')} for lane,r in proto['frozen_lanes'].items()},
@@ -194,6 +194,12 @@ def initial_state(sha,certification_run_id,proto,ph,now):
                                    previous_nonmarket_run=35907893183,superseded_nonmarket_run=35914189762,
                                    superseded_market_run=35915320840,previous_observations_excluded=True),
         operational_limit=dict(maximum_blocks=192,maximum_calendar_hours=336),paper_only=True,live_money=False)
+    lineage=ROOT/'certification/coverage_repair_lineage.json'
+    if lineage.exists():
+        reference=json.loads(lineage.read_text())
+        if reference['successor_cohort']==proto['cohort_id']:
+            state['historical_references']['coverage_repair']=dict(reference,repair_sha=sha,certification_run_id=int(certification_run_id))
+    return state
 
 
 def reduce_record(state,record,event_id,proto,ph,now,base_reviewed=False):

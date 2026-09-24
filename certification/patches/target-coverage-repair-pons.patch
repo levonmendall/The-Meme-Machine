@@ -1,0 +1,459 @@
+diff --git a/robinhood_research/pons_natural_observation.py b/robinhood_research/pons_natural_observation.py
+index bf762b814f9bdaff0884ed54b8175689e9cfd115..3c9c74989cb93d1fe019217f233e48af707a6727 100644
+--- a/robinhood_research/pons_natural_observation.py
++++ b/robinhood_research/pons_natural_observation.py
+@@ -231,6 +231,10 @@ def _authenticate_candidate(
+     report.setdefault("timing",{})["launch_metadata_seconds"]=time.monotonic()-factory_started
+     record=factory_record(second[0],"pons_v2_factory")
+     auth=authenticate_curve(curve,code,factory_record=record)
++    # Authenticated identity can shape a later batch even when this observation
++    # fails structural/current-state gates. Every later factory/state read is new.
++    if hasattr(rpc,'remember_factory_identity'):
++        rpc.remember_factory_identity(curve,token)
+ 
+     quote_reserve,token_reserve=_two_uints(reserves_raw)
+     state=CurveState(
+@@ -549,4 +553,4 @@ if __name__=="__main__":
+         dependency_status=result.get("dependency_status"),
+         outcome=result.get("outcome"),
+         provider=result["provider"],
+-    ),sort_keys=True))
+\ No newline at end of file
++    ),sort_keys=True))
+diff --git a/robinhood_research/pons_selective_acquisition.py b/robinhood_research/pons_selective_acquisition.py
+index 272b3e5f3f839ded4b4dbac45f86bd8738d0998b..8deee1586ef3954a3b78c86260a268a5414e6d52 100644
+--- a/robinhood_research/pons_selective_acquisition.py
++++ b/robinhood_research/pons_selective_acquisition.py
+@@ -298,10 +298,13 @@ class SelectiveEvidenceContext:
+         # and compiled deployment authentication are still mandatory.
+         return self.factory_hints.get(curve.lower())
+ 
+-    def remember_candidate(self,candidate):
+-        self.factory_hints[candidate['curve'].lower()]=candidate['token']
+-        self.factory_hints.move_to_end(candidate['curve'].lower())
++    def remember_factory_identity(self,curve,token):
++        self.factory_hints[curve.lower()]=token
++        self.factory_hints.move_to_end(curve.lower())
+         while len(self.factory_hints)>4096:self.factory_hints.popitem(last=False)
++
++    def remember_candidate(self,candidate):
++        self.remember_factory_identity(candidate['curve'],candidate['token'])
+         self.cache.remember_header(candidate["header"])
+         self.cache.remember_receipt(
+             candidate["receipt"]["transactionHash"],
+@@ -902,12 +905,33 @@ def evaluate_candidate(
+         on_stage('prospect_admitted');on_stage('admitted');on_stage('evidence_requested')
+     tape=list(tape)
+     trajectory_started=time.monotonic()
+-    snapshots,launch_at,trajectory_session=_trajectory(
+-        endpoint,candidate,evidence_context=ctx,window_tape=tape
+-    )
+-    sessions.append(trajectory_session)
++    # A previously authenticated immutable launch time can already prove the
++    # frozen age veto. It cannot qualify a candidate or replace fresh state.
++    launch_at=ctx.cache.launch(candidate['curve'])
++    asof=int(candidate['stamp'].event_at)
++    if launch_at is not None and not 0<=int(launch_at)<=asof:
++        raise BoundaryError('invalid_curve_launch_time')
++    cached_age=None if launch_at is None else asof-int(launch_at)
++    if cached_age is not None and not (
++        ENTRY_THRESHOLDS['min_token_age_seconds']<=cached_age
++        <=ENTRY_THRESHOLDS['max_token_age_seconds']
++    ):
++        snapshots=[]
++        trajectory_prospect=dict(
++            eligible=False,reasons=['token_age'],token_age_seconds=cached_age,
++            trajectory=dict(complete=False,acquired=False,
++                            reason='immutable_launch_age_veto'),
++            screen_authority='authenticated_immutable_launch_age_only',
++            full_qualification_required=True,
++        )
++        ctx.timing['cached_launch_age_screen_only']=True
++    else:
++        snapshots,launch_at,trajectory_session=_trajectory(
++            endpoint,candidate,evidence_context=ctx,window_tape=tape
++        )
++        sessions.append(trajectory_session)
++        trajectory_prospect=strategy_trajectory_preflight(candidate,snapshots,launch_at)
+     ctx.timing["trajectory_seconds"]=time.monotonic()-trajectory_started
+-    trajectory_prospect=strategy_trajectory_preflight(candidate,snapshots,launch_at)
+     if not trajectory_prospect["eligible"]:
+         available=int(time.time())
+         completed_monotonic=time.monotonic()
+diff --git a/robinhood_research/provider.py b/robinhood_research/provider.py
+index cdcb76257afe8bc9d6ba4293bbddeeb7f68a52eb..9ecbff9d3563f1de0eaa5490d1e182e1425323a4 100644
+--- a/robinhood_research/provider.py
++++ b/robinhood_research/provider.py
+@@ -42,11 +42,25 @@ class Rpc:
+         self.retry_count = 0
+         self.methods, self.logical_methods = Counter(), Counter()
+ 
++    def _transport_timeout(self):
++        deadline = getattr(self, 'evidence_deadline', None)
++        if deadline is None:
++            return self.timeout
++        remaining = deadline - time.monotonic()
++        if remaining <= 0:
++            raise BoundaryError('evidence_deadline_before_transport')
++        return min(self.timeout, remaining)
++
++    def _check_transport_deadline(self):
++        deadline = getattr(self, 'evidence_deadline', None)
++        if deadline is not None and time.monotonic() >= deadline:
++            raise BoundaryError('evidence_deadline_during_transport')
++
+     def _http(self, method, params):
+         body = json.dumps(dict(jsonrpc='2.0', id=1, method=method, params=params)).encode()
+         request = Request(self._endpoint, data=body, headers=RPC_HTTP_HEADERS)
+         try:
+-            with urlopen(request, timeout=self.timeout) as response:
++            with urlopen(request, timeout=self._transport_timeout()) as response:
+                 raw = response.read(self.max_response + 1)
+         except HTTPError as exc:
+             # Never include str(exc): a URL can include the full credential.
+@@ -62,7 +76,9 @@ class Rpc:
+                     pass
+             raise BoundaryError(f'provider_http_{exc.code}') from None
+         except (URLError, TimeoutError, OSError):
++            self._check_transport_deadline()
+             raise BoundaryError('provider_transport_failure') from None
++        self._check_transport_deadline()
+         if len(raw) > self.max_response:
+             raise BoundaryError('provider_response_capacity')
+         try:
+@@ -125,12 +141,14 @@ class Rpc:
+         ]).encode()
+         request=Request(self._endpoint,data=body,headers=RPC_HTTP_HEADERS)
+         try:
+-            with urlopen(request,timeout=self.timeout) as response:
++            with urlopen(request,timeout=self._transport_timeout()) as response:
+                 raw=response.read(self.max_response+1)
+         except HTTPError as exc:
+             raise BoundaryError(f'provider_http_{exc.code}') from None
+         except (URLError,TimeoutError,OSError):
++            self._check_transport_deadline()
+             raise BoundaryError('provider_transport_failure') from None
++        self._check_transport_deadline()
+         if len(raw)>self.max_response:
+             raise BoundaryError('provider_response_capacity')
+         try:
+diff --git a/robinhood_tests/test_coverage_acquisition.py b/robinhood_tests/test_coverage_acquisition.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..7b3a57964175c9864f920532fd921919280667ea
+--- /dev/null
++++ b/robinhood_tests/test_coverage_acquisition.py
+@@ -0,0 +1,108 @@
++"""Regressions for first-hour acquisition losses; no market requests."""
++import json
++import unittest
++from types import SimpleNamespace
++from unittest.mock import MagicMock, patch
++from robinhood_research import BoundaryError
++from robinhood_research import pons_selective_acquisition as acquisition
++from robinhood_research.provider import Rpc
++from robinhood_tests.test_pons_selective_continuation import state, snapshots, events
++
++class CachedLaunchAgeTests(unittest.TestCase):
++    def evaluate(self, ctx, asof=200):
++        candidate=dict(token='token',curve='curve',block=1,
++            stamp=SimpleNamespace(event_at=asof), header={'timestamp':hex(asof)},
++            state=state(timestamp=asof), record={'graduationThreshold':10**18,'pairToken':'0x'+'00'*20},
++            current_snipe_bps=0, roundtrip_gas_wei=10**10,
++            decoded_event={'decoded':{'name':'CurveBuy'}})
++        event=dict(blockNumber='0x1',blockHash='hash',transactionHash='tx',logIndex='0x0')
++        with patch.object(acquisition,'_authenticate_candidate',return_value=candidate):
++            return acquisition.evaluate_candidate('unused',event,[],strategy_capital_quote=10**18,
++                evidence_context=ctx)
++
++    def context(self, launch):
++        ctx=MagicMock();ctx.telemetry.return_value={}
++        ctx.cache=acquisition.ImmutableEvidenceCache()
++        if launch is not None:ctx.cache.remember_launch('curve',launch)
++        return ctx
++
++    def test_repeated_out_of_age_candidates_do_not_block_trajectory(self):
++        for launch in (81,0):
++            ctx=self.context(launch)
++            asof=200 if launch else 601
++            with patch.object(acquisition,'_trajectory') as trajectory, patch.object(
++                    acquisition,'_authenticate_window') as window:
++                for _ in range(3):
++                    row=self.evaluate(ctx,asof)
++                    self.assertEqual(row['vector']['all_rejections'],['token_age'])
++                    self.assertFalse(row['vector']['complete'])
++                    self.assertFalse(row['vector']['trajectory']['acquired'])
++                    self.assertTrue(row['timing']['cached_launch_age_screen_only'])
++                trajectory.assert_not_called();window.assert_not_called()
++
++    def test_boundary_and_cold_candidates_still_reach_full_qualification(self):
++        for launch in (80,0,None):
++            asof=600 if launch==0 else 200
++            ctx=self.context(launch)
++            snap=[dict(r,at=r['at']+asof-200) for r in snapshots()]
++            market=[dict(r,event_at=r['event_at']+asof-200) for r in events()]
++            with patch.object(acquisition,'_trajectory',return_value=(snap,50 if launch is None else launch,{})) as trajectory, \
++                 patch.object(acquisition,'_authenticate_window',return_value=(market,[])) as window, \
++                 patch.object(acquisition.time,'time',return_value=asof+2), \
++                 patch.object(acquisition,'qualification_vector',wraps=acquisition.qualification_vector) as qualify:
++                row=self.evaluate(ctx,asof)
++                self.assertTrue(row['vector']['complete'])
++                self.assertTrue(row['vector']['current_threshold_pass'],row['vector']['all_rejections'])
++                trajectory.assert_called_once();window.assert_called_once();qualify.assert_called_once()
++
++    def test_young_candidate_is_reevaluated_when_original_age_gate_opens(self):
++        ctx=self.context(81)
++        with patch.object(acquisition,'_trajectory',side_effect=RuntimeError('trajectory_reached')) as trajectory:
++            self.assertTrue(self.evaluate(ctx,200)['screened_out'])
++            with self.assertRaisesRegex(RuntimeError,'trajectory_reached'):self.evaluate(ctx,201)
++            trajectory.assert_called_once()
++
++    def test_invalid_cached_launch_fails_closed(self):
++        with self.assertRaisesRegex(BoundaryError,'invalid_curve_launch_time'):
++            self.evaluate(self.context(201))
++
++class TransportDeadlineTests(unittest.TestCase):
++    class Response:
++        def __init__(self, body):self.body=body
++        def __enter__(self):return self
++        def __exit__(self,*_):return False
++        def read(self,*_):return json.dumps(self.body).encode()
++
++    def call(self,rpc,batch):
++        return rpc._http_batch([('eth_chainId',[])]) if batch else rpc._http('eth_chainId',[])
++
++    def test_remaining_original_deadline_caps_single_and_batch(self):
++        for batch in (False,True):
++            rpc=Rpc('https://example.invalid');rpc.evidence_deadline=105
++            row={'id':1,'result':'0x1'}
++            with patch('robinhood_research.provider.time.monotonic',return_value=103), \
++                 patch('robinhood_research.provider.urlopen',return_value=self.Response([row] if batch else row)) as open_:
++                self.call(rpc,batch)
++                self.assertEqual(open_.call_args.kwargs['timeout'],2)
++                self.assertEqual(rpc.timeout,10);self.assertEqual(rpc.evidence_deadline,105)
++
++    def test_expired_deadline_never_transmits(self):
++        for batch in (False,True):
++            rpc=Rpc('https://example.invalid');rpc.evidence_deadline=105
++            with patch('robinhood_research.provider.time.monotonic',return_value=105), \
++                 patch('robinhood_research.provider.urlopen') as open_:
++                with self.assertRaisesRegex(BoundaryError,'evidence_deadline_before_transport'):self.call(rpc,batch)
++                open_.assert_not_called()
++
++    def test_late_success_and_timeout_remain_explicit_consumer_deadlines(self):
++        for batch in (False,True):
++            for timeout in (False,True):
++                rpc=Rpc('https://example.invalid');rpc.evidence_deadline=105
++                row={'id':1,'result':'0x1'}
++                with patch('robinhood_research.provider.time.monotonic',side_effect=[104,105]), \
++                     patch('robinhood_research.provider.urlopen',side_effect=TimeoutError() if timeout else None,
++                           return_value=self.Response([row] if batch else row)):
++                    with self.assertRaisesRegex(BoundaryError,'evidence_deadline_during_transport'):self.call(rpc,batch)
++                self.assertFalse(rpc.cache)
++
++if __name__=='__main__':unittest.main()
+diff --git a/robinhood_tests/test_pons_factory_hint_reuse.py b/robinhood_tests/test_pons_factory_hint_reuse.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..d8844c773271a1ec5ebe93c9dff4e3f39ebf3217
+--- /dev/null
++++ b/robinhood_tests/test_pons_factory_hint_reuse.py
+@@ -0,0 +1,200 @@
++"""Focused synthetic regressions for authenticated identity hint reuse.
++
++Run with the prepared Pons tree on PYTHONPATH. No provider transport is used.
++The native candidate acquisition function and real bounded hint store execute;
++ABI/code/log authentication seams use the existing acquisition-test mock style.
++"""
++import copy
++import unittest
++from unittest.mock import patch
++
++from robinhood_research import BoundaryError, CHAIN_ID
++from robinhood_research.abi import calldata
++from robinhood_research.pons_natural_observation import _authenticate_candidate
++from robinhood_research.pons_selective_acquisition import SelectiveEvidenceContext
++
++
++MODULE = "robinhood_research.pons_natural_observation"
++CURVE = "0x" + "22" * 20
++TOKEN = "0x" + "11" * 20
++OTHER_TOKEN = "0x" + "33" * 20
++NON_NATIVE = "0x" + "44" * 20
++
++
++def word(value):
++    return "0x" + f"{int(value):064x}"
++
++
++class CandidateContext(SelectiveEvidenceContext):
++    """Record native read batches while supplying fresh observation responses."""
++
++    def __init__(self):
++        super().__init__("https://unused.invalid")
++        self.batches = []
++        self.token = TOKEN
++        self.snipe = 0
++        self.bad_header = False
++        self.event = None
++
++    def observe(self, block):
++        self.event = dict(
++            address=CURVE,
++            blockNumber=hex(block),
++            blockHash="0x" + f"{block:064x}",
++            transactionHash="0x" + f"{block + 1000:064x}",
++            transactionIndex="0x0",
++            logIndex="0x0",
++            topics=[],
++            data="0x",
++        )
++        return copy.deepcopy(self.event)
++
++    def batch(self, calls, scope):
++        self.batches.append((scope, copy.deepcopy(calls)))
++        out = []
++        for method, params in calls:
++            if method == "eth_chainId":
++                out.append(hex(CHAIN_ID))
++            elif method == "eth_getBlockByNumber":
++                out.append(dict(
++                    number=self.event["blockNumber"],
++                    hash="wrong" if self.bad_header else self.event["blockHash"],
++                    timestamp=hex(1000),
++                ))
++            elif method == "eth_getTransactionReceipt":
++                out.append(dict(
++                    transactionHash=self.event["transactionHash"],
++                    blockHash=self.event["blockHash"],
++                    gasUsed=hex(100_000),
++                    logs=[],
++                ))
++            elif method == "eth_getCode":
++                out.append("0x6000")
++            elif method == "eth_gasPrice":
++                out.append(hex(10**9))
++            elif method == "eth_call":
++                data = params[0]["data"]
++                if data == calldata("token()"):
++                    out.append(word(int(self.token, 16)))
++                elif data == calldata("getReserves()"):
++                    out.append(word(2 * 10**18) + word(800 * 10**24)[2:])
++                elif data == calldata("realQuoteReserve()"):
++                    out.append(word(10**18))
++                elif data == calldata("reservedTokens()"):
++                    out.append(word(100 * 10**24))
++                elif data == calldata("graduated()"):
++                    out.append(word(0))
++                elif data.startswith(calldata("currentSnipeTaxBps(address)", TOKEN)[:10]):
++                    out.append(word(self.snipe))
++                elif data.startswith(calldata("getLaunchedToken(address)", TOKEN)[:10]):
++                    # Opaque mock record body keyed by the actually requested token.
++                    out.append("record:" + "0x" + data[-40:])
++                else:
++                    raise AssertionError(data)
++            else:
++                raise AssertionError(method)
++        return out
++
++
++class FactoryHintReuseTests(unittest.TestCase):
++    def setUp(self):
++        self.ctx = CandidateContext()
++        self.authentication = self.enterContext(patch(
++            MODULE + ".authenticate_curve",
++            return_value={"immutables": {"feeBps": 100, "creatorTaxBps": 0}},
++        ))
++        self.factory = self.enterContext(patch(
++            MODULE + ".factory_record",
++            side_effect=lambda raw, role: dict(
++                token=raw.removeprefix("record:"), curve=CURVE,
++                deployer=TOKEN, creatorFeeRecipient=TOKEN,
++                pairToken=NON_NATIVE, exists=True,
++            ),
++        ))
++        self.raw_event = self.enterContext(patch(
++            MODULE + ".raw_event",
++            return_value={"decoded": {"name": "CurveBuy"}, "event_at": 1000},
++        ))
++        self.enterContext(patch(MODULE + ".time.time", return_value=1000.0))
++        self.enterContext(patch(MODULE + ".time.monotonic", return_value=100.0))
++
++    def reject(self, block, reason="natural_non_native_quote_not_supported"):
++        report = {"reads": []}
++        event = self.ctx.observe(block)
++        with self.assertRaisesRegex(BoundaryError, "^" + reason + "$"):
++            _authenticate_candidate(self.ctx, event, report)
++        return report
++
++    def assert_fresh_candidate_batch(self, batch_index, block):
++        scope, calls = self.ctx.batches[batch_index]
++        self.assertEqual(scope, "pons_natural")
++        methods = [method for method, _ in calls]
++        for required in ("eth_chainId", "eth_getBlockByNumber", "eth_getTransactionReceipt",
++                         "eth_getCode", "eth_gasPrice"):
++            self.assertIn(required, methods)
++        getters = {params[0]["data"] for method, params in calls
++                   if method == "eth_call" and params[0]["to"] == CURVE}
++        for signature in ("token()", "getReserves()", "realQuoteReserve()",
++                          "reservedTokens()", "graduated()"):
++            self.assertIn(calldata(signature), getters)
++        self.assertTrue(any(data.startswith(calldata("currentSnipeTaxBps(address)", TOKEN)[:10])
++                            for data in getters))
++        for method, params in calls:
++            if method in ("eth_call", "eth_getCode"):
++                self.assertEqual(params[-1], hex(block))
++
++    def test_two_non_native_observations_reuse_hint_without_skipping_fresh_reads(self):
++        first = self.reject(123)
++        self.assertEqual(self.ctx.factory_token_hint(CURVE), TOKEN)
++        second = self.reject(124)
++        self.assertEqual([len(calls) for _, calls in self.ctx.batches], [11, 1, 12])
++        self.assertFalse(first["timing"]["factory_record_in_first_batch"])
++        self.assertTrue(second["timing"]["factory_record_in_first_batch"])
++        self.assert_fresh_candidate_batch(0, 123)
++        self.assert_fresh_candidate_batch(2, 124)
++        self.assertEqual(self.authentication.call_count, 2)
++        self.assertEqual(self.factory.call_count, 2)
++        self.assertEqual(self.raw_event.call_count, 2)
++
++    def test_current_snipe_is_still_read_and_rejected_after_hint_reuse(self):
++        self.reject(123)
++        self.ctx.snipe = 9900
++        report = self.reject(124, "invalid_current_snipe_bps")
++        self.assertTrue(report["timing"]["factory_record_in_first_batch"])
++        self.assert_fresh_candidate_batch(2, 124)
++        self.assertEqual(self.authentication.call_count, 2)
++
++    def test_token_mismatch_uses_current_token_factory_read_and_reauthenticates(self):
++        self.reject(123)
++        self.ctx.token = OTHER_TOKEN
++        report = self.reject(124)
++        self.assertEqual([len(calls) for _, calls in self.ctx.batches], [11, 1, 12, 1])
++        self.assertFalse(report["timing"]["factory_record_in_first_batch"])
++        last_call = self.ctx.batches[-1][1][0]
++        self.assertEqual(last_call[1][0]["data"], calldata("getLaunchedToken(address)", OTHER_TOKEN))
++        self.assertEqual(self.authentication.call_args.kwargs["factory_record"]["token"], OTHER_TOKEN)
++        self.assertEqual(self.ctx.factory_token_hint(CURVE), OTHER_TOKEN)
++
++    def test_failed_factory_authentication_never_seeds_identity_hint(self):
++        self.authentication.side_effect = BoundaryError("curve_factory_disagreement")
++        self.reject(123, "curve_factory_disagreement")
++        self.assertIsNone(self.ctx.factory_token_hint(CURVE))
++        self.authentication.side_effect = None
++        report = self.reject(124)
++        self.assertEqual([len(calls) for _, calls in self.ctx.batches], [11, 1, 11, 1])
++        self.assertFalse(report["timing"]["factory_record_in_first_batch"])
++
++    def test_existing_hint_cannot_bypass_current_factory_or_header_failure(self):
++        self.reject(123)
++        self.authentication.side_effect = BoundaryError("curve_factory_disagreement")
++        self.reject(124, "curve_factory_disagreement")
++        self.assertEqual(self.authentication.call_count, 2)
++        self.assertEqual(len(self.ctx.batches[-1][1]), 12)
++        self.ctx.bad_header = True
++        self.reject(125, "candidate_identity_disagreement")
++        # Header/receipt identity must reject before factory authentication.
++        self.assertEqual(self.authentication.call_count, 2)
++
++
++if __name__ == "__main__":
++    unittest.main()

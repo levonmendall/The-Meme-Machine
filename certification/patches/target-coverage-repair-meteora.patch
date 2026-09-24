@@ -1,0 +1,797 @@
+diff --git a/meme_machine/dlmm_discovery.py b/meme_machine/dlmm_discovery.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..1a8f1c5bd164bca47c501f88321783cf85d5a198
+--- /dev/null
++++ b/meme_machine/dlmm_discovery.py
+@@ -0,0 +1,141 @@
++"""Independent frozen-source census with an on-disk first-sighting spool.
++
++This module supplies public discovery context only. It has no entry authority.
++"""
++import json
++import sqlite3
++import threading
++import time
++import uuid
++
++
++class CampaignDiscovery:
++    def __init__(self, path, *, api, candidate, eligible, sorts, pages, page_size,
++                 deadline, on_discovered=None, clock=None, wall_clock=None, wait=None, repeat=True):
++        self.api=api;self.candidate=candidate;self.eligible=eligible
++        self.sorts=tuple(sorts);self.pages=pages;self.page_size=page_size
++        self.deadline=deadline;self.on_discovered=on_discovered
++        self.repeat=repeat
++        self.clock=clock or time.monotonic;self.wall_clock=wall_clock or time.time
++        self.stop=threading.Event();self.done=threading.Event();self.changed=threading.Event()
++        self.wait=wait or self.stop.wait
++        self.deadline_wall=self.wall_clock()+max(0.,self.deadline-self.clock())
++        self.lock=threading.RLock();self.invocation=str(uuid.uuid4())
++        self.fatal=None;self.cycles=0;self.started=False;self.closed=False
++        self.db=sqlite3.connect(str(path),check_same_thread=False)
++        self.db.execute('PRAGMA journal_mode=WAL')
++        self.db.executescript('''
++            CREATE TABLE IF NOT EXISTS candidates(
++                sequence INTEGER PRIMARY KEY, invocation TEXT NOT NULL,
++                pool TEXT NOT NULL, observed_at REAL NOT NULL, observed_mono REAL NOT NULL,
++                body TEXT NOT NULL, consumed INTEGER NOT NULL DEFAULT 0,
++                UNIQUE(invocation,pool));
++            CREATE TABLE IF NOT EXISTS segments(
++                sequence INTEGER PRIMARY KEY, invocation TEXT NOT NULL,
++                cycle INTEGER NOT NULL, sort TEXT NOT NULL, page INTEGER NOT NULL,
++                status TEXT NOT NULL, at REAL NOT NULL, details TEXT NOT NULL);
++            CREATE TABLE IF NOT EXISTS shutdown(invocation TEXT PRIMARY KEY, snapshot TEXT NOT NULL);
++            CREATE INDEX IF NOT EXISTS candidate_fifo ON candidates(invocation,consumed,sequence);
++        ''')
++        self.thread=threading.Thread(target=self._produce,name='meteora-public-census',daemon=True)
++
++    def start(self):
++        if not self.started:self.started=True;self.thread.start()
++        return self
++
++    def _segment(self,cycle,sort,page,status,**details):
++        with self.lock,self.db:
++            self.db.execute('INSERT INTO segments(invocation,cycle,sort,page,status,at,details) VALUES(?,?,?,?,?,?,?)',
++                (self.invocation,cycle,sort,page,status,self.wall_clock(),json.dumps(details,sort_keys=True)))
++        self.changed.set()
++
++    def _produce(self):
++        try:
++            while not self.stop.is_set() and self.clock()<self.deadline:
++                cycle_started=self.clock();cycle=self.cycles+1
++                for sort in self.sorts:
++                    exhausted=False
++                    for page in range(1,self.pages+1):
++                        if self.stop.is_set() or self.clock()>=self.deadline:
++                            self._segment(cycle,sort,page,'not_observed',reason='observation_window_closed')
++                            continue
++                        if exhausted:
++                            self._segment(cycle,sort,page,'exhausted',reason='prior_short_page')
++                            continue
++                        try:
++                            payload=self.api('/pools',dict(page=page,page_size=self.page_size,
++                                sort_by=sort,filter_by='is_blacklisted=false'))
++                        except Exception as exc:
++                            self._segment(cycle,sort,page,'failed',reason=type(exc).__name__)
++                            continue
++                        rows=payload.get('data') if isinstance(payload,dict) else None
++                        if not isinstance(rows,list):
++                            self._segment(cycle,sort,page,'failed',reason='api_shape')
++                            continue
++                        observed_at=self.wall_clock();observed_mono=self.clock()
++                        if self.stop.is_set() or observed_mono>=self.deadline:
++                            self._segment(cycle,sort,page,'late_response',raw_rows=len(rows))
++                            continue
++                        self._segment(cycle,sort,page,'acquired',raw_rows=len(rows),
++                                      global_total_is_strategy_denominator=False)
++                        for rank,row in enumerate(rows,1):
++                            if not isinstance(row,dict) or not self.eligible(row):continue
++                            pool=row.get('address')
++                            if not isinstance(pool,str) or not pool:continue
++                            item=self.candidate(row)
++                            item.update(sources=[dict(sort=sort,rank=(page-1)*self.page_size+rank)],
++                                signal_observed_at=int(observed_at),source_observed_at=observed_at,
++                                discovery_sort=sort,discovery_page=page,discovery_raw_rank=rank)
++                            with self.lock,self.db:
++                                inserted=self.db.execute('INSERT OR IGNORE INTO candidates(invocation,pool,observed_at,observed_mono,body) VALUES(?,?,?,?,?)',
++                                    (self.invocation,pool,observed_at,observed_mono,json.dumps(item,sort_keys=True))).rowcount
++                                if inserted and self.on_discovered:
++                                    self.on_discovered(pool,observed_at,sort,page,rank)
++                            self.changed.set()
++                        exhausted=len(rows)<self.page_size
++                with self.lock:self.cycles=cycle
++                self.changed.set()
++                if not self.repeat:break
++                delay=min(max(0.,60-(self.clock()-cycle_started)),max(0.,self.deadline-self.clock()))
++                if delay:self.wait(delay)
++        except BaseException as exc:
++            with self.lock:self.fatal=type(exc).__name__
++        finally:self.done.set();self.changed.set()
++
++    def next_candidate(self):
++        while True:
++            self.changed.clear()
++            if self.fatal:raise RuntimeError('solana_dlmm_discovery_producer:'+self.fatal)
++            if self.stop.is_set() or self.clock()>=self.deadline:return None
++            with self.lock,self.db:
++                row=self.db.execute('SELECT sequence,body,observed_mono FROM candidates WHERE invocation=? AND consumed=0 ORDER BY sequence LIMIT 1',(self.invocation,)).fetchone()
++                if row:
++                    self.db.execute('UPDATE candidates SET consumed=1 WHERE sequence=?',(row[0],))
++                    item=json.loads(row[1]);item['discovery_queue_wait_seconds']=max(0.,self.clock()-row[2])
++                    return item
++            if self.done.is_set():return None
++            self.changed.wait(min(.1,max(0.,self.deadline-self.clock())))
++
++    def snapshot(self):
++        with self.lock:
++            count,pending,oldest=self.db.execute('SELECT count(*),sum(consumed=0),min(CASE WHEN consumed=0 THEN observed_mono END) FROM candidates WHERE invocation=?',(self.invocation,)).fetchone()
++            states=dict(self.db.execute('SELECT status,count(*) FROM segments WHERE invocation=? GROUP BY status',(self.invocation,)))
++            last_cycle=[dict(sort=s,page=p,status=t,details=json.loads(d)) for s,p,t,d in self.db.execute('SELECT sort,page,status,details FROM segments WHERE invocation=? AND cycle=(SELECT max(cycle) FROM segments WHERE invocation=?) ORDER BY sequence',(self.invocation,self.invocation))]
++            return dict(invocation=self.invocation,census_cycles=self.cycles,first_seen=count,pending=pending or 0,
++                oldest_pending_wait_seconds=None if oldest is None else max(0.,self.clock()-oldest),
++                planned_segments_per_cycle=len(self.sorts)*self.pages,segment_status_counts=states,
++                latest_cycle_segments=last_cycle,producer_running=self.thread.is_alive(),producer_done=self.done.is_set(),
++                fatal_error=self.fatal,spool='solana-dlmm-independent-v1-live.discovery.sqlite',
++                target_universe_count=None,coverage='coverage_unknown',census_interval_seconds=60 if self.repeat else None,
++                observation_deadline_at=self.deadline_wall)
++
++    def close(self):
++        if self.closed:return
++        self.stop.set();self.changed.set()
++        if self.started:self.thread.join(timeout=25)
++        if self.thread.is_alive():raise RuntimeError('solana_dlmm_discovery_shutdown_incomplete')
++        self.final_snapshot=self.snapshot()
++        with self.lock,self.db:
++            self.db.execute('INSERT OR REPLACE INTO shutdown VALUES(?,?)',(self.invocation,json.dumps(self.final_snapshot,sort_keys=True)))
++        with self.lock:self.db.close();self.closed=True
++        if self.fatal:raise RuntimeError('solana_dlmm_discovery_producer:'+self.fatal)
+diff --git a/meme_machine/dlmm_tape.py b/meme_machine/dlmm_tape.py
+index 17d379af677e68dd1aae053a268f64bec4b392b4..0a579d659c9bb3bce08170a354ed3463fca4cd6e 100644
+--- a/meme_machine/dlmm_tape.py
++++ b/meme_machine/dlmm_tape.py
+@@ -1329,7 +1329,15 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
+                 adjustments.append(deepcopy(item))
+             previous=next_cursor
+ 
+-    mismatches=[key for key in set(state)-{'time','slot'} if state[key]!=end[key]]
++    # Global mint supply may change in transactions that never mention this pool.
++    # It is authenticated endpoint metadata, not an input to pool swap/LP math.
++    # Keep it in terminal state and lineage; compare every mint control and pool field.
++    def terminal_value(key,value):
++        if key in ('token_x_mint_info','token_y_mint_info'):
++            return {field:amount for field,amount in value.items() if field!='supply'}
++        return value
++    mismatches=[key for key in set(state)-{'time','slot'}
++                if terminal_value(key,state[key])!=terminal_value(key,end[key])]
+     if mismatches:
+         key=mismatches[0];detail=''
+         if key=='last_update' and events:
+diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
+index 311d2c917a4ff15f15f8bb8ac9922388fe1097fa..4bcb31c5f8b73b420653baffb5a873c7c8376460 100644
+--- a/tests/solana_dlmm_independent_v1.py
++++ b/tests/solana_dlmm_independent_v1.py
+@@ -376,18 +376,50 @@ class CampaignAttemptBudget:
+         self.admitted.append(now);return True
+ 
+ 
+-def _campaign_candidates(policy,telemetry,deadline,checkpoint):
+-    # First sighting remains global for this process. Repeating the public census
+-    # finds newly appearing pools, never refreshes a rejected pool's first clock
+-    # or revises its priority using later outcomes.
+-    seen=set();cycle=0
+-    while not _runtime_expired(deadline):
+-        cycle_started=time.monotonic();cycle+=1
+-        yield from _iter_acceleration_candidates(policy,telemetry,deadline,checkpoint,seen)
+-        telemetry['census_cycles']=cycle
+-        checkpoint('census_cycle_complete')
+-        wait=min(max(0.0,60-(time.monotonic()-cycle_started)),_runtime_remaining(deadline))
+-        if wait:time.sleep(wait)
++def _campaign_candidates(policy,telemetry,deadline,checkpoint,source=None):
++    from meme_machine.dlmm_discovery import CampaignDiscovery
++    source=source or CampaignDiscovery(OUT.with_suffix('.discovery.sqlite'),
++        api=_api,candidate=_candidate,eligible=_sol_pair,sorts=DISCOVERY_SORTS,
++        pages=DISCOVERY_PAGES_PER_SORT,page_size=DISCOVERY_PAGE_SIZE,deadline=deadline)
++    for key in ('rejections','errors','qualified'):telemetry.setdefault(key,[])
++    for key in ('seen','history_reads','snapshot_context_candidates'):telemetry.setdefault(key,0)
++    source.start()
++    try:
++        while not _runtime_expired(deadline):
++            item=source.next_candidate()
++            stats=source.snapshot();telemetry['seen']=stats['first_seen']
++            telemetry['census_cycles']=stats['census_cycles']
++            telemetry['source_acquisition']=stats
++            if item is None:break
++            address=item['address'];observed_at=item['signal_observed_at']
++            if source.on_discovered is None:_stage(address,'discovered')
++            telemetry['snapshot_context_candidates']+=1
++            if item.get('missing_5m_context') and item['tvl_usd']>0:
++                telemetry['history_reads']+=1
++                try:item=_history_acceleration(item,observed_at)
++                except Exception as exc:
++                    reason=str(exc)
++                    if not reason.startswith('solana_dlmm_volume_history_'):reason=type(exc).__name__
++                    telemetry['errors'].append(dict(pool=address,reason=reason,
++                        failure_domain='incomplete_evidence',qualification_inferred=False))
++                    _stage(address,'rejected','public_fee_context_incomplete')
++                    checkpoint('discovery_incomplete_evidence');continue
++            failed=[]
++            if item['fee_5m_usd']<=0:failed.append('public_fee_context_zero')
++            if item['tvl_usd']<=0:failed.append('public_liquidity_context_zero')
++            if failed:
++                telemetry['rejections'].append(dict(pool=address,failed=failed,candidate=item))
++                checkpoint('discovery_rejection');continue
++            telemetry['qualified'].append(item)
++            checkpoint('discovery_signal')
++            yield item
++    finally:
++        try:source.close()
++        finally:
++            if hasattr(source,'final_snapshot'):
++                stats=source.final_snapshot;telemetry['source_acquisition']=stats
++                telemetry['seen']=stats['first_seen'];telemetry['census_cycles']=stats['census_cycles']
++
+ 
+ 
+ def discover(policy,scan_cap):
+@@ -1808,7 +1840,18 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+         runtime_seconds=max_runtime_seconds,position_drain_seconds=int(policy['range']['max_holding_seconds'])+300 if campaign else 0)
+     report['operational_configuration_hash']=digest(report['operational_configuration'])
+     pipeline=Pipeline(OUT.with_suffix(".pipeline.sqlite"),"meteora",digest(policy))
++    from meme_machine.dlmm_discovery import CampaignDiscovery
++    discovery_source=CampaignDiscovery(OUT.with_suffix('.discovery.sqlite'),
++        api=_api,candidate=_candidate,eligible=_sol_pair,sorts=DISCOVERY_SORTS,
++        pages=DISCOVERY_PAGES_PER_SORT,page_size=DISCOVERY_PAGE_SIZE,deadline=deadline,
++        repeat=campaign,
++        on_discovered=lambda pool,at,sort,page,rank:pipeline.record(pool,'discovered',
++            source_observed_at=at,sort=sort,page=page,rank=rank))
+     def checkpoint(stage):
++        if discovery_source is not None:
++            stats=(discovery_source.final_snapshot if discovery_source.closed else discovery_source.snapshot())
++            discovery_telemetry['seen']=stats['first_seen']
++            report['discovery_acquisition']=stats
+         report["opportunity_coverage"]=pipeline.snapshot()
+         report["discovery_unique_pool_count"]=int(discovery_telemetry["seen"])
+         report["accounting"]=book.reconcile()
+@@ -1840,135 +1883,146 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+         checkpoint(stage)
+     PROGRESS_HOOK=progress
+     checkpoint("run_initialized")
+-    candidate_stream=(_campaign_candidates(policy,discovery_telemetry,deadline,checkpoint)
+-        if campaign else _iter_acceleration_candidates(policy,discovery_telemetry,deadline,checkpoint))
+-    for candidate in candidate_stream:
+-        if (_runtime_expired(deadline)
+-                or (not campaign and (attempted>=max_attempted or complete>=target))):
+-            break
+-        if book.reconcile()['unsettled']:
+-            # During the one-hour certification campaign, an already-filled
+-            # multi-hour position owns capital but must not stop market observation.
+-            # New admission is capacity-censored until the durable continuation
+-            # settles; smoke/standalone behavior remains unchanged.
+-            if os.environ.get('MM_CERTIFICATION_PHASE')=='hourly':
+-                failure_counts['paper_capital_occupied']+=1
+-                report['attempts'].append(dict(
+-                    pool=candidate['address'],candidate=candidate,
+-                    terminal_classification='paper_capital_occupied',
+-                    economic_rejection=False,
++    candidate_stream=_campaign_candidates(policy,discovery_telemetry,deadline,checkpoint,discovery_source)
++    try:
++        for candidate in candidate_stream:
++            if (_runtime_expired(deadline)
++                    or (not campaign and (attempted>=max_attempted or complete>=target))):
++                break
++            if book.reconcile()['unsettled']:
++                # During the one-hour certification campaign, an already-filled
++                # multi-hour position owns capital but must not stop market observation.
++                # New admission is capacity-censored until the durable continuation
++                # settles; smoke/standalone behavior remains unchanged.
++                if os.environ.get('MM_CERTIFICATION_PHASE')=='hourly':
++                    failure_counts['paper_capital_occupied']+=1
++                    report['attempts'].append(dict(
++                        pool=candidate['address'],candidate=candidate,
++                        terminal_classification='paper_capital_occupied',
++                        economic_rejection=False,
++                    ))
++                    _stage(candidate['address'],'terminal','paper_capital_occupied')
++                    checkpoint('paper_capital_occupied')
++                    continue
++                report['fatal_boundary']='solana_dlmm_unresolved_position_blocks_new_admission'
++                checkpoint('unresolved_position_blocks_new_admission')
++                stream_stop.set();wake_thread.join(timeout=5);broker.close()
++                raise Unavailable(report['fatal_boundary'])
++            candidate_rpcs=[]
++            adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
++            compatibility_screened+=1
++            _stage(candidate["address"],"screened")
++            try:
++                (compatibility_state,adapter)=_retry_rate_limited_operation(
++                    lambda active:_fresh_supported_start(
++                        active,candidate),
++                    adapter,pacer,candidate_rpcs,deadline)
++            except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
++                compatibility_rejections.append(dict(
++                    pool=candidate["address"],candidate=candidate,
++                    reason=str(exc)[:200],
++                    rpc=_sum_rpc_metrics(candidate_rpcs),
+                 ))
+-                _stage(candidate['address'],'terminal','paper_capital_occupied')
+-                checkpoint('paper_capital_occupied')
++                _stage(candidate["address"],"terminal",str(exc),stage_failed="compatibility")
++                checkpoint("compatibility_rejection")
+                 continue
+-            report['fatal_boundary']='solana_dlmm_unresolved_position_blocks_new_admission'
+-            checkpoint('unresolved_position_blocks_new_admission')
+-            stream_stop.set();wake_thread.join(timeout=5);broker.close()
+-            raise Unavailable(report['fatal_boundary'])
+-        candidate_rpcs=[]
+-        adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
+-        compatibility_screened+=1
+-        _stage(candidate["address"],"screened")
+-        try:
+-            (compatibility_state,adapter)=_retry_rate_limited_operation(
+-                lambda active:_fresh_supported_start(
+-                    active,candidate),
+-                adapter,pacer,candidate_rpcs,deadline)
+-        except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
+-            compatibility_rejections.append(dict(
+-                pool=candidate["address"],candidate=candidate,
+-                reason=str(exc)[:200],
+-                rpc=_sum_rpc_metrics(candidate_rpcs),
+-            ))
+-            _stage(candidate["address"],"terminal",str(exc),stage_failed="compatibility")
+-            checkpoint("compatibility_rejection")
+-            continue
+ 
+-        if campaign and not attempt_budget.take(time.monotonic()):
+-            failure_counts['capacity_attempt_window_budget']+=1
+-            report['attempts'].append(dict(pool=candidate['address'],candidate=candidate,
+-                terminal_classification='capacity_attempt_window_budget',economic_rejection=False))
+-            _stage(candidate["address"],"terminal","capacity_attempt_window_budget")
+-            checkpoint('capacity_censoring')
+-            continue
+-        attempted+=1
+-        _stage(candidate["address"],"admitted")
+-        _stage(candidate["address"],"evidence_requested")
+-        handoff_started_at=int(time.time())
+-        attempt=dict(
+-            attempt=attempted,pool=candidate["address"],candidate=candidate,
+-            signal_to_handoff_seconds=max(
+-                0,handoff_started_at-int(candidate["signal_observed_at"])),
+-            handoff_started_at=handoff_started_at,
+-            compatibility_passed=True,
+-        )
+-        try:
+-            alignment,warm,entry,warm_origin,adapter,aligned_candidate=(
+-                _triggered_warmup(
+-                    adapter,candidate,compatibility_state,
+-                    policy,pacer,candidate_rpcs,deadline,broker))
+-            # Any rotated RPCs created inside observation are not yet in global list.
+-            for rpc in candidate_rpcs:
+-                if rpc not in rpcs:rpcs.append(rpc)
+-            attempt["fresh_swap_trigger_and_warmup"]=alignment
+-            if not alignment["aligned"]:
+-                reason=alignment["reason"]
+-                attempt["terminal_classification"]=reason
+-                failure_counts[reason]+=1
++            if campaign and not attempt_budget.take(time.monotonic()):
++                failure_counts['capacity_attempt_window_budget']+=1
++                report['attempts'].append(dict(pool=candidate['address'],candidate=candidate,
++                    terminal_classification='capacity_attempt_window_budget',economic_rejection=False))
++                _stage(candidate["address"],"terminal","capacity_attempt_window_budget")
++                checkpoint('capacity_censoring')
++                continue
++            attempted+=1
++            _stage(candidate["address"],"admitted")
++            _stage(candidate["address"],"evidence_requested")
++            handoff_started_at=int(time.time())
++            attempt=dict(
++                attempt=attempted,pool=candidate["address"],candidate=candidate,
++                signal_to_handoff_seconds=max(
++                    0,handoff_started_at-int(candidate["signal_observed_at"])),
++                handoff_started_at=handoff_started_at,
++                compatibility_passed=True,
++            )
++            try:
++                alignment,warm,entry,warm_origin,adapter,aligned_candidate=(
++                    _triggered_warmup(
++                        adapter,candidate,compatibility_state,
++                        policy,pacer,candidate_rpcs,deadline,broker))
++                # Any rotated RPCs created inside observation are not yet in global list.
++                for rpc in candidate_rpcs:
++                    if rpc not in rpcs:rpcs.append(rpc)
++                attempt["fresh_swap_trigger_and_warmup"]=alignment
++                if not alignment["aligned"]:
++                    reason=alignment["reason"]
++                    attempt["terminal_classification"]=reason
++                    failure_counts[reason]+=1
++                    attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
++                    report["attempts"].append(attempt)
++                    _stage(candidate["address"],"terminal",(alignment.get("warmup") or {}).get("reason",reason),stage_failed=reason)
++                    checkpoint("candidate_terminal")
++                    continue
++                attempt["candidate_at_warmup"]=aligned_candidate
++                features=pre_entry_features(
++                    warm_origin,warm,entry,aligned_candidate,policy)
++                _stage(candidate["address"],"prospective_range",lower=features.get("lower"),upper=features.get("upper"))
++                _stage(candidate["address"],"economic_vector")
++                _stage(candidate["address"],"evidence_complete")
++                decision=qualify(features,policy)
++                _stage(candidate["address"],"evaluated")
++                _stage(candidate["address"],"qualified" if decision["passes"] else "rejected")
++                attempt["pre_entry_features"]=features
++                attempt["qualification"]=decision
++                for failed in decision["failed"]:failure_counts[failed]+=1
++                if not decision["passes"]:
++                    attempt["terminal_classification"]="qualification_rejection"
++                    attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
++                    report["attempts"].append(attempt)
++                    pipeline.record(candidate["address"],"terminal","qualification_rejection","strategy_rejection",failed=decision["failed"])
++                    checkpoint("qualification_rejection")
++                    continue
++                lifecycle,adapter=_lifecycle(
++                    adapter,candidate["address"],entry,features,policy,pacer,
++                    candidate_rpcs,(deadline+int(policy['range']['max_holding_seconds'])+300
++                        if campaign else deadline),broker,book)
++                for rpc in candidate_rpcs:
++                    if rpc not in rpcs:rpcs.append(rpc)
++                attempt["lifecycle"]=lifecycle
++                attempt["terminal_classification"]=(
++                    "complete" if lifecycle["complete"] else "lifecycle_unverified")
+                 attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
+                 report["attempts"].append(attempt)
+-                _stage(candidate["address"],"terminal",(alignment.get("warmup") or {}).get("reason",reason),stage_failed=reason)
+-                checkpoint("candidate_terminal")
+-                continue
+-            attempt["candidate_at_warmup"]=aligned_candidate
+-            features=pre_entry_features(
+-                warm_origin,warm,entry,aligned_candidate,policy)
+-            _stage(candidate["address"],"prospective_range",lower=features.get("lower"),upper=features.get("upper"))
+-            _stage(candidate["address"],"economic_vector")
+-            _stage(candidate["address"],"evidence_complete")
+-            decision=qualify(features,policy)
+-            _stage(candidate["address"],"evaluated")
+-            _stage(candidate["address"],"qualified" if decision["passes"] else "rejected")
+-            attempt["pre_entry_features"]=features
+-            attempt["qualification"]=decision
+-            for failed in decision["failed"]:failure_counts[failed]+=1
+-            if not decision["passes"]:
+-                attempt["terminal_classification"]="qualification_rejection"
++                if lifecycle["complete"]:
++                    complete+=1
++                    report["qualified_lifecycles"].append(dict(
++                        pool=candidate["address"],candidate=candidate,
++                        pre_entry_features=features,qualification=decision,**lifecycle))
++                else:
++                    failure_counts["lifecycle_unverified"]+=1
++                _stage(candidate["address"],"settled" if lifecycle["complete"] else "terminal",
++                    None if lifecycle["complete"] else lifecycle.get("reason","lifecycle_unverified"))
++                checkpoint("lifecycle_terminal")
++            except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
++                classification='paper_capital_capacity' if str(exc)=='dlmm_accounting_capital_exhausted' else 'exception'
++                attempt["terminal_classification"]=classification
++                attempt["reason"]=str(exc)[:200]
++                failure_counts[classification]+=1
+                 attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
+                 report["attempts"].append(attempt)
+-                pipeline.record(candidate["address"],"terminal","qualification_rejection","strategy_rejection",failed=decision["failed"])
+-                checkpoint("qualification_rejection")
+-                continue
+-            lifecycle,adapter=_lifecycle(
+-                adapter,candidate["address"],entry,features,policy,pacer,
+-                candidate_rpcs,(deadline+int(policy['range']['max_holding_seconds'])+300
+-                    if campaign else deadline),broker,book)
+-            for rpc in candidate_rpcs:
+-                if rpc not in rpcs:rpcs.append(rpc)
+-            attempt["lifecycle"]=lifecycle
+-            attempt["terminal_classification"]=(
+-                "complete" if lifecycle["complete"] else "lifecycle_unverified")
+-            attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
+-            report["attempts"].append(attempt)
+-            if lifecycle["complete"]:
+-                complete+=1
+-                report["qualified_lifecycles"].append(dict(
+-                    pool=candidate["address"],candidate=candidate,
+-                    pre_entry_features=features,qualification=decision,**lifecycle))
+-            else:
+-                failure_counts["lifecycle_unverified"]+=1
+-            _stage(candidate["address"],"settled" if lifecycle["complete"] else "terminal",
+-                None if lifecycle["complete"] else lifecycle.get("reason","lifecycle_unverified"))
+-            checkpoint("lifecycle_terminal")
+-        except (Unavailable,ValueError,KeyError,TypeError,OverflowError) as exc:
+-            classification='paper_capital_capacity' if str(exc)=='dlmm_accounting_capital_exhausted' else 'exception'
+-            attempt["terminal_classification"]=classification
+-            attempt["reason"]=str(exc)[:200]
+-            failure_counts[classification]+=1
+-            attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
+-            report["attempts"].append(attempt)
+-            _stage(candidate["address"],"terminal",str(exc),stage_failed=(pipeline.last or {}).get("stage"))
+-            checkpoint("candidate_exception")
++                _stage(candidate["address"],"terminal",str(exc),stage_failed=(pipeline.last or {}).get("stage"))
++                checkpoint("candidate_exception")
++
++    finally:
++        try:candidate_stream.close()
++        finally:
++            if discovery_source is not None:
++                try:discovery_source.close()
++                finally:
++                    if hasattr(discovery_source,'final_snapshot'):
++                        report['discovery_acquisition']=discovery_source.final_snapshot
++                        checkpoint('discovery_source_stopped')
++
+ 
+     resolved=[x for x in report["qualified_lifecycles"]
+               if (x.get("final") or {}).get("resolved")]
+diff --git a/tests/test_meteora_continuous_campaign.py b/tests/test_meteora_continuous_campaign.py
+index be2148e66d4937aecb0ccbc5a6810d11a6d802b2..c4fb5163bca428c2178c5f8067d4ce823095e60c 100644
+--- a/tests/test_meteora_continuous_campaign.py
++++ b/tests/test_meteora_continuous_campaign.py
+@@ -15,19 +15,23 @@ class ContinuousCampaignTests(unittest.TestCase):
+         self.assertTrue(budget.take(1200));self.assertFalse(budget.take(1200.5))
+         self.assertTrue(budget.take(1201))
+ 
+-    def test_repeated_census_only_admits_new_first_sightings(self):
+-        clock=[0];telemetry={};phases=[]
++    def test_campaign_handoff_uses_snapshot_context_and_closes_source(self):
++        import time
++        telemetry={};phases=[]
+         def row(name):return dict(address=name,name=name,tvl=1000,is_blacklisted=False,
+             token_x=dict(address=dlmm.WSOL),token_y=dict(address='token'),
+             volume={'5m':100,'30m':1000},fees={'5m':1,'30m':10})
+-        def api(*args,**kw):return dict(data=[row('first')]+([row('new')] if clock[0]>=60 else []))
+-        with patch.object(strategy.time,'monotonic',side_effect=lambda:clock[0]),patch.object(strategy.time,'time',side_effect=lambda:2800+clock[0]),patch.object(strategy.time,'sleep',side_effect=lambda n:clock.__setitem__(0,clock[0]+n)),patch.object(strategy,'_api',side_effect=api),patch.object(strategy,'_history_acceleration') as history:
+-            candidates=list(strategy._campaign_candidates(strategy.load_policy(),telemetry,121,phases.append))
++        with tempfile.TemporaryDirectory() as td,patch.object(strategy,'OUT',Path(td)/'report.json'), \
++             patch.object(strategy,'_api',return_value=dict(data=[row('first')])), \
++             patch.object(strategy,'_history_acceleration') as history:
++            stream=strategy._campaign_candidates(strategy.load_policy(),telemetry,time.monotonic()+5,phases.append)
++            candidate=next(stream);stream.close()
+         history.assert_not_called()
+-        self.assertEqual([x['address'] for x in candidates],['first','new'])
++        self.assertEqual(candidate['address'],'first')
+         self.assertEqual(telemetry['history_reads'],0)
+-        self.assertEqual(telemetry['seen'],2);self.assertEqual(telemetry['census_cycles'],3)
+-        self.assertEqual(clock[0],121)
++        self.assertEqual(telemetry['seen'],1)
++        self.assertFalse(telemetry['source_acquisition']['producer_running'])
++        self.assertTrue(telemetry['source_acquisition']['producer_done'])
+ 
+     def test_multi_hour_profitability_runtime_preserves_policy_and_campaign_is_operational_only(self):
+         before=strategy.digest(strategy.load_policy())
+diff --git a/tests/test_meteora_discovery_scheduler.py b/tests/test_meteora_discovery_scheduler.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..651ada65498ada31c2c3cdcd9cea0536a1a58910
+--- /dev/null
++++ b/tests/test_meteora_discovery_scheduler.py
+@@ -0,0 +1,114 @@
++"""Causal source-starvation regressions with no market/provider I/O."""
++from pathlib import Path
++import tempfile
++import threading
++import unittest
++from unittest.mock import patch
++from meme_machine import dlmm
++from meme_machine.dlmm_discovery import CampaignDiscovery
++from tests import solana_dlmm_independent_v1 as strategy
++
++
++def row(name):
++    return dict(address=name,name=name,tvl=1000,is_blacklisted=False,
++        token_x=dict(address=dlmm.WSOL),token_y=dict(address='token'),
++        volume={'5m':100,'30m':1000},fees={'5m':1,'30m':10})
++
++class DiscoverySchedulerTests(unittest.TestCase):
++    def source(self,path,api,clock,**kw):
++        return CampaignDiscovery(path,api=api,candidate=strategy._candidate,
++            eligible=strategy._sol_pair,sorts=strategy.DISCOVERY_SORTS,
++            pages=strategy.DISCOVERY_PAGES_PER_SORT,page_size=strategy.DISCOVERY_PAGE_SIZE,
++            deadline=121,clock=lambda:clock[0],wall_clock=lambda:2800+clock[0],**kw)
++
++    def test_blocked_consumer_does_not_starve_any_page_or_next_census(self):
++        clock=[0.];calls=[];cycles=[threading.Event(),threading.Event()]
++        release=threading.Event();counter=[0]
++        def api(path,p):
++            calls.append((clock[0],p['sort_by'],p['page']))
++            return {'data':[row('first' if clock[0]==0 else 'new')]*250}
++        def wait(delay):
++            index=counter[0];counter[0]+=1
++            if index<2:cycles[index].set()
++            while not release.wait(.01):
++                if source.stop.is_set():return True
++            release.clear();clock[0]+=delay
++        with tempfile.TemporaryDirectory() as td:
++            source=self.source(Path(td)/'spool.sqlite',api,clock,wait=wait).start()
++            try:
++                self.assertTrue(cycles[0].wait(2))
++                self.assertEqual(len(calls),6)
++                # No consumer has advanced. Discovery must still run another cycle.
++                release.set();self.assertTrue(cycles[1].wait(2))
++                self.assertEqual(len(calls),12)
++                self.assertEqual({x[0] for x in calls},{0.,60.})
++                self.assertEqual(source.snapshot()['first_seen'],2)
++                first=source.next_candidate();second=source.next_candidate()
++                self.assertEqual([first['address'],second['address']],['first','new'])
++                self.assertEqual(first['source_observed_at'],2800)
++                self.assertEqual(first['discovery_queue_wait_seconds'],60)
++                self.assertEqual(first['discovery_sort'],strategy.DISCOVERY_SORTS[0])
++                self.assertEqual(source.snapshot()['pending'],0)
++            finally:source.close()
++
++    def test_first_handoff_precedes_full_census_and_discovery_record_precedes_handoff(self):
++        clock=[0.];in_second=threading.Event();release_second=threading.Event()
++        recording=threading.Event();release_record=threading.Event();received=threading.Event()
++        result=[];calls=[]
++        def api(path,p):
++            calls.append(p)
++            if len(calls)==2:
++                in_second.set();release_second.wait(2)
++            return {'data':[row('first')]*250}
++        def discovered(*_):recording.set();release_record.wait(2)
++        with tempfile.TemporaryDirectory() as td:
++            source=self.source(Path(td)/'spool.sqlite',api,clock,on_discovered=discovered).start()
++            consumer=threading.Thread(target=lambda:(result.append(source.next_candidate()),received.set()))
++            consumer.start()
++            try:
++                self.assertTrue(recording.wait(2));self.assertFalse(received.wait(.05))
++                release_record.set();self.assertTrue(in_second.wait(2));self.assertTrue(received.wait(2))
++                self.assertEqual(result[0]['address'],'first');self.assertEqual(len(calls),2)
++            finally:
++                source.stop.set();release_record.set();release_second.set();consumer.join(2);source.close()
++
++    def test_failed_page_does_not_skip_other_frozen_segments_and_pending_is_explicit(self):
++        clock=[0.];calls=[]
++        def api(path,p):
++            calls.append((p['sort_by'],p['page']))
++            if len(calls)==1:raise OSError('simulated')
++            return {'data':[row('pool')]*250}
++        with tempfile.TemporaryDirectory() as td:
++            source=self.source(Path(td)/'spool.sqlite',api,clock,wait=lambda _:clock.__setitem__(0,121))
++            source._produce()
++            stats=source.snapshot()
++            self.assertEqual(len(calls),6)
++            self.assertEqual(stats['segment_status_counts'],{'acquired':5,'failed':1})
++            self.assertEqual(stats['pending'],1);self.assertIsNone(stats['target_universe_count'])
++            self.assertIsNone(source.next_candidate());source.close()
++
++    def test_short_page_exhaustion_and_late_response_are_not_successful_pages(self):
++        clock=[0.];calls=[]
++        def api(path,p):
++            calls.append(p)
++            if len(calls)==2:clock[0]=121
++            return {'data':[row('pool')]}
++        with tempfile.TemporaryDirectory() as td:
++            source=self.source(Path(td)/'spool.sqlite',api,clock);source._produce()
++            stats=source.snapshot()
++            self.assertEqual(stats['segment_status_counts'],{'acquired':1,'exhausted':1,'late_response':1,'not_observed':3})
++            self.assertEqual(stats['first_seen'],1);source.close()
++
++    def test_unexpected_producer_failure_fails_closed_and_process_dedup_resets(self):
++        clock=[0.]
++        with tempfile.TemporaryDirectory() as td:
++            path=Path(td)/'spool.sqlite'
++            source=self.source(path,lambda *_:{'data':[row('pool')]},clock,
++                on_discovered=lambda *_:(_ for _ in ()).throw(ValueError('bad callback')))
++            source._produce()
++            with self.assertRaisesRegex(RuntimeError,'discovery_producer:ValueError'):source.next_candidate()
++            with self.assertRaisesRegex(RuntimeError,'discovery_producer:ValueError'):source.close()
++            source=self.source(path,lambda *_:{'data':[row('pool')]},clock,wait=lambda _:clock.__setitem__(0,121))
++            source._produce();self.assertEqual(source.snapshot()['first_seen'],1);source.close()
++
++if __name__=='__main__':unittest.main()
+diff --git a/tests/test_meteora_mint_supply.py b/tests/test_meteora_mint_supply.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..6a5d2514503888364fcfefffd03d5850974071d9
+--- /dev/null
++++ b/tests/test_meteora_mint_supply.py
+@@ -0,0 +1,112 @@
++"""Global mint supply is endpoint metadata; pool accounting stays exact."""
++import copy
++import struct
++import unittest
++
++from meme_machine import dlmm, pump
++from meme_machine.dlmm_tape import reconstruct
++from meme_machine.provider import Unavailable
++from meme_machine.store import digest
++from tests import solana_dlmm_independent_v1 as strategy
++from tests.dlmm_support import snapshot, change_account, POOL
++from tests.test_dlmm_tape import interval
++from tests.test_dlmm_safe_token2022 import token2022_mint
++
++
++ANCHOR = [dict(signature='anchor', slot=99, transactionIndex=0,
++               err=None, confirmationStatus='finalized')]
++CURSOR = [100, 2**31-1, 2**31-1]
++
++
++def empty_interval(sol_x=False):
++    first = snapshot(sol_x=sol_x)
++    first['kind'] = 'real'
++    state = dlmm.validate(first, 100, 'real')
++    end = copy.deepcopy(first)
++    end.update(slot=102, market_time=102, available_time=102)
++    return first, state, end
++
++
++class MintSupplyReconstructionTests(unittest.TestCase):
++    def test_off_pool_supply_change_preserves_authenticated_endpoint(self):
++        for sol_x in (False, True):
++            for delta in (-594625327, 500):
++                with self.subTest(sol_x=sol_x, delta=delta):
++                    first, start, end = empty_interval(sol_x)
++                    side = 'y' if sol_x else 'x'
++                    key = 'token_' + side + '_mint_info'
++                    amount = start[key]['supply'] + delta
++                    end = change_account(end, start[side], 36, struct.pack('<Q', amount))
++                    tape = reconstruct(start, end, ANCHOR, {}, 102, CURSOR)
++                    self.assertEqual(tape.events, ())
++                    self.assertEqual(tape.terminal_adjustments, ())
++                    self.assertEqual(tape.terminal[key]['supply'], amount)
++                    self.assertEqual(tape.end_hash, digest(dlmm.validate(end, 102, 'real')))
++                    self.assertEqual(start, dlmm.validate(first, 100, 'real'))
++
++    def test_supply_change_preserves_swap_decisions_and_position_accounting(self):
++        first, start, end, signatures, transactions = interval()
++        baseline = reconstruct(start, end, signatures, transactions, 102, CURSOR)
++        changed = change_account(end, start['x'], 36,
++                                 struct.pack('<Q', start['token_x_mint_info']['supply'] - 12345))
++        tape = reconstruct(start, changed, signatures, transactions, 102, CURSOR)
++        self.assertEqual(tape.events, baseline.events)
++        self.assertEqual(tape.terminal_adjustments, baseline.terminal_adjustments)
++        self.assertNotEqual(tape.end_hash, baseline.end_hash)
++        self.assertNotEqual(tape.lineage, baseline.lineage)
++        policy = strategy.load_policy()
++        candidate = dict(volume_acceleration=1.0, fee_acceleration=1.0)
++        before = strategy.pre_entry_features(start, baseline, baseline.terminal, candidate, policy)
++        after = strategy.pre_entry_features(start, tape, tape.terminal, candidate, policy)
++        self.assertEqual(before, after)
++        self.assertEqual(strategy.qualify(before, policy), strategy.qualify(after, policy))
++        position = strategy._build_position(start, dict(half_width_bins=26), policy)
++        expected = strategy._advance_position(position, baseline)
++        actual = strategy._advance_position(position, tape)
++        self.assertEqual(actual, expected)
++        self.assertEqual(strategy._mark(actual), strategy._mark(expected))
++
++    def test_supply_change_does_not_mask_mint_controls_or_pool_state(self):
++        _, start, end = empty_interval()
++        changed = change_account(end, start['x'], 36,
++                                 struct.pack('<Q', start['token_x_mint_info']['supply'] - 12345))
++        bad_program = copy.deepcopy(changed)
++        bad_program['accounts'][start['x']]['owner'] = pump.TOKEN_2022
++        cases = {
++            'mint_authority': change_account(changed, start['x'], 0, struct.pack('<I', 1)),
++            'decimals': change_account(changed, start['x'], 44, bytes([7])),
++            'freeze_authority': change_account(changed, start['x'], 46, struct.pack('<I', 1)),
++            'program': bad_program,
++            'bin_inventory': change_account(changed, dlmm.array_address(POOL, 0), 56,
++                                             struct.pack('<Q', 200000001)),
++            'vault_inventory': change_account(changed, start['vault_x'], 64,
++                                               struct.pack('<Q', start['vault_x_amount'] + 1)),
++        }
++        for name, value in cases.items():
++            with self.subTest(name=name):
++                with self.assertRaises((Unavailable, ValueError)):
++                    reconstruct(start, value, ANCHOR, {}, 102, CURSOR)
++
++    def test_token2022_supply_only_burn_keeps_extensions_exact(self):
++        first = snapshot()
++        first['kind'] = 'real'
++        classic = dlmm.validate(first, 100, 'real')
++        first = change_account(first, POOL, 880, bytes([1]))
++        first['accounts'][classic['x']] = token2022_mint(((18, 64), (19, 4)))
++        first['accounts'][classic['vault_x']]['owner'] = pump.TOKEN_2022
++        start = dlmm.validate(first, 100, 'real')
++        end = copy.deepcopy(first)
++        end.update(slot=102, market_time=102, available_time=102)
++        end = change_account(end, start['x'], 36, struct.pack('<Q', 999999999))
++        tape = reconstruct(start, end, ANCHOR, {}, 102, CURSOR)
++        self.assertEqual(tuple(tape.terminal['token_x_mint_info']['extensions']), (18, 19))
++        for extensions in (((18, 64),), ((18, 64), (19, 4), (1, 108))):
++            changed = copy.deepcopy(end)
++            changed['accounts'][start['x']] = token2022_mint(extensions)
++            with self.subTest(extensions=extensions):
++                with self.assertRaises((Unavailable, ValueError)):
++                    reconstruct(start, changed, ANCHOR, {}, 102, CURSOR)
++
++
++if __name__ == '__main__':
++    unittest.main()

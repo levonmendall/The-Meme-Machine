@@ -1,0 +1,34 @@
+# Target-market acquisition repair — 24 September 2026
+
+The first prospective hour (workflow **35935431384**, runtime **c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66**) remains censored: zero accepted economic blocks/hours, one censored block. Its profitable Pump settlement is preserved without promotion. Original native accounting and strategy-conformance checks passed; all four books ended flat. No predecessor state or artifact is rewritten.
+
+The implementation branch is `repair/target-market-coverage-20260924`. The final certifying commit is the branch head selected by `coverage-repair-certification`; the certificate, replay receipt and successor state bind its exact SHA. The successor is **prospective-four-lane-v6-coverage-repair-20260924**.
+
+| Lane | Demonstrated cause and implemented repair | Remaining limit |
+|---|---|---|
+| Pons | Reuse authenticated factory identity to combine mandatory fresh reads; reject already-known out-of-age candidates before trajectory work; cap HTTP by the original deadline and reject late replies. Historical evidence identifies 602 redundant factory rounds and 123 repeated age rejects consuming 209.897 seconds of trajectory work. | Historical queue expiry, admission waits and provider failures remain losses. Full-vector completion ratios also include intentional early strategy rejection; absolute target denominator unknown. |
+| Meteora | Independent, paced source producer observes the frozen page schedule while evidence runs; durable FIFO first-sighting spool exposes pending work, failed/late segments and shutdown. Smoke performs one census; campaigns retain the 60-second cadence. Compare all mint controls and pool fields while retaining independently changing global mint supply in the authenticated endpoint/lineage. | The 48/1,200-second attempt budget and 16-transaction reconstruction bound remain. Pending candidates are explicit, and missing position-state reconstruction is still rejected. |
+| Pump | Reuse the existing per-pool safe-negative signature set in history hydration and pending counts, without inventing authenticated bodies or trades. Captured evidence proves one false incomplete window with 16 known exclusions. | Missing bodies, sparse curve trajectories, provider admission deadlines and frozen horizon expiry remain distinct. Natural lifecycle/accounting/profit protection is unchanged. |
+| Ramses | Apply the existing strict receipt-log matcher to the missed preentry path; optional timestamp metadata no longer rejects identical authenticated events. | Five pools lack executable permitted cost routes; one pinned-state RPC failure and one preentry 429 remain. Full entry evidence after the old preentry failures was never captured. |
+
+The individual lane reports retain the comprehensive diagnostic counts and overlap limits. They describe the read-only investigation at the predecessor SHA; the table above records the implemented outcome.
+
+Source segments are attempted independently even after a preceding page fails, so one transport error cannot suppress the remaining frozen segment. No source, page count, page size, public pacer, provider ceiling, strategy threshold or evidence clock is widened. Short pages still prove later pages exhausted. First sighting, sort/page/rank FIFO ordering and immediate first handoff remain intact. Unexpected source failures fail closed, and pending candidates are never relabelled economic rejects.
+
+## Verification before full certification
+
+- Focused acquisition regressions cover Pons cache boundaries, true frozen qualification at ages 120/600, future reevaluation of young curves, mandatory fresh authentication, original HTTP deadlines, Pump negative reuse, Ramses captured receipts and rejecting real conflicts, and Meteora cadence/order/failure/shutdown/supply invariants.
+- Four lane suites: **Pump 316, Meteora 430, Pons 351, Ramses 337**, all passed; zero external socket attempts.
+- Integrated gate: all four protocol/acquisition, qualification and lifecycle bundles passed; all four received three shared-governor grants with no remaining queue.
+- Two earlier local integrated outputs lost the chronological tail of SQLite WAL evidence in the shared workspace and remained failed. Repeating the unchanged gate on local `/tmp` storage produced complete grants and passed; no Governor/runtime workaround was made. Hosted certification independently repeats the required gate.
+- Strategy/policy bytes and frozen source heads remain identical. Only declared acquisition overlays, their diff bindings, cohort lineage and audit/orchestration support change. Acceptance terms hash excluding new cohort/source-diff bindings: `61ccacc2aae26a1c197bc37b72f52f0326bae95bfad20e73c3fcd0b6e1cd521f`.
+
+## Historical replay and launch control
+
+The original 633 MB archive was reconstructed once, with a digest-verified 84 MB derivative for targeted diagnosis (extraction run **35945640187**, artifact **10786398294**). Its source artifact is **10785439707**, SHA256 `1729982afa710db37dc401b0d515125f7cd7d5c6fd2d8a43fafaf334a86e326c`. The derivative digest is `b2f9a2e3dc41efbb080b6ccb11ebcdd33b53172ca4984ed9243a1a038a3baee3`.
+
+After the final exact-SHA full certificate, `coverage_replay` runs the supported historical comparisons once with the final trees, verifies every retained original hash, and replays all four native terminal books read-only. Meteora's supply comparison uses the retained signature prefix and does not claim an independently complete post-endpoint census. Absent pages, expired decisions and missing provider evidence remain unrecoverable. Historical admission remains unchanged.
+
+`coverage_successor` then checks the exact predecessor record digest, halted state, preserved artifact, flat native books and unchanged acceptance terms. Only a passing full certificate plus these receipts can start the clean cohort through the existing durable program. The four-lane workflow performs chain binding, capabilities, concurrent smoke, decision replay and market assurance before the hour. Existing success/failure/cancellation archives and continuation chaining remain armed.
+
+The next session should use the durable cohort state and inspect the first repaired block's **operational** metrics: source segments, queue wait/backlog, timely evidence attempts/completions, provider wait/failure, consumer deadlines, reconstruction outcomes, decision replay, accounting and position continuity. Apply the unchanged block-admission rules to winners and losers alike. No profitability or prospective coverage success is claimed by this engineering checkpoint.

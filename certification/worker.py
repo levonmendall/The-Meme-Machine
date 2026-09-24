@@ -184,10 +184,11 @@ class Observer:
                 return response
             except Exception as exc:
                 error=type(exc).__name__
-                self.public_http_errors[error]+=1
                 raise
             finally:
-                self.public_http_requests+=1
+                with self.lock:
+                    self.public_http_requests+=1
+                    if error:self.public_http_errors[error]+=1
                 self.event('public_http_evidence',dict(provider='meteora_public_data',
                     network='solana',path=path,parameters=params,response=response,
                     error_type=error,duration_seconds=time.monotonic()-started,

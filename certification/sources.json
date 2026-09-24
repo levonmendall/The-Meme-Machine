@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-23-census-context-state-budget-and-log-metadata-candidate",
+  "verified_at": "2026-09-24-final-target-coverage-repair-candidate",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -108,6 +108,14 @@
           "evidence_basis": "retain the prior frozen +15% Pump realization activation while reducing the harvested fraction to 25% because observed winners exhibited materially larger favorable excursions",
           "entry_thresholds_changed": false,
           "paper_only_unchanged": true
+        },
+        "target_coverage_repair": {
+          "revision": "preserved-hour-35935431384-acquisition-v1",
+          "predecessor_runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "provider_limits_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -121,12 +129,13 @@
         "upstream_acquisition_scope": "all finalized Pump events remain observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "73382447eba168503b2c7dc909ecd3498cffabeaa116166c45a3af4c7b74836d",
+      "source_diff_sha256": "924799d001c51f898422a2494b75b1afcf2869583572af471f1bcc42d2176cd8",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
         "certification/patches/market-scope-efficiency-pump.patch",
-        "certification/patches/lifecycle-clock-pump-test.patch"
+        "certification/patches/lifecycle-clock-pump-test.patch",
+        "certification/patches/target-coverage-repair-pump.patch"
       ]
     },
     "meteora": {
@@ -134,7 +143,7 @@
       "source_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "74ee2eaf30ef9df3b370cc6e311bd91d44f2fcf271f67c635d63db27277d9c64",
+      "source_diff_sha256": "c6906c074f683f44a220281579f1c0ab86c8ce34e05f2ed1703b5eda4557e5af",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -301,6 +310,14 @@
           "freshness_finality_changed": false,
           "position_size_changed": false,
           "paper_only_unchanged": true
+        },
+        "target_coverage_repair": {
+          "revision": "preserved-hour-35935431384-acquisition-v1",
+          "predecessor_runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "provider_limits_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -319,7 +336,8 @@
         "certification/patches/market-scope-efficiency-meteora.patch",
         "certification/patches/lifecycle-clock-meteora.patch",
         "certification/patches/meteora-public-fee-context.patch",
-        "certification/patches/market-assurance-meteora.patch"
+        "certification/patches/market-assurance-meteora.patch",
+        "certification/patches/target-coverage-repair-meteora.patch"
       ]
     },
     "pons": {
@@ -482,6 +500,14 @@
           "event_time_authority": "authenticated matching block header",
           "provider_requests_added": 0,
           "strategy_policy_changed": false
+        },
+        "target_coverage_repair": {
+          "revision": "preserved-hour-35935431384-acquisition-v1",
+          "predecessor_runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "provider_limits_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -496,13 +522,14 @@
         "upstream_acquisition_scope": "all authenticated Pons V2 buy/sell logs remain observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "8a9d0818606e9c9c8e3ca76ce07f85fe0902aaf761d3de8042b1dd3ff2dd8238",
+      "source_diff_sha256": "eba51a72058bb6a72a0e7e5d78db4fbc4d8c0b6e3a8327b0e8adc44bd507558e",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
         "certification/patches/market-scope-efficiency-pons.patch",
         "certification/patches/pons-log-identity-metadata.patch",
-        "certification/patches/market-assurance-pons.patch"
+        "certification/patches/market-assurance-pons.patch",
+        "certification/patches/target-coverage-repair-pons.patch"
       ]
     },
     "ramses": {
@@ -761,6 +788,14 @@
           "event_time_authority": "authenticated matching block header",
           "provider_requests_added": 0,
           "strategy_policy_changed": false
+        },
+        "target_coverage_repair": {
+          "revision": "preserved-hour-35935431384-acquisition-v1",
+          "predecessor_runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "provider_limits_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -772,7 +807,7 @@
         "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "fb970b518446b807fb4e2aeba87743cd383ef5cb45132839d009e0b7293c78c4",
+      "source_diff_sha256": "1264b5213376b8f1fa7b8e2c5d0359b20be1ef44f7dddd4a1c6441e811a05173",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -783,7 +818,8 @@
         "certification/patches/ramses-state-hydration-budget.patch",
         "certification/patches/ramses-log-identity-metadata.patch",
         "certification/patches/market-assurance-ramses.patch",
-        "certification/patches/ramses-receipt-set-metadata.patch"
+        "certification/patches/ramses-receipt-set-metadata.patch",
+        "certification/patches/target-coverage-repair-ramses.patch"
       ]
     }
   },

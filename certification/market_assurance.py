@@ -93,12 +93,18 @@ def meteora_source_coverage(runtime,native,source):
     with ro(path) as db:
         discovered={r[0] for r in db.execute("SELECT DISTINCT candidate FROM progress WHERE stage='discovered'")}
         screened={r[0] for r in db.execute("SELECT DISTINCT candidate FROM progress WHERE stage='screened'")}
-    all_raw=set();eligible=set();pages={};errors=[];exhausted=set()
+    report_path=Path(native)/'solana-dlmm-independent-v1-live.json'
+    acquisition=(read(report_path).get('discovery_acquisition') or {}) if report_path.exists() else {}
+    deadline=acquisition.get('observation_deadline_at')
+    all_raw=set();eligible=set();pages={};errors=[];exhausted=set();late=[]
     with ro(Path(runtime)/'meteora/telemetry.sqlite') as db:
         for at_ns,raw in db.execute("SELECT at_ns,body FROM events WHERE kind='public_http_evidence' ORDER BY seq"):
             event=json.loads(raw)
             if event.get('path')!='/pools':continue
             params=event.get('parameters') or {};sort=params.get('sort_by');page=params.get('page');key=(sort,page)
+            if deadline is not None and at_ns/1e9>=deadline:
+                late.append(dict(sort=sort,page=page,observed_at=at_ns/1e9))
+                continue
             response=event.get('response') or {};rows=response.get('data')
             if key not in expected:errors.append('unexpected_discovery_source_page');continue
             if event.get('error_type') or not isinstance(rows,list):errors.append(f'failed_page:{sort}:{page}');continue
@@ -128,6 +134,8 @@ def meteora_source_coverage(runtime,native,source):
         undiscovered_in_acquired_structural_union=len(eligible-discovered),
         acquired_union_discovery_coverage=ratio(len(eligible & discovered),len(eligible)),
         segments=list(pages.values()),errors=errors,
+        acquisition=acquisition,late_responses_excluded=late,
+        pending_discovered_candidates=acquisition.get('pending'),
         gap_classification='ordered_discovery_and_evidence_share_the_bounded_observation_window' if missing else None,
         inferred_never_observed_outside_acquired_pages=False,provider_calls_added=0)
 
@@ -367,6 +375,13 @@ def audit(artifact,worktrees,output,previous=None):
             detail['raw_acquired_source_count']=breadth['raw_acquired_source_union_count']
             if not breadth['census_complete']:
                 detail['coverage_gaps'].append('frozen_source_union_not_fully_observed')
+                if detail['coverage_health']!='coverage_invalid':detail['coverage_health']='coverage_degraded'
+            if (breadth.get('pending_discovered_candidates') or 0)>0:
+                detail['coverage_gaps'].append('discovered_candidates_pending_at_observation_close')
+                if detail['coverage_health']!='coverage_invalid':detail['coverage_health']='coverage_degraded'
+            acquisition=breadth.get('acquisition') or {}
+            if acquisition.get('fatal_error') or (acquisition.get('segment_status_counts') or {}).get('failed'):
+                detail['coverage_gaps'].append('discovery_acquisition_failure')
                 if detail['coverage_health']!='coverage_invalid':detail['coverage_health']='coverage_degraded'
             detail['coverage_gaps_by_segment'].extend(breadth['segments'])
     failures=identity_failures+[lane+':'+reason for lane,row in reports.items() for reason in row['admission_failures']]

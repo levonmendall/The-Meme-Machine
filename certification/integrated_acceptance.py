@@ -22,6 +22,7 @@ BUNDLES={
     "pump":{
         "protocol":[
             "tests.test_captured.Captured.test_real_accounts_and_quotes",
+            "tests.test_pump_acceleration_history.NegativeHistoryReuseTests",
         ],
         "qualification":[
             "tests.test_pump_acceleration_strategy.PumpAccelerationStrategyTests.test_strong_late_curve_can_qualify",
@@ -35,6 +36,8 @@ BUNDLES={
     "pons":{
         "protocol":[
             "robinhood_tests.test_captured.CapturedProviderTests.test_captured_mainnet_identity_and_bounded_provider_evidence",
+            "robinhood_tests.test_coverage_acquisition",
+            "robinhood_tests.test_pons_factory_hint_reuse",
         ],
         "qualification":[
             "robinhood_tests.test_pons_selective_continuation.PonsSelectivePolicyTests.test_clean_late_curve_acceleration_can_qualify",
@@ -49,6 +52,8 @@ BUNDLES={
     "meteora":{
         "protocol":[
             "tests.test_dlmm_reference.OfficialReference.test_real_captured_swap_interval_exact_state_and_fee_attribution",
+            "tests.test_meteora_discovery_scheduler",
+            "tests.test_meteora_mint_supply",
         ],
         "qualification":[
             "tests.test_solana_dlmm_independent_v1.SolanaDlmmIndependentV1Tests.test_qualification_requires_authenticated_density_flow_capacity_and_unwind",
@@ -62,6 +67,7 @@ BUNDLES={
     "ramses":{
         "protocol":[
             "robinhood_tests.test_captured.CapturedProviderTests.test_captured_mainnet_identity_and_bounded_provider_evidence",
+            "robinhood_tests.test_ramses_preentry_metadata",
         ],
         "qualification":[
             "robinhood_tests.test_ramses_connected_lifecycle.RamsesConnectedLifecycleTests.test_first_ranked_genuine_qualifier_is_selected",
