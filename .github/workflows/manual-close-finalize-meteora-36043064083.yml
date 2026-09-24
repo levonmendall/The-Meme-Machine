@@ -8,7 +8,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: manual-close-finalize-meteora-36043064083
+  group: manual-close-finalize-v2-meteora-36043064083
   cancel-in-progress: false
 
 jobs:
