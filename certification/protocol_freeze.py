@@ -40,7 +40,7 @@ def verify():
     required_four=(
         "python -m certification.chain_binding",
         "python -m certification.prospective_acceptance record",
-        "Start automatic durable continuation for open long-horizon positions",
+        "Start position-only continuation for durable open long-horizon positions",
     )
     for value in required_four:
         if value not in four:failures.append("four_lane_control_missing:"+value)
@@ -70,26 +70,46 @@ def verify():
     for control in ("program_full_nonmarket_not_passed", "program_dispatch_already_claimed",
                     "program_canonical_sha_drift", "preserve_repair_recertify_successor_cohort"):
         if control not in program:failures.append("certification_program_control_missing:"+control)
-    # Owner's later one-workflow authorization narrows scheduling authority only;
-    # historical profitability/autonomy qualification criteria remain unchanged.
+    # The owner authorizes exactly one discovery/entry workflow. A durable
+    # position opened by that workflow may continue under the same frozen
+    # lifecycle, but that authority must not become a second discovery campaign.
     try:
         from certification.single_campaign_control import configuration
         one=configuration()
+        control_source=(ROOT/'certification/single_campaign_control.py').read_text()
         for text,control in ((four,'single_campaign_control claim'),
                              (four,'single_campaign_control begin-phase'),
                              (four,'single_campaign_control end-phase'),
                              (four,'single_campaign_control finish'),
+                             (cont,'single_campaign_control continuation-claim'),
+                             (cont,'single_campaign_control continuation-record'),
                              (cont,'single_campaign_control prohibit --action continuation'),
                              (review,'single_campaign_control review'),
                              (program,"prohibit_if_enabled('successor_dispatch')")):
             if control not in text:failures.append('single_campaign_control_missing:'+control)
+        if (one.get('maximum_market_workflows')!=1
+                or one.get('automatic_successors') is not False
+                or one.get('position_continuation_workflows') is not True
+                or one.get('workflow_reruns') is not False
+                or one.get('dispatch_retries') is not False
+                or one.get('live_money') is not False):
+            failures.append('single_campaign_position_only_authority_invalid')
         smoke=(ROOT/'certification/smoke_continuation.py').read_text()
         if "prohibit_if_enabled('smoke_continuation_'+a.command)" not in smoke:
             failures.append('single_campaign_smoke_continuation_not_disabled')
         if '\n  push:' in four.split('permissions:',1)[0]:
             failures.append('single_campaign_implicit_push_market_trigger')
-        if 'if: success() && inputs.single_campaign != true' not in four:
-            failures.append('single_campaign_continuation_not_disabled')
+        combined=cont+'\n'+four+'\n'+control_source
+        for marker in (
+                'if: inputs.single_campaign == true',
+                'if: inputs.single_campaign != true',
+                '-f single_campaign="\${{ inputs.single_campaign || false }}"',
+                'POSITION_CONTINUATION',
+                'no new discovery, qualification, entry, retry, replacement or successor campaign'):
+            if marker not in combined:
+                failures.append('single_campaign_position_continuation_control_missing:'+marker)
+        if 'if: success() && inputs.single_campaign != true' in four:
+            failures.append('single_campaign_position_continuation_still_excluded')
     except (OSError,ValueError):
         failures.append('single_campaign_authorization_invalid_or_missing')
     digest=hashlib.sha256(canonical(protocol).encode()).hexdigest()
