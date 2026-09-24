@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "v9-pump-log-durable-continuation-20260924-one-market-v2",
+  "authorization_id": "v10-postrun-repairs-20260924-one-market-v1",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -14,14 +14,14 @@
   "dispatch_retries": false,
   "live_money": false,
   "prior_run_observation": {
-    "run_id": 36020434038,
-    "status": "completed_unresolved_boundary",
-    "source": "v8 monitored campaign completed its one-hour observation but left Meteora and Ramses positions open; v9 permits only those already-open positions to continue under frozen lifecycle rules, with no successor discovery campaign."
+    "run_id": 36043064083,
+    "status": "completed_owner_forced_manual_close",
+    "source": "v9 one-hour campaign completed; preserved Meteora position was later owner-forced closed as a zero-proceeds writeoff because no authenticated post-entry close mark was available. The historical block remains forced/manual and ineligible for natural profitability credit."
   },
   "prior_launch_attempt": {
-    "run_id": 36038607202,
-    "outcome": "pre_provider_guard_block",
-    "provider_or_market_work_started": false,
-    "reason": "smoke guard classified active v9 non-market certification wrapper as market contention"
+    "run_id": 36043064083,
+    "outcome": "completed",
+    "provider_or_market_work_started": true,
+    "reason": "prior v9 single campaign completed smoke and hourly collection; this v10 authorization is a separate owner-approved one-shot campaign after certified post-run repairs."
   }
 }
