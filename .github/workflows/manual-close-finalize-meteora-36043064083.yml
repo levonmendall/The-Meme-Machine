@@ -1,0 +1,221 @@
+name: manual-close-finalize-meteora-36043064083
+on:
+  push:
+    branches: [ops/manual-close-meteora-36043064083-20260924]
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: manual-close-finalize-meteora-36043064083
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: contains(github.event.head_commit.message, '[owner-forced-close-finalize]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      RUNTIME_SHA: 07ec67a2b7967fd3e97c056307967ce1738f6d20
+      CAMPAIGN_RUN_ID: "36043064083"
+      SOURCE_STATE_RUN_ID: "36069111430"
+    steps:
+      - name: Cancel stale continuation/manual-close runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run_id in 36069190910 36069263694; do
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel" >/dev/null 2>&1 || true
+          done
+          mapfile -t active < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100"             --jq '.workflow_runs[]
+              | select(.path==".github/workflows/position-continuation.yml")
+              | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="pending" or .status=="requested")
+              | .id')
+          for run_id in "${active[@]}"; do
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel" >/dev/null 2>&1 || true
+          done
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.RUNTIME_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Restore last successful authoritative Meteora state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_id="$SOURCE_STATE_RUN_ID"
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")"
+          test "$(jq -r '.status' <<<"$run_json")" = completed
+          test "$(jq -r '.conclusion' <<<"$run_json")" = success
+          test "$(jq -r '.head_sha' <<<"$run_json")" = "$RUNTIME_SHA"
+          test "$(jq -r '.head_branch' <<<"$run_json")" = cert/single-market-v9-monitored-20260924
+          mapfile -t names < <(gh api --paginate             "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100"             --jq '.artifacts[].name' | grep -E "^position-continuation-meteora-${run_id}-[0-9]+$" || true)
+          test "${#names[@]}" -eq 1
+          mkdir -p manual-close-state
+          gh run download "$run_id" -R "$GITHUB_REPOSITORY" -n "${names[0]}" -D manual-close-state
+
+      - name: Prepare exact original lane source
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/manual-close-worktrees"
+
+      - name: Append owner-forced terminal settlement at latest authenticated mark
+        env:
+          MM_CONTINUATION_LANE_ROOT: ${{ runner.temp }}/manual-close-worktrees/meteora
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from certification.position_continuation import (
+              _activate_lane_root, _find, _meteora_events, _meteora_open_identity,
+          )
+
+          _activate_lane_root()
+          from tests import solana_dlmm_independent_v1 as module
+          from meme_machine.dlmm_independent_accounting import PaperBook
+          from meme_machine.dlmm_tape import VerifiedTape
+
+          root=Path("manual-close-state")
+          db_path=_find(root,"solana-dlmm-independent-v1-live.accounting.sqlite3")
+          events=_meteora_events(db_path)
+          genesis=events[0]["data"]
+          identity,entry_event=_meteora_open_identity(events)
+          entry_data=entry_event["data"]
+          features=entry_data["features"]
+          entry=entry_data["entry_state"]
+          policy=entry_data["policy"]
+
+          book=PaperBook(
+              db_path,run_id=genesis["run_id"],policy_hash=genesis["policy_hash"],
+              capital=int(genesis["capital"]))
+          position=module._build_position(entry,features,policy)
+          last_lineage=None;mark_count=0
+          for event in events:
+              if event.get("identity")!=identity or event.get("action")!="mark":
+                  continue
+              t=event["data"]["tape"]
+              tape=VerifiedTape(
+                  t["start_hash"],t["end_hash"],tuple(t["events"]),
+                  t["terminal"],t["lineage"],tuple(t.get("terminal_adjustments",())))
+              position=module._advance_position(position,tape)
+              last_lineage=tape.lineage;mark_count+=1
+
+          if mark_count<1: raise RuntimeError("owner_forced_close_requires_authenticated_mark")
+          final=module._mark(position)
+          book.append(identity,"settle",dict(
+              mark=final,exit_reason="owner_forced_manual_close",
+              lineage=last_lineage or module.digest(entry),
+              forced=True,manual=True,natural=False,owner_authorized=True,
+              source_state_run_id=int(os.environ["SOURCE_STATE_RUN_ID"])))
+          accounting=book.reconcile()
+          replay=book.replay_economics(
+              module._build_position,module._advance_position,module._mark)
+          for key in ("open_positions","pending","unsettled","reserved"):
+              if int(accounting.get(key) or 0)!=0:
+                  raise RuntimeError("owner_forced_close_not_flat:"+key)
+          if accounting.get("reconciled") is not True or replay.get("verified") is not True:
+              raise RuntimeError("owner_forced_close_replay_failed")
+          result=dict(
+              schema="meteora-owner-forced-close-v1",lane="meteora",
+              status="forced_settled",handoff_required=False,lifecycle_id=identity,
+              reason="owner_forced_manual_close",forced_settled=True,
+              natural_settled=False,owner_authorized=True,economic_sample_eligible=False,
+              assurance_passed=True,conformance="owner_forced_terminal_intervention",
+              continuity="latest_authenticated_mark_preserved",
+              accounting=accounting,accounting_replay=replay,
+              terminal_replay_verified=True,
+              source_state_run_id=int(os.environ["SOURCE_STATE_RUN_ID"]),
+              integration_sha=os.environ["RUNTIME_SHA"])
+          (root/"position-continuation-result.json").write_text(
+              json.dumps(result,sort_keys=True,indent=2)+"\n")
+          print(json.dumps({
+              "status":"forced_settled","lifecycle_id":identity,
+              "mark_count":mark_count,
+              "realized_pnl_lamports":accounting.get("realized_pnl_lamports"),
+              "flat":True},sort_keys=True))
+          PY
+
+      - name: Amend original prospective block as forced and excluded
+        run: |
+          set -euo pipefail
+          base="$(find manual-close-state -type f -name 'prospective-observation.json' -print -quit)"
+          test -n "$base"
+          python -m certification.prospective_acceptance amend-continuation             --record "$base" --lane meteora --state-dir manual-close-state             --continuation-result manual-close-state/position-continuation-result.json             --output manual-close-state/prospective-observation-meteora.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("manual-close-state/prospective-observation-meteora.json")
+          row=json.loads(p.read_text());lane=row["lanes"]["meteora"]
+          lane["forced_settled"]=int(lane.get("forced_settled") or 0)+1
+          lane["natural_position_terminal"]=False
+          lane["continuation_terminal_status"]="forced_settled"
+          lane["manual_intervention"]="owner_forced_manual_close"
+          row["block_admission_passed"]=False
+          row["manual_intervention"]=True
+          row["manual_intervention_reason"]="owner_forced_manual_close"
+          update=row.setdefault("continuation_updates",{}).setdefault("meteora",{})
+          update.update(forced_settlement=True,natural_settlement=False,
+                        manual_owner_intervention=True,status="forced_settled")
+          if int(lane.get("natural_settled") or 0)!=0:
+              raise RuntimeError("forced_close_must_not_gain_natural_credit")
+          if int(lane.get("forced_settled") or 0)<1:
+              raise RuntimeError("forced_close_not_recorded")
+          p.write_text(json.dumps(row,sort_keys=True,indent=2)+"\n")
+          print(json.dumps({
+              "natural_settled":lane["natural_settled"],
+              "forced_settled":lane["forced_settled"],
+              "block_admission_passed":row["block_admission_passed"]},sort_keys=True))
+          PY
+
+      - name: Terminalize continuation authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import os,time
+          from certification.prospective_program import GitHub
+          from certification.single_campaign_control import StateStore,configuration,continuation_store
+          api=GitHub();config=configuration()
+          main=StateStore(api,config).read()
+          if (not main or main.get("workflow_run_id")!=int(os.environ["CAMPAIGN_RUN_ID"])
+                  or main.get("phase")!="POSITION_CONTINUATION"
+                  or main.get("identity",{}).get("integration_sha")!=os.environ["RUNTIME_SHA"]):
+              raise RuntimeError("owner_forced_close_parent_state")
+          store=continuation_store(api,config,"meteora");state=store.read()
+          if (not state or state.get("campaign_run_id")!=int(os.environ["CAMPAIGN_RUN_ID"])
+                  or state.get("lane")!="meteora" or state.get("identity")!=main.get("identity")
+                  or state.get("status") not in ("HALTED_UNRESOLVED","OPEN")):
+              raise RuntimeError("owner_forced_close_chain_state")
+          if int(state.get("last_state_run_id") or 0)!=int(os.environ["SOURCE_STATE_RUN_ID"]):
+              raise RuntimeError("owner_forced_close_stale_source")
+          state.update(status="SETTLED",active_run_id=None,
+              forced_manual_close=True,
+              forced_manual_close_run_id=int(os.environ["GITHUB_RUN_ID"]),
+              forced_manual_close_at=time.time(),
+              terminal_reason="owner_forced_manual_close",
+              failure=None,owner_forced_manual_close_pending=False)
+          state["history"].append(dict(
+              action="owner_forced_manual_close",
+              run_id=int(os.environ["GITHUB_RUN_ID"]),
+              source_state_run_id=int(os.environ["SOURCE_STATE_RUN_ID"]),
+              natural_settlement_credit=False))
+          store.write(state)
+          print("Continuation authority terminalized.")
+          PY
+
+      - name: Preserve forced-close evidence
+        uses: actions/upload-artifact@ea165f8d65e75b540449e92b4886f43607fa02
+        with:
+          name: owner-forced-close-meteora-36043064083-${{ github.run_id }}
+          path: manual-close-state/
+          if-no-files-found: error
+          retention-days: 90
