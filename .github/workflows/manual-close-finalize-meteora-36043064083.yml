@@ -21,19 +21,12 @@ jobs:
       CAMPAIGN_RUN_ID: "36043064083"
       SOURCE_STATE_RUN_ID: "36069111430"
     steps:
-      - name: Cancel stale continuation/manual-close runs
+      - name: Cancel known stale continuation/manual-close runs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          for run_id in 36069190910 36069263694; do
-            gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel" >/dev/null 2>&1 || true
-          done
-          mapfile -t active < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100"             --jq '.workflow_runs[]
-              | select(.path==".github/workflows/position-continuation.yml")
-              | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="pending" or .status=="requested")
-              | .id')
-          for run_id in "${active[@]}"; do
+          for run_id in 36069190910 36069263694 36069498981; do
             gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel" >/dev/null 2>&1 || true
           done
 
