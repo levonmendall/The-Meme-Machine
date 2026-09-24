@@ -26,3 +26,5 @@ Protocol-freeze validator now certifies position-only continuation while keeping
 Protocol-freeze validation updated to recognize position-only continuation without successor-campaign authority.
 
 Focused diagnostic 36037309373: PASS.
+
+Final exact-SHA certification candidate follows focused run 36037319220 PASS.
