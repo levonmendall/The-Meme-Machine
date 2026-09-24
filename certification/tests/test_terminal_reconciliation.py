@@ -67,6 +67,31 @@ print(json.dumps({'lane':lane,'read_only':True,'reserve_retained':reserved,'open
 '''
 
 
+class MeteoraDurableHandoffTests(unittest.TestCase):
+    def test_open_replayable_journal_is_a_durable_handoff(self):
+        from certification.terminal_reconciliation import meteora_handoff
+        identity='solana_meteora_independent_v1:fixture:one'
+        events=[
+            dict(action='genesis',identity=None,data={}),
+            dict(action='entry',identity=identity,data=dict(
+                policy={},features={},entry_state={},position={},mark={})),
+            dict(action='mark',identity=identity,data=dict(
+                tape=dict(lineage='abc',terminal={}),
+                strategy_progress=dict(
+                    observed_seconds=300,elapsed_seconds=300,
+                    collapse_streaks={},raw_exit_reasons=[],
+                    eligible_exit_reasons=[],effective_start_hash='hash'))),
+        ]
+        accounting=dict(unsettled=1,genesis=dict(policy_hash='policy'))
+        handoff=meteora_handoff(events,accounting,dict(verified=True))
+        self.assertEqual(handoff['lifecycle_id'],identity)
+        self.assertEqual(handoff['verified_hold_seconds'],300)
+        self.assertTrue(handoff['append_only_journal'])
+        self.assertIsNone(meteora_handoff(events,dict(unsettled=2),dict(verified=True)))
+        broken=json.loads(json.dumps(events));broken[-1]['data'].pop('strategy_progress')
+        self.assertIsNone(meteora_handoff(broken,accounting,dict(verified=True)))
+
+
 class NativeTerminalReconciliationTests(unittest.TestCase):
     def test_restored_pons_relative_trial_paths_replay_without_journal_mutation(self):
         roots=os.environ.get('MM_TEST_LANE_WORKTREES')
