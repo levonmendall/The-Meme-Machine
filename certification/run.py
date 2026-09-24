@@ -602,6 +602,9 @@ def finish_lanes(processes,files,rows,terminal_times,journal,run,worktrees=None)
                     key='cohort_accounting' if lane=='pons' else 'native_accounting'
                     row[key]=receipt['accounting']
                     if 'accounting_replay' in receipt:row['accounting_replay']=receipt['accounting_replay']
+                    if receipt.get('durable_handoff') is True:
+                        row['durable_handoff']=True
+                        row['continuation_state']=receipt.get('continuation_state')
                     if lane in stopped:row['shutdown_positions']='durable_native_state_reconciled'
                 else:row['accounting_reconciled']=False
             except Exception as exc:
