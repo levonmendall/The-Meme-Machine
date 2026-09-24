@@ -24,3 +24,5 @@ Focused validation: run 36036948055 PASS (33 tests). Exact-SHA full non-market c
 Protocol-freeze validator now certifies position-only continuation while keeping successor discovery disabled.
 
 Protocol-freeze validation updated to recognize position-only continuation without successor-campaign authority.
+
+Focused diagnostic 36037309373: PASS.
