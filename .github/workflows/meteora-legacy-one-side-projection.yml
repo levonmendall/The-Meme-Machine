@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: '3.12.14'
       - name: Prepare exact declared lane overlays
-        run: python -m certification.run prepare "$RUNNER_TEMP/worktrees"
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/worktrees"
       - name: Compute prepared Meteora identity
         run: |
           mkdir -p projection
