@@ -48,6 +48,12 @@
       "action": "dispatch_intent",
       "at": 1790218524.0877798,
       "dispatch_id": "532c587923464dd3af571397b49c198f"
+    },
+    {
+      "action": "admitted_smoke_preserved",
+      "at": 1790224942.5407226,
+      "pending_lanes": [],
+      "run_id": 35949285193
     }
   ],
   "integration_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
@@ -64,6 +70,856 @@
   "records": [],
   "reviewed_blocks": [],
   "schema": "prospective-program-v1",
+  "smoke_artifact": {
+    "digest": "sha256:ab3dddbd402c285536fc0f8c9ada5ed9f9691e1b327ac93282c2d81b8c2f8910",
+    "id": 10788971344
+  },
+  "smoke_continuation_proofs": {},
+  "smoke_evidence_run_id": 35949285193,
+  "smoke_pending_lanes": [],
+  "smoke_readiness": {
+    "continuous_overlap_seconds": 600.1655537510001,
+    "implementation_hash": "b8a958d59e8f0a9b6e87c82b37a7bd02ae883c3f34bdd7d4e45ec322817dcc67",
+    "integration_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
+    "lanes": {
+      "meteora": {
+        "accounting_reconciled": true,
+        "durable_handoff": null,
+        "exit_code": 0,
+        "funnel": {
+          "complete_economic_vectors": 2,
+          "complete_lifecycles": 0,
+          "complete_observations": 2,
+          "discovered": 1057,
+          "screened": 14,
+          "unique_admitted": 7,
+          "unique_capacity_censored": 0,
+          "unique_consumer_deadline": 1,
+          "unique_deployed": 0,
+          "unique_discovered": 1057,
+          "unique_economic_vector": 2,
+          "unique_entry_cancelled": 0,
+          "unique_entry_filled": 0,
+          "unique_entry_reserved": 0,
+          "unique_evaluated": 2,
+          "unique_evidence_complete": 2,
+          "unique_evidence_requested": 7,
+          "unique_forward_observation": 6,
+          "unique_fresh_state": 6,
+          "unique_local_budget_exhausted": 0,
+          "unique_no_authentic_activity": 3,
+          "unique_prospective_range": 2,
+          "unique_provider_failed": 0,
+          "unique_qualified": 0,
+          "unique_reconstruction_complete": 6,
+          "unique_reconstruction_incomplete": 4,
+          "unique_reconstruction_started": 6,
+          "unique_rejected": 2,
+          "unique_screened": 14,
+          "unique_settled": 0,
+          "unique_stale_after_complete_evidence": 0,
+          "unique_stale_before_evidence": 0,
+          "unique_stale_during_evidence": 0,
+          "unique_strategy_rejection": 2,
+          "unique_structural_ineligible": 7,
+          "unique_terminal": 14,
+          "unique_trigger_authenticated": 6,
+          "unique_trigger_observed": 6,
+          "unique_trigger_terminal": 7,
+          "unique_unwind": 0,
+          "unique_warmup_complete": 4,
+          "unique_warmup_started": 6
+        },
+        "gates": {
+          "accounting_reconciled": true,
+          "freshness_finality_unchanged": true,
+          "paper_only": true,
+          "policy_unchanged": true,
+          "responsive": true,
+          "state_isolated": true,
+          "telemetry_complete": true
+        },
+        "native_accounting": {
+          "available": 1000000000,
+          "capital_time_through_ns": 0,
+          "capital_unit_nanoseconds": 0,
+          "cash": 1000000000,
+          "economic_replay_verified": false,
+          "genesis": {
+            "asset": "SOL_lamports",
+            "capital": 1000000000,
+            "namespace": "solana_meteora_independent_v1",
+            "paper_only": true,
+            "policy_hash": "a69ec239772a86bc7526594c9822b6fc1e611b45b7e661f618099656b288d55b",
+            "run_id": "7cf58688-4fc5-4f1f-ae44-b2fde251a263"
+          },
+          "journal_events": 1,
+          "journal_hash": "9bb3c112832ee140f5f5cba24ee07413df73bfff6e1f132dc02ea27edac77b06",
+          "marked_equity": 1000000000,
+          "net_cash_flows": 0,
+          "open_positions": 0,
+          "pending": 0,
+          "realized_pnl_lamports": 0,
+          "reconciled": true,
+          "reserved": 0,
+          "settled": 0,
+          "stale_marks": 0,
+          "unrealized_pnl_lamports": 0,
+          "unsettled": 0,
+          "writeoffs": 0
+        },
+        "open_positions": 0,
+        "process_restarts": 0,
+        "provider_requests": 283,
+        "terminal_reconciliation": {
+          "accounting": {
+            "available": 1000000000,
+            "capital_time_through_ns": 0,
+            "capital_unit_nanoseconds": 0,
+            "cash": 1000000000,
+            "economic_replay_verified": false,
+            "genesis": {
+              "asset": "SOL_lamports",
+              "capital": 1000000000,
+              "namespace": "solana_meteora_independent_v1",
+              "paper_only": true,
+              "policy_hash": "a69ec239772a86bc7526594c9822b6fc1e611b45b7e661f618099656b288d55b",
+              "run_id": "7cf58688-4fc5-4f1f-ae44-b2fde251a263"
+            },
+            "journal_events": 1,
+            "journal_hash": "9bb3c112832ee140f5f5cba24ee07413df73bfff6e1f132dc02ea27edac77b06",
+            "marked_equity": 1000000000,
+            "net_cash_flows": 0,
+            "open_positions": 0,
+            "pending": 0,
+            "realized_pnl_lamports": 0,
+            "reconciled": true,
+            "reserved": 0,
+            "settled": 0,
+            "stale_marks": 0,
+            "unrealized_pnl_lamports": 0,
+            "unsettled": 0,
+            "writeoffs": 0
+          },
+          "economic_replay_claimed": false,
+          "lane": "meteora",
+          "open_positions": 0,
+          "read_only": true,
+          "settlement_inferred": false,
+          "verified": true
+        },
+        "unexpected_exit": false
+      },
+      "pons": {
+        "accounting_reconciled": true,
+        "durable_handoff": null,
+        "exit_code": 0,
+        "funnel": {
+          "complete_evidence_vectors": 0,
+          "evaluated": 104,
+          "liquidity_writeoffs": 0,
+          "qualified": 0,
+          "unique_admitted": 5,
+          "unique_capacity_censored": 0,
+          "unique_consumer_deadline": 0,
+          "unique_current_state_complete": 60,
+          "unique_current_state_queued": 104,
+          "unique_current_state_requested": 104,
+          "unique_deployed": 0,
+          "unique_discovered": 279,
+          "unique_economic_vector": 0,
+          "unique_entry_cancelled": 0,
+          "unique_entry_filled": 0,
+          "unique_entry_reserved": 0,
+          "unique_evaluated": 0,
+          "unique_evidence_complete": 0,
+          "unique_evidence_requested": 5,
+          "unique_forward_observation": 0,
+          "unique_fresh_state": 0,
+          "unique_local_budget_exhausted": 0,
+          "unique_no_authentic_activity": 0,
+          "unique_prospect_admitted": 5,
+          "unique_prospect_incomplete": 0,
+          "unique_prospect_observed": 0,
+          "unique_prospect_screened": 60,
+          "unique_prospective_range": 0,
+          "unique_provider_failed": 2,
+          "unique_qualified": 0,
+          "unique_reconstruction_complete": 0,
+          "unique_reconstruction_incomplete": 42,
+          "unique_reconstruction_started": 0,
+          "unique_rejected": 60,
+          "unique_screened": 104,
+          "unique_settled": 0,
+          "unique_stale_after_complete_evidence": 0,
+          "unique_stale_before_evidence": 0,
+          "unique_stale_during_evidence": 0,
+          "unique_strategy_rejection": 60,
+          "unique_terminal": 44,
+          "unique_trigger_authenticated": 0,
+          "unique_trigger_observed": 0,
+          "unique_trigger_terminal": 0,
+          "unique_unwind": 0,
+          "unique_warmup_complete": 0,
+          "unique_warmup_started": 0
+        },
+        "gates": {
+          "accounting_reconciled": true,
+          "freshness_finality_unchanged": true,
+          "paper_only": true,
+          "policy_unchanged": true,
+          "responsive": true,
+          "state_isolated": true,
+          "telemetry_complete": true
+        },
+        "native_accounting": null,
+        "open_positions": 0,
+        "process_restarts": 0,
+        "provider_requests": 1007,
+        "terminal_reconciliation": {
+          "accounting": {
+            "available": 1000000000000000000,
+            "booked_realized": 0,
+            "capital_at_risk_unit_nanoseconds": 0,
+            "capital_integral_complete": true,
+            "cash": 1000000000000000000,
+            "cash_basis_conservation": true,
+            "conservation": true,
+            "genesis": 1000000000000000000,
+            "namespace": "pons-selective-continuation-v1",
+            "native_execution_cost": 0,
+            "native_observation_complete": true,
+            "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+            "positions": 0,
+            "realized": 0,
+            "remaining_cost_basis": 0,
+            "reserved": 0,
+            "unobserved_native_positions": [],
+            "unsettled": 0
+          },
+          "lane": "pons",
+          "open_positions": 0,
+          "read_only": true,
+          "settlement_inferred": false,
+          "verified": true
+        },
+        "unexpected_exit": false
+      },
+      "pump": {
+        "accounting_reconciled": true,
+        "durable_handoff": null,
+        "exit_code": 0,
+        "funnel": {
+          "discovered": 406,
+          "entry_cancelled": 0,
+          "entry_filled": 0,
+          "entry_reserved": 0,
+          "evidence_complete": 1,
+          "qualified": 0,
+          "settled": 0,
+          "unique_admitted": 4,
+          "unique_capacity_censored": 0,
+          "unique_consumer_deadline": 0,
+          "unique_current_state_complete": 0,
+          "unique_current_state_queued": 0,
+          "unique_current_state_requested": 0,
+          "unique_deployed": 0,
+          "unique_discovered": 406,
+          "unique_economic_vector": 0,
+          "unique_entry_cancelled": 0,
+          "unique_entry_filled": 0,
+          "unique_entry_reserved": 0,
+          "unique_evaluated": 3,
+          "unique_evidence_complete": 1,
+          "unique_evidence_requested": 4,
+          "unique_forward_observation": 0,
+          "unique_fresh_state": 0,
+          "unique_local_budget_exhausted": 0,
+          "unique_no_authentic_activity": 0,
+          "unique_prospect_admitted": 1,
+          "unique_prospect_incomplete": 7,
+          "unique_prospect_observed": 14,
+          "unique_prospect_screened": 8,
+          "unique_prospective_range": 0,
+          "unique_provider_failed": 0,
+          "unique_qualified": 0,
+          "unique_reconstruction_complete": 0,
+          "unique_reconstruction_incomplete": 12,
+          "unique_reconstruction_started": 0,
+          "unique_rejected": 3,
+          "unique_screened": 1,
+          "unique_settled": 0,
+          "unique_stale_after_complete_evidence": 0,
+          "unique_stale_before_evidence": 0,
+          "unique_stale_during_evidence": 0,
+          "unique_strategy_rejection": 8,
+          "unique_terminal": 6,
+          "unique_trigger_authenticated": 0,
+          "unique_trigger_observed": 0,
+          "unique_trigger_terminal": 0,
+          "unique_unwind": 0,
+          "unique_warmup_complete": 0,
+          "unique_warmup_started": 0
+        },
+        "gates": {
+          "accounting_reconciled": true,
+          "freshness_finality_unchanged": true,
+          "paper_only": true,
+          "policy_unchanged": true,
+          "responsive": true,
+          "state_isolated": true,
+          "telemetry_complete": true
+        },
+        "native_accounting": {
+          "basis": 0,
+          "capital_hour_denominator": 3600,
+          "capital_unit_seconds": 0,
+          "cash": 5110384300,
+          "initial": 5110384300,
+          "lane": "pump-acceleration-independent-v1",
+          "marked_equity": 5110384300,
+          "open_positions": 0,
+          "pending": 0,
+          "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+          "realized": 0,
+          "reconciled": true,
+          "reserved": 0,
+          "run_id": "7cf58688-4fc5-4f1f-ae44-b2fde251a263",
+          "settled": 0,
+          "unrealized": 0
+        },
+        "open_positions": 0,
+        "process_restarts": 0,
+        "provider_requests": 394,
+        "terminal_reconciliation": {
+          "accounting": {
+            "basis": 0,
+            "capital_hour_denominator": 3600,
+            "capital_unit_seconds": 0,
+            "cash": 5110384300,
+            "initial": 5110384300,
+            "lane": "pump-acceleration-independent-v1",
+            "marked_equity": 5110384300,
+            "open_positions": 0,
+            "pending": 0,
+            "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+            "realized": 0,
+            "reconciled": true,
+            "reserved": 0,
+            "run_id": "7cf58688-4fc5-4f1f-ae44-b2fde251a263",
+            "settled": 0,
+            "unrealized": 0
+          },
+          "accounting_replay": {
+            "cash": 5110384300,
+            "events": 0,
+            "final_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+            "verified": true
+          },
+          "lane": "pump",
+          "open_positions": 0,
+          "read_only": true,
+          "settlement_inferred": false,
+          "verified": true
+        },
+        "unexpected_exit": false
+      },
+      "ramses": {
+        "accounting_reconciled": true,
+        "durable_handoff": null,
+        "exit_code": 0,
+        "funnel": {
+          "active_pools": 3,
+          "completed_scans": 3,
+          "infrastructure_censored_scans": 0,
+          "scans": 3,
+          "unique_admitted": 3,
+          "unique_capacity_censored": 0,
+          "unique_consumer_deadline": 0,
+          "unique_deployed": 0,
+          "unique_discovered": 3,
+          "unique_economic_vector": 0,
+          "unique_entry_cancelled": 0,
+          "unique_entry_filled": 0,
+          "unique_entry_reserved": 0,
+          "unique_evaluated": 3,
+          "unique_evidence_complete": 0,
+          "unique_evidence_requested": 3,
+          "unique_forward_observation": 0,
+          "unique_fresh_state": 0,
+          "unique_local_budget_exhausted": 0,
+          "unique_no_authentic_activity": 0,
+          "unique_prospective_range": 0,
+          "unique_provider_failed": 0,
+          "unique_qualified": 0,
+          "unique_reconstruction_complete": 0,
+          "unique_reconstruction_incomplete": 3,
+          "unique_reconstruction_started": 0,
+          "unique_rejected": 3,
+          "unique_screened": 3,
+          "unique_settled": 0,
+          "unique_stale_after_complete_evidence": 0,
+          "unique_stale_before_evidence": 0,
+          "unique_stale_during_evidence": 0,
+          "unique_strategy_rejection": 0,
+          "unique_terminal": 0,
+          "unique_trigger_authenticated": 0,
+          "unique_trigger_observed": 0,
+          "unique_trigger_terminal": 0,
+          "unique_unwind": 0,
+          "unique_warmup_complete": 0,
+          "unique_warmup_started": 0
+        },
+        "gates": {
+          "accounting_reconciled": true,
+          "freshness_finality_unchanged": true,
+          "paper_only": true,
+          "policy_unchanged": true,
+          "responsive": true,
+          "state_isolated": true,
+          "telemetry_complete": true
+        },
+        "native_accounting": {
+          "allocation_authority": false,
+          "by_quote_asset": {},
+          "conservation": true,
+          "funding_state": "awaiting_first_qualified_pinned_screen",
+          "open_positions": 0,
+          "paper_entry_ready": false,
+          "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+          "position_count": 0,
+          "unlike_quote_units_summed": false
+        },
+        "open_positions": 0,
+        "process_restarts": 0,
+        "provider_requests": 449,
+        "terminal_reconciliation": {
+          "accounting": {
+            "allocation_authority": false,
+            "by_quote_asset": {},
+            "conservation": true,
+            "funding_state": "awaiting_first_qualified_pinned_screen",
+            "open_positions": 0,
+            "paper_entry_ready": false,
+            "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+            "position_count": 0,
+            "unlike_quote_units_summed": false
+          },
+          "lane": "ramses",
+          "open_positions": 0,
+          "read_only": true,
+          "settlement_inferred": false,
+          "verified": true
+        },
+        "unexpected_exit": false
+      }
+    },
+    "phase": "smoke",
+    "run_id": "7cf58688-4fc5-4f1f-ae44-b2fde251a263",
+    "shared_provider": {
+      "robinhood": {
+        "admission_by_lane": {
+          "pons": {
+            "failed": 0,
+            "failed_by_method": {},
+            "failed_by_reason": {},
+            "failed_by_scope": {},
+            "granted": 1007,
+            "granted_by_priority": {
+              "10": 1007
+            },
+            "grants_by_minute": {
+              "10": 93,
+              "11": 99,
+              "12": 87,
+              "13": 71,
+              "14": 95,
+              "15": 88,
+              "16": 75,
+              "5": 17,
+              "6": 89,
+              "7": 105,
+              "8": 85,
+              "9": 103
+            },
+            "last_grant_monotonic": 1010.418282022,
+            "max_wait_seconds": 7.505626011000004,
+            "requested": 1007,
+            "total_wait_seconds": 101.85015538900103
+          },
+          "ramses": {
+            "failed": 0,
+            "failed_by_method": {},
+            "failed_by_reason": {},
+            "failed_by_scope": {},
+            "granted": 449,
+            "granted_by_priority": {
+              "50": 449
+            },
+            "grants_by_minute": {
+              "10": 53,
+              "11": 13,
+              "12": 8,
+              "13": 46,
+              "14": 56,
+              "15": 40,
+              "5": 17,
+              "6": 61,
+              "7": 51,
+              "8": 49,
+              "9": 55
+            },
+            "last_grant_monotonic": 942.777814658,
+            "max_wait_seconds": 3.7497163089999503,
+            "requested": 449,
+            "total_wait_seconds": 101.14029795000101
+          }
+        },
+        "endpoints": [
+          {
+            "cooldown_remaining_seconds": 0,
+            "identity": "356037d82405f7b99eee047ef945ebe35e5a4cd68024880b4cdd9c276119b4fb",
+            "interval_seconds": 0.5,
+            "requests": 549
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "identity": "78ccdeee5ef1eac240a33a5d090abde993a67b38a8b42627004d153a1f8c7402",
+            "interval_seconds": 0.5,
+            "requests": 907
+          }
+        ],
+        "estimated_cu": {
+          "billing_estimate_only": true,
+          "estimated_cu": 99346,
+          "estimated_cu_by_method": {
+            "eth_call": 84526,
+            "eth_chainId": 0,
+            "eth_gasPrice": 2120,
+            "eth_getBlockByHash": 120,
+            "eth_getBlockByNumber": 7100,
+            "eth_getCode": 2760,
+            "eth_getLogs": 420,
+            "eth_getTransactionReceipt": 2300
+          },
+          "known_estimated_cu": 99346,
+          "logical_calls": 3994,
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "scope": "identified_alchemy_transports_only",
+          "unknown_provider_logical_calls": 0,
+          "unpriced_methods": {}
+        },
+        "lanes": {
+          "pons": {
+            "alchemy_logical_calls": 1420,
+            "billing_estimate_only": true,
+            "cu_scope": "identified_alchemy_transports_only",
+            "estimated_cu": 32910,
+            "estimated_cu_by_method": {
+              "eth_call": 19110,
+              "eth_chainId": 0,
+              "eth_gasPrice": 2060,
+              "eth_getBlockByHash": 120,
+              "eth_getBlockByNumber": 6920,
+              "eth_getCode": 2080,
+              "eth_getLogs": 420,
+              "eth_getTransactionReceipt": 2200
+            },
+            "http_status": {
+              "200": 999,
+              "429": 6
+            },
+            "known_estimated_cu": 32910,
+            "logical_calls": 2378,
+            "logical_calls_per_physical_request": 2.361469712015889,
+            "max_queue_depth": 2,
+            "methods": {
+              "eth_call": 735,
+              "eth_chainId": 16,
+              "eth_gasPrice": 103,
+              "eth_getBlockByHash": 6,
+              "eth_getBlockByNumber": 346,
+              "eth_getCode": 104,
+              "eth_getLogs": 958,
+              "eth_getTransactionReceipt": 110
+            },
+            "provider_methods": {
+              "alchemy": {
+                "eth_call": 735,
+                "eth_chainId": 9,
+                "eth_gasPrice": 103,
+                "eth_getBlockByHash": 6,
+                "eth_getBlockByNumber": 346,
+                "eth_getCode": 104,
+                "eth_getLogs": 7,
+                "eth_getTransactionReceipt": 110
+              },
+              "robinhood_public": {
+                "eth_chainId": 7,
+                "eth_getLogs": 951
+              }
+            },
+            "queue_wait_seconds": 100.48623096400058,
+            "requests": 1007,
+            "retries": 0,
+            "rpc_errors": {
+              "3": 2
+            },
+            "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+            "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+            "transport_seconds": 125.519022884003,
+            "unknown_provider_logical_calls": 0,
+            "unpriced_methods": {}
+          },
+          "ramses": {
+            "alchemy_logical_calls": 2574,
+            "billing_estimate_only": true,
+            "cu_scope": "identified_alchemy_transports_only",
+            "estimated_cu": 66436,
+            "estimated_cu_by_method": {
+              "eth_call": 65416,
+              "eth_chainId": 0,
+              "eth_gasPrice": 60,
+              "eth_getBlockByNumber": 180,
+              "eth_getCode": 680,
+              "eth_getTransactionReceipt": 100
+            },
+            "http_status": {
+              "200": 448,
+              "429": 1
+            },
+            "known_estimated_cu": 66436,
+            "logical_calls": 2696,
+            "logical_calls_per_physical_request": 6.00445434298441,
+            "max_queue_depth": 2,
+            "methods": {
+              "eth_call": 2516,
+              "eth_chainId": 10,
+              "eth_gasPrice": 3,
+              "eth_getBlockByNumber": 74,
+              "eth_getCode": 34,
+              "eth_getLogs": 54,
+              "eth_getTransactionReceipt": 5
+            },
+            "provider_methods": {
+              "alchemy": {
+                "eth_call": 2516,
+                "eth_chainId": 7,
+                "eth_gasPrice": 3,
+                "eth_getBlockByNumber": 9,
+                "eth_getCode": 34,
+                "eth_getTransactionReceipt": 5
+              },
+              "robinhood_public": {
+                "eth_chainId": 3,
+                "eth_getBlockByNumber": 65,
+                "eth_getLogs": 54
+              }
+            },
+            "queue_wait_seconds": 100.68539431500096,
+            "requests": 449,
+            "retries": 0,
+            "rpc_errors": {},
+            "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+            "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+            "transport_seconds": 58.64175856799983,
+            "unknown_provider_logical_calls": 0,
+            "unpriced_methods": {}
+          }
+        },
+        "last_sequence": 1456,
+        "queues": [],
+        "state": "observed"
+      },
+      "robinhood_reuse": {
+        "cache_entries": 3895,
+        "database_bytes": 8388608,
+        "inflight_jobs": 0,
+        "lanes": {
+          "pons": {
+            "coalesced": {},
+            "hits": {
+              "eth_gasPrice": 1
+            },
+            "misses": {
+              "eth_call": 735,
+              "eth_chainId": 16,
+              "eth_gasPrice": 103,
+              "eth_getBlockByHash": 6,
+              "eth_getBlockByNumber": 346,
+              "eth_getCode": 104,
+              "eth_getLogs": 958,
+              "eth_getTransactionReceipt": 110
+            },
+            "session_hits": {
+              "eth_chainId": 104
+            }
+          },
+          "ramses": {
+            "coalesced": {},
+            "hits": {
+              "eth_call": 39,
+              "eth_getCode": 18
+            },
+            "misses": {
+              "eth_call": 2516,
+              "eth_chainId": 10,
+              "eth_gasPrice": 3,
+              "eth_getBlockByNumber": 74,
+              "eth_getCode": 34,
+              "eth_getLogs": 54,
+              "eth_getTransactionReceipt": 5
+            },
+            "session_hits": {}
+          }
+        },
+        "last_sequence": 5236,
+        "scope": "shared provider cache lookups; lane-native caches remain separately reported",
+        "state": "observed"
+      },
+      "solana": {
+        "lane_grants": [
+          {
+            "deadline_misses": 0,
+            "granted": 283,
+            "lane": "meteora",
+            "max_wait_seconds": 2.332481844999961,
+            "queue_wait_seconds": 86.37509835000122,
+            "requested": 283
+          },
+          {
+            "deadline_misses": 1,
+            "granted": 394,
+            "lane": "pump",
+            "max_wait_seconds": 2.3962226539999847,
+            "queue_wait_seconds": 71.24418113099966,
+            "requested": 395
+          }
+        ],
+        "method_pressure": [
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "getGenesisHash",
+            "provider": "solana",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "getMultipleAccounts",
+            "provider": "solana",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "getBlockTime",
+            "provider": "solana",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "getSignaturesForAddress",
+            "provider": "solana",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "getTransaction",
+            "provider": "solana",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "getProgramAccounts",
+            "provider": "solana",
+            "rate_errors": 1,
+            "rate_streak": 1,
+            "success_streak": 0
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "getTokenLargestAccounts",
+            "provider": "solana",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          }
+        ],
+        "providers": [
+          {
+            "cooldown": 605.232935723,
+            "grants": 677,
+            "next_at": 946.648090016,
+            "provider": "solana",
+            "rate_errors": 1
+          }
+        ],
+        "queues": []
+      },
+      "solana_reuse": {
+        "interpretation": "Hydration attributed to executing lane; cross-lane consumers share the same durable body. Consumer expirations are not unique opportunities.",
+        "lanes": {
+          "meteora": {
+            "immutable_read_events": [
+              {
+                "count": 87,
+                "kind": "miss",
+                "method": "getBlockTime"
+              },
+              {
+                "count": 1,
+                "kind": "miss",
+                "method": "getGenesisHash"
+              }
+            ],
+            "reuse": {
+              "signature_history_hit": 60,
+              "signature_history_miss": 6,
+              "transaction_consumer_hits": 7
+            },
+            "unique_bodies_hydrated": 99,
+            "unique_signatures_requested": 99
+          },
+          "pump": {
+            "immutable_read_events": [
+              {
+                "count": 63,
+                "kind": "miss",
+                "method": "getBlockTime"
+              },
+              {
+                "count": 29,
+                "kind": "cross_lane_hit",
+                "method": "getGenesisHash"
+              }
+            ],
+            "reuse": {
+              "signature_history_hit": 70,
+              "signature_history_miss": 11,
+              "transaction_consumer_hits": 2095
+            },
+            "unique_bodies_hydrated": 1761,
+            "unique_signatures_requested": 2353
+          }
+        },
+        "unique_bodies_hydrated": 1860,
+        "unique_signatures_observed": 37822,
+        "unique_signatures_requested": 2452
+      }
+    },
+    "source_manifest_hash": "0143be61b3edc2a5ac0a94f05d488a25f3a5df59a8dfba9876245d127b215dd9",
+    "status": "FINISHED"
+  },
   "source_diff_hash_by_lane": {
     "meteora": "c6906c074f683f44a220281579f1c0ab86c8ce34e05f2ed1703b5eda4557e5af",
     "pons": "eba51a72058bb6a72a0e7e5d78db4fbc4d8c0b6e3a8327b0e8adc44bd507558e",
@@ -88,5 +944,5 @@
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790218537.4435754
+  "updated_at": 1790224942.5407274
 }
