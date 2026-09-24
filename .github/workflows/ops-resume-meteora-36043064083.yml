@@ -1,0 +1,53 @@
+name: ops-resume-meteora-36043064083
+on:
+  push:
+    branches: [ops/resume-meteora-36043064083-20260924]
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: ops-resume-meteora-36043064083
+  cancel-in-progress: false
+
+jobs:
+  dispatch-once:
+    if: contains(github.event.head_commit.message, '[position-only-resume]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Verify exact frozen refs and no competing market workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V9_SHA: 07ec67a2b7967fd3e97c056307967ce1738f6d20
+          V10_SHA: 7c2425f0dea6978ba96b49150b244e8957ace68a
+        run: |
+          set -euo pipefail
+          v9="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/cert/single-market-v9-monitored-20260924" --jq '.object.sha')"
+          v10="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/cert/single-market-v10-postrun-20260924" --jq '.object.sha')"
+          test "$v9" = "$V9_SHA"
+          test "$v10" = "$V10_SHA"
+          : > /tmp/active-runs
+          for status in queued in_progress waiting pending requested; do
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs?status=${status}&per_page=100"               --jq '.workflow_runs[] | [.id,.path,.status] | @tsv' >> /tmp/active-runs
+          done
+          if awk -F '\t' '
+            $2 ~ /\/(four-lane-certification|position-continuation|single-campaign-launch|prospective-cohort-review|all-market-certification|coverage-repair-certification|pump-acceleration-natural-prospective|pump-http-primary-soak|pump-rejected-winner-study|pump-supply-probe|provider-shape-probe)\.yml$/ {
+              print > "/dev/stderr"; found=1
+            }
+            END { exit(found ? 1 : 0) }
+          ' /tmp/active-runs; then
+            echo "No competing market or continuation workflow is active."
+          else
+            echo "Competing market/continuation workflow detected; refusing dispatch." >&2
+            exit 3
+          fi
+
+      - name: Dispatch only the preserved Meteora position
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = "1"
+          gh workflow run position-continuation.yml             --ref cert/single-market-v9-monitored-20260924             -f lane=meteora             -f state_run_id=36043064083             -f slice_seconds=3000             -f program=false             -f expected_sha=07ec67a2b7967fd3e97c056307967ce1738f6d20             -f campaign_run_id=36043064083             -f engineering_recovery=false             -f certification_run_id=36041821324             -f smoke_continuation=false             -f single_campaign=true
