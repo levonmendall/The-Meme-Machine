@@ -102,13 +102,24 @@ jobs:
               position=module._advance_position(position,tape)
               last_lineage=tape.lineage;mark_count+=1
 
-          if mark_count<1: raise RuntimeError("owner_forced_close_requires_authenticated_mark")
-          final=module._mark(position)
-          book.append(identity,"settle",dict(
-              mark=final,exit_reason="owner_forced_manual_close",
-              lineage=last_lineage or module.digest(entry),
-              forced=True,manual=True,natural=False,owner_authorized=True,
-              source_state_run_id=int(os.environ["SOURCE_STATE_RUN_ID"])))
+          if mark_count>=1:
+              final=module._mark(position)
+              book.append(identity,"settle",dict(
+                  mark=final,exit_reason="owner_forced_manual_close",
+                  lineage=last_lineage or module.digest(entry),
+                  forced=True,manual=True,natural=False,owner_authorized=True,
+                  source_state_run_id=int(os.environ["SOURCE_STATE_RUN_ID"])))
+              terminal_status="forced_settled"
+              terminal_action="settle"
+              terminal_reason="owner_forced_manual_close"
+          else:
+              book.append(identity,"writeoff",dict(
+                  reason="owner_forced_manual_close_no_authenticated_post_entry_mark",
+                  forced=True,manual=True,natural=False,owner_authorized=True,
+                  source_state_run_id=int(os.environ["SOURCE_STATE_RUN_ID"])))
+              terminal_status="forced_written_off"
+              terminal_action="writeoff"
+              terminal_reason="owner_forced_manual_close_no_authenticated_post_entry_mark"
           accounting=book.reconcile()
           replay=book.replay_economics(
               module._build_position,module._advance_position,module._mark)
@@ -119,8 +130,8 @@ jobs:
               raise RuntimeError("owner_forced_close_replay_failed")
           result=dict(
               schema="meteora-owner-forced-close-v1",lane="meteora",
-              status="forced_settled",handoff_required=False,lifecycle_id=identity,
-              reason="owner_forced_manual_close",forced_settled=True,
+              status=terminal_status,handoff_required=False,lifecycle_id=identity,
+              reason=terminal_reason,forced_settled=True,forced_writeoff=(terminal_action=="writeoff"),
               natural_settled=False,owner_authorized=True,economic_sample_eligible=False,
               assurance_passed=True,conformance="owner_forced_terminal_intervention",
               continuity="latest_authenticated_mark_preserved",
@@ -131,8 +142,8 @@ jobs:
           (root/"position-continuation-result.json").write_text(
               json.dumps(result,sort_keys=True,indent=2)+"\n")
           print(json.dumps({
-              "status":"forced_settled","lifecycle_id":identity,
-              "mark_count":mark_count,
+              "status":terminal_status,"terminal_action":terminal_action,
+              "lifecycle_id":identity,"mark_count":mark_count,
               "realized_pnl_lamports":accounting.get("realized_pnl_lamports"),
               "flat":True},sort_keys=True))
           PY
@@ -150,14 +161,17 @@ jobs:
           row=json.loads(p.read_text());lane=row["lanes"]["meteora"]
           lane["forced_settled"]=int(lane.get("forced_settled") or 0)+1
           lane["natural_position_terminal"]=False
-          lane["continuation_terminal_status"]="forced_settled"
-          lane["manual_intervention"]="owner_forced_manual_close"
+          result=json.loads(Path("manual-close-state/position-continuation-result.json").read_text())
+          lane["continuation_terminal_status"]=result["status"]
+          lane["manual_intervention"]=result["reason"]
+          lane["forced_writeoff"]=bool(result.get("forced_writeoff"))
           row["block_admission_passed"]=False
           row["manual_intervention"]=True
           row["manual_intervention_reason"]="owner_forced_manual_close"
           update=row.setdefault("continuation_updates",{}).setdefault("meteora",{})
           update.update(forced_settlement=True,natural_settlement=False,
-                        manual_owner_intervention=True,status="forced_settled")
+                        forced_writeoff=bool(result.get("forced_writeoff")),
+                        manual_owner_intervention=True,status=result["status"])
           if int(lane.get("natural_settled") or 0)!=0:
               raise RuntimeError("forced_close_must_not_gain_natural_credit")
           if int(lane.get("forced_settled") or 0)<1:
