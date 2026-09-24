@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-24-evidence-reconstruction-single-run-candidate",
+  "verified_at": "2026-09-24-meteora-one-side-compose-diagnostic",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -150,8 +150,8 @@
       ]
     },
     "meteora": {
-      "source_branch": "strategy/meteora-core-hold-v2-20260923",
-      "source_sha": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
+      "source_branch": "repair/meteora-one-side-replay-source-20260924",
+      "source_sha": "32b7de83dd1f002a0037cb6d3dc951cb470d90b4",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
       "source_diff_sha256": "1e27b8b2cbbe83d2643fadb1fda5d22544b66eea659938bab3a62f51b7e9305b",
@@ -196,7 +196,9 @@
         "a616366fbe64e816708d035c15141b7e7e800304",
         "ed12766d452cc2d5cc3bb5f6260e88cd1bea180b",
         "403eb4006ae132e89b654c214c39a074de1b51b8",
-        "ec0b96f999f460c35cb63b27cd0387c4f81f9898"
+        "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
+        "9c8d4539c43ecd52cf73d5fde29b4da4f499e4c6",
+        "32b7de83dd1f002a0037cb6d3dc951cb470d90b4"
       ],
       "paper_starting_capital_lamports": 1000000000,
       "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
@@ -339,6 +341,19 @@
           "evidence_requirements_changed": false,
           "accounting_changed": false,
           "paper_only_unchanged": true
+        },
+        "legacy_one_side_replay": {
+          "revision": "captured-weighted-bid-side-v1",
+          "source_commit": "32b7de83dd1f002a0037cb6d3dc951cb470d90b4",
+          "evidence_run": 35949285193,
+          "evidence_slot": 449907325,
+          "instruction_discriminator": "5e9b6797465fdca5",
+          "purpose": "authenticate legacy add_liquidity_one_side event/transfer and reconstruct exact captured WSOL-weighted bin deposits through existing external-adjustment replay",
+          "ask_side_unproven_fail_closed": true,
+          "transaction_capacity_changed": false,
+          "strategy_thresholds_changed": false,
+          "provider_limits_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -360,7 +375,8 @@
         "certification/patches/market-assurance-meteora.patch",
         "certification/patches/target-coverage-repair-meteora.patch",
         "certification/patches/evidence-reconstruction-meteora.patch"
-      ]
+      ],
+      "execution_sha": "32b7de83dd1f002a0037cb6d3dc951cb470d90b4"
     },
     "pons": {
       "source_branch": "strategy/pons-profit-protection-v2-20260923",

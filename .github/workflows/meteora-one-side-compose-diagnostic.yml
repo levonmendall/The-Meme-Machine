@@ -1,0 +1,26 @@
+name: meteora-one-side-compose-diagnostic
+on:
+  push:
+    branches: [diagnostic/meteora-one-side-compose-20260924]
+permissions:
+  contents: read
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Prepare exact declared lane sources
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/lanes"
+      - name: Run captured legacy one-side regression
+        run: (cd "$RUNNER_TEMP/lanes/meteora" && python -m unittest tests.test_dlmm_one_side_replay -v)
+      - name: Compute exact Meteora prepared diff identity
+        run: |
+          git -C "$RUNNER_TEMP/lanes/meteora" diff --binary --full-index --no-ext-diff --no-textconv --no-renames HEAD > "$RUNNER_TEMP/meteora.diff"
+          python -c 'import hashlib,os; p=os.environ["RUNNER_TEMP"]+"/meteora.diff"; print("METEORA_SOURCE_DIFF_SHA256="+hashlib.sha256(open(p,"rb").read()).hexdigest())'
