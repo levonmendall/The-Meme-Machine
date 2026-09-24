@@ -224,12 +224,16 @@ not supported. Aggregation is cached across a page's requests; source file chang
 and exact validity deadlines invalidate the cache. API filtering is bounded in
 memory. No full canonical ledger scans, indexes, migrations or writes occur.
 
-There is no existing authentication product to reuse. Both servers bind loopback.
-Before any deployment, enforce authenticated owner-only access at a trusted reverse
-proxy, TLS, bounded request concurrency/rate/body limits, and read-only file mounts.
-Protect **both static pages and every API route**. Do not expose the stdlib preview
-directly to the internet. The code sets no-store, CSP (same-origin assets/connect),
-no-referrer, nosniff and frame-denial headers. This task adds no account/auth system.
+The release observer supports an explicit public-bind deployment mode while preserving
+the original loopback default. Any non-loopback bind requires owner credentials from
+`MM_DASHBOARD_USERNAME` and `MM_DASHBOARD_PASSWORD`; both static dashboard pages
+and every dashboard API route are protected. A non-sensitive `/healthz` endpoint is
+the only unauthenticated service route. The server bounds active request concurrency
+and per-client request rate, does not consume mutation bodies, and all non-GET/HEAD
+dashboard methods remain rejected. Render or another trusted platform must terminate
+TLS. The existing no-store, CSP (same-origin assets/connect), no-referrer, nosniff and
+frame-denial headers remain in force. See `docs/RENDER_STAGING.md` for the staging
+boundary; portfolio inception is still a separate explicitly authorized operation.
 
 ## Deterministic preview and checks
 
