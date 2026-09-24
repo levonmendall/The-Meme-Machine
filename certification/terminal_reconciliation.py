@@ -21,11 +21,17 @@ def meteora_handoff(events,accounting,replay):
     """Prove that one open Meteora journal can resume without inventing state."""
     if accounting.get('unsettled')!=1 or replay.get('verified') is not True:
         return None
-    from certification.position_continuation import _meteora_open_identity
-    try:
-        identity,entry=_meteora_open_identity(events)
-    except RuntimeError:
+    last={};entries={}
+    for event in events:
+        identity=event.get('identity')
+        if not identity:continue
+        last[identity]=event.get('action')
+        if event.get('action')=='entry':entries[identity]=event
+    open_ids=[identity for identity,action in last.items()
+              if action not in ('cancel','settle','writeoff')]
+    if len(open_ids)!=1 or open_ids[0] not in entries:
         return None
+    identity=open_ids[0];entry=entries[identity]
     data=entry.get('data') or {}
     required=('policy','features','entry_state','position','mark')
     if any(not isinstance(data.get(key),dict) for key in required):
