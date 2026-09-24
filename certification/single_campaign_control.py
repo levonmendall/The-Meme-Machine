@@ -128,11 +128,13 @@ def all_pages(api, path, key):
                 raise ValueError('single_campaign_listing_ambiguous')
             seen.add(row['id'])
             rows.append(row)
-        if len(batch) < 100:
-            if isinstance(data.get('total_count'), int) and len(rows) < data['total_count']:
-                raise ValueError('single_campaign_listing_truncated')
+        # Active workflow state can change while GitHub builds a filtered page;
+        # total_count is therefore advisory and may briefly exceed the returned
+        # rows.  Exhaust pages until an actual empty page instead of failing on
+        # that race.  Full 100-row pages still retain the 1,000-run search cap.
+        if not batch:
             return rows
-        if path.startswith('actions/runs?') and page == 10:
+        if path.startswith('actions/runs?') and page == 10 and len(batch) == 100:
             # GitHub's filtered run endpoint caps a search at 1,000 results.
             # Never mistake that API ceiling for a complete quiet inventory.
             raise ValueError('single_campaign_active_listing_search_cap')

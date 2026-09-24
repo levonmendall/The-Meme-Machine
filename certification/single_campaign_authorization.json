@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "v8-dlmm-monitor-20260924-one-market-v1",
+  "authorization_id": "v8-dlmm-monitor-20260924-one-market-v2",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -14,8 +14,8 @@
   "dispatch_retries": false,
   "live_money": false,
   "prior_run_observation": {
-    "run_id": 35962402406,
-    "status": "completed_success",
-    "source": "Prior single authorized validation completed and halted; this authorization permits exactly one fresh v8 smoke plus hourly workflow."
+    "run_id": 36018938335,
+    "status": "claim_failed_before_provider_work",
+    "source": "v1 monitored authorization was consumed by dispatch but claim failed closed on a transient filtered-list total_count race; no smoke/hourly provider work started."
   }
 }

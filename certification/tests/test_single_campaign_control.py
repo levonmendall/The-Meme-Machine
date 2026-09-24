@@ -209,12 +209,20 @@ class SingleCampaignTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'other_market_workflow'):
             control.contention(self.api, 5)
 
-    def test_incomplete_or_capped_active_inventory_never_passes(self):
-        class Truncated:
+    def test_filtered_total_count_race_exhausts_to_empty_page(self):
+        class Moving:
+            def __init__(self): self.calls=0
             def request(self, *args):
-                return dict(workflow_runs=[], total_count=1)
-        with self.assertRaisesRegex(ValueError, 'listing_truncated'):
-            control.all_pages(Truncated(), 'actions/runs?status=queued', 'workflow_runs')
+                self.calls+=1
+                if self.calls==1:
+                    return dict(workflow_runs=[market(1, path='.github/workflows/non-market-certification.yml')], total_count=2)
+                return dict(workflow_runs=[], total_count=0)
+        api=Moving()
+        rows=control.all_pages(api, 'actions/runs?status=queued', 'workflow_runs')
+        self.assertEqual([row['id'] for row in rows],[1])
+        self.assertEqual(api.calls,2)
+
+    def test_capped_active_inventory_never_passes(self):
         self.api.runs['queued'] = [market(n, path='.github/workflows/non-market-certification.yml') for n in range(1000)]
         with self.assertRaisesRegex(ValueError, 'search_cap'):
             control.contention(self.api, 5)
