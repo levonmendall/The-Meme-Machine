@@ -1,0 +1,496 @@
+[
+  {
+    "bytes": 73728,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.accounting.sqlite3",
+    "sha256": "947727dfd40247ac29cfb249e02c2e00f41ecc2c801b4e219f350c2b3e55d637"
+  },
+  {
+    "bytes": 917446,
+    "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.candidates.jsonl",
+    "sha256": "8a3241d3c56f41015966c14cd9a58800cb953379a73ba35aa88dbdefb630c0f8"
+  },
+  {
+    "bytes": 2030818,
+    "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.json",
+    "sha256": "1d764113305545847daf9122fe6e118e27b95d492affb9c5682da833d13264c3"
+  },
+  {
+    "bytes": 1253376,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.pipeline.sqlite",
+    "sha256": "4a8da46ba2e1378566924120c5efd86a5438cf145b30700f0ddef957130a7f65"
+  },
+  {
+    "bytes": 66170,
+    "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.terminal.jsonl",
+    "sha256": "45f4bba28e7391d0d9ae0b82dbea34530d86ead8814d48cc66a76fc4ef2d9844"
+  },
+  {
+    "bytes": 8192,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.accounting.sqlite3",
+    "sha256": "2d66dadf078455584e2765e3639eda9c84120d20f9f91a092c32fda4bc883304"
+  },
+  {
+    "bytes": 1063118,
+    "path": "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.json",
+    "sha256": "4016e43b7d5ffa1916257e15baf18c32392d91176d57b38b232cade49055b6d8"
+  },
+  {
+    "bytes": 270336,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.pipeline.sqlite",
+    "sha256": "1b7b19df673ea241f9b9915fed89cc5642e9ed01b12943760711c03416531cd0"
+  },
+  {
+    "bytes": 39126,
+    "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort.json",
+    "sha256": "529e6dcc9f8729404393eff58a571c4705734637c61880b65658d0f2a5071e9b"
+  },
+  {
+    "bytes": 38627333,
+    "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/candidate-rows.jsonl",
+    "sha256": "321c7357b5cbbba5078ad1efa38bb42d08576b62ed38f8d5be7020cc932acd9d"
+  },
+  {
+    "bytes": 56285,
+    "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/cohort-progress.json",
+    "sha256": "a9a8a950cb5901eec03b88178dc6528ab2c7502df45aeeedf511e06be633fddc"
+  },
+  {
+    "bytes": 3830052,
+    "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/complete-result.json.gz",
+    "sha256": "0cdffc1cff0186a3c56ffc4f276b4bc034cd8a1ccbbdc9bcb120f1bf57907ebf"
+  },
+  {
+    "bytes": 4993024,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/opportunity-pipeline.sqlite",
+    "sha256": "91af02fb476452cf2c189309325f047b024c17cf818610bb012059e42904e540"
+  },
+  {
+    "bytes": 20480,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/pons-selective-cohort-capital.sqlite",
+    "sha256": "5553275b394a14e6a4ee89f68a3bca8cf7fc2b03de6f09a542303a0de492f4f5"
+  },
+  {
+    "bytes": 28672,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/pons-selective-wallet-skill.sqlite",
+    "sha256": "2a6aa953f151c680d8872b372344e027f7980a993697f1b15cae6d17d24c2b49"
+  },
+  {
+    "bytes": 31553,
+    "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/provider-sessions.jsonl",
+    "sha256": "2b7c5d1f65905c627ef0dd50e3e30f40fbf73dbf99777033bd593bbaf58d9aa1"
+  },
+  {
+    "bytes": 285611,
+    "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/queue-terminal.jsonl",
+    "sha256": "64c08d8baa93dec03eb4e8a401493f10f6dd0e5d9881f3072e197710ac02b8c6"
+  },
+  {
+    "bytes": 44232,
+    "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market-report.json",
+    "sha256": "24ee24ebc9bb8901b31b8a6627007d34a1a874b9bb6fd212c8f84ae8b62c54bb"
+  },
+  {
+    "bytes": 28672,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/0x5fc5360d0400a0fd4f2af552add042d716f1d168.sqlite",
+    "sha256": "df818cb491c57680784b67ee3545be9726c742be526aaa1674970352fbe219c3"
+  },
+  {
+    "bytes": 653,
+    "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/capital-manifest.json",
+    "sha256": "d1a4a39248e70728e4e9daad2ab05ad7e0208bd1359c41232e939a68140f608f"
+  },
+  {
+    "bytes": 13028,
+    "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/initial-screen.json.gz",
+    "sha256": "4b3e30539586efcde30829a69a4c15cc532c0b8bd997cae7befb203693c83b8f"
+  },
+  {
+    "bytes": 1500,
+    "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/lifecycles.jsonl",
+    "sha256": "686b9fbed9652a3cd2024629d6c248437a1c6b4ab53f6cf737dc1f61a8c26fc0"
+  },
+  {
+    "bytes": 45056,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.pipeline.sqlite",
+    "sha256": "82d17296a629cdaf78463344c63f4a01e59d727d17b750cf66bd77eef185df23"
+  },
+  {
+    "bytes": 13370,
+    "path": "certification-native/hourly/ramses/robinhood-ramses-all-pool-inventory-cache.json",
+    "sha256": "65228f86cbc4670d33d5a84a0fb0d243b663ef448c2c15b9ec5844695c91fb7d"
+  },
+  {
+    "bytes": 615,
+    "path": "certification-native/hourly/ramses/robinhood-ramses-continuation.json",
+    "sha256": "0c438593b30425effaab2ffdbb0a628b5991dd57d69464f434b072b8053968ee"
+  },
+  {
+    "bytes": 49152,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-native/hourly/ramses/robinhood-ramses-lifecycle-log-cache.sqlite",
+    "sha256": "cbddc67acea006484ccaeeccf361125c70b1c46abfd61a2a96591da337f86d06"
+  },
+  {
+    "bytes": 33878,
+    "path": "certification-hourly/capacity-strategy.json",
+    "sha256": "a90b49c1a580082345e467716554c5192a822fd0d030ed32831b214e9aecf1f6"
+  },
+  {
+    "bytes": 47981,
+    "path": "certification-hourly/manifest.json",
+    "sha256": "f89a941aff540cc395698ebac05532a2f5907dee0bbcdfcd70fecb98f9304905"
+  },
+  {
+    "bytes": 926,
+    "path": "certification-hourly/meteora/activity.json",
+    "sha256": "632007d1572b83ce8f4b8d21b2dee9995337c73b41e009017b89013b62b5ea0c"
+  },
+  {
+    "bytes": 438,
+    "path": "certification-hourly/meteora/decision-trace-status.json",
+    "sha256": "4bfa4799b5e75d3ac552e89fcbaf4600b6be42fe2668df8a3272ed416c96604e"
+  },
+  {
+    "bytes": 328137,
+    "path": "certification-hourly/meteora/decision-trace.jsonl",
+    "sha256": "45d573ee066b30aea66ad3767ecfafaa26f19ea52ad6795c16ae68a70e203e39"
+  },
+  {
+    "bytes": 445,
+    "path": "certification-hourly/meteora/process.log",
+    "sha256": "d9b1582901e2192ffaacbe27e9ad62cd465fdd9b7e783feb2685861752c90333"
+  },
+  {
+    "bytes": 5087975,
+    "path": "certification-hourly/meteora/rpc-evidence.jsonl.gz",
+    "sha256": "434a8243e3bf17d9b825b243354d763751f59e82d1f079cf9e7ed1777471f900"
+  },
+  {
+    "bytes": 1063118,
+    "path": "certification-hourly/meteora/solana-dlmm-independent-v1-live.json",
+    "sha256": "4016e43b7d5ffa1916257e15baf18c32392d91176d57b38b232cade49055b6d8"
+  },
+  {
+    "bytes": 375471,
+    "path": "certification-hourly/meteora/status.json",
+    "sha256": "98725c92b45c172578550b7947fc0c6b2418ee689b422c33ea7ffa4a63c1c436"
+  },
+  {
+    "bytes": 253870080,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-hourly/meteora/telemetry.sqlite",
+    "sha256": "70964e4ffd0738ec7bd6b7b313730f75127e920dad8a8b1bf754559147af0b1a"
+  },
+  {
+    "bytes": 1812,
+    "path": "certification-hourly/pons/activity.json",
+    "sha256": "79a879f5abc1e8b8a7d77b837d9295d51eee918d4174f7f2cde9e6ac716144c0"
+  },
+  {
+    "bytes": 431,
+    "path": "certification-hourly/pons/decision-trace-status.json",
+    "sha256": "36f9fd2add317c01539dae7a541d93732e553b4484be82d38ca2527c3a50b11d"
+  },
+  {
+    "bytes": 78725,
+    "path": "certification-hourly/pons/decision-trace.jsonl",
+    "sha256": "c3b6579da53747eb2555ec9983968820c9860c18eeb6f0ee3b8c1b7665d98b1a"
+  },
+  {
+    "bytes": 39126,
+    "path": "certification-hourly/pons/pons-selective-continuation-v1-cohort.json",
+    "sha256": "529e6dcc9f8729404393eff58a571c4705734637c61880b65658d0f2a5071e9b"
+  },
+  {
+    "bytes": 0,
+    "path": "certification-hourly/pons/process.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "bytes": 19295360,
+    "path": "certification-hourly/pons/rpc-evidence.jsonl.gz",
+    "sha256": "612411fc6618d10073110f1fed6bbd035d133d3e0a2f675ea4eb6e84754db259"
+  },
+  {
+    "bytes": 41691,
+    "path": "certification-hourly/pons/status.json",
+    "sha256": "e203cb0cb9d3dfc87a767eb809d3c4d79f599c2933707962ca16922655ea2b8a"
+  },
+  {
+    "bytes": 57577472,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-hourly/pons/telemetry.sqlite",
+    "sha256": "a4e4f0ae8dd10f8a63b42cb63e46b4c18cc145e54970f3d19b1967cf85b31233"
+  },
+  {
+    "bytes": 588,
+    "path": "certification-hourly/provider-identities.json",
+    "sha256": "da008ac67dff087986ab4f5d09e64d6aa5fd2fff8256f7d870715a1d42ebe759"
+  },
+  {
+    "bytes": 1049,
+    "path": "certification-hourly/pump/activity.json",
+    "sha256": "1078589ca6804a951ecb0d17f357be5a79a84b4011e7acb5a0abbf45c4bc8ce7"
+  },
+  {
+    "bytes": 434,
+    "path": "certification-hourly/pump/decision-trace-status.json",
+    "sha256": "8769be0e01ba17d563f5f1244b7c3f37f584d0ed3a28b878f839295daac9fd82"
+  },
+  {
+    "bytes": 4569411,
+    "path": "certification-hourly/pump/decision-trace.jsonl",
+    "sha256": "d5e9dea5ccec21ad6cd1f80b2454c81c044a610f096754b6a5daa2484bdb800b"
+  },
+  {
+    "bytes": 1578581,
+    "path": "certification-hourly/pump/process.log",
+    "sha256": "916f8c32cae5ebd2620c25e849acc36265ec56b2817239bce75246cf3af14c77"
+  },
+  {
+    "bytes": 2030818,
+    "path": "certification-hourly/pump/pump-acceleration-natural-prospective.json",
+    "sha256": "1d764113305545847daf9122fe6e118e27b95d492affb9c5682da833d13264c3"
+  },
+  {
+    "bytes": 48794643,
+    "path": "certification-hourly/pump/rpc-evidence.jsonl.gz",
+    "sha256": "d9e1b9a22b8db27f6a167bc1f8bc359c9a8b806c25f0497dd610959e970ef56e"
+  },
+  {
+    "bytes": 1482122,
+    "path": "certification-hourly/pump/status.json",
+    "sha256": "51c8a0fec84dc4b621909cf36e75efacd948e9d9d21a4f89e2fbee8f99434e70"
+  },
+  {
+    "bytes": 126963712,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-hourly/pump/telemetry.sqlite",
+    "sha256": "c880b2c8753ff51d57366e81cb5af9a1b760812ccbd82abb8e15cfae412f7f35"
+  },
+  {
+    "bytes": 1138,
+    "path": "certification-hourly/ramses/activity.json",
+    "sha256": "0143d13674e299fcf0580273a2e81006931f5e47128f84cc1c2f0b392a36ed98"
+  },
+  {
+    "bytes": 436,
+    "path": "certification-hourly/ramses/decision-trace-status.json",
+    "sha256": "4833cab8a13de59d47f1bfac9a97b1563c498bf32edabb0a8a32bb5b25a39ca0"
+  },
+  {
+    "bytes": 980443,
+    "path": "certification-hourly/ramses/decision-trace.jsonl",
+    "sha256": "ceedab3809e3b176503eda76921a808135f88ea327fb49f7e69a61b6de467f36"
+  },
+  {
+    "bytes": 433,
+    "path": "certification-hourly/ramses/process.log",
+    "sha256": "7310981f2663d2e94705b5b3b8b88e0315af3da0b25443417c70bf33de2e2231"
+  },
+  {
+    "bytes": 44232,
+    "path": "certification-hourly/ramses/robinhood-ramses-extended-market-report.json",
+    "sha256": "24ee24ebc9bb8901b31b8a6627007d34a1a874b9bb6fd212c8f84ae8b62c54bb"
+  },
+  {
+    "bytes": 975369,
+    "path": "certification-hourly/ramses/rpc-evidence.jsonl.gz",
+    "sha256": "fac2899ea2dcc24719e36b13255e25f6e80c9ad993da20fa09530a662d2306cd"
+  },
+  {
+    "bytes": 45110,
+    "path": "certification-hourly/ramses/status.json",
+    "sha256": "9c620d893b096b2b6c7980e90e34576783253be115d715441939a8c47e6271ad"
+  },
+  {
+    "bytes": 6717440,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-hourly/ramses/telemetry.sqlite",
+    "sha256": "3aa05a028e928ff205bd3ab63c8b95c7524f04979b3b4097e7fc6838440e418d"
+  },
+  {
+    "bytes": 112911,
+    "path": "certification-hourly/result.json",
+    "sha256": "49f9769e43bba5e15fbec2449ae903eee1fd9831d25f004a17c89e49e3249790"
+  },
+  {
+    "bytes": 116030,
+    "path": "certification-hourly/rpc-capabilities.json",
+    "sha256": "57904957346c5b3737bb2c0d3097198630295bd8160e11f8508f2c803474bdc3"
+  },
+  {
+    "bytes": 425984,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-hourly/shared-provider.sqlite",
+    "sha256": "fb3ab8e901c32cd3cd79da053161a179488b584e0e92be77b6f7b47a07360497"
+  },
+  {
+    "bytes": 8245248,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-hourly/shared-robinhood-admission.sqlite",
+    "sha256": "d86ca9e81641926eb00cf18c5466e4c0a0c91033d20921a53a020406aa6c8fc3"
+  },
+  {
+    "bytes": 130363392,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-hourly/shared-robinhood-evidence.sqlite",
+    "sha256": "3e9a2b1b52bec8ff95463f2f928cfd88ab93e08e4b2374227553d75c403feab5"
+  },
+  {
+    "bytes": 1651154944,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-hourly/shared-solana-evidence.sqlite",
+    "sha256": "572d4b314c03c9516edb378c2b72eb3cdc7d9d9c52849728d256c1616f91fd36"
+  },
+  {
+    "bytes": 362829,
+    "path": "certification-hourly/status.html",
+    "sha256": "717397b17244af2542caf39ea039d07aaeaf16cc79272655ffe6f260802a0724"
+  },
+  {
+    "bytes": 1630208,
+    "integrity": [
+      [
+        "ok"
+      ]
+    ],
+    "journal_mode": "delete",
+    "path": "certification-hourly/supervisor.sqlite",
+    "sha256": "45dc97ca58e5631e8e885dd94f961673d63c7d94b1ffa61ca801022789f09127"
+  },
+  {
+    "bytes": 3131,
+    "path": "certification-gates/chain-binding.json",
+    "sha256": "8c6bf8befce893d14fae0eb6a8e970fa05d0132d16a1377756988f2c209910d1"
+  },
+  {
+    "bytes": 749,
+    "path": "certification-gates/deterministic.json",
+    "sha256": "b25ffc20119acccc787b97932de655f6110f5846ba4f52fedfd7d6c4dec4d7f3"
+  },
+  {
+    "bytes": 153350,
+    "path": "certification-gates/rpc-capabilities.json",
+    "sha256": "bc8bf6f95ecc0253165d483dab08df2d3985f4270cc6c083205abb81c95c182f"
+  },
+  {
+    "bytes": 69,
+    "path": "certification-preflight.json",
+    "sha256": "7812022c3815e4e0eec3ce744cc33fd2f2624947b59ec7ee5e00a06ef3a4ebc2"
+  },
+  {
+    "bytes": 108,
+    "path": "certification-contention-history.jsonl",
+    "sha256": "5fcc264f38f0cb4e1c6f38c6deeb0a16480f06bc6a9a9ce1391da19200833447"
+  },
+  {
+    "bytes": 13743,
+    "path": "smoke-readiness.json",
+    "sha256": "9cc8874a91125b77badaf25d87c4963a860c96306e1f0f35ddaf6dd53411ef01"
+  },
+  {
+    "bytes": 19949,
+    "path": "certification-hourly-publisher.jsonl",
+    "sha256": "d3363d0b3e64002470e6f0dd5c5addd9b2dea9fdd9aa0ac44bb8414359e990da"
+  }
+]

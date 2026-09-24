@@ -1,0 +1,36 @@
+name: preserved-coverage-evidence
+on:
+  push:
+    branches: [audit/coverage-evidence-35935431384]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: immutable-coverage-evidence-35935431384
+  cancel-in-progress: false
+jobs:
+  extract:
+    if: contains(github.event.head_commit.message, '[coverage-evidence]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.14'
+      - name: Prepare frozen source decoders
+        run: python -m certification.run prepare --worktrees lane-worktrees
+      - name: Verify archive and extract retained evidence once
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python audit-tools/extract.py
+      - name: Preserve bounded derivative
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preserved-coverage-evidence-${{ github.run_id }}
+          path: coverage-evidence/
+          if-no-files-found: error
+          retention-days: 90
