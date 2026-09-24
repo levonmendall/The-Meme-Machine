@@ -103,7 +103,7 @@ def verify():
         for marker in (
                 'if: inputs.single_campaign == true',
                 'if: inputs.single_campaign != true',
-                '-f single_campaign="\${{ inputs.single_campaign || false }}"',
+                '-f single_campaign="${{ inputs.single_campaign || false }}"',
                 'POSITION_CONTINUATION',
                 'no new discovery, qualification, entry, retry, replacement or successor campaign'):
             if marker not in combined:
