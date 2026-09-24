@@ -1,6 +1,6 @@
 {
-  "runtime_sha": "0efb97529ce06ab432728829c7e5e289fe4e9244",
-  "runtime_ref": "cert/single-market-v8-monitored-20260924",
-  "certification_run_id": 36017738639,
-  "authorization_id": "v8-dlmm-monitor-20260924-one-market-v1"
+  "runtime_sha": "831030749e4c3f6dd75748e8ea1a7b3e627a77bf",
+  "runtime_ref": "cert/single-market-v8-monitored-v2-20260924",
+  "certification_run_id": 36019315843,
+  "authorization_id": "v8-dlmm-monitor-20260924-one-market-v2"
 }
