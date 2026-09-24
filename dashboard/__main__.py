@@ -1,12 +1,8 @@
-"""Read-only dashboard observer with bounded public deployment controls.
+"""Public read-only dashboard observer with bounded deployment controls.
 
 This service never starts market execution and never initializes portfolio state.
-Loopback development may run without authentication. Any non-loopback bind requires
-explicit owner credentials from environment variables.
 """
 import argparse
-import base64
-import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -19,44 +15,8 @@ from .api import Dashboard
 from .model import Reader
 
 
-AUTH_USER_ENV = "MM_DASHBOARD_USERNAME"
-AUTH_PASSWORD_ENV = "MM_DASHBOARD_PASSWORD"
 DEFAULT_MAX_CONCURRENCY = 16
 DEFAULT_RATE_LIMIT_PER_MINUTE = 120
-
-
-def _is_loopback(host):
-    return str(host).strip().lower() in {"127.0.0.1", "::1", "localhost"}
-
-
-def _validate_bind(host, username, password):
-    if bool(username) != bool(password):
-        raise ValueError("dashboard_auth_pair_required")
-    if username and ":" in username:
-        raise ValueError("dashboard_username_must_not_contain_colon")
-    if not _is_loopback(host):
-        if not username:
-            raise ValueError("public_dashboard_auth_required")
-        if len(password) < 20:
-            raise ValueError("public_dashboard_password_too_short")
-
-
-def _authorized(header, username, password):
-    if not username and not password:
-        return True
-    if not isinstance(header, str) or not header.startswith("Basic "):
-        return False
-    try:
-        raw = base64.b64decode(header[6:].strip(), validate=True).decode("utf-8")
-    except (ValueError, UnicodeDecodeError):
-        return False
-    candidate_user, separator, candidate_password = raw.partition(":")
-    if not separator:
-        return False
-    return (
-        hmac.compare_digest(candidate_user, username)
-        and hmac.compare_digest(candidate_password, password)
-    )
 
 
 class FixedWindowRateLimiter:
@@ -114,12 +74,11 @@ class BoundedThreadingHTTPServer(ThreadingHTTPServer):
 
 
 def make_server(
-    app, host, port, *, username=None, password=None,
+    app, host, port, *,
     max_concurrency=DEFAULT_MAX_CONCURRENCY,
     rate_limit_per_minute=DEFAULT_RATE_LIMIT_PER_MINUTE,
     clock=time.monotonic,
 ):
-    _validate_bind(host, username, password)
     limiter = FixedWindowRateLimiter(rate_limit_per_minute, clock=clock)
 
     class Handler(BaseHTTPRequestHandler):
@@ -156,25 +115,23 @@ def make_server(
                 return
             if path == "/healthz":
                 if self.command not in ("GET", "HEAD"):
-                    self._json(405, {"error": "read_only"}, headers={"Allow": "GET, HEAD"})
+                    self._json(
+                        405, {"error": "read_only"},
+                        headers={"Allow": "GET, HEAD"},
+                    )
                 else:
                     self._json(200, {"status": "ok"})
                 return
-            if path != "/dashboard" and not path.startswith(("/dashboard/", "/api/dashboard/")):
+            if path != "/dashboard" and not path.startswith(
+                ("/dashboard/", "/api/dashboard/")
+            ):
                 self._json(404, {"error": "not_found"})
                 return
             client = self.client_address[0] if self.client_address else "unknown"
             if not limiter.allow(client):
-                self._json(429, {"error": "rate_limited"}, headers={"Retry-After": "60"})
-                return
-            if not _authorized(self.headers.get("Authorization"), username, password):
                 self._json(
-                    401,
-                    {"error": "unauthorized"},
-                    headers={
-                        "WWW-Authenticate":
-                            'Basic realm="Meme Machine Dashboard", charset="UTF-8"'
-                    },
+                    429, {"error": "rate_limited"},
+                    headers={"Retry-After": "60"},
                 )
                 return
             if not app.serve(self):
@@ -247,15 +204,11 @@ def main():
         from .fixtures import FIXTURE_NOW
         reader.clock = lambda: FIXTURE_NOW
 
-    username = os.environ.get(AUTH_USER_ENV)
-    password = os.environ.get(AUTH_PASSWORD_ENV)
     try:
         server = make_server(
             Dashboard(reader),
             args.host,
             args.port,
-            username=username,
-            password=password,
             max_concurrency=args.max_concurrency,
             rate_limit_per_minute=args.rate_limit_per_minute,
         )

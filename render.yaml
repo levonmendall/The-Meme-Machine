@@ -12,10 +12,6 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.14
-      - key: MM_DASHBOARD_USERNAME
-        sync: false
-      - key: MM_DASHBOARD_PASSWORD
-        sync: false
       - key: MM_DASHBOARD_MAX_CONCURRENCY
         value: "16"
       - key: MM_DASHBOARD_RATE_LIMIT_PER_MINUTE
