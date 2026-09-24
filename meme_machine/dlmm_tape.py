@@ -1071,7 +1071,7 @@ def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
         adds=[effect for effect in resolved_effects
               if effect['kind'] in ('add_liquidity2','add_liquidity_by_strategy2','add_liquidity_one_side')]
         others=[effect for effect in resolved_effects
-                if effect['kind'] not in ('add_liquidity2','add_liquidity_by_strategy2')]
+                if effect['kind'] not in ('add_liquidity2','add_liquidity_by_strategy2','add_liquidity_one_side')]
         if adds:
             _authenticate_add_liquidity_transfers(adds,meta,keys,ordered)
         if others:
