@@ -1,0 +1,327 @@
+{
+  "connectivity": {
+    "meteora": {
+      "passed": true,
+      "scope": "bounded_transport_smoke_only"
+    },
+    "pons": {
+      "passed": true,
+      "scope": "bounded_transport_smoke_only"
+    },
+    "pump": {
+      "passed": true,
+      "scope": "bounded_transport_smoke_only"
+    },
+    "ramses": {
+      "passed": true,
+      "scope": "bounded_transport_smoke_only"
+    }
+  },
+  "engineering_certification": "CERTIFIED_NON_MARKET_ENGINEERING",
+  "expected_integration_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
+  "gates": {
+    "exact_integration_identity": true,
+    "exact_source_offline": true,
+    "historical_exposure_resolution": true,
+    "historical_registry_released": true,
+    "integrated_current_policy": true,
+    "native_crash_matrix": true,
+    "production_adapter_connectivity": true,
+    "resource_bounds": true,
+    "restart_safety": true
+  },
+  "historical_resolution": {
+    "disposition": "certified_historical_unreplayable_zero_proceeds_writeoff",
+    "market_settlement_performed": false,
+    "open_positions": 0,
+    "original_artifact_preserved": true,
+    "realized_pnl_lamports": -100200000,
+    "writeoffs": 1
+  },
+  "integrated_acceptance": {
+    "contention": {
+      "every_lane_received_three_stage_grants": true,
+      "foreground_priority": 20,
+      "governor": {
+        "lane_grants": [
+          {
+            "deadline_misses": 0,
+            "granted": 3,
+            "lane": "meteora",
+            "max_wait_seconds": 2.3757032279999635,
+            "queue_wait_seconds": 3.6620204060000106,
+            "requested": 3
+          },
+          {
+            "deadline_misses": 0,
+            "granted": 3,
+            "lane": "pons",
+            "max_wait_seconds": 2.1862859469999876,
+            "queue_wait_seconds": 3.101890575000027,
+            "requested": 3
+          },
+          {
+            "deadline_misses": 0,
+            "granted": 3,
+            "lane": "pump",
+            "max_wait_seconds": 1.867610275000004,
+            "queue_wait_seconds": 2.3024884980000593,
+            "requested": 3
+          },
+          {
+            "deadline_misses": 0,
+            "granted": 3,
+            "lane": "ramses",
+            "max_wait_seconds": 3.2818122209999956,
+            "queue_wait_seconds": 5.145904457000029,
+            "requested": 3
+          }
+        ],
+        "method_pressure": [
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "protocol_fixture",
+            "provider": "integrated-acceptance",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "qualification",
+            "provider": "integrated-acceptance",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "position_lifecycle",
+            "provider": "integrated-acceptance",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          }
+        ],
+        "providers": [
+          {
+            "cooldown": 0.0,
+            "grants": 12,
+            "next_at": 263.743686469,
+            "provider": "integrated-acceptance",
+            "rate_errors": 0
+          }
+        ],
+        "queues": []
+      },
+      "position_lifecycle_priority": 0,
+      "simultaneous_lanes": 4,
+      "total_seconds": 144.89489161300003
+    },
+    "contracts": {
+      "contention": "all four lane bundles execute concurrently through one shared physical-request governor",
+      "lifecycle": "native paper lifecycle reaches settlement/recovery invariants without live money",
+      "protocol": "captured/authentic protocol evidence is decoded by lane-native code",
+      "qualification": "current frozen policy admits/rejects through native strategy authority"
+    },
+    "lanes": {
+      "meteora": {
+        "current_policy_qualification_proven": true,
+        "governor_wait_seconds": {
+          "lifecycle": 0.27775590499999225,
+          "protocol": 1.0019644860000199,
+          "qualification": 2.3623724679999896
+        },
+        "lane": "meteora",
+        "lifecycle_settlement_recovery_proven": true,
+        "passed": true,
+        "protocol_capture_proven": true,
+        "stages": {
+          "lifecycle": {
+            "exit_code": 0,
+            "log": "meteora-lifecycle.log",
+            "passed": true,
+            "seconds": 140.386659432,
+            "tests": [
+              "tests.test_dlmm_independent_accounting.DurableIndependentAccounting.test_full_lifecycle_reopens_replays_and_recycles_only_actual_cash",
+              "tests.test_dlmm_independent_accounting.DurableIndependentAccounting.test_failed_monitor_keeps_position_and_cost_reserve",
+              "tests.test_dlmm_independent_accounting.DurableIndependentAccounting.test_structural_unreplayable_monitor_writes_off_without_stranding"
+            ]
+          },
+          "protocol": {
+            "exit_code": 0,
+            "log": "meteora-protocol.log",
+            "passed": true,
+            "seconds": 0.6351269240000192,
+            "tests": [
+              "tests.test_dlmm_reference.OfficialReference.test_real_captured_swap_interval_exact_state_and_fee_attribution",
+              "tests.test_meteora_discovery_scheduler",
+              "tests.test_meteora_mint_supply"
+            ]
+          },
+          "qualification": {
+            "exit_code": 0,
+            "log": "meteora-qualification.log",
+            "passed": true,
+            "seconds": 0.11896403800000144,
+            "tests": [
+              "tests.test_solana_dlmm_independent_v1.SolanaDlmmIndependentV1Tests.test_qualification_requires_authenticated_density_flow_capacity_and_unwind"
+            ]
+          }
+        }
+      },
+      "pons": {
+        "current_policy_qualification_proven": true,
+        "governor_wait_seconds": {
+          "lifecycle": 0.39486673400000427,
+          "protocol": 0.5019940600000155,
+          "qualification": 2.1844463859999905
+        },
+        "lane": "pons",
+        "lifecycle_settlement_recovery_proven": true,
+        "passed": true,
+        "protocol_capture_proven": true,
+        "stages": {
+          "lifecycle": {
+            "exit_code": 0,
+            "log": "pons-lifecycle.log",
+            "passed": true,
+            "seconds": 0.5898733540000194,
+            "tests": [
+              "robinhood_tests.test_pons_position_provider_recovery.PositionRecoveryTests.test_post_entry_429_refreshes_evidence_on_same_lifecycle_then_settles",
+              "robinhood_tests.test_pons_position_provider_recovery.PositionRecoveryTests.test_pending_exit_session_auth_recovery_keeps_ledger_and_original_clock",
+              "robinhood_tests.test_pons_partial_accounting.PartialAccountingTests.test_partial_cash_basis_costs_and_risk_time_survive_reopen_and_recycling"
+            ]
+          },
+          "protocol": {
+            "exit_code": 0,
+            "log": "pons-protocol.log",
+            "passed": true,
+            "seconds": 0.3077179339999816,
+            "tests": [
+              "robinhood_tests.test_captured.CapturedProviderTests.test_captured_mainnet_identity_and_bounded_provider_evidence",
+              "robinhood_tests.test_coverage_acquisition",
+              "robinhood_tests.test_pons_factory_hint_reuse"
+            ]
+          },
+          "qualification": {
+            "exit_code": 0,
+            "log": "pons-qualification.log",
+            "passed": true,
+            "seconds": 0.10305479400000195,
+            "tests": [
+              "robinhood_tests.test_pons_selective_continuation.PonsSelectivePolicyTests.test_clean_late_curve_acceleration_can_qualify",
+              "robinhood_tests.test_pons_selective_continuation.PonsSelectivePolicyTests.test_fill_time_persistence_rejects_decayed_continuation"
+            ]
+          }
+        }
+      },
+      "pump": {
+        "current_policy_qualification_proven": true,
+        "governor_wait_seconds": {
+          "lifecycle": 0.4209902229999898,
+          "protocol": 0.0019366270000205077,
+          "qualification": 1.8652466949999962
+        },
+        "lane": "pump",
+        "lifecycle_settlement_recovery_proven": true,
+        "passed": true,
+        "protocol_capture_proven": true,
+        "stages": {
+          "lifecycle": {
+            "exit_code": 0,
+            "log": "pump-lifecycle.log",
+            "passed": true,
+            "seconds": 0.38754057599999214,
+            "tests": [
+              "tests.test_paper_accounting.PaperAccountingTests.test_actual_lifecycle_replays_after_close_without_recycling_genesis",
+              "tests.test_paper_accounting.PaperAccountingTests.test_duplicate_settlement_and_namespace_fail_closed"
+            ]
+          },
+          "protocol": {
+            "exit_code": 0,
+            "log": "pump-protocol.log",
+            "passed": true,
+            "seconds": 0.13514865400003373,
+            "tests": [
+              "tests.test_captured.Captured.test_real_accounts_and_quotes",
+              "tests.test_pump_acceleration_history.NegativeHistoryReuseTests"
+            ]
+          },
+          "qualification": {
+            "exit_code": 0,
+            "log": "pump-qualification.log",
+            "passed": true,
+            "seconds": 0.07534422099996618,
+            "tests": [
+              "tests.test_pump_acceleration_strategy.PumpAccelerationStrategyTests.test_strong_late_curve_can_qualify",
+              "tests.test_pump_acceleration_strategy.PumpAccelerationStrategyTests.test_fill_time_persistence_rejects_decayed_thesis"
+            ]
+          }
+        }
+      },
+      "ramses": {
+        "current_policy_qualification_proven": true,
+        "governor_wait_seconds": {
+          "lifecycle": 0.28160295700001825,
+          "protocol": 1.5022776220000083,
+          "qualification": 3.279668901999969
+        },
+        "lane": "ramses",
+        "lifecycle_settlement_recovery_proven": true,
+        "passed": true,
+        "protocol_capture_proven": true,
+        "stages": {
+          "lifecycle": {
+            "exit_code": 0,
+            "log": "ramses-lifecycle.log",
+            "passed": true,
+            "seconds": 0.31979863800000885,
+            "tests": [
+              "robinhood_tests.test_ramses_connected_lifecycle.RamsesConnectedLifecycleTests.test_ledger_persists_monitor_segment_and_rebalance_checkpoints",
+              "robinhood_tests.test_ramses_connected_lifecycle.RamsesConnectedLifecycleTests.test_partial_unwind_liquidity_holds_position_open_for_retry",
+              "robinhood_tests.test_ramses_capital_replay.RamsesCapitalReplay.test_rebalance_lost_ack_retry_after_reopen_does_not_duplicate_management"
+            ]
+          },
+          "protocol": {
+            "exit_code": 0,
+            "log": "ramses-protocol.log",
+            "passed": true,
+            "seconds": 0.21801382300003525,
+            "tests": [
+              "robinhood_tests.test_captured.CapturedProviderTests.test_captured_mainnet_identity_and_bounded_provider_evidence",
+              "robinhood_tests.test_ramses_preentry_metadata"
+            ]
+          },
+          "qualification": {
+            "exit_code": 0,
+            "log": "ramses-qualification.log",
+            "passed": true,
+            "seconds": 0.11823535099995297,
+            "tests": [
+              "robinhood_tests.test_ramses_connected_lifecycle.RamsesConnectedLifecycleTests.test_first_ranked_genuine_qualifier_is_selected",
+              "robinhood_tests.test_ramses_connected_lifecycle.RamsesConnectedLifecycleTests.test_canonical_reclassification_reuses_scanner_prestate_without_state_rpc"
+            ]
+          }
+        }
+      }
+    },
+    "live_money": false,
+    "natural_market_required": false,
+    "paper_only": true,
+    "passed": true,
+    "scope": "integrated_non_market_current_policy_acceptance"
+  },
+  "integration_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
+  "live_money": false,
+  "natural_market_only": [
+    "prospective frequency/distribution of naturally qualifying opportunities",
+    "prospective net profitability and outcome distribution",
+    "natural fill/slippage/liquidity distribution versus paper assumptions",
+    "frequency of naturally occurring post-entry paths"
+  ],
+  "paper_only": true,
+  "passed": true,
+  "restart_contract": "resume idempotently where native lifecycle context is complete; otherwise preserve durable exposure and fail closed against fresh admission",
+  "test_counts": null
+}

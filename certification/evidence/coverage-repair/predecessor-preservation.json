@@ -1,0 +1,24 @@
+{
+  "historical_replay_sha256": "8d529d38ee31754fab4deb3a5bac024e822437a5796feef5abe42e3e37dd82ef",
+  "integration_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
+  "invariants": {
+    "acceptance_terms_sha256": "61ccacc2aae26a1c197bc37b72f52f0326bae95bfad20e73c3fcd0b6e1cd521f",
+    "paper_only_unchanged": true,
+    "provider_limits_unchanged": true,
+    "strategy_economics_unchanged": true,
+    "target_market_scope_unchanged": true
+  },
+  "passed": true,
+  "predecessor": {
+    "cohort_id": "prospective-four-lane-v5-market-assurance-20260923",
+    "integration_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+    "preserved_censored": true,
+    "record_sha256": "90b6440a6429f8dc1f14f0ae63900bbcb2e7d8523c9719d55ad2561e6da8ff48",
+    "records_imported_into_successor": 0,
+    "verified_flat": true,
+    "workflow_run_id": 35935431384
+  },
+  "source_artifact": 10785439707,
+  "source_artifact_digest": "sha256:1729982afa710db37dc401b0d515125f7cd7d5c6fd2d8a43fafaf334a86e326c",
+  "successor_cohort_id": "prospective-four-lane-v6-coverage-repair-20260924"
+}

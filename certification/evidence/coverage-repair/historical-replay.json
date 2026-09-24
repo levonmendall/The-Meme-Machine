@@ -1,0 +1,292 @@
+{
+  "derivative_artifact_digest": "sha256:b2f9a2e3dc41efbb080b6ccb11ebcdd33b53172ca4984ed9243a1a038a3baee3",
+  "derivative_artifact_id": 10786398294,
+  "historical_blocks_admitted": 0,
+  "integration_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
+  "lanes": {
+    "meteora": {
+      "acquisition_replay": {
+        "accounting_mutations": 0,
+        "all_other_mint_and_pool_fields_unchanged": true,
+        "complete_historical_warmup_recovered": false,
+        "current_reconstruction": "pass",
+        "endpoint_transport_ids": {
+          "449870963": "d67b348d-26e0-4fed-9c4c-fc7d8f744d46:669",
+          "449870974": "d67b348d-26e0-4fed-9c4c-fc7d8f744d46:672"
+        },
+        "entries_created": 0,
+        "final_lane_file_sha256": {
+          "meme_machine/dlmm.py": "f47a807571adf04f3217de6761ac3a37d14dc271d8a85cb0427829d606253a74",
+          "meme_machine/dlmm_tape.py": "95b1541433db0a5ab6b35a6d970b03b2b5b8644199a7ffad6bf6549ec532e399"
+        },
+        "historical_block_admission_changed": false,
+        "independent_complete_signature_census_claimed": false,
+        "last_retained_signature_read": {
+          "observed_at_ns": 1790211058472362112,
+          "rows": 0,
+          "transport_id": "d67b348d-26e0-4fed-9c4c-fc7d8f744d46:671"
+        },
+        "limitation": "Retained native signature prefix only; no independent post-endpoint complete census or new chain reauthentication.",
+        "lineage_hash": "78611899fcf4ee946754daa21b36e53eb4cca39bee2b733a1be0ff8057f093ba",
+        "lower_boundary_slot": 449870908,
+        "lower_witness_index_defaulted": false,
+        "predecessor_hour_remains_censored": true,
+        "predecessor_run_id": 35935431384,
+        "predecessor_runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+        "provider_calls": 0,
+        "raw_evidence_sha256": "434a8243e3bf17d9b825b243354d763751f59e82d1f079cf9e7ed1777471f900",
+        "raw_mint_changed_byte_offsets": [
+          36,
+          37,
+          38,
+          39
+        ],
+        "reconstructed_from_retained_inputs": true,
+        "schema": "meteora-supply-historical-replay-v1",
+        "selected_successful_pool_transactions_in_retained_prefix": 0,
+        "signature_read_after_end_account_observation": false,
+        "slots": [
+          449870963,
+          449870974
+        ],
+        "status": "pass",
+        "strategy_evaluations": 0,
+        "supply_delta": -594625327,
+        "supply_only_endpoint_difference_proved": true,
+        "supply_values": [
+          956208555432374,
+          956207960807047
+        ],
+        "terminal_hash": "e3cac5ec4af01d7e509fd8a20e3a1b1906ebfc1b57341eb85ab4fd1be11e4b5d"
+      },
+      "native_terminal": {
+        "accounting": {
+          "available": 1000000000,
+          "capital_time_through_ns": 0,
+          "capital_unit_nanoseconds": 0,
+          "cash": 1000000000,
+          "economic_replay_verified": false,
+          "genesis": {
+            "asset": "SOL_lamports",
+            "capital": 1000000000,
+            "namespace": "solana_meteora_independent_v1",
+            "paper_only": true,
+            "policy_hash": "a69ec239772a86bc7526594c9822b6fc1e611b45b7e661f618099656b288d55b",
+            "run_id": "19ad4c4a-2c03-4bac-ac8c-d9f81b0faa2e"
+          },
+          "journal_events": 1,
+          "journal_hash": "84e8f1e088691756009b8e75c249a7352ca9dac78af33ca71ccba5108e4fe745",
+          "marked_equity": 1000000000,
+          "net_cash_flows": 0,
+          "open_positions": 0,
+          "pending": 0,
+          "realized_pnl_lamports": 0,
+          "reconciled": true,
+          "reserved": 0,
+          "settled": 0,
+          "stale_marks": 0,
+          "unrealized_pnl_lamports": 0,
+          "unsettled": 0,
+          "writeoffs": 0
+        },
+        "economic_replay_claimed": false,
+        "lane": "meteora",
+        "open_positions": 0,
+        "read_only": true,
+        "settlement_inferred": false,
+        "verified": true
+      }
+    },
+    "pons": {
+      "acquisition_replay": {
+        "captured_trajectory_rows_replayed": 157,
+        "historical_queue_rescue_claimed": false,
+        "lane": "pons",
+        "new_evidence_captured": false,
+        "passed": true,
+        "recorded_redundant_trajectory_seconds": 209.89669376400218,
+        "repeated_age_rejects_already_known": 123
+      },
+      "native_terminal": {
+        "accounting": {
+          "available": 1000000000000000000,
+          "booked_realized": 0,
+          "capital_at_risk_unit_nanoseconds": 0,
+          "capital_integral_complete": true,
+          "cash": 1000000000000000000,
+          "cash_basis_conservation": true,
+          "conservation": true,
+          "genesis": 1000000000000000000,
+          "namespace": "pons-selective-continuation-v1",
+          "native_execution_cost": 0,
+          "native_observation_complete": true,
+          "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+          "positions": 0,
+          "realized": 0,
+          "remaining_cost_basis": 0,
+          "reserved": 0,
+          "unobserved_native_positions": [],
+          "unsettled": 0
+        },
+        "lane": "pons",
+        "open_positions": 0,
+        "read_only": true,
+        "settlement_inferred": false,
+        "verified": true
+      }
+    },
+    "pump": {
+      "acquisition_replay": {
+        "captured_negative_samples_replayed": 20,
+        "contradictions": 0,
+        "historical_admission_changed": false,
+        "lane": "pump",
+        "no_trade_events_invented": true,
+        "passed": true,
+        "redundant_history_consumer_interests": 2101
+      },
+      "native_terminal": {
+        "accounting": {
+          "basis": 0,
+          "capital_hour_denominator": 3600,
+          "capital_unit_seconds": 12267322320,
+          "cash": 5136001952,
+          "initial": 5110384300,
+          "lane": "pump-acceleration-independent-v1",
+          "marked_equity": 5136001952,
+          "open_positions": 0,
+          "pending": 0,
+          "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+          "realized": 25617652,
+          "reconciled": true,
+          "reserved": 0,
+          "run_id": "19ad4c4a-2c03-4bac-ac8c-d9f81b0faa2e",
+          "settled": 1,
+          "unrealized": 0
+        },
+        "accounting_replay": {
+          "cash": 5136001952,
+          "events": 5,
+          "final_hash": "42d95ba8f9f7625e0d0c156ddb6f74f30f90c62feef01a14b6dca839fbfcb37b",
+          "verified": true
+        },
+        "lane": "pump",
+        "open_positions": 0,
+        "read_only": true,
+        "settlement_inferred": false,
+        "verified": true
+      }
+    },
+    "ramses": {
+      "acquisition_replay": {
+        "captured_pool_cases_replayed": 2,
+        "full_entry_evidence_captured": false,
+        "historical_provider_failures_not_reconstructed": true,
+        "lane": "ramses",
+        "passed": true,
+        "preentry_history_authenticated": true,
+        "unavailable_cost_routes_remain_rejected": true
+      },
+      "native_terminal": {
+        "accounting": {
+          "by_quote_asset": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168": {
+              "allocation_authority": false,
+              "available": 20224359,
+              "committed": 0,
+              "open_positions": 0,
+              "paper_capital": 20224359,
+              "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+              "positions": 0,
+              "quote_asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+              "realized": 0,
+              "shared_allocator": false,
+              "strategy_domain": "robinhood-ramses-dlmm-independent",
+              "strategy_version": "ramses-active-wide-maker-v1/rebalance-v3"
+            }
+          },
+          "conservation": true,
+          "manifest": {
+            "cross_asset_conversion": false,
+            "funding_rule": "one_maximum_frozen_scanner_size_plus_modeled_execution_cost_envelope_per_quote_asset_from_first_qualified_pinned_screen",
+            "genesis_by_quote_asset": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168": 20224359
+            },
+            "later_assets": "unfunded_capacity_censoring",
+            "paper_only": true,
+            "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+            "run_id": "2d641ab94b1242a295a3426b6d6e5acf",
+            "source_finalized_block": 70927289,
+            "source_finalized_hash": "0xf3cfd60d51923f3ffd343bca1ec468746fdeb689023350296225f5f0e006c7a4",
+            "source_screen_hash": "e5119fe4fabb71696b4a94f82529a97a66fedd1640a3f3c0450432e6452625a6"
+          },
+          "open_positions": 0,
+          "unlike_quote_units_summed": false
+        },
+        "lane": "ramses",
+        "open_positions": 0,
+        "read_only": true,
+        "settlement_inferred": false,
+        "verified": true
+      }
+    }
+  },
+  "limitations": [
+    "Never captured source pages, expired timely decisions, provider failures and missing full entry evidence cannot be recreated.",
+    "Retained facts are replayed only where technically valid; improved logic does not admit the old Pump settlement."
+  ],
+  "natural_market_requests": 0,
+  "original_artifact_digest": "sha256:1729982afa710db37dc401b0d515125f7cd7d5c6fd2d8a43fafaf334a86e326c",
+  "passed": true,
+  "predecessor_remains_censored": true,
+  "schema": "final-preserved-coverage-replay-v1",
+  "source_diff_hashes": {
+    "meteora": "c6906c074f683f44a220281579f1c0ab86c8ce34e05f2ed1703b5eda4557e5af",
+    "pons": "eba51a72058bb6a72a0e7e5d78db4fbc4d8c0b6e3a8327b0e8adc44bd507558e",
+    "pump": "924799d001c51f898422a2494b75b1afcf2869583572af471f1bcc42d2176cd8",
+    "ramses": "1264b5213376b8f1fa7b8e2c5d0359b20be1ef44f7dddd4a1c6441e811a05173"
+  },
+  "source_manifest_hash": "0143be61b3edc2a5ac0a94f05d488a25f3a5df59a8dfba9876245d127b215dd9",
+  "source_run": 35935431384,
+  "source_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+  "verified_original_files": [
+    "certification-hourly/capacity-strategy.json",
+    "certification-hourly/manifest.json",
+    "certification-hourly/meteora/rpc-evidence.jsonl.gz",
+    "certification-hourly/pons/rpc-evidence.jsonl.gz",
+    "certification-hourly/provider-identities.json",
+    "certification-hourly/pump/rpc-evidence.jsonl.gz",
+    "certification-hourly/ramses/rpc-evidence.jsonl.gz",
+    "certification-hourly/ramses/telemetry.sqlite",
+    "certification-hourly/result.json",
+    "certification-hourly/rpc-capabilities.json",
+    "certification-hourly/shared-provider.sqlite",
+    "certification-hourly/shared-robinhood-admission.sqlite",
+    "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.accounting.sqlite3",
+    "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.json",
+    "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.pipeline.sqlite",
+    "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/candidate-rows.jsonl",
+    "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/cohort-progress.json",
+    "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/complete-result.json.gz",
+    "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/opportunity-pipeline.sqlite",
+    "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/pons-selective-cohort-capital.sqlite",
+    "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/pons-selective-wallet-skill.sqlite",
+    "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/queue-terminal.jsonl",
+    "certification-native/hourly/pons/pons-selective-continuation-v1-cohort.json",
+    "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/provider-sessions.jsonl",
+    "certification-native/hourly/pump/pump-acceleration-natural-prospective.accounting.sqlite3",
+    "certification-native/hourly/pump/pump-acceleration-natural-prospective.candidates.jsonl",
+    "certification-native/hourly/pump/pump-acceleration-natural-prospective.json",
+    "certification-native/hourly/pump/pump-acceleration-natural-prospective.pipeline.sqlite",
+    "certification-native/hourly/pump/pump-acceleration-natural-prospective.terminal.jsonl",
+    "certification-native/hourly/ramses/robinhood-ramses-all-pool-inventory-cache.json",
+    "certification-native/hourly/ramses/robinhood-ramses-continuation.json",
+    "certification-native/hourly/ramses/robinhood-ramses-extended-market-report.json",
+    "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/capital-manifest.json",
+    "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/0x5fc5360d0400a0fd4f2af552add042d716f1d168.sqlite",
+    "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/initial-screen.json.gz",
+    "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/lifecycles.jsonl",
+    "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.pipeline.sqlite",
+    "certification-native/hourly/ramses/robinhood-ramses-lifecycle-log-cache.sqlite"
+  ]
+}
