@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-24-pump-finalized-log-authority-diagnostic",
+  "verified_at": "2026-09-24-pump-finalized-log-authority-candidate",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -151,7 +151,12 @@
           "strategy_thresholds_changed": false,
           "target_scope_changed": false,
           "timing_windows_changed": false,
-          "paper_only_unchanged": true
+          "paper_only_unchanged": true,
+          "focused_diagnostic_run_id": 36031835261,
+          "focused_parity_tests": 5,
+          "focused_regression_tests": 41,
+          "evidence_provenance_changed": true,
+          "economic_inputs_changed": false
         }
       },
       "prospect_admission": {
@@ -165,7 +170,7 @@
         "upstream_acquisition_scope": "all finalized Pump events remain observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "5f7928a599fd8867c50f7964c826d3cad2d810ee721c179d0f61c37094ff5cfa",
+      "source_diff_sha256": "00b774af7ce78d1627e235adbe61ed1c4521b19aa0a45972bb38c2bc1ef9cd4f",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
