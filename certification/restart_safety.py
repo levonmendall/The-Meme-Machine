@@ -84,7 +84,7 @@ with tempfile.TemporaryDirectory() as td:
          patch.object(m,"_prove_network_identity",return_value={"verified":True}),\
          patch.object(m,"EvidenceBroker",Broker),\
          patch.object(m,"ProgramAccountWakeStream",Wake),\
-         patch.object(m,"_campaign_candidates",return_value=iter([{"address":"candidate"}])):
+         patch.object(m,"_campaign_candidates",return_value=(row for row in [{"address":"candidate"}])):
         try:
             m.run_live(target=1,max_attempted=1,max_runtime_seconds=60,campaign=True)
         except Unavailable as exc:

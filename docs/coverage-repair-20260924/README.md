@@ -22,6 +22,7 @@ Source segments are attempted independently even after a preceding page fails, s
 - Integrated gate: all four protocol/acquisition, qualification and lifecycle bundles passed; all four received three shared-governor grants with no remaining queue.
 - Two earlier local integrated outputs lost the chronological tail of SQLite WAL evidence in the shared workspace and remained failed. Repeating the unchanged gate on local `/tmp` storage produced complete grants and passed; no Governor/runtime workaround was made. Hosted certification independently repeats the required gate.
 - Strategy/policy bytes and frozen source heads remain identical. Only declared acquisition overlays, their diff bindings, cohort lineage and audit/orchestration support change. Acceptance terms hash excluding new cohort/source-diff bindings: `61ccacc2aae26a1c197bc37b72f52f0326bae95bfad20e73c3fcd0b6e1cd521f`.
+- The first full candidate certificate, workflow **35948220381** at `e497aeea20d9b41df54e105ad90c93ca048a9bfd`, stopped at the restart probe. The real Meteora guard correctly rejected the unresolved position; cleanup then exposed an outdated probe that replaced the production generator with a non-closeable list iterator. The probe now supplies a closeable generator, retaining the exact rejection and unchanged-book assertions. No lane runtime, source binding or policy changed in this correction; the new integration SHA requires its own full certificate. No historical replay or successor launch ran on the failed candidate.
 
 ## Historical replay and launch control
 
