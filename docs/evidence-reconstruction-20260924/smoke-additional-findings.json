@@ -1,0 +1,18 @@
+{
+  "phase": "smoke",
+  "pump_reporting_caveat": "49 unscoped_full_requests are retained legacy evidence_requested markers for decision-history reads; explicit full-concentration obligations are0. Separate decision_evidence_requested49/completed16 and40 incomplete history episodes remain authoritative. Do not interpret the legacy counter as49 required full economic vectors.",
+  "remaining_reporting_defect": {
+    "action": "Preserve native record and diagnose only. No runtime edit, artifact relabel, replacement run, rerun, or successor.",
+    "authenticated_trigger_pending_fresh_state": false,
+    "correct_causal_description": "Fixed experiment boundary ended an unauthenticated trigger wait; pending at observation close, not a demonstrated provider or consumer queue deadline failure.",
+    "effect": "Adds one consumer_deadline coverage observation. No required full-evidence obligation was created or lost for this pool. No paper entry or economic outcome.",
+    "native_reason": "experiment_runtime_deadline",
+    "pool": "5TKiFFGEtCkRvQbxpBFe1x5VLJ1udzjWqaB4DgvY3X8y",
+    "provider_failures": 0,
+    "recorded_class": "consumer_deadline",
+    "triggered": false,
+    "waited_seconds": 72.81974126400007
+  },
+  "runtime_sha": "029e7a851f122825e19343a9e8a79652a86f6bb4",
+  "workflow_run_id": 35962402406
+}

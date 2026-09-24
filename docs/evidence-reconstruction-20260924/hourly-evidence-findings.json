@@ -1,0 +1,288 @@
+{
+  "meteora": {
+    "completed_full_vectors": 6,
+    "failure_observations": [
+      {
+        "at": 1790231364.583714,
+        "candidate": "EbVo1pB9xoHdoLupPe6652kg6yrJkGPVuXAMgo3JfAf",
+        "details": {
+          "observation_id": "EbVo1pB9xoHdoLupPe6652kg6yrJkGPVuXAMgo3JfAf:449947510",
+          "stage_failed": "warmup_unverified"
+        },
+        "reason": "solana_dlmm_transaction_pressure_overflow"
+      },
+      {
+        "at": 1790231459.1086702,
+        "candidate": "5P6VREReggZFr4djbjcwB3FDekn53eibwhDxQ7Lh8XkG",
+        "details": {
+          "observation_id": "5P6VREReggZFr4djbjcwB3FDekn53eibwhDxQ7Lh8XkG:449947843",
+          "stage_failed": "warmup_unverified"
+        },
+        "reason": "solana_dlmm_transaction_pressure_overflow"
+      },
+      {
+        "at": 1790231594.8532438,
+        "candidate": "43idXEDUQ8dJ2ZBN3PK1LBAKMz6T1VG4Td1Hb7NNGj1z",
+        "details": {
+          "observation_id": "43idXEDUQ8dJ2ZBN3PK1LBAKMz6T1VG4Td1Hb7NNGj1z:449948174",
+          "stage_failed": "warmup_unverified"
+        },
+        "reason": "solana_dlmm_transaction_pressure_overflow"
+      },
+      {
+        "at": 1790231787.084816,
+        "candidate": "9PYge8aBV119HoFWm8HBvaaSqPvJpu2kUwMV9imRnPAx",
+        "details": {
+          "observation_id": "9PYge8aBV119HoFWm8HBvaaSqPvJpu2kUwMV9imRnPAx:449949084",
+          "stage_failed": "warmup_unverified"
+        },
+        "reason": "solana_dlmm_transaction_pressure_overflow"
+      },
+      {
+        "at": 1790232097.6924763,
+        "candidate": "ET9QEc18XnEXNyz8ZuGkJfgSuDDqLDiA1U8bEpyuyLKC",
+        "details": {
+          "observation_id": "ET9QEc18XnEXNyz8ZuGkJfgSuDDqLDiA1U8bEpyuyLKC:449950244",
+          "stage_failed": "warmup_unverified"
+        },
+        "reason": "dlmm_external_effect_user_balance_delta_mismatch"
+      },
+      {
+        "at": 1790232565.6091008,
+        "candidate": "FtwzPjTqoFuy8aF8bMBi7QF7UxpdYN5n9YUH6R7DcHjB",
+        "details": {
+          "observation_id": "FtwzPjTqoFuy8aF8bMBi7QF7UxpdYN5n9YUH6R7DcHjB:449952038",
+          "stage_failed": "warmup_unverified"
+        },
+        "reason": "solana_dlmm_transaction_pressure_overflow"
+      },
+      {
+        "at": 1790233550.2720149,
+        "candidate": "AvPqWvQoEnC5aiFm3y3y1AkDyR8Dns8u4RL1VbKLXvtd",
+        "details": {
+          "observation_id": "AvPqWvQoEnC5aiFm3y3y1AkDyR8Dns8u4RL1VbKLXvtd:449955771",
+          "stage_failed": "warmup_unverified"
+        },
+        "reason": "dlmm_multiple_liquidity_removals_in_interval"
+      },
+      {
+        "at": 1790233803.0800767,
+        "candidate": "GYqytuXSiX3GaPuCkLMY4jeRR3mAtyAuQqhD32d45g5y",
+        "details": {
+          "stage_failed": "trigger_evidence_requested"
+        },
+        "reason": "dlmm_swap_event_without_ordered_call"
+      },
+      {
+        "at": 1790234559.6527684,
+        "candidate": "3sVrUSPny3dHukHuBeivBp87rqGQ8heBdHA48iZEDmwG",
+        "details": {
+          "stage_failed": "discovered"
+        },
+        "reason": "dlmm_swap_event_without_ordered_call"
+      },
+      {
+        "at": 1790234637.3566022,
+        "candidate": "2gXV31km1F58FVFrwvjVKkLisWPnoGP6MNAiNWbp3MZn",
+        "details": {
+          "observation_id": "2gXV31km1F58FVFrwvjVKkLisWPnoGP6MNAiNWbp3MZn:449959842",
+          "stage_failed": "warmup_unverified"
+        },
+        "reason": "dlmm_partial_limit_order_or_output_fee_swap_unsupported"
+      },
+      {
+        "at": 1790234769.316618,
+        "candidate": "FzA8Fji7xdr9jfN7Y2YCUGLYwBzqP1eicKA4dX4m8BJg",
+        "details": {
+          "observation_id": "FzA8Fji7xdr9jfN7Y2YCUGLYwBzqP1eicKA4dX4m8BJg:449960238",
+          "stage_failed": "warmup_unverified"
+        },
+        "reason": "dlmm_non_swap_mutation_in_interval:fa49652126cf4bb8"
+      }
+    ],
+    "interpretation": "Nine failures carry authenticated observation IDs; two additional swap-event decoding failures precede full-obligation authentication. Capacity limits and unsupported replay remain unchanged.",
+    "scoped_full_failures": 9,
+    "scoped_full_obligations": 25,
+    "valid_rejections_making_full_reconstruction_unnecessary": 10
+  },
+  "native_evidence_modified": false,
+  "pons": {
+    "completed_full_vectors": 5,
+    "earlier_stage_failure_observations": {
+      "provider_failed": 6,
+      "reconstruction_incomplete_curve_runtime_length": 3,
+      "stale_before_evidence": 2
+    },
+    "frozen_infrastructure_gate": {
+      "block_admitted": false,
+      "computed_fraction": 1.0,
+      "maximum_allowed_fraction": 0.1,
+      "unique_admitted": 5,
+      "unique_provider_failed": 6
+    },
+    "interpretation": "The five completed required vectors do not establish full acquisition coverage. Earlier-stage failures retain unknown full-evidence necessity; the unchanged numerical gate censors the block.",
+    "scoped_full_obligations": 5,
+    "valid_early_rejection_observations": 1022
+  },
+  "pump": {
+    "completed_full_vectors": 1,
+    "decision_history_requests": 434,
+    "genuine_missing_history_observations": 356,
+    "history_failure_partition": {
+      "incomplete_pumpswap_decision_window": 235,
+      "incomplete_pumpswap_second_leg_history": 121
+    },
+    "legacy_counter_caveat": "unscoped_full_requests=434 are legacy decision-history markers, not 434 full concentration-vector requirements.",
+    "native_reconstruction_incomplete_observations": 357,
+    "remaining_reporting_defect": {
+      "diagnosis": "The frozen fill-persistence veto correctly cancels an entry whose authenticated signals decay. The generic cancellation classifier labels this economic veto reconstruction_incomplete. It is one reporting error, not a missing decision history or a completed trade.",
+      "pipeline_event": {
+        "at": 1790233779.4904845,
+        "candidate": "FPzoX2WSu8bB5BEANpng1z3cyfrn8Zig2GegXcYTpump",
+        "classification": "reconstruction_incomplete",
+        "details": {
+          "lifecycle_id": "8b280c3b-a7ba-4ff6-82d5-fd3313fa5e48:5478926597384b879f4642d31361d59b"
+        },
+        "lane": "pump",
+        "monotonic": 2526.984331603,
+        "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+        "reason": "entry_signal_decay:fill_curve_not_late,fill_curve_velocity,fill_curve_deceleration,fill_buyer_growth,fill_net_demand",
+        "sequence": 2821,
+        "stage": "entry_cancelled"
+      },
+      "qualifier": {
+        "cancelled_at": 1790233779,
+        "confirmations": [
+          "quote_relative_strength"
+        ],
+        "decision_repeat_buy_share_bps": 1056,
+        "decision_repeat_buyer_clusters": 5,
+        "decision_slot": 449956624,
+        "entry_limitation": "entry_signal_decay:fill_curve_not_late,fill_curve_velocity,fill_curve_deceleration,fill_buyer_growth,fill_net_demand",
+        "entry_status": "cancelled",
+        "fill_due": 1790233768,
+        "fill_persistence": {
+          "breadth_retention_bps": 14117,
+          "concentration_source": "primary_largest",
+          "confirmation_evidence": {
+            "creator_history_launches": 1,
+            "creator_quality_bps": null,
+            "excluded_clusters": [
+              "5Bqgq9hcXdWhLpmzp7pjWJcyWReeZi5cgMmXHZC1HBQX"
+            ],
+            "explicit_funding_groups_observed": 0,
+            "skilled_wallet_clusters": 0,
+            "skilled_wallets_observed": 0
+          },
+          "decision_buyer_growth": 17,
+          "decision_independent_buyers": 68,
+          "decision_net_buy_share_bps": 8226,
+          "decision_observed_at": 1790233756,
+          "decision_repeat_buy_share_bps": 1056,
+          "decision_repeat_buyer_clusters": 5,
+          "fill_buyer_growth": -44,
+          "fill_independent_buyers": 96,
+          "fill_net_buy_share_bps": 925,
+          "fill_observed_at": 1790233769,
+          "fill_qualification_reasons": [
+            "curve_not_late",
+            "curve_velocity",
+            "curve_deceleration",
+            "buyer_growth",
+            "net_demand"
+          ],
+          "fill_repeat_buy_share_bps": 1828,
+          "fill_repeat_buyer_clusters": 4,
+          "fill_trajectory": {
+            "absolute_progress_source": "prospectively_observed_create_event",
+            "curve_acceleration_bps_per_s2": -32,
+            "curve_progress_bps": 258,
+            "curve_velocity_bps_per_s": -339,
+            "elapsed_seconds": 29,
+            "extension_baseline_time": 1790233759,
+            "extension_bps": -7144,
+            "extension_lookback_seconds": 10,
+            "quote_relative_return_bps": -7144,
+            "sample_count": 3,
+            "trajectory_window_seconds": 30
+          },
+          "persistent": false,
+          "reasons": [
+            "fill_curve_not_late",
+            "fill_curve_velocity",
+            "fill_curve_deceleration",
+            "fill_buyer_growth",
+            "fill_net_demand"
+          ]
+        },
+        "lifecycle_id": "8b280c3b-a7ba-4ff6-82d5-fd3313fa5e48:5478926597384b879f4642d31361d59b",
+        "mint": "FPzoX2WSu8bB5BEANpng1z3cyfrn8Zig2GegXcYTpump",
+        "mode": "late_curve_acceleration",
+        "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+        "qualified_at": 1790233756,
+        "reasons": [],
+        "reserved_at": 1790233766,
+        "score": 89
+      },
+      "source": "pump tests/pump_acceleration_natural_prospective.py: _progress and delayed-fill exception/cancellation path"
+    },
+    "scoped_full_obligations": 1,
+    "supported_decision_histories": 199
+  },
+  "ramses": {
+    "discovery_seconds": 3600.0,
+    "interpretation": "A qualifying scan completed after the 3600-second observation boundary. Its pre-entry continuation checkpoint is preserved with active=true and zero ledger positions. The workflow controller is HALTED and no continuation is dispatched or resumed. The initial screen is preserved separately in the campaign archive.",
+    "native_continuation_checkpoint": {
+      "active": true,
+      "completed_lifecycles": [],
+      "entry_at": 1790233912,
+      "entry_block": 71181595,
+      "error": null,
+      "ledger_path": "robinhood-ramses-extended-market.sqlite.campaign/0x5fc5360d0400a0fd4f2af552add042d716f1d168.sqlite",
+      "lifecycle_prefix": "505ab51aa7b042ee827ba1025f2eb750:71181595:1",
+      "observations_while_occupied": 0,
+      "paper_capital": 13904784,
+      "quote_asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "rebalances": 0,
+      "result": null,
+      "segments": [],
+      "state_path": "robinhood-ramses-continuation.json"
+    },
+    "native_open_positions": 0,
+    "native_required_evidence": {
+      "available": true,
+      "became_unnecessary_after_valid_earlier_rejection": 0,
+      "candidates_requiring_full_evidence": 1,
+      "completions_without_scoped_request": 0,
+      "decision_evidence_complete": 0,
+      "decision_evidence_requested": 0,
+      "denominator_status": "explicit_native_obligations",
+      "evidence_completed_in_time": 0,
+      "evidence_requested": 0,
+      "historical_rows_reclassified": false,
+      "identity_scope": "candidate observations; repeated required markers create separate obligations",
+      "infrastructure_failed": 0,
+      "infrastructure_failure_observations": {},
+      "observations_requiring_full_evidence": 1,
+      "pending_at_observation_close": 1,
+      "superseded_candidate_state": 0,
+      "unscoped_full_requests": 0,
+      "valid_rejections_before_full_evidence_required": 17
+    },
+    "qualified_pool": "0xe5c549d30eb7ac99dcaaddd4a7fec48c5d523a31",
+    "qualified_scan_elapsed_seconds": 3638.7137310149997,
+    "remaining_reporting_defects": [
+      {
+        "diagnosis": "The threaded measurement-window path does not forward evidence_progress. The direct extended-run path supplies this callback, but the wrapper drops it. Reconstruction-stage markers can therefore be missing; zero recorded requests cannot establish zero attempted acquisition.",
+        "source": "certification/lifecycle_timing.py: install_ramses threaded target -> lifecycle.run"
+      },
+      {
+        "diagnosis": "Native coverage_healthy is reported despite one explicit pending full-evidence obligation. The label does not include pending required obligations; this observation remains incomplete.",
+        "source": "certification/market_assurance.py: coverage label construction"
+      }
+    ]
+  },
+  "runtime_modified_after_launch": false,
+  "runtime_sha": "029e7a851f122825e19343a9e8a79652a86f6bb4",
+  "workflow_run_id": 35962402406
+}

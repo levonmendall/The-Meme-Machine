@@ -1,0 +1,41 @@
+{
+  "artifact_digest": "sha256:d895c680e0eb6159e5088f53102ebe63e2296e93eafe9e7fedd8e91338e2b106",
+  "artifact_id": 10792722573,
+  "certificate_run_id": 35961549416,
+  "engineering_certification": "CERTIFIED_NON_MARKET_ENGINEERING",
+  "gates": {
+    "exact_integration_identity": true,
+    "exact_source_offline": true,
+    "historical_exposure_resolution": true,
+    "historical_registry_released": true,
+    "integrated_current_policy": true,
+    "native_crash_matrix": true,
+    "production_adapter_connectivity": true,
+    "resource_bounds": true,
+    "restart_safety": true
+  },
+  "lane_tests": {
+    "meteora": 444,
+    "pons": 363,
+    "pump": 320,
+    "ramses": 345
+  },
+  "local_snapshot_anomaly": "Two scratch-output integrated runs retained 10 of 12grant records. The traced repeat, unchanged gate in a temporary output directory, and exact hosted gate all retained 12 of 12. Original failed results are preserved; no gate was weakened.",
+  "runtime_sha": "029e7a851f122825e19343a9e8a79652a86f6bb4",
+  "source_diff_hashes": {
+    "meteora": "1e27b8b2cbbe83d2643fadb1fda5d22544b66eea659938bab3a62f51b7e9305b",
+    "pons": "de0fd8813d677edb1a818126dcfc6090683ed13ef33c97b532ebe6ae128830bc",
+    "pump": "5f7928a599fd8867c50f7964c826d3cad2d810ee721c179d0f61c37094ff5cfa",
+    "ramses": "3e848957c0835ef5f9805e009414c049513e4f9f291b8199804ce22567cd862e"
+  },
+  "source_manifest_hash": "ad88edaee7fa110725376ade6727fd7b4ec5b4aa175674a89fa8bab81dde16a1",
+  "supervisor_tests": 201,
+  "unchanged_boundaries": [
+    "strategy economics",
+    "target-market definitions",
+    "provider limits",
+    "evidence freshness",
+    "portfolio and accounting",
+    "paper-only authority"
+  ]
+}

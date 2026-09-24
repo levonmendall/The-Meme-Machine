@@ -1,0 +1,348 @@
+{
+  "admission_failures": [],
+  "economic_performance": {
+    "eligible": false,
+    "realized_and_unrealized_by_lane": {
+      "meteora": {
+        "realized": 0,
+        "units": "lamports",
+        "unrealized": 0,
+        "unrealized_status": "available"
+      },
+      "pons": {
+        "realized": 0,
+        "units": "native_quote_raw",
+        "unrealized": null,
+        "unrealized_status": "not_marked_by_native_ledger"
+      },
+      "pump": {
+        "realized": 0,
+        "units": "lamports",
+        "unrealized": 0,
+        "unrealized_status": "available"
+      },
+      "ramses": {
+        "by_quote_asset": {},
+        "unlike_quote_units_summed": false
+      }
+    },
+    "reason": "smoke_excluded",
+    "unlike_quote_units_summed": false,
+    "unrealized_aggregate": null
+  },
+  "ended_at": 1790231239.1975746,
+  "lanes": {
+    "meteora": {
+      "accounting_reconciliation": {
+        "accounting": {
+          "available": 1000000000,
+          "capital_time_through_ns": 0,
+          "capital_unit_nanoseconds": 0,
+          "cash": 1000000000,
+          "economic_replay_verified": false,
+          "genesis": {
+            "asset": "SOL_lamports",
+            "capital": 1000000000,
+            "namespace": "solana_meteora_independent_v1",
+            "paper_only": true,
+            "policy_hash": "a69ec239772a86bc7526594c9822b6fc1e611b45b7e661f618099656b288d55b",
+            "run_id": "420fe5f1-4e81-40f2-b3b5-0775579f80d9"
+          },
+          "journal_events": 1,
+          "journal_hash": "caee8353a3cf6d0c50ed50d69e6000c8ac1335ed760a116ddbce1dc4d5eeada2",
+          "marked_equity": 1000000000,
+          "net_cash_flows": 0,
+          "open_positions": 0,
+          "pending": 0,
+          "realized_pnl_lamports": 0,
+          "reconciled": true,
+          "reserved": 0,
+          "settled": 0,
+          "stale_marks": 0,
+          "unrealized_pnl_lamports": 0,
+          "unsettled": 0,
+          "writeoffs": 0
+        },
+        "economic_replay_claimed": false,
+        "lane": "meteora",
+        "open_positions": 0,
+        "read_only": true,
+        "settlement_inferred": false,
+        "verified": true
+      },
+      "coverage_gaps": [
+        "consumer_deadline",
+        "reconstruction_incomplete",
+        "discovered_candidates_pending_at_observation_close"
+      ],
+      "coverage_health": "coverage_degraded",
+      "current_open_positions": 0,
+      "natural_entries": 0,
+      "natural_settlements": 0,
+      "provider_health": {
+        "errors": {},
+        "requests": 136,
+        "rpc_latency_seconds": {
+          "p50": 0.134819853,
+          "p95": 0.208738406,
+          "p99": 0.317448801
+        }
+      },
+      "required_evidence": {
+        "available": true,
+        "became_unnecessary_after_valid_earlier_rejection": 0,
+        "candidates_requiring_full_evidence": 2,
+        "completions_without_scoped_request": 0,
+        "decision_evidence_complete": 0,
+        "decision_evidence_requested": 0,
+        "denominator_status": "explicit_native_obligations",
+        "evidence_completed_in_time": 1,
+        "evidence_requested": 2,
+        "historical_rows_reclassified": false,
+        "identity_scope": "candidate observations; repeated required markers create separate obligations",
+        "infrastructure_failed": 1,
+        "infrastructure_failure_observations": {
+          "consumer_deadline": 1,
+          "reconstruction_incomplete": 1
+        },
+        "observations_requiring_full_evidence": 2,
+        "pending_at_observation_close": 0,
+        "superseded_candidate_state": 0,
+        "unscoped_full_requests": 0,
+        "valid_rejections_before_full_evidence_required": 0
+      },
+      "stream_continuity": {
+        "final_snapshot_connected": true,
+        "final_snapshot_covered": true,
+        "historical_gap_events": 0,
+        "historical_missing_events_recovered": null,
+        "interpretation": "Cumulative interruptions do not prove current outage or complete historical event recovery; final disconnect may be orderly shutdown.",
+        "last_loss_until": 0
+      }
+    },
+    "pons": {
+      "accounting_reconciliation": {
+        "accounting": {
+          "available": 1000000000000000000,
+          "booked_realized": 0,
+          "capital_at_risk_unit_nanoseconds": 0,
+          "capital_integral_complete": true,
+          "cash": 1000000000000000000,
+          "cash_basis_conservation": true,
+          "conservation": true,
+          "genesis": 1000000000000000000,
+          "namespace": "pons-selective-continuation-v1",
+          "native_execution_cost": 0,
+          "native_observation_complete": true,
+          "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+          "positions": 0,
+          "realized": 0,
+          "remaining_cost_basis": 0,
+          "reserved": 0,
+          "unobserved_native_positions": [],
+          "unsettled": 0
+        },
+        "lane": "pons",
+        "open_positions": 0,
+        "read_only": true,
+        "settlement_inferred": false,
+        "verified": true
+      },
+      "coverage_gaps": [
+        "provider_failed"
+      ],
+      "coverage_health": "coverage_degraded",
+      "current_open_positions": 0,
+      "natural_entries": 0,
+      "natural_settlements": 0,
+      "provider_health": {
+        "errors": {
+          "eth_getLogs:http_429": 3,
+          "provider_http_429": 3,
+          "provider_rpc_3": 3
+        },
+        "requests": 1095,
+        "rpc_latency_seconds": {
+          "p50": 0.110366497,
+          "p95": 0.183057166,
+          "p99": 0.333030621
+        }
+      },
+      "required_evidence": {
+        "available": true,
+        "became_unnecessary_after_valid_earlier_rejection": 0,
+        "candidates_requiring_full_evidence": 0,
+        "completions_without_scoped_request": 0,
+        "decision_evidence_complete": 0,
+        "decision_evidence_requested": 0,
+        "denominator_status": "explicit_native_obligations",
+        "evidence_completed_in_time": 0,
+        "evidence_requested": 0,
+        "historical_rows_reclassified": false,
+        "identity_scope": "candidate observations; repeated required markers create separate obligations",
+        "infrastructure_failed": 0,
+        "infrastructure_failure_observations": {
+          "provider_failed": 3
+        },
+        "observations_requiring_full_evidence": 0,
+        "pending_at_observation_close": 0,
+        "superseded_candidate_state": 0,
+        "unscoped_full_requests": 0,
+        "valid_rejections_before_full_evidence_required": 162
+      },
+      "stream_continuity": {
+        "final_snapshot_connected": null,
+        "final_snapshot_covered": null,
+        "historical_gap_events": 0,
+        "historical_missing_events_recovered": null,
+        "interpretation": "Cumulative interruptions do not prove current outage or complete historical event recovery; final disconnect may be orderly shutdown.",
+        "last_loss_until": null
+      }
+    },
+    "pump": {
+      "accounting_reconciliation": {
+        "accounting": {
+          "basis": 0,
+          "capital_hour_denominator": 3600,
+          "capital_unit_seconds": 0,
+          "cash": 5110384300,
+          "initial": 5110384300,
+          "lane": "pump-acceleration-independent-v1",
+          "marked_equity": 5110384300,
+          "open_positions": 0,
+          "pending": 0,
+          "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+          "realized": 0,
+          "reconciled": true,
+          "reserved": 0,
+          "run_id": "420fe5f1-4e81-40f2-b3b5-0775579f80d9",
+          "settled": 0,
+          "unrealized": 0
+        },
+        "accounting_replay": {
+          "cash": 5110384300,
+          "events": 0,
+          "final_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "verified": true
+        },
+        "lane": "pump",
+        "open_positions": 0,
+        "read_only": true,
+        "settlement_inferred": false,
+        "verified": true
+      },
+      "coverage_gaps": [
+        "reconstruction_incomplete"
+      ],
+      "coverage_health": "coverage_degraded",
+      "current_open_positions": 0,
+      "natural_entries": 0,
+      "natural_settlements": 0,
+      "provider_health": {
+        "errors": {},
+        "requests": 576,
+        "rpc_latency_seconds": {
+          "p50": 0.169683109,
+          "p95": 0.237065109,
+          "p99": 0.294076171
+        }
+      },
+      "required_evidence": {
+        "available": true,
+        "became_unnecessary_after_valid_earlier_rejection": 0,
+        "candidates_requiring_full_evidence": 0,
+        "completions_without_scoped_request": 0,
+        "decision_evidence_complete": 16,
+        "decision_evidence_requested": 49,
+        "denominator_status": "explicit_native_obligations",
+        "evidence_completed_in_time": 0,
+        "evidence_requested": 0,
+        "historical_rows_reclassified": false,
+        "identity_scope": "candidate observations; repeated required markers create separate obligations",
+        "infrastructure_failed": 0,
+        "infrastructure_failure_observations": {
+          "reconstruction_incomplete": 40
+        },
+        "observations_requiring_full_evidence": 0,
+        "pending_at_observation_close": 0,
+        "superseded_candidate_state": 0,
+        "unscoped_full_requests": 49,
+        "valid_rejections_before_full_evidence_required": 20
+      },
+      "stream_continuity": {
+        "final_snapshot_connected": false,
+        "final_snapshot_covered": false,
+        "historical_gap_events": 0,
+        "historical_missing_events_recovered": null,
+        "interpretation": "Cumulative interruptions do not prove current outage or complete historical event recovery; final disconnect may be orderly shutdown.",
+        "last_loss_until": 0
+      }
+    },
+    "ramses": {
+      "accounting_reconciliation": {
+        "accounting": {
+          "allocation_authority": false,
+          "by_quote_asset": {},
+          "conservation": true,
+          "funding_state": "awaiting_first_qualified_pinned_screen",
+          "open_positions": 0,
+          "paper_entry_ready": false,
+          "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+          "position_count": 0,
+          "unlike_quote_units_summed": false
+        },
+        "lane": "ramses",
+        "open_positions": 0,
+        "read_only": true,
+        "settlement_inferred": false,
+        "verified": true
+      },
+      "coverage_gaps": [],
+      "coverage_health": "coverage_healthy",
+      "current_open_positions": 0,
+      "natural_entries": 0,
+      "natural_settlements": 0,
+      "provider_health": {
+        "errors": {},
+        "requests": 626,
+        "rpc_latency_seconds": {
+          "p50": 0.117645339,
+          "p95": 0.158563385,
+          "p99": 0.196653817
+        }
+      },
+      "required_evidence": {
+        "available": true,
+        "became_unnecessary_after_valid_earlier_rejection": 0,
+        "candidates_requiring_full_evidence": 0,
+        "completions_without_scoped_request": 0,
+        "decision_evidence_complete": 0,
+        "decision_evidence_requested": 0,
+        "denominator_status": "explicit_native_obligations",
+        "evidence_completed_in_time": 0,
+        "evidence_requested": 0,
+        "historical_rows_reclassified": false,
+        "identity_scope": "candidate observations; repeated required markers create separate obligations",
+        "infrastructure_failed": 0,
+        "infrastructure_failure_observations": {},
+        "observations_requiring_full_evidence": 0,
+        "pending_at_observation_close": 0,
+        "superseded_candidate_state": 0,
+        "unscoped_full_requests": 0,
+        "valid_rejections_before_full_evidence_required": 10
+      },
+      "stream_continuity": {
+        "final_snapshot_connected": null,
+        "final_snapshot_covered": null,
+        "historical_gap_events": null,
+        "historical_missing_events_recovered": null,
+        "interpretation": "Cumulative interruptions do not prove current outage or complete historical event recovery; final disconnect may be orderly shutdown.",
+        "last_loss_until": null
+      }
+    }
+  },
+  "phase": "smoke",
+  "run_id": "420fe5f1-4e81-40f2-b3b5-0775579f80d9",
+  "started_at": 1790229634.6242225,
+  "status": null
+}

@@ -1,0 +1,524 @@
+{
+  "source_run": 35962402406,
+  "source_sha": "029e7a851f122825e19343a9e8a79652a86f6bb4",
+  "artifact_id": 10795922766,
+  "source_sha256": "cd48383d331ded838128469f4a17138cc217fa7697b424e0e99b958b266400c2",
+  "source_workflow_conclusion": "success",
+  "market_provider_requests": 0,
+  "workflow_dispatches": 0,
+  "copy_semantics": "selected original files, byte-for-byte",
+  "files": [
+    {
+      "path": "assurance/market-assurance.json",
+      "sha256": "816bbbeee778ca3142ac7cbc31c75b4a89d97724808524805c918d7a9c5e988a",
+      "bytes": 48148
+    },
+    {
+      "path": "assurance/pons-conformance.json",
+      "sha256": "4390ba2d56cc512486258e5ad05576392fbdf204774765fd109feba2d0968ec6",
+      "bytes": 281
+    },
+    {
+      "path": "assurance/meteora-conformance.json",
+      "sha256": "e9a61fd20dc8ee594903df64b7a9ae811341d3c2b2c33a2696f1aad3b45029e9",
+      "bytes": 255
+    },
+    {
+      "path": "assurance/pump-conformance.json",
+      "sha256": "6b52d4953f614b1609adcc629d901a9664cca8d03b5c628dde2e94729484085d",
+      "bytes": 333
+    },
+    {
+      "path": "assurance/ramses-conformance.json",
+      "sha256": "f068efd93f0ce6e16e4d066babb3c0c24be2c4af5efa43025ca728f877c969ae",
+      "bytes": 263
+    },
+    {
+      "path": "certification-hourly/manifest.json",
+      "sha256": "8267f9f0be75d727f71e69c6b15b9069d29daf4204530d135a23c2ebbe104e54",
+      "bytes": 50981
+    },
+    {
+      "path": "certification-hourly/result.json",
+      "sha256": "e56d2add1c7bf9d9ea8a423a5714fd168c94b804fd3c4d037cbb008dfb22b1d9",
+      "bytes": 130336
+    },
+    {
+      "path": "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.discovery.sqlite",
+      "sha256": "6d54a8969cbabb486a9bf4ebb20f5dca329abda39336be46c84f5f1e53302bb3",
+      "bytes": 1744896
+    },
+    {
+      "path": "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.json",
+      "sha256": "0776bd415bb8478ef8d894f715c1bc214b5facf963814c14ebe7906be4e90c2e",
+      "bytes": 1249470
+    },
+    {
+      "path": "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.pipeline.sqlite",
+      "sha256": "e9dc8d94168743c2706af6537cdd79476ec1c1e348cc94c3b5f1ccf5450e204b",
+      "bytes": 737280
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/cohort-progress.json",
+      "sha256": "3ee1bf07d77ed808bb25d50825b81c5d5f8c06bf2ca6b6afe4021a0bee83cf7d",
+      "bytes": 54697
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/candidate-rows.jsonl",
+      "sha256": "6ef6404598d48d71b1b9a22bb569e6e01f34c3abc1a8beae242e138558ecca66",
+      "bytes": 22853860
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/complete-result.json.gz",
+      "sha256": "5bf3f1ac491de008f4033bcd11f4cab068eec71e60cafcba80715693cf8208e3",
+      "bytes": 2201901
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/opportunity-pipeline.sqlite",
+      "sha256": "3f1a82b83649d1f49759d06ad69535a82c3318a43ce646a7dc966813cfbd5e74",
+      "bytes": 2719744
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/pons-selective-cohort-capital.sqlite",
+      "sha256": "5553275b394a14e6a4ee89f68a3bca8cf7fc2b03de6f09a542303a0de492f4f5",
+      "bytes": 20480
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/pons-selective-wallet-skill.sqlite",
+      "sha256": "2a6aa953f151c680d8872b372344e027f7980a993697f1b15cae6d17d24c2b49",
+      "bytes": 28672
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/provider-sessions.jsonl",
+      "sha256": "ad0abc6baa3ae7904aa5cd13044b63e16da532e4800aa421981dfa5cbfa1911c",
+      "bytes": 41642
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/queue-terminal.jsonl",
+      "sha256": "41325a1df80881b1a3bd3243fa61ba9757c6309cdde697a0a2235c169e6fbde8",
+      "bytes": 2159
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort.json",
+      "sha256": "07048dca1e8588821762b4deef7b633d798a5674850b80c9a40541dc01cb6601",
+      "bytes": 37513
+    },
+    {
+      "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.candidates.jsonl",
+      "sha256": "8043c0115bf4c161ba03df76e2e684d46eeb55c1f3d07916c66a8acd6018ba1e",
+      "bytes": 708574
+    },
+    {
+      "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.json",
+      "sha256": "edf133e9ba9be417c41522381af56aaa073b2cb757049c0ce3f6b404c4c3c385",
+      "bytes": 1912792
+    },
+    {
+      "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.pipeline.sqlite",
+      "sha256": "a68406639e1cfae47c0a4fe6aa19262fa5e6f08dbccdb6fd54b2f99eb5c10a9b",
+      "bytes": 1888256
+    },
+    {
+      "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.terminal.jsonl",
+      "sha256": "646581fda085d29f202e21dc8449ed84ec325c316188a34de9cbd00bca4d24d0",
+      "bytes": 71471
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-all-pool-inventory-cache.json",
+      "sha256": "65228f86cbc4670d33d5a84a0fb0d243b663ef448c2c15b9ec5844695c91fb7d",
+      "bytes": 13370
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-continuation.json",
+      "sha256": "0a73f3a89ddf4e79698361f1a91f0a302aad785f138f5b6f586fac116ab422c0",
+      "bytes": 564
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market-report.json",
+      "sha256": "3278e673311231768349eaa86ae434adc98e057eff1c590e03564582d758a047",
+      "bytes": 70089
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/0x5fc5360d0400a0fd4f2af552add042d716f1d168.sqlite",
+      "sha256": "38b091b010a2379c2b135c535a55533fd604f355698fedd7739e1b37d574ac87",
+      "bytes": 28672
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/initial-screen.json.gz",
+      "sha256": "f841841a115eb48a69f67f05a21d44e5754838e5c11fe2118ebc408158fd0138",
+      "bytes": 32633
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/capital-manifest.json",
+      "sha256": "b692421b1e33b1862f810cd57b40d8d93be0580aba3ce8d6d2235f08f4be48d3",
+      "bytes": 653
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/lifecycles.jsonl",
+      "sha256": "ee0d4c3da1e1a181c77ad3f2c94b6b044e71056b9f061f107360de535c691632",
+      "bytes": 250
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.pipeline.sqlite",
+      "sha256": "49cbe24a74c77b0c42066edcd153048f23123f3227e91571d80579b26856191c",
+      "bytes": 61440
+    },
+    {
+      "path": "evidence-snapshot.json",
+      "sha256": "9c3b00212e211ba2f948667432aefe9cac320db21766d2e1533b1359f9a00960",
+      "bytes": 39394
+    },
+    {
+      "path": "prospective-observation.json",
+      "sha256": "953e1972a20ee5275886180ed7809a933ef7d471c59d6c573c26164a1a08edb6",
+      "bytes": 51014
+    },
+    {
+      "path": "single-campaign-phase.json",
+      "sha256": "78e1fa5f1a06ec62d407b11a9833fea4b894d6a577498accb376f4dcd3a46365",
+      "bytes": 6163
+    }
+  ],
+  "inventory": [
+    {
+      "path": "assurance/market-assurance.json",
+      "bytes": 48148
+    },
+    {
+      "path": "assurance/pons-conformance.json",
+      "bytes": 281
+    },
+    {
+      "path": "assurance/meteora-conformance.json",
+      "bytes": 255
+    },
+    {
+      "path": "assurance/pump-conformance.json",
+      "bytes": 333
+    },
+    {
+      "path": "assurance/ramses-conformance.json",
+      "bytes": 263
+    },
+    {
+      "path": "certification-contention-history.jsonl",
+      "bytes": 109
+    },
+    {
+      "path": "certification-gates/chain-binding.json",
+      "bytes": 3132
+    },
+    {
+      "path": "certification-gates/deterministic.json",
+      "bytes": 749
+    },
+    {
+      "path": "certification-gates/rpc-capabilities.json",
+      "bytes": 134935
+    },
+    {
+      "path": "certification-hourly/capacity-strategy.json",
+      "bytes": 36035
+    },
+    {
+      "path": "certification-hourly/manifest.json",
+      "bytes": 50981
+    },
+    {
+      "path": "certification-hourly/meteora/activity.json",
+      "bytes": 927
+    },
+    {
+      "path": "certification-hourly/meteora/decision-trace-status.json",
+      "bytes": 437
+    },
+    {
+      "path": "certification-hourly/meteora/decision-trace.jsonl",
+      "bytes": 281718
+    },
+    {
+      "path": "certification-hourly/meteora/process.log",
+      "bytes": 462
+    },
+    {
+      "path": "certification-hourly/meteora/rpc-evidence.jsonl.gz",
+      "bytes": 5925910
+    },
+    {
+      "path": "certification-hourly/meteora/solana-dlmm-independent-v1-live.json",
+      "bytes": 1249470
+    },
+    {
+      "path": "certification-hourly/meteora/status.json",
+      "bytes": 433202
+    },
+    {
+      "path": "certification-hourly/meteora/telemetry.sqlite",
+      "bytes": 492253184
+    },
+    {
+      "path": "certification-hourly/pons/activity.json",
+      "bytes": 1456
+    },
+    {
+      "path": "certification-hourly/pons/decision-trace-status.json",
+      "bytes": 434
+    },
+    {
+      "path": "certification-hourly/pons/decision-trace.jsonl",
+      "bytes": 248596
+    },
+    {
+      "path": "certification-hourly/pons/pons-selective-continuation-v1-cohort.json",
+      "bytes": 37513
+    },
+    {
+      "path": "certification-hourly/pons/process.log",
+      "bytes": 0
+    },
+    {
+      "path": "certification-hourly/pons/rpc-evidence.jsonl.gz",
+      "bytes": 9614025
+    },
+    {
+      "path": "certification-hourly/pons/status.json",
+      "bytes": 39719
+    },
+    {
+      "path": "certification-hourly/pons/telemetry.sqlite",
+      "bytes": 41115648
+    },
+    {
+      "path": "certification-hourly/provider-identities.json",
+      "bytes": 588
+    },
+    {
+      "path": "certification-hourly/pump/activity.json",
+      "bytes": 1202
+    },
+    {
+      "path": "certification-hourly/pump/decision-trace-status.json",
+      "bytes": 435
+    },
+    {
+      "path": "certification-hourly/pump/decision-trace.jsonl",
+      "bytes": 3467465
+    },
+    {
+      "path": "certification-hourly/pump/process.log",
+      "bytes": 1484481
+    },
+    {
+      "path": "certification-hourly/pump/pump-acceleration-natural-prospective.json",
+      "bytes": 1912792
+    },
+    {
+      "path": "certification-hourly/pump/rpc-evidence.jsonl.gz",
+      "bytes": 49367967
+    },
+    {
+      "path": "certification-hourly/pump/status.json",
+      "bytes": 1394558
+    },
+    {
+      "path": "certification-hourly/pump/telemetry.sqlite",
+      "bytes": 116695040
+    },
+    {
+      "path": "certification-hourly/ramses/activity.json",
+      "bytes": 1168
+    },
+    {
+      "path": "certification-hourly/ramses/decision-trace-status.json",
+      "bytes": 436
+    },
+    {
+      "path": "certification-hourly/ramses/decision-trace.jsonl",
+      "bytes": 745292
+    },
+    {
+      "path": "certification-hourly/ramses/process.log",
+      "bytes": 435
+    },
+    {
+      "path": "certification-hourly/ramses/robinhood-ramses-extended-market-report.json",
+      "bytes": 70089
+    },
+    {
+      "path": "certification-hourly/ramses/rpc-evidence.jsonl.gz",
+      "bytes": 846720
+    },
+    {
+      "path": "certification-hourly/ramses/status.json",
+      "bytes": 71049
+    },
+    {
+      "path": "certification-hourly/result.json",
+      "bytes": 130336
+    },
+    {
+      "path": "certification-hourly/ramses/telemetry.sqlite",
+      "bytes": 9035776
+    },
+    {
+      "path": "certification-hourly/rpc-capabilities.json",
+      "bytes": 105196
+    },
+    {
+      "path": "certification-hourly/shared-provider.sqlite",
+      "bytes": 446464
+    },
+    {
+      "path": "certification-hourly/shared-robinhood-admission.sqlite",
+      "bytes": 8040448
+    },
+    {
+      "path": "certification-hourly/shared-robinhood-evidence.sqlite",
+      "bytes": 62603264
+    },
+    {
+      "path": "certification-hourly/shared-solana-evidence.sqlite",
+      "bytes": 1955061760
+    },
+    {
+      "path": "certification-hourly/status.html",
+      "bytes": 423902
+    },
+    {
+      "path": "certification-hourly/supervisor.sqlite",
+      "bytes": 1638400
+    },
+    {
+      "path": "certification-hourly-live-snapshots.jsonl",
+      "bytes": 3429796
+    },
+    {
+      "path": "certification-hourly-publisher.jsonl",
+      "bytes": 19946
+    },
+    {
+      "path": "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.discovery.sqlite",
+      "bytes": 1744896
+    },
+    {
+      "path": "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.accounting.sqlite3",
+      "bytes": 8192
+    },
+    {
+      "path": "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.json",
+      "bytes": 1249470
+    },
+    {
+      "path": "certification-native/hourly/meteora/solana-dlmm-independent-v1-live.pipeline.sqlite",
+      "bytes": 737280
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/cohort-progress.json",
+      "bytes": 54697
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/candidate-rows.jsonl",
+      "bytes": 22853860
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/complete-result.json.gz",
+      "bytes": 2201901
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/opportunity-pipeline.sqlite",
+      "bytes": 2719744
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/pons-selective-cohort-capital.sqlite",
+      "bytes": 20480
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/pons-selective-wallet-skill.sqlite",
+      "bytes": 28672
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/provider-sessions.jsonl",
+      "bytes": 41642
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort/queue-terminal.jsonl",
+      "bytes": 2159
+    },
+    {
+      "path": "certification-native/hourly/pons/pons-selective-continuation-v1-cohort.json",
+      "bytes": 37513
+    },
+    {
+      "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.accounting.sqlite3",
+      "bytes": 32768
+    },
+    {
+      "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.candidates.jsonl",
+      "bytes": 708574
+    },
+    {
+      "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.json",
+      "bytes": 1912792
+    },
+    {
+      "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.pipeline.sqlite",
+      "bytes": 1888256
+    },
+    {
+      "path": "certification-native/hourly/pump/pump-acceleration-natural-prospective.terminal.jsonl",
+      "bytes": 71471
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-all-pool-inventory-cache.json",
+      "bytes": 13370
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-continuation.json",
+      "bytes": 564
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market-report.json",
+      "bytes": 70089
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/0x5fc5360d0400a0fd4f2af552add042d716f1d168.sqlite",
+      "bytes": 28672
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/initial-screen.json.gz",
+      "bytes": 32633
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/capital-manifest.json",
+      "bytes": 653
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.campaign/lifecycles.jsonl",
+      "bytes": 250
+    },
+    {
+      "path": "certification-native/hourly/ramses/robinhood-ramses-extended-market.sqlite.pipeline.sqlite",
+      "bytes": 61440
+    },
+    {
+      "path": "certification-preflight.json",
+      "bytes": 69
+    },
+    {
+      "path": "evidence-snapshot.json",
+      "bytes": 39394
+    },
+    {
+      "path": "prospective-observation.json",
+      "bytes": 51014
+    },
+    {
+      "path": "single-campaign-phase.json",
+      "bytes": 6163
+    },
+    {
+      "path": "smoke-readiness.json",
+      "bytes": 12369
+    }
+  ]
+}

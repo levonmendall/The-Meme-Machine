@@ -1,0 +1,1319 @@
+{
+  "block_admission_passed": false,
+  "chain_binding_passed": true,
+  "cohort_id": "prospective-four-lane-v7-evidence-reconstruction-single-run-20260924",
+  "ended_at": 1790235930.8435466,
+  "engineering_pass": true,
+  "implementation_hash": "687c980887047c78b41638d8e72c2e0067e627b53f0f0310b1a2ad3003848cc0",
+  "integration_sha": "029e7a851f122825e19343a9e8a79652a86f6bb4",
+  "lanes": {
+    "meteora": {
+      "accounting_reconciled": true,
+      "assurance": {
+        "accounting_reconciliation": {
+          "accounting": {
+            "available": 1000000000,
+            "capital_time_through_ns": 0,
+            "capital_unit_nanoseconds": 0,
+            "cash": 1000000000,
+            "economic_replay_verified": false,
+            "genesis": {
+              "asset": "SOL_lamports",
+              "capital": 1000000000,
+              "namespace": "solana_meteora_independent_v1",
+              "paper_only": true,
+              "policy_hash": "a69ec239772a86bc7526594c9822b6fc1e611b45b7e661f618099656b288d55b",
+              "run_id": "8b280c3b-a7ba-4ff6-82d5-fd3313fa5e48"
+            },
+            "journal_events": 1,
+            "journal_hash": "2c9c63880119739cbfea84e740c1efb9724274744ee28360f71c5e13fd1a860d",
+            "marked_equity": 1000000000,
+            "net_cash_flows": 0,
+            "open_positions": 0,
+            "pending": 0,
+            "realized_pnl_lamports": 0,
+            "reconciled": true,
+            "reserved": 0,
+            "settled": 0,
+            "stale_marks": 0,
+            "unrealized_pnl_lamports": 0,
+            "unsettled": 0,
+            "writeoffs": 0
+          },
+          "economic_replay_claimed": false,
+          "lane": "meteora",
+          "open_positions": 0,
+          "read_only": true,
+          "settlement_inferred": false,
+          "verified": true
+        },
+        "acquisition_latency_seconds": {
+          "discovered__screened": {
+            "count": 133,
+            "max": 3593.7356100082397,
+            "p50": 2659.2222712039948,
+            "p95": 3565.786476135254
+          },
+          "evidence_complete__qualified": {
+            "count": 0,
+            "max": null,
+            "p50": null,
+            "p95": null
+          },
+          "evidence_requested__evidence_complete": {
+            "count": 6,
+            "max": 52.12006211280823,
+            "p50": 39.23715138435364,
+            "p95": 48.28201103210449
+          },
+          "screened__evidence_requested": {
+            "count": 25,
+            "max": 117.28528547286987,
+            "p50": 49.32231044769287,
+            "p95": 82.87910223007202
+          }
+        },
+        "admission_failures": [],
+        "authorized_count": 0,
+        "behavioral_liveness": {
+          "classification": "awaiting_market_or_policy",
+          "discovery_breadth_healthy": "coverage_degraded",
+          "evidence_progressing": 1790233795.9128184,
+          "position_monitoring_progressing": null,
+          "process_alive": false,
+          "provider_alive": true,
+          "qualification_progressing": 1790233796.0115466,
+          "settlement_progressing": null,
+          "strategy_progressing": 1790234906.8503351,
+          "target_market_discovery_progressing": 1790234850.6369777
+        },
+        "candidates_requiring_full_evidence": 25,
+        "complete_natural_lifecycles": 0,
+        "conformance_unavailable": [],
+        "coverage_gaps": [
+          "reconstruction_incomplete",
+          "discovered_candidates_pending_at_observation_close"
+        ],
+        "coverage_gaps_by_segment": [
+          {
+            "segment": {
+              "segment": "not_preserved"
+            },
+            "transition_records": 11
+          },
+          {
+            "discovered_in_page": 157,
+            "global_api_total": 131826,
+            "global_total_is_strategy_denominator": false,
+            "not_discovered_from_acquired_page": 0,
+            "observed_at": 1790234847.5264852,
+            "one_wsol_pair_count": 157,
+            "page": 1,
+            "preflight_evaluated_in_page": 81,
+            "raw_rows": 250,
+            "sort": "fee_tvl_ratio_5m:desc"
+          },
+          {
+            "discovered_in_page": 3,
+            "global_api_total": 131826,
+            "global_total_is_strategy_denominator": false,
+            "not_discovered_from_acquired_page": 0,
+            "observed_at": 1790234848.8508034,
+            "one_wsol_pair_count": 3,
+            "page": 2,
+            "preflight_evaluated_in_page": 1,
+            "raw_rows": 250,
+            "sort": "fee_tvl_ratio_5m:desc"
+          },
+          {
+            "discovered_in_page": 158,
+            "global_api_total": 131826,
+            "global_total_is_strategy_denominator": false,
+            "not_discovered_from_acquired_page": 0,
+            "observed_at": 1790234850.5895486,
+            "one_wsol_pair_count": 158,
+            "page": 1,
+            "preflight_evaluated_in_page": 81,
+            "raw_rows": 250,
+            "sort": "volume_5m:desc"
+          },
+          {
+            "discovered_in_page": 14,
+            "global_api_total": 131826,
+            "global_total_is_strategy_denominator": false,
+            "not_discovered_from_acquired_page": 0,
+            "observed_at": 1790234851.0320983,
+            "one_wsol_pair_count": 14,
+            "page": 2,
+            "preflight_evaluated_in_page": 4,
+            "raw_rows": 250,
+            "sort": "volume_5m:desc"
+          },
+          {
+            "discovered_in_page": 161,
+            "global_api_total": 131826,
+            "global_total_is_strategy_denominator": false,
+            "not_discovered_from_acquired_page": 0,
+            "observed_at": 1790234851.7603552,
+            "one_wsol_pair_count": 161,
+            "page": 1,
+            "preflight_evaluated_in_page": 85,
+            "raw_rows": 250,
+            "sort": "volume_30m:desc"
+          },
+          {
+            "discovered_in_page": 159,
+            "global_api_total": 131826,
+            "global_total_is_strategy_denominator": false,
+            "not_discovered_from_acquired_page": 0,
+            "observed_at": 1790234852.2966375,
+            "one_wsol_pair_count": 159,
+            "page": 2,
+            "preflight_evaluated_in_page": 31,
+            "raw_rows": 250,
+            "sort": "volume_30m:desc"
+          }
+        ],
+        "coverage_health": "coverage_degraded",
+        "current_open_positions": 0,
+        "current_strategy_phase": "terminal",
+        "decision_replay_checked": 6,
+        "decision_replay_failures": [],
+        "discovered_count": 1402,
+        "discovered_too_late": null,
+        "discovery_coverage": null,
+        "economic_admission": "eligible_subject_to_frozen_block_gate",
+        "evidence_attempt_coverage": 1.0,
+        "evidence_completion_coverage": 0.24,
+        "full_evidence_attempted": 25,
+        "full_evidence_completed": 6,
+        "full_evidence_count_scope": "explicit_required_observations",
+        "infrastructure_censoring": {
+          "classifications": {
+            "no_authentic_activity": 21,
+            "pending_at_observation_close": 26,
+            "reconstruction_incomplete": 11,
+            "strategy_rejection": 6,
+            "structural_ineligible": 69
+          },
+          "frozen_policy": "profitability_protocol.json; prospective_acceptance._infra_fraction",
+          "overlapping_counts": true
+        },
+        "last_strategy_progress_at": 1790234906.8503351,
+        "last_valid_block": null,
+        "native_position_records_open": 0,
+        "native_unsettled_records": 0,
+        "natural_entries": 0,
+        "natural_lifecycle": {
+          "complete_natural_lifecycle_observed": false,
+          "machinery_certified": "separate_exact_sha_certificate",
+          "natural_entry_observed": false,
+          "natural_exit_observed": false,
+          "natural_monitoring_observed": false,
+          "natural_partial_realization_observed_if_strategy_triggers_it": false,
+          "natural_settlement_observed": false,
+          "target_market_coverage_observed": "coverage_degraded"
+        },
+        "natural_settlements": 0,
+        "never_discovered": null,
+        "observed_market_count_scope": "strategy_target_only",
+        "observed_market_count_status": "target_candidates_observed",
+        "observed_source_pair_count": 1402,
+        "oldest_open_position_age": null,
+        "position_watchdog": {
+          "status": "pass",
+          "violations": []
+        },
+        "positions_spanning_blocks": 0,
+        "preflight_coverage": 0.09486447931526391,
+        "preflight_evaluated_count": 133,
+        "provider_health": {
+          "errors": {},
+          "requests": 1321,
+          "rpc_latency_seconds": {
+            "p50": 0.085989399,
+            "p95": 0.194128067,
+            "p99": 0.255358341
+          }
+        },
+        "qualified_count": null,
+        "queue_saturation": {
+          "classified_candidates": {
+            "capacity_censored": 0,
+            "consumer_deadline": 0,
+            "local_budget_exhausted": 0
+          },
+          "maximum_concurrent_evaluations": null,
+          "queue_time_at_capacity_seconds": null
+        },
+        "raw_acquired_source_count": 2970,
+        "required_evidence": {
+          "available": true,
+          "became_unnecessary_after_valid_earlier_rejection": 10,
+          "candidates_requiring_full_evidence": 25,
+          "completions_without_scoped_request": 0,
+          "decision_evidence_complete": 0,
+          "decision_evidence_requested": 0,
+          "denominator_status": "explicit_native_obligations",
+          "evidence_completed_in_time": 6,
+          "evidence_requested": 25,
+          "historical_rows_reclassified": false,
+          "identity_scope": "candidate observations; repeated required markers create separate obligations",
+          "infrastructure_failed": 9,
+          "infrastructure_failure_observations": {
+            "reconstruction_incomplete": 11
+          },
+          "observations_requiring_full_evidence": 25,
+          "pending_at_observation_close": 0,
+          "superseded_candidate_state": 0,
+          "unscoped_full_requests": 0,
+          "valid_rejections_before_full_evidence_required": 0
+        },
+        "source_coverage": {
+          "acquired_source_pages": 6,
+          "acquired_union_discovery_coverage": 1.0,
+          "acquisition": {
+            "census_cycles": 60,
+            "census_interval_seconds": 60,
+            "coverage": "coverage_unknown",
+            "fatal_error": null,
+            "first_seen": 1402,
+            "invocation": "114fe9ac-1d18-40f9-99fe-dc96be2c1faf",
+            "latest_cycle_segments": [
+              {
+                "details": {
+                  "global_total_is_strategy_denominator": false,
+                  "raw_rows": 250
+                },
+                "page": 1,
+                "sort": "fee_tvl_ratio_5m:desc",
+                "status": "acquired"
+              },
+              {
+                "details": {
+                  "global_total_is_strategy_denominator": false,
+                  "raw_rows": 250
+                },
+                "page": 2,
+                "sort": "fee_tvl_ratio_5m:desc",
+                "status": "acquired"
+              },
+              {
+                "details": {
+                  "global_total_is_strategy_denominator": false,
+                  "raw_rows": 250
+                },
+                "page": 1,
+                "sort": "volume_5m:desc",
+                "status": "acquired"
+              },
+              {
+                "details": {
+                  "global_total_is_strategy_denominator": false,
+                  "raw_rows": 250
+                },
+                "page": 2,
+                "sort": "volume_5m:desc",
+                "status": "acquired"
+              },
+              {
+                "details": {
+                  "global_total_is_strategy_denominator": false,
+                  "raw_rows": 250
+                },
+                "page": 1,
+                "sort": "volume_30m:desc",
+                "status": "acquired"
+              },
+              {
+                "details": {
+                  "global_total_is_strategy_denominator": false,
+                  "raw_rows": 250
+                },
+                "page": 2,
+                "sort": "volume_30m:desc",
+                "status": "acquired"
+              }
+            ],
+            "observation_deadline_at": 1790234905.5203266,
+            "oldest_pending_wait_seconds": 3599.0604354949996,
+            "pending": 1214,
+            "planned_segments_per_cycle": 6,
+            "producer_done": true,
+            "producer_running": false,
+            "segment_status_counts": {
+              "acquired": 360
+            },
+            "spool": "solana-dlmm-independent-v1-live.discovery.sqlite",
+            "target_universe_count": null
+          },
+          "authority": "Exact frozen DISCOVERY_SORTS, DISCOVERY_PAGES_PER_SORT and DISCOVERY_PAGE_SIZE",
+          "census_complete": true,
+          "discovered_in_acquired_structural_union": 1402,
+          "errors": [],
+          "full_strategy_target_universe_count": null,
+          "gap_classification": null,
+          "inferred_never_observed_outside_acquired_pages": false,
+          "late_responses_excluded": [],
+          "out_of_target_source_rows": 1568,
+          "pending_discovered_candidates": 1214,
+          "planned_source_pages": 6,
+          "provider_calls_added": 0,
+          "raw_acquired_source_union_count": 2970,
+          "segments": [
+            {
+              "discovered_in_page": 157,
+              "global_api_total": 131826,
+              "global_total_is_strategy_denominator": false,
+              "not_discovered_from_acquired_page": 0,
+              "observed_at": 1790234847.5264852,
+              "one_wsol_pair_count": 157,
+              "page": 1,
+              "preflight_evaluated_in_page": 81,
+              "raw_rows": 250,
+              "sort": "fee_tvl_ratio_5m:desc"
+            },
+            {
+              "discovered_in_page": 3,
+              "global_api_total": 131826,
+              "global_total_is_strategy_denominator": false,
+              "not_discovered_from_acquired_page": 0,
+              "observed_at": 1790234848.8508034,
+              "one_wsol_pair_count": 3,
+              "page": 2,
+              "preflight_evaluated_in_page": 1,
+              "raw_rows": 250,
+              "sort": "fee_tvl_ratio_5m:desc"
+            },
+            {
+              "discovered_in_page": 158,
+              "global_api_total": 131826,
+              "global_total_is_strategy_denominator": false,
+              "not_discovered_from_acquired_page": 0,
+              "observed_at": 1790234850.5895486,
+              "one_wsol_pair_count": 158,
+              "page": 1,
+              "preflight_evaluated_in_page": 81,
+              "raw_rows": 250,
+              "sort": "volume_5m:desc"
+            },
+            {
+              "discovered_in_page": 14,
+              "global_api_total": 131826,
+              "global_total_is_strategy_denominator": false,
+              "not_discovered_from_acquired_page": 0,
+              "observed_at": 1790234851.0320983,
+              "one_wsol_pair_count": 14,
+              "page": 2,
+              "preflight_evaluated_in_page": 4,
+              "raw_rows": 250,
+              "sort": "volume_5m:desc"
+            },
+            {
+              "discovered_in_page": 161,
+              "global_api_total": 131826,
+              "global_total_is_strategy_denominator": false,
+              "not_discovered_from_acquired_page": 0,
+              "observed_at": 1790234851.7603552,
+              "one_wsol_pair_count": 161,
+              "page": 1,
+              "preflight_evaluated_in_page": 85,
+              "raw_rows": 250,
+              "sort": "volume_30m:desc"
+            },
+            {
+              "discovered_in_page": 159,
+              "global_api_total": 131826,
+              "global_total_is_strategy_denominator": false,
+              "not_discovered_from_acquired_page": 0,
+              "observed_at": 1790234852.2966375,
+              "one_wsol_pair_count": 159,
+              "page": 2,
+              "preflight_evaluated_in_page": 31,
+              "raw_rows": 250,
+              "sort": "volume_30m:desc"
+            }
+          ],
+          "structurally_eligible_acquired_union_count": 1402,
+          "target_structural_union_count": 1402,
+          "undiscovered_in_acquired_structural_union": 0,
+          "union_scope": "acquired ranking pages only; not the full strategy target universe",
+          "unobserved_source_pages": []
+        },
+        "strategy_conformance": "pass",
+        "strategy_decision_evidence_coverage": 0.64,
+        "stream_continuity": {
+          "final_snapshot_connected": true,
+          "final_snapshot_covered": true,
+          "historical_gap_events": 0,
+          "historical_missing_events_recovered": null,
+          "interpretation": "Cumulative interruptions do not prove current outage or complete historical event recovery; final disconnect may be orderly shutdown.",
+          "last_loss_until": 0
+        },
+        "structurally_eligible_count": null,
+        "target_market_scope": {
+          "authority": "SOLANA_DLMM_INDEPENDENT_V1.json; solana_dlmm_independent_v1 discovery loop",
+          "denominator": "Full target-pair inventory is unknown. The bounded ranking-page union measures source acquisition only and does not redefine the target market.",
+          "dimensions": [
+            "quote_asset",
+            "public_sort",
+            "pool"
+          ],
+          "universe": "Nonblacklisted Solana Meteora DLMM pools with exactly one WSOL leg, as defined by the frozen strategy; no minimum TVL or absolute volume."
+        },
+        "target_market_universe_count": null,
+        "upstream_acquisition": {
+          "broader_source_rows_are_strategy_observations": false,
+          "discovery_progress_at": 1790234850.6369777,
+          "native_candidate_discovered_count": 1402,
+          "native_funnel_stages": {
+            "admitted": 64,
+            "discovered": 1402,
+            "economic_vector": 6,
+            "evaluated": 6,
+            "evidence_complete": 6,
+            "evidence_not_required": 10,
+            "evidence_pending": 26,
+            "evidence_requested": 25,
+            "evidence_required": 25,
+            "forward_observation": 25,
+            "fresh_state": 25,
+            "prospective_range": 6,
+            "reconstruction_complete": 22,
+            "reconstruction_started": 25,
+            "rejected": 6,
+            "screened": 133,
+            "terminal": 133,
+            "trigger_authenticated": 25,
+            "trigger_evidence_requested": 64,
+            "trigger_observed": 25,
+            "trigger_started": 25,
+            "trigger_terminal": 25,
+            "warmup_complete": 16,
+            "warmup_started": 25
+          }
+        }
+      },
+      "durable_handoff": false,
+      "durable_replay": true,
+      "economics": {
+        "block_return": 0.0,
+        "capital_seconds": 0.0,
+        "capital_time_complete": true,
+        "deployed_return_per_capital_hour": null,
+        "flat": true,
+        "realized": 0,
+        "return_per_observed_hour": 0.0,
+        "sleeves": {},
+        "starting_capital": 1000000000
+      },
+      "forced_settled": 0,
+      "freshness_finality_unchanged": true,
+      "identity_match": true,
+      "infrastructure_censoring_fraction": 0.0,
+      "native_accounting_replay": true,
+      "natural_settled": 0,
+      "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+      "process_restarts": 0,
+      "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
+      "telemetry_complete": true,
+      "unexpected_exit": false
+    },
+    "pons": {
+      "accounting_reconciled": true,
+      "assurance": {
+        "accounting_reconciliation": {
+          "accounting": {
+            "available": 1000000000000000000,
+            "booked_realized": 0,
+            "capital_at_risk_unit_nanoseconds": 0,
+            "capital_integral_complete": true,
+            "cash": 1000000000000000000,
+            "cash_basis_conservation": true,
+            "conservation": true,
+            "genesis": 1000000000000000000,
+            "namespace": "pons-selective-continuation-v1",
+            "native_execution_cost": 0,
+            "native_observation_complete": true,
+            "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+            "positions": 0,
+            "realized": 0,
+            "remaining_cost_basis": 0,
+            "reserved": 0,
+            "unobserved_native_positions": [],
+            "unsettled": 0
+          },
+          "lane": "pons",
+          "open_positions": 0,
+          "read_only": true,
+          "settlement_inferred": false,
+          "verified": true
+        },
+        "acquisition_latency_seconds": {
+          "discovered__screened": {
+            "count": 1038,
+            "max": 0.005151987075805664,
+            "p50": 0.0006909370422363281,
+            "p95": 0.0010530948638916016
+          },
+          "evidence_complete__qualified": {
+            "count": 0,
+            "max": null,
+            "p50": null,
+            "p95": null
+          },
+          "evidence_requested__evidence_complete": {
+            "count": 5,
+            "max": 0.5721721649169922,
+            "p50": 0.3956332206726074,
+            "p95": 0.5027470588684082
+          },
+          "screened__evidence_requested": {
+            "count": 5,
+            "max": 2.8241007328033447,
+            "p50": 1.6396121978759766,
+            "p95": 2.415153741836548
+          }
+        },
+        "admission_failures": [],
+        "authorized_count": 0,
+        "behavioral_liveness": {
+          "classification": "awaiting_market_or_policy",
+          "discovery_breadth_healthy": "coverage_degraded",
+          "evidence_progressing": 1790233274.8205009,
+          "position_monitoring_progressing": null,
+          "process_alive": false,
+          "provider_alive": true,
+          "qualification_progressing": 1790233274.820677,
+          "settlement_progressing": null,
+          "strategy_progressing": 1790234970.1272414,
+          "target_market_discovery_progressing": null
+        },
+        "candidates_requiring_full_evidence": 5,
+        "complete_natural_lifecycles": 0,
+        "conformance_unavailable": [],
+        "coverage_gaps": [
+          "provider_failed",
+          "reconstruction_incomplete"
+        ],
+        "coverage_gaps_by_segment": [
+          {
+            "segment": {
+              "segment": "not_preserved"
+            },
+            "transition_records": 9
+          }
+        ],
+        "coverage_health": "coverage_degraded",
+        "current_open_positions": 0,
+        "current_strategy_phase": "rejected",
+        "decision_replay_checked": 5,
+        "decision_replay_failures": [],
+        "discovered_count": null,
+        "discovered_too_late": 2,
+        "discovery_coverage": null,
+        "economic_admission": "eligible_subject_to_frozen_block_gate",
+        "evidence_attempt_coverage": 1.0,
+        "evidence_completion_coverage": 1.0,
+        "full_evidence_attempted": 5,
+        "full_evidence_completed": 5,
+        "full_evidence_count_scope": "explicit_required_observations",
+        "infrastructure_censoring": {
+          "classifications": {
+            "provider_failed": 6,
+            "reconstruction_incomplete": 3,
+            "stale_before_evidence": 2,
+            "strategy_rejection": 1027
+          },
+          "frozen_policy": "profitability_protocol.json; prospective_acceptance._infra_fraction",
+          "overlapping_counts": true
+        },
+        "last_strategy_progress_at": 1790234970.1272414,
+        "last_valid_block": null,
+        "native_position_records_open": 0,
+        "native_unsettled_records": 0,
+        "natural_entries": 0,
+        "natural_lifecycle": {
+          "complete_natural_lifecycle_observed": false,
+          "machinery_certified": "separate_exact_sha_certificate",
+          "natural_entry_observed": false,
+          "natural_exit_observed": false,
+          "natural_monitoring_observed": false,
+          "natural_partial_realization_observed_if_strategy_triggers_it": false,
+          "natural_settlement_observed": false,
+          "target_market_coverage_observed": "coverage_degraded"
+        },
+        "natural_settlements": 0,
+        "never_discovered": null,
+        "observed_market_count_scope": "strategy_target_only",
+        "observed_market_count_status": "unknown_scope_membership",
+        "oldest_open_position_age": null,
+        "position_watchdog": {
+          "status": "pass",
+          "violations": []
+        },
+        "positions_spanning_blocks": 0,
+        "preflight_coverage": null,
+        "preflight_evaluated_count": null,
+        "provider_health": {
+          "errors": {
+            "eth_getLogs:http_429": 16,
+            "provider_http_429": 16,
+            "provider_rpc_3": 6
+          },
+          "requests": 6412,
+          "rpc_latency_seconds": {
+            "p50": 0.082407692,
+            "p95": 0.10125065,
+            "p99": 0.142625062
+          }
+        },
+        "qualified_count": null,
+        "queue_saturation": {
+          "classified_candidates": {
+            "capacity_censored": 0,
+            "consumer_deadline": 0,
+            "local_budget_exhausted": 0
+          },
+          "maximum_concurrent_evaluations": null,
+          "queue_time_at_capacity_seconds": null
+        },
+        "required_evidence": {
+          "available": true,
+          "became_unnecessary_after_valid_earlier_rejection": 0,
+          "candidates_requiring_full_evidence": 5,
+          "completions_without_scoped_request": 0,
+          "decision_evidence_complete": 0,
+          "decision_evidence_requested": 0,
+          "denominator_status": "explicit_native_obligations",
+          "evidence_completed_in_time": 5,
+          "evidence_requested": 5,
+          "historical_rows_reclassified": false,
+          "identity_scope": "candidate observations; repeated required markers create separate obligations",
+          "infrastructure_failed": 0,
+          "infrastructure_failure_observations": {
+            "provider_failed": 6,
+            "reconstruction_incomplete": 3,
+            "stale_before_evidence": 2
+          },
+          "observations_requiring_full_evidence": 5,
+          "pending_at_observation_close": 0,
+          "superseded_candidate_state": 0,
+          "unscoped_full_requests": 0,
+          "valid_rejections_before_full_evidence_required": 1022
+        },
+        "strategy_conformance": "pass",
+        "strategy_decision_evidence_coverage": 1.0,
+        "stream_continuity": {
+          "final_snapshot_connected": null,
+          "final_snapshot_covered": null,
+          "historical_gap_events": 0,
+          "historical_missing_events_recovered": null,
+          "interpretation": "Cumulative interruptions do not prove current outage or complete historical event recovery; final disconnect may be orderly shutdown.",
+          "last_loss_until": null
+        },
+        "structurally_eligible_count": null,
+        "target_market_scope": {
+          "authority": "pons_selective_cohort.operational_configuration; pons_selective_continuation.POLICY",
+          "denominator": "Canonical discovery cursor/log windows; independent all-event denominator unavailable.",
+          "dimensions": [
+            "curve",
+            "graduation_state",
+            "event_at"
+          ],
+          "universe": "Native-quote Pons curves in the frozen 50-85% progress, 120-600s age and 20-90s graduation-ETA domain, plus its authenticated graduation/re-entry modes; existing positions retain their lifecycle scope."
+        },
+        "target_market_universe_count": null,
+        "upstream_acquisition": {
+          "broader_source_rows_are_strategy_observations": false,
+          "discovery_progress_at": 1790234969.9860423,
+          "native_candidate_discovered_count": 4036,
+          "native_funnel_stages": {
+            "admitted": 5,
+            "current_state_complete": 704,
+            "current_state_queued": 1038,
+            "current_state_requested": 1036,
+            "discovered": 4036,
+            "evaluated": 5,
+            "evidence_complete": 5,
+            "evidence_not_required": 1022,
+            "evidence_requested": 5,
+            "evidence_required": 5,
+            "prospect_admitted": 89,
+            "prospect_screened": 1022,
+            "rejected": 1027,
+            "screened": 1038,
+            "terminal": 11,
+            "trajectory_admitted": 5,
+            "trajectory_complete": 29,
+            "trajectory_requested": 37
+          }
+        }
+      },
+      "durable_handoff": false,
+      "durable_replay": true,
+      "economics": {
+        "block_return": 0.0,
+        "capital_seconds": 0.0,
+        "capital_time_complete": true,
+        "deployed_return_per_capital_hour": null,
+        "flat": true,
+        "realized": 0,
+        "return_per_observed_hour": 0.0,
+        "sleeves": {},
+        "starting_capital": 1000000000000000000
+      },
+      "forced_settled": 0,
+      "freshness_finality_unchanged": true,
+      "identity_match": true,
+      "infrastructure_censoring_fraction": 1.0,
+      "native_accounting_replay": true,
+      "natural_settled": 0,
+      "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+      "process_restarts": 0,
+      "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2",
+      "telemetry_complete": true,
+      "unexpected_exit": false
+    },
+    "pump": {
+      "accounting_reconciled": true,
+      "assurance": {
+        "accounting_reconciliation": {
+          "accounting": {
+            "basis": 0,
+            "capital_hour_denominator": 3600,
+            "capital_unit_seconds": 3322399795,
+            "cash": 5110384300,
+            "initial": 5110384300,
+            "lane": "pump-acceleration-independent-v1",
+            "marked_equity": 5110384300,
+            "open_positions": 0,
+            "pending": 0,
+            "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+            "realized": 0,
+            "reconciled": true,
+            "reserved": 0,
+            "run_id": "8b280c3b-a7ba-4ff6-82d5-fd3313fa5e48",
+            "settled": 0,
+            "unrealized": 0
+          },
+          "accounting_replay": {
+            "cash": 5110384300,
+            "events": 2,
+            "final_hash": "96494d732bf7b569bd2244826f4497d49d309fe174241d2887a603edb10a5ce5",
+            "verified": true
+          },
+          "lane": "pump",
+          "open_positions": 0,
+          "read_only": true,
+          "settlement_inferred": false,
+          "verified": true
+        },
+        "acquisition_latency_seconds": {
+          "discovered__screened": {
+            "count": 1,
+            "max": 0.009799003601074219,
+            "p50": 0.009799003601074219,
+            "p95": 0.009799003601074219
+          },
+          "evidence_complete__qualified": {
+            "count": 1,
+            "max": 0.0003876686096191406,
+            "p50": 0.0003876686096191406,
+            "p95": 0.0003876686096191406
+          },
+          "evidence_requested__evidence_complete": {
+            "count": 1,
+            "max": 12.157577753067017,
+            "p50": 12.157577753067017,
+            "p95": 12.157577753067017
+          },
+          "screened__evidence_requested": {
+            "count": 1,
+            "max": 0.000347137451171875,
+            "p50": 0.000347137451171875,
+            "p95": 0.000347137451171875
+          }
+        },
+        "admission_failures": [],
+        "authorized_count": 0,
+        "behavioral_liveness": {
+          "classification": "awaiting_market_or_policy",
+          "discovery_breadth_healthy": "coverage_degraded",
+          "evidence_progressing": 1790233778.5199375,
+          "position_monitoring_progressing": null,
+          "process_alive": false,
+          "provider_alive": true,
+          "qualification_progressing": 1790234897.4656198,
+          "settlement_progressing": null,
+          "strategy_progressing": 1790235904.5939999,
+          "target_market_discovery_progressing": null
+        },
+        "candidates_requiring_full_evidence": 1,
+        "complete_natural_lifecycles": 0,
+        "conformance_unavailable": [],
+        "coverage_gaps": [
+          "reconstruction_incomplete"
+        ],
+        "coverage_gaps_by_segment": [
+          {
+            "segment": {
+              "mode": "post_graduation_momentum"
+            },
+            "transition_records": 235
+          },
+          {
+            "segment": {
+              "mode": "pumpswap_second_leg"
+            },
+            "transition_records": 121
+          },
+          {
+            "segment": {
+              "segment": "not_preserved"
+            },
+            "transition_records": 1
+          }
+        ],
+        "coverage_health": "coverage_degraded",
+        "current_open_positions": 0,
+        "current_strategy_phase": "discovered",
+        "decision_replay_checked": 563,
+        "decision_replay_failures": [],
+        "discovered_count": null,
+        "discovered_too_late": null,
+        "discovery_coverage": null,
+        "economic_admission": "eligible_subject_to_frozen_block_gate",
+        "evidence_attempt_coverage": 1.0,
+        "evidence_completion_coverage": 1.0,
+        "full_evidence_attempted": 1,
+        "full_evidence_completed": 1,
+        "full_evidence_count_scope": "explicit_required_observations",
+        "infrastructure_censoring": {
+          "classifications": {
+            "pre_admission_evidence_incomplete": 23,
+            "reconstruction_incomplete": 38,
+            "strategy_rejection": 72,
+            "superseded_candidate_state": 43
+          },
+          "frozen_policy": "profitability_protocol.json; prospective_acceptance._infra_fraction",
+          "overlapping_counts": true
+        },
+        "last_strategy_progress_at": 1790235904.5939999,
+        "last_valid_block": null,
+        "native_position_records_open": 0,
+        "native_unsettled_records": 0,
+        "natural_entries": 0,
+        "natural_lifecycle": {
+          "complete_natural_lifecycle_observed": false,
+          "machinery_certified": "separate_exact_sha_certificate",
+          "natural_entry_observed": false,
+          "natural_exit_observed": false,
+          "natural_monitoring_observed": false,
+          "natural_partial_realization_observed_if_strategy_triggers_it": false,
+          "natural_settlement_observed": false,
+          "target_market_coverage_observed": "coverage_degraded"
+        },
+        "natural_settlements": 0,
+        "never_discovered": null,
+        "observed_market_count_scope": "strategy_target_only",
+        "observed_market_count_status": "unknown_scope_membership",
+        "oldest_open_position_age": null,
+        "position_watchdog": {
+          "status": "pass",
+          "violations": []
+        },
+        "positions_spanning_blocks": 0,
+        "preflight_coverage": null,
+        "preflight_evaluated_count": null,
+        "provider_health": {
+          "errors": {
+            "HTTPError": 1,
+            "certification_provider_queue_deadline": 12,
+            "getProgramAccounts:http_429": 1
+          },
+          "requests": 5674,
+          "rpc_latency_seconds": {
+            "p50": 0.109374275,
+            "p95": 0.166789607,
+            "p99": 0.214117002
+          }
+        },
+        "qualified_count": 1,
+        "queue_saturation": {
+          "classified_candidates": {
+            "capacity_censored": 0,
+            "consumer_deadline": 0,
+            "local_budget_exhausted": 0
+          },
+          "maximum_concurrent_evaluations": null,
+          "queue_time_at_capacity_seconds": null
+        },
+        "required_evidence": {
+          "available": true,
+          "became_unnecessary_after_valid_earlier_rejection": 0,
+          "candidates_requiring_full_evidence": 1,
+          "completions_without_scoped_request": 0,
+          "decision_evidence_complete": 199,
+          "decision_evidence_requested": 434,
+          "denominator_status": "explicit_native_obligations",
+          "evidence_completed_in_time": 1,
+          "evidence_requested": 1,
+          "historical_rows_reclassified": false,
+          "identity_scope": "candidate observations; repeated required markers create separate obligations",
+          "infrastructure_failed": 0,
+          "infrastructure_failure_observations": {
+            "reconstruction_incomplete": 357
+          },
+          "observations_requiring_full_evidence": 1,
+          "pending_at_observation_close": 0,
+          "superseded_candidate_state": 0,
+          "unscoped_full_requests": 434,
+          "valid_rejections_before_full_evidence_required": 267
+        },
+        "strategy_conformance": "pass",
+        "strategy_decision_evidence_coverage": 1.0,
+        "stream_continuity": {
+          "final_snapshot_connected": false,
+          "final_snapshot_covered": false,
+          "historical_gap_events": 0,
+          "historical_missing_events_recovered": null,
+          "interpretation": "Cumulative interruptions do not prove current outage or complete historical event recovery; final disconnect may be orderly shutdown.",
+          "last_loss_until": 0
+        },
+        "structurally_eligible_count": null,
+        "target_market_scope": {
+          "authority": "sources.json:lanes.pump.prospect_admission; pump_acceleration_strategy.POLICY",
+          "denominator": "Source stream completeness; absolute chain opportunity census unavailable.",
+          "dimensions": [
+            "surface",
+            "phase",
+            "quote_asset"
+          ],
+          "universe": "Native-SOL Pump curves in the frozen 60-85% late-curve strategy domain, plus its authenticated PumpSwap graduation/continuation modes; existing positions retain their lifecycle scope."
+        },
+        "target_market_universe_count": null,
+        "upstream_acquisition": {
+          "broader_source_rows_are_strategy_observations": false,
+          "discovery_progress_at": 1790235904.5939999,
+          "native_candidate_discovered_count": 1095,
+          "native_funnel_stages": {
+            "admitted": 38,
+            "decision_evidence_complete": 27,
+            "decision_evidence_requested": 38,
+            "discovered": 1095,
+            "entry_cancelled": 1,
+            "entry_reserved": 1,
+            "evaluated": 27,
+            "evidence_complete": 1,
+            "evidence_not_required": 27,
+            "evidence_requested": 38,
+            "evidence_required": 1,
+            "full_evidence_requested": 1,
+            "prospect_admitted": 1,
+            "prospect_incomplete": 23,
+            "prospect_observed": 52,
+            "prospect_screened": 47,
+            "qualified": 1,
+            "rejected": 27,
+            "screened": 1,
+            "terminal": 43
+          }
+        }
+      },
+      "durable_handoff": false,
+      "durable_replay": true,
+      "economics": {
+        "block_return": 0.0,
+        "capital_seconds": 3322399795,
+        "capital_time_complete": true,
+        "deployed_return_per_capital_hour": 0.0,
+        "flat": true,
+        "realized": 0,
+        "return_per_observed_hour": 0.0,
+        "sleeves": {},
+        "starting_capital": 5110384300
+      },
+      "forced_settled": 0,
+      "freshness_finality_unchanged": true,
+      "identity_match": true,
+      "infrastructure_censoring_fraction": 0.0,
+      "native_accounting_replay": true,
+      "natural_settled": 0,
+      "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+      "process_restarts": 0,
+      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2",
+      "telemetry_complete": true,
+      "unexpected_exit": false
+    },
+    "ramses": {
+      "accounting_reconciled": true,
+      "assurance": {
+        "accounting_reconciliation": {
+          "accounting": {
+            "by_quote_asset": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168": {
+                "allocation_authority": false,
+                "available": 13904784,
+                "committed": 0,
+                "open_positions": 0,
+                "paper_capital": 13904784,
+                "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+                "positions": 0,
+                "quote_asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "realized": 0,
+                "shared_allocator": false,
+                "strategy_domain": "robinhood-ramses-dlmm-independent",
+                "strategy_version": "ramses-active-wide-maker-v1/rebalance-v3"
+              }
+            },
+            "conservation": true,
+            "manifest": {
+              "cross_asset_conversion": false,
+              "funding_rule": "one_maximum_frozen_scanner_size_plus_modeled_execution_cost_envelope_per_quote_asset_from_first_qualified_pinned_screen",
+              "genesis_by_quote_asset": {
+                "0x5fc5360d0400a0fd4f2af552add042d716f1d168": 13904784
+              },
+              "later_assets": "unfunded_capacity_censoring",
+              "paper_only": true,
+              "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+              "run_id": "505ab51aa7b042ee827ba1025f2eb750",
+              "source_finalized_block": 71181595,
+              "source_finalized_hash": "0xf1db8e04f71ba1ffea6ace31b9856ddc138ec370db940765e3273b250fe04ff3",
+              "source_screen_hash": "f104ef78464c9dbf7b554c3fa239e3bb31a1537b3da6b5ca5bfe3cb32613e027"
+            },
+            "open_positions": 0,
+            "unlike_quote_units_summed": false
+          },
+          "lane": "ramses",
+          "open_positions": 0,
+          "read_only": true,
+          "settlement_inferred": false,
+          "verified": true
+        },
+        "acquisition_latency_seconds": {
+          "discovered__screened": {
+            "count": 6,
+            "max": 0.0005736351013183594,
+            "p50": 0.0004489421844482422,
+            "p95": 0.00047969818115234375
+          },
+          "evidence_complete__qualified": {
+            "count": 0,
+            "max": null,
+            "p50": null,
+            "p95": null
+          },
+          "evidence_requested__evidence_complete": {
+            "count": 0,
+            "max": null,
+            "p50": null,
+            "p95": null
+          },
+          "screened__evidence_requested": {
+            "count": 0,
+            "max": null,
+            "p50": null,
+            "p95": null
+          }
+        },
+        "admission_failures": [],
+        "authorized_count": 0,
+        "behavioral_liveness": {
+          "classification": "awaiting_market_or_policy",
+          "discovery_breadth_healthy": "coverage_healthy",
+          "evidence_progressing": null,
+          "position_monitoring_progressing": null,
+          "process_alive": false,
+          "provider_alive": true,
+          "qualification_progressing": 1790234944.1803727,
+          "settlement_progressing": null,
+          "strategy_progressing": 1790234944.1811,
+          "target_market_discovery_progressing": 1790234944.1796253
+        },
+        "candidates_requiring_full_evidence": 1,
+        "complete_natural_lifecycles": 0,
+        "conformance_unavailable": [],
+        "coverage_gaps": [],
+        "coverage_gaps_by_segment": [],
+        "coverage_health": "coverage_healthy",
+        "current_open_positions": 0,
+        "current_strategy_phase": "rejected",
+        "decision_replay_checked": 18,
+        "decision_replay_failures": [],
+        "discovered_count": 6,
+        "discovered_too_late": null,
+        "discovery_coverage": 2.0,
+        "economic_admission": "eligible_subject_to_frozen_block_gate",
+        "evidence_attempt_coverage": 0.0,
+        "evidence_completion_coverage": 0.0,
+        "full_evidence_attempted": 0,
+        "full_evidence_completed": 0,
+        "full_evidence_count_scope": "explicit_required_observations",
+        "infrastructure_censoring": {
+          "classifications": {
+            "strategy_rejection": 5
+          },
+          "frozen_policy": "profitability_protocol.json; prospective_acceptance._infra_fraction",
+          "overlapping_counts": true
+        },
+        "last_strategy_progress_at": 1790234944.1811,
+        "last_valid_block": null,
+        "native_position_records_open": 0,
+        "native_unsettled_records": 0,
+        "natural_entries": 0,
+        "natural_lifecycle": {
+          "complete_natural_lifecycle_observed": false,
+          "machinery_certified": "separate_exact_sha_certificate",
+          "natural_entry_observed": false,
+          "natural_exit_observed": false,
+          "natural_monitoring_observed": false,
+          "natural_partial_realization_observed_if_strategy_triggers_it": false,
+          "natural_settlement_observed": false,
+          "target_market_coverage_observed": "coverage_healthy"
+        },
+        "natural_settlements": 0,
+        "never_discovered": null,
+        "observed_market_count_scope": "strategy_target_only",
+        "observed_market_count_status": "target_candidates_observed",
+        "oldest_open_position_age": null,
+        "position_watchdog": {
+          "status": "pass",
+          "violations": []
+        },
+        "positions_spanning_blocks": 0,
+        "preflight_coverage": 1.0,
+        "preflight_evaluated_count": 6,
+        "provider_health": {
+          "errors": {
+            "eth_getBlockByNumber:http_429": 1,
+            "eth_getLogs:http_429": 1,
+            "provider_http_429": 2
+          },
+          "requests": 1478,
+          "rpc_latency_seconds": {
+            "p50": 0.070008558,
+            "p95": 0.097690512,
+            "p99": 0.122612128
+          }
+        },
+        "qualified_count": null,
+        "queue_saturation": {
+          "classified_candidates": {
+            "capacity_censored": 0,
+            "consumer_deadline": 0,
+            "local_budget_exhausted": 0
+          },
+          "maximum_concurrent_evaluations": null,
+          "queue_time_at_capacity_seconds": null
+        },
+        "required_evidence": {
+          "available": true,
+          "became_unnecessary_after_valid_earlier_rejection": 0,
+          "candidates_requiring_full_evidence": 1,
+          "completions_without_scoped_request": 0,
+          "decision_evidence_complete": 0,
+          "decision_evidence_requested": 0,
+          "denominator_status": "explicit_native_obligations",
+          "evidence_completed_in_time": 0,
+          "evidence_requested": 0,
+          "historical_rows_reclassified": false,
+          "identity_scope": "candidate observations; repeated required markers create separate obligations",
+          "infrastructure_failed": 0,
+          "infrastructure_failure_observations": {},
+          "observations_requiring_full_evidence": 1,
+          "pending_at_observation_close": 1,
+          "superseded_candidate_state": 0,
+          "unscoped_full_requests": 0,
+          "valid_rejections_before_full_evidence_required": 17
+        },
+        "strategy_conformance": "pass",
+        "strategy_decision_evidence_coverage": 0.0,
+        "stream_continuity": {
+          "final_snapshot_connected": null,
+          "final_snapshot_covered": null,
+          "historical_gap_events": null,
+          "historical_missing_events_recovered": null,
+          "interpretation": "Cumulative interruptions do not prove current outage or complete historical event recovery; final disconnect may be orderly shutdown.",
+          "last_loss_until": null
+        },
+        "structurally_eligible_count": 3,
+        "target_market_scope": {
+          "authority": "ramses_universe.scan; ramses_strategy.POLICY",
+          "denominator": "Authenticated USDG subset of the complete quiet-entry pool cohort; the broad factory inventory is acquisition overhead.",
+          "dimensions": [
+            "quote_asset",
+            "swap_count",
+            "bin_depth"
+          ],
+          "universe": "Recently active Ramses USDG pools with one or two prior 30-minute swaps, as frozen in sources.json; existing positions retain their lifecycle scope."
+        },
+        "target_market_universe_count": 3,
+        "upstream_acquisition": {
+          "broader_source_rows_are_strategy_observations": false,
+          "discovery_progress_at": 1790234944.1796253,
+          "factory_inventory_count": 288,
+          "known_target_candidates": 3,
+          "native_candidate_discovered_count": 6,
+          "native_funnel_stages": {
+            "discovered": 6,
+            "evaluated": 6,
+            "evidence_not_required": 5,
+            "evidence_required": 1,
+            "rejected": 5,
+            "screened": 6,
+            "screening_qualified": 1
+          },
+          "quiet_activity_candidates": 3,
+          "scope_exclusions": {}
+        }
+      },
+      "durable_handoff": false,
+      "durable_replay": true,
+      "economics": {
+        "block_return": 0.0,
+        "capital_seconds": null,
+        "capital_time_complete": true,
+        "deployed_return_per_capital_hour": null,
+        "flat": true,
+        "realized": null,
+        "return_per_observed_hour": 0.0,
+        "sleeves": {
+          "0x5fc5360d0400a0fd4f2af552add042d716f1d168": {
+            "block_return": 0.0,
+            "capital_seconds": null,
+            "deployed_return_per_capital_hour": null,
+            "flat": true,
+            "realized": 0,
+            "starting_capital": 13904784
+          }
+        },
+        "starting_capital": null
+      },
+      "forced_settled": 0,
+      "freshness_finality_unchanged": true,
+      "identity_match": true,
+      "infrastructure_censoring_fraction": 0.0,
+      "native_accounting_replay": true,
+      "natural_settled": 0,
+      "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+      "process_restarts": 0,
+      "strategy_version": "ramses-active-wide-maker-v3",
+      "telemetry_complete": true,
+      "unexpected_exit": false
+    }
+  },
+  "market_assurance_passed": true,
+  "market_assurance_required": true,
+  "market_assurance_sha256": "b5dfdc3e2539d30f2770decbbea616680d01705be45e53ed81e879341cd7ccfd",
+  "observation_hours": 1.0006634340097222,
+  "phase": "hourly",
+  "protocol_sha256": "ed674532a2d5784089e5ce8dc704d5190c406640d8a7b4eb86c70e44de92b050",
+  "run_id": "8b280c3b-a7ba-4ff6-82d5-fd3313fa5e48",
+  "runtime_control_freeze_passed": true,
+  "schema": "meme-machine-prospective-block-v1",
+  "source_manifest_hash": "ad88edaee7fa110725376ade6727fd7b4ec5b4aa175674a89fa8bab81dde16a1",
+  "started_at": 1790231305.189071,
+  "status": "FINISHED",
+  "workflow_run_id": 35962402406
+}

@@ -1,0 +1,74 @@
+[
+  {
+    "id": 10796536595,
+    "name": "single-campaign-terminal-35962402406-1",
+    "size_in_bytes": 2070,
+    "digest": "sha256:6dcb48c5f263553027bcd078dd1f43d0a18e34e0638b53a2bbb82ca79839a8da",
+    "workflow_run_id": 35962402406,
+    "created_at": "2026-09-24T07:48:18Z",
+    "expired": false
+  },
+  {
+    "id": 10796283282,
+    "name": "hourly-artifact-review-35962402406-1",
+    "size_in_bytes": 3563278,
+    "digest": "sha256:eaea303e0a995f0113a6386f29b0e22b530cccc69d6d723047f9687f35bfec98",
+    "workflow_run_id": 35962402406,
+    "created_at": "2026-09-24T07:48:04Z",
+    "expired": false
+  },
+  {
+    "id": 10795922766,
+    "name": "four-lane-hourly-35962402406-1",
+    "size_in_bytes": 747077698,
+    "digest": "sha256:cd48383d331ded838128469f4a17138cc217fa7697b424e0e99b958b266400c2",
+    "workflow_run_id": 35962402406,
+    "created_at": "2026-09-24T07:46:54Z",
+    "expired": false
+  },
+  {
+    "id": 10794080248,
+    "name": "smoke-artifact-review-35962402406-1",
+    "size_in_bytes": 326046,
+    "digest": "sha256:4e9d2c18135b17da00a1eedcc22921ce93867540936303186a38c8e68b282459",
+    "workflow_run_id": 35962402406,
+    "created_at": "2026-09-24T06:27:56Z",
+    "expired": false
+  },
+  {
+    "id": 10793373825,
+    "name": "four-lane-certification-35962402406-1",
+    "size_in_bytes": 135920955,
+    "digest": "sha256:dba44ddd09371377a77bddac4d95d89fa464c86e477322026edf2c9e9b63b337",
+    "workflow_run_id": 35962402406,
+    "created_at": "2026-09-24T06:27:38Z",
+    "expired": false
+  },
+  {
+    "id": 10792302528,
+    "name": "single-campaign-claim-35962402406-1",
+    "size_in_bytes": 1716,
+    "digest": "sha256:e76bbc08c464c21cbd41997c47ccae37e335700e120200b1f2bb397e7909245c",
+    "workflow_run_id": 35962402406,
+    "created_at": "2026-09-24T06:00:04Z",
+    "expired": false
+  },
+  {
+    "id": 10796830265,
+    "name": "single-run-evidence-projection-35971799680",
+    "size_in_bytes": 5863017,
+    "digest": "sha256:c7096583d7a4bb490560ffcbab4098c634df5c9f3110e7aa151b307b87cae285",
+    "workflow_run_id": 35971799680,
+    "created_at": "2026-09-24T07:51:00Z",
+    "expired": false
+  },
+  {
+    "id": 10792722573,
+    "name": "non-market-certification-029e7a851f122825e19343a9e8a79652a86f6bb4-1",
+    "size_in_bytes": 312376,
+    "digest": "sha256:d895c680e0eb6159e5088f53102ebe63e2296e93eafe9e7fedd8e91338e2b106",
+    "workflow_run_id": 35961549416,
+    "created_at": "2026-09-24T05:56:42Z",
+    "expired": false
+  }
+]

@@ -1,5 +1,13 @@
 # Evidence reconstruction repair and single-campaign boundary
 
+Completed execution: **`029e7a851f122825e19343a9e8a79652a86f6bb4`**,
+single market workflow **35962402406**, terminal success. The economic block was
+censored, remaining defects are documented, and campaign progression is halted.
+See [the final single-run report](single-run-report.md) for verified identities,
+tests, evidence, economics, remaining defects and the zero-successor inventory.
+
+The original pre-launch repair record follows.
+
 Candidate branch: `repair/evidence-reconstruction-20260924`. This document describes
 the candidate tree, not a passing exact-SHA certificate or a launched market run.
 The final runtime identity is the commit that receives the full non-market

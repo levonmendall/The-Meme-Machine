@@ -1,0 +1,631 @@
+{
+  "authorization_id": "evidence-reconstruction-20260924-one-market-v1",
+  "market_workflows_authorized": 1,
+  "market_workflows_launched": 1,
+  "workflow": {
+    "id": 35962402406,
+    "html_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/35962402406",
+    "path": ".github/workflows/four-lane-certification.yml",
+    "head_sha": "029e7a851f122825e19343a9e8a79652a86f6bb4",
+    "head_branch": "cert/single-market-evidence-reconstruction-20260924",
+    "status": "completed",
+    "conclusion": "success",
+    "run_attempt": 1,
+    "created_at": "2026-09-24T05:59:49Z",
+    "run_started_at": "2026-09-24T05:59:49Z",
+    "updated_at": "2026-09-24T07:48:22Z"
+  },
+  "jobs": [
+    {
+      "id": 107513606926,
+      "name": "single-campaign-authority",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Claim one exact certified workflow before any provider work",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Preserve claimed authority",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 107513669649,
+      "name": "concurrent-smoke",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run python -m pip install --disable-pip-version-check -r requirements.txt",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Claim the durable exact-SHA campaign dispatch",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Supervisor, accounting and cross-process capacity regressions",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Create isolated exact-source worktrees",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Reuse the full exact-SHA certificate after verifying prepared sources",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Full deterministic lane suites and resource gates",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Consume the smoke phase exactly once",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify current heads and absence of competing market jobs",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Secret-safe Solana and Robinhood chain binding",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Bounded existing-endpoint read-only capability probes",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Concurrent paper smoke with original frozen lane runners",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Export exact-revision engineering readiness",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Mark cancelled collection",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Preserve smoke native ledgers before creating the hourly study",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Replay frozen decisions and audit native breadth and continuity",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Preserve smoke exposure and consume its terminal phase",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Preserve success and failure evidence",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 107513670663,
+      "name": "reused-smoke",
+      "status": "completed",
+      "conclusion": "skipped",
+      "steps": []
+    },
+    {
+      "id": 107520265477,
+      "name": "smoke-artifact-review",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify artifact digest and inspect all native evidence",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Preserve complete artifact review",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 107520336762,
+      "name": "hourly-campaign",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run python -m pip install --disable-pip-version-check -r requirements.txt",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Supervisor, accounting and cross-process capacity regressions",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Create isolated exact-source worktrees",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Reuse the full exact-SHA certificate after verifying prepared sources",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Full deterministic lane suites and resource gates",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Consume the hourly phase exactly once",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify current heads and absence of competing market jobs",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Restore exact smoke readiness",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Secret-safe Solana and Robinhood chain binding",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Bounded existing-endpoint read-only capability probes",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "One-hour continuous paper campaign, no process restart",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Mark cancelled collection",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Preserve hourly native ledgers including per-asset Ramses books",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Replay frozen decisions and audit native breadth and continuity",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Record prospective economic block without selecting on outcome",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Preserve hourly exposure and consume its terminal phase",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Preserve hourly success or failure evidence",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Start automatic durable continuation for open long-horizon positions",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Post Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 107542012096,
+      "name": "hourly-artifact-review",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify artifact digest and inspect all native evidence",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Preserve complete artifact review",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 107542355903,
+      "name": "single-campaign-terminal",
+      "status": "completed",
+      "conclusion": "success",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Halt consumed authorization with preserved native exposure",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Preserve single-workflow terminal handoff",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 107542357279,
+      "name": "prospective-program-transition",
+      "status": "completed",
+      "conclusion": "skipped",
+      "steps": []
+    }
+  ],
+  "projection": {
+    "run_id": 35971799680,
+    "head_sha": "f808c0027a5a29b2f2ac23ffee836ecca8f857ca",
+    "artifact_id": 10796830265,
+    "artifact_digest": "sha256:c7096583d7a4bb490560ffcbab4098c634df5c9f3110e7aa151b307b87cae285",
+    "market_provider_requests": 0,
+    "workflow_dispatches": 0
+  },
+  "durable_state": {
+    "authorization_id": "evidence-reconstruction-20260924-one-market-v1",
+    "authorization_sha256": "41102a628d4362d87f191d70cb110c587d018967d760102e75b0e8eac4cd83ed",
+    "certificate": {
+      "artifact_digest": "sha256:d895c680e0eb6159e5088f53102ebe63e2296e93eafe9e7fedd8e91338e2b106",
+      "full_nonmarket_artifact_id": 10792722573,
+      "full_nonmarket_run_id": 35961549416,
+      "implementation_hash": "687c980887047c78b41638d8e72c2e0067e627b53f0f0310b1a2ad3003848cc0",
+      "integration_sha": "029e7a851f122825e19343a9e8a79652a86f6bb4",
+      "passed": true,
+      "source_diff_hashes": {
+        "meteora": "1e27b8b2cbbe83d2643fadb1fda5d22544b66eea659938bab3a62f51b7e9305b",
+        "pons": "de0fd8813d677edb1a818126dcfc6090683ed13ef33c97b532ebe6ae128830bc",
+        "pump": "5f7928a599fd8867c50f7964c826d3cad2d810ee721c179d0f61c37094ff5cfa",
+        "ramses": "3e848957c0835ef5f9805e009414c049513e4f9f291b8199804ce22567cd862e"
+      },
+      "source_manifest_hash": "ad88edaee7fa110725376ade6727fd7b4ec5b4aa175674a89fa8bab81dde16a1"
+    },
+    "continuation_allowed": false,
+    "created_at": 1790229584.7857587,
+    "dispatch_id": "cfaea5a7a8c84e7998cfacd09cf4f17b",
+    "dispatch_may_have_been_sent": true,
+    "dispatch_payload_sha256": "86a2b4cb0e1120dd370f9aa07de7abb5bb06385bfa01d6475adc6f2e38edb03c",
+    "history": [
+      {
+        "action": "consume_authorization_before_dispatch"
+      },
+      {
+        "action": "claim_once",
+        "workflow_run_id": 35962402406
+      },
+      {
+        "action": "begin_phase_once",
+        "phase": "smoke"
+      },
+      {
+        "action": "begin_phase_once",
+        "phase": "hourly"
+      }
+    ],
+    "identity": {
+      "executable_git_tree_sha256": "89a87df5b5409e0ababff0f6d212ffd1c8c2f52c4f1711b627c665b349b1751a",
+      "execution_configuration_sha256": "df12edb1706550ad985da494618abfb838cbef7fd82859c3339bf2267d6fab3b",
+      "implementation_hash": "687c980887047c78b41638d8e72c2e0067e627b53f0f0310b1a2ad3003848cc0",
+      "integration_sha": "029e7a851f122825e19343a9e8a79652a86f6bb4",
+      "lane_policies": {
+        "meteora": {
+          "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+          "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2"
+        },
+        "pons": {
+          "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+          "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2"
+        },
+        "pump": {
+          "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+          "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2"
+        },
+        "ramses": {
+          "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+          "strategy_version": "ramses-active-wide-maker-v3"
+        }
+      },
+      "protocol_sha256": "ed674532a2d5784089e5ce8dc704d5190c406640d8a7b4eb86c70e44de92b050",
+      "source_diff_hashes": {
+        "meteora": "1e27b8b2cbbe83d2643fadb1fda5d22544b66eea659938bab3a62f51b7e9305b",
+        "pons": "de0fd8813d677edb1a818126dcfc6090683ed13ef33c97b532ebe6ae128830bc",
+        "pump": "5f7928a599fd8867c50f7964c826d3cad2d810ee721c179d0f61c37094ff5cfa",
+        "ramses": "3e848957c0835ef5f9805e009414c049513e4f9f291b8199804ce22567cd862e"
+      },
+      "source_manifest_hash": "ad88edaee7fa110725376ade6727fd7b4ec5b4aa175674a89fa8bab81dde16a1"
+    },
+    "launcher_run_id": 35962345309,
+    "launcher_sha": "d3eccd809807cf8c46ad54c02ef3ecb58aaca6f3",
+    "next_action": "owner_review_only; no successor, retry, replacement or continuation",
+    "phase": "HALTED",
+    "phase_records": {
+      "hourly": {
+        "ended_at": 1790235967.7498972,
+        "job_result": "success",
+        "native_exposure": "flat",
+        "native_positions": {
+          "meteora": {
+            "accounting_reconciled": true,
+            "durable_handoff": null,
+            "open_positions": 0,
+            "open_positions_unknown": false
+          },
+          "pons": {
+            "accounting_reconciled": true,
+            "durable_handoff": null,
+            "open_positions": 0,
+            "open_positions_unknown": false
+          },
+          "pump": {
+            "accounting_reconciled": true,
+            "durable_handoff": null,
+            "open_positions": 0,
+            "open_positions_unknown": false
+          },
+          "ramses": {
+            "accounting_reconciled": true,
+            "durable_handoff": null,
+            "open_positions": 0,
+            "open_positions_unknown": false
+          }
+        },
+        "native_result_status": "FINISHED",
+        "native_run_id": "8b280c3b-a7ba-4ff6-82d5-fd3313fa5e48",
+        "started_at": 1790231294.667318
+      },
+      "smoke": {
+        "ended_at": 1790231247.750595,
+        "job_result": "success",
+        "native_exposure": "flat",
+        "native_positions": {
+          "meteora": {
+            "accounting_reconciled": true,
+            "durable_handoff": null,
+            "open_positions": 0,
+            "open_positions_unknown": false
+          },
+          "pons": {
+            "accounting_reconciled": true,
+            "durable_handoff": null,
+            "open_positions": 0,
+            "open_positions_unknown": false
+          },
+          "pump": {
+            "accounting_reconciled": true,
+            "durable_handoff": null,
+            "open_positions": 0,
+            "open_positions_unknown": false
+          },
+          "ramses": {
+            "accounting_reconciled": true,
+            "durable_handoff": null,
+            "open_positions": 0,
+            "open_positions_unknown": false
+          }
+        },
+        "native_result_status": "FINISHED",
+        "native_run_id": "420fe5f1-4e81-40f2-b3b5-0775579f80d9",
+        "started_at": 1790229623.7960377
+      }
+    },
+    "quiet_before_claim": {
+      "conflicts": [],
+      "inspected": [],
+      "observed_at": 1790229584.7856684,
+      "passed": true,
+      "statuses": [
+        "queued",
+        "in_progress",
+        "waiting",
+        "pending",
+        "requested"
+      ]
+    },
+    "retry_allowed": false,
+    "runtime_ref": "cert/single-market-evidence-reconstruction-20260924",
+    "schema": "meme-machine-single-campaign-state-v1",
+    "successor_allowed": false,
+    "updated_at": 1790236095.5400782,
+    "workflow_run_id": 35962402406
+  }
+}
