@@ -9,7 +9,7 @@ diff --git a/meme_machine/dlmm_tape.py b/meme_machine/dlmm_tape.py
  ADD_LIQUIDITY_EVT = bytes.fromhex('1f5e7d5ae3343dba')
  ADD_LIQUIDITY_BY_STRATEGY2_IX = bytes.fromhex('03dd95da6f8d76d5')
  REBALANCE_LIQUIDITY_IX = bytes.fromhex('5c04b0c177b95309')
-@@ -334,6 +335,47 @@ def _add_liquidity2_record(raw,instruction,keys,pool,order):
+@@ -334,6 +335,46 @@ def _add_liquidity2_record(raw,instruction,keys,pool,order):
      )
  
  
@@ -56,7 +56,7 @@ diff --git a/meme_machine/dlmm_tape.py b/meme_machine/dlmm_tape.py
  def _add_liquidity_by_strategy2_record(raw,instruction,keys,pool,order):
      """Decode enough Strategy2 authority to authenticate a later bin-delta materialization.
  
-@@ -437,11 +479,23 @@ def _resolve_effect_event(effect,pool):
+@@ -437,11 +479,24 @@ def _resolve_effect_event(effect,pool):
          effect.update(
              amount_x=event['amount_x'],amount_y=event['amount_y'],
              active=event['active'])
@@ -83,7 +83,7 @@ diff --git a/meme_machine/dlmm_tape.py b/meme_machine/dlmm_tape.py
              if (event['amount_x']>effect['max_amount_x']
                      or event['amount_y']>effect['max_amount_y']):
                  raise Unavailable('dlmm_add_liquidity_by_strategy2_event_amount_mismatch')
-@@ -565,10 +619,17 @@ def _authenticate_add_liquidity_transfers(effects,meta,keys,ordered):
+@@ -565,11 +619,16 @@ def _authenticate_add_liquidity_transfers(effects,meta,keys,ordered):
          end=tuple(effect.get('event_order') or ())
          if len(start)!=2 or len(end)!=2 or start[0]!=end[0] or not start<end:
              raise Unavailable('dlmm_add_liquidity2_event_order')
@@ -104,7 +104,7 @@ diff --git a/meme_machine/dlmm_tape.py b/meme_machine/dlmm_tape.py
              total=0;seen=False
              for order,instruction in ordered:
                  order=tuple(order)
-@@ -826,7 +887,8 @@ def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
+@@ -826,6 +887,7 @@ def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
              event=decode_add_liquidity(raw[8:],pool)
              _attach_effect_event(
 -                effects,('add_liquidity2','add_liquidity_by_strategy2'),
@@ -113,7 +113,7 @@ diff --git a/meme_machine/dlmm_tape.py b/meme_machine/dlmm_tape.py
                  event,[outer,inner])
          elif raw[:8]==EVENT_CPI and raw[8:16]==REMOVE_LIQUIDITY_EVT:
              if trigger_only:
-@@ -919,6 +981,20 @@ def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
+@@ -919,6 +981,19 @@ def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
              else:
                  current=None
              continue
@@ -133,7 +133,7 @@ diff --git a/meme_machine/dlmm_tape.py b/meme_machine/dlmm_tape.py
          elif raw[:8]==ADD_LIQUIDITY_BY_STRATEGY2_IX:
              if trigger_only:
                  current=None;continue
-@@ -969,10 +1045,13 @@ def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
+@@ -969,11 +1045,13 @@ def transaction_swaps(tx,pool,terminal_adjustments=None,trigger_only=False):
              raise Unavailable(f'dlmm_snapshot_reset_required:add_liquidity2:{slot}')
          if any(record['target'] for record,_event in resolved) \
                  and any(effect['kind']!='add_liquidity2' for effect in resolved_effects):
@@ -149,7 +149,7 @@ diff --git a/meme_machine/dlmm_tape.py b/meme_machine/dlmm_tape.py
          if adds:
              _authenticate_add_liquidity_transfers(adds,meta,keys,ordered)
          if others:
-@@ -1007,9 +1086,57 @@ def _materialize_removal_effects(start,end,effects):
+@@ -1007,7 +1086,62 @@ def _materialize_removal_effects(start,end,effects):
                if item.get('kind')=='remove_liquidity_by_range2']
      adds=[item for item in effects if item.get('kind')=='add_liquidity2']
      strategy_adds=[item for item in effects
@@ -212,7 +212,7 @@ diff --git a/meme_machine/dlmm_tape.py b/meme_machine/dlmm_tape.py
      if strategy_adds:
          if len(strategy_adds)!=1 or removals or adds:
              raise Unavailable('dlmm_add_liquidity_by_strategy2_mixed_liquidity_interval')
-@@ -1143,7 +1270,8 @@ def apply_external_adjustment(state,item,counterfactual=False):
+@@ -1143,8 +1270,9 @@ def apply_external_adjustment(state,item,counterfactual=False):
          if not counterfactual and (
                  totals['x']!=item.get('amount_x')
                  or totals['y']!=item.get('amount_y')):
@@ -223,7 +223,7 @@ diff --git a/meme_machine/dlmm_tape.py b/meme_machine/dlmm_tape.py
          deposits=item.get('bin_deposits')
          if not isinstance(deposits,list):
              raise Unavailable('dlmm_add_liquidity_deposit_shape')
-@@ -1281,10 +1409,13 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
+@@ -1281,11 +1409,13 @@ def reconstruct(start,end_snapshot,signatures,transactions,now,cursor):
          parsed[sig['signature']]=(swaps,tx_effects)
          all_effects.extend(tx_effects)
  
@@ -244,7 +244,7 @@ diff --git a/meme_machine/dlmm_tape.py b/meme_machine/dlmm_tape.py
 diff --git a/tests/test_dlmm_tape.py b/tests/test_dlmm_tape.py
 --- a/tests/test_dlmm_tape.py
 +++ b/tests/test_dlmm_tape.py
-@@ -6,7 +6,7 @@ import unittest
+@@ -6,6 +6,6 @@ import unittest
  from pathlib import Path
  from meme_machine import dlmm,pump
 -from meme_machine.dlmm_tape import (transaction_swap,transaction_swaps,reconstruct,SWAP,SWAP2,EXACT_IN,EVENT_CPI,_un58_data,CLAIM_FEE2_IX,CLAIM_FEE2_EVT,SWAP_EXACT_OUT2_IX,REMOVE_LIQUIDITY_BY_RANGE2_IX,REMOVE_LIQUIDITY_EVT,ADD_LIQUIDITY2_IX,ADD_LIQUIDITY_EVT,INITIALIZE_POSITION_IX,MEMO_PROGRAM,apply_terminal_adjustments)
@@ -252,7 +252,7 @@ diff --git a/tests/test_dlmm_tape.py b/tests/test_dlmm_tape.py
  from meme_machine.dlmm_paper import Replay
  from meme_machine.provider import Unavailable
  from meme_machine.store import Store,digest
-@@ -229,6 +229,49 @@ def add_liquidity2_transaction(p,amount_x=1_000_001,amount_y=0,
+@@ -229,6 +229,54 @@ def add_liquidity2_transaction(p,amount_x=1_000_001,amount_y=0,
      return post,dict(actual_x=actual_x,actual_y=actual_y,bids=bids),tx
  
  
@@ -307,7 +307,7 @@ diff --git a/tests/test_dlmm_tape.py b/tests/test_dlmm_tape.py
  def interval():
      s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
      post,tx=transaction(p,450_000_000,101,101)
-@@ -337,6 +380,53 @@ class DLMMTapeTests(unittest.TestCase):
+@@ -337,7 +380,55 @@ class DLMMTapeTests(unittest.TestCase):
          self.assertEqual(adjusted['bins'][str(added['bids'][0])],
                           post['bins'][str(added['bids'][0])])
          self.assertEqual(adjusted['vault_x_amount'],post['vault_x_amount'])
