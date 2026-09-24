@@ -180,7 +180,7 @@
         "target_market_universe_count",
         "discovery_coverage"
       ],
-      "frozen_runtime_reporting_fix_status": "Required at a future certified revision; active hourly collection continues on its existing certified SHA.",
+      "frozen_runtime_reporting_fix_status": "Prepared in cd52852c2817887f1cd91667ce9b196ab8ad4f46; requires full exact-revision certification before runtime adoption. Active hourly collection continues on c6b924b.",
       "lane": "ramses",
       "native_scan_sets_equal_pipeline_sets": true,
       "original_values": {
@@ -188,7 +188,15 @@
         "target_market_universe_count": 3
       },
       "reason": "The numerator is the union of five distinct target pools across two scans (four then three, overlap two); the original denominator is only the latest scan. Aggregate coverage is unestablished until census and observation windows align.",
-      "strategy_target_membership_unchanged": true
+      "strategy_target_membership_unchanged": true,
+      "prepared_fix": {
+        "candidate_sha": "cd52852c2817887f1cd91667ce9b196ab8ad4f46",
+        "branch": "fix/ramses-target-coverage-windows",
+        "focused_tests_passed": 10,
+        "captured_smoke_regression_passed": true,
+        "full_exact_revision_certificate_obtained": false,
+        "active_runtime_unchanged": true
+      }
     }
   ],
   "runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",

@@ -56,7 +56,15 @@
         "ramses": 5
       },
       "aggregate_target_coverage_unknown_for_all_lanes": true,
-      "ramses_latest_scan_denominator_not_used_for_multiscan_union": true
+      "ramses_latest_scan_denominator_not_used_for_multiscan_union": true,
+      "reporting_fix_candidate": {
+        "candidate_sha": "cd52852c2817887f1cd91667ce9b196ab8ad4f46",
+        "branch": "fix/ramses-target-coverage-windows",
+        "focused_tests_passed": 10,
+        "captured_smoke_regression_passed": true,
+        "full_exact_revision_certificate_obtained": false,
+        "active_runtime_unchanged": true
+      }
     }
   },
   "history": [
@@ -84,6 +92,16 @@
       "corrected_ramses_aggregate_coverage": null,
       "hourly_job_id": 107438254109,
       "hourly_collection_in_progress": true
+    },
+    {
+      "at": 1790209647.901,
+      "action": "prepared_target_census_window_reporting_fix",
+      "candidate_sha": "cd52852c2817887f1cd91667ce9b196ab8ad4f46",
+      "branch": "fix/ramses-target-coverage-windows",
+      "focused_tests_passed": 10,
+      "captured_smoke_regression_passed": true,
+      "full_exact_revision_certificate_obtained": false,
+      "active_runtime_unchanged": true
     }
   ],
   "integration_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
@@ -124,7 +142,7 @@
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790209296.949,
+  "updated_at": 1790209647.901,
   "reporting_followups": [
     {
       "lane": "ramses",
@@ -133,7 +151,13 @@
       "corrected_audit": "certification/results/target-market-audit-35935431384.json",
       "active_runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
       "requires_future_certified_runtime_fix": true,
-      "does_not_change_economic_admission": true
+      "does_not_change_economic_admission": true,
+      "candidate_sha": "cd52852c2817887f1cd91667ce9b196ab8ad4f46",
+      "branch": "fix/ramses-target-coverage-windows",
+      "focused_tests_passed": 10,
+      "captured_smoke_regression_passed": true,
+      "full_exact_revision_certificate_obtained": false,
+      "active_runtime_unchanged": true
     }
   ]
 }
