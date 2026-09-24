@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from meme_machine import dlmm,pump
-from meme_machine.dlmm_tape import (transaction_swap,transaction_swaps,reconstruct,SWAP,SWAP2,EXACT_IN,EVENT_CPI,_un58_data,CLAIM_FEE2_IX,CLAIM_FEE2_EVT,SWAP_EXACT_OUT2_IX,REMOVE_LIQUIDITY_BY_RANGE2_IX,REMOVE_LIQUIDITY_EVT,ADD_LIQUIDITY2_IX,ADD_LIQUIDITY_EVT,INITIALIZE_POSITION_IX,MEMO_PROGRAM,apply_terminal_adjustments)
+from meme_machine.dlmm_tape import (transaction_swap,transaction_swaps,reconstruct,SWAP,SWAP2,EXACT_IN,EVENT_CPI,_un58_data,CLAIM_FEE2_IX,CLAIM_FEE2_EVT,SWAP_EXACT_OUT2_IX,REMOVE_LIQUIDITY_BY_RANGE2_IX,REMOVE_LIQUIDITY_EVT,ADD_LIQUIDITY2_IX,ADD_LIQUIDITY_ONE_SIDE_IX,ADD_LIQUIDITY_EVT,INITIALIZE_POSITION_IX,MEMO_PROGRAM,apply_terminal_adjustments)
 from meme_machine.dlmm_paper import Replay
 from meme_machine.provider import Unavailable
 from meme_machine.store import Store,digest
@@ -242,6 +242,58 @@ def add_liquidity2_transaction(p,amount_x=1_000_001,amount_y=0,
     return post,dict(actual_x=actual_x,actual_y=actual_y,bids=bids),tx
 
 
+def add_liquidity_one_side_transaction(
+        p,amount=1_000_001,weights=(32768,32749),
+        slot=101,now=101,signature='legacy-one-side',first_bin=None):
+    position=pump.b58(bytes([65])*32);sender=pump.b58(bytes([66])*32)
+    bitmap=dlmm.PROGRAM;user_y=pump.b58(bytes([67])*32)
+    event_authority=pump.b58(bytes([68])*32)
+    first=p['active']-len(weights) if first_bin is None else first_bin
+    bids=[first+i for i in range(len(weights))]
+    total_weight=sum(weights)
+    rows=[(bid,weight,amount*weight//total_weight)
+          for bid,weight in zip(bids,weights)]
+    actual_y=sum(value for _bid,_weight,value in rows)
+    post=copy.deepcopy(p)
+    for bid,_weight,y in rows:
+        b=post['bins'].get(str(bid))
+        if b is None:
+            post['vault_y_amount']+=y
+            continue
+        share=dlmm.deposit_share(b,0,y)
+        b['y']+=y;b['supply']+=share
+        post['vault_y_amount']+=y
+    keys=[position,POOL,bitmap,user_y,p['vault_y'],p['y'],
+          pump.b58(bytes([69])*32),pump.b58(bytes([70])*32),
+          sender,pump.TOKEN_PROGRAM,event_authority,dlmm.PROGRAM]
+    raw=bytearray(ADD_LIQUIDITY_ONE_SIDE_IX+
+                  struct.pack('<QiiI',amount,p['active'],3,len(rows)))
+    for bid,weight,_value in rows:
+        raw.extend(struct.pack('<iH',bid,weight))
+    event=(ADD_LIQUIDITY_EVT+pump.un58(POOL)+pump.un58(sender)+
+           pump.un58(position)+struct.pack('<QQi',0,actual_y,p['active']))
+    transfer=dict(
+        programIdIndex=9,accounts=[3,5,4,8],
+        data=pump.b58(bytes([12])+actual_y.to_bytes(8,'little')+bytes([9])))
+    tx=dict(
+        slot=slot,blockTime=now,
+        transaction=dict(signatures=[signature],message=dict(
+            accountKeys=keys,instructions=[dict(
+                programIdIndex=11,accounts=list(range(12)),
+                data=pump.b58(bytes(raw)))])),
+        meta=dict(err=None,innerInstructions=[dict(index=0,instructions=[
+            transfer,dict(programIdIndex=11,accounts=[10],
+                          data=pump.b58(EVENT_CPI+event))])],
+                  logMessages=[],
+                  preTokenBalances=[
+                      _balance_row(3,p['y'],amount),
+                      _balance_row(4,p['y'],p['vault_y_amount'])],
+                  postTokenBalances=[
+                      _balance_row(3,p['y'],amount-actual_y),
+                      _balance_row(4,p['y'],p['vault_y_amount']+actual_y)]))
+    return post,dict(actual_y=actual_y,bids=bids,weights=list(weights)),tx
+
+
 def interval():
     s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
     post,tx=transaction(p,450_000_000,101,101)
@@ -334,6 +386,72 @@ class Tape(unittest.TestCase):
         self.assertEqual(adjusted['bins'][str(added['bids'][0])],
                          post['bins'][str(added['bids'][0])])
         self.assertEqual(adjusted['vault_x_amount'],post['vault_x_amount'])
+
+    def test_legacy_one_side_y_replays_weight_distribution_exactly(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        post,added,tx=add_liquidity_one_side_transaction(p)
+        self.assertEqual(1_000_001-added['actual_y'],1)
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='legacy-one-side',slot=101,transactionIndex=7,
+                 err=None,confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'legacy-one-side':tx},102,
+            [100,2**31-1,2**31-1])
+        self.assertEqual(tape.events,())
+        self.assertEqual(len(tape.terminal_adjustments),1)
+        item=tape.terminal_adjustments[0]
+        self.assertEqual(item['kind'],'add_liquidity_one_side')
+        self.assertEqual(item['amount_y'],added['actual_y'])
+        self.assertEqual(item['recipient_auth'],'ordered_spl_transfer')
+        adjusted=apply_terminal_adjustments(p,tape.terminal_adjustments)
+        self.assertEqual(adjusted['vault_y_amount'],post['vault_y_amount'])
+        for bid in added['bids']:
+            self.assertEqual(adjusted['bins'][str(bid)],post['bins'][str(bid)])
+
+    def test_legacy_one_side_captured_weight_vector_preserves_rounding_dust(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        weights=(
+            2129,2110,2090,2070,2051,2031,2011,1992,1972,1952,
+            1933,1906,1887,1867,1847,1828,1808,1788,1769,1749,
+            1729,1710,1690,1670,1651,1631,1611,1592,1572,1553,
+            1533,1513,1494,1474,1454,1435,1415)
+        post,added,tx=add_liquidity_one_side_transaction(
+            p,amount=786_069_230,weights=weights,signature='captured-weights')
+        self.assertEqual(sum(weights),65_517)
+        self.assertEqual(added['actual_y'],786_069_211)
+        self.assertEqual(786_069_230-added['actual_y'],19)
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='captured-weights',slot=101,transactionIndex=7,
+                 err=None,confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'captured-weights':tx},102,
+            [100,2**31-1,2**31-1])
+        self.assertEqual(
+            tape.terminal_adjustments[0]['amount_y'],786_069_211)
+
+    def test_legacy_one_side_untracked_y_bins_preserve_exact_vault_total(self):
+        s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
+        first=min(map(int,p['bins']))-2
+        post,added,tx=add_liquidity_one_side_transaction(
+            p,amount=1_000_003,weights=(10,20,30,40),
+            first_bin=first,signature='legacy-partial-window')
+        self.assertTrue(any(str(bid) not in p['bins'] for bid in added['bids']))
+        end=encode_state(s,post,102,102)
+        sigs=[
+            dict(signature='legacy-partial-window',slot=101,transactionIndex=7,
+                 err=None,confirmationStatus='finalized'),
+            dict(signature='anchor',slot=99,transactionIndex=2,err=None,
+                 confirmationStatus='finalized')]
+        tape=reconstruct(
+            p,end,sigs,{'legacy-partial-window':tx},102,
+            [100,2**31-1,2**31-1])
+        self.assertEqual(tape.terminal['vault_y_amount'],post['vault_y_amount'])
 
     def test_add_liquidity2_wrong_transfer_fails_closed(self):
         s=snapshot();s['kind']='real';p=dlmm.validate(s,100)
