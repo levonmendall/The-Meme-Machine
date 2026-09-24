@@ -1,6 +1,6 @@
 {
-  "runtime_sha": "07ec67a2b7967fd3e97c056307967ce1738f6d20",
-  "runtime_ref": "cert/single-market-v9-monitored-20260924",
-  "certification_run_id": 36041821324,
-  "authorization_id": "v9-pump-log-durable-continuation-20260924-one-market-v2"
+  "runtime_sha": "02c31c8a5ffad19b1f648bafc8e3b47bec0a0b4d",
+  "runtime_ref": "cert/single-market-v10-one-market-20260924",
+  "certification_run_id": 36070120263,
+  "authorization_id": "v10-postrun-repairs-20260924-one-market-v1"
 }
