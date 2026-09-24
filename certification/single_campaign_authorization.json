@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "v9-pump-log-durable-continuation-20260924-one-market-v1",
+  "authorization_id": "v9-pump-log-durable-continuation-20260924-one-market-v2",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -17,5 +17,11 @@
     "run_id": 36020434038,
     "status": "completed_unresolved_boundary",
     "source": "v8 monitored campaign completed its one-hour observation but left Meteora and Ramses positions open; v9 permits only those already-open positions to continue under frozen lifecycle rules, with no successor discovery campaign."
+  },
+  "prior_launch_attempt": {
+    "run_id": 36038607202,
+    "outcome": "pre_provider_guard_block",
+    "provider_or_market_work_started": false,
+    "reason": "smoke guard classified active v9 non-market certification wrapper as market contention"
   }
 }
