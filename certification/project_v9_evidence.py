@@ -34,4 +34,14 @@ def project(archive, destination):
     (out/'projection.json').write_text(json.dumps(dict(run_id=36043064083,
         artifact_id=10832096927,artifact_sha256=EXPECTED,files=inventory),indent=2)+'\n')
 
-if __name__=='__main__':project(*sys.argv[1:])
+if __name__=='__main__':
+    project(*sys.argv[1:])
+    import shutil
+    packed=Path(shutil.make_archive('retained-projection','zip',sys.argv[2]))
+    chunks=Path('retained-chunks');chunks.mkdir()
+    with packed.open('rb') as f:
+        for index in range(8):
+            data=f.read(24*1024*1024)
+            if not data:break
+            (chunks/f'part-{index:02d}').write_bytes(data)
+        if f.read(1):raise ValueError('compressed_projection_capacity')
