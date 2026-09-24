@@ -1,7 +1,7 @@
 diff --git a/meme_machine/pump_acceleration_history.py b/meme_machine/pump_acceleration_history.py
 --- a/meme_machine/pump_acceleration_history.py
 +++ b/meme_machine/pump_acceleration_history.py
-@@ -6,7 +6,9 @@ coverage and transaction coverage are tracked separately and both must be complete
+@@ -6,6 +6,8 @@ coverage and transaction coverage are tracked separately and both must be complete
  """
  from __future__ import annotations
  
@@ -23,7 +23,7 @@ diff --git a/meme_machine/pump_acceleration_history.py b/meme_machine/pump_accel
          self.stream_events_seen=0
          self.stream_hydrated_transactions=0
          self.stream_last_slot=0
-@@ -164,6 +170,59 @@ class IncrementalPumpSwapHistory:
+@@ -164,6 +170,54 @@ class IncrementalPumpSwapHistory:
                  break
          self._coverage()
  
@@ -78,7 +78,7 @@ diff --git a/meme_machine/pump_acceleration_history.py b/meme_machine/pump_accel
      def _ingest_stream_window(
          self,rpc,now,window_seconds=30,hydration_kind="pump_window"
      ):
-@@ -175,13 +234,29 @@ class IncrementalPumpSwapHistory:
+@@ -175,14 +234,24 @@ class IncrementalPumpSwapHistory:
          signatures=[];slot_by_sig={}
          for row in rows:
              sig=row.get("signature")
