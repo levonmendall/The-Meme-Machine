@@ -101,6 +101,7 @@ class SingleCampaignTests(unittest.TestCase):
         self.dispatch()
         self.assertFalse(self.memory['state']['successor_allowed'])
         self.assertFalse(self.memory['state']['continuation_allowed'])
+        self.assertTrue(self.memory['state']['position_continuation_authorized'])
         with self.assertRaisesRegex(ValueError, 'already_consumed'):
             self.dispatch()
         self.assertEqual(len(self.market_posts()), 1)
@@ -286,6 +287,16 @@ class SingleCampaignTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'phase_not_authorized'):
             control.begin_phase(state, 'hourly')
 
+    def test_hourly_durable_position_allows_position_only_continuation(self):
+        state=control.begin_phase(self.claimed(),'smoke')
+        state=control.end_phase(state,'smoke',self.native_result(),'success')
+        state=control.begin_phase(state,'hourly')
+        state=control.end_phase(state,'hourly',self.native_result('hourly',open_lane='meteora'),'success')
+        self.assertEqual(state['phase'],'POSITION_CONTINUATION')
+        self.assertTrue(state['continuation_allowed'])
+        self.assertFalse(state['successor_allowed'])
+        self.assertIn('no new discovery',state['next_action'])
+
     def test_missing_result_and_cancelled_or_failed_phase_cannot_resume(self):
         for result, job in [(None, 'cancelled'), (self.native_result(), 'failure')]:
             state = dict(phase='CLAIMED', phase_records={}, identity=self.identity, history=[])
@@ -327,10 +338,11 @@ class SingleCampaignTests(unittest.TestCase):
         four = (root/'four-lane-certification.yml').read_text()
         self.assertNotIn('\n  push:', four.split('permissions:', 1)[0])
         self.assertIn('single_campaign_control claim', four)
-        self.assertIn('if: success() && inputs.single_campaign != true', four)
+        self.assertIn('Start position-only continuation for durable open long-horizon positions', four)
         continuation = (root/'position-continuation.yml').read_text()
-        self.assertLess(continuation.index('single_campaign_control prohibit'),
+        self.assertLess(continuation.index('single_campaign_control continuation-claim'),
                         continuation.index('Restore exact prior position artifact'))
+        self.assertIn('single-campaign-continuation-state.json',continuation)
         wrapper = (root/'evidence-reconstruction-certification.yml').read_text()
         self.assertNotIn('dispatches', wrapper)
         self.assertNotIn('workflow_run:', wrapper)
