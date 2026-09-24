@@ -38,7 +38,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "ramses": 0
   },
   "candidate_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
-  "canonical_sha": null,
+  "canonical_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
   "certified_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
   "completed_blocks_by_lane": {
     "meteora": 0,
@@ -48,7 +48,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
   },
   "current_cohort_id": "prospective-four-lane-v6-coverage-repair-20260924",
   "current_economic_metrics": {},
-  "current_phase": "READY",
+  "current_phase": "DISPATCH_PENDING",
   "economic_acceptance_established": false,
   "engineering_blockers": [],
   "historical_references": {
@@ -87,7 +87,13 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "superseded_market_run": 35915320840,
     "superseded_nonmarket_run": 35914189762
   },
-  "history": [],
+  "history": [
+    {
+      "action": "dispatch_intent",
+      "at": 1790218524.0877798,
+      "dispatch_id": "532c587923464dd3af571397b49c198f"
+    }
+  ],
   "infrastructure_censoring": {
     "meteora": 0,
     "pons": 0,
@@ -100,7 +106,11 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "pump": {},
     "ramses": {}
   },
-  "last_completed_action": {},
+  "last_completed_action": {
+    "action": "dispatch_intent",
+    "at": 1790218524.0877798,
+    "dispatch_id": "532c587923464dd3af571397b49c198f"
+  },
   "latest_certification_run": 35948638345,
   "latest_market_run": null,
   "machinery_certified_by_lane": {
@@ -133,7 +143,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "pump": 0,
     "ramses": 0
   },
-  "next_action": "dispatch_smoke_then_hourly",
+  "next_action": "claim_exact_dispatch",
   "observation_hours": {
     "meteora": 0,
     "pons": 0,
@@ -148,7 +158,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "accepted_blocks": 0,
     "accepted_observation_hours": 0,
     "censored_blocks": 0,
-    "cohort_age_hours": 7.119622495439318e-05,
+    "cohort_age_hours": 0.001612228751182556,
     "observed_hours": 0
   },
   "portfolio_reconciliation": {
@@ -205,6 +215,6 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790218518.5400684
+  "updated_at": 1790218524.0877855
 }
 ```
