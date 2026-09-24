@@ -53,6 +53,25 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
   "engineering_blockers": [],
   "historical_references": {
     "cancelled_run": 35905479952,
+    "initial_smoke_target_market_audit": {
+      "aggregate_target_coverage_unknown_for_all_lanes": true,
+      "all_native_books_verified_flat": true,
+      "artifact_id": 10783726415,
+      "artifact_sha256": "fb1631395f78645fcdeff2c7cdf4383aed12d4d8d36ed3adb790a921ac24f8c0",
+      "audit_path": "certification/results/target-market-audit-35935431384.json",
+      "captured_decisions_replayed": 51,
+      "decision_replay_failures": 0,
+      "economic_sample_eligible": false,
+      "observed_target_counts": {
+        "meteora": 10,
+        "pons": null,
+        "pump": null,
+        "ramses": 5
+      },
+      "operational_validity": "valid",
+      "ramses_latest_scan_denominator_not_used_for_multiscan_union": true,
+      "workflow_run_id": 35935431384
+    },
     "predecessor_recovery": {
       "all_four_native_books_verified_flat": true,
       "certificate_artifact_id": 10782437241,
@@ -97,6 +116,18 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "at": 1790207637.761,
       "economic_sample_eligible": false,
       "workflow_run_id": 35934526436
+    },
+    {
+      "action": "independent_smoke_target_market_audit",
+      "all_native_books_verified_flat": true,
+      "artifact_id": 10783726415,
+      "at": 1790209296.949,
+      "captured_decisions_replayed": 51,
+      "corrected_ramses_aggregate_coverage": null,
+      "hourly_collection_in_progress": true,
+      "hourly_job_id": 107438254109,
+      "verified_manifest_files": 75,
+      "workflow_run_id": 35935431384
     }
   ],
   "infrastructure_censoring": {
@@ -112,12 +143,16 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "ramses": {}
   },
   "last_completed_action": {
-    "action": "independent_preserved_recovery_artifact_audit",
-    "all_four_books_verified_flat": true,
-    "artifact_id": 10783125845,
-    "at": 1790207637.761,
-    "economic_sample_eligible": false,
-    "workflow_run_id": 35934526436
+    "action": "independent_smoke_target_market_audit",
+    "all_native_books_verified_flat": true,
+    "artifact_id": 10783726415,
+    "at": 1790209296.949,
+    "captured_decisions_replayed": 51,
+    "corrected_ramses_aggregate_coverage": null,
+    "hourly_collection_in_progress": true,
+    "hourly_job_id": 107438254109,
+    "verified_manifest_files": 75,
+    "workflow_run_id": 35935431384
   },
   "latest_certification_run": 35934526436,
   "latest_market_run": 35935431384,
@@ -151,7 +186,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "pump": 0,
     "ramses": 0
   },
-  "next_action": "smoke_then_hourly",
+  "next_action": "complete_current_hourly_then_review_and_advance",
   "observation_hours": {
     "meteora": 0,
     "pons": 0,
@@ -166,7 +201,7 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
     "accepted_blocks": 0,
     "accepted_observation_hours": 0,
     "censored_blocks": 0,
-    "cohort_age_hours": 0.08806485878096687,
+    "cohort_age_hours": 0.5489504143264559,
     "observed_hours": 0
   },
   "portfolio_reconciliation": {
@@ -223,6 +258,12 @@ Runtime remains paper-only. This checkpoint is on the separate state branch; its
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790207637.761
+  "updated_at": 1790209296.949
 }
 ```
+
+## Independently reviewed smoke evidence
+
+The initial smoke and its native artifact review passed on `c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66`. The one-hour campaign in workflow 35935431384 is running on that same certified revision. All 75 archived manifest files were independently checksum-verified; all four smoke books were verified flat. Pump replayed 44 captured decisions and Ramses 7 without differences. Pons and Meteora had no captured decisions, so their strategy behavior remains unexercised in this smoke. There were no natural entries or settlements in this smoke, and it is excluded from economic observations.
+
+Observed-market counts use frozen strategy targets. Pump and Pons target membership counts remain unknown; Meteora observed 10 target pairs; Ramses observed five distinct target pools across two completed scan frontiers (four, then three, with two shared). Full-window target coverage remains unknown. The original Ramses report divided the five-pool union by the three-pool latest census; that percentage is invalid and is superseded by `null` in the [independent target-market audit](../certification/results/target-market-audit-35935431384.json). The raw artifact is preserved, and a runtime reporting correction remains required at a future certified revision. All lanes retain their recorded coverage gaps. Strategy rules, native evidence and economic admission are unchanged.

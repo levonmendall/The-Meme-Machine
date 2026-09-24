@@ -38,6 +38,25 @@
       "pons_natural_settlements": 0,
       "economic_sample_eligible": false,
       "exclusion_reason": "engineering recovery of a failed predecessor; fixed before the outcome; original loss preserved"
+    },
+    "initial_smoke_target_market_audit": {
+      "workflow_run_id": 35935431384,
+      "artifact_id": 10783726415,
+      "artifact_sha256": "fb1631395f78645fcdeff2c7cdf4383aed12d4d8d36ed3adb790a921ac24f8c0",
+      "audit_path": "certification/results/target-market-audit-35935431384.json",
+      "operational_validity": "valid",
+      "all_native_books_verified_flat": true,
+      "captured_decisions_replayed": 51,
+      "decision_replay_failures": 0,
+      "economic_sample_eligible": false,
+      "observed_target_counts": {
+        "pump": null,
+        "pons": null,
+        "meteora": 10,
+        "ramses": 5
+      },
+      "aggregate_target_coverage_unknown_for_all_lanes": true,
+      "ramses_latest_scan_denominator_not_used_for_multiscan_union": true
     }
   },
   "history": [
@@ -53,11 +72,23 @@
       "artifact_id": 10783125845,
       "all_four_books_verified_flat": true,
       "economic_sample_eligible": false
+    },
+    {
+      "at": 1790209296.949,
+      "action": "independent_smoke_target_market_audit",
+      "workflow_run_id": 35935431384,
+      "artifact_id": 10783726415,
+      "verified_manifest_files": 75,
+      "captured_decisions_replayed": 51,
+      "all_native_books_verified_flat": true,
+      "corrected_ramses_aggregate_coverage": null,
+      "hourly_job_id": 107438254109,
+      "hourly_collection_in_progress": true
     }
   ],
   "integration_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
   "live_money": false,
-  "next_action": "smoke_then_hourly",
+  "next_action": "complete_current_hourly_then_review_and_advance",
   "operational_limit": {
     "maximum_blocks": 192,
     "maximum_calendar_hours": 336
@@ -93,5 +124,16 @@
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790207637.761
+  "updated_at": 1790209296.949,
+  "reporting_followups": [
+    {
+      "lane": "ramses",
+      "issue": "Aggregate target coverage must align numerator and census windows",
+      "evidence_run_id": 35935431384,
+      "corrected_audit": "certification/results/target-market-audit-35935431384.json",
+      "active_runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+      "requires_future_certified_runtime_fix": true,
+      "does_not_change_economic_admission": true
+    }
+  ]
 }

@@ -1,0 +1,203 @@
+{
+  "all_native_books_verified_flat": true,
+  "artifact": {
+    "id": 10783726415,
+    "sha256": "fb1631395f78645fcdeff2c7cdf4383aed12d4d8d36ed3adb790a921ac24f8c0"
+  },
+  "artifact_review": {
+    "id": 10783886134,
+    "sha256": "ee12cc7936464ed9b232c4aa5a5512562e75be8c128c12b4da22f4d756a1ea5e"
+  },
+  "audited_at": 1790209227.3353956,
+  "decision_replay_failures": 0,
+  "decision_replays_checked": 51,
+  "economic_performance": {
+    "economic_acceptance_established": false,
+    "eligible": false,
+    "natural_entries": 0,
+    "natural_settlements": 0,
+    "profitability_not_inferred": true,
+    "reason": "smoke_excluded"
+  },
+  "independently_verified_manifest_files": 75,
+  "lanes": {
+    "meteora": {
+      "coverage_gaps": [
+        "consumer_deadline",
+        "frozen_source_union_not_fully_observed"
+      ],
+      "coverage_health": "coverage_degraded",
+      "decision_behavior_status": "unexercised_no_captured_decisions",
+      "decision_replay_checked": 0,
+      "decision_replay_failures": [],
+      "native_accounting_verified": true,
+      "natural_entries": 0,
+      "natural_settlements": 0,
+      "observed_count_status": "target_candidates_observed",
+      "observed_target_count": 10,
+      "open_positions": 0,
+      "provider_errors": {},
+      "target_market_coverage": null,
+      "target_market_scope": {
+        "authority": "SOLANA_DLMM_INDEPENDENT_V1.json; solana_dlmm_independent_v1 discovery loop",
+        "denominator": "Full target-pair inventory is unknown. The bounded ranking-page union measures source acquisition only and does not redefine the target market.",
+        "dimensions": [
+          "quote_asset",
+          "public_sort",
+          "pool"
+        ],
+        "universe": "Nonblacklisted Solana Meteora DLMM pools with exactly one WSOL leg, as defined by the frozen strategy; no minimum TVL or absolute volume."
+      },
+      "target_market_universe_count": null
+    },
+    "pons": {
+      "coverage_gaps": [
+        "reconstruction_incomplete"
+      ],
+      "coverage_health": "coverage_degraded",
+      "decision_behavior_status": "unexercised_no_captured_decisions",
+      "decision_replay_checked": 0,
+      "decision_replay_failures": [],
+      "native_accounting_verified": true,
+      "natural_entries": 0,
+      "natural_settlements": 0,
+      "observed_count_status": "unknown_scope_membership",
+      "observed_target_count": null,
+      "open_positions": 0,
+      "provider_errors": {
+        "eth_getLogs:http_429": 13,
+        "provider_http_429": 13
+      },
+      "target_market_coverage": null,
+      "target_market_scope": {
+        "authority": "pons_selective_cohort.operational_configuration; pons_selective_continuation.POLICY",
+        "denominator": "Canonical discovery cursor/log windows; independent all-event denominator unavailable.",
+        "dimensions": [
+          "curve",
+          "graduation_state",
+          "event_at"
+        ],
+        "universe": "Native-quote Pons curves in the frozen 50-85% progress, 120-600s age and 20-90s graduation-ETA domain, plus its authenticated graduation/re-entry modes; existing positions retain their lifecycle scope."
+      },
+      "target_market_universe_count": null
+    },
+    "pump": {
+      "coverage_gaps": [
+        "reconstruction_incomplete"
+      ],
+      "coverage_health": "coverage_degraded",
+      "decision_behavior_status": "verified_on_captured_decisions",
+      "decision_replay_checked": 44,
+      "decision_replay_failures": [],
+      "native_accounting_verified": true,
+      "natural_entries": 0,
+      "natural_settlements": 0,
+      "observed_count_status": "unknown_scope_membership",
+      "observed_target_count": null,
+      "open_positions": 0,
+      "provider_errors": {
+        "certification_provider_queue_deadline": 1
+      },
+      "target_market_coverage": null,
+      "target_market_scope": {
+        "authority": "sources.json:lanes.pump.prospect_admission; pump_acceleration_strategy.POLICY",
+        "denominator": "Source stream completeness; absolute chain opportunity census unavailable.",
+        "dimensions": [
+          "surface",
+          "phase",
+          "quote_asset"
+        ],
+        "universe": "Native-SOL Pump curves in the frozen 60-85% late-curve strategy domain, plus its authenticated PumpSwap graduation/continuation modes; existing positions retain their lifecycle scope."
+      },
+      "target_market_universe_count": null
+    },
+    "ramses": {
+      "completed_scans": [
+        {
+          "frontier_block": 70908459,
+          "observed_target_candidates": 4
+        },
+        {
+          "frontier_block": 70915843,
+          "observed_target_candidates": 3
+        }
+      ],
+      "coverage_gaps": [
+        "reconstruction_incomplete",
+        "aggregate_discovery_and_latest_census_windows_differ"
+      ],
+      "coverage_health": "coverage_degraded",
+      "decision_behavior_status": "verified_on_captured_decisions",
+      "decision_replay_checked": 7,
+      "decision_replay_failures": [],
+      "latest_completed_scan": {
+        "frontier_block": 70915843,
+        "observed_target_candidates": 3,
+        "scope_census_complete": true,
+        "target_candidates": 3
+      },
+      "native_accounting_verified": true,
+      "natural_entries": 0,
+      "natural_settlements": 0,
+      "observed_count_status": "target_candidates_observed",
+      "observed_count_window": "Union of target pools observed at two completed scan frontiers",
+      "observed_target_count": 5,
+      "open_positions": 0,
+      "provider_errors": {
+        "eth_getBlockByNumber:http_429": 1,
+        "provider_http_429": 1
+      },
+      "target_market_coverage": null,
+      "target_market_scope": {
+        "authority": "ramses_universe.scan; ramses_strategy.POLICY",
+        "denominator": "Authenticated USDG subset of the complete quiet-entry pool cohort; the broad factory inventory is acquisition overhead.",
+        "dimensions": [
+          "quote_asset",
+          "swap_count",
+          "bin_depth"
+        ],
+        "universe": "Recently active Ramses USDG pools with one or two prior 30-minute swaps, as frozen in sources.json; existing positions retain their lifecycle scope."
+      },
+      "target_market_universe_count": null
+    }
+  },
+  "next_action": "Continue current exact-revision hourly campaign, then review its preserved artifact and frozen economic admission gates.",
+  "operational_validity": "valid",
+  "overhead": {
+    "execution": "offline_read_only_audit",
+    "native_evidence_mutated": false,
+    "provider_calls_added": 0
+  },
+  "phase": "smoke",
+  "reporting_corrections": [
+    {
+      "admission_result_unchanged": true,
+      "corrected_values": {
+        "discovery_coverage": null,
+        "target_market_universe_count": null
+      },
+      "fields": [
+        "target_market_universe_count",
+        "discovery_coverage"
+      ],
+      "frozen_runtime_reporting_fix_status": "Required at a future certified revision; active hourly collection continues on its existing certified SHA.",
+      "lane": "ramses",
+      "native_scan_sets_equal_pipeline_sets": true,
+      "original_values": {
+        "discovery_coverage": 1.6666666666666667,
+        "target_market_universe_count": 3
+      },
+      "reason": "The numerator is the union of five distinct target pools across two scans (four then three, overlap two); the original denominator is only the latest scan. Aggregate coverage is unestablished until census and observation windows align.",
+      "strategy_target_membership_unchanged": true
+    }
+  ],
+  "runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+  "schema": "independent-strategy-target-market-audit-v1",
+  "smoke_engineering": {
+    "failures": [],
+    "scope": "ten_minute_engineering_preflight_only; not natural or sustained certification",
+    "status": "PASS"
+  },
+  "snapshot_complete": true,
+  "workflow_run_id": 35935431384
+}
