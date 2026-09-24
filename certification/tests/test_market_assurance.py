@@ -3,13 +3,14 @@ from copy import deepcopy
 import json
 import os
 from pathlib import Path
+import sqlite3
 import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 from certification import decision_conformance as dc
-from certification.market_assurance import continuity, lane_report, native_positions, ratio
+from certification.market_assurance import continuity, lane_report, native_positions, pipeline, ratio
 from certification.position_continuation import _meteora_exit_progress
 
 def rule(*,amount,limit):return {'authorized':amount<=limit}
@@ -31,14 +32,52 @@ class AssuranceTests(unittest.TestCase):
             native=native_positions(td,'ramses')
         row=dict(scan_progress=dict(pools_total=287,state='complete',log_pages_completed=18,
             log_pages_total=18,quiet_activity_deferred=0,identity_preflight_failures=0,
-            strategy_identity_candidates=4,quiet_activity_candidates=5))
-        pipe=dict(available=True,stages=dict(discovered=4,screened=4),classes={})
+            strategy_identity_candidates=4,quiet_activity_candidates=5,frontier_block=100,frontier_hash='h100'))
+        pipe=dict(available=True,stages=dict(discovered=4,screened=4),classes={},
+            discovery_frontiers=[dict(block=100,hash='h100')],discovery_frontier_membership_complete=True)
         report=lane_report('ramses',row,native,dict(status='pass'),pipe,dict(verified=True),100)
         self.assertEqual(report['target_market_universe_count'],4)
         self.assertEqual(report['discovered_count'],4)
         self.assertEqual(report['upstream_acquisition']['factory_inventory_count'],287)
         row['scan_progress']['identity_preflight_failures']=1
         self.assertIsNone(lane_report('ramses',row,native,dict(status='pass'),pipe,dict(verified=True),100)['discovery_coverage'])
+
+    def test_multiple_target_scans_never_use_latest_census_for_union(self):
+        # Captured smoke shape: four targets then three, two shared. Also cover
+        # equal-sized sets, where an invalid denominator need not yield >100%.
+        for first,second in ((('a','b','c','d'),('c','d','e')),(('a','b'),('a','b'))):
+            with self.subTest(first=first,second=second),tempfile.TemporaryDirectory() as td:
+                with sqlite3.connect(Path(td)/'native.pipeline.sqlite') as db:
+                    db.execute('CREATE TABLE progress(sequence INTEGER PRIMARY KEY,candidate TEXT,stage TEXT,at REAL,details TEXT,classification TEXT,reason TEXT)')
+                    for block,candidates in ((100,first),(200,second)):
+                        for candidate in candidates:
+                            db.execute('INSERT INTO progress(candidate,stage,at,details) VALUES(?,?,?,?)',
+                                (candidate,'discovered',block,json.dumps(dict(frontier=[block,'h'+str(block)]))))
+                row=dict(scan_progress=dict(state='complete',log_pages_completed=18,log_pages_total=18,
+                    quiet_activity_deferred=0,identity_preflight_failures=0,
+                    strategy_identity_candidates=len(second),frontier_block=200,frontier_hash='h200'))
+                report=lane_report('ramses',row,native_positions(td,'ramses'),dict(status='pass'),
+                    pipeline(td),dict(verified=True),300)
+                self.assertEqual(report['discovered_count'],len(set(first)|set(second)))
+                self.assertIsNone(report['target_market_universe_count'])
+                self.assertIsNone(report['discovery_coverage'])
+                self.assertEqual(report['coverage_health'],'coverage_unknown')
+                self.assertEqual(report['upstream_acquisition']['known_target_candidates'],len(second))
+                self.assertFalse(report['upstream_acquisition']['observation_window_matches_latest_census'])
+
+    def test_unproven_or_different_discovery_frontier_has_unknown_coverage(self):
+        with tempfile.TemporaryDirectory() as td:
+            native=native_positions(td,'ramses')
+        row=dict(scan_progress=dict(state='complete',log_pages_completed=18,log_pages_total=18,
+            quiet_activity_deferred=0,identity_preflight_failures=0,
+            strategy_identity_candidates=4,frontier_block=200,frontier_hash='h200'))
+        for provenance in ({},dict(discovery_frontiers=[dict(block=100,hash='h100')],
+                discovery_frontier_membership_complete=True),dict(discovery_frontiers=[dict(block=200,hash='h200')],
+                discovery_frontier_membership_complete=False)):
+            with self.subTest(provenance=provenance):
+                pipe=dict(available=True,stages=dict(discovered=4),classes={},**provenance)
+                report=lane_report('ramses',row,native,dict(status='pass'),pipe,dict(verified=True),300)
+                self.assertIsNone(report['discovery_coverage'])
 
     def test_directional_source_events_do_not_become_target_observations(self):
         for lane in ('pump','pons'):

@@ -63,10 +63,16 @@ def pipeline(root):
         reasons={k:n for k,n in db.execute('SELECT reason,COUNT(DISTINCT candidate) FROM progress WHERE reason IS NOT NULL GROUP BY reason')}
         last=db.execute('SELECT stage,at FROM progress ORDER BY sequence DESC LIMIT 1').fetchone()
         stage_times={stage:at for stage,at in db.execute('SELECT stage,MAX(at) FROM progress GROUP BY stage')}
-        gaps=Counter();latencies={};by_candidate={}
+        gaps=Counter();latencies={};by_candidate={};discovery_frontiers=set();missing_discovery_frontier=False
         for candidate,stage,at,details,classification in db.execute('SELECT candidate,stage,at,details,classification FROM progress ORDER BY sequence'):
             by_candidate.setdefault(candidate,{}).setdefault(stage,at)
             d=json.loads(details)
+            if stage=='discovered':
+                frontier=d.get('frontier')
+                if (isinstance(frontier,list) and len(frontier)==2
+                        and type(frontier[0]) is int and isinstance(frontier[1],str) and frontier[1]):
+                    discovery_frontiers.add(tuple(frontier))
+                else:missing_discovery_frontier=True
             if classification in ('provider_failed','capacity_censored','consumer_deadline','reconstruction_incomplete','local_budget_exhausted'):
                 segment={k:d[k] for k in ('surface','phase','quote_asset','graduated','mode') if k in d}
                 gaps[canonical(segment or {'segment':'not_preserved'})]+=1
@@ -77,6 +83,8 @@ def pipeline(root):
     return dict(available=True,stages=stages,classes=classes,reasons=reasons,
         last_stage=last[0] if last else None,last_at=last[1] if last else None,
         last_at_by_stage=stage_times,latency_seconds=latencies,
+        discovery_frontiers=[dict(block=block,hash=block_hash) for block,block_hash in sorted(discovery_frontiers)],
+        discovery_frontier_membership_complete=not missing_discovery_frontier,
         gaps_by_segment=[dict(segment=json.loads(k),transition_records=n) for k,n in gaps.items()],
         identity_scope='native candidate IDs within this block; stage and class counts overlap')
 
@@ -247,7 +255,14 @@ def lane_report(lane,row,native,conformance,pipe,proof,ended_at,previous=None):
         census_complete=(scan.get('state')=='complete' and scan.get('log_pages_completed')==scan.get('log_pages_total'))
         scope_complete=(census_complete and scan.get('quiet_activity_deferred')==0
                         and scan.get('identity_preflight_failures')==0)
-        target=scan.get('strategy_identity_candidates') if scope_complete else None
+        latest_frontier=dict(block=scan.get('frontier_block'),hash=scan.get('frontier_hash'))
+        # Distinct discovery IDs span the whole block. A latest-scan census is
+        # a denominator only when every discovered row belongs to that frontier.
+        # Multiple completed scans can contain different, overlapping target sets.
+        census_window_matches=(pipe.get('discovery_frontier_membership_complete') is True
+            and type(latest_frontier['block']) is int and bool(latest_frontier['hash'])
+            and pipe.get('discovery_frontiers')==[latest_frontier])
+        target=scan.get('strategy_identity_candidates') if scope_complete and census_window_matches else None
         structural=target
         if not census_complete:
             gaps.append('factory_census_incomplete_or_unmeasured')
@@ -256,6 +271,10 @@ def lane_report(lane,row,native,conformance,pipe,proof,ended_at,previous=None):
         upstream.update(factory_inventory_count=scan.get('pools_total'),
             quiet_activity_candidates=scan.get('quiet_activity_candidates'),
             known_target_candidates=scan.get('strategy_identity_candidates'),
+            known_target_candidates_scope='latest_scan_only',
+            latest_scan_frontier=latest_frontier,
+            latest_scan_scope_census_complete=scope_complete,
+            observation_window_matches_latest_census=census_window_matches,
             scope_exclusions=scan.get('target_scope_exclusions'))
     elif lane=='meteora':
         target=None  # Seen union is a lower bound when pagination completion is not preserved.
