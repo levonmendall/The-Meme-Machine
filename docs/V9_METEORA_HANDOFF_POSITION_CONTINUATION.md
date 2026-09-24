@@ -22,3 +22,5 @@ Focused deterministic validation is required before exact-SHA non-market certifi
 Focused validation: run 36036948055 PASS (33 tests). Exact-SHA full non-market certification follows.
 
 Protocol-freeze validator now certifies position-only continuation while keeping successor discovery disabled.
+
+Protocol-freeze validation updated to recognize position-only continuation without successor-campaign authority.
