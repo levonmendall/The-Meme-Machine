@@ -258,6 +258,7 @@
   "events": {
     "35949285193:1:prospective-observation.json": "e799393ef2d8307d1893ae90585544cfc24cad10544a2251c19ce2e0997c8988"
   },
+  "halt_reason": "smoke_hourly_or_artifact_review_failed",
   "historical_references": {
     "cancelled_run": 35905479952,
     "coverage_repair": {
@@ -316,18 +317,24 @@
       "action": "dispatch_intent",
       "at": 1790224963.457885,
       "dispatch_id": "856c0bab381a4d7bb3fd3506debc1fd9"
+    },
+    {
+      "action": "halt",
+      "at": 1790227056.8699398,
+      "reason": "smoke_hourly_or_artifact_review_failed",
+      "workflow_run_id": "35956802640"
     }
   ],
   "integration_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
   "live_money": false,
-  "next_action": "smoke_then_hourly",
+  "next_action": "preserve_repair_recertify_successor_cohort",
   "operational_limit": {
     "maximum_blocks": 192,
     "maximum_calendar_hours": 336
   },
   "paper_only": true,
   "pending_lanes": [],
-  "phase": "RUNNING",
+  "phase": "HALTED",
   "protocol_sha256": "d4c0b1b29b976fc034f768a3180f2c58a3b62dedae4d76dbceec0cb39edd9936",
   "records": [
     {
@@ -2357,5 +2364,5 @@
       "strategy_version": "ramses-active-wide-maker-v3"
     }
   },
-  "updated_at": 1790224974.827588
+  "updated_at": 1790227056.8699512
 }
