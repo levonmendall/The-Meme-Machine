@@ -1,5 +1,9 @@
 name: position-continuation
 on:
+  # A read-only push registers this workflow with Actions before any dispatch.
+  # The historical runtime ref stays immutable; registration grants no authority.
+  push:
+    branches: [repair/v9-position-continuation-dispatch-20260924]
   workflow_dispatch:
     inputs:
       lane:
@@ -80,7 +84,17 @@ permissions:
   actions: write
 
 jobs:
+  registration:
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Register workflow without consuming position authority
+        run: echo 'Registration only; no checkout, providers, state changes, or dispatch.'
   resume:
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
@@ -275,7 +289,7 @@ jobs:
 
   prospective-program-transition:
     needs: resume
-    if: always() && inputs.program == true
+    if: always() && github.event_name != 'push' && inputs.program == true
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

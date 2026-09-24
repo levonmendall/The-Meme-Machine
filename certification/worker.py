@@ -47,6 +47,7 @@ class Observer:
         self.public_http_requests=0;self.public_http_errors=Counter()
         self.governor=Governor(os.environ["MM_CERT_GOVERNOR_DB"])
         self.context=threading.local()
+        self.causal_events=0;self.causal_event_counts=Counter()
 
     def event(self, kind, body):
         with self.lock:
@@ -232,6 +233,86 @@ class Observer:
             raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
             self.snapshot_ns+=time.monotonic_ns()-before
 
+    def install_candidate_context(self):
+        # Lane-local thread scope: background discovery threads do not inherit a
+        # foreground candidate, and terminal records clear that attribution.
+        package='meme_machine' if self.lane in ('pump','meteora') else 'robinhood_research'
+        pipeline=importlib.import_module(package+'.pipeline').Pipeline
+        original=pipeline.record;observer=self
+        @functools.wraps(original)
+        def record(instance,candidate,stage,reason=None,classification=None,**details):
+            if stage not in ('trigger_started','trigger_terminal'):
+                if stage in ('terminal','settled','entry_cancelled','rejected','evidence_not_required'):
+                    observer.context.candidate=None
+                    observer.context.obligation=None
+                else:
+                    observer.context.candidate=str(candidate)
+                    observer.context.obligation=str(details.get('observation_id') or
+                        details.get('decision_at') or details.get('lifecycle_id') or stage)
+            return original(instance,candidate,stage,reason,classification,**details)
+        pipeline.record=record
+
+    def causal_event(self,kind,body):
+        # New detailed reuse telemetry has a fixed storage budget. Exact totals
+        # remain available after sampling fills; no authority uses these counters.
+        with self.lock:
+            self.causal_event_counts[kind]+=1
+            if self.causal_events>=2048:return
+            self.causal_events+=1
+            self.event('candidate_evidence_cause',dict(kind=kind,**body))
+
+    def install_reuse_context(self):
+        observer=self
+        if self.lane in ('pump','meteora'):
+            from meme_machine.solana_evidence_broker import EvidenceBroker
+            original=EvidenceBroker.hydrate_transactions
+            @functools.wraps(original)
+            def hydrate(instance,rpc,signatures,**kwargs):
+                result=original(instance,rpc,signatures,**kwargs)
+                observer.causal_event('solana_hydration',dict(
+                    candidate=getattr(observer.context,'candidate',None),
+                    acquisition_candidate=kwargs.get('candidate_id'),owner=kwargs.get('owner'),
+                    obligation=kwargs.get('kind'),deadline=kwargs.get('deadline'),
+                    result=result[1]))
+                return result
+            EvidenceBroker.hydrate_transactions=hydrate
+        else:
+            from robinhood_research.immutable_rpc import Reuse
+            original=Reuse.lookup
+            @functools.wraps(original)
+            def lookup(instance,method,params,*args,**kwargs):
+                result=original(instance,method,params,*args,**kwargs)
+                observer.causal_event('immutable_reuse',dict(
+                    candidate=getattr(observer.context,'candidate',None),
+                    obligation=getattr(observer.context,'obligation',None),
+                    method=method,endpoint_identity=instance.domain,
+                    parameter_identity=digest(params),hit=bool(result[0])))
+                return result
+            Reuse.lookup=lookup
+
+    def finalize_causal(self):
+        from certification.causal import reconcile,native_states
+        paths=sorted(Path.cwd().rglob('*.pipeline.sqlite'))
+        paths+=sorted(Path.cwd().rglob('opportunity-pipeline.sqlite'))
+        summaries=[]
+        report=self.last_report
+        native_report=Path('robinhood-ramses-extended-market-report.json')
+        # Native terminal persistence can be newer than the last observer checkpoint.
+        # Bound the optional read; omission is explicit and never invents a settlement.
+        native_report_omitted=False
+        if self.lane=='ramses' and native_report.is_file():
+            if native_report.stat().st_size<=2*1024*1024:
+                report=json.loads(native_report.read_text())
+            else:native_report_omitted=True
+        for index,path in enumerate(dict.fromkeys(paths)):
+            summaries.append(dict(source=str(path.relative_to(Path.cwd())),
+                **reconcile(path,rows_path=self.root/f'candidate-causal-{index}.jsonl',
+                    native_states=native_states(self.lane,report,path))))
+        (self.root/'candidate-causal-summary.json').write_text(canonical(dict(
+            lane=self.lane,pipelines=summaries,market_authority=False,
+            reuse_causal_samples=self.causal_events,reuse_causal_counts=dict(self.causal_event_counts),
+            reuse_causal_sample_limit=2048,native_report_omitted=native_report_omitted))+'\n')
+
     def observe_work(self,module,name,stage):
         original=getattr(module,name)
         @functools.wraps(original)
@@ -355,6 +436,9 @@ class Observer:
                     before=time.monotonic_ns()
                     record=dict(sequence=observer.raw_records,lane=observer.lane,session=session,
                                 provider=provider,
+                                candidate=getattr(observer.context,'candidate',None),
+                                candidate_attribution_scope='requesting caller; shared batch consumers remain linked by signature',
+                                evidence_obligation=getattr(observer.context,'obligation',None),
                                 transport_attempted=transport_started is not None,transport_duration_seconds=transport_elapsed,
                                 transport_started_monotonic_ns=transport_started,
                                 observed_at_ns=time.time_ns(),duration_seconds=elapsed,
@@ -487,6 +571,8 @@ def main():
     observer=Observer(args.output,args.lane,actual)
     from certification.decision_conformance import install as install_conformance
     conformance=install_conformance(args.output,args.lane,actual)
+    observer.install_candidate_context()
+    observer.install_reuse_context()
     observer.checkpoint(dict(source_sha=os.environ['MM_CERT_SOURCE_SHA']),'initializing')
     if args.lane in ('pump','meteora'):
         from meme_machine.solana_read_rpc import _ReadOnlyFailoverMixin
@@ -555,6 +641,7 @@ def main():
                 original_persist(snapshot)
             module._persist_public_result=persist
             module.main(campaign=args.campaign)
+        observer.finalize_causal()
         observer.event('process_terminal',dict(status='returned',policy_hash=policy_for(args.lane)))
         observer.status('returned')
     except BaseException as exc:

@@ -1,0 +1,104 @@
+diff --git a/meme_machine/pump_acceleration_history.py b/meme_machine/pump_acceleration_history.py
+index 89e89d2147576ef545e7db7b4ad56f04bead7f4c..6c8f45bb289779793c6f6adc1d86a075eb4c863f 100644
+--- a/meme_machine/pump_acceleration_history.py
++++ b/meme_machine/pump_acceleration_history.py
+@@ -30,6 +30,7 @@ class IncrementalPumpSwapHistory:
+         self.events={}
+         self.newest_signature=None
+         self.oldest_signature=None
++        self.backfill_before=None
+         self.signature_coverage_complete=False
+         self.history_exhausted=False
+         self.capacity_loss=False
+@@ -149,7 +150,9 @@ class IncrementalPumpSwapHistory:
+         self._coverage()
+         if self.signature_coverage_complete:
+             return
+-        before=self.oldest_signature
++        # Preserve the provider pagination cursor, including ordering within a slot.
++        # Timestamp/slot minima cannot identify the last signature in that slot.
++        before=self.backfill_before or self.oldest_signature
+         for _ in range(self.max_backfill_pages):
+             rows=self._fetch(rpc,before=before,limit=self.page_limit)
+             if not rows:
+@@ -157,6 +160,7 @@ class IncrementalPumpSwapHistory:
+                 break
+             self._remember(rows)
+             before=rows[-1]["signature"]
++            self.backfill_before=before
+             times=[int(r["blockTime"]) for r in rows if r.get("blockTime") is not None]
+             if times and min(times)<=self.graduation_time:
+                 break
+diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
+index 1cae8b75616839bb3b93e84c2cb5348fe2c0b9f3..7712efc639834f8bfe6269e3c31c513721380d0b 100644
+--- a/tests/pump_acceleration_natural_prospective.py
++++ b/tests/pump_acceleration_natural_prospective.py
+@@ -351,7 +351,9 @@ def _reserve_position(
+         return
+     if any(x["mint"]==qualification.mint and x["mode"]==mode for x in report["qualifiers"]):
+         return
+-    reserved_at=int(snapshot["available_time"])
++    # Availability is evidence time, not the time the reservation is written.
++    # Slow reconstruction must not backdate the reservation and consume its delay.
++    reserved_at=max(int(snapshot["available_time"]),int(time.time()))
+     import uuid
+     lifecycle_id=(ACCOUNTING.identity["run_id"] if ACCOUNTING else "research")+":"+uuid.uuid4().hex
+     life=PumpAccelerationPaperLifecycle(book=ACCOUNTING,lifecycle_id=lifecycle_id,
+@@ -365,6 +367,7 @@ def _reserve_position(
+         confirmations=list(qualification.confirmations),
+         policy_hash=qualification.policy_hash,
+         entry_status="reserved",reserved_at=reserved_at,
++        decision_evidence_available_at=int(snapshot["available_time"]),
+         fill_due=reserved_at+ENTRY_DELAY_SECONDS,
+         decision_slot=int(snapshot["slot"]),
+         decision_repeat_buyer_clusters=int(signal.repeat_buyer_clusters),
+diff --git a/tests/test_pump_acceleration_history.py b/tests/test_pump_acceleration_history.py
+index 31b7890b7d44c75403cf0a735b5e1bf20aabaadc..e18e43f9764c25352e5d12fae8506215d55be046 100644
+--- a/tests/test_pump_acceleration_history.py
++++ b/tests/test_pump_acceleration_history.py
+@@ -336,3 +336,20 @@ class NegativeHistoryReuseTests(unittest.TestCase):
+                     self.assertNotIn('s5',history.stream_prefiltered_signatures)
+                     self.assertEqual(rpc.tx_calls,['s5'])
+                 finally:broker.close()
++
++
++class PaginationCursorRegression(unittest.TestCase):
++    def test_backfill_preserves_provider_order_with_multiple_signatures_in_one_slot(self):
++        class Rpc:
++            def __init__(self):self.cursors=[]
++            def call(self,method,params,priority):
++                before=params[1]['before'];self.cursors.append(before)
++                pages={'s4':[('s3',102,2),('s2',102,2)],'s2':[('s1',99,1)]}
++                return [dict(signature=s,blockTime=t,slot=b,err=None) for s,t,b in pages[before]]
++        h=IncrementalPumpSwapHistory('pool',100,page_limit=2,max_backfill_pages=1)
++        h._remember([dict(signature='s4',blockTime=104,slot=4,err=None)])
++        rpc=Rpc();h._backfill(rpc);h._backfill(rpc)
++        self.assertEqual(rpc.cursors,['s4','s2'])
++        self.assertTrue(h.signature_coverage_complete)
++        h._backfill(rpc)
++        self.assertEqual(len(rpc.cursors),2)
+diff --git a/tests/test_pump_acceleration_natural_harness.py b/tests/test_pump_acceleration_natural_harness.py
+index a5ef0255e22c35c5caab1a822a5214cfa481a1c3..4f12ec316c0f63dac99c5d0484099a8cf6933c21 100644
+--- a/tests/test_pump_acceleration_natural_harness.py
++++ b/tests/test_pump_acceleration_natural_harness.py
+@@ -75,3 +75,20 @@ class NaturalHarnessBoundaryTests(unittest.TestCase):
+ 
+ if __name__=="__main__":
+     unittest.main()
++
++
++class ReservationClockRegression(unittest.TestCase):
++    def test_evidence_latency_cannot_backdate_reservation(self):
++        from types import SimpleNamespace
++        q=SimpleNamespace(mint='mint',observed_at=90,score=70,reasons=[],confirmations=[],policy_hash=policy_hash())
++        signal=SimpleNamespace(repeat_buyer_clusters=3,repeat_buy_share_bps=6000)
++        pending={};report={'qualifiers':[]}
++        with patch.object(prospective.time,'time',return_value=107), \
++                patch.object(prospective,'PumpAccelerationPaperLifecycle') as life, \
++                patch.object(prospective,'ACCOUNTING',None):
++            prospective._reserve_position(report,pending,{},signal,q,{'available_time':100,'slot':1},prospective.MODE_POSTGRAD)
++        row=report['qualifiers'][0]
++        self.assertEqual(row['reserved_at'],107)
++        self.assertEqual(row['decision_evidence_available_at'],100)
++        self.assertEqual(row['fill_due'],107+prospective.ENTRY_DELAY_SECONDS)
++        life.return_value.reserve.assert_called_once_with(q,prospective.ENTRY_BUDGET+prospective.GAS,107)

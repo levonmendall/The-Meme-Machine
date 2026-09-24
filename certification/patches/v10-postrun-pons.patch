@@ -1,0 +1,76 @@
+diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
+index d5f982d93cf2ff0d2b035cbdc213daba968bbc6d..7a845bf5f1c1a524fec4a048b063447f4eaeaf78 100644
+--- a/robinhood_research/pons_selective_paper.py
++++ b/robinhood_research/pons_selective_paper.py
+@@ -25,7 +25,7 @@ from .pons_natural_paper import (
+     RESEARCH_RECIPIENT, _fresh_stamp, _ledger_for_quote,
+ )
+ from .pons_selective_acquisition import (
+-    _batched, _header_search, _rpc as evidence_rpc, _trajectory,
++    _batched, _header_search, _rpc as evidence_rpc, _trajectory, SelectiveEvidenceContext,
+ )
+ from .pons_selective_continuation import (
+     ENTRY_THRESHOLDS, EXIT_POLICY, POLICY, POLICY_HASH, demand_metrics,
+@@ -192,9 +192,18 @@ def _curve_logs(endpoint,curve,current_header,seconds=60):
+     ) if hashes else ([],[])
+     sessions.extend(more);headers=dict(zip(hashes,headers_v))
+     tx_rows=list(dict.fromkeys((e["transactionHash"],e["blockHash"]) for e in raw))
++    # Reuse receipts only under the exact block hash authenticated below. Without
++    # these pins every overlapping monitor window rehydrates the same bodies.
++    context=SelectiveEvidenceContext(endpoint)
++    for block_hash,header in headers.items():
++        if header.get('hash')!=block_hash:
++            raise BoundaryError('selective_monitor_header_identity')
++    context.receipt_pins=dict(tx_rows)
++    if len(context.receipt_pins)!=len(tx_rows):
++        raise BoundaryError('selective_monitor_receipt_block_conflict')
+     receipts_v,more=_batched(
+         endpoint,[("eth_getTransactionReceipt",[tx]) for tx,_ in tx_rows],
+-        "pons_selective_monitor",
++        "pons_selective_monitor",evidence_context=context,
+     ) if tx_rows else ([],[])
+     sessions.extend(more)
+     receipts={}
+diff --git a/robinhood_tests/test_pons_execution_acquisition.py b/robinhood_tests/test_pons_execution_acquisition.py
+index fca4e1ae0962430af36f6e2f79da264472bc14a8..a903f43e19f683a7073f31b5b1184dee481d6285 100644
+--- a/robinhood_tests/test_pons_execution_acquisition.py
++++ b/robinhood_tests/test_pons_execution_acquisition.py
+@@ -123,3 +123,38 @@ class ExecutionAcquisitionTests(unittest.TestCase):
+             self.assertIsNone(_cancel_proven_unfilled(paper,'x',guard,'stale_state'))
+             self.assertEqual(guard.reconcile(),before);self.assertEqual(before['reserved'],120)
+             self.assertEqual(paper._get('x')['status'],'open');store.close()
++
++class MonitorReceiptReuseRegression(unittest.TestCase):
++    def test_overlapping_monitor_windows_share_only_hash_bound_receipts(self):
++        from robinhood_research import pons_selective_paper as paper
++        from robinhood_research import pons_selective_acquisition as acquisition
++        from robinhood_research.immutable_rpc import EvidenceStore,Reuse
++        from robinhood_research.provider_topology import PacedRpc
++        store=EvidenceStore();self.addCleanup(store.db.close)
++        seen=[];header=dict(number='0x1',hash='block',timestamp='0x64')
++        event=dict(transactionHash='tx',blockHash='block')
++        def transport(method,params):
++            seen.append((method,params))
++            return dict(transactionHash='tx',blockHash='block')
++        rpc=PacedRpc('https://unit.invalid',role='test',requests_per_second=2,transport=transport)
++        rpc.evidence_reuse=Reuse('https://unit.invalid',store,'pons')
++        def context(endpoint):
++            ctx=acquisition.SelectiveEvidenceContext(endpoint)
++            ctx.acquire=lambda *a,**k:rpc
++            return ctx
++        def batched(endpoint,calls,scope,**kwargs):
++            if calls[0][0]=='eth_getLogs':return [[event]],[]
++            if calls[0][0]=='eth_getBlockByHash':return [header],[]
++            ctx=kwargs['evidence_context']
++            self.assertEqual(ctx.receipt_pins,{'tx':'block'})
++            return ctx.batch(calls,scope),[]
++        with patch.object(paper,'evidence_rpc') as locator, \
++                patch.object(paper,'_header_search',return_value=header), \
++                patch.object(paper,'_batched',side_effect=batched), \
++                patch.object(paper,'SelectiveEvidenceContext',side_effect=context), \
++                patch.object(paper,'raw_event',return_value=dict(event_at=100,decoded={},block=1,transaction_hash='tx',log_index=0)), \
++                patch.object(paper,'normalized_trade',return_value={'trade':'authenticated'}):
++            first=paper._curve_logs('https://unit.invalid','curve',header)
++            second=paper._curve_logs('https://unit.invalid','curve',header)
++        self.assertEqual(first,second)
++        self.assertEqual(seen,[('eth_getTransactionReceipt',['tx'])])

@@ -1,0 +1,35 @@
+{
+  "schema": "candidate-causal-summary-v1",
+  "candidates": 1579,
+  "terminal_counts": {
+    "structural_exclusion": 27,
+    "valid_early_rejection": 2,
+    "evidence_not_required": 2,
+    "evidence_required": 0,
+    "evidence_completed": 0,
+    "provider_failure": 0,
+    "queue_deadline_failure": 0,
+    "genuine_reconstruction_incomplete": 2,
+    "stale_evidence": 0,
+    "capital_occupied": 288,
+    "qualified_not_entered": 0,
+    "entry_reserved": 0,
+    "entry_cancelled": 0,
+    "entry_filled": 0,
+    "settled": 0,
+    "open_continuing": 1,
+    "authenticated_trigger_awaiting_evidence": 0,
+    "pre_admission_evidence_incomplete": 0,
+    "observed": 1257
+  },
+  "candidate_rows_written": 0,
+  "candidate_rows_omitted": 0,
+  "evidence_obligation_counts": {
+    "not_yet_required": 1572,
+    "evidence_required": 5,
+    "evidence_completed": 2
+  },
+  "reconciled": true,
+  "interpretation": "One latest status per native candidate; evidence obligations are a separate axis, not additional losses.",
+  "historical_records_modified": false
+}

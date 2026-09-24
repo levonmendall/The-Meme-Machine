@@ -1,0 +1,12 @@
+name: v10-postrun-nonmarket-certification
+on:
+  push:
+    branches: [repair/v10-postrun-repairs-20260924]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  certify:
+    if: contains(github.event.head_commit.message, '[non-market-cert]')
+    uses: ./.github/workflows/non-market-certification.yml
+    secrets: inherit
