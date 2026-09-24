@@ -304,8 +304,8 @@ jobs:
           path: certification-artifact/
           if-no-files-found: error
           retention-days: 90
-      - name: Start automatic durable continuation for open long-horizon positions
-        if: success() && inputs.single_campaign != true
+      - name: Start position-only continuation for durable open long-horizon positions
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -328,7 +328,8 @@ jobs:
               -f slice_seconds="3000" \
               -f program="${{ inputs.program || false }}" \
               -f expected_sha="$GITHUB_SHA" \
-              -f campaign_run_id="$GITHUB_RUN_ID"
+              -f campaign_run_id="$GITHUB_RUN_ID" \
+              -f single_campaign="${{ inputs.single_campaign || false }}"
           done < /tmp/continuation-lanes
 
   smoke-artifact-review:
