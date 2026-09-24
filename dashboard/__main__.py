@@ -145,6 +145,15 @@ def make_server(
 
         def _handle(self):
             path = urlsplit(self.path).path
+            if path == "/":
+                self.send_response(302)
+                self.send_header("Location", "/dashboard")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", "0")
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.close_connection = True
+                return
             if path == "/healthz":
                 if self.command not in ("GET", "HEAD"):
                     self._json(405, {"error": "read_only"}, headers={"Allow": "GET, HEAD"})
