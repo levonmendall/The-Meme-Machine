@@ -612,6 +612,18 @@
           "evidence_requirements_changed": false,
           "accounting_changed": false,
           "paper_only_unchanged": true
+        },
+        "public_eth_getLogs_429_repair": {
+          "revision": "public-log-method-adaptive-retry-v1",
+          "incident_run_id": 36077647211,
+          "purpose": "Retry an identical bounded public eth_getLogs range once after a short method-specific 429 cooldown, then use exact-range authenticated recovery only if the retry still fails.",
+          "public_discovery_ceiling_rps": 2,
+          "range_width_changed": false,
+          "routine_discovery_on_alchemy": false,
+          "provider_throughput_increased": false,
+          "evidence_freshness_changed": false,
+          "strategy_thresholds_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -635,7 +647,8 @@
         "certification/patches/market-assurance-pons.patch",
         "certification/patches/target-coverage-repair-pons.patch",
         "certification/patches/evidence-reconstruction-pons.patch",
-        "certification/patches/v10-postrun-pons.patch"
+        "certification/patches/v10-postrun-pons.patch",
+        "certification/patches/pons-public-log-429-adaptive.patch"
       ]
     },
     "ramses": {
