@@ -1,0 +1,32 @@
+name: counterfactual-strategy-v1-derive
+on:
+  push:
+    branches: [strategy/counterfactual-replay-v1-20260924]
+permissions:
+  contents: write
+jobs:
+  derive:
+    if: contains(github.event.head_commit.message, '[derive-counterfactual-strategy]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Derive exact replay-supported strategy overlay
+        run: python tools/derive_counterfactual_strategy_v1.py
+      - name: Commit exact active-strategy composition
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add certification/sources.json \
+                  certification/patches/counterfactual-replay-pump-v1.patch \
+                  docs/COUNTERFACTUAL_STRATEGY_REVISION_V1_20260924.md
+          git diff --cached --check
+          git commit -m "Activate replay-supported Pump strategy revision [non-market-cert]"
+          git push origin HEAD:strategy/counterfactual-replay-v1-20260924
