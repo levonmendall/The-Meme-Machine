@@ -28,7 +28,11 @@ def solana_subscription_request(lane,program):
     raise ValueError('solana_lane_required')
 
 
+ROOT=Path(__file__).resolve().parents[1]
+
+
 def probe(lane):
+    sys.path.insert(0,str(ROOT))
     sys.path.insert(0,os.getcwd())
     rows=[]
     def check(role,callback):
