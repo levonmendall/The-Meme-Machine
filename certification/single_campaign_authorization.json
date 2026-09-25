@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "v10-postrun-repairs-20260924-one-market-v1",
+  "authorization_id": "v10-smoke-flat-tail-20260924-one-market-v1",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -14,14 +14,14 @@
   "dispatch_retries": false,
   "live_money": false,
   "prior_run_observation": {
-    "run_id": 36043064083,
-    "status": "completed_owner_forced_manual_close",
-    "source": "v9 one-hour campaign completed; preserved Meteora position was later owner-forced closed as a zero-proceeds writeoff because no authenticated post-entry close mark was available. The historical block remains forced/manual and ineligible for natural profitability credit."
+    "run_id": 36070948268,
+    "status": "smoke_cancelled_external_runner_shutdown",
+    "source": "Fresh v10 smoke reached the full 600-second observation boundary with every lane responsive and flat at the final live snapshot; Pump then remained alive only in its configured follow-up window. GitHub sent SIGTERM before artifact preservation/hourly transition. No repository-controlled cancellation was found."
   },
   "prior_launch_attempt": {
-    "run_id": 36043064083,
-    "outcome": "completed",
+    "run_id": 36070948268,
+    "outcome": "smoke_runner_shutdown_before_hourly",
     "provider_or_market_work_started": true,
-    "reason": "prior v9 single campaign completed smoke and hourly collection; this v10 authorization is a separate owner-approved one-shot campaign after certified post-run repairs."
+    "reason": "The prior authorization was consumed and its smoke collected market data, but the hosted runner was terminated before smoke finalization. This fresh authorization is separately owner-approved after a certified smoke-tail orchestration repair."
   }
 }
