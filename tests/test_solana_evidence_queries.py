@@ -47,3 +47,16 @@ class LocalQueryTests(unittest.TestCase):
         self.writer.ingest([],proof=proof(10,12,scope='meteora'))
         with self.assertRaisesRegex(EvidenceUnavailable,'boundary'):
             MeteoraEvidenceView(self.reader,'meteora').interval('pool',start_slot=10,end_slot=12,as_of=100)
+
+    def test_meteora_boundary_is_scoped_to_requested_pool(self):
+        records=[]
+        for pool,slot in [('pool',8),('other',10),('pool',12)]:
+            tx=dict(slot=slot,blockTime=slot,transactionIndex=1,
+                transaction={'signatures':['sig'+str(slot)]},meta={'err':None})
+            records.append(FinalizedRecord('tx'+str(slot),'meteora',slot,'sig'+str(slot),
+                'program',(pool,),slot,tx,'alchemy_finalized_stream',ENDPOINT,100,
+                transaction_index=1,kind='transaction'))
+        self.writer.ingest(records,proof=proof(8,12,scope='meteora'))
+        signatures,_,_=MeteoraEvidenceView(self.reader,'meteora').interval(
+            'pool',start_slot=10,end_slot=12,as_of=100)
+        self.assertEqual([s['slot'] for s in signatures],[12,8])

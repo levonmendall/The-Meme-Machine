@@ -85,3 +85,19 @@ class TransportTests(unittest.TestCase):
             reader=EvidenceReader(writer.path)
             self.assertEqual(reader.window('scope',10,12,as_of=110),[])
             reader.close();writer.close()
+
+    def test_reused_signature_across_slots_does_not_overwrite_event(self):
+        decoder=FinalizedNotificationDecoder(endpoint_identity=ENDPOINT,
+            log_decoder=lambda tx:[dict(index=0,slot=tx['slot'],mint='mint',market_time=10)])
+        sub=Subscription('pump','pump','program','logs',4)
+        def message(slot):
+            return {'method':'logsNotification','params':{'result':{'context':{'slot':slot},
+                'value':{'signature':'reused','logs':[],'err':None}}}}
+        first=decoder.decode(sub,message(10),100)[0]
+        second=decoder.decode(sub,message(11),100)[0]
+        self.assertNotEqual(first.identity,second.identity)
+        with tempfile.TemporaryDirectory() as temp:
+            writer=EvidenceWriter(Path(temp)/'db')
+            writer.ingest([first,second])
+            self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],2)
+            writer.close()

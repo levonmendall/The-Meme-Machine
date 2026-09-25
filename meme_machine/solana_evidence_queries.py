@@ -47,9 +47,10 @@ class MeteoraEvidenceView:
     def interval(self,pool,*,start_slot,end_slot,as_of):
         # Preserve the existing verifier's real lower-bound signature witness.
         # Never invent a transaction at start_slot for an empty interval.
-        boundary=self.reader.db.execute('''SELECT slot FROM records
-            WHERE scope=? AND kind='transaction' AND slot<=? AND first_seen<=?
-            ORDER BY slot DESC LIMIT 1''',(self.scope,start_slot,as_of)).fetchone()
+        boundary=self.reader.db.execute('''SELECT r.slot FROM addresses a JOIN records r ON r.identity=a.identity
+            WHERE a.address=? AND r.scope=? AND r.kind='transaction'
+              AND a.slot<=? AND r.first_seen<=?
+            ORDER BY a.slot DESC LIMIT 1''',(pool,self.scope,start_slot,as_of)).fetchone()
         if boundary is None:
             raise EvidenceUnavailable('dlmm_signature_census_missing_start_boundary')
         try:

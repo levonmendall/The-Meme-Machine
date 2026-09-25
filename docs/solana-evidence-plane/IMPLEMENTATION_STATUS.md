@@ -18,7 +18,7 @@ Green component tests do not satisfy the owner's architecture completion standar
 - No later relevant 20260925 source repair was returned by the bounded ref refresh.
 - Unrelated historical branches were not exhaustively enumerated.
 
-| Lane | Pinned source | Economic policy SHA-256 |
+| Lane | Pinned source | Manifest policy identity |
 |---|---|---|
 | Pump | `3c9553afb3caa92ab5f3db769f870df033a9630f` | `825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b` |
 | Meteora | `a3579b4cc748fdbb7b4a466680f8a224773adc8b` | `90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966` |
@@ -26,14 +26,14 @@ Green component tests do not satisfy the owner's architecture completion standar
 Pump strategy: `pump-acceleration-independent-v1/profitability-v1-profit-protection-v2-counterfactual-replay-v1`.
 Meteora strategy: `solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2`.
 
-New composed lane diff identities (publication delta only):
+New composed lane diff identities (publication and Pump recovery deltas):
 
-- Pump: `03650e08584b432195120b90dea78e0be5a14901fdf36fadf2ee946873725a08`.
+- Pump: `fab6c6fea533399702e7d3412db5279801c6fd724191e82947c6e44c9fa4f7c8`.
 - Meteora: `24576f7b5933a1386fcfa31b6302a7803fe71261b3c6be86a61e670d6b2714e8`.
 
 `certification/sources.json` declares the new overlay files and exact diff hashes.
 All existing frozen source/config file hashes still verify. Economic policy hashes
-were not changed to represent evidence/runtime work. Pons and Ramses are unchanged.
+were not changed to represent evidence/runtime work. Pons and Ramses lane sources are unchanged. The shared continuation atomic writer also uses writer-unique temporary paths.
 
 ## Implemented components
 
@@ -55,7 +55,7 @@ were not changed to represent evidence/runtime work. Pons and Ramses are unchang
   applies publication isolation to the **actual composed** Pump/Meteora runners,
   including Meteora's exception-report path. Injected export failures do not escape
   into lane processing. The existing separate transactional accounting journals
-  remain unchanged.
+  retain separate failure domains.
 
 The writer API is internal to the service boundary. Only a trusted source adapter
 may submit `IntervalProof`; consumers must never be given writer/proof authority.
@@ -92,6 +92,25 @@ These contracts must be resolved before live coverage can be enabled.
 No Yellowstone dependency, public-provider authority, new provider, secret change,
 provider probe, streaming connection, or throughput increase was introduced.
 
+## Additional native recovery milestone
+
+- Pump's journal now records authenticated graduation as a cash-neutral strategy
+  transition. `PumpAccelerationPaperLifecycle.restore` reconstructs original
+  reservations, filled inventory, graduation, high-water marks, partial harvests,
+  deterioration streaks, and intended exits without appending any events. Startup
+  integration and durable runner context are still pending.
+- `certification.position_continuation.restore_meteora_strategy` extracts the
+  existing continuation replay into a provider-free function using the verified
+  native ledger. The continuation caller uses it. Meteora continuation report
+  failure is isolated; no continuation workflow was run.
+- Actual run-368 ledger contains genesis, reserve, and entry: one open position,
+  zero settlements. Economic replay and repeated strategy recovery match exactly.
+  Injected report publication failure leaves that ledger and position unchanged.
+- The retained Meteora native runtime policy digest is
+  `a69ec239772a86bc7526594c9822b6fc1e611b45b7e661f618099656b288d55b`.
+  It matches the current prepared lane's `digest(load_policy())`. This is distinct
+  from the manifest policy identity above; neither has changed.
+
 ## Retained evidence and replay boundary
 
 Full hourly artifacts were requested once each and rejected by the connector's
@@ -108,16 +127,30 @@ qualifiers, original policies and fill timing. They explicitly carry
 `raw_transaction_replay_available: false`. They are not raw evidence and were not
 used to claim reconstruction or execution parity. Censored cases were not promoted.
 
-The smaller certification archives returned file references, but direct local
-retrieval failed with HTTP 403. No raw-archive access control was bypassed.
-A supported smaller raw-evidence export from the already completed runs is needed
-for the retained-run raw reconstruction parity gate.
+The full completed artifacts were subsequently downloaded once each by an
+explicitly offline Actions extraction job (36160313578), using read-only artifact
+access. It produced a cached 68,930,178-byte compact export. The export's initial
+28-MiB delivery bound failed, so a second offline job (36160804350) split that
+cached export into transportable parts; it did not redownload the originals.
+All parts were downloaded once, assembled, and verified against
+`b7f25be0857bee238831dd6624ace391af86f42e757b9233dd4f04aea81fc2bb`.
+
+Committed small fixtures now additionally contain two authenticated Pump raw
+transaction receipts per run and the compressed exact run-368 Meteora journal.
+Raw Pump decoder outputs and immutable store payloads match. These samples do
+**not** prove whole-window completeness or full strategy decision parity. Tests
+explicitly ensure they cannot manufacture coverage. No censored case is promoted.
+The larger cached subset remains available locally for the unfinished interval
+replay extraction; no repeated full-artifact processing is needed.
 
 ## Verification completed at this checkpoint
 
-- 34 focused offline tests: storage, transport boundary, local queries, publication.
+- 38 focused offline tests: storage, transport boundary, local queries, publication, retained raw events; plus 1 protocol-freeze test (39 total in that invocation).
 - 6 Pump harness/publication tests.
 - 31 Meteora harness/publication tests.
+- 20 native Pump accounting/lifecycle/recovery tests.
+- 3 retained run-368 Meteora ledger recovery/economic/publication tests.
+- 16 continuation/continuity/assurance tests with prepared native worktrees (no skips).
 - All four prepared lane source-integrity checks passed with the new declared
   Pump/Meteora overlay hashes and unchanged frozen file/policy identities.
 - Writer SIGKILL: uncommitted cursor rolled back; committed evidence retained;
@@ -155,8 +188,9 @@ may run deterministic tests; it is not final architecture certification.
    snapshots can retain WAL pages and must also remain capacity-visible.
 7. Complete durable lane telemetry. Current query counters are process-local and
    count queries, not economic strategy decisions; ingestion counters are durable.
-8. Obtain raw retained fixtures and run actual strategy-input/decision/execution
-   parity. Do not infer missing information from report summaries.
+8. Extract complete replay intervals from the cached raw subset and run actual
+   strategy-input/decision/execution parity. Current sample-event and native-ledger
+   parity do not meet that full gate.
 9. Run the complete requested crash/concurrency/load matrix, then one final broad
    non-market certification. Preserve all failed historical evidence.
 
@@ -168,7 +202,7 @@ may run deterministic tests; it is not final architecture certification.
 | Covered Pump decision with zero historical calls? | Local event view: yes. Full production decision: **not demonstrated**. |
 | Covered Meteora warmup with zero historical calls? | Local transaction view: yes. Production warmup/reconstruction: **not demonstrated**. |
 | Reserved fill proceeds while repair saturated? | **Not implemented/proven.** |
-| Open Meteora position survives all listed process failures? | Existing transactional accounting remains; complete recovery matrix **not proven**. |
+| Open Meteora position survives all listed process failures? | Actual run-368 open position survives native replay and report failure; complete process recovery matrix **not proven**. |
 | Is JSON publication-only? | Modified lane exports have no canonical state authority; complete runtime recovery migration **pending**. |
 | Explicit fail-closed gaps? | **Yes in the new store/readers; runtime cutover pending.** |
 | Strategy economics unchanged? | **Yes.** |

@@ -113,7 +113,7 @@ class FinalizedNotificationDecoder:
                 raise EvidenceUnavailable('decoded_event_address_missing')
             payload=dict(event=event,raw_lineage=dict(logs=logs,err=value.get('err')))
             rows.append(FinalizedRecord(
-                f'{subscription.scope}:{signature}:{index}',subscription.scope,slot,signature,
+                f'{subscription.scope}:{slot}:{signature}:{index}',subscription.scope,slot,signature,
                 subscription.address,addresses,event.get('market_time'),payload,
                 'alchemy_finalized_stream',self.endpoint_identity,observed_at,event_index=index))
         return rows

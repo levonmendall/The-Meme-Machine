@@ -1,20 +1,30 @@
 {
   "base_sha": "b1504b962a719c2b7e1032100eaea74402f63d0d",
+  "cached_raw_export_sha256": "b7f25be0857bee238831dd6624ace391af86f42e757b9233dd4f04aea81fc2bb",
   "composed_diff_hashes": {
     "meteora": "24576f7b5933a1386fcfa31b6302a7803fe71261b3c6be86a61e670d6b2714e8",
-    "pump": "03650e08584b432195120b90dea78e0be5a14901fdf36fadf2ee946873725a08"
+    "pump": "fab6c6fea533399702e7d3412db5279801c6fd724191e82947c6e44c9fa4f7c8"
   },
   "deployment": false,
   "economics_unchanged": true,
   "files": {
+    "certification/position_continuation.py": "9f584d1bebc8a046b33e7ebb8eded9ef063115a4b38306e78b059555a8dcf98d",
     "meme_machine/durable_publication.py": "5832d75f3bce1e69782ca417485286722f8dc16f61305ac5a050f454005fb93a",
     "meme_machine/solana_evidence_plane.py": "a14c7417d893df18d10365d24ad7a05cc3c8a37817bc155dd90712b2f66a4ba3",
-    "meme_machine/solana_evidence_queries.py": "381de4d762e178e6596b8362d04e98eb06c6ced55dbfd6671035dcb272fd2bc5",
-    "meme_machine/solana_evidence_transport.py": "184bd44117c6d735a9ba179476b997bd2b4bb1fb4e8cb81f9221227175059396"
+    "meme_machine/solana_evidence_queries.py": "62fa4a384d248fd04bbd567670ac94c9c1e33d3c366ac2451c11ac8160fe4f55",
+    "meme_machine/solana_evidence_transport.py": "378460726d624bdee74959afda894a2a2f7b0af5572c7b3f8144ea780afe0a29"
   },
   "fill_pressure": "NOT_IMPLEMENTED",
   "final_broad_certification": false,
   "market_run_launched": false,
+  "native_runtime_policy_hashes": {
+    "meteora": "a69ec239772a86bc7526594c9822b6fc1e611b45b7e661f618099656b288d55b",
+    "pump": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b"
+  },
+  "offline_export_runs": [
+    36160313578,
+    36160804350
+  ],
   "paper_only_unchanged": true,
   "policy_hashes": {
     "meteora": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
@@ -22,11 +32,15 @@
   },
   "production_cutover": false,
   "provider_ceilings_unchanged": true,
-  "raw_run_parity": "NOT_RUN_RAW_FIXTURES_UNAVAILABLE",
+  "raw_run_parity": "SAMPLE_EVENT_AND_METEORA_LEDGER_PARITY_PASSED_FULL_DECISION_PARITY_PENDING",
   "status": "INCOMPLETE_NOT_CERTIFIED",
   "targeted_tests": {
-    "foundation": 34,
+    "continuation_continuity_assurance": 16,
+    "foundation": 38,
     "meteora_harness_publication": 31,
-    "pump_harness_publication": 6
+    "protocol_freeze": 1,
+    "pump_accounting_lifecycle_recovery": 20,
+    "pump_harness_publication": 6,
+    "retained_meteora_recovery": 3
   }
 }
