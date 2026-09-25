@@ -1,0 +1,80 @@
+diff --git a/meme_machine/pump_acceleration_strategy.py b/meme_machine/pump_acceleration_strategy.py
+index 34fe101a9f45cd5c925f295a28650e36a5bbc245..0643cebd21796a24dabe48fb62dbc891f21918e6 100644
+--- a/meme_machine/pump_acceleration_strategy.py
++++ b/meme_machine/pump_acceleration_strategy.py
+@@ -40,7 +40,7 @@ def _points(value, low, high, maximum):
+
+ @dataclass(frozen=True)
+ class FrozenPolicy:
+-    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2"
++    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1"
+     entry_fraction_bps: int = 500
+
+     # Late-curve structural gates.
+@@ -76,6 +76,10 @@ class FrozenPolicy:
+     min_postgrad_independent_clusters: int = 8
+     min_postgrad_buyer_growth: int = 2
+     min_postgrad_price_vs_graduation_bps: int = 1
++    # Counterfactual replay across runs 36043064083 and 36077647211 found
++    # price retention on 100% of both resolved winners and losers. Keep it
++    # as point-in-time ranking/confirmation evidence, not a binary veto.
++    postgrad_price_retention_hard_gate: bool = False
+     min_postgrad_volume_acceleration_bps: int = 0
+     max_postgrad_concentration_bps: int = 3500
+     max_early_holder_sell_share_bps: int = 4000
+@@ -468,7 +472,13 @@ def qualify(signal, policy=POLICY):
+             reasons.append("buyer_growth")
+         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
+             reasons.append("net_demand")
+-        if int(_value_or(signal.price_vs_graduation_bps,0)) < policy.min_postgrad_price_vs_graduation_bps:
++        price_retained=(
++            int(_value_or(signal.price_vs_graduation_bps,0))
++            >= policy.min_postgrad_price_vs_graduation_bps
++        )
++        if price_retained:
++            confirmations.append("price_retention")
++        elif policy.postgrad_price_retention_hard_gate:
+             reasons.append("price_retention")
+         if int(_value_or(signal.volume_acceleration_bps,-1)) < policy.min_postgrad_volume_acceleration_bps:
+             reasons.append("volume_acceleration")
+diff --git a/tests/test_pump_acceleration_policy_identity.py b/tests/test_pump_acceleration_policy_identity.py
+index dee06b9068937591136d6ea81b00956eaeef5884..f20c412b3654451b1bc159f6c34c2aa329095806 100644
+--- a/tests/test_pump_acceleration_policy_identity.py
++++ b/tests/test_pump_acceleration_policy_identity.py
+@@ -2,7 +2,7 @@ import unittest
+
+ from meme_machine.pump_acceleration_strategy import policy_hash
+
+-FROZEN="b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5"
++FROZEN="825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b"
+
+
+ class FrozenPolicyIdentityTests(unittest.TestCase):
+diff --git a/tests/test_pump_acceleration_strategy.py b/tests/test_pump_acceleration_strategy.py
+index 5a8c86c5c97ffd6db807d02277a890c8a4a1c5da..3a3d7fc2cc359f2423aa878f2b2bd2ba211ad9b8 100644
+--- a/tests/test_pump_acceleration_strategy.py
++++ b/tests/test_pump_acceleration_strategy.py
+@@ -209,6 +209,23 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
+         weak=SignalVector(**{**strong.__dict__,"graduated":False})
+         self.assertFalse(qualify(weak).qualified)
+
++    def test_postgrad_price_retention_is_confirmation_not_binary_veto(self):
++        strong=SignalVector(
++            mint="M-retention",observed_at=1000,surface="pumpswap",phase=MODE_POSTGRAD,
++            graduated=True,seconds_since_graduation=25,independent_buyer_clusters=10,
++            buyer_growth=3,net_buy_share_bps=8500,concentration_bps=1600,
++            price_vs_graduation_bps=-200,volume_acceleration_bps=3000,
++            early_holder_sell_share_bps=1200,recovery_bps=1000,
++            skilled_wallet_clusters=2,quote_relative_return_bps=500,
++        )
++        result=qualify(strong)
++        self.assertTrue(result.qualified,result.reasons)
++        self.assertNotIn("price_retention",result.reasons)
++        self.assertNotIn("price_retention",result.confirmations)
++        retained=qualify(SignalVector(**{**strong.__dict__,"price_vs_graduation_bps":200}))
++        self.assertTrue(retained.qualified,retained.reasons)
++        self.assertIn("price_retention",retained.confirmations)
++
+     def test_second_leg_requires_pullback_consolidation_and_breakout(self):
+         strong=SignalVector(
+             mint="M",observed_at=1000,surface="pumpswap",phase=MODE_SECOND_LEG,

@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-24-pump-finalized-log-authority-candidate",
+  "verified_at": "2026-09-24-counterfactual-replay-strategy-v1",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
       "source_branch": "cert/source-pump-profit-protection-v2-20260923",
       "source_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
-      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2",
-      "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2-counterfactual-replay-v1",
+      "policy_hash": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b",
       "file_hashes": {
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
         ".github/workflows/pump-acceleration-natural-prospective.yml": "697617d7ade8d42d68d991a5f73b0d8738117b56d2ecd3f9dd91cf03489d2a7f",
@@ -49,7 +49,7 @@
         "profitability_authority": true,
         "target_restrictiveness": "profitability-v1",
         "original_source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
-        "revision": "profitability-v1-profit-protection-v2",
+        "revision": "profitability-v1-profit-protection-v2-counterfactual-replay-v1",
         "purpose": "Active paper profitability policy with repeat-buyer demand persistence and executable fill-time signal revalidation, composed with current acquisition repairs.",
         "machinery_baseline_policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e",
         "evidence_completion_repair": {
@@ -184,20 +184,39 @@
           "target_scope_changed": false,
           "evidence_requirements_changed": false,
           "paper_only_unchanged": true
+        },
+        "counterfactual_replay_v1": {
+          "basis_runs": [
+            36043064083,
+            36077647211
+          ],
+          "resolved_first_rejections": 56,
+          "winner_rejections": 26,
+          "loser_rejections": 30,
+          "price_retention_winner_presence_bps": 10000,
+          "price_retention_loser_presence_bps": 10000,
+          "change": "postgraduation_price_retention_from_binary_veto_to_ranking_confirmation",
+          "early_holder_distribution_gate_unchanged": true,
+          "net_demand_gate_unchanged": true,
+          "buyer_growth_gate_unchanged": true,
+          "execution_downside_gate_unchanged": true,
+          "fill_time_persistence_unchanged": true,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
         "market_observation_scope": "Native-SOL Pump curves in the frozen 60-85% late-curve strategy domain, plus its authenticated PumpSwap graduation/continuation modes; existing positions retain their lifecycle scope.",
-        "investment_evaluation_scope": "profitability-v1 late-curve candidates in the 60-85% progress band with broad expanding independent demand, repeat-buyer persistence, controlled concentration, non-collapsing trajectory and bounded executable round-trip downside; all delayed entries require fill-time thesis persistence; authenticated post-graduation modes retain separate continuation evidence",
+        "investment_evaluation_scope": "profitability-v1 late-curve candidates in the 60-85% progress band with broad expanding independent demand, repeat-buyer persistence, controlled concentration, non-collapsing trajectory and bounded executable round-trip downside; all delayed entries require fill-time thesis persistence; authenticated post-graduation modes retain separate continuation evidence; post-graduation price retention remains ranking/confirmation evidence but no longer has independent binary veto authority",
         "pre_rpc_strategy_screen": true,
         "permanent_exclusion_on_screen_failure": false,
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
         "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks",
         "upstream_acquisition_scope": "all finalized Pump events remain observable",
-        "broad_source_rows_count_as_observed_market": false
+        "broad_source_rows_count_as_observed_market": false,
+        "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "c2e446c9a4f18869831b20471c8f48d86195a678f0de07fb751e0e2c19663e42",
+      "source_diff_sha256": "e079733c9ef0d11c4414d8b60895cc2f4a3739ed646cdae6a76e231261d3465a",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -207,7 +226,8 @@
         "certification/patches/evidence-reconstruction-pump.patch",
         "certification/patches/pump-finalized-log-authority.patch",
         "certification/patches/v10-postrun-pump.patch",
-        "certification/patches/pump-smoke-flat-tail.patch"
+        "certification/patches/pump-smoke-flat-tail.patch",
+        "certification/patches/counterfactual-replay-pump-v1.patch"
       ]
     },
     "meteora": {
