@@ -683,7 +683,7 @@
     },
     "ramses": {
       "source_branch": "strategy/ramses-viability-v4-source-20260924",
-      "source_sha": "36cd6146994821c12adf2bff32440918a26b6bdd",
+      "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
       "strategy_version": "ramses-active-wide-maker-v4",
       "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
       "file_hashes": {
@@ -735,7 +735,7 @@
         "16aef485b177e2eb70660f4bcf105d324a7aa6d0",
         "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
         "73b61794debf7f6e40abe474a1ce7b5fbfcbfed2",
-        "36cd6146994821c12adf2bff32440918a26b6bdd"
+        "41b5f263efc31bedf9b39039a9f66bed264b70d3"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
@@ -959,7 +959,7 @@
           "paper_only_unchanged": true
         },
         "active_wide_maker_v4": {
-          "source_commit": "36cd6146994821c12adf2bff32440918a26b6bdd",
+          "source_commit": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
           "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
           "initial_quote_asset": "USDG",
           "prior_30m_swaps_max": 2,
@@ -1052,7 +1052,7 @@
       "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
       "pons": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
-      "ramses": "36cd6146994821c12adf2bff32440918a26b6bdd"
+      "ramses": "41b5f263efc31bedf9b39039a9f66bed264b70d3"
     },
     "source_verification": {
       "meteora": {
