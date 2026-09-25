@@ -1,7 +1,9 @@
 diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
 --- a/tests/pump_acceleration_natural_prospective.py
 +++ b/tests/pump_acceleration_natural_prospective.py
-@@ -690,4 +690,15 @@ def _retire_postgrad(report,postgrad,pending,active,stream,now):
+@@ -734,6 +734,17 @@ def _retire_postgrad(report,postgrad,pending,active,stream,now):
+         stream.remove_address(state['pool'])
+         del postgrad[mint]
          report['retired_postgrad_candidates']=report.get('retired_postgrad_candidates',0)+1
  
  
@@ -17,20 +19,23 @@ diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceler
 +
 +
  def main(*,campaign=False,discovery_seconds=None):
-@@ -706,5 +716,6 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -743,6 +754,7 @@ def main(*,campaign=False,discovery_seconds=None):
      discovery_seconds=DISCOVERY_SECONDS if discovery_seconds is None else int(discovery_seconds)
      if not 600<=discovery_seconds<=(21600 if campaign else 3300):
          raise ValueError('pump_discovery_runtime_bound')
 +    smoke_flat_tail=bool(campaign and os.environ.get('MM_CERTIFICATION_PHASE')=='smoke')
      actual_policy_hash=policy_hash()
      if actual_policy_hash!=FROZEN_POLICY_HASH:
-@@ -730,4 +741,4 @@ def main(*,campaign=False,discovery_seconds=None):
+         raise RuntimeError("frozen_policy_hash_changed")
+@@ -787,4 +799,4 @@ def main(*,campaign=False,discovery_seconds=None):
      report['operational_configuration']=dict(campaign=campaign,discovery_seconds=discovery_seconds,
          full_attempt_limit=MAX_FULL_ATTEMPTS,full_attempt_window_seconds=3300 if campaign else None,
          concurrent_postgrad_limit=MAX_POSTGRAD_CANDIDATES,followup_seconds=FOLLOWUP_SECONDS,
 -        open_positions_before_candidate_hydration=True)
 +        open_positions_before_candidate_hydration=True,smoke_flat_tail=smoke_flat_tail)
-@@ -780,5 +791,9 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -832,7 +844,11 @@ def main(*,campaign=False,discovery_seconds=None):
+         while int(time.time())<end:
+             if evidence_service:evidence_service.check()
              now=int(time.time())
              _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
              _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
@@ -40,13 +45,6 @@ diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceler
 +                report['smoke_tail_exit']='flat_after_discovery'
 +                break
              fresh,cursor=tape.events_since(cursor)
-@@ -960,4 +975,6 @@ def main(*,campaign=False,discovery_seconds=None):
-             # Natural post-graduation and second-leg entries may occur during the
-             # follow-up because their decision time is necessarily after migration.
-             for mint,state in list(postgrad.items()):
-+                if _smoke_tail_admission_closed(smoke_flat_tail,now,discovery_end):
-+                    break
-                 age=now-int(state["graduation_time"])
 diff --git a/tests/test_pump_smoke_tail.py b/tests/test_pump_smoke_tail.py
 new file mode 100644
 --- /dev/null
@@ -58,12 +56,12 @@ new file mode 100644
 +
 +
 +class PumpSmokeTailTests(unittest.TestCase):
-+    def test_smoke_tail_closes_new_admission_at_discovery_boundary(self):
++    def test_smoke_tail_closes_at_discovery_boundary_only_in_smoke(self):
 +        self.assertFalse(runner._smoke_tail_admission_closed(True,599,600))
 +        self.assertTrue(runner._smoke_tail_admission_closed(True,600,600))
 +        self.assertFalse(runner._smoke_tail_admission_closed(False,900,600))
 +
-+    def test_smoke_tail_exits_immediately_when_flat(self):
++    def test_smoke_tail_exits_only_when_flat(self):
 +        self.assertTrue(runner._smoke_tail_should_exit(True,600,600,{},{}))
 +        self.assertFalse(runner._smoke_tail_should_exit(True,600,600,{('mint','mode'):{}},{}))
 +        self.assertFalse(runner._smoke_tail_should_exit(True,600,600,{}, {('mint','mode'):{}}))
