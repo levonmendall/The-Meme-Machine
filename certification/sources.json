@@ -157,6 +157,18 @@
           "focused_regression_tests": 41,
           "evidence_provenance_changed": true,
           "economic_inputs_changed": false
+        },
+        "smoke_flat_tail_repair": {
+          "revision": "smoke-flat-tail-v1",
+          "incident_run_id": 36070948268,
+          "purpose": "After the smoke discovery boundary, stop new Pump admission and exit immediately once pending entries and open positions are flat; preserve already-reserved fill deadlines and already-open frozen lifecycles.",
+          "smoke_discovery_seconds": 600,
+          "strategy_economics_changed": false,
+          "strategy_thresholds_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "hourly_campaign_behavior_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -170,7 +182,7 @@
         "upstream_acquisition_scope": "all finalized Pump events remain observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "faa8b4d325a7b8cef56f85501d4856fdbbcd7ff573dd560d3b43c9b5702a20d3",
+      "source_diff_sha256": "c2e446c9a4f18869831b20471c8f48d86195a678f0de07fb751e0e2c19663e42",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
