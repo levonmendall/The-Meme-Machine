@@ -683,7 +683,7 @@
     },
     "ramses": {
       "source_branch": "strategy/ramses-viability-v4-source-20260924",
-      "source_sha": "357bd70a8e279ce0701d2a4f083308138b83813a",
+      "source_sha": "4f34cfec76b8f354488abc33360e9bcf0074fcca",
       "strategy_version": "ramses-active-wide-maker-v4",
       "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
       "file_hashes": {
@@ -957,7 +957,7 @@
           "paper_only_unchanged": true
         },
         "active_wide_maker_v4": {
-          "source_sha": "357bd70a8e279ce0701d2a4f083308138b83813a",
+          "source_sha": "4f34cfec76b8f354488abc33360e9bcf0074fcca",
           "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
           "revision": "range-local-entry-economics-v4",
           "evidence_basis": [
@@ -1031,7 +1031,7 @@
       "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
       "pons": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
-      "ramses": "357bd70a8e279ce0701d2a4f083308138b83813a"
+      "ramses": "4f34cfec76b8f354488abc33360e9bcf0074fcca"
     },
     "source_verification": {
       "meteora": {
@@ -1191,7 +1191,7 @@
     "ramses_viability_v4_candidate": {
       "branch": "strategy/ramses-viability-v4-20260924",
       "source_branch": "strategy/ramses-viability-v4-source-20260924",
-      "source_sha": "357bd70a8e279ce0701d2a4f083308138b83813a",
+      "source_sha": "4f34cfec76b8f354488abc33360e9bcf0074fcca",
       "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
       "prior_runtime_sha": "6cc6d90c8aeac70ceec08d8fc43bfab73da3ece4",
       "evidence_only_replay": true,
