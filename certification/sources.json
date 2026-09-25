@@ -1008,7 +1008,7 @@
         "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "3e848957c0835ef5f9805e009414c049513e4f9f291b8199804ce22567cd862e",
+      "source_diff_sha256": "e2751171b0dded92b37c26b81c42230b5cbf293870436938dc44628257f6fa8a",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -1217,7 +1217,8 @@
       "prior_runtime_sha": "6cc6d90c8aeac70ceec08d8fc43bfab73da3ece4",
       "evidence_only_replay": true,
       "market_run_launched": false,
-      "source_diff_sha256_pending": true
+      "source_diff_sha256_pending": false,
+      "source_diff_sha256": "e2751171b0dded92b37c26b81c42230b5cbf293870436938dc44628257f6fa8a"
     }
   },
   "composition": {
