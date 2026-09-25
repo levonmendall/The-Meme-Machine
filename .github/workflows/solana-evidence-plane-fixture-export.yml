@@ -5,6 +5,7 @@ on:
     paths:
       - certification/repackage_solana_export.py
       - certification/solana_evidence_architecture_gate.py
+      - certification/run.py
       - certification/patches/evidence-plane-runtime-*.patch
       - .github/workflows/solana-evidence-plane-fixture-export.yml
 permissions:

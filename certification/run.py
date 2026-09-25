@@ -29,6 +29,15 @@ def atomic(path,data):
     path=Path(path);temp=path.with_suffix(path.suffix+'.tmp');temp.write_text(canonical(data)+'\n');os.replace(temp,path)
 
 
+def publish_dashboard(result,path):
+    """Diagnostic rendering has no authority over independent lane processes."""
+    try:
+        dashboard(result,path)
+        return dict(published=True,error=None)
+    except Exception as exc:
+        return dict(published=False,error=type(exc).__name__)
+
+
 def git(*args,cwd=ROOT):
     return subprocess.check_output(['git',*args],cwd=cwd,text=True).strip()
 
@@ -777,8 +786,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
             provider_efficiency(result);result['certification']=evaluate(result)
             from meme_machine.durable_publication import publish_report
             publish_report(run/'result.json',result,asynchronous=True)
-            try:dashboard(result,run/'status.html')
-            except OSError:pass
+            result['dashboard_publication']=publish_dashboard(result,run/'status.html')
             if now-last_console>=60:
                 print(canonical(dict(run_id=run_id,elapsed_seconds=now-started,lanes={k:{f:v for f,v in r.items() if f in ('health','phase','continuous_uptime_seconds','provider_requests','natural_settled','forced_settled','unexpected_exit')} for k,r in rows.items()})),flush=True)
                 last_console=now
@@ -810,7 +818,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         provider_efficiency(result);result['certification']=evaluate(result)
         if phase=='hourly':result['hourly_engineering']=hourly_engineering(result)
         provider_efficiency(result);atomic(run/'result.json',result);journal.close()
-        dashboard(result,run/'status.html')
+        publish_dashboard(result,run/'status.html')
         from certification.analysis import report
         report(run)
     return result

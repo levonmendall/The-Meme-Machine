@@ -7,9 +7,13 @@ import unittest
 from unittest.mock import MagicMock,patch
 from certification.journal import Journal
 from certification.report import LANES,dashboard,evaluate
-from certification.run import finish_lanes,launch
+from certification.run import finish_lanes,launch,publish_dashboard
 
 class ShutdownTests(unittest.TestCase):
+    def test_dashboard_exception_has_no_supervisor_authority(self):
+        with patch('certification.run.dashboard',side_effect=AttributeError('renderer_failed')):
+            self.assertEqual(publish_dashboard({},Path('unused')),dict(published=False,error='AttributeError'))
+
     def test_live_native_cursor_and_frontier_shapes_render_without_mutation(self):
         with tempfile.TemporaryDirectory() as tmp:
             for state in (67632563,0,None,{'polls':4,'advances':1}):
@@ -57,7 +61,10 @@ class ShutdownTests(unittest.TestCase):
             def spawn(*a,**kw):
                 p=MagicMock(pid=100+len(children),returncode=-2);p.poll.return_value=None;children.append(p);return p
             with patch('certification.run.reconcile_stopped_lane',return_value={'verified':False}),patch('certification.run.historical_exposure',return_value=[]),patch('certification.run.integration_integrity'),patch('certification.run.manifest',return_value=spec),patch('certification.run.digest',return_value='hash'),patch('certification.run.git',return_value='head'),patch('certification.run.implementation_hash',return_value='impl'),patch('certification.run.source_integrity',return_value={}),patch('certification.run.subprocess.Popen',side_effect=spawn),patch('certification.run.os.killpg'),patch('certification.run.dashboard',side_effect=[AttributeError('injected_renderer_failure'),None]),patch('certification.run.audit_telemetry',side_effect=EOFError('truncated')),patch('certification.analysis.report'),patch.dict(os.environ,{'MM_SOLANA_READ_RPC_URL':'read-only','MM_ROBINHOOD_READ_RPC_URL':'read-only'}):
-                with self.assertRaises(AttributeError):launch(root,out,600,'smoke',gate)
+                # No real evidence process/provider I/O belongs in this shutdown
+                # unit test. Inject the fatal error in supervision, not publication.
+                with patch('certification.evidence_supervisor.EvidenceProcess'),patch('certification.run.broker_snapshot',side_effect=AttributeError('injected_supervisor_failure')):
+                    with self.assertRaises(AttributeError):launch(root,out,600,'smoke',gate)
             terminal=json.loads((out/'result.json').read_text())
             self.assertEqual(terminal['status'],'FAILED');self.assertEqual(terminal['certification']['status'],'FAIL')
             self.assertEqual(terminal['supervisor_error']['error_type'],'AttributeError')
