@@ -6,7 +6,6 @@ import unittest
 
 from robinhood_research import BoundaryError
 from robinhood_research.ramses_strategy import (
-    ACTIVE_MODE,
     POLICY_HASH,
     STRATEGY_DOMAIN,
     STRATEGY_VERSION,
@@ -24,7 +23,7 @@ class RamsesStrategyIsolationTests(unittest.TestCase):
 
     def _decision(self, capital=100):
         return dict(
-            mode=ACTIVE_MODE,
+            mode="active_wide_maker",
             qualified=True,
             allocation_authority=False,
             strategy_domain=STRATEGY_DOMAIN,
