@@ -4,11 +4,13 @@
     "pump-production": 6,
     "retained-position": 4,
     "retained-warmup": 1,
-    "shared": 51
+    "shared": 65
   },
-  "artifact_id": 10881196507,
-  "artifact_sha256": "50f40e15a3f4fdd4694f219da44f02760c1879377f0f28492d6b23e7253ba901",
-  "certified_runtime_sha": "bc36a09d0cfd1c6131525c526d427076f085165b",
+  "architecture_total_tests": 78,
+  "artifact_id": 10882742846,
+  "artifact_retention_days": 90,
+  "artifact_sha256": "bb800d167dcc36e1424d1041fd468e8e62bc0dbaf9a20bbfe8ac0a9b45466c34",
+  "certified_runtime_sha": "d51ba9f5a5cf6aa07933a42cad9ede869cb96bed",
   "component_test_counts": {
     "meteora": 451,
     "pons": 369,
@@ -17,31 +19,107 @@
   },
   "crash_boundaries": 20,
   "crash_scope": "Native journal SIGKILL, actual runner recovery/interruption, evidence writer restart, report publisher faults; not a combined six-process orchestration test",
+  "credential_scan": {
+    "files_checked": 38,
+    "passed": true
+  },
+  "deferred_operational_gates": [
+    "live Alchemy WebSocket entitlement/capability validation",
+    "real stream-completeness behavior",
+    "live getTransactionsForAddress entitlement/response shape",
+    "actual reconnect -> gap -> repair behavior",
+    "actual stream bandwidth",
+    "actual Alchemy CU usage",
+    "actual CU/complete-decision improvement",
+    "prospective complete Pump replay parity",
+    "prospective Meteora operational reconstruction parity",
+    "real provider 429/reconnect characteristics"
+  ],
   "deployment": false,
   "economics_unchanged": true,
+  "external_socket_attempts": {
+    "meteora": [],
+    "pons": [],
+    "pump": [],
+    "ramses": []
+  },
   "foreground_historical_rpc": {
     "meteora": 0,
     "pump": 0
   },
   "gates": {
     "architecture": true,
+    "archive_capacity_safety": true,
+    "canonical_configuration": true,
     "components": true,
     "crash": true,
+    "credential_isolation": true,
+    "foreground_history_regression": true,
     "integrated": true,
-    "restart": true
+    "interest_ownership_and_expiry": true,
+    "policy_source_config_integrity": true,
+    "provider_topology": true,
+    "restart": true,
+    "supervisor_accounting": true,
+    "usage_telemetry": true
   },
   "integrated_scenario_tests": 50,
+  "legacy_pump_windows": {
+    "count": 7,
+    "historical_availability_rewritten": false,
+    "implementation_blocker": false,
+    "status": "PERMANENTLY_CENSORED_LEGACY_EVIDENCE"
+  },
   "market_workflow_launched": false,
+  "market_workflows_authorized": 0,
+  "market_workflows_queued": 0,
+  "material_files_changed": [
+    ".github/workflows/solana-evidence-plane-fixture-export.yml",
+    "certification/evidence_worker.py",
+    "certification/patches/evidence-plane-offline-meteora.patch",
+    "certification/patches/evidence-plane-offline-pump.patch",
+    "certification/profitability_protocol.json",
+    "certification/solana_evidence_architecture_gate.py",
+    "certification/solana_provider_gate.py",
+    "certification/sources.json",
+    "certification/tests/test_v10_postrun.py",
+    "certification/worker.py",
+    "docs/solana-evidence-plane/IMPLEMENTATION_STATUS.md",
+    "docs/solana-evidence-plane/offline_cleanup_focused_results.json",
+    "meme_machine/durable_publication.py",
+    "meme_machine/solana_evidence_plane.py",
+    "meme_machine/solana_evidence_runtime.py",
+    "meme_machine/solana_evidence_service.py",
+    "meme_machine/solana_evidence_transport.py",
+    "meme_machine/solana_provider_config.py",
+    "meme_machine/solana_read_rpc.py",
+    "tests/test_solana_evidence_fences.py",
+    "tests/test_solana_evidence_retention.py",
+    "tests/test_solana_evidence_service_runtime.py",
+    "tests/test_solana_evidence_transport.py",
+    "tests/test_solana_read_rpc.py"
+  ],
   "meteora_replay": "RETAINED_12_CHUNK_EXACT_INPUT_AND_QUALIFICATION_PARITY",
+  "offline_certification": "COMPLETE",
+  "offline_implementation": "COMPLETE",
   "paper_only_unchanged": true,
+  "previous_runtime_cutover_certification": {
+    "artifact_id": 10881196507,
+    "artifact_sha256": "50f40e15a3f4fdd4694f219da44f02760c1879377f0f28492d6b23e7253ba901",
+    "certified_runtime_sha": "bc36a09d0cfd1c6131525c526d427076f085165b",
+    "workflow_run": 36171495473
+  },
+  "prospective_operational_validation": "DEFERRED",
   "provider_ceilings_unchanged": true,
   "provider_connections": 0,
+  "provider_validation_workflows": 0,
   "pump_replay": "SYNTHETIC_ACTUAL_RUNTIME_PARITY; RETAINED_COMPLETE_WINDOW_PARITY_UNAVAILABLE",
   "real_ipc": {
     "coverage_authority_rejected": true,
     "real_unix_ipc": true,
     "reservation_pin_preserved": true
   },
+  "repair_scope_economic_protocol_unchanged": true,
   "restart_lanes": [
     "meteora",
     "pons",
@@ -51,7 +129,7 @@
   "source_identities": {
     "meteora": {
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "8fa7f6122239ed2c9fb8d1ea8b70434c33726d0b54c333a7b5c6f75672c251aa",
+      "source_diff_sha256": "f2bdf7a839dc331f4d4fd39e4640aa8639e2d34d5cb27092b432ccddef3db562",
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2"
     },
@@ -63,7 +141,7 @@
     },
     "pump": {
       "policy_hash": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b",
-      "source_diff_sha256": "1209b894ee0851e859341f6057d5afecf7df5e57405408a5f132fbb6fdf0635d",
+      "source_diff_sha256": "b21d19a1c6d29ab787fcab01d6e73240154940c24694d90f1f4b9043b79c8e67",
       "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2-counterfactual-replay-v1"
     },
@@ -74,10 +152,28 @@
       "strategy_version": "ramses-active-wide-maker-v4"
     }
   },
-  "standard_ci_run": 36171501136,
-  "standard_ci_tests": 520,
-  "status": "OFFLINE_CHECKS_PASSED_TASK_INCOMPLETE",
+  "standard_ci_run": 36176404826,
+  "standard_ci_tests": 528,
+  "status": "OFFLINE_IMPLEMENTATION_COMPLETE_PROSPECTIVE_VALIDATION_DEFERRED",
+  "superseded_and_failed_checks": [
+    {
+      "artifact_id": 10882122695,
+      "details": "offline_cleanup_focused_results.json",
+      "run": 36175955014,
+      "status": "FAILED_PROVENANCE_GATE"
+    },
+    {
+      "details": "offline_cleanup_focused_results.json",
+      "run": 36175955000,
+      "status": "FAILED_PROVENANCE_AND_OBSERVER_FIXTURE"
+    },
+    {
+      "artifact_id": 10882482710,
+      "run": 36176218784,
+      "status": "PASSED_SUPERSEDED_BY_RETRY_AFTER_PRESERVATION"
+    }
+  ],
   "supervisor_tests": 233,
-  "task_complete": false,
-  "workflow_run": 36171495473
+  "task_complete": true,
+  "workflow_run": 36176404886
 }

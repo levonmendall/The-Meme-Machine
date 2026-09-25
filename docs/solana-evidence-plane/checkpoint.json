@@ -1,7 +1,7 @@
 {
   "base_sha": "b1504b962a719c2b7e1032100eaea74402f63d0d",
   "cached_raw_export_sha256": "b7f25be0857bee238831dd6624ace391af86f42e757b9233dd4f04aea81fc2bb",
-  "certified_runtime_sha": "bc36a09d0cfd1c6131525c526d427076f085165b",
+  "certified_runtime_sha": "d51ba9f5a5cf6aa07933a42cad9ede869cb96bed",
   "component_tests": {
     "meteora": 451,
     "pons": 369,
@@ -9,34 +9,52 @@
     "ramses": 351
   },
   "composed_diff_hashes": {
-    "meteora": "8fa7f6122239ed2c9fb8d1ea8b70434c33726d0b54c333a7b5c6f75672c251aa",
-    "pump": "1209b894ee0851e859341f6057d5afecf7df5e57405408a5f132fbb6fdf0635d"
+    "meteora": "f2bdf7a839dc331f4d4fd39e4640aa8639e2d34d5cb27092b432ccddef3db562",
+    "pons": "d11bfe346004d8fc027d3344146e6c4962cab7485f1bcd3e68d60968c9fee143",
+    "pump": "b21d19a1c6d29ab787fcab01d6e73240154940c24694d90f1f4b9043b79c8e67",
+    "ramses": "e2751171b0dded92b37c26b81c42230b5cbf293870436938dc44628257f6fa8a"
   },
   "crash_scope": "Native journal SIGKILL, actual runner recovery/interruption, evidence writer restart, report publisher faults; not a combined six-process orchestration test",
+  "deferred_operational_gates": [
+    "live Alchemy WebSocket entitlement/capability validation",
+    "real stream-completeness behavior",
+    "live getTransactionsForAddress entitlement/response shape",
+    "actual reconnect -> gap -> repair behavior",
+    "actual stream bandwidth",
+    "actual Alchemy CU usage",
+    "actual CU/complete-decision improvement",
+    "prospective complete Pump replay parity",
+    "prospective Meteora operational reconstruction parity",
+    "real provider 429/reconnect characteristics"
+  ],
   "deployment": false,
   "economics_unchanged": true,
   "files": {
     "certification/evidence_supervisor.py": "93dfe66a30b5b837c23b05ba3d407c038f65288d48a945c5821076de5635eb31",
-    "certification/evidence_worker.py": "6e04fd5fec1ff94848a9714f49e3af626fae6f42f9758b1dbd8ed03a2547afc4",
+    "certification/evidence_worker.py": "3476132da47efad38bacaab9d37336efb28512ff2938c9fc9b44cac34207340f",
     "certification/position_continuation.py": "1edfe2f15ab5bb32b71c0f7a23440cff9996defcc773f3e974d7609f402a3489",
     "certification/run.py": "cb61647b88cd2e70fe3fa01ed47a2192f0bf457f0b6a777cc53d3aa5e76d530f",
-    "meme_machine/durable_publication.py": "e0ec89a4f3db2a4f50b6f586cd70acf602eb22e717175255798acd1e60e6fd09",
+    "certification/solana_provider_gate.py": "980e599285dba250fe6f4982b4fcfa557da43e5591557613ebebc084c93c7afe",
+    "certification/worker.py": "726250a2bea3211e49d8817d1b00bd90c60c9c9e640611136a3abdc44a790c8a",
+    "meme_machine/durable_publication.py": "189ef209a2f909c9324ec0e04961d18ae05a49fc9343a9a0f2e2a01c4a0d2685",
     "meme_machine/pump_evidence_execution.py": "15db2b6e0b432c8774cf0e21eb1df446c1978f6b35908e13cf4e7c3ba3a0e47a",
-    "meme_machine/solana_evidence_plane.py": "28dd6f61d3d5f0e2baea39b50051d56f382a9801502e2d5cd1c9dd7b328e6546",
+    "meme_machine/solana_evidence_plane.py": "c22419f0a15fc94759ec3d9744354f4d85ccba03b07288a48b776421ea7c209d",
     "meme_machine/solana_evidence_queries.py": "ec88ff836eb468fe4712c59ef19e55a8f6d7064c13ee45306f7d5c8a57061bf6",
-    "meme_machine/solana_evidence_runtime.py": "34edf5a75b56714b6a2593029c12bb13f3c3b32aa8d60882fc9fc8ca1416b63b",
-    "meme_machine/solana_evidence_service.py": "038dc68fa3f85fc2e1065330b6d92c6f4ac8e5f8d5afa6c888ca6847158a7b30",
-    "meme_machine/solana_evidence_transport.py": "b633f89aaa74cf0cea3a28d6719ff0fda4b34399a7b257e481571d04dbd1aa0b"
+    "meme_machine/solana_evidence_runtime.py": "583df2fe21b5f1e3e1457fbb838810e2102bc31c417ffabcc26d324092b196f5",
+    "meme_machine/solana_evidence_service.py": "2581a557ecce65e4a71b6e60806ca35bfbd8f7d37a60a1e102b8f5b9e24d705d",
+    "meme_machine/solana_evidence_transport.py": "262e3a178ed99482b9facb94f20d04ea4f714db32a0deabea113d32f185dced8",
+    "meme_machine/solana_provider_config.py": "f2f457b0f82d98c498151d9005e1555ae3809bb6602523c19c444f3265d7eaf4",
+    "meme_machine/solana_read_rpc.py": "b2df026e370227aa3b62f64c83c9411e464640a65586a347c4c6f50809116b5e"
   },
   "fill_pressure": "SYNTHETIC_REAL_RESERVATION_FILL_PATH_PASSED",
   "final_broad_certification": true,
-  "final_offline_run": 36171495473,
+  "final_offline_run": 36176404886,
   "hosted_real_ipc": true,
   "limitations": [
-    "All seven retained Pump windows lack authoritative bodies; full retained-window parity unavailable",
+    "Seven permanently censored legacy Pump windows are not an implementation-completion blocker",
     "Filtered-stream silence is not coverage; sparse delivery needs verified bounded repair",
     "No live entitlement, operational coverage or provider savings measurement",
-    "Immutable archive requires long-term capacity provisioning; hot capacity fails closed",
+    "Immutable archive grows; filesystem safety watermarks and hot capacity fail closed; long-term provisioning remains necessary",
     "Native journal SIGKILL, actual runner recovery/interruption, evidence writer restart, report publisher faults; not a combined six-process orchestration test"
   ],
   "market_run_launched": false,
@@ -44,32 +62,36 @@
     "meteora": "a69ec239772a86bc7526594c9822b6fc1e611b45b7e661f618099656b288d55b",
     "pump": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b"
   },
+  "offline_certification": "COMPLETE",
   "offline_export_runs": [
     36160313578,
     36160804350
   ],
+  "offline_implementation": "COMPLETE",
   "paper_only_unchanged": true,
   "policy_hashes": {
     "meteora": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
     "pump": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b"
   },
+  "previous_certified_runtime_sha": "bc36a09d0cfd1c6131525c526d427076f085165b",
   "prior_offline_pass": {
     "qualification": "superseded_by_account_lifecycle_retention_fix",
     "run": 36169790497,
     "sha": "0e0084185e8397adf1eb0ac103e58a768d4f22a7"
   },
   "production_cutover": true,
+  "prospective_operational_validation": "DEFERRED",
   "provider_ceilings_unchanged": true,
   "raw_run_parity": "RETAINED_METEORA_12_CHUNK_EXACT_INPUT_DECISION_PARITY_PASSED_PUMP_SEVEN_WINDOWS_CENSORED",
-  "standard_ci_tests": 520,
-  "status": "OFFLINE_CHECKS_PASSED_TASK_INCOMPLETE",
+  "standard_ci_tests": 528,
+  "status": "OFFLINE_IMPLEMENTATION_COMPLETE_PROSPECTIVE_VALIDATION_DEFERRED",
   "supervisor_tests": 233,
   "targeted_tests": {
     "meteora-production": 2,
     "pump-production": 6,
     "retained-position": 4,
     "retained-warmup": 1,
-    "shared": 51
+    "shared": 65
   },
-  "task_complete": false
+  "task_complete": true
 }

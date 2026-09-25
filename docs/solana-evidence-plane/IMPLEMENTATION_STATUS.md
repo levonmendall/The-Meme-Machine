@@ -1,8 +1,8 @@
 # Solana Evidence Plane — offline completion
 
 PR #109 remains draft and unmerged. The production-paper cutover was already
-certified offline; the focused authority/usage/storage cleanup is implemented and
-awaits exact-runtime-SHA final offline certification. Prospective operational
+certified offline; the authority/usage/storage cleanup is now COMPLETE and
+OFFLINE-CERTIFIED at `d51ba9f5a5cf6aa07933a42cad9ede869cb96bed`. Prospective operational
 validation is DEFERRED until a separately authorized run.
 
 The seven historical Pump windows are PERMANENTLY CENSORED LEGACY EVIDENCE,
@@ -239,7 +239,7 @@ promoted or updated. PR #109 remains draft and unmerged.
 | Meteora payload | Retained full finalized filtered blocks; smaller-payload equivalence not established |
 | Provider usage/health | Added stream bytes/messages/subscriptions, repair HTTP usage, lane usage denominators, latency/purpose counters and bounded anomaly flags |
 | Archive capacity | Added free-space health and fail-closed safety reserve; no destructive archive retention |
-| Final offline certification | Pending exact-runtime-SHA workflow; previous results above are retained separately |
+| Final offline certification | COMPLETE: workflow 36176404886 at exact runtime SHA d51ba9f5a5cf6aa07933a42cad9ede869cb96bed; previous evidence retained |
 
 ### Canonical provider contract
 
@@ -324,3 +324,33 @@ actual Alchemy CU usage and CU/complete-decision improvement; prospective comple
 Pump replay parity; prospective Meteora operational reconstruction parity; actual
 provider 429/reconnect characteristics. These are operational gates, not missing
 implementation work. No combined six-process SIGKILL orchestration test is claimed.
+
+
+## Final cleanup certification — COMPLETE
+
+Runtime SHA: `d51ba9f5a5cf6aa07933a42cad9ede869cb96bed`.
+Workflow: https://github.com/levonmendall/The-Meme-Machine/actions/runs/36176404886.
+The subsequent completion-record commit changes documentation only; its runtime
+and certification source bytes are identical to this tested revision.
+
+- 78 architecture tests, plus composed provider/topology and real Unix IPC gates.
+- 1,514 unchanged lane component tests: Pump 343, Meteora 451, Pons 369, Ramses 351.
+- 233 supervisor/accounting tests; 528 standard CI tests plus resource/synthetic checks.
+- 20 native ledger SIGKILL boundaries; four production restart gates.
+- 50 integrated protocol/qualification/lifecycle scenarios and contract/contention gates.
+- Frozen policy/source/config integrity passed; external provider socket attempts zero.
+- Final credential scan passed across 38 application artifact/log files.
+
+Artifact 10882742846: SHA-256
+`bb800d167dcc36e1424d1041fd468e8e62bc0dbaf9a20bbfe8ac0a9b45466c34`;
+retained for 90 days. Failed provenance/fixture checks and the workspace IPC
+permission failure are recorded in `offline_cleanup_focused_results.json`;
+the failed hosted artifact and logs remain preserved. Real IPC subsequently passed
+in hosted certification. An intermediate passing revision was superseded to retain
+numeric Retry-After behavior through credential sanitization; provider ceilings and
+backoff semantics are unchanged.
+
+Only the repair branch was updated. Zero market/provider-validation workflows were
+launched, queued or authorized. No Render interaction, deployment, merge, main/
+active/certification-branch promotion, portfolio initialization, signing or submission.
+All prospective operational gates listed above remain explicitly DEFERRED.
