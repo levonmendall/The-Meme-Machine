@@ -682,13 +682,13 @@
       ]
     },
     "ramses": {
-      "source_branch": "repair/ramses-economic-census-429-v1-20260923",
-      "source_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
-      "strategy_version": "ramses-active-wide-maker-v3",
-      "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+      "source_branch": "strategy/ramses-viability-v4-source-20260924",
+      "source_sha": "357bd70a8e279ce0701d2a4f083308138b83813a",
+      "strategy_version": "ramses-active-wide-maker-v4",
+      "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
       "file_hashes": {
         ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
-        "robinhood_research/ramses_strategy.py": "b5cff6dced74c5df84340d6e4abc34942d52e473943f43add26f63ccf3785673",
+        "robinhood_research/ramses_strategy.py": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
         "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json": "e83b0255937c891e55f4ad4a473368c57d69f5c02e0340686bdbdd2b4f6d74a0"
       },
       "rpc_configuration_variables": [
@@ -738,10 +738,10 @@
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
         "profitability_authority": true,
-        "target_restrictiveness": "Active Wide Maker v3",
+        "target_restrictiveness": "Active Wide Maker v4",
         "original_source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
-        "revision": "active-wide-maker-v3",
-        "purpose": "prospective natural paper validation of the Active Wide Maker v3 Ramses strategy with governed wide-range recentering and capital preservation",
+        "revision": "active-wide-maker-v4",
+        "purpose": "Prospective natural paper validation of Ramses Active Wide Maker v4 with range-local entry sizing and fail-closed positive after-cost / 2x-cost-stress entry economics.",
         "machinery_proof_only": false,
         "one_natural_settled_lifecycle_target": false,
         "prior_execution_source_sha": "b2456dbf7adcf0c15caad3311aa86b41931be524",
@@ -955,11 +955,32 @@
           "evidence_requirements_changed": false,
           "accounting_changed": false,
           "paper_only_unchanged": true
+        },
+        "active_wide_maker_v4": {
+          "source_sha": "357bd70a8e279ce0701d2a4f083308138b83813a",
+          "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
+          "revision": "range-local-entry-economics-v4",
+          "evidence_basis": [
+            "preserved prospective natural loss run 36043064083",
+            "preserved historical Ramses operator/fee-decomposition evidence",
+            "rejected Branch B development result run 35685789656"
+          ],
+          "initial_entry_requires_positive_projected_edge": true,
+          "initial_entry_requires_positive_two_x_cost_stress": true,
+          "range_local_sizing_required": true,
+          "maximum_local_liquidity_fraction_bps": 50,
+          "max_entry_cycle_cost_to_capital_bps": 10000,
+          "rebalance_v3_hysteresis_and_replacement_contract_unchanged": true,
+          "bounded_cost_route_gate_unchanged": true,
+          "complete_unwind_required": true,
+          "branch_b_public_mint_strategy_resurrected": false,
+          "strategy_economics_changed": true,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
         "market_observation_scope": "Recently active Ramses USDG pools with one or two prior 30-minute swaps, as frozen in sources.json; existing positions retain their lifecycle scope.",
-        "investment_evaluation_scope": "recently-active quiet USDG pools with 1-2 observed prior 30-minute swaps, >=65-bin two-sided initial ranges, complete authenticated cost/unwind evidence and governed local-liquidity sizing; zero-swap pools remain broadly observable but are not hydrated without a finalized activity trigger; rebalances use the v3 displacement/overlap/capital-preservation state machine",
+        "investment_evaluation_scope": "Recently-active quiet USDG pools with 1-2 observed prior 30-minute swaps, >=65-bin two-sided candidate ranges sized from authenticated range-local liquidity, complete authenticated cost/unwind evidence, positive modeled initial after-cost return, positive 2x-cost-stress return, and execution-cycle cost no greater than position capital; rebalances retain the v3 displacement/overlap/capital-preservation state machine.",
         "factory_enumeration_is_inventory_not_investment_evaluation": true,
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
@@ -987,7 +1008,7 @@
     "revision": "current-four-lane-profit-protection-v2",
     "purpose": "Compose the current Pump/Pons profit-protection revisions with Meteora enforced core-hold profitability v2 and Ramses Active Wide Maker v3 authority/timing lock while preserving current operational overlays and paper-only controls.",
     "profitability_authority": true,
-    "target_strategy_restrictiveness": "Pump/Pons profitability-v1 profit-protection-v2; Meteora authenticated fee-density core-hold-v2; Ramses Active Wide Maker v3",
+    "target_strategy_restrictiveness": "Pump/Pons profitability-v1 profit-protection-v2; Meteora authenticated fee-density core-hold-v2; Ramses Active Wide Maker v4",
     "validation_status": "PROFIT_PROTECTION_V2_EXACT_HASHES_PINNED_FINAL_CERTIFICATION_REQUESTED",
     "validation_run_requested": true,
     "latest_qualification": {
@@ -1010,7 +1031,7 @@
       "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
       "pons": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
-      "ramses": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2"
+      "ramses": "357bd70a8e279ce0701d2a4f083308138b83813a"
     },
     "source_verification": {
       "meteora": {
@@ -1166,6 +1187,16 @@
       "retry_budget_changed": false,
       "provider_topology_changed": false,
       "paper_only_unchanged": true
+    },
+    "ramses_viability_v4_candidate": {
+      "branch": "strategy/ramses-viability-v4-20260924",
+      "source_branch": "strategy/ramses-viability-v4-source-20260924",
+      "source_sha": "357bd70a8e279ce0701d2a4f083308138b83813a",
+      "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
+      "prior_runtime_sha": "6cc6d90c8aeac70ceec08d8fc43bfab73da3ece4",
+      "evidence_only_replay": true,
+      "market_run_launched": false,
+      "source_diff_sha256_pending": true
     }
   },
   "composition": {
