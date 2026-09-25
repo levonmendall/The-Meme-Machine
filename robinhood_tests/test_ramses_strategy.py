@@ -68,6 +68,13 @@ class RamsesStrategyTests(unittest.TestCase):
     def _costs(value=1):
         return {"entry":value,"add":value,"remove":value,"unwind":value}
 
+    def _quiet_profitable_history(self):
+        rows=self._history(2)
+        active=1 << 23
+        for row in rows:
+            row["args"]["id"]=active
+        return rows
+
     def _decision(
         self, *, history=None, rebalance_reference_capital=None,
         rebalance_reference_bins=None, rebalance_mode=None,
@@ -75,7 +82,7 @@ class RamsesStrategyTests(unittest.TestCase):
     ):
         return classify_pool(
             self._state(),
-            self._history(2) if history is None else history,
+            self._quiet_profitable_history() if history is None else history,
             "y",
             requested_capital=10**16,
             entry_timestamp=1000,
@@ -148,12 +155,12 @@ class RamsesStrategyTests(unittest.TestCase):
 
     def test_v4_range_local_ceiling_exceeds_active_bin_only_ceiling(self):
         state=self._state()
-        features=pool_features(state,self._history(2),"y")
+        features=pool_features(state,self._quiet_profitable_history(),"y")
         active_only=recommended_capital(features,10**30)
         range_local=wide_range_capital_ceiling(state,"y")
         self.assertGreater(range_local,active_only)
         decision=classify_pool(
-            state,self._history(2),"y",requested_capital=range_local,
+            state,self._quiet_profitable_history(),"y",requested_capital=range_local,
             entry_timestamp=1000,now=1000,gas_costs=self._costs(),
             quote_token=USDG_ADDRESS,
         )
@@ -256,7 +263,7 @@ class RamsesStrategyTests(unittest.TestCase):
             confidence_bps=9000,expected_net_bps=100,direction="up",
         )
         decision=classify_pool(
-            self._state(),self._history(2),"y",requested_capital=10**16,
+            self._state(),self._quiet_profitable_history(),"y",requested_capital=10**16,
             entry_timestamp=1000,now=1000,gas_costs=self._costs(),
             quote_token=USDG_ADDRESS,anchor_signal=signal,
         )
