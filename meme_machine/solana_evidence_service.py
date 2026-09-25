@@ -36,8 +36,10 @@ class FinalizedFence:
         writer.db.executescript(SERVICE_SCHEMA)
 
     def disconnect(self,reason='stream_disconnect'):
-        for scope,slot in self.writer.db.execute('SELECT scope,slot FROM cursors').fetchall():
-            self.writer.gap(scope,slot+1,None,reason)
+        bounds=dict(self.writer.db.execute('SELECT scope,slot+1 FROM cursors'))
+        for scope,slot in self.writer.db.execute('SELECT scope,MIN(slot) FROM stream_receipts WHERE sealed=0 GROUP BY scope'):
+            bounds[scope]=min(bounds.get(scope,slot),slot)
+        for scope,slot in bounds.items():self.writer.gap(scope,slot,None,reason)
         self.session=uuid.uuid4().hex
 
     def _delivery(self,scope,slot,signature,payload,seen):
@@ -219,6 +221,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     import os
     from pathlib import Path
     from websockets.asyncio.client import connect
+    from websockets.exceptions import ConnectionClosed
     from .solana_evidence_plane import EvidenceWriter
     from .solana_evidence_transport import alchemy_stream_endpoint,Subscription,AddressGapRepair
     url=alchemy_stream_endpoint(endpoint);writer=EvidenceWriter(path)
@@ -238,7 +241,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
         while not stop.is_set():
             try:
                 async with connect(url,max_size=16*1024*1024,max_queue=32,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
-                    pending={};active={};registered=set();number=0
+                    pending={};active={};registered=set();retiring=set();number=0
                     async def register(sub):
                         nonlocal number
                         number+=1;pending[number]=sub;await ws.send(canonical(sub.request(number)))
@@ -247,12 +250,20 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         # Durable interests survive consumer/service restarts. Account
                         # observations remain content only, never interval authority.
                         interests=writer.db.execute("SELECT DISTINCT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 ORDER BY i.priority LIMIT 256").fetchall()
+                        wanted={r[0] for r in interests}
+                        for sid,sub in list(active.items()):
+                            if sub.evidence_class=='account' and sub.address not in wanted:
+                                number+=1;retiring.add(number)
+                                await ws.send(canonical(dict(jsonrpc='2.0',id=number,method='accountUnsubscribe',params=[sid])))
+                                del active[sid];registered.discard(sub.address)
                         for address, in interests:
                             if address not in registered:
                                 await register(Subscription('service','account:'+address,address,'account',0));registered.add(address)
                         try:raw=await asyncio.wait_for(ws.recv(),.5)
                         except TimeoutError:continue
                         message=json.loads(raw);seen=time.time()
+                        if message.get('id') in retiring:
+                            retiring.remove(message['id']);continue
                         if 'id' in message:
                             sub=pending.pop(message['id'])
                             if 'error' in message or type(message.get('result')) is not int:
@@ -264,7 +275,10 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         elif sub.evidence_class=='account':
                             writer.ingest(FinalizedNotificationDecoder(endpoint_identity=fence.endpoint_identity).decode(sub,message,seen))
                         else:fence.block(sub,message,seen)
-            except (OSError,ValueError,KeyError,TypeError,TimeoutError) as exc:
+            except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
+                if isinstance(exc,EvidenceConflict):
+                    with writer.transaction():writer.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
+                    raise
                 fence.disconnect(type(exc).__name__)
                 with writer.transaction():writer._count('stream_reconnects')
                 try:await asyncio.wait_for(stop.wait(),1)
@@ -274,7 +288,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     async def repair_worker():
         while not stop.is_set():
             if repair_rpc is not None:
-                gap=writer.db.execute('SELECT id,scope,lo,hi,repair_cursor,pages FROM gaps WHERE repaired IS NULL AND hi IS NOT NULL AND pages<16 ORDER BY created LIMIT 1').fetchone()
+                gap=writer.db.execute('SELECT id,scope,lo,hi,repair_cursor,pages FROM gaps WHERE repaired IS NULL AND hi IS NOT NULL AND pages<16 AND attempts<48 ORDER BY created LIMIT 1').fetchone()
                 if gap:
                     gid,scope,lo,hi,cursor,pages=gap
                     subscriptions={s.scope:s for s in program_subscriptions()}
@@ -284,6 +298,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         cfg=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,filters={'slot':{'gte':lo,'lte':hi}})
                         if state.get('next'):cfg['paginationToken']=state['next']
                         try:
+                            with writer.transaction():
+                                writer.db.execute('UPDATE gaps SET attempts=attempts+1 WHERE id=?',(gid,))
+                                writer._count('gap_repair_calls')
                             value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[sub.address,cfg],False)
                             # Apply through the same bounded durable repair boundary.
                             class ReceiptRPC:

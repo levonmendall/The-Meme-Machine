@@ -22,8 +22,8 @@ class RuntimeEvidence:
         self.owner=owner;self.clock=clock;self._command=command
         self.counts={}
     def command(self,**request):
-        if self._command:return self._command(request)
         request.setdefault('owner',self.owner)
+        if self._command:return self._command(request)
         data=(canonical(request)+'\n').encode()
         if len(data)>32768:raise EvidenceUnavailable('evidence_interest_command_bound')
         with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as stream:
@@ -88,8 +88,13 @@ class LocalPumpHistory:
         self.rows=self.plane.pump_events(SWAP_SCOPE,self.pool,at-30,at,upper_slot=upper)
         self._window_complete=True
         if research:
-            self.rows=self.plane.pump_events(SWAP_SCOPE,self.pool,self.graduation_time,at,upper_slot=upper)
-            self._history_complete=True
+            try:
+                self.rows=self.plane.pump_events(SWAP_SCOPE,self.pool,self.graduation_time,at,upper_slot=upper)
+                self._history_complete=True
+            except EvidenceUnavailable:
+                # Momentum can use its covered window; the independent second-leg
+                # path still requires complete graduation history and fails closed.
+                self._history_complete=False
         return list(self.rows)
     def decision_rows(self,now,seconds=30):
         if not self._window_complete:raise EvidenceUnavailable('unresolved_evidence_gap')
@@ -133,3 +138,14 @@ class LocalPumpTape:
             return self.plane.reader.covered(PUMP_SCOPE,lo,hi,as_of=self.plane.clock())
         except EvidenceUnavailable:return False
     def status(self,now=None):return self.plane.telemetry()
+
+class LocalInterestRegistry:
+    def __init__(self,plane):self.plane=plane
+    def add_address(self,address):
+        try:lower=max(0,self.plane.frontier(SWAP_SCOPE)-1)
+        except EvidenceUnavailable:lower=0
+        self.plane.interest(SWAP_SCOPE,lower_slot=lower,addresses=[address],owner='pump:pool:'+address)
+        return SWAP_SCOPE
+    def remove_address(self,address):
+        return self.plane.command(op='release',owner='pump:pool:'+address,scope=SWAP_SCOPE,resolved=False)
+    def status(self):return self.plane.telemetry()

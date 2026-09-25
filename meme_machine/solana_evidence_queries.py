@@ -62,12 +62,18 @@ class MeteoraEvidenceView:
         signatures=[];transactions={};witnesses=[]
         for row in rows:
             tx=row['payload'];index=row['transaction_index']
-            if (type(index) is not int or tx.get('slot')!=row['slot']
+            order=None
+            if index is None:
+                receipt=self.reader.db.execute('SELECT rank,blockhash FROM stream_order WHERE scope=? AND slot=? AND signature=?',
+                    (self.scope,row['slot'],row['signature'])).fetchone()
+                if receipt is not None:order=dict(kind='filtered_finalized_block',rank=receipt[0],blockhash=receipt[1],scope=self.scope)
+            if ((type(index) is not int and order is None) or tx.get('slot')!=row['slot']
                     or (tx.get('transaction') or {}).get('signatures',[None])[0]!=row['signature']):
                 raise EvidenceUnavailable('dlmm_local_transaction_identity_or_order')
             signature=dict(signature=row['signature'],slot=row['slot'],
                 transactionIndex=index,blockTime=row['market_time'],
                 err=(tx.get('meta') or {}).get('err'),confirmationStatus='finalized')
+            if order is not None:signature['transactionOrder']=order
             if row['slot']<=start_slot:
                 witnesses.append(signature)
             else:
@@ -75,8 +81,9 @@ class MeteoraEvidenceView:
                 transactions[row['signature']]=tx
         if not witnesses:
             raise EvidenceUnavailable('dlmm_signature_census_missing_start_boundary')
-        signatures.append(max(witnesses,key=lambda row:(row['slot'],row['transactionIndex'])))
-        signatures.sort(key=lambda row:(row['slot'],row['transactionIndex']),reverse=True)
+        key=lambda row:(row['slot'],row['transactionIndex'] if row['transactionIndex'] is not None else row['transactionOrder']['rank'])
+        signatures.append(max(witnesses,key=key))
+        signatures.sort(key=key,reverse=True)
         self.local_intervals+=1
         return signatures,transactions,dict(source='local_finalized_evidence_plane',
             historical_provider_calls=0,relevant_successful=sum(not s['err'] and s['slot']>start_slot for s in signatures))

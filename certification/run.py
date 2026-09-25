@@ -540,7 +540,9 @@ def lane_environment(lane,source,run,run_id=None,phase=None):
                MM_CERT_GOVERNOR_DB=str(run/'shared-provider.sqlite'),
                MM_CERTIFICATION_RUN_ID=run_id or run.name,MM_CERTIFICATION_LANE=lane,
                MM_CERTIFICATION_PHASE=str(phase or 'unknown'))
-    if lane in ('pump','meteora'):env['MM_SOLANA_EVIDENCE_BROKER_DB']=str(run/'shared-solana-evidence.sqlite')
+    if lane in ('pump','meteora'):
+        env['MM_SOLANA_EVIDENCE_BROKER_DB']=str(run/'shared-solana-evidence.sqlite')
+        env['MM_SOLANA_EVIDENCE_PLANE_DB']=str(run/'solana-evidence-plane.sqlite')
     else:env.update(MM_CERTIFICATION_PROVIDER_DB=str(run/'shared-robinhood-admission.sqlite'),MM_CERTIFICATION_LANE=lane,
                     MM_CERTIFICATION_RPC_CACHE_DB=str(run/'shared-robinhood-evidence.sqlite'),
                     MM_CERTIFICATION_RPC_CAPABILITIES=str(run/'rpc-capabilities.json'))
@@ -683,7 +685,10 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     last_console=0;last_sample=0;max_broker_active=0;broker_terminal=None;supervisor_error=None
     lane_roots=[str((Path(worktrees)/lane).resolve()) for lane in LANES]
     if len(set(lane_roots))!=len(LANES):raise ValueError('lane_state_roots_not_isolated')
+    from certification.evidence_supervisor import EvidenceProcess
+    evidence=EvidenceProcess(run,Path(worktrees)/'pump',lane_environment('pump',spec['lanes']['pump'],run,run_id,phase))
     try:
+        evidence.start()
         for lane,row in spec['lanes'].items():
             folder=run/lane;folder.mkdir()
             out=(folder/'process.log').open('wb');files[lane]=out
@@ -698,6 +703,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         common_start=max(start for _proc,start in processes.values())
         hard_deadline=common_start+seconds+3300
         while True:
+            evidence_health=evidence.check()
             now=time.monotonic();alive=False
             for lane,(proc,launched) in processes.items():
                 row=rows[lane];code=proc.poll();path=run/lane/'status.json';status={}
@@ -785,6 +791,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         raise
     finally:
         interrupted=finish_lanes(processes,files,rows,terminal_times,journal,run,worktrees) or interrupted
+        evidence.close()
         broker_terminal=record_unfinished_broker_jobs(run/'shared-solana-evidence.sqlite',journal,time.time())
         try:source_unchanged=source_integrity(worktrees)==gate['source_diff_hashes']
         except (ValueError,OSError,subprocess.CalledProcessError):source_unchanged=False

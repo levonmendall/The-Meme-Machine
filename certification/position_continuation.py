@@ -171,7 +171,7 @@ def restore_meteora_strategy(book,module):
         ('volume_rate_sol_lamports_per_second','fee_density')}
     collapse_streaks={'volume_collapse':0,'fee_density_collapse':0}
     segment_seconds=int(policy['exit']['observation_segment_seconds'])
-    last_lineage=None;restored_exit=None
+    last_lineage=None;restored_exit=None;tapes=[]
     for event in events:
         if event.get('identity')!=identity or event.get('action')!='mark':continue
         if restored_exit is not None:
@@ -179,7 +179,7 @@ def restore_meteora_strategy(book,module):
         t=event['data']['tape']
         tape=VerifiedTape(t['start_hash'],t['end_hash'],tuple(t['events']),
                           t['terminal'],t['lineage'],tuple(t.get('terminal_adjustments',())))
-        position=module._advance_position(position,tape)
+        position=module._advance_position(position,tape);tapes.append(tape)
         saved=event['data'].get('strategy_progress')
         effective_start=(saved or {}).get('effective_start') or current
         if saved and saved.get('effective_start_hash') not in (None,module.digest(effective_start)):
@@ -203,7 +203,7 @@ def restore_meteora_strategy(book,module):
         raise RuntimeError('meteora_restored_entry_position_mismatch')
     return dict(identity=identity,entry=entry,policy=policy,features=features,
         position=position,current=current,elapsed=elapsed,entry_flow=entry_flow,
-        collapse_streaks=collapse_streaks,last_lineage=last_lineage,restored_exit=restored_exit)
+        collapse_streaks=collapse_streaks,last_lineage=last_lineage,restored_exit=restored_exit,tapes=tapes)
 
 
 def resume_meteora(state_dir,*,slice_seconds):
