@@ -9,7 +9,7 @@ import tempfile
 import sys
 
 ROOT=Path(__file__).resolve().parents[1]
-SOURCE_SHA="96925831561e9c60108fc8a52113e921ad08838d"
+SOURCE_SHA="3c9553afb3caa92ab5f3db769f870df033a9630f"
 SOURCE_BRANCH="strategy/pump-counterfactual-replay-v1-20260924"
 POLICY_HASH="825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b"
 STRATEGY_VERSION="pump-acceleration-independent-v1/profitability-v1-profit-protection-v2-counterfactual-replay-v1"
