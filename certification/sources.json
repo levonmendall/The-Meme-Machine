@@ -219,7 +219,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "d6541d023f8419a8711d53ef2edfe78db13717485011b1cfb5edb1e8e58461b8",
+      "source_diff_sha256": "1ff55bf86ddd11cf82458774957ed0637a61f1bc46e2b87b5e0ccbdc60c99efb",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
