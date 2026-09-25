@@ -113,6 +113,7 @@ jobs:
       - name: Short production-adapter connectivity probes without paper entries
         timeout-minutes: 3
         env:
+          PYTHONPATH: ${{ github.workspace }}
           MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
           MM_ROBINHOOD_DISCOVERY_RPC_URL: ${{ secrets.MM_ROBINHOOD_DISCOVERY_RPC_URL }}
