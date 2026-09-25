@@ -1,4 +1,4 @@
-"""Ramses Active Wide Maker v1 / rebalance-v3 paper strategy.
+"""Ramses Active Wide Maker v1 / rebalance-v4 paper strategy.
 
 The active strategy is the operator-derived USDG, quiet-entry, wide two-sided
 maker policy.  Legacy Fee Pulse helpers remain only as deterministic compatibility
@@ -27,14 +27,14 @@ from .ramses import (
     unpack,
 )
 
-STRATEGY_VERSION = "ramses-active-wide-maker-v1/rebalance-v3"
+STRATEGY_VERSION = "ramses-active-wide-maker-v1/rebalance-v4"
 STRATEGY_DOMAIN = "robinhood-ramses-dlmm-independent"
 ACTIVE_MODE = "active_wide_maker"
 USDG_ADDRESS = "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
 
 POLICY = {
     "strategy_version": STRATEGY_VERSION,
-    "policy_revision": "profitability-v1-active-wide-maker-v3",
+    "policy_revision": "profitability-v2-active-wide-maker-v4",
     "policy_purpose": "prospective_natural_paper_validation_of_operator_derived_active_wide_maker",
     "machinery_proof_only": False,
     "profitability_authority": True,
@@ -52,7 +52,7 @@ POLICY = {
         "recenter_overlap_max": 0.10,
         "rebalance_requires_positive_after_cost_edge": True,
         "rebalance_requires_positive_two_x_cost_stress": True,
-        "initial_entry_requires_positive_projected_edge": False,
+        "initial_entry_requires_positive_projected_edge": True,\n        "initial_entry_requires_positive_two_x_cost_stress": True,\n        "range_local_sizing_required": True,\n        "max_entry_cycle_cost_to_capital_bps": 10000,
     },
     # Legacy helpers are retained for historical replay only.  classify_pool
     # never authorizes these modes under the active policy.
@@ -576,6 +576,36 @@ def _wide_range_ids(active, width):
     return list(range(int(active)-left,int(active)+right+1))
 
 
+def range_local_liquidity_quote(prestate, quote_side, ids):
+    """Quote value of authenticated liquidity across the exact proposed range."""
+    if quote_side not in ("x", "y"):
+        raise BoundaryError("invalid_quote_side")
+    step=int(prestate["step"])
+    total=0
+    for bid in ids:
+        row=prestate.get("bins",{}).get(int(bid))
+        if row is None:
+            raise BoundaryError("missing_strategy_range_prestate")
+        total += quote_value(row["reserves"], price(int(bid),step), quote_side)
+    return total
+
+
+def wide_range_capital_ceiling(prestate, quote_side):
+    """Largest v4 governed 50-bps ceiling among fully hydrated wide candidates."""
+    active=int(prestate["active"])
+    caps=[]
+    for width in POLICY["active_wide_maker"]["width_candidates"]:
+        ids=_wide_range_ids(active,width)
+        if any(b not in prestate.get("bins",{}) for b in ids):
+            continue
+        local=range_local_liquidity_quote(prestate,quote_side,ids)
+        caps.append(
+            local * POLICY["active_wide_maker"]["max_position_local_liquidity_bps"]
+            // 10000
+        )
+    return max(caps) if caps else 0
+
+
 def _active_wide_freezes(
     prestate, capital, quote_side, *, entry_timestamp, prehistory, gas_costs,
     rebalance_reference_capital=None,
@@ -588,9 +618,18 @@ def _active_wide_freezes(
         ids=_wide_range_ids(active,width)
         if any(b not in prestate.get("bins",{}) for b in ids):
             continue
-        budget_map=_distribute(capital,ids,[1]*len(ids))
+        local_liquidity=range_local_liquidity_quote(prestate,quote_side,ids)
+        candidate_capital=min(
+            int(capital),
+            local_liquidity
+            * POLICY["active_wide_maker"]["max_position_local_liquidity_bps"]
+            // 10000,
+        )
+        if candidate_capital <= 0:
+            continue
+        budget_map=_distribute(candidate_capital,ids,[1]*len(ids))
         freeze=_freeze(
-            prestate,capital,quote_side,ids,budget_map,
+            prestate,candidate_capital,quote_side,ids,budget_map,
             name="active_wide_"+str(width),
             mode="active_wide_maker",
             entry_timestamp=entry_timestamp,
@@ -603,7 +642,7 @@ def _active_wide_freezes(
         reference=(
             int(rebalance_reference_capital)
             if rebalance_reference_capital is not None
-            else int(capital)
+            else int(candidate_capital)
         )
         preservation_bps=employed*10000//max(1,reference)
         before=proposal.get("projected_before_costs")
@@ -628,6 +667,14 @@ def _active_wide_freezes(
         proposal["overlap_fraction"]=overlap_fraction
         proposal["two_x_cost_stress_result"]=two_x
         proposal["two_x_cost_return_bps"]=two_x_bps
+        proposal["range_local_liquidity_quote"]=local_liquidity
+        proposal["range_local_position_bps"]=(
+            employed*10000//max(1,local_liquidity)
+        )
+        proposal["cycle_cost_to_capital_bps"]=(
+            int(costs)*10000//max(1,employed)
+            if costs is not None else None
+        )
         freeze["proposal_hash"]=hashlib.sha256(
             json.dumps(
                 freeze["proposals"],sort_keys=True,separators=(",",":")
@@ -647,6 +694,25 @@ def _active_wide_candidate_ok(freeze, *, rebalance, rebalance_mode=None):
     preservation=int(proposal.get("capital_preservation_bps") or 0)
     if not p["capital_preservation_min_bps"] <= preservation <= p["capital_preservation_max_bps"]:
         return False
+    if not rebalance:
+        if p["initial_entry_requires_positive_projected_edge"]:
+            if (
+                not isinstance(proposal.get("projected_after_cost_result"),int)
+                or proposal["projected_after_cost_result"] <= 0
+            ):
+                return False
+        if p["initial_entry_requires_positive_two_x_cost_stress"]:
+            if (
+                not isinstance(proposal.get("two_x_cost_stress_result"),int)
+                or proposal["two_x_cost_stress_result"] <= 0
+            ):
+                return False
+        burden=proposal.get("cycle_cost_to_capital_bps")
+        if (
+            not isinstance(burden,int)
+            or burden > p["max_entry_cycle_cost_to_capital_bps"]
+        ):
+            return False
     if rebalance:
         overlap=proposal.get("overlap_fraction")
         if rebalance_mode=="compound_resize":
@@ -688,7 +754,7 @@ def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
     rebalance=rebalance_reference_capital is not None
     if not rebalance and features["prior_30m_swap_count"] > POLICY["active_wide_maker"]["prior_30m_swaps_max"]:
         reasons.append("prior_30m_not_quiet")
-    capital=recommended_capital(features,requested_capital)
+    if type(requested_capital) is not int or requested_capital <= 0:\n        raise BoundaryError("invalid_strategy_capital")\n    capital=int(requested_capital)
     if capital<=0:
         reasons.append("position_cap_zero")
     if gas_costs is None:
