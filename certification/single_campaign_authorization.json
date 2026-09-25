@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "v10-provider-pressure-20260924-one-market-v1",
+  "authorization_id": "v12-pump-ramses-20260924-one-market-v1",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -16,12 +16,12 @@
   "prior_run_observation": {
     "run_id": 36077647211,
     "status": "completed_success",
-    "source": "Certified smoke-tail campaign completed successfully with smoke, artifact review, one-hour market collection, hourly artifact review, and terminal control. All lanes finished flat/reconciled; Pump recorded one natural profitable settlement. No successor, retry, replacement, or continuation was authorized."
+    "source": "Previous owner-authorized one-shot smoke-to-hourly paper campaign completed. This new authorization is for the newly certified v12 composition with replay-supported Pump policy and Ramses Active Wide Maker v4."
   },
   "prior_launch_attempt": {
     "run_id": 36077647211,
     "outcome": "completed_success",
     "provider_or_market_work_started": true,
-    "reason": "Prior one-shot campaign completed and its authorization is consumed. This is a new explicit owner authorization after certified Pons public eth_getLogs, Pump Solana method-pressure, and Meteora post-run evidence review repairs."
+    "reason": "Previous one-shot authority is consumed. Owner explicitly authorized exactly one new market run after the v12 repairs and Ramses v4 implementation successfully certify."
   }
 }
