@@ -1,4 +1,4 @@
-name: inspect-postrun-pressure-context
+name: derive-pons-429-repair
 on:
   push:
     branches: [repair/v10-postrun-provider-pressure-20260924]
@@ -7,10 +7,10 @@ permissions:
   contents: read
 
 jobs:
-  inspect:
-    if: contains(github.event.head_commit.message, '[inspect-pons-429-context]')
+  derive:
+    if: contains(github.event.head_commit.message, '[derive-pons-429]')
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -20,15 +20,20 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/pons-429-context"
-      - name: Exact Pons 429 anchors
+      - name: Prepare exact repaired runtime trees
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/pons-429-repair"
+      - name: Focused Pons provider regressions
+        working-directory: ${{ runner.temp }}/pons-429-repair/pons
         run: |
-          p="$RUNNER_TEMP/pons-429-context/pons"
-          echo '=== provider 1-125 ==='
-          sed -n '1,125p' "$p/robinhood_research/provider.py"
-          echo '=== topology 125-190 ==='
-          sed -n '125,190p' "$p/robinhood_research/provider_topology.py"
-          echo '=== topology 360-480 ==='
-          sed -n '360,480p' "$p/robinhood_research/provider_topology.py"
-          echo '=== topology tests ==='
-          grep -R -n 'ObservationFallbackRpc\|ProviderPacer' "$p/robinhood_tests" || true
+          python -m unittest -v \
+            robinhood_tests.test_public_log_429_adaptive \
+            robinhood_tests.test_provider_topology \
+            robinhood_tests.test_discovery_capacity
+      - name: Derive exact Pons source diff identity
+        working-directory: ${{ runner.temp }}/pons-429-repair/pons
+        run: |
+          set -euo pipefail
+          git diff --binary --full-index --no-ext-diff --no-textconv --no-renames HEAD > /tmp/pons.diff
+          printf 'PONS_SOURCE_DIFF_SHA256='
+          sha256sum /tmp/pons.diff | awk '{print $1}'
+          git diff --check HEAD
