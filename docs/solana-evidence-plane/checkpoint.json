@@ -2,8 +2,8 @@
   "base_sha": "b1504b962a719c2b7e1032100eaea74402f63d0d",
   "cached_raw_export_sha256": "b7f25be0857bee238831dd6624ace391af86f42e757b9233dd4f04aea81fc2bb",
   "composed_diff_hashes": {
-    "meteora": "513703bc702d403440daaad941e20f5245bb895dd5de0a7fcc1c171df15f6f3a",
-    "pump": "1de848c6850a15d06b24cb097e4539bf0e3cb33cbf668fbcbf7e51608b7d7cff"
+    "meteora": "8fa7f6122239ed2c9fb8d1ea8b70434c33726d0b54c333a7b5c6f75672c251aa",
+    "pump": "1209b894ee0851e859341f6057d5afecf7df5e57405408a5f132fbb6fdf0635d"
   },
   "deployment": false,
   "economics_unchanged": true,
@@ -16,7 +16,7 @@
     "meme_machine/solana_evidence_plane.py": "28dd6f61d3d5f0e2baea39b50051d56f382a9801502e2d5cd1c9dd7b328e6546",
     "meme_machine/solana_evidence_queries.py": "ec88ff836eb468fe4712c59ef19e55a8f6d7064c13ee45306f7d5c8a57061bf6",
     "meme_machine/solana_evidence_runtime.py": "34edf5a75b56714b6a2593029c12bb13f3c3b32aa8d60882fc9fc8ca1416b63b",
-    "meme_machine/solana_evidence_service.py": "d4193c084b1dd49c85912d1d97f63d9a4c5ccd091d185aba9f9559352e427ace",
+    "meme_machine/solana_evidence_service.py": "038dc68fa3f85fc2e1065330b6d92c6f4ac8e5f8d5afa6c888ca6847158a7b30",
     "meme_machine/solana_evidence_transport.py": "b633f89aaa74cf0cea3a28d6719ff0fda4b34399a7b257e481571d04dbd1aa0b"
   },
   "fill_pressure": "SYNTHETIC_REAL_RESERVATION_FILL_PATH_PASSED",

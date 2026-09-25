@@ -52,7 +52,14 @@ class FinalizedFence:
                 writer.db.execute('INSERT OR IGNORE INTO counters VALUES(?,0)',(key,))
 
     def disconnect(self,reason='stream_disconnect'):
-        bounds=dict(self.writer.db.execute('SELECT scope,slot+1 FROM cursors'))
+        # Account notifications are content observations, never interval sources.
+        # Creating unrepairable interval gaps for them would pin expired account
+        # history forever. Program fences still fail closed across this restart;
+        # execution accounts require the independently bounded current refresh.
+        bounds=dict(self.writer.db.execute("SELECT scope,slot+1 FROM cursors WHERE scope NOT LIKE 'account:%'"))
+        with self.writer.transaction():
+            self.writer.db.execute('INSERT OR REPLACE INTO service_health VALUES(?,?)',
+                ('account_stream_discontinuity',canonical(dict(reason=reason,seen=self.writer.clock()))))
         for scope,slot in self.writer.db.execute('SELECT scope,MIN(slot) FROM stream_receipts WHERE sealed=0 GROUP BY scope'):
             bounds[scope]=min(bounds.get(scope,slot),slot)
         for scope,slot in bounds.items():self.writer.gap(scope,slot,None,reason)

@@ -1089,10 +1089,10 @@ index 0000000000000000000000000000000000000000..322aa445020795b6d263ea9e36b932ac
 +    def status(self):return self.plane.telemetry()
 diff --git a/meme_machine/solana_evidence_service.py b/meme_machine/solana_evidence_service.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..a09747109be6f8e75f79104267952ba0d2b0662a
+index 0000000000000000000000000000000000000000..b49811ab098d52085f830475b7b8b683e501ecf0
 --- /dev/null
 +++ b/meme_machine/solana_evidence_service.py
-@@ -0,0 +1,361 @@
+@@ -0,0 +1,368 @@
 +"""Finalized filtered-block fences over the existing single-writer evidence store.
 +
 +Only this source adapter can seal coverage. Consumers send lifecycle interests and
@@ -1147,7 +1147,14 @@ index 0000000000000000000000000000000000000000..a09747109be6f8e75f79104267952ba0
 +                writer.db.execute('INSERT OR IGNORE INTO counters VALUES(?,0)',(key,))
 +
 +    def disconnect(self,reason='stream_disconnect'):
-+        bounds=dict(self.writer.db.execute('SELECT scope,slot+1 FROM cursors'))
++        # Account notifications are content observations, never interval sources.
++        # Creating unrepairable interval gaps for them would pin expired account
++        # history forever. Program fences still fail closed across this restart;
++        # execution accounts require the independently bounded current refresh.
++        bounds=dict(self.writer.db.execute("SELECT scope,slot+1 FROM cursors WHERE scope NOT LIKE 'account:%'"))
++        with self.writer.transaction():
++            self.writer.db.execute('INSERT OR REPLACE INTO service_health VALUES(?,?)',
++                ('account_stream_discontinuity',canonical(dict(reason=reason,seen=self.writer.clock()))))
 +        for scope,slot in self.writer.db.execute('SELECT scope,MIN(slot) FROM stream_receipts WHERE sealed=0 GROUP BY scope'):
 +            bounds[scope]=min(bounds.get(scope,slot),slot)
 +        for scope,slot in bounds.items():self.writer.gap(scope,slot,None,reason)
