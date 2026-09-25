@@ -141,6 +141,10 @@ CREATE TABLE IF NOT EXISTS interests(
  updated REAL NOT NULL,PRIMARY KEY(owner,scope));
 CREATE TABLE IF NOT EXISTS consumers(
  owner TEXT PRIMARY KEY,scope TEXT NOT NULL,slot INTEGER NOT NULL,updated REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS service_interests(
+ owner TEXT NOT NULL,scope TEXT NOT NULL,address TEXT NOT NULL,evidence_class TEXT NOT NULL,
+ PRIMARY KEY(owner,scope,address));
+CREATE INDEX IF NOT EXISTS service_interest_address ON service_interests(address,owner,scope);
 CREATE TABLE IF NOT EXISTS conflicts(
  id INTEGER PRIMARY KEY,identity TEXT NOT NULL,prior TEXT NOT NULL,
  incoming TEXT NOT NULL,observed REAL NOT NULL);
@@ -345,6 +349,9 @@ class EvidenceWriter:
           WHERE r.body IS NOT NULL AND COALESCE(r.market_time,r.first_seen) < ?
           AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.active=1
              AND i.scope=r.scope AND r.slot>=i.lower_slot)
+          AND NOT EXISTS(SELECT 1 FROM service_interests s JOIN interests i
+             ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1
+             AND r.kind='account' AND s.address=substr(r.scope,9))
           AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
               AND r.slot>=g.lo)
           ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records)).fetchall()
@@ -372,10 +379,19 @@ class EvidenceWriter:
                 # Recheck pins before dropping even a single hot payload.
                 body=row['body'];scope=body['scope'];slot=body['slot']
                 pinned=self.db.execute('SELECT 1 FROM interests WHERE scope=? AND active=1 AND lower_slot<=? UNION ALL SELECT 1 FROM gaps WHERE scope=? AND repaired IS NULL AND lo<=? LIMIT 1',(scope,slot,scope,slot)).fetchone()
+                pinned=pinned or self._account_pinned(scope)
                 if not pinned:
                     archived+=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
             self._count('archived_records',archived)
         return archived
+
+    def _account_pinned(self,scope):
+        if not scope.startswith('account:'):return False
+        # An unchanged account observation may predate the reservation. Preserve
+        # it and its history until every referencing lifecycle releases its pin.
+        return self.db.execute('''SELECT 1 FROM service_interests s JOIN interests i
+            ON s.owner=i.owner AND s.scope=i.scope
+            WHERE s.address=? AND i.active=1 LIMIT 1''',(scope[8:],)).fetchone() is not None
 
     def archive(self,before_time,*,max_records=1000):
         plan=self.archive_plan(before_time,max_records=max_records)
@@ -397,6 +413,7 @@ class EvidenceWriter:
                 if recent is not None:floor=min(floor,recent)
                 pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
                 if pins:floor=min(floor,min(pins))
+                if self._account_pinned(scope):floor=0
                 old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
                 floor=max(int(old[0]) if old else 0,floor)
                 ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,max_records))]

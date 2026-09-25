@@ -4,6 +4,32 @@ from meme_machine.solana_evidence_plane import EvidenceWriter,EvidenceReader,Evi
 from tests.test_solana_evidence_plane import record,proof
 
 class RetentionTests(unittest.TestCase):
+    def test_account_stream_inherits_lifecycle_pin_then_compacts_without_coverage(self):
+        from dataclasses import replace
+        from meme_machine.solana_evidence_service import FinalizedFence
+        with tempfile.TemporaryDirectory() as temp:
+            writer=EvidenceWriter(Path(temp)/'db',clock=lambda:1000)
+            fence=FinalizedFence(writer,endpoint_identity='alchemy-test')
+            row=replace(record(),scope='account:vault',identity='account:vault:10',slot=10,
+                        kind='account',market_time=None,addresses=('vault',))
+            writer.ingest([row])
+            plan=writer.archive_plan(1000)
+            receipt=writer.write_archive(writer.path,plan)
+            # Lifecycle interest arrives after archive I/O and pins the account,
+            # including its unchanged last observation before the reservation.
+            fence.command(dict(op='interest',owner='reservation',scope='pump-program',
+                lower_slot=20,priority=1,lifecycle='reserved',addresses=['vault']))
+            self.assertEqual(writer.commit_archive(plan,receipt),0)
+            self.assertEqual(writer.retain(1000),0)
+            self.assertIsNotNone(writer.db.execute('SELECT body FROM records').fetchone()[0])
+            self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],0)
+            fence.command(dict(op='release',owner='reservation',scope='pump-program',resolved=True))
+            self.assertEqual(writer.retain(1000),1)
+            self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],0)
+            self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM addresses').fetchone()[0],0)
+            self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM lineage').fetchone()[0],0)
+            writer.close()
+
     def test_boundary_keeps_pins_compacts_old_rows_and_rejects_reintroduction(self):
         with tempfile.TemporaryDirectory() as temp:
             writer=EvidenceWriter(Path(temp)/'db',clock=lambda:1000)

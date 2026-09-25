@@ -2,8 +2,8 @@
   "base_sha": "b1504b962a719c2b7e1032100eaea74402f63d0d",
   "cached_raw_export_sha256": "b7f25be0857bee238831dd6624ace391af86f42e757b9233dd4f04aea81fc2bb",
   "composed_diff_hashes": {
-    "meteora": "e889f78f9d8ed4ea704dfff05bdbb31ea332312e8426555c18aa537d79bc6330",
-    "pump": "cdf12090e3f6aee0c4fd0f9a76a905284bbf7b5a66e77764ff27ca744f17f589"
+    "meteora": "513703bc702d403440daaad941e20f5245bb895dd5de0a7fcc1c171df15f6f3a",
+    "pump": "1de848c6850a15d06b24cb097e4539bf0e3cb33cbf668fbcbf7e51608b7d7cff"
   },
   "deployment": false,
   "economics_unchanged": true,
@@ -13,7 +13,7 @@
     "certification/position_continuation.py": "1edfe2f15ab5bb32b71c0f7a23440cff9996defcc773f3e974d7609f402a3489",
     "meme_machine/durable_publication.py": "e0ec89a4f3db2a4f50b6f586cd70acf602eb22e717175255798acd1e60e6fd09",
     "meme_machine/pump_evidence_execution.py": "15db2b6e0b432c8774cf0e21eb1df446c1978f6b35908e13cf4e7c3ba3a0e47a",
-    "meme_machine/solana_evidence_plane.py": "d46579e140a4c6ddf1daa01a5687618f79ca0f07767620b0e3184103ecae5c27",
+    "meme_machine/solana_evidence_plane.py": "28dd6f61d3d5f0e2baea39b50051d56f382a9801502e2d5cd1c9dd7b328e6546",
     "meme_machine/solana_evidence_queries.py": "ec88ff836eb468fe4712c59ef19e55a8f6d7064c13ee45306f7d5c8a57061bf6",
     "meme_machine/solana_evidence_runtime.py": "34edf5a75b56714b6a2593029c12bb13f3c3b32aa8d60882fc9fc8ca1416b63b",
     "meme_machine/solana_evidence_service.py": "d4193c084b1dd49c85912d1d97f63d9a4c5ccd091d185aba9f9559352e427ace",
@@ -40,6 +40,11 @@
   "policy_hashes": {
     "meteora": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
     "pump": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b"
+  },
+  "prior_offline_pass": {
+    "qualification": "superseded_by_account_lifecycle_retention_fix",
+    "run": 36169790497,
+    "sha": "0e0084185e8397adf1eb0ac103e58a768d4f22a7"
   },
   "production_cutover": true,
   "provider_ceilings_unchanged": true,

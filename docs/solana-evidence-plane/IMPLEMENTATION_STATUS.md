@@ -83,6 +83,9 @@ open-position, reservation and unresolved-gap pins. Candidate leases expire afte
 20 minutes without renewal; reservation/open-position pins never expire implicitly.
 Archive compression/fsync runs outside the writer. Pins are checked again before
 hot payload removal, including interests arriving during archive I/O.
+Account observations inherit the active lifecycle's address pins, including an
+unchanged account last observed before reservation. They compact after all owners
+release their interests; observations alone still never create interval coverage.
 
 Older immutable raw material, hashes, provenance and associated coverage proofs are
 compressed into content-addressed archives. Hot indexes/old metadata are compacted
