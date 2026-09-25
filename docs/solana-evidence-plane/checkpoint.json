@@ -1,16 +1,25 @@
 {
   "base_sha": "b1504b962a719c2b7e1032100eaea74402f63d0d",
   "cached_raw_export_sha256": "b7f25be0857bee238831dd6624ace391af86f42e757b9233dd4f04aea81fc2bb",
+  "certified_runtime_sha": "bc36a09d0cfd1c6131525c526d427076f085165b",
+  "component_tests": {
+    "meteora": 451,
+    "pons": 369,
+    "pump": 343,
+    "ramses": 351
+  },
   "composed_diff_hashes": {
     "meteora": "8fa7f6122239ed2c9fb8d1ea8b70434c33726d0b54c333a7b5c6f75672c251aa",
     "pump": "1209b894ee0851e859341f6057d5afecf7df5e57405408a5f132fbb6fdf0635d"
   },
+  "crash_scope": "Native journal SIGKILL, actual runner recovery/interruption, evidence writer restart, report publisher faults; not a combined six-process orchestration test",
   "deployment": false,
   "economics_unchanged": true,
   "files": {
     "certification/evidence_supervisor.py": "93dfe66a30b5b837c23b05ba3d407c038f65288d48a945c5821076de5635eb31",
     "certification/evidence_worker.py": "6e04fd5fec1ff94848a9714f49e3af626fae6f42f9758b1dbd8ed03a2547afc4",
     "certification/position_continuation.py": "1edfe2f15ab5bb32b71c0f7a23440cff9996defcc773f3e974d7609f402a3489",
+    "certification/run.py": "cb61647b88cd2e70fe3fa01ed47a2192f0bf457f0b6a777cc53d3aa5e76d530f",
     "meme_machine/durable_publication.py": "e0ec89a4f3db2a4f50b6f586cd70acf602eb22e717175255798acd1e60e6fd09",
     "meme_machine/pump_evidence_execution.py": "15db2b6e0b432c8774cf0e21eb1df446c1978f6b35908e13cf4e7c3ba3a0e47a",
     "meme_machine/solana_evidence_plane.py": "28dd6f61d3d5f0e2baea39b50051d56f382a9801502e2d5cd1c9dd7b328e6546",
@@ -20,12 +29,15 @@
     "meme_machine/solana_evidence_transport.py": "b633f89aaa74cf0cea3a28d6719ff0fda4b34399a7b257e481571d04dbd1aa0b"
   },
   "fill_pressure": "SYNTHETIC_REAL_RESERVATION_FILL_PATH_PASSED",
-  "final_broad_certification": false,
+  "final_broad_certification": true,
+  "final_offline_run": 36171495473,
+  "hosted_real_ipc": true,
   "limitations": [
-    "Retained Pump intervals lack authoritative bodies; no full-window parity claim",
-    "Hosted real IPC and final broad deterministic certification pending",
-    "No live entitlement/provider savings measurement",
-    "Immutable archive requires operational long-term capacity provisioning"
+    "All seven retained Pump windows lack authoritative bodies; full retained-window parity unavailable",
+    "Filtered-stream silence is not coverage; sparse delivery needs verified bounded repair",
+    "No live entitlement, operational coverage or provider savings measurement",
+    "Immutable archive requires long-term capacity provisioning; hot capacity fails closed",
+    "Native journal SIGKILL, actual runner recovery/interruption, evidence writer restart, report publisher faults; not a combined six-process orchestration test"
   ],
   "market_run_launched": false,
   "native_runtime_policy_hashes": {
@@ -49,14 +61,15 @@
   "production_cutover": true,
   "provider_ceilings_unchanged": true,
   "raw_run_parity": "RETAINED_METEORA_12_CHUNK_EXACT_INPUT_DECISION_PARITY_PASSED_PUMP_SEVEN_WINDOWS_CENSORED",
-  "status": "RUNTIME_CUTOVER_HOSTED_CERTIFICATION_PENDING",
+  "standard_ci_tests": 520,
+  "status": "OFFLINE_CHECKS_PASSED_TASK_INCOMPLETE",
+  "supervisor_tests": 233,
   "targeted_tests": {
-    "continuation_continuity_assurance": 16,
-    "foundation": 38,
-    "meteora_harness_publication": 31,
-    "protocol_freeze": 1,
-    "pump_accounting_lifecycle_recovery": 20,
-    "pump_harness_publication": 6,
-    "retained_meteora_recovery": 3
-  }
+    "meteora-production": 2,
+    "pump-production": 6,
+    "retained-position": 4,
+    "retained-warmup": 1,
+    "shared": 51
+  },
+  "task_complete": false
 }

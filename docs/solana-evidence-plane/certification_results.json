@@ -1,0 +1,83 @@
+{
+  "architecture_test_counts": {
+    "meteora-production": 2,
+    "pump-production": 6,
+    "retained-position": 4,
+    "retained-warmup": 1,
+    "shared": 51
+  },
+  "artifact_id": 10881196507,
+  "artifact_sha256": "50f40e15a3f4fdd4694f219da44f02760c1879377f0f28492d6b23e7253ba901",
+  "certified_runtime_sha": "bc36a09d0cfd1c6131525c526d427076f085165b",
+  "component_test_counts": {
+    "meteora": 451,
+    "pons": 369,
+    "pump": 343,
+    "ramses": 351
+  },
+  "crash_boundaries": 20,
+  "crash_scope": "Native journal SIGKILL, actual runner recovery/interruption, evidence writer restart, report publisher faults; not a combined six-process orchestration test",
+  "deployment": false,
+  "economics_unchanged": true,
+  "foreground_historical_rpc": {
+    "meteora": 0,
+    "pump": 0
+  },
+  "gates": {
+    "architecture": true,
+    "components": true,
+    "crash": true,
+    "integrated": true,
+    "restart": true
+  },
+  "integrated_scenario_tests": 50,
+  "market_workflow_launched": false,
+  "meteora_replay": "RETAINED_12_CHUNK_EXACT_INPUT_AND_QUALIFICATION_PARITY",
+  "paper_only_unchanged": true,
+  "provider_ceilings_unchanged": true,
+  "provider_connections": 0,
+  "pump_replay": "SYNTHETIC_ACTUAL_RUNTIME_PARITY; RETAINED_COMPLETE_WINDOW_PARITY_UNAVAILABLE",
+  "real_ipc": {
+    "coverage_authority_rejected": true,
+    "real_unix_ipc": true,
+    "reservation_pin_preserved": true
+  },
+  "restart_lanes": [
+    "meteora",
+    "pons",
+    "pump",
+    "ramses"
+  ],
+  "source_identities": {
+    "meteora": {
+      "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+      "source_diff_sha256": "8fa7f6122239ed2c9fb8d1ea8b70434c33726d0b54c333a7b5c6f75672c251aa",
+      "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+      "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2"
+    },
+    "pons": {
+      "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+      "source_diff_sha256": "d11bfe346004d8fc027d3344146e6c4962cab7485f1bcd3e68d60968c9fee143",
+      "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2"
+    },
+    "pump": {
+      "policy_hash": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b",
+      "source_diff_sha256": "1209b894ee0851e859341f6057d5afecf7df5e57405408a5f132fbb6fdf0635d",
+      "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2-counterfactual-replay-v1"
+    },
+    "ramses": {
+      "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
+      "source_diff_sha256": "e2751171b0dded92b37c26b81c42230b5cbf293870436938dc44628257f6fa8a",
+      "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+      "strategy_version": "ramses-active-wide-maker-v4"
+    }
+  },
+  "standard_ci_run": 36171501136,
+  "standard_ci_tests": 520,
+  "status": "OFFLINE_CHECKS_PASSED_TASK_INCOMPLETE",
+  "supervisor_tests": 233,
+  "task_complete": false,
+  "workflow_run": 36171495473
+}

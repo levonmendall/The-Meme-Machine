@@ -1,7 +1,9 @@
 # Solana Evidence Plane — runtime cutover candidate
 
-PR #109 remains draft. The production-paper cutover is implemented. Final hosted
-non-market certification is pending; this is not market-run authorization.
+PR #109 remains draft and incomplete against the full requested parity standard.
+The production-paper runtime cutover and hosted offline checks passed. All seven
+retained Pump windows remain censored because authoritative bodies are missing.
+This is not market-run authorization.
 
 ## Runtime changes
 
@@ -13,11 +15,11 @@ fee-density / core-hold policy. Pons and Ramses native sources are unchanged.
   Unix interest IPC, bounded asynchronous repair, and asynchronous archive I/O.
 - `certification.evidence_worker` and `evidence_supervisor` provide the actual
   shared process entrypoint, bounded restarts, and the unchanged shared governor.
-  No service or provider connection has been started during development.
-- Pump's composed `pump_acceleration_natural_prospective.main` uses LocalPumpTape
+  No live provider connection has been started during development.
+- Pump's composed `tests/pump_acceleration_natural_prospective.py:main` uses LocalPumpTape
   and LocalPumpHistory. Normal PumpSwap and second-leg history have no RPC fallback.
   Obsolete prefetch orchestration/imports are removed from that runner.
-- Meteora's composed `_new_finalized_swaps` and `_capture_chunk` read finalized
+- Meteora's composed `tests/solana_dlmm_independent_v1.py` `_new_finalized_swaps` and `_capture_chunk` read finalized
   local transactions. Public discovery/wakeup spooling remains intact. The old
   bounded census primitive requires explicit `gap_repair=True` and has no normal
   runtime caller. The service's repair path uses full address-history transactions.
@@ -100,7 +102,7 @@ local triggers/warmups, refreshes and cancellation causes. Readers expose finali
 frontiers, ingestion lag, consumer cursors/lag, interests, DB/WAL/archive bytes and
 retention floors. Pump's journal retains refresh claims/results and fill-stage latency.
 
-## Deterministic evidence completed locally
+## Deterministic evidence completed locally and in hosted CI
 
 - Actual Pump `main()` restores a journal-backed candidate, constructs a complete
   qualified decision from local history, and performs zero historical provider calls.
@@ -123,8 +125,8 @@ retention floors. Pump's journal retains refresh claims/results and fill-stage l
   policies retain their original behavior.
 
 The workspace prohibits Unix socket creation. Local service tests therefore use
-fake WebSocket and IPC server I/O. A separate **real Unix IPC** gate is included in
-hosted offline certification, with the authoritative WebSocket still deterministic.
+fake WebSocket and IPC server I/O. The separate **real Unix IPC** gate passed in hosted offline certification,
+with the authoritative WebSocket still deterministic.
 
 ## Retained Pump limitation — no invented parity
 
@@ -162,7 +164,56 @@ Economic identities are unchanged:
 - Meteora native policy: `a69ec239772a86bc7526594c9822b6fc1e611b45b7e661f618099656b288d55b`.
 
 Exact composed diff identities and module hashes are in `checkpoint.json` and the
-source manifest. Broad certification and hosted IPC results must be recorded before
-claiming engineering completion. Full retained Pump window parity remains unavailable.
+source manifest. Hosted broad certification and real IPC passed at the exact runtime SHA below.
+Full retained Pump window parity remains unavailable; task completion is not claimed.
 No market run, provider probe, deployment, Render interaction, merge, portfolio
 activation, active/cert/main promotion, signing or transaction submission occurred.
+
+
+## Final offline evidence
+
+Certified runtime SHA: `bc36a09d0cfd1c6131525c526d427076f085165b`.
+Workflow: https://github.com/levonmendall/The-Meme-Machine/actions/runs/36171495473.
+The subsequent documentation commit records these results; runtime sources are identical.
+
+- Architecture: 64 tests plus real Unix IPC authority/pin checks.
+- Broad component suites: 1514 tests (meteora 451, pons 369, pump 343, ramses 351); external socket attempts: zero.
+- Supervisor/accounting: 233 tests.
+- Standard CI: 520 tests plus resource and synthetic lifecycle checks; market jobs skipped.
+- Native ledger SIGKILL matrix: 20 committed/uncommitted boundaries across four lanes.
+- Production restart checks: all four lanes passed.
+- Integrated acceptance: 50 existing protocol, qualification and lifecycle scenarios plus contract/contention checks.
+
+Two concrete final-review regressions required corrected candidates: lifecycle
+account pin inheritance during archive I/O, and disconnect-created account gaps
+that could pin expired account history forever. Both now have deterministic
+retention/restart coverage. Account observations retain content provenance but
+never gain interval authority. Program discontinuity remains explicit/fail-closed.
+
+Crash evidence combines real journal SIGKILL boundaries, actual runner recovery
+and interruption, evidence-writer restart, independent reader lag and report faults.
+It does not establish a combined six-process orchestration kill test.
+No live CU savings or live provider completeness/entitlement are claimed.
+
+Exact source, composed diff, policy, artifact digest and test identities are in
+`certification_results.json` and `checkpoint.json`.
+
+## Acceptance answers
+
+| Question | Verified answer |
+|---|---|
+| getSignaturesForAddress absent from normal Pump foreground? | Yes; actual composed entrypoint uses LocalPumpTape/History. |
+| Actual covered Pump decision has zero historical calls? | Yes in the real entrypoint with complete synthetic finalized evidence; retained full-window parity remains unavailable. |
+| Actual covered Meteora warmup has zero historical calls? | Yes; retained 12-chunk reconstruction inputs and qualification match exactly. |
+| Reserved Pump fill proceeds under saturated repair? | Yes in the actual reservation/fill path; delay 2 seconds, timeout 20 seconds, exact thesis validation unchanged. |
+| Lifecycle state survives failures? | Native SIGKILL and actual restart/interruption tests passed without duplicate fills or fabricated settlement; see the crash scope above. |
+| Unresolved program continuity gaps explicit/fail-closed? | Yes. Account content discontinuity is health state, never interval coverage. |
+| JSON publication-only? | Yes for canonical Pump/Meteora/evidence runtime authority. |
+| Steady-state storage bounded? | Hot DB/WAL are capacity bounded and fail closed; lifecycle pins are preserved. Immutable archive grows and needs long-term provisioning. |
+| Economics unchanged? | Yes; economic policy hashes unchanged. |
+| Provider ceilings unchanged? | Yes; Alchemy remains sole authenticated authority. |
+| Paper-only authority unchanged? | Yes; no signing, custody or transaction submission. |
+| Market workflow or deployment run? | No. Only deterministic/offline CI ran. |
+
+Only the repair branch changed. Main, active and certification branches were not
+promoted or updated. PR #109 remains draft and unmerged.
