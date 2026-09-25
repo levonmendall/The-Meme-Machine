@@ -33,6 +33,10 @@ OFFLINE_WORKFLOWS = {
     'four-lane-evidence-review.yml', 'four-lane-shadow-review.yml',
     'frozen-campaign-artifact-review.yml', 'frozen-campaign-deterministic-build.yml',
     'lifecycle-clock-certification.yml', 'profitability-edge-current-deterministic.yml',
+    'v10-provider-pressure-nonmarket-certification.yml',
+    'ramses-v4-offline-certification.yml',
+    'ramses-v4-launchable-nonmarket-certification.yml',
+    'v12-active-strategy-certification.yml',
 }
 OFFLINE_JOBS = {'test', 'tests', 'lint', 'build', 'offline-prerequisites',
                 'inspect-retained-failure', 'review', 'deterministic', 'qualification'}
