@@ -178,6 +178,19 @@ class SingleCampaignTests(unittest.TestCase):
         self.api.jobs[40] = [dict(id=400, name='test', status='in_progress')]
         self.assertTrue(control.contention(self.api, 5)['passed'])
 
+    def test_reviewed_offline_wrappers_are_not_market_contention(self):
+        for name in (
+            'v10-provider-pressure-nonmarket-certification.yml',
+            'ramses-v4-offline-certification.yml',
+            'ramses-v4-launchable-nonmarket-certification.yml',
+            'v12-active-strategy-certification.yml',
+        ):
+            api = API()
+            api.runs['in_progress'] = [market(42, 'in_progress', '.github/workflows/' + name)]
+            api.jobs[42] = [dict(id=420, name='certify / offline-prerequisites', status='in_progress')]
+            with self.subTest(name=name):
+                self.assertTrue(control.contention(api, 5)['passed'])
+
     def test_other_launcher_and_historical_cohort_review_block_dispatch(self):
         for name in ('single-campaign-launch.yml', 'prospective-cohort-review.yml'):
             self.api.runs['requested'] = [market(70, 'requested', '.github/workflows/' + name)]
