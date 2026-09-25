@@ -209,6 +209,23 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
         weak=SignalVector(**{**strong.__dict__,"graduated":False})
         self.assertFalse(qualify(weak).qualified)
 
+    def test_postgrad_price_retention_is_confirmation_not_binary_veto(self):
+        strong=SignalVector(
+            mint="M-retention",observed_at=1000,surface="pumpswap",phase=MODE_POSTGRAD,
+            graduated=True,seconds_since_graduation=25,independent_buyer_clusters=10,
+            buyer_growth=3,net_buy_share_bps=8500,concentration_bps=1600,
+            price_vs_graduation_bps=-200,volume_acceleration_bps=3000,
+            early_holder_sell_share_bps=1200,recovery_bps=1000,
+            skilled_wallet_clusters=2,quote_relative_return_bps=500,
+        )
+        result=qualify(strong)
+        self.assertTrue(result.qualified,result.reasons)
+        self.assertNotIn("price_retention",result.reasons)
+        self.assertNotIn("price_retention",result.confirmations)
+        retained=qualify(SignalVector(**{**strong.__dict__,"price_vs_graduation_bps":200}))
+        self.assertTrue(retained.qualified,retained.reasons)
+        self.assertIn("price_retention",retained.confirmations)
+
     def test_second_leg_requires_pullback_consolidation_and_breakout(self):
         strong=SignalVector(
             mint="M",observed_at=1000,surface="pumpswap",phase=MODE_SECOND_LEG,
