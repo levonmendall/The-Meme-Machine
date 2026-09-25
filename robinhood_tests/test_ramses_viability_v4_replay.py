@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import unittest
 
-from robinhood_research.ramses_strategy import POLICY
+from robinhood_research.ramses_strategy import POLICY, POLICY_HASH
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "ramses_viability_v4_replay.json"
@@ -45,6 +45,7 @@ class RamsesViabilityV4ReplayTests(unittest.TestCase):
             )
 
     def test_v4_replay_provenance_is_paper_only_and_existing_evidence_only(self):
+        print("RAMSES_V4_POLICY_HASH="+POLICY_HASH)
         self.assertTrue(self.data["paper_only"])
         self.assertEqual(self.data["prospective_natural_loss"]["run_id"],36043064083)
         self.assertEqual(
