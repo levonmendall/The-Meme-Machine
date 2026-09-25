@@ -179,7 +179,8 @@
         "certification/patches/target-coverage-repair-pump.patch",
         "certification/patches/evidence-reconstruction-pump.patch",
         "certification/patches/pump-finalized-log-authority.patch",
-        "certification/patches/v10-postrun-pump.patch"
+        "certification/patches/v10-postrun-pump.patch",
+        "certification/patches/pump-smoke-flat-tail.patch"
       ]
     },
     "meteora": {
