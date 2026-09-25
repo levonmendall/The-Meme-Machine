@@ -186,9 +186,10 @@ class SolanaAuthorityBoundaryTests(unittest.TestCase):
         import traceback
         from meme_machine.solana_provider_config import AlchemyEndpoint
         endpoint=AlchemyEndpoint.parse(ALCHEMY)
-        with patch('urllib.request.urlopen',side_effect=urllib.error.HTTPError(ALCHEMY,429,ALCHEMY,{},None)):
+        with patch('urllib.request.urlopen',side_effect=urllib.error.HTTPError(ALCHEMY,429,ALCHEMY,{'Retry-After':'12'},None)):
             try:rpc_topology._ReadOnlyFailoverMixin._request_url(ALCHEMY,{'id':1})
-            except Exception:
+            except urllib.error.HTTPError as exc:
+                self.assertEqual(rpc_topology._ReadOnlyFailoverMixin._retry_delay(exc),12)
                 diagnostic=traceback.format_exc()
                 self.assertNotIn(endpoint.credential,diagnostic)
                 self.assertNotIn(ALCHEMY,diagnostic)

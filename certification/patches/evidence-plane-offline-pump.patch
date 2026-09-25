@@ -535,7 +535,7 @@ index 0000000000000000000000000000000000000000..c4adba2b54fed743a3bdfe170ed2b73b
 +    def public(self, value):
 +        return public_value(value, self.credential)
 diff --git a/meme_machine/solana_read_rpc.py b/meme_machine/solana_read_rpc.py
-index 8b735fac5e79668cef5dbedf391a225f529aa7d9..591383b8935ffa759def1c9315c7e0276a2875d0 100644
+index 8b735fac5e79668cef5dbedf391a225f529aa7d9..161437d7157ca63f7a734de77502046359c9e294 100644
 --- a/meme_machine/solana_read_rpc.py
 +++ b/meme_machine/solana_read_rpc.py
 @@ -21,6 +21,7 @@ from urllib.parse import urlparse
@@ -590,7 +590,7 @@ index 8b735fac5e79668cef5dbedf391a225f529aa7d9..591383b8935ffa759def1c9315c7e027
          self.primary_provider_label = primary_provider
          self.secondary_provider_label = secondary_provider
          self.read_pacer = pacer or SolanaReadPacer()
-@@ -271,13 +259,20 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
+@@ -271,13 +259,25 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
  
      @staticmethod
      def _request_url(url, request):
@@ -610,13 +610,18 @@ index 8b735fac5e79668cef5dbedf391a225f529aa7d9..591383b8935ffa759def1c9315c7e027
 +            if endpoint:endpoint.public(value)
 +            return value
 +        except urllib.error.HTTPError as exc:
-+            raise urllib.error.HTTPError('', int(exc.code), 'provider_http_error', {}, None) from None
++            # Retain the existing numeric Retry-After behavior without publishing
++            # arbitrary headers, URLs or provider-supplied error text.
++            headers={}
++            try:headers['Retry-After']=str(max(.5,min(float(exc.headers.get('Retry-After')),30.0)))
++            except (TypeError,ValueError,AttributeError):pass
++            raise urllib.error.HTTPError('', int(exc.code), 'provider_http_error', headers, None) from None
 +        except Exception:
 +            raise Unavailable('provider_response_unavailable') from None
  
      @staticmethod
      def _single_response_issue(request, response):
-@@ -436,22 +431,12 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
+@@ -436,22 +436,12 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
              else:self._active_rpc_method=previous
  
      def _http(self, request):
@@ -645,7 +650,7 @@ index 8b735fac5e79668cef5dbedf391a225f529aa7d9..591383b8935ffa759def1c9315c7e027
  
      def provider_telemetry(self):
          return dict(
-@@ -489,6 +474,9 @@ class ReadOnlyFailoverRPC(_ReadOnlyFailoverMixin, RPC):
+@@ -489,6 +479,9 @@ class ReadOnlyFailoverRPC(_ReadOnlyFailoverMixin, RPC):
          pacer=None,
          **kwargs,
      ):
@@ -655,7 +660,7 @@ index 8b735fac5e79668cef5dbedf391a225f529aa7d9..591383b8935ffa759def1c9315c7e027
          self._init_failover(secondary_url, pacer, primary_provider, secondary_provider)
          super().__init__(primary_url, limit=limit, **kwargs)
  
-@@ -509,6 +497,9 @@ class ReadOnlyFailoverPoolScanRPC(_ReadOnlyFailoverMixin, PoolScanRPC):
+@@ -509,6 +502,9 @@ class ReadOnlyFailoverPoolScanRPC(_ReadOnlyFailoverMixin, PoolScanRPC):
          pacer=None,
          **kwargs,
      ):

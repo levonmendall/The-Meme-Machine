@@ -240,7 +240,12 @@ class _ReadOnlyFailoverMixin:
             if endpoint:endpoint.public(value)
             return value
         except urllib.error.HTTPError as exc:
-            raise urllib.error.HTTPError('', int(exc.code), 'provider_http_error', {}, None) from None
+            # Retain the existing numeric Retry-After behavior without publishing
+            # arbitrary headers, URLs or provider-supplied error text.
+            headers={}
+            try:headers['Retry-After']=str(max(.5,min(float(exc.headers.get('Retry-After')),30.0)))
+            except (TypeError,ValueError,AttributeError):pass
+            raise urllib.error.HTTPError('', int(exc.code), 'provider_http_error', headers, None) from None
         except Exception:
             raise Unavailable('provider_response_unavailable') from None
 
