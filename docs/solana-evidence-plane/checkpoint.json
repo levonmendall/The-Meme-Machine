@@ -1,0 +1,32 @@
+{
+  "base_sha": "b1504b962a719c2b7e1032100eaea74402f63d0d",
+  "composed_diff_hashes": {
+    "meteora": "24576f7b5933a1386fcfa31b6302a7803fe71261b3c6be86a61e670d6b2714e8",
+    "pump": "03650e08584b432195120b90dea78e0be5a14901fdf36fadf2ee946873725a08"
+  },
+  "deployment": false,
+  "economics_unchanged": true,
+  "files": {
+    "meme_machine/durable_publication.py": "5832d75f3bce1e69782ca417485286722f8dc16f61305ac5a050f454005fb93a",
+    "meme_machine/solana_evidence_plane.py": "a14c7417d893df18d10365d24ad7a05cc3c8a37817bc155dd90712b2f66a4ba3",
+    "meme_machine/solana_evidence_queries.py": "381de4d762e178e6596b8362d04e98eb06c6ced55dbfd6671035dcb272fd2bc5",
+    "meme_machine/solana_evidence_transport.py": "184bd44117c6d735a9ba179476b997bd2b4bb1fb4e8cb81f9221227175059396"
+  },
+  "fill_pressure": "NOT_IMPLEMENTED",
+  "final_broad_certification": false,
+  "market_run_launched": false,
+  "paper_only_unchanged": true,
+  "policy_hashes": {
+    "meteora": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+    "pump": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b"
+  },
+  "production_cutover": false,
+  "provider_ceilings_unchanged": true,
+  "raw_run_parity": "NOT_RUN_RAW_FIXTURES_UNAVAILABLE",
+  "status": "INCOMPLETE_NOT_CERTIFIED",
+  "targeted_tests": {
+    "foundation": 34,
+    "meteora_harness_publication": 31,
+    "pump_harness_publication": 6
+  }
+}
