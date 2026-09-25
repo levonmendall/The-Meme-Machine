@@ -52,7 +52,10 @@ POLICY = {
         "recenter_overlap_max": 0.10,
         "rebalance_requires_positive_after_cost_edge": True,
         "rebalance_requires_positive_two_x_cost_stress": True,
-        "initial_entry_requires_positive_projected_edge": True,\n        "initial_entry_requires_positive_two_x_cost_stress": True,\n        "range_local_sizing_required": True,\n        "max_entry_cycle_cost_to_capital_bps": 10000,
+        "initial_entry_requires_positive_projected_edge": True,
+        "initial_entry_requires_positive_two_x_cost_stress": True,
+        "range_local_sizing_required": True,
+        "max_entry_cycle_cost_to_capital_bps": 10000,
     },
     # Legacy helpers are retained for historical replay only.  classify_pool
     # never authorizes these modes under the active policy.
@@ -754,7 +757,9 @@ def classify_pool(prestate, prehistory, quote_side, *, requested_capital,
     rebalance=rebalance_reference_capital is not None
     if not rebalance and features["prior_30m_swap_count"] > POLICY["active_wide_maker"]["prior_30m_swaps_max"]:
         reasons.append("prior_30m_not_quiet")
-    if type(requested_capital) is not int or requested_capital <= 0:\n        raise BoundaryError("invalid_strategy_capital")\n    capital=int(requested_capital)
+    if type(requested_capital) is not int or requested_capital <= 0:
+        raise BoundaryError("invalid_strategy_capital")
+    capital=int(requested_capital)
     if capital<=0:
         reasons.append("position_cap_zero")
     if gas_costs is None:
