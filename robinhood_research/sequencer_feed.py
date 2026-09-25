@@ -28,10 +28,12 @@ MAX_TRACKED_SEQUENCES = 4096
 
 
 class SequencerTransportError(RuntimeError):
-    """Recoverable observation-plane transport loss.
+    """Recoverable observation-plane session loss.
 
-    This is deliberately distinct from BoundaryError. Protocol/continuity failures
-    remain fail-closed; only socket/TLS/clean-close transport loss is reconnectable.
+    This is deliberately distinct from BoundaryError. Canonical continuity remains
+    fail-closed and is re-established only by authenticated RPC catch-up. Socket/TLS,
+    clean-close, reserved-bit, and unsupported-opcode session boundaries may reconnect
+    because the sequencer feed is observation-only and never advances the RPC cursor.
     """
 
 
@@ -505,6 +507,7 @@ class SequencerBlockClock:
                     "sequencer_feed_connection_closed",
                     "sequencer_feed_not_connected",
                     "sequencer_feed_reserved_bits",
+                    "sequencer_feed_opcode",
                 ):
                     self._transport_lost(str(exc))
                 raise
