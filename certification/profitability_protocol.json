@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-profitability-portfolio-autonomy-v1",
-  "cohort_id": "prospective-four-lane-v9-pump-log-durable-continuation-20260924",
+  "cohort_id": "prospective-four-lane-v10-smoke-flat-tail-20260924",
   "frozen_parent_integration_sha": "3b3f9e23e4a9a15b867910c3f7317b98c739b781",
   "paper_only": true,
   "live_money": false,
@@ -26,7 +26,7 @@
       "source_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
       "execution_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
       "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
-      "source_diff_sha256": "faa8b4d325a7b8cef56f85501d4856fdbbcd7ff573dd560d3b43c9b5702a20d3"
+      "source_diff_sha256": "c2e446c9a4f18869831b20471c8f48d86195a678f0de07fb751e0e2c19663e42"
     },
     "meteora": {
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
