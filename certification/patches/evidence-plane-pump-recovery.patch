@@ -1,0 +1,179 @@
+diff --git a/meme_machine/paper_accounting.py b/meme_machine/paper_accounting.py
+index 58ad5399eddd902e2b216f34244c82f60b99f447..0cc6cee33637a7d52fd2aac10b521a9d5dcadb9e 100644
+--- a/meme_machine/paper_accounting.py
++++ b/meme_machine/paper_accounting.py
+@@ -115,6 +115,10 @@ class PaperBook:
+                 if p['status'] != 'reserved':
+                     raise ValueError('invalid_paper_cancel')
+                 p.update(status='cancelled', reserved=0, capital_at_risk=0)
++            elif action == 'strategy_graduation':
++                if p['status'] != 'open' or (evidence or {}).get('authenticated') is not True:
++                    raise ValueError('invalid_paper_graduation')
++                # This is strategy-state lineage, not a fill or a cash flow.
+             elif action == 'mark':
+                 if p['status'] != 'open':
+                     raise ValueError('invalid_paper_mark')
+@@ -210,6 +214,12 @@ class PaperBook:
+                             or p['realized'] != old['realized']+p['proceeds']-old['basis']):
+                         raise ValueError('paper_replay_settlement')
+                     cash += p['proceeds']
++                elif action == 'strategy_graduation':
++                    if (not old or old['status'] != 'open'
++                            or body['evidence'].get('authenticated') is not True
++                            or any(p[k] != old[k] for k in
++                                   ('status','reserved','basis','mark','tokens','realized'))):
++                        raise ValueError('paper_replay_graduation')
+                 elif action != 'mark' or not old or old['status'] != 'open':
+                     raise ValueError('paper_replay_transition')
+                 if cash < 0:
+diff --git a/meme_machine/pump_acceleration_paper.py b/meme_machine/pump_acceleration_paper.py
+index b2d0d3aa7d36b1c2d975e3122722910ada14a520..c1b961342d74739fa79e152deab67e69617a9bd4 100644
+--- a/meme_machine/pump_acceleration_paper.py
++++ b/meme_machine/pump_acceleration_paper.py
+@@ -118,6 +118,9 @@ class PumpAccelerationPaperLifecycle:
+             return asdict(self.position)
+         if not authenticated:
+             raise ValueError("unauthenticated_graduation")
++        if self.book is not None:
++            self.book.transition(self.lifecycle_id,'strategy_graduation',int(now),
++                                 evidence=dict(authenticated=True,surface='pumpswap'))
+         self.position.surface="pumpswap"
+         self.position.graduation_authenticated=True
+         self.position.graduation_time=int(now)
+@@ -267,6 +270,67 @@ class PumpAccelerationPaperLifecycle:
+         self.position=None
+         return closed
+ 
++    @classmethod
++    def restore(cls, book, lifecycle_id):
++        """Replay the canonical journal through the unchanged strategy methods.
++
++        No JSON report is read and no ledger event is written during recovery.
++        Committed-but-not-applied in-memory transitions are recovered exactly once.
++        """
++        import json
++        book.replay()
++        with book.lock:
++            records=[json.loads(raw) for raw, in book.db.execute(
++                'SELECT body FROM journal ORDER BY seq')]
++            expected=book._load(lifecycle_id)
++        records=[row for row in records if row['position']['id']==lifecycle_id]
++        if not records or records[0]['action']!='reserved':
++            raise ValueError('pump_recovery_reservation_missing')
++        first=records[0]['evidence']
++        life=cls(lifecycle_id=lifecycle_id,entry_evidence=first.get('snapshot') or {})
++        prior=None
++        for row in records:
++            action=row['action'];at=row['at'];position=row['position'];evidence=row['evidence']
++            if action=='reserved':
++                q=dict(evidence['qualification'])
++                q['reasons']=tuple(q['reasons']);q['confirmations']=tuple(q['confirmations'])
++                life.reserve(Qualification(**q),position['reserved'],at)
++            elif action=='filled':
++                life.fill(position['tokens'],position['basis'],at,evidence['surface'],
++                          evidence=evidence.get('execution'))
++            elif action=='cancelled':
++                life.cancel(evidence['reason'],at)
++            elif action=='strategy_graduation':
++                life.authenticate_graduation(at,evidence['authenticated'])
++            elif action=='mark':
++                life.mark(position['mark'],at,evidence['demand_score'],
++                          evidence.get('postgrad_demand_confirmed',False),
++                          evidence=evidence.get('execution'))
++            elif action=='partial_harvest':
++                sold=prior['tokens']-position['tokens']
++                removed=prior['basis']-position['basis']
++                proceeds=position['realized']-prior['realized']+removed
++                life.harvest(sold,proceeds,at,evidence=evidence.get('execution'))
++            elif action=='settled':
++                if life.position.exit_reason!=evidence['exit_reason']:
++                    raise ValueError('pump_recovery_exit_thesis_mismatch')
++                life.settle(position['proceeds'],at,evidence=evidence.get('execution'))
++            else:
++                raise ValueError('pump_recovery_unknown_event')
++            prior=position
++        if expected['status']=='reserved':
++            if life.position is not None or life.reservation is None:
++                raise ValueError('pump_recovery_reservation_disagreement')
++        elif expected['status']=='open':
++            if (life.position is None or life.position.tokens!=expected['tokens']
++                    or life.position.basis_quote_units!=expected['basis']
++                    or life.position.realized_quote_units!=expected['realized']):
++                raise ValueError('pump_recovery_inventory_disagreement')
++        elif life.position is not None or life.reservation is not None:
++            raise ValueError('pump_recovery_terminal_disagreement')
++        life.book=book
++        return life
++
+     def snapshot(self):
+         return dict(
+             strategy_id=STRATEGY_ID,
+diff --git a/tests/test_pump_durable_strategy_recovery.py b/tests/test_pump_durable_strategy_recovery.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..722b4997603da65952414fa902c6d69e3a5f575e
+--- /dev/null
++++ b/tests/test_pump_durable_strategy_recovery.py
+@@ -0,0 +1,63 @@
++from pathlib import Path
++import tempfile
++import unittest
++from unittest.mock import patch
++from meme_machine.paper_accounting import PaperBook
++from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle as Lifecycle
++from meme_machine.pump_acceleration_strategy import policy_hash,STRATEGY_ID
++from tests.test_pump_acceleration_paper import qualification
++
++class RecoveryTests(unittest.TestCase):
++    def setUp(self):
++        self.temp=tempfile.TemporaryDirectory();self.path=Path(self.temp.name)/'book.sqlite'
++        self.book=PaperBook(self.path,run_id='recovery',lane=STRATEGY_ID,policy_hash=policy_hash(),initial=10000)
++        self.life=Lifecycle(book=self.book,lifecycle_id='recovery:one',entry_evidence={'slot':5,'fill_context':{'signal':'retained'}})
++        self.life.reserve(qualification(),1000,100)
++    def tearDown(self):self.book.close();self.temp.cleanup()
++    def recover(self):
++        before=self.book.replay()
++        restored=Lifecycle.restore(self.book,'recovery:one')
++        self.assertEqual(self.book.replay(),before)
++        return restored
++    def test_reservation_and_original_time_preserved(self):
++        restored=self.recover()
++        self.assertEqual(restored.snapshot(),self.life.snapshot())
++        self.assertEqual(restored.entry_evidence,self.life.entry_evidence)
++        self.assertEqual(restored.reservation['reserved_at'],100)
++    def test_fill_committed_before_memory_update_does_not_duplicate(self):
++        self.book.transition('recovery:one','filled',102,amount=900,tokens=100,
++                             evidence={'surface':'pump.fun','execution':{'slot':7}})
++        restored=self.recover()
++        self.assertEqual(restored.position.tokens,100)
++        self.assertIsNone(restored.reservation)
++        with self.assertRaises(ValueError):restored.fill(100,900,103,'pump.fun')
++        self.assertEqual(self.book.reconcile()['open_positions'],1)
++    def test_graduation_highwater_partial_and_soft_exit_streak_survive(self):
++        self.life.fill(100,900,102,'pump.fun')
++        self.life.authenticate_graduation(110,True)
++        self.life.mark(1200,111,80,True)
++        self.life.harvest(25,300,112)
++        self.life.mark(810,113,20,True)
++        restored=self.recover()
++        self.assertEqual(restored.snapshot(),self.life.snapshot())
++        self.assertTrue(restored.position.partial_harvest_taken)
++        self.assertTrue(restored.position.graduation_authenticated)
++        self.assertEqual(restored.position.demand_deterioration_streak,1)
++    def test_close_and_reopen_uses_journal_without_report(self):
++        self.life.fill(100,900,102,'pump.fun')
++        expected=self.life.snapshot();self.book.close()
++        self.book=PaperBook(self.path,run_id='recovery',lane=STRATEGY_ID,policy_hash=policy_hash(),initial=10000)
++        self.assertEqual(self.recover().snapshot(),expected)
++    def test_settlement_is_not_fabricated_by_recovery(self):
++        self.life.fill(100,900,102,'pump.fun')
++        self.life.mark(700,105,80)
++        restored=self.recover()
++        self.assertEqual(self.book.reconcile()['settled'],0)
++        self.assertEqual(restored.position.exit_reason,self.life.position.exit_reason)
++        restored.settle(700,106)
++        again=self.recover()
++        self.assertIsNone(again.position)
++        self.assertEqual(self.book.reconcile()['settled'],1)
++    def test_cancelled_reservation_stays_terminal(self):
++        self.life.cancel('entry_fill_timeout',120)
++        self.assertEqual(self.recover().snapshot(),self.life.snapshot())

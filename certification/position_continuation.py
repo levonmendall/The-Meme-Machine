@@ -19,9 +19,17 @@ import time
 
 
 def _atomic(path,value):
-    path=Path(path);tmp=path.with_suffix(path.suffix+'.tmp')
-    tmp.write_text(json.dumps(value,sort_keys=True,separators=(',',':'))+'\n')
-    os.replace(tmp,path)
+    import uuid
+    path=Path(path);tmp=path.with_name('.'+path.name+'.'+uuid.uuid4().hex+'.tmp')
+    try:
+        with tmp.open('x') as stream:
+            stream.write(json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)+'\n')
+            stream.flush();os.fsync(stream.fileno())
+        os.replace(tmp,path)
+        fd=os.open(path.parent,os.O_RDONLY|os.O_DIRECTORY)
+        try:os.fsync(fd)
+        finally:os.close(fd)
+    finally:tmp.unlink(missing_ok=True)
 
 
 def _find(root,pattern):
@@ -141,24 +149,22 @@ def _meteora_exit_progress(module,raw_reasons,*,elapsed,observed,streaks,policy)
     return elapsed,streaks,eligible
 
 
-def resume_meteora(state_dir,*,slice_seconds):
-    runtime_identity=_runtime_identity(state_dir,'meteora')
-    lane_root=_activate_lane_root()
-    runtime_identity['lane_root']=lane_root
-    from tests import solana_dlmm_independent_v1 as module
-    from meme_machine.dlmm_independent_accounting import PaperBook
+def restore_meteora_strategy(book,module):
+    """Rebuild the open native strategy from a verified ledger; no provider/report I/O.
+
+    Recovery never appends an entry, mark, settlement, or synthetic exit. The same
+    function is used by continuation and deterministic interruption tests.
+    """
+    from contextlib import closing
     from meme_machine.dlmm_tape import VerifiedTape
     from certification.decision_conformance import restoring_recorded_state
-
-    db_path=_find(state_dir,'solana-dlmm-independent-v1-live.accounting.sqlite3')
-    events=_meteora_events(db_path)
-    genesis=events[0]['data']
+    with closing(book.connect()) as db:
+        db.execute('BEGIN')
+        book._replay(db)
+        events=[json.loads(raw) for raw, in db.execute('SELECT body FROM events ORDER BY seq')]
     identity,entry_event=_meteora_open_identity(events)
     entry_data=entry_event['data']
     policy=entry_data['policy'];features=entry_data['features'];entry=entry_data['entry_state']
-    book=PaperBook(db_path,run_id=genesis['run_id'],policy_hash=genesis['policy_hash'],
-                   capital=int(genesis['capital']))
-
     position=module._build_position(entry,features,policy)
     current=deepcopy(entry);elapsed=max(0,int(current['time'])-int(entry['time']))
     entry_flow={key:features[key] for key in
@@ -192,6 +198,36 @@ def resume_meteora(state_dir,*,slice_seconds):
             raise RuntimeError('strategy_conformance_failure:meteora_restored_exit_state')
         restored_exit=eligible[0] if eligible else None
         current=deepcopy(tape.terminal);last_lineage=tape.lineage
+
+    if module.digest(module._build_position(entry,features,policy))!=module.digest(entry_data['position']):
+        raise RuntimeError('meteora_restored_entry_position_mismatch')
+    return dict(identity=identity,entry=entry,policy=policy,features=features,
+        position=position,current=current,elapsed=elapsed,entry_flow=entry_flow,
+        collapse_streaks=collapse_streaks,last_lineage=last_lineage,restored_exit=restored_exit)
+
+
+def resume_meteora(state_dir,*,slice_seconds):
+    runtime_identity=_runtime_identity(state_dir,'meteora')
+    lane_root=_activate_lane_root()
+    runtime_identity['lane_root']=lane_root
+    from tests import solana_dlmm_independent_v1 as module
+    from meme_machine.dlmm_independent_accounting import PaperBook
+    from meme_machine.dlmm_tape import VerifiedTape
+    from certification.decision_conformance import restoring_recorded_state
+
+    db_path=_find(state_dir,'solana-dlmm-independent-v1-live.accounting.sqlite3')
+    events=_meteora_events(db_path)
+    genesis=events[0]['data']
+    identity,entry_event=_meteora_open_identity(events)
+    entry_data=entry_event['data']
+    policy=entry_data['policy'];features=entry_data['features'];entry=entry_data['entry_state']
+    book=PaperBook(db_path,run_id=genesis['run_id'],policy_hash=genesis['policy_hash'],
+                   capital=int(genesis['capital']))
+
+    recovered=restore_meteora_strategy(book,module)
+    position=recovered['position'];current=recovered['current'];elapsed=recovered['elapsed']
+    entry_flow=recovered['entry_flow'];collapse_streaks=recovered['collapse_streaks']
+    last_lineage=recovered['last_lineage'];restored_exit=recovered['restored_exit']
 
     max_hold=int(policy['range']['max_holding_seconds'])
     segment_seconds=int(policy['exit']['observation_segment_seconds'])
@@ -291,7 +327,8 @@ def resume_meteora(state_dir,*,slice_seconds):
             accounting_path=str(db_path),accounting=book.reconcile(),
             updated_at=time.time(),
         )
-        _atomic(Path(state_dir)/'solana-dlmm-independent-v1-live.continuation.json',row)
+        from meme_machine.durable_publication import publish_report
+        row['publication']=publish_report(Path(state_dir)/'solana-dlmm-independent-v1-live.continuation.json',row)
         return row
     finally:
         broker.close()

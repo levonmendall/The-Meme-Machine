@@ -28,7 +28,7 @@
       "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "policy_hash": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b",
-      "source_diff_sha256": "03650e08584b432195120b90dea78e0be5a14901fdf36fadf2ee946873725a08"
+      "source_diff_sha256": "fab6c6fea533399702e7d3412db5279801c6fd724191e82947c6e44c9fa4f7c8"
     },
     "meteora": {
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",

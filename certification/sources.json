@@ -219,7 +219,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "03650e08584b432195120b90dea78e0be5a14901fdf36fadf2ee946873725a08",
+      "source_diff_sha256": "fab6c6fea533399702e7d3412db5279801c6fd724191e82947c6e44c9fa4f7c8",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -230,7 +230,8 @@
         "certification/patches/pump-finalized-log-authority.patch",
         "certification/patches/v10-postrun-pump.patch",
         "certification/patches/pump-smoke-flat-tail.patch",
-        "certification/patches/evidence-plane-publication-pump.patch"
+        "certification/patches/evidence-plane-publication-pump.patch",
+        "certification/patches/evidence-plane-pump-recovery.patch"
       ]
     },
     "meteora": {
