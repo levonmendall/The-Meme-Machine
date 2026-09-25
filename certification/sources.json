@@ -6,7 +6,7 @@
   "lanes": {
     "pump": {
       "source_branch": "strategy/pump-counterfactual-replay-v1-20260924",
-      "source_sha": "96925831561e9c60108fc8a52113e921ad08838d",
+      "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2-counterfactual-replay-v1",
       "policy_hash": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b",
       "file_hashes": {
@@ -202,7 +202,7 @@
           "execution_downside_gate_unchanged": true,
           "fill_time_persistence_unchanged": true,
           "paper_only_unchanged": true,
-          "source_promotion": "96925831561e9c60108fc8a52113e921ad08838d",
+          "source_promotion": "3c9553afb3caa92ab5f3db769f870df033a9630f",
           "source_branch": "strategy/pump-counterfactual-replay-v1-20260924",
           "strategy_source_pinned": true
         }
@@ -219,7 +219,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "c2e446c9a4f18869831b20471c8f48d86195a678f0de07fb751e0e2c19663e42",
+      "source_diff_sha256": "d6541d023f8419a8711d53ef2edfe78db13717485011b1cfb5edb1e8e58461b8",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",

@@ -1,7 +1,7 @@
 {
   "schema": "meme-machine-profitability-portfolio-autonomy-v1",
   "cohort_id": "prospective-four-lane-counterfactual-replay-v1-20260924",
-  "frozen_parent_integration_sha": "7c1812aa8b1b263a94e58309eb31a66e568d1dce",
+  "frozen_parent_integration_sha": "0ceee7e9e06fd9d9aff0de174b5c4d4944292792",
   "paper_only": true,
   "live_money": false,
   "purpose": "Prospective out-of-sample certification of natural paper profitability, portfolio behavior, and unattended operational readiness under the replay-supported Pump price-retention revision; no live-money authority.",
@@ -25,10 +25,10 @@
   "frozen_lanes": {
     "pump": {
       "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2-counterfactual-replay-v1",
-      "source_sha": "96925831561e9c60108fc8a52113e921ad08838d",
-      "execution_sha": "96925831561e9c60108fc8a52113e921ad08838d",
+      "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "policy_hash": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b",
-      "source_diff_sha256": "c2e446c9a4f18869831b20471c8f48d86195a678f0de07fb751e0e2c19663e42"
+      "source_diff_sha256": "d6541d023f8419a8711d53ef2edfe78db13717485011b1cfb5edb1e8e58461b8"
     },
     "meteora": {
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
