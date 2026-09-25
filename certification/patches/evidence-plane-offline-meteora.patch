@@ -1,0 +1,671 @@
+diff --git a/meme_machine/durable_publication.py b/meme_machine/durable_publication.py
+index 856b42ae763c0f8a16e9174c87f778aa54854a55..4d1e04d488082ed342b5ae2d26787f6177e2674e 100644
+--- a/meme_machine/durable_publication.py
++++ b/meme_machine/durable_publication.py
+@@ -20,6 +20,10 @@ def publish_bytes(path, content):
+ 
+ 
+ def publish_json(path,value):
++    from .solana_provider_config import AlchemyEndpoint,public_value
++    endpoint=os.environ.get('MM_SOLANA_READ_RPC_URL')
++    credential=AlchemyEndpoint.parse(endpoint).credential if endpoint else None
++    public_value(value,credential)
+     publish_bytes(path,(json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)+'\n').encode())
+ 
+ 
+diff --git a/meme_machine/solana_evidence_plane.py b/meme_machine/solana_evidence_plane.py
+index 4e6810610beace3d06c8568b62ccb1783cc10700..90e87dd3816b0542f16a9c1d5a28fbabc8e390dc 100644
+--- a/meme_machine/solana_evidence_plane.py
++++ b/meme_machine/solana_evidence_plane.py
+@@ -19,6 +19,27 @@ import sqlite3
+ import threading
+ import time
+ import uuid
++from .solana_provider_config import public_value
++
++STORAGE_WARNING_BYTES = 512 * 1024 * 1024
++STORAGE_CRITICAL_BYTES = 128 * 1024 * 1024
++
++
++def storage_health(path, *, required_bytes=0):
++    path = Path(path)
++    archive = path.parent / (path.name + '.archive')
++    locations = (path.parent, archive if archive.exists() else path.parent)
++    free = [os.statvfs(p).f_bavail * os.statvfs(p).f_frsize for p in locations]
++    remaining = min(free) - required_bytes
++    return dict(free_bytes=min(free), database_free_bytes=free[0], archive_free_bytes=free[1],
++                warning_bytes=STORAGE_WARNING_BYTES, critical_bytes=STORAGE_CRITICAL_BYTES,
++                state=('critical' if remaining < STORAGE_CRITICAL_BYTES else
++                       'warning' if remaining < STORAGE_WARNING_BYTES else 'ok'))
++
++
++def require_storage(path, *, required_bytes=0):
++    if storage_health(path, required_bytes=required_bytes)['state'] == 'critical':
++        raise EvidenceUnavailable('storage_capacity_critical')
+ 
+ 
+ def canonical(value):
+@@ -55,6 +76,7 @@ class FinalizedRecord:
+     kind: str = 'event'
+ 
+     def body(self):
++        public_value(self.__dict__)
+         if (not all((self.identity, self.scope, self.program))
+                 or self.kind != 'account' and not self.signature
+                 or type(self.slot) is not int or self.slot < 0
+@@ -91,6 +113,7 @@ class IntervalProof:
+     observed_at: float
+ 
+     def validate(self):
++        public_value(self.__dict__)
+         if (not self.scope or type(self.lower_slot) is not int or self.lower_slot < 0
+                 or type(self.upper_slot) is not int or self.upper_slot < self.lower_slot
+                 or self.source not in ('alchemy_finalized_stream', 'alchemy_finalized_repair')
+@@ -159,6 +182,7 @@ class EvidenceWriter:
+     def __init__(self, path, *, clock=time.time, max_hot_bytes=256 * 1024 * 1024):
+         self.path = Path(path).resolve()
+         self.path.parent.mkdir(parents=True, exist_ok=True)
++        require_storage(self.path)
+         self.clock = clock
+         if type(max_hot_bytes) is not int or max_hot_bytes < 1024 * 1024:
+             raise EvidenceUnavailable('hot_store_capacity_bound')
+@@ -234,13 +258,17 @@ class EvidenceWriter:
+ 
+     def ingest(self, records, *, proof=None, repair_receipt=None):
+         self._check()
++        require_storage(self.path, required_bytes=32 * 1024 * 1024)
+         records = tuple(records)
+         if len(records) > 2048:
+             raise EvidenceUnavailable('ingestion_batch_bound')
+         for record in records:
+             floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+record.scope,)).fetchone()
+             if floor and record.slot<int(floor[0]):raise EvidenceUnavailable('record_below_hot_retention_floor')
+-        bodies = [(record, record.body()) for record in records]
++        try:bodies = [(record, record.body()) for record in records]
++        except ValueError:
++            with self.transaction():self._count('rejected_evidence_records',len(records))
++            raise
+         if sum(len(canonical(body).encode()) for _, body in bodies) > 16 * 1024 * 1024:
+             raise EvidenceUnavailable('ingestion_payload_bound')
+         hot_bytes=sum(p.stat().st_size for p in (self.path,Path(str(self.path)+'-wal')) if p.exists())
+@@ -305,14 +333,21 @@ class EvidenceWriter:
+             self._count('gaps_repaired', n)
+ 
+     def interest(self, owner, scope, *, lower_slot, priority=4, lifecycle='candidate'):
++        with self.transaction():
++            self._interest(owner,scope,lower_slot=lower_slot,priority=priority,lifecycle=lifecycle)
++
++    def _interest(self, owner, scope, *, lower_slot, priority=4, lifecycle='candidate'):
+         if (not owner or not scope or type(lower_slot) is not int or lower_slot < 0
+                 or priority not in range(5) or lifecycle not in ('candidate', 'reserved', 'open', 'research')):
+             raise EvidenceUnavailable('invalid_interest')
+         if lifecycle == 'open' and priority != 0 or lifecycle == 'reserved' and priority > 1:
+             raise EvidenceUnavailable('lifecycle_evidence_priority')
+-        with self.transaction():
+-            self.db.execute('INSERT INTO interests VALUES(?,?,?,?,?,1,?) ON CONFLICT(owner,scope) DO UPDATE SET priority=excluded.priority,lower_slot=MIN(lower_slot,excluded.lower_slot),lifecycle=excluded.lifecycle,active=1,updated=excluded.updated',
+-                (owner, scope, priority, lower_slot, lifecycle, self.clock()))
++        old = self.db.execute('SELECT lifecycle,active FROM interests WHERE owner=? AND scope=?', (owner,scope)).fetchone()
++        if old and old[1] and ((old[0] == 'open' and lifecycle != 'open') or
++                              (old[0] == 'reserved' and lifecycle not in ('reserved','open'))):
++            raise EvidenceUnavailable('lifecycle_interest_downgrade')
++        self.db.execute('INSERT INTO interests VALUES(?,?,?,?,?,1,?) ON CONFLICT(owner,scope) DO UPDATE SET priority=excluded.priority,lower_slot=MIN(lower_slot,excluded.lower_slot),lifecycle=excluded.lifecycle,active=1,updated=excluded.updated',
++            (owner, scope, priority, lower_slot, lifecycle, self.clock()))
+ 
+     def release(self, owner, scope, *, lifecycle_resolved=False):
+         with self.transaction():
+@@ -362,8 +397,10 @@ class EvidenceWriter:
+     @staticmethod
+     def write_archive(path,plan):
+         if not plan:return None
++        public_value(plan)
+         raw=('\n'.join(canonical(row) for row in plan)+'\n').encode()
+         compressed=gzip.compress(raw,mtime=0);checksum=hashlib.sha256(compressed).hexdigest()
++        require_storage(path, required_bytes=len(compressed) + 32 * 1024 * 1024)
+         path=Path(path);directory=path.parent/(path.name+'.archive');directory.mkdir(exist_ok=True)
+         target=directory/(checksum+'.jsonl.gz');publish_bytes(target,compressed)
+         return dict(name=target.name,hash=checksum,bytes=len(compressed))
+@@ -452,6 +489,7 @@ class EvidenceReader:
+         self.db.execute('PRAGMA query_only=ON')
+ 
+     def _healthy(self):
++        require_storage(self.path)
+         if self.db.execute("SELECT 1 FROM meta WHERE key='poisoned'").fetchone():
+             raise EvidenceConflict('evidence_store_poisoned')
+ 
+@@ -512,11 +550,11 @@ class EvidenceReader:
+             self.db.execute('ROLLBACK')
+ 
+     def telemetry(self):
+-        self._healthy()
++        # Health remains readable while canonical queries fail closed.
+         health={}
+         if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='service_health'").fetchone():
+             health={k:json.loads(v) for k,v in self.db.execute('SELECT * FROM service_health')}
+-        return dict(service_health=health,ingestion_lag_seconds={k:max(0,time.time()-v['time']) for k,v in health.items() if k.startswith('finalized_frontier:')},cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
++        return dict(integrity_poisoned=bool(self.db.execute("SELECT 1 FROM meta WHERE key='poisoned'").fetchone()),storage=storage_health(self.path),service_health=health,ingestion_lag_seconds={k:max(0,time.time()-v['time']) for k,v in health.items() if k.startswith('finalized_frontier:')},cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
+             coverage_windows=self.db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],
+             unresolved_gaps=self.db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],
+             consumer_lag=[dict(owner=o, scope=s, slots=max(0, top-n), updated=t) for o,s,n,t,top in self.db.execute('SELECT c.owner,c.scope,c.slot,c.updated,r.slot FROM consumers c JOIN cursors r ON c.scope=r.scope')],
+diff --git a/meme_machine/solana_evidence_runtime.py b/meme_machine/solana_evidence_runtime.py
+index 322aa445020795b6d263ea9e36b932ac994f9ce9..34bd9172e11cc21615d0b6acf9e863a28becf20a 100644
+--- a/meme_machine/solana_evidence_runtime.py
++++ b/meme_machine/solana_evidence_runtime.py
+@@ -23,6 +23,7 @@ class RuntimeEvidence:
+         self.counts={}
+     def command(self,**request):
+         request.setdefault('owner',self.owner)
++        request['consumer']=self.owner
+         if self._command:return self._command(request)
+         data=(canonical(request)+'\n').encode()
+         if len(data)>32768:raise EvidenceUnavailable('evidence_interest_command_bound')
+@@ -67,23 +68,36 @@ class RuntimeEvidence:
+         if row is None or slot>=row[0]:self.command(op='ack',owner=owner,scope=scope,slot=slot)
+     def pump_events(self,scope,address,lower_time,upper_time,*,upper_slot=None):
+         try:
++            self.count('pump.local_evidence_reads')
+             lo,hi=self.bounds(scope,lower_time,upper_time,upper_slot=upper_slot)
+             events=PumpEvidenceView(self.reader,scope).events(address,lower_slot=lo,upper_slot=hi,
+                 lower_time=lower_time,upper_time=upper_time,as_of=self.clock())
+-            self.acknowledge(scope,hi);return events
++            self.acknowledge(scope,hi)
++            self.count('pump.complete_local_reads')
++            self._repair_assisted('pump',scope,lo,hi)
++            return events
+         except EvidenceUnavailable:
+-            self.count('pump.gap_blocked_queries');raise
++            self.count('pump.gap_blocked_queries')
++            self.count('pump.incomplete_local_reads');raise
+     def meteora_scope(self,pool):
+         scoped='pool:meteora:'+pool
+         if self.reader.db.execute('SELECT 1 FROM coverage WHERE scope=? LIMIT 1',(scoped,)).fetchone():return scoped
+         return METEORA_SCOPE
+     def meteora_interval(self,pool,start,end):
+         try:
++            self.count('meteora.local_evidence_reads')
+             scope=self.meteora_scope(pool)
+             result=MeteoraEvidenceView(self.reader,scope).interval(pool,start_slot=start,end_slot=end,as_of=self.clock())
+-            self.acknowledge(scope,end);return result
++            self.acknowledge(scope,end)
++            self.count('meteora.complete_local_reads')
++            self._repair_assisted('meteora',scope,start,end)
++            return result
+         except EvidenceUnavailable:
+-            self.count('meteora.gap_blocked_reconstructions');raise
++            self.count('meteora.gap_blocked_reconstructions')
++            self.count('meteora.incomplete_local_reads');raise
++    def _repair_assisted(self,lane,scope,lo,hi):
++        if self.reader.db.execute("SELECT 1 FROM coverage WHERE scope=? AND lo<=? AND hi>=? AND available<=? AND proof LIKE '%alchemy_finalized_repair%' LIMIT 1",(scope,hi,lo,self.clock())).fetchone():
++            self.count(lane+'.repair_assisted_windows')
+     def telemetry(self):return dict(self.reader.telemetry(),lane_counters=dict(self.counts))
+     def close(self):self.reader.close()
+ 
+diff --git a/meme_machine/solana_evidence_service.py b/meme_machine/solana_evidence_service.py
+index b49811ab098d52085f830475b7b8b683e501ecf0..c46c1e60271b9931613fd42f67e4cfe4e8d7c0fe 100644
+--- a/meme_machine/solana_evidence_service.py
++++ b/meme_machine/solana_evidence_service.py
+@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS service_interests(
+  PRIMARY KEY(owner,scope,address));
+ CREATE TABLE IF NOT EXISTS stream_order(scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,rank INTEGER NOT NULL,blockhash TEXT NOT NULL,PRIMARY KEY(scope,slot,signature));
+ CREATE TABLE IF NOT EXISTS service_health(key TEXT PRIMARY KEY,value TEXT NOT NULL);
++CREATE TABLE IF NOT EXISTS interest_owners(owner TEXT PRIMARY KEY,consumer TEXT NOT NULL);
+ '''
+ 
+ def poison_conflicts(method):
+@@ -48,9 +49,33 @@ class FinalizedFence:
+         writer.db.executescript(SERVICE_SCHEMA)
+         if writer.db.execute('SELECT 1 FROM stream_receipts LIMIT 1').fetchone():self.disconnect('service_restart')
+         with writer.transaction():
+-            for key in ('pump.foreground_historical_rpc_calls','meteora.historical_reconstruction_rpc_calls'):
++            for key in ('pump.foreground_historical_rpc_calls','meteora.historical_reconstruction_rpc_calls',
++                        'stream_messages','stream_bytes','stream_reconnects','stream_rejected_messages',
++                        'stream_accepted_messages','gap_repair_retries','rejected_evidence_records',
++                        'ingested_event','ingested_transaction','ingested_account',
++                        'pump.local_evidence_reads','meteora.local_evidence_reads',
++                        'pump.complete_local_reads','meteora.complete_local_reads',
++                        'pump.incomplete_local_reads','meteora.incomplete_local_reads',
++                        'pump.repair_assisted_windows','meteora.repair_assisted_windows'):
+                 writer.db.execute('INSERT OR IGNORE INTO counters VALUES(?,0)',(key,))
+ 
++    def health(self,key,value):
++        from .solana_provider_config import public_value
++        public_value(value)
++        with self.writer.transaction():
++            self.writer.db.execute('INSERT OR REPLACE INTO service_health VALUES(?,?)',(key,canonical(value)))
++
++    def count(self,key,n=1):
++        with self.writer.transaction():self.writer._count(key,n)
++
++    def expire_candidates(self,now):
++        with self.writer.transaction():
++            n=self.writer.db.execute("UPDATE interests SET active=0 WHERE active=1 AND lifecycle IN ('candidate','research') AND updated<?",(now-1200,)).rowcount
++            self.writer._count('expired_candidate_interests',n)
++            self.writer.db.execute('DELETE FROM service_interests WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
++            self.writer.db.execute('DELETE FROM interests WHERE active=0 AND updated<?',(now-7200,))
++            self.writer.db.execute('DELETE FROM interest_owners WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=interest_owners.owner)')
++
+     def disconnect(self,reason='stream_disconnect'):
+         # Account notifications are content observations, never interval sources.
+         # Creating unrepairable interval gaps for them would pin expired account
+@@ -191,17 +216,34 @@ class FinalizedFence:
+     def command(self,request):
+         """Strict consumer IPC whitelist; no proof/ingest/SQL escape hatch."""
+         op=request.get('op')
++        if op in ('interest','release','ack'):
++            owner=request['owner'];consumer=request.get('consumer',owner)
++            if not isinstance(owner,str) or len(owner)>256 or not isinstance(consumer,str) or len(consumer)>128:
++                raise EvidenceUnavailable('interest_owner_bound')
++            known=self.writer.db.execute('SELECT consumer FROM interest_owners WHERE owner=?',(owner,)).fetchone()
++            if known and known[0]!=consumer:raise EvidenceUnavailable('interest_owned_by_other_consumer')
++            if not known and op=='interest':
++                if self.writer.db.execute('SELECT COUNT(*) FROM interest_owners').fetchone()[0]>=4096:
++                    raise EvidenceUnavailable('interest_owner_capacity')
+         if op=='interest':
+             owner=request['owner'];scope=request['scope']
+-            self.writer.interest(owner,scope,lower_slot=request['lower_slot'],
+-                priority=request['priority'],lifecycle=request['lifecycle'])
+             addresses=request.get('addresses',[])
+             if not isinstance(addresses,list) or len(addresses)>100:
+                 raise EvidenceUnavailable('interest_account_bound')
++            if any(not isinstance(a,str) or not a or len(a)>128 for a in addresses):
++                raise EvidenceUnavailable('interest_address')
++            phase=self.writer.db.execute("SELECT value FROM service_health WHERE key='phase'").fetchone()
++            if phase and json.loads(phase[0])=='DRAINING' and request['lifecycle'] not in ('reserved','open'):
++                raise EvidenceUnavailable('service_draining')
++            current={r[0] for r in self.writer.db.execute('SELECT DISTINCT s.address FROM service_interests s JOIN interests i ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1')}
++            if len(current|set(addresses))>256:
++                self.count('subscription_capacity_rejections')
++                raise EvidenceUnavailable('subscription_capacity')
+             with self.writer.transaction():
++                self.writer._interest(owner,scope,lower_slot=request['lower_slot'],
++                    priority=request['priority'],lifecycle=request['lifecycle'])
++                self.writer.db.execute('INSERT OR IGNORE INTO interest_owners VALUES(?,?)',(owner,consumer))
+                 for address in addresses:
+-                    if not isinstance(address,str) or not address or len(address)>128:
+-                        raise EvidenceUnavailable('interest_address')
+                     self.writer.db.execute('INSERT OR REPLACE INTO service_interests VALUES(?,?,?,?)',
+                         (owner,scope,address,'account'))
+         elif op=='release':
+@@ -249,15 +291,24 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+     from websockets.exceptions import ConnectionClosed
+     from .solana_evidence_plane import EvidenceWriter
+     from .solana_evidence_transport import alchemy_stream_endpoint,Subscription,AddressGapRepair
+-    url=alchemy_stream_endpoint(endpoint);writer=EvidenceWriter(path)
+-    fence=FinalizedFence(writer,endpoint_identity=hashlib.sha256(endpoint.encode()).hexdigest(),decoders=program_decoders())
++    from .solana_provider_config import AlchemyEndpoint
++    from .solana_evidence_plane import require_storage,storage_health
++    config=AlchemyEndpoint.parse(endpoint)
++    import logging
++    logger=logging.Logger('alchemy_evidence_transport');logger.addHandler(logging.NullHandler());logger.propagate=False
++    url=config.stream_url;writer=EvidenceWriter(path)
++    fence=FinalizedFence(writer,endpoint_identity=config.identity,decoders=program_decoders())
++    fence.health('provider',dict(provider=config.provider,network=config.network,endpoint_identity=config.identity))
++    fence.health('phase','WARMING')
+     stop=stop or asyncio.Event();path=Path(path);socket_path=str(path)+'.sock'
+     Path(socket_path).unlink(missing_ok=True)
+     async def consumer(reader,stream):
+         try:
+             line=await asyncio.wait_for(reader.readline(),.5)
+             if len(line)>32768:raise EvidenceUnavailable('consumer_command_bound')
+-            response=fence.command(json.loads(line))
++            request=json.loads(line)
++            if not request.get('consumer'):raise EvidenceUnavailable('consumer_identity_required')
++            response=fence.command(request)
+         except (ValueError,KeyError,TypeError,TimeoutError) as exc:response={'ok':False,'error':type(exc).__name__}
+         stream.write((canonical(response)+'\n').encode());await stream.drain();stream.close()
+     server=await asyncio.start_unix_server(consumer,path=socket_path,limit=32769)
+@@ -265,7 +316,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+     async def stream_source():
+         while not stop.is_set():
+             try:
+-                async with connect(url,max_size=16*1024*1024,max_queue=32,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
++                async with connect(url,logger=logger,max_size=16*1024*1024,max_queue=32,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
+                     pending={};active={};registered=set();retiring=set();number=0
+                     async def register(sub):
+                         nonlocal number
+@@ -274,7 +325,10 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+                     while not stop.is_set():
+                         # Durable interests survive consumer/service restarts. Account
+                         # observations remain content only, never interval authority.
+-                        interests=writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 GROUP BY s.address ORDER BY MIN(i.priority),s.address LIMIT 256").fetchall()
++                        interests=writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 GROUP BY s.address ORDER BY MIN(i.priority),s.address").fetchall()
++                        if len(interests)>256:
++                            fence.count('subscription_capacity_rejections')
++                            raise EvidenceUnavailable('restored_subscription_capacity')
+                         wanted={r[0] for r in interests}
+                         for sid,sub in list(active.items()):
+                             if sub.evidence_class=='account' and sub.address not in wanted:
+@@ -286,27 +340,40 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+                                 await register(Subscription('service','account:'+address,address,'account',0));registered.add(address)
+                         try:raw=await asyncio.wait_for(ws.recv(),.5)
+                         except TimeoutError:continue
+-                        message=json.loads(raw);seen=time.time()
++                        seen=time.time()
++                        fence.count('stream_messages');fence.count('stream_bytes',len(raw.encode() if isinstance(raw,str) else raw))
++                        message=json.loads(raw);config.public(message)
+                         if message.get('id') in retiring:
+                             retiring.remove(message['id']);continue
+                         if 'id' in message:
+                             sub=pending.pop(message['id'])
+                             if 'error' in message or type(message.get('result')) is not int:
++                                if (message.get('error') or {}).get('code')==-32601:fence.count('stream_unsupported_methods')
+                                 raise EvidenceUnavailable('authoritative_subscription_rejected')
+-                            active[message['result']]=sub;continue
++                            active[message['result']]=sub
++                            from collections import Counter
++                            fence.health('subscriptions',dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted)))
++                            continue
+                         sub=active.get((message.get('params') or {}).get('subscription'))
+                         if sub is None:raise EvidenceUnavailable('unknown_source_subscription')
+                         if sub.evidence_class=='logs':fence.logs(sub,message,seen)
+                         elif sub.evidence_class=='account':
+                             writer.ingest(FinalizedNotificationDecoder(endpoint_identity=fence.endpoint_identity).decode(sub,message,seen))
+                         else:fence.block(sub,message,seen)
++                        fence.count('stream_accepted_messages')
++                        fence.health('phase','ACTIVE')
++                        from collections import Counter
++                        fence.health('subscriptions',dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted)))
+             except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
+-                if str(exc)=='hot_store_capacity':raise
++                fence.count('stream_rejected_messages')
++                if str(exc) in ('hot_store_capacity','storage_capacity_critical'):raise
+                 if isinstance(exc,EvidenceConflict):
+                     with writer.transaction():writer.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
+                     raise
+                 fence.disconnect(type(exc).__name__)
+-                with writer.transaction():writer._count('stream_reconnects')
++                fence.count('stream_reconnects');fence.count('stream_reconnect_reason.'+type(exc).__name__)
++                fence.health('subscriptions',dict(active=0,by_evidence_class={},pending=0,wanted_accounts=0))
++                fence.health('phase','WARMING')
+                 try:await asyncio.wait_for(stop.wait(),1)
+                 except TimeoutError:pass
+     # Repair transport is detached from the SQLite writer and strategy consumers.
+@@ -314,9 +381,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+     async def repair_worker():
+         while not stop.is_set():
+             if repair_rpc is not None:
+-                gap=writer.db.execute('SELECT id,scope,lo,hi,repair_cursor,pages FROM gaps WHERE repaired IS NULL AND hi IS NOT NULL AND pages<16 AND attempts<48 ORDER BY created LIMIT 1').fetchone()
++                gap=writer.db.execute('SELECT id,scope,lo,hi,repair_cursor,pages,attempts FROM gaps WHERE repaired IS NULL AND hi IS NOT NULL AND pages<16 AND attempts<48 ORDER BY created LIMIT 1').fetchone()
+                 if gap:
+-                    gid,scope,lo,hi,cursor,pages=gap
++                    gid,scope,lo,hi,cursor,pages,attempts=gap
+                     subscriptions={s.scope:s for s in program_subscriptions()}
+                     sub=subscriptions.get(scope)
+                     if sub:
+@@ -326,7 +393,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+                         try:
+                             with writer.transaction():
+                                 writer.db.execute('UPDATE gaps SET attempts=attempts+1 WHERE id=?',(gid,))
+-                                writer._count('gap_repair_calls')
++                                writer._count('gap_repair_attempts')
++                                if attempts:writer._count('gap_repair_retries')
+                             active=writer.db.execute("SELECT 1 FROM interests WHERE scope=? AND active=1 AND lifecycle IN ('candidate','reserved','open') LIMIT 1",(scope,)).fetchone()
+                             value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[sub.address,cfg],bool(active))
+                             # Apply through the same bounded durable repair boundary.
+@@ -339,14 +407,38 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+             try:await asyncio.wait_for(stop.wait(),1)
+             except TimeoutError:pass
+     async def maintenance():
++        previous=None
+         while not stop.is_set():
+             # Candidate interests have bounded leases; unresolved money/lifecycle
+             # interests never expire. No archive slice runs ahead of a reservation.
+             now=time.time()
+-            with writer.transaction():
+-                writer.db.execute("UPDATE interests SET active=0 WHERE lifecycle IN ('candidate','research') AND updated<?",(now-1200,))
+-                writer.db.execute('DELETE FROM service_interests WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
+-                writer.db.execute('DELETE FROM interests WHERE active=0 AND updated<?',(now-7200,))
++            fence.expire_candidates(now)
++            fence.health('storage',storage_health(writer.path));require_storage(writer.path)
++            counts=dict(writer.db.execute('SELECT * FROM counters'))
++            backlog=writer.db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0]
++            http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
++            fence.health('repair_http',http)
++            if repair_rpc is not None and hasattr(repair_rpc,'governor'):
++                fence.health('http_governor',repair_rpc.governor.status())
++            current=(now,counts.get('stream_bytes',0),counts.get('stream_reconnects',0),backlog)
++            anomalies=[]
++            if storage_health(writer.path)['state']!='ok':anomalies.append('filesystem_capacity_pressure')
++            if previous:
++                seconds=max(.001,now-previous[0])
++                if (current[1]-previous[1])/seconds>16*1024*1024:anomalies.append('stream_byte_rate')
++                if current[2]-previous[2]>=3:anomalies.append('reconnect_loop')
++                if backlog>previous[3]:anomalies.append('growing_repair_backlog')
++            hc=http.get('counters',{})
++            if hc.get('429s',0)>=3:anomalies.append('repeated_429s')
++            if hc.get('unsupported_methods',0)+counts.get('stream_unsupported_methods',0)>=3:anomalies.append('unsupported_method')
++            if counts.get('subscription_capacity_rejections',0):anomalies.append('subscription_growth')
++            hot=sum(p.stat().st_size for p in (writer.path,Path(str(writer.path)+'-wal')) if p.exists())
++            if hot>writer.max_hot_bytes*.8:anomalies.append('hot_capacity_pressure')
++            decisions=counts.get('pump.decisions_fully_local',0)+counts.get('meteora.local_warmup_intervals',0)
++            if hc.get('physical_requests',0)>max(100,decisions*20):anomalies.append('http_per_decision')
++            fence.health('resource_anomalies',dict(states=anomalies,repair_backlog=backlog,observed_at=now,
++                stream_bytes_per_second=(current[1]-previous[1])/max(.001,now-previous[0]) if previous else None))
++            previous=current
+             if not writer.db.execute("SELECT 1 FROM interests WHERE active=1 AND lifecycle='reserved' LIMIT 1").fetchone():
+                 plan=writer.archive_plan(now-7200,max_records=256)
+                 receipt=await asyncio.to_thread(writer.write_archive,writer.path,plan)
+@@ -361,8 +453,11 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
+         for task in done:
+             if task is not stopper:task.result()
+     finally:
++        fence.health('phase','DRAINING')
+         if 'stopper' in locals():stopper.cancel()
+         for task in tasks:task.cancel()
+         await asyncio.gather(*tasks,return_exceptions=True)
+         fence.disconnect('service_shutdown');server.close();await server.wait_closed()
++        if repair_rpc is not None and hasattr(repair_rpc,'telemetry'):fence.health('repair_http',repair_rpc.telemetry())
++        fence.health('phase','OFF')
+         writer.close();Path(socket_path).unlink(missing_ok=True)
+diff --git a/meme_machine/solana_evidence_transport.py b/meme_machine/solana_evidence_transport.py
+index b9bcb702c36491ded1cc648491f5e925f2236193..8b339579c0838e14c13b14b83006370ad416b3db 100644
+--- a/meme_machine/solana_evidence_transport.py
++++ b/meme_machine/solana_evidence_transport.py
+@@ -45,14 +45,9 @@ class Subscription:
+ 
+ 
+ def alchemy_stream_endpoint(http_url):
+-    parts=urlsplit(http_url)
+-    if (parts.scheme!='https' or parts.hostname!='solana-mainnet.g.alchemy.com'
+-            or parts.username or parts.password or parts.port not in (None,443)
+-            or not parts.path.startswith('/v2/') or len(parts.path)<=4
+-            or parts.query or parts.fragment):
+-        raise EvidenceUnavailable('authoritative_alchemy_endpoint_required')
+-    # Same existing app key, documented streaming host; no app/key mutation.
+-    return urlunsplit(('wss','solana-mainnet.streaming.alchemy.com',parts.path,'',''))
++    from .solana_provider_config import AlchemyEndpoint
++    try:return AlchemyEndpoint.parse(http_url).stream_url
++    except ValueError:raise EvidenceUnavailable('authoritative_alchemy_endpoint_required') from None
+ 
+ 
+ class FinalizedNotificationDecoder:
+diff --git a/meme_machine/solana_provider_config.py b/meme_machine/solana_provider_config.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..c4adba2b54fed743a3bdfe170ed2b73b9dc9d143
+--- /dev/null
++++ b/meme_machine/solana_provider_config.py
+@@ -0,0 +1,50 @@
++"""Single Alchemy configuration/credential boundary; no network on construction."""
++from dataclasses import dataclass, field
++import hashlib
++import json
++import re
++from urllib.parse import urlsplit
++
++HOST = 'solana-mainnet.g.alchemy.com'
++STREAM_HOST = 'solana-mainnet.streaming.alchemy.com'
++from .pump import MAINNET as GENESIS
++# Refuse URL-shaped credentials on all publication surfaces, including unconfigured
++# credentials. Configured bare keys are checked at the transport boundary as well.
++SECRET_PATTERN = re.compile(r'(?:https|wss)://[^\s"\'<>]*alchemy\.com/v2/[^\s"\'<>]+|(?:api[_-]?key|authorization)\s*[=:]\s*[^\s,}]+', re.I)
++
++
++def public_value(value, credential=None):
++    raw = value if isinstance(value, str) else json.dumps(value, sort_keys=True)
++    if SECRET_PATTERN.search(raw) or credential and credential in raw:
++        raise ValueError('provider_credential_publication_rejected')
++    return value
++
++
++@dataclass(frozen=True)
++class AlchemyEndpoint:
++    http_url: str = field(repr=False)
++    stream_url: str = field(repr=False)
++    credential: str = field(repr=False)
++    identity: str
++    provider: str = 'alchemy_solana_mainnet'
++    network: str = 'solana-mainnet'
++
++    @classmethod
++    def parse(cls, value):
++        try:
++            if not isinstance(value, str) or any(c.isspace() for c in value):
++                raise ValueError()
++            p = urlsplit(value)
++            if (p.scheme != 'https' or p.netloc not in (HOST, HOST + ':443')
++                    or p.query or p.fragment or '?' in value or '#' in value
++                    or not re.fullmatch(r'/v2/[A-Za-z0-9_-]{8,128}', p.path)):
++                raise ValueError()
++            key = p.path[4:]
++            canonical = 'https://' + HOST + p.path
++            return cls(canonical, 'wss://' + STREAM_HOST + p.path, key,
++                       hashlib.sha256(canonical.encode()).hexdigest())
++        except (ValueError, TypeError):
++            raise ValueError('authoritative_alchemy_endpoint_required') from None
++
++    def public(self, value):
++        return public_value(value, self.credential)
+diff --git a/meme_machine/solana_read_rpc.py b/meme_machine/solana_read_rpc.py
+index 069a3df126f78fb7c7de7920797ebe6db952d3f6..bafe9d7cede37c5d4aa3e980ca831bd1e6aeb265 100644
+--- a/meme_machine/solana_read_rpc.py
++++ b/meme_machine/solana_read_rpc.py
+@@ -21,6 +21,7 @@ from urllib.parse import urlparse
+ 
+ from .postgrad import PoolScanRPC
+ from .provider import RPC, Unavailable
++from .solana_provider_config import AlchemyEndpoint
+ 
+ 
+ PRIMARY_PROVIDER = "alchemy_solana_mainnet"
+@@ -49,21 +50,8 @@ def _source(environ=None):
+ 
+ 
+ def _validate_alchemy_url(value):
+-    parsed=urlparse(value)
+-    if (
+-        parsed.scheme!="https"
+-        or parsed.hostname!=ALCHEMY_SOLANA_MAINNET_HOST
+-        or parsed.port not in (None,443)
+-        or parsed.username is not None
+-        or parsed.password is not None
+-        or parsed.query
+-        or parsed.fragment
+-    ):
+-        raise Unavailable("alchemy_rpc_endpoint_required")
+-    parts=[part for part in parsed.path.split("/") if part]
+-    if len(parts)!=2 or parts[0]!="v2" or not parts[1] or "<" in parts[1] or ">" in parts[1]:
+-        raise Unavailable("alchemy_rpc_endpoint_required")
+-    return value
++    try:return AlchemyEndpoint.parse(value).http_url
++    except ValueError:raise Unavailable("alchemy_rpc_endpoint_required") from None
+ 
+ 
+ def primary_rpc_url(environ=None, *, required=False):
+@@ -71,7 +59,7 @@ def primary_rpc_url(environ=None, *, required=False):
+     value=str(source.get(ALCHEMY_ENV_NAME,"") or "").strip()
+     if value:
+         return _validate_alchemy_url(value)
+-    if required:
++    if required or _source(environ).get("MM_SOLANA_EVIDENCE_PLANE_DB"):
+         raise Unavailable("alchemy_rpc_missing")
+     override=str(source.get(PUBLIC_OVERRIDE_ENV_NAME,"") or "").strip()
+     if override:
+@@ -139,7 +127,8 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
+ 
+     def _init_failover(self, secondary_url, pacer, primary_label=PRIMARY_PROVIDER):
+         self.primary_provider = primary_label
+-        self.secondary_url = secondary_url
++        if secondary_url is not None:raise Unavailable("solana_secondary_provider_disabled")
++        self.secondary_url = None
+         self.read_pacer = pacer or SolanaReadPacer()
+         # Compatibility for existing DLMM research code that still reads this name.
+         self.alchemy_pacer = self.read_pacer
+@@ -163,13 +152,25 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
+ 
+     @staticmethod
+     def _request_url(url, request):
++        endpoint = AlchemyEndpoint.parse(url) if 'alchemy.com' in url else None
+         data = json.dumps(request).encode()
+         req = urllib.request.Request(url, data, {"Content-Type": "application/json"})
+-        with urllib.request.urlopen(req, timeout=8) as response:
+-            raw = response.read(2_000_001)
+-        if len(raw) > 2_000_000:
+-            raise Unavailable("response_size_limit")
+-        return json.loads(raw)
++        try:
++            with urllib.request.urlopen(req, timeout=8) as response:
++                raw = response.read(2_000_001)
++            if len(raw) > 2_000_000:raise Unavailable("response_size_limit")
++            value = json.loads(raw)
++            if endpoint:endpoint.public(value)
++            return value
++        except urllib.error.HTTPError as exc:
++            # Retain the existing numeric Retry-After behavior without publishing
++            # arbitrary headers, URLs or provider-supplied error text.
++            headers={}
++            try:headers['Retry-After']=str(max(.5,min(float(exc.headers.get('Retry-After')),30.0)))
++            except (TypeError,ValueError,AttributeError):pass
++            raise urllib.error.HTTPError('', int(exc.code), 'provider_http_error', headers, None) from None
++        except Exception:
++            raise Unavailable('provider_response_unavailable') from None
+ 
+     @staticmethod
+     def _single_response_issue(request, response):
+@@ -223,22 +224,12 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
+             raise
+ 
+     def _http(self, request):
+-        try:
+-            return self._provider_attempt(self.primary_provider, self.url, request)
+-        except Exception as primary_exc:
+-            if not self.secondary_url:
+-                raise
+-            reason = self._exception_reason(primary_exc)
+-            self.failover_count += 1
+-            self.failover_reasons[reason] += 1
+-            # RPC.call/call_many already counted the primary physical transport.
+-            # Count the rescue transport explicitly so http_requests remains physical.
+-            self.http_requests += 1
+-            return self._provider_attempt(
+-                SECONDARY_PROVIDER,
+-                self.secondary_url,
+-                request,
+-            )
++        if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
++            _validate_alchemy_url(self.url)
++            calls = request if isinstance(request,list) else [request]
++            if any(x.get('method') in ('getSignaturesForAddress','getTransaction','getTransactionsForAddress','getBlock') for x in calls):
++                raise Unavailable('foreground_historical_rpc_forbidden')
++        return self._provider_attempt(self.primary_provider, self.url, request)
+ 
+     def provider_telemetry(self):
+         return dict(
+@@ -269,6 +260,9 @@ class ReadOnlyFailoverRPC(_ReadOnlyFailoverMixin, RPC):
+         **kwargs,
+     ):
+         primary_provider=kwargs.pop("primary_provider",PRIMARY_PROVIDER)
++        if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
++            primary_url = _validate_alchemy_url(primary_url)
++            if primary_provider != PRIMARY_PROVIDER:raise Unavailable('authoritative_provider_label_required')
+         self._init_failover(secondary_url, pacer, primary_provider)
+         super().__init__(primary_url, limit=limit, **kwargs)
+ 
+@@ -288,6 +282,9 @@ class ReadOnlyFailoverPoolScanRPC(_ReadOnlyFailoverMixin, PoolScanRPC):
+         **kwargs,
+     ):
+         primary_provider=kwargs.pop("primary_provider",PRIMARY_PROVIDER)
++        if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
++            primary_url = _validate_alchemy_url(primary_url)
++            if primary_provider != PRIMARY_PROVIDER:raise Unavailable('authoritative_provider_label_required')
+         self._init_failover(secondary_url, pacer, primary_provider)
+         super().__init__(primary_url, limit=limit, **kwargs)
+ 

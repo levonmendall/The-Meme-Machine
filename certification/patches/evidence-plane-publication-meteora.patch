@@ -1,0 +1,95 @@
+diff --git a/meme_machine/durable_publication.py b/meme_machine/durable_publication.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..ad3d3fbcbaade911d15b4d573f55807b08a3d45e
+--- /dev/null
++++ b/meme_machine/durable_publication.py
+@@ -0,0 +1,38 @@
++"""Non-authoritative JSON publication with independent failure handling."""
++import json
++import os
++from pathlib import Path
++import uuid
++
++
++def publish_bytes(path, content):
++    path=Path(path)
++    path.parent.mkdir(parents=True,exist_ok=True)
++    temporary=path.with_name('.'+path.name+'.'+uuid.uuid4().hex+'.tmp')
++    try:
++        with temporary.open('xb') as stream:
++            stream.write(content);stream.flush();os.fsync(stream.fileno())
++        os.replace(temporary,path)
++        fd=os.open(path.parent,os.O_RDONLY|os.O_DIRECTORY)
++        try:os.fsync(fd)
++        finally:os.close(fd)
++    finally:temporary.unlink(missing_ok=True)
++
++
++def publish_json(path,value):
++    publish_bytes(path,(json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)+'\n').encode())
++
++
++def publish_report(path,value):
++    """Export failure has no authority to cancel, settle or stop a lifecycle.
++
++    Return explicit diagnostics for the caller to include in its next report.
++    Canonical accounting/state writes MUST NOT use this best-effort interface.
++    """
++    try:
++        publish_json(path,value)
++        return {'published':True,'error':None}
++    except (OSError,ValueError,TypeError,RuntimeError) as exc:
++        # A concurrent diagnostic dict change can invalidate one serialization.
++        # Preserve the previous complete report and all independent journals.
++        return {'published':False,'error':type(exc).__name__}
+diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
+index 4ffb329246e12b9034994ab1c12bc2b5b35ba4e7..7971cf4203b39991638144ecbbce1b0bd126e72f 100644
+--- a/tests/solana_dlmm_independent_v1.py
++++ b/tests/solana_dlmm_independent_v1.py
+@@ -557,9 +557,8 @@ def _atomic_checkpoint(report,stage,rpcs,pacer,**progress):
+         stage=stage,written_at=int(time.time()),**progress)
+     report["rpc"]=_sum_rpc_metrics(rpcs)
+     report["alchemy_pacer"]=pacer.telemetry()
+-    tmp=OUT.with_suffix(OUT.suffix+".tmp")
+-    tmp.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
+-    os.replace(tmp,OUT)
++    from meme_machine.durable_publication import publish_report
++    report['publication']=publish_report(OUT,report)
+ 
+ 
+ def _runtime_expired(deadline):
+@@ -2193,9 +2192,8 @@ def main():
+                 if existing else "experiment_failed_before_valid_terminal_result",
+             allocation_authority=False,
+         )
+-        tmp=OUT.with_suffix(OUT.suffix+".tmp")
+-        tmp.write_text(json.dumps(existing,indent=2,sort_keys=True)+"\n")
+-        os.replace(tmp,OUT)
++        from meme_machine.durable_publication import publish_report
++        existing['publication']=publish_report(OUT,existing)
+         print(json.dumps(dict(
+             conclusion=existing["conclusion"],
+             error=str(exc)[:200],
+diff --git a/tests/test_evidence_plane_publication.py b/tests/test_evidence_plane_publication.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..2dea4b5f148fffc136fce688729991712d07bdfd
+--- /dev/null
++++ b/tests/test_evidence_plane_publication.py
+@@ -0,0 +1,17 @@
++import json
++from pathlib import Path
++import tempfile
++from types import SimpleNamespace
++import unittest
++from unittest.mock import patch
++from meme_machine import durable_publication
++from tests import solana_dlmm_independent_v1 as runtime
++
++class PublicationIsolationTests(unittest.TestCase):
++    def test_export_failure_does_not_escape_runtime(self):
++        with tempfile.TemporaryDirectory() as temp:
++            report={"open_positions":[{"status":"open"}]}
++            with patch.object(runtime,'OUT',Path(temp)/'report.json'), patch.object(durable_publication,'publish_json',side_effect=OSError('injected')):
++                runtime._atomic_checkpoint(report,'monitoring',[],SimpleNamespace(telemetry=lambda:{}))
++            self.assertEqual(report['open_positions'][0]['status'],'open')
++            self.assertFalse(report['publication']['published'])

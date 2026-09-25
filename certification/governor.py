@@ -59,7 +59,12 @@ class Governor:
             db.execute('BEGIN IMMEDIATE')
             db.execute('DELETE FROM queue WHERE created<=?',(started-30,))
             if db.execute('SELECT COUNT(*) FROM queue WHERE provider=?',(provider,)).fetchone()[0]>=256:
-                reason='queue_capacity';db.execute('ROLLBACK');raise TimeoutError('certification_provider_queue_capacity')
+                victim=(db.execute('SELECT id FROM queue WHERE provider=? AND priority>=50 ORDER BY priority DESC,created DESC LIMIT 1',(provider,)).fetchone()
+                        if provider=='solana' and priority in (0,1) else None)
+                if victim:
+                    db.execute('DELETE FROM queue WHERE id=?',victim)
+                else:
+                    reason='queue_capacity';db.execute('ROLLBACK');raise TimeoutError('certification_provider_queue_capacity')
             db.execute('INSERT INTO queue(id,provider,lane,priority,created,deadline) VALUES(?,?,?,?,?,?)',(identity,provider,lane,priority,started,started+deadline_seconds))
             db.execute('COMMIT')
             while True:
@@ -68,6 +73,9 @@ class Governor:
                 db.execute('BEGIN IMMEDIATE')
                 try:
                     db.execute('DELETE FROM queue WHERE created<=?',(now-30,))
+                    if not db.execute('SELECT 1 FROM queue WHERE id=?',(identity,)).fetchone():
+                        reason='background_preempted';db.execute('COMMIT')
+                        raise TimeoutError('certification_background_preempted')
                     head=self._head(db,provider,now)
                     next_at,cooldown=db.execute('SELECT next_at,cooldown FROM pressure WHERE provider=?',(provider,)).fetchone()
                     method_rows=(db.execute(

@@ -29,6 +29,15 @@ def atomic(path,data):
     path=Path(path);temp=path.with_suffix(path.suffix+'.tmp');temp.write_text(canonical(data)+'\n');os.replace(temp,path)
 
 
+def publish_dashboard(result,path):
+    """Diagnostic rendering has no authority over independent lane processes."""
+    try:
+        dashboard(result,path)
+        return dict(published=True,error=None)
+    except Exception as exc:
+        return dict(published=False,error=type(exc).__name__)
+
+
 def git(*args,cwd=ROOT):
     return subprocess.check_output(['git',*args],cwd=cwd,text=True).strip()
 
@@ -540,7 +549,9 @@ def lane_environment(lane,source,run,run_id=None,phase=None):
                MM_CERT_GOVERNOR_DB=str(run/'shared-provider.sqlite'),
                MM_CERTIFICATION_RUN_ID=run_id or run.name,MM_CERTIFICATION_LANE=lane,
                MM_CERTIFICATION_PHASE=str(phase or 'unknown'))
-    if lane in ('pump','meteora'):env['MM_SOLANA_EVIDENCE_BROKER_DB']=str(run/'shared-solana-evidence.sqlite')
+    if lane in ('pump','meteora'):
+        env['MM_SOLANA_EVIDENCE_BROKER_DB']=str(run/'shared-solana-evidence.sqlite')
+        env['MM_SOLANA_EVIDENCE_PLANE_DB']=str(run/'solana-evidence-plane.sqlite')
     else:env.update(MM_CERTIFICATION_PROVIDER_DB=str(run/'shared-robinhood-admission.sqlite'),MM_CERTIFICATION_LANE=lane,
                     MM_CERTIFICATION_RPC_CACHE_DB=str(run/'shared-robinhood-evidence.sqlite'),
                     MM_CERTIFICATION_RPC_CAPABILITIES=str(run/'rpc-capabilities.json'))
@@ -683,7 +694,10 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     last_console=0;last_sample=0;max_broker_active=0;broker_terminal=None;supervisor_error=None
     lane_roots=[str((Path(worktrees)/lane).resolve()) for lane in LANES]
     if len(set(lane_roots))!=len(LANES):raise ValueError('lane_state_roots_not_isolated')
+    from certification.evidence_supervisor import EvidenceProcess
+    evidence=EvidenceProcess(run,Path(worktrees)/'pump',lane_environment('pump',spec['lanes']['pump'],run,run_id,phase))
     try:
+        evidence.start()
         for lane,row in spec['lanes'].items():
             folder=run/lane;folder.mkdir()
             out=(folder/'process.log').open('wb');files[lane]=out
@@ -698,6 +712,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         common_start=max(start for _proc,start in processes.values())
         hard_deadline=common_start+seconds+3300
         while True:
+            evidence_health=evidence.check()
             now=time.monotonic();alive=False
             for lane,(proc,launched) in processes.items():
                 row=rows[lane];code=proc.poll();path=run/lane/'status.json';status={}
@@ -768,7 +783,10 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                         runtime_resources={k:r.get('runtime_resources') for k,r in rows.items()},
                         telemetry_cost={k:r.get('telemetry_cost') for k,r in rows.items()}))
                 last_sample=now
-            provider_efficiency(result);result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
+            provider_efficiency(result);result['certification']=evaluate(result)
+            from meme_machine.durable_publication import publish_report
+            publish_report(run/'result.json',result,asynchronous=True)
+            result['dashboard_publication']=publish_dashboard(result,run/'status.html')
             if now-last_console>=60:
                 print(canonical(dict(run_id=run_id,elapsed_seconds=now-started,lanes={k:{f:v for f,v in r.items() if f in ('health','phase','continuous_uptime_seconds','provider_requests','natural_settled','forced_settled','unexpected_exit')} for k,r in rows.items()})),flush=True)
                 last_console=now
@@ -785,6 +803,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         raise
     finally:
         interrupted=finish_lanes(processes,files,rows,terminal_times,journal,run,worktrees) or interrupted
+        evidence.close()
         broker_terminal=record_unfinished_broker_jobs(run/'shared-solana-evidence.sqlite',journal,time.time())
         try:source_unchanged=source_integrity(worktrees)==gate['source_diff_hashes']
         except (ValueError,OSError,subprocess.CalledProcessError):source_unchanged=False
@@ -799,7 +818,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         provider_efficiency(result);result['certification']=evaluate(result)
         if phase=='hourly':result['hourly_engineering']=hourly_engineering(result)
         provider_efficiency(result);atomic(run/'result.json',result);journal.close()
-        dashboard(result,run/'status.html')
+        publish_dashboard(result,run/'status.html')
         from certification.analysis import report
         report(run)
     return result

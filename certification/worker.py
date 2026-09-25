@@ -47,6 +47,7 @@ class Observer:
         self.public_http_requests=0;self.public_http_errors=Counter()
         self.governor=Governor(os.environ["MM_CERT_GOVERNOR_DB"])
         self.context=threading.local()
+        if lane in ('pump','meteora'):self.solana_usage=Counter({k:0 for k in ('complete_decisions','incomplete_decision_events','censored_decision_events','physical_requests','logical_rpc_calls','execution_refresh_calls','current_state_calls','queue_microseconds','transport_microseconds','retries')})
         self.causal_events=0;self.causal_event_counts=Counter()
 
     def event(self, kind, body):
@@ -73,8 +74,13 @@ class Observer:
             provider_session_count=len(self.provider_sessions),
             evidence_qualification_inferred=False)
         before=time.monotonic_ns()
-        temporary=self.root/'activity.json.tmp';temporary.write_text(canonical(value))
-        os.replace(temporary,self.root/'activity.json');self.last_activity_write=now
+        if self.lane in ('pump','meteora'):
+            from meme_machine.durable_publication import publish_report
+            publish_report(self.root/'activity.json',value,asynchronous=bool(os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')))
+        else:
+            temporary=self.root/'activity.json.tmp';temporary.write_text(canonical(value))
+            os.replace(temporary,self.root/'activity.json')
+        self.last_activity_write=now
         self.snapshot_ns+=time.monotonic_ns()-before
 
     def checkpoint(self, body, phase):
@@ -230,7 +236,15 @@ class Observer:
                       estimated_alchemy=__import__('certification.cu',fromlist=['estimate']).estimate(self.alchemy_methods),
                       report=body,
                       terminal_monotonic=time.monotonic() if phase in ("returned","failed") else None)
-            raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
+            if self.lane in ('pump','meteora'):
+                data['solana_usage']=dict(self.solana_usage)
+                complete=self.solana_usage['complete_decisions']
+                data['solana_usage_health']=dict(excessive_http_per_decision=self.requests>max(100,20*complete),
+                    http_requests_per_complete_decision=self.requests/complete if complete else None)
+                from meme_machine.durable_publication import publish_report
+                publish_report(self.root/'status.json',data,asynchronous=bool(os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')))
+            else:
+                raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
             self.snapshot_ns+=time.monotonic_ns()-before
 
     def install_candidate_context(self):
@@ -249,7 +263,16 @@ class Observer:
                     observer.context.candidate=str(candidate)
                     observer.context.obligation=str(details.get('observation_id') or
                         details.get('decision_at') or details.get('lifecycle_id') or stage)
-            return original(instance,candidate,stage,reason,classification,**details)
+            result=original(instance,candidate,stage,reason,classification,**details)
+            if observer.lane in ('pump','meteora'):
+                with observer.lock:
+                    if stage==('evidence_complete' if observer.lane=='pump' else 'economic_vector'):
+                        observer.solana_usage['complete_decisions']+=1
+                    if classification in ('reconstruction_incomplete','pre_admission_evidence_incomplete'):
+                        observer.solana_usage['incomplete_decision_events']+=1
+                    if classification in ('capacity_censored','provider_failed','stale_before_evidence','stale_during_evidence','consumer_deadline','local_budget_exhausted'):
+                        observer.solana_usage['censored_decision_events']+=1
+            return result
         pipeline.record=record
 
     def causal_event(self,kind,body):
@@ -374,7 +397,12 @@ class Observer:
                 callback=getattr(instance,'evidence_transport_callback',None)
                 if callback is not None:callback()
                 transport_started=time.monotonic_ns()
-                result=original(instance,*args,**kwargs)
+                response=original(instance,*args,**kwargs)
+                if solana and os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
+                    from meme_machine.solana_provider_config import AlchemyEndpoint
+                    endpoint=AlchemyEndpoint.parse(instance.url)
+                    endpoint.public(response)
+                result=response
                 http_status=200
                 if solana:
                     replies=result if isinstance(result,list) else [result]
@@ -405,6 +433,15 @@ class Observer:
                         transport_elapsed=(time.monotonic_ns()-transport_started)/1e9
                         observer.requests+=1;observer.methods.update(methods);observer.latencies.append(transport_elapsed)
                         if provider['provider_kind']=='alchemy':observer.alchemy_methods.update(methods)
+                        if solana:
+                            observer.solana_usage['physical_requests']+=1
+                            observer.solana_usage['logical_rpc_calls']+=len(methods)
+                            observer.solana_usage['execution_refresh_calls' if priority in (0,1) else 'current_state_calls']+=len(methods)
+                            observer.solana_usage['queue_microseconds']+=int((queue_wait or 0)*1e6)
+                            observer.solana_usage['transport_microseconds']+=int(transport_elapsed*1e6)
+                            retries=getattr(instance,'retries',0)
+                            observer.solana_usage['retries']+=max(0,retries-getattr(instance,'_usage_previous_retries',0))
+                            instance._usage_previous_retries=retries
                     unique_methods=list(dict.fromkeys(methods))
                     if error:
                         observer.errors[error]+=1
@@ -450,6 +487,7 @@ class Observer:
                                 http_status=http_status,json_rpc_error_codes=rpc_error_codes,
                                 retry_count=getattr(instance,"retry_count",getattr(instance,"retries",None)),
                                 evidence_priority=priority,evidence_kind=getattr(instance,'evidence_kind',None),
+                                **(dict(solana_work_purpose=('execution_refresh' if priority in (0,1) else 'current_state')) if solana else {}),
                                 authentication='raw_transport_response_requires_lane_verification')
                     observer.raw.write((canonical(record)+'\n').encode());observer.raw.flush();os.fsync(observer.raw.fileno())
                     observer.archive_ns+=time.monotonic_ns()-before

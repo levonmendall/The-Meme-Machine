@@ -79,6 +79,8 @@ class CandidateCausalTests(unittest.TestCase):
             def record(self,*args,**kwargs):return 'recorded'
         module=SimpleNamespace(Pipeline=Pipeline)
         observer=object.__new__(Observer);observer.lane='pump';observer.context=threading.local()
+        from collections import Counter
+        observer.lock=threading.RLock();observer.solana_usage=Counter()
         with patch('certification.worker.importlib.import_module',return_value=module):
             observer.install_candidate_context()
         p=Pipeline();p.record('mint','evidence_requested',decision_at=123)
@@ -89,6 +91,10 @@ class CandidateCausalTests(unittest.TestCase):
         t.start();t.join();self.assertEqual(values,[None])
         p.record('mint','terminal','missing')
         self.assertIsNone(observer.context.candidate)
+        p.record('mint','evidence_complete')
+        p.record('mint','terminal','missing','reconstruction_incomplete')
+        self.assertEqual(observer.solana_usage['complete_decisions'],1)
+        self.assertEqual(observer.solana_usage['incomplete_decision_events'],1)
 
 
 class RetainedDecisionsTests(unittest.TestCase):
