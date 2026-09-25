@@ -5,14 +5,14 @@
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
-      "source_branch": "cert/source-pump-profit-protection-v2-20260923",
-      "source_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
+      "source_branch": "strategy/pump-counterfactual-replay-v1-20260924",
+      "source_sha": "96925831561e9c60108fc8a52113e921ad08838d",
       "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2-counterfactual-replay-v1",
       "policy_hash": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b",
       "file_hashes": {
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
         ".github/workflows/pump-acceleration-natural-prospective.yml": "697617d7ade8d42d68d991a5f73b0d8738117b56d2ecd3f9dd91cf03489d2a7f",
-        "meme_machine/pump_acceleration_strategy.py": "d66d4e068d6405d3e2a9bc75db7a584a8fca218a4e94efdb33cf9c8191ec7e4d"
+        "meme_machine/pump_acceleration_strategy.py": "da3fa98fbb5f75cba8e51a79b07956a22c7f9790ae83fd8902b6deba044f1db8"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -201,7 +201,10 @@
           "buyer_growth_gate_unchanged": true,
           "execution_downside_gate_unchanged": true,
           "fill_time_persistence_unchanged": true,
-          "paper_only_unchanged": true
+          "paper_only_unchanged": true,
+          "source_promotion": "96925831561e9c60108fc8a52113e921ad08838d",
+          "source_branch": "strategy/pump-counterfactual-replay-v1-20260924",
+          "strategy_source_pinned": true
         }
       },
       "prospect_admission": {
@@ -216,7 +219,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "e079733c9ef0d11c4414d8b60895cc2f4a3739ed646cdae6a76e231261d3465a",
+      "source_diff_sha256": "c2e446c9a4f18869831b20471c8f48d86195a678f0de07fb751e0e2c19663e42",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -226,8 +229,7 @@
         "certification/patches/evidence-reconstruction-pump.patch",
         "certification/patches/pump-finalized-log-authority.patch",
         "certification/patches/v10-postrun-pump.patch",
-        "certification/patches/pump-smoke-flat-tail.patch",
-        "certification/patches/counterfactual-replay-pump-v1.patch"
+        "certification/patches/pump-smoke-flat-tail.patch"
       ]
     },
     "meteora": {
