@@ -34,10 +34,10 @@ class Subscription:
         elif self.evidence_class == 'account':
             method='accountSubscribe'
             params=[self.address, {'commitment':'finalized','encoding':'base64'}]
-        elif self.evidence_class == 'transactions':
+        elif self.evidence_class in ('transactions','census'):
             method='blockSubscribe'
             params=[{'mentionsAccountOrProgram':self.address},
-                {'commitment':'finalized','encoding':'json','transactionDetails':'full',
+                {'commitment':'finalized','encoding':'json','transactionDetails':('full' if self.evidence_class=='transactions' else 'signatures'),
                  'showRewards':False,'maxSupportedTransactionVersion':1}]
         else:
             raise EvidenceUnavailable('unsupported_evidence_class')
@@ -126,11 +126,11 @@ class AddressGapRepair:
     leave the gap unresolved; this code never increases throughput or probes another
     provider. A caller must keep this worker at background/active-gap priority.
     """
-    def __init__(self, rpc, writer, *, endpoint_identity, max_pages=16):
+    def __init__(self, rpc, writer, *, endpoint_identity, max_pages=16, record_mapper=None):
         if not 1<=max_pages<=16:
             raise EvidenceUnavailable('repair_page_budget')
         self.rpc=rpc;self.writer=writer
-        self.endpoint_identity=endpoint_identity;self.max_pages=max_pages
+        self.endpoint_identity=endpoint_identity;self.max_pages=max_pages;self.record_mapper=record_mapper
 
     def step(self, gap_id, address, *, now, finalized_through):
         row=self.writer.db.execute('SELECT scope,lo,hi,repaired,repair_cursor,pages FROM gaps WHERE id=?',(gap_id,)).fetchone()
@@ -167,6 +167,8 @@ class AddressGapRepair:
             records.append(FinalizedRecord(f'{scope}:tx:{signature}',scope,slot,signature,address,
                 (address,),tx.get('blockTime'),tx,'alchemy_finalized_repair',
                 self.endpoint_identity,now,transaction_index=index,kind='transaction'))
+        if self.record_mapper is not None:
+            records=[mapped for record in records for mapped in self.record_mapper(record)]
         token=result.get('paginationToken')
         if token is not None and (not isinstance(token,str) or not token or token==state['next']):
             raise EvidenceUnavailable('repair_pagination_stalled')
