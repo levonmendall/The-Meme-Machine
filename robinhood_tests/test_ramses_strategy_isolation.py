@@ -23,7 +23,7 @@ class RamsesStrategyIsolationTests(unittest.TestCase):
 
     def _decision(self, capital=100):
         return dict(
-            mode="active_wide_maker",
+            mode="fee_pulse",
             qualified=True,
             allocation_authority=False,
             strategy_domain=STRATEGY_DOMAIN,
