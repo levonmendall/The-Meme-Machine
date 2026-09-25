@@ -132,6 +132,14 @@ def main():
         patch_bytes = git_diff(pump)
         if not patch_bytes or b"pump_acceleration_strategy.py" not in patch_bytes:
             raise RuntimeError("counterfactual Pump patch missing strategy mutation")
+        # Canonical patch files must not contain whitespace-only added lines.
+        # Removing trailing whitespace from added content preserves semantics and
+        # lets repository-level diff hygiene remain fail-closed.
+        patch_lines = patch_bytes.decode().splitlines()
+        patch_bytes = ("\n".join(
+            line.rstrip() if line.startswith("+") and not line.startswith("+++") else line
+            for line in patch_lines
+        ) + "\n").encode()
         PATCH_PATH.write_bytes(patch_bytes)
 
         sources_path = ROOT / "certification/sources.json"
