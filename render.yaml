@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: meme-machine-dashboard-staging
+    runtime: python
+    region: oregon
+    plan: free
+    branch: release/portfolio-dashboard-v1
+    autoDeployTrigger: off
+    healthCheckPath: /healthz
+    buildCommand: pip install --disable-pip-version-check -r requirements.txt
+    startCommand: python -m dashboard --host 0.0.0.0
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.14
+      - key: MM_DASHBOARD_MAX_CONCURRENCY
+        value: "16"
+      - key: MM_DASHBOARD_RATE_LIMIT_PER_MINUTE
+        value: "120"
+
+previews:
+  generation: off

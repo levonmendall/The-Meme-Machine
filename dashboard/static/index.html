@@ -11,11 +11,23 @@
       <svg viewBox="0 0 48 40" aria-hidden="true"><path class="logo-a" d="M3 36 17 9 31 36M14 36 29 6 45 36"/><path class="logo-b" d="m13 36 10-19 10 19"/></svg>
       <span>THE <strong>MEME MACHINE</strong></span>
     </a>
-    <nav aria-label="Main navigation"><a href="#overview">Overview</a><a href="#lanes">Lanes</a><a href="#positions">Positions</a><a href="#trades">Trades</a><a href="#analytics">Analytics</a><a href="#system">System</a></nav>
-    <div class="paper-tag">PAPER TRADING</div>
+    <nav aria-label="Main navigation">
+      <a href="#overview">Overview</a><a href="#lanes">Lanes</a><a href="#trades">Trades</a><a href="#positions">Positions</a><a href="#analytics">Analytics</a><a href="#system">System</a>
+    </nav>
+    <div class="topbar-right">
+      <span id="live-indicator" class="live-indicator">PAPER</span>
+      <span class="settings-glyph" aria-hidden="true">⚙</span>
+      <span class="update-meta"><span>Last Update</span><strong id="last-update">—</strong></span>
+    </div>
   </header>
   <main id="main" tabindex="-1"><div class="empty">Loading local paper observations…</div></main>
-  <footer><span>THE MEME MACHINE <span class="muted">/ Read-only paper portfolio</span></span><span>No live-money execution</span></footer>
+  <footer>
+    <span class="footer-brand">
+      <svg viewBox="0 0 48 40" aria-hidden="true"><path class="logo-a" d="M3 36 17 9 31 36M14 36 29 6 45 36"/><path class="logo-b" d="m13 36 10-19 10 19"/></svg>
+      THE MEME MACHINE
+    </span>
+    <span>Paper Trading Only</span><span>Not Financial Advice</span><span class="footer-spacer"></span><span>Build Wealth Through Data</span><span>Read-only dashboard</span>
+  </footer>
   <dialog id="detail"><button id="close-detail" class="close" aria-label="Close position details">×</button><div id="detail-content"></div></dialog>
   <noscript>This read-only dashboard requires JavaScript. Its JSON endpoints are available under /api/dashboard/.</noscript>
 </body>

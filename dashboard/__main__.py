@@ -1,43 +1,225 @@
-"""Loopback preview/observer. Does not start the paper runtime."""
+"""Public read-only dashboard observer with bounded deployment controls.
+
+This service never starts market execution and never initializes portfolio state.
+"""
 import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+import os
 from pathlib import Path
+import threading
+import time
+from urllib.parse import urlsplit
+
 from .api import Dashboard
 from .model import Reader
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--port', type=int, default=8090)
-    parser.add_argument('--inception')
-    parser.add_argument('--accounting')
-    parser.add_argument('--telemetry')
-    parser.add_argument('--fixture-dir', help='Explicit isolated development fixtures only')
-    args = parser.parse_args()
-    if args.fixture_dir and any((args.inception, args.accounting, args.telemetry)):
-        parser.error('fixture mode cannot read canonical paths')
-    mode = 'canonical'
-    if args.fixture_dir:
-        root = Path(args.fixture_dir)
-        args.inception, args.accounting, args.telemetry = root/'inception.json', root/'accounting.json', root/'telemetry.json'
-        mode = 'fixture'
-    reader = Reader(args.inception, args.accounting, args.telemetry,
-                    Path(__file__).resolve().parents[1]/'certification/sources.json', mode=mode)
-    if mode == 'fixture':
-        from .fixtures import FIXTURE_NOW
-        reader.clock = lambda: FIXTURE_NOW
-    app = Dashboard(reader)
+DEFAULT_MAX_CONCURRENCY = 16
+DEFAULT_RATE_LIMIT_PER_MINUTE = 120
+
+
+class FixedWindowRateLimiter:
+    def __init__(self, limit, *, clock=time.monotonic):
+        if type(limit) is not int or not 1 <= limit <= 600:
+            raise ValueError("dashboard_rate_limit_bounds")
+        self.limit = limit
+        self.clock = clock
+        self.lock = threading.Lock()
+        self.state = {}
+
+    def allow(self, key):
+        now = self.clock()
+        with self.lock:
+            started, count = self.state.get(key, (now, 0))
+            if now - started >= 60:
+                started, count = now, 0
+            if count >= self.limit:
+                return False
+            self.state[key] = (started, count + 1)
+            if len(self.state) > 2048:
+                self.state = {
+                    k: value for k, value in self.state.items()
+                    if now - value[0] < 60
+                }
+                if len(self.state) > 2048:
+                    self.state.clear()
+                    self.state[key] = (started, count + 1)
+            return True
+
+
+class BoundedThreadingHTTPServer(ThreadingHTTPServer):
+    daemon_threads = True
+    request_queue_size = 32
+
+    def __init__(self, address, handler, *, max_concurrency):
+        if type(max_concurrency) is not int or not 1 <= max_concurrency <= 64:
+            raise ValueError("dashboard_concurrency_bounds")
+        self._slots = threading.BoundedSemaphore(max_concurrency)
+        super().__init__(address, handler)
+
+    def process_request(self, request, client_address):
+        self._slots.acquire()
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._slots.release()
+
+
+def make_server(
+    app, host, port, *,
+    max_concurrency=DEFAULT_MAX_CONCURRENCY,
+    rate_limit_per_minute=DEFAULT_RATE_LIMIT_PER_MINUTE,
+    clock=time.monotonic,
+):
+    limiter = FixedWindowRateLimiter(rate_limit_per_minute, clock=clock)
 
     class Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
+        server_version = "MemeMachineDashboard/1"
+        sys_version = ""
+
+        def _json(self, status, payload, *, headers=None):
+            body = json.dumps(payload, separators=(",", ":")).encode()
+            self.send_response(status)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Type", "application/json")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Connection", "close")
+            for key, value in (headers or {}).items():
+                self.send_header(key, value)
+            self.end_headers()
+            if self.command != "HEAD":
+                self.wfile.write(body)
+            self.close_connection = True
+
+        def _handle(self):
+            path = urlsplit(self.path).path
+            if path == "/":
+                self.send_response(302)
+                self.send_header("Location", "/dashboard")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", "0")
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.close_connection = True
+                return
+            if path == "/healthz":
+                if self.command not in ("GET", "HEAD"):
+                    self._json(
+                        405, {"error": "read_only"},
+                        headers={"Allow": "GET, HEAD"},
+                    )
+                else:
+                    self._json(200, {"status": "ok"})
+                return
+            if path != "/dashboard" and not path.startswith(
+                ("/dashboard/", "/api/dashboard/")
+            ):
+                self._json(404, {"error": "not_found"})
+                return
+            client = self.client_address[0] if self.client_address else "unknown"
+            if not limiter.allow(client):
+                self._json(
+                    429, {"error": "rate_limited"},
+                    headers={"Retry-After": "60"},
+                )
+                return
             if not app.serve(self):
-                self.send_error(404)
-        do_HEAD = do_POST = do_PUT = do_PATCH = do_DELETE = do_OPTIONS = do_GET
+                self._json(404, {"error": "not_found"})
+
+        do_GET = _handle
+        do_HEAD = _handle
+        do_POST = _handle
+        do_PUT = _handle
+        do_PATCH = _handle
+        do_DELETE = _handle
+        do_OPTIONS = _handle
+
         def log_message(self, *_):
             pass
 
-    server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
-    print(f'Read-only {mode} observer: http://127.0.0.1:{server.server_port}/dashboard', flush=True)
+    return BoundedThreadingHTTPServer(
+        (host, port), Handler, max_concurrency=max_concurrency
+    )
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
+    parser.add_argument(
+        "--port", type=int, default=int(os.environ.get("PORT", "8090"))
+    )
+    parser.add_argument("--inception")
+    parser.add_argument("--accounting")
+    parser.add_argument("--telemetry")
+    parser.add_argument(
+        "--fixture-dir", help="Explicit isolated development fixtures only"
+    )
+    parser.add_argument(
+        "--max-concurrency",
+        type=int,
+        default=int(os.environ.get(
+            "MM_DASHBOARD_MAX_CONCURRENCY", str(DEFAULT_MAX_CONCURRENCY)
+        )),
+    )
+    parser.add_argument(
+        "--rate-limit-per-minute",
+        type=int,
+        default=int(os.environ.get(
+            "MM_DASHBOARD_RATE_LIMIT_PER_MINUTE",
+            str(DEFAULT_RATE_LIMIT_PER_MINUTE),
+        )),
+    )
+    args = parser.parse_args()
+
+    if args.fixture_dir and any((args.inception, args.accounting, args.telemetry)):
+        parser.error("fixture mode cannot read canonical paths")
+
+    mode = "canonical"
+    if args.fixture_dir:
+        root = Path(args.fixture_dir)
+        args.inception = root / "inception.json"
+        args.accounting = root / "accounting.json"
+        args.telemetry = root / "telemetry.json"
+        mode = "fixture"
+
+    reader = Reader(
+        args.inception,
+        args.accounting,
+        args.telemetry,
+        Path(__file__).resolve().parents[1] / "certification/sources.json",
+        mode=mode,
+    )
+    if mode == "fixture":
+        from .fixtures import FIXTURE_NOW
+        reader.clock = lambda: FIXTURE_NOW
+
+    try:
+        server = make_server(
+            Dashboard(reader),
+            args.host,
+            args.port,
+            max_concurrency=args.max_concurrency,
+            rate_limit_per_minute=args.rate_limit_per_minute,
+        )
+    except ValueError as error:
+        parser.error(str(error))
+
+    print(
+        f"Read-only {mode} observer bound on {args.host}:{server.server_port}; "
+        "portfolio inception is not performed by this service",
+        flush=True,
+    )
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -46,5 +228,5 @@ def main():
         server.server_close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
