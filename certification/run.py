@@ -295,7 +295,7 @@ def _port_pump_partial_accounting(work):
     frozen=[i for i,line in enumerate(lines) if line.startswith('FROZEN_POLICY_HASH=')]
     if len(frozen)!=1:
         raise ValueError('pump_frozen_policy_hash_anchor')
-    lines[frozen[0]]='FROZEN_POLICY_HASH="b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5"'
+    lines[frozen[0]]='FROZEN_POLICY_HASH="825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b"'
     text='\n'.join(lines)+'\n'
     anchor="""            mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
             age=now-int(row["opened"])
