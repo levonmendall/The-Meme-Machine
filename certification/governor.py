@@ -119,7 +119,16 @@ class Governor:
         methods=self._methods(methods);now=time.monotonic()
         with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
             db.execute('INSERT OR IGNORE INTO pressure VALUES(?,0,0,0,0)',(provider,))
-            db.execute('UPDATE pressure SET cooldown=MAX(cooldown,?),rate_errors=rate_errors+1 WHERE provider=?',(now+8,provider))
+            # The accepted v10 hour showed all Solana rate errors isolated to
+            # getSignaturesForAddress while unrelated methods remained healthy.
+            # Preserve the physical request ceiling and the existing 15/30/60s
+            # method backoff, but do not globally stall unrelated foreground reads
+            # for a demonstrably method-scoped signature-history throttle.
+            method_scoped_signature_limit=(methods==('getSignaturesForAddress',))
+            if method_scoped_signature_limit:
+                db.execute('UPDATE pressure SET rate_errors=rate_errors+1 WHERE provider=?',(provider,))
+            else:
+                db.execute('UPDATE pressure SET cooldown=MAX(cooldown,?),rate_errors=rate_errors+1 WHERE provider=?',(now+8,provider))
             for method in methods:
                 row=db.execute('SELECT cooldown,rate_errors,rate_streak FROM method_pressure WHERE provider=? AND method=?',
                                (provider,method)).fetchone()
