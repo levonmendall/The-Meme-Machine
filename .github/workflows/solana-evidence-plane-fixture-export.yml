@@ -88,6 +88,9 @@ jobs:
         run: python -m certification.restart_safety --worktrees "$RUNNER_TEMP/evidence-lanes" --output evidence-certification/restart
       - name: Integrated accounting and lifecycle acceptance
         run: python -m certification.integrated_acceptance --worktrees "$RUNNER_TEMP/evidence-lanes" --output evidence-certification/integrated
+      - name: Scan application certification artifacts and logs for credentials
+        if: always()
+        run: python -m certification.solana_provider_gate --scan evidence-certification
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

@@ -1,0 +1,45 @@
+{
+  "scope": "focused_nonmarket_cleanup",
+  "results": [
+    {
+      "log": "focused-1.log",
+      "sha256": "15817b0f8987617c06fccdf64a9c1d082069c34e2ffb66ef154c168508063a63",
+      "summary": "Ran 47 tests in 2.492s\n\nOK"
+    },
+    {
+      "log": "focused-2.log",
+      "sha256": "905b755d0e5be0464a836b5f975d478caed66bc168a143c5fc1ab1d68e56ce33",
+      "summary": "Ran 26 tests in 2.240s\n\nOK"
+    },
+    {
+      "log": "focused-3.log",
+      "sha256": "f4731423762abb1c0bacb88699654f731687edf0a3620cd5e2629dcd0bbd4723",
+      "summary": "Ran 8 tests in 0.129s\n\nOK"
+    },
+    {
+      "log": "focused-final.log",
+      "sha256": "4d257ddfff3dcf891a133bbe83d6bdec5f5e07dfef58283aba142278200418eb",
+      "summary": "Ran 30 tests in 2.329s\n\nOK"
+    },
+    {
+      "log": "focused-pump.log",
+      "sha256": "793bab7c7d29c004c8d4e77ef8a162010e370d8992341741f68b7554f17e2277",
+      "summary": "Ran 39 tests in 12.652s\n\nOK"
+    },
+    {
+      "log": "focused-meteora.log",
+      "sha256": "abf9f25b88f761062d6f6b989bd8f7ff940a96b9e649f20f3b8b70165eb5ffee",
+      "summary": "Ran 43 tests in 0.340s\n\nOK"
+    }
+  ],
+  "local_real_ipc": {
+    "passed": false,
+    "error_type": "PermissionError",
+    "errno": 1,
+    "message": "Operation not permitted",
+    "command": "python -m certification.evidence_ipc_check",
+    "interpretation": "Workspace denies Unix socket creation; unchanged real IPC gate retained for hosted certification. No escalation attempted."
+  },
+  "provider_calls": 0,
+  "market_runs": 0
+}

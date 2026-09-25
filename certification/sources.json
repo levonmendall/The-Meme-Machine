@@ -219,7 +219,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "1209b894ee0851e859341f6057d5afecf7df5e57405408a5f132fbb6fdf0635d",
+      "source_diff_sha256": "6ae4c965a338da13fc786d0677ad99c0cd817745aed79a86587c053310d65f2c",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -232,7 +232,8 @@
         "certification/patches/pump-smoke-flat-tail.patch",
         "certification/patches/evidence-plane-publication-pump.patch",
         "certification/patches/evidence-plane-pump-recovery.patch",
-        "certification/patches/evidence-plane-runtime-pump.patch"
+        "certification/patches/evidence-plane-runtime-pump.patch",
+        "certification/patches/evidence-plane-offline-pump.patch"
       ]
     },
     "meteora": {
@@ -240,7 +241,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "8fa7f6122239ed2c9fb8d1ea8b70434c33726d0b54c333a7b5c6f75672c251aa",
+      "source_diff_sha256": "1fdd0a1c4a17c06093837007d0c05ead9af336de68fead11bf6a953201c8a0bd",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -487,7 +488,8 @@
         "certification/patches/evidence-reconstruction-meteora.patch",
         "certification/patches/v10-postrun-meteora.patch",
         "certification/patches/evidence-plane-publication-meteora.patch",
-        "certification/patches/evidence-plane-runtime-meteora.patch"
+        "certification/patches/evidence-plane-runtime-meteora.patch",
+        "certification/patches/evidence-plane-offline-meteora.patch"
       ],
       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b"
     },

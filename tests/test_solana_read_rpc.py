@@ -150,3 +150,66 @@ class SolanaReadTopologyTests(unittest.TestCase):
 
 if __name__=='__main__':
     unittest.main()
+
+class SolanaAuthorityBoundaryTests(unittest.TestCase):
+    def test_canonical_endpoint_derivation_and_strict_validation(self):
+        from meme_machine.solana_provider_config import AlchemyEndpoint
+        endpoint=AlchemyEndpoint.parse(ALCHEMY)
+        self.assertEqual(endpoint.stream_url,ALCHEMY.replace('.g.', '.streaming.').replace('https:', 'wss:'))
+        self.assertEqual(endpoint.identity,AlchemyEndpoint.parse(ALCHEMY.replace('.com/', '.com:443/')).identity)
+        self.assertNotIn('example-key',repr(endpoint))
+        for url in ('',ALCHEMY+'/',ALCHEMY+'?x=1',ALCHEMY+'#',ALCHEMY.replace('/v2/','//v2/'),
+                    ALCHEMY.replace('mainnet','devnet'),ALCHEMY.replace('https','http'),
+                    ALCHEMY.replace('example-key','a/b'),ALCHEMY.replace('example-key','%41key'),
+                    ALCHEMY.replace('.com/','.com:bad/'),ALCHEMY+'\n',ONFINALITY):
+            with self.subTest(kind=url.split('/')[0]),self.assertRaises(ValueError):AlchemyEndpoint.parse(url)
+
+    def test_production_missing_endpoint_ignores_legacy_aliases_and_rejects_history(self):
+        from unittest.mock import patch
+        import os
+        env={'MM_SOLANA_EVIDENCE_PLANE_DB':'offline.db','MM_ONFINALITY_SOLANA_RPC_URL':ONFINALITY,
+             'MM_SOLANA_PUBLIC_RPC_URL':rpc_topology.PUBLIC_RPC_URL}
+        with patch.dict(os.environ,env,clear=True):
+            with self.assertRaises(Unavailable):rpc_topology.new_rpc()
+            with self.assertRaises(Unavailable):rpc_topology.ReadOnlyFailoverRPC(rpc_topology.PUBLIC_RPC_URL)
+            with self.assertRaises(Unavailable):rpc_topology.ReadOnlyFailoverRPC(ALCHEMY,secondary_url=ONFINALITY)
+            rpc=rpc_topology.ReadOnlyFailoverRPC(ALCHEMY)
+            with patch.object(rpc,'_provider_attempt') as attempt:
+                for method in ('getSignaturesForAddress','getTransaction','getTransactionsForAddress','getBlock'):
+                    with self.assertRaises(Unavailable):rpc._http(dict(method=method))
+                attempt.assert_not_called()
+                rpc._http(dict(method='getMultipleAccounts'))
+                self.assertEqual(attempt.call_count,1)
+
+    def test_http_error_and_payload_never_publish_credentials(self):
+        from unittest.mock import patch,MagicMock
+        import traceback
+        from meme_machine.solana_provider_config import AlchemyEndpoint
+        endpoint=AlchemyEndpoint.parse(ALCHEMY)
+        with patch('urllib.request.urlopen',side_effect=urllib.error.HTTPError(ALCHEMY,429,ALCHEMY,{},None)):
+            try:rpc_topology._ReadOnlyFailoverMixin._request_url(ALCHEMY,{'id':1})
+            except Exception:
+                diagnostic=traceback.format_exc()
+                self.assertNotIn(endpoint.credential,diagnostic)
+                self.assertNotIn(ALCHEMY,diagnostic)
+        response=MagicMock();response.__enter__.return_value.read.return_value=(
+            '{"result":"'+endpoint.credential+'"}').encode()
+        with patch('urllib.request.urlopen',return_value=response):
+            with self.assertRaises(Unavailable):rpc_topology._ReadOnlyFailoverMixin._request_url(ALCHEMY,{'id':1})
+
+    def test_repair_transport_telemetry_and_identity_are_safe(self):
+        from certification.evidence_worker import RepairRPC
+        from unittest.mock import MagicMock,patch
+        from meme_machine.solana_provider_config import GENESIS
+        governor=MagicMock();rpc=RepairRPC(ALCHEMY,governor)
+        response=MagicMock();response.__enter__.return_value.read.return_value=(
+            '{"id":1,"result":"'+GENESIS+'"}').encode()
+        with patch('urllib.request.urlopen',return_value=response):rpc.validate_network()
+        with patch('urllib.request.urlopen',side_effect=urllib.error.HTTPError(ALCHEMY,429,ALCHEMY,{},None)):
+            with self.assertRaises(ValueError):rpc.call('getTransactionsForAddress',[])
+        result=rpc.telemetry()
+        self.assertEqual(result['counters']['physical_requests'],2)
+        self.assertEqual(result['counters']['429s'],1)
+        self.assertEqual(result['estimated_alchemy']['unpriced_methods'],{'getTransactionsForAddress':1})
+        self.assertNotIn('example-key',str(result))
+        governor.rate_limited.assert_called_once()

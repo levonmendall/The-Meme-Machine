@@ -19,6 +19,27 @@ import sqlite3
 import threading
 import time
 import uuid
+from .solana_provider_config import public_value
+
+STORAGE_WARNING_BYTES = 512 * 1024 * 1024
+STORAGE_CRITICAL_BYTES = 128 * 1024 * 1024
+
+
+def storage_health(path, *, required_bytes=0):
+    path = Path(path)
+    archive = path.parent / (path.name + '.archive')
+    locations = (path.parent, archive if archive.exists() else path.parent)
+    free = [os.statvfs(p).f_bavail * os.statvfs(p).f_frsize for p in locations]
+    remaining = min(free) - required_bytes
+    return dict(free_bytes=min(free), database_free_bytes=free[0], archive_free_bytes=free[1],
+                warning_bytes=STORAGE_WARNING_BYTES, critical_bytes=STORAGE_CRITICAL_BYTES,
+                state=('critical' if remaining < STORAGE_CRITICAL_BYTES else
+                       'warning' if remaining < STORAGE_WARNING_BYTES else 'ok'))
+
+
+def require_storage(path, *, required_bytes=0):
+    if storage_health(path, required_bytes=required_bytes)['state'] == 'critical':
+        raise EvidenceUnavailable('storage_capacity_critical')
 
 
 def canonical(value):
@@ -55,6 +76,7 @@ class FinalizedRecord:
     kind: str = 'event'
 
     def body(self):
+        public_value(self.__dict__)
         if (not all((self.identity, self.scope, self.program))
                 or self.kind != 'account' and not self.signature
                 or type(self.slot) is not int or self.slot < 0
@@ -91,6 +113,7 @@ class IntervalProof:
     observed_at: float
 
     def validate(self):
+        public_value(self.__dict__)
         if (not self.scope or type(self.lower_slot) is not int or self.lower_slot < 0
                 or type(self.upper_slot) is not int or self.upper_slot < self.lower_slot
                 or self.source not in ('alchemy_finalized_stream', 'alchemy_finalized_repair')
@@ -159,6 +182,7 @@ class EvidenceWriter:
     def __init__(self, path, *, clock=time.time, max_hot_bytes=256 * 1024 * 1024):
         self.path = Path(path).resolve()
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        require_storage(self.path)
         self.clock = clock
         if type(max_hot_bytes) is not int or max_hot_bytes < 1024 * 1024:
             raise EvidenceUnavailable('hot_store_capacity_bound')
@@ -234,13 +258,17 @@ class EvidenceWriter:
 
     def ingest(self, records, *, proof=None, repair_receipt=None):
         self._check()
+        require_storage(self.path, required_bytes=32 * 1024 * 1024)
         records = tuple(records)
         if len(records) > 2048:
             raise EvidenceUnavailable('ingestion_batch_bound')
         for record in records:
             floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+record.scope,)).fetchone()
             if floor and record.slot<int(floor[0]):raise EvidenceUnavailable('record_below_hot_retention_floor')
-        bodies = [(record, record.body()) for record in records]
+        try:bodies = [(record, record.body()) for record in records]
+        except ValueError:
+            with self.transaction():self._count('rejected_evidence_records',len(records))
+            raise
         if sum(len(canonical(body).encode()) for _, body in bodies) > 16 * 1024 * 1024:
             raise EvidenceUnavailable('ingestion_payload_bound')
         hot_bytes=sum(p.stat().st_size for p in (self.path,Path(str(self.path)+'-wal')) if p.exists())
@@ -305,14 +333,21 @@ class EvidenceWriter:
             self._count('gaps_repaired', n)
 
     def interest(self, owner, scope, *, lower_slot, priority=4, lifecycle='candidate'):
+        with self.transaction():
+            self._interest(owner,scope,lower_slot=lower_slot,priority=priority,lifecycle=lifecycle)
+
+    def _interest(self, owner, scope, *, lower_slot, priority=4, lifecycle='candidate'):
         if (not owner or not scope or type(lower_slot) is not int or lower_slot < 0
                 or priority not in range(5) or lifecycle not in ('candidate', 'reserved', 'open', 'research')):
             raise EvidenceUnavailable('invalid_interest')
         if lifecycle == 'open' and priority != 0 or lifecycle == 'reserved' and priority > 1:
             raise EvidenceUnavailable('lifecycle_evidence_priority')
-        with self.transaction():
-            self.db.execute('INSERT INTO interests VALUES(?,?,?,?,?,1,?) ON CONFLICT(owner,scope) DO UPDATE SET priority=excluded.priority,lower_slot=MIN(lower_slot,excluded.lower_slot),lifecycle=excluded.lifecycle,active=1,updated=excluded.updated',
-                (owner, scope, priority, lower_slot, lifecycle, self.clock()))
+        old = self.db.execute('SELECT lifecycle,active FROM interests WHERE owner=? AND scope=?', (owner,scope)).fetchone()
+        if old and old[1] and ((old[0] == 'open' and lifecycle != 'open') or
+                              (old[0] == 'reserved' and lifecycle not in ('reserved','open'))):
+            raise EvidenceUnavailable('lifecycle_interest_downgrade')
+        self.db.execute('INSERT INTO interests VALUES(?,?,?,?,?,1,?) ON CONFLICT(owner,scope) DO UPDATE SET priority=excluded.priority,lower_slot=MIN(lower_slot,excluded.lower_slot),lifecycle=excluded.lifecycle,active=1,updated=excluded.updated',
+            (owner, scope, priority, lower_slot, lifecycle, self.clock()))
 
     def release(self, owner, scope, *, lifecycle_resolved=False):
         with self.transaction():
@@ -362,8 +397,10 @@ class EvidenceWriter:
     @staticmethod
     def write_archive(path,plan):
         if not plan:return None
+        public_value(plan)
         raw=('\n'.join(canonical(row) for row in plan)+'\n').encode()
         compressed=gzip.compress(raw,mtime=0);checksum=hashlib.sha256(compressed).hexdigest()
+        require_storage(path, required_bytes=len(compressed) + 32 * 1024 * 1024)
         path=Path(path);directory=path.parent/(path.name+'.archive');directory.mkdir(exist_ok=True)
         target=directory/(checksum+'.jsonl.gz');publish_bytes(target,compressed)
         return dict(name=target.name,hash=checksum,bytes=len(compressed))
@@ -452,6 +489,7 @@ class EvidenceReader:
         self.db.execute('PRAGMA query_only=ON')
 
     def _healthy(self):
+        require_storage(self.path)
         if self.db.execute("SELECT 1 FROM meta WHERE key='poisoned'").fetchone():
             raise EvidenceConflict('evidence_store_poisoned')
 
@@ -512,11 +550,11 @@ class EvidenceReader:
             self.db.execute('ROLLBACK')
 
     def telemetry(self):
-        self._healthy()
+        # Health remains readable while canonical queries fail closed.
         health={}
         if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='service_health'").fetchone():
             health={k:json.loads(v) for k,v in self.db.execute('SELECT * FROM service_health')}
-        return dict(service_health=health,ingestion_lag_seconds={k:max(0,time.time()-v['time']) for k,v in health.items() if k.startswith('finalized_frontier:')},cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
+        return dict(integrity_poisoned=bool(self.db.execute("SELECT 1 FROM meta WHERE key='poisoned'").fetchone()),storage=storage_health(self.path),service_health=health,ingestion_lag_seconds={k:max(0,time.time()-v['time']) for k,v in health.items() if k.startswith('finalized_frontier:')},cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
             coverage_windows=self.db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],
             unresolved_gaps=self.db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],
             consumer_lag=[dict(owner=o, scope=s, slots=max(0, top-n), updated=t) for o,s,n,t,top in self.db.execute('SELECT c.owner,c.scope,c.slot,c.updated,r.slot FROM consumers c JOIN cursors r ON c.scope=r.scope')],

@@ -23,6 +23,7 @@ class RuntimeEvidence:
         self.counts={}
     def command(self,**request):
         request.setdefault('owner',self.owner)
+        request['consumer']=self.owner
         if self._command:return self._command(request)
         data=(canonical(request)+'\n').encode()
         if len(data)>32768:raise EvidenceUnavailable('evidence_interest_command_bound')
@@ -67,23 +68,36 @@ class RuntimeEvidence:
         if row is None or slot>=row[0]:self.command(op='ack',owner=owner,scope=scope,slot=slot)
     def pump_events(self,scope,address,lower_time,upper_time,*,upper_slot=None):
         try:
+            self.count('pump.local_evidence_reads')
             lo,hi=self.bounds(scope,lower_time,upper_time,upper_slot=upper_slot)
             events=PumpEvidenceView(self.reader,scope).events(address,lower_slot=lo,upper_slot=hi,
                 lower_time=lower_time,upper_time=upper_time,as_of=self.clock())
-            self.acknowledge(scope,hi);return events
+            self.acknowledge(scope,hi)
+            self.count('pump.complete_local_reads')
+            self._repair_assisted('pump',scope,lo,hi)
+            return events
         except EvidenceUnavailable:
-            self.count('pump.gap_blocked_queries');raise
+            self.count('pump.gap_blocked_queries')
+            self.count('pump.incomplete_local_reads');raise
     def meteora_scope(self,pool):
         scoped='pool:meteora:'+pool
         if self.reader.db.execute('SELECT 1 FROM coverage WHERE scope=? LIMIT 1',(scoped,)).fetchone():return scoped
         return METEORA_SCOPE
     def meteora_interval(self,pool,start,end):
         try:
+            self.count('meteora.local_evidence_reads')
             scope=self.meteora_scope(pool)
             result=MeteoraEvidenceView(self.reader,scope).interval(pool,start_slot=start,end_slot=end,as_of=self.clock())
-            self.acknowledge(scope,end);return result
+            self.acknowledge(scope,end)
+            self.count('meteora.complete_local_reads')
+            self._repair_assisted('meteora',scope,start,end)
+            return result
         except EvidenceUnavailable:
-            self.count('meteora.gap_blocked_reconstructions');raise
+            self.count('meteora.gap_blocked_reconstructions')
+            self.count('meteora.incomplete_local_reads');raise
+    def _repair_assisted(self,lane,scope,lo,hi):
+        if self.reader.db.execute("SELECT 1 FROM coverage WHERE scope=? AND lo<=? AND hi>=? AND available<=? AND proof LIKE '%alchemy_finalized_repair%' LIMIT 1",(scope,hi,lo,self.clock())).fetchone():
+            self.count(lane+'.repair_assisted_windows')
     def telemetry(self):return dict(self.reader.telemetry(),lane_counters=dict(self.counts))
     def close(self):self.reader.close()
 

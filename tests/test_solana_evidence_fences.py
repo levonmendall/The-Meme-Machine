@@ -47,3 +47,30 @@ class FenceTests(unittest.TestCase):
         self.fence=FinalizedFence(self.writer,endpoint_identity='a'*64,decoders={'pump':lambda _:[]})
         self.block(11,10)
         self.assertFalse(self.reader.covered('pump',10,10,as_of=100))
+
+    def test_interest_ownership_lease_and_lifecycle_downgrade(self):
+        def interest(owner,consumer,lifecycle='candidate',priority=3):
+            self.fence.command(dict(op='interest',owner=owner,consumer=consumer,scope='pump',
+                lower_slot=10,priority=priority,lifecycle=lifecycle,addresses=['shared-account']))
+        interest('position','pump','reserved',1)
+        interest('candidate','meteora')
+        with self.assertRaises(EvidenceUnavailable):
+            self.fence.command(dict(op='release',consumer='meteora',owner='position',scope='pump',resolved=True))
+        with self.assertRaises(EvidenceUnavailable):interest('position','pump')
+        self.fence.expire_candidates(1401)
+        self.assertEqual(self.writer.db.execute("SELECT active FROM interests WHERE owner='candidate'").fetchone()[0],0)
+        self.assertEqual(self.writer.db.execute("SELECT active FROM interests WHERE owner='position'").fetchone()[0],1)
+        self.assertEqual(self.writer.db.execute('SELECT COUNT(*) FROM service_interests').fetchone()[0],1)
+        self.fence.health('phase','DRAINING')
+        with self.assertRaises(EvidenceUnavailable):interest('new','pump')
+        interest('position','pump','open',0)
+        self.fence.command(dict(op='release',consumer='pump',owner='position',scope='pump',resolved=True))
+
+    def test_subscription_growth_is_rejected_before_partial_interest_commit(self):
+        for i in range(256):
+            self.fence.command(dict(op='interest',owner=str(i),scope='pump',lower_slot=10,
+                priority=3,lifecycle='candidate',addresses=['a'+str(i)]))
+        with self.assertRaises(EvidenceUnavailable):
+            self.fence.command(dict(op='interest',owner='overflow',scope='pump',lower_slot=10,
+                priority=3,lifecycle='candidate',addresses=['overflow']))
+        self.assertIsNone(self.writer.db.execute("SELECT 1 FROM interests WHERE owner='overflow'").fetchone())

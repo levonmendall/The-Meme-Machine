@@ -1,9 +1,14 @@
-# Solana Evidence Plane — runtime cutover candidate
+# Solana Evidence Plane — offline completion
 
-PR #109 remains draft and incomplete against the full requested parity standard.
-The production-paper runtime cutover and hosted offline checks passed. All seven
-retained Pump windows remain censored because authoritative bodies are missing.
-This is not market-run authorization.
+PR #109 remains draft and unmerged. The production-paper cutover was already
+certified offline; the focused authority/usage/storage cleanup is implemented and
+awaits exact-runtime-SHA final offline certification. Prospective operational
+validation is DEFERRED until a separately authorized run.
+
+The seven historical Pump windows are PERMANENTLY CENSORED LEGACY EVIDENCE,
+not an implementation-completion blocker. Their original audit is retained.
+No bodies are fetched, historical availability reassigned, or public observations
+promoted. This document never authorizes a market run.
 
 ## Runtime changes
 
@@ -165,12 +170,13 @@ Economic identities are unchanged:
 
 Exact composed diff identities and module hashes are in `checkpoint.json` and the
 source manifest. Hosted broad certification and real IPC passed at the exact runtime SHA below.
-Full retained Pump window parity remains unavailable; task completion is not claimed.
+Full retained Pump window parity is permanently unavailable from legacy evidence;
+it is excluded from the offline implementation completion standard.
 No market run, provider probe, deployment, Render interaction, merge, portfolio
 activation, active/cert/main promotion, signing or transaction submission occurred.
 
 
-## Final offline evidence
+## Previous runtime-cutover offline evidence
 
 Certified runtime SHA: `bc36a09d0cfd1c6131525c526d427076f085165b`.
 Workflow: https://github.com/levonmendall/The-Meme-Machine/actions/runs/36171495473.
@@ -217,3 +223,104 @@ Exact source, composed diff, policy, artifact digest and test identities are in
 
 Only the repair branch changed. Main, active and certification branches were not
 promoted or updated. PR #109 remains draft and unmerged.
+
+
+## Final cleanup gap disposition
+
+| Requirement | Prior state / action |
+|---|---|
+| Runtime cutover, local finalized decisions, reservation priority, crash/recovery | Already satisfied; unchanged economic behavior, existing runtime gates retained |
+| As-of proofs, separate journals, bounded repair/hot capacity, content-addressed archives | Already satisfied; no replacement architecture |
+| Provider authority/configuration | Shared strict endpoint parser; canonical production constructors fail closed; secondary transport disabled; legacy diagnostic helpers remain outside production |
+| Credential isolation | Credential-safe endpoint representation, transport payload checks, sanitized exceptions, publication/provenance/archive checks, final artifact/log scan |
+| Foreground historical RPC | Added transport guard in both composed lanes plus composed factory regression gate; existing real runtime zero-history tests retained |
+| Continuity/drain | Existing transactional semantics retained; phase/health visibility added. Supervisor drains/stops lanes before closing evidence service. Abrupt service stop persists uncertainty and pins; it never settles a lane |
+| Interest ownership | Consumer-bound ownership, atomic owner/address/pin registration, lifecycle downgrade rejection, stale candidate reclamation, explicit subscription-capacity rejection |
+| Meteora payload | Retained full finalized filtered blocks; smaller-payload equivalence not established |
+| Provider usage/health | Added stream bytes/messages/subscriptions, repair HTTP usage, lane usage denominators, latency/purpose counters and bounded anomaly flags |
+| Archive capacity | Added free-space health and fail-closed safety reserve; no destructive archive retention |
+| Final offline certification | Pending exact-runtime-SHA workflow; previous results above are retained separately |
+
+### Canonical provider contract
+
+Only `MM_SOLANA_READ_RPC_URL` is required for Solana provider configuration:
+`https://solana-mainnet.g.alchemy.com/v2/<credential>` (optional explicit port 443).
+The credential must be 8–128 ASCII letters, digits, underscore or hyphen. Scheme,
+exact mainnet host, exact `/v2/` path, credential shape, whitespace, userinfo,
+query/fragment, extra path segments, escapes and ports are checked before I/O.
+No independent API-key, WSS, rescue or legacy-alias configuration is consumed.
+Canonicalization makes explicit-port and default-port endpoint identities equal.
+Only SHA-256 endpoint identity is recorded; raw credentials remain inside transport.
+Startup validates the mainnet genesis through the existing governed HTTP budget.
+
+Topology: public Solana WebSocket is discovery-only; Alchemy finalized streaming
+feeds authoritative evidence; Alchemy HTTPS performs bounded repair, startup
+network identity, and separately accounted current/exact execution state reads.
+Meteora's existing public discovery data remains non-authoritative. Production
+Pump/Meteora cannot use OnFinality, public HTTP or a secondary evidence transport.
+Root-only compatibility helpers remain for deterministic/isolated diagnostic
+callers; the production DB context and actual entrypoint checks forbid fallback.
+
+The HTTP consumer guard blocks `getSignaturesForAddress`, `getTransaction`,
+`getTransactionsForAddress`, and `getBlock`. The service's separate bounded
+`getTransactionsForAddress` repair transport is allowed. Current finalized
+accounts/holder/network reads remain on the existing execution path and governor.
+
+### Usage fields and interpretation
+
+- Evidence counters: `stream_messages`, `stream_bytes`, `stream_accepted_messages`,
+  `stream_rejected_messages`, `stream_reconnects`, bounded reconnect reason names,
+  `stream_unsupported_methods`, accepted `ingested_event/transaction/account`,
+  `rejected_evidence_records`, gaps and repair attempt/retry/page counters.
+- Service health: active/pending subscriptions and evidence-class counts; phase;
+  provider/network digest; repair HTTP physical/logical/method counts, 429s,
+  unsupported methods, failures, queue/transport microseconds; governor cooldowns.
+- Consumer counters: local Pump decisions; Meteora trigger polls/warmup intervals;
+  local evidence reads, complete/incomplete reads, repair-assisted windows, and
+  explicit historical-foreground-call counters (must remain zero).
+- Lane `solana_usage`: complete decisions, incomplete/censored decision events,
+  physical/logical calls, execution-refresh/current-state calls, retries and queue/
+  transport microseconds. Existing append-only pipeline retains candidate and
+  observation identity; overlapping incomplete/censored events are not summed as
+  unique lost opportunities. Raw HTTP records preserve method, retry, latency,
+  purpose and provider identity; existing status exposes method errors and 429s.
+- Frozen CU schedule estimates only known methods. Unpriced address-history calls
+  remain explicitly unpriced; no zero-cost assumption or live savings claim.
+
+For future measurement, sum lane HTTP records and service repair/identity HTTP
+records exactly once. Divide HTTP requests, known estimated CU, stream bytes and
+repair attempts by the corresponding complete-decision denominator. A zero
+complete-decision denominator produces no efficiency claim. Stream byte counts
+measure decoded WebSocket message bytes, not TLS/framing overhead or invoices.
+
+Health flags surface subscription-capacity rejections, reconnect loops, increasing
+repair backlog, abnormal byte rate, repeated 429/unsupported-method failures,
+excessive HTTP work per decision and DB/WAL/filesystem pressure. Flags are
+observational; no evidence is dropped to satisfy an efficiency target.
+
+### Storage safety and payload review
+
+Hot DB/WAL retains the unchanged 256 MiB guard. Free-space warning is 512 MiB;
+critical reserve is 128 MiB on both DB and archive filesystems. Ingestion and archive
+publication additionally reserve bounded write headroom before accepting work.
+Critical space rejects canonical queries/ingestion/archive writes, preserving
+lifecycle pins and unresolved work. Health remains readable. No archive file is
+removed for pressure. Operators must provision/expand long-term immutable archive
+storage and leave headroom for lane journals, WAL and concurrent processes;
+watermarks are safety reserves, not a retention policy or a hard archive-size cap.
+
+Full-block Meteora payloads supply versioned account keys, loaded addresses,
+instructions/inner instructions, token and native balances, transaction results,
+filtered ordering and linked block/census witnesses. Logs or signatures alone do
+not preserve the native verifier's current inputs or completeness proof. The
+representation is retained; no bandwidth improvement is claimed from offline tests.
+
+### Deferred prospective operational gates
+
+All require a future separately authorized run: live Alchemy WebSocket entitlement/
+capability; real stream completeness; `getTransactionsForAddress` entitlement and
+response shape; actual reconnect → gap → repair behavior; actual stream bandwidth;
+actual Alchemy CU usage and CU/complete-decision improvement; prospective complete
+Pump replay parity; prospective Meteora operational reconstruction parity; actual
+provider 429/reconnect characteristics. These are operational gates, not missing
+implementation work. No combined six-process SIGKILL orchestration test is claimed.

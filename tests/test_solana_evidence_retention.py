@@ -80,3 +80,40 @@ class RetentionTests(unittest.TestCase):
                 receipt=future.result()
             self.assertEqual(writer.commit_archive(plan,receipt),0)
             self.assertIsNotNone(writer.db.execute('SELECT body FROM records WHERE identity=?',(row.identity,)).fetchone()[0]);writer.close()
+
+    def test_archive_watermarks_fail_closed_without_removing_pins(self):
+        from unittest.mock import patch
+        from meme_machine.solana_evidence_plane import storage_health,STORAGE_WARNING_BYTES,STORAGE_CRITICAL_BYTES
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as temp:
+            writer=EvidenceWriter(Path(temp)/'db');writer.ingest([record()])
+            plan=writer.archive_plan(1000)
+            writer.interest('reservation',record().scope,lower_slot=0,lifecycle='reserved',priority=1)
+            with patch('os.statvfs',return_value=SimpleNamespace(f_bavail=STORAGE_WARNING_BYTES-1,f_frsize=1)):
+                self.assertEqual(storage_health(writer.path)['state'],'warning')
+            with patch('os.statvfs',return_value=SimpleNamespace(f_bavail=STORAGE_CRITICAL_BYTES-1,f_frsize=1)):
+                self.assertEqual(storage_health(writer.path)['state'],'critical')
+                with self.assertRaises(EvidenceUnavailable):writer.write_archive(writer.path,plan)
+                with self.assertRaises(EvidenceUnavailable):writer.ingest([record()])
+                reader=EvidenceReader(writer.path)
+                with self.assertRaises(EvidenceUnavailable):reader.covered(record().scope,0,10,as_of=100)
+                reader.close()
+            self.assertEqual(writer.db.execute('SELECT active FROM interests').fetchone()[0],1)
+            self.assertIsNotNone(writer.db.execute('SELECT body FROM records').fetchone()[0]);writer.close()
+
+    def test_credential_rejected_before_evidence_archive_or_report_publication(self):
+        from dataclasses import replace
+        from meme_machine.durable_publication import publish_report
+        from meme_machine.solana_provider_config import AlchemyEndpoint
+        from unittest.mock import patch
+        endpoint='https://solana-mainnet.g.alchemy.com/v2/offline-secret'
+        with tempfile.TemporaryDirectory() as temp:
+            writer=EvidenceWriter(Path(temp)/'db')
+            with self.assertRaises(ValueError):writer.ingest([replace(record(),payload={'raw':endpoint})])
+            self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],0)
+            with self.assertRaises(ValueError):writer.write_archive(writer.path,[{'raw':endpoint}])
+            with patch.dict('os.environ',{'MM_SOLANA_READ_RPC_URL':endpoint}):
+                result=publish_report(Path(temp)/'report.json',{'error':AlchemyEndpoint.parse(endpoint).credential})
+                self.assertFalse(result['published'])
+                self.assertFalse((Path(temp)/'report.json').exists())
+            writer.close()

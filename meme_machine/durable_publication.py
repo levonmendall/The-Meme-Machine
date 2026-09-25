@@ -20,6 +20,10 @@ def publish_bytes(path, content):
 
 
 def publish_json(path,value):
+    from .solana_provider_config import AlchemyEndpoint,public_value
+    endpoint=os.environ.get('MM_SOLANA_READ_RPC_URL')
+    credential=AlchemyEndpoint.parse(endpoint).credential if endpoint else None
+    public_value(value,credential)
     publish_bytes(path,(json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)+'\n').encode())
 
 

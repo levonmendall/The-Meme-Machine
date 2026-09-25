@@ -45,14 +45,9 @@ class Subscription:
 
 
 def alchemy_stream_endpoint(http_url):
-    parts=urlsplit(http_url)
-    if (parts.scheme!='https' or parts.hostname!='solana-mainnet.g.alchemy.com'
-            or parts.username or parts.password or parts.port not in (None,443)
-            or not parts.path.startswith('/v2/') or len(parts.path)<=4
-            or parts.query or parts.fragment):
-        raise EvidenceUnavailable('authoritative_alchemy_endpoint_required')
-    # Same existing app key, documented streaming host; no app/key mutation.
-    return urlunsplit(('wss','solana-mainnet.streaming.alchemy.com',parts.path,'',''))
+    from .solana_provider_config import AlchemyEndpoint
+    try:return AlchemyEndpoint.parse(http_url).stream_url
+    except ValueError:raise EvidenceUnavailable('authoritative_alchemy_endpoint_required') from None
 
 
 class FinalizedNotificationDecoder:

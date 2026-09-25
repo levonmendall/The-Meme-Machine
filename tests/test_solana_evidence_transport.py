@@ -19,10 +19,10 @@ class RPC:
 
 class TransportTests(unittest.TestCase):
     def test_endpoint_uses_same_app_and_rejects_other_hosts(self):
-        self.assertEqual(alchemy_stream_endpoint('https://solana-mainnet.g.alchemy.com/v2/test'),
-                         'wss://solana-mainnet.streaming.alchemy.com/v2/test')
-        for url in ('https://api.mainnet-beta.solana.com','https://example.com/v2/test',
-                    'https://solana-mainnet.g.alchemy.com/v2/test?x=1'):
+        self.assertEqual(alchemy_stream_endpoint('https://solana-mainnet.g.alchemy.com/v2/offline-test'),
+                         'wss://solana-mainnet.streaming.alchemy.com/v2/offline-test')
+        for url in ('https://api.mainnet-beta.solana.com','https://example.com/v2/offline-test',
+                    'https://solana-mainnet.g.alchemy.com/v2/offline-test?x=1'):
             with self.assertRaises(EvidenceUnavailable):alchemy_stream_endpoint(url)
 
     def test_subscriptions_filtered_finalized_never_all(self):
