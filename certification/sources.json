@@ -638,7 +638,7 @@
         "upstream_acquisition_scope": "all authenticated Pons V2 buy/sell logs remain observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "0bea71bc81e29513fac35dc50a77ad7547d593a3ed236cac3be94e630486e700",
+      "source_diff_sha256": "d11bfe346004d8fc027d3344146e6c4962cab7485f1bcd3e68d60968c9fee143",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
