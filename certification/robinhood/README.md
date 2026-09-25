@@ -28,7 +28,10 @@ state counts or treated as disjoint overlapping queue losses.
 short immediate transactions and immutable observation/transition tables. The
 production composition shares the database next to
 `MM_CERTIFICATION_RPC_CACHE_DB`; no server or new infrastructure is required.
-Separate standalone lane invocations retain explicit local fallback paths.
+Canonical standalone lane invocations share the configured durable Robinhood state
+directory. Explicit local fallback paths remain for offline fixtures without
+a canonical provider configuration. See [provider finalization](PROVIDER_FINALIZATION.md)
+for the authenticated authority, shared ceiling and telemetry contract.
 
 A candidate stores native identity, generation, observation order and time,
 desired/completed watermarks, pending intent, interpretation identity, deadline,

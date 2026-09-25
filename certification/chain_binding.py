@@ -78,7 +78,14 @@ def evaluate(environ=None,transport=None):
     env=os.environ if environ is None else environ
     sol=str(env.get("MM_SOLANA_READ_RPC_URL","") or "").strip()
     rr=str(env.get("MM_ROBINHOOD_READ_RPC_URL","") or "").strip()
-    rd=str(env.get("MM_ROBINHOOD_DLMM_RPC_URL","") or "").strip()
+    from certification.robinhood.provider_authority import endpoint
+    rd=str(env.get("MM_ROBINHOOD_DLMM_RPC_URL","") or "").strip() or rr
+    try:
+        canonical=endpoint(environ=env)
+        authority_valid=True
+        rr=rd=canonical
+    except ValueError:
+        authority_valid=False
     report={
         "schema":"meme-machine-chain-binding-v1",
         "observed_at":time.time(),
@@ -115,6 +122,7 @@ def evaluate(environ=None,transport=None):
         "robinhood_read_and_dlmm_same_key":bool(rrk and rdk and rrk==rdk),
     }
     checks={
+        "robinhood_single_canonical_authority":authority_valid,
         "solana_configured":report["solana"]["configured"],
         "solana_correct_host":report["solana"]["expected_host"],
         "solana_key_path":report["solana"]["v2_key_path_shape"],

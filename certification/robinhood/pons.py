@@ -63,6 +63,9 @@ class Broker:
         # Provider admission is authoritative. Read its local outstanding work;
         # no RPC or new ceiling is introduced by this estimate.
         provider=os.environ.get('MM_CERTIFICATION_PROVIDER_DB')
+        if not provider and os.environ.get('MM_ROBINHOOD_READ_RPC_URL'):
+            from .provider_authority import paths
+            provider=str(paths()['provider'])
         if provider and self.provider_endpoint and Path(provider).exists():
             import sqlite3
             db=sqlite3.connect('file:'+provider+'?mode=ro',uri=True)
@@ -246,4 +249,6 @@ def provider_totals(context):
     if telemetry.get('current_session'):sessions.append(telemetry['current_session'])
     if not sessions:return (0,0)
     if any('logical_requests' not in r or 'transport_requests' not in r for r in sessions):return (None,None)
-    return tuple(sum(r[k] for r in sessions) for k in ('logical_requests','transport_requests'))
+    logical=sum(r['logical_requests'] for r in sessions)
+    physical=sum(r['physical_http_requests'] for r in sessions) if all('physical_http_requests' in r for r in sessions) else None
+    return logical,physical

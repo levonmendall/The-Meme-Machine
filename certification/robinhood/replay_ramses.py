@@ -10,6 +10,10 @@ from .plane import canonical
 
 
 class RecordedRpc:
+    # Only preserved authenticated responses; external I/O is unconditionally blocked.
+    canonical_authority=True
+    chain_verified=True
+    provider_fingerprint="retained-run364-alchemy"
     def __init__(self,fixture):
         self.frontier=fixture['frontier'];self.responses={};self.calls=[];self.origins={}
         for transport in fixture['transports']:

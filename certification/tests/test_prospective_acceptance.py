@@ -27,6 +27,15 @@ class ChainBindingTests(unittest.TestCase):
         self.assertTrue(result["passed"])
         self.assertTrue(result["key_binding"]["solana_and_robinhood_read_are_distinct"])
 
+    def test_dlmm_alias_optional_and_divergent_authority_rejected_offline(self):
+        env={"MM_SOLANA_READ_RPC_URL":"https://solana-mainnet.g.alchemy.com/v2/sol-key",
+             "MM_ROBINHOOD_READ_RPC_URL":"https://robinhood-mainnet.g.alchemy.com/v2/rh-key"}
+        def transport(url,method,params):
+            return {"ok":True,"http_status":200,"result":"genesis" if method=="getGenesisHash" else "0x1237"}
+        self.assertTrue(chain_binding(env,transport)['passed'])
+        env['MM_ROBINHOOD_DLMM_RPC_URL']=env['MM_ROBINHOOD_READ_RPC_URL']+'different'
+        self.assertFalse(chain_binding(env,transport)['checks']['robinhood_single_canonical_authority'])
+
     def test_swapped_hosts_fail_closed(self):
         env={
             "MM_SOLANA_READ_RPC_URL":"https://robinhood-mainnet.g.alchemy.com/v2/a",

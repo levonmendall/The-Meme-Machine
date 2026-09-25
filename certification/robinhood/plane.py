@@ -40,6 +40,9 @@ def alive(identity):
 
 def plane_path(default):
     cache=os.environ.get('MM_CERTIFICATION_RPC_CACHE_DB')
+    if not cache and os.environ.get('MM_ROBINHOOD_READ_RPC_URL'):
+        from .provider_authority import paths
+        cache=str(paths()['cache'])
     return Path(cache).with_suffix('.candidates.sqlite') if cache else Path(default)
 
 
@@ -60,6 +63,7 @@ class Plane:
         version=self.db.execute('PRAGMA user_version').fetchone()[0]
         if version not in (0,1):raise ValueError('candidate_store_schema')
         self.db.executescript('''
+        CREATE TABLE IF NOT EXISTS observation_counts(lane TEXT PRIMARY KEY,received INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS candidates(
           id TEXT PRIMARY KEY,lane TEXT NOT NULL,generation INTEGER NOT NULL,
           interpretation TEXT NOT NULL,latest_id TEXT NOT NULL,observed REAL NOT NULL,
@@ -127,6 +131,7 @@ class Plane:
         body=canonical(payload); target=canonical(watermark); policy=canonical(interpretation)
         ordering=tuple(ordering)
         with self.transaction():
+            self.db.execute('INSERT INTO observation_counts VALUES(?,1) ON CONFLICT(lane) DO UPDATE SET received=received+1',(lane,))
             row=self._row(key)
             if row and row['interpretation']!=policy:raise ValueError('candidate_interpretation_changed')
             duplicate=self.db.execute('SELECT body FROM observations WHERE candidate=? AND observation=?',(key,observation)).fetchone()
@@ -306,7 +311,17 @@ class Plane:
             params=(lane,) if lane else ()
             events=self.db.execute('SELECT kind,COUNT(*) n FROM transitions'+clause+' GROUP BY kind',params).fetchall()
             observations=self.db.execute('SELECT COUNT(*) FROM observations'+clause,params).fetchone()[0]
-        return dict(unique_candidates=sum(r['n'] for r in rows),candidate_states={r['state']:r['n'] for r in rows},observation_events=observations,transition_events={r['kind']:r['n'] for r in events})
+            received=self.db.execute('SELECT COALESCE(SUM(received),0) FROM observation_counts'+(' WHERE lane=?' if lane else ''),params).fetchone()[0]
+            generations=self.db.execute('SELECT COALESCE(SUM(generation),0) FROM candidates'+(' WHERE lane=?' if lane else ''),params).fetchone()[0]
+            obsolete=self.db.execute("SELECT COUNT(*) FROM transitions"+clause+(' AND ' if lane else ' WHERE ')+"reason='obsolete_completion'",params).fetchone()[0]
+        counts={r['kind']:r['n'] for r in events}
+        return dict(unique_candidates=sum(r['n'] for r in rows),candidate_states={r['state']:r['n'] for r in rows},observation_events=observations,transition_events=counts,
+            observations_received_since_instrumentation=received,durable_candidate_generations=generations,
+            provider_jobs_claimed=counts.get('canonical_evidence_requested',0),
+            complete_canonical_decisions=counts.get('canonical_evidence_complete',0),
+            observations_superseded=counts.get('superseded',0),obsolete_completions_fenced=obsolete,
+            database_bytes=Path(self.path).stat().st_size,
+            wal_bytes=Path(self.path+'-wal').stat().st_size if Path(self.path+'-wal').exists() else 0)
 
     def close(self):
         with self.lock:self.db.close()

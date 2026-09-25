@@ -10,6 +10,30 @@ import tempfile
 from certification.run import ROOT, git, integration_integrity, source_integrity
 
 
+def provider_gates(output):
+    requirements={
+        'canonical_provider_configuration':'test_configuration_rejects_alternate_authority_and_missing',
+        'provider_role_isolation':'test_public_and_shadow_never_have_canonical_cache_or_authority',
+        'aggregate_shared_governor_ceiling':'test_aggregate_governor_concurrent_lane_clients',
+        'canonical_failover_absent':'test_chain_required_before_shared_evidence_and_no_rescue',
+        'shared_evidence_reuse':'test_one_authority_and_mandatory_shared_store',
+        'credential_isolation':'test_candidate_provenance_reports_archives_and_crash_output_are_secret_free',
+        'physical_logical_accounting':'test_batch_is_one_physical_n_logical_and_shared_reuse_zero',
+        'provider_telemetry':'test_retry_counts_distinct_wire_attempts',
+        'provider_identity_continuity':'test_session_and_configuration_identity_continuity',
+        'provider_crash_accounting':'test_process_death_preserves_unresolved_physical_attempt',
+    }
+    proven={}
+    for lane in ('pons','ramses'):
+        path=Path(output)/'components'/(lane+'.json')
+        rows=json.loads(path.read_text()).get('tests',[]) if path.exists() else []
+        proven[lane]={r['id'].rsplit('.',1)[-1] for r in rows if r['result']=='PROVEN' and 'ProviderAuthorityTests' in r['id']}
+    gates={name:all(test in proven[lane] for lane in proven) for name,test in requirements.items()}
+    gates['public_sequencer_non_authority']='test_acquisition_refuses_public_client_even_after_chain_verification' in proven['pons'] and 'test_route_broker_duplicate_committed_result_and_public_refusal' in proven['ramses']
+    gates['evidence_plane_bypass_prevention']='test_broker_coalesces_and_fences_provider_completion' in proven['pons'] and 'test_route_broker_duplicate_committed_result_and_public_refusal' in proven['ramses']
+    return gates
+
+
 def run(worktrees,output):
     integration_integrity();sha=git('rev-parse','HEAD')
     roots=Path(worktrees).resolve();out=Path(output).resolve();out.mkdir(parents=True,exist_ok=False)
@@ -55,13 +79,15 @@ sys.addaudithook(guard)
             names=['components','supervisor'];gates=dict(zip(names,pool.map(job,names)))
         for name in jobs:
             if name not in gates:gates[name]=job(name)
+    gates.update(provider_gates(out))
     attempts=out/'network-attempts.txt'
     gates['no_external_network_attempts']=not attempts.exists() or not attempts.read_text().strip()
     gates['source_unchanged']=source_integrity(roots)==identities and git('rev-parse','HEAD')==sha
     integration_integrity()
     result=dict(integration_sha=sha,source_diff_hashes=identities,gates=gates,
         passed=all(gates.values()),deterministic_non_market_certification='PASS' if all(gates.values()) else 'FAIL',
-        overall_task_acceptance='NOT_PROVEN: retained traces cannot measure Pons coverage/censoring improvement',
+        overall_task_acceptance=('Robinhood Evidence Plane + authenticated Alchemy provider architecture complete and offline-certified' if all(gates.values()) else 'OFFLINE_CERTIFICATION_FAILED'),
+        prospective_operational_validation='DEFERRED: coverage, censoring, physical requests, CU, 429 behavior, latency, throughput and market load',
         paper_only=True,market_run_started=False,deployment_performed=False,
         provider_calls_during_offline_replay=0,
         limitation='Open controllers with incomplete native context retain exposure and fail closed; tests do not claim automatic reconstruction of that context.')

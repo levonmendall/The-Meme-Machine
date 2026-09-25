@@ -31,6 +31,9 @@ class RouteIndex:
     def check(self,rpc,factory,row,frontier,native_costs,state):
         from robinhood_research.ramses_costs import quote_native_cycle, COST_MODEL_VERSION
         from robinhood_research import CHAIN_ID, BoundaryError
+        from .provider_authority import require_canonical
+        try:require_canonical(rpc)
+        except ValueError as exc:raise BoundaryError(str(exc)) from None
         target=dict(number=frontier['number'],hash=frontier['hash'],finality='finalized')
         interpretation=dict(policy=self.policy,cost_model=COST_MODEL_VERSION,chain=CHAIN_ID,source=self.source,source_version=self.source_version,schema=1)
         cache_key=digest(dict(factory=factory.lower(),target=target,native_costs=native_costs,row=row,interpretation=interpretation))
@@ -75,6 +78,8 @@ def pool_metadata(rpc,factory,address,block,build,default_path):
     endpoint=getattr(rpc,'endpoint',None)
     pins=getattr(rpc,'evidence_pins',{})
     if not isinstance(endpoint,str) or hex(block) not in pins:return build()
+    from .provider_authority import require_canonical
+    require_canonical(rpc)
     domain=digest(dict(source=endpoint,chain=4663,factory=factory.lower(),
         factory_runtime=load('ramses_factory')['runtime_sha256'],
         implementation=load('ramses_pool_implementation')['runtime_sha256'],schema=1))
