@@ -1,0 +1,792 @@
+diff --git a/robinhood_research/immutable_rpc.py b/robinhood_research/immutable_rpc.py
+index 2baf04a7c2e47f9fc0c23f371704bc8dc986c5dc..afe124dff19c990fceffed477260a6fc6db46043 100644
+--- a/robinhood_research/immutable_rpc.py
++++ b/robinhood_research/immutable_rpc.py
+@@ -21,7 +21,7 @@ def canonical(x):return json.dumps(x,sort_keys=True,separators=(',',':'))
+ class EvidenceStore:
+     def __init__(self,path=':memory:'):
+         self.db=sqlite3.connect(str(path),timeout=2,check_same_thread=False)
+-        self.lock=threading.RLock();self.db.execute('PRAGMA journal_mode=WAL')
++        self.lock=threading.RLock();self.db.execute('PRAGMA journal_mode=WAL');self.db.execute('PRAGMA synchronous=FULL')
+         self.db.executescript('''CREATE TABLE IF NOT EXISTS evidence(
+             domain TEXT,key TEXT,body TEXT,created REAL,PRIMARY KEY(domain,key));
+             CREATE TABLE IF NOT EXISTS gas_quotes(domain TEXT,epoch TEXT,monotonic REAL,at REAL,body TEXT);
+@@ -34,12 +34,16 @@ class EvidenceStore:
+             BEGIN SELECT RAISE(ABORT,'append_only');END;''')
+     @contextmanager
+     def lease(self,domain,keys,deadline=None):
+-        keys=sorted(set(k for k in keys if k));owner=uuid.uuid4().hex
++        from certification.robinhood.plane import process_identity, alive
++        keys=sorted(set(k for k in keys if k));owner=process_identity()+'|'+uuid.uuid4().hex
+         deadline=time.monotonic()+30 if deadline is None else deadline
+         while keys:
+             with self.lock:
+                 self.db.execute('BEGIN IMMEDIATE')
+                 try:
++                    for stale in self.db.execute('SELECT DISTINCT owner FROM flights').fetchall():
++                        if '|' in stale[0] and not alive(stale[0].split('|')[0]):
++                            self.db.execute('DELETE FROM flights WHERE owner=?',(stale[0],))
+                     busy=any(self.db.execute('SELECT 1 FROM flights WHERE domain=? AND key=?',(domain,k)).fetchone() for k in keys)
+                     if not busy:
+                         self.db.executemany('INSERT INTO flights VALUES(?,?,?)',[(domain,k,owner) for k in keys])
+diff --git a/robinhood_research/pons_natural_observation.py b/robinhood_research/pons_natural_observation.py
+index 921b6fde31717f9b711b19fe662ac429cdea0b23..01ada2419a17565a0f1262a8c266dffe0c64df6e 100644
+--- a/robinhood_research/pons_natural_observation.py
++++ b/robinhood_research/pons_natural_observation.py
+@@ -231,6 +231,8 @@ def _authenticate_candidate(
+     report.setdefault("timing",{})["launch_metadata_seconds"]=time.monotonic()-factory_started
+     record=factory_record(second[0],"pons_v2_factory")
+     auth=authenticate_curve(curve,code,factory_record=record)
++    if hasattr(rpc,'remember_compiled_identity'):
++        rpc.remember_compiled_identity(curve,token,code,block,header,auth)
+     # Authenticated identity can shape a later batch even when this observation
+     # fails structural/current-state gates. Every later factory/state read is new.
+     if hasattr(rpc,'remember_factory_identity'):
+diff --git a/robinhood_research/pons_selective_acquisition.py b/robinhood_research/pons_selective_acquisition.py
+index d99847e8218867e7fc8dabded6d8a3d24879f671..ebdc3ebb97c1f72e75eae2c1dcb657215b879617 100644
+--- a/robinhood_research/pons_selective_acquisition.py
++++ b/robinhood_research/pons_selective_acquisition.py
+@@ -20,7 +20,7 @@ from .pons_natural_observation import (
+     RESEARCH_RECIPIENT, _authenticate_candidate, _one_word,
+ )
+ from .provider_topology import configured_rpc
+-from .provider_admission import foreground_work
++from .provider_admission import foreground_work, decision_work
+ from .pons_selective_continuation import (
+     ENTRY_THRESHOLDS, curve_progress_bps, normalized_trade, qualification_vector,
+     trajectory_metrics,
+@@ -168,6 +168,7 @@ class SelectiveEvidenceContext:
+         self.timing={}
+         self.boundary_evidence=None
+         self.deadline=None
++        self.generation_guard=None
+         self.receipt_pins={}
+         self.block_receipts_supported=False
+         self.view_batch_state={"supported":False}
+@@ -210,12 +211,23 @@ class SelectiveEvidenceContext:
+         return self.batch([(method,params)],scope)[0]
+ 
+     def batch(self,calls,scope):
++        if self.generation_guard is not None and not self.generation_guard():
++            raise BoundaryError("candidate_generation_superseded")
+         calls=list(calls);requested=len(calls)
+         out=[None]*len(calls);missing=[];keys=[];seen={};followers={}
+         # Only exact block-scoped reads can cross candidates. Never cache gasPrice,
+         # latest/pending state, provider errors, or a read from a different block hash.
+         for index,(method,params) in enumerate(calls):
+             key=None;cached=None
++            if hasattr(self.cache,'immutable_curve') and method in ('eth_getCode','eth_call') and isinstance(params[-1],str) and params[-1].startswith('0x'):
++                from .abi import calldata
++                address=params[0] if method=='eth_getCode' else params[0].get('to','')
++                immutable=self.cache.immutable_curve(address,int(params[-1],16))
++                if immutable and method=='eth_getCode':cached=immutable['code']
++                elif immutable and params[0].get('data')==calldata('token()'):
++                    cached='0x'+immutable['token'][2:].zfill(64)
++            if cached is not None:
++                out[index]=cached;continue
+             if method=='eth_getBlockByNumber' and params and str(params[0]).startswith('0x'):
+                 cached=self.cache.header_by_number(int(params[0],16))
+             elif method=='eth_getBlockByHash' and params:
+@@ -231,6 +243,8 @@ class SelectiveEvidenceContext:
+                 if identity in seen:followers[index]=seen[identity]
+                 else:seen[identity]=index;missing.append((index,(method,params),key))
+         for group in _chunks(missing,50):
++            if self.generation_guard is not None and not self.generation_guard():
++                raise BoundaryError('candidate_generation_superseded')
+             from .view_batch import grouped
+             extra=len(grouped([x[1] for x in group])) if self.view_batch_state.get('supported') and not self.view_batch_state.get('parity_verified') else 0
+             rpc=self.acquire(min(50,len(group)+extra),scope)
+@@ -252,6 +266,8 @@ class SelectiveEvidenceContext:
+                 if key is not None:
+                     self.block_reads[key]=value
+                     while len(self.block_reads)>4096:self.block_reads.popitem(last=False)
++        if self.generation_guard is not None and not self.generation_guard():
++            raise BoundaryError('candidate_generation_superseded')
+         for index,source in followers.items():out[index]=out[source]
+         return out[:requested]
+ 
+@@ -297,8 +313,15 @@ class SelectiveEvidenceContext:
+     def factory_token_hint(self,curve):
+         # Only a request-shaping hint. Current token(), current factory record,
+         # and compiled deployment authentication are still mandatory.
++        if hasattr(self.cache,'immutable_curve') and self.pin:
++            value=self.cache.immutable_curve(curve,self.pin[0])
++            if value:return value['token']
+         return self.factory_hints.get(curve.lower())
+ 
++    def remember_compiled_identity(self,curve,token,code,block,header,auth):
++        if hasattr(self.cache,'remember_compiled'):
++            self.cache.remember_compiled(curve,token,code,block,header,auth)
++
+     def remember_factory_identity(self,curve,token):
+         self.factory_hints[curve.lower()]=token
+         self.factory_hints.move_to_end(curve.lower())
+@@ -461,16 +484,19 @@ def _authenticate_window(
+     for event in selected:
+         block_hash=event["blockHash"]
+         receipt=receipts[(event["transactionHash"],block_hash)]
+-        row=raw_event(
+-            curve_abi(),event,address=curve,receipt=receipt,
+-            header=headers[block_hash],observed_at=observed,
+-            confirmation="confirmed",
+-        )
+-        normalized.append(normalized_trade(
+-            row["decoded"],
+-            identity=f'{row["block"]}:{row["transaction_hash"]}:{row["log_index"]}',
+-            event_at=row["event_at"],
+-        ))
++        from certification.robinhood.pons import normalized_cached
++        def build(event=event,receipt=receipt):
++            row=raw_event(
++                curve_abi(),event,address=curve,receipt=receipt,
++                header=headers[event['blockHash']],observed_at=observed,
++                confirmation="confirmed",
++            )
++            return normalized_trade(
++                row["decoded"],
++                identity=f'{row["block"]}:{row["transaction_hash"]}:{row["log_index"]}',
++                event_at=row["event_at"],
++            )
++        normalized.append(normalized_cached(ctx,event,build))
+ 
+     telemetry=list(ctx.completed_sessions[before:])
+     if ctx.rpc is not None:
+@@ -868,6 +894,7 @@ def strategy_trajectory_preflight(candidate,snapshots,launch_at):
+     )
+ 
+ 
++@decision_work(4)
+ def evaluate_candidate(
+     endpoint,event,tape,*,strategy_capital_quote,wallet_histories=None,
+     creator_history=None,quote_relative_strength_bps=None,
+diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
+index d97d1caeb116c874102cefdbeaa84d4d115cb4ba..6a27e6a2b64e26494f8a0fb27c90559d55817acb 100644
+--- a/robinhood_research/pons_selective_cohort.py
++++ b/robinhood_research/pons_selective_cohort.py
+@@ -4,7 +4,7 @@ The cohort does not read or write any other strategy's state.  It owns a dedicat
+ result directory, dedicated wallet-skill ledger, dedicated paper databases, policy
+ hash, qualification rows and lifecycle outcomes.
+ """
+-from concurrent.futures import ThreadPoolExecutor
++from concurrent.futures import ThreadPoolExecutor, Future
+ import gzip
+ import hashlib
+ import json
+@@ -14,7 +14,7 @@ import time
+ 
+ from . import BoundaryError
+ from .abi import topic
+-from .evidence_queue import DeadlineEvidenceQueue
++from certification.robinhood.pons import Broker, durable_cache, plane_path, save_cohort_checkpoint, recover_cohort, provider_totals
+ from .pipeline import Pipeline,censor_class
+ from .provider_admission import foreground_work
+ from .pons_natural_observation import (
+@@ -177,6 +177,7 @@ def _record_candidate_boundary(pipeline,identity,event,sequence,context,boundary
+ 
+ def _checkpoint(result,*,cursor,feed,rpc,phase):
+     active_provider=rpc.telemetry()
++    save_cohort_checkpoint(result,cursor,phase)
+     snapshot=dict(
+         kind="pons-selective-continuation-v1-checkpoint",
+         namespace=STRATEGY_NAMESPACE,
+@@ -533,8 +534,7 @@ def run(endpoint,*,campaign=False):
+     occupied=list(ROOT.glob("trial-*.sqlite*"))
+     occupied += [p for p in (PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT,
+                             ROOT/"pons-selective-cohort-capital.sqlite") if p.exists()]
+-    if occupied:
+-        raise BoundaryError("selective_existing_run_requires_explicit_recovery")
++    recovered=(recover_cohort(plane_path(ROOT/"candidate-evidence.sqlite"),POLICY_HASH) if occupied else None)
+ 
+     initial_accounting=_cohort_accounting()
+     started=time.time()
+@@ -556,7 +556,7 @@ def run(endpoint,*,campaign=False):
+             "trajectory gates pass; friction and demand remain full qualification evidence; "
+             "paper entry additionally requires a terminal/flat prior same-curve "
+             "lifecycle plus a point-in-time regime reset; at most one screen per "
+-            "curve per 2 wall-clock seconds; no outcome reranking"
++            "curve generation; repeated observations coalesce; no outcome reranking"
+         ),
+         reentry_policy=dict(REENTRY_POLICY),
+         outcome_blind=True,reranking=False,replacement=False,
+@@ -566,10 +566,21 @@ def run(endpoint,*,campaign=False):
+         sequencer_recoveries=[],evidence_acquisition=None,started_at=started,
+     )
+ 
++    if recovered:
++        # Native capital is never recreated. Unresolved position controller state
++        # remains an explicit safety boundary, retaining priority in the broker.
++        if initial_accounting.get('reserved',0) or initial_accounting.get('unsettled',0):
++            from certification.robinhood.pons import restore_position_needs
++            restore_position_needs(plane_path(ROOT/'candidate-evidence.sqlite'),ROOT/'pons-selective-cohort-capital.sqlite')
++            raise BoundaryError('selective_existing_position_requires_controller_recovery')
++        result=recovered
++    result['candidate_plane_path']=str(plane_path(ROOT/'candidate-evidence.sqlite'))
++    result['native_archive_paths']=dict(rows=str(ROWS_LOG),qualifiers=str(QUALIFIERS_LOG),
++        lifecycles=str(ROOT/'completed-lifecycles.jsonl'),discovery_sessions=str(PROVIDER_LOG),
++        sequencer_recoveries=str(RECOVERY_LOG))
+     result['operational_configuration_hash']=hashlib.sha256(json.dumps(
+         result['operational_configuration'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
+     skill=WalletSkillBook(str(SKILL_DB))
+-    evidence_context=SelectiveEvidenceContext(endpoint)
+     pipeline=Pipeline(ROOT/"opportunity-pipeline.sqlite","pons",POLICY_HASH)
+     def coverage():result["opportunity_coverage"]=pipeline.snapshot()
+     rpc=_discovery(endpoint)
+@@ -585,18 +596,22 @@ def run(endpoint,*,campaign=False):
+         coverage();pipeline.close()
+         skill.close();feed.close()
+         raise BoundaryError("selective_sequencer_timestamp_missing")
+-    tape=[];last_eval={};seen_event=set()
+-    first_observed_monotonic={}
+-    def queue_terminal(row,reason):
+-        event=row['event'];identity=(event['transactionHash'],event['logIndex'])
+-        observed_monotonic=first_observed_monotonic.pop(identity,None)
+-        stage_reason="stale_in_queue" if reason in ("expired_before_evidence","deadline_insufficient") else reason
+-        pipeline.record(":".join(identity),"terminal",stage_reason,censor_class(stage_reason))
+-        coverage()
+-        _append_jsonl(ROOT/'queue-terminal.jsonl',dict(event=event,queued_at=row['queued_at'],
+-            deadline=row['deadline'],first_observed_monotonic=observed_monotonic,
+-            terminal_reason=reason,economic_rejection=False,policy_hash=POLICY_HASH))
+-    queue=DeadlineEvidenceQueue(limit=4096,nominal_deadline_seconds=5.0,on_terminal=queue_terminal)
++    tape=[]
++    queue=Broker(plane_path(ROOT/'candidate-evidence.sqlite'),POLICY_HASH,clock=time.time,source=endpoint,config=result['operational_configuration_hash'])
++    # Checkpointed effects dominate an outbox replay after a crash between the
++    # checkpoint and acknowledgement. Native position authority remains separate.
++    consumed={(row.get('candidate_identity'),row.get('candidate_generation')) for row in result['rows']}
++    for pending,_value in queue.committed():
++        if (pending['key'],pending['work']['generation']) in consumed:queue.acknowledge(pending)
++    domain=hashlib.sha256(endpoint.encode()).hexdigest()+':'+POLICY_HASH
++    evidence_context=SelectiveEvidenceContext(endpoint,cache=durable_cache(queue.plane,domain))
++    hydration_pool=ThreadPoolExecutor(max_workers=1)
++    discovery_pool=ThreadPoolExecutor(max_workers=1)
++    discovery_future=None
++    discovery_failures=[]
++    hydration=None
++    hydration_stages=[]
++    hydration_started=None
+ 
+     def _checkpoint_provider_failure(failed_rpc,boundary,current_cursor):
+         result["last_transient_provider_boundary"]=str(boundary)
+@@ -605,6 +620,15 @@ def run(endpoint,*,campaign=False):
+             phase="provider_recovery",
+         )
+ 
++    def _discover_observations(*args,**kwargs):
++        discovered=_poll(*args,**kwargs)
++        observed=time.time()
++        for event in discovered[2]:
++            is_buy=bool(event.get('topics') and event['topics'][0].lower()==topic(
++                'CurveBuy(address,address,uint256,uint256,uint256,uint256)'))
++            queue.enqueue(event,now=observed,needs_work=is_buy)
++        return discovered
++
+     pool=None;futures=[]
+     try:
+         warm_started=time.monotonic()
+@@ -643,8 +667,8 @@ def run(endpoint,*,campaign=False):
+         pool=ThreadPoolExecutor(max_workers=MAX_CONCURRENT_LIFECYCLES)
+         futures=[]
+         active_curve_futures={}
+-        last_authorized_vector={}
+-        last_terminal_by_curve={}
++        last_authorized_vector={r['curve']:r['vector'] for r in result['qualifiers']}
++        last_terminal_by_curve={r['curve']:r for r in result['lifecycles'] if r.get('curve')}
+         collected_futures=set()
+ 
+         def collect_curve_future(curve):
+@@ -669,17 +693,25 @@ def run(endpoint,*,campaign=False):
+             active_curve_futures.pop(curve,None)
+             return life
+ 
+-        deadline=time.monotonic()+DISCOVERY_SECONDS
++        if 'discovery_ends_at' not in result:result['discovery_ends_at']=time.time()+DISCOVERY_SECONDS
++        deadline=time.monotonic()+max(0,result['discovery_ends_at']-time.time())
++        save_cohort_checkpoint(result,cursor,'discovery_ready')
+         next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
+         while (
+             time.monotonic()<deadline
+             and (campaign or (len(result["rows"])<MAX_ENROLLED
+                               and len(result["qualifiers"])<COHORT_TARGET))
+         ):
+-            rpc,cursor,fresh=(rpc,cursor,[]) if queue.rows else _poll(
+-                endpoint,rpc,cursor,tape,feed,result["discovery_sessions"],
+-                result["sequencer_recoveries"],
+-                on_provider_failure=_checkpoint_provider_failure)
++            if discovery_future is None:
++                discovery_future=discovery_pool.submit(_discover_observations,
++                    endpoint,rpc,cursor,tape,feed,result['discovery_sessions'],
++                    result['sequencer_recoveries'],
++                    on_provider_failure=lambda *args:discovery_failures.append(args))
++            fresh=[]
++            if discovery_future.done():
++                rpc,cursor,fresh=discovery_future.result();discovery_future=None
++            while discovery_failures:_checkpoint_provider_failure(*discovery_failures.pop(0))
++            if not fresh and (hydration is None or not hydration.done()):time.sleep(.005)
+             for curve_key in list(active_curve_futures):
+                 collect_curve_future(curve_key)
+             futures=[item for item in futures if id(item[1]) not in collected_futures]
+@@ -687,25 +719,15 @@ def run(endpoint,*,campaign=False):
+             now_monotonic=time.monotonic()
+             for event in fresh:
+                 identity=(event["transactionHash"],event["logIndex"])
+-                if identity in seen_event:
+-                    continue
+-                seen_event.add(identity)
+-                pipeline.record(":".join(identity),"discovered")
+-                if (
+-                    not event.get("topics")
+-                    or event["topics"][0].lower()!=topic(
+-                        "CurveBuy(address,address,uint256,uint256,uint256,uint256)"
+-                    )
+-                ):
+-                    continue
+-                curve=event["address"].lower()
+-                if now-last_eval.get(curve,0)<MIN_REEVALUATION_SECONDS:
+-                    continue
+-                last_eval[curve]=now
+-                pipeline.record(':'.join(identity),'screened')
+-                if queue.enqueue(event,now=now):
+-                    first_observed_monotonic[identity]=now_monotonic
+-                    pipeline.record(':'.join(identity),'current_state_queued',first_observed_at=now,
++                pipeline.record(queue.identity(event),"discovered")
++                is_buy=bool(event.get('topics') and event['topics'][0].lower()==topic(
++                    "CurveBuy(address,address,uint256,uint256,uint256,uint256)"))
++                # Every newer event updates the durable curve, including sells.
++                # Only buys nominate qualification; sells fence an older buy.
++                queue.enqueue(event,now=now,needs_work=is_buy)
++                if is_buy:
++                    pipeline.record(queue.identity(event),'screened')
++                    pipeline.record(queue.identity(event),'current_state_queued',first_observed_at=now,
+                         original_deadline=now+5,sequencer_last_received_at=getattr(feed.state,'last_received_at',None))
+ 
+             coverage()
+@@ -715,45 +737,72 @@ def run(endpoint,*,campaign=False):
+                     result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery"
+                 )
+                 next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
+-            scheduled=queue.pop(now=time.time(),minimum_remaining_seconds=1.0)
+-            if scheduled is None:
+-                continue
+-            event=scheduled["event"]
+-            sequence=len(result["rows"])
+-            observation_key=(event["transactionHash"],event["logIndex"])
+-            observed_monotonic=first_observed_monotonic.pop(
+-                observation_key,None
+-            )
+-            if observed_monotonic is None:
+-                raise BoundaryError("missing_evidence_observation_clock")
+-            observed_at=float(scheduled["queued_at"])
+-            if campaign and len(result['rows'])>=MAX_ENROLLED:
+-                result['capacity_censored']=result.get('capacity_censored',0)+1
+-                pipeline.record(':'.join(observation_key),'terminal','selective_campaign_observation_capacity','capacity_censored')
+-                _append_jsonl(ROOT/'capacity-censored.jsonl',dict(
+-                    source_transaction=event.get('transactionHash'),source_block=event.get('blockNumber'),
+-                    observed_at=observed_at,observed_monotonic=observed_monotonic,
+-                    terminal_reason='selective_campaign_observation_capacity',economic_rejection=False))
+-                continue
+-            identity=':'.join(observation_key)
+-            dispatch=time.monotonic()
+-            evidence_context.adjacent=list(queue.rows.values())
+-            pipeline.record(identity,'current_state_requested',queue_wait_seconds=dispatch-observed_monotonic)
+-            try:
+-                evaluation=evaluate_candidate(
+-                    endpoint,event,list(tape),
++            replayed=False
++            if hydration is None:
++                committed=next(queue.committed(),None)
++                if committed is not None:
++                    scheduled,value=committed
++                    if queue.clock()>=scheduled['deadline']:
++                        queue.plane.decision(scheduled['key'],scheduled['work']['generation'],
++                            'freshness_deadline_censored','committed_result_expired_before_consumer')
++                        queue.acknowledge(scheduled)
++                        continue
++                    hydration=Future();hydration.set_result(value)
++                    replayed=True
++                    hydration_stages=[];hydration_started=time.monotonic()
++                    sequence=len(result['rows']);dispatch=time.monotonic()
++                    observed_monotonic=dispatch-max(0,time.time()-scheduled['queued_at'])
++            if hydration is None:
++                scheduled=queue.pop(now=time.time())
++                if scheduled is None:continue
++                event=scheduled['event']
++                observed_at=float(scheduled['queued_at'])
++                elapsed=time.time()-observed_at
++                if elapsed<0:raise BoundaryError('candidate_observation_clock_regression')
++                observed_monotonic=time.monotonic()-elapsed
++                identity=queue.identity(event)
++                sequence=len(result['rows'])
++                dispatch=time.monotonic()
++                if campaign and sequence>=MAX_ENROLLED:
++                    queue.failure(scheduled,'selective_campaign_observation_capacity')
++                    continue
++                evidence_context.adjacent=list(queue.rows.values())
++                evidence_context.generation_guard=lambda work=scheduled['work']:queue.plane.current(work)
++                hydration_stages=[]
++                hydration_started=time.monotonic()
++                provider_before=provider_totals(evidence_context)
++                pipeline.record(identity,'current_state_requested',queue_wait_seconds=elapsed)
++                def hydration_stage(stage,work=scheduled['work']):
++                    hydration_stages.append(stage)
++                    if stage=='trajectory_admitted' and queue.plane.promote(work):
++                        from .provider_admission import _decision_priority
++                        _decision_priority.set(10)
++                hydration=hydration_pool.submit(
++                    evaluate_candidate,endpoint,event,list(tape),
+                     strategy_capital_quote=STRATEGY_CAPITAL_QUOTE,
+                     wallet_histories=None,creator_history=None,
+                     evidence_observed_at=observed_at,
+                     evidence_observed_monotonic=observed_monotonic,
+                     evidence_context=evidence_context,
+-                    on_stage=lambda stage:pipeline.record(identity,stage),
+-                )
++                    on_stage=hydration_stage)
++                continue
++            if not hydration.done():continue
++            finished=hydration;hydration=None
++            event=scheduled["event"]
++            identity=queue.identity(event)
++            try:
++                evaluation=finished.result()
++                provider_after=provider_totals(evidence_context)
++                delta=[None if a is None or b is None else max(0,a-b) for a,b in zip(provider_after,provider_before)] if not replayed else [None,None]
++                if not replayed and not queue.finish(scheduled,evaluation,time.monotonic()-hydration_started,logical=delta[0],physical=delta[1]):
++                    continue
++                for stage in hydration_stages:pipeline.record(identity,stage)
+                 if evaluation.get("screened_out"):
+                     screen=(evaluation.get("trajectory_preflight")
+                             if evaluation.get("screened_stage")=="trajectory"
+                             else evaluation.get("prospect_preflight")) or {}
+                     reasons=screen.get("reasons") or ["strategy_prospect"]
++                    queue.plane.decision(identity,scheduled["work"]["generation"],"strategy_rejected",",".join(reasons))
+                     stage=evaluation.get("screened_stage") or "current_state"
+                     reason="strategy_"+stage+":"+",".join(reasons)
+                     pipeline.record(identity,"prospect_screened",reason,"strategy_rejection")
+@@ -761,6 +810,8 @@ def run(endpoint,*,campaign=False):
+                     pipeline.record(identity,"rejected",reason,"strategy_rejection")
+                     coverage()
+                     public=public_evaluation(evaluation)
++                    public["candidate_identity"]=identity
++                    public["candidate_generation"]=scheduled["work"]["generation"]
+                     public["sequence"]=sequence
+                     public["wallet_convergence"]=None
+                     result["rows"].append(public)
+@@ -775,8 +826,12 @@ def run(endpoint,*,campaign=False):
+                     pipeline.record(identity,'qualified')
+                 else:pipeline.record(identity,'rejected','strategy_rejection:'+','.join(evaluation['vector'].get('all_rejections') or ['unspecified']),'strategy_rejection')
+                 coverage()
++                decision_state='qualified' if evaluation['vector'].get('current_threshold_pass') else 'strategy_rejected'
++                if not queue.plane.decision(identity,scheduled['work']['generation'],decision_state):continue
+                 overlay=_attach_wallet_overlay(evaluation["vector"],skill)
+                 public=public_evaluation(evaluation)
++                public["candidate_identity"]=identity
++                public["candidate_generation"]=scheduled["work"]["generation"]
+                 public["sequence"]=sequence
+                 public["wallet_convergence"]=overlay
+                 authorization_rejection=None
+@@ -835,6 +890,11 @@ def run(endpoint,*,campaign=False):
+                         result['lifecycles'].append(life)
+                         _append_jsonl(ROOT/'completed-lifecycles.jsonl',life)
+                         continue
++                    if not queue.plane.decision(identity,scheduled['work']['generation'],'entry_confirmation'):
++                        continue
++                    evaluation["candidate_plane_path"]=result["candidate_plane_path"]
++                    evaluation["candidate_broker_identity"]=identity
++                    evaluation["candidate_broker_generation"]=scheduled["work"]["generation"]
+                     future=pool.submit(
+                         run_lifecycle,endpoint,evaluation,
+                         db_path=ROOT/f"trial-{qindex:03d}.sqlite",
+@@ -844,6 +904,8 @@ def run(endpoint,*,campaign=False):
+                     active_curve_futures[curve]=(qindex,future)
+                     last_authorized_vector[curve]=evaluation["vector"]
+             except BoundaryError as exc:
++                queue.failure(scheduled,str(exc))
++                if str(exc)=='candidate_generation_superseded':continue
+                 incomplete=_record_candidate_boundary(
+                     pipeline,identity,event,sequence,evidence_context,str(exc),
+                     dispatch=dispatch,observed_monotonic=observed_monotonic)
+@@ -851,6 +913,10 @@ def run(endpoint,*,campaign=False):
+                 result["rows"].append(incomplete)
+                 result["evidence_acquisition"]=evidence_context.telemetry()
+                 _append_jsonl(ROWS_LOG,incomplete)
++            finally:
++                if queue.plane.get(scheduled['key']).get('result') is not None:
++                    save_cohort_checkpoint(result,cursor,'candidate_consumed')
++                    queue.acknowledge(scheduled)
+ 
+         terminal_provider=rpc.telemetry()
+         result["discovery_sessions"].append(terminal_provider)
+@@ -865,6 +931,14 @@ def run(endpoint,*,campaign=False):
+         result["discovery_sessions"].append(terminal_provider)
+         _append_jsonl(PROVIDER_LOG,terminal_provider)
+     finally:
++        # Resolve any externally in-flight work; its durable generation still fences it.
++        discovery_pool.shutdown(wait=True)
++        hydration_pool.shutdown(wait=True)
++        if hydration is not None:
++            try:
++                tail=hydration.result()
++                queue.finish(scheduled,tail,time.monotonic()-hydration_started)
++            except BoundaryError as exc:queue.failure(scheduled,str(exc))
+         if pool is not None:
+             # Drain all admitted positions under their own frozen policy even if
+             # discovery failed. No future may be discarded from terminal evidence.
+@@ -882,8 +956,8 @@ def run(endpoint,*,campaign=False):
+             finally:pool.shutdown(wait=True)
+         # Remaining queued observations retain their original clocks and an
+         # explicit shutdown terminal, never a synthetic fresh evaluation.
+-        for row in list(queue.rows.values()):queue_terminal(row,'campaign_window_closed')
+-        queue.rows.clear()
++        # Pending identities remain durable and measurable. No synthetic fresh clocks.
++        queue.plane.recover()
+         result['evidence_queue']=queue.telemetry()
+         result['cohort_accounting']=_cohort_accounting()
+         result["evidence_acquisition"]=evidence_context.telemetry()
+@@ -892,7 +966,7 @@ def run(endpoint,*,campaign=False):
+             result,cursor=cursor,feed=feed,rpc=rpc,phase="finalizing"
+         )
+         coverage();pipeline.close()
+-        feed.close();skill.close()
++        feed.close();skill.close();queue.close()
+ 
+     result["lifecycles"].sort(key=lambda row:row.get("index",-1))
+     counts={}
+diff --git a/robinhood_research/pons_selective_paper.py b/robinhood_research/pons_selective_paper.py
+index 7a845bf5f1c1a524fec4a048b063447f4eaeaf78..d08956ea8319359d9e16338ed0d0cb8cf4e878b7 100644
+--- a/robinhood_research/pons_selective_paper.py
++++ b/robinhood_research/pons_selective_paper.py
+@@ -353,6 +353,13 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
+         provider_sessions=[],monitor=[],started_at=time.time(),
+     )
+     store=None;rpc=None;capital_guard=None;identity=None
++    def observe_commit(paper,position):
++        if capital_guard is not None:capital_guard.observe(paper,position)
++        path=evaluation.get('candidate_plane_path')
++        if path:
++            from certification.robinhood.plane import project_native_position
++            project_native_position(path,'pons',evaluation['candidate_broker_identity'],position,
++                ledger_path=db_path,policy=POLICY_HASH)
+     try:
+         gas_units=_gas_units(candidate["receipt"])
+         rpc=paper_rpc(endpoint);rpc.verify_chain()
+@@ -378,17 +385,27 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
+             token=evaluation["token"],outcome_used_for_selection=False,
+         )
+         identity=(
+-            "pons-selective:"+str(uuid.uuid4())+":"+evaluation["token"]+":"+
++            "pons-selective:"+(digest(dict(candidate=evaluation['candidate_broker_identity'],generation=evaluation['candidate_broker_generation']))
++                if 'candidate_broker_identity' in evaluation else str(uuid.uuid4()))+":"+evaluation["token"]+":"+
+             evaluation["source_transaction"]
+         )
+         result["lifecycle_id"]=identity
++        if evaluation.get('candidate_plane_path'):
++            from certification.robinhood.plane import Plane
++            plane=Plane(evaluation['candidate_plane_path'])
++            try:
++                if not plane.decision(evaluation['candidate_broker_identity'],
++                        evaluation['candidate_broker_generation'],'entry_reserved',
++                        native_reservation_intent=identity,native_ledger=str(db_path)):
++                    raise BoundaryError('candidate_generation_superseded_before_reservation')
++            finally:plane.close()
+         if capital_path is not None:
+             capital_guard=CohortCapital(capital_path,STRATEGY_CAPITAL_QUOTE)
+             result["cohort_reservation"]=capital_guard.reserve(
+                 identity,amount+gas_budget,at=now,
+                 decision_hash=digest(decision),trial_path=db_path,
+             )
+-            paper.on_commit=capital_guard.observe
++        paper.on_commit=observe_commit
+         reserved=paper.reserve(
+             identity,market=candidate["curve"],amount=amount,gas_budget=gas_budget,
+             now=now,features=decision,kind="natural",
+@@ -484,7 +501,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
+             store,STRATEGY_NAMESPACE,capital,
+             delay=EXIT_POLICY["entry_delay_seconds"],
+             natural_policy_hash=POLICY_HASH,
+-            on_commit=capital_guard.observe if capital_guard is not None else None,
++            on_commit=observe_commit,
+         )
+         if paper.reconcile()!=before:
+             raise BoundaryError("selective_restart_reconciliation")
+@@ -883,7 +900,7 @@ def run_lifecycle(endpoint,evaluation,*,db_path,capital_path=None):
+                     store,STRATEGY_NAMESPACE,capital,
+                     delay=EXIT_POLICY["entry_delay_seconds"],
+                     natural_policy_hash=POLICY_HASH,
+-                    on_commit=capital_guard.observe if capital_guard is not None else None,
++                    on_commit=observe_commit,
+                 )
+                 cancelled=_cancel_proven_unfilled(recovery,identity,capital_guard,str(exc))
+                 if cancelled is not None:
+diff --git a/robinhood_research/provider_admission.py b/robinhood_research/provider_admission.py
+index 15cd0619eb0a2db05a45adac0a2740d452238269..ef9968787724972d013b7abca669c7fc2d6b72f3 100644
+--- a/robinhood_research/provider_admission.py
++++ b/robinhood_research/provider_admission.py
+@@ -17,6 +17,7 @@ from . import BoundaryError
+ 
+ POSITION_BURST = 8
+ FOREGROUND_AGE_SECONDS = 3
++_decision_priority = ContextVar('candidate_decision_priority',default=None)
+ _position_work = ContextVar('provider_position_work',default=False)
+ _foreground_work = ContextVar('provider_foreground_work',default=False)
+ 
+@@ -39,6 +40,18 @@ def foreground_work(function):
+     return wrapped
+ 
+ 
++def decision_work(priority_class):
++    if priority_class not in range(6):raise ValueError('candidate_priority_class')
++    def decorate(function):
++        @wraps(function)
++        def wrapped(*args,**kwargs):
++            token=_decision_priority.set((0,5,10,20,30,50)[priority_class])
++            try:return function(*args,**kwargs)
++            finally:_decision_priority.reset(token)
++        return wrapped
++    return decorate
++
++
+ def next_ticket(db,endpoint,now,interval):
+     first=db.execute("SELECT q.id,q.priority,m.lane,q.deadline FROM queue q "
+         "LEFT JOIN queue_meta m ON m.id=q.id WHERE q.endpoint=? ORDER BY "
+@@ -71,6 +84,7 @@ def fingerprint(endpoint):
+ 
+ def priority(scope):
+     if _position_work.get():return 0
++    if _decision_priority.get() is not None:return _decision_priority.get()
+     if _foreground_work.get():return 10
+     scope=str(scope).lower()
+     if any(x in scope for x in ('paper','monitor','exit','unwind','settle','lifecycle')):return 0
+diff --git a/robinhood_tests/test_pons_candidate_plane.py b/robinhood_tests/test_pons_candidate_plane.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..c11c0179e2b1dcd175dc9383ef16930dad0263f8
+--- /dev/null
++++ b/robinhood_tests/test_pons_candidate_plane.py
+@@ -0,0 +1,86 @@
++import dataclasses
++from pathlib import Path
++import tempfile
++import threading
++import unittest
++from unittest.mock import patch
++from certification.robinhood.pons import Broker, durable_cache, normalized_cached
++from robinhood_research.pons_selective_continuation import POLICY_HASH
++from robinhood_research.pons import CurveState
++
++
++def event(n=1):
++    return dict(address='0x'+'12'*20,transactionHash='0x'+f'{n:064x}',logIndex='0x0',
++        transactionIndex='0x0',blockNumber=hex(n),blockHash='0x'+f'{n:064x}',topics=[],data='0x')
++
++
++class CandidatePlaneTests(unittest.TestCase):
++    def setUp(self):
++        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
++        self.path=Path(self.tmp.name)/'plane';self.now=100
++        self.b=Broker(self.path,POLICY_HASH,clock=lambda:self.now);self.addCleanup(lambda:self.b.close())
++    def test_ten_events_one_native_curve_one_job(self):
++        for n in range(1,11):self.b.enqueue(event(n))
++        self.assertEqual(len(self.b.rows),1)
++        job=self.b.pop();self.assertEqual(job['event']['blockNumber'],'0xa')
++        self.assertIsNone(self.b.pop())
++        self.assertEqual(self.b.telemetry()['observation_events'],10)
++    def test_sell_supersedes_active_buy_without_new_entry(self):
++        self.b.enqueue(event());work=self.b.pop();self.b.enqueue(event(2),needs_work=False)
++        self.assertFalse(self.b.plane.current(work['work']))
++        self.assertFalse(self.b.plane.finish(work['work'],result={}))
++        self.assertIsNone(self.b.pop())
++    def test_update_during_provider_request_fences_result(self):
++        self.b.enqueue(event());work=self.b.pop();entered=threading.Event();resume=threading.Event();out=[]
++        def provider():
++            entered.set();resume.wait();out.append(self.b.plane.finish(work['work'],result={'qualified':True}))
++        thread=threading.Thread(target=provider);thread.start();entered.wait()
++        self.b.enqueue(event(2));resume.set();thread.join()
++        self.assertEqual(out,[False]);self.assertEqual(self.b.pop()['work']['generation'],2)
++    def test_committed_typed_result_replays_without_hydration(self):
++        self.b.enqueue(event());work=self.b.pop()
++        state=CurveState(100,1000,50,10,100,200,False,1,0,1,2)
++        value=dict(candidate=dict(state=state,receipt={'blockHash':'retained'}),vector={'qualified':False})
++        self.assertTrue(self.b.finish(work,value,.1))
++        self.b.close();self.b=Broker(self.path,POLICY_HASH,clock=lambda:self.now)
++        scheduled,restored=next(self.b.committed())
++        self.assertEqual(restored['candidate']['state'],state)
++        self.assertEqual(restored['candidate']['receipt'],{'blockHash':'retained'})
++        self.assertIsNone(self.b.pop());self.b.acknowledge(scheduled)
++        self.assertEqual(list(self.b.committed()),[])
++    def test_duplicate_after_restart_keeps_deadline(self):
++        self.b.enqueue(event());self.b.close();self.now=102
++        self.b=Broker(self.path,POLICY_HASH,clock=lambda:self.now)
++        self.assertFalse(self.b.enqueue(event()))
++        self.assertEqual(self.b.pop()['deadline'],105)
++    def test_receipts_and_headers_reused_after_restart(self):
++        cache=durable_cache(self.b.plane,'authority:policy')
++        header=dict(hash='0x01',number='0x1',timestamp='0x2')
++        cache.remember_header(header);cache.remember_receipt('tx','0x01',{'status':'0x1','transactionHash':'tx','blockHash':'0x01'})
++        self.b.close();self.b=Broker(self.path,POLICY_HASH,clock=lambda:self.now)
++        cache=durable_cache(self.b.plane,'authority:policy')
++        self.assertEqual(cache.header_by_number(1),header)
++        self.assertEqual(cache.receipt('tx','0x01'),{'status':'0x1','transactionHash':'tx','blockHash':'0x01'})
++        self.assertIsNone(cache.receipt('tx','other'))
++        self.assertIsNone(durable_cache(self.b.plane,'other-authority').header_by_number(1))
++    def test_immutable_code_origin_and_conflict(self):
++        cache=durable_cache(self.b.plane,'authority:policy')
++        cache.remember_compiled('curve','token','code',10,{'hash':'h'},{'runtime_sha256':'r'})
++        self.assertIsNone(cache.immutable_curve('curve',9))
++        self.assertEqual(cache.immutable_curve('curve',11)['code'],'code')
++        with self.assertRaisesRegex(ValueError,'conflict'):
++            cache.remember_compiled('curve','token','different',11,{'hash':'h2'},{'runtime_sha256':'r'})
++    def test_incremental_normalization_is_exact_and_restarts(self):
++        cache=durable_cache(self.b.plane,'authority:policy');ctx=type('Context',(),{'cache':cache})()
++        row=dict(event_at=100,group='buyer',buy=True,quote=10)
++        calls=[]
++        def build():calls.append(1);return row
++        self.assertEqual(normalized_cached(ctx,event(),build),row)
++        self.assertEqual(normalized_cached(ctx,event(),build),row)
++        self.assertEqual(len(calls),1)
++        self.b.close();self.b=Broker(self.path,POLICY_HASH,clock=lambda:self.now)
++        ctx.cache=durable_cache(self.b.plane,'authority:policy')
++        self.assertEqual(normalized_cached(ctx,event(),build),row)
++        self.assertEqual(len(calls),1)
++        conflicting=event();conflicting['data']='0xdead'
++        with self.assertRaisesRegex(ValueError,'conflict'):normalized_cached(ctx,conflicting,build)
+diff --git a/robinhood_tests/test_pons_continuous_campaign.py b/robinhood_tests/test_pons_continuous_campaign.py
+index f382cdb5426a3c22692ab817c4c1f8a75ea717c2..521b51b23546198204a794c4e4a541a19d7dceda 100644
+--- a/robinhood_tests/test_pons_continuous_campaign.py
++++ b/robinhood_tests/test_pons_continuous_campaign.py
+@@ -72,13 +72,23 @@ class ContinuousCampaignTests(unittest.TestCase):
+         feed=SimpleNamespace(state=State(),connect=lambda:None,wait_for_after=lambda *a,**kw:1,
+             status=lambda:{},close=lambda:None)
+         rpc=SimpleNamespace(telemetry=lambda:{})
+-        pool=SimpleNamespace(submit=lambda *a,**kw:future,shutdown=lambda **kw:None)
+-        event=dict(transactionHash='transaction',logIndex='0x1',blockNumber='0x1',address='curve',
++        def submit(function,*a,**kw):
++            if function is cohort._poll or function.__name__=='_discover_observations':
++                ready=Future()
++                try:ready.set_result(function(*a,**kw))
++                except Exception as exc:ready.set_exception(exc)
++                return ready
++            if function is cohort.evaluate_candidate:
++                ready=Future();ready.set_result(evaluation);return ready
++            return future
++        pool=SimpleNamespace(submit=submit,shutdown=lambda **kw:None)
++        event=dict(transactionHash='transaction',logIndex='0x1',blockNumber='0x1',address='curve',transactionIndex='0x0',blockHash='block',
+             topics=[cohort.topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)')])
+         polls=[0]
+         def poll(*args,**kwargs):
+             polls[0]+=1
+             if polls[0]==1:return rpc,2,[event]
++            if polls[0]==2:return rpc,2,[]
+             future.set_result(dict(status='settled',final_position=dict(status='settled',entry_tokens=2),
+                 reconciliation=dict(open_exposure=0)))
+             raise BoundaryError('injected_discovery_failure')
+@@ -89,10 +99,11 @@ class ContinuousCampaignTests(unittest.TestCase):
+                 stack.enter_context(patch.object(cohort,name,root if name=='ROOT' else root/(name+'.json')))
+             for name,value in dict(TAPE_WARM_SECONDS=0,SequencerBlockClock=lambda:feed,_discovery=lambda endpoint:rpc,
+                 WalletSkillBook=lambda path:SimpleNamespace(close=lambda:None),
+-                SelectiveEvidenceContext=lambda endpoint:SimpleNamespace(telemetry=lambda:{}),
++                SelectiveEvidenceContext=lambda endpoint,**kwargs:SimpleNamespace(telemetry=lambda:{}),
+                 ThreadPoolExecutor=lambda **kw:pool,_poll=poll,evaluate_candidate=lambda *a,**kw:evaluation,
+                 public_evaluation=lambda value:dict(value),_attach_wallet_overlay=lambda *a:{'converged':False}).items():
+                 stack.enter_context(patch.object(cohort,name,value))
++            stack.enter_context(patch('robinhood_research.pons_selective_acquisition.public_evaluation',side_effect=lambda value:dict(value)))
+             stack.enter_context(patch.object(cohort.time,'monotonic',return_value=0))
+             stack.enter_context(patch.object(cohort.time,'time',return_value=100))
+             result=cohort.run('unused',campaign=True)

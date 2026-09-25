@@ -697,7 +697,7 @@
         "upstream_acquisition_scope": "all authenticated Pons V2 buy/sell logs remain observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "d11bfe346004d8fc027d3344146e6c4962cab7485f1bcd3e68d60968c9fee143",
+      "source_diff_sha256": "a31fff0ff6f6d1b659323c93a5c9a822b2e460203da724b00546cc81d8676718",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
@@ -707,7 +707,8 @@
         "certification/patches/target-coverage-repair-pons.patch",
         "certification/patches/evidence-reconstruction-pons.patch",
         "certification/patches/v10-postrun-pons.patch",
-        "certification/patches/pons-public-log-429-adaptive.patch"
+        "certification/patches/pons-public-log-429-adaptive.patch",
+        "certification/patches/robinhood-evidence-plane-pons.patch"
       ]
     },
     "ramses": {
@@ -1037,7 +1038,7 @@
         "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "e2751171b0dded92b37c26b81c42230b5cbf293870436938dc44628257f6fa8a",
+      "source_diff_sha256": "a6b6866e1e25fbb16845b362e7262449e2eaae1d75066852e01343fba269bd39",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -1050,7 +1051,8 @@
         "certification/patches/market-assurance-ramses.patch",
         "certification/patches/ramses-receipt-set-metadata.patch",
         "certification/patches/target-coverage-repair-ramses.patch",
-        "certification/patches/evidence-reconstruction-ramses.patch"
+        "certification/patches/evidence-reconstruction-ramses.patch",
+        "certification/patches/robinhood-evidence-plane-ramses.patch"
       ]
     }
   },
