@@ -24,7 +24,12 @@ def replay(lane):
             arguments=decode(row['inputs'])
             bound=inspect.signature(function).bind_partial();bound.arguments.update(arguments)
             assert encode(function(*bound.args,**bound.kwargs))==row['result'],row['function']
-            assert encode(arguments)==row['inputs_after']
+            # Historical records preserve the schema that existed when captured.
+            # Decoding both the pre/post snapshots through the current dataclass
+            # constructors normalizes additive default-only fields introduced by a
+            # later policy revision without rewriting the immutable record. Any
+            # mutation to a field that existed in the retained schema still fails.
+            assert encode(arguments)==encode(decode(row['inputs_after']))
     finally:socket.socket=old
     return dict(lane=lane,checked=len(records),passed=True,provider_requests=0)
 
