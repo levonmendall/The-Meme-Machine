@@ -169,6 +169,21 @@
           "evidence_requirements_changed": false,
           "hourly_campaign_behavior_changed": false,
           "paper_only_unchanged": true
+        },
+        "getsignatures_pressure_repair": {
+          "revision": "method-scoped-signature-cooldown-v1",
+          "incident_run_id": 36077647211,
+          "observed_http_429s": 20,
+          "observed_queue_deadlines": 18,
+          "purpose": "Retain the existing getSignaturesForAddress 15/30/60-second shared method cooldown while avoiding the additional provider-wide 8-second stall when the rate limit is isolated to that method.",
+          "provider_interval_seconds_unchanged": 0.5,
+          "provider_ceiling_increased": false,
+          "signature_method_backoff_unchanged": true,
+          "unrelated_method_rate_limit_behavior_unchanged": true,
+          "strategy_thresholds_changed": false,
+          "target_scope_changed": false,
+          "evidence_requirements_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -409,6 +424,21 @@
           "accounting_changed": false,
           "paper_only_unchanged": true,
           "status": "offline_verified_pending_exact_sha_nonmarket_certification"
+        },
+        "postrun_reconstruction_window_audit": {
+          "revision": "accepted-hour-36077647211-classification-audit-v1",
+          "incident_run_id": 36077647211,
+          "pending_at_observation_close": 27,
+          "reconstruction_incomplete": 12,
+          "provider_failed": 0,
+          "conclusion": "no_strategy_or_clock_relaxation_required",
+          "pending_interpretation": "campaign_window_insufficient_preentry_time is intentional pre-entry capacity censorship under the frozen 162-second trigger/warmup/evidence reserve; it must not be completed after the observation window",
+          "incomplete_interpretation": "remaining cases retain explicit authenticated fail-closed reasons, including unsupported/mixed liquidity authority and bounded signature/transaction reconstruction pressure",
+          "strategy_thresholds_changed": false,
+          "timing_reserve_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
