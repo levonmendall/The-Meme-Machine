@@ -1212,7 +1212,7 @@
     "ramses_viability_v4_candidate": {
       "branch": "strategy/ramses-viability-v4-20260924",
       "source_branch": "strategy/ramses-viability-v4-source-20260924",
-      "source_sha": "4f34cfec76b8f354488abc33360e9bcf0074fcca",
+      "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
       "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
       "prior_runtime_sha": "6cc6d90c8aeac70ceec08d8fc43bfab73da3ece4",
       "evidence_only_replay": true,
