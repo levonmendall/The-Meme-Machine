@@ -41,5 +41,30 @@
     "interpretation": "Workspace denies Unix socket creation; unchanged real IPC gate retained for hosted certification. No escalation attempted."
   },
   "provider_calls": 0,
-  "market_runs": 0
+  "market_runs": 0,
+  "failed_certification": {
+    "run_id": 36175955014,
+    "runtime_sha": "24101b0d5a15a834c99952d827625ebd0ef0287d",
+    "architecture_passed": true,
+    "real_ipc_passed": true,
+    "broad_suites_started": false,
+    "failure": [
+      "frozen_lane_drift:pump",
+      "frozen_lane_drift:meteora"
+    ],
+    "cause": "frozen_lanes source_diff_sha256 provenance still named pre-cleanup composed trees; all economic policy fields unchanged",
+    "artifact_id": 10882122695,
+    "artifact_sha256": "cb3d420366ff451b861f06aac08e578345eebff78a69c9d099e42a9b8a73859f",
+    "credential_artifact_scan_passed": true
+  },
+  "failed_standard_ci": {
+    "run_id": 36175955000,
+    "job_id": 108206479860,
+    "tests_run": 528,
+    "errors": 1,
+    "failures": 1,
+    "error": "CandidateCausalTests uses object.__new__(Observer); its fixture omitted new lock and solana_usage members",
+    "failure": "freeze manifest provenance hashes stale",
+    "fix": "initialize fixture members and assert complete/incomplete usage counters; update only two composed diff identities"
+  }
 }
