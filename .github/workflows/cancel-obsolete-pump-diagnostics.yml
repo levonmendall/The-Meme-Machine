@@ -1,0 +1,34 @@
+name: cancel-obsolete-pump-diagnostics
+on:
+  push:
+    branches: [strategy/pump-ramses-v4-composed-20260924]
+permissions:
+  contents: read
+  actions: write
+jobs:
+  cancel:
+    if: contains(github.event.head_commit.message, '[cancel-obsolete-pump-diagnostics]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Cancel only obsolete Pump paper-milestone runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for branch in \
+            strategy/pump-counterfactual-replay-v1-20260924 \
+            strategy/pump-ramses-v4-composed-20260924
+          do
+            for status in queued in_progress waiting pending requested
+            do
+              gh run list --repo "${GITHUB_REPOSITORY}" --workflow ci.yml --branch "$branch" \
+                --status "$status" --limit 100 --json databaseId \
+                --jq '.[].databaseId' 2>/dev/null || true
+            done
+          done | sort -u | while read -r run_id
+          do
+            [ -n "$run_id" ] || continue
+            echo "cancelling paper-milestone run $run_id"
+            gh run cancel "$run_id" --repo "${GITHUB_REPOSITORY}" || true
+          done
