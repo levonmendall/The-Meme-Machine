@@ -27,12 +27,6 @@ diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceler
      actual_policy_hash=policy_hash()
      if actual_policy_hash!=FROZEN_POLICY_HASH:
          raise RuntimeError("frozen_policy_hash_changed")
-@@ -787,4 +799,4 @@ def main(*,campaign=False,discovery_seconds=None):
-     report['operational_configuration']=dict(campaign=campaign,discovery_seconds=discovery_seconds,
-         full_attempt_limit=MAX_FULL_ATTEMPTS,full_attempt_window_seconds=3300 if campaign else None,
-         concurrent_postgrad_limit=MAX_POSTGRAD_CANDIDATES,followup_seconds=FOLLOWUP_SECONDS,
--        open_positions_before_candidate_hydration=True)
-+        open_positions_before_candidate_hydration=True,smoke_flat_tail=smoke_flat_tail)
 @@ -832,7 +844,11 @@ def main(*,campaign=False,discovery_seconds=None):
          while int(time.time())<end:
              if evidence_service:evidence_service.check()
