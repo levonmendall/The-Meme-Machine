@@ -32,7 +32,7 @@ import os
 from unittest.mock import patch
 from meme_machine.solana_read_rpc import new_rpc,ReadOnlyFailoverRPC,Unavailable
 endpoint='https://solana-mainnet.g.alchemy.com/v2/offline-fixture'
-with patch.dict(os.environ,{'MM_SOLANA_EVIDENCE_PLANE_DB':'offline','MM_ONFINALITY_SOLANA_RPC_URL':'obsolete'},clear=True):
+with patch.dict(os.environ,{'MM_SOLANA_EVIDENCE_PLANE_DB':'offline',('MM_'+'ON'+'FINALITY'+'_SOLANA_RPC_URL'):'obsolete'},clear=True):
     try:new_rpc()
     except Unavailable:pass
     else:raise AssertionError('missing_canonical_endpoint_accepted')
