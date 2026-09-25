@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-24-counterfactual-replay-strategy-v1",
+  "verified_at": "2026-09-24-run367-composed-repairs",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
@@ -487,8 +487,8 @@
       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b"
     },
     "pons": {
-      "source_branch": "strategy/pons-profit-protection-v2-20260923",
-      "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "source_branch": "repair/run367-pons-sequencer-liveness-20260924",
+      "source_sha": "1bc04bc7920c3f63d8d868ec679e3f82db6f9fbd",
       "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2",
       "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
       "file_hashes": {
@@ -528,7 +528,9 @@
         "f8c615fb1613bcaa2d3ccf6386b8ffc9a843f1b8",
         "9df623a5aa8c001ce9a9f60352b6aaf33b0de25f",
         "639c7acd180dd04c3db8f1458bc1d116e924becf",
-        "3de3d376847531ccb90e260cfcc96c37587ccb23"
+        "3de3d376847531ccb90e260cfcc96c37587ccb23",
+        "1060c1609476d7f74e9d2c65542f8a6ebd434caf",
+        "1bc04bc7920c3f63d8d868ec679e3f82db6f9fbd"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
       "execution_certification": {
@@ -676,6 +678,21 @@
           "evidence_freshness_changed": false,
           "strategy_thresholds_changed": false,
           "paper_only_unchanged": true
+        },
+        "sequencer_session_recovery_run367": {
+          "revision": "observation-only-unsupported-opcode-reconnect-v1",
+          "incident_run_id": 36087556931,
+          "incident_run_number": 367,
+          "incident_boundary": "sequencer_feed_opcode",
+          "implementation_branch": "repair/run367-pons-sequencer-liveness-20260924",
+          "implementation_sha": "1bc04bc7920c3f63d8d868ec679e3f82db6f9fbd",
+          "purpose": "Convert only the observed unsupported-opcode sequencer session boundary into bounded reconnect while leaving the canonical authenticated RPC cursor unchanged until exact catch-up is proven.",
+          "reconnect_attempts": 5,
+          "canonical_evidence_unchanged": true,
+          "strategy_thresholds_changed": false,
+          "provider_limits_changed": false,
+          "target_scope_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -704,14 +721,14 @@
       ]
     },
     "ramses": {
-      "source_branch": "repair/ramses-economic-census-429-v1-20260923",
-      "source_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
-      "strategy_version": "ramses-active-wide-maker-v3",
-      "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+      "source_branch": "strategy/ramses-viability-v4-source-20260924",
+      "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+      "strategy_version": "ramses-active-wide-maker-v4",
+      "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
       "file_hashes": {
         ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
-        "robinhood_research/ramses_strategy.py": "b5cff6dced74c5df84340d6e4abc34942d52e473943f43add26f63ccf3785673",
-        "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json": "e83b0255937c891e55f4ad4a473368c57d69f5c02e0340686bdbdd2b4f6d74a0"
+        "robinhood_research/ramses_strategy.py": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
+        "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V4.json": "5550a96e74af116f9e57efbbef762da04146416d6729f62a60f6339325e1be2d"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
@@ -755,18 +772,20 @@
         "6a7910f118e5fa2d0f2134724ee408ca039dbdb4",
         "888b64b5bf84ed34e13a9118304421266b1a3287",
         "16aef485b177e2eb70660f4bcf105d324a7aa6d0",
-        "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2"
+        "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
+        "73b61794debf7f6e40abe474a1ce7b5fbfcbfed2",
+        "41b5f263efc31bedf9b39039a9f66bed264b70d3"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
         "profitability_authority": true,
-        "target_restrictiveness": "Active Wide Maker v3",
+        "target_restrictiveness": "Active Wide Maker v4",
         "original_source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
-        "revision": "active-wide-maker-v3",
-        "purpose": "prospective natural paper validation of the Active Wide Maker v3 Ramses strategy with governed wide-range recentering and capital preservation",
+        "revision": "active-wide-maker-v4-viability",
+        "purpose": "Prospective natural paper validation of Ramses Active Wide Maker v4 with range-local initial sizing and mandatory positive after-cost plus 2x-cost-stress entry economics; v3 rebalance controls remain frozen.",
         "machinery_proof_only": false,
         "one_natural_settled_lifecycle_target": false,
-        "prior_execution_source_sha": "b2456dbf7adcf0c15caad3311aa86b41931be524",
+        "prior_execution_source_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
         "lifecycle_repair": "transient provider rate limits and temporarily incomplete same-pool unwind liquidity hold open paper positions and retry; isolated paper ledger funds modeled cost envelope without resizing position",
         "repeat_entry_repair": "post-loss available-capital admission; available cost-envelope gate; unique per-qualification lifecycle namespace; candidate-local capacity/provider boundaries",
         "funding_repair": {
@@ -977,18 +996,58 @@
           "evidence_requirements_changed": false,
           "accounting_changed": false,
           "paper_only_unchanged": true
+        },
+        "active_wide_maker_v4": {
+          "source_commit": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+          "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
+          "initial_quote_asset": "USDG",
+          "prior_30m_swaps_max": 2,
+          "width_candidates_bins": [
+            65,
+            90,
+            120,
+            150,
+            200
+          ],
+          "minimum_width_bins": 65,
+          "maximum_range_local_liquidity_fraction_bps": 50,
+          "range_local_sizing_required": true,
+          "initial_entry_requires_positive_projected_edge": true,
+          "initial_entry_requires_positive_two_x_cost_stress": true,
+          "maximum_entry_cycle_cost_to_capital_bps": 10000,
+          "bounded_executable_cost_route_required": true,
+          "complete_unwind_required": true,
+          "rebalance_state_machine": "unchanged_from_v3",
+          "target_burn_to_remint_seconds": 180,
+          "hard_same_decision_deadline_seconds": 210,
+          "maximum_hold_seconds": 604800,
+          "maximum_hold_is_safety_cap_not_profitability_claim": true,
+          "rejected_branch_b_restored": false,
+          "counterfactual_replay": {
+            "prospective_run_id": 36043064083,
+            "observed_position_capital_quote_raw": 57940,
+            "observed_execution_cost_quote_raw": 512646,
+            "observed_after_cost_return_bps": -88530,
+            "v4_disposition": "reject_before_capital_commitment",
+            "branch_b_final_run_id": 35685789656,
+            "branch_b_24h_median_after_cost_return_bps": -510,
+            "branch_b_72h_median_after_cost_return_bps": -239.5
+          },
+          "paper_only_unchanged": true,
+          "provider_limits_changed": false,
+          "target_scope_changed": false
         }
       },
       "prospect_admission": {
         "market_observation_scope": "Recently active Ramses USDG pools with one or two prior 30-minute swaps, as frozen in sources.json; existing positions retain their lifecycle scope.",
-        "investment_evaluation_scope": "recently-active quiet USDG pools with 1-2 observed prior 30-minute swaps, >=65-bin two-sided initial ranges, complete authenticated cost/unwind evidence and governed local-liquidity sizing; zero-swap pools remain broadly observable but are not hydrated without a finalized activity trigger; rebalances use the v3 displacement/overlap/capital-preservation state machine",
+        "investment_evaluation_scope": "recently-active quiet USDG pools with 1-2 observed prior 30-minute swaps; candidate capital is sized from authenticated liquidity across the exact proposed wide range; initial entry requires complete cost evidence, a bounded executable WNATIVE-to-quote conversion, positive projected after-cost result, positive 2x-cost-stress result, modeled cycle cost no greater than deployed capital, and governed local-liquidity sizing; rebalances retain the v3 displacement/overlap/capital-preservation state machine",
         "factory_enumeration_is_inventory_not_investment_evaluation": true,
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
         "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "3e848957c0835ef5f9805e009414c049513e4f9f291b8199804ce22567cd862e",
+      "source_diff_sha256": "e2751171b0dded92b37c26b81c42230b5cbf293870436938dc44628257f6fa8a",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -1006,11 +1065,11 @@
     }
   },
   "execution_certification": {
-    "revision": "current-four-lane-profit-protection-v2",
-    "purpose": "Compose the current Pump/Pons profit-protection revisions with Meteora enforced core-hold profitability v2 and Ramses Active Wide Maker v3 authority/timing lock while preserving current operational overlays and paper-only controls.",
+    "revision": "run367-repaired-counterfactual-v1",
+    "purpose": "Compose the replay-supported Pump revision, unchanged Pons economics with run-367 sequencer liveness recovery, Meteora core-hold v2, and offline-certified Ramses Active Wide Maker v4 under the existing paper-only controls.",
     "profitability_authority": true,
-    "target_strategy_restrictiveness": "Pump/Pons profitability-v1 profit-protection-v2; Meteora authenticated fee-density core-hold-v2; Ramses Active Wide Maker v3",
-    "validation_status": "PROFIT_PROTECTION_V2_EXACT_HASHES_PINNED_FINAL_CERTIFICATION_REQUESTED",
+    "target_strategy_restrictiveness": "Pump profitability-v1 profit-protection-v2 counterfactual-replay-v1; Pons profitability-v1 profit-protection-v2; Meteora authenticated fee-density core-hold-v2; Ramses Active Wide Maker v4 viability-gated",
+    "validation_status": "RUN367_COMPOSED_REPAIRS_EXACT_NON_MARKET_CERTIFICATION_REQUESTED",
     "validation_run_requested": true,
     "latest_qualification": {
       "run_id": 35888605351,
@@ -1029,10 +1088,10 @@
       "scope": "exact four-lane deterministic non-market certification"
     },
     "source_heads": {
-      "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
-      "pons": "3de3d376847531ccb90e260cfcc96c37587ccb23",
-      "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
-      "ramses": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2"
+      "pump": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "pons": "1bc04bc7920c3f63d8d868ec679e3f82db6f9fbd",
+      "meteora": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+      "ramses": "41b5f263efc31bedf9b39039a9f66bed264b70d3"
     },
     "source_verification": {
       "meteora": {
@@ -1187,6 +1246,40 @@
       "provider_throughput_changed": false,
       "retry_budget_changed": false,
       "provider_topology_changed": false,
+      "paper_only_unchanged": true
+    },
+    "ramses_viability_v4_candidate": {
+      "branch": "strategy/ramses-viability-v4-20260924",
+      "source_branch": "strategy/ramses-viability-v4-source-20260924",
+      "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+      "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
+      "prior_runtime_sha": "6cc6d90c8aeac70ceec08d8fc43bfab73da3ece4",
+      "evidence_only_replay": true,
+      "market_run_launched": false,
+      "source_diff_sha256_pending": false,
+      "source_diff_sha256": "e2751171b0dded92b37c26b81c42230b5cbf293870436938dc44628257f6fa8a"
+    },
+    "run367_repair_candidate": {
+      "incident_run_id": 36087556931,
+      "incident_run_number": 367,
+      "prior_runtime_sha": "6cc6d90c8aeac70ceec08d8fc43bfab73da3ece4",
+      "market_run_launched": false,
+      "repair_scope": [
+        "Pons observation-only sequencer opcode boundary reconnect with authenticated RPC catch-up",
+        "Replay-supported Pump strategy revision retained",
+        "Existing Pump signature-pressure and evidence-priority repairs retained",
+        "Existing Meteora late-window pending-at-close and reconstruction repairs retained",
+        "Ramses Active Wide Maker v4 viability policy promoted",
+        "Existing Robinhood adaptive 429 recovery retained"
+      ],
+      "strategy_economics_changed": {
+        "pump": true,
+        "pons": false,
+        "meteora": false,
+        "ramses": true
+      },
+      "provider_limits_changed": false,
+      "market_observation_scope_changed": false,
       "paper_only_unchanged": true
     }
   },
