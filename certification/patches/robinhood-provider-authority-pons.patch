@@ -589,6 +589,19 @@ index a903f43e19f683a7073f31b5b1184dee481d6285..d582990cdf34d01b88c0acec76d4fc9e
 +            second=paper._curve_logs('https://robinhood-mainnet.g.alchemy.com/v2/offline','curve',header)
          self.assertEqual(first,second)
          self.assertEqual(seen,[('eth_getTransactionReceipt',['tx'])])
+diff --git a/robinhood_tests/test_pons_factory_hint_reuse.py b/robinhood_tests/test_pons_factory_hint_reuse.py
+index d8844c773271a1ec5ebe93c9dff4e3f39ebf3217..dbc84cc50e9ca72276185588db9163140e2c3597 100644
+--- a/robinhood_tests/test_pons_factory_hint_reuse.py
++++ b/robinhood_tests/test_pons_factory_hint_reuse.py
+@@ -29,7 +29,7 @@ class CandidateContext(SelectiveEvidenceContext):
+     """Record native read batches while supplying fresh observation responses."""
+ 
+     def __init__(self):
+-        super().__init__("https://unused.invalid")
++        super().__init__("https://robinhood-mainnet.g.alchemy.com/v2/offline")
+         self.batches = []
+         self.token = TOKEN
+         self.snipe = 0
 diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
 index 1f9d7cfeb073fe4969c78b5e0a0e2b9a8b95a5b2..372e10021cc9f437493211b7adb46f41831196eb 100644
 --- a/robinhood_tests/test_pons_selective_continuation.py
@@ -741,10 +754,10 @@ index 1f9d7cfeb073fe4969c78b5e0a0e2b9a8b95a5b2..372e10021cc9f437493211b7adb46f41
          recover.assert_called_once()
          self.assertEqual(recover.call_args.args[1],100)
 diff --git a/robinhood_tests/test_provider_topology.py b/robinhood_tests/test_provider_topology.py
-index b548d0923027bf837a9114798c5f877af638fe16..d285ffed2366d9905cc036d6fcdc793f7b0f44ba 100644
+index b548d0923027bf837a9114798c5f877af638fe16..66eb5c0cb2186027b4b93eed3f8aaa0742ffe722 100644
 --- a/robinhood_tests/test_provider_topology.py
 +++ b/robinhood_tests/test_provider_topology.py
-@@ -1,240 +1,229 @@
+@@ -1,240 +1,235 @@
 +"""Canonical authority regressions; all HTTP is replaced before invocation."""
 +import io
 +import json
@@ -899,6 +912,12 @@ index b548d0923027bf837a9114798c5f877af638fe16..d285ffed2366d9905cc036d6fcdc793f
 +            return dict(jsonrpc='2.0',id=row['id'],result=value)
 +        result=[reply(r) for r in payload] if isinstance(payload,list) else reply(payload)
 +        return io.BytesIO(json.dumps(result).encode())
++    def test_runtime_composition_retains_broker_boundaries(self):
++        # Supplemental wiring guard; coalescing/fencing and provider tests above
++        # exercise the actual broker and transport implementations.
++        source=(Path(__file__).parents[1]/'robinhood_research'/'pons_selective_cohort.py').read_text()
++        for required in ['queue=Broker(', 'queue.committed()', 'evidence_context.generation_guard=', 'queue.finish(']:self.assertIn(required,source)
++
 +    def test_one_authority_and_mandatory_shared_store(self):
 +        a,b=self.client(),self.client(configured_dlmm_rpc)
 +        self.assertEqual(a.provider_fingerprint,b.provider_fingerprint)

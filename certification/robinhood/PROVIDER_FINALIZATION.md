@@ -129,3 +129,12 @@ opportunity-loss acceptance remain **deferred**. No authenticated streaming is
 introduced, so no authenticated-stream operational validation is claimed.
 No workflow, trigger, dispatch, continuation, deployment or protected branch is
 modified by this implementation.
+
+The first broad provider certificate at `d4fd8fede6faa17a6d94f799de890218f743c3b4`
+was retained as FAIL: ten Pons test setup errors came from one shared fixture's
+obsolete invalid endpoint; three Ramses route tests passed `None` instead of an
+authenticated offline client. The integrated Pons protocol bundle inherited the
+same fixture failure. Fixtures were corrected without relaxing assertions or
+production authority checks; focused affected suites passed. The corrected SHA
+requires the complete final certificate again. Supplemental runtime wiring guards
+now explicitly accompany the behavioral broker/provider tests.

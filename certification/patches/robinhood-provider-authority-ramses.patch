@@ -565,10 +565,10 @@ index 78a73b081ab6187f28fc50c420b165d3406c86a3..1d4bc947114631475681d85441e20cc4
              provider_roles=dict(roles),
              provider_kinds=dict(providers),
 diff --git a/robinhood_tests/test_provider_topology.py b/robinhood_tests/test_provider_topology.py
-index d1ca045a69d2b1637ec97add48a90f8beb48ff96..3c237a35073b032b7d90784d38a082f94bc57a6a 100644
+index d1ca045a69d2b1637ec97add48a90f8beb48ff96..b8cd482eacd60d17c971ff6d666a0f184aea8cd1 100644
 --- a/robinhood_tests/test_provider_topology.py
 +++ b/robinhood_tests/test_provider_topology.py
-@@ -1,352 +1,216 @@
+@@ -1,352 +1,222 @@
 +"""Canonical authority regressions; all HTTP is replaced before invocation."""
 +import io
 +import json
@@ -643,6 +643,12 @@ index d1ca045a69d2b1637ec97add48a90f8beb48ff96..3c237a35073b032b7d90784d38a082f9
 +            return dict(jsonrpc='2.0',id=row['id'],result=value)
 +        result=[reply(r) for r in payload] if isinstance(payload,list) else reply(payload)
 +        return io.BytesIO(json.dumps(result).encode())
++    def test_runtime_composition_retains_broker_boundaries(self):
++        # Supplemental wiring guard; coalescing/fencing and provider tests above
++        # exercise the actual broker and transport implementations.
++        source=(Path(__file__).parents[1]/'robinhood_research'/'ramses_universe.py').read_text()
++        for required in ['route_index=RouteIndex(', 'route_index.begin(', 'route_index.check(', 'route_index.current(', 'route_index.complete(']:self.assertIn(required,source)
++
 +    def test_one_authority_and_mandatory_shared_store(self):
 +        a,b=self.client(),self.client(configured_dlmm_rpc)
 +        self.assertEqual(a.provider_fingerprint,b.provider_fingerprint)
@@ -1131,6 +1137,21 @@ index d1ca045a69d2b1637ec97add48a90f8beb48ff96..3c237a35073b032b7d90784d38a082f9
 +        self.assertEqual(result['dlmm']['provider_kind'],'alchemy')
 +
 +if __name__=='__main__':unittest.main()
+diff --git a/robinhood_tests/test_ramses_candidate_plane.py b/robinhood_tests/test_ramses_candidate_plane.py
+index a34263a206d7712b04cb0b5449ae5e9170079e02..2029390947527964c71728536cb2260cf2ed537c 100644
+--- a/robinhood_tests/test_ramses_candidate_plane.py
++++ b/robinhood_tests/test_ramses_candidate_plane.py
+@@ -17,7 +17,9 @@ class RoutePlaneTests(unittest.TestCase):
+     def begin(self,frontier=None,inputs=None):
+         return self.index.begin('factory',self.row,frontier or self.frontier,inputs or {'costs':self.costs})
+     def check(self,frontier=None,costs=None):
+-        return self.index.check(None,'factory',self.row,frontier or self.frontier,costs or self.costs,{})
++        from types import SimpleNamespace
++        rpc=SimpleNamespace(canonical_authority=True,chain_verified=True,provider_fingerprint='offline-authenticated-fixture')
++        return self.index.check(rpc,'factory',self.row,frontier or self.frontier,costs or self.costs,{})
+     def test_negative_route_is_block_bound_not_immutable(self):
+         with patch('robinhood_research.ramses_costs.quote_native_cycle',return_value=(None,{'reason':'no_executable_bounded_wnative_quote_route'})) as quote:
+             self.begin();v=self.check();self.assertTrue(v['skip_deep'])
 diff --git a/robinhood_tests/test_ramses_rate_limit.py b/robinhood_tests/test_ramses_rate_limit.py
 index f75de8135a444f02f72217fbdc9deabd11c4f7bc..27eabdd6af85054730638bbf771ee914c176962d 100644
 --- a/robinhood_tests/test_ramses_rate_limit.py

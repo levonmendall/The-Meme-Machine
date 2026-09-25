@@ -697,7 +697,7 @@
         "upstream_acquisition_scope": "all authenticated Pons V2 buy/sell logs remain observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "319ce2adde3026e0aef8b9af040cf92f8c4c484ac6e8ac661d91e36c76c275ea",
+      "source_diff_sha256": "48083016628092f421b81f297c0fb4d29601d7fabf3e6d39da88430e53bb1089",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
@@ -1039,7 +1039,7 @@
         "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "82be9a319d77a7af4c57f7429d1c3b413c741d7b1eb7035128458ffc1cc9ba1f",
+      "source_diff_sha256": "5247713b686c92870bc8abf09c94528235ff3227ce744ba9eb1ff4140810c8ce",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",

@@ -42,14 +42,14 @@
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
-      "source_diff_sha256": "319ce2adde3026e0aef8b9af040cf92f8c4c484ac6e8ac661d91e36c76c275ea"
+      "source_diff_sha256": "48083016628092f421b81f297c0fb4d29601d7fabf3e6d39da88430e53bb1089"
     },
     "ramses": {
       "strategy_version": "ramses-active-wide-maker-v4",
       "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
       "execution_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
       "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
-      "source_diff_sha256": "82be9a319d77a7af4c57f7429d1c3b413c741d7b1eb7035128458ffc1cc9ba1f"
+      "source_diff_sha256": "5247713b686c92870bc8abf09c94528235ff3227ce744ba9eb1ff4140810c8ce"
     }
   },
   "evidence_quality": {

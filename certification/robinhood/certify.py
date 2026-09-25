@@ -17,6 +17,7 @@ def provider_gates(output):
         'aggregate_shared_governor_ceiling':'test_aggregate_governor_concurrent_lane_clients',
         'canonical_failover_absent':'test_chain_required_before_shared_evidence_and_no_rescue',
         'shared_evidence_reuse':'test_one_authority_and_mandatory_shared_store',
+        'runtime_broker_wiring':'test_runtime_composition_retains_broker_boundaries',
         'credential_isolation':'test_candidate_provenance_reports_archives_and_crash_output_are_secret_free',
         'physical_logical_accounting':'test_batch_is_one_physical_n_logical_and_shared_reuse_zero',
         'provider_telemetry':'test_retry_counts_distinct_wire_attempts',
