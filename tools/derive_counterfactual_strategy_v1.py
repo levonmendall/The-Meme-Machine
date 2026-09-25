@@ -42,8 +42,8 @@ def main():
     sys.path.insert(0, str(ROOT))
     from certification.run import prepare
 
-    baseline = Path(tempfile.mkdtemp(prefix="mm-counterfactual-baseline-"))
-    fresh = None
+    baseline_root = Path(tempfile.mkdtemp(prefix="mm-counterfactual-baseline-"))\n    baseline = baseline_root / "lanes"
+    fresh_root = None\n    fresh = None
     try:
         prepare(baseline)
         pump = baseline / "pump"
