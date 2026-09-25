@@ -1,7 +1,7 @@
 diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
 --- a/tests/pump_acceleration_natural_prospective.py
 +++ b/tests/pump_acceleration_natural_prospective.py
-@@ -690,4 +690,14 @@ def _retire_postgrad(report,postgrad,pending,active,stream,now):
+@@ -690,4 +690,15 @@ def _retire_postgrad(report,postgrad,pending,active,stream,now):
          report['retired_postgrad_candidates']=report.get('retired_postgrad_candidates',0)+1
  
  
@@ -30,7 +30,7 @@ diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceler
          concurrent_postgrad_limit=MAX_POSTGRAD_CANDIDATES,followup_seconds=FOLLOWUP_SECONDS,
 -        open_positions_before_candidate_hydration=True)
 +        open_positions_before_candidate_hydration=True,smoke_flat_tail=smoke_flat_tail)
-@@ -780,7 +791,11 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -780,5 +791,9 @@ def main(*,campaign=False,discovery_seconds=None):
              now=int(time.time())
              _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
              _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
@@ -51,7 +51,7 @@ diff --git a/tests/test_pump_smoke_tail.py b/tests/test_pump_smoke_tail.py
 new file mode 100644
 --- /dev/null
 +++ b/tests/test_pump_smoke_tail.py
-@@ -0,0 +1,22 @@
+@@ -0,0 +1,20 @@
 +import unittest
 +
 +from tests import pump_acceleration_natural_prospective as runner
