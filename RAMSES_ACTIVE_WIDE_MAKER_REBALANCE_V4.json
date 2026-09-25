@@ -1,0 +1,66 @@
+{
+  "kind": "ramses_active_wide_maker_rebalance_v4",
+  "status": "resolved_for_prospective_paper_validation",
+  "research_only": true,
+  "paper_only": true,
+  "allocation_authority": false,
+  "strategy": "Ramses Active Wide Maker v4",
+  "change_from_v3": "Repairs initial-entry viability without loosening market scope or rebalance controls: candidate sizing is based on authenticated range-local liquidity; every initial entry must have positive projected after-cost economics, positive 2x-cost-stress economics, and modeled cycle cost no greater than deployed capital. The v3 rebalance state machine is preserved.",
+  "entry_context": {
+    "quote_asset": "USDG",
+    "prior_30m_swaps_max": 2,
+    "width_candidates_bins": [65, 90, 120, 150, 200],
+    "minimum_width_bins": 65,
+    "default_sidedness": "two_sided"
+  },
+  "entry_viability": {
+    "range_local_liquidity_sizing": true,
+    "maximum_range_local_liquidity_fraction_bps": 50,
+    "positive_projected_after_cost_result_required": true,
+    "positive_two_x_cost_stress_result_required": true,
+    "maximum_modeled_cycle_cost_to_deployed_capital_bps": 10000,
+    "cost_evidence_required": true,
+    "bounded_executable_wnative_quote_route_required": true
+  },
+  "rebalance": {
+    "candidate_width_bins": [65, 90, 120, 150, 200],
+    "capital_preservation_ratio_min": 0.8,
+    "capital_preservation_ratio_max": 1.2,
+    "compound_overlap_min": 0.5,
+    "recenter_overlap_max": 0.1,
+    "recenter_displacement_band": [1.5, 3.0],
+    "overrun_exit_above": 3.0,
+    "target_burn_to_remint_seconds": 180,
+    "hard_same_decision_deadline_seconds": 210,
+    "positive_after_cost_required": true,
+    "positive_two_x_cost_stress_required": true,
+    "no_automatic_chase": true
+  },
+  "lifecycle": {
+    "maximum_hold_seconds": 604800,
+    "maximum_hold_interpretation": "hard safety cap, not a claim that seven days is an economically optimal holding period",
+    "complete_unwind_required": true
+  },
+  "replay_evidence": {
+    "prospective_natural_loss_run": 36043064083,
+    "prospective_loss_position_capital_quote_raw": 57940,
+    "prospective_loss_execution_cost_quote_raw": 512646,
+    "prospective_loss_after_cost_return_bps": -88530,
+    "v4_disposition": "rejected_before_capital_commitment_by_initial_entry_viability_gate",
+    "rejected_branch_b_run": 35685789656,
+    "branch_b_24h_median_after_cost_return_bps": -510,
+    "branch_b_72h_median_after_cost_return_bps": -239.5,
+    "branch_b_restored": false
+  },
+  "validation_boundary": {
+    "minimum_eligible_rebalances": 20,
+    "minimum_distinct_pools": 5,
+    "minimum_win_rate": 0.55,
+    "median_after_cost_return_bps": ">0",
+    "mean_after_cost_return_bps": ">0",
+    "two_x_cost_stress_median_bps": ">0",
+    "two_x_cost_stress_mean_bps": ">0",
+    "profitability_certified": false,
+    "required_next_evidence": "prospective natural paper observations from this exact frozen policy"
+  }
+}

@@ -35,6 +35,7 @@ from .ramses_strategy import (
     attach_universe_percentiles,
     classify_pool,
     pool_features,
+    wide_range_capital_ceiling,
 )
 
 LOOKBACK_BLOCKS = 300
@@ -641,7 +642,12 @@ def scan(
     classified = []
     for row in rows:
         f = row["features"]
-        capital = max(1, f["active_liquidity_quote"] * PAPER_ACTIVE_LIQUIDITY_BPS // 10000)
+        capital = max(
+            1,
+            wide_range_capital_ceiling(
+                row["prestate"], row["quote_side"]
+            ),
+        )
         signal_context = signals_by_pool.get(row["pool"], {})
         if signal_context and not isinstance(signal_context, dict):
             raise BoundaryError("invalid_ramses_pool_signal_context")

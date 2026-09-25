@@ -17,6 +17,7 @@ from robinhood_research.ramses_strategy import (
     evaluate_fee_pulse,
     pool_features,
     recommended_capital,
+    wide_range_capital_ceiling,
 )
 
 
@@ -67,6 +68,13 @@ class RamsesStrategyTests(unittest.TestCase):
     def _costs(value=1):
         return {"entry":value,"add":value,"remove":value,"unwind":value}
 
+    def _quiet_profitable_history(self):
+        rows=self._history(2)
+        active=1 << 23
+        for row in rows:
+            row["args"]["id"]=active
+        return rows
+
     def _decision(
         self, *, history=None, rebalance_reference_capital=None,
         rebalance_reference_bins=None, rebalance_mode=None,
@@ -74,7 +82,7 @@ class RamsesStrategyTests(unittest.TestCase):
     ):
         return classify_pool(
             self._state(),
-            self._history(2) if history is None else history,
+            self._quiet_profitable_history() if history is None else history,
             "y",
             requested_capital=10**16,
             entry_timestamp=1000,
@@ -86,13 +94,13 @@ class RamsesStrategyTests(unittest.TestCase):
             rebalance_mode=rebalance_mode,
         )
 
-    def test_policy_is_active_wide_maker_v3_and_paper_only(self):
+    def test_policy_is_active_wide_maker_v4_and_paper_only(self):
         self.assertEqual(
             STRATEGY_VERSION,
-            "ramses-active-wide-maker-v1/rebalance-v3",
+            "ramses-active-wide-maker-v1/rebalance-v4",
         )
         self.assertEqual(STRATEGY_DOMAIN, "robinhood-ramses-dlmm-independent")
-        self.assertEqual(POLICY["policy_revision"], "profitability-v1-active-wide-maker-v3")
+        self.assertEqual(POLICY["policy_revision"], "profitability-v2-active-wide-maker-v4")
         self.assertTrue(POLICY["profitability_authority"])
         self.assertFalse(POLICY["machinery_proof_only"])
         self.assertFalse(POLICY["independence"]["shared_allocator"])
@@ -100,6 +108,10 @@ class RamsesStrategyTests(unittest.TestCase):
         self.assertEqual(POLICY["active_wide_maker"]["prior_30m_swaps_max"], 2)
         self.assertEqual(POLICY["active_wide_maker"]["min_width_bins"], 65)
         self.assertEqual(POLICY["active_wide_maker"]["max_position_local_liquidity_bps"], 50)
+        self.assertTrue(POLICY["active_wide_maker"]["range_local_sizing_required"])
+        self.assertTrue(POLICY["active_wide_maker"]["initial_entry_requires_positive_projected_edge"])
+        self.assertTrue(POLICY["active_wide_maker"]["initial_entry_requires_positive_two_x_cost_stress"])
+        self.assertEqual(POLICY["active_wide_maker"]["max_entry_cycle_cost_to_capital_bps"],10000)
         self.assertEqual(POLICY["validation"]["minimum_eligible_rebalances"], 20)
         self.assertEqual(POLICY["validation"]["minimum_distinct_pools"], 5)
         self.assertEqual(len(POLICY_HASH), 64)
@@ -140,6 +152,36 @@ class RamsesStrategyTests(unittest.TestCase):
         f=pool_features(self._state(),self._history(2),"y")
         expected=f["active_liquidity_quote"]*50//10000
         self.assertEqual(recommended_capital(f,10**30),expected)
+
+    def test_v4_range_local_ceiling_exceeds_active_bin_only_ceiling(self):
+        state=self._state()
+        features=pool_features(state,self._quiet_profitable_history(),"y")
+        active_only=recommended_capital(features,10**30)
+        range_local=wide_range_capital_ceiling(state,"y")
+        self.assertGreater(range_local,active_only)
+        decision=classify_pool(
+            state,self._quiet_profitable_history(),"y",requested_capital=range_local,
+            entry_timestamp=1000,now=1000,gas_costs=self._costs(),
+            quote_token=USDG_ADDRESS,
+        )
+        self.assertTrue(decision["qualified"],decision)
+        proposal=decision["freeze"]["proposals"][0]
+        self.assertLessEqual(
+            proposal["range_local_position_bps"],
+            POLICY["active_wide_maker"]["max_position_local_liquidity_bps"],
+        )
+
+    def test_v4_rejects_cost_dominated_initial_entry_before_capital_commitment(self):
+        state=self._state()
+        ceiling=wide_range_capital_ceiling(state,"y")
+        decision=classify_pool(
+            state,self._history(2),"y",requested_capital=ceiling,
+            entry_timestamp=1000,now=1000,
+            gas_costs=self._costs(10**30),
+            quote_token=USDG_ADDRESS,
+        )
+        self.assertFalse(decision["qualified"],decision)
+        self.assertIn("no_wide_entry_candidate",decision["reasons"])
 
     def test_quiet_usdg_entry_builds_wide_two_sided_freeze(self):
         decision=self._decision()
@@ -221,7 +263,7 @@ class RamsesStrategyTests(unittest.TestCase):
             confidence_bps=9000,expected_net_bps=100,direction="up",
         )
         decision=classify_pool(
-            self._state(),self._history(2),"y",requested_capital=10**16,
+            self._state(),self._quiet_profitable_history(),"y",requested_capital=10**16,
             entry_timestamp=1000,now=1000,gas_costs=self._costs(),
             quote_token=USDG_ADDRESS,anchor_signal=signal,
         )
