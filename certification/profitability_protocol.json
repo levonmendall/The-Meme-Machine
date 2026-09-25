@@ -1,10 +1,10 @@
 {
   "schema": "meme-machine-profitability-portfolio-autonomy-v1",
-  "cohort_id": "prospective-four-lane-v10-provider-pressure-20260924",
-  "frozen_parent_integration_sha": "3b3f9e23e4a9a15b867910c3f7317b98c739b781",
+  "cohort_id": "prospective-four-lane-v11-ramses-viability-v4-20260924",
+  "frozen_parent_integration_sha": "6cc6d90c8aeac70ceec08d8fc43bfab73da3ece4",
   "paper_only": true,
   "live_money": false,
-  "purpose": "Prospective out-of-sample certification of natural paper profitability, portfolio behavior, and unattended operational readiness without changing strategy economics.",
+  "purpose": "Prospective out-of-sample certification of the four frozen natural paper strategies after Ramses Active Wide Maker v4 viability repair; no pre-v4 Ramses economics are eligible.",
   "evidence_authority": {
     "cohort_begins_only_after_exact_sha_non_market_certification": true,
     "exact_integration_sha_must_remain_constant_for_entire_cohort": true,
@@ -43,11 +43,11 @@
       "source_diff_sha256": "d11bfe346004d8fc027d3344146e6c4962cab7485f1bcd3e68d60968c9fee143"
     },
     "ramses": {
-      "strategy_version": "ramses-active-wide-maker-v3",
-      "source_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
-      "execution_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
-      "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
-      "source_diff_sha256": "3e848957c0835ef5f9805e009414c049513e4f9f291b8199804ce22567cd862e"
+      "strategy_version": "ramses-active-wide-maker-v4",
+      "source_sha": "4f34cfec76b8f354488abc33360e9bcf0074fcca",
+      "execution_sha": "4f34cfec76b8f354488abc33360e9bcf0074fcca",
+      "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
+      "source_diff_sha256": "e2751171b0dded92b37c26b81c42230b5cbf293870436938dc44628257f6fa8a"
     }
   },
   "evidence_quality": {
