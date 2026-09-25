@@ -3662,19 +3662,6 @@ index 0000000..e589449
 +        with self.assertRaisesRegex(BoundaryError,'missing_result'):
 +            _scan_with_capacity_recovery(lambda:None,deadline=100,record_failure=lambda _:None,
 +                clock=lambda:0,sleeper=lambda _:None)
-diff --git a/robinhood_tests/test_ramses_strategy_isolation.py b/robinhood_tests/test_ramses_strategy_isolation.py
-index b94aa51..ed2b9c0 100644
---- a/robinhood_tests/test_ramses_strategy_isolation.py
-+++ b/robinhood_tests/test_ramses_strategy_isolation.py
-@@ -23,7 +23,7 @@ class RamsesStrategyIsolationTests(unittest.TestCase):
- 
-     def _decision(self, capital=100):
-         return dict(
--            mode="fee_pulse",
-+            mode="active_wide_maker",
-             qualified=True,
-             allocation_authority=False,
-             strategy_domain=STRATEGY_DOMAIN,
 diff --git a/robinhood_tests/test_shared_position_fairness.py b/robinhood_tests/test_shared_position_fairness.py
 new file mode 100644
 index 0000000..4619cd0
