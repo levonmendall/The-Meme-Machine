@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "v10-smoke-flat-tail-20260924-one-market-v1",
+  "authorization_id": "v10-provider-pressure-20260924-one-market-v1",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -14,14 +14,14 @@
   "dispatch_retries": false,
   "live_money": false,
   "prior_run_observation": {
-    "run_id": 36070948268,
-    "status": "smoke_cancelled_external_runner_shutdown",
-    "source": "Fresh v10 smoke reached the full 600-second observation boundary with every lane responsive and flat at the final live snapshot; Pump then remained alive only in its configured follow-up window. GitHub sent SIGTERM before artifact preservation/hourly transition. No repository-controlled cancellation was found."
+    "run_id": 36077647211,
+    "status": "completed_success",
+    "source": "Certified smoke-tail campaign completed successfully with smoke, artifact review, one-hour market collection, hourly artifact review, and terminal control. All lanes finished flat/reconciled; Pump recorded one natural profitable settlement. No successor, retry, replacement, or continuation was authorized."
   },
   "prior_launch_attempt": {
-    "run_id": 36070948268,
-    "outcome": "smoke_runner_shutdown_before_hourly",
+    "run_id": 36077647211,
+    "outcome": "completed_success",
     "provider_or_market_work_started": true,
-    "reason": "The prior authorization was consumed and its smoke collected market data, but the hosted runner was terminated before smoke finalization. This fresh authorization is separately owner-approved after a certified smoke-tail orchestration repair."
+    "reason": "Prior one-shot campaign completed and its authorization is consumed. This is a new explicit owner authorization after certified Pons public eth_getLogs, Pump Solana method-pressure, and Meteora post-run evidence review repairs."
   }
 }
