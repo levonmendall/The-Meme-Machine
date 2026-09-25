@@ -695,9 +695,13 @@ def _active_wide_candidate_ok(freeze, *, rebalance, rebalance_mode=None):
     if int(proposal.get("active_wide_width_bins") or 0) < p["min_width_bins"]:
         return False
     preservation=int(proposal.get("capital_preservation_bps") or 0)
-    if not p["capital_preservation_min_bps"] <= preservation <= p["capital_preservation_max_bps"]:
-        return False
     if not rebalance:
+        range_share=proposal.get("range_local_position_bps")
+        if (
+            not isinstance(range_share,int)
+            or range_share > p["max_position_local_liquidity_bps"]
+        ):
+            return False
         if p["initial_entry_requires_positive_projected_edge"]:
             if (
                 not isinstance(proposal.get("projected_after_cost_result"),int)
@@ -717,6 +721,8 @@ def _active_wide_candidate_ok(freeze, *, rebalance, rebalance_mode=None):
         ):
             return False
     if rebalance:
+        if not p["capital_preservation_min_bps"] <= preservation <= p["capital_preservation_max_bps"]:
+            return False
         overlap=proposal.get("overlap_fraction")
         if rebalance_mode=="compound_resize":
             if overlap is None or float(overlap)<float(p["compound_overlap_min"]):
