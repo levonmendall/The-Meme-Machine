@@ -101,6 +101,26 @@ class SequencerFeedTests(unittest.TestCase):
         self.assertEqual(clock.transport_failures,1)
         self.assertEqual(clock.state.last_sequence,100)
 
+    def test_unsupported_opcode_closes_session_and_requires_rpc_backfill_recovery(self):
+        class Socket:
+            def settimeout(self,_):pass
+        class Client:
+            def __init__(self):
+                self.sock=Socket();self.closed=False
+            def recv_message(self):
+                raise BoundaryError("sequencer_feed_opcode")
+            def close(self):
+                self.closed=True
+        clock=SequencerBlockClock()
+        client=Client();clock.client=client;clock.state.last_sequence=100
+        with self.assertRaisesRegex(SequencerTransportError,"opcode"):
+            clock.wait_for_after(100,timeout=0.1)
+        self.assertTrue(client.closed)
+        self.assertIsNone(clock.client)
+        self.assertEqual(clock.last_transport_boundary,"sequencer_feed_opcode")
+        self.assertEqual(clock.transport_failures,1)
+        self.assertEqual(clock.state.last_sequence,100)
+
     def test_startup_sentinel_anchors_to_current_sequence_before_range_cap(self):
         clock=SequencerBlockClock()
         clock.state.last_sequence=67_198_059
