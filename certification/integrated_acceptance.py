@@ -9,12 +9,15 @@ from __future__ import annotations
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import time
 
 from certification.governor import Governor
+
+ROOT=Path(__file__).resolve().parents[1]
 
 LANES=("pump","pons","meteora","ramses")
 
@@ -83,9 +86,12 @@ BUNDLES={
 
 def _run_tests(cwd,tests,log):
     started=time.monotonic()
+    env=os.environ.copy()
+    existing=env.get("PYTHONPATH")
+    env["PYTHONPATH"]=str(ROOT)+(os.pathsep+existing if existing else "")
     proc=subprocess.run(
         [sys.executable,"-m","unittest","-v",*tests],
-        cwd=cwd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
+        cwd=cwd,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
         text=True,timeout=240,
     )
     Path(log).write_text(proc.stdout)
