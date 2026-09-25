@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   inspect:
-    if: contains(github.event.head_commit.message, '[inspect-postrun-pressure]')
+    if: contains(github.event.head_commit.message, '[inspect-pons-429-context]')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -20,21 +20,15 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Prepare exact runtime trees
-        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/postrun-pressure"
-      - name: Print exact repair anchors
+      - run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/pons-429-context"
+      - name: Exact Pons 429 anchors
         run: |
-          set -euo pipefail
-          pons="$RUNNER_TEMP/postrun-pressure/pons"
-          pump="$RUNNER_TEMP/postrun-pressure/pump"
-          meteora="$RUNNER_TEMP/postrun-pressure/meteora"
-          echo '=== PONS provider.py ==='
-          grep -n -A70 -B12 'def _http(self, method, params)' "$pons/robinhood_research/provider.py" | head -n 110
-          echo '=== PONS topology fallback ==='
-          grep -n -A110 -B20 'class ObservationFallbackRpc' "$pons/robinhood_research/provider_topology.py"
-          echo '=== PONS pacer ==='
-          grep -n -A80 -B10 'class ProviderPacer' "$pons/robinhood_research/provider_topology.py"
-          echo '=== PUMP signatures ==='
-          grep -R -n -A16 -B8 'getSignaturesForAddress' "$pump/meme_machine" "$pump/tests" | head -n 260
-          echo '=== METEORA window/reconstruction ==='
-          grep -R -n -A18 -B8 -E 'pending_at_observation_close|campaign_window_insufficient_preentry_time|reconstruction_incomplete|trigger_evidence_requested' "$meteora/tests" "$meteora/meme_machine" | head -n 320
+          p="$RUNNER_TEMP/pons-429-context/pons"
+          echo '=== provider 1-125 ==='
+          sed -n '1,125p' "$p/robinhood_research/provider.py"
+          echo '=== topology 125-190 ==='
+          sed -n '125,190p' "$p/robinhood_research/provider_topology.py"
+          echo '=== topology 360-480 ==='
+          sed -n '360,480p' "$p/robinhood_research/provider_topology.py"
+          echo '=== topology tests ==='
+          grep -R -n 'ObservationFallbackRpc\|ProviderPacer' "$p/robinhood_tests" || true
