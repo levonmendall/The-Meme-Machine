@@ -1,10 +1,10 @@
 {
   "schema": "meme-machine-profitability-portfolio-autonomy-v1",
-  "cohort_id": "prospective-four-lane-v11-ramses-viability-v4-20260924",
-  "frozen_parent_integration_sha": "6cc6d90c8aeac70ceec08d8fc43bfab73da3ece4",
+  "cohort_id": "prospective-four-lane-v12-pump-counterfactual-ramses-v4-20260924",
+  "frozen_parent_integration_sha": "05991b4e3ff848a16cf169bbed33762ed598a095",
   "paper_only": true,
   "live_money": false,
-  "purpose": "Prospective out-of-sample certification of the four frozen natural paper strategies after Ramses Active Wide Maker v4 viability repair; no pre-v4 Ramses economics are eligible.",
+  "purpose": "Prospective out-of-sample certification of the four frozen natural paper strategies after combining the replay-supported Pump price-retention revision with certified Ramses Active Wide Maker v4; no earlier Pump/Ramses economics are eligible.",
   "evidence_authority": {
     "cohort_begins_only_after_exact_sha_non_market_certification": true,
     "exact_integration_sha_must_remain_constant_for_entire_cohort": true,
@@ -18,15 +18,17 @@
     "no_threshold_tuning_during_cohort": true,
     "no_outcome_dependent_run_selection": true,
     "statistical_block": "one completed natural market campaign window; multiple trades inside one block are not treated as independent statistical samples",
-    "market_assurance_required": true
+    "market_assurance_required": true,
+    "prior_cohort_records_eligible": false,
+    "counterfactual_strategy_revision_reset": "new combined v12 protocol/cohort identity; no pre-Pump-revision or pre-Ramses-v4 economic block is admitted"
   },
   "frozen_lanes": {
     "pump": {
-      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2",
-      "source_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
-      "execution_sha": "324fee081dd7664a30df4d88aaa1448d28e3033e",
-      "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
-      "source_diff_sha256": "c2e446c9a4f18869831b20471c8f48d86195a678f0de07fb751e0e2c19663e42"
+      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2-counterfactual-replay-v1",
+      "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "policy_hash": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b",
+      "source_diff_sha256": "1ff55bf86ddd11cf82458774957ed0637a61f1bc46e2b87b5e0ccbdc60c99efb"
     },
     "meteora": {
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
@@ -114,7 +116,7 @@
     "prospective_artifact_retention_days": 90,
     "prospective_artifact_retention_scope": "GitHub Actions repository maximum; exceeds the frozen 168-hour certification span",
     "frozen_paper_certification_program_authorized_before_economic_acceptance": true,
-    "certification_program_authority": "User instruction 2026-09-23: durable unattended prospective blocks after exact non-market certification and smoke; economics remain frozen."
+    "certification_program_authority": "User instruction 2026-09-24: promote the replay-supported Pump strategy changes for the next paper run while preserving the separately certified Ramses v4 revision; no live-money authority."
   },
   "promotion": {
     "machinery_pass_is_not_profitability_pass": true,
