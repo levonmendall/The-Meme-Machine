@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   derive:
-    if: contains(github.event.head_commit.message, '[inspect-smoke-tail-context]')
+    if: contains(github.event.head_commit.message, '[derive-smoke-tail]')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -20,26 +20,16 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - name: Temporarily prepare the prior v10 Pump composition
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          p=Path('certification/sources.json')
-          row=json.loads(p.read_text())
-          patches=row['lanes']['pump']['overlay_patches']
-          row['lanes']['pump']['overlay_patches']=[
-              x for x in patches if not x.endswith('pump-smoke-flat-tail.patch')]
-          p.write_text(json.dumps(row,indent=2)+'\n')
-          PY
-          python -m certification.run prepare --worktrees "$RUNNER_TEMP/smoke-tail-context"
-      - name: Print exact Pump repair anchors
-        working-directory: ${{ runner.temp }}/smoke-tail-context/pump
+      - name: Prepare exact repaired lane composition
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/smoke-tail-lanes"
+      - name: Focused Pump smoke-tail tests
+        working-directory: ${{ runner.temp }}/smoke-tail-lanes/pump
+        run: python -m unittest -v tests.test_pump_smoke_tail tests.test_pump_campaign_tail_drain
+      - name: Derive exact Pump source diff identity
+        working-directory: ${{ runner.temp }}/smoke-tail-lanes/pump
         run: |
           set -euo pipefail
-          f=tests/pump_acceleration_natural_prospective.py
-          grep -n -A18 -B10 'def _retire_postgrad' "$f"
-          grep -n -A18 -B8 'def main' "$f" | head -n 80
-          grep -n -A14 -B8 "operational_configuration.*dict" "$f"
-          grep -n -A22 -B10 'while int(time.time())<end' "$f"
-          grep -n -A14 -B8 'Natural post-graduation and second-leg entries' "$f"
+          git diff --binary --full-index --no-ext-diff --no-textconv --no-renames HEAD > /tmp/pump.diff
+          printf 'PUMP_SOURCE_DIFF_SHA256='
+          sha256sum /tmp/pump.diff | awk '{print $1}'
+          git diff --check HEAD
