@@ -136,10 +136,12 @@ def main():
         # Removing trailing whitespace from added content preserves semantics and
         # lets repository-level diff hygiene remain fail-closed.
         patch_lines = patch_bytes.decode().splitlines()
-        patch_bytes = ("\n".join(
-            line.rstrip() if line.startswith("+") and not line.startswith("+++") else line
-            for line in patch_lines
-        ) + "\n").encode()
+        # The patch is text-only. Canonicalize trailing horizontal whitespace on
+        # every patch-file line so the patch artifact itself passes diff --check.
+        patch_lines = [line.rstrip(" \t") for line in patch_lines]
+        if any(line != line.rstrip(" \t") for line in patch_lines):
+            raise RuntimeError("counterfactual patch whitespace canonicalization failed")
+        patch_bytes = ("\n".join(patch_lines) + "\n").encode()
         PATCH_PATH.write_bytes(patch_bytes)
 
         sources_path = ROOT / "certification/sources.json"
