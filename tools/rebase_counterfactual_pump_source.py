@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import sys
 
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE_SHA="96925831561e9c60108fc8a52113e921ad08838d"
@@ -28,6 +29,7 @@ def full_diff_hash(root: Path):
     return hashlib.sha256(data).hexdigest()
 
 def main():
+    sys.path.insert(0,str(ROOT))
     subprocess.run(["git","fetch","origin",SOURCE_SHA],cwd=ROOT,check=True)
     src_root=Path(tempfile.mkdtemp(prefix="mm-pump-source-"))
     source=src_root/"pump"
