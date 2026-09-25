@@ -76,6 +76,10 @@ class FrozenPolicy:
     min_postgrad_independent_clusters: int = 8
     min_postgrad_buyer_growth: int = 2
     min_postgrad_price_vs_graduation_bps: int = 1
+    # Counterfactual replay of runs 36043064083 and 36077647211 found
+    # price retention on all resolved winner and loser rejects. Preserve it
+    # as confirmation/ranking evidence instead of an independent veto.
+    postgrad_price_retention_hard_gate: bool = False
     # Counterfactual replay across runs 36043064083 and 36077647211 found
     # price retention on 100% of both resolved winners and losers. Keep it
     # as point-in-time ranking/confirmation evidence, not a binary veto.
