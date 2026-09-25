@@ -173,7 +173,8 @@ def main():
         spec["verified_at"] = "2026-09-24-counterfactual-replay-strategy-v1"
         sources_path.write_text(json.dumps(spec, indent=2) + "\n")
 
-        fresh = Path(tempfile.mkdtemp(prefix="mm-counterfactual-fresh-"))
+        fresh_root = Path(tempfile.mkdtemp(prefix="mm-counterfactual-fresh-"))
+        fresh = fresh_root / "lanes"
         prepare(fresh)
         fresh_pump = fresh / "pump"
         observed = hashlib.sha256(git_head_diff(fresh_pump)).hexdigest()
@@ -214,9 +215,9 @@ def main():
             "pons_economics_changed": False,
         }, sort_keys=True))
     finally:
-        shutil.rmtree(baseline, ignore_errors=True)
-        if fresh is not None:
-            shutil.rmtree(fresh, ignore_errors=True)
+        shutil.rmtree(baseline_root, ignore_errors=True)
+        if fresh_root is not None:
+            shutil.rmtree(fresh_root, ignore_errors=True)
 
 
 if __name__ == "__main__":
