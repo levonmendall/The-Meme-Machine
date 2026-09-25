@@ -3,7 +3,7 @@ on:
   push:
     branches: [repair/solana-evidence-plane-v1-20260925]
     paths:
-      - certification/export_solana_retained.py
+      - certification/repackage_solana_export.py
       - .github/workflows/solana-evidence-plane-fixture-export.yml
 permissions:
   contents: read
@@ -20,11 +20,34 @@ jobs:
       - name: Extract digest-pinned retained Solana evidence only
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -m certification.export_solana_retained
+        run: python -m certification.repackage_solana_export
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
         with:
-          name: solana-retained-evidence-subset
-          path: solana-retained-export
+          name: solana-retained-transfer-0
+          path: solana-retained-transfer/part-0.bin
+          if-no-files-found: ignore
+          retention-days: 30
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: solana-retained-transfer-1
+          path: solana-retained-transfer/part-1.bin
+          if-no-files-found: ignore
+          retention-days: 30
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: solana-retained-transfer-2
+          path: solana-retained-transfer/part-2.bin
+          if-no-files-found: ignore
+          retention-days: 30
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: solana-retained-transfer-3
+          path: solana-retained-transfer/part-3.bin
+          if-no-files-found: ignore
+          retention-days: 30
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: solana-retained-transfer-receipt
+          path: solana-retained-transfer/receipt.json
           if-no-files-found: error
           retention-days: 30
