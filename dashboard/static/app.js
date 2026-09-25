@@ -80,7 +80,7 @@ function hero(p,chart) {
     </div>
   </section>`;
 }
-function plotfunction plot(points,reference,series='portfolio',small=false) {
+function plot(points,reference,series='portfolio',small=false) {
   const valid=points.filter(p=>p.value!==null);
   if (!valid.length) return small?'<div class="spark muted">History unavailable</div>':empty('No equity samples for this portfolio epoch');
   // Number is used only for presentation coordinates, never for accounting.
@@ -113,7 +113,7 @@ function plotfunction plot(points,reference,series='portfolio',small=false) {
   }
   return `<svg class="${small?'spark':'chart'} ${series==='portfolio'?'':series}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(series)} actual observed samples">${labels}${area}${line}${circles}</svg>`;
 }
-function chartPanelfunction chartPanel(c, options=true) {
+function chartPanel(c, options=true) {
   return `<section class="panel chart-main"><div class="panelhead"><h2>${c.series==='portfolio'?'Portfolio performance':names[c.series]+' cumulative P&L'}</h2>${options?`<div class="chart-tools"><select id="series" aria-label="Chart series">${['portfolio',...LANES].map(k=>`<option value="${k}" ${k===state.series?'selected':''}>${k==='portfolio'?'Portfolio':names[k]}</option>`).join('')}</select><div class="periods" aria-label="Chart period">${['1H','6H','24H','7D','30D','ALL'].map(p=>`<button data-period="${p}" class="${p===state.period?'selected':''}" ${c.periods.includes(p)?'':'disabled'}>${p}</button>`).join('')}</div></div>`:''}</div><div class="panelbody">${plot(c.data,c.reference,c.series)}<div class="chart-note"><span>${c.displayed_count} observed samples${c.truncated?' · bounded recent slice':''} · no interpolation</span><span>${c.series==='portfolio'?'$500 inception reference':'$0 P&L reference'}</span></div></div></section>`;
 }
 function laneIcon(lane) {
@@ -133,7 +133,7 @@ function laneCards(lanes,charts={}) {
     ${plot(charts[l.lane]?.data||[],'0',l.lane,true)}
   </a>`;}).join('')}</div>`;
 }
-function laneBarsfunction laneBars(lanes,outcomes=false) {
+function laneBars(lanes,outcomes=false) {
   const known=lanes.filter(l=>outcomes?(l.metrics.wins.value!=null&&l.metrics.losses.value!=null):l.metrics.net_pnl.value!=null);
   if (!known.length) return empty('Canonical performance unavailable');
   const max=Math.max(1,...known.map(l=>Math.abs(Number(l.metrics.net_pnl.value))));
@@ -167,7 +167,7 @@ function positionsTable(rows,completed=false) {
   const columns=completed?['Asset / pool','Lane','Settled','Net realized','Outcome']:['Asset / pool','Lane','Capital / basis','Current value','Unrealized'];
   return `<div class="table-wrap"><table class="position-table"><thead><tr>${columns.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.map(p=>`<tr><td data-label="${columns[0]}"><button class="row-button" data-position="${esc(p.id)}">${esc(p.asset)}</button><small>${esc(p.id)}</small></td><td data-label="Lane"><span class="lane-label ${p.lane}">${names[p.lane]}</span><small>${esc(p.runner_state||p.lp_state||p.state)}</small></td>${completed?`<td data-label="Settled">${date(p.settled_at)}</td><td data-label="Net realized">${value({value:p.realized_pnl,state:'CURRENT'},'money',true)}</td><td data-label="Outcome">${esc(p.outcome)}</td>`:`<td data-label="Capital / remaining basis">${value({value:p.capital,state:'CURRENT'})}<small>Basis ${value({value:p.remaining_basis,state:'CURRENT'})}</small></td><td data-label="Current value">${value(p.current_value)}<small>Age ${Math.floor(p.age_seconds/60)}m</small></td><td data-label="Unrealized">${value(p.unrealized_pnl,'money',true)}<small>${value(p.unrealized_pct,'percent',true)}</small></td>`}</tr>`).join('')}</tbody></table></div>`;
 }
-function tablePanelfunction tablePanel(name,res,completed,link) {
+function tablePanel(name,res,completed,link) {
   return `<section class="panel"><div class="panelhead"><h2>${name}</h2>${link?`<a class="link" href="#${link}">View all →</a>`:''}</div>${res.total===null?empty('Position state unavailable'):positionsTable(res.data,completed)}</section>`;
 }
 function systemStrip(s) {
@@ -219,7 +219,7 @@ async function overview(p) {
     ${overviewStatus(system.data,p)}
   </div>`;
 }
-async function lanePageasync function lanePage(lane,p) {
+async function lanePage(lane,p) {
   const [r,chart,positions,trades]=await Promise.all([api('lanes/'+lane),api('equity',{series:lane,period:state.period}),api('positions',{lane,limit:25}),api('trades',{lane,limit:10})]);
   const l=r.data,m=l.metrics;
   const metrics=[['Portfolio contribution','contribution_pct','percent'],['Realized net P&L','realized_pnl','money'],['Unrealized net P&L','unrealized_pnl','money'],['Trades taken','trades_taken','count'],['Completed trades','completed_trades','count'],['Open positions','open_positions','count'],['Winners','wins','count'],['Losses','losses','count'],['Breakevens','breakevens','count'],['Win rate','win_rate','percent'],['Deployed capital','deployed_capital','money'],['Fees / costs','fees','money'],['Average completed result','average_result','money'],['Largest winner','largest_winner','money'],['Largest loss','largest_loser','money'],['Average holding time','average_holding_seconds','seconds'],['Max drawdown','max_drawdown_pct','percent'],['Standalone lane return','lane_return_pct','percent']];
