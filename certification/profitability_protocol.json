@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-profitability-portfolio-autonomy-v1",
-  "cohort_id": "prospective-four-lane-v10-smoke-flat-tail-20260924",
+  "cohort_id": "prospective-four-lane-v10-provider-pressure-20260924",
   "frozen_parent_integration_sha": "3b3f9e23e4a9a15b867910c3f7317b98c739b781",
   "paper_only": true,
   "live_money": false,
@@ -40,7 +40,7 @@
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
-      "source_diff_sha256": "0bea71bc81e29513fac35dc50a77ad7547d593a3ed236cac3be94e630486e700"
+      "source_diff_sha256": "d11bfe346004d8fc027d3344146e6c4962cab7485f1bcd3e68d60968c9fee143"
     },
     "ramses": {
       "strategy_version": "ramses-active-wide-maker-v3",
