@@ -40,7 +40,7 @@ def _points(value, low, high, maximum):
 
 @dataclass(frozen=True)
 class FrozenPolicy:
-    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2"
+    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1"
     entry_fraction_bps: int = 500
 
     # Late-curve structural gates.
@@ -76,6 +76,10 @@ class FrozenPolicy:
     min_postgrad_independent_clusters: int = 8
     min_postgrad_buyer_growth: int = 2
     min_postgrad_price_vs_graduation_bps: int = 1
+    # Counterfactual replay across runs 36043064083 and 36077647211 found
+    # price retention on 100% of both resolved winners and losers. Keep it
+    # as point-in-time ranking/confirmation evidence, not a binary veto.
+    postgrad_price_retention_hard_gate: bool = False
     min_postgrad_volume_acceleration_bps: int = 0
     max_postgrad_concentration_bps: int = 3500
     max_early_holder_sell_share_bps: int = 4000
@@ -468,7 +472,13 @@ def qualify(signal, policy=POLICY):
             reasons.append("buyer_growth")
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")
-        if int(_value_or(signal.price_vs_graduation_bps,0)) < policy.min_postgrad_price_vs_graduation_bps:
+        price_retained=(
+            int(_value_or(signal.price_vs_graduation_bps,0))
+            >= policy.min_postgrad_price_vs_graduation_bps
+        )
+        if price_retained:
+            confirmations.append("price_retention")
+        elif policy.postgrad_price_retention_hard_gate:
             reasons.append("price_retention")
         if int(_value_or(signal.volume_acceleration_bps,-1)) < policy.min_postgrad_volume_acceleration_bps:
             reasons.append("volume_acceleration")
