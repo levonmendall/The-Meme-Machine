@@ -17,26 +17,14 @@ LANES=("pump","pons","meteora","ramses")
 
 PROBES={
 "pump": r'''
-from pathlib import Path
-import tempfile
-from tests import pump_acceleration_natural_prospective as m
-from meme_machine.paper_accounting import PaperBook
-with tempfile.TemporaryDirectory() as td:
-    m.REPORT=Path(td)/"pump.json"
-    path=m.REPORT.with_suffix(".accounting.sqlite3")
-    b=PaperBook(str(path),run_id="restart-contract",lane=m.STRATEGY_ID,
-                policy_hash=m.policy_hash(),initial=m.INITIAL_LAMPORTS)
-    before=b.reconcile();b.db.close()
-    try:
-        m.main(campaign=True,discovery_seconds=600)
-    except RuntimeError as exc:
-        assert str(exc)=="existing_paper_book_requires_explicit_recovery",str(exc)
-    else:
-        raise AssertionError("pump_restart_guard_missing")
-    b=PaperBook(str(path),run_id="restart-contract",lane=m.STRATEGY_ID,
-                policy_hash=m.policy_hash(),initial=m.INITIAL_LAMPORTS)
-    assert b.reconcile()==before
-    b.db.close()
+import unittest
+from tests.test_evidence_runtime_cutover import ProductionCutover
+suite=unittest.TestSuite(ProductionCutover(name) for name in (
+    'test_actual_main_uses_local_history_for_a_recovered_candidate',
+    'test_reservation_recovers_without_duplicate_journal_events',
+    'test_interrupted_refresh_claim_fails_closed_without_second_round'))
+result=unittest.TextTestRunner().run(suite)
+assert result.wasSuccessful()
 print("PROVEN")
 ''',
 "pons": r'''
@@ -88,7 +76,7 @@ with tempfile.TemporaryDirectory() as td:
         try:
             m.run_live(target=1,max_attempted=1,max_runtime_seconds=60,campaign=True)
         except Unavailable as exc:
-            assert str(exc)=="solana_dlmm_unresolved_position_blocks_new_admission",str(exc)
+            assert str(exc)=="solana_dlmm_unresolved_reservation_requires_context",str(exc)
         else:
             raise AssertionError("meteora_restart_guard_missing")
     reopened=PaperBook(path,run_id="restart-contract",policy_hash=ph,capital=1_000_000_000)
@@ -117,8 +105,9 @@ print("PROVEN")
 def run(worktrees,output):
     roots=Path(worktrees).resolve();out=Path(output).resolve();out.mkdir(parents=True,exist_ok=False)
     rows={}
+    env=dict(os.environ,PYTHONPATH=str(Path(__file__).resolve().parents[1]))
     for lane in LANES:
-        proc=subprocess.run([sys.executable,"-c",PROBES[lane]],cwd=roots/lane,
+        proc=subprocess.run([sys.executable,"-c",PROBES[lane]],cwd=roots/lane,env=env,
                             stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
         log=out/(lane+".log");log.write_text(proc.stdout)
         rows[lane]=dict(exit_code=proc.returncode,proven=(proc.returncode==0 and "PROVEN" in proc.stdout),

@@ -2,20 +2,31 @@
   "base_sha": "b1504b962a719c2b7e1032100eaea74402f63d0d",
   "cached_raw_export_sha256": "b7f25be0857bee238831dd6624ace391af86f42e757b9233dd4f04aea81fc2bb",
   "composed_diff_hashes": {
-    "meteora": "24576f7b5933a1386fcfa31b6302a7803fe71261b3c6be86a61e670d6b2714e8",
-    "pump": "fab6c6fea533399702e7d3412db5279801c6fd724191e82947c6e44c9fa4f7c8"
+    "meteora": "e889f78f9d8ed4ea704dfff05bdbb31ea332312e8426555c18aa537d79bc6330",
+    "pump": "cdf12090e3f6aee0c4fd0f9a76a905284bbf7b5a66e77764ff27ca744f17f589"
   },
   "deployment": false,
   "economics_unchanged": true,
   "files": {
-    "certification/position_continuation.py": "9f584d1bebc8a046b33e7ebb8eded9ef063115a4b38306e78b059555a8dcf98d",
-    "meme_machine/durable_publication.py": "5832d75f3bce1e69782ca417485286722f8dc16f61305ac5a050f454005fb93a",
-    "meme_machine/solana_evidence_plane.py": "a14c7417d893df18d10365d24ad7a05cc3c8a37817bc155dd90712b2f66a4ba3",
-    "meme_machine/solana_evidence_queries.py": "62fa4a384d248fd04bbd567670ac94c9c1e33d3c366ac2451c11ac8160fe4f55",
-    "meme_machine/solana_evidence_transport.py": "378460726d624bdee74959afda894a2a2f7b0af5572c7b3f8144ea780afe0a29"
+    "certification/evidence_supervisor.py": "93dfe66a30b5b837c23b05ba3d407c038f65288d48a945c5821076de5635eb31",
+    "certification/evidence_worker.py": "6e04fd5fec1ff94848a9714f49e3af626fae6f42f9758b1dbd8ed03a2547afc4",
+    "certification/position_continuation.py": "1edfe2f15ab5bb32b71c0f7a23440cff9996defcc773f3e974d7609f402a3489",
+    "meme_machine/durable_publication.py": "e0ec89a4f3db2a4f50b6f586cd70acf602eb22e717175255798acd1e60e6fd09",
+    "meme_machine/pump_evidence_execution.py": "15db2b6e0b432c8774cf0e21eb1df446c1978f6b35908e13cf4e7c3ba3a0e47a",
+    "meme_machine/solana_evidence_plane.py": "d46579e140a4c6ddf1daa01a5687618f79ca0f07767620b0e3184103ecae5c27",
+    "meme_machine/solana_evidence_queries.py": "ec88ff836eb468fe4712c59ef19e55a8f6d7064c13ee45306f7d5c8a57061bf6",
+    "meme_machine/solana_evidence_runtime.py": "34edf5a75b56714b6a2593029c12bb13f3c3b32aa8d60882fc9fc8ca1416b63b",
+    "meme_machine/solana_evidence_service.py": "d4193c084b1dd49c85912d1d97f63d9a4c5ccd091d185aba9f9559352e427ace",
+    "meme_machine/solana_evidence_transport.py": "b633f89aaa74cf0cea3a28d6719ff0fda4b34399a7b257e481571d04dbd1aa0b"
   },
-  "fill_pressure": "NOT_IMPLEMENTED",
+  "fill_pressure": "SYNTHETIC_REAL_RESERVATION_FILL_PATH_PASSED",
   "final_broad_certification": false,
+  "limitations": [
+    "Retained Pump intervals lack authoritative bodies; no full-window parity claim",
+    "Hosted real IPC and final broad deterministic certification pending",
+    "No live entitlement/provider savings measurement",
+    "Immutable archive requires operational long-term capacity provisioning"
+  ],
   "market_run_launched": false,
   "native_runtime_policy_hashes": {
     "meteora": "a69ec239772a86bc7526594c9822b6fc1e611b45b7e661f618099656b288d55b",
@@ -30,10 +41,10 @@
     "meteora": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
     "pump": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b"
   },
-  "production_cutover": false,
+  "production_cutover": true,
   "provider_ceilings_unchanged": true,
-  "raw_run_parity": "SAMPLE_EVENT_AND_METEORA_LEDGER_PARITY_PASSED_FULL_DECISION_PARITY_PENDING",
-  "status": "INCOMPLETE_NOT_CERTIFIED",
+  "raw_run_parity": "RETAINED_METEORA_12_CHUNK_EXACT_INPUT_DECISION_PARITY_PASSED_PUMP_SEVEN_WINDOWS_CENSORED",
+  "status": "RUNTIME_CUTOVER_HOSTED_CERTIFICATION_PENDING",
   "targeted_tests": {
     "continuation_continuity_assurance": 16,
     "foundation": 38,

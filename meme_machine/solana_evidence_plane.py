@@ -336,13 +336,8 @@ class EvidenceWriter:
         self.db.execute('UPDATE gaps SET pages=pages+1,attempts=attempts+1,repair_cursor=? WHERE id=?', (canonical(cursor), gap_id))
         self._count('gap_repair_calls')
 
-    def archive(self, before_time, *, max_records=1000):
-        """Bounded, crash-safe compression; immutable hash tombstones stay indexed.
-
-        Keep every record at/after an unresolved interest's lower slot. Delete only
-        hot payloads after the compressed archive is durable. Orphan archives after
-        interruption are harmless, content-addressed, and reusable on retry.
-        """
+    def archive_plan(self,before_time,*,max_records=1000):
+        """Snapshot a bounded immutable batch; filesystem work runs off-writer."""
         self._check()
         if not 1 <= max_records <= 1000:
             raise EvidenceUnavailable('archive_batch_bound')
@@ -353,35 +348,53 @@ class EvidenceWriter:
           AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
               AND r.slot>=g.lo)
           ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records)).fetchall()
-        if not rows:
-            return 0
-        raw = ('\n'.join(canonical(dict(identity=k,body=json.loads(b),hash=h,
-            lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))])) for k,b,h in rows)+'\n').encode()
-        compressed = gzip.compress(raw, mtime=0)
-        checksum = hashlib.sha256(compressed).hexdigest()
-        directory = self.path.parent / (self.path.name + '.archive')
-        directory.mkdir(exist_ok=True)
-        target = directory / (checksum + '.jsonl.gz')
-        publish_bytes(target, compressed)
-        with self.transaction():
-            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)', (target.name, checksum, len(compressed), len(rows))).rowcount
-            if added:self._count('archive_bytes',len(compressed))
-            self.db.executemany('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=?', [(target.name, k, h) for k, _, h in rows])
-            self._count('archived_records', len(rows))
-        return len(rows)
+        return [dict(identity=k,body=json.loads(b),hash=h,
+            lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))],
+            coverage=[dict(lo=lo,hi=hi,available=at,proof=json.loads(proof)) for lo,hi,at,proof in self.db.execute('SELECT lo,hi,available,proof FROM coverage WHERE scope=? AND lo<=? AND hi>=?',(json.loads(b)['scope'],json.loads(b)['slot'],json.loads(b)['slot']))]) for k,b,h in rows]
 
-    def retain(self, before_time, *, max_records=1000):
+    @staticmethod
+    def write_archive(path,plan):
+        if not plan:return None
+        raw=('\n'.join(canonical(row) for row in plan)+'\n').encode()
+        compressed=gzip.compress(raw,mtime=0);checksum=hashlib.sha256(compressed).hexdigest()
+        path=Path(path);directory=path.parent/(path.name+'.archive');directory.mkdir(exist_ok=True)
+        target=directory/(checksum+'.jsonl.gz');publish_bytes(target,compressed)
+        return dict(name=target.name,hash=checksum,bytes=len(compressed))
+
+    def commit_archive(self,plan,receipt):
+        if not receipt:return 0
+        archived=0
+        with self.transaction():
+            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)',(receipt['name'],receipt['hash'],receipt['bytes'],len(plan))).rowcount
+            if added:self._count('archive_bytes',receipt['bytes'])
+            for row in plan:
+                # An interest can arrive while compression/fsync is in flight.
+                # Recheck pins before dropping even a single hot payload.
+                body=row['body'];scope=body['scope'];slot=body['slot']
+                pinned=self.db.execute('SELECT 1 FROM interests WHERE scope=? AND active=1 AND lower_slot<=? UNION ALL SELECT 1 FROM gaps WHERE scope=? AND repaired IS NULL AND lo<=? LIMIT 1',(scope,slot,scope,slot)).fetchone()
+                if not pinned:
+                    archived+=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
+            self._count('archived_records',archived)
+        return archived
+
+    def archive(self,before_time,*,max_records=1000):
+        plan=self.archive_plan(before_time,max_records=max_records)
+        return self.commit_archive(plan,self.write_archive(self.path,plan))
+
+    def retain(self, before_time, *, max_records=1000, archive_first=True):
         """One bounded maintenance slice, preserving every unresolved lifecycle/gap.
 
         Old immutable payloads and provenance are durable before index removal.
         A monotone floor rejects reintroduction of pruned history; offline replay
         uses a separate store. No consumer can grant coverage below that floor.
         """
-        archived=self.archive(before_time,max_records=max_records)
+        archived=self.archive(before_time,max_records=max_records) if archive_first else 0
         with self.transaction():
             for scope,top in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
                 floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
                 floor=top+1 if floor is None else floor
+                recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
+                if recent is not None:floor=min(floor,recent)
                 pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
                 if pins:floor=min(floor,min(pins))
                 old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()

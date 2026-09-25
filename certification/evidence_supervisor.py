@@ -25,7 +25,7 @@ class EvidenceProcess:
         code=self.proc.poll()
         if code is not None:
             self.file.close()
-            if self.restarts>=3:raise RuntimeError('evidence_service_restart_bound')
+            if self.restarts>=3:return dict(pid=self.proc.pid,restarts=self.restarts,exit_code=code,health='restart_bound_fail_closed')
             self.restarts+=1;self.start()
         return dict(pid=self.proc.pid,restarts=self.restarts,exit_code=code)
     def close(self):

@@ -147,10 +147,10 @@ index ad3d3fbcbaade911d15b4d573f55807b08a3d45e..856b42ae763c0f8a16e9174c87f778aa
 +atexit.register(flush_reports)
 diff --git a/meme_machine/solana_evidence_plane.py b/meme_machine/solana_evidence_plane.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..d03febc9db1b9a449fb1570124cf16a189a64f8b
+index 0000000000000000000000000000000000000000..3eddf753ca2ed0b04c65d15c978efdf988cb0952
 --- /dev/null
 +++ b/meme_machine/solana_evidence_plane.py
-@@ -0,0 +1,580 @@
+@@ -0,0 +1,593 @@
 +"""Transactional finalized evidence, independent of strategy/lifecycle authority.
 +
 +No network access, signing, economic policy, or implicit coverage inference lives
@@ -489,13 +489,8 @@ index 0000000000000000000000000000000000000000..d03febc9db1b9a449fb1570124cf16a1
 +        self.db.execute('UPDATE gaps SET pages=pages+1,attempts=attempts+1,repair_cursor=? WHERE id=?', (canonical(cursor), gap_id))
 +        self._count('gap_repair_calls')
 +
-+    def archive(self, before_time, *, max_records=1000):
-+        """Bounded, crash-safe compression; immutable hash tombstones stay indexed.
-+
-+        Keep every record at/after an unresolved interest's lower slot. Delete only
-+        hot payloads after the compressed archive is durable. Orphan archives after
-+        interruption are harmless, content-addressed, and reusable on retry.
-+        """
++    def archive_plan(self,before_time,*,max_records=1000):
++        """Snapshot a bounded immutable batch; filesystem work runs off-writer."""
 +        self._check()
 +        if not 1 <= max_records <= 1000:
 +            raise EvidenceUnavailable('archive_batch_bound')
@@ -506,35 +501,53 @@ index 0000000000000000000000000000000000000000..d03febc9db1b9a449fb1570124cf16a1
 +          AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
 +              AND r.slot>=g.lo)
 +          ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records)).fetchall()
-+        if not rows:
-+            return 0
-+        raw = ('\n'.join(canonical(dict(identity=k,body=json.loads(b),hash=h,
-+            lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))])) for k,b,h in rows)+'\n').encode()
-+        compressed = gzip.compress(raw, mtime=0)
-+        checksum = hashlib.sha256(compressed).hexdigest()
-+        directory = self.path.parent / (self.path.name + '.archive')
-+        directory.mkdir(exist_ok=True)
-+        target = directory / (checksum + '.jsonl.gz')
-+        publish_bytes(target, compressed)
-+        with self.transaction():
-+            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)', (target.name, checksum, len(compressed), len(rows))).rowcount
-+            if added:self._count('archive_bytes',len(compressed))
-+            self.db.executemany('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=?', [(target.name, k, h) for k, _, h in rows])
-+            self._count('archived_records', len(rows))
-+        return len(rows)
++        return [dict(identity=k,body=json.loads(b),hash=h,
++            lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))],
++            coverage=[dict(lo=lo,hi=hi,available=at,proof=json.loads(proof)) for lo,hi,at,proof in self.db.execute('SELECT lo,hi,available,proof FROM coverage WHERE scope=? AND lo<=? AND hi>=?',(json.loads(b)['scope'],json.loads(b)['slot'],json.loads(b)['slot']))]) for k,b,h in rows]
 +
-+    def retain(self, before_time, *, max_records=1000):
++    @staticmethod
++    def write_archive(path,plan):
++        if not plan:return None
++        raw=('\n'.join(canonical(row) for row in plan)+'\n').encode()
++        compressed=gzip.compress(raw,mtime=0);checksum=hashlib.sha256(compressed).hexdigest()
++        path=Path(path);directory=path.parent/(path.name+'.archive');directory.mkdir(exist_ok=True)
++        target=directory/(checksum+'.jsonl.gz');publish_bytes(target,compressed)
++        return dict(name=target.name,hash=checksum,bytes=len(compressed))
++
++    def commit_archive(self,plan,receipt):
++        if not receipt:return 0
++        archived=0
++        with self.transaction():
++            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)',(receipt['name'],receipt['hash'],receipt['bytes'],len(plan))).rowcount
++            if added:self._count('archive_bytes',receipt['bytes'])
++            for row in plan:
++                # An interest can arrive while compression/fsync is in flight.
++                # Recheck pins before dropping even a single hot payload.
++                body=row['body'];scope=body['scope'];slot=body['slot']
++                pinned=self.db.execute('SELECT 1 FROM interests WHERE scope=? AND active=1 AND lower_slot<=? UNION ALL SELECT 1 FROM gaps WHERE scope=? AND repaired IS NULL AND lo<=? LIMIT 1',(scope,slot,scope,slot)).fetchone()
++                if not pinned:
++                    archived+=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
++            self._count('archived_records',archived)
++        return archived
++
++    def archive(self,before_time,*,max_records=1000):
++        plan=self.archive_plan(before_time,max_records=max_records)
++        return self.commit_archive(plan,self.write_archive(self.path,plan))
++
++    def retain(self, before_time, *, max_records=1000, archive_first=True):
 +        """One bounded maintenance slice, preserving every unresolved lifecycle/gap.
 +
 +        Old immutable payloads and provenance are durable before index removal.
 +        A monotone floor rejects reintroduction of pruned history; offline replay
 +        uses a separate store. No consumer can grant coverage below that floor.
 +        """
-+        archived=self.archive(before_time,max_records=max_records)
++        archived=self.archive(before_time,max_records=max_records) if archive_first else 0
 +        with self.transaction():
 +            for scope,top in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
 +                floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
 +                floor=top+1 if floor is None else floor
++                recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
++                if recent is not None:floor=min(floor,recent)
 +                pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
 +                if pins:floor=min(floor,min(pins))
 +                old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
@@ -1005,10 +1018,10 @@ index 0000000000000000000000000000000000000000..322aa445020795b6d263ea9e36b932ac
 +    def status(self):return self.plane.telemetry()
 diff --git a/meme_machine/solana_evidence_service.py b/meme_machine/solana_evidence_service.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..ca1321aa2c4617851e49cd94f2ef31c44144f90d
+index 0000000000000000000000000000000000000000..a09747109be6f8e75f79104267952ba0d2b0662a
 --- /dev/null
 +++ b/meme_machine/solana_evidence_service.py
-@@ -0,0 +1,357 @@
+@@ -0,0 +1,361 @@
 +"""Finalized filtered-block fences over the existing single-writer evidence store.
 +
 +Only this source adapter can seal coverage. Consumers send lifecycle interests and
@@ -1305,6 +1318,7 @@ index 0000000000000000000000000000000000000000..ca1321aa2c4617851e49cd94f2ef31c4
 +                            writer.ingest(FinalizedNotificationDecoder(endpoint_identity=fence.endpoint_identity).decode(sub,message,seen))
 +                        else:fence.block(sub,message,seen)
 +            except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
++                if str(exc)=='hot_store_capacity':raise
 +                if isinstance(exc,EvidenceConflict):
 +                    with writer.transaction():writer.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
 +                    raise
@@ -1351,7 +1365,10 @@ index 0000000000000000000000000000000000000000..ca1321aa2c4617851e49cd94f2ef31c4
 +                writer.db.execute('DELETE FROM service_interests WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
 +                writer.db.execute('DELETE FROM interests WHERE active=0 AND updated<?',(now-7200,))
 +            if not writer.db.execute("SELECT 1 FROM interests WHERE active=1 AND lifecycle='reserved' LIMIT 1").fetchone():
-+                writer.retain(now-7200,max_records=256)
++                plan=writer.archive_plan(now-7200,max_records=256)
++                receipt=await asyncio.to_thread(writer.write_archive,writer.path,plan)
++                writer.commit_archive(plan,receipt)
++                writer.retain(now-7200,max_records=256,archive_first=False)
 +            try:await asyncio.wait_for(stop.wait(),5)
 +            except TimeoutError:pass
 +    tasks=[asyncio.create_task(stream_source()),asyncio.create_task(repair_worker()),asyncio.create_task(maintenance())]
@@ -1558,7 +1575,7 @@ index 0000000000000000000000000000000000000000..b9bcb702c36491ded1cc648491f5e925
 +            dict(next=token,page_hashes=page_hashes,signatures=sorted(seen)), self.max_pages))
 +        return dict(complete=token is None,pages=pages+1,records=len(records))
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
-index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce023cbeb120 100644
+index 7971cf4203b39991638144ecbbce1b0bd126e72f..3f214a4a5de7649453b65d10c22cf09ca59539b9 100644
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
 @@ -38,6 +38,14 @@ from meme_machine.dlmm_tape import (
@@ -1585,7 +1602,24 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce02
  
  
  def _runtime_expired(deadline):
-@@ -760,34 +768,9 @@ def _capture_chunk(
+@@ -620,7 +628,7 @@ def _fresh_supported_start(adapter,candidate):
+ 
+ 
+ 
+-def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
++def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None,*,gap_repair=False):
+     """Prove finalized signature coverage with an incremental per-pool ledger.
+ 
+     The first interval performs the bounded boundary proof. Later intervals fetch
+@@ -628,6 +636,7 @@ def _complete_signature_census(rpc,pool,start_slot,end_slot,broker=None):
+     witness preserves exact interval completeness. This never weakens the unchanged
+     MAX_TRANSACTIONS bound.
+     """
++    if gap_repair is not True:raise Unavailable('legacy_census_requires_explicit_gap_repair')
+     scope="dlmm_interval"
+     pages=0;rows_scanned=0
+ 
+@@ -760,34 +769,9 @@ def _capture_chunk(
      _stage(start["pool"],"reconstruction_started")
      end_snapshot=adapter.snapshot_from_state(
          start,int(time.time()),True,fresh=True)
@@ -1623,7 +1657,7 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce02
      if len(encode(transactions))>2_000_000:
          raise Unavailable("solana_dlmm_interval_evidence_bound")
      tape=reconstruct(
-@@ -1255,6 +1238,9 @@ def _eligible_exit_reasons(reasons, *, elapsed_seconds, collapse_streaks, policy
+@@ -1255,6 +1239,9 @@ def _eligible_exit_reasons(reasons, *, elapsed_seconds, collapse_streaks, policy
  
  def _lifecycle(adapter,address,entry,features,policy,pacer,rpcs,deadline=None,broker=None,book=None):
      identity=book.identity() if book is not None else None
@@ -1633,7 +1667,7 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce02
      if book is not None:
          book.append(identity,'reserve',dict(amount=CAPITAL+ROUND_TRIP_NETWORK_COST,
              pool=address,policy_hash=digest(policy),strategy_evidence_hash=digest(dict(entry=entry,features=features))))
-@@ -1300,16 +1286,18 @@ def _recover_position_observation(
+@@ -1300,16 +1287,18 @@ def _recover_position_observation(
  
  
  def _position_lifecycle(
@@ -1656,7 +1690,7 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce02
      max_hold=int(policy["range"]["max_holding_seconds"])
      segment_seconds=int(policy["exit"]["observation_segment_seconds"])
      lower=list(range(features["lower"],entry["active"]))
-@@ -1321,7 +1309,10 @@ def _position_lifecycle(
+@@ -1321,7 +1310,10 @@ def _position_lifecycle(
      )
      exit_reason="maximum_holding_time"
      collapse_streaks={"volume_collapse":0,"fee_density_collapse":0}
@@ -1668,7 +1702,7 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce02
          adapter=_rotate(adapter,pacer,rpcs)
          duration=min(segment_seconds,max_hold-elapsed)
          phase,tape,terminal,effective_start,adapter,recoveries=(
-@@ -1377,6 +1368,9 @@ def _position_lifecycle(
+@@ -1377,6 +1369,9 @@ def _position_lifecycle(
      if book is not None:
          book.append(identity,'settle',dict(
              mark=final,exit_reason=exit_reason,lineage=combined.lineage))
@@ -1678,7 +1712,7 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce02
      hours=max(elapsed/3600.0,1/3600.0)
      final["pnl_bps_per_capital_hour"]=final["pnl_bps"]/hours
      return dict(
-@@ -1398,118 +1392,20 @@ def _regime_pass(candidate,policy):
+@@ -1398,118 +1393,20 @@ def _regime_pass(candidate,policy):
  
  
  def _new_finalized_swaps(rpc,pool,after_slot,broker=None):
@@ -1809,7 +1843,7 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce02
  
  
  def _await_fresh_swap_trigger_polling(
-@@ -1863,14 +1759,26 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+@@ -1863,14 +1760,27 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
      run_started_monotonic=time.monotonic()
      deadline=run_started_monotonic+max_runtime_seconds
  
@@ -1828,6 +1862,7 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce02
 +    book=PaperBook(book_path,run_id=run_id,policy_hash=digest(policy),capital=1_000_000_000)
 +    recovered=None
 +    if book.reconcile()['unsettled']:
++        if not book.reconcile()['open_positions']:raise Unavailable('solana_dlmm_unresolved_reservation_requires_context')
 +        from certification.position_continuation import restore_meteora_strategy
 +        recovered=restore_meteora_strategy(book,sys.modules[__name__])
      discovery_telemetry=dict(
@@ -1839,7 +1874,7 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce02
      broker=EvidenceBroker(DLMM_BROKER_DB)
      stream_stop=threading.Event();stream_ready=threading.Event()
      wake_stream=ProgramAccountWakeStream(
-@@ -1932,6 +1840,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+@@ -1932,6 +1842,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
          report["wake_stream"]=broker.stream_status(
              DLMM_WAKE_STREAM_KEY,int(time.time()),0)
          report["evidence_broker"]=broker.telemetry()
@@ -1847,7 +1882,7 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce02
          _atomic_checkpoint(
              report,stage,rpcs,pacer,
              attempted_pool_count=attempted,
-@@ -1950,6 +1859,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+@@ -1950,6 +1861,15 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
      checkpoint("run_initialized")
      candidate_stream=_campaign_candidates(policy,discovery_telemetry,deadline,checkpoint,discovery_source)
      try:
@@ -1863,7 +1898,7 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce02
          for candidate in candidate_stream:
              if (_runtime_expired(deadline)
                      or (not campaign and (attempted>=max_attempted or complete>=target))):
-@@ -1975,6 +1893,11 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+@@ -1975,6 +1895,11 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
                  checkpoint('unresolved_position_blocks_new_admission')
                  stream_stop.set();wake_thread.join(timeout=5);broker.close()
                  raise Unavailable(report['fatal_boundary'])
@@ -1875,6 +1910,42 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce02
              candidate_rpcs=[]
              adapter=_new_adapter(pacer,candidate_rpcs);rpcs.extend(candidate_rpcs)
              compatibility_screened+=1
+diff --git a/tests/test_dlmm_broker_census.py b/tests/test_dlmm_broker_census.py
+index 1e53cfba55a26a98023b6842d0cfe37aa3ca934e..f6d1009b9cc0dc2cf122da105906028e08d17a5c 100644
+--- a/tests/test_dlmm_broker_census.py
++++ b/tests/test_dlmm_broker_census.py
+@@ -17,7 +17,7 @@ class BrokerCensusTests(unittest.TestCase):
+ 
+     def test_cold_census_stops_at_first_authenticated_boundary(self):
+         rpc=MagicMock();rpc.call.return_value=[row('new',101)]+[row(str(i),100-i) for i in range(63)]
+-        selected,meta=strategy._complete_signature_census(rpc,'pool',100,102,self.broker)
++        selected,meta=strategy._complete_signature_census(rpc,'pool',100,102,self.broker,gap_repair=True)
+         self.assertEqual([x['signature'] for x in selected],['new','0'])
+         self.assertEqual(meta['pages'],1)
+         self.assertEqual(rpc.call.call_count,1)
+@@ -28,11 +28,11 @@ class BrokerCensusTests(unittest.TestCase):
+         rpc=MagicMock();rpc.call.return_value=[row('future-'+str(i),500-i) for i in range(strategy.SIGNATURE_PAGE_LIMIT)]
+         with patch.object(strategy,'MAX_SIGNATURE_CENSUS_PAGES',1):
+             with self.assertRaisesRegex(Exception,'census_head_incomplete'):
+-                strategy._complete_signature_census(rpc,'pool',100,102,self.broker)
++                strategy._complete_signature_census(rpc,'pool',100,102,self.broker,gap_repair=True)
+         self.assertEqual(self.broker.signature_coverage('dlmm_interval','pool'),before)
+         self.assertEqual(len(self.broker.signature_rows('dlmm_interval','pool')),2)
+         rpc.call.return_value=[row('next',101)]
+-        selected,meta=strategy._complete_signature_census(rpc,'pool',100,102,self.broker)
++        selected,meta=strategy._complete_signature_census(rpc,'pool',100,102,self.broker,gap_repair=True)
+         self.assertEqual([x['signature'] for x in selected],['next','head'])
+         self.assertEqual(rpc.call.call_args.args[1][1]['until'],'head')
+ 
+@@ -41,7 +41,7 @@ class BrokerCensusTests(unittest.TestCase):
+                             ([row('a',101)],'missing_start_boundary')]:
+             rpc=MagicMock();rpc.call.return_value=page
+             with self.assertRaisesRegex(Exception,reason):
+-                strategy._complete_signature_census(rpc,'pool',100,118,self.broker)
++                strategy._complete_signature_census(rpc,'pool',100,118,self.broker,gap_repair=True)
+             self.assertEqual(self.broker.signature_coverage('dlmm_interval','pool')['covered_through_slot'],0)
+ 
+ if __name__=='__main__':unittest.main()
 diff --git a/tests/test_evidence_runtime_cutover.py b/tests/test_evidence_runtime_cutover.py
 new file mode 100644
 index 0000000000000000000000000000000000000000..954193f36a4ddbc6402eeaf3b0c1348466fb7ff5
@@ -1943,9 +2014,27 @@ index a95a56866771843917aa0b867866c639c3bd8b02..3371f1de8883b5512178175c09ffab0e
                   patch.object(strategy,"_prove_network_identity",return_value={"verified":True}), \
                   patch.object(strategy,"ProgramAccountWakeStream") as stream, \
 diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_independent_v1.py
-index a9efcd557fc8c3a18ce63c212d81cb6392aeddfd..60fd31037a42836b421b43d103c6ad0196396ffb 100644
+index a9efcd557fc8c3a18ce63c212d81cb6392aeddfd..1b7c6e897abfcbb2ede3990e51b5ccc43b3822c5 100644
 --- a/tests/test_solana_dlmm_independent_v1.py
 +++ b/tests/test_solana_dlmm_independent_v1.py
+@@ -302,7 +302,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+         rpc=MagicMock()
+         rpc.call.side_effect=[page1,page2]
+         rows,meta=strategy._complete_signature_census(
+-            rpc,"pool",100,105)
++            rpc,"pool",100,105,gap_repair=True)
+         self.assertEqual(meta["pages"],2)
+         self.assertEqual(meta["relevant_successful"],2)
+         self.assertEqual(meta["start_boundary_slot"],100)
+@@ -333,7 +333,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+         with self.assertRaisesRegex(
+                 Exception,"transaction_pressure_overflow"):
+             strategy._complete_signature_census(
+-                rpc,"pool",100,117)
++                rpc,"pool",100,117,gap_repair=True)
+ 
+     def test_range_width_expands_with_observed_movement_but_remains_bounded(self):
+         p=strategy.load_policy()
 @@ -462,78 +462,47 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
          self.assertEqual(observe.call_count,1)
          self.assertEqual(observe.call_args.args[3],12)

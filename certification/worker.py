@@ -73,8 +73,13 @@ class Observer:
             provider_session_count=len(self.provider_sessions),
             evidence_qualification_inferred=False)
         before=time.monotonic_ns()
-        temporary=self.root/'activity.json.tmp';temporary.write_text(canonical(value))
-        os.replace(temporary,self.root/'activity.json');self.last_activity_write=now
+        if self.lane in ('pump','meteora'):
+            from meme_machine.durable_publication import publish_report
+            publish_report(self.root/'activity.json',value,asynchronous=bool(os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')))
+        else:
+            temporary=self.root/'activity.json.tmp';temporary.write_text(canonical(value))
+            os.replace(temporary,self.root/'activity.json')
+        self.last_activity_write=now
         self.snapshot_ns+=time.monotonic_ns()-before
 
     def checkpoint(self, body, phase):
@@ -230,7 +235,11 @@ class Observer:
                       estimated_alchemy=__import__('certification.cu',fromlist=['estimate']).estimate(self.alchemy_methods),
                       report=body,
                       terminal_monotonic=time.monotonic() if phase in ("returned","failed") else None)
-            raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
+            if self.lane in ('pump','meteora'):
+                from meme_machine.durable_publication import publish_report
+                publish_report(self.root/'status.json',data,asynchronous=bool(os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')))
+            else:
+                raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
             self.snapshot_ns+=time.monotonic_ns()-before
 
     def install_candidate_context(self):

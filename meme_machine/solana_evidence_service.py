@@ -294,6 +294,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                             writer.ingest(FinalizedNotificationDecoder(endpoint_identity=fence.endpoint_identity).decode(sub,message,seen))
                         else:fence.block(sub,message,seen)
             except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
+                if str(exc)=='hot_store_capacity':raise
                 if isinstance(exc,EvidenceConflict):
                     with writer.transaction():writer.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
                     raise
@@ -340,7 +341,10 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                 writer.db.execute('DELETE FROM service_interests WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
                 writer.db.execute('DELETE FROM interests WHERE active=0 AND updated<?',(now-7200,))
             if not writer.db.execute("SELECT 1 FROM interests WHERE active=1 AND lifecycle='reserved' LIMIT 1").fetchone():
-                writer.retain(now-7200,max_records=256)
+                plan=writer.archive_plan(now-7200,max_records=256)
+                receipt=await asyncio.to_thread(writer.write_archive,writer.path,plan)
+                writer.commit_archive(plan,receipt)
+                writer.retain(now-7200,max_records=256,archive_first=False)
             try:await asyncio.wait_for(stop.wait(),5)
             except TimeoutError:pass
     tasks=[asyncio.create_task(stream_source()),asyncio.create_task(repair_worker()),asyncio.create_task(maintenance())]

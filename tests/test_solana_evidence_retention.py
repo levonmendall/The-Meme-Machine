@@ -31,3 +31,24 @@ class RetentionTests(unittest.TestCase):
             row=record();writer.ingest([row]);writer.gap(row.scope,row.slot,row.slot)
             self.assertEqual(writer.retain(1000),0)
             self.assertIsNotNone(writer.db.execute('SELECT body FROM records').fetchone()[0]);writer.close()
+    def test_reservation_arriving_during_archive_io_keeps_hot_evidence(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from unittest.mock import patch
+        import threading
+        with tempfile.TemporaryDirectory() as temp:
+            writer=EvidenceWriter(Path(temp)/'db',clock=lambda:1000);row=record();writer.ingest([row])
+            plan=writer.archive_plan(1000);entered=threading.Event();release=threading.Event()
+            from meme_machine.solana_evidence_plane import publish_bytes
+            def delayed(path,content):entered.set();release.wait(2);publish_bytes(path,content)
+            with ThreadPoolExecutor(max_workers=1) as pool,patch('meme_machine.solana_evidence_plane.publish_bytes',side_effect=delayed):
+                future=pool.submit(writer.write_archive,writer.path,plan)
+                try:
+                    self.assertTrue(entered.wait(1))
+                    writer.interest('reserved',row.scope,lower_slot=row.slot,priority=1,lifecycle='reserved')
+                    from dataclasses import replace
+                    writer.ingest([replace(row,identity='new',signature='new',slot=row.slot+1)])
+                    self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],2)
+                finally:release.set()
+                receipt=future.result()
+            self.assertEqual(writer.commit_archive(plan,receipt),0)
+            self.assertIsNotNone(writer.db.execute('SELECT body FROM records WHERE identity=?',(row.identity,)).fetchone()[0]);writer.close()
