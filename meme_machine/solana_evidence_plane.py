@@ -168,6 +168,7 @@ class EvidenceWriter:
             raise EvidenceUnavailable('evidence_writer_already_running') from None
         try:
             self.db = sqlite3.connect(self.path, isolation_level=None, timeout=5)
+            self.db.execute('PRAGMA auto_vacuum=INCREMENTAL')
             self.db.execute('PRAGMA journal_mode=WAL')
             self.db.execute('PRAGMA synchronous=FULL')
             self.db.execute('PRAGMA foreign_keys=ON')
@@ -228,9 +229,13 @@ class EvidenceWriter:
                 self.db.execute('UPDATE gaps SET hi=? WHERE id=?', (max(lo, lower_slot), identity))
 
     def ingest(self, records, *, proof=None, repair_receipt=None):
+        self._check()
         records = tuple(records)
         if len(records) > 2048:
             raise EvidenceUnavailable('ingestion_batch_bound')
+        for record in records:
+            floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+record.scope,)).fetchone()
+            if floor and record.slot<int(floor[0]):raise EvidenceUnavailable('record_below_hot_retention_floor')
         bodies = [(record, record.body()) for record in records]
         if sum(len(canonical(body).encode()) for _, body in bodies) > 16 * 1024 * 1024:
             raise EvidenceUnavailable('ingestion_payload_bound')
@@ -342,13 +347,16 @@ class EvidenceWriter:
         if not 1 <= max_records <= 1000:
             raise EvidenceUnavailable('archive_batch_bound')
         rows = self.db.execute('''SELECT r.identity,r.body,r.hash FROM records r
-          WHERE r.body IS NOT NULL AND r.market_time < ?
+          WHERE r.body IS NOT NULL AND COALESCE(r.market_time,r.first_seen) < ?
           AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.active=1
              AND i.scope=r.scope AND r.slot>=i.lower_slot)
-          ORDER BY r.market_time,r.identity LIMIT ?''', (before_time, max_records)).fetchall()
+          AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
+              AND r.slot>=g.lo)
+          ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records)).fetchall()
         if not rows:
             return 0
-        raw = ('\n'.join(canonical(dict(identity=k, body=json.loads(b), hash=h)) for k, b, h in rows) + '\n').encode()
+        raw = ('\n'.join(canonical(dict(identity=k,body=json.loads(b),hash=h,
+            lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))])) for k,b,h in rows)+'\n').encode()
         compressed = gzip.compress(raw, mtime=0)
         checksum = hashlib.sha256(compressed).hexdigest()
         directory = self.path.parent / (self.path.name + '.archive')
@@ -356,10 +364,48 @@ class EvidenceWriter:
         target = directory / (checksum + '.jsonl.gz')
         publish_bytes(target, compressed)
         with self.transaction():
-            self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)', (target.name, checksum, len(compressed), len(rows)))
+            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)', (target.name, checksum, len(compressed), len(rows))).rowcount
+            if added:self._count('archive_bytes',len(compressed))
             self.db.executemany('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=?', [(target.name, k, h) for k, _, h in rows])
             self._count('archived_records', len(rows))
         return len(rows)
+
+    def retain(self, before_time, *, max_records=1000):
+        """One bounded maintenance slice, preserving every unresolved lifecycle/gap.
+
+        Old immutable payloads and provenance are durable before index removal.
+        A monotone floor rejects reintroduction of pruned history; offline replay
+        uses a separate store. No consumer can grant coverage below that floor.
+        """
+        archived=self.archive(before_time,max_records=max_records)
+        with self.transaction():
+            for scope,top in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
+                floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
+                floor=top+1 if floor is None else floor
+                pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
+                if pins:floor=min(floor,min(pins))
+                old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
+                floor=max(int(old[0]) if old else 0,floor)
+                ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,max_records))]
+                for identity in ids:
+                    self.db.execute('DELETE FROM lineage WHERE identity=?',(identity,))
+                    self.db.execute('DELETE FROM addresses WHERE identity=?',(identity,))
+                    self.db.execute('DELETE FROM records WHERE identity=?',(identity,))
+                self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
+                self.db.execute('DELETE FROM coverage WHERE scope=? AND hi<?',(scope,floor))
+                self.db.execute('DELETE FROM gaps WHERE scope=? AND hi<? AND repaired IS NOT NULL',(scope,floor))
+                for table in ('stream_receipts','stream_deliveries','stream_order'):
+                    if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(table,)).fetchone():
+                        self.db.execute('DELETE FROM '+table+' WHERE scope=? AND slot<?',(scope,floor))
+                self._count('compacted_records',len(ids))
+            # The archive directory is the immutable content-addressed inventory;
+            # old completed hot manifests need not grow without bound.
+            self.db.execute('DELETE FROM archives WHERE name NOT IN (SELECT DISTINCT archive FROM records WHERE archive IS NOT NULL)')
+        # PASSIVE cannot wait for readers. Pinned WAL bytes remain in telemetry and
+        # the existing hard capacity guard stops ingestion if they exhaust space.
+        self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
+        self.db.execute('PRAGMA incremental_vacuum(256)')
+        return archived
 
     def close(self):
         self._check()
@@ -383,6 +429,8 @@ class EvidenceReader:
         self._healthy()
         if lower_slot < 0 or upper_slot < lower_slot:
             raise EvidenceUnavailable('invalid_query_window')
+        floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
+        if floor and lower_slot<int(floor[0]):return False
         # A later repair cannot rewrite a prospective decision's original cutoff.
         if self.db.execute('''SELECT 1 FROM gaps WHERE scope=? AND lo<=?
             AND (hi IS NULL OR hi>=?) AND created<=? AND (repaired IS NULL OR repaired>?) LIMIT 1''',
@@ -435,13 +483,20 @@ class EvidenceReader:
 
     def telemetry(self):
         self._healthy()
-        return dict(cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
+        health={}
+        if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='service_health'").fetchone():
+            health={k:json.loads(v) for k,v in self.db.execute('SELECT * FROM service_health')}
+        return dict(service_health=health,ingestion_lag_seconds={k:max(0,time.time()-v['time']) for k,v in health.items() if k.startswith('finalized_frontier:')},cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
             coverage_windows=self.db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],
             unresolved_gaps=self.db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],
             consumer_lag=[dict(owner=o, scope=s, slots=max(0, top-n), updated=t) for o,s,n,t,top in self.db.execute('SELECT c.owner,c.scope,c.slot,c.updated,r.slot FROM consumers c JOIN cursors r ON c.scope=r.scope')],
             counters=dict(self.db.execute('SELECT * FROM counters')), local_queries=self.queries,
             hot_bytes=sum(p.stat().st_size for p in (self.path, Path(str(self.path)+'-wal')) if p.exists()),
-            archive_bytes=self.db.execute('SELECT COALESCE(SUM(bytes),0) FROM archives').fetchone()[0])
+            db_bytes=self.path.stat().st_size,
+            wal_bytes=(Path(str(self.path)+'-wal').stat().st_size if Path(str(self.path)+'-wal').exists() else 0),
+            interests=[dict(owner=o,scope=s,priority=p,lower_slot=l,lifecycle=k,updated=t) for o,s,p,l,k,a,t in self.db.execute('SELECT * FROM interests WHERE active=1')],
+            retention_floors={k.split(':',1)[1]:int(v) for k,v in self.db.execute("SELECT key,value FROM meta WHERE key LIKE 'retention_floor:%'")},
+            archive_bytes=(self.db.execute("SELECT value FROM counters WHERE key='archive_bytes'").fetchone() or [0])[0])
 
     def close(self):
         self.db.close()

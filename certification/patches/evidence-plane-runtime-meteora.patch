@@ -75,12 +75,82 @@ index 44e1008925a32e90e47bf3edd5da910587efa5df..16a17f6bf369bdca265653d9d6804462
              if kind=='swap':
                  event=item
                  if not state['time']<=event['time']<=end['time']:
+diff --git a/meme_machine/durable_publication.py b/meme_machine/durable_publication.py
+index ad3d3fbcbaade911d15b4d573f55807b08a3d45e..856b42ae763c0f8a16e9174c87f778aa54854a55 100644
+--- a/meme_machine/durable_publication.py
++++ b/meme_machine/durable_publication.py
+@@ -23,12 +23,13 @@ def publish_json(path,value):
+     publish_bytes(path,(json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)+'\n').encode())
+ 
+ 
+-def publish_report(path,value):
++def publish_report(path,value,*,asynchronous=False):
+     """Export failure has no authority to cancel, settle or stop a lifecycle.
+ 
+     Return explicit diagnostics for the caller to include in its next report.
+     Canonical accounting/state writes MUST NOT use this best-effort interface.
+     """
++    if asynchronous:return background_report(path,value)
+     try:
+         publish_json(path,value)
+         return {'published':True,'error':None}
+@@ -36,3 +37,50 @@ def publish_report(path,value):
+         # A concurrent diagnostic dict change can invalidate one serialization.
+         # Preserve the previous complete report and all independent journals.
+         return {'published':False,'error':type(exc).__name__}
++
++
++class ReportPublisher:
++    """One bounded latest-snapshot mailbox; report I/O cannot hold a lane thread."""
++    def __init__(self,path):
++        import threading,queue
++        self.path=Path(path);self.queue=queue.Queue(maxsize=1);self.stop=threading.Event()
++        self.result={'published':False,'pending':False,'error':None};self.dropped=0
++        self.thread=threading.Thread(target=self._run,name='report-publisher',daemon=True);self.thread.start()
++    def submit(self,value):
++        import copy,queue
++        try:snapshot=copy.deepcopy(value)
++        except (RuntimeError,TypeError,ValueError) as exc:return dict(published=False,error=type(exc).__name__)
++        try:self.queue.put_nowait(snapshot)
++        except queue.Full:
++            try:self.queue.get_nowait();self.queue.task_done();self.dropped+=1
++            except queue.Empty:pass
++            try:self.queue.put_nowait(snapshot)
++            except queue.Full:self.dropped+=1
++        return dict(self.result,pending=True,superseded_reports=self.dropped)
++    def _run(self):
++        import queue
++        while not self.stop.is_set() or not self.queue.empty():
++            try:value=self.queue.get(timeout=.1)
++            except queue.Empty:continue
++            try:self.result=publish_report(self.path,value)
++            except BaseException as exc:self.result=dict(published=False,error=type(exc).__name__)
++            finally:self.queue.task_done()
++    def close(self,timeout=.25):
++        self.stop.set();self.thread.join(timeout=timeout)
++        return not self.thread.is_alive()
++
++_publishers={}
++
++def background_report(path,value):
++    key=str(Path(path).resolve())
++    publisher=_publishers.get(key)
++    if publisher is None:
++        if len(_publishers)>=4:return dict(published=False,error='publisher_registry_bound')
++        publisher=_publishers[key]=ReportPublisher(path)
++    return publisher.submit(value)
++
++def flush_reports(timeout=.25):
++    for publisher in _publishers.values():publisher.close(timeout)
++
++import atexit
++atexit.register(flush_reports)
 diff --git a/meme_machine/solana_evidence_plane.py b/meme_machine/solana_evidence_plane.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8cecaa828e2
+index 0000000000000000000000000000000000000000..d03febc9db1b9a449fb1570124cf16a189a64f8b
 --- /dev/null
 +++ b/meme_machine/solana_evidence_plane.py
-@@ -0,0 +1,525 @@
+@@ -0,0 +1,580 @@
 +"""Transactional finalized evidence, independent of strategy/lifecycle authority.
 +
 +No network access, signing, economic policy, or implicit coverage inference lives
@@ -251,6 +321,7 @@ index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8ce
 +            raise EvidenceUnavailable('evidence_writer_already_running') from None
 +        try:
 +            self.db = sqlite3.connect(self.path, isolation_level=None, timeout=5)
++            self.db.execute('PRAGMA auto_vacuum=INCREMENTAL')
 +            self.db.execute('PRAGMA journal_mode=WAL')
 +            self.db.execute('PRAGMA synchronous=FULL')
 +            self.db.execute('PRAGMA foreign_keys=ON')
@@ -311,9 +382,13 @@ index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8ce
 +                self.db.execute('UPDATE gaps SET hi=? WHERE id=?', (max(lo, lower_slot), identity))
 +
 +    def ingest(self, records, *, proof=None, repair_receipt=None):
++        self._check()
 +        records = tuple(records)
 +        if len(records) > 2048:
 +            raise EvidenceUnavailable('ingestion_batch_bound')
++        for record in records:
++            floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+record.scope,)).fetchone()
++            if floor and record.slot<int(floor[0]):raise EvidenceUnavailable('record_below_hot_retention_floor')
 +        bodies = [(record, record.body()) for record in records]
 +        if sum(len(canonical(body).encode()) for _, body in bodies) > 16 * 1024 * 1024:
 +            raise EvidenceUnavailable('ingestion_payload_bound')
@@ -425,13 +500,16 @@ index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8ce
 +        if not 1 <= max_records <= 1000:
 +            raise EvidenceUnavailable('archive_batch_bound')
 +        rows = self.db.execute('''SELECT r.identity,r.body,r.hash FROM records r
-+          WHERE r.body IS NOT NULL AND r.market_time < ?
++          WHERE r.body IS NOT NULL AND COALESCE(r.market_time,r.first_seen) < ?
 +          AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.active=1
 +             AND i.scope=r.scope AND r.slot>=i.lower_slot)
-+          ORDER BY r.market_time,r.identity LIMIT ?''', (before_time, max_records)).fetchall()
++          AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
++              AND r.slot>=g.lo)
++          ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records)).fetchall()
 +        if not rows:
 +            return 0
-+        raw = ('\n'.join(canonical(dict(identity=k, body=json.loads(b), hash=h)) for k, b, h in rows) + '\n').encode()
++        raw = ('\n'.join(canonical(dict(identity=k,body=json.loads(b),hash=h,
++            lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))])) for k,b,h in rows)+'\n').encode()
 +        compressed = gzip.compress(raw, mtime=0)
 +        checksum = hashlib.sha256(compressed).hexdigest()
 +        directory = self.path.parent / (self.path.name + '.archive')
@@ -439,10 +517,48 @@ index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8ce
 +        target = directory / (checksum + '.jsonl.gz')
 +        publish_bytes(target, compressed)
 +        with self.transaction():
-+            self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)', (target.name, checksum, len(compressed), len(rows)))
++            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)', (target.name, checksum, len(compressed), len(rows))).rowcount
++            if added:self._count('archive_bytes',len(compressed))
 +            self.db.executemany('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=?', [(target.name, k, h) for k, _, h in rows])
 +            self._count('archived_records', len(rows))
 +        return len(rows)
++
++    def retain(self, before_time, *, max_records=1000):
++        """One bounded maintenance slice, preserving every unresolved lifecycle/gap.
++
++        Old immutable payloads and provenance are durable before index removal.
++        A monotone floor rejects reintroduction of pruned history; offline replay
++        uses a separate store. No consumer can grant coverage below that floor.
++        """
++        archived=self.archive(before_time,max_records=max_records)
++        with self.transaction():
++            for scope,top in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
++                floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
++                floor=top+1 if floor is None else floor
++                pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
++                if pins:floor=min(floor,min(pins))
++                old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
++                floor=max(int(old[0]) if old else 0,floor)
++                ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,max_records))]
++                for identity in ids:
++                    self.db.execute('DELETE FROM lineage WHERE identity=?',(identity,))
++                    self.db.execute('DELETE FROM addresses WHERE identity=?',(identity,))
++                    self.db.execute('DELETE FROM records WHERE identity=?',(identity,))
++                self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
++                self.db.execute('DELETE FROM coverage WHERE scope=? AND hi<?',(scope,floor))
++                self.db.execute('DELETE FROM gaps WHERE scope=? AND hi<? AND repaired IS NOT NULL',(scope,floor))
++                for table in ('stream_receipts','stream_deliveries','stream_order'):
++                    if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(table,)).fetchone():
++                        self.db.execute('DELETE FROM '+table+' WHERE scope=? AND slot<?',(scope,floor))
++                self._count('compacted_records',len(ids))
++            # The archive directory is the immutable content-addressed inventory;
++            # old completed hot manifests need not grow without bound.
++            self.db.execute('DELETE FROM archives WHERE name NOT IN (SELECT DISTINCT archive FROM records WHERE archive IS NOT NULL)')
++        # PASSIVE cannot wait for readers. Pinned WAL bytes remain in telemetry and
++        # the existing hard capacity guard stops ingestion if they exhaust space.
++        self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
++        self.db.execute('PRAGMA incremental_vacuum(256)')
++        return archived
 +
 +    def close(self):
 +        self._check()
@@ -466,6 +582,8 @@ index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8ce
 +        self._healthy()
 +        if lower_slot < 0 or upper_slot < lower_slot:
 +            raise EvidenceUnavailable('invalid_query_window')
++        floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
++        if floor and lower_slot<int(floor[0]):return False
 +        # A later repair cannot rewrite a prospective decision's original cutoff.
 +        if self.db.execute('''SELECT 1 FROM gaps WHERE scope=? AND lo<=?
 +            AND (hi IS NULL OR hi>=?) AND created<=? AND (repaired IS NULL OR repaired>?) LIMIT 1''',
@@ -518,13 +636,20 @@ index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8ce
 +
 +    def telemetry(self):
 +        self._healthy()
-+        return dict(cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
++        health={}
++        if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='service_health'").fetchone():
++            health={k:json.loads(v) for k,v in self.db.execute('SELECT * FROM service_health')}
++        return dict(service_health=health,ingestion_lag_seconds={k:max(0,time.time()-v['time']) for k,v in health.items() if k.startswith('finalized_frontier:')},cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
 +            coverage_windows=self.db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],
 +            unresolved_gaps=self.db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],
 +            consumer_lag=[dict(owner=o, scope=s, slots=max(0, top-n), updated=t) for o,s,n,t,top in self.db.execute('SELECT c.owner,c.scope,c.slot,c.updated,r.slot FROM consumers c JOIN cursors r ON c.scope=r.scope')],
 +            counters=dict(self.db.execute('SELECT * FROM counters')), local_queries=self.queries,
 +            hot_bytes=sum(p.stat().st_size for p in (self.path, Path(str(self.path)+'-wal')) if p.exists()),
-+            archive_bytes=self.db.execute('SELECT COALESCE(SUM(bytes),0) FROM archives').fetchone()[0])
++            db_bytes=self.path.stat().st_size,
++            wal_bytes=(Path(str(self.path)+'-wal').stat().st_size if Path(str(self.path)+'-wal').exists() else 0),
++            interests=[dict(owner=o,scope=s,priority=p,lower_slot=l,lifecycle=k,updated=t) for o,s,p,l,k,a,t in self.db.execute('SELECT * FROM interests WHERE active=1')],
++            retention_floors={k.split(':',1)[1]:int(v) for k,v in self.db.execute("SELECT key,value FROM meta WHERE key LIKE 'retention_floor:%'")},
++            archive_bytes=(self.db.execute("SELECT value FROM counters WHERE key='archive_bytes'").fetchone() or [0])[0])
 +
 +    def close(self):
 +        self.db.close()
@@ -708,10 +833,10 @@ index 0000000000000000000000000000000000000000..6534ccad16fcd95f4340dc2e869ff3a9
 +                    historical_reconstruction_rpc_count=self.historical_reconstruction_rpc)
 diff --git a/meme_machine/solana_evidence_runtime.py b/meme_machine/solana_evidence_runtime.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..8bae1d2ca7b59e505cd0845341e5f9bc1f83a671
+index 0000000000000000000000000000000000000000..322aa445020795b6d263ea9e36b932ac994f9ce9
 --- /dev/null
 +++ b/meme_machine/solana_evidence_runtime.py
-@@ -0,0 +1,151 @@
+@@ -0,0 +1,166 @@
 +"""Read-only production consumer and bounded lifecycle-interest IPC.
 +
 +This module has no historical provider dependency and no writer/proof interface.
@@ -775,15 +900,27 @@ index 0000000000000000000000000000000000000000..8bae1d2ca7b59e505cd0845341e5f9bc
 +        else:hi=(upper_slot,)
 +        if not lo or not hi:raise EvidenceUnavailable('evidence_time_boundary_unavailable')
 +        return lo[0],hi[0]
++    def acknowledge(self,scope,slot):
++        owner=self.owner+':'+scope
++        row=self.reader.db.execute('SELECT slot FROM consumers WHERE owner=?',(owner,)).fetchone()
++        if row is None or slot>=row[0]:self.command(op='ack',owner=owner,scope=scope,slot=slot)
 +    def pump_events(self,scope,address,lower_time,upper_time,*,upper_slot=None):
 +        try:
 +            lo,hi=self.bounds(scope,lower_time,upper_time,upper_slot=upper_slot)
-+            return PumpEvidenceView(self.reader,scope).events(address,lower_slot=lo,upper_slot=hi,
++            events=PumpEvidenceView(self.reader,scope).events(address,lower_slot=lo,upper_slot=hi,
 +                lower_time=lower_time,upper_time=upper_time,as_of=self.clock())
++            self.acknowledge(scope,hi);return events
 +        except EvidenceUnavailable:
 +            self.count('pump.gap_blocked_queries');raise
++    def meteora_scope(self,pool):
++        scoped='pool:meteora:'+pool
++        if self.reader.db.execute('SELECT 1 FROM coverage WHERE scope=? LIMIT 1',(scoped,)).fetchone():return scoped
++        return METEORA_SCOPE
 +    def meteora_interval(self,pool,start,end):
-+        try:return MeteoraEvidenceView(self.reader,METEORA_SCOPE).interval(pool,start_slot=start,end_slot=end,as_of=self.clock())
++        try:
++            scope=self.meteora_scope(pool)
++            result=MeteoraEvidenceView(self.reader,scope).interval(pool,start_slot=start,end_slot=end,as_of=self.clock())
++            self.acknowledge(scope,end);return result
 +        except EvidenceUnavailable:
 +            self.count('meteora.gap_blocked_reconstructions');raise
 +    def telemetry(self):return dict(self.reader.telemetry(),lane_counters=dict(self.counts))
@@ -824,30 +961,33 @@ index 0000000000000000000000000000000000000000..8bae1d2ca7b59e505cd0845341e5f9bc
 +        rows=self.plane.pump_events(PUMP_SCOPE,mint,int(now)-60,int(now),upper_slot=max_slot)
 +        return [e for e in rows if e.get('event_type')!='create']
 +    def creation(self,mint):
-+        rows=self.plane.reader.db.execute('''SELECT r.body FROM addresses a JOIN records r ON r.identity=a.identity
++        rows=self.plane.reader.db.execute('''SELECT r.body,r.first_seen FROM addresses a JOIN records r ON r.identity=a.identity
 +            WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY a.slot DESC LIMIT 1000''',
 +            (mint,PUMP_SCOPE,self.plane.clock()))
-+        for raw, in rows:
++        for raw,seen in rows:
 +            if raw:
 +                event=json.loads(raw)['payload'].get('event',{})
-+                if event.get('event_type')=='create':return event
++                if event.get('event_type')=='create':return dict(event,available_time=int(seen))
 +        return None
 +    def events_since(self,sequence):
 +        hi=self.plane.frontier(PUMP_SCOPE)
-+        rows=self.plane.reader.db.execute('''SELECT rowid,body FROM records WHERE scope=? AND kind='event'
++        rows=self.plane.reader.db.execute('''SELECT rowid,body,slot FROM records WHERE scope=? AND kind='event'
 +            AND rowid>? AND slot<=? AND first_seen<=? ORDER BY rowid LIMIT 5000''',
 +            (PUMP_SCOPE,sequence,hi,self.plane.clock())).fetchall()
 +        events=[]
-+        for seq,raw in rows:
++        for seq,raw,slot in rows:
 +            if raw is None:raise EvidenceUnavailable('pump_consumer_backlog_archived')
 +            event=json.loads(raw)['payload']['event']
 +            if event.get('event_type')!='create':events.append(event)
 +            sequence=seq
-+        if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=hi)
++        if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=rows[-1][2])
 +        return events,sequence
 +    def covered(self,now=None):
 +        try:
-+            hi=self.plane.frontier(PUMP_SCOPE);at=self.plane.block_time(hi)
++            hi=self.plane.frontier(PUMP_SCOPE)
++            row=self.plane.reader.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot<=? ORDER BY slot DESC LIMIT 1',(PUMP_SCOPE,hi)).fetchone()
++            if row is None:return False
++            at=row[0]
 +            lo,_=self.plane.bounds(PUMP_SCOPE,at-60,at,upper_slot=hi)
 +            return self.plane.reader.covered(PUMP_SCOPE,lo,hi,as_of=self.plane.clock())
 +        except EvidenceUnavailable:return False
@@ -865,10 +1005,10 @@ index 0000000000000000000000000000000000000000..8bae1d2ca7b59e505cd0845341e5f9bc
 +    def status(self):return self.plane.telemetry()
 diff --git a/meme_machine/solana_evidence_service.py b/meme_machine/solana_evidence_service.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b837821b03c
+index 0000000000000000000000000000000000000000..ca1321aa2c4617851e49cd94f2ef31c44144f90d
 --- /dev/null
 +++ b/meme_machine/solana_evidence_service.py
-@@ -0,0 +1,325 @@
+@@ -0,0 +1,357 @@
 +"""Finalized filtered-block fences over the existing single-writer evidence store.
 +
 +Only this source adapter can seal coverage. Consumers send lifecycle interests and
@@ -900,11 +1040,27 @@ index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b83
 +CREATE TABLE IF NOT EXISTS service_health(key TEXT PRIMARY KEY,value TEXT NOT NULL);
 +'''
 +
++def poison_conflicts(method):
++    from functools import wraps
++    @wraps(method)
++    def guarded(self,*args,**kwargs):
++        try:return method(self,*args,**kwargs)
++        except EvidenceConflict:
++            with self.writer.transaction():
++                self.writer.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
++                self.writer._count('source_conflicts')
++            raise
++    return guarded
++
 +class FinalizedFence:
 +    def __init__(self,writer,*,endpoint_identity,decoders=None):
 +        self.writer=writer;self.endpoint_identity=endpoint_identity
 +        self.decoders=decoders or {};self.session=uuid.uuid4().hex
 +        writer.db.executescript(SERVICE_SCHEMA)
++        if writer.db.execute('SELECT 1 FROM stream_receipts LIMIT 1').fetchone():self.disconnect('service_restart')
++        with writer.transaction():
++            for key in ('pump.foreground_historical_rpc_calls','meteora.historical_reconstruction_rpc_calls'):
++                writer.db.execute('INSERT OR IGNORE INTO counters VALUES(?,0)',(key,))
 +
 +    def disconnect(self,reason='stream_disconnect'):
 +        bounds=dict(self.writer.db.execute('SELECT scope,slot+1 FROM cursors'))
@@ -923,6 +1079,7 @@ index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b83
 +            self.writer.db.execute('INSERT OR IGNORE INTO stream_deliveries VALUES(?,?,?,?,?)',
 +                (scope,slot,signature,checksum,seen))
 +
++    @poison_conflicts
 +    def logs(self,subscription,message,seen):
 +        result=message['params']['result'];slot=result['context']['slot'];v=result['value']
 +        decoder=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,
@@ -934,6 +1091,7 @@ index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b83
 +        self._delivery(subscription.scope,slot,v['signature'],v,seen)
 +        self.seal(subscription.scope,seen)
 +
++    @poison_conflicts
 +    def block(self,subscription,message,seen):
 +        value=message['params']['result']['value'];slot=value['slot'];block=value.get('block')
 +        if value.get('err') is not None or not isinstance(block,dict):
@@ -1120,7 +1278,7 @@ index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b83
 +                    while not stop.is_set():
 +                        # Durable interests survive consumer/service restarts. Account
 +                        # observations remain content only, never interval authority.
-+                        interests=writer.db.execute("SELECT DISTINCT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 ORDER BY i.priority LIMIT 256").fetchall()
++                        interests=writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 GROUP BY s.address ORDER BY MIN(i.priority),s.address LIMIT 256").fetchall()
 +                        wanted={r[0] for r in interests}
 +                        for sid,sub in list(active.items()):
 +                            if sub.evidence_class=='account' and sub.address not in wanted:
@@ -1172,7 +1330,8 @@ index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b83
 +                            with writer.transaction():
 +                                writer.db.execute('UPDATE gaps SET attempts=attempts+1 WHERE id=?',(gid,))
 +                                writer._count('gap_repair_calls')
-+                            value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[sub.address,cfg],False)
++                            active=writer.db.execute("SELECT 1 FROM interests WHERE scope=? AND active=1 AND lifecycle IN ('candidate','reserved','open') LIMIT 1",(scope,)).fetchone()
++                            value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[sub.address,cfg],bool(active))
 +                            # Apply through the same bounded durable repair boundary.
 +                            class ReceiptRPC:
 +                                def call(self,*args):return value
@@ -1182,7 +1341,20 @@ index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b83
 +                            with writer.transaction():writer._count('gap_repair_failures')
 +            try:await asyncio.wait_for(stop.wait(),1)
 +            except TimeoutError:pass
-+    tasks=[asyncio.create_task(stream_source()),asyncio.create_task(repair_worker())]
++    async def maintenance():
++        while not stop.is_set():
++            # Candidate interests have bounded leases; unresolved money/lifecycle
++            # interests never expire. No archive slice runs ahead of a reservation.
++            now=time.time()
++            with writer.transaction():
++                writer.db.execute("UPDATE interests SET active=0 WHERE lifecycle IN ('candidate','research') AND updated<?",(now-1200,))
++                writer.db.execute('DELETE FROM service_interests WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
++                writer.db.execute('DELETE FROM interests WHERE active=0 AND updated<?',(now-7200,))
++            if not writer.db.execute("SELECT 1 FROM interests WHERE active=1 AND lifecycle='reserved' LIMIT 1").fetchone():
++                writer.retain(now-7200,max_records=256)
++            try:await asyncio.wait_for(stop.wait(),5)
++            except TimeoutError:pass
++    tasks=[asyncio.create_task(stream_source()),asyncio.create_task(repair_worker()),asyncio.create_task(maintenance())]
 +    try:
 +        stopper=asyncio.create_task(stop.wait())
 +        done,_=await asyncio.wait([stopper,*tasks],return_when=asyncio.FIRST_COMPLETED)
@@ -1386,7 +1558,7 @@ index 0000000000000000000000000000000000000000..b9bcb702c36491ded1cc648491f5e925
 +            dict(next=token,page_hashes=page_hashes,signatures=sorted(seen)), self.max_pages))
 +        return dict(complete=token is None,pages=pages+1,records=len(records))
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
-index 7971cf4203b39991638144ecbbce1b0bd126e72f..5f66417476dab63768d367d0e22f99b19c389f82 100644
+index 7971cf4203b39991638144ecbbce1b0bd126e72f..736f30ae765ae25fbfba7041b980ce023cbeb120 100644
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
 @@ -38,6 +38,14 @@ from meme_machine.dlmm_tape import (
@@ -1404,6 +1576,15 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..5f66417476dab63768d367d0e22f99b1
  from meme_machine.solana_evidence_broker import (
      DEFAULT_BROKER_DB,EvidenceBroker,ProgramAccountWakeStream,
  )
+@@ -558,7 +566,7 @@ def _atomic_checkpoint(report,stage,rpcs,pacer,**progress):
+     report["rpc"]=_sum_rpc_metrics(rpcs)
+     report["alchemy_pacer"]=pacer.telemetry()
+     from meme_machine.durable_publication import publish_report
+-    report['publication']=publish_report(OUT,report)
++    report['publication']=publish_report(OUT,report,asynchronous=bool(os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')))
+ 
+ 
+ def _runtime_expired(deadline):
 @@ -760,34 +768,9 @@ def _capture_chunk(
      _stage(start["pool"],"reconstruction_started")
      end_snapshot=adapter.snapshot_from_state(
@@ -1593,9 +1774,9 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..5f66417476dab63768d367d0e22f99b1
 -            )
 -        raise
 -
-+    plane=_evidence_plane();frontier=plane.frontier(METEORA_SCOPE)
++    plane=_evidence_plane();scope=plane.meteora_scope(pool);frontier=plane.frontier(scope)
 +    if frontier<=after_slot:return [],dict(rate_limited=False,stage=None,head_slot=after_slot,head_signature=None,fresh_signature_count=0)
-+    rows=plane.reader.window(METEORA_SCOPE,after_slot+1,frontier,as_of=plane.clock(),
++    rows=plane.reader.window(scope,after_slot+1,frontier,as_of=plane.clock(),
 +        address=pool,kind='transaction',limit=FRESH_SWAP_TRIGGER_SIGNATURE_LIMIT)
      out=[]
 -    for row,tx in zip(valid,values):
@@ -1628,7 +1809,7 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..5f66417476dab63768d367d0e22f99b1
  
  
  def _await_fresh_swap_trigger_polling(
-@@ -1863,9 +1759,21 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+@@ -1863,14 +1759,26 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
      run_started_monotonic=time.monotonic()
      deadline=run_started_monotonic+max_runtime_seconds
  
@@ -1649,10 +1830,15 @@ index 7971cf4203b39991638144ecbbce1b0bd126e72f..5f66417476dab63768d367d0e22f99b1
 +    if book.reconcile()['unsettled']:
 +        from certification.position_continuation import restore_meteora_strategy
 +        recovered=restore_meteora_strategy(book,sys.modules[__name__])
-+    plane=_evidence_plane()
      discovery_telemetry=dict(
          rejections=[],errors=[],qualified=[],seen=0,history_reads=0)
      compatibility_rejections=[];compatibility_screened=0
+     pacer=provider.AlchemyPacer();rpcs=[]
+     network_identity=_prove_network_identity(pacer,rpcs)
++    plane=_evidence_plane()
+     broker=EvidenceBroker(DLMM_BROKER_DB)
+     stream_stop=threading.Event();stream_ready=threading.Event()
+     wake_stream=ProgramAccountWakeStream(
 @@ -1932,6 +1840,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
          report["wake_stream"]=broker.stream_status(
              DLMM_WAKE_STREAM_KEY,int(time.time()),0)
@@ -1742,3 +1928,140 @@ index 0000000000000000000000000000000000000000..954193f36a4ddbc6402eeaf3b0c13484
 +        with self.assertRaises(EvidenceUnavailable):lane._new_finalized_swaps(None,self.start['pool'],100)
 +        with patch.object(lane.time,'sleep'),patch.object(lane.time,'time',return_value=113):
 +            with self.assertRaises(EvidenceUnavailable):lane._capture_chunk(SimpleNamespace(snapshot_from_state=lambda *a,**k:self.end),self.start,[100,0,0],12)
+diff --git a/tests/test_meteora_evidence_recovery.py b/tests/test_meteora_evidence_recovery.py
+index a95a56866771843917aa0b867866c639c3bd8b02..3371f1de8883b5512178175c09ffab0e3b55933a 100644
+--- a/tests/test_meteora_evidence_recovery.py
++++ b/tests/test_meteora_evidence_recovery.py
+@@ -203,7 +203,8 @@ class MeteoraEvidenceRecoveryTests(unittest.TestCase):
+             return {"aligned":True},object(),{"slot":12},{"slot":11},adapter,candidate
+         with tempfile.TemporaryDirectory() as td:
+             output=Path(td)/"report.json"
+-            with patch.object(strategy,"OUT",output), \
++            with patch.object(strategy,"EVIDENCE_PLANE",MagicMock(frontier=lambda *_:0,telemetry=lambda:{})), \
++                 patch.object(strategy,"OUT",output), \
+                  patch.object(strategy,"DLMM_BROKER_DB",Path(td)/"broker.sqlite"), \
+                  patch.object(strategy,"_prove_network_identity",return_value={"verified":True}), \
+                  patch.object(strategy,"ProgramAccountWakeStream") as stream, \
+diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_independent_v1.py
+index a9efcd557fc8c3a18ce63c212d81cb6392aeddfd..60fd31037a42836b421b43d103c6ad0196396ffb 100644
+--- a/tests/test_solana_dlmm_independent_v1.py
++++ b/tests/test_solana_dlmm_independent_v1.py
+@@ -462,78 +462,47 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+         self.assertEqual(observe.call_count,1)
+         self.assertEqual(observe.call_args.args[3],12)
+ 
++    def local_plane(self,slot,rows):
++        plane=MagicMock();plane.frontier.return_value=slot
++        plane.meteora_scope.return_value='program:meteora'
++        plane.reader.window.return_value=rows
++        return plane
++
+     def test_new_finalized_swap_trigger_requires_authenticated_dlmm_swap(self):
+-        rpc=MagicMock()
+-        rpc.call.return_value=[
+-            dict(
+-                signature="sig",slot=11,confirmationStatus="finalized",
+-                err=None)
+-        ]
+-        tx=dict(meta=dict(err=None),blockTime=123,transaction={})
+-        rpc.call_many.return_value=[tx]
+-        with patch.object(
+-                strategy,"transaction_swaps",
+-                return_value=[dict(observed={"start":1,"end":2})]) as parse:
+-            out,meta=strategy._new_finalized_swaps(rpc,"pool",10)
+-        self.assertEqual(len(out),1)
+-        self.assertEqual(out[0]["signature"],"sig")
+-        self.assertEqual(out[0]["slot"],11)
+-        self.assertEqual(out[0]["swap_count"],1)
+-        self.assertFalse(meta["rate_limited"])
+-        self.assertEqual(meta["head_slot"],11)
+-        self.assertEqual(parse.call_count,1)
+-
+-    def test_signature_poll_supplies_head_without_second_rpc_read(self):
+-        rpc=MagicMock()
+-        rpc.failure_methods={}
+-        rpc.call.return_value=[
+-            dict(
+-                signature="head",slot=12,
+-                confirmationStatus="finalized",err=None)
+-        ]
+-        rpc.call_many.return_value=[dict(
+-            meta=dict(err=None),blockTime=123,transaction={})]
+-        with patch.object(strategy,"transaction_swaps",return_value=[]):
+-            swaps,meta=strategy._new_finalized_swaps(
+-                rpc,"pool",10)
+-        self.assertEqual(swaps,[])
+-        self.assertEqual(meta["head_slot"],12)
+-        self.assertEqual(rpc.call.call_count,1)
+-        self.assertEqual(rpc.call_many.call_count,1)
+-
+-    def test_signature_429_is_transient_not_candidate_failure(self):
+-        rpc=MagicMock()
+-        rpc.failure_methods={}
+-        def limited(*_args,**_kwargs):
+-            rpc.failure_methods[
+-                "getSignaturesForAddress:http_429"]=2
+-            raise strategy.Unavailable("provider_request_failed")
+-        rpc.call.side_effect=limited
+-        swaps,meta=strategy._new_finalized_swaps(
+-            rpc,"pool",10)
+-        self.assertEqual(swaps,[])
+-        self.assertTrue(meta["rate_limited"])
+-        self.assertEqual(meta["stage"],"getSignaturesForAddress")
+-        self.assertEqual(meta["head_slot"],10)
+-
+-    def test_transaction_429_does_not_advance_signature_cursor(self):
+-        rpc=MagicMock()
+-        rpc.failure_methods={}
+-        rpc.call.return_value=[
+-            dict(
+-                signature="sig",slot=11,
+-                confirmationStatus="finalized",err=None)
+-        ]
+-        def limited(*_args,**_kwargs):
+-            rpc.failure_methods["getTransaction:http_429"]=3
+-            raise strategy.Unavailable("provider_request_failed")
+-        rpc.call_many.side_effect=limited
+-        swaps,meta=strategy._new_finalized_swaps(
+-            rpc,"pool",10)
+-        self.assertEqual(swaps,[])
+-        self.assertTrue(meta["rate_limited"])
+-        self.assertEqual(meta["stage"],"getTransaction")
+-        self.assertEqual(meta["head_slot"],10)
++        rpc=MagicMock();tx=dict(meta=dict(err=None),blockTime=123,transaction={})
++        plane=self.local_plane(11,[dict(signature='sig',slot=11,payload=tx)])
++        with patch.object(strategy,'EVIDENCE_PLANE',plane),patch.object(strategy,'transaction_swaps',return_value=[dict(observed={'start':1,'end':2})]) as parse:
++            out,meta=strategy._new_finalized_swaps(rpc,'pool',10)
++        self.assertEqual(len(out),1);self.assertEqual(out[0]['signature'],'sig')
++        self.assertEqual(out[0]['slot'],11);self.assertEqual(out[0]['swap_count'],1)
++        self.assertFalse(meta['rate_limited']);self.assertEqual(meta['head_slot'],11)
++        parse.assert_called_once_with(tx,'pool',trigger_only=True)
++        rpc.call.assert_not_called();rpc.call_many.assert_not_called()
++
++    def test_local_census_supplies_head_with_zero_rpc_reads(self):
++        rpc=MagicMock();plane=self.local_plane(12,[dict(signature='head',slot=12,payload=dict(meta=dict(err=None),blockTime=123,transaction={}))])
++        with patch.object(strategy,'EVIDENCE_PLANE',plane),patch.object(strategy,'transaction_swaps',return_value=[]):
++            swaps,meta=strategy._new_finalized_swaps(rpc,'pool',10)
++        self.assertEqual(swaps,[]);self.assertEqual(meta['head_slot'],12)
++        rpc.call.assert_not_called();rpc.call_many.assert_not_called()
++
++    def test_history_provider_429_cannot_enter_local_trigger_path(self):
++        rpc=MagicMock();rpc.call.side_effect=strategy.Unavailable('provider_request_failed')
++        plane=self.local_plane(10,[])
++        with patch.object(strategy,'EVIDENCE_PLANE',plane):
++            swaps,meta=strategy._new_finalized_swaps(rpc,'pool',10)
++        self.assertEqual(swaps,[]);self.assertEqual(meta['head_slot'],10)
++        self.assertFalse(meta['rate_limited']);rpc.call.assert_not_called()
++
++    def test_missing_local_transactions_do_not_advance_signature_cursor(self):
++        from meme_machine.solana_evidence_plane import EvidenceUnavailable
++        rpc=MagicMock();rpc.call_many.side_effect=strategy.Unavailable('provider_request_failed')
++        plane=self.local_plane(11,[]);plane.reader.window.side_effect=EvidenceUnavailable('unresolved_evidence_gap')
++        with patch.object(strategy,'EVIDENCE_PLANE',plane):
++            with self.assertRaisesRegex(EvidenceUnavailable,'unresolved_evidence_gap'):
++                strategy._new_finalized_swaps(rpc,'pool',10)
++        rpc.call.assert_not_called();rpc.call_many.assert_not_called()
++        plane.count.assert_not_called()
+ 
+     def test_stream_handoff_bootstrap_authenticates_first_unseen_swap_once(self):
+         p=strategy.load_policy()

@@ -61,15 +61,27 @@ class RuntimeEvidence:
         else:hi=(upper_slot,)
         if not lo or not hi:raise EvidenceUnavailable('evidence_time_boundary_unavailable')
         return lo[0],hi[0]
+    def acknowledge(self,scope,slot):
+        owner=self.owner+':'+scope
+        row=self.reader.db.execute('SELECT slot FROM consumers WHERE owner=?',(owner,)).fetchone()
+        if row is None or slot>=row[0]:self.command(op='ack',owner=owner,scope=scope,slot=slot)
     def pump_events(self,scope,address,lower_time,upper_time,*,upper_slot=None):
         try:
             lo,hi=self.bounds(scope,lower_time,upper_time,upper_slot=upper_slot)
-            return PumpEvidenceView(self.reader,scope).events(address,lower_slot=lo,upper_slot=hi,
+            events=PumpEvidenceView(self.reader,scope).events(address,lower_slot=lo,upper_slot=hi,
                 lower_time=lower_time,upper_time=upper_time,as_of=self.clock())
+            self.acknowledge(scope,hi);return events
         except EvidenceUnavailable:
             self.count('pump.gap_blocked_queries');raise
+    def meteora_scope(self,pool):
+        scoped='pool:meteora:'+pool
+        if self.reader.db.execute('SELECT 1 FROM coverage WHERE scope=? LIMIT 1',(scoped,)).fetchone():return scoped
+        return METEORA_SCOPE
     def meteora_interval(self,pool,start,end):
-        try:return MeteoraEvidenceView(self.reader,METEORA_SCOPE).interval(pool,start_slot=start,end_slot=end,as_of=self.clock())
+        try:
+            scope=self.meteora_scope(pool)
+            result=MeteoraEvidenceView(self.reader,scope).interval(pool,start_slot=start,end_slot=end,as_of=self.clock())
+            self.acknowledge(scope,end);return result
         except EvidenceUnavailable:
             self.count('meteora.gap_blocked_reconstructions');raise
     def telemetry(self):return dict(self.reader.telemetry(),lane_counters=dict(self.counts))
@@ -110,30 +122,33 @@ class LocalPumpTape:
         rows=self.plane.pump_events(PUMP_SCOPE,mint,int(now)-60,int(now),upper_slot=max_slot)
         return [e for e in rows if e.get('event_type')!='create']
     def creation(self,mint):
-        rows=self.plane.reader.db.execute('''SELECT r.body FROM addresses a JOIN records r ON r.identity=a.identity
+        rows=self.plane.reader.db.execute('''SELECT r.body,r.first_seen FROM addresses a JOIN records r ON r.identity=a.identity
             WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY a.slot DESC LIMIT 1000''',
             (mint,PUMP_SCOPE,self.plane.clock()))
-        for raw, in rows:
+        for raw,seen in rows:
             if raw:
                 event=json.loads(raw)['payload'].get('event',{})
-                if event.get('event_type')=='create':return event
+                if event.get('event_type')=='create':return dict(event,available_time=int(seen))
         return None
     def events_since(self,sequence):
         hi=self.plane.frontier(PUMP_SCOPE)
-        rows=self.plane.reader.db.execute('''SELECT rowid,body FROM records WHERE scope=? AND kind='event'
+        rows=self.plane.reader.db.execute('''SELECT rowid,body,slot FROM records WHERE scope=? AND kind='event'
             AND rowid>? AND slot<=? AND first_seen<=? ORDER BY rowid LIMIT 5000''',
             (PUMP_SCOPE,sequence,hi,self.plane.clock())).fetchall()
         events=[]
-        for seq,raw in rows:
+        for seq,raw,slot in rows:
             if raw is None:raise EvidenceUnavailable('pump_consumer_backlog_archived')
             event=json.loads(raw)['payload']['event']
             if event.get('event_type')!='create':events.append(event)
             sequence=seq
-        if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=hi)
+        if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=rows[-1][2])
         return events,sequence
     def covered(self,now=None):
         try:
-            hi=self.plane.frontier(PUMP_SCOPE);at=self.plane.block_time(hi)
+            hi=self.plane.frontier(PUMP_SCOPE)
+            row=self.plane.reader.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot<=? ORDER BY slot DESC LIMIT 1',(PUMP_SCOPE,hi)).fetchone()
+            if row is None:return False
+            at=row[0]
             lo,_=self.plane.bounds(PUMP_SCOPE,at-60,at,upper_slot=hi)
             return self.plane.reader.covered(PUMP_SCOPE,lo,hi,as_of=self.plane.clock())
         except EvidenceUnavailable:return False

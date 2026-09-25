@@ -20,7 +20,7 @@ class RepairRPC:
         self.endpoint=endpoint;self.governor=governor
     def call(self,method,params,priority=False):
         if method!='getTransactionsForAddress':raise ValueError('repair_method_forbidden')
-        self.governor.acquire('solana','evidence',50,deadline_seconds=8,methods=(method,))
+        self.governor.acquire('solana','evidence',2 if priority else 50,deadline_seconds=8,methods=(method,))
         request=urllib.request.Request(self.endpoint,json.dumps(dict(jsonrpc='2.0',id=1,method=method,params=params)).encode(),{'Content-Type':'application/json'})
         try:
             with urllib.request.urlopen(request,timeout=8) as response:raw=response.read(16*1024*1024+1)

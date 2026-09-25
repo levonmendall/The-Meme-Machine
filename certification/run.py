@@ -774,7 +774,11 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                         runtime_resources={k:r.get('runtime_resources') for k,r in rows.items()},
                         telemetry_cost={k:r.get('telemetry_cost') for k,r in rows.items()}))
                 last_sample=now
-            provider_efficiency(result);result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
+            provider_efficiency(result);result['certification']=evaluate(result)
+            from meme_machine.durable_publication import publish_report
+            publish_report(run/'result.json',result,asynchronous=True)
+            try:dashboard(result,run/'status.html')
+            except OSError:pass
             if now-last_console>=60:
                 print(canonical(dict(run_id=run_id,elapsed_seconds=now-started,lanes={k:{f:v for f,v in r.items() if f in ('health','phase','continuous_uptime_seconds','provider_requests','natural_settled','forced_settled','unexpected_exit')} for k,r in rows.items()})),flush=True)
                 last_console=now

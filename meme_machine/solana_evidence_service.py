@@ -29,11 +29,27 @@ CREATE TABLE IF NOT EXISTS stream_order(scope TEXT NOT NULL,slot INTEGER NOT NUL
 CREATE TABLE IF NOT EXISTS service_health(key TEXT PRIMARY KEY,value TEXT NOT NULL);
 '''
 
+def poison_conflicts(method):
+    from functools import wraps
+    @wraps(method)
+    def guarded(self,*args,**kwargs):
+        try:return method(self,*args,**kwargs)
+        except EvidenceConflict:
+            with self.writer.transaction():
+                self.writer.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
+                self.writer._count('source_conflicts')
+            raise
+    return guarded
+
 class FinalizedFence:
     def __init__(self,writer,*,endpoint_identity,decoders=None):
         self.writer=writer;self.endpoint_identity=endpoint_identity
         self.decoders=decoders or {};self.session=uuid.uuid4().hex
         writer.db.executescript(SERVICE_SCHEMA)
+        if writer.db.execute('SELECT 1 FROM stream_receipts LIMIT 1').fetchone():self.disconnect('service_restart')
+        with writer.transaction():
+            for key in ('pump.foreground_historical_rpc_calls','meteora.historical_reconstruction_rpc_calls'):
+                writer.db.execute('INSERT OR IGNORE INTO counters VALUES(?,0)',(key,))
 
     def disconnect(self,reason='stream_disconnect'):
         bounds=dict(self.writer.db.execute('SELECT scope,slot+1 FROM cursors'))
@@ -52,6 +68,7 @@ class FinalizedFence:
             self.writer.db.execute('INSERT OR IGNORE INTO stream_deliveries VALUES(?,?,?,?,?)',
                 (scope,slot,signature,checksum,seen))
 
+    @poison_conflicts
     def logs(self,subscription,message,seen):
         result=message['params']['result'];slot=result['context']['slot'];v=result['value']
         decoder=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,
@@ -63,6 +80,7 @@ class FinalizedFence:
         self._delivery(subscription.scope,slot,v['signature'],v,seen)
         self.seal(subscription.scope,seen)
 
+    @poison_conflicts
     def block(self,subscription,message,seen):
         value=message['params']['result']['value'];slot=value['slot'];block=value.get('block')
         if value.get('err') is not None or not isinstance(block,dict):
@@ -249,7 +267,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                     while not stop.is_set():
                         # Durable interests survive consumer/service restarts. Account
                         # observations remain content only, never interval authority.
-                        interests=writer.db.execute("SELECT DISTINCT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 ORDER BY i.priority LIMIT 256").fetchall()
+                        interests=writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 GROUP BY s.address ORDER BY MIN(i.priority),s.address LIMIT 256").fetchall()
                         wanted={r[0] for r in interests}
                         for sid,sub in list(active.items()):
                             if sub.evidence_class=='account' and sub.address not in wanted:
@@ -301,7 +319,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                             with writer.transaction():
                                 writer.db.execute('UPDATE gaps SET attempts=attempts+1 WHERE id=?',(gid,))
                                 writer._count('gap_repair_calls')
-                            value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[sub.address,cfg],False)
+                            active=writer.db.execute("SELECT 1 FROM interests WHERE scope=? AND active=1 AND lifecycle IN ('candidate','reserved','open') LIMIT 1",(scope,)).fetchone()
+                            value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[sub.address,cfg],bool(active))
                             # Apply through the same bounded durable repair boundary.
                             class ReceiptRPC:
                                 def call(self,*args):return value
@@ -311,7 +330,20 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                             with writer.transaction():writer._count('gap_repair_failures')
             try:await asyncio.wait_for(stop.wait(),1)
             except TimeoutError:pass
-    tasks=[asyncio.create_task(stream_source()),asyncio.create_task(repair_worker())]
+    async def maintenance():
+        while not stop.is_set():
+            # Candidate interests have bounded leases; unresolved money/lifecycle
+            # interests never expire. No archive slice runs ahead of a reservation.
+            now=time.time()
+            with writer.transaction():
+                writer.db.execute("UPDATE interests SET active=0 WHERE lifecycle IN ('candidate','research') AND updated<?",(now-1200,))
+                writer.db.execute('DELETE FROM service_interests WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
+                writer.db.execute('DELETE FROM interests WHERE active=0 AND updated<?',(now-7200,))
+            if not writer.db.execute("SELECT 1 FROM interests WHERE active=1 AND lifecycle='reserved' LIMIT 1").fetchone():
+                writer.retain(now-7200,max_records=256)
+            try:await asyncio.wait_for(stop.wait(),5)
+            except TimeoutError:pass
+    tasks=[asyncio.create_task(stream_source()),asyncio.create_task(repair_worker()),asyncio.create_task(maintenance())]
     try:
         stopper=asyncio.create_task(stop.wait())
         done,_=await asyncio.wait([stopper,*tasks],return_when=asyncio.FIRST_COMPLETED)

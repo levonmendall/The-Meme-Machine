@@ -1,3 +1,73 @@
+diff --git a/meme_machine/durable_publication.py b/meme_machine/durable_publication.py
+index ad3d3fbcbaade911d15b4d573f55807b08a3d45e..856b42ae763c0f8a16e9174c87f778aa54854a55 100644
+--- a/meme_machine/durable_publication.py
++++ b/meme_machine/durable_publication.py
+@@ -23,12 +23,13 @@ def publish_json(path,value):
+     publish_bytes(path,(json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)+'\n').encode())
+ 
+ 
+-def publish_report(path,value):
++def publish_report(path,value,*,asynchronous=False):
+     """Export failure has no authority to cancel, settle or stop a lifecycle.
+ 
+     Return explicit diagnostics for the caller to include in its next report.
+     Canonical accounting/state writes MUST NOT use this best-effort interface.
+     """
++    if asynchronous:return background_report(path,value)
+     try:
+         publish_json(path,value)
+         return {'published':True,'error':None}
+@@ -36,3 +37,50 @@ def publish_report(path,value):
+         # A concurrent diagnostic dict change can invalidate one serialization.
+         # Preserve the previous complete report and all independent journals.
+         return {'published':False,'error':type(exc).__name__}
++
++
++class ReportPublisher:
++    """One bounded latest-snapshot mailbox; report I/O cannot hold a lane thread."""
++    def __init__(self,path):
++        import threading,queue
++        self.path=Path(path);self.queue=queue.Queue(maxsize=1);self.stop=threading.Event()
++        self.result={'published':False,'pending':False,'error':None};self.dropped=0
++        self.thread=threading.Thread(target=self._run,name='report-publisher',daemon=True);self.thread.start()
++    def submit(self,value):
++        import copy,queue
++        try:snapshot=copy.deepcopy(value)
++        except (RuntimeError,TypeError,ValueError) as exc:return dict(published=False,error=type(exc).__name__)
++        try:self.queue.put_nowait(snapshot)
++        except queue.Full:
++            try:self.queue.get_nowait();self.queue.task_done();self.dropped+=1
++            except queue.Empty:pass
++            try:self.queue.put_nowait(snapshot)
++            except queue.Full:self.dropped+=1
++        return dict(self.result,pending=True,superseded_reports=self.dropped)
++    def _run(self):
++        import queue
++        while not self.stop.is_set() or not self.queue.empty():
++            try:value=self.queue.get(timeout=.1)
++            except queue.Empty:continue
++            try:self.result=publish_report(self.path,value)
++            except BaseException as exc:self.result=dict(published=False,error=type(exc).__name__)
++            finally:self.queue.task_done()
++    def close(self,timeout=.25):
++        self.stop.set();self.thread.join(timeout=timeout)
++        return not self.thread.is_alive()
++
++_publishers={}
++
++def background_report(path,value):
++    key=str(Path(path).resolve())
++    publisher=_publishers.get(key)
++    if publisher is None:
++        if len(_publishers)>=4:return dict(published=False,error='publisher_registry_bound')
++        publisher=_publishers[key]=ReportPublisher(path)
++    return publisher.submit(value)
++
++def flush_reports(timeout=.25):
++    for publisher in _publishers.values():publisher.close(timeout)
++
++import atexit
++atexit.register(flush_reports)
 diff --git a/meme_machine/paper_accounting.py b/meme_machine/paper_accounting.py
 index 0cc6cee33637a7d52fd2aac10b521a9d5dcadb9e..ad8d10bea4901521ca2e15787a5c29c93d59ce30 100644
 --- a/meme_machine/paper_accounting.py
@@ -131,10 +201,10 @@ index 0000000000000000000000000000000000000000..0020dec7facf85e60b18868b68807b18
 +        reader=ConcentrationReader(cached),ensure=lambda *_:None)
 diff --git a/meme_machine/solana_evidence_plane.py b/meme_machine/solana_evidence_plane.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8cecaa828e2
+index 0000000000000000000000000000000000000000..d03febc9db1b9a449fb1570124cf16a189a64f8b
 --- /dev/null
 +++ b/meme_machine/solana_evidence_plane.py
-@@ -0,0 +1,525 @@
+@@ -0,0 +1,580 @@
 +"""Transactional finalized evidence, independent of strategy/lifecycle authority.
 +
 +No network access, signing, economic policy, or implicit coverage inference lives
@@ -305,6 +375,7 @@ index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8ce
 +            raise EvidenceUnavailable('evidence_writer_already_running') from None
 +        try:
 +            self.db = sqlite3.connect(self.path, isolation_level=None, timeout=5)
++            self.db.execute('PRAGMA auto_vacuum=INCREMENTAL')
 +            self.db.execute('PRAGMA journal_mode=WAL')
 +            self.db.execute('PRAGMA synchronous=FULL')
 +            self.db.execute('PRAGMA foreign_keys=ON')
@@ -365,9 +436,13 @@ index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8ce
 +                self.db.execute('UPDATE gaps SET hi=? WHERE id=?', (max(lo, lower_slot), identity))
 +
 +    def ingest(self, records, *, proof=None, repair_receipt=None):
++        self._check()
 +        records = tuple(records)
 +        if len(records) > 2048:
 +            raise EvidenceUnavailable('ingestion_batch_bound')
++        for record in records:
++            floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+record.scope,)).fetchone()
++            if floor and record.slot<int(floor[0]):raise EvidenceUnavailable('record_below_hot_retention_floor')
 +        bodies = [(record, record.body()) for record in records]
 +        if sum(len(canonical(body).encode()) for _, body in bodies) > 16 * 1024 * 1024:
 +            raise EvidenceUnavailable('ingestion_payload_bound')
@@ -479,13 +554,16 @@ index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8ce
 +        if not 1 <= max_records <= 1000:
 +            raise EvidenceUnavailable('archive_batch_bound')
 +        rows = self.db.execute('''SELECT r.identity,r.body,r.hash FROM records r
-+          WHERE r.body IS NOT NULL AND r.market_time < ?
++          WHERE r.body IS NOT NULL AND COALESCE(r.market_time,r.first_seen) < ?
 +          AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.active=1
 +             AND i.scope=r.scope AND r.slot>=i.lower_slot)
-+          ORDER BY r.market_time,r.identity LIMIT ?''', (before_time, max_records)).fetchall()
++          AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
++              AND r.slot>=g.lo)
++          ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records)).fetchall()
 +        if not rows:
 +            return 0
-+        raw = ('\n'.join(canonical(dict(identity=k, body=json.loads(b), hash=h)) for k, b, h in rows) + '\n').encode()
++        raw = ('\n'.join(canonical(dict(identity=k,body=json.loads(b),hash=h,
++            lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))])) for k,b,h in rows)+'\n').encode()
 +        compressed = gzip.compress(raw, mtime=0)
 +        checksum = hashlib.sha256(compressed).hexdigest()
 +        directory = self.path.parent / (self.path.name + '.archive')
@@ -493,10 +571,48 @@ index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8ce
 +        target = directory / (checksum + '.jsonl.gz')
 +        publish_bytes(target, compressed)
 +        with self.transaction():
-+            self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)', (target.name, checksum, len(compressed), len(rows)))
++            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)', (target.name, checksum, len(compressed), len(rows))).rowcount
++            if added:self._count('archive_bytes',len(compressed))
 +            self.db.executemany('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=?', [(target.name, k, h) for k, _, h in rows])
 +            self._count('archived_records', len(rows))
 +        return len(rows)
++
++    def retain(self, before_time, *, max_records=1000):
++        """One bounded maintenance slice, preserving every unresolved lifecycle/gap.
++
++        Old immutable payloads and provenance are durable before index removal.
++        A monotone floor rejects reintroduction of pruned history; offline replay
++        uses a separate store. No consumer can grant coverage below that floor.
++        """
++        archived=self.archive(before_time,max_records=max_records)
++        with self.transaction():
++            for scope,top in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
++                floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
++                floor=top+1 if floor is None else floor
++                pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
++                if pins:floor=min(floor,min(pins))
++                old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
++                floor=max(int(old[0]) if old else 0,floor)
++                ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,max_records))]
++                for identity in ids:
++                    self.db.execute('DELETE FROM lineage WHERE identity=?',(identity,))
++                    self.db.execute('DELETE FROM addresses WHERE identity=?',(identity,))
++                    self.db.execute('DELETE FROM records WHERE identity=?',(identity,))
++                self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
++                self.db.execute('DELETE FROM coverage WHERE scope=? AND hi<?',(scope,floor))
++                self.db.execute('DELETE FROM gaps WHERE scope=? AND hi<? AND repaired IS NOT NULL',(scope,floor))
++                for table in ('stream_receipts','stream_deliveries','stream_order'):
++                    if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(table,)).fetchone():
++                        self.db.execute('DELETE FROM '+table+' WHERE scope=? AND slot<?',(scope,floor))
++                self._count('compacted_records',len(ids))
++            # The archive directory is the immutable content-addressed inventory;
++            # old completed hot manifests need not grow without bound.
++            self.db.execute('DELETE FROM archives WHERE name NOT IN (SELECT DISTINCT archive FROM records WHERE archive IS NOT NULL)')
++        # PASSIVE cannot wait for readers. Pinned WAL bytes remain in telemetry and
++        # the existing hard capacity guard stops ingestion if they exhaust space.
++        self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
++        self.db.execute('PRAGMA incremental_vacuum(256)')
++        return archived
 +
 +    def close(self):
 +        self._check()
@@ -520,6 +636,8 @@ index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8ce
 +        self._healthy()
 +        if lower_slot < 0 or upper_slot < lower_slot:
 +            raise EvidenceUnavailable('invalid_query_window')
++        floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
++        if floor and lower_slot<int(floor[0]):return False
 +        # A later repair cannot rewrite a prospective decision's original cutoff.
 +        if self.db.execute('''SELECT 1 FROM gaps WHERE scope=? AND lo<=?
 +            AND (hi IS NULL OR hi>=?) AND created<=? AND (repaired IS NULL OR repaired>?) LIMIT 1''',
@@ -572,13 +690,20 @@ index 0000000000000000000000000000000000000000..d0ee0d9cf9cc319136a63192abe4d8ce
 +
 +    def telemetry(self):
 +        self._healthy()
-+        return dict(cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
++        health={}
++        if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='service_health'").fetchone():
++            health={k:json.loads(v) for k,v in self.db.execute('SELECT * FROM service_health')}
++        return dict(service_health=health,ingestion_lag_seconds={k:max(0,time.time()-v['time']) for k,v in health.items() if k.startswith('finalized_frontier:')},cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
 +            coverage_windows=self.db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],
 +            unresolved_gaps=self.db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],
 +            consumer_lag=[dict(owner=o, scope=s, slots=max(0, top-n), updated=t) for o,s,n,t,top in self.db.execute('SELECT c.owner,c.scope,c.slot,c.updated,r.slot FROM consumers c JOIN cursors r ON c.scope=r.scope')],
 +            counters=dict(self.db.execute('SELECT * FROM counters')), local_queries=self.queries,
 +            hot_bytes=sum(p.stat().st_size for p in (self.path, Path(str(self.path)+'-wal')) if p.exists()),
-+            archive_bytes=self.db.execute('SELECT COALESCE(SUM(bytes),0) FROM archives').fetchone()[0])
++            db_bytes=self.path.stat().st_size,
++            wal_bytes=(Path(str(self.path)+'-wal').stat().st_size if Path(str(self.path)+'-wal').exists() else 0),
++            interests=[dict(owner=o,scope=s,priority=p,lower_slot=l,lifecycle=k,updated=t) for o,s,p,l,k,a,t in self.db.execute('SELECT * FROM interests WHERE active=1')],
++            retention_floors={k.split(':',1)[1]:int(v) for k,v in self.db.execute("SELECT key,value FROM meta WHERE key LIKE 'retention_floor:%'")},
++            archive_bytes=(self.db.execute("SELECT value FROM counters WHERE key='archive_bytes'").fetchone() or [0])[0])
 +
 +    def close(self):
 +        self.db.close()
@@ -762,10 +887,10 @@ index 0000000000000000000000000000000000000000..6534ccad16fcd95f4340dc2e869ff3a9
 +                    historical_reconstruction_rpc_count=self.historical_reconstruction_rpc)
 diff --git a/meme_machine/solana_evidence_runtime.py b/meme_machine/solana_evidence_runtime.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..8bae1d2ca7b59e505cd0845341e5f9bc1f83a671
+index 0000000000000000000000000000000000000000..322aa445020795b6d263ea9e36b932ac994f9ce9
 --- /dev/null
 +++ b/meme_machine/solana_evidence_runtime.py
-@@ -0,0 +1,151 @@
+@@ -0,0 +1,166 @@
 +"""Read-only production consumer and bounded lifecycle-interest IPC.
 +
 +This module has no historical provider dependency and no writer/proof interface.
@@ -829,15 +954,27 @@ index 0000000000000000000000000000000000000000..8bae1d2ca7b59e505cd0845341e5f9bc
 +        else:hi=(upper_slot,)
 +        if not lo or not hi:raise EvidenceUnavailable('evidence_time_boundary_unavailable')
 +        return lo[0],hi[0]
++    def acknowledge(self,scope,slot):
++        owner=self.owner+':'+scope
++        row=self.reader.db.execute('SELECT slot FROM consumers WHERE owner=?',(owner,)).fetchone()
++        if row is None or slot>=row[0]:self.command(op='ack',owner=owner,scope=scope,slot=slot)
 +    def pump_events(self,scope,address,lower_time,upper_time,*,upper_slot=None):
 +        try:
 +            lo,hi=self.bounds(scope,lower_time,upper_time,upper_slot=upper_slot)
-+            return PumpEvidenceView(self.reader,scope).events(address,lower_slot=lo,upper_slot=hi,
++            events=PumpEvidenceView(self.reader,scope).events(address,lower_slot=lo,upper_slot=hi,
 +                lower_time=lower_time,upper_time=upper_time,as_of=self.clock())
++            self.acknowledge(scope,hi);return events
 +        except EvidenceUnavailable:
 +            self.count('pump.gap_blocked_queries');raise
++    def meteora_scope(self,pool):
++        scoped='pool:meteora:'+pool
++        if self.reader.db.execute('SELECT 1 FROM coverage WHERE scope=? LIMIT 1',(scoped,)).fetchone():return scoped
++        return METEORA_SCOPE
 +    def meteora_interval(self,pool,start,end):
-+        try:return MeteoraEvidenceView(self.reader,METEORA_SCOPE).interval(pool,start_slot=start,end_slot=end,as_of=self.clock())
++        try:
++            scope=self.meteora_scope(pool)
++            result=MeteoraEvidenceView(self.reader,scope).interval(pool,start_slot=start,end_slot=end,as_of=self.clock())
++            self.acknowledge(scope,end);return result
 +        except EvidenceUnavailable:
 +            self.count('meteora.gap_blocked_reconstructions');raise
 +    def telemetry(self):return dict(self.reader.telemetry(),lane_counters=dict(self.counts))
@@ -878,30 +1015,33 @@ index 0000000000000000000000000000000000000000..8bae1d2ca7b59e505cd0845341e5f9bc
 +        rows=self.plane.pump_events(PUMP_SCOPE,mint,int(now)-60,int(now),upper_slot=max_slot)
 +        return [e for e in rows if e.get('event_type')!='create']
 +    def creation(self,mint):
-+        rows=self.plane.reader.db.execute('''SELECT r.body FROM addresses a JOIN records r ON r.identity=a.identity
++        rows=self.plane.reader.db.execute('''SELECT r.body,r.first_seen FROM addresses a JOIN records r ON r.identity=a.identity
 +            WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY a.slot DESC LIMIT 1000''',
 +            (mint,PUMP_SCOPE,self.plane.clock()))
-+        for raw, in rows:
++        for raw,seen in rows:
 +            if raw:
 +                event=json.loads(raw)['payload'].get('event',{})
-+                if event.get('event_type')=='create':return event
++                if event.get('event_type')=='create':return dict(event,available_time=int(seen))
 +        return None
 +    def events_since(self,sequence):
 +        hi=self.plane.frontier(PUMP_SCOPE)
-+        rows=self.plane.reader.db.execute('''SELECT rowid,body FROM records WHERE scope=? AND kind='event'
++        rows=self.plane.reader.db.execute('''SELECT rowid,body,slot FROM records WHERE scope=? AND kind='event'
 +            AND rowid>? AND slot<=? AND first_seen<=? ORDER BY rowid LIMIT 5000''',
 +            (PUMP_SCOPE,sequence,hi,self.plane.clock())).fetchall()
 +        events=[]
-+        for seq,raw in rows:
++        for seq,raw,slot in rows:
 +            if raw is None:raise EvidenceUnavailable('pump_consumer_backlog_archived')
 +            event=json.loads(raw)['payload']['event']
 +            if event.get('event_type')!='create':events.append(event)
 +            sequence=seq
-+        if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=hi)
++        if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=rows[-1][2])
 +        return events,sequence
 +    def covered(self,now=None):
 +        try:
-+            hi=self.plane.frontier(PUMP_SCOPE);at=self.plane.block_time(hi)
++            hi=self.plane.frontier(PUMP_SCOPE)
++            row=self.plane.reader.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot<=? ORDER BY slot DESC LIMIT 1',(PUMP_SCOPE,hi)).fetchone()
++            if row is None:return False
++            at=row[0]
 +            lo,_=self.plane.bounds(PUMP_SCOPE,at-60,at,upper_slot=hi)
 +            return self.plane.reader.covered(PUMP_SCOPE,lo,hi,as_of=self.plane.clock())
 +        except EvidenceUnavailable:return False
@@ -919,10 +1059,10 @@ index 0000000000000000000000000000000000000000..8bae1d2ca7b59e505cd0845341e5f9bc
 +    def status(self):return self.plane.telemetry()
 diff --git a/meme_machine/solana_evidence_service.py b/meme_machine/solana_evidence_service.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b837821b03c
+index 0000000000000000000000000000000000000000..ca1321aa2c4617851e49cd94f2ef31c44144f90d
 --- /dev/null
 +++ b/meme_machine/solana_evidence_service.py
-@@ -0,0 +1,325 @@
+@@ -0,0 +1,357 @@
 +"""Finalized filtered-block fences over the existing single-writer evidence store.
 +
 +Only this source adapter can seal coverage. Consumers send lifecycle interests and
@@ -954,11 +1094,27 @@ index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b83
 +CREATE TABLE IF NOT EXISTS service_health(key TEXT PRIMARY KEY,value TEXT NOT NULL);
 +'''
 +
++def poison_conflicts(method):
++    from functools import wraps
++    @wraps(method)
++    def guarded(self,*args,**kwargs):
++        try:return method(self,*args,**kwargs)
++        except EvidenceConflict:
++            with self.writer.transaction():
++                self.writer.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
++                self.writer._count('source_conflicts')
++            raise
++    return guarded
++
 +class FinalizedFence:
 +    def __init__(self,writer,*,endpoint_identity,decoders=None):
 +        self.writer=writer;self.endpoint_identity=endpoint_identity
 +        self.decoders=decoders or {};self.session=uuid.uuid4().hex
 +        writer.db.executescript(SERVICE_SCHEMA)
++        if writer.db.execute('SELECT 1 FROM stream_receipts LIMIT 1').fetchone():self.disconnect('service_restart')
++        with writer.transaction():
++            for key in ('pump.foreground_historical_rpc_calls','meteora.historical_reconstruction_rpc_calls'):
++                writer.db.execute('INSERT OR IGNORE INTO counters VALUES(?,0)',(key,))
 +
 +    def disconnect(self,reason='stream_disconnect'):
 +        bounds=dict(self.writer.db.execute('SELECT scope,slot+1 FROM cursors'))
@@ -977,6 +1133,7 @@ index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b83
 +            self.writer.db.execute('INSERT OR IGNORE INTO stream_deliveries VALUES(?,?,?,?,?)',
 +                (scope,slot,signature,checksum,seen))
 +
++    @poison_conflicts
 +    def logs(self,subscription,message,seen):
 +        result=message['params']['result'];slot=result['context']['slot'];v=result['value']
 +        decoder=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,
@@ -988,6 +1145,7 @@ index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b83
 +        self._delivery(subscription.scope,slot,v['signature'],v,seen)
 +        self.seal(subscription.scope,seen)
 +
++    @poison_conflicts
 +    def block(self,subscription,message,seen):
 +        value=message['params']['result']['value'];slot=value['slot'];block=value.get('block')
 +        if value.get('err') is not None or not isinstance(block,dict):
@@ -1174,7 +1332,7 @@ index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b83
 +                    while not stop.is_set():
 +                        # Durable interests survive consumer/service restarts. Account
 +                        # observations remain content only, never interval authority.
-+                        interests=writer.db.execute("SELECT DISTINCT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 ORDER BY i.priority LIMIT 256").fetchall()
++                        interests=writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 GROUP BY s.address ORDER BY MIN(i.priority),s.address LIMIT 256").fetchall()
 +                        wanted={r[0] for r in interests}
 +                        for sid,sub in list(active.items()):
 +                            if sub.evidence_class=='account' and sub.address not in wanted:
@@ -1226,7 +1384,8 @@ index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b83
 +                            with writer.transaction():
 +                                writer.db.execute('UPDATE gaps SET attempts=attempts+1 WHERE id=?',(gid,))
 +                                writer._count('gap_repair_calls')
-+                            value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[sub.address,cfg],False)
++                            active=writer.db.execute("SELECT 1 FROM interests WHERE scope=? AND active=1 AND lifecycle IN ('candidate','reserved','open') LIMIT 1",(scope,)).fetchone()
++                            value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[sub.address,cfg],bool(active))
 +                            # Apply through the same bounded durable repair boundary.
 +                            class ReceiptRPC:
 +                                def call(self,*args):return value
@@ -1236,7 +1395,20 @@ index 0000000000000000000000000000000000000000..7cf15f3009ec30bd889967a2c74d1b83
 +                            with writer.transaction():writer._count('gap_repair_failures')
 +            try:await asyncio.wait_for(stop.wait(),1)
 +            except TimeoutError:pass
-+    tasks=[asyncio.create_task(stream_source()),asyncio.create_task(repair_worker())]
++    async def maintenance():
++        while not stop.is_set():
++            # Candidate interests have bounded leases; unresolved money/lifecycle
++            # interests never expire. No archive slice runs ahead of a reservation.
++            now=time.time()
++            with writer.transaction():
++                writer.db.execute("UPDATE interests SET active=0 WHERE lifecycle IN ('candidate','research') AND updated<?",(now-1200,))
++                writer.db.execute('DELETE FROM service_interests WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
++                writer.db.execute('DELETE FROM interests WHERE active=0 AND updated<?',(now-7200,))
++            if not writer.db.execute("SELECT 1 FROM interests WHERE active=1 AND lifecycle='reserved' LIMIT 1").fetchone():
++                writer.retain(now-7200,max_records=256)
++            try:await asyncio.wait_for(stop.wait(),5)
++            except TimeoutError:pass
++    tasks=[asyncio.create_task(stream_source()),asyncio.create_task(repair_worker()),asyncio.create_task(maintenance())]
 +    try:
 +        stopper=asyncio.create_task(stop.wait())
 +        done,_=await asyncio.wait([stopper,*tasks],return_when=asyncio.FIRST_COMPLETED)
@@ -1440,7 +1612,7 @@ index 0000000000000000000000000000000000000000..b9bcb702c36491ded1cc648491f5e925
 +            dict(next=token,page_hashes=page_hashes,signatures=sorted(seen)), self.max_pages))
 +        return dict(complete=token is None,pages=pages+1,records=len(records))
 diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
-index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f576d9ffd 100644
+index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..3c987fbbcd02bb6357933c377f3cf1417d710344 100644
 --- a/tests/pump_acceleration_natural_prospective.py
 +++ b/tests/pump_acceleration_natural_prospective.py
 @@ -29,7 +29,7 @@ from meme_machine.pump_acceleration_evidence import (
@@ -1452,7 +1624,13 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
  from meme_machine.solana_evidence_consumers import StreamEvidenceService
  from meme_machine.pipeline import Pipeline,censor_class
  from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
-@@ -98,7 +98,7 @@ def _save(report):
+@@ -93,12 +93,12 @@ def _save(report):
+         report["accounting"]=ACCOUNTING.reconcile()
+         report["accounting_replay"]=ACCOUNTING.replay()
+     from meme_machine.durable_publication import publish_report
+-    report['publication']=publish_report(REPORT,report)
++    report['publication']=publish_report(REPORT,report,asynchronous=bool(os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')))
+ 
  
  class Sessions:
      def __init__(self):
@@ -1559,7 +1737,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
                  entry=dict(tokens=tokens,cost=cost,fee=quote.fee_amount,gas=GAS)
  
              basis=cost+GAS
-+            if life.book is not None:life.book.checkpoint_runtime(life.lifecycle_id,'fill_context',dict(entry=entry,concentration=int(row.get('last_concentration',0))))
++            if life.book is not None:life.book.checkpoint_runtime(life.lifecycle_id,'fill_context',dict(entry=entry,concentration=int(row.get('last_concentration',0)),reserved_fill_latency=dict(row.get('reserved_fill_latency',{}),total_seconds=int(snapshot['available_time'])-row['reserved_at'])))
              life.fill(tokens,basis,int(snapshot["available_time"]),surface,
                        evidence=dict(snapshot=snapshot,entry=entry))
 +            if getattr(base_sessions,'plane',None) is not None:
@@ -1568,7 +1746,38 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
              active[key]=dict(
                  lifecycle=life,opened=int(snapshot["available_time"]),
                  next_monitor=int(snapshot["available_time"])+5,
-@@ -609,6 +647,16 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
+@@ -510,6 +548,8 @@ def _fill_pending(
+                 fill_slot=int(snapshot["slot"]),entry=entry,
+             )
+             _progress(mint,"entry_filled",lifecycle_id=life.lifecycle_id)
++            row['qualifier_row']['reserved_fill_latency']=dict(row.get('reserved_fill_latency',{}),total_seconds=int(snapshot['available_time'])-row['reserved_at'])
++            if getattr(base_sessions,'plane',None) is not None:base_sessions.plane.count('pump.reserved_fills')
+             pending.pop(key,None)
+         except (Unavailable,ValueError,KeyError,TypeError) as exc:
+             reason=str(exc) or type(exc).__name__
+@@ -524,6 +564,12 @@ def _fill_pending(
+                     pass
+                 row["qualifier_row"].update(
+                     entry_status="cancelled",cancelled_at=decision_now,entry_limitation=reason)
++                plane=getattr(base_sessions,'plane',None)
++                if plane is not None:
++                    cause='missing_current_state' if row.get('refresh_failed') or 'refresh' in row.get('qualifier_row',{}).get('last_fill_limitation','') else 'finalized_coverage_or_thesis'
++                    row['qualifier_row']['timeout_cause']=cause
++                    plane.count('pump.entry_cancelled.'+cause)
++                    if row.get('execution_context'):plane.command(op='release',owner=life.lifecycle_id,scope=row['execution_context']['scope'],resolved=True)
+                 pending.pop(key,None)
+             else:
+                 row["qualifier_row"]["last_fill_limitation"]=reason
+@@ -541,6 +587,8 @@ def _service_pending_entries(report,pending,active,sessions,postgrad,*,monitor):
+         if pending:time.sleep(1)
+ 
+ def _record_attempt(report,signal,q,stage,extra=None):
++    plane=(FILL_PERSISTENCE_CONTEXT or {}).get('plane')
++    if stage=='full_point_in_time' and plane is not None:plane.count('pump.decisions_fully_local')
+     if stage=="full_point_in_time":
+         _progress(signal.mint,"evidence_complete",mode=signal.phase,
+                   decision_at=signal.observed_at)
+@@ -609,6 +657,16 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                  if curve.complete or curve.real_token==0:
                      graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
                      handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
@@ -1585,7 +1794,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
                      life.authenticate_graduation(now,True)
                      snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
                      quote=sell_quote(snapshot,life.position.tokens)
-@@ -634,6 +682,7 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
+@@ -634,6 +692,7 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                  graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
                  handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
                  snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
@@ -1593,7 +1802,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
                  events=_refresh_pool_events(
                      state,sessions,now,research=False,
                      hydration_kind="position_monitor")
-@@ -688,6 +737,8 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
+@@ -688,6 +747,8 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                      exit_reason=closed["exit_reason"],
                      realized_quote_units=closed["realized_quote_units"],
                      marks=dict(row["marks"]),history=life.snapshot()["history"]))
@@ -1602,7 +1811,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
                  active.pop(key,None)
          except (Unavailable,ValueError,KeyError,TypeError) as exc:
              row.setdefault("monitor_failures",[]).append(dict(
-@@ -746,6 +797,54 @@ def _smoke_tail_should_exit(smoke_flat_tail,now,discovery_end,pending,active):
+@@ -746,6 +807,54 @@ def _smoke_tail_should_exit(smoke_flat_tail,now,discovery_end,pending,active):
      )
  
  
@@ -1657,7 +1866,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
  def main(*,campaign=False,discovery_seconds=None):
      global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT
      from meme_machine.paper_accounting import PaperBook
-@@ -762,7 +861,12 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -762,7 +871,12 @@ def main(*,campaign=False,discovery_seconds=None):
      run_id=os.environ.get("MM_CERTIFICATION_RUN_ID") or uuid.uuid4().hex
      accounting_path=REPORT.with_suffix(".accounting.sqlite3")
      if accounting_path.exists():
@@ -1671,7 +1880,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
      ACCOUNTING=PaperBook(str(accounting_path),run_id=run_id,lane=STRATEGY_ID,
                           policy_hash=actual_policy_hash,initial=INITIAL_LAMPORTS)
      PIPELINE=Pipeline(REPORT.with_suffix(".pipeline.sqlite"),"pump",actual_policy_hash)
-@@ -780,10 +884,9 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -780,10 +894,9 @@ def main(*,campaign=False,discovery_seconds=None):
              "late-curve RPC evaluation only after finalized-stream progress, "
              "trajectory, independent-demand and extension gates can qualify; "
              "post-graduation modes observe authenticated graduations within their entry horizons"),
@@ -1684,7 +1893,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
          curve_progress_definition="prospectively observed CreateEvent initial_real_token_reserves -> reserve depletion",
          velocity_window_seconds=30,extension_lookback_seconds=10,
          entry_budget_lamports=ENTRY_BUDGET,entry_fraction_bps=POLICY.entry_fraction_bps,
-@@ -804,34 +907,25 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -804,34 +917,25 @@ def main(*,campaign=False,discovery_seconds=None):
          report['operational_configuration'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
      _save(report)
  
@@ -1733,7 +1942,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
      )
      last_eval={};last_postgrad_eval={};last_save=0
      discovery_end=int(time.time())+discovery_seconds
-@@ -850,7 +944,9 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -850,7 +954,9 @@ def main(*,campaign=False,discovery_seconds=None):
                      smoke_flat_tail,now,discovery_end,pending,active):
                  report['smoke_tail_exit']='flat_after_discovery'
                  break
@@ -1744,7 +1953,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
              for event in fresh:
                  creation=tape.creation(event["mint"])
                  if creation is None:
-@@ -876,9 +972,8 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -876,9 +982,8 @@ def main(*,campaign=False,discovery_seconds=None):
                              mint=event["mint"],creation=state["creation"],
                              graduation_time=int(event["market_time"]),
                              pregrad_wallets=set(state["pregrad_wallets"]),pool=pool,
@@ -1756,7 +1965,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
                              history_status={},graduation_price=None,
                          )
                      else:
-@@ -940,6 +1035,7 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -940,6 +1045,7 @@ def main(*,campaign=False,discovery_seconds=None):
                      try:
                          sessions.ensure(25)
                          snapshot=sessions.pump.snapshot(mint,now,priority=True)
@@ -1764,7 +1973,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
                          ev=tape.window(mint,int(snapshot["market_time"]),max_slot=snapshot["slot"])
                          pre_signal,trajectory,confirmation=_late_signal(
                              creation,ev,snapshot,0,confirmations)
-@@ -1010,6 +1106,8 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -1010,6 +1116,8 @@ def main(*,campaign=False,discovery_seconds=None):
                      graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
                      handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
                      snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
@@ -1773,7 +1982,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
                      events=_refresh_pool_events(
                          state,sessions,now,
                          research=(age>=POLICY.min_second_leg_age_s))
-@@ -1136,7 +1234,7 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -1136,7 +1244,7 @@ def main(*,campaign=False,discovery_seconds=None):
                  _save(report);last_save=now
              time.sleep(1)
      finally:
@@ -1782,7 +1991,7 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
          if evidence_service:
              evidence_service.close()
              report['stream_evidence_sessions']=evidence_service.sessions
-@@ -1168,7 +1266,7 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -1168,7 +1276,7 @@ def main(*,campaign=False,discovery_seconds=None):
              for k,v in active.items()]
          report["threshold_changes_made"]=False
          _save(report)
@@ -1793,10 +2002,10 @@ index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..4103894b61b115b1f24c60bb7826b24f
          PIPELINE.close();PIPELINE=None
 diff --git a/tests/test_evidence_runtime_cutover.py b/tests/test_evidence_runtime_cutover.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..3dcd236a3cd6546f8d55386042cb62b2ccfb6e10
+index 0000000000000000000000000000000000000000..6cf75d43e1b6c7cfe2bd1574e1226f6d80ee3dbf
 --- /dev/null
 +++ b/tests/test_evidence_runtime_cutover.py
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,149 @@
 +"""Offline production-function gates. Stream contents are explicitly synthetic."""
 +from pathlib import Path
 +from types import SimpleNamespace
@@ -1813,7 +2022,8 @@ index 0000000000000000000000000000000000000000..3dcd236a3cd6546f8d55386042cb62b2
 +from meme_machine.provider import PumpAdapter
 +from meme_machine.postgrad import PostGraduationAdapter,WSOL,PUMPSWAP_PROGRAM
 +from tests import pump_acceleration_natural_prospective as lane
-+from tests.test_postgrad import *
++from tests.test_postgrad import MINT,CREATOR,pumpswap_pool,pumpswap_snapshot,pumpswap_pool_account,complete_pump_snapshot,mint_account,fee_config,token_account
++from meme_machine import pump
 +
 +class ProductionCutover(unittest.TestCase):
 +    def setUp(self):
@@ -1894,3 +2104,54 @@ index 0000000000000000000000000000000000000000..3dcd236a3cd6546f8d55386042cb62b2
 +        before=self.book.replay();restored=lane.restore_runtime(self.book,self.plane,ConfirmationBook({},60))
 +        self.assertFalse(restored[2]);self.assertEqual(len(restored[3]),1);self.assertEqual(self.book.replay(),before)
 +        self.assertTrue(report['qualifiers'][0]['fill_persistence']['persistent'])
++
++    def test_interrupted_refresh_claim_fails_closed_without_second_round(self):
++        report,pending=self.reserve();row=next(iter(pending.values()))
++        self.book.checkpoint_runtime(row['lifecycle'].lifecycle_id,'execution_refresh',{'attempted':True},claim=True)
++        restored=lane.restore_runtime(self.book,self.plane,ConfirmationBook({},60))[2]
++        session=SimpleNamespace(plane=self.plane)
++        session.prepare_reserved=lambda row:prepare_reserved(session,row,new_rpc=lambda **_:self.fail('duplicate physical refresh'))
++        with patch.object(lane.time,'time',return_value=104):
++            lane._fill_pending(report,restored,{},session,{MINT:self.state},104,confirmations=self.confirm)
++        self.assertEqual(len(restored),1);self.assertEqual(self.book.reconcile()['open_positions'],0)
++        self.assertEqual(next(iter(restored.values()))['qualifier_row']['last_fill_limitation'],'execution_refresh_interrupted')
++        with patch.object(lane.time,'time',return_value=120):
++            lane._fill_pending(report,restored,{},session,{MINT:self.state},120,confirmations=self.confirm)
++        self.assertFalse(restored);self.assertEqual(self.book.reconcile()['open_positions'],0)
++
++    def test_actual_main_uses_local_history_for_a_recovered_candidate(self):
++        import json
++        from unittest.mock import MagicMock
++        # A terminal journal entry retains authenticated discovery context. Startup
++        # reconstructs it without allowing a second reservation for the same entry.
++        self.book.close()
++        report_path=Path(self.temp.name)/'native.json'
++        self.book=PaperBook(report_path.with_suffix('.accounting.sqlite3'),run_id='gate',lane=lane.STRATEGY_ID,policy_hash=lane.policy_hash(),initial=lane.INITIAL_LAMPORTS)
++        report,pending=self.reserve();next(iter(pending.values()))['lifecycle'].cancel('offline_fixture_terminal',101)
++        before=self.book.replay()
++        current_calls=[];graduation=complete_pump_snapshot(now=100,retired=True);graduation['kind']='real'
++        def call(method,*a,**k):
++            current_calls.append(method)
++            if method!='getTokenLargestAccounts':raise AssertionError('historical provider call:'+method)
++            return dict(context=dict(slot=100),value=[])
++        session=SimpleNamespace(plane=self.plane,ensure=lambda *_:None,finish=lambda:None,history=[],
++            rpc=SimpleNamespace(call=call,provider_telemetry=lambda:{}),
++            postgrad=SimpleNamespace(graduation_snapshot=lambda *a,**k:graduation,pumpswap_snapshot=lambda *a,**k:self.snapshot),
++            execution_interest=lambda *a,**k:self.state['execution_context'])
++        runtime_plane=RuntimeEvidence(self.writer.path,owner='pump',clock=lambda:self.clock[0],command=self.fence.command)
++        self.clock[0]=104
++        def finish_iteration(_):self.clock[0]=10000
++        with patch.object(lane,'REPORT',report_path),patch.object(lane,'RuntimeEvidence',return_value=runtime_plane), \
++             patch.object(lane,'Sessions',return_value=session),patch.object(lane,'PumpLogStream') as stream, \
++             patch.object(lane,'primary_rpc_url',return_value='https://solana-mainnet.g.alchemy.com/v2/offline-fixture'), \
++             patch.object(lane.ConfirmationBook,'from_files',return_value=self.confirm), \
++             patch.object(lane.LocalPumpTape,'events_since',return_value=([],0)),patch.object(lane.LocalPumpTape,'covered',return_value=False), \
++             patch.object(lane.time,'time',side_effect=lambda:self.clock[0]),patch.object(lane.time,'sleep',side_effect=finish_iteration), \
++             patch.dict(lane.os.environ,{'MM_SOLANA_EVIDENCE_BROKER_DB':str(Path(self.temp.name)/'broker')}),patch('builtins.print'):
++            stream.return_value.run.side_effect=lambda stop,ready:ready.set()
++            lane.main(discovery_seconds=600)
++        result=json.loads(report_path.read_text())
++        self.assertEqual(len(result['full_evidence_candidates']),1,result['attempts'])
++        self.assertTrue(result['full_evidence_candidates'][0]['qualified'])
++        self.assertEqual(current_calls,['getTokenLargestAccounts'])
++        self.assertEqual(self.book.replay(),before)

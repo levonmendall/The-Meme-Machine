@@ -47,6 +47,16 @@ class RetainedMeteoraRecovery(unittest.TestCase):
         with patch('meme_machine.durable_publication.os.replace',side_effect=OSError('publisher_interrupted')):
             self.assertFalse(publish_report(Path(self.temp.name)/'report.json',state)['published'])
         self.assertEqual(self.recover(),state);self.assertEqual(self.book.reconcile(),before)
+    def test_real_resumed_monitor_crash_does_not_append_duplicate_entry(self):
+        before=self.book.reconcile();state=self.recover()
+        for boundary in ('evidence','consumer','lifecycle','publisher'):
+            with patch.object(self.native,'_rotate',side_effect=lambda a,*args:a),patch.object(self.native,'_recover_position_observation',side_effect=KeyboardInterrupt(boundary)):
+                with self.assertRaises(KeyboardInterrupt):
+                    self.native._position_lifecycle(None,state['entry']['pool'],state['entry'],state['features'],
+                        state['policy'],None,[],book=self.book,identity=state['identity'],recovered=state)
+            self.assertEqual(self.book.reconcile(),before)
+            self.assertEqual(self.recover(),state)
+
     def test_foreign_policy_cannot_recover_retained_position(self):
         from meme_machine.dlmm_independent_accounting import PaperBook
         with self.assertRaisesRegex(ValueError,'genesis_mismatch'):
