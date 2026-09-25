@@ -59,7 +59,12 @@ class Governor:
             db.execute('BEGIN IMMEDIATE')
             db.execute('DELETE FROM queue WHERE created<=?',(started-30,))
             if db.execute('SELECT COUNT(*) FROM queue WHERE provider=?',(provider,)).fetchone()[0]>=256:
-                reason='queue_capacity';db.execute('ROLLBACK');raise TimeoutError('certification_provider_queue_capacity')
+                victim=(db.execute('SELECT id FROM queue WHERE provider=? AND priority>=50 ORDER BY priority DESC,created DESC LIMIT 1',(provider,)).fetchone()
+                        if provider=='solana' and priority in (0,1) else None)
+                if victim:
+                    db.execute('DELETE FROM queue WHERE id=?',victim)
+                else:
+                    reason='queue_capacity';db.execute('ROLLBACK');raise TimeoutError('certification_provider_queue_capacity')
             db.execute('INSERT INTO queue(id,provider,lane,priority,created,deadline) VALUES(?,?,?,?,?,?)',(identity,provider,lane,priority,started,started+deadline_seconds))
             db.execute('COMMIT')
             while True:
@@ -68,6 +73,9 @@ class Governor:
                 db.execute('BEGIN IMMEDIATE')
                 try:
                     db.execute('DELETE FROM queue WHERE created<=?',(now-30,))
+                    if not db.execute('SELECT 1 FROM queue WHERE id=?',(identity,)).fetchone():
+                        reason='background_preempted';db.execute('COMMIT')
+                        raise TimeoutError('certification_background_preempted')
                     head=self._head(db,provider,now)
                     next_at,cooldown=db.execute('SELECT next_at,cooldown FROM pressure WHERE provider=?',(provider,)).fetchone()
                     method_rows=(db.execute(
@@ -119,7 +127,16 @@ class Governor:
         methods=self._methods(methods);now=time.monotonic()
         with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
             db.execute('INSERT OR IGNORE INTO pressure VALUES(?,0,0,0,0)',(provider,))
-            db.execute('UPDATE pressure SET cooldown=MAX(cooldown,?),rate_errors=rate_errors+1 WHERE provider=?',(now+8,provider))
+            # The accepted v10 hour showed all Solana rate errors isolated to
+            # getSignaturesForAddress while unrelated methods remained healthy.
+            # Preserve the physical request ceiling and the existing 15/30/60s
+            # method backoff, but do not globally stall unrelated foreground reads
+            # for a demonstrably method-scoped signature-history throttle.
+            method_scoped_signature_limit=(methods==('getSignaturesForAddress',))
+            if method_scoped_signature_limit:
+                db.execute('UPDATE pressure SET rate_errors=rate_errors+1 WHERE provider=?',(provider,))
+            else:
+                db.execute('UPDATE pressure SET cooldown=MAX(cooldown,?),rate_errors=rate_errors+1 WHERE provider=?',(now+8,provider))
             for method in methods:
                 row=db.execute('SELECT cooldown,rate_errors,rate_streak FROM method_pressure WHERE provider=? AND method=?',
                                (provider,method)).fetchone()

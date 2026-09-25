@@ -1,7 +1,6 @@
 name: four-lane-certification
+run-name: ${{ inputs.program && format('Prospective {0}', inputs.dispatch_id) || github.event.head_commit.message || 'Four-lane paper certification' }}
 on:
-  push:
-    branches: [cert/one-hour-repair-campaign, cert/dlmm-machinery-proof-current, repair/solana-alchemy-efficiency, repair/frozen-campaign-handoff]
   workflow_dispatch:
     inputs:
       phase:
@@ -10,30 +9,95 @@ on:
         default: smoke
         type: choice
         options: [smoke, hourly]
+      single_campaign:
+        description: Explicit one-workflow owner authorization; no continuation or successor
+        type: boolean
+        default: false
+      authorization_id:
+        description: Frozen single-campaign owner authorization identity
+        type: string
+      program:
+        description: Continue the explicitly authorized frozen prospective program
+        type: boolean
+        default: false
+      dispatch_id:
+        description: Durable program dispatch identity
+        type: string
+      expected_sha:
+        description: Exact certified runtime SHA
+        type: string
+      certification_run_id:
+        description: Run containing the full exact-SHA non-market certificate
+        type: string
+      smoke_run_id:
+        description: Previously admitted exact-SHA smoke with every original position verified flat
+        type: string
 permissions:
-  contents: read
-  actions: read
+  contents: write
+  actions: write
   checks: write
 concurrency:
   group: meme-machine-four-lane-certification
   cancel-in-progress: ${{ github.event_name == 'push' && github.event.head_commit.message == '[cancel-runs]' }}
+env:
+  SINGLE_CAMPAIGN: ${{ inputs.single_campaign }}
+  SINGLE_AUTHORIZATION_ID: ${{ inputs.authorization_id }}
+  SINGLE_PROGRAM_MODE: ${{ inputs.program }}
+  SINGLE_SMOKE_RUN_ID: ${{ inputs.smoke_run_id }}
+  SINGLE_REQUESTED_PHASE: ${{ inputs.phase }}
+  EXPECTED_SHA: ${{ inputs.expected_sha }}
+  DISPATCH_ID: ${{ inputs.dispatch_id }}
 jobs:
+  single-campaign-authority:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Claim one exact certified workflow before any provider work
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m certification.single_campaign_control claim --output single-campaign-claim.json
+      - name: Preserve claimed authority
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: single-campaign-claim-${{ github.run_id }}-${{ github.run_attempt }}
+          path: single-campaign-claim.json
+          if-no-files-found: warn
+          retention-days: 90
   concurrent-smoke:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[four-lane-smoke]') || contains(github.event.head_commit.message, '[four-lane-hourly]')
+    needs: single-campaign-authority
+    if: needs.single-campaign-authority.result == 'success' && inputs.single_campaign == true && inputs.smoke_run_id == ''
     runs-on: ubuntu-24.04
     timeout-minutes: 135
     outputs:
       readiness: ${{ steps.readiness.outputs.readiness }}
+      pending_positions: ${{ steps.readiness.outputs.pending_positions }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ inputs.expected_sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Claim the durable exact-SHA campaign dispatch
+        if: inputs.program == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          DISPATCH_ID: ${{ inputs.dispatch_id }}
+        run: python -m certification.prospective_program claim
       - name: Supervisor, accounting and cross-process capacity regressions
+        if: inputs.program != true && inputs.single_campaign != true
         run: |
           mkdir -p certification-gates
           set -o pipefail
@@ -41,12 +105,32 @@ jobs:
           python -m unittest discover -s certification/tests -v 2>&1 | tee certification-gates/supervisor-tests.log
       - name: Create isolated exact-source worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/four-lane-worktrees"
+      - name: Reuse the full exact-SHA certificate after verifying prepared sources
+        if: inputs.program == true || inputs.single_campaign == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: python -m certification.prospective_program certificate --run-id '${{ inputs.certification_run_id }}' --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates/deterministic.json
       - name: Full deterministic lane suites and resource gates
+        if: inputs.program != true && inputs.single_campaign != true
         run: python -m certification.run verify --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates
+      - name: Consume the smoke phase exactly once
+        id: enter
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m certification.single_campaign_control begin-phase --phase smoke --output single-campaign-phase-start.json
+          echo entered=true >> "$GITHUB_OUTPUT"
       - name: Verify current heads and absence of competing market jobs
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -m certification.guard --wait-seconds 3600
+        run: python -m certification.guard --wait-seconds 0
+      - name: Secret-safe Solana and Robinhood chain binding
+        env:
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+        run: python -m certification.chain_binding --output certification-gates/chain-binding.json
       - name: Bounded existing-endpoint read-only capability probes
         env:
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
@@ -71,6 +155,15 @@ jobs:
       - name: Preserve smoke native ledgers before creating the hourly study
         if: always()
         run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact --evidence-root . --phase smoke --cancelled "${MM_ARCHIVE_CANCELLED:-false}"
+      - name: Replay frozen decisions and audit native breadth and continuity
+        if: always()
+        run: python -m certification.market_assurance --artifact certification-artifact --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact/assurance
+      - name: Preserve smoke exposure and consume its terminal phase
+        if: always() && steps.enter.outputs.entered == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PHASE_JOB_RESULT: ${{ job.status }}
+        run: python -m certification.single_campaign_control end-phase --phase smoke --result certification-smoke/result.json --job-result "$PHASE_JOB_RESULT" --output certification-artifact/single-campaign-phase.json
       - name: Preserve success and failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -80,14 +173,41 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  reused-smoke:
+    needs: single-campaign-authority
+    if: needs.single-campaign-authority.result == 'success' && inputs.single_campaign != true && inputs.program == true && inputs.smoke_run_id != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      readiness: ${{ steps.readiness.outputs.readiness }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Claim exact dispatch and verify preserved smoke with terminal native proofs
+        id: readiness
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          DISPATCH_ID: ${{ inputs.dispatch_id }}
+          SMOKE_RUN: ${{ inputs.smoke_run_id }}
+        run: |
+          python -m certification.prospective_program claim
+          python -m certification.smoke_continuation readiness --run-id "$SMOKE_RUN" --output smoke-readiness.json
+
   hourly-campaign:
-    needs: [concurrent-smoke, smoke-artifact-review]
-    if: inputs.phase == 'hourly' || contains(github.event.head_commit.message, '[four-lane-hourly]')
+    needs: [single-campaign-authority, concurrent-smoke, smoke-artifact-review, reused-smoke]
+    if: always() && !cancelled() && needs.single-campaign-authority.result == 'success' && inputs.single_campaign == true && (inputs.phase == 'hourly' || contains(github.event.head_commit.message, '[four-lane-hourly]')) && (needs.reused-smoke.result == 'success' || (needs.concurrent-smoke.result == 'success' && needs.smoke-artifact-review.result == 'success' && needs.concurrent-smoke.outputs.pending_positions == 'false'))
     runs-on: ubuntu-24.04
     timeout-minutes: 210
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ inputs.expected_sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -95,6 +215,7 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Supervisor, accounting and cross-process capacity regressions
+        if: inputs.program != true && inputs.single_campaign != true
         run: |
           mkdir -p certification-gates
           set -o pipefail
@@ -102,16 +223,36 @@ jobs:
           python -m unittest discover -s certification/tests -v 2>&1 | tee certification-gates/supervisor-tests.log
       - name: Create isolated exact-source worktrees
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/four-lane-worktrees"
+      - name: Reuse the full exact-SHA certificate after verifying prepared sources
+        if: inputs.program == true || inputs.single_campaign == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: python -m certification.prospective_program certificate --run-id '${{ inputs.certification_run_id }}' --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates/deterministic.json
       - name: Full deterministic lane suites and resource gates
+        if: inputs.program != true && inputs.single_campaign != true
         run: python -m certification.run verify --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates
+      - name: Consume the hourly phase exactly once
+        id: enter
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m certification.single_campaign_control begin-phase --phase hourly --output single-campaign-phase-start.json
+          echo entered=true >> "$GITHUB_OUTPUT"
       - name: Verify current heads and absence of competing market jobs
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -m certification.guard --wait-seconds 3600
+        run: python -m certification.guard --wait-seconds 0
       - name: Restore exact smoke readiness
         env:
-          SMOKE_READINESS: ${{ needs.concurrent-smoke.outputs.readiness }}
+          SMOKE_READINESS: ${{ needs.reused-smoke.outputs.readiness || needs.concurrent-smoke.outputs.readiness }}
         run: python -c 'import os,pathlib,json; value=json.loads(os.environ["SMOKE_READINESS"]); pathlib.Path("smoke-readiness.json").write_text(json.dumps(value))'
+      - name: Secret-safe Solana and Robinhood chain binding
+        env:
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+        run: python -m certification.chain_binding --output certification-gates/chain-binding.json
       - name: Bounded existing-endpoint read-only capability probes
         env:
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
@@ -133,6 +274,28 @@ jobs:
       - name: Preserve hourly native ledgers including per-asset Ramses books
         if: always()
         run: python -m certification.archive_native --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact --evidence-root . --phase hourly --cancelled "${MM_ARCHIVE_CANCELLED:-false}"
+      - name: Replay frozen decisions and audit native breadth and continuity
+        if: always()
+        run: python -m certification.market_assurance --artifact certification-artifact --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-artifact/assurance
+      - name: Record prospective economic block without selecting on outcome
+        if: always()
+        run: |
+          if [ -f certification-hourly/result.json ]; then
+            python -m certification.prospective_acceptance record \
+              --result certification-hourly/result.json \
+              --run-dir certification-artifact \
+              --chain-binding certification-gates/chain-binding.json \
+              --output certification-artifact/prospective-observation.json
+          fi
+          if [ -f certification-hourly-live-snapshots.jsonl ]; then
+            cp certification-hourly-live-snapshots.jsonl certification-artifact/
+          fi
+      - name: Preserve hourly exposure and consume its terminal phase
+        if: always() && steps.enter.outputs.entered == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PHASE_JOB_RESULT: ${{ job.status }}
+        run: python -m certification.single_campaign_control end-phase --phase hourly --result certification-hourly/result.json --job-result "$PHASE_JOB_RESULT" --output certification-artifact/single-campaign-phase.json
       - name: Preserve hourly success or failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -141,6 +304,33 @@ jobs:
           path: certification-artifact/
           if-no-files-found: error
           retention-days: 90
+      - name: Start position-only continuation for durable open long-horizon positions
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY' > /tmp/continuation-lanes
+          import json
+          from pathlib import Path
+          row=json.loads(Path("certification-hourly/result.json").read_text())
+          for lane in ("meteora","ramses"):
+              state=(row.get("lanes") or {}).get(lane) or {}
+              if int(state.get("open_positions") or 0)>0 and state.get("durable_handoff") is True:
+                  print(lane)
+          PY
+          while read -r lane; do
+            [ -n "$lane" ] || continue
+            gh workflow run position-continuation.yml \
+              --ref "$GITHUB_REF_NAME" \
+              -f lane="$lane" \
+              -f state_run_id="$GITHUB_RUN_ID" \
+              -f slice_seconds="3000" \
+              -f program="${{ inputs.program || false }}" \
+              -f expected_sha="$GITHUB_SHA" \
+              -f campaign_run_id="$GITHUB_RUN_ID" \
+              -f single_campaign="${{ inputs.single_campaign || false }}"
+          done < /tmp/continuation-lanes
 
   smoke-artifact-review:
     needs: concurrent-smoke
@@ -190,4 +380,71 @@ jobs:
           name: hourly-artifact-review-${{ github.run_id }}-${{ github.run_attempt }}
           path: frozen-review/
           if-no-files-found: error
+          retention-days: 90
+
+  prospective-program-transition:
+    needs: [single-campaign-authority, concurrent-smoke, hourly-campaign, smoke-artifact-review, hourly-artifact-review, reused-smoke]
+    if: always() && needs.single-campaign-authority.result == 'success' && inputs.single_campaign != true && inputs.program == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Preserve the block and continue only after engineering and accounting pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          HOURLY_REVIEW: ${{ needs.hourly-artifact-review.result }}
+          SMOKE_REVIEW: ${{ needs.smoke-artifact-review.result }}
+          SMOKE_PENDING: ${{ needs.concurrent-smoke.outputs.pending_positions }}
+        run: |
+          set -euo pipefail
+          if [ "$SMOKE_REVIEW" = success ]; then
+            python -m certification.smoke_continuation register --run-id "$GITHUB_RUN_ID" --output program-checkpoint.json
+            if [ "$SMOKE_PENDING" = true ]; then exit 0; fi
+          fi
+          if [ "$HOURLY_REVIEW" != success ]; then
+            python -m certification.prospective_program halt --reason smoke_hourly_or_artifact_review_failed --output program-checkpoint.json
+            exit 0
+          fi
+          gh run download "$GITHUB_RUN_ID" -n "four-lane-hourly-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" -D program-evidence
+          python -m certification.prospective_program advance --base-reviewed --record program-evidence/prospective-observation.json --output program-checkpoint.json
+      - name: Preserve program transition evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: prospective-program-${{ github.run_id }}-${{ github.run_attempt }}
+          path: program-checkpoint.json
+          if-no-files-found: warn
+          retention-days: 90
+
+  single-campaign-terminal:
+    needs: [single-campaign-authority, concurrent-smoke, hourly-campaign, smoke-artifact-review, hourly-artifact-review]
+    if: always() && needs.single-campaign-authority.result == 'success' && inputs.single_campaign == true && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Halt consumed authorization with preserved native exposure
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m certification.single_campaign_control finish --output single-campaign-terminal.json
+      - name: Preserve single-workflow terminal handoff
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: single-campaign-terminal-${{ github.run_id }}-${{ github.run_attempt }}
+          path: single-campaign-terminal.json
+          if-no-files-found: warn
           retention-days: 90

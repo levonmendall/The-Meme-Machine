@@ -1,0 +1,268 @@
+diff --git a/meme_machine/pump_acceleration_history.py b/meme_machine/pump_acceleration_history.py
+--- a/meme_machine/pump_acceleration_history.py
++++ b/meme_machine/pump_acceleration_history.py
+@@ -6,6 +6,8 @@ coverage and transaction coverage are tracked separately and both must be complete
+ """
+ from __future__ import annotations
+ 
++import hashlib
++import json
+ import time
+ 
+ from .provider import Unavailable
+@@ -38,7 +40,11 @@ class IncrementalPumpSwapHistory:
+         self.stream_key=str(stream_key)
+         self.history_scope="pumpswap_history"
+         self.stream_pending_transactions=0
+-        self._pending_stream_slots={};self.stream_prefiltered_signatures=set()
++        self._pending_stream_slots={}
++        self.stream_prefiltered_signatures=set()
++        self.stream_authoritative_signatures=set()
++        self.stream_authoritative_events=0
++        self.stream_authority_fallbacks=0
+         self.stream_events_seen=0
+         self.stream_hydrated_transactions=0
+         self.stream_last_slot=0
+@@ -164,6 +170,54 @@ class IncrementalPumpSwapHistory:
+                 break
+         self._coverage()
+ 
++    def _finalized_stream_trade_evidence(self,row):
++        """Classify one finalized candidate-pool log notification.
++
++        Complete PumpSwap TradeEvent logs are authoritative only for the exact
++        fields carried by that program event. Missing/truncated/unsupported
++        PumpSwap program data remains a body-hydration fallback. Failed
++        transactions and complete logs with no target-pool event are safe
++        negatives.
++        """
++        payload=row.get("payload") or {}
++        logs=payload.get("logs")
++        if not isinstance(logs,list) or not logs or not all(isinstance(x,str) for x in logs):
++            return "fallback",[]
++        if any("truncat" in line.lower() for line in logs):
++            return "fallback",[]
++        if payload.get("err") is not None:
++            return "negative",[]
++        slot=int(row["slot"])
++        tx={"slot":slot,"meta":{"err":None,"logMessages":logs}}
++        events=pumpswap_trade_events(tx)
++        target=[dict(event) for event in events if event.get("pool")==self.pool]
++        if target:
++            signature=str(row.get("signature") or "")
++            digest=hashlib.sha256(json.dumps(
++                payload,sort_keys=True,separators=(",",":")).encode()).hexdigest()
++            for event in target:
++                event.update(
++                    id=f'{signature}:{event["index"]}',
++                    evidence_source="finalized_pumpswap_program_log",
++                    evidence_signature=signature,
++                    evidence_payload_sha256=digest,
++                )
++            return "authoritative",target
++
++        # pumpswap_trade_events intentionally ignores unsupported event
++        # discriminators. If PumpSwap emitted program data that we did not
++        # understand, require the immutable transaction body rather than
++        # silently treating that notification as a negative.
++        stack=[];pump_data=False
++        for line in logs:
++            if line.startswith("Program ") and " invoke [" in line:
++                stack.append(line.split()[1])
++            elif line.startswith("Program ") and (" success" in line or " failed:" in line):
++                if stack:stack.pop()
++            elif line.startswith("Program data: ") and stack and stack[-1]==PUMPSWAP_PROGRAM:
++                pump_data=True
++        return ("fallback" if pump_data else "negative"),[]
++
+     def _ingest_stream_window(
+         self,rpc,now,window_seconds=30,hydration_kind="pump_window"
+     ):
+@@ -175,14 +234,24 @@ class IncrementalPumpSwapHistory:
+         signatures=[];slot_by_sig={}
+         for row in rows:
+             sig=row.get("signature")
+-            payload=row.get("payload") or {};logs=payload.get("logs")
+-            safe_negative=bool(isinstance(logs,list) and logs and not any("truncat" in str(x).lower() for x in logs) and not any(event.get("pool")==self.pool for event in pumpswap_trade_events({"slot":int(row["slot"]),"meta":{"err":payload.get("err"),"logMessages":logs}})))
+             if not isinstance(sig,str) or not sig:
+                 continue
+-            if safe_negative:self.stream_prefiltered_signatures.add(sig);continue
++            self.stream_last_slot=max(self.stream_last_slot,int(row["slot"]))
++            if sig in self.processed or sig in self.stream_prefiltered_signatures:
++                continue
++            proof,events=self._finalized_stream_trade_evidence(row)
++            if proof=="negative":
++                self.stream_prefiltered_signatures.add(sig)
++                continue
++            if proof=="authoritative":
++                self.processed.add(sig)
++                self.stream_authoritative_signatures.add(sig)
++                for event in events:self.events[event["id"]]=event
++                self.stream_authoritative_events+=len(events)
++                continue
++            self.stream_authority_fallbacks+=1
+             signatures.append(sig)
+             slot_by_sig[sig]=int(row["slot"])
+-            self.stream_last_slot=max(self.stream_last_slot,int(row["slot"]))
+         if not signatures:
+             self._pending_stream_slots={}
+             self.stream_pending_transactions=0
+@@ -487,6 +562,9 @@ class IncrementalPumpSwapHistory:
+             research_deferred_refreshes=self.research_deferred_refreshes,
+             stream_pending_transactions=self.stream_pending_transactions,
+             stream_events_seen=self.stream_events_seen,
++            stream_authoritative_signatures=len(self.stream_authoritative_signatures),
++            stream_authoritative_events=self.stream_authoritative_events,
++            stream_authority_fallbacks=self.stream_authority_fallbacks,
+             stream_prefiltered_signatures=len(self.stream_prefiltered_signatures),
+             stream_hydrated_transactions=self.stream_hydrated_transactions,
+             stream_last_slot=self.stream_last_slot,
+
+diff --git a/tests/test_pump_finalized_log_authority.py b/tests/test_pump_finalized_log_authority.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_pump_finalized_log_authority.py
+@@ -0,0 +1,143 @@
++"""Captured finalized PumpSwap log authority parity and fail-closed fallback."""
++import hashlib
++import json
++import unittest
++
++from meme_machine.pump_acceleration_evidence import pumpswap_trade_events
++from meme_machine.pump_acceleration_history import IncrementalPumpSwapHistory
++from meme_machine.solana_evidence_broker import EvidenceBroker
++
++SIGNATURE="2E3Z6Z3vsiVgiGsUCQuZuKCpTYNPz4W2GBppF1Fnn2ndUtRJb9fWRWvVf9E3c58Hxr7hm9pqoiKdSGAtobHjv7NE"
++POOL="CBGLkk9F86F9UzJwDD7njtgTeMmhy6Z3MdtnpBQxPiuQ"
++SLOT=450070471
++OBSERVED_AT=1790263985
++BLOCK_TIME=1790263976
++IMMUTABLE_TRANSACTION_SHA256="dd5bd6cc3a5b969a4a5b834daf027ac234897085eac0e2d16056786907467a67"
++LOGS=[
++    "Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA invoke [1]",
++    "Program log: Instruction: Buy",
++    "Program pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ invoke [2]",
++    "Program log: Instruction: GetFeesWithQuoteMint",
++    "Program pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ consumed 6079 of 216762 compute units",
++    "Program return: pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ FAAAAAAAAAAFAAAAAAAAAFUAAAAAAAAA",
++    "Program pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ success",
++    "Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb invoke [2]",
++    "Program log: Instruction: TransferChecked",
++    "Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb consumed 2562 of 206844 compute units",
++    "Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb success",
++    "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
++    "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 201779 compute units",
++    "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++    "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
++    "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 198907 compute units",
++    "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++    "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
++    "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 194680 compute units",
++    "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++    "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
++    "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 188651 compute units",
++    "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++    "Program data: Z/RSHyz1d3eoQrVqAAAAAO6adAgAAAAAzGUHAAAAAAAAAAAAAAAAAMxlBwAAAAAAKD9w8zRDAAB95VhiMwAAANz6BgAAAAAAFAAAAAAAAACTAwAAAAAAAAUAAAAAAAAA5QAAAAAAAABv/gYAAAAAAIUOBwAAAAAAphG1vqznPqG6YtdwLHpcqixcBpxVVfD8MYNRG7XdnOO33W0u7YDrYCYY2U2djqB6VOh0fDyABVVPviqAk1A2QZ8iz1rvHV/pdwyH8V8RIE3SjQ6z9HgnAi+jo5nVo1tidsMbqWiot9tAjSa3cnjysaZiV12UvfNCURquQSDTheaDhHQpLmdalLQ27LCpmIlCMoqD3cYjOAKWEmfFzWEXy6JjF6U7oP1oxMlT7DDw4JuOc2h1HLKBVIbK4+mdCvndCwBMJEFh1T8GDN/N1anVS/SHjJyzYqaOg5CqWLoQXtpVAAAAAAAAADEPAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7pp0CAAAAAADAAAAYnV5AAAAAAAAAAAAAAAAAAAAAIgTAAAAAAAAcgAAAAAAAADIQR4YBAAAAAAAAAAAAAAAAee6gZnzjAMAAAAAAAAAAAAAAAAAAAAAAA==",
++    "Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA invoke [2]",
++    "Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA consumed 2098 of 180705 compute units",
++    "Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA success",
++    "Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA consumed 80632 of 256882 compute units",
++    "Program pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA success",
++]
++EXPECTED=dict(
++    pool=POOL,
++    wallet="DNjSVAaqk16LmAAVKYRuddx31Bs6VRaVvrxKxZMmHZC4",
++    amount=457436,
++    tokens=141859566,
++    buy=True,
++    market_time=1790263976,
++    pool_base_reserve=73894701580072,
++    pool_quote_reserve=220693325181,
++    user_quote_amount=462469,
++    slot=SLOT,
++)
++CORE=tuple(EXPECTED)
++
++class NoRpc:
++    def call_many(self,*args,**kwargs):
++        raise AssertionError("complete finalized trade log must not request transaction body")
++
++class BodyRpc:
++    def __init__(self): self.calls=0
++    def call_many(self,method,params,*args,**kwargs):
++        self.calls+=1
++        assert method=="getTransaction"
++        body=dict(slot=SLOT,blockTime=BLOCK_TIME,
++                  meta=dict(err=None,logMessages=list(LOGS)))
++        return [dict(body) for _ in params]
++
++def body_events():
++    return pumpswap_trade_events(dict(
++        slot=SLOT,blockTime=BLOCK_TIME,
++        meta=dict(err=None,logMessages=list(LOGS))))
++
++def make_history(payload=None):
++    broker=EvidenceBroker(":memory:",clock=lambda:OBSERVED_AT,sleeper=lambda _:None)
++    key="pumpswap_pool:"+POOL
++    broker.stream_begin(key,OBSERVED_AT-31)
++    broker.record_event(
++        key,signature=SIGNATURE,address=POOL,slot=SLOT,
++        observed_at=OBSERVED_AT,
++        payload=dict(err=None,logs=list(LOGS)) if payload is None else payload)
++    return broker,IncrementalPumpSwapHistory(
++        POOL,OBSERVED_AT-60,broker=broker,stream_key=key)
++
++class FinalizedPumpSwapLogAuthorityTests(unittest.TestCase):
++    def test_captured_finalized_log_matches_immutable_body_event_exactly(self):
++        events=body_events()
++        self.assertEqual(len(events),1)
++        for key,value in EXPECTED.items():
++            self.assertEqual(events[0][key],value)
++        # Provenance: run 36020434038 smoke artifact 10819505196 retained the
++        # same finalized logMessages under the pinned immutable transaction hash.
++        self.assertEqual(len(IMMUTABLE_TRANSACTION_SHA256),64)
++
++    def test_complete_finalized_target_trade_uses_no_body_hydration(self):
++        broker,history=make_history();self.addCleanup(broker.close)
++        history._ingest_stream_window(NoRpc(),OBSERVED_AT)
++        self.assertIn(SIGNATURE,history.stream_authoritative_signatures)
++        self.assertIn(SIGNATURE,history.processed)
++        self.assertEqual(history.stream_pending_transactions,0)
++        self.assertEqual(history.stream_authoritative_events,1)
++        self.assertEqual(history.stream_hydrated_transactions,0)
++        self.assertTrue(history.decision_window_status(OBSERVED_AT,30)["complete"])
++        events=history.decision_rows(OBSERVED_AT,30)
++        self.assertEqual(len(events),1)
++        for key,value in EXPECTED.items():
++            self.assertEqual(events[0][key],value)
++        self.assertEqual(events[0]["evidence_source"],"finalized_pumpswap_program_log")
++        self.assertEqual(events[0]["evidence_signature"],SIGNATURE)
++        self.assertEqual(len(events[0]["evidence_payload_sha256"]),64)
++
++    def test_truncated_log_falls_back_to_immutable_transaction_body(self):
++        payload=dict(err=None,logs=list(LOGS)+["Log truncated"])
++        broker,history=make_history(payload);self.addCleanup(broker.close)
++        rpc=BodyRpc();history._ingest_stream_window(rpc,OBSERVED_AT)
++        self.assertEqual(rpc.calls,1)
++        self.assertNotIn(SIGNATURE,history.stream_authoritative_signatures)
++        self.assertIn(SIGNATURE,history.processed)
++        self.assertGreaterEqual(history.stream_authority_fallbacks,1)
++        self.assertEqual(len(history.decision_rows(OBSERVED_AT,30)),1)
++
++    def test_stream_gap_still_blocks_window_even_with_authoritative_log_event(self):
++        broker,history=make_history();self.addCleanup(broker.close)
++        history._ingest_stream_window(NoRpc(),OBSERVED_AT)
++        broker.stream_gap("pumpswap_pool:"+POOL,OBSERVED_AT)
++        self.assertFalse(history.decision_window_status(OBSERVED_AT,30)["complete"])
++
++    def test_unknown_pumpswap_program_data_falls_back_instead_of_becoming_negative(self):
++        logs=list(LOGS)
++        index=next(i for i,row in enumerate(logs) if row.startswith("Program data: "))
++        logs[index]="Program data: AAAAAAAA"
++        broker,history=make_history(dict(err=None,logs=logs));self.addCleanup(broker.close)
++        rpc=BodyRpc();history._ingest_stream_window(rpc,OBSERVED_AT)
++        self.assertEqual(rpc.calls,1)
++        self.assertGreaterEqual(history.stream_authority_fallbacks,1)
++
++if __name__=="__main__":
++    unittest.main()

@@ -16,6 +16,19 @@ class PipelineReportingTests(unittest.TestCase):
         self.assertEqual(pipeline_health(row,321)['state'],'stalled')
         row={'finality_state':{'last_gate_reason':'frontier_unchanged'}}
         self.assertEqual(pipeline_health(row,100000)['state'],'waiting_finalized_frontier')
+    def test_active_transport_does_not_mask_missing_census_progress(self):
+        row={'scan_progress':{'state':'in_progress','stage':'economic_log_census',
+                             'started_at':0,'updated_at':20},
+             'transport_activity_age_seconds':2}
+        health=pipeline_health(row,400)
+        self.assertEqual(health['state'],'stalled')
+        self.assertEqual(health['progress_source'],'transport_without_stage_progress')
+        self.assertGreater(health['stage_age_seconds'],300)
+        row['transport_activity_age_seconds']=31
+        self.assertEqual(pipeline_health(row,400)['state'],'stalled')
+        row['scan_progress'].update(updated_at=399,log_pages_completed=8)
+        self.assertEqual(pipeline_health(row,400)['state'],'progressing')
+
     def test_live_stage_and_gate_reason_are_retained(self):
         row=numeric_tree({'scan_progress':{'state':'in_progress','stage':'economic_logs'},
             'frontier':{'last_gate_reason':'frontier_unchanged'}})

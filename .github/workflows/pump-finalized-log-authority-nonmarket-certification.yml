@@ -1,0 +1,16 @@
+name: pump-finalized-log-authority-nonmarket-certification
+on:
+  push:
+    branches: [repair/pump-finalized-log-authority-20260924]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: pump-finalized-log-authority-exact-certificate
+  cancel-in-progress: false
+jobs:
+  certify:
+    if: contains(github.event.head_commit.message, '[pump-log-authority-cert]') && contains(github.event.head_commit.message, '[non-market-cert]')
+    uses: ./.github/workflows/non-market-certification.yml
+    secrets: inherit
+# Non-market only: no smoke, hourly campaign, successor, continuation, or market dispatch.

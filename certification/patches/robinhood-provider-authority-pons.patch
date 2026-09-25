@@ -1,0 +1,1263 @@
+diff --git a/robinhood_research/immutable_rpc.py b/robinhood_research/immutable_rpc.py
+index afe124dff19c990fceffed477260a6fc6db46043..328abe8d0ce1f5ecadc1b39cb6cc5bf7bfca1e4f 100644
+--- a/robinhood_research/immutable_rpc.py
++++ b/robinhood_research/immutable_rpc.py
+@@ -64,16 +64,20 @@ class EvidenceStore:
+         body=canonical(value)
+         with self.lock,self.db:
+             row=self.db.execute('SELECT body FROM evidence WHERE domain=? AND key=?',(domain,key)).fetchone()
+-            if row and row[0]!=body:raise BoundaryError('immutable_rpc_evidence_conflict')
++            if row and row[0]!=body:
++                self.event('shared',domain,'immutable','conflict',key)
++                raise BoundaryError('immutable_rpc_evidence_conflict')
+             self.db.execute('INSERT OR IGNORE INTO evidence VALUES(?,?,?,?)',(domain,key,body,time.time()))
+     def event(self,lane,domain,method,outcome,key,source_at=None):
+         with self.lock,self.db:self.db.execute('INSERT INTO reuse_events(lane,domain,method,outcome,at,key_digest,source_at) VALUES(?,?,?,?,?,?,?)',
+             (lane,domain,method,outcome,time.time(),hashlib.sha256(key.encode()).hexdigest() if key else None,source_at))
+ 
+ _stores={};_lock=threading.Lock()
+-def configured():
+-    path=os.environ.get('MM_CERTIFICATION_RPC_CACHE_DB')
++def configured(path=None):
++    path=path or os.environ.get('MM_CERTIFICATION_RPC_CACHE_DB')
+     if not path:return None
++    from pathlib import Path
++    path=str(Path(path).resolve());Path(path).parent.mkdir(parents=True,exist_ok=True)
+     with _lock:
+         if path not in _stores:_stores[path]=EvidenceStore(path)
+         return _stores[path]
+diff --git a/robinhood_research/pons_selective_acquisition.py b/robinhood_research/pons_selective_acquisition.py
+index ebdc3ebb97c1f72e75eae2c1dcb657215b879617..10c2d8475192e6b5086dfc536657c0d64486f6f9 100644
+--- a/robinhood_research/pons_selective_acquisition.py
++++ b/robinhood_research/pons_selective_acquisition.py
+@@ -157,7 +157,8 @@ class SelectiveEvidenceContext:
+     """Reuse one bounded authoritative RPC lane and immutable evidence across candidates."""
+ 
+     def __init__(self,endpoint,cache=None):
+-        self.endpoint=endpoint
++        from certification.robinhood.provider_authority import reference
++        self.endpoint=reference(endpoint)
+         self.cache=cache or ImmutableEvidenceCache()
+         self.rpc=None
+         self.completed_sessions=[]
+@@ -353,6 +354,9 @@ def _rpc(endpoint,*,evidence_deadline=None):
+     # Chain authentication is part of this consumer's acquisition budget.
+     rpc.evidence_deadline=evidence_deadline
+     rpc.verify_chain()
++    from certification.robinhood.provider_authority import require_canonical
++    try:require_canonical(rpc)
++    except ValueError as exc:raise BoundaryError(str(exc)) from None
+     return rpc
+ 
+ 
+diff --git a/robinhood_research/provider.py b/robinhood_research/provider.py
+index 9e226deba2bc7ba9482dfb9ed991026060ebcfe2..16d404d73f9ac0d46ad5406c5e84d3a316212d76 100644
+--- a/robinhood_research/provider.py
++++ b/robinhood_research/provider.py
+@@ -7,6 +7,8 @@ from urllib.parse import urlsplit
+ from urllib.request import Request, urlopen
+ 
+ from . import BoundaryError, CHAIN_ID
++from certification.robinhood.provider_usage import http_started
++from certification.robinhood.provider_authority import failure_class, protect_response
+ 
+ RPC_HTTP_HEADERS = {
+     'Content-Type': 'application/json',
+@@ -38,6 +40,7 @@ class Rpc:
+         self.counts, self.failures, self.cache = Counter(), Counter(), OrderedDict()
+         self.used = 0
+         self.transport_used = 0
++        self.physical_http_requests = 0
+         self.logical = 0
+         self.retry_count = 0
+         self.methods, self.logical_methods = Counter(), Counter()
+@@ -62,7 +65,10 @@ class Rpc:
+         body = json.dumps(dict(jsonrpc='2.0', id=1, method=method, params=params)).encode()
+         request = Request(self._endpoint, data=body, headers=RPC_HTTP_HEADERS)
+         try:
+-            with urlopen(request, timeout=self._transport_timeout()) as response:
++            timeout=self._transport_timeout()
++            http_started()
++            self.physical_http_requests += 1
++            with urlopen(request, timeout=timeout) as response:
+                 raw = response.read(self.max_response + 1)
+         except HTTPError as exc:
+             # Never include str(exc): a URL can include the full credential.
+@@ -131,8 +137,12 @@ class Rpc:
+             self.counts[scope] += 1
+             self.methods[method] += 1
+             self.retry_count += int(attempt > 0)
++            self.retry_attempt = attempt
+             try:
+-                result = self.transport(method, params)
++                try:
++                    result = protect_response(self.transport(method, params), self._endpoint)
++                except Exception as exc:
++                    raise BoundaryError(failure_class(exc)) from None
+                 if result is None:
+                     raise BoundaryError('provider_missing_result')
+                 if cacheable:
+@@ -141,7 +151,7 @@ class Rpc:
+                         self.cache.popitem(last=False)
+                 return result
+             except BoundaryError as exc:
+-                self.failures[str(exc)] += 1
++                self.failures[failure_class(exc)] += 1
+                 # A quota boundary is terminal for this session, never retry it.
+                 if '429' in str(exc) or attempt == self.retries:
+                     raise
+@@ -154,7 +164,10 @@ class Rpc:
+         ]).encode()
+         request=Request(self._endpoint,data=body,headers=RPC_HTTP_HEADERS)
+         try:
+-            with urlopen(request,timeout=self._transport_timeout()) as response:
++            timeout=self._transport_timeout()
++            http_started()
++            self.physical_http_requests += 1
++            with urlopen(request,timeout=timeout) as response:
+                 raw=response.read(self.max_response+1)
+         except HTTPError as exc:
+             raise BoundaryError(f'provider_http_{exc.code}') from None
+@@ -214,11 +227,13 @@ class Rpc:
+             if self.transport != self._http:
+                 # Custom unit-test transports remain deterministic and do not gain
+                 # implicit network semantics. Batch through the injected transport.
+-                return [self.transport(method,params) for method,params in calls]
+-            return self._http_batch(calls)
+-        except BoundaryError as exc:
+-            self.failures[str(exc)]+=1
+-            raise
++                return [protect_response(self.transport(method,params),self._endpoint) for method,params in calls]
++            self.retry_attempt = 0
++            return protect_response(self._http_batch(calls),self._endpoint)
++        except Exception as exc:
++            reason=failure_class(exc)
++            self.failures[reason]+=1
++            raise BoundaryError(reason) from None
+ 
+     def verify_chain(self):
+         result = self.call('eth_chainId', [])
+@@ -228,6 +243,7 @@ class Rpc:
+ 
+     def telemetry(self):
+         return dict(requests=self.used, transport_requests=self.transport_used,
++                    physical_http_requests=self.physical_http_requests,
+                     logical_requests=self.logical, retries=self.retry_count,
+                     methods=dict(self.methods), logical_methods=dict(self.logical_methods),
+                     scopes=dict(self.counts), failures=dict(self.failures))
+diff --git a/robinhood_research/provider_admission.py b/robinhood_research/provider_admission.py
+index ef9968787724972d013b7abca669c7fc2d6b72f3..27a022db2b072325cacdc58d0a9a7988ab1079aa 100644
+--- a/robinhood_research/provider_admission.py
++++ b/robinhood_research/provider_admission.py
+@@ -75,6 +75,9 @@ def record_service(db,endpoint,lane,is_position):
+ 
+ 
+ def fingerprint(endpoint):
++    from certification.robinhood import provider_authority as authority
++    try:return authority.fingerprint(endpoint)
++    except ValueError:pass
+     from urllib.parse import urlsplit
+     p=urlsplit(endpoint.strip())
+     normalized=f'{p.scheme.lower()}://{p.netloc.lower()}{p.path.rstrip("/")}'
+@@ -88,17 +91,26 @@ def priority(scope):
+     if _foreground_work.get():return 10
+     scope=str(scope).lower()
+     if any(x in scope for x in ('paper','monitor','exit','unwind','settle','lifecycle')):return 0
++    if any(x in scope for x in ('entry','fill','confirmation')):return 5
++    if any(x in scope for x in ('repair','gap')):return 40
+     if any(x in scope for x in ('selective','evidence','candidate','pons_natural')):return 10
+     return 50
+ 
+ 
+ class Admission:
+     def __init__(self,path,endpoint,*,lane,interval=0.5,clock=time.monotonic,sleeper=time.sleep):
++        if interval < .5:raise BoundaryError('provider_aggregate_ceiling_invalid')
++        from pathlib import Path
++        Path(path).parent.mkdir(parents=True,exist_ok=True)
+         self.path=path;self.endpoint=fingerprint(endpoint);self.lane=lane
+         self.clock=clock;self.sleep=sleeper;self.interval=interval
+         self.session=uuid.uuid4().hex
+         db=self.connect()
+         db.executescript('''
++            CREATE TABLE IF NOT EXISTS transport_starts(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
++            CREATE TRIGGER IF NOT EXISTS no_start_update BEFORE UPDATE ON transport_starts BEGIN SELECT RAISE(ABORT,'append_only'); END;
++            CREATE TRIGGER IF NOT EXISTS no_start_delete BEFORE DELETE ON transport_starts BEGIN SELECT RAISE(ABORT,'append_only'); END;
++            CREATE TABLE IF NOT EXISTS provider_usage(endpoint TEXT,lane TEXT,metric TEXT,value REAL,PRIMARY KEY(endpoint,lane,metric));
+             CREATE TABLE IF NOT EXISTS limits(endpoint TEXT PRIMARY KEY,next_at REAL NOT NULL,
+                 cooldown REAL NOT NULL,interval REAL NOT NULL);
+             CREATE TABLE IF NOT EXISTS queue(id TEXT PRIMARY KEY,endpoint TEXT NOT NULL,
+@@ -163,8 +175,21 @@ class Admission:
+                 priority=priority(scope),failure_domain=None if granted else 'local_admission',
+                 reason='granted' if granted else failure or 'admission_failed')),))
+             db.close()
+-    def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None):
+-        admitted=self.acquire(scope,deadline,methods=methods);started=self.clock();boundary=None;http_status=None;rpc_code=None
++    def telemetry(self):
++        from certification.robinhood.provider_usage import snapshot
++        return snapshot(self.path,self.endpoint)
++
++    def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None,batch=False):
++        from certification.robinhood.provider_usage import _active
++        from certification.robinhood.provider_authority import failure_class
++        attempt=dict(physical_requests=0,path=str(self.path),endpoint_fingerprint=self.endpoint,
++            lane=self.lane,session=self.session,methods=methods,scope=scope,retry_attempt=retry_count,batch=batch)
++        token=_active.set(attempt)
++        try:admitted=self.acquire(scope,deadline,methods=methods)
++        except BaseException:
++            _active.reset(token)
++            raise
++        started=self.clock();boundary=None;http_status=None;rpc_code=None
+         if timing is not None:
+             timing.setdefault("first_transport_monotonic",started)
+             timing["shared_provider_queue_wait_seconds"]=timing.get("shared_provider_queue_wait_seconds",0)+admitted["wait_seconds"]
+@@ -172,30 +197,35 @@ class Admission:
+             result=call()
+             http_status=200
+             return result
+-        except BoundaryError as exc:
+-            boundary=str(exc)
++        except Exception as exc:
++            boundary=failure_class(exc)
+             match=re.fullmatch(r'provider_http_(\d+)',boundary)
+             http_status=int(match[1]) if match else None
+             match=re.fullmatch(r'provider_rpc_(-?\d+)',boundary)
+             rpc_code=int(match[1]) if match else None
+-            raise
++            raise BoundaryError(boundary) from None
+         finally:
+             if timing is not None:timing["provider_transport_seconds"]=timing.get("provider_transport_seconds",0)+self.clock()-started
++            _active.reset(token)
+             row=dict(lane=self.lane,endpoint_fingerprint=self.endpoint,session=self.session,
+                      methods=methods,scope=scope,http_status=http_status,rpc_error_code=rpc_code,
+                      boundary=boundary,retry_count=retry_count,
++                     retry_attempt=retry_count,physical_requests=attempt["physical_requests"],batch=batch,
+                      latency_seconds=self.clock()-started,**admitted)
+             db=self.connect()
+             try:
+                 db.execute('BEGIN IMMEDIATE')
+                 if http_status==429 or rpc_code==429:
+                     db.execute('UPDATE limits SET cooldown=MAX(cooldown,?) WHERE endpoint=?',(self.clock()+8,self.endpoint))
++                from certification.robinhood.provider_usage import record
++                record(db,row,wire=False)
+                 db.execute('INSERT INTO transports(body) VALUES(?)',(json.dumps(row,sort_keys=True),))
+                 db.execute('COMMIT')
+             finally:db.close()
+ 
+ 
+-def configured(endpoint):
+-    path=os.environ.get('MM_CERTIFICATION_PROVIDER_DB')
++def configured(endpoint, mandatory=False):
++    from certification.robinhood.provider_authority import paths
++    path=paths()['provider'] if mandatory else os.environ.get('MM_CERTIFICATION_PROVIDER_DB')
+     if not path:return None
+     return Admission(path,endpoint,lane=os.environ.get('MM_CERTIFICATION_LANE','unknown'))
+diff --git a/robinhood_research/provider_topology.py b/robinhood_research/provider_topology.py
+index f4c90c12a5db84055e643f1fd7cf59301817d60a..9e7ad498abff058a93c5e003dae5d9780071efa8 100644
+--- a/robinhood_research/provider_topology.py
++++ b/robinhood_research/provider_topology.py
+@@ -1,16 +1,9 @@
+-"""Lane-specific Robinhood RPC governance modeled on current Solana behavior.
+-
+-Roles:
+-- directional/Pons: authenticated primary evidence RPC, 2 RPS, fail closed, no
+-  automatic alternate-provider evidence;
+-- Pons broad discovery: official Robinhood public RPC plus the official sequencer
+-  feed; neither is trade authority. Alchemy is not used for routine discovery.
+-- Pons discovery gap recovery: the authenticated primary may be used only after
+-  public observation cannot recover an exact sequencer-discovered range.
+-- Ramses/DLMM: dedicated bulk/reconstruction RPC, 5 RPS, bounded sessions.
+-- shadow: optional independent provider for disagreement/diagnostic reads only.
+-
+-This module never signs or submits transactions and never changes strategy rules.
++"""Robinhood provider roles. One canonical Alchemy endpoint serves both lanes.
++
++Public/sequencer paths only observe. Shadow endpoints are explicit diagnostics.
++Canonical HTTP uses the mandatory shared endpoint governor and exact-state cache.
++Lane pacers can slow traffic further; they cannot multiply the aggregate ceiling.
++No signing, submission, or automatic alternate canonical provider exists.
+ """
+ from __future__ import annotations
+ 
+@@ -22,6 +15,7 @@ from urllib.parse import urlsplit
+ 
+ from . import BoundaryError, CHAIN_ID
+ from .provider import Rpc
++from certification.robinhood import provider_authority as authority
+ 
+ 
+ PRIMARY_ENV = "MM_ROBINHOOD_READ_RPC_URL"
+@@ -52,7 +46,7 @@ def _provider_kind(endpoint):
+     host = (parsed.hostname or "").lower()
+     if not host:
+         return "unknown"
+-    if host.endswith("alchemy.com") or ".alchemy.com" in host:
++    if host == "alchemy.com" or host.endswith(".alchemy.com"):
+         return "alchemy"
+     if "quiknode" in host or "quicknode" in host:
+         return "quicknode"
+@@ -78,13 +72,8 @@ def _require_https(endpoint, error):
+ 
+ 
+ def primary_endpoint(primary_endpoint=None, *, environ=None):
+-    value = str(primary_endpoint or "").strip() or _env(PRIMARY_ENV, environ)
+-    if not value:
+-        raise BoundaryError("MM_ROBINHOOD_READ_RPC_URL_requires_full_https_url")
+-    return _require_https(
+-        value,
+-        "MM_ROBINHOOD_READ_RPC_URL_requires_full_https_url",
+-    )
++    try:return authority.endpoint(primary_endpoint, environ=environ)
++    except ValueError as exc:raise BoundaryError(str(exc)) from None
+ 
+ 
+ def discovery_endpoint(primary_fallback_endpoint=None, *, environ=None):
+@@ -107,12 +96,7 @@ def discovery_endpoint(primary_fallback_endpoint=None, *, environ=None):
+ 
+ 
+ def dlmm_endpoint(primary_fallback_endpoint=None, *, environ=None):
+-    value = _env(DLMM_ENV, environ)
+-    if value:
+-        return _require_https(
+-            value,
+-            "MM_ROBINHOOD_DLMM_RPC_URL_requires_full_https_url",
+-        ), False
++    # Legacy DLMM configuration is an equivalent alias, never another authority.
+     return primary_endpoint(primary_fallback_endpoint, environ=environ), True
+ 
+ 
+@@ -214,12 +198,17 @@ class PacedRpc(Rpc):
+         **kwargs,
+     ):
+         self.role = str(role)
++        self.canonical_authority = authority.is_canonical_role(self.role)
++        self.chain_verified = False
++        if self.canonical_authority:
++            endpoint = primary_endpoint(endpoint)
++        self.provider_fingerprint = authority.fingerprint(endpoint) if self.canonical_authority else None
+         from .provider_admission import configured
+-        self.shared_admission = configured(endpoint)
++        self.shared_admission = configured(endpoint, mandatory=self.canonical_authority)
+         self.admission_scope = threading.local()
+         self.provider_kind = _provider_kind(endpoint)
+         from .immutable_rpc import configured as evidence_store, Reuse
+-        store=evidence_store()
++        store=evidence_store(authority.paths()['cache']) if self.canonical_authority else None
+         self.evidence_reuse=Reuse(endpoint,store,os.environ.get('MM_CERTIFICATION_LANE','unknown')) if store else None
+         self.hash_state_supported=set()
+         capability_path=os.environ.get('MM_CERTIFICATION_RPC_CAPABILITIES')
+@@ -251,7 +240,7 @@ class PacedRpc(Rpc):
+             parent=super()
+             return self.shared_admission.invoke(
+                 lambda: parent._http(method,params),[method],
+-                getattr(self.admission_scope,"value","connectivity"),self.retry_count,
++                getattr(self.admission_scope,"value","connectivity"),getattr(self,"retry_attempt",0),
+                 deadline=getattr(self,"evidence_deadline",None),timing=timing)
+         return super()._http(method, params)
+ 
+@@ -263,10 +252,31 @@ class PacedRpc(Rpc):
+             parent=super()
+             return self.shared_admission.invoke(
+                 lambda: parent._http_batch(calls),[x[0] for x in calls],
+-                getattr(self.admission_scope,"value","connectivity"),self.retry_count,
+-                deadline=getattr(self,"evidence_deadline",None),timing=timing)
++                getattr(self.admission_scope,"value","connectivity"),getattr(self,"retry_attempt",0),
++                deadline=getattr(self,"evidence_deadline",None),timing=timing,batch=True)
+         return super()._http_batch(calls)
+ 
++    def _record_demand(self, methods):
++        if self.canonical_authority:
++            from certification.robinhood.provider_usage import demand
++            from .provider import READ_METHODS
++            demand(self.shared_admission.path,self.provider_fingerprint,[m for m in methods if m in READ_METHODS])
++
++    def _authority_guard(self, method):
++        if not self.canonical_authority:return
++        try:
++            if authority.fingerprint(authority.endpoint(self._endpoint)) != self.provider_fingerprint:
++                raise ValueError('provider_identity_changed')
++        except ValueError as exc:raise BoundaryError(str(exc)) from None
++        if method != 'eth_chainId' and not self.chain_verified:
++            self.verify_chain()
++
++    def verify_chain(self):
++        self.chain_verified = False
++        result = super().verify_chain()
++        self.chain_verified = True
++        return result
++
+     def _method_allowed_for_provider(self, method):
+         if method in ALCHEMY_ONLY_METHODS and self.provider_kind != "alchemy":
+             raise BoundaryError("provider_specific_method_wrong_provider")
+@@ -297,6 +307,9 @@ class PacedRpc(Rpc):
+         return params
+ 
+     def call(self, method, params, *, scope="connectivity"):
++        scope=authority.safe_label(scope)
++        self._record_demand([method])
++        self._authority_guard(method)
+         self._method_allowed_for_provider(method)
+         self.admission_scope.value=scope
+         hit,value,key=self._reuse_lookup(method,params)
+@@ -313,6 +326,9 @@ class PacedRpc(Rpc):
+             return value
+ 
+     def batch(self, calls, *, scope="connectivity"):
++        scope=authority.safe_label(scope)
++        self._authority_guard("batch")
++        if isinstance(calls,list):self._record_demand([r[0] for r in calls if isinstance(r,(list,tuple)) and r])
+         if not self.evidence_reuse:
+             for row in calls or []:
+                 if isinstance(row,(list,tuple)) and row:self._method_allowed_for_provider(row[0])
+@@ -354,12 +370,18 @@ class PacedRpc(Rpc):
+         return out
+ 
+     def telemetry(self):
++        from certification.robinhood.provider_usage import cache_snapshot
+         data = super().telemetry()
++        if self.evidence_reuse:
++            data['shared_evidence']=cache_snapshot(authority.paths()['cache'],self.evidence_reuse.domain)
+         data.update(
+             role=self.role,
+             provider_kind=self.provider_kind,
+             pacing=self.pacer.telemetry(),
+             automatic_failover=False,
++            canonical_authority=self.canonical_authority,
++            chain_verified=self.chain_verified,
++            shared_provider=self.shared_admission.telemetry() if self.shared_admission else None,
+             immutable_reuse=self.evidence_reuse.telemetry() if self.evidence_reuse else None,
+         )
+         return data
+@@ -470,6 +492,9 @@ class ObservationFallbackRpc(PacedRpc):
+                 raise
+ 
+     def batch(self, calls, *, scope="connectivity"):
++        scope=authority.safe_label(scope)
++        self._authority_guard("batch")
++        if isinstance(calls,list):self._record_demand([r[0] for r in calls if isinstance(r,(list,tuple)) and r])
+         try:
+             return super().batch(calls, scope=scope)
+         except BoundaryError as exc:
+@@ -483,7 +508,10 @@ class ObservationFallbackRpc(PacedRpc):
+                 raise
+ 
+     def telemetry(self):
++        from certification.robinhood.provider_usage import cache_snapshot
+         data = super().telemetry()
++        if self.evidence_reuse:
++            data['shared_evidence']=cache_snapshot(authority.paths()['cache'],self.evidence_reuse.domain)
+         data.update(
+             alchemy_gap_recovery_requests=int(self.recovery_requests),
+             alchemy_gap_recovery_failures=int(self.recovery_failures),
+@@ -579,7 +607,7 @@ def configured_discovery_recovery_rpc(primary_endpoint_value=None, *, environ=No
+ 
+ 
+ def configured_dlmm_rpc(primary_fallback_endpoint=None, *, environ=None, **kwargs):
+-    """Ramses reconstruction RPC: dedicated 5 RPS lane, no automatic rescue."""
++    """Canonical Ramses HTTP, sharing the endpoint ceiling with Pons."""
+     endpoint, primary_fallback = dlmm_endpoint(
+         primary_fallback_endpoint, environ=environ
+     )
+@@ -600,7 +628,8 @@ def configured_dlmm_rpc(primary_fallback_endpoint=None, *, environ=None, **kwarg
+         pacer=pacer,
+         **kwargs,
+     )
+-    rpc.primary_fallback = bool(primary_fallback)
++    rpc.primary_fallback = False
++    rpc.credential_role = PRIMARY_ENV
+     return rpc
+ 
+ 
+@@ -660,7 +689,8 @@ def topology_metadata(*, environ=None):
+         dlmm=dict(
+             provider_kind=_provider_kind(dlmm),
+             credential=(PRIMARY_ENV if fallback else DLMM_ENV),
+-            primary_fallback=fallback,
++            primary_fallback=False,
++            primary_shared=True,
+             requests_per_second=(
+                 DIRECTIONAL_RPS if fallback else DLMM_RPS
+             ),
+@@ -684,6 +714,9 @@ def topology_metadata(*, environ=None):
+             role="diagnostic_only",
+             url_kind="official_robinhood_public",
+         ),
++        canonical_credential=PRIMARY_ENV,
++        aggregate_requests_per_second=2.0,
++        authenticated_streaming=False,
+         signing=False,
+         submission=False,
+     )
+\ No newline at end of file
+diff --git a/robinhood_tests/test_candidate_authentication_deadline.py b/robinhood_tests/test_candidate_authentication_deadline.py
+index 3fa6a76fb6d6519c93f32b8b1d66584403b27c94..c01f79ee9f1a0636e69c004ae4b064d9910073cf 100644
+--- a/robinhood_tests/test_candidate_authentication_deadline.py
++++ b/robinhood_tests/test_candidate_authentication_deadline.py
+@@ -9,6 +9,9 @@ from robinhood_research.provider_admission import Admission,priority,position_wo
+ MODULE='robinhood_research.pons_selective_acquisition'
+ 
+ class RPC:
++    canonical_authority=True
++    chain_verified=True
++    provider_fingerprint="offline_fixture"
+     def __init__(self,verify=None,used=0):
+         self.used=used;self.per_scope=190;self.counts=collections.Counter()
+         self.verify=verify;self.auth_calls=0
+@@ -21,25 +24,25 @@ class AuthenticationDeadlineTests(unittest.TestCase):
+     def test_first_session_has_original_deadline_and_foreground_priority_before_auth(self):
+         observed=[]
+         rpc=RPC(lambda current:observed.append((current.evidence_deadline,priority('connectivity'))))
+-        ctx=SelectiveEvidenceContext('https://unused.invalid');ctx.deadline=104.25
++        ctx=SelectiveEvidenceContext('https://robinhood-mainnet.g.alchemy.com/v2/offline');ctx.deadline=104.25
+         with patch(MODULE+'.configured_rpc',return_value=rpc) as factory:
+             self.assertIs(ctx.acquire(16,'pons_natural'),rpc)
+         self.assertEqual(observed,[(104.25,10)])
+-        factory.assert_called_once_with('https://unused.invalid',limit=200,per_scope=190,retries=0)
++        factory.assert_called_once_with(ctx.endpoint,limit=200,per_scope=190,retries=0)
+         self.assertEqual(priority('connectivity'),50)
+ 
+     def test_shared_wait_expires_at_original_deadline_without_transport(self):
+         now=[100.0]
+         def sleep(seconds):now[0]+=seconds
+         with tempfile.TemporaryDirectory() as tmp:
+-            admission=Admission(Path(tmp)/'capacity.sqlite','https://unused.invalid',
++            admission=Admission(Path(tmp)/'capacity.sqlite','https://robinhood-mainnet.g.alchemy.com/v2/offline',
+                 lane='pons',clock=lambda:now[0],sleeper=sleep)
+             db=admission.connect()
+             db.execute('UPDATE limits SET next_at=1000 WHERE endpoint=?',(admission.endpoint,))
+             db.close()
+             rpc=RPC(lambda current:admission.acquire('connectivity',
+                 getattr(current,'evidence_deadline',None),methods=['eth_chainId']))
+-            ctx=SelectiveEvidenceContext('https://unused.invalid');ctx.deadline=104.25
++            ctx=SelectiveEvidenceContext('https://robinhood-mainnet.g.alchemy.com/v2/offline');ctx.deadline=104.25
+             with patch(MODULE+'.configured_rpc',return_value=rpc):
+                 with self.assertRaisesRegex(BoundaryError,'provider_shared_admission_deadline'):
+                     ctx.acquire(16,'pons_natural')
+@@ -57,11 +60,11 @@ class AuthenticationDeadlineTests(unittest.TestCase):
+     def test_already_expired_authentication_gets_no_transport_or_wait(self):
+         now=[100.0]
+         with tempfile.TemporaryDirectory() as tmp:
+-            admission=Admission(Path(tmp)/'capacity.sqlite','https://unused.invalid',
++            admission=Admission(Path(tmp)/'capacity.sqlite','https://robinhood-mainnet.g.alchemy.com/v2/offline',
+                 lane='pons',clock=lambda:now[0],sleeper=lambda dt:now.__setitem__(0,now[0]+dt))
+             rpc=RPC(lambda current:admission.acquire('connectivity',
+                 getattr(current,'evidence_deadline',None),methods=['eth_chainId']))
+-            ctx=SelectiveEvidenceContext('https://unused.invalid');ctx.deadline=99.0
++            ctx=SelectiveEvidenceContext('https://robinhood-mainnet.g.alchemy.com/v2/offline');ctx.deadline=99.0
+             with patch(MODULE+'.configured_rpc',return_value=rpc):
+                 with self.assertRaisesRegex(BoundaryError,'provider_shared_admission_deadline'):
+                     ctx.acquire(16,'pons_natural')
+@@ -77,7 +80,7 @@ class AuthenticationDeadlineTests(unittest.TestCase):
+             deadlines.append((current.evidence_deadline,priority('connectivity')))
+             raise BoundaryError('wrong_chain')
+         bad=RPC(wrong_chain)
+-        ctx=SelectiveEvidenceContext('https://unused.invalid');ctx.rpc=old;ctx.deadline=105.0
++        ctx=SelectiveEvidenceContext('https://robinhood-mainnet.g.alchemy.com/v2/offline');ctx.rpc=old;ctx.deadline=105.0
+         with patch(MODULE+'.configured_rpc',return_value=bad):
+             for _ in range(2):
+                 with self.assertRaisesRegex(BoundaryError,'wrong_chain'):ctx.acquire(16,'pons_natural')
+@@ -94,7 +97,7 @@ class AuthenticationDeadlineTests(unittest.TestCase):
+     def test_foreground_authentication_does_not_override_position_context(self):
+         observed=[]
+         rpc=RPC(lambda current:observed.append(priority('connectivity')))
+-        ctx=SelectiveEvidenceContext('https://unused.invalid');ctx.deadline=105.0
++        ctx=SelectiveEvidenceContext('https://robinhood-mainnet.g.alchemy.com/v2/offline');ctx.deadline=105.0
+         @position_work
+         def acquire():return ctx.acquire(16,'pons_natural')
+         with patch(MODULE+'.configured_rpc',return_value=rpc):acquire()
+diff --git a/robinhood_tests/test_pons_execution_acquisition.py b/robinhood_tests/test_pons_execution_acquisition.py
+index a903f43e19f683a7073f31b5b1184dee481d6285..d582990cdf34d01b88c0acec76d4fc9efe944c46 100644
+--- a/robinhood_tests/test_pons_execution_acquisition.py
++++ b/robinhood_tests/test_pons_execution_acquisition.py
+@@ -136,8 +136,8 @@ class MonitorReceiptReuseRegression(unittest.TestCase):
+         def transport(method,params):
+             seen.append((method,params))
+             return dict(transactionHash='tx',blockHash='block')
+-        rpc=PacedRpc('https://unit.invalid',role='test',requests_per_second=2,transport=transport)
+-        rpc.evidence_reuse=Reuse('https://unit.invalid',store,'pons')
++        rpc=PacedRpc('https://robinhood-mainnet.g.alchemy.com/v2/offline',role='test',requests_per_second=2,transport=transport)
++        rpc.evidence_reuse=Reuse('https://robinhood-mainnet.g.alchemy.com/v2/offline',store,'pons')
+         def context(endpoint):
+             ctx=acquisition.SelectiveEvidenceContext(endpoint)
+             ctx.acquire=lambda *a,**k:rpc
+@@ -154,7 +154,7 @@ class MonitorReceiptReuseRegression(unittest.TestCase):
+                 patch.object(paper,'SelectiveEvidenceContext',side_effect=context), \
+                 patch.object(paper,'raw_event',return_value=dict(event_at=100,decoded={},block=1,transaction_hash='tx',log_index=0)), \
+                 patch.object(paper,'normalized_trade',return_value={'trade':'authenticated'}):
+-            first=paper._curve_logs('https://unit.invalid','curve',header)
+-            second=paper._curve_logs('https://unit.invalid','curve',header)
++            first=paper._curve_logs('https://robinhood-mainnet.g.alchemy.com/v2/offline','curve',header)
++            second=paper._curve_logs('https://robinhood-mainnet.g.alchemy.com/v2/offline','curve',header)
+         self.assertEqual(first,second)
+         self.assertEqual(seen,[('eth_getTransactionReceipt',['tx'])])
+diff --git a/robinhood_tests/test_pons_factory_hint_reuse.py b/robinhood_tests/test_pons_factory_hint_reuse.py
+index d8844c773271a1ec5ebe93c9dff4e3f39ebf3217..dbc84cc50e9ca72276185588db9163140e2c3597 100644
+--- a/robinhood_tests/test_pons_factory_hint_reuse.py
++++ b/robinhood_tests/test_pons_factory_hint_reuse.py
+@@ -29,7 +29,7 @@ class CandidateContext(SelectiveEvidenceContext):
+     """Record native read batches while supplying fresh observation responses."""
+ 
+     def __init__(self):
+-        super().__init__("https://unused.invalid")
++        super().__init__("https://robinhood-mainnet.g.alchemy.com/v2/offline")
+         self.batches = []
+         self.token = TOKEN
+         self.snipe = 0
+diff --git a/robinhood_tests/test_pons_selective_continuation.py b/robinhood_tests/test_pons_selective_continuation.py
+index 1f9d7cfeb073fe4969c78b5e0a0e2b9a8b95a5b2..372e10021cc9f437493211b7adb46f41831196eb 100644
+--- a/robinhood_tests/test_pons_selective_continuation.py
++++ b/robinhood_tests/test_pons_selective_continuation.py
+@@ -494,7 +494,7 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
+     def test_trajectory_batches_both_anchors_and_reuses_recent_headers(self):
+         ctx=self.BatchContext()
+         first,launch,meta=_trajectory(
+-            "https://unused",self._candidate(200),
++            "https://robinhood-mainnet.g.alchemy.com/v2/offline",self._candidate(200),
+             evidence_context=ctx,
+         )
+         self.assertEqual(launch,900)
+@@ -506,7 +506,7 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
+ 
+         before=len(ctx.batches)
+         second,_,meta2=_trajectory(
+-            "https://unused",self._candidate(201),
++            "https://robinhood-mainnet.g.alchemy.com/v2/offline",self._candidate(201),
+             evidence_context=ctx,
+         )
+         self.assertEqual([x["block"] for x in second[:2]],[186,196])
+@@ -546,7 +546,7 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
+                  ),
+              ):
+             rows,_=_authenticate_window(
+-                "https://unused",candidate,events,
++                "https://robinhood-mainnet.g.alchemy.com/v2/offline",candidate,events,
+                 seconds=60,evidence_context=ctx,
+             )
+             self.assertEqual(len(rows),2)
+@@ -554,7 +554,7 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
+             self.assertEqual(len(ctx.batches[0][1]),4)
+             before=len(ctx.batches)
+             rows2,_=_authenticate_window(
+-                "https://unused",candidate,events,
++                "https://robinhood-mainnet.g.alchemy.com/v2/offline",candidate,events,
+                 seconds=60,evidence_context=ctx,
+             )
+         self.assertEqual(len(rows2),2)
+@@ -579,9 +579,9 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
+             selective_acquisition,'normalized_trade',side_effect=lambda decoded,identity,event_at:dict(identity=identity,event_at=event_at,decoded=decoded)):
+             for prefetched in (False,True):
+                 ctx=self.BatchContext();contexts.append(ctx)
+-                snapshots,launch,_=_trajectory('https://unused',candidate,evidence_context=ctx,
++                snapshots,launch,_=_trajectory('https://robinhood-mainnet.g.alchemy.com/v2/offline',candidate,evidence_context=ctx,
+                     window_tape=events if prefetched else None)
+-                market,_=_authenticate_window('https://unused',candidate,events,evidence_context=ctx)
++                market,_=_authenticate_window('https://robinhood-mainnet.g.alchemy.com/v2/offline',candidate,events,evidence_context=ctx)
+                 outputs.append((snapshots,launch,market))
+         self.assertEqual(outputs[0],outputs[1])
+         self.assertEqual([len(c.batches) for c in contexts],[3,2])
+@@ -615,7 +615,7 @@ class SelectiveEvidenceThroughputTests(unittest.TestCase):
+         def make(_endpoint):
+             rpc=FakeRpc();created.append(rpc);return rpc
+         with patch.object(selective_acquisition,"_rpc",side_effect=make):
+-            ctx=SelectiveEvidenceContext("https://unused")
++            ctx=SelectiveEvidenceContext("https://robinhood-mainnet.g.alchemy.com/v2/offline")
+             ctx.batch([("eth_chainId",[])],"a")
+             ctx.batch([("eth_chainId",[])],"a")
+         self.assertEqual(len(created),1)
+@@ -644,7 +644,7 @@ class SelectiveDiscoveryFrontierTests(unittest.TestCase):
+                  side_effect=[BoundaryError("provider_rpc_-32602"),["e"]],
+              ) as events:
+             new_rpc,cursor,fresh=selective_cohort._poll(
+-                "https://unused",rpc,100,[],object(),[]
++                "https://robinhood-mainnet.g.alchemy.com/v2/offline",rpc,100,[],object(),[]
+             )
+         self.assertIs(new_rpc,rpc)
+         self.assertEqual(cursor,103)
+@@ -661,7 +661,7 @@ class SelectiveDiscoveryFrontierTests(unittest.TestCase):
+                  side_effect=BoundaryError("provider_rpc_-32602"),
+              ):
+             _,cursor,fresh=selective_cohort._poll(
+-                "https://unused",rpc,100,[],object(),[]
++                "https://robinhood-mainnet.g.alchemy.com/v2/offline",rpc,100,[],object(),[]
+             )
+         self.assertEqual(cursor,100)
+         self.assertEqual(fresh,[])
+@@ -677,7 +677,7 @@ class SelectiveDiscoveryFrontierTests(unittest.TestCase):
+                  selective_cohort,"_current_curve_events",side_effect=responses
+              ) as events:
+             _,cursor,fresh=selective_cohort._poll(
+-                "https://unused",rpc,100,[],object(),[]
++                "https://robinhood-mainnet.g.alchemy.com/v2/offline",rpc,100,[],object(),[]
+             )
+         self.assertEqual(cursor,105)
+         self.assertEqual(fresh,["101","102","103","104","105"])
+@@ -698,7 +698,7 @@ class SelectiveDiscoveryFrontierTests(unittest.TestCase):
+              ):
+             with self.assertRaisesRegex(BoundaryError,"provider_rpc_-32602"):
+                 selective_cohort._poll(
+-                    "https://unused",rpc,100,[],object(),[]
++                    "https://robinhood-mainnet.g.alchemy.com/v2/offline",rpc,100,[],object(),[]
+                 )
+ 
+ 
+@@ -737,7 +737,7 @@ class SelectiveProviderRecoveryTests(unittest.TestCase):
+             selective_cohort,"_recover_discovery",return_value=rpc2
+         ) as recover:
+             new_rpc,cursor,fresh=selective_cohort._poll(
+-                "https://unused",rpc1,100,[],object(),sessions,recoveries
++                "https://robinhood-mainnet.g.alchemy.com/v2/offline",rpc1,100,[],object(),sessions,recoveries
+             )
+         self.assertIs(new_rpc,rpc2)
+         self.assertEqual(cursor,105)
+@@ -760,7 +760,7 @@ class SelectiveProviderRecoveryTests(unittest.TestCase):
+             selective_cohort,"_current_curve_events",return_value=["covered"]
+         ):
+             new_rpc,cursor,fresh=selective_cohort._poll(
+-                "https://unused",rpc1,100,[],object(),[],[]
++                "https://robinhood-mainnet.g.alchemy.com/v2/offline",rpc1,100,[],object(),[],[]
+             )
+         self.assertIs(new_rpc,rpc2)
+         self.assertEqual(cursor,105)
+@@ -789,7 +789,7 @@ class SelectiveProviderRecoveryTests(unittest.TestCase):
+                  patch.object(selective_cohort,"_discovery",return_value=rpc2), \
+                  patch.object(selective_cohort.time,"sleep",return_value=None):
+                 got=selective_cohort._recover_discovery(
+-                    "https://unused",rpc1,100,sessions,recoveries
++                    "https://robinhood-mainnet.g.alchemy.com/v2/offline",rpc1,100,sessions,recoveries
+                 )
+         self.assertIs(got,rpc2)
+         self.assertEqual(rpc1.pacer.calls,[2.5])
+@@ -806,7 +806,7 @@ class SelectiveProviderRecoveryTests(unittest.TestCase):
+         ), patch.object(selective_cohort,"_recover_discovery") as recover:
+             with self.assertRaisesRegex(BoundaryError,"provider_rpc_-32000"):
+                 selective_cohort._poll(
+-                    "https://unused",rpc,100,[],object(),[],[]
++                    "https://robinhood-mainnet.g.alchemy.com/v2/offline",rpc,100,[],object(),[],[]
+                 )
+         recover.assert_not_called()
+ 
+@@ -822,7 +822,7 @@ class SelectiveProviderRecoveryTests(unittest.TestCase):
+                  patch.object(selective_cohort,"PROVIDER_LOG",provider_log), \
+                  patch.object(selective_cohort,"_discovery",return_value=replacement):
+                 got=selective_cohort._recover_discovery(
+-                    "https://unused",failed,100,sessions,recoveries
++                    "https://robinhood-mainnet.g.alchemy.com/v2/offline",failed,100,sessions,recoveries
+                 )
+             persisted=json.loads(recovery_log.read_text().strip())
+         self.assertIs(got,replacement)
+@@ -993,7 +993,7 @@ class SelectiveSequencerRecoveryTests(unittest.TestCase):
+             selective_cohort,"_current_curve_events",return_value=["covered"]
+         ) as events:
+             _,cursor,fresh=selective_cohort._poll(
+-                "https://unused",rpc,100,[],object(),[],recoveries
++                "https://robinhood-mainnet.g.alchemy.com/v2/offline",rpc,100,[],object(),[],recoveries
+             )
+         recover.assert_called_once()
+         self.assertEqual(recover.call_args.args[1],100)
+diff --git a/robinhood_tests/test_provider_topology.py b/robinhood_tests/test_provider_topology.py
+index b548d0923027bf837a9114798c5f877af638fe16..66eb5c0cb2186027b4b93eed3f8aaa0742ffe722 100644
+--- a/robinhood_tests/test_provider_topology.py
++++ b/robinhood_tests/test_provider_topology.py
+@@ -1,240 +1,235 @@
++"""Canonical authority regressions; all HTTP is replaced before invocation."""
++import io
++import json
++import os
++from pathlib import Path
++import sqlite3
++import tempfile
++import threading
+ import unittest
+-
++from concurrent.futures import ThreadPoolExecutor
++from unittest.mock import patch
++from urllib.error import HTTPError
++from certification.robinhood import provider_authority as authority
+ from robinhood_research import BoundaryError
+ from robinhood_research.provider_topology import (
+-    DLMM_ENV,
+-    DISCOVERY_ENV,
+-    PRIMARY_ENV,
+-    SHADOW_ENV,
+-    PacedRpc,
+-    ProviderPacer,
+-    configured_discovery_rpc,
+-    configured_discovery_recovery_rpc,
+-    configured_dlmm_rpc,
+-    configured_rpc,
+-    configured_shadow_rpc,
+-    topology_metadata,
+-)
++    PacedRpc, ProviderPacer, configured_rpc, configured_dlmm_rpc,
++    configured_discovery_rpc, configured_shadow_rpc, topology_metadata)
++from robinhood_research.provider_admission import Admission
+ 
++URL='https://robinhood-mainnet.g.alchemy.com/v2/SYNTHETIC_SECRET_839485'
+ 
+-class _Clock:
+-    def __init__(self):
+-        self.now=0.0
+-        self.sleeps=[]
++class Clock:
++    def __init__(self):self.now=100.;self.lock=threading.Lock()
+     def time(self):
+-        return self.now
+-    def sleep(self,seconds):
+-        self.sleeps.append(float(seconds))
+-        self.now+=float(seconds)
+-
+-
+-class LaneProviderTests(unittest.TestCase):
+-    def test_directional_primary_is_two_rps_and_fail_closed(self):
+-        calls=[]
+-        rpc=PacedRpc(
+-            "https://robinhood-mainnet.g.alchemy.com/v2/key",
+-            role="directional_evidence_primary",
+-            requests_per_second=2.0,
+-            transport=lambda method,params: calls.append(method) or "0x1237",
+-        )
+-        self.assertEqual(rpc.verify_chain(),4663)
+-        t=rpc.telemetry()
+-        self.assertEqual(t["provider_kind"],"alchemy")
+-        self.assertEqual(t["role"],"directional_evidence_primary")
+-        self.assertEqual(t["pacing"]["requests_per_second"],2.0)
+-        self.assertFalse(t["automatic_failover"])
+-        self.assertEqual(calls,["eth_chainId"])
+-
+-    def test_configured_directional_does_not_use_shadow_on_failure(self):
+-        env={
+-            PRIMARY_ENV:"https://primary.invalid/v2/key",
+-            SHADOW_ENV:"https://shadow.invalid/key",
+-        }
+-        def fail(*_):
+-            raise BoundaryError("provider_transport_failure")
+-        rpc=configured_rpc(
+-            environ=env,limit=10,per_scope=10,retries=0,transport=fail
+-        )
+-        with self.assertRaisesRegex(BoundaryError,"transport_failure"):
+-            rpc.call("eth_chainId",[],scope="candidate")
+-        self.assertFalse(rpc.telemetry()["automatic_failover"])
+-
+-    def test_discovery_prefers_dedicated_endpoint_at_five_rps(self):
+-        env={
+-            PRIMARY_ENV:"https://primary.invalid/v2/key",
+-            DISCOVERY_ENV:"https://discovery.validationcloud.io/key",
+-        }
+-        rpc=configured_discovery_rpc(
+-            environ=env,limit=10,per_scope=10,retries=0,
+-            transport=lambda *_:"0x1237",
+-        )
+-        self.assertEqual(rpc.verify_chain(),4663)
+-        t=rpc.telemetry()
+-        self.assertEqual(t["role"],"pons_discovery_observation")
+-        self.assertEqual(t["provider_kind"],"validation_cloud")
+-        self.assertEqual(t["pacing"]["requests_per_second"],5.0)
+-        self.assertFalse(rpc.primary_fallback)
+-
+-    def test_discovery_uses_official_public_rpc_when_only_alchemy_bulk_is_configured(self):
+-        env={
+-            PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key",
+-            DLMM_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/other",
+-        }
+-        rpc=configured_discovery_rpc(
+-            environ=env,limit=10,per_scope=10,retries=0,
+-            transport=lambda *_:"0x1237",
+-        )
+-        self.assertEqual(rpc.telemetry()["provider_kind"],"robinhood_public")
+-        self.assertFalse(rpc.primary_fallback)
+-        self.assertEqual(rpc.telemetry()["role"],"pons_discovery_public_observation")
+-        self.assertEqual(rpc.telemetry()["pacing"]["requests_per_second"],2.0)
+-
+-    def test_discovery_defaults_public_and_gap_recovery_uses_primary(self):
+-        env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key"}
+-        discovery=configured_discovery_rpc(
+-            environ=env,limit=10,per_scope=10,retries=0,
+-            transport=lambda *_:"0x1237",
+-        )
+-        recovery=configured_discovery_recovery_rpc(
+-            environ=env,limit=10,per_scope=10,retries=0,
+-            transport=lambda *_:"0x1237",
+-        )
+-        self.assertEqual(discovery.telemetry()["provider_kind"],"robinhood_public")
+-        self.assertFalse(discovery.primary_fallback)
+-        self.assertFalse(discovery.gap_recovery)
+-        self.assertEqual(recovery.telemetry()["provider_kind"],"alchemy")
+-        self.assertTrue(recovery.primary_fallback)
+-        self.assertTrue(recovery.gap_recovery)
+-
+-
+-    def test_public_discovery_uses_alchemy_only_after_recoverable_failure(self):
+-        env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key"}
++        with self.lock:return self.now
++    def sleep(self,n):
++        with self.lock:self.now+=n
++
++class ProviderAuthorityTests(unittest.TestCase):
++    def setUp(self):
++        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
++        self.env=patch.dict(os.environ,{'MM_ROBINHOOD_READ_RPC_URL':URL,
++            'MM_ROBINHOOD_STATE_DIR':self.tmp.name},clear=True)
++        self.env.start();self.addCleanup(self.env.stop)
++        self.clock=Clock();self.requests=[]
++    def client(self,factory=configured_rpc,**kwargs):
++        rpc=factory(retries=0,limit=80,per_scope=80,**kwargs)
++        rpc.pacer=ProviderPacer(2,clock=self.clock.time,sleeper=self.clock.sleep)
++        rpc.shared_admission.clock=self.clock.time;rpc.shared_admission.sleep=self.clock.sleep
++        return rpc
++    def http(self,request,**kwargs):
++        payload=json.loads(request.data);self.requests.append(payload)
++        def reply(row):
++            method=row['method']
++            value='0x1237' if method=='eth_chainId' else '0x123'
++            if method=='eth_getBlockByHash':value={'hash':row['params'][0],'number':'0x1','timestamp':'0x2'}
++            return dict(jsonrpc='2.0',id=row['id'],result=value)
++        result=[reply(r) for r in payload] if isinstance(payload,list) else reply(payload)
++        return io.BytesIO(json.dumps(result).encode())
++    def test_runtime_composition_retains_broker_boundaries(self):
++        # Supplemental wiring guard; coalescing/fencing and provider tests above
++        # exercise the actual broker and transport implementations.
++        source=(Path(__file__).parents[1]/'robinhood_research'/'pons_selective_cohort.py').read_text()
++        for required in ['queue=Broker(', 'queue.committed()', 'evidence_context.generation_guard=', 'queue.finish(']:self.assertIn(required,source)
++
++    def test_one_authority_and_mandatory_shared_store(self):
++        a,b=self.client(),self.client(configured_dlmm_rpc)
++        self.assertEqual(a.provider_fingerprint,b.provider_fingerprint)
++        self.assertEqual(a.shared_admission.path,b.shared_admission.path)
++        self.assertIs(a.evidence_reuse.store,b.evidence_reuse.store)
++        self.assertEqual(a.shared_admission.interval,.5)
++        self.assertLessEqual(b.pacer.requests_per_second,2)
++    def test_configuration_rejects_alternate_authority_and_missing(self):
++        for value in ('https://elsewhere.invalid/key', URL+'/extra',URL+'?key=x',URL.replace('alchemy.com','alchemy.com.evil'), 'http://robinhood-mainnet.g.alchemy.com/v2/key'):
++            with self.subTest(value=value),patch.dict(os.environ,{'MM_ROBINHOOD_READ_RPC_URL':value}):
++                with self.assertRaises(BoundaryError):configured_rpc()
++        with patch.dict(os.environ,{},clear=True):
++            with self.assertRaises(BoundaryError):configured_rpc()
++        with patch.dict(os.environ,{'MM_ROBINHOOD_DLMM_RPC_URL':URL+'other'}):
++            with self.assertRaisesRegex(BoundaryError,'authority_mismatch'):configured_dlmm_rpc()
++    def test_equivalent_legacy_alias_and_opaque_reference(self):
++        alias=URL.replace('.com/', '.com:443/')+'/'
++        with patch.dict(os.environ,{'MM_ROBINHOOD_DLMM_RPC_URL':alias}):
++            self.assertEqual(authority.endpoint(),URL)
++            ref=authority.reference();self.assertNotIn('SECRET',ref)
++            self.assertEqual(self.client().provider_fingerprint,authority.fingerprint(ref))
++            self.assertEqual(authority.endpoint(ref),URL)
++    def test_public_and_shadow_never_have_canonical_cache_or_authority(self):
++        with patch.dict(os.environ,{'MM_ROBINHOOD_DISCOVERY_RPC_URL':URL,'MM_ROBINHOOD_SHADOW_RPC_URL':'https://shadow.invalid/key'}):
++            for rpc in (configured_discovery_rpc(),configured_shadow_rpc()):
++                self.assertFalse(rpc.canonical_authority)
++                self.assertIsNone(rpc.evidence_reuse)
++                with self.assertRaisesRegex(ValueError,'role_not_canonical'):authority.require_canonical(rpc)
++    def test_chain_required_before_shared_evidence_and_no_rescue(self):
+         calls=[]
+-        def transport(method,params):
+-            calls.append(method)
+-            if len(calls)==1:
+-                raise BoundaryError("provider_http_403")
+-            return "0x1237"
+-        rpc=configured_discovery_rpc(
+-            environ=env,limit=10,per_scope=10,retries=0,
+-            transport=transport,
+-        )
+-        self.assertEqual(rpc.call("eth_chainId",[],scope="discovery"),"0x1237")
+-        t=rpc.telemetry()
+-        self.assertEqual(t["provider_kind"],"robinhood_public")
+-        self.assertEqual(t["alchemy_gap_recovery_requests"],1)
+-        self.assertEqual(t["alchemy_gap_recovery_failures"],0)
+-        self.assertEqual(t["alchemy_gap_recovery"]["provider_kind"],"alchemy")
+-        self.assertEqual(calls,["eth_chainId","eth_chainId"])
+-
+-    def test_dlmm_uses_dedicated_five_rps_lane(self):
+-        env={
+-            PRIMARY_ENV:"https://primary.invalid/v2/key",
+-            DLMM_ENV:"https://robinhood.validationcloud.io/key",
+-        }
+-        rpc=configured_dlmm_rpc(
+-            environ=env,limit=10,per_scope=10,retries=0,
+-            transport=lambda *_:"0x1237",
+-        )
+-        self.assertEqual(rpc.verify_chain(),4663)
+-        t=rpc.telemetry()
+-        self.assertEqual(t["role"],"dlmm_reconstruction_primary")
+-        self.assertEqual(t["provider_kind"],"validation_cloud")
+-        self.assertEqual(t["pacing"]["requests_per_second"],5.0)
+-        self.assertFalse(rpc.primary_fallback)
+-
+-    def test_dlmm_fallback_is_explicit_not_failover(self):
+-        env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key"}
+-        rpc=configured_dlmm_rpc(
+-            environ=env,limit=10,per_scope=10,retries=0,
+-            transport=lambda *_:"0x1237",
+-        )
+-        self.assertTrue(rpc.primary_fallback)
+-        self.assertEqual(
+-            rpc.telemetry()["role"],"dlmm_reconstruction_primary_fallback"
+-        )
+-        self.assertEqual(rpc.telemetry()["pacing"]["requests_per_second"],2.0)
+-        self.assertFalse(rpc.telemetry()["automatic_failover"])
+-
+-    def test_primary_evidence_gap_recovery_and_dlmm_fallback_share_directional_pacer(self):
+-        env={PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/key"}
+-        directional=configured_rpc(
+-            environ=env,limit=10,per_scope=10,retries=0,
+-            transport=lambda *_:"0x1237",
+-        )
+-        recovery=configured_discovery_recovery_rpc(
+-            environ=env,limit=10,per_scope=10,retries=0,
+-            transport=lambda *_:"0x1237",
+-        )
+-        discovery=configured_discovery_rpc(
+-            environ=env,limit=10,per_scope=10,retries=0,
+-            transport=lambda *_:"0x1237",
+-        )
+-        dlmm=configured_dlmm_rpc(
+-            environ=env,limit=10,per_scope=10,retries=0,
+-            transport=lambda *_:"0x1237",
+-        )
+-        self.assertIs(directional.pacer,recovery.pacer)
+-        self.assertIs(directional.pacer,dlmm.pacer)
+-        self.assertIsNot(directional.pacer,discovery.pacer)
+-        self.assertEqual(directional.pacer.requests_per_second,2.0)
+-
+-    def test_shadow_is_diagnostic_only(self):
+-        env={
+-            PRIMARY_ENV:"https://primary.invalid/v2/key",
+-            SHADOW_ENV:"https://shadow.quiknode.pro/key",
+-        }
+-        rpc=configured_shadow_rpc(environ=env)
+-        self.assertIsNotNone(rpc)
+-        t=rpc.telemetry()
+-        self.assertEqual(t["role"],"shadow_diagnostic_only")
+-        self.assertEqual(t["provider_kind"],"quicknode")
+-        self.assertFalse(t["automatic_failover"])
+-
+-    def test_non_alchemy_provider_rejects_alchemy_specific_method(self):
+-        rpc=PacedRpc(
+-            "https://rpc.validationcloud.io/key",
+-            role="shadow_diagnostic_only",
+-            requests_per_second=5.0,
+-            transport=lambda *_:[],
+-        )
+-        with self.assertRaisesRegex(BoundaryError,"wrong_provider"):
+-            rpc.call("alchemy_getAssetTransfers",[{}],scope="history")
+-
+-    def test_pacer_enforces_physical_rate(self):
+-        clock=_Clock()
+-        pacer=ProviderPacer(2.0,clock=clock.time,sleeper=clock.sleep)
+-        self.assertEqual(pacer.pace(),0.0)
+-        self.assertAlmostEqual(pacer.pace(),0.5)
+-        self.assertEqual(clock.sleeps,[0.5])
+-        self.assertEqual(pacer.telemetry()["paced_requests"],2)
+-
+-    def test_pacer_backpressure_only_slows_and_is_shared(self):
+-        clock=_Clock()
+-        pacer=ProviderPacer(5.0,clock=clock.time,sleeper=clock.sleep)
+-        self.assertTrue(pacer.slow_to(2.0))
+-        self.assertFalse(pacer.slow_to(5.0))
+-        self.assertEqual(pacer.requests_per_second,2.0)
+-        self.assertEqual(pacer.minimum_interval_seconds,0.5)
+-        self.assertEqual(pacer.telemetry()["backpressure_events"],1)
+-        self.assertEqual(pacer.pace(),0.5)
+-
+-    def test_topology_metadata_never_exposes_endpoint(self):
+-        env={
+-            PRIMARY_ENV:"https://robinhood-mainnet.g.alchemy.com/v2/secret",
+-            DLMM_ENV:"https://rpc.validationcloud.io/secret",
+-            SHADOW_ENV:"https://shadow.quiknode.pro/secret",
+-        }
+-        meta=topology_metadata(environ=env)
+-        body=str(meta)
+-        self.assertEqual(meta["directional"]["evidence_provider_kind"],"alchemy")
+-        self.assertEqual(meta["directional"]["discovery_provider_kind"],"robinhood_public")
+-        self.assertEqual(meta["directional"]["gap_recovery_provider_kind"],"alchemy")
+-        self.assertIsNone(meta["directional"]["discovery_credential"])
+-        self.assertEqual(meta["dlmm"]["provider_kind"],"validation_cloud")
+-        self.assertNotIn("/secret",body)
+-        self.assertNotIn("https://",body)
+-
+-
+-if __name__=="__main__":
+-    unittest.main()
+\ No newline at end of file
++        rpc=self.client(transport=lambda m,p:calls.append(m) or '0x1')
++        with self.assertRaisesRegex(BoundaryError,'wrong_chain'):rpc.call('eth_getCode',['a','latest'])
++        self.assertEqual(calls,['eth_chainId']);self.assertFalse(rpc.chain_verified)
++        self.assertEqual(rpc.evidence_reuse.store.db.execute('SELECT COUNT(*) FROM evidence').fetchone()[0],0)
++    def test_session_and_configuration_identity_continuity(self):
++        a=self.client(transport=lambda m,p:'0x1237');a.verify_chain()
++        with patch.dict(os.environ,{'MM_ROBINHOOD_READ_RPC_URL':URL+'changed'}):
++            with self.assertRaisesRegex(BoundaryError,'identity_changed'):a.call('eth_blockNumber',[])
++        b=self.client(transport=lambda m,p:'0x1')
++        with self.assertRaises(BoundaryError):b.call('eth_blockNumber',[])
++    def test_batch_is_one_physical_n_logical_and_shared_reuse_zero(self):
++        a,b=self.client(),self.client(configured_dlmm_rpc)
++        with patch('robinhood_research.provider.urlopen',side_effect=self.http):
++            a.verify_chain();b.verify_chain()
++            a.batch([('eth_getCode',[str(i),'latest']) for i in range(4)])
++            a.call('eth_getBlockByHash',['h1',False])
++            before=len(self.requests)
++            b.call('eth_getBlockByHash',['h1',False])
++            self.assertEqual(len(self.requests),before)
++        t=b.telemetry()['shared_provider']
++        self.assertEqual(t['physical_http_requests'],4)
++        self.assertEqual(t['logical_rpc_calls'],7)
++        self.assertEqual(t['batch_transports'],1);self.assertEqual(t['batch_members'],4)
++        self.assertEqual(t['consumer_logical_calls'],8)
++        self.assertTrue(t['estimated_cu']['billing_estimate_only'])
++    def test_aggregate_governor_concurrent_lane_clients(self):
++        a,b=self.client(),self.client(configured_dlmm_rpc)
++        with patch('robinhood_research.provider.urlopen',side_effect=self.http),ThreadPoolExecutor(2) as pool:
++            futures=[pool.submit(r.call,'eth_chainId',[]) for r in (a,b)]
++            for f in futures:self.assertEqual(f.result(),'0x1237')
++        db=sqlite3.connect(a.shared_admission.path)
++        rows=[json.loads(r[0]) for r in db.execute('SELECT body FROM transports')];db.close()
++        times=sorted(r['admitted_at'] for r in rows)
++        self.assertGreaterEqual(times[1]-times[0],.5)
++        with self.assertRaises(BoundaryError):Admission(Path(self.tmp.name)/'other',URL,lane='pons',interval=.1)
++    def test_secrets_absent_from_sqlite_telemetry_and_exception_output(self):
++        rpc=self.client(transport=lambda m,p:(_ for _ in ()).throw(RuntimeError(URL)))
++        with self.assertRaisesRegex(BoundaryError,'provider_boundary_failure') as caught:rpc.verify_chain()
++        self.assertNotIn('SYNTHETIC_SECRET',str(caught.exception))
++        self.assertNotIn('SYNTHETIC_SECRET',json.dumps(rpc.telemetry()))
++        for path in Path(self.tmp.name).glob('*'):
++            if path.is_file():self.assertNotIn(b'SYNTHETIC_SECRET',path.read_bytes())
++    def test_response_cannot_export_credentials(self):
++        rpc=self.client(transport=lambda m,p:'0x1237' if m=='eth_chainId' else URL)
++        with self.assertRaisesRegex(BoundaryError,'response_contains_credential'):rpc.call('eth_getCode',['a','latest'])
++    def test_process_death_preserves_unresolved_physical_attempt(self):
++        import subprocess,sys,certification
++        script="""import os,sys
++from unittest.mock import patch
++from robinhood_research.provider_topology import configured_rpc
++def guard(event,args):
++    if event in ('socket.connect','socket.getaddrinfo'):raise RuntimeError('offline_only')
++sys.addaudithook(guard)
++with patch('robinhood_research.provider.urlopen',side_effect=lambda *a,**k:os._exit(73)):
++    configured_rpc(retries=0).verify_chain()
++"""
++        env=dict(os.environ,PYTHONPATH=str(Path(certification.__file__).parent.parent)+os.pathsep+str(Path(__file__).resolve().parents[1]))
++        child=subprocess.run([sys.executable,'-c',script],env=env,capture_output=True,timeout=10)
++        self.assertEqual(child.returncode,73,child.stderr)
++        t=self.client().telemetry()['shared_provider']
++        self.assertEqual(t['physical_http_requests'],1)
++        self.assertEqual(t['unresolved_transport_attempts'],1)
++
++    def test_retry_counts_distinct_wire_attempts(self):
++        rpc=configured_rpc(retries=1,limit=10,per_scope=10)
++        rpc.pacer=ProviderPacer(2,clock=self.clock.time,sleeper=self.clock.sleep)
++        rpc.shared_admission.clock=self.clock.time;rpc.shared_admission.sleep=self.clock.sleep
++        attempts=[]
++        def http(request,**kwargs):
++            attempts.append(1)
++            if len(attempts)==1:raise HTTPError(URL,500,'secret',{},None)
++            return self.http(request,**kwargs)
++        with patch('robinhood_research.provider.urlopen',side_effect=http),patch('robinhood_research.provider.time.sleep'):
++            rpc.verify_chain()
++        t=rpc.telemetry()['shared_provider']
++        self.assertEqual(t['physical_http_requests'],2)
++        self.assertEqual(t['logical_rpc_calls'],2)
++        self.assertEqual(t['consumer_logical_calls'],1)
++        self.assertEqual(t['retries'],1)
++        self.assertEqual(t['unresolved_transport_attempts'],0)
++
++    def test_429_recorded_once_no_retry_or_alternate_provider(self):
++        rpc=self.client()
++        with patch('robinhood_research.provider.urlopen',side_effect=HTTPError(URL,429,'secret',{},None)):
++            with self.assertRaisesRegex(BoundaryError,'provider_http_429'):rpc.verify_chain()
++        t=rpc.telemetry()['shared_provider']
++        self.assertEqual(t['physical_http_requests'],1);self.assertEqual(t['responses_429'],1)
++        self.assertEqual(t['retries'],0);self.assertGreater(t['health']['cooldown_until_monotonic'],100)
++    def test_acquisition_refuses_public_client_even_after_chain_verification(self):
++        from robinhood_research import pons_selective_acquisition as acquisition
++        rpc=configured_discovery_rpc(transport=lambda *_:'0x1237')
++        with patch.object(acquisition,'configured_rpc',return_value=rpc):
++            with self.assertRaisesRegex(BoundaryError,'role_not_canonical'):acquisition._rpc(URL)
++
++    def test_broker_coalesces_and_fences_provider_completion(self):
++        from certification.robinhood.pons import Broker
++        broker=Broker(Path(self.tmp.name)/'candidates.sqlite','frozen',clock=lambda:100,source=authority.reference())
++        self.addCleanup(broker.close)
++        def event(n):return dict(address='0xcurve',transactionHash='tx'+str(n),logIndex=hex(n),
++            transactionIndex='0x0',blockNumber=hex(n),blockHash='h'+str(n))
++        for n in range(1,11):broker.enqueue(event(n))
++        self.assertEqual(len(broker.rows),1)
++        old=broker.pop();self.assertEqual(old['work']['generation'],10)
++        self.assertIsNone(broker.pop())
++        broker.enqueue(event(11))
++        self.assertFalse(broker.finish(old,{'qualified':True},.1))
++        new=broker.pop();self.assertEqual(new['work']['generation'],11)
++        self.assertTrue(broker.finish(new,{'qualified':False},.1))
++        self.assertFalse(broker.enqueue(event(11)))
++        metrics=broker.telemetry()
++        self.assertEqual(metrics['unique_candidates'],1)
++        self.assertEqual(metrics['provider_jobs_claimed'],2)
++        self.assertEqual(metrics['obsolete_completions_fenced'],1)
++        self.assertEqual(metrics['observations_received_since_instrumentation'],12)
++
++    def test_candidate_provenance_reports_archives_and_crash_output_are_secret_free(self):
++        import traceback
++        import zipfile
++        from certification.robinhood.plane import Plane
++        rpc=self.client()
++        with patch('robinhood_research.provider.urlopen',side_effect=self.http):rpc.verify_chain()
++        plane=Plane(Path(self.tmp.name)/'candidate.sqlite',clock=lambda:100)
++        plane.observe('curve','pons','event',{},ordering=(1,),watermark={'hash':'h1'},
++            interpretation={'provider':rpc.provider_fingerprint},observed=100,deadline=105,priority=2)
++        plane.put('canonical','h1',{},dict(provider=rpc.provider_fingerprint,chain=4663))
++        report={'provider':rpc.telemetry(),'candidate':plane.snapshot()};plane.close()
++        try:
++            failing=self.client(transport=lambda *_:(_ for _ in ()).throw(RuntimeError(URL)))
++            failing.verify_chain()
++        except BoundaryError:
++            report['crash_diagnostic']=traceback.format_exc()
++        report_path=Path(self.tmp.name)/'report.json';report_path.write_text(json.dumps(report))
++        archive=Path(self.tmp.name)/'report.zip'
++        with zipfile.ZipFile(archive,'w') as z:
++            for path in Path(self.tmp.name).glob('*'):
++                if path.is_file() and path!=archive:z.write(path,path.name)
++        with zipfile.ZipFile(archive) as z:
++            for name in z.namelist():self.assertNotIn(b'SYNTHETIC_SECRET',z.read(name))
++
++    def test_non_alchemy_diagnostic_rejects_alchemy_method(self):
++        rpc=PacedRpc('https://shadow.invalid/key',role='shadow_diagnostic_only',requests_per_second=2,transport=lambda *_:[])
++        with self.assertRaisesRegex(BoundaryError,'wrong_provider'):rpc.call('alchemy_getAssetTransfers',[{}])
++    def test_topology_has_no_secret_or_automatic_failover(self):
++        result=topology_metadata()
++        self.assertNotIn('SYNTHETIC_SECRET',json.dumps(result))
++        self.assertFalse(result['directional']['automatic_failover'])
++        self.assertFalse(result['dlmm']['automatic_failover'])
++        self.assertEqual(result['dlmm']['provider_kind'],'alchemy')
++
++if __name__=='__main__':unittest.main()
+diff --git a/robinhood_tests/test_selective_block_cache.py b/robinhood_tests/test_selective_block_cache.py
+index f4bf49b8b290213e78b3148356dd25d4deff452d..5268fa0fd0e0e83fe0bdab5e30f1d3c78d8d5032 100644
+--- a/robinhood_tests/test_selective_block_cache.py
++++ b/robinhood_tests/test_selective_block_cache.py
+@@ -7,14 +7,14 @@ class BlockCacheTests(unittest.TestCase):
+         class Rpc:
+             def __init__(self):self.calls=[]
+             def batch(self,calls,scope):self.calls.extend(calls);return ['0x1']*len(calls)
+-        rpc=Rpc();ctx=SelectiveEvidenceContext('unused');ctx.acquire=lambda *a:rpc
++        rpc=Rpc();ctx=SelectiveEvidenceContext('https://robinhood-mainnet.g.alchemy.com/v2/offline');ctx.acquire=lambda *a:rpc
+         ctx.pin=(10,'hash-a');calls=[('eth_getCode',['curve','0xa']),('eth_gasPrice',[])]
+         ctx.batch(calls,'pons_natural');ctx.batch(calls,'pons_natural')
+         self.assertEqual([x[0] for x in rpc.calls],['eth_getCode','eth_gasPrice','eth_gasPrice'])
+         ctx.pin=(10,'hash-b');ctx.batch(calls,'pons_natural')
+         self.assertEqual(rpc.calls[-2:],calls)
+     def test_adjacent_header_batch_is_bounded_deduplicated_and_expiry_aware(self):
+-        ctx=SelectiveEvidenceContext('unused')
++        ctx=SelectiveEvidenceContext('https://robinhood-mainnet.g.alchemy.com/v2/offline')
+         ctx.adjacent=[dict(deadline=time.time()+5,event=dict(blockNumber=hex(i),blockHash=str(i))) for i in range(10)]
+         ctx.adjacent.append(dict(deadline=0,event=dict(blockNumber='0xff',blockHash='late')))
+         extra=ctx.prefetch_adjacent_headers([('eth_gasPrice',[])]*48)
+diff --git a/robinhood_tests/test_view_batch.py b/robinhood_tests/test_view_batch.py
+index f6d34473d5a2efe460939379ceb4c08dbb2c2c29..7b7a0b2b0bed63020804bdc021d8e39ef3c1c9f2 100644
+--- a/robinhood_tests/test_view_batch.py
++++ b/robinhood_tests/test_view_batch.py
+@@ -51,7 +51,7 @@ class ViewBatchTests(unittest.TestCase):
+         self.assertNotEqual(plan,[]) # a timestamp hint cannot replace successor proof
+     def test_factory_hint_does_not_skip_current_reads(self):
+         from robinhood_research.pons_selective_acquisition import SelectiveEvidenceContext
+-        ctx=SelectiveEvidenceContext('https://offline.invalid')
++        ctx=SelectiveEvidenceContext('https://robinhood-mainnet.g.alchemy.com/v2/offline')
+         self.assertIsNone(ctx.factory_token_hint('curve'))
+         # Cached identity merely shapes a pinned request; no factory result cache.
+         ctx.factory_hints['curve']='token'

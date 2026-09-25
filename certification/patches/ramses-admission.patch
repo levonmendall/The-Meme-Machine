@@ -263,10 +263,10 @@ index 0000000..274abdb
 +    if 'trigger_timeout' in r or 'zero_warmup' in r:return 'no_authentic_activity'
 +    return 'reconstruction_incomplete'
 diff --git a/robinhood_research/provider.py b/robinhood_research/provider.py
-index c24ecb4..0aa82cf 100644
+index 1ad5f48..cdcb762 100644
 --- a/robinhood_research/provider.py
 +++ b/robinhood_research/provider.py
-@@ -13,7 +13,7 @@ READ_METHODS = frozenset({
+@@ -19,7 +19,7 @@ READ_METHODS = frozenset({
      'eth_getBlockByHash', 'eth_getLogs', 'eth_getTransactionReceipt',
      'eth_getCode', 'eth_call', 'eth_gasPrice', 'eth_getBalance',
      'eth_getStorageAt', 'eth_getTransactionByHash',
@@ -1353,63 +1353,588 @@ index e4ab19d..e3f48c1 100644
          print(json.dumps(dict(
              status=result["status"],boundary=result["boundary"],
 diff --git a/robinhood_research/ramses_strategy_ledger.py b/robinhood_research/ramses_strategy_ledger.py
-index 2a2f308..dee63e1 100644
 --- a/robinhood_research/ramses_strategy_ledger.py
 +++ b/robinhood_research/ramses_strategy_ledger.py
-@@ -43,6 +43,10 @@ class RamsesStrategyLedger:
-                 seq INTEGER PRIMARY KEY AUTOINCREMENT,
-                 id TEXT NOT NULL, action TEXT NOT NULL,
-                 body TEXT NOT NULL, hash TEXT NOT NULL);
+@@ -1,332 +1,380 @@
+-"""Independent durable ledger for the Robinhood Ramses DLMM strategy family.
+-
+-No shared allocator, no cross-strategy positions and no order authority.
+-The ledger accepts only decisions produced by the frozen Ramses strategy domain.
+-"""
+-from __future__ import annotations
+-
+-import hashlib
+-import json
+-import sqlite3
+-
+-from . import BoundaryError
+-from .ramses_strategy import (
+-    ACTIVE_MODE, POLICY_HASH, STRATEGY_DOMAIN, STRATEGY_VERSION,
+-    assert_active_v3_decision,
+-)
+-
+-
+-def _canonical(value):
+-    return json.dumps(value, sort_keys=True, separators=(",", ":"))
+-
+-
+-def _digest(value):
+-    return hashlib.sha256(_canonical(value).encode()).hexdigest()
+-
+-
+-class RamsesStrategyLedger:
+-    def __init__(self, path, *, paper_capital, quote_asset):
+-        if type(paper_capital) is not int or paper_capital <= 0:
+-            raise BoundaryError("invalid_ramses_strategy_capital")
+-        if not isinstance(quote_asset, str) or not quote_asset:
+-            raise BoundaryError("invalid_ramses_strategy_quote_asset")
+-        self.path = path
+-        self.paper_capital = paper_capital
+-        self.quote_asset = quote_asset.lower()
+-        self.db = sqlite3.connect(path, isolation_level=None)
+-        self.db.execute("PRAGMA journal_mode=DELETE")
+-        self.db.execute("PRAGMA synchronous=FULL")
+-        self.db.execute("PRAGMA cache_size=-1024")
+-        self.db.executescript("""
+-            CREATE TABLE IF NOT EXISTS ramses_strategy_meta(
+-                id TEXT PRIMARY KEY, body TEXT NOT NULL, hash TEXT NOT NULL);
+-            CREATE TABLE IF NOT EXISTS ramses_strategy_position(
+-                id TEXT PRIMARY KEY, body TEXT NOT NULL, hash TEXT NOT NULL);
+-            CREATE TABLE IF NOT EXISTS ramses_strategy_journal(
+-                seq INTEGER PRIMARY KEY AUTOINCREMENT,
+-                id TEXT NOT NULL, action TEXT NOT NULL,
+-                body TEXT NOT NULL, hash TEXT NOT NULL);
+-        """)
+-        genesis = dict(
+-            strategy_domain=STRATEGY_DOMAIN,
+-            strategy_version=STRATEGY_VERSION,
+-            policy_hash=POLICY_HASH,
+-            paper_capital=paper_capital,
+-            quote_asset=self.quote_asset,
+-            paper_only=True,
+-            allocation_authority=False,
+-            shared_allocator=False,
+-            cross_strategy_state=False,
+-        )
+-        row = self.db.execute(
+-            "SELECT body,hash FROM ramses_strategy_meta WHERE id='genesis'"
+-        ).fetchone()
+-        if row:
+-            body = json.loads(row[0])
+-            if body != genesis or _digest(body) != row[1]:
+-                raise BoundaryError("ramses_strategy_ledger_genesis_mismatch")
+-        else:
+-            self.db.execute(
+-                "INSERT INTO ramses_strategy_meta VALUES(?,?,?)",
+-                ("genesis", _canonical(genesis), _digest(genesis)),
+-            )
+-
+-    def close(self):
+-        self.db.close()
+-
+-    def _load(self, identity):
+-        row = self.db.execute(
+-            "SELECT body,hash FROM ramses_strategy_position WHERE id=?",
+-            (identity,),
+-        ).fetchone()
+-        if not row:
+-            raise BoundaryError("ramses_strategy_position_missing")
+-        body = json.loads(row[0])
+-        if _digest(body) != row[1]:
+-            raise BoundaryError("ramses_strategy_ledger_checksum")
+-        return body
+-
+-    def _save(self, body, action):
+-        encoded = _canonical(body)
+-        checksum = _digest(body)
+-        self.db.execute(
+-            "INSERT OR REPLACE INTO ramses_strategy_position VALUES(?,?,?)",
+-            (body["id"], encoded, checksum),
+-        )
+-        self.db.execute(
+-            "INSERT INTO ramses_strategy_journal(id,action,body,hash) VALUES(?,?,?,?)",
+-            (body["id"], action, encoded, checksum),
+-        )
+-
+-    def reserve(self, identity, *, pool, decision, at):
+-        if self.db.execute(
+-            "SELECT 1 FROM ramses_strategy_position WHERE id=?", (identity,)
+-        ).fetchone():
+-            raise BoundaryError("duplicate_ramses_strategy_reservation")
+-        try:
+-            assert_active_v3_decision(decision)
+-        except BoundaryError:
+-            raise BoundaryError("foreign_or_unqualified_strategy_decision") from None
+-        proposal = decision["freeze"]["proposals"][0]
+-        reserved = proposal.get("capital_employed")
+-        if type(reserved) is not int or reserved <= 0:
+-            raise BoundaryError("invalid_ramses_strategy_reservation")
+-        rec = self.reconcile()
+-        # Admission must respect post-P&L available paper capital, not immutable
+-        # genesis. Otherwise a prior realized loss can be silently re-spent and
+-        # the eventual settlement trips the capital invariant.
+-        if reserved > rec["available"]:
+-            raise BoundaryError("ramses_strategy_capital_exhausted")
+-        body = dict(
+-            id=identity,
+-            strategy_domain=STRATEGY_DOMAIN,
+-            strategy_version=STRATEGY_VERSION,
+-            policy_hash=POLICY_HASH,
+-            status="reserved",
+-            version=0,
+-            paper_only=True,
+-            allocation_authority=False,
+-            shared_allocator=False,
+-            pool=pool.lower(),
+-            mode=decision["mode"],
+-            proposal_hash=decision["freeze"]["proposal_hash"],
+-            reserved=reserved,
+-            realized=0,
+-            after_cost_result=None,
+-            at=at,
+-            outcome=None,
+-            rebalances=0,
+-            segments_closed=0,
+-            last_controller=None,
+-        )
+-        self.db.execute("BEGIN IMMEDIATE")
+-        try:
+-            self._save(body, "reserve")
+-            self.db.execute("COMMIT")
+-        except Exception:
+-            self.db.execute("ROLLBACK")
+-            raise
+-        return body
+-
+-    def reserve_forced_machinery(self, identity, *, pool, decision, at):
+-        """Reserve a mechanics-only position without converting it into strategy evidence."""
+-        if self.db.execute(
+-            "SELECT 1 FROM ramses_strategy_position WHERE id=?", (identity,)
+-        ).fetchone():
+-            raise BoundaryError("duplicate_ramses_strategy_reservation")
+-        # Forced machinery remains explicitly strategy-ineligible.  It may
+-        # exercise a rejected/no-trade freeze, but it must still be bound to the
+-        # current Ramses strategy identity and can never import foreign authority.
+-        if (
+-            not isinstance(decision,dict)
+-            or decision.get("strategy_domain") != STRATEGY_DOMAIN
+-            or decision.get("strategy_version") != STRATEGY_VERSION
+-            or decision.get("policy_hash") != POLICY_HASH
+-            or decision.get("allocation_authority") is not False
+-            or not isinstance(decision.get("freeze"),dict)
+-            or not decision["freeze"].get("proposals")
+-        ):
+-            raise BoundaryError("foreign_forced_machinery_decision")
+-        proposal = decision["freeze"]["proposals"][0]
+-        reserved = proposal.get("capital_employed")
+-        if type(reserved) is not int or reserved <= 0:
+-            raise BoundaryError("invalid_ramses_strategy_reservation")
+-        rec = self.reconcile()
+-        if reserved > rec["available"]:
+-            raise BoundaryError("ramses_strategy_capital_exhausted")
+-        body = dict(
+-            id=identity,
+-            strategy_domain=STRATEGY_DOMAIN,
+-            strategy_version=STRATEGY_VERSION,
+-            policy_hash=POLICY_HASH,
+-            status="reserved",
+-            version=0,
+-            paper_only=True,
+-            allocation_authority=False,
+-            shared_allocator=False,
+-            pool=pool.lower(),
+-            mode=decision.get("mode"),
+-            proposal_hash=decision["freeze"]["proposal_hash"],
+-            reserved=reserved,
+-            realized=0,
+-            after_cost_result=None,
+-            at=at,
+-            outcome=None,
+-            rebalances=0,
+-            segments_closed=0,
+-            last_controller=None,
+-            forced_machinery_test=True,
+-            strategy_evidence_eligible=False,
+-        )
+-        self.db.execute("BEGIN IMMEDIATE")
+-        try:
+-            self._save(body, "forced_machinery_reserve")
+-            self.db.execute("COMMIT")
+-        except Exception:
+-            self.db.execute("ROLLBACK")
+-            raise
+-        return body
+-
+-    def open(self, identity, *, at):
+-        self.db.execute("BEGIN IMMEDIATE")
+-        try:
+-            body = self._load(identity)
+-            if body["status"] != "reserved":
+-                raise BoundaryError("ramses_strategy_open_state")
+-            if at < body["at"]:
+-                raise BoundaryError("ramses_strategy_time_regression")
+-            body.update(status="open", version=body["version"] + 1, at=at)
+-            self._save(body, "open")
+-            self.db.execute("COMMIT")
+-        except Exception:
+-            self.db.execute("ROLLBACK")
+-            raise
+-        return body
+-
+-    def checkpoint(self, identity, *, action, detail, at):
+-        if action not in ("monitor", "segment_close", "rebalance"):
+-            raise BoundaryError("ramses_strategy_checkpoint_action")
+-        if not isinstance(detail, dict):
+-            raise BoundaryError("ramses_strategy_checkpoint_detail")
+-        self.db.execute("BEGIN IMMEDIATE")
+-        try:
+-            body = self._load(identity)
+-            if body["status"] != "open":
+-                raise BoundaryError("ramses_strategy_checkpoint_state")
+-            if at < body["at"]:
+-                raise BoundaryError("ramses_strategy_time_regression")
+-            body.update(
+-                version=body["version"]+1,
+-                at=at,
+-                last_controller=detail,
+-            )
+-            if action=="segment_close":
+-                body["segments_closed"]=int(body.get("segments_closed",0))+1
+-            elif action=="rebalance":
+-                proposal_hash=detail.get("proposal_hash")
+-                if not isinstance(proposal_hash,str) or len(proposal_hash)!=64:
+-                    raise BoundaryError("ramses_strategy_rebalance_proposal")
+-                body["proposal_hash"]=proposal_hash
+-                body["rebalances"]=int(body.get("rebalances",0))+1
+-            self._save(body,action)
+-            self.db.execute("COMMIT")
+-        except Exception:
+-            self.db.execute("ROLLBACK")
+-            raise
+-        return body
+-
+-    def settle(self, identity, *, pnl, at):
+-        self.db.execute("BEGIN IMMEDIATE")
+-        try:
+-            body = self._load(identity)
+-            if body["status"] != "open":
+-                raise BoundaryError("ramses_strategy_settle_state")
+-            if at < body["at"]:
+-                raise BoundaryError("ramses_strategy_time_regression")
+-            if not isinstance(pnl, dict) or pnl.get("strategy_domain") != STRATEGY_DOMAIN:
+-                raise BoundaryError("foreign_strategy_outcome")
+-            result = pnl.get("net_result_quote")
+-            if pnl.get("unresolved_inventory") or type(result) is not int:
+-                body.update(
+-                    status="unresolved",
+-                    version=body["version"] + 1,
+-                    at=at,
+-                    outcome=pnl,
+-                )
+-                action = "unresolved"
+-            else:
+-                body.update(
+-                    status="settled",
+-                    version=body["version"] + 1,
+-                    at=at,
+-                    reserved=0,
+-                    realized=result,
+-                    after_cost_result=result,
+-                    outcome=pnl,
+-                )
+-                action = "settle"
+-            self._save(body, action)
+-            self.db.execute("COMMIT")
+-        except Exception:
+-            self.db.execute("ROLLBACK")
+-            raise
+-        return body
+-
+-    def reconcile(self):
+-        rows = self.db.execute(
+-            "SELECT body,hash FROM ramses_strategy_position ORDER BY id"
+-        ).fetchall()
+-        positions = []
+-        for encoded, checksum in rows:
+-            body = json.loads(encoded)
+-            if _digest(body) != checksum:
+-                raise BoundaryError("ramses_strategy_ledger_checksum")
+-            if (
+-                body.get("strategy_domain") != STRATEGY_DOMAIN
+-                or body.get("shared_allocator") is not False
+-                or body.get("allocation_authority") is not False
+-            ):
+-                raise BoundaryError("ramses_strategy_ledger_domain_drift")
+-            positions.append(body)
+-        realized = sum(p["realized"] for p in positions if p["status"] == "settled")
+-        committed = sum(p["reserved"] for p in positions if p["status"] != "settled")
+-        available = self.paper_capital + realized - committed
+-        if available < 0:
+-            raise BoundaryError("ramses_strategy_capital_invariant")
+-        return dict(
+-            strategy_domain=STRATEGY_DOMAIN,
+-            strategy_version=STRATEGY_VERSION,
+-            policy_hash=POLICY_HASH,
+-            quote_asset=self.quote_asset,
+-            paper_capital=self.paper_capital,
+-            realized=realized,
+-            committed=committed,
+-            available=available,
+-            open_positions=sum(p["status"] != "settled" for p in positions),
+-            positions=len(positions),
+-            shared_allocator=False,
+-            allocation_authority=False,
+-        )
+-
+-    def position(self, identity):
+-        return self._load(identity)
++"""Independent durable ledger for the Robinhood Ramses DLMM strategy family.
++
++No shared allocator, no cross-strategy positions and no order authority.
++The ledger accepts only decisions produced by the frozen Ramses strategy domain.
++"""
++from __future__ import annotations
++
++import hashlib
++import json
++import sqlite3
++
++from . import BoundaryError
++from .ramses_strategy import (
++    ACTIVE_MODE, POLICY_HASH, STRATEGY_DOMAIN, STRATEGY_VERSION,
++    assert_active_v3_decision,
++)
++
++
++def _canonical(value):
++    return json.dumps(value, sort_keys=True, separators=(",", ":"))
++
++
++def _digest(value):
++    return hashlib.sha256(_canonical(value).encode()).hexdigest()
++
++
++class RamsesStrategyLedger:
++    def __init__(self, path, *, paper_capital, quote_asset):
++        if type(paper_capital) is not int or paper_capital <= 0:
++            raise BoundaryError("invalid_ramses_strategy_capital")
++        if not isinstance(quote_asset, str) or not quote_asset:
++            raise BoundaryError("invalid_ramses_strategy_quote_asset")
++        self.path = path
++        self.paper_capital = paper_capital
++        self.quote_asset = quote_asset.lower()
++        self.db = sqlite3.connect(path, isolation_level=None)
++        self.db.execute("PRAGMA journal_mode=DELETE")
++        self.db.execute("PRAGMA synchronous=FULL")
++        self.db.execute("PRAGMA cache_size=-1024")
++        self.db.executescript("""
++            CREATE TABLE IF NOT EXISTS ramses_strategy_meta(
++                id TEXT PRIMARY KEY, body TEXT NOT NULL, hash TEXT NOT NULL);
++            CREATE TABLE IF NOT EXISTS ramses_strategy_position(
++                id TEXT PRIMARY KEY, body TEXT NOT NULL, hash TEXT NOT NULL);
++            CREATE TABLE IF NOT EXISTS ramses_strategy_journal(
++                seq INTEGER PRIMARY KEY AUTOINCREMENT,
++                id TEXT NOT NULL, action TEXT NOT NULL,
++                body TEXT NOT NULL, hash TEXT NOT NULL);
 +            CREATE TRIGGER IF NOT EXISTS ramses_journal_no_update BEFORE UPDATE ON ramses_strategy_journal
 +                BEGIN SELECT RAISE(ABORT,'append_only'); END;
 +            CREATE TRIGGER IF NOT EXISTS ramses_journal_no_delete BEFORE DELETE ON ramses_strategy_journal
 +                BEGIN SELECT RAISE(ABORT,'append_only'); END;
-         """)
-         genesis = dict(
-             strategy_domain=STRATEGY_DOMAIN,
-@@ -79,6 +83,8 @@ class RamsesStrategyLedger:
-         if not row:
-             raise BoundaryError("ramses_strategy_position_missing")
-         body = json.loads(row[0])
++        """)
++        genesis = dict(
++            strategy_domain=STRATEGY_DOMAIN,
++            strategy_version=STRATEGY_VERSION,
++            policy_hash=POLICY_HASH,
++            paper_capital=paper_capital,
++            quote_asset=self.quote_asset,
++            paper_only=True,
++            allocation_authority=False,
++            shared_allocator=False,
++            cross_strategy_state=False,
++        )
++        row = self.db.execute(
++            "SELECT body,hash FROM ramses_strategy_meta WHERE id='genesis'"
++        ).fetchone()
++        if row:
++            body = json.loads(row[0])
++            if body != genesis or _digest(body) != row[1]:
++                raise BoundaryError("ramses_strategy_ledger_genesis_mismatch")
++        else:
++            self.db.execute(
++                "INSERT INTO ramses_strategy_meta VALUES(?,?,?)",
++                ("genesis", _canonical(genesis), _digest(genesis)),
++            )
++
++    def close(self):
++        self.db.close()
++
++    def _load(self, identity):
++        row = self.db.execute(
++            "SELECT body,hash FROM ramses_strategy_position WHERE id=?",
++            (identity,),
++        ).fetchone()
++        if not row:
++            raise BoundaryError("ramses_strategy_position_missing")
++        body = json.loads(row[0])
 +        recorded=self.db.execute('SELECT body,hash FROM ramses_strategy_journal WHERE id=? ORDER BY seq DESC LIMIT 1',(identity,)).fetchone()
 +        if recorded!=row:raise BoundaryError('ramses_strategy_projection_mismatch')
-         if _digest(body) != row[1]:
-             raise BoundaryError("ramses_strategy_ledger_checksum")
-         return body
-@@ -107,6 +113,7 @@ class RamsesStrategyLedger:
-             or decision.get("policy_hash") != POLICY_HASH
-             or decision.get("allocation_authority") is not False
-             or decision.get("qualified") is not True
-+            or decision.get("mode") != "active_wide_maker"
-             or not decision.get("freeze")
-         ):
-             raise BoundaryError("foreign_or_unqualified_strategy_decision")
-@@ -144,6 +151,10 @@ class RamsesStrategyLedger:
-         )
-         self.db.execute("BEGIN IMMEDIATE")
-         try:
++        if _digest(body) != row[1]:
++            raise BoundaryError("ramses_strategy_ledger_checksum")
++        return body
++
++    def _save(self, body, action):
++        encoded = _canonical(body)
++        checksum = _digest(body)
++        self.db.execute(
++            "INSERT OR REPLACE INTO ramses_strategy_position VALUES(?,?,?)",
++            (body["id"], encoded, checksum),
++        )
++        self.db.execute(
++            "INSERT INTO ramses_strategy_journal(id,action,body,hash) VALUES(?,?,?,?)",
++            (body["id"], action, encoded, checksum),
++        )
++
++    def reserve(self, identity, *, pool, decision, at):
++        if self.db.execute(
++            "SELECT 1 FROM ramses_strategy_position WHERE id=?", (identity,)
++        ).fetchone():
++            raise BoundaryError("duplicate_ramses_strategy_reservation")
++        try:
++            assert_active_v3_decision(decision)
++        except BoundaryError:
++            raise BoundaryError("foreign_or_unqualified_strategy_decision") from None
++        proposal = decision["freeze"]["proposals"][0]
++        reserved = proposal.get("capital_employed")
++        if type(reserved) is not int or reserved <= 0:
++            raise BoundaryError("invalid_ramses_strategy_reservation")
++        rec = self.reconcile()
++        # Admission must respect post-P&L available paper capital, not immutable
++        # genesis. Otherwise a prior realized loss can be silently re-spent and
++        # the eventual settlement trips the capital invariant.
++        if reserved > rec["available"]:
++            raise BoundaryError("ramses_strategy_capital_exhausted")
++        body = dict(
++            id=identity,
++            strategy_domain=STRATEGY_DOMAIN,
++            strategy_version=STRATEGY_VERSION,
++            policy_hash=POLICY_HASH,
++            status="reserved",
++            version=0,
++            paper_only=True,
++            allocation_authority=False,
++            shared_allocator=False,
++            pool=pool.lower(),
++            mode=decision["mode"],
++            proposal_hash=decision["freeze"]["proposal_hash"],
++            reserved=reserved,
++            realized=0,
++            after_cost_result=None,
++            at=at,
++            outcome=None,
++            rebalances=0,
++            segments_closed=0,
++            last_controller=None,
++        )
++        self.db.execute("BEGIN IMMEDIATE")
++        try:
 +            if self.db.execute("SELECT 1 FROM ramses_strategy_position WHERE id=?",(identity,)).fetchone():
 +                raise BoundaryError("duplicate_ramses_strategy_reservation")
 +            if reserved>self.reconcile()['available']:
 +                raise BoundaryError("ramses_strategy_capital_exhausted")
-             self._save(body, "reserve")
-             self.db.execute("COMMIT")
-         except Exception:
-@@ -199,6 +210,10 @@ class RamsesStrategyLedger:
-         )
-         self.db.execute("BEGIN IMMEDIATE")
-         try:
++            self._save(body, "reserve")
++            self.db.execute("COMMIT")
++        except Exception:
++            self.db.execute("ROLLBACK")
++            raise
++        return body
++
++    def reserve_forced_machinery(self, identity, *, pool, decision, at):
++        """Reserve a mechanics-only position without converting it into strategy evidence."""
++        if self.db.execute(
++            "SELECT 1 FROM ramses_strategy_position WHERE id=?", (identity,)
++        ).fetchone():
++            raise BoundaryError("duplicate_ramses_strategy_reservation")
++        # Forced machinery remains explicitly strategy-ineligible.  It may
++        # exercise a rejected/no-trade freeze, but it must still be bound to the
++        # current Ramses strategy identity and can never import foreign authority.
++        if (
++            not isinstance(decision,dict)
++            or decision.get("strategy_domain") != STRATEGY_DOMAIN
++            or decision.get("strategy_version") != STRATEGY_VERSION
++            or decision.get("policy_hash") != POLICY_HASH
++            or decision.get("allocation_authority") is not False
++            or not isinstance(decision.get("freeze"),dict)
++            or not decision["freeze"].get("proposals")
++        ):
++            raise BoundaryError("foreign_forced_machinery_decision")
++        proposal = decision["freeze"]["proposals"][0]
++        reserved = proposal.get("capital_employed")
++        if type(reserved) is not int or reserved <= 0:
++            raise BoundaryError("invalid_ramses_strategy_reservation")
++        rec = self.reconcile()
++        if reserved > rec["available"]:
++            raise BoundaryError("ramses_strategy_capital_exhausted")
++        body = dict(
++            id=identity,
++            strategy_domain=STRATEGY_DOMAIN,
++            strategy_version=STRATEGY_VERSION,
++            policy_hash=POLICY_HASH,
++            status="reserved",
++            version=0,
++            paper_only=True,
++            allocation_authority=False,
++            shared_allocator=False,
++            pool=pool.lower(),
++            mode=decision.get("mode"),
++            proposal_hash=decision["freeze"]["proposal_hash"],
++            reserved=reserved,
++            realized=0,
++            after_cost_result=None,
++            at=at,
++            outcome=None,
++            rebalances=0,
++            segments_closed=0,
++            last_controller=None,
++            forced_machinery_test=True,
++            strategy_evidence_eligible=False,
++        )
++        self.db.execute("BEGIN IMMEDIATE")
++        try:
 +            if self.db.execute("SELECT 1 FROM ramses_strategy_position WHERE id=?",(identity,)).fetchone():
 +                raise BoundaryError("duplicate_ramses_strategy_reservation")
 +            if reserved>self.reconcile()['available']:
 +                raise BoundaryError("ramses_strategy_capital_exhausted")
-             self._save(body, "forced_machinery_reserve")
-             self.db.execute("COMMIT")
-         except Exception:
-@@ -230,6 +245,19 @@ class RamsesStrategyLedger:
-         self.db.execute("BEGIN IMMEDIATE")
-         try:
-             body = self._load(identity)
++            self._save(body, "forced_machinery_reserve")
++            self.db.execute("COMMIT")
++        except Exception:
++            self.db.execute("ROLLBACK")
++            raise
++        return body
++
++    def open(self, identity, *, at):
++        self.db.execute("BEGIN IMMEDIATE")
++        try:
++            body = self._load(identity)
++            if body["status"] != "reserved":
++                raise BoundaryError("ramses_strategy_open_state")
++            if at < body["at"]:
++                raise BoundaryError("ramses_strategy_time_regression")
++            body.update(status="open", version=body["version"] + 1, at=at)
++            self._save(body, "open")
++            self.db.execute("COMMIT")
++        except Exception:
++            self.db.execute("ROLLBACK")
++            raise
++        return body
++
++    def checkpoint(self, identity, *, action, detail, at):
++        if action not in ("monitor", "segment_close", "rebalance"):
++            raise BoundaryError("ramses_strategy_checkpoint_action")
++        if not isinstance(detail, dict):
++            raise BoundaryError("ramses_strategy_checkpoint_detail")
++        self.db.execute("BEGIN IMMEDIATE")
++        try:
++            body = self._load(identity)
 +            # A committed management command can lose its acknowledgement.
 +            # Replay the exact immutable command as a no-op, even if a later
 +            # monitor checkpoint already exists. Never count a rebalance twice.
@@ -1423,21 +1948,69 @@ index 2a2f308..dee63e1 100644
 +                if prior.get('at')==at and prior.get('last_controller')==detail:
 +                    self.db.execute('COMMIT')
 +                    return body
-             if body["status"] != "open":
-                 raise BoundaryError("ramses_strategy_checkpoint_state")
-             if at < body["at"]:
-@@ -285,6 +313,7 @@ class RamsesStrategyLedger:
-                 )
-                 action = "settle"
-             self._save(body, action)
++            if body["status"] != "open":
++                raise BoundaryError("ramses_strategy_checkpoint_state")
++            if at < body["at"]:
++                raise BoundaryError("ramses_strategy_time_regression")
++            body.update(
++                version=body["version"]+1,
++                at=at,
++                last_controller=detail,
++            )
++            if action=="segment_close":
++                body["segments_closed"]=int(body.get("segments_closed",0))+1
++            elif action=="rebalance":
++                proposal_hash=detail.get("proposal_hash")
++                if not isinstance(proposal_hash,str) or len(proposal_hash)!=64:
++                    raise BoundaryError("ramses_strategy_rebalance_proposal")
++                body["proposal_hash"]=proposal_hash
++                body["rebalances"]=int(body.get("rebalances",0))+1
++            self._save(body,action)
++            self.db.execute("COMMIT")
++        except Exception:
++            self.db.execute("ROLLBACK")
++            raise
++        return body
++
++    def settle(self, identity, *, pnl, at):
++        self.db.execute("BEGIN IMMEDIATE")
++        try:
++            body = self._load(identity)
++            if body["status"] != "open":
++                raise BoundaryError("ramses_strategy_settle_state")
++            if at < body["at"]:
++                raise BoundaryError("ramses_strategy_time_regression")
++            if not isinstance(pnl, dict) or pnl.get("strategy_domain") != STRATEGY_DOMAIN:
++                raise BoundaryError("foreign_strategy_outcome")
++            result = pnl.get("net_result_quote")
++            if pnl.get("unresolved_inventory") or type(result) is not int:
++                body.update(
++                    status="unresolved",
++                    version=body["version"] + 1,
++                    at=at,
++                    outcome=pnl,
++                )
++                action = "unresolved"
++            else:
++                body.update(
++                    status="settled",
++                    version=body["version"] + 1,
++                    at=at,
++                    reserved=0,
++                    realized=result,
++                    after_cost_result=result,
++                    outcome=pnl,
++                )
++                action = "settle"
++            self._save(body, action)
 +            self.reconcile()
-             self.db.execute("COMMIT")
-         except Exception:
-             self.db.execute("ROLLBACK")
-@@ -292,6 +321,29 @@ class RamsesStrategyLedger:
-         return body
- 
-     def reconcile(self):
++            self.db.execute("COMMIT")
++        except Exception:
++            self.db.execute("ROLLBACK")
++            raise
++        return body
++
++    def reconcile(self):
 +        owns_transaction=not self.db.in_transaction
 +        if owns_transaction:self.db.execute('BEGIN')
 +        try:return self._reconcile()
@@ -1461,14 +2034,45 @@ index 2a2f308..dee63e1 100644
 +            replay[identity]=body
 +        projection={identity:json.loads(encoded) for identity,encoded in self.db.execute('SELECT id,body FROM ramses_strategy_position')}
 +        if replay!=projection:raise BoundaryError('ramses_strategy_projection_mismatch')
-         rows = self.db.execute(
-             "SELECT body,hash FROM ramses_strategy_position ORDER BY id"
-         ).fetchall()
++        rows = self.db.execute(
++            "SELECT body,hash FROM ramses_strategy_position ORDER BY id"
++        ).fetchall()
++        positions = []
++        for encoded, checksum in rows:
++            body = json.loads(encoded)
++            if _digest(body) != checksum:
++                raise BoundaryError("ramses_strategy_ledger_checksum")
++            if (
++                body.get("strategy_domain") != STRATEGY_DOMAIN
++                or body.get("shared_allocator") is not False
++                or body.get("allocation_authority") is not False
++            ):
++                raise BoundaryError("ramses_strategy_ledger_domain_drift")
++            positions.append(body)
++        realized = sum(p["realized"] for p in positions if p["status"] == "settled")
++        committed = sum(p["reserved"] for p in positions if p["status"] != "settled")
++        available = self.paper_capital + realized - committed
++        if available < 0:
++            raise BoundaryError("ramses_strategy_capital_invariant")
++        return dict(
++            strategy_domain=STRATEGY_DOMAIN,
++            strategy_version=STRATEGY_VERSION,
++            policy_hash=POLICY_HASH,
++            quote_asset=self.quote_asset,
++            paper_capital=self.paper_capital,
++            realized=realized,
++            committed=committed,
++            available=available,
++            open_positions=sum(p["status"] != "settled" for p in positions),
++            positions=len(positions),
++            shared_allocator=False,
++            allocation_authority=False,
++        )
 diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_universe.py
-index 26e7ff5..f54ccd5 100644
+index eb83912..c6e785b 100644
 --- a/robinhood_research/ramses_universe.py
 +++ b/robinhood_research/ramses_universe.py
-@@ -429,6 +429,7 @@ def scan(
+@@ -453,6 +453,7 @@ def scan(
      signals_by_pool=None,
      cost_state=None,
      finalized_frontier=None,
@@ -1476,7 +2080,7 @@ index 26e7ff5..f54ccd5 100644
  ):
      """Scan the complete factory and classify the bounded recently-active cohort."""
      if type(lookback_blocks) is not int or not 10 <= lookback_blocks <= 1200:
-@@ -466,6 +467,12 @@ def scan(
+@@ -490,6 +491,12 @@ def scan(
          provider_role="public_observation",
      )
      started = time.time()
@@ -1489,7 +2093,7 @@ index 26e7ff5..f54ccd5 100644
      rpc.verify_chain()
      observation_rpc.verify_chain()
      if finalized_frontier is None:
-@@ -497,10 +504,13 @@ def scan(
+@@ -521,10 +528,13 @@ def scan(
              raise BoundaryError("invalid_ramses_finalized_frontier")
          frontier = dict(finalized_frontier)
          frontier_source = "pinned_external_finalized_header"
@@ -1503,7 +2107,7 @@ index 26e7ff5..f54ccd5 100644
  
      factory_pin = load("ramses_factory")
      factory = factory_pin["address"]
-@@ -511,6 +521,7 @@ def scan(
+@@ -539,6 +549,7 @@ def scan(
          rpc,factory,end,
          factory_runtime_sha256=factory_identity["runtime_sha256"],
      )
@@ -1511,7 +2115,7 @@ index 26e7ff5..f54ccd5 100644
      logs = _batched_logs(observation_rpc, start, end, addresses)
      histories, cost_events = _decode_economic_logs(logs, addresses)
  
-@@ -535,6 +546,7 @@ def scan(
+@@ -563,6 +574,7 @@ def scan(
      )
      active_cohort = activity[:max_recent_active_pools]
      active_addresses={row["pool"] for row in active_cohort}
@@ -1519,7 +2123,7 @@ index 26e7ff5..f54ccd5 100644
      # Receipt gas is authoritative evidence, so acquire it only for the bounded
      # cohort that can proceed to state hydration. Broad public observation remains
      # intact for every factory pool and every economic log.
-@@ -547,6 +559,9 @@ def scan(
+@@ -575,6 +587,9 @@ def scan(
      wide_hydrated=0
      for activity_row in active_cohort:
          address = activity_row["pool"]
@@ -1529,7 +2133,7 @@ index 26e7ff5..f54ccd5 100644
          try:
              auth, prestate = _prestate(rpc, factory, address, end)
              tx=auth["token_x"].lower()
-@@ -593,6 +608,8 @@ def scan(
+@@ -621,6 +636,8 @@ def scan(
              ))
          except BoundaryError as exc:
              exclusions[str(exc)] += 1
@@ -1538,7 +2142,7 @@ index 26e7ff5..f54ccd5 100644
  
      features = [r["features"] for r in rows]
      for row in rows:
-@@ -608,6 +625,7 @@ def scan(
+@@ -636,6 +653,7 @@ def scan(
  
      classified = []
      for row in rows:
@@ -1546,7 +2150,7 @@ index 26e7ff5..f54ccd5 100644
          f = row["features"]
          capital = max(1, f["active_liquidity_quote"] * PAPER_ACTIVE_LIQUIDITY_BPS // 10000)
          signal_context = signals_by_pool.get(row["pool"], {})
-@@ -703,6 +721,8 @@ def scan(
+@@ -731,6 +749,8 @@ def scan(
              "allocation_authority": False,
          })
  
@@ -1885,18 +2489,847 @@ index 0000000..9d82e71
 +                with self.assertRaisesRegex(BoundaryError,'projection_mismatch'):ledger.reconcile()
 +            finally:ledger.close()
 diff --git a/robinhood_tests/test_ramses_connected_lifecycle.py b/robinhood_tests/test_ramses_connected_lifecycle.py
-index fec14e3..70fff2d 100644
 --- a/robinhood_tests/test_ramses_connected_lifecycle.py
 +++ b/robinhood_tests/test_ramses_connected_lifecycle.py
-@@ -43,7 +43,7 @@ def _freeze():
- 
- def _decision(qualified=True):
-     return dict(
--        mode="fee_pulse",
-+        mode="active_wide_maker",
-         qualified=qualified,
-         allocation_authority=False,
-         strategy_domain=STRATEGY_DOMAIN,
+@@ -1,419 +1,418 @@
+-import hashlib
+-import json
+-import os
+-from pathlib import Path
+-import tempfile
+-import unittest
+-from unittest.mock import patch
+-
+-import robinhood_research.ramses_all_pool_lifecycle as lifecycle
+-from robinhood_research.ramses_all_pool_lifecycle import (
+-    _canonicalize_selected_row,
+-    _frozen_prestate,
+-    _is_transient_provider_boundary,
+-    _paper_ledger_capital,
+-    _rebalance_deadline_missed,
+-    _rebalance_deadline_seconds,
+-    _unwind_has_full_liquidity,
+-    aggregate_segments,
+-    compact_lifecycle_result,
+-    select_qualifier,
+-)
+-from robinhood_research.ramses_strategy import (
+-    ACTIVE_MODE,
+-    POLICY_HASH,
+-    STRATEGY_DOMAIN,
+-    STRATEGY_VERSION,
+-)
+-from robinhood_research.ramses_strategy_ledger import RamsesStrategyLedger
+-
+-
+-def _freeze():
+-    proposal = dict(capital_employed=100)
+-    digest = hashlib.sha256(
+-        json.dumps([proposal], sort_keys=True, separators=(",", ":")).encode()
+-    ).hexdigest()
+-    return dict(
+-        proposal_hash=digest,
+-        proposals=[proposal],
+-        frozen=True,
+-        allocation_authority=False,
+-        strategy_domain=STRATEGY_DOMAIN,
+-        strategy_version=STRATEGY_VERSION,
+-        policy_hash=POLICY_HASH,
+-    )
+-
+-
+-def _decision(qualified=True):
+-    return dict(
+-        mode=ACTIVE_MODE,
+-        qualified=qualified,
+-        allocation_authority=False,
+-        strategy_domain=STRATEGY_DOMAIN,
+-        strategy_version=STRATEGY_VERSION,
+-        policy_hash=POLICY_HASH,
+-        freeze=_freeze(),
+-    )
+-
+-
+-class RamsesConnectedLifecycleTests(unittest.TestCase):
+-    def test_transient_provider_boundaries_are_position_safe_only_for_rate_limits(self):
+-        self.assertTrue(
+-            _is_transient_provider_boundary(
+-                lifecycle.BoundaryError("provider_http_429")
+-            )
+-        )
+-        self.assertTrue(
+-            _is_transient_provider_boundary(
+-                lifecycle.BoundaryError("provider_rpc_429")
+-            )
+-        )
+-        self.assertTrue(
+-            _is_transient_provider_boundary(
+-                lifecycle.BoundaryError("provider_rate_limit")
+-            )
+-        )
+-        self.assertFalse(
+-            _is_transient_provider_boundary(
+-                lifecycle.BoundaryError("connected_lifecycle_terminal_equality")
+-            )
+-        )
+-
+-    def test_partial_unwind_liquidity_holds_position_open_for_retry(self):
+-        self.assertTrue(_unwind_has_full_liquidity(None))
+-        self.assertTrue(_unwind_has_full_liquidity(dict(amount_in=10,amount_in_left=0)))
+-        self.assertFalse(_unwind_has_full_liquidity(dict(amount_in=10,amount_in_left=3)))
+-        with self.assertRaisesRegex(lifecycle.BoundaryError,"unwind_shape"):
+-            _unwind_has_full_liquidity(dict(amount_in=10,amount_in_left=11))
+-
+-    def test_machinery_proof_ledger_funds_modeled_cost_envelope_without_resizing_position(self):
+-        position = 205467
+-        costs = dict(
+-            entry_overhead=630350,
+-            add_liquidity=1260698,
+-            remove_liquidity=1260698,
+-            unwind=630349,
+-        )
+-        funded = _paper_ledger_capital(position, costs, 2)
+-        self.assertEqual(
+-            funded,
+-            position + sum(costs.values()) * 3,
+-        )
+-        self.assertGreater(funded, position)
+-        self.assertEqual(position, 205467)
+-
+-    def test_first_ranked_genuine_qualifier_is_selected(self):
+-        screen = dict(
+-            strategy_domain=STRATEGY_DOMAIN,
+-            rows=[
+-                dict(pool="0x"+"11"*20, decision=_decision(False)),
+-                dict(pool="0x"+"22"*20, decision=_decision(True)),
+-                dict(pool="0x"+"33"*20, decision=_decision(True)),
+-            ],
+-        )
+-        self.assertEqual(select_qualifier(screen)["pool"], "0x"+"22"*20)
+-
+-    def test_legacy_mode_is_not_a_genuine_qualifier(self):
+-        legacy=dict(_decision(True),mode="fee_pulse")
+-        screen=dict(
+-            strategy_domain=STRATEGY_DOMAIN,
+-            rows=[dict(pool="0x"+"11"*20,decision=legacy)],
+-        )
+-        self.assertIsNone(select_qualifier(screen))
+-
+-    def test_rebalance_same_decision_deadline_is_exactly_210_seconds(self):
+-        self.assertEqual(_rebalance_deadline_seconds(),210)
+-        self.assertFalse(_rebalance_deadline_missed(100.0,now=310.0))
+-        self.assertTrue(_rebalance_deadline_missed(100.0,now=310.0001))
+-
+-
+-    def test_no_qualifier_returns_none(self):
+-        screen = dict(
+-            strategy_domain=STRATEGY_DOMAIN,
+-            rows=[dict(pool="0x"+"11"*20, decision=_decision(False))],
+-        )
+-        self.assertIsNone(select_qualifier(screen))
+-
+-    def test_segment_pnl_is_aggregated_after_rebalances(self):
+-        segments = [
+-            dict(
+-                initial_cost_basis=1000,
+-                pnl=dict(
+-                    fee_pnl_quote=20,
+-                    inventory_or_directional_pnl_quote=-5,
+-                    execution_cost_quote=3,
+-                    gross_result_quote=15,
+-                    net_result_quote=12,
+-                    unresolved_inventory=None,
+-                ),
+-            ),
+-            dict(
+-                initial_cost_basis=1012,
+-                pnl=dict(
+-                    fee_pnl_quote=10,
+-                    inventory_or_directional_pnl_quote=2,
+-                    execution_cost_quote=2,
+-                    gross_result_quote=12,
+-                    net_result_quote=10,
+-                    unresolved_inventory=None,
+-                ),
+-            ),
+-        ]
+-        got = aggregate_segments(segments)
+-        self.assertEqual(got["segments"], 2)
+-        self.assertEqual(got["rebalances"], 1)
+-        self.assertEqual(got["fee_pnl_quote"], 30)
+-        self.assertEqual(got["inventory_or_directional_pnl_quote"], -3)
+-        self.assertEqual(got["execution_cost_quote"], 5)
+-        self.assertEqual(got["net_result_quote"], 22)
+-        self.assertEqual(got["after_cost_return_bps"], 220)
+-
+-    def test_ledger_persists_monitor_segment_and_rebalance_checkpoints(self):
+-        fd, path = tempfile.mkstemp(prefix="ramses-connected-", suffix=".sqlite")
+-        os.close(fd)
+-        os.unlink(path)
+-        self.addCleanup(lambda: os.path.exists(path) and os.unlink(path))
+-        ledger = RamsesStrategyLedger(
+-            path, paper_capital=1000, quote_asset="0x"+"44"*20
+-        )
+-        decision = _decision(True)
+-        ledger.reserve(
+-            "id", pool="0x"+"55"*20, decision=decision, at=1
+-        )
+-        ledger.open("id", at=2)
+-        ledger.checkpoint(
+-            "id", action="monitor", detail=dict(action="hold"), at=3
+-        )
+-        ledger.checkpoint(
+-            "id", action="segment_close",
+-            detail=dict(segment=0, exit_reason="bin_displacement"), at=4
+-        )
+-        ledger.checkpoint(
+-            "id", action="rebalance",
+-            detail=dict(proposal_hash="a"*64), at=5
+-        )
+-        body = ledger.position("id")
+-        self.assertEqual(body["segments_closed"], 1)
+-        self.assertEqual(body["rebalances"], 1)
+-        self.assertEqual(body["proposal_hash"], "a"*64)
+-        ledger.close()
+-
+-    def test_connected_entrypoint_does_not_call_legacy_native_selector(self):
+-        root = Path(__file__).parents[1] / "robinhood_research"
+-        connected = (root / "ramses_all_pool_lifecycle.py").read_text()
+-        sample = (root / "ramses_strategy_sample.py").read_text()
+-        self.assertNotIn("from .ramses_capture import run", connected)
+-        self.assertNotIn("ramses_capture.run", connected)
+-        self.assertNotIn("ramses_capture", sample)
+-        self.assertIn("ramses_all_pool_lifecycle", sample)
+-
+-    def test_canonical_history_replaces_scanner_count_mismatch(self):
+-        pool="0x"+"66"*20
+-        tx1="0x"+"a1"*32
+-        tx2="0x"+"a2"*32
+-        bh1="0x"+"b1"*32
+-        bh2="0x"+"b2"*32
+-        def event(block,tx,bh,log_index):
+-            return dict(
+-                address=pool,
+-                blockNumber=hex(block),
+-                blockHash=bh,
+-                transactionHash=tx,
+-                transactionIndex="0x0",
+-                logIndex=hex(log_index),
+-                removed=False,
+-                topics=["0x"+"01"*32],
+-                data="0x",
+-            )
+-        e1=event(100,tx1,bh1,0)
+-        e2=event(101,tx2,bh2,0)
+-
+-        class Rpc:
+-            def batch(self,calls,scope="connectivity"):
+-                raise AssertionError(calls)
+-            def receipts(self,identities,scope="connectivity"):
+-                out=[]
+-                for tx,block_hash in identities:
+-                    e=e1 if tx==tx1 else e2
+-                    self.assert_equal_block = block_hash == e["blockHash"]
+-                    if not self.assert_equal_block:
+-                        raise AssertionError((block_hash,e["blockHash"]))
+-                    out.append(dict(
+-                        transactionHash=tx,
+-                        blockHash=e["blockHash"],
+-                        transactionIndex=e["transactionIndex"],
+-                        status="0x1",
+-                        logs=[e],
+-                    ))
+-                return out
+-            def blocks(self,blocks,scope="connectivity"):
+-                out=[]
+-                for block in blocks:
+-                    e=e1 if block==100 else e2
+-                    out.append(dict(
+-                        number=hex(block),
+-                        hash=e["blockHash"],
+-                        timestamp=hex(1000+block),
+-                        parentHash="0x"+"00"*32,
+-                    ))
+-                return out
+-
+-        row=dict(
+-            pool=pool,
+-            prehistory=[dict(
+-                block=100,
+-                block_hash=bh1,
+-                transaction_hash=tx1,
+-                transaction_index=0,
+-                log_index=0,
+-                args=dict(id=1,amountsIn="0x0"),
+-            )],
+-        )
+-        screen=dict(lookback_start_block=100,finalized_block=101)
+-        decoded1=dict(name="Swap",args=dict(id=1,amountsIn="0x0"))
+-        decoded2=dict(name="Swap",args=dict(id=2,amountsIn="0x0"))
+-        with patch.object(lifecycle,"_batch_logs",return_value=[e1,e2]), \
+-             patch.object(lifecycle,"decode_ramses_event",side_effect=[decoded1,decoded2]):
+-            history,auth=lifecycle._canonical_preentry_history(Rpc(),row,screen)
+-        self.assertEqual(len(history),2)
+-        self.assertEqual(auth["scanner_swap_logs"],1)
+-        self.assertEqual(auth["swap_logs"],2)
+-        self.assertFalse(auth["identity_match"])
+-        self.assertEqual(auth["canonical_only"],1)
+-
+-    def test_frozen_prestate_requires_exact_finalized_identity(self):
+-        state = dict(
+-            active=7,
+-            step=5,
+-            bins={7: dict(reserves=[1, 2], supply=3)},
+-        )
+-        row = dict(
+-            prestate=state,
+-            prestate_block=123,
+-            prestate_block_hash="0x" + "ab" * 32,
+-            prestate_timestamp=456,
+-        )
+-        screen = dict(
+-            finalized_block=123,
+-            finalized_hash="0x" + "ab" * 32,
+-            finalized_timestamp=456,
+-        )
+-        got = _frozen_prestate(row, screen)
+-        self.assertEqual(got, state)
+-        self.assertIsNot(got, state)
+-        bad = dict(row, prestate_block_hash="0x" + "cd" * 32)
+-        with self.assertRaisesRegex(
+-            lifecycle.BoundaryError,
+-            "frozen_prestate_identity",
+-        ):
+-            _frozen_prestate(bad, screen)
+-
+-    def test_canonical_reclassification_reuses_scanner_prestate_without_state_rpc(self):
+-        state = dict(
+-            active=7,
+-            step=5,
+-            bins={7: dict(reserves=[10, 20], supply=30)},
+-        )
+-        row = dict(
+-            pool="0x" + "66" * 20,
+-            quote_side="y",
+-            prestate=state,
+-            prehistory=[dict(block=1)],
+-            prestate_block=123,
+-            prestate_block_hash="0x" + "ab" * 32,
+-            prestate_timestamp=456,
+-            paper_capital_quote_raw=100,
+-            gas_costs=dict(
+-                add_liquidity=11,
+-                remove_liquidity=12,
+-                unwind=13,
+-                entry_overhead=14,
+-            ),
+-            cost_evidence=dict(
+-                available=True,
+-                source="automatic_onchain",
+-            ),
+-            features=dict(turnover_bps=1, total_fee_rate=1),
+-        )
+-        screen = dict(
+-            finalized_block=123,
+-            finalized_hash="0x" + "ab" * 32,
+-            finalized_timestamp=456,
+-            lookback_start_block=100,
+-            rows=[row],
+-        )
+-        history = [dict(
+-            block=120,
+-            block_hash="0x" + "ef" * 32,
+-            transaction_hash="0x" + "11" * 32,
+-            transaction_index=0,
+-            log_index=0,
+-            args=dict(id=7, amountsIn="0x0"),
+-        )]
+-        decision = dict(
+-            mode="no_trade",
+-            qualified=False,
+-            allocation_authority=False,
+-            strategy_domain=STRATEGY_DOMAIN,
+-            strategy_version=STRATEGY_VERSION,
+-            policy_hash=POLICY_HASH,
+-            reasons=["test"],
+-        )
+-        with patch.object(
+-            lifecycle,
+-            "_canonical_preentry_history",
+-            return_value=(history, dict(authenticated=True)),
+-        ), patch.object(
+-            lifecycle,
+-            "pool_features",
+-            return_value=dict(turnover_bps=2, total_fee_rate=2),
+-        ), patch.object(
+-            lifecycle,
+-            "classify_pool",
+-            return_value=decision,
+-        ) as classify:
+-            canonical, auth = _canonicalize_selected_row(
+-                object(), row, screen, costs_by_pool={}, signals_by_pool={}
+-            )
+-        self.assertEqual(canonical["prestate"], state)
+-        self.assertEqual(canonical["prehistory"], history)
+-        self.assertEqual(classify.call_args.args[0], state)
+-        self.assertEqual(
+-            classify.call_args.kwargs["gas_costs"],
+-            dict(
+-                add_liquidity=11,
+-                remove_liquidity=12,
+-                unwind=13,
+-                entry_overhead=14,
+-            ),
+-        )
+-        self.assertEqual(canonical["gas_costs"]["unwind"], 13)
+-        self.assertTrue(auth["prestate_reused_from_scanner"])
+-        self.assertFalse(auth["prestate_rpc_refetch"])
+-        self.assertEqual(auth["prestate_block"], 123)
+-
+-    def test_compact_lifecycle_report_strips_selector_prestate(self):
+-        result = dict(
+-            initial_screen=dict(
+-                rows=[dict(
+-                    pool="0x" + "77" * 20,
+-                    prestate=dict(
+-                        active=7,
+-                        step=5,
+-                        bins={7: dict(reserves=[1, 2], supply=3)},
+-                    ),
+-                    prehistory=[dict(block=1)],
+-                    prestate_block=123,
+-                    prestate_block_hash="0x" + "ab" * 32,
+-                    prestate_timestamp=456,
+-                )],
+-            ),
+-        )
+-        public = compact_lifecycle_result(result)
+-        self.assertNotIn("prestate", public["initial_screen"]["rows"][0])
+-        self.assertNotIn("prehistory", public["initial_screen"]["rows"][0])
+-        self.assertFalse(public["selector_prestate_persisted_in_artifact"])
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
++import hashlib
++import json
++import os
++from pathlib import Path
++import tempfile
++import unittest
++from unittest.mock import patch
++
++import robinhood_research.ramses_all_pool_lifecycle as lifecycle
++from robinhood_research.ramses_all_pool_lifecycle import (
++    _canonicalize_selected_row,
++    _frozen_prestate,
++    _is_transient_provider_boundary,
++    _paper_ledger_capital,
++    _rebalance_deadline_missed,
++    _rebalance_deadline_seconds,
++    _unwind_has_full_liquidity,
++    aggregate_segments,
++    compact_lifecycle_result,
++    select_qualifier,
++)
++from robinhood_research.ramses_strategy import (
++    ACTIVE_MODE,
++    POLICY_HASH,
++    STRATEGY_DOMAIN,
++    STRATEGY_VERSION,
++)
++from robinhood_research.ramses_strategy_ledger import RamsesStrategyLedger
++
++
++def _freeze():
++    proposal = dict(capital_employed=100)
++    digest = hashlib.sha256(
++        json.dumps([proposal], sort_keys=True, separators=(",", ":")).encode()
++    ).hexdigest()
++    return dict(
++        proposal_hash=digest,
++        proposals=[proposal],
++        frozen=True,
++        allocation_authority=False,
++        strategy_domain=STRATEGY_DOMAIN,
++        strategy_version=STRATEGY_VERSION,
++        policy_hash=POLICY_HASH,
++    )
++
++
++def _decision(qualified=True):
++    return dict(
++        mode=ACTIVE_MODE,
++        qualified=qualified,
++        allocation_authority=False,
++        strategy_domain=STRATEGY_DOMAIN,
++        strategy_version=STRATEGY_VERSION,
++        policy_hash=POLICY_HASH,
++        freeze=_freeze(),
++    )
++
++
++class RamsesConnectedLifecycleTests(unittest.TestCase):
++    def test_transient_provider_boundaries_are_position_safe_only_for_rate_limits(self):
++        self.assertTrue(
++            _is_transient_provider_boundary(
++                lifecycle.BoundaryError("provider_http_429")
++            )
++        )
++        self.assertTrue(
++            _is_transient_provider_boundary(
++                lifecycle.BoundaryError("provider_rpc_429")
++            )
++        )
++        self.assertTrue(
++            _is_transient_provider_boundary(
++                lifecycle.BoundaryError("provider_rate_limit")
++            )
++        )
++        self.assertFalse(
++            _is_transient_provider_boundary(
++                lifecycle.BoundaryError("connected_lifecycle_terminal_equality")
++            )
++        )
++
++    def test_partial_unwind_liquidity_holds_position_open_for_retry(self):
++        self.assertTrue(_unwind_has_full_liquidity(None))
++        self.assertTrue(_unwind_has_full_liquidity(dict(amount_in=10,amount_in_left=0)))
++        self.assertFalse(_unwind_has_full_liquidity(dict(amount_in=10,amount_in_left=3)))
++        with self.assertRaisesRegex(lifecycle.BoundaryError,"unwind_shape"):
++            _unwind_has_full_liquidity(dict(amount_in=10,amount_in_left=11))
++
++    def test_machinery_proof_ledger_funds_modeled_cost_envelope_without_resizing_position(self):
++        position = 205467
++        costs = dict(
++            entry_overhead=630350,
++            add_liquidity=1260698,
++            remove_liquidity=1260698,
++            unwind=630349,
++        )
++        funded = _paper_ledger_capital(position, costs, 2)
++        self.assertEqual(
++            funded,
++            position + sum(costs.values()) * 3,
++        )
++        self.assertGreater(funded, position)
++        self.assertEqual(position, 205467)
++
++    def test_first_ranked_genuine_qualifier_is_selected(self):
++        screen = dict(
++            strategy_domain=STRATEGY_DOMAIN,
++            rows=[
++                dict(pool="0x"+"11"*20, decision=_decision(False)),
++                dict(pool="0x"+"22"*20, decision=_decision(True)),
++                dict(pool="0x"+"33"*20, decision=_decision(True)),
++            ],
++        )
++        self.assertEqual(select_qualifier(screen)["pool"], "0x"+"22"*20)
++
++    def test_legacy_mode_is_not_a_genuine_qualifier(self):
++        legacy=dict(_decision(True),mode="fee_pulse")
++        screen=dict(
++            strategy_domain=STRATEGY_DOMAIN,
++            rows=[dict(pool="0x"+"11"*20,decision=legacy)],
++        )
++        self.assertIsNone(select_qualifier(screen))
++
++    def test_rebalance_same_decision_deadline_is_exactly_210_seconds(self):
++        self.assertEqual(_rebalance_deadline_seconds(),210)
++        self.assertFalse(_rebalance_deadline_missed(100.0,now=310.0))
++        self.assertTrue(_rebalance_deadline_missed(100.0,now=310.0001))
++
++    def test_no_qualifier_returns_none(self):
++        screen = dict(
++            strategy_domain=STRATEGY_DOMAIN,
++            rows=[dict(pool="0x"+"11"*20, decision=_decision(False))],
++        )
++        self.assertIsNone(select_qualifier(screen))
++
++    def test_segment_pnl_is_aggregated_after_rebalances(self):
++        segments = [
++            dict(
++                initial_cost_basis=1000,
++                pnl=dict(
++                    fee_pnl_quote=20,
++                    inventory_or_directional_pnl_quote=-5,
++                    execution_cost_quote=3,
++                    gross_result_quote=15,
++                    net_result_quote=12,
++                    unresolved_inventory=None,
++                ),
++            ),
++            dict(
++                initial_cost_basis=1012,
++                pnl=dict(
++                    fee_pnl_quote=10,
++                    inventory_or_directional_pnl_quote=2,
++                    execution_cost_quote=2,
++                    gross_result_quote=12,
++                    net_result_quote=10,
++                    unresolved_inventory=None,
++                ),
++            ),
++        ]
++        got = aggregate_segments(segments)
++        self.assertEqual(got["segments"], 2)
++        self.assertEqual(got["rebalances"], 1)
++        self.assertEqual(got["fee_pnl_quote"], 30)
++        self.assertEqual(got["inventory_or_directional_pnl_quote"], -3)
++        self.assertEqual(got["execution_cost_quote"], 5)
++        self.assertEqual(got["net_result_quote"], 22)
++        self.assertEqual(got["after_cost_return_bps"], 220)
++
++    def test_ledger_persists_monitor_segment_and_rebalance_checkpoints(self):
++        fd, path = tempfile.mkstemp(prefix="ramses-connected-", suffix=".sqlite")
++        os.close(fd)
++        os.unlink(path)
++        self.addCleanup(lambda: os.path.exists(path) and os.unlink(path))
++        ledger = RamsesStrategyLedger(
++            path, paper_capital=1000, quote_asset="0x"+"44"*20
++        )
++        decision = _decision(True)
++        ledger.reserve(
++            "id", pool="0x"+"55"*20, decision=decision, at=1
++        )
++        ledger.open("id", at=2)
++        ledger.checkpoint(
++            "id", action="monitor", detail=dict(action="hold"), at=3
++        )
++        ledger.checkpoint(
++            "id", action="segment_close",
++            detail=dict(segment=0, exit_reason="bin_displacement"), at=4
++        )
++        ledger.checkpoint(
++            "id", action="rebalance",
++            detail=dict(proposal_hash="a"*64), at=5
++        )
++        body = ledger.position("id")
++        self.assertEqual(body["segments_closed"], 1)
++        self.assertEqual(body["rebalances"], 1)
++        self.assertEqual(body["proposal_hash"], "a"*64)
++        ledger.close()
++
++    def test_connected_entrypoint_does_not_call_legacy_native_selector(self):
++        root = Path(__file__).parents[1] / "robinhood_research"
++        connected = (root / "ramses_all_pool_lifecycle.py").read_text()
++        sample = (root / "ramses_strategy_sample.py").read_text()
++        self.assertNotIn("from .ramses_capture import run", connected)
++        self.assertNotIn("ramses_capture.run", connected)
++        self.assertNotIn("ramses_capture", sample)
++        self.assertIn("ramses_all_pool_lifecycle", sample)
++
++    def test_canonical_history_replaces_scanner_count_mismatch(self):
++        pool="0x"+"66"*20
++        tx1="0x"+"a1"*32
++        tx2="0x"+"a2"*32
++        bh1="0x"+"b1"*32
++        bh2="0x"+"b2"*32
++        def event(block,tx,bh,log_index):
++            return dict(
++                address=pool,
++                blockNumber=hex(block),
++                blockHash=bh,
++                transactionHash=tx,
++                transactionIndex="0x0",
++                logIndex=hex(log_index),
++                removed=False,
++                topics=["0x"+"01"*32],
++                data="0x",
++            )
++        e1=event(100,tx1,bh1,0)
++        e2=event(101,tx2,bh2,0)
++
++        class Rpc:
++            def batch(self,calls,scope="connectivity"):
++                raise AssertionError(calls)
++            def receipts(self,identities,scope="connectivity"):
++                out=[]
++                for tx,block_hash in identities:
++                    e=e1 if tx==tx1 else e2
++                    self.assert_equal_block = block_hash == e["blockHash"]
++                    if not self.assert_equal_block:
++                        raise AssertionError((block_hash,e["blockHash"]))
++                    out.append(dict(
++                        transactionHash=tx,
++                        blockHash=e["blockHash"],
++                        transactionIndex=e["transactionIndex"],
++                        status="0x1",
++                        logs=[e],
++                    ))
++                return out
++            def blocks(self,blocks,scope="connectivity"):
++                out=[]
++                for block in blocks:
++                    e=e1 if block==100 else e2
++                    out.append(dict(
++                        number=hex(block),
++                        hash=e["blockHash"],
++                        timestamp=hex(1000+block),
++                        parentHash="0x"+"00"*32,
++                    ))
++                return out
++
++        row=dict(
++            pool=pool,
++            prehistory=[dict(
++                block=100,
++                block_hash=bh1,
++                transaction_hash=tx1,
++                transaction_index=0,
++                log_index=0,
++                args=dict(id=1,amountsIn="0x0"),
++            )],
++        )
++        screen=dict(lookback_start_block=100,finalized_block=101)
++        decoded1=dict(name="Swap",args=dict(id=1,amountsIn="0x0"))
++        decoded2=dict(name="Swap",args=dict(id=2,amountsIn="0x0"))
++        with patch.object(lifecycle,"_batch_logs",return_value=[e1,e2]), \
++             patch.object(lifecycle,"decode_ramses_event",side_effect=[decoded1,decoded2]):
++            history,auth=lifecycle._canonical_preentry_history(Rpc(),row,screen)
++        self.assertEqual(len(history),2)
++        self.assertEqual(auth["scanner_swap_logs"],1)
++        self.assertEqual(auth["swap_logs"],2)
++        self.assertFalse(auth["identity_match"])
++        self.assertEqual(auth["canonical_only"],1)
++
++    def test_frozen_prestate_requires_exact_finalized_identity(self):
++        state = dict(
++            active=7,
++            step=5,
++            bins={7: dict(reserves=[1, 2], supply=3)},
++        )
++        row = dict(
++            prestate=state,
++            prestate_block=123,
++            prestate_block_hash="0x" + "ab" * 32,
++            prestate_timestamp=456,
++        )
++        screen = dict(
++            finalized_block=123,
++            finalized_hash="0x" + "ab" * 32,
++            finalized_timestamp=456,
++        )
++        got = _frozen_prestate(row, screen)
++        self.assertEqual(got, state)
++        self.assertIsNot(got, state)
++        bad = dict(row, prestate_block_hash="0x" + "cd" * 32)
++        with self.assertRaisesRegex(
++            lifecycle.BoundaryError,
++            "frozen_prestate_identity",
++        ):
++            _frozen_prestate(bad, screen)
++
++    def test_canonical_reclassification_reuses_scanner_prestate_without_state_rpc(self):
++        state = dict(
++            active=7,
++            step=5,
++            bins={7: dict(reserves=[10, 20], supply=30)},
++        )
++        row = dict(
++            pool="0x" + "66" * 20,
++            quote_side="y",
++            prestate=state,
++            prehistory=[dict(block=1)],
++            prestate_block=123,
++            prestate_block_hash="0x" + "ab" * 32,
++            prestate_timestamp=456,
++            paper_capital_quote_raw=100,
++            gas_costs=dict(
++                add_liquidity=11,
++                remove_liquidity=12,
++                unwind=13,
++                entry_overhead=14,
++            ),
++            cost_evidence=dict(
++                available=True,
++                source="automatic_onchain",
++            ),
++            features=dict(turnover_bps=1, total_fee_rate=1),
++        )
++        screen = dict(
++            finalized_block=123,
++            finalized_hash="0x" + "ab" * 32,
++            finalized_timestamp=456,
++            lookback_start_block=100,
++            rows=[row],
++        )
++        history = [dict(
++            block=120,
++            block_hash="0x" + "ef" * 32,
++            transaction_hash="0x" + "11" * 32,
++            transaction_index=0,
++            log_index=0,
++            args=dict(id=7, amountsIn="0x0"),
++        )]
++        decision = dict(
++            mode="no_trade",
++            qualified=False,
++            allocation_authority=False,
++            strategy_domain=STRATEGY_DOMAIN,
++            strategy_version=STRATEGY_VERSION,
++            policy_hash=POLICY_HASH,
++            reasons=["test"],
++        )
++        with patch.object(
++            lifecycle,
++            "_canonical_preentry_history",
++            return_value=(history, dict(authenticated=True)),
++        ), patch.object(
++            lifecycle,
++            "pool_features",
++            return_value=dict(turnover_bps=2, total_fee_rate=2),
++        ), patch.object(
++            lifecycle,
++            "classify_pool",
++            return_value=decision,
++        ) as classify:
++            canonical, auth = _canonicalize_selected_row(
++                object(), row, screen, costs_by_pool={}, signals_by_pool={}
++            )
++        self.assertEqual(canonical["prestate"], state)
++        self.assertEqual(canonical["prehistory"], history)
++        self.assertEqual(classify.call_args.args[0], state)
++        self.assertEqual(
++            classify.call_args.kwargs["gas_costs"],
++            dict(
++                add_liquidity=11,
++                remove_liquidity=12,
++                unwind=13,
++                entry_overhead=14,
++            ),
++        )
++        self.assertEqual(canonical["gas_costs"]["unwind"], 13)
++        self.assertTrue(auth["prestate_reused_from_scanner"])
++        self.assertFalse(auth["prestate_rpc_refetch"])
++        self.assertEqual(auth["prestate_block"], 123)
++
++    def test_compact_lifecycle_report_strips_selector_prestate(self):
++        result = dict(
++            initial_screen=dict(
++                rows=[dict(
++                    pool="0x" + "77" * 20,
++                    prestate=dict(
++                        active=7,
++                        step=5,
++                        bins={7: dict(reserves=[1, 2], supply=3)},
++                    ),
++                    prehistory=[dict(block=1)],
++                    prestate_block=123,
++                    prestate_block_hash="0x" + "ab" * 32,
++                    prestate_timestamp=456,
++                )],
++            ),
++        )
++        public = compact_lifecycle_result(result)
++        self.assertNotIn("prestate", public["initial_screen"]["rows"][0])
++        self.assertNotIn("prehistory", public["initial_screen"]["rows"][0])
++        self.assertFalse(public["selector_prestate_persisted_in_artifact"])
++
++
++if __name__ == "__main__":
++    unittest.main()
+
 diff --git a/robinhood_tests/test_ramses_continuous_campaign.py b/robinhood_tests/test_ramses_continuous_campaign.py
 new file mode 100644
 index 0000000..e083841
@@ -2229,19 +3662,6 @@ index 0000000..e589449
 +        with self.assertRaisesRegex(BoundaryError,'missing_result'):
 +            _scan_with_capacity_recovery(lambda:None,deadline=100,record_failure=lambda _:None,
 +                clock=lambda:0,sleeper=lambda _:None)
-diff --git a/robinhood_tests/test_ramses_strategy_isolation.py b/robinhood_tests/test_ramses_strategy_isolation.py
-index b94aa51..ed2b9c0 100644
---- a/robinhood_tests/test_ramses_strategy_isolation.py
-+++ b/robinhood_tests/test_ramses_strategy_isolation.py
-@@ -23,7 +23,7 @@ class RamsesStrategyIsolationTests(unittest.TestCase):
- 
-     def _decision(self, capital=100):
-         return dict(
--            mode="fee_pulse",
-+            mode="active_wide_maker",
-             qualified=True,
-             allocation_authority=False,
-             strategy_domain=STRATEGY_DOMAIN,
 diff --git a/robinhood_tests/test_shared_position_fairness.py b/robinhood_tests/test_shared_position_fairness.py
 new file mode 100644
 index 0000000..4619cd0

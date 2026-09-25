@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 import unittest
 from certification.cu import estimate
-from certification.capabilities import probe
+from certification.capabilities import probe, required_probe, persist_results
 
 class CuTests(unittest.TestCase):
     def test_batched_members_are_not_discounted(self):
@@ -24,6 +24,65 @@ class CuTests(unittest.TestCase):
                 return [dict(transactionHash='t',blockHash='h')]
         with patch.dict(sys.modules,{'robinhood_research':types.SimpleNamespace(BoundaryError=BoundaryError)}):r=probe(Rpc())
         self.assertFalse(r['methods']['eth_callMany']['supported']);self.assertTrue(r['methods']['eth_getBlockReceipts']['supported'])
+
+    def test_capability_probe_retries_one_transient_503_on_same_rpc(self):
+        from unittest.mock import patch
+        import sys,types
+        class BoundaryError(Exception):pass
+        class Rpc:
+            def __init__(self):self.frontier_calls=0
+            def verify_chain(self):pass
+            def telemetry(self):return {'frontier_calls':self.frontier_calls}
+            def call(self,m,p,scope):
+                if m=='eth_getBlockByNumber':
+                    self.frontier_calls+=1
+                    if self.frontier_calls==1:raise BoundaryError('provider_http_503')
+                    return dict(number='0x1',hash='h',timestamp='0x2',transactions=[])
+                if m in ('eth_getCode','eth_call'):return '0x'
+                if m=='eth_callMany':raise BoundaryError('provider_rpc_-32601')
+                return []
+        rpc=Rpc()
+        with patch.dict(sys.modules,{'robinhood_research':types.SimpleNamespace(BoundaryError=BoundaryError)}), \
+             patch('certification.capabilities.time.sleep'):
+            r=probe(rpc)
+        self.assertEqual(rpc.frontier_calls,2)
+        self.assertEqual(r['transient_retries'],[
+            {'reason':'provider_http_503','attempt':1,'delay_seconds':0.1}])
+
+    def test_required_probe_remains_fail_closed_after_one_transient_retry(self):
+        from unittest.mock import patch
+        import sys,types
+        class BoundaryError(Exception):pass
+        class Rpc:
+            def __init__(self):self.calls=0
+            def verify_chain(self):pass
+            def telemetry(self):return {'calls':self.calls}
+            def call(self,m,p,scope):
+                if m=='eth_getBlockByNumber':
+                    self.calls+=1
+                    raise BoundaryError('provider_http_503')
+                raise AssertionError(m)
+        rpc=Rpc()
+        with patch.dict(sys.modules,{'robinhood_research':types.SimpleNamespace(BoundaryError=BoundaryError)}), \
+             patch('certification.capabilities.time.sleep'):
+            row=required_probe(lambda:rpc,roles={'configured_read'})
+        self.assertFalse(row['passed'])
+        self.assertEqual(row['failure'],'provider_http_503')
+        self.assertEqual(rpc.calls,2)
+
+    def test_capability_results_persist_every_endpoint_before_failure(self):
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'rpc-capabilities.json'
+            payload=persist_results(path,{
+                'aaa':dict(required=True,passed=True,roles=['configured_read']),
+                'bbb':dict(required=True,passed=False,roles=['configured_dlmm'],
+                           failure='provider_http_503'),
+            })
+            self.assertFalse(payload['passed'])
+            self.assertEqual(payload['failed_endpoint_identities'],['bbb'])
+            saved=__import__('json').loads(path.read_text())
+            self.assertEqual(set(saved['endpoints']),{'aaa','bbb'})
+            self.assertFalse(saved['passed'])
 
     def test_cu_efficiency_keeps_missing_denominators_unknown(self):
         from certification.report import provider_efficiency

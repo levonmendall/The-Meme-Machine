@@ -21,6 +21,8 @@ def main():
     args=parser.parse_args()
     # Match production worker import precedence.
     sys.path.insert(0,os.getcwd())
+    # Same root fallback as certification.worker, without shadowing lane modules.
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
     forbidden=[]
     def network_guard(event,values):
         if event!='socket.connect':return

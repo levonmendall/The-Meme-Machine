@@ -1,0 +1,49 @@
+diff --git a/robinhood_research/ramses.py b/robinhood_research/ramses.py
+index a985de7b8160ec8c4398c796d9defabe8556be33..7532dfab7ab4455a10c71d18bff4444f4229c0cb 100644
+--- a/robinhood_research/ramses.py
++++ b/robinhood_research/ramses.py
+@@ -332,7 +332,12 @@ def replay(capture):
+             continue
+         seen[ident]=event;events.append(event)
+     expected={(e['blockHash'],e['logIndex']):e for r in receipts.values() for e in r['logs'] if e['address'].lower()==pool.lower()}
+-    if seen!=expected: raise BoundaryError('missing_receipt_events')
++    # Public log census and authoritative receipts may annotate blockTimestamp
++    # differently. Use the same exact identity/payload contract as per-log
++    # authentication; event time still comes only from the matching header.
++    if seen.keys()!=expected.keys() or any(
++            not receipt_log_matches(event,expected[ident]) for ident,event in seen.items()):
++        raise BoundaryError('missing_receipt_events')
+     abi=load('ramses_pool_implementation')['abi'];fee_by_bin={};composition_by_bin={};fee_events=[]
+     txs=set();counts=Counter();contexts={};share_transfers=0
+     for event in sorted(events,key=lambda e:(int(e['blockNumber'],16),int(e['transactionIndex'],16),int(e['logIndex'],16))):
+diff --git a/robinhood_tests/test_native_ramses.py b/robinhood_tests/test_native_ramses.py
+index 2f8ce7976319eb85b1a9de3764d6a6a874a77b1b..a52d7757cc4c56c0a87ca4e4462e54d0207d1a34 100644
+--- a/robinhood_tests/test_native_ramses.py
++++ b/robinhood_tests/test_native_ramses.py
+@@ -27,6 +27,21 @@ class NativeRamsesTests(unittest.TestCase):
+         for code,member in [(self.capture['pool_code'],False),('0x00'+self.capture['pool_code'][4:],True)]:
+             with self.assertRaises(BoundaryError):authenticate_pool(code,factory_member=member)
+ 
++    def test_public_census_timestamp_annotation_keeps_exact_native_replay(self):
++        expected=replay(self.capture)
++        for event in self.capture['logs']:event['blockTimestamp']='0x0'
++        for receipt in self.capture['receipts']:
++            for event in receipt['logs']:event['blockTimestamp']='0x1234'
++        self.assertEqual(replay(self.capture),expected)
++
++    def test_receipt_set_still_rejects_payload_and_unknown_field_changes(self):
++        for key,value in [('data','0x'),('transactionIndex','0x123'),('unexpectedExtension','value')]:
++            with self.subTest(key=key):
++                capture=copy.deepcopy(self.capture)
++                capture['logs'][0][key]=value
++                with self.assertRaisesRegex(BoundaryError,'missing_receipt_events'):
++                    replay(capture)
++
+     def test_terminal_disagreement_not_patched(self):
+         terminal=self.capture['states'][str(max(map(int,self.capture['states'])))]
+         terminal['values']['getActiveId()']='0x'+f'{8367474:064x}'
+@@ -369,4 +384,3 @@ class RamsesInventoryWatchTests(unittest.TestCase):
+         self.assertEqual(int(previous['number'],16),130)
+         self.assertEqual(int(previous['timestamp'],16),1060)
+         self.assertLessEqual(reads,8)
+-

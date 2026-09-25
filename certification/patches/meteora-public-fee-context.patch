@@ -1,0 +1,118 @@
+diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
+index d310a399..1a4ec35a 100644
+--- a/tests/solana_dlmm_independent_v1.py
++++ b/tests/solana_dlmm_independent_v1.py
+@@ -189,6 +189,8 @@ def _candidate(row):
+     a profitability-v1 gate.
+     """
+     volume=row.get("volume") or {};fees=row.get("fees") or {}
++    missing=[name for name,values in (("volume",volume),("fees",fees))
++             if "5m" not in values or values["5m"] is None]
+     tvl=_num(row.get("tvl"));v5=_num(volume.get("5m"));v30=_num(volume.get("30m"))
+     f5=_num(fees.get("5m"));f30=_num(fees.get("30m"))
+     vacc=_accel(v5,v30,6);facc=_accel(f5,f30,6)
+@@ -203,6 +205,7 @@ def _candidate(row):
+         fee_tvl_ratio_5m=density,volume_acceleration=vacc,fee_acceleration=facc,
+         event_score=(math.log1p(v5)*max(vacc,0.01)*max(facc,0.01)*max(density,1e-12)),
+         public_context_source="pool_list_snapshot",
++        missing_5m_context=missing,
+     )
+ 
+ 
+@@ -265,6 +268,8 @@ def _history_acceleration(candidate,observed_at):
+         latest_completed_bucket_age_seconds=(
+             int(observed_at)-(window[-1]["timestamp"]+300)),
+         acceleration_bucket_count=len(window),
++        public_context_source="completed_5m_history_buckets",
++        missing_5m_context=[],
+     )
+     return out
+ 
+@@ -273,8 +278,9 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
+     """Yield SOL-paired candidates from cheap public ranking snapshots.
+ 
+     The order is deterministic: configured sort order, then page, then API row rank.
+-    No per-pool history request is permitted here; authenticated local fee density,
+-    depth, two-way flow and after-cost economics remain the only entry authority.
++    A history read supplies the existing five-minute context only when the list
++    API omits it. Missing data is never a zero-fee economic rejection. Authenticated
++    local fee density, depth, flow and after-cost economics remain entry authority.
+     """
+     telemetry.setdefault("rejections",[])
+     telemetry.setdefault("errors",[])
+@@ -320,6 +326,22 @@ def _iter_acceleration_candidates(policy,telemetry,deadline=None,checkpoint=None
+                 observed_at=int(time.time())
+                 item=raw
+                 telemetry["snapshot_context_candidates"]+=1
++                if item.get("missing_5m_context") and item["tvl_usd"]>0:
++                    telemetry["history_reads"]+=1
++                    try:
++                        item=_history_acceleration(item,observed_at)
++                    except Exception as exc:
++                        reason=str(exc)
++                        if not reason.startswith("solana_dlmm_volume_history_"):
++                            reason=type(exc).__name__
++                        telemetry["errors"].append(dict(pool=address,
++                            reason=reason,failure_domain="incomplete_evidence",
++                            missing_fields=item["missing_5m_context"],
++                            qualification_inferred=False))
++                        _stage(address,"rejected","public_fee_context_incomplete",
++                               classification="reconstruction_incomplete")
++                        if checkpoint is not None:checkpoint("discovery_incomplete_evidence")
++                        continue
+                 failed=[]
+                 # Public Meteora API data only orders discovery. Entry authority
+                 # is reserved for authenticated finalized on-chain range fees.
+diff --git a/tests/test_meteora_missing_fee_context.py b/tests/test_meteora_missing_fee_context.py
+new file mode 100644
+index 00000000..db61791e
+--- /dev/null
++++ b/tests/test_meteora_missing_fee_context.py
+@@ -0,0 +1,47 @@
++import unittest
++from unittest.mock import patch
++from meme_machine import dlmm
++from tests import solana_dlmm_independent_v1 as runner
++
++
++class MissingFeeContextTests(unittest.TestCase):
++    def row(self):
++        # Captured list-response shape: five-minute keys are absent, not zero.
++        return dict(address='pool',token_x=dict(address=dlmm.WSOL),
++                    token_y=dict(address='token'),tvl=1000,
++                    volume={'30m':1000},fees={'30m':30})
++
++    def test_missing_five_minute_context_uses_existing_completed_bucket_reader(self):
++        calls=[]
++        def api(path,params=None):
++            calls.append(path)
++            if path=='/pools':return dict(data=[self.row()])
++            return dict(data=[dict(timestamp=i*300,volume=100,fees=5) for i in range(1,8)])
++        telemetry={}
++        with patch.object(runner,'_api',side_effect=api),patch.object(runner.time,'time',return_value=2200):
++            rows=list(runner._iter_acceleration_candidates({'regime':{}},telemetry))
++        self.assertEqual(len(rows),1)
++        self.assertEqual(rows[0]['fee_5m_usd'],5)
++        self.assertEqual(rows[0]['acceleration_window_end_exclusive'],2100)
++        self.assertEqual(telemetry['history_reads'],1)
++        self.assertEqual(telemetry['rejections'],[])
++        self.assertEqual(calls.count('/pools/pool/volume/history'),1)
++
++    def test_failed_missing_context_is_incomplete_evidence_never_zero_fee_rejection(self):
++        def api(path,params=None):
++            if path=='/pools':return dict(data=[self.row()])
++            return dict(data=[])
++        telemetry={}
++        with patch.object(runner,'_api',side_effect=api):
++            self.assertEqual(list(runner._iter_acceleration_candidates({'regime':{}},telemetry)),[])
++        self.assertEqual(telemetry['rejections'],[])
++        self.assertEqual(telemetry['errors'][0]['failure_domain'],'incomplete_evidence')
++        self.assertFalse(telemetry['errors'][0]['qualification_inferred'])
++
++    def test_measured_zero_is_still_rejected_without_an_extra_history_request(self):
++        row=self.row();row['fees']['5m']=0;row['volume']['5m']=0
++        telemetry={}
++        with patch.object(runner,'_api',return_value=dict(data=[row])),patch.object(runner,'_history_acceleration') as history:
++            self.assertEqual(list(runner._iter_acceleration_candidates({'regime':{}},telemetry)),[])
++        history.assert_not_called()
++        self.assertEqual(telemetry['rejections'][0]['failed'],['public_fee_context_zero'])

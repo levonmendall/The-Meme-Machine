@@ -8,7 +8,7 @@ from certification.journal import Journal, digest
 from certification.report import LANES,permanently_unfunded
 
 
-def audit_telemetry(folder,lane,policy):
+def audit_telemetry(folder,lane,policy,*,require_returned=True):
     """Verify every raw transport against its append-only journal reference."""
     folder=Path(folder);journal=Journal(folder/'telemetry.sqlite')
     try:
@@ -31,7 +31,9 @@ def audit_telemetry(folder,lane,policy):
             for request in row['request']:
                 methods.add(request['method'] if isinstance(request,dict) else request[0])
     if set(references)!=seen:raise ValueError('missing_raw_transport_record')
-    if len(terminals)!=1 or terminals[0].get('status')!='returned' or terminals[0].get('policy_hash')!=policy:
+    if (len(terminals)!=1 or terminals[0].get('policy_hash')!=policy
+            or terminals[0].get('status') not in ('returned','failed')
+            or (require_returned and terminals[0].get('status')!='returned')):
         raise ValueError('native_terminal_or_policy_mismatch')
     read_only=all(method.startswith('get') if lane in ('pump','meteora') else method in {
         'eth_chainId','eth_blockNumber','eth_getBlockByNumber','eth_getBlockByHash',
@@ -41,7 +43,8 @@ def audit_telemetry(folder,lane,policy):
         'eth_feeHistory','net_version','web3_clientVersion','eth_estimateGas',
         'alchemy_getAssetTransfers',
     } for method in methods)
-    return dict(verified=True,raw_transport_records=len(seen),methods=sorted(methods),read_only=read_only)
+    return dict(verified=True,raw_transport_records=len(seen),methods=sorted(methods),read_only=read_only,
+                process_terminal=terminals[0]['status'],successful_process=terminals[0]['status']=='returned')
 
 
 def broker_snapshot(path):
@@ -99,9 +102,14 @@ def smoke_engineering(result):
         if permanently_unfunded(row):failures.append(lane+':permanently_unfunded_paper_book')
         if row.get('exit_code')!=0 or row.get('unexpected_exit') or row.get('process_restarts')!=0:
             failures.append(lane+':process_continuity')
-        if row.get('open_positions')!=0 or row.get('accounting_reconciled') is not True:
+        handoff=(lane in ('meteora','ramses') and row.get('open_positions')==1
+                 and row.get('durable_handoff') is True
+                 and (row.get('terminal_reconciliation') or {}).get('verified') is True)
+        if (row.get('open_positions')!=0 and not handoff) or row.get('accounting_reconciled') is not True:
             failures.append(lane+':accounting_or_exposure')
         if not row.get('provider_requests'):failures.append(lane+':no_provider_activity')
+        if lane=='ramses' and (row.get('funnel') or {}).get('completed_scans',0)<1:
+            failures.append(lane+':no_completed_market_census')
         for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
             if row.get('gates',{}).get(gate) is not True:failures.append(lane+':'+gate)
     shared=result.get('shared_provider',{})
@@ -131,9 +139,21 @@ def hourly_engineering(result):
         row=result.get('lanes',{}).get(lane,{})
         if row.get('exit_code')!=0 or row.get('unexpected_exit') or row.get('process_restarts')!=0:
             failures.append(lane+':process_continuity')
-        if row.get('open_positions')!=0 or row.get('accounting_reconciled') is not True:
+        open_positions=row.get('open_positions')
+        durable_handoff=(
+            lane in ('meteora','ramses')
+            and open_positions==1
+            and row.get('durable_handoff') is True
+        )
+        if row.get('accounting_reconciled') is not True:
             failures.append(lane+':accounting_or_exposure')
+        elif open_positions is None:
+            failures.append(lane+':open_exposure_unknown')
+        elif open_positions and not durable_handoff:
+            failures.append(lane+':unsettled_position_without_durable_handoff')
         if not row.get('provider_requests'):failures.append(lane+':no_provider_activity')
+        if lane=='ramses' and (row.get('funnel') or {}).get('completed_scans',0)<1:
+            failures.append(lane+':no_completed_market_census')
         for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
             if row.get('gates',{}).get(gate) is not True:failures.append(lane+':'+gate)
     shared=result.get('shared_provider',{})
@@ -154,6 +174,8 @@ def sustained_readiness(smoke_path,*,manifest_hash,implementation_hash,integrati
     for key,value in (('source_manifest_hash',manifest_hash),('implementation_hash',implementation_hash),('integration_sha',integration_sha)):
         if smoke.get(key)!=value:blockers.append('smoke_revision_mismatch:'+key)
     blockers.extend(smoke_engineering(smoke)['failures'])
+    if any(row.get('open_positions') for row in smoke.get('lanes',{}).values()):
+        blockers.append('smoke_positions_require_verified_continuation_before_fresh_campaign')
     return blockers
 
 
@@ -168,9 +190,11 @@ def export_readiness(path,output):
     attestation['shared_provider']={network:dict(queues=result['shared_provider'][network]['queues']) for network in ('solana','robinhood')}
     if 'robinhood_reuse' in result['shared_provider']:
         attestation['shared_provider']['robinhood_reuse']={k:result['shared_provider']['robinhood_reuse'].get(k) for k in ('state','inflight_jobs')}
-    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting')
+    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting','funnel','durable_handoff','terminal_reconciliation')
     attestation['lanes']={lane:{key:result['lanes'][lane].get(key) for key in lane_keys} for lane in LANES}
-    with Path(output).open('a') as handle:handle.write('readiness='+json.dumps(attestation,separators=(',',':'))+'\n')
+    with Path(output).open('a') as handle:
+        handle.write('readiness='+json.dumps(attestation,separators=(',',':'))+'\n')
+        handle.write('pending_positions='+str(any(r.get('open_positions') for r in result['lanes'].values())).lower()+'\n')
 
 
 if __name__=='__main__':

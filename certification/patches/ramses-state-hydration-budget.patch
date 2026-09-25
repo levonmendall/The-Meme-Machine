@@ -1,0 +1,137 @@
+diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_universe.py
+index c58bbc96be9eef2d24881f09706b7bff60329036..b7780b7ec66fc662f1b3266dce5d2edbcfa33e67 100644
+--- a/robinhood_research/ramses_universe.py
++++ b/robinhood_research/ramses_universe.py
+@@ -422,6 +422,32 @@ def _prestate(rpc, factory, address, block, *, bin_radius=3, authenticated_pool=
+     return auth,state
+ 
+ 
++def _state_reader(endpoint,count,frontier):
++    """Fund the exact frozen wide-state workload, independently of metadata reads.
++
++    The old seven-session metadata budget cannot contain even four 408-read
++    prestates. Rates, retries, candidate capacity and the full 201-bin range stay
++    fixed. Only the unintended undersized local state-work bound is corrected.
++    """
++    if type(count) is not int or not 1<=count<=WIDE_HYDRATION_COHORT_SIZE:
++        raise BoundaryError('ramses_state_reader_candidate_bound')
++    per_pool=6+2*(2*WIDE_STATE_RADIUS+1)
++    planned=1+count*per_pool  # Same-chain authentication plus native view reads.
++    effective_session_capacity=200-UNIVERSE_BATCH_SIZE+1
++    sessions=(planned+effective_session_capacity-1)//effective_session_capacity
++    rpc=BoundedMultiRpc(endpoint,max_sessions=sessions,batch_size=UNIVERSE_BATCH_SIZE,
++        batch_pause=UNIVERSE_BATCH_PAUSE_SECONDS,rate_retries=UNIVERSE_RATE_RETRIES,
++        rate_cooldown=UNIVERSE_RATE_COOLDOWN_SECONDS,adaptive_batch_floor=2,
++        provider_role='authoritative')
++    rpc.evidence_pins={frontier['number']:frontier['hash']}
++    rpc.scan_budget=dict(candidate_count=count,bins_per_pool=2*WIDE_STATE_RADIUS+1,
++        logical_reads_per_pool=per_pool,planned_logical_reads=planned,
++        max_sessions=sessions,program_logical_limit=200*sessions,
++        metadata_program_logical_limit=1400,throughput_and_retries_unchanged=True)
++    rpc.verify_chain()
++    return rpc
++
++
+ def _selection_key(row):
+     f = row["features"]
+     return (
+@@ -621,6 +647,8 @@ def scan(
+     )
+ 
+     rows=[]
++    state_rpc=_state_reader(endpoint,len(strategy_cohort),frontier) if strategy_cohort else None
++    if state_rpc is not None:checkpoint('state_hydration_budget',state_read_budget=state_rpc.scan_budget)
+     for activity_row,auth,quote_side in strategy_cohort:
+         address=activity_row["pool"]
+         checkpoint('pool_prestate',current_pool=address,
+@@ -630,7 +658,7 @@ def scan(
+             # Wide state is the strategy state. Avoid the old radius-3 hydration
+             # followed immediately by a duplicate radius-100 hydration.
+             auth,prestate=_prestate(
+-                rpc,factory,address,end,bin_radius=WIDE_STATE_RADIUS,
++                state_rpc,factory,address,end,bin_radius=WIDE_STATE_RADIUS,
+                 authenticated_pool=auth,
+             )
+             feature=pool_features(prestate,histories[address],quote_side,pool=address)
+@@ -642,6 +670,7 @@ def scan(
+                 prestate=prestate,prehistory=histories[address],features=feature,
+                 wide_state_hydrated=len(prestate.get("bins",{}))>=201,
+             ))
++            checkpoint('pool_prestate_complete',pools_completed=scan_progress['pools_completed']+1)
+         except BoundaryError as exc:
+             exclusions[str(exc)]+=1
+             checkpoint('pool_prestate_failed',pools_failed=scan_progress['pools_failed']+1,
+@@ -843,6 +872,8 @@ def scan(
+         ),
+         rows=ranked,
+         provider=rpc.telemetry(),
++        state_provider=state_rpc.telemetry() if state_rpc is not None else None,
++        state_read_budget=state_rpc.scan_budget if state_rpc is not None else None,
+         observation_provider=observation_rpc.telemetry(),
+         alchemy_usage_policy=dict(
+             broad_economic_log_observation="official_robinhood_public_rpc",
+diff --git a/robinhood_tests/test_ramses_state_budget.py b/robinhood_tests/test_ramses_state_budget.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..1e2600ed2d759c6a1574ce4f8c0004b27ca8f38e
+--- /dev/null
++++ b/robinhood_tests/test_ramses_state_budget.py
+@@ -0,0 +1,59 @@
++import unittest
++from unittest.mock import patch
++from robinhood_research import BoundaryError
++from robinhood_research import ramses_universe as universe
++from robinhood_research import ramses_capture as capture
++from robinhood_research.abi import calldata
++
++
++class Session:
++    def __init__(self,*args,limit=200,**kwargs):self.used=0;self.limit=limit
++    def call(self,method,params,scope):self.used+=1;return '0x1237'
++    def batch(self,calls,scope):
++        self.used+=len(calls)
++        assert self.used<=self.limit
++        words=lambda values:'0x'+''.join(f'{v:064x}' for v in values)
++        out=[]
++        for method,params in calls:
++            data=params[0]['data'];selector=data[:10]
++            if selector==calldata('getActiveId()')[:10]:values=[1<<23]
++            elif selector==calldata('getReserves()')[:10]:values=[1000,2000]
++            elif selector==calldata('getProtocolFees()')[:10]:values=[0,0]
++            elif selector==calldata('getStaticFeeParameters()')[:10]:values=[0]*7
++            elif selector==calldata('getVariableFeeParameters()')[:10]:values=[0]*4
++            elif selector==calldata('getBin(uint24)',0)[:10]:values=[10,20]
++            elif selector==calldata('totalSupply(uint256)',0)[:10]:values=[5000]
++            else:values=[0]
++            out.append(words(values))
++        return out
++
++
++class StateBudgetTests(unittest.TestCase):
++    def hydrate(self,rpc,count):
++        for n in range(count):
++            auth,state=universe._prestate(rpc,'factory',f'pool-{n}',100,bin_radius=100,
++                                         authenticated_pool={'bin_step':1})
++            self.assertEqual(len(state['bins']),201)
++            self.assertTrue(all(row=={'reserves':[10,20],'supply':5000} for row in state['bins'].values()))
++
++    def test_old_shared_budget_fails_before_four_required_prestates_complete(self):
++        with patch.object(capture,'configured_dlmm_rpc',side_effect=Session):
++            rpc=capture.BoundedMultiRpc('same-endpoint',max_sessions=7,batch_size=8,batch_pause=0)
++            with self.assertRaisesRegex(BoundaryError,'program_budget_exhausted'):self.hydrate(rpc,4)
++
++    def test_exact_maximum_frozen_workload_fits_without_narrowing_or_changing_rate(self):
++        frontier={'number':'0x64','hash':'0x'+'ab'*32}
++        with patch.object(capture,'configured_dlmm_rpc',side_effect=Session),patch.object(capture.time,'sleep'):
++            rpc=universe._state_reader('same-endpoint',8,frontier)
++            self.hydrate(rpc,8)
++            self.assertEqual(sum(s.used for s in rpc.sessions),3265)
++            self.assertEqual(rpc.max_sessions,17)
++            self.assertEqual(rpc.batch_size,8);self.assertEqual(rpc.batch_pause,.8)
++            self.assertEqual(rpc.rate_retries,2);self.assertEqual(rpc.rate_cooldown,8)
++            self.assertEqual(rpc.scan_budget['metadata_program_logical_limit'],1400)
++            self.assertTrue(all(s.evidence_pins=={'0x64':frontier['hash']} for s in rpc.sessions))
++        for count in (0,9,True):
++            with self.assertRaisesRegex(BoundaryError,'candidate_bound'):universe._state_reader('same-endpoint',count,frontier)
++
++
++if __name__=='__main__':unittest.main()

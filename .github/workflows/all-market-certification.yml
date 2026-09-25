@@ -1,0 +1,29 @@
+name: all-market-certification
+on:
+  push:
+    branches: [cert/all-market-certification-20260923]
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+  checks: write
+concurrency:
+  group: all-market-certification-candidate
+  cancel-in-progress: false
+jobs:
+  certify:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[all-market-cert]')
+    uses: ./.github/workflows/non-market-certification.yml
+    secrets: inherit
+  recover-preserved-position:
+    needs: certify
+    uses: ./.github/workflows/position-continuation.yml
+    with:
+      lane: ramses
+      state_run_id: '35931988977'
+      slice_seconds: '300'
+      expected_sha: ${{ github.sha }}
+      engineering_recovery: true
+      certification_run_id: ${{ format('{0}', github.run_id) }}
+      program: false
+    secrets: inherit

@@ -1,0 +1,13 @@
+{
+  "prior_run_id": 35915320840,
+  "prior_artifact_id": 10776256813,
+  "raw_identity_failures": 623,
+  "replayed_results": {
+    "strict_authentication_passed": 623
+  },
+  "differing_fields": {
+    "('blockTimestamp',)": 623
+  },
+  "provider_requests_added": 0,
+  "natural_trade_or_profitability_claim": false
+}

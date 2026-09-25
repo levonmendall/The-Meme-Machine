@@ -1,0 +1,45 @@
+{
+  "clean_overlay_reproduction": true,
+  "compact_checkpoint_process_cut_verified": true,
+  "market_io_during_recovery_tests": false,
+  "native_test_total": 1404,
+  "native_tests": {
+    "meteora": 421,
+    "pons": 339,
+    "pump": 314,
+    "ramses": 330
+  },
+  "original_pons_native_journals_unchanged_on_recovery_copy": true,
+  "policy_hashes_unchanged": true,
+  "pons_cancel_acknowledgement_idempotent": true,
+  "ramses_entry_seed_idempotent": true,
+  "ramses_seed_native_bytes_unchanged": true,
+  "resource_gates_passed": true,
+  "restored_native_path_repair": {
+    "all_passed": true,
+    "original_journals_unchanged": true,
+    "preserved_pons_native_proof_verified": true,
+    "supervisor_skips": 0,
+    "supervisor_tests": 163
+  },
+  "schema": "market-assurance-local-validation-v1",
+  "scope": "local prepublication checks, not an exact-SHA hosted certificate",
+  "source_diff_hashes": {
+    "meteora": "74ee2eaf30ef9df3b370cc6e311bd91d44f2fcf271f67c635d63db27277d9c64",
+    "pons": "8a9d0818606e9c9c8e3ca76ce07f85fe0902aaf761d3de8042b1dd3ff2dd8238",
+    "pump": "73382447eba168503b2c7dc909ecd3498cffabeaa116166c45a3af4c7b74836d",
+    "ramses": "da50cd26eac0da8898c926facfcb168579894322871a70752043c6251f602d85"
+  },
+  "successor_receipt_set_repair": {
+    "all_passed": true,
+    "frozen_economic_sample_rules_unchanged": true,
+    "independent_overlay_reproduction": true,
+    "protocol_sha256": "d473936a59a5ab309858c5cfa7347a002677467c90984c0ecffe3986dd053664",
+    "ramses_native_tests": 332,
+    "ramses_source_diff_sha256": "fb970b518446b807fb4e2aeba87743cd383ef5cb45132839d009e0b7293c78c4",
+    "scope": "local component and regression evidence; hosted exact-SHA certificate still required",
+    "supervisor_skips": 0,
+    "supervisor_tests": 162
+  },
+  "supervisor_tests": 157
+}

@@ -29,7 +29,11 @@ def evaluate(result):
             elif value is not True:incomplete.append(lane+':unproven:'+gate)
         if row.get('natural_settled',0)<1:incomplete.append(lane+':natural_lifecycle_missing')
         if row.get('open_positions') is None:incomplete.append(lane+':open_exposure_unknown')
-        elif row['open_positions']:failures.append(lane+':unsettled_position')
+        elif row['open_positions']:
+            if row.get('durable_handoff') is True:
+                incomplete.append(lane+':position_continuation_pending')
+            else:
+                failures.append(lane+':unsettled_position')
     return dict(status='FAIL' if failures else 'INCOMPLETE' if incomplete else 'PASS',
                 scope='one_hour_paper_campaign' if hourly else 'four_hour_certification',
                 required_observation_seconds=required_seconds,
@@ -85,9 +89,13 @@ def summarize(lane, report):
         result['terminal_reasons']=report.get('qualification_failure_counts',{})
         book=report.get('accounting') or {};replay=report.get('accounting_replay') or {}
         result['native_accounting']=book;result['accounting_replay']=replay
+        handoffs=[x for x in report.get('qualified_lifecycles',[]) if x.get('handoff_required')]
+        if book.get('unsettled') and handoffs:
+            result['durable_handoff']=True
+            result['continuation_state']=handoffs
         if book:
             result['open_positions']=book.get('unsettled')
-            settled=report.get('qualified_lifecycles',[])
+            settled=list(report.get('qualified_lifecycles',[]))+list(report.get('continuation_lifecycles',[]))
             identities={x.get('lifecycle_id') for x in settled if x.get('complete') and x.get('lifecycle_id')}
             if book.get('reconciled') is True and book.get('settled')==len(identities):
                 result['natural_settled']=len(identities)
@@ -117,6 +125,10 @@ def summarize(lane, report):
         result['limitations'].append('capital_time_uses_durable_event_times; open_marks_are_asof_observations_not_current_prices')
     else:
         result['funnel']=dict(scans=len(report.get('natural_screens',[])),active_pools=report.get('unique_active_pools'))
+        failures=report.get('scan_recovery_attempts') or []
+        failed_scans={r.get('logical_scan_id') for r in failures if r.get('infrastructure_censored') is True}
+        result['funnel'].update(completed_scans=len(report.get('natural_screens',[])),
+            infrastructure_censored_scans=len(failed_scans))
         life=report.get('connected_lifecycle') or {};pos=life.get('ledger_final') or {}
         reconciliation=life.get('ledger_reconciliation') or {}
         lives=report.get('natural_lifecycles') if report.get('continuous_campaign') else [life]
@@ -133,7 +145,15 @@ def summarize(lane, report):
                 seen.add(identity)
         result['natural_settled']=len(seen)
         campaign=report.get('campaign_accounting')
-        if campaign:
+        continuation=report.get('continuation_accounting')
+        if continuation:
+            result['native_accounting']=continuation
+            result['open_positions']=continuation.get('open_positions')
+            result['accounting_reconciled']=True
+            if continuation.get('open_positions'):
+                result['durable_handoff']=True
+                result['continuation_state']=report.get('position_continuation')
+        elif campaign:
             result['native_accounting']=campaign
             result['open_positions']=campaign.get('open_positions')
             result['accounting_reconciled']=campaign.get('conservation') is True
@@ -166,9 +186,30 @@ def pipeline_health(row,now):
     frontier=row.get('finality_state') or {}
     if scan.get('state')=='in_progress':
         age=max(0,now-scan.get('updated_at',scan.get('started_at',now)))
-        return dict(state='stalled' if age>300 else 'progressing',stage=scan.get('stage'),
-                    stage_age_seconds=age,scan_age_seconds=max(0,now-scan.get('started_at',now)),
-                    stall_bound_seconds=300)
+        transport_age=row.get('transport_activity_age_seconds')
+        transport_fresh=(
+            isinstance(transport_age,(int,float))
+            and not isinstance(transport_age,bool)
+            and 0<=transport_age<=30
+        )
+        # Provider activity (including repeated errors) is not strategy progress.
+        # The census now emits a checkpoint when authenticated pages complete.
+        stalled=age>300
+        return dict(
+            state='stalled' if stalled else 'progressing',
+            stage=scan.get('stage'),
+            stage_age_seconds=age,
+            scan_age_seconds=max(0,now-scan.get('started_at',now)),
+            stall_bound_seconds=300,
+            progress_source=(
+                'transport_without_stage_progress' if age>300 and transport_fresh
+                else 'stage_checkpoint'
+            ),
+            transport_activity_age_seconds=transport_age,
+        )
+    if scan.get('state')=='deferred':
+        return dict(state='infrastructure_censored',stage=scan.get('stage'),
+                    boundary=scan.get('boundary'),qualification_inferred=False)
     if isinstance(frontier,dict) and frontier.get('last_gate_reason') in ('frontier_unchanged','cadence_floor'):
         return dict(state='waiting_finalized_frontier',stage=frontier['last_gate_reason'])
     last=(row.get('opportunity_coverage') or {}).get('last_transition') or {}
@@ -268,7 +309,6 @@ def provider_efficiency(result):
             cu_per_complete_vector=ratio(complete),cu_per_scan=ratio(scans),
             evaluated=evaluated,complete_vectors=complete,scans=scans,
             cache=(result.get('shared_provider',{}).get('robinhood_reuse',{}).get('lanes',{}).get(lane)))
-    from certification.cu import estimate
     for lane in ('pump','meteora'):
         row=result.get('lanes',{}).get(lane,{})
         methods=row.get('method_counts',{});physical=row.get('provider_requests')
@@ -276,7 +316,7 @@ def provider_efficiency(result):
         f=row.get('funnel',{});complete=f.get('evidence_complete') if lane=='pump' else f.get('complete_economic_vectors')
         ratio=lambda value:value/complete if value is not None and isinstance(complete,(int,float)) and complete>0 else None
         row['rpc_efficiency']=dict(physical_http_transports=physical,logical_rpc_members=logical,methods=methods,
-            estimated_cu=estimate(methods),complete_evidence_vectors=complete,
+            estimated_cu=row.get('estimated_alchemy'),complete_evidence_vectors=complete,
             physical_per_complete=ratio(physical),logical_per_complete=ratio(logical),
             cache=result.get('shared_provider',{}).get('solana_reuse',{}).get('lanes',{}).get(lane),
             denominator_status='measured' if complete else 'zero_or_unmeasured_no_efficiency_claim')

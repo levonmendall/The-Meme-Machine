@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
   "repository": "levonmendall/The-Meme-Machine",
-  "verified_at": "2026-09-22-robinhood-public-rpc-hosted-transport-repair",
+  "verified_at": "2026-09-24-v12-pump-counterfactual-ramses-v4",
   "main_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
   "lanes": {
     "pump": {
-      "source_branch": "repair/pump-alchemy-authoritative-evidence-20260922",
-      "source_sha": "9932305ebe83dd3ff2dd45ffe9006cf628962bf3",
-      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-persistence-edge-v1",
-      "policy_hash": "d623ff03ad19b2c4dcd8a82d4883c188ba1acd35a721582175d85cd1b0191770",
+      "source_branch": "strategy/pump-counterfactual-replay-v1-20260924",
+      "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "strategy_version": "pump-acceleration-independent-v1/profitability-v1-profit-protection-v2-counterfactual-replay-v1",
+      "policy_hash": "825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b",
       "file_hashes": {
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
         ".github/workflows/pump-acceleration-natural-prospective.yml": "697617d7ade8d42d68d991a5f73b0d8738117b56d2ecd3f9dd91cf03489d2a7f",
-        "meme_machine/pump_acceleration_strategy.py": "5b718204cf33eed122b41e052fa8ce564915b35a685e010c7bd6df889750af14"
+        "meme_machine/pump_acceleration_strategy.py": "da3fa98fbb5f75cba8e51a79b07956a22c7f9790ae83fd8902b6deba044f1db8"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -35,14 +35,21 @@
         "35703a380fe6c7f1df56bcf5a6ec59ca50d8d502",
         "9c11f78922af14ca77ee371e27f6e7df0ed8b46e",
         "a4003b292014cedf554a4930a9cca10900bfc178",
-        "9932305ebe83dd3ff2dd45ffe9006cf628962bf3"
+        "9932305ebe83dd3ff2dd45ffe9006cf628962bf3",
+        "40cfa0543f577e1c7cf106127782b4a77f7669ac",
+        "1ed8bc465473875a6423c1e81f5d193f4db4cd50",
+        "03df8e628dc750662473e9c21ce871abfd199b7b",
+        "b0d2e43c22402a0254c7ea34a862450108f27d0e",
+        "6e2390057e31d14ba35a6b23654bcf68f2cbc9c5",
+        "e585590b7632f84f282f6530d1f97fed4b70341d",
+        "324fee081dd7664a30df4d88aaa1448d28e3033e"
       ],
       "continuous_campaign_commit": "6377b4c46da95c4591848939c714f7766e789acd",
       "execution_certification": {
         "profitability_authority": true,
         "target_restrictiveness": "profitability-v1",
         "original_source_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
-        "revision": "profitability-v1-persistence-edge-v1",
+        "revision": "profitability-v1-profit-protection-v2-counterfactual-replay-v1",
         "purpose": "Active paper profitability policy with repeat-buyer demand persistence and executable fill-time signal revalidation, composed with current acquisition repairs.",
         "machinery_baseline_policy_hash": "bb2631d83f5be287a0afc01dfc6d7a4da8b7086ae0afd09dfbf27df6d9d66a6e",
         "evidence_completion_repair": {
@@ -76,28 +83,168 @@
           "breadth_changed": false,
           "strategy_thresholds_changed": false,
           "paper_only_unchanged": true
+        },
+        "market_scope_efficiency": {
+          "revision": "strategy-domain-funnel-ordering-v1",
+          "purpose": "preserve broad market observability while delaying expensive evidence until existing strategy-domain gates can still be satisfied",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "detail": "post-graduation holder concentration is requested only when zero-concentration optimistic qualification leaves at least one current entry mode viable"
+        },
+        "tail_drain_regression": {
+          "revision": "final-second-900s-timeout-v1",
+          "purpose": "prove a late-curve paper position filled one second before discovery close can remain open through the frozen 900-second maximum hold and settle inside the existing 1000-second follow-up",
+          "policy_changed": false
+        },
+        "profit_protection_v2": {
+          "revision": "staged-harvest-persistent-demand-bounded-continuation-v2",
+          "first_profit_bps": 1500,
+          "first_profit_sell_bps": 2500,
+          "hard_stop_bps": -800,
+          "profitable_demand_deterioration_confirmations": 2,
+          "max_hold_extensions": 1,
+          "continuation_rule": "one additional mode-length interval only while after-cost return is positive, executable state is available and demand remains healthy",
+          "evidence_basis": "retain the prior frozen +15% Pump realization activation while reducing the harvested fraction to 25% because observed winners exhibited materially larger favorable excursions",
+          "entry_thresholds_changed": false,
+          "paper_only_unchanged": true
+        },
+        "target_coverage_repair": {
+          "revision": "preserved-hour-35935431384-acquisition-v1",
+          "predecessor_runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "provider_limits_changed": false,
+          "paper_only_unchanged": true
+        },
+        "evidence_reconstruction_repair": {
+          "revision": "accepted-35949285193-reconstruction-v1",
+          "diagnostic_runtime_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
+          "strategy_thresholds_changed": false,
+          "target_scope_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "accounting_changed": false,
+          "paper_only_unchanged": true
+        },
+        "finalized_log_trade_authority": {
+          "revision": "finalized-pumpswap-trade-event-authority-v1",
+          "diagnostic_run_id": 36020434038,
+          "diagnostic_artifact_id": 10819505196,
+          "purpose": "Use complete finalized candidate-pool PumpSwap program logs as authoritative evidence only for the exact trade-event fields emitted by the program; retain getTransaction fallback for truncation, ambiguity, gaps, unsupported events, and all non-log evidence.",
+          "authoritative_fields": [
+            "pool",
+            "wallet",
+            "buy",
+            "amount",
+            "tokens",
+            "market_time",
+            "pool_base_reserve",
+            "pool_quote_reserve",
+            "user_quote_amount",
+            "slot",
+            "event_index"
+          ],
+          "transaction_body_fallback": true,
+          "stream_gap_fail_closed": true,
+          "provider_limits_changed": false,
+          "strategy_thresholds_changed": false,
+          "target_scope_changed": false,
+          "timing_windows_changed": false,
+          "paper_only_unchanged": true,
+          "focused_diagnostic_run_id": 36031835261,
+          "focused_parity_tests": 5,
+          "focused_regression_tests": 41,
+          "evidence_provenance_changed": true,
+          "economic_inputs_changed": false
+        },
+        "smoke_flat_tail_repair": {
+          "revision": "smoke-flat-tail-v1",
+          "incident_run_id": 36070948268,
+          "purpose": "After the smoke discovery boundary, stop new Pump admission and exit immediately once pending entries and open positions are flat; preserve already-reserved fill deadlines and already-open frozen lifecycles.",
+          "smoke_discovery_seconds": 600,
+          "strategy_economics_changed": false,
+          "strategy_thresholds_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "hourly_campaign_behavior_changed": false,
+          "paper_only_unchanged": true
+        },
+        "getsignatures_pressure_repair": {
+          "revision": "method-scoped-signature-cooldown-v1",
+          "incident_run_id": 36077647211,
+          "observed_http_429s": 20,
+          "observed_queue_deadlines": 18,
+          "purpose": "Retain the existing getSignaturesForAddress 15/30/60-second shared method cooldown while avoiding the additional provider-wide 8-second stall when the rate limit is isolated to that method.",
+          "provider_interval_seconds_unchanged": 0.5,
+          "provider_ceiling_increased": false,
+          "signature_method_backoff_unchanged": true,
+          "unrelated_method_rate_limit_behavior_unchanged": true,
+          "strategy_thresholds_changed": false,
+          "target_scope_changed": false,
+          "evidence_requirements_changed": false,
+          "paper_only_unchanged": true
+        },
+        "counterfactual_replay_v1": {
+          "basis_runs": [
+            36043064083,
+            36077647211
+          ],
+          "resolved_first_rejections": 56,
+          "winner_rejections": 26,
+          "loser_rejections": 30,
+          "price_retention_winner_presence_bps": 10000,
+          "price_retention_loser_presence_bps": 10000,
+          "change": "postgraduation_price_retention_from_binary_veto_to_ranking_confirmation",
+          "early_holder_distribution_gate_unchanged": true,
+          "net_demand_gate_unchanged": true,
+          "buyer_growth_gate_unchanged": true,
+          "execution_downside_gate_unchanged": true,
+          "fill_time_persistence_unchanged": true,
+          "paper_only_unchanged": true,
+          "source_promotion": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+          "source_branch": "strategy/pump-counterfactual-replay-v1-20260924",
+          "strategy_source_pinned": true
         }
       },
       "prospect_admission": {
-        "market_observation_scope": "all finalized Pump events remain observable",
-        "investment_evaluation_scope": "profitability-v1 late-curve candidates in the 60-85% progress band with broad expanding independent demand, repeat-buyer persistence, controlled concentration, non-collapsing trajectory and bounded executable round-trip downside; all delayed entries require fill-time thesis persistence; authenticated post-graduation modes retain separate continuation evidence",
+        "market_observation_scope": "Native-SOL Pump curves in the frozen 60-85% late-curve strategy domain, plus its authenticated PumpSwap graduation/continuation modes; existing positions retain their lifecycle scope.",
+        "investment_evaluation_scope": "profitability-v1 late-curve candidates in the 60-85% progress band with broad expanding independent demand, repeat-buyer persistence, controlled concentration, non-collapsing trajectory and bounded executable round-trip downside; all delayed entries require fill-time thesis persistence; authenticated post-graduation modes retain separate continuation evidence; post-graduation price retention remains ranking/confirmation evidence but no longer has independent binary veto authority",
         "pre_rpc_strategy_screen": true,
         "permanent_exclusion_on_screen_failure": false,
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
-        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
+        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks",
+        "upstream_acquisition_scope": "all finalized Pump events remain observable",
+        "broad_source_rows_count_as_observed_market": false,
+        "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "24831371273420f3c3ce41ac3206f8bd055005d2a41ba4c377763e04335456aa"
+      "source_diff_sha256": "b21d19a1c6d29ab787fcab01d6e73240154940c24694d90f1f4b9043b79c8e67",
+      "source_integrity_mode": "declared_overlay_index",
+      "overlay_patches": [
+        "certification/patches/pump-accounting.patch",
+        "certification/patches/market-scope-efficiency-pump.patch",
+        "certification/patches/lifecycle-clock-pump-test.patch",
+        "certification/patches/target-coverage-repair-pump.patch",
+        "certification/patches/evidence-reconstruction-pump.patch",
+        "certification/patches/pump-finalized-log-authority.patch",
+        "certification/patches/v10-postrun-pump.patch",
+        "certification/patches/pump-smoke-flat-tail.patch",
+        "certification/patches/evidence-plane-publication-pump.patch",
+        "certification/patches/evidence-plane-pump-recovery.patch",
+        "certification/patches/evidence-plane-runtime-pump.patch",
+        "certification/patches/evidence-plane-offline-pump.patch"
+      ]
     },
     "meteora": {
-      "source_branch": "repair/meteora-alchemy-authoritative-evidence-20260922",
-      "source_sha": "a616366fbe64e816708d035c15141b7e7e800304",
-      "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1",
-      "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
-      "source_diff_sha256": "80d88694dfac774b31516b26f065522f3fe8c6a1c57707b8be933150b82089e2",
+      "source_branch": "repair/meteora-legacy-one-side-source-20260924",
+      "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+      "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
+      "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+      "source_diff_sha256": "f2bdf7a839dc331f4d4fd39e4640aa8639e2d34d5cb27092b432ccddef3db562",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
-        "SOLANA_DLMM_INDEPENDENT_V1.json": "d9ca094b0715d8447cd5e98fdc99633d9a5b29e92b0b145bbe4adb052d6fc8e8"
+        "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
       },
       "rpc_configuration_variables": [
         "MM_SOLANA_READ_RPC_URL"
@@ -133,7 +280,10 @@
         "057de42db407c5d65543dc67a45e04add2b8f98c",
         "c87441ac53fe6936e88380e54969192e455da8cb",
         "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7",
-        "a616366fbe64e816708d035c15141b7e7e800304"
+        "a616366fbe64e816708d035c15141b7e7e800304",
+        "ed12766d452cc2d5cc3bb5f6260e88cd1bea180b",
+        "403eb4006ae132e89b654c214c39a074de1b51b8",
+        "ec0b96f999f460c35cb63b27cd0387c4f81f9898"
       ],
       "paper_starting_capital_lamports": 1000000000,
       "continuous_campaign_commit": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
@@ -141,7 +291,7 @@
         "profitability_authority": true,
         "target_restrictiveness": "authenticated local fee-density profitability v1",
         "original_source_sha": "45836b18c9afdda29909ebe9cb68d386a47b074f",
-        "revision": "2.0-profitability-fee-density-v1",
+        "revision": "2.0-profitability-fee-density-v1-core-hold-v2",
         "purpose": "prospective natural paper profitability validation of authenticated local fee-density market making",
         "machinery_proof_only": false,
         "one_natural_settled_lifecycle_target": false,
@@ -198,7 +348,7 @@
         "fee_density_profitability": {
           "revision": "authenticated-local-fee-density-v1",
           "source_commit": "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7",
-          "policy_hash": "d2a689b8dde8297b53853ce7f2235b68fcc2f2e26665ad5b53766cdc4704c82a",
+          "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
           "authenticated_fee_density_threshold_pct": 5,
           "high_density_tier_pct": 20,
           "projected_fee_horizon_seconds": 14400,
@@ -225,25 +375,132 @@
           "breadth_changed": false,
           "strategy_thresholds_changed": false,
           "paper_only_unchanged": true
+        },
+        "market_scope_efficiency": {
+          "revision": "strategy-domain-funnel-ordering-v1",
+          "purpose": "preserve broad market observability while delaying expensive evidence until existing strategy-domain gates can still be satisfied",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "detail": "remove per-pool 35-minute public history reads and 12-second history refreshes from active admission; use pool-list snapshot only as non-authoritative public context"
+        },
+        "lifecycle_clock_repair": {
+          "revision": "durable-position-handoff-v1",
+          "purpose": "separate one-hour market discovery from 4-24h position lifecycle; late pre-entry sequences are capacity-censored before starting; open positions remain in append-only PaperBook state for continuation",
+          "trigger_warmup_evidence_reserve_seconds": 162,
+          "strategy_thresholds_changed": false,
+          "finality_changed": false,
+          "position_size_changed": false,
+          "paper_only_unchanged": true
+        },
+        "core_hold_profit_protection_v2": {
+          "revision": "enforced-4h-core-hold-two-segment-collapse-v2",
+          "core_hold_seconds": 14400,
+          "maximum_hold_seconds": 86400,
+          "economic_collapse_confirmation_segments": 2,
+          "observation_segment_seconds": 300,
+          "immediate_pre_core_risk_exits": [
+            "range_boundary",
+            "inventory_imbalance",
+            "one_way_flow"
+          ],
+          "entry_thresholds_changed": false,
+          "freshness_finality_changed": false,
+          "position_size_changed": false,
+          "paper_only_unchanged": true
+        },
+        "target_coverage_repair": {
+          "revision": "preserved-hour-35935431384-acquisition-v1",
+          "predecessor_runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "provider_limits_changed": false,
+          "paper_only_unchanged": true
+        },
+        "evidence_reconstruction_repair": {
+          "revision": "accepted-35949285193-reconstruction-v1",
+          "diagnostic_runtime_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
+          "strategy_thresholds_changed": false,
+          "target_scope_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "accounting_changed": false,
+          "paper_only_unchanged": true
+        },
+        "legacy_one_side_replay_candidate": {
+          "revision": "authenticated-weighted-one-side-y-v1",
+          "source_commit": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+          "historical_evidence_run": 35949285193,
+          "historical_projection_artifact": 10791522985,
+          "historical_interval": {
+            "pool": "FtwzPjTqoFuy8aF8bMBi7QF7UxpdYN5n9YUH6R7DcHjB",
+            "start_slot": 449907316,
+            "end_slot": 449907330,
+            "transactions": 5,
+            "swaps": 1,
+            "terminal_match": true
+          },
+          "offline_projection_run": 36013677709,
+          "prepared_source_diff_sha256": "3a2d3b6f6c2c117c3fd2f7d6824231a87fab39a52b0faf8b9633b5df09d8d689",
+          "full_meteora_tests": 447,
+          "strategy_thresholds_changed": false,
+          "target_scope_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "accounting_changed": false,
+          "paper_only_unchanged": true,
+          "status": "offline_verified_pending_exact_sha_nonmarket_certification"
+        },
+        "postrun_reconstruction_window_audit": {
+          "revision": "accepted-hour-36077647211-classification-audit-v1",
+          "incident_run_id": 36077647211,
+          "pending_at_observation_close": 27,
+          "reconstruction_incomplete": 12,
+          "provider_failed": 0,
+          "conclusion": "no_strategy_or_clock_relaxation_required",
+          "pending_interpretation": "campaign_window_insufficient_preentry_time is intentional pre-entry capacity censorship under the frozen 162-second trigger/warmup/evidence reserve; it must not be completed after the observation window",
+          "incomplete_interpretation": "remaining cases retain explicit authenticated fail-closed reasons, including unsupported/mixed liquidity authority and bounded signature/transaction reconstruction pressure",
+          "strategy_thresholds_changed": false,
+          "timing_reserve_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
-        "market_observation_scope": "observable SOL-paired Meteora DLMM inventory and history; public fee/volume fields remain ranking context only",
+        "market_observation_scope": "Nonblacklisted Solana Meteora DLMM pools with exactly one WSOL leg, as defined by the frozen strategy; no minimum TVL or absolute volume.",
         "investment_evaluation_scope": "exactly-one-WSOL-leg nonblacklisted pools with a fresh authenticated finalized swap, exact 12-second warmup, authenticated local fee density >=5%/day, two-way balance >=0.25, executable local range depth, bounded drift/stress unwind and strictly positive projected four-hour after-cost net",
         "authenticated_fee_density_entry_authority": true,
         "public_fee_density_role": "ranking_context_only_not_entry_authority",
         "strategy_thresholds_changed": true,
-        "profitability_authority": true
-      }
+        "profitability_authority": true,
+        "upstream_acquisition_scope": "observable SOL-paired Meteora DLMM inventory and history; public fee/volume fields remain ranking context only",
+        "broad_source_rows_count_as_observed_market": false
+      },
+      "source_integrity_mode": "declared_overlay_index",
+      "overlay_patches": [
+        "certification/patches/meteora-checkpoint.patch",
+        "certification/patches/market-scope-efficiency-meteora.patch",
+        "certification/patches/lifecycle-clock-meteora.patch",
+        "certification/patches/meteora-public-fee-context.patch",
+        "certification/patches/market-assurance-meteora.patch",
+        "certification/patches/target-coverage-repair-meteora.patch",
+        "certification/patches/evidence-reconstruction-meteora.patch",
+        "certification/patches/v10-postrun-meteora.patch",
+        "certification/patches/evidence-plane-publication-meteora.patch",
+        "certification/patches/evidence-plane-runtime-meteora.patch",
+        "certification/patches/evidence-plane-offline-meteora.patch"
+      ],
+      "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b"
     },
     "pons": {
-      "source_branch": "repair/pons-alchemy-scarcity-public-discovery",
-      "source_sha": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
-      "strategy_version": "pons-selective-continuation-v1/profitability-v1-persistence-edge-v1",
-      "policy_hash": "3067732bcfa334b28ac4014a4adb5aee2a0310dee573ad349c3b5412c71c8853",
+      "source_branch": "strategy/pons-profit-protection-v2-20260923",
+      "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "strategy_version": "pons-selective-continuation-v1/profitability-v1-profit-protection-v2",
+      "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
       "file_hashes": {
         ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
-        "robinhood_research/pons_selective_continuation.py": "c49e7542c2f9a83f7cb14957ec5a545147818d4608463ecec57e30a40bf36aaf"
+        "robinhood_research/pons_selective_continuation.py": "09763b06f52b771eea1bbe3222cb92672a4a3f2af251bcb50ee61f2b3925a269"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
@@ -271,14 +528,21 @@
         "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2",
         "157e3d3a94510ced93976088b5a3f56a672ad9c4",
         "93ccf6faee775b830b590370dbc1e8ce269c668a",
-        "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0"
+        "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
+        "2080197f6c19a387f33d33b68570758760239a11",
+        "593a7ac7b6a03c94da2b8b1cd7f052d350e388e8",
+        "b963348285fcedd022fe01872b93f604bc7d47c1",
+        "f8c615fb1613bcaa2d3ccf6386b8ffc9a843f1b8",
+        "9df623a5aa8c001ce9a9f60352b6aaf33b0de25f",
+        "639c7acd180dd04c3db8f1458bc1d116e924becf",
+        "3de3d376847531ccb90e260cfcc96c37587ccb23"
       ],
       "continuous_campaign_commit": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
       "execution_certification": {
         "profitability_authority": true,
         "target_restrictiveness": "profitability-v1",
         "original_source_sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
-        "revision": "profitability-v1-persistence-edge-v1",
+        "revision": "profitability-v1-profit-protection-v2",
         "purpose": "Active paper profitability policy with required curve/flow acceleration, executable fill-time thesis persistence, and pre-graduation high-water protection, preserving current sequencer/session/provider repairs.",
         "machinery_baseline_policy_hash": "d9842e32b7ce088bce69f9c4bba98c648017273d9edffbdca2f314f3cdad8ce9",
         "evidence_completion_repair": {
@@ -360,29 +624,103 @@
             "strategy_thresholds_changed": false,
             "paper_only_unchanged": true
           }
+        },
+        "market_scope_efficiency": {
+          "revision": "strategy-domain-funnel-ordering-v1",
+          "purpose": "preserve broad market observability while delaying expensive evidence until existing strategy-domain gates can still be satisfied",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "detail": "token age, velocity, acceleration and graduation ETA are adjudicated immediately after authenticated trajectory evidence and before 60-second receipt-window reconstruction"
+        },
+        "profit_protection_v2": {
+          "revision": "harvest-runner-persistent-soft-deterioration-v2",
+          "first_profit_bps": 1800,
+          "first_profit_sell_bps": 3333,
+          "soft_deterioration_confirmations": 2,
+          "stale_high_seconds": 120,
+          "stale_high_alone_is_exit": false,
+          "adverse_flow_and_creator_distribution_remain_immediate": true,
+          "runner_trailing_drawdown_bps": 1000,
+          "entry_thresholds_changed": false,
+          "paper_only_unchanged": true
+        },
+        "rpc_log_timestamp_metadata_repair": {
+          "revision": "ignore-optional-provider-timestamp-v1",
+          "incident_run_id": 35915320840,
+          "observed_pons_identity_failures_replayed": 623,
+          "required_log_identity_and_payload_unchanged": true,
+          "event_time_authority": "authenticated matching block header",
+          "provider_requests_added": 0,
+          "strategy_policy_changed": false
+        },
+        "target_coverage_repair": {
+          "revision": "preserved-hour-35935431384-acquisition-v1",
+          "predecessor_runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "provider_limits_changed": false,
+          "paper_only_unchanged": true
+        },
+        "evidence_reconstruction_repair": {
+          "revision": "accepted-35949285193-reconstruction-v1",
+          "diagnostic_runtime_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
+          "strategy_thresholds_changed": false,
+          "target_scope_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "accounting_changed": false,
+          "paper_only_unchanged": true
+        },
+        "public_eth_getLogs_429_repair": {
+          "revision": "public-log-method-adaptive-retry-v1",
+          "incident_run_id": 36077647211,
+          "purpose": "Retry an identical bounded public eth_getLogs range once after a short method-specific 429 cooldown, then use exact-range authenticated recovery only if the retry still fails.",
+          "public_discovery_ceiling_rps": 2,
+          "range_width_changed": false,
+          "routine_discovery_on_alchemy": false,
+          "provider_throughput_increased": false,
+          "evidence_freshness_changed": false,
+          "strategy_thresholds_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
-        "market_observation_scope": "all authenticated Pons V2 buy/sell logs remain observable",
+        "market_observation_scope": "Native-quote Pons curves in the frozen 50-85% progress, 120-600s age and 20-90s graduation-ETA domain, plus its authenticated graduation/re-entry modes; existing positions retain their lifecycle scope.",
         "investment_evaluation_scope": "ungraduated native-quote curves at 50-85% progress, age 120-600s and graduation ETA 20-90s with accelerating curve trajectory and net flow, existing demand breadth/concentration/friction controls, mandatory fill-time persistence, and pre-graduation high-water protection; same-curve re-entry still requires terminal-flat prior lifecycle plus a material point-in-time regime reset",
         "minimal_state_preflight": true,
         "trajectory_window_after_preflight_only": true,
         "permanent_exclusion_on_screen_failure": false,
         "strategy_thresholds_changed": true,
         "profitability_authority": true,
-        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks"
+        "research_basis": "79-execution review plus missed-winner market replay, segment analysis and clustered robustness checks",
+        "upstream_acquisition_scope": "all authenticated Pons V2 buy/sell logs remain observable",
+        "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "6972d3cc21f964c1597484dedcf54a9e614d015cc15f064749a5b1bb360fed7f"
+      "source_diff_sha256": "48083016628092f421b81f297c0fb4d29601d7fabf3e6d39da88430e53bb1089",
+      "source_integrity_mode": "declared_overlay_index",
+      "overlay_patches": [
+        "certification/patches/pons-cohort-capital.patch",
+        "certification/patches/market-scope-efficiency-pons.patch",
+        "certification/patches/pons-log-identity-metadata.patch",
+        "certification/patches/market-assurance-pons.patch",
+        "certification/patches/target-coverage-repair-pons.patch",
+        "certification/patches/evidence-reconstruction-pons.patch",
+        "certification/patches/v10-postrun-pons.patch",
+        "certification/patches/pons-public-log-429-adaptive.patch",
+        "certification/patches/robinhood-evidence-plane-pons.patch",
+        "certification/patches/robinhood-provider-authority-pons.patch"
+      ]
     },
     "ramses": {
-      "source_branch": "repair/ramses-alchemy-scarcity-public-observation",
-      "source_sha": "f18daa4565bbe7e6446bd2228ed3d24ecf6b8ed0",
-      "strategy_version": "ramses-active-wide-maker-v3",
-      "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+      "source_branch": "strategy/ramses-viability-v4-source-20260924",
+      "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+      "strategy_version": "ramses-active-wide-maker-v4",
+      "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
       "file_hashes": {
         ".github/workflows/robinhood-ramses-extended.yml": "dfd5e41153204fcf0b85616706dacc6dde7d6a40066813b57e2af03562477023",
-        "robinhood_research/ramses_strategy.py": "783acfec3edce65eb8415221e9b676ee74370c6c20d60083db67896ec450aa78",
-        "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json": "e83b0255937c891e55f4ad4a473368c57d69f5c02e0340686bdbdd2b4f6d74a0"
+        "robinhood_research/ramses_strategy.py": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
+        "RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V4.json": "5550a96e74af116f9e57efbbef762da04146416d6729f62a60f6339325e1be2d"
       },
       "rpc_configuration_variables": [
         "MM_ROBINHOOD_READ_RPC_URL",
@@ -418,21 +756,28 @@
         "6b47956b081c48e97a2201b62d4d417cc4be3845",
         "b8b62b7528c884d034af6c677a88e7d21e0b2fb1",
         "b53d35a33dddb82db361a9a501daa04c48183142",
-        "4b334faa7a032dc9aa2a1f3e943ce8b0eb51cfb3",
-        "05a426b7ee2af36f089c5c0a863525ed4ad64e80",
-        "a32ad3dd44f86864c38e7fbf577bebb2a10ad80a",
-        "f18daa4565bbe7e6446bd2228ed3d24ecf6b8ed0"
+        "631cb0c6d4de044a080927f711f575db8ac6c1d7",
+        "1ef7c5a0974fe841022b8bc44abcbf9023816c32",
+        "608c082f5d72802bbea685675352ab7e057fbba9",
+        "6069981b37dbd0e8f6c6865ce9ba394cf22ba19a",
+        "ecaf90130b402899934cefdb16204e6fef0cc8c8",
+        "6a7910f118e5fa2d0f2134724ee408ca039dbdb4",
+        "888b64b5bf84ed34e13a9118304421266b1a3287",
+        "16aef485b177e2eb70660f4bcf105d324a7aa6d0",
+        "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
+        "73b61794debf7f6e40abe474a1ce7b5fbfcbfed2",
+        "41b5f263efc31bedf9b39039a9f66bed264b70d3"
       ],
       "continuous_campaign_commit": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
       "execution_certification": {
         "profitability_authority": true,
-        "target_restrictiveness": "Active Wide Maker v3",
+        "target_restrictiveness": "Active Wide Maker v4",
         "original_source_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
-        "revision": "active-wide-maker-v3",
-        "purpose": "prospective natural paper validation of the Active Wide Maker v3 Ramses strategy with governed wide-range recentering and capital preservation",
+        "revision": "active-wide-maker-v4-viability",
+        "purpose": "Prospective natural paper validation of Ramses Active Wide Maker v4 with range-local initial sizing and mandatory positive after-cost plus 2x-cost-stress entry economics; v3 rebalance controls remain frozen.",
         "machinery_proof_only": false,
         "one_natural_settled_lifecycle_target": false,
-        "prior_execution_source_sha": "b2456dbf7adcf0c15caad3311aa86b41931be524",
+        "prior_execution_source_sha": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
         "lifecycle_repair": "transient provider rate limits and temporarily incomplete same-pool unwind liquidity hold open paper positions and retry; isolated paper ledger funds modeled cost envelope without resizing position",
         "repeat_entry_repair": "post-loss available-capital admission; available cost-envelope gate; unique per-qualification lifecycle namespace; candidate-local capacity/provider boundaries",
         "funding_repair": {
@@ -512,10 +857,10 @@
           "paper_only_unchanged": true
         },
         "provider_optimization": {
-          "source_commit": "f18daa4565bbe7e6446bd2228ed3d24ecf6b8ed0",
-          "revision": "public-logs-authenticated-factory-delta-v2",
-          "discovery_plane": "official_robinhood_public_rpc_for_finalized_economic_logs",
-          "alchemy_role": "exact_factory_count_and_new_append_indices_plus_candidate_state_active_cohort_costs_and_lifecycle_only",
+          "source_commit": "b8b62b7528c884d034af6c677a88e7d21e0b2fb1",
+          "revision": "public-observation-alchemy-active-cohort-v1",
+          "discovery_plane": "official_robinhood_public_rpc",
+          "alchemy_role": "candidate_state_active_cohort_costs_and_lifecycle_only",
           "broad_factory_and_log_observation_on_alchemy": false,
           "receipt_cost_scope": "active_cohort_only",
           "breadth_changed": false,
@@ -539,57 +884,208 @@
             "discovery_breadth_changed": false,
             "strategy_thresholds_changed": false,
             "paper_only_unchanged": true
+          }
+        },
+        "market_scope_efficiency": {
+          "revision": "strategy-domain-funnel-ordering-v1",
+          "purpose": "preserve broad market observability while delaying expensive evidence until existing strategy-domain gates can still be satisfied",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "detail": "filter to recently-active 1-2-swap pools, authenticate USDG identity before state/cost hydration, and spend the existing eight wide-range hydration slots only on strategy-domain candidates"
+        },
+        "lifecycle_clock_repair": {
+          "revision": "durable-position-handoff-v1",
+          "purpose": "continue factory observation while one long-horizon position is monitored, preserve position in an independent durable strategy ledger, enforce 7-day maximum hold and 210-second same-decision recenter deadline",
+          "maximum_hold_seconds": 604800,
+          "recenter_target_seconds": 180,
+          "recenter_hard_deadline_seconds": 210,
+          "strategy_thresholds_changed": false,
+          "finality_changed": false,
+          "position_size_changed": false,
+          "paper_only_unchanged": true
+        },
+        "v3_authority_and_timing_lock": {
+          "revision": "active-wide-maker-v3-authority-and-timing-lock",
+          "active_mode_only": "active_wide_maker",
+          "legacy_fee_pulse_runtime_authority": false,
+          "maximum_hold_seconds": 604800,
+          "maximum_hold_clock": "finalized_chain_timestamp_minus_original_entry_timestamp",
+          "recenter_hard_same_decision_deadline_seconds": 210,
+          "deadline_miss_behavior": "discard stale replacement geometry and rerun from a fresh finalized screen; fail closed in quote if the fresh redecision also exceeds the deadline",
+          "economics_changed": false,
+          "paper_only_unchanged": true
+        },
+        "economic_log_census_rate_limit_repair": {
+          "revision": "same-endpoint-single-request-429-recovery-v1",
+          "source_commit": "5dd003b45a60a73e19bf1162f81e4f1ccd2b4ef2",
+          "failure_evidence_run": 35897059408,
+          "failure_stage": "economic_log_census",
+          "purpose": "allow the broad Ramses economic-log observation reader to split a rate-limited two-request batch into same-endpoint single requests instead of terminating the lane",
+          "complete_log_range_preserved": true,
+          "alternate_provider": false,
+          "provider_throughput_changed": false,
+          "retry_budget_changed": false,
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true,
+          "certified_source_diff_sha256": "9f9d544c663eabf932d6a0d585c32f015c9edc422cfdc110e1f160cdd0896d4a"
+        },
+        "economic_log_census_provider_defer": {
+          "revision": "fail-closed-provider-censored-scan-v1",
+          "failure_evidence_run": 35905479952,
+          "observed_failure": "public economic-log census exhausted bounded same-endpoint HTTP 429 retries after remaining alive for approximately 9 minutes",
+          "behavior": "discard incomplete screen, persist infrastructure censoring, preserve process continuity, and retry only after existing frontier/scan cadence permits",
+          "partial_screen_can_qualify": false,
+          "immediate_full_scan_replay": false,
+          "alternate_provider": false,
+          "provider_throughput_changed": false,
+          "retry_budget_changed": false,
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "paper_only_unchanged": true
+        },
+        "state_hydration_budget_repair": {
+          "revision": "bounded-required-wide-state-work-v1",
+          "incident_run_id": 35915320840,
+          "purpose": "Correct shared 1400-call limit that cannot fit four required 408-read pool prestates; separately bound the exact frozen state workload.",
+          "metadata_program_logical_limit": 1400,
+          "state_logical_reads_per_pool": 408,
+          "state_maximum_pool_count": 8,
+          "state_maximum_planned_logical_reads": 3265,
+          "state_maximum_sessions": 17,
+          "state_maximum_program_logical_limit": 3400,
+          "provider_throughput_changed": false,
+          "retry_budget_changed": false,
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "bin_radius_changed": false,
+          "paper_only_unchanged": true
+        },
+        "rpc_log_timestamp_metadata_repair": {
+          "revision": "ignore-optional-provider-timestamp-v1",
+          "incident_run_id": 35915320840,
+          "observed_pons_identity_failures_replayed": 623,
+          "required_log_identity_and_payload_unchanged": true,
+          "event_time_authority": "authenticated matching block header",
+          "provider_requests_added": 0,
+          "strategy_policy_changed": false
+        },
+        "target_coverage_repair": {
+          "revision": "preserved-hour-35935431384-acquisition-v1",
+          "predecessor_runtime_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+          "strategy_thresholds_changed": false,
+          "market_observation_scope_changed": false,
+          "provider_limits_changed": false,
+          "paper_only_unchanged": true
+        },
+        "evidence_reconstruction_repair": {
+          "revision": "accepted-35949285193-reconstruction-v1",
+          "diagnostic_runtime_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
+          "strategy_thresholds_changed": false,
+          "target_scope_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "accounting_changed": false,
+          "paper_only_unchanged": true
+        },
+        "active_wide_maker_v4": {
+          "source_commit": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+          "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
+          "initial_quote_asset": "USDG",
+          "prior_30m_swaps_max": 2,
+          "width_candidates_bins": [
+            65,
+            90,
+            120,
+            150,
+            200
+          ],
+          "minimum_width_bins": 65,
+          "maximum_range_local_liquidity_fraction_bps": 50,
+          "range_local_sizing_required": true,
+          "initial_entry_requires_positive_projected_edge": true,
+          "initial_entry_requires_positive_two_x_cost_stress": true,
+          "maximum_entry_cycle_cost_to_capital_bps": 10000,
+          "bounded_executable_cost_route_required": true,
+          "complete_unwind_required": true,
+          "rebalance_state_machine": "unchanged_from_v3",
+          "target_burn_to_remint_seconds": 180,
+          "hard_same_decision_deadline_seconds": 210,
+          "maximum_hold_seconds": 604800,
+          "maximum_hold_is_safety_cap_not_profitability_claim": true,
+          "rejected_branch_b_restored": false,
+          "counterfactual_replay": {
+            "prospective_run_id": 36043064083,
+            "observed_position_capital_quote_raw": 57940,
+            "observed_execution_cost_quote_raw": 512646,
+            "observed_after_cost_return_bps": -88530,
+            "v4_disposition": "reject_before_capital_commitment",
+            "branch_b_final_run_id": 35685789656,
+            "branch_b_24h_median_after_cost_return_bps": -510,
+            "branch_b_72h_median_after_cost_return_bps": -239.5
           },
-          "factory_state_on_alchemy": "exact_count_each_scan_and_new_append_indices_only",
-          "routine_full_factory_reenumeration_on_alchemy": false,
-          "factory_inventory_seed_count": 287,
-          "factory_inventory_seed_finalized_block": 70271628,
-          "factory_inventory_seed_addresses_sha256": "eb40463884c42e766b2f14ca5e2304aee3079b3fe349c028bba3af1f51cffce2",
-          "factory_inventory_runtime_sha256": "f53b61bb1b43c80d7e1a131856224a8598bf746491880931e9d6bfcd5c6e197b",
-          "public_contract_state_required": false,
-          "public_economic_log_observation": true,
-          "preflight_exact_factory_state": true
+          "paper_only_unchanged": true,
+          "provider_limits_changed": false,
+          "target_scope_changed": false
         }
       },
       "prospect_admission": {
-        "market_observation_scope": "complete authenticated Ramses factory inventory remains observable",
-        "investment_evaluation_scope": "quiet USDG pools with <=2 prior 30-minute swaps, >=65-bin two-sided initial ranges, complete authenticated cost/unwind evidence and governed local-liquidity sizing; rebalances use the v3 displacement/overlap/capital-preservation state machine",
+        "market_observation_scope": "Recently active Ramses USDG pools with one or two prior 30-minute swaps, as frozen in sources.json; existing positions retain their lifecycle scope.",
+        "investment_evaluation_scope": "recently-active quiet USDG pools with 1-2 observed prior 30-minute swaps; candidate capital is sized from authenticated liquidity across the exact proposed wide range; initial entry requires complete cost evidence, a bounded executable WNATIVE-to-quote conversion, positive projected after-cost result, positive 2x-cost-stress result, modeled cycle cost no greater than deployed capital, and governed local-liquidity sizing; rebalances retain the v3 displacement/overlap/capital-preservation state machine",
         "factory_enumeration_is_inventory_not_investment_evaluation": true,
         "strategy_thresholds_changed": true,
-        "profitability_authority": true
+        "profitability_authority": true,
+        "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
+        "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "defb4a3358a182ddcea195b66bb5533a9de958155555e24005953e63c72b16a8"
+      "source_diff_sha256": "5247713b686c92870bc8abf09c94528235ff3227ce744ba9eb1ff4140810c8ce",
+      "source_integrity_mode": "declared_overlay_index",
+      "overlay_patches": [
+        "certification/patches/ramses-admission.patch",
+        "certification/patches/market-scope-efficiency-ramses.patch",
+        "certification/patches/ramses-ledger-position.patch",
+        "certification/patches/ramses-census-resilience.patch",
+        "certification/patches/ramses-census-budget-progress.patch",
+        "certification/patches/ramses-state-hydration-budget.patch",
+        "certification/patches/ramses-log-identity-metadata.patch",
+        "certification/patches/market-assurance-ramses.patch",
+        "certification/patches/ramses-receipt-set-metadata.patch",
+        "certification/patches/target-coverage-repair-ramses.patch",
+        "certification/patches/evidence-reconstruction-ramses.patch",
+        "certification/patches/robinhood-evidence-plane-ramses.patch",
+        "certification/patches/robinhood-provider-authority-ramses.patch"
+      ]
     }
   },
   "execution_certification": {
-    "revision": "current-four-lane-final-strategy-integration-v1",
-    "purpose": "Compose the current Pump/Pons profitability persistence policies with verified Meteora authenticated fee-density profitability v1 and Ramses Active Wide Maker v3 while preserving current operational overlays and paper-only controls.",
+    "revision": "current-four-lane-profit-protection-v2",
+    "purpose": "Compose the current Pump/Pons profit-protection revisions with Meteora enforced core-hold profitability v2 and Ramses Active Wide Maker v3 authority/timing lock while preserving current operational overlays and paper-only controls.",
     "profitability_authority": true,
-    "target_strategy_restrictiveness": "Pump/Pons profitability-v1; Meteora authenticated fee-density profitability-v1; Ramses Active Wide Maker v3",
-    "validation_status": "NOT_CERTIFIED_NON_MARKET_END_TO_END",
+    "target_strategy_restrictiveness": "Pump/Pons profitability-v1 profit-protection-v2; Meteora authenticated fee-density core-hold-v2; Ramses Active Wide Maker v4 viability-gated",
+    "validation_status": "PROFIT_PROTECTION_V2_EXACT_HASHES_PINNED_FINAL_CERTIFICATION_REQUESTED",
     "validation_run_requested": true,
     "latest_qualification": {
-      "run_id": 35789882265,
-      "verified_parent_head": "2c9de961dbddbd0cbe66c774cf16b98329b1317e",
+      "run_id": 35888605351,
+      "verified_parent_head": "7f59407777d2e482e754acbb91adaeb6b20f1312",
       "result": "success",
       "market_validation": false,
       "verified": [
-        "Pump profitability persistence source plus canonical operational overlay",
-        "Pons profitability persistence source plus canonical operational overlay",
-        "Meteora authenticated fee-density profitability source plus canonical lifecycle overlay",
-        "Ramses Active Wide Maker v3 source plus canonical operational overlay",
-        "supervisor deterministic suite",
+        "Pump profit-protection-v2 exact source plus canonical operational overlays",
+        "Pons profit-protection-v2 exact source plus canonical operational overlays",
+        "Meteora core-hold-v2 exact source plus canonical operational overlays",
+        "Ramses Active Wide Maker v3 authority-lock exact source plus canonical operational overlays",
         "all four isolated lane test suites",
         "Solana resource gates",
-        "canonical overlay idempotence"
+        "exact applied overlay hashes"
       ],
-      "scope": "historical_component_suites_and_resources_only; not current candidate end-to-end certification"
+      "scope": "exact four-lane deterministic non-market certification"
     },
     "source_heads": {
-      "pump": "a4003b292014cedf554a4930a9cca10900bfc178",
-      "pons": "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2",
-      "meteora": "60f188c0e6afbd0e7e93b4ba606d8614acb3bdb7",
-      "ramses": "6b47956b081c48e97a2201b62d4d417cc4be3845"
+      "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
+      "pons": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
+      "ramses": "41b5f263efc31bedf9b39039a9f66bed264b70d3"
     },
     "source_verification": {
       "meteora": {
@@ -636,6 +1132,126 @@
       "report": "docs/NON_MARKET_END_TO_END_CERTIFICATION.md",
       "runtime_identity": "Git HEAD plus pinned lane sources plus exact normalized overlays; recorded by certification.non_market",
       "prior_candidate_component_run": 35795249808
+    },
+    "market_scope_efficiency_candidate": {
+      "branch": "repair/market-scope-efficiency-final-20260923",
+      "integration_identity": "git_head_bound_by_certification_runner",
+      "pons_source_sha": "eeb54f2123ccb20b7b3d57a8b67831b9fffe97d0",
+      "ramses_source_sha": "631cb0c6d4de044a080927f711f575db8ac6c1d7",
+      "exact_source_diff_sha256": {
+        "pump": "9f3851244dc1cc939caad17b65c240a5d82467eb271d623c108be3f009386eeb",
+        "pons": "b6ebd94cee32100495e3c73506126ef0ac83b4bf22112e38fb87dbc390a075f7",
+        "meteora": "76dad9ea767672d1906cde19b0d5e6301a3dad00a658637a611b5c1d09e37bd4",
+        "ramses": "2b118db437e140becd34dba2594bb485dfa4d83bfd1c2926a687fb4022ce59ab"
+      },
+      "pre_pin_qualification": {
+        "run_id": 35866960015,
+        "head_sha": "27f3707062ad664584b2b1529255752aa5d22f0a",
+        "result": "success",
+        "full_ramses_universe_regression": true
+      },
+      "strategy_thresholds_changed": false,
+      "market_observation_scope_changed": false,
+      "paper_only_unchanged": true,
+      "exact_diff_hashes_pending": false
+    },
+    "lifecycle_clock_repair_candidate": {
+      "branch": "repair/lifecycle-clock-decoupling-20260923",
+      "pre_pin_full_deterministic_run_id": 35873505264,
+      "pre_pin_head_sha": "f3330b6ff8d33dec54547332c5a739c42f79e43f",
+      "result": "success",
+      "exact_source_diff_sha256": {
+        "pump": "c55cb785a451b8963264ba71344a954147582db36f7a7c11e85ea70aaa4da5d3",
+        "meteora": "1d6755eeac5a83afb9b617492d4c90c68ccf093b18d19c836ce38f48612b1d92",
+        "pons": "b6ebd94cee32100495e3c73506126ef0ac83b4bf22112e38fb87dbc390a075f7",
+        "ramses": "2b118db437e140becd34dba2594bb485dfa4d83bfd1c2926a687fb4022ce59ab"
+      },
+      "implementation_scope": [
+        "Meteora one-hour discovery separated from durable 4-24h position continuation",
+        "Meteora 162-second pre-entry trigger/warmup/evidence reserve",
+        "Ramses discovery continues while one long-horizon position owns capital",
+        "Ramses 604800-second maximum hold and 210-second recenter same-decision deadline",
+        "Pump final-second entry can complete 900-second hold inside existing 1000-second drain"
+      ],
+      "strategy_thresholds_changed": false,
+      "market_observation_scope_changed": false,
+      "position_sizing_changed": false,
+      "finality_changed": false,
+      "paper_only_unchanged": true,
+      "exact_post_pin_certification_requested": true
+    },
+    "profit_protection_v2_candidate": {
+      "branch": "cert/profit-protection-v2-four-lane-20260923",
+      "source_heads": {
+        "pump": "324fee081dd7664a30df4d88aaa1448d28e3033e",
+        "pons": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+        "meteora": "ec0b96f999f460c35cb63b27cd0387c4f81f9898",
+        "ramses": "888b64b5bf84ed34e13a9118304421266b1a3287"
+      },
+      "policy_hashes": {
+        "pump": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+        "pons": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+        "meteora": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+        "ramses": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef"
+      },
+      "exact_source_diff_sha256": {
+        "pump": "7139d965818dfa4f093824161a5102e5635b8a0dcc6d831f55d28e0cb33481fe",
+        "meteora": "113bbf9013b88a725efc8de7ec2fc98a4f03ca12c61929dbd99bfd90d5da5ccb",
+        "pons": "486b1e2977b62ee9a678ae99946a35ca17c411f92fc3a676ad991c20c94c8ca4",
+        "ramses": "1a7eb4f8fa00bd966d0fdf33283233e9032f69a3e78e78a95983e27daa3fe5e0"
+      },
+      "changes": [
+        "Pons +18%/~33% harvest preserved; profitable runner requires persistent simultaneous soft deterioration or hard adverse evidence",
+        "Pump +15%/25% staged harvest; profitable low demand requires two observations; one bounded healthy continuation beyond each legacy max-hold boundary",
+        "Meteora 4h core hold is executable; fee/volume collapse requires two consecutive verified 300s segments; hard range/inventory/one-way risk exits remain immediate",
+        "Ramses runtime and ledger require Active Wide Maker v3; 7d hold uses durable chain time; 210s same-decision rebalancing deadline is enforced"
+      ],
+      "entry_thresholds_changed": false,
+      "finality_changed": false,
+      "position_sizing_changed": false,
+      "paper_only_unchanged": true,
+      "ramses_ledger_readback_compatibility": {
+        "revision": "explicit-final-ledger-readback-overlay-v1",
+        "strategy_economics_changed": false,
+        "runtime_authority_changed": false,
+        "purpose": "retain durable position readback used by restart/idempotency certification after Ramses admission overlay composition"
+      },
+      "pre_pin_qualification": {
+        "run_id": 35888605351,
+        "head_sha": "7f59407777d2e482e754acbb91adaeb6b20f1312",
+        "result": "success",
+        "source_diff_hashes": {
+          "pump": "7139d965818dfa4f093824161a5102e5635b8a0dcc6d831f55d28e0cb33481fe",
+          "meteora": "113bbf9013b88a725efc8de7ec2fc98a4f03ca12c61929dbd99bfd90d5da5ccb",
+          "pons": "486b1e2977b62ee9a678ae99946a35ca17c411f92fc3a676ad991c20c94c8ca4",
+          "ramses": "1a7eb4f8fa00bd966d0fdf33283233e9032f69a3e78e78a95983e27daa3fe5e0"
+        }
+      },
+      "exact_post_pin_certification_requested": true
+    },
+    "ramses_census_liveness_telemetry_repair": {
+      "revision": "active-transport-is-scan-progress-v1",
+      "failure_evidence_run": 35905479952,
+      "purpose": "avoid falsely classifying a long Ramses economic-log census as stalled while real bounded RPC transport continues; preserve the 300-second stall classification when both stage checkpoint progress and transport activity are stale",
+      "transport_freshness_seconds": 30,
+      "strategy_economics_changed": false,
+      "strategy_thresholds_changed": false,
+      "market_observation_scope_changed": false,
+      "provider_throughput_changed": false,
+      "retry_budget_changed": false,
+      "provider_topology_changed": false,
+      "paper_only_unchanged": true
+    },
+    "ramses_viability_v4_candidate": {
+      "branch": "strategy/ramses-viability-v4-20260924",
+      "source_branch": "strategy/ramses-viability-v4-source-20260924",
+      "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+      "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
+      "prior_runtime_sha": "6cc6d90c8aeac70ceec08d8fc43bfab73da3ece4",
+      "evidence_only_replay": true,
+      "market_run_launched": false,
+      "source_diff_sha256_pending": false,
+      "source_diff_sha256": "e2751171b0dded92b37c26b81c42230b5cbf293870436938dc44628257f6fa8a"
     }
   },
   "composition": {
@@ -645,7 +1261,7 @@
   },
   "prospect_admission": {
     "revision": "strategy-prospect-admission-v1",
-    "purpose": "keep broad market observability while limiting investment evaluation to prospects defined by each frozen strategy",
+    "purpose": "Limit observed-market reporting to each frozen strategy target; broader source acquisition is reported separately and never supplies a target denominator.",
     "strategy_thresholds_changed": false,
     "freshness_finality_changed": false,
     "paper_accounting_changed": false,
@@ -653,5 +1269,6 @@
     "validation_run_requested": false,
     "source_sha": "0982519a68222b7cd0640981a7ac4a8ac7c119dd",
     "integration": "semantic delta composed in canonical overlays"
-  }
+  },
+  "source_diff_format": "git_binary_full_index_no_renames_v1"
 }

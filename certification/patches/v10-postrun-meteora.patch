@@ -1,0 +1,50 @@
+diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
+index df0ef258c6c504bc7111d8a31873df8430c07571..4ffb329246e12b9034994ab1c12bc2b5b35ba4e7 100644
+--- a/tests/solana_dlmm_independent_v1.py
++++ b/tests/solana_dlmm_independent_v1.py
+@@ -126,7 +126,11 @@ def _record_progress(pipeline,active_triggers,pool,stage,reason=None,
+     if stage in ("terminal","settled") and pool in active_triggers:
+         pipeline.record(active_triggers.pop(pool),"trigger_terminal",reason or "settled",pool=pool)
+     if classification is None and reason:
+-        if reason=="qualification_rejection":
++        if reason=="paper_capital_occupied":
++            classification="capital_occupied"
++        elif reason=="durable_position_continuation_active":
++            classification="open_continuing"
++        elif reason=="qualification_rejection":
+             classification="strategy_rejection"
+         elif reason=="campaign_window_insufficient_preentry_time":
+             classification="pending_at_observation_close"
+@@ -1963,6 +1967,8 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+                         terminal_classification='paper_capital_occupied',
+                         economic_rejection=False,
+                     ))
++                    _stage(candidate['address'],'evidence_not_required','paper_capital_occupied',
++                           scope='new_candidate_admission',capital_constraint_preserved=True)
+                     _stage(candidate['address'],'terminal','paper_capital_occupied')
+                     checkpoint('paper_capital_occupied')
+                     continue
+diff --git a/tests/test_meteora_market_scope_efficiency.py b/tests/test_meteora_market_scope_efficiency.py
+index ea7e984764da78f86b2ce19b2b718014d55aa5e9..ea7e6cc7850adc7d783131ca2cc2337e142ccabb 100644
+--- a/tests/test_meteora_market_scope_efficiency.py
++++ b/tests/test_meteora_market_scope_efficiency.py
+@@ -29,3 +29,19 @@ class MeteoraMarketScopeEfficiencyTests(unittest.TestCase):
+ 
+ if __name__ == "__main__":
+     unittest.main()
++
++class PostRunCapitalClassificationTests(unittest.TestCase):
++    def test_capital_occupancy_and_open_handoff_are_not_reconstruction_failures(self):
++        from tests.solana_dlmm_independent_v1 import _record_progress
++        from meme_machine.pipeline import Pipeline
++        p=Pipeline(':memory:','meteora','policy')
++        try:
++            _record_progress(p,{},'occupied','terminal','paper_capital_occupied')
++            _record_progress(p,{},'open','terminal','durable_position_continuation_active')
++            summary=p.snapshot()['unique_classes']
++            self.assertEqual(summary['capital_occupied'],1)
++            self.assertEqual(summary['open_continuing'],1)
++            self.assertEqual(summary['reconstruction_incomplete'],0)
++            _record_progress(p,{},'missing','terminal','fresh_state_unavailable_after_authenticated_trigger')
++            self.assertEqual(p.snapshot()['unique_classes']['reconstruction_incomplete'],1)
++        finally:p.close()

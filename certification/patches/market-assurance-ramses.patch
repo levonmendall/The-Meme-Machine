@@ -1,0 +1,274 @@
+diff --git a/robinhood_research/ramses_all_pool_lifecycle.py b/robinhood_research/ramses_all_pool_lifecycle.py
+index 4fd3188ccc2a8221df9bce31da6e4a8e9b851b21..002c43f0eb1477f4197a019b4a40a1c7f34636b6 100644
+--- a/robinhood_research/ramses_all_pool_lifecycle.py
++++ b/robinhood_research/ramses_all_pool_lifecycle.py
+@@ -103,26 +103,11 @@ def select_qualifier(screen):
+ 
+ 
+ def _batch_logs(rpc, start, end, address, *, scope="lifecycle_logs", topics=None):
+-    if start > end:
+-        return []
+-    calls = []
+-    for first in range(start, end + 1, LOG_BLOCK_CHUNK):
+-        calls.append((
+-            "eth_getLogs",
+-            [dict(
+-                fromBlock=hex(first),
+-                toBlock=hex(min(end, first + LOG_BLOCK_CHUNK - 1)),
+-                address=address,
+-                **({"topics": topics} if topics is not None else {}),
+-            )],
+-        ))
+-    found = []
+-    for i in range(0, len(calls), 20):
+-        for page in rpc.batch(calls[i:i + 20], scope=scope):
+-            found.extend(page)
+-            if len(found) > MAX_POOL_LOGS:
+-                raise BoundaryError("connected_lifecycle_log_capacity")
+-    return found
++    # The public observation census already supports this shape. Every returned
++    # event is still independently receipt/header authenticated below, and the
++    # position replay must still equal its authoritative terminal state.
++    from .ramses_lifecycle_log_census import collect
++    return collect(start,end,address,topics=topics,max_logs=MAX_POOL_LOGS)
+ 
+ 
+ def _snapshot(rpc, address, block, bins, *, initial):
+@@ -634,7 +619,8 @@ def _segment_costs(costs):
+ 
+ 
+ _TRANSIENT_PROVIDER_BOUNDARIES = frozenset(
+-    set(BoundedMultiRpc.RATE_ERRORS) | {"provider_rate_limit"}
++    set(BoundedMultiRpc.RATE_ERRORS) | {"provider_rate_limit",
++        "provider_http_500","provider_http_502","provider_http_503","provider_http_504"}
+ )
+ 
+ 
+@@ -642,6 +628,22 @@ def _is_transient_provider_boundary(exc):
+     return isinstance(exc, BoundaryError) and str(exc) in _TRANSIENT_PROVIDER_BOUNDARIES
+ 
+ 
++def _new_position_reader(endpoint,previous=None):
++    """Bound each monitoring operation, not the entire seven-day position life.
++
++    Pacing, session size and same-endpoint retry policy remain unchanged. Reuse
++    authenticated immutable bodies; a new bounded operation never resets the
++    ledger, strategy clock, range, cost basis, or failed operation's semantics.
++    """
++    rpc=BoundedMultiRpc(endpoint,max_sessions=16,batch_size=20,
++        batch_pause=0.5,rate_retries=1)
++    if previous is not None:
++        for name in ('_receipt_cache','_block_cache','evidence_pins'):
++            setattr(rpc,name,getattr(previous,name))
++    rpc.verify_chain()
++    return rpc
++
++
+ def _paper_ledger_capital(position_capital, costs, max_rebalances):
+     """Fund mechanics-only paper accounting without changing position size."""
+     if type(position_capital) is not int or position_capital <= 0:
+@@ -960,7 +962,10 @@ def run(
+ 
+         while True:
+             time.sleep(monitor_poll_seconds)
++            # The previous completed poll is preserved in the native ledger.
++            # This is a new bounded monitoring operation, not a provider retry.
+             try:
++                rpc=_new_position_reader(endpoint,rpc)
+                 frontier = rpc.call(
+                     "eth_getBlockByNumber",
+                     ["finalized", False],
+diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ramses_extended_test.py
+index 7a02626ccf28eed619593e7b338b85f7cce65ac6..2d5889c8602ab67fe4c1ee6f57b4c82717310144 100644
+--- a/robinhood_research/ramses_extended_test.py
++++ b/robinhood_research/ramses_extended_test.py
+@@ -726,7 +726,8 @@ def run(
+                         result['natural_lifecycles'].append(compact_lifecycle_result(life))
+                         result['connected_lifecycle']=compact_lifecycle_result(life)
+                         result['campaign_accounting']=campaign_books.reconcile()
+-                        if result['campaign_accounting']['open_positions']:
++                        if (result['campaign_accounting']['open_positions']
++                                and life.get('handoff_required') is not True):
+                             raise BoundaryError('ramses_campaign_unresolved_exposure')
+                     except BoundaryError as exc:
+                         classification=_campaign_candidate_boundary(exc)
+diff --git a/robinhood_research/ramses_lifecycle_log_census.py b/robinhood_research/ramses_lifecycle_log_census.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..5bd81892eb3b677d46d528a7dec63f3ce8ab0373
+--- /dev/null
++++ b/robinhood_research/ramses_lifecycle_log_census.py
+@@ -0,0 +1,68 @@
++"""Reuse finalized observation pages; retain receipt/state authority in the caller.
++
++Uses the already approved public census endpoint and its existing one-request
++batch/one-second pacing. It does not retry on another provider. A failed page is
++never cached as empty. Cached rows are discovery evidence, never entry authority.
++"""
++import json
++import sqlite3
++from pathlib import Path
++
++from . import BoundaryError
++from .ramses_capture import BoundedMultiRpc
++
++PAGE_BLOCKS=1000
++MAX_CACHE_PAGES=8192
++MAX_CACHE_BYTES=64*1024*1024
++DEFAULT_CACHE=Path('robinhood-ramses-lifecycle-log-cache.sqlite')
++
++
++def collect(start,end,address,*,topics=None,max_logs=5000,cache_path=DEFAULT_CACHE,
++            reader_factory=BoundedMultiRpc):
++    if start>end:return []
++    pages=[(first,min(end,first+PAGE_BLOCKS-1))
++           for first in range(start,end+1,PAGE_BLOCKS)]
++    if len(pages)>MAX_CACHE_PAGES:
++        raise BoundaryError('connected_lifecycle_observation_page_capacity')
++    cache_path=Path(cache_path)
++    with sqlite3.connect(cache_path) as db:
++        db.execute('CREATE TABLE IF NOT EXISTS log_pages (identity TEXT PRIMARY KEY, body TEXT NOT NULL)')
++        def key(first,last):
++            return json.dumps([str(address).lower(),first,last,topics],sort_keys=True,separators=(',',':'))
++        missing=sum(db.execute('SELECT 1 FROM log_pages WHERE identity=?',(key(a,b),)).fetchone() is None for a,b in pages)
++        rpc=None
++        if missing:
++            rpc=reader_factory(None,provider_role='public_observation',
++                max_sessions=(missing+1+199)//200,batch_size=1,batch_pause=1,
++                rate_retries=0,adaptive_batch_floor=1)
++            rpc.verify_chain()
++        found=[]
++        for first,last in pages:
++            identity=key(first,last)
++            cached=db.execute('SELECT body FROM log_pages WHERE identity=?',(identity,)).fetchone()
++            if cached:
++                page=json.loads(cached[0])
++            else:
++                query=dict(fromBlock=hex(first),toBlock=hex(last),address=address)
++                if topics is not None:query['topics']=topics
++                page=rpc.batch([('eth_getLogs',[query])],scope='lifecycle_public_census')[0]
++                if not isinstance(page,list):raise BoundaryError('connected_lifecycle_log_page_shape')
++                if len(page)>max_logs:raise BoundaryError('connected_lifecycle_log_capacity')
++                # Refuse out-of-window/foreign rows before persisting observation data.
++                if any(str(e.get('address','')).lower()!=str(address).lower() or
++                       not first<=int(e['blockNumber'],16)<=last or e.get('removed') is True
++                       for e in page):
++                    raise BoundaryError('connected_lifecycle_log_page_identity')
++                raw=json.dumps(page,sort_keys=True,separators=(',',':'))
++                if len(raw)>16*1024*1024:raise BoundaryError('connected_lifecycle_log_page_bytes')
++                db.execute('INSERT INTO log_pages VALUES(?,?)',(identity,raw))
++                db.commit()
++            found.extend(page)
++            if len(found)>max_logs:raise BoundaryError('connected_lifecycle_log_capacity')
++        count=db.execute('SELECT COUNT(*) FROM log_pages').fetchone()[0]
++        if count>MAX_CACHE_PAGES:
++            db.execute('DELETE FROM log_pages WHERE rowid IN (SELECT rowid FROM log_pages ORDER BY rowid LIMIT ?)',
++                (count-MAX_CACHE_PAGES,))
++        while db.execute('SELECT COALESCE(SUM(LENGTH(body)),0) FROM log_pages').fetchone()[0]>MAX_CACHE_BYTES:
++            db.execute('DELETE FROM log_pages WHERE rowid IN (SELECT rowid FROM log_pages ORDER BY rowid LIMIT 128)')
++        return found
+diff --git a/robinhood_research/ramses_universe.py b/robinhood_research/ramses_universe.py
+index b7780b7ec66fc662f1b3266dce5d2edbcfa33e67..0b9b115cbd8f75ff8e6c202cb5925bd93d4fd7fd 100644
+--- a/robinhood_research/ramses_universe.py
++++ b/robinhood_research/ramses_universe.py
+@@ -618,6 +618,7 @@ def scan(
+             latest_swap_block=max(r["block"] for r in history_rows),
+         ))
+     quiet_activity=_quiet_activity_cohort(activity,max_recent_active_pools)
++    quiet_activity_total=sum(0<int(row.get('swaps') or 0)<=2 for row in activity)
+ 
+     exclusions=Counter()
+     identity_cohort=[]
+@@ -640,6 +641,10 @@ def scan(
+     active_addresses={row[0]["pool"] for row in strategy_cohort}
+     checkpoint('receipt_cost_authentication',
+         quiet_activity_candidates=len(quiet_activity),
++        quiet_activity_total=quiet_activity_total,
++        quiet_activity_deferred=quiet_activity_total-len(quiet_activity),
++        identity_preflight_failures=sum(n for reason,n in exclusions.items() if reason!='quote_asset_not_usdg'),
++        target_scope_exclusions=dict(exclusions),
+         strategy_identity_candidates=len(identity_cohort),
+         strategy_hydration_candidates=len(strategy_cohort))
+     observe_receipt_gas(
+diff --git a/robinhood_tests/test_ramses_connected_lifecycle.py b/robinhood_tests/test_ramses_connected_lifecycle.py
+index a030e0644353d78366f68d16d7eada8064b367d1..a1d6649818e090a24da476ac1c02d8c10fc97575 100644
+--- a/robinhood_tests/test_ramses_connected_lifecycle.py
++++ b/robinhood_tests/test_ramses_connected_lifecycle.py
+@@ -57,7 +57,9 @@ def _decision(qualified=True):
+ 
+ 
+ class RamsesConnectedLifecycleTests(unittest.TestCase):
+-    def test_transient_provider_boundaries_are_position_safe_only_for_rate_limits(self):
++    def test_transient_provider_boundaries_hold_positions_without_an_invented_exit(self):
++        for code in (500,502,503,504):
++            self.assertTrue(_is_transient_provider_boundary(lifecycle.BoundaryError(f'provider_http_{code}')))
+         self.assertTrue(
+             _is_transient_provider_boundary(
+                 lifecycle.BoundaryError("provider_http_429")
+@@ -79,6 +81,20 @@ class RamsesConnectedLifecycleTests(unittest.TestCase):
+             )
+         )
+ 
++    def test_position_reader_retains_verified_caches_with_unchanged_bounded_pacing(self):
++        from types import SimpleNamespace
++        prior=SimpleNamespace(_receipt_cache={'tx':'receipt'},_block_cache={1:'header'},evidence_pins={'pin':1})
++        configs=[]
++        class Reader:
++            def __init__(self,endpoint,**kw):configs.append(kw)
++            def verify_chain(self):pass
++        with patch.object(lifecycle,'BoundedMultiRpc',Reader):
++            reader=lifecycle._new_position_reader('same-endpoint',prior)
++        self.assertIs(reader._receipt_cache,prior._receipt_cache)
++        self.assertIs(reader._block_cache,prior._block_cache)
++        self.assertIs(reader.evidence_pins,prior.evidence_pins)
++        self.assertEqual(configs,[dict(max_sessions=16,batch_size=20,batch_pause=.5,rate_retries=1)])
++
+     def test_partial_unwind_liquidity_holds_position_open_for_retry(self):
+         self.assertTrue(_unwind_has_full_liquidity(None))
+         self.assertTrue(_unwind_has_full_liquidity(dict(amount_in=10,amount_in_left=0)))
+diff --git a/robinhood_tests/test_ramses_lifecycle_log_census.py b/robinhood_tests/test_ramses_lifecycle_log_census.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..318a9dcf22d3278105135358bc2616ea63db07f6
+--- /dev/null
++++ b/robinhood_tests/test_ramses_lifecycle_log_census.py
+@@ -0,0 +1,41 @@
++import tempfile
++from pathlib import Path
++import unittest
++from robinhood_research import BoundaryError
++from robinhood_research.ramses_lifecycle_log_census import collect
++
++class LogCensusTests(unittest.TestCase):
++    def test_complete_large_interval_and_repeat_reuse_without_authoritative_calls(self):
++        calls=[];configs=[]
++        class Reader:
++            def __init__(self,*a,**kw):configs.append(kw)
++            def verify_chain(self):pass
++            def batch(self,batch,*,scope):
++                calls.extend(batch)
++                return [[dict(address='pool',blockNumber=c[1][0]['fromBlock'],removed=False)] for c in batch]
++        with tempfile.TemporaryDirectory() as td:
++            p=Path(td)/'cache.sqlite'
++            first=collect(100,18000,'pool',cache_path=p,reader_factory=Reader)
++            again=collect(100,18000,'pool',cache_path=p,reader_factory=Reader)
++            self.assertEqual(first,again);self.assertEqual(len(calls),18)
++            bounds=[(int(c[1][0]['fromBlock'],16),int(c[1][0]['toBlock'],16)) for c in calls]
++            self.assertEqual(bounds[0][0],100);self.assertEqual(bounds[-1][1],18000)
++            self.assertTrue(all(b[0]==a[1]+1 for a,b in zip(bounds,bounds[1:])))
++            self.assertEqual(configs[0]['provider_role'],'public_observation')
++            self.assertEqual((configs[0]['batch_size'],configs[0]['batch_pause'],configs[0]['rate_retries']),(1,1,0))
++    def test_failed_page_is_not_an_empty_success_and_successful_prefix_is_reused(self):
++        calls=[];fail=[True]
++        class Reader:
++            def __init__(self,*a,**kw):pass
++            def verify_chain(self):pass
++            def batch(self,batch,*,scope):
++                first=int(batch[0][1][0]['fromBlock'],16);calls.append(first)
++                if first==1001 and fail[0]:raise BoundaryError('provider_http_503')
++                return [[]]
++        with tempfile.TemporaryDirectory() as td:
++            p=Path(td)/'cache.sqlite'
++            with self.assertRaisesRegex(BoundaryError,'503'):collect(1,2000,'pool',cache_path=p,reader_factory=Reader)
++            fail[0]=False;self.assertEqual(collect(1,2000,'pool',cache_path=p,reader_factory=Reader),[])
++            self.assertEqual(calls,[1,1001,1001])
++
++if __name__=='__main__':unittest.main()

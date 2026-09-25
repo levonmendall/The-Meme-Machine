@@ -1,0 +1,542 @@
+diff --git a/robinhood_research/pipeline.py b/robinhood_research/pipeline.py
+index 3acb8abc9c0d471ee88ea7668cca0681fcb9b98c..e8e135fa3e4e0711f9f43ef7aa9ef638ddd71dfe 100644
+--- a/robinhood_research/pipeline.py
++++ b/robinhood_research/pipeline.py
+@@ -58,8 +58,8 @@ class Pipeline:
+                 terminally_classified_triggers=len(self.stages['trigger_terminal']),
+                 unresolved_triggers=len(self.stages['trigger_started']-self.stages['trigger_terminal']),
+                 stale_stage_counts={s:len(self.reasons[s]) for s in ('stale_on_arrival','stale_in_queue','stale_during_evidence','stale_after_complete_evidence')},
+-                stages={s:len(self.stages[s]) for s in stages},
+-                unique_classes={k:len(self.classes[k]) for k in classes},
++                stages={s:len(self.stages[s]) for s in sorted(set(stages) | set(self.stages))},
++                unique_classes={k:len(self.classes[k]) for k in sorted(set(classes) | set(self.classes))},
+                 unique_terminal_reasons={k:len(v) for k,v in self.reasons.items()},last_transition=self.last)
+ 
+     def close(self):self.db.close()
+diff --git a/robinhood_research/pons_natural_observation.py b/robinhood_research/pons_natural_observation.py
+index 3c9c74989cb93d1fe019217f233e48af707a6727..921b6fde31717f9b711b19fe662ac429cdea0b23 100644
+--- a/robinhood_research/pons_natural_observation.py
++++ b/robinhood_research/pons_natural_observation.py
+@@ -247,9 +247,27 @@ def _authenticate_candidate(
+     )
+     current_snipe=_one_word(snipe_raw)
+     maximum=9900-state.fee_bps-state.creator_tax_bps
++    def authenticated_rejection(boundary):
++        # These reads already passed header/receipt/log, curve bytecode and
++        # factory authentication. Preserve the narrow proof when quote creation
++        # stops, so the selective strategy can classify an existing early veto.
++        # This does not authorize a quote or relax this primitive's boundaries.
++        age=(time.monotonic()-float(evidence_observed_monotonic) if latency_mode
++             else time.time()-event_at)
++        report['authenticated_rejection']=dict(
++            boundary=boundary,curve=curve,token=token,block=block,
++            block_hash=header['hash'],source_transaction=tx,
++            source_log_index=int(event['logIndex'],16),
++            pair_token=record['pairToken'].lower(),
++            current_snipe_bps=current_snipe,fee_bps=state.fee_bps,
++            creator_tax_bps=state.creator_tax_bps,
++            decision_age_seconds=age,authentication_complete=True,
++        )
+     if not 0<=current_snipe<=maximum:
++        authenticated_rejection('invalid_current_snipe_bps')
+         raise BoundaryError("invalid_current_snipe_bps")
+     if record["pairToken"].lower()!=ZERO:
++        authenticated_rejection('natural_non_native_quote_not_supported')
+         raise BoundaryError("natural_non_native_quote_not_supported")
+     quote=state.buy_with_snipe(RESEARCH_BUY_WEI,current_snipe)
+     quote=dict(
+diff --git a/robinhood_research/pons_selective_acquisition.py b/robinhood_research/pons_selective_acquisition.py
+index 8deee1586ef3954a3b78c86260a268a5414e6d52..d99847e8218867e7fc8dabded6d8a3d24879f671 100644
+--- a/robinhood_research/pons_selective_acquisition.py
++++ b/robinhood_research/pons_selective_acquisition.py
+@@ -166,6 +166,7 @@ class SelectiveEvidenceContext:
+         self.factory_hints=OrderedDict()
+         self.pin=None
+         self.timing={}
++        self.boundary_evidence=None
+         self.deadline=None
+         self.receipt_pins={}
+         self.block_receipts_supported=False
+@@ -562,7 +563,8 @@ def _indexed_header_plan(cache,current_header,launch_at):
+     return sorted(n for n in needed if n not in rows)[:49],rows
+ 
+ 
+-def _trajectory(endpoint,candidate,*,evidence_context=None,window_tape=None):
++def _trajectory(endpoint,candidate,*,evidence_context=None,window_tape=None,
++                screen_launch_age=False):
+     """Resolve 5s/15s trajectory anchors from dense batched recent headers.
+ 
+     The old binary search serialized one request per probe. This path walks recent
+@@ -631,6 +633,16 @@ def _trajectory(endpoint,candidate,*,evidence_context=None,window_tape=None):
+ 
+         if launch_at is None or not 0<=int(launch_at)<=current_at:
+             raise BoundaryError("invalid_curve_launch_time")
++        if screen_launch_age and _launch_age_rejection(current_at,launch_at) is not None:
++            # The newly authenticated launch time already proves the frozen age
++            # veto. Do not fetch further history, reserve anchors or receipts.
++            telemetry=list(ctx.completed_sessions[before:])
++            if ctx.rpc is not None:telemetry.append(ctx.rpc.telemetry())
++            return [],int(launch_at),dict(
++                sessions=telemetry,batched_recent_headers=True,
++                recent_headers_considered=len(collected),
++                launch_age_screen_only=True,cache=cache.telemetry(),
++            )
+         for block in blocks:
+             header=cache.header_by_number(block)
+             if header is not None:
+@@ -771,9 +783,54 @@ def strategy_prospect_preflight(candidate):
+         creator_tax_bps=int(state.creator_tax_bps),
+         screen_authority="strategy_prospect_admission_only",
+         full_qualification_required=True,
++        full_evidence_required_for_decision=False if reasons else None,
+     )
+ 
+ 
++def _launch_age_rejection(asof,launch_at):
++    """A complete age veto makes all later qualification evidence unnecessary."""
++    if launch_at is None:return None
++    if not 0<=int(launch_at)<=int(asof):
++        raise BoundaryError('invalid_curve_launch_time')
++    age=int(asof)-int(launch_at)
++    if ENTRY_THRESHOLDS['min_token_age_seconds']<=age<=ENTRY_THRESHOLDS['max_token_age_seconds']:
++        return None
++    return dict(
++        eligible=False,reasons=['token_age'],token_age_seconds=age,
++        trajectory=dict(complete=False,acquired=False,reason='immutable_launch_age_veto'),
++        screen_authority='authenticated_immutable_launch_age_only',
++        full_qualification_required=True,full_evidence_required_for_decision=False,
++    )
++
++
++def authenticated_early_rejection(boundary,evidence):
++    """Classify only a fresh, authenticated proof of an existing frozen veto.
++
++    A bare exception string or an incomplete authentication remains a failure.
++    The native quote boundary and raw rate are retained unchanged.
++    """
++    if not evidence or evidence.get('boundary')!=boundary or evidence.get('authentication_complete') is not True:
++        return None
++    age=evidence.get('decision_age_seconds')
++    if not isinstance(age,(int,float)) or not 0<=age<=ENTRY_THRESHOLDS['max_state_age_seconds']:
++        return None
++    reason=None;bucket=None
++    if (boundary=='natural_non_native_quote_not_supported'
++            and evidence.get('pair_token') not in (None,'0x'+'00'*20)):
++        reason='non_native_quote';bucket='valid_early_structural_rejection'
++    if boundary=='invalid_current_snipe_bps':
++        rate=evidence.get('current_snipe_bps');fee=evidence.get('fee_bps');tax=evidence.get('creator_tax_bps')
++        if (all(type(x) is int for x in (rate,fee,tax)) and rate>0
++                and fee>=0 and tax>=0 and fee+tax<=2000
++                and rate>9900-fee-tax):
++            reason='snipe_tax_nonzero';bucket='valid_early_strategy_rejection'
++    if reason is None:return None
++    return dict(eligible=False,reasons=[reason],causal_bucket=bucket,
++        screen_authority='authenticated_current_state_rejection_only',
++        full_qualification_required=True,full_evidence_required_for_decision=False,
++        authenticated_evidence=dict(evidence))
++
++
+ def strategy_trajectory_preflight(candidate,snapshots,launch_at):
+     """Reject trajectory-domain misses before receipt/window reconstruction.
+ 
+@@ -807,6 +864,7 @@ def strategy_trajectory_preflight(candidate,snapshots,launch_at):
+         eligible=not reasons,reasons=reasons,token_age_seconds=token_age,
+         trajectory=trajectory,screen_authority="strategy_trajectory_admission_only",
+         full_qualification_required=True,
++        full_evidence_required_for_decision=not reasons,
+     )
+ 
+ 
+@@ -819,6 +877,7 @@ def evaluate_candidate(
+     """Freeze one outcome-blind qualification vector from Pons-only evidence."""
+     sessions=[]
+     ctx=evidence_context or SelectiveEvidenceContext(endpoint)
++    ctx.boundary_evidence=None
+     started=time.monotonic()
+     ctx.timing=dict(evidence_started_monotonic=started,first_observation_monotonic=evidence_observed_monotonic,
+         queue_wait_seconds=None if evidence_observed_monotonic is None else started-float(evidence_observed_monotonic),
+@@ -836,12 +895,16 @@ def evaluate_candidate(
+     rpc=ctx.acquire(16,"pons_natural")
+     auth_started=time.monotonic()
+     report=dict(reads=[],timing=ctx.timing)
+-    candidate=_authenticate_candidate(
+-        ctx,event,report,
+-        evidence_observed_at=evidence_observed_at,
+-        evidence_observed_monotonic=evidence_observed_monotonic,
+-        max_evidence_latency_seconds=ENTRY_THRESHOLDS["max_state_age_seconds"],
+-    )
++    try:
++        candidate=_authenticate_candidate(
++            ctx,event,report,
++            evidence_observed_at=evidence_observed_at,
++            evidence_observed_monotonic=evidence_observed_monotonic,
++            max_evidence_latency_seconds=ENTRY_THRESHOLDS["max_state_age_seconds"],
++        )
++    except BoundaryError:
++        ctx.boundary_evidence=report.get('authenticated_rejection')
++        raise
+     ctx.timing["header_receipt_quote_authentication_seconds"]=time.monotonic()-auth_started
+     candidate["report"]=report
+     ctx.remember_candidate(candidate)
+@@ -902,35 +965,30 @@ def evaluate_candidate(
+         )
+ 
+     if on_stage is not None:
+-        on_stage('prospect_admitted');on_stage('admitted');on_stage('evidence_requested')
++        on_stage('prospect_admitted')
+     tape=list(tape)
+     trajectory_started=time.monotonic()
+     # A previously authenticated immutable launch time can already prove the
+     # frozen age veto. It cannot qualify a candidate or replace fresh state.
+     launch_at=ctx.cache.launch(candidate['curve'])
+     asof=int(candidate['stamp'].event_at)
+-    if launch_at is not None and not 0<=int(launch_at)<=asof:
+-        raise BoundaryError('invalid_curve_launch_time')
+-    cached_age=None if launch_at is None else asof-int(launch_at)
+-    if cached_age is not None and not (
+-        ENTRY_THRESHOLDS['min_token_age_seconds']<=cached_age
+-        <=ENTRY_THRESHOLDS['max_token_age_seconds']
+-    ):
++    trajectory_prospect=_launch_age_rejection(asof,launch_at)
++    if trajectory_prospect is not None:
+         snapshots=[]
+-        trajectory_prospect=dict(
+-            eligible=False,reasons=['token_age'],token_age_seconds=cached_age,
+-            trajectory=dict(complete=False,acquired=False,
+-                            reason='immutable_launch_age_veto'),
+-            screen_authority='authenticated_immutable_launch_age_only',
+-            full_qualification_required=True,
+-        )
+         ctx.timing['cached_launch_age_screen_only']=True
+     else:
++        if on_stage is not None:on_stage('trajectory_requested')
+         snapshots,launch_at,trajectory_session=_trajectory(
+-            endpoint,candidate,evidence_context=ctx,window_tape=tape
++            endpoint,candidate,evidence_context=ctx,window_tape=tape,
++            screen_launch_age=True,
+         )
+         sessions.append(trajectory_session)
+-        trajectory_prospect=strategy_trajectory_preflight(candidate,snapshots,launch_at)
++        trajectory_prospect=_launch_age_rejection(asof,launch_at)
++        if trajectory_prospect is None:
++            trajectory_prospect=strategy_trajectory_preflight(candidate,snapshots,launch_at)
++            if on_stage is not None and trajectory_prospect['trajectory'].get('complete'):
++                on_stage('trajectory_complete')
++        else:ctx.timing['authenticated_launch_age_screen_only']=True
+     ctx.timing["trajectory_seconds"]=time.monotonic()-trajectory_started
+     if not trajectory_prospect["eligible"]:
+         available=int(time.time())
+@@ -982,7 +1040,9 @@ def evaluate_candidate(
+             ),
+             evidence_context=ctx.telemetry(),
+         )
+-    if on_stage is not None:on_stage('trajectory_admitted')
++    if on_stage is not None:
++        on_stage('trajectory_admitted');on_stage('evidence_required')
++        on_stage('admitted');on_stage('evidence_requested')
+     window_started=time.monotonic()
+     market,market_sessions=_authenticate_window(
+         endpoint,candidate,list(tape),seconds=60,evidence_context=ctx
+diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
+index a7f0a4d15c7ef832b27f3195cbb1dbb7f94a2367..d97d1caeb116c874102cefdbeaa84d4d115cb4ba 100644
+--- a/robinhood_research/pons_selective_cohort.py
++++ b/robinhood_research/pons_selective_cohort.py
+@@ -23,7 +23,8 @@ from .pons_natural_observation import (
+ from .provider_topology import configured_discovery_rpc
+ from .sequencer_feed import SequencerBlockClock, SequencerTransportError
+ from .pons_selective_acquisition import (
+-    SelectiveEvidenceContext, evaluate_candidate, public_evaluation,
++    SelectiveEvidenceContext, authenticated_early_rejection,
++    evaluate_candidate, public_evaluation,
+ )
+ from .pons_selective_continuation import (
+     POLICY, POLICY_HASH, REENTRY_POLICY, reentry_regime_reset, wallet_convergence,
+@@ -143,6 +144,37 @@ def _summary_snapshot(result):
+     )
+ 
+ 
++def _record_candidate_boundary(pipeline,identity,event,sequence,context,boundary,
++                               *,dispatch,observed_monotonic):
++    """Retain quote failures while separating proven preflight vetoes from loss."""
++    evidence=getattr(context,'boundary_evidence',None)
++    screen=authenticated_early_rejection(str(boundary),evidence)
++    row=dict(timing=dict(context.timing),source_log_index=int(event['logIndex'],16),
++        sequence=sequence,source_transaction=event.get('transactionHash'),
++        source_block=event.get('blockNumber'),boundary=str(boundary))
++    if screen is not None:
++        reason='strategy_current_state:'+','.join(screen['reasons'])
++        pipeline.record(identity,'prospect_screened',reason,'strategy_rejection',
++                        authenticated_evidence=screen['authenticated_evidence'])
++        pipeline.record(identity,'evidence_not_required')
++        pipeline.record(identity,'rejected',reason,'strategy_rejection')
++        row.update(status='screened_out',screened_out=True,screened_stage='current_state',
++            stale_stage=None,prospect_preflight=screen,causal_bucket=screen['causal_bucket'],
++            vector=dict(complete=False,current_threshold_pass=False,
++                qualification='strategy_prospect_screen',all_rejections=screen['reasons'],
++                prospect_screen_only=True))
++        return row
++    stale_stage=('stale_in_queue' if dispatch-observed_monotonic>5 else
++        'stale_during_evidence') if 'stale' in str(boundary) or 'admission_deadline' in str(boundary) else None
++    if evidence and isinstance(evidence.get('decision_age_seconds'),(int,float)) and evidence['decision_age_seconds']>5:
++        stale_stage='stale_during_evidence'
++    reason=stale_stage or str(boundary)
++    pipeline.record(identity,'terminal',reason,censor_class(reason),timing=context.timing)
++    row.update(status='incomplete',stale_stage=stale_stage,
++               authenticated_boundary_evidence=evidence)
++    return row
++
++
+ def _checkpoint(result,*,cursor,feed,rpc,phase):
+     active_provider=rpc.telemetry()
+     snapshot=dict(
+@@ -725,6 +757,7 @@ def run(endpoint,*,campaign=False):
+                     stage=evaluation.get("screened_stage") or "current_state"
+                     reason="strategy_"+stage+":"+",".join(reasons)
+                     pipeline.record(identity,"prospect_screened",reason,"strategy_rejection")
++                    pipeline.record(identity,"evidence_not_required")
+                     pipeline.record(identity,"rejected",reason,"strategy_rejection")
+                     coverage()
+                     public=public_evaluation(evaluation)
+@@ -811,18 +844,10 @@ def run(endpoint,*,campaign=False):
+                     active_curve_futures[curve]=(qindex,future)
+                     last_authorized_vector[curve]=evaluation["vector"]
+             except BoundaryError as exc:
+-                stale_stage=('stale_in_queue' if dispatch-observed_monotonic>5 else
+-                    'stale_during_evidence') if 'stale' in str(exc) or 'admission_deadline' in str(exc) else None
+-                reason=stale_stage or str(exc)
+-                pipeline.record(identity,'terminal',reason,censor_class(reason),timing=evidence_context.timing)
++                incomplete=_record_candidate_boundary(
++                    pipeline,identity,event,sequence,evidence_context,str(exc),
++                    dispatch=dispatch,observed_monotonic=observed_monotonic)
+                 coverage()
+-                incomplete=dict(timing=dict(evidence_context.timing),stale_stage=stale_stage,
+-                    source_log_index=int(event['logIndex'],16),
+-                    sequence=sequence,status="incomplete",
+-                    source_transaction=event.get("transactionHash"),
+-                    source_block=event.get("blockNumber"),
+-                    boundary=str(exc),
+-                )
+                 result["rows"].append(incomplete)
+                 result["evidence_acquisition"]=evidence_context.telemetry()
+                 _append_jsonl(ROWS_LOG,incomplete)
+diff --git a/robinhood_tests/test_pons_evidence_reconstruction_semantics.py b/robinhood_tests/test_pons_evidence_reconstruction_semantics.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..4747c2b3f038089b62f8fb212bb1d7d8a55310aa
+--- /dev/null
++++ b/robinhood_tests/test_pons_evidence_reconstruction_semantics.py
+@@ -0,0 +1,215 @@
++"""Offline regressions for accepted-block Pons evidence attribution.
++
++Synthetic inputs exercise the native authentication and frozen qualification
++paths; these tests do not claim new natural-market completions.
++"""
++import copy
++import tempfile
++import unittest
++from pathlib import Path
++from types import SimpleNamespace
++from unittest.mock import MagicMock, patch
++
++from robinhood_research import BoundaryError
++from robinhood_research import pons_selective_acquisition as acquisition
++from robinhood_research.abi import calldata
++from robinhood_research.pipeline import Pipeline
++from robinhood_research.pons_natural_observation import _authenticate_candidate
++from robinhood_research.pons_selective_cohort import _record_candidate_boundary
++from robinhood_research.pons_selective_continuation import POLICY_HASH
++from robinhood_tests.test_pons_factory_hint_reuse import CandidateContext, CURVE, TOKEN, NON_NATIVE
++from robinhood_tests import test_pons_selective_continuation as selective_fixtures
++from robinhood_tests.test_pons_selective_continuation import state, snapshots, events
++
++
++class AuthenticatedEarlyRejectionTests(unittest.TestCase):
++    def setUp(self):
++        self.ctx=CandidateContext()
++        self.pair='0x'+'00'*20
++        module='robinhood_research.pons_natural_observation.'
++        self.auth=self.enterContext(patch(module+'authenticate_curve',return_value={
++            'immutables':{'feeBps':100,'creatorTaxBps':0}}))
++        self.enterContext(patch(module+'factory_record',side_effect=lambda raw,role:dict(
++            token=TOKEN,curve=CURVE,deployer=TOKEN,creatorFeeRecipient=TOKEN,
++            pairToken=self.pair,exists=True)))
++        self.enterContext(patch(module+'raw_event',return_value={
++            'decoded':{'name':'CurveBuy'},'event_at':1000}))
++        self.enterContext(patch(module+'time.time',return_value=1000.0))
++        self.enterContext(patch(module+'time.monotonic',return_value=100.0))
++
++    def authenticate_boundary(self,boundary):
++        event=self.ctx.observe(123);report={'reads':[]}
++        with self.assertRaisesRegex(BoundaryError,'^'+boundary+'$'):
++            _authenticate_candidate(self.ctx,event,report)
++        return event,report
++
++    def record(self,event,boundary,evidence):
++        context=SimpleNamespace(timing={},boundary_evidence=evidence)
++        with tempfile.TemporaryDirectory() as tmp:
++            path=Path(tmp)/'pipeline.sqlite'
++            pipeline=Pipeline(path,'pons',POLICY_HASH)
++            row=_record_candidate_boundary(pipeline,'candidate',event,0,context,boundary,
++                dispatch=100,observed_monotonic=100)
++            stages={key:set(value) for key,value in pipeline.stages.items()}
++            classes={key:set(value) for key,value in pipeline.classes.items()}
++            pipeline.close()
++            restarted=Pipeline(path,'pons',POLICY_HASH)
++            self.assertEqual(dict(restarted.stages),stages)
++            self.assertEqual(dict(restarted.classes),classes)
++            restarted.close()
++        return row,stages,classes
++
++    def test_non_native_is_authenticated_structural_screen_without_completion(self):
++        self.pair=NON_NATIVE
++        event,report=self.authenticate_boundary('natural_non_native_quote_not_supported')
++        row,stages,classes=self.record(event,'natural_non_native_quote_not_supported',
++            report['authenticated_rejection'])
++        self.assertEqual(row['causal_bucket'],'valid_early_structural_rejection')
++        self.assertEqual(row['vector']['all_rejections'],['non_native_quote'])
++        self.assertEqual(classes,{'strategy_rejection':{'candidate'}})
++        self.assertIn('evidence_not_required',stages)
++        for stage in ('evidence_required','evidence_requested','evidence_complete'):
++            self.assertNotIn(stage,stages)
++        self.assertFalse(row['vector']['complete'])
++        self.assertFalse(row['vector']['current_threshold_pass'])
++
++    def test_high_raw_snipe_keeps_quote_boundary_and_proves_existing_zero_rate_veto(self):
++        self.ctx.snipe=9900
++        event,report=self.authenticate_boundary('invalid_current_snipe_bps')
++        proof=report['authenticated_rejection']
++        self.assertEqual(proof['current_snipe_bps'],9900)
++        self.assertEqual(proof['fee_bps'],100)
++        row,stages,classes=self.record(event,'invalid_current_snipe_bps',proof)
++        self.assertEqual(row['causal_bucket'],'valid_early_strategy_rejection')
++        self.assertEqual(row['vector']['all_rejections'],['snipe_tax_nonzero'])
++        self.assertEqual(row['boundary'],'invalid_current_snipe_bps')
++        self.assertEqual(classes,{'strategy_rejection':{'candidate'}})
++        self.assertNotIn('evidence_complete',stages)
++
++    def test_authentication_failure_never_creates_screen_authority(self):
++        self.ctx.snipe=9900
++        self.auth.side_effect=BoundaryError('curve_factory_disagreement')
++        _,report=self.authenticate_boundary('curve_factory_disagreement')
++        self.assertNotIn('authenticated_rejection',report)
++
++    def test_boundary_name_alone_or_malformed_proof_remains_a_failure(self):
++        self.ctx.snipe=9900
++        event,report=self.authenticate_boundary('invalid_current_snipe_bps')
++        valid=report['authenticated_rejection']
++        for proof in (None,dict(valid,current_snipe_bps=0),dict(valid,fee_bps=10_000),
++                      dict(valid,authentication_complete=False),dict(valid,boundary='other')):
++            with self.subTest(proof=proof):
++                row,stages,classes=self.record(event,'invalid_current_snipe_bps',proof)
++                self.assertEqual(row['status'],'incomplete')
++                self.assertEqual(classes,{'reconstruction_incomplete':{'candidate'}})
++                self.assertNotIn('evidence_not_required',stages)
++
++    def test_late_authentication_does_not_turn_staleness_into_strategy_rejection(self):
++        self.pair=NON_NATIVE
++        event,report=self.authenticate_boundary('natural_non_native_quote_not_supported')
++        proof=dict(report['authenticated_rejection'],decision_age_seconds=5.001)
++        row,stages,classes=self.record(event,'natural_non_native_quote_not_supported',proof)
++        self.assertEqual(row['status'],'incomplete')
++        self.assertEqual(row['stale_stage'],'stale_during_evidence')
++        self.assertEqual(classes,{'stale_during_evidence':{'candidate'}})
++        self.assertNotIn('evidence_not_required',stages)
++
++
++class FullEvidenceRequestTests(unittest.TestCase):
++    def evaluate(self,launch=50,*,trajectory=None,window_error=None):
++        ctx=MagicMock();ctx.telemetry.return_value={}
++        ctx.cache=acquisition.ImmutableEvidenceCache()
++        if launch is not None:ctx.cache.remember_launch('curve',launch)
++        candidate=dict(token='token',curve='curve',block=1,
++            stamp=SimpleNamespace(event_at=200),header={'timestamp':hex(200)},
++            state=state(timestamp=200),record={'graduationThreshold':10**18,
++                'pairToken':'0x'+'00'*20},current_snipe_bps=0,roundtrip_gas_wei=10**10,
++            decoded_event={'decoded':{'name':'CurveBuy'}})
++        event=dict(blockNumber='0x1',blockHash='hash',transactionHash='tx',logIndex='0x0')
++        stages=[]
++        with patch.object(acquisition,'_authenticate_candidate',return_value=candidate), \
++             patch.object(acquisition,'_trajectory',return_value=(
++                 snapshots() if trajectory is None else trajectory,
++                 50 if launch is None else launch,{})) as acquire_trajectory, \
++             patch.object(acquisition,'_authenticate_window',return_value=(events(),[]),
++                          side_effect=window_error) as acquire_window, \
++             patch.object(acquisition.time,'time',return_value=202):
++            try:
++                row=acquisition.evaluate_candidate('unused',event,[],strategy_capital_quote=10**18,
++                    evidence_context=ctx,on_stage=stages.append)
++            except BoundaryError as exc:row=exc
++        return row,stages,acquire_trajectory,acquire_window
++
++    def test_cached_age_rejection_never_requests_full_evidence_or_history(self):
++        row,stages,trajectory,window=self.evaluate(launch=81)
++        self.assertEqual(row['vector']['all_rejections'],['token_age'])
++        self.assertFalse(row['vector']['complete'])
++        trajectory.assert_not_called();window.assert_not_called()
++        self.assertEqual(stages,['current_state_complete','prospect_admitted'])
++
++    def test_completed_trajectory_rejection_is_not_full_reconstruction(self):
++        slow=[dict(row,progress_bps=5500+i*10) for i,row in enumerate(snapshots())]
++        row,stages,trajectory,window=self.evaluate(trajectory=slow)
++        self.assertTrue(row['trajectory_preflight']['trajectory']['complete'])
++        self.assertTrue(row['screened_out'])
++        self.assertFalse(row['vector']['complete'])
++        self.assertIn('trajectory_complete',stages)
++        self.assertNotIn('evidence_required',stages)
++        self.assertNotIn('evidence_requested',stages)
++        trajectory.assert_called_once();window.assert_not_called()
++
++    def test_full_request_occurs_only_after_all_existing_preflight_rules_pass(self):
++        row,stages,trajectory,window=self.evaluate()
++        self.assertTrue(row['vector']['complete'])
++        self.assertTrue(row['vector']['current_threshold_pass'],row['vector']['all_rejections'])
++        self.assertEqual(stages[-4:],['trajectory_admitted','evidence_required','admitted','evidence_requested'])
++        trajectory.assert_called_once();window.assert_called_once()
++
++    def test_required_window_failure_still_counts_as_full_request(self):
++        row,stages,_,window=self.evaluate(window_error=BoundaryError('selective_window_header_disagreement'))
++        self.assertIsInstance(row,BoundaryError)
++        self.assertIn('evidence_required',stages)
++        self.assertIn('evidence_requested',stages)
++        self.assertNotIn('evidence_complete',stages)
++        window.assert_called_once()
++
++    def test_boundary_evidence_is_reset_before_each_candidate(self):
++        ctx=MagicMock();ctx.boundary_evidence={'authentication_complete':True}
++        event=dict(blockNumber='0x1',blockHash='hash',transactionHash='tx',logIndex='0x0')
++        with patch.object(acquisition,'_authenticate_candidate',side_effect=BoundaryError('provider_rpc_3')):
++            with self.assertRaisesRegex(BoundaryError,'provider_rpc_3'):
++                acquisition.evaluate_candidate('unused',event,[],strategy_capital_quote=10**18,
++                    evidence_context=ctx)
++        self.assertIsNone(ctx.boundary_evidence)
++
++
++class ColdAgeAcquisitionTests(unittest.TestCase):
++    def test_newly_authenticated_age_veto_stops_before_reserves_and_window_receipts(self):
++        fixtures=selective_fixtures.SelectiveEvidenceThroughputTests()
++        ctx=fixtures.BatchContext();candidate=fixtures._candidate(200)
++        tape=[dict(address=candidate['curve'],blockNumber='0xbe',blockHash='hash',
++                   transactionHash='tx',transactionIndex='0x0',logIndex='0x0')]
++        result,launch,meta=acquisition._trajectory('unused',candidate,evidence_context=ctx,
++            window_tape=tape,screen_launch_age=True)
++        self.assertEqual(launch,900)
++        self.assertEqual(result,[])
++        self.assertTrue(meta['launch_age_screen_only'])
++        self.assertEqual(len(ctx.batches),1)
++        calls=ctx.batches[0][1]
++        self.assertEqual([params[0]['data'] for method,params in calls if method=='eth_call'],
++                         [calldata('launchedAt()')])
++        self.assertFalse(any(method=='eth_getTransactionReceipt' for method,_ in calls))
++
++    def test_in_age_candidate_keeps_identical_trajectory_requirements(self):
++        fixtures=selective_fixtures.SelectiveEvidenceThroughputTests();outputs=[]
++        for screen in (False,True):
++            ctx=fixtures.BatchContext();candidate=fixtures._candidate(200)
++            ctx.cache.remember_launch(candidate['curve'],850)
++            row,launch,_=acquisition._trajectory('unused',candidate,evidence_context=ctx,
++                                                screen_launch_age=screen)
++            outputs.append((row,launch,copy.deepcopy(ctx.batches)))
++        self.assertEqual(outputs[0],outputs[1])
++
++
++if __name__=='__main__':
++    unittest.main()

@@ -1,0 +1,1422 @@
+diff --git a/meme_machine/pipeline.py b/meme_machine/pipeline.py
+index 15fecbcdaaaffa42b514eba40392cc63f4cbd59e..f649d6113b47819b97e91b3640e7bef51837addc 100644
+--- a/meme_machine/pipeline.py
++++ b/meme_machine/pipeline.py
+@@ -57,8 +57,8 @@ class Pipeline:
+                 terminally_classified_triggers=len(self.stages['trigger_terminal']),
+                 unresolved_triggers=len(self.stages['trigger_started']-self.stages['trigger_terminal']),
+                 stale_stage_counts={s:len(self.reasons[s]) for s in ('stale_on_arrival','stale_in_queue','stale_during_evidence','stale_after_complete_evidence')},
+-                stages={s:len(self.stages[s]) for s in stages},
+-                unique_classes={k:len(self.classes[k]) for k in classes},
++                stages={s:len(self.stages[s]) for s in sorted(set(stages) | set(self.stages))},
++                unique_classes={k:len(self.classes[k]) for k in sorted(set(classes) | set(self.classes))},
+                 unique_terminal_reasons={k:len(v) for k,v in self.reasons.items()},last_transition=self.last)
+ 
+     def close(self):self.db.close()
+diff --git a/tests/fixtures/meteora_trigger_account_lag.json b/tests/fixtures/meteora_trigger_account_lag.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..05388b791b4d4dc36da8a1d6f6b6c1911165da2d
+--- /dev/null
++++ b/tests/fixtures/meteora_trigger_account_lag.json
+@@ -0,0 +1,855 @@
++{
++  "baseline_slot": 449910487,
++  "lagging_account_slot": 449910499,
++  "limitation": "Captured authenticated trigger and lagging endpoint only; no uncaptured catch-up state or recovered historical warmup is asserted.",
++  "pool": "BZJTiubWLruAhoBxCTgU3uVdvXFztsr4cKG7SZcxoQdC",
++  "schema": "captured_meteora_trigger_account_lag_v1",
++  "signature_row": {
++    "blockTime": 1790221541,
++    "confirmationStatus": "finalized",
++    "err": null,
++    "memo": null,
++    "signature": "5izen2qh7WcCP75h9yt3YcZF6Lef4qy5e61nPjxvafEJbP1C5juR5TBKrBwHYoD9NzPCRUGhryRvq35WfMifB7ew",
++    "slot": 449910506,
++    "transactionIndex": 828
++  },
++  "source_archive_sha256": "698dcc65131bdc972f0be3176f8b29d276f8f054c77c86aa780a2bcd237dda6a",
++  "source_run": 35949285193,
++  "source_sha": "1c6da29d08bfbe42e39ea1c8068933aae6b15cdb",
++  "source_transports": {
++    "401": {
++      "id": "10065be4-0fce-4220-836f-96621b15020d:401",
++      "method": "getSignaturesForAddress",
++      "observed_at_ns": 1790221547186811193
++    },
++    "402": {
++      "id": "10065be4-0fce-4220-836f-96621b15020d:402",
++      "method": "getTransaction",
++      "observed_at_ns": 1790221548201925408
++    },
++    "404": {
++      "id": "10065be4-0fce-4220-836f-96621b15020d:404",
++      "method": "getMultipleAccounts",
++      "observed_at_ns": 1790221549192065427
++    }
++  },
++  "transaction": {
++    "blockTime": 1790221541,
++    "meta": {
++      "computeUnitsConsumed": 189217,
++      "costUnits": 196616,
++      "err": null,
++      "fee": 80001,
++      "innerInstructions": [
++        {
++          "index": 2,
++          "instructions": [
++            {
++              "accounts": [
++                0,
++                1,
++                0,
++                20,
++                7,
++                22
++              ],
++              "data": "1",
++              "programIdIndex": 27,
++              "stackHeight": 2
++            },
++            {
++              "accounts": [
++                20
++              ],
++              "data": "84eT",
++              "programIdIndex": 22,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                0,
++                1
++              ],
++              "data": "111135fAZn8PZBEU8J8iUmUTdbmBE6po1LhhgEJXngDjhxmUTshDA8EHdXaMJUsXdMg3PE",
++              "programIdIndex": 7,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                1
++              ],
++              "data": "P",
++              "programIdIndex": 22,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                1,
++                20
++              ],
++              "data": "6YASu9VAhNMWg9yBg6mxZUiMAiEM4dcGTkXro58J5WP18",
++              "programIdIndex": 22,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                0,
++                1
++              ],
++              "data": "3Bxs4L7hFa41HcZu",
++              "programIdIndex": 7,
++              "stackHeight": 2
++            },
++            {
++              "accounts": [
++                1
++              ],
++              "data": "J",
++              "programIdIndex": 22,
++              "stackHeight": 2
++            }
++          ]
++        },
++        {
++          "index": 3,
++          "instructions": [
++            {
++              "accounts": [
++                1,
++                11,
++                0
++              ],
++              "data": "3EhgozudmU6s",
++              "programIdIndex": 22,
++              "stackHeight": 2
++            },
++            {
++              "accounts": [
++                11,
++                3,
++                28
++              ],
++              "data": "3EhgozudmU6s",
++              "programIdIndex": 22,
++              "stackHeight": 2
++            },
++            {
++              "accounts": [
++                26
++              ],
++              "data": "2qWhKzSZDTHhTkHUC1NYnTh9RaPgrypJZYZ79oxjk17wi17gaxsbz2i1LHdTZhS8shbyjHUc8wvfy6HVCgZCYMeQQkDkNFnNPYzrK6nEt9URd9TypMdNyaDaF",
++              "programIdIndex": 10,
++              "stackHeight": 2
++            },
++            {
++              "accounts": [
++                0,
++                6,
++                0,
++                31,
++                7,
++                22
++              ],
++              "data": "1",
++              "programIdIndex": 27,
++              "stackHeight": 2
++            },
++            {
++              "accounts": [
++                31
++              ],
++              "data": "84eT",
++              "programIdIndex": 22,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                0,
++                6
++              ],
++              "data": "111135fAZn8PZBEU8J8iUmUTdbmBE6po1LhhgEJXngDjhxmUTshDA8EHdXaMJUsXdMg3PE",
++              "programIdIndex": 7,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                6
++              ],
++              "data": "P",
++              "programIdIndex": 22,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                6,
++                31
++              ],
++              "data": "6YASu9VAhNMWg9yBg6mxZUiMAiEM4dcGTkXro58J5WP18",
++              "programIdIndex": 22,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                14,
++                4,
++                13,
++                12,
++                1,
++                6,
++                31,
++                20,
++                15,
++                19,
++                0,
++                22,
++                22,
++                29,
++                19,
++                2
++              ],
++              "data": "PgQWtn8ozix6NpEds29L85p3QTKNgn6hd",
++              "programIdIndex": 19,
++              "stackHeight": 2
++            },
++            {
++              "accounts": [
++                1,
++                20,
++                12,
++                0
++              ],
++              "data": "hi9bAYhxmfN7i",
++              "programIdIndex": 22,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                13,
++                31,
++                6,
++                14
++              ],
++              "data": "h5cvkQd74Ntcu",
++              "programIdIndex": 22,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                29
++              ],
++              "data": "yCGxBopjnVNQkNP5usq1PookbcGYpjrN4FZFQ6Uf4Fm3C1kbJNhvAeSjPpTeaYrJhtoQbAmS11EdUyBMRfZp1ZLzpFHZwhJFQZHPCVX416yG6kRNhDvpurucQPgM9GvZRQT9VcWcdKQNBjGCLuHhFNSGPwpqFMTTHKSjCwZiDAgbLFa1HbiL2ssi3QVzzhhwn5UtD5",
++              "programIdIndex": 19,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                29
++              ],
++              "data": "BHgNCLk8KLFLM9Rfkm9QH8t2KgTWNZnhP5uoJAbe1ckdp2teRgWQHcFwMc3CxYHB5VrYBahN8CsSHxcep3qJFbDp7FgyA8fPFtFr517MxFa6VziYN27t6HgYNLt7BeqM1wYsSUzaeiU7QSTGDvbr1rnEimaxmZQZucusgDxNZWwzdnkXBQzqKAtTmvvcwYFwSDEgSuamoNJcNyDb6KT7WNMj8cPJzL7",
++              "programIdIndex": 19,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                26
++              ],
++              "data": "QMqFu4fYGGeUEysFnenhAvBobXTzswhLdvQq6s8axxcbKUPRksm2543pJNNNHVd1VJ58FCg7NVh9cMuPYiMKNyfUpUXSDci9arMkqVwgC1zp93Gv1auxQGbF5CzcwReW2rGs7ADZiUWeKbv4ZDNHA6h18g3mAAACggzCDRyLJ4GUULX",
++              "programIdIndex": 10,
++              "stackHeight": 2
++            },
++            {
++              "accounts": [
++                30,
++                18,
++                1,
++                6,
++                16,
++                17,
++                31,
++                20,
++                0,
++                22,
++                22,
++                24,
++                25,
++                24
++              ],
++              "data": "TGq5We4UqkvNS3hFAyTMNdD16PcPcz7jyA",
++              "programIdIndex": 24,
++              "stackHeight": 2
++            },
++            {
++              "accounts": [
++                1,
++                20,
++                17,
++                0
++              ],
++              "data": "j8zjxmw5w3AYG",
++              "programIdIndex": 22,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                16,
++                31,
++                6,
++                30
++              ],
++              "data": "iJabTHMKypyEV",
++              "programIdIndex": 22,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                25
++              ],
++              "data": "EVM9wLnauu9H41GfKhTodp89w4SA2XJPMvKVcRTJnGwb1qeZmwocAUa6BSPgrdGx8UhX4HcFf61JWdHEooiJPinkY9weHqsfT2Ce4EbWgYozZcMfNByrZJm7RmwoBx5WqTLBc4rv64DDNzz44wxTXFekb5wU4jUfpbDzXLd8oWJBC5pN9QhrnjV6NGfXAphgN3wD55JfNqHL2uVy9qvfA6TZ6tVX4hwMD6j7uXz5B4FQKieJFsgXk1QycsysMvd1cUdehohfR1V9",
++              "programIdIndex": 24,
++              "stackHeight": 3
++            },
++            {
++              "accounts": [
++                26
++              ],
++              "data": "QMqFu4fYGGeUEysFnenhAvCc1p9GzFCEsnSVcgkaJohqMCKsyMN5zFrYmqV9dhZTbvyK75iaLMmB1BZ9puhBZDdZsZvEnCwaobQCUdhAbnLfMJbrjehuFBpUBVJP6Cz8uGcvwxcFJnh2djB3Gp2K5Xs65XXZP7N5ug89d42eNyfuGf9",
++              "programIdIndex": 10,
++              "stackHeight": 2
++            },
++            {
++              "accounts": [
++                1,
++                0,
++                0
++              ],
++              "data": "A",
++              "programIdIndex": 22,
++              "stackHeight": 2
++            }
++          ]
++        }
++      ],
++      "loadedAddresses": {
++        "readonly": [
++          "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
++          "So11111111111111111111111111111111111111112",
++          "Sysvar1nstructions1111111111111111111111111",
++          "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
++          "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG",
++          "3rmHSu74h1ZcmAisVcWerTCiRDQbUrBKmcwptYGjHfet",
++          "8xeaWCsJYxRoudEZGJWURdfrtFhLYZz9b4iHJnW5tb3d",
++          "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
++          "BhVHbM8cn9ojSi2VS1HTCQzDM1hspkviLFDvF7quv3kR",
++          "D1ZN9Wj1fRSUQfCjhvnu1hqDMT7hzjzBBpi12nVniYD6",
++          "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC",
++          "6rHkNb7HCtkpvdnVJsBCZHH5dw3AndqEjfmbEGhooR7t"
++        ],
++        "writable": [
++          "6UGeCpf56g8N3douofsQoBd71xjoNMATJnC7HkuXXWbL",
++          "6PouxTFJYWC4FnuG3gr7fF5iqExEfopG4UQ4uA9Ag5TN",
++          "AoZBbjhjpQrzgYMqup9yA8swPj1siy8wdoc8csZU2iuh",
++          "BZJTiubWLruAhoBxCTgU3uVdvXFztsr4cKG7SZcxoQdC",
++          "H9es8avcc2zw55XfkH3Z7XSTgc91HBdtNxoL8ur6advf",
++          "4ouGSh2SJ2cBmJQrTurcijqjA5v5YP5Zw3sbiczRPZLi",
++          "7cZGR4njhTQQAjF7Da6aaHq5fMA2tcKgZBjXhApV4k4Y",
++          "Cdh7YrCbKt9TuQtb6LYRdvKrJjN8x9NYqVGK1UZcN8RP"
++        ]
++      },
++      "logMessages": [
++        "Program ComputeBudget111111111111111111111111111111 invoke [1]",
++        "Program ComputeBudget111111111111111111111111111111 success",
++        "Program ComputeBudget111111111111111111111111111111 invoke [1]",
++        "Program ComputeBudget111111111111111111111111111111 success",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH invoke [1]",
++        "Program log: Instruction: WrapSol",
++        "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [2]",
++        "Program log: Create",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 179 of 262482 compute units",
++        "Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program 11111111111111111111111111111111 invoke [3]",
++        "Program 11111111111111111111111111111111 success",
++        "Program log: Initialize the associated token account",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 37 of 257393 compute units",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 229 of 254932 compute units",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 16405 of 270825 compute units",
++        "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success",
++        "Program 11111111111111111111111111111111 invoke [2]",
++        "Program 11111111111111111111111111111111 success",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 201 of 250947 compute units",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH consumed 25184 of 275679 compute units",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH success",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH invoke [1]",
++        "Program log: Instruction: Swap2",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 83 of 200450 compute units",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 83 of 198207 compute units",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH invoke [2]",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH consumed 2027 of 195672 compute units",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH success",
++        "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [2]",
++        "Program log: Create",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 179 of 180922 compute units",
++        "Program return: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA pQAAAAAAAAA=",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program 11111111111111111111111111111111 invoke [3]",
++        "Program 11111111111111111111111111111111 success",
++        "Program log: Initialize the associated token account",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 37 of 175833 compute units",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 233 of 173372 compute units",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 14909 of 187765 compute units",
++        "Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success",
++        "Program LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo invoke [2]",
++        "Program log: Instruction: Swap",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 134249 compute units",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 131982 compute units",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo invoke [3]",
++        "Program LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo consumed 772 of 129179 compute units",
++        "Program LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo success",
++        "Program LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo invoke [3]",
++        "Program LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo consumed 772 of 125771 compute units",
++        "Program LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo success",
++        "Program LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo consumed 43532 of 167474 compute units",
++        "Program LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo success",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH invoke [2]",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH consumed 2027 of 120548 compute units",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH success",
++        "Program cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG invoke [2]",
++        "Program log: Instruction: Swap2",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 112 of 101295 compute units",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 99966 compute units",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG invoke [3]",
++        "Program cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG consumed 81 of 97000 compute units",
++        "Program cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG success",
++        "Program cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG consumed 16472 of 113369 compute units",
++        "Program cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG success",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH invoke [2]",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH consumed 2027 of 93532 compute units",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH success",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 118 of 89513 compute units",
++        "Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH consumed 163583 of 250495 compute units",
++        "Program DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH success",
++        "Program 11111111111111111111111111111111 invoke [1]",
++        "Program 11111111111111111111111111111111 success"
++      ],
++      "postBalances": [
++        5319628,
++        0,
++        52141120,
++        29287932344,
++        8656320,
++        422791158,
++        1488440,
++        1,
++        1,
++        440345082,
++        13326447,
++        2039280,
++        11983598441,
++        1488440,
++        5242560,
++        17068800,
++        1488440,
++        137291676737,
++        40618440,
++        70027466,
++        1845113905250,
++        0,
++        200653906,
++        70128638,
++        11823514,
++        0,
++        1244010,
++        3388612899,
++        42551685,
++        5987435,
++        174339334521,
++        1066800
++      ],
++      "postTokenBalances": [
++        {
++          "accountIndex": 3,
++          "mint": "So11111111111111111111111111111111111111112",
++          "owner": "9yj3zvLS3fDMqi1F8zhkaWfq8TZpZWHe6cz1Sgt7djXf",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "28854145800",
++            "decimals": 9,
++            "uiAmount": 28.8541458,
++            "uiAmountString": "28.8541458"
++          }
++        },
++        {
++          "accountIndex": 6,
++          "mint": "6rHkNb7HCtkpvdnVJsBCZHH5dw3AndqEjfmbEGhooR7t",
++          "owner": "C2kEDHdu5WEqtV6A1cmDzjunDLmFDrzm3cgwaYcGDEaA",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "462262347000",
++            "decimals": 6,
++            "uiAmount": 462262.347,
++            "uiAmountString": "462262.347"
++          }
++        },
++        {
++          "accountIndex": 11,
++          "mint": "So11111111111111111111111111111111111111112",
++          "owner": "BhVHbM8cn9ojSi2VS1HTCQzDM1hspkviLFDvF7quv3kR",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "0",
++            "decimals": 9,
++            "uiAmount": null,
++            "uiAmountString": "0"
++          }
++        },
++        {
++          "accountIndex": 12,
++          "mint": "So11111111111111111111111111111111111111112",
++          "owner": "BZJTiubWLruAhoBxCTgU3uVdvXFztsr4cKG7SZcxoQdC",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "11981910001",
++            "decimals": 9,
++            "uiAmount": 11.981910001,
++            "uiAmountString": "11.981910001"
++          }
++        },
++        {
++          "accountIndex": 13,
++          "mint": "6rHkNb7HCtkpvdnVJsBCZHH5dw3AndqEjfmbEGhooR7t",
++          "owner": "BZJTiubWLruAhoBxCTgU3uVdvXFztsr4cKG7SZcxoQdC",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "11656928239334",
++            "decimals": 6,
++            "uiAmount": 11656928.239334,
++            "uiAmountString": "11656928.239334"
++          }
++        },
++        {
++          "accountIndex": 16,
++          "mint": "6rHkNb7HCtkpvdnVJsBCZHH5dw3AndqEjfmbEGhooR7t",
++          "owner": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "132879600498844",
++            "decimals": 6,
++            "uiAmount": 132879600.498844,
++            "uiAmountString": "132879600.498844"
++          }
++        },
++        {
++          "accountIndex": 17,
++          "mint": "So11111111111111111111111111111111111111112",
++          "owner": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "137290088296",
++            "decimals": 9,
++            "uiAmount": 137.290088296,
++            "uiAmountString": "137.290088296"
++          }
++        }
++      ],
++      "preBalances": [
++        488271820,
++        0,
++        52141120,
++        29283840689,
++        8656320,
++        422778658,
++        0,
++        1,
++        1,
++        440345082,
++        13326447,
++        2039280,
++        11645351147,
++        1488440,
++        5242560,
++        17068800,
++        1488440,
++        137152644435,
++        40618440,
++        70027466,
++        1845113905250,
++        0,
++        200653906,
++        70128638,
++        11823514,
++        0,
++        1244010,
++        3388612899,
++        42551685,
++        5987435,
++        174339334521,
++        1066800
++      ],
++      "preTokenBalances": [
++        {
++          "accountIndex": 3,
++          "mint": "So11111111111111111111111111111111111111112",
++          "owner": "9yj3zvLS3fDMqi1F8zhkaWfq8TZpZWHe6cz1Sgt7djXf",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "28850054145",
++            "decimals": 9,
++            "uiAmount": 28.850054145,
++            "uiAmountString": "28.850054145"
++          }
++        },
++        {
++          "accountIndex": 11,
++          "mint": "So11111111111111111111111111111111111111112",
++          "owner": "BhVHbM8cn9ojSi2VS1HTCQzDM1hspkviLFDvF7quv3kR",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "0",
++            "decimals": 9,
++            "uiAmount": null,
++            "uiAmountString": "0"
++          }
++        },
++        {
++          "accountIndex": 12,
++          "mint": "So11111111111111111111111111111111111111112",
++          "owner": "BZJTiubWLruAhoBxCTgU3uVdvXFztsr4cKG7SZcxoQdC",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "11643662707",
++            "decimals": 9,
++            "uiAmount": 11.643662707,
++            "uiAmountString": "11.643662707"
++          }
++        },
++        {
++          "accountIndex": 13,
++          "mint": "6rHkNb7HCtkpvdnVJsBCZHH5dw3AndqEjfmbEGhooR7t",
++          "owner": "BZJTiubWLruAhoBxCTgU3uVdvXFztsr4cKG7SZcxoQdC",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "11985535296050",
++            "decimals": 6,
++            "uiAmount": 11985535.29605,
++            "uiAmountString": "11985535.29605"
++          }
++        },
++        {
++          "accountIndex": 16,
++          "mint": "6rHkNb7HCtkpvdnVJsBCZHH5dw3AndqEjfmbEGhooR7t",
++          "owner": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "133013255789128",
++            "decimals": 6,
++            "uiAmount": 133013255.789128,
++            "uiAmountString": "133013255.789128"
++          }
++        },
++        {
++          "accountIndex": 17,
++          "mint": "So11111111111111111111111111111111111111112",
++          "owner": "HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC",
++          "programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
++          "uiTokenAmount": {
++            "amount": "137151055994",
++            "decimals": 9,
++            "uiAmount": 137.151055994,
++            "uiAmountString": "137.151055994"
++          }
++        }
++      ],
++      "rewards": [],
++      "status": {
++        "Ok": null
++      }
++    },
++    "slot": 449910506,
++    "transaction": {
++      "message": {
++        "accountKeys": [
++          "C2kEDHdu5WEqtV6A1cmDzjunDLmFDrzm3cgwaYcGDEaA",
++          "23JVjRurQor25CRdfeSX66gAuYgymh7sr83fbuSjwm1i",
++          "3LZXQECSHSopA51kTDKdea8tP9jii62Ce1J8MqSVhv5A",
++          "6Wzuv7vLc6Vq8HJcHwwSCE9SKcdJiuoJmJm3EMFkWERN",
++          "7nuskcxf1XXvx7cyaNS5TCovqebStyde99c7pNxh6SQt",
++          "CcTNKBhQKYu7nB4eRrRFQoXEvpd6H5QnGKh93pwniBtp",
++          "HUV9CByA47RTYm9PGJ7E7YWLUcTb53Aa436QbRpmCRq1",
++          "11111111111111111111111111111111",
++          "ComputeBudget111111111111111111111111111111",
++          "jitonobundLe1111111111111111111111111111123",
++          "DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH"
++        ],
++        "addressTableLookups": [
++          {
++            "accountKey": "9rVP9Ly5RC1nix3WDm5QgkoWJbxV7Kteth1KHtYk5hT9",
++            "readonlyIndexes": [
++              27,
++              184,
++              1,
++              5,
++              6,
++              25,
++              63,
++              10,
++              7,
++              225,
++              65,
++              87
++            ],
++            "writableIndexes": [
++              247
++            ]
++          },
++          {
++            "accountKey": "3DQo7kdQ7RnPBmnCiDvgkTtMu18DYobHfB19PmUWXX1L",
++            "readonlyIndexes": [
++              129
++            ],
++            "writableIndexes": [
++              193,
++              128,
++              126,
++              194
++            ]
++          },
++          {
++            "accountKey": "DP34He4x63n3JGvMt55DEGewaK28dqK8cUKnZmSku958",
++            "readonlyIndexes": [],
++            "writableIndexes": [
++              237,
++              232,
++              234
++            ]
++          }
++        ],
++        "header": {
++          "numReadonlySignedAccounts": 0,
++          "numReadonlyUnsignedAccounts": 4,
++          "numRequiredSignatures": 1
++        },
++        "instructions": [
++          {
++            "accounts": [
++              9
++            ],
++            "data": "ENgfhH",
++            "programIdIndex": 8,
++            "stackHeight": 1
++          },
++          {
++            "accounts": [],
++            "data": "3dZwpTvEiRnP",
++            "programIdIndex": 8,
++            "stackHeight": 1
++          },
++          {
++            "accounts": [
++              0,
++              1,
++              20,
++              22,
++              27,
++              7
++            ],
++            "data": "6qNScTvk3UaXJZj5AkNjC3",
++            "programIdIndex": 10,
++            "stackHeight": 1
++          },
++          {
++            "accounts": [
++              22,
++              27,
++              7,
++              0,
++              26,
++              10,
++              28,
++              21,
++              23,
++              10,
++              10,
++              1,
++              3,
++              0,
++              11,
++              14,
++              4,
++              13,
++              12,
++              1,
++              6,
++              31,
++              20,
++              15,
++              19,
++              0,
++              22,
++              22,
++              29,
++              19,
++              2,
++              30,
++              18,
++              1,
++              6,
++              16,
++              17,
++              31,
++              20,
++              0,
++              25,
++              24,
++              3
++            ],
++            "data": "kirwMHcfKzhKLRPhhDUPeVcgnm4udQFfuCnSGasE6tRFbpQpz8dBhW2Ha9GprgKjMJ9xq2ZWR1wS5y5s2mcvRf1HrZeWgrndhKAJgWcJpH7LLbeT5e1QvmSxS8CJVMBDSLq3UZ8P6JvgPt8BfL8J9HmD79g8eVfvTDwJsnWpKkZMRQBoTqL8",
++            "programIdIndex": 10,
++            "stackHeight": 1
++          },
++          {
++            "accounts": [
++              0,
++              5
++            ],
++            "data": "3Bxs4cM9MVUDTHvF",
++            "programIdIndex": 7,
++            "stackHeight": 1
++          }
++        ],
++        "recentBlockhash": "J71QeyAi5ZfFxc2ot2gkN3kPqRFJ3bPxcLr4ohW8c59R"
++      },
++      "signatures": [
++        "5izen2qh7WcCP75h9yt3YcZF6Lef4qy5e61nPjxvafEJbP1C5juR5TBKrBwHYoD9NzPCRUGhryRvq35WfMifB7ew"
++      ]
++    },
++    "transactionIndex": 828,
++    "version": 0
++  }
++}
+diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
+index 4bcb31c5f8b73b420653baffb5a873c7c8376460..df0ef258c6c504bc7111d8a31873df8430c07571 100644
+--- a/tests/solana_dlmm_independent_v1.py
++++ b/tests/solana_dlmm_independent_v1.py
+@@ -102,6 +102,44 @@ PROGRESS_HOOK=None
+ def _stage(pool,stage,reason=None,**details):
+     if PROGRESS_HOOK is not None:PROGRESS_HOOK(pool,stage,reason,**details)
+ 
++def _record_progress(pipeline,active_triggers,pool,stage,reason=None,
++                     classification=None,**details):
++    """Keep candidate and trigger identities separate in the append-only funnel."""
++    from meme_machine.pipeline import censor_class
++    if stage=="trigger_authenticated":
++        trigger_id=str(pool)+":"+str(details.get("slot"))
++        previous=active_triggers.get(pool)
++        if previous and previous!=trigger_id:
++            pipeline.record(previous,"trigger_terminal","superseded_before_fresh_state",
++                pool=pool)
++            pipeline.record(pool,"evidence_superseded","superseded_before_fresh_state",
++                "superseded_candidate_state",observation_id=previous)
++        active_triggers[pool]=trigger_id
++        pipeline.record(trigger_id,"trigger_started",pool=pool,slot=details.get("slot"))
++        pipeline.record(pool,"evidence_required",observation_id=trigger_id,
++            scope="fresh_state_and_verified_warmup_before_full_vector")
++    if pool in active_triggers:
++        details.setdefault("observation_id",active_triggers[pool])
++    if stage=="warmup_started":
++        pipeline.record(pool,"evidence_requested",scope="verified_warmup_reconstruction",
++            observation_id=details.get("observation_id"))
++    if stage in ("terminal","settled") and pool in active_triggers:
++        pipeline.record(active_triggers.pop(pool),"trigger_terminal",reason or "settled",pool=pool)
++    if classification is None and reason:
++        if reason=="qualification_rejection":
++            classification="strategy_rejection"
++        elif reason=="campaign_window_insufficient_preentry_time":
++            classification="pending_at_observation_close"
++        elif reason=="stream_gap_unresolved_at_trigger_timeout":
++            classification="stream_gap"
++        elif (stage=="terminal" and details.get("stage_failed")=="compatibility"
++                and (reason=="dlmm_missing_active_or_liquidity"
++                    or any(x in str(reason) for x in ("unsupported","authority","extension")))):
++            classification="structural_ineligible"
++        else:classification=censor_class(reason)
++    pipeline.record(pool,stage,reason,classification,**details)
++
++
+ def assert_independence():
+     bad_env=sorted(k for k in os.environ if k.startswith("MM_ROBINHOOD_"))
+     if bad_env:
+@@ -1572,13 +1610,26 @@ def _await_fresh_swap_trigger(
+     initial_status=broker.stream_status(
+         DLMM_WAKE_STREAM_KEY,int(time.time()),0)
+     last_gap_count=int(initial_status.get("gaps") or 0)
++    # A read while disconnected cannot close an outage that is still growing.
++    # Retain the recovery obligation until a post-reconnect read completes.
++    gap_recovery_pending=not bool(initial_status.get("covered",False))
+     bootstrap_recovery_pending=True
++    pending_trigger=None
++    pending_trigger_source=None
+ 
+     def terminal(reason,elapsed,**extra):
++        if reason=="fresh_swap_trigger_timeout":
++            if pending_trigger is not None:
++                reason="fresh_state_unavailable_after_authenticated_trigger"
++            elif gap_recovery_pending:
++                reason="stream_gap_unresolved_at_trigger_timeout"
+         row=dict(
+             triggered=False,reason=reason,waited_seconds=elapsed,
+             polls=polls,wakeups=wakeups,gap_recoveries=gap_recoveries,
+             bootstrap_auth_reads=bootstrap_auth_reads,
++            gap_recovery_pending=gap_recovery_pending,
++            gap_recovery_scope="bounded_candidate_trigger_authentication_not_stream_backfill",
++            authenticated_trigger_pending_fresh_state=pending_trigger is not None,
+             acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
+         )
+         row.update(extra)
+@@ -1600,21 +1651,23 @@ def _await_fresh_swap_trigger(
+             address=candidate["address"])
+         should_auth=bool(events) or bootstrap_recovery_pending
+ 
+-        # A stream gap can hide a wakeup. Recover exactly once per observed gap
+-        # using the last authenticated per-pool cursor; normal operation does not poll.
++        # A gap can hide wakeups after the first disconnect notification. Only
++        # acknowledge its bounded recovery read after reconnection and hydration.
+         if gap_count>last_gap_count:
+-            should_auth=True
+-            gap_recoveries+=1
++            gap_recovery_pending=True
+             last_gap_count=gap_count
++        recovering_gap=gap_recovery_pending and bool(status.get("covered",False))
++        should_auth=should_auth or recovering_gap
+ 
+-        if should_auth:
++        if should_auth and pending_trigger is None:
+             wakeups+=len(events)
+             was_bootstrap=bootstrap_recovery_pending
+             adapter=_rotate(adapter,pacer,rpcs)
+             swaps,poll_meta=_new_finalized_swaps(
+                 adapter.rpc,candidate["address"],cursor_slot,broker)
+             polls+=1
+-            if poll_meta.get("rate_limited"):
++            if (poll_meta.get("rate_limited")
++                    or (poll_meta.get("hydration") or {}).get("pending")):
+                 remaining=min(
+                     FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
+                         0.0,time.monotonic()-started),
+@@ -1623,6 +1676,9 @@ def _await_fresh_swap_trigger(
+                     time.sleep(min(0.5,remaining))
+                 continue
+ 
++            if recovering_gap:
++                gap_recoveries+=1
++                gap_recovery_pending=False
+             if was_bootstrap:
+                 bootstrap_auth_reads+=1
+                 bootstrap_recovery_pending=False
+@@ -1635,37 +1691,47 @@ def _await_fresh_swap_trigger(
+                     cursor_name,cursor_slot,poll_meta.get("head_signature"))
+ 
+             if swaps:
+-                trigger=swaps[0]
+-                trigger_slot=int(trigger["slot"])
++                pending_trigger=dict(swaps[0])
++                pending_trigger_source=("handoff_gap_auth" if was_bootstrap
++                    else "stream_gap_auth" if recovering_gap
++                    else "finalized_program_account_stream")
++                trigger_slot=int(pending_trigger["slot"])
+                 _stage(candidate["address"],"trigger_observed",slot=trigger_slot)
+                 _stage(candidate["address"],"trigger_authenticated",slot=trigger_slot)
+-                adapter=_rotate(adapter,pacer,rpcs)
+-                (post,adapter)=_retry_rate_limited_operation(
+-                    lambda active:_fresh_supported_start(
+-                        active,current_candidate),
+-                    adapter,pacer,rpcs,deadline)
+-                if int(post["slot"])<trigger_slot:
+-                    remaining=min(
+-                        FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
+-                            0.0,time.monotonic()-started),
+-                        _runtime_remaining(deadline))
+-                    if remaining>0:
+-                        time.sleep(min(0.5,remaining))
+-                    continue
+-                trigger.update(
+-                    triggered=True,reason="authenticated_fresh_swap",
+-                    wake_source=(
+-                        "handoff_gap_auth"
+-                        if was_bootstrap
+-                        else "finalized_program_account_stream"
+-                    ),
+-                    waited_seconds=max(0.0,time.monotonic()-started),
+-                    polls=polls,wakeups=wakeups,gap_recoveries=gap_recoveries,
+-                    bootstrap_auth_reads=bootstrap_auth_reads,
+-                    acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
+-                    post_trigger_slot=int(post["slot"]),
+-                )
+-                return trigger,post,adapter,current_candidate
++
++        if pending_trigger is not None:
++            # The finalized account endpoint may lag the authenticated swap.
++            # Keep that same trigger while obtaining its required fresh prestate;
++            # advancing the signature cursor must not silently discard it.
++            trigger_slot=int(pending_trigger["slot"])
++            adapter=_rotate(adapter,pacer,rpcs)
++            (post,adapter)=_retry_rate_limited_operation(
++                lambda active:_fresh_supported_start(active,current_candidate),
++                adapter,pacer,rpcs,deadline)
++            elapsed=max(0.0,time.monotonic()-started)
++            if _runtime_expired(deadline):
++                return terminal("experiment_runtime_deadline",elapsed)
++            if elapsed>=FRESH_SWAP_TRIGGER_MAX_SECONDS:
++                return terminal("fresh_swap_trigger_timeout",elapsed)
++            if int(post["slot"])<trigger_slot:
++                remaining=min(
++                    FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
++                        0.0,time.monotonic()-started),
++                    _runtime_remaining(deadline))
++                if remaining>0:time.sleep(min(0.5,remaining))
++                continue
++            pending_trigger.update(
++                triggered=True,reason="authenticated_fresh_swap",
++                wake_source=pending_trigger_source,
++                waited_seconds=max(0.0,time.monotonic()-started),
++                polls=polls,wakeups=wakeups,gap_recoveries=gap_recoveries,
++                bootstrap_auth_reads=bootstrap_auth_reads,
++                gap_recovery_pending=gap_recovery_pending,
++                gap_recovery_scope="bounded_candidate_trigger_authentication_not_stream_backfill",
++                acceleration_refreshes=refreshes,baseline_slot=baseline_slot,
++                post_trigger_slot=int(post["slot"]),
++            )
++            return pending_trigger,post,adapter,current_candidate
+ 
+         remaining=min(
+             FRESH_SWAP_TRIGGER_MAX_SECONDS-max(
+@@ -1705,7 +1771,12 @@ def _triggered_warmup(
+         qualifying_window_seconds=warmup_seconds,
+         swaps=(None if warm is None else len(warm.events)),
+     )
+-    if phase.get("verified"):_stage(candidate["address"],"warmup_complete")
++    if phase.get("verified"):
++        _stage(candidate["address"],"warmup_complete")
++        if not result["aligned"]:
++            _stage(candidate["address"],"evidence_not_required",
++                "verified_zero_warmup_after_fresh_swap",scope="full_economic_vector",
++                authoritative_warmup_complete=True)
+     return result,warm,entry,warm_origin,adapter,current_candidate
+ 
+ 
+@@ -1870,16 +1941,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+         )
+     active_triggers={}
+     def progress(pool,stage,reason=None,**details):
+-        if stage=="trigger_authenticated":
+-            trigger_id=str(pool)+":"+str(details.get("slot"))
+-            previous=active_triggers.get(pool)
+-            if previous and previous!=trigger_id:
+-                pipeline.record(previous,"trigger_terminal","superseded_before_fresh_state","reconstruction_incomplete",pool=pool)
+-            active_triggers[pool]=trigger_id
+-            pipeline.record(trigger_id,"trigger_started",pool=pool,slot=details.get("slot"))
+-        if stage in ("terminal","settled") and pool in active_triggers:
+-            pipeline.record(active_triggers.pop(pool),"trigger_terminal",reason or "settled",pool=pool)
+-        pipeline.record(pool,stage,reason,(('structural_ineligible' if any(x in str(reason) for x in ('unsupported','authority','extension')) else censor_class(reason)) if stage=='terminal' and details.get('stage_failed')=='compatibility' else censor_class(reason)) if reason else None,**details)
++        _record_progress(pipeline,active_triggers,pool,stage,reason,**details)
+         checkpoint(stage)
+     PROGRESS_HOOK=progress
+     checkpoint("run_initialized")
+@@ -1936,7 +1998,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+                 continue
+             attempted+=1
+             _stage(candidate["address"],"admitted")
+-            _stage(candidate["address"],"evidence_requested")
++            _stage(candidate["address"],"trigger_evidence_requested")
+             handoff_started_at=int(time.time())
+             attempt=dict(
+                 attempt=attempted,pool=candidate["address"],candidate=candidate,
+@@ -1956,6 +2018,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+                 attempt["fresh_swap_trigger_and_warmup"]=alignment
+                 if not alignment["aligned"]:
+                     reason=alignment["reason"]
++                    if reason=="campaign_window_insufficient_preentry_time":
++                        _stage(candidate["address"],"evidence_pending",reason,
++                            scope="preentry_admission_at_observation_close",
++                            cross_block_transfer_authorized=False)
+                     attempt["terminal_classification"]=reason
+                     failure_counts[reason]+=1
+                     attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
+@@ -1979,7 +2045,7 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+                     attempt["terminal_classification"]="qualification_rejection"
+                     attempt["rpc"]=_sum_rpc_metrics(candidate_rpcs)
+                     report["attempts"].append(attempt)
+-                    pipeline.record(candidate["address"],"terminal","qualification_rejection","strategy_rejection",failed=decision["failed"])
++                    _stage(candidate["address"],"terminal","qualification_rejection",failed=decision["failed"])
+                     checkpoint("qualification_rejection")
+                     continue
+                 lifecycle,adapter=_lifecycle(
+@@ -2066,6 +2132,10 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+     )
+     report["accounting"]=book.reconcile()
+     report["accounting_replay"]=book.replay_economics(_build_position,_advance_position,_mark)
++    for pool,trigger_id in active_triggers.items():
++        pipeline.record(trigger_id,"trigger_terminal","campaign_shutdown_unresolved_trigger",
++            "reconstruction_incomplete",pool=pool)
++    report["opportunity_coverage"]=pipeline.snapshot()
+     _atomic_checkpoint(
+         report,"final",rpcs,pacer,
+         attempted_pool_count=attempted,
+@@ -2080,9 +2150,6 @@ def run_live(target=None,max_attempted=None,max_runtime_seconds=None,*,campaign=
+         DLMM_WAKE_STREAM_KEY,int(time.time()),0)
+     report["evidence_broker"]=broker.telemetry()
+     broker.close()
+-    for pool,trigger_id in active_triggers.items():
+-        pipeline.record(trigger_id,"trigger_terminal","campaign_shutdown_unresolved_trigger","reconstruction_incomplete",pool=pool)
+-    report["opportunity_coverage"]=pipeline.snapshot()
+     PROGRESS_HOOK=None;pipeline.close()
+     print(json.dumps(dict(
+         conclusion=report["conclusion"],attempted=attempted,complete=complete,
+diff --git a/tests/test_meteora_evidence_recovery.py b/tests/test_meteora_evidence_recovery.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..a95a56866771843917aa0b867866c639c3bd8b02
+--- /dev/null
++++ b/tests/test_meteora_evidence_recovery.py
+@@ -0,0 +1,265 @@
++"""Offline regressions for lost trigger evidence and terminal attribution."""
++from pathlib import Path
++import json
++import tempfile
++import unittest
++from unittest.mock import MagicMock,patch
++
++from meme_machine.pipeline import Pipeline
++from tests import solana_dlmm_independent_v1 as strategy
++
++
++class MeteoraEvidenceRecoveryTests(unittest.TestCase):
++    def run_trigger(self,status,authenticate,*,post=None,deadline=3.0,
++                    pool="pool",baseline_slot=10):
++        clock=[0.0]
++        broker=MagicMock()
++        broker.cursor.return_value={"slot":0}
++        broker.stream_status.side_effect=lambda *_:status(clock[0])
++        broker.recent_events.return_value=[]
++        adapter=MagicMock();adapter.rpc.calls=0
++        calls=[]
++        def auth(*args):
++            calls.append(clock[0])
++            return authenticate(len(calls),clock[0])
++        def sleep(seconds):clock[0]+=seconds
++        with patch.object(strategy.time,"monotonic",side_effect=lambda:clock[0]), \
++             patch.object(strategy.time,"sleep",side_effect=sleep), \
++             patch.object(strategy,"_new_finalized_swaps",side_effect=auth), \
++             patch.object(strategy,"_fresh_supported_start",side_effect=post or [{"slot":12}]) as fresh, \
++             patch.object(strategy,"_stage") as stage:
++            result=strategy._await_fresh_swap_trigger(
++                adapter,{"address":pool},{"slot":baseline_slot},strategy.load_policy(),
++                MagicMock(),[],deadline=deadline,broker=broker)
++        return result,calls,broker,fresh,stage
++
++    @staticmethod
++    def empty():
++        return [],dict(rate_limited=False,head_slot=10,head_signature=None)
++
++    @staticmethod
++    def swap():
++        return [dict(signature="sig",slot=11,swap_count=1)],dict(
++            rate_limited=False,head_slot=11,head_signature="sig")
++
++    def test_gap_authentication_waits_for_reconnect_instead_of_acknowledging_open_gap(self):
++        def status(now):
++            return dict(gaps=int(now>=.25),covered=now<.25 or now>=1.0)
++        result,calls,broker,_,_=self.run_trigger(status,
++            lambda count,now:self.empty() if count==1 else self.swap())
++        trigger,post,*_=result
++        self.assertEqual(calls,[0.,1.])
++        self.assertTrue(trigger["triggered"])
++        self.assertEqual(trigger["gap_recoveries"],1)
++        self.assertFalse(trigger["gap_recovery_pending"])
++        self.assertEqual(trigger["wake_source"],"stream_gap_auth")
++        self.assertEqual(trigger["gap_recovery_scope"],
++            "bounded_candidate_trigger_authentication_not_stream_backfill")
++        self.assertEqual(post["slot"],12)
++        broker.advance_cursor.assert_called_once_with("dlmm_fresh:pool",11,"sig")
++
++    def test_pending_hydration_keeps_gap_obligation_without_another_wakeup(self):
++        def auth(count,now):
++            if count==1:return self.empty()
++            if count==2:return [],dict(rate_limited=False,head_slot=10,
++                head_signature=None,hydration={"pending":1})
++            return self.swap()
++        result,calls,broker,_,_=self.run_trigger(
++            lambda now:dict(gaps=int(now>=.25),covered=True),auth)
++        self.assertTrue(result[0]["triggered"])
++        self.assertEqual(calls,[0.,.25,.75])
++        self.assertEqual(result[0]["gap_recoveries"],1)
++        broker.advance_cursor.assert_called_once_with("dlmm_fresh:pool",11,"sig")
++
++    def test_rate_limited_recovery_is_not_acknowledged_or_cursor_advanced(self):
++        def auth(count,now):
++            if count==1:return self.empty()
++            if count==2:return [],dict(rate_limited=True,head_slot=10)
++            return self.swap()
++        result,calls,broker,_,_=self.run_trigger(
++            lambda now:dict(gaps=int(now>=.25),covered=True),auth)
++        self.assertTrue(result[0]["triggered"])
++        self.assertEqual(calls,[0.,.25,.75])
++        self.assertEqual(result[0]["gap_recoveries"],1)
++        broker.advance_cursor.assert_called_once()
++
++    def test_authenticated_trigger_survives_lagging_account_endpoint_without_rehydration(self):
++        result,calls,_,fresh,stages=self.run_trigger(
++            lambda now:dict(gaps=0,covered=True),lambda *_:self.swap(),
++            post=[{"slot":10},{"slot":11}])
++        self.assertEqual(calls,[0.])
++        self.assertEqual(fresh.call_count,2)
++        self.assertEqual(result[0]["signature"],"sig")
++        self.assertEqual(result[0]["post_trigger_slot"],11)
++        self.assertEqual([c.args[1] for c in stages.call_args_list],
++            ["trigger_observed","trigger_authenticated"])
++
++    def test_pending_trigger_still_expires_at_original_campaign_deadline(self):
++        result,calls,_,fresh,_=self.run_trigger(
++            lambda now:dict(gaps=0,covered=True),lambda *_:self.swap(),
++            post=[{"slot":10}],deadline=.4)
++        self.assertFalse(result[0]["triggered"])
++        self.assertEqual(result[0]["reason"],"experiment_runtime_deadline")
++        self.assertTrue(result[0]["authenticated_trigger_pending_fresh_state"])
++        self.assertIsNone(result[1])
++        self.assertEqual(calls,[0.]);self.assertEqual(fresh.call_count,1)
++
++    def test_captured_authenticated_trigger_is_not_reclassified_as_no_activity(self):
++        fixture=json.loads((Path(__file__).parent/"fixtures"/
++            "meteora_trigger_account_lag.json").read_text())
++        signature=fixture["signature_row"]
++        swaps=strategy.transaction_swaps(fixture["transaction"],fixture["pool"],trigger_only=True)
++        self.assertTrue(swaps)
++        self.assertEqual(signature["slot"],449910506)
++        self.assertEqual(fixture["lagging_account_slot"],449910499)
++        authenticated=dict(signature=signature["signature"],slot=signature["slot"],
++            swap_count=len(swaps),swaps=swaps)
++        def auth(*_):return [authenticated],dict(rate_limited=False,
++            head_slot=signature["slot"],head_signature=signature["signature"])
++        result,calls,_,_,_=self.run_trigger(
++            lambda now:dict(gaps=0,covered=True),auth,
++            post=[{"slot":fixture["lagging_account_slot"]}],deadline=.4,
++            pool=fixture["pool"],baseline_slot=fixture["baseline_slot"])
++        self.assertFalse(result[0]["triggered"])
++        self.assertTrue(result[0]["authenticated_trigger_pending_fresh_state"])
++        self.assertEqual(result[0]["reason"],"experiment_runtime_deadline")
++        self.assertEqual(calls,[0.])
++        # No successor snapshot is invented: the captured lag stays fail-closed.
++        self.assertIsNone(result[1])
++
++    def test_disconnected_at_admission_recovers_after_initial_bootstrap(self):
++        result,calls,_,_,_=self.run_trigger(
++            lambda now:dict(gaps=3,covered=now>=.5),
++            lambda count,now:self.empty() if count==1 else self.swap())
++        self.assertEqual(calls,[0.,.5])
++        self.assertTrue(result[0]["triggered"])
++        self.assertEqual(result[0]["gap_recoveries"],1)
++
++    def test_original_trigger_wait_limit_keeps_failed_fresh_state_distinct_from_no_activity(self):
++        result,calls,_,_,_=self.run_trigger(
++            lambda now:dict(gaps=0,covered=True),lambda *_:self.swap(),
++            post=lambda *_:{"slot":10},deadline=121.)
++        self.assertFalse(result[0]["triggered"])
++        self.assertEqual(result[0]["waited_seconds"],120.)
++        self.assertEqual(result[0]["reason"],"fresh_state_unavailable_after_authenticated_trigger")
++        self.assertEqual(calls,[0.])
++
++    def test_unclosed_stream_gap_is_not_reported_as_proven_no_activity(self):
++        result,calls,_,_,_=self.run_trigger(
++            lambda now:dict(gaps=1,covered=False),lambda *_:self.empty(),deadline=121.)
++        self.assertFalse(result[0]["triggered"])
++        self.assertEqual(result[0]["waited_seconds"],120.)
++        self.assertEqual(result[0]["reason"],"stream_gap_unresolved_at_trigger_timeout")
++        self.assertTrue(result[0]["gap_recovery_pending"])
++        self.assertEqual(calls,[0.])
++
++    def test_completed_rejection_closes_trigger_and_supersession_is_separate(self):
++        with tempfile.TemporaryDirectory() as td:
++            path=Path(td)/"pipeline.sqlite"
++            pipeline=Pipeline(path,"meteora","frozen");active={}
++            def record(stage,reason=None,**details):
++                strategy._record_progress(pipeline,active,"pool",stage,reason,**details)
++            record("trigger_authenticated",slot=10)
++            record("trigger_authenticated",slot=11)
++            record("evidence_complete")
++            record("terminal","qualification_rejection",failed=["two_way"])
++            stats=pipeline.snapshot()
++            self.assertEqual(active,{})
++            self.assertEqual(stats["unresolved_triggers"],0)
++            self.assertEqual(stats["authenticated_triggers"],2)
++            self.assertEqual(stats["unique_classes"]["reconstruction_incomplete"],0)
++            self.assertEqual(stats["unique_classes"]["superseded_candidate_state"],1)
++            self.assertEqual(stats["unique_classes"]["strategy_rejection"],1)
++            self.assertEqual(stats["stages"]["evidence_complete"],1)
++            self.assertEqual(stats["stages"]["evidence_required"],1)
++            observations=[(stage,json.loads(details).get("observation_id"))
++                for stage,details in pipeline.db.execute(
++                    "SELECT stage,details FROM progress WHERE candidate='pool' AND stage IN "
++                    "('evidence_required','evidence_superseded','evidence_complete','terminal') ORDER BY sequence")]
++            self.assertEqual(observations,[("evidence_required","pool:10"),
++                ("evidence_superseded","pool:10"),("evidence_required","pool:11"),
++                ("evidence_complete","pool:11"),("terminal","pool:11")])
++            pipeline.close()
++            restored=Pipeline(path,"meteora","frozen")
++            self.assertEqual(restored.snapshot(),stats)
++            restored.close()
++
++    def test_explicit_missing_public_evidence_classification_remains_visible(self):
++        with tempfile.TemporaryDirectory() as td:
++            pipeline=Pipeline(Path(td)/"pipeline.sqlite","meteora","frozen")
++            strategy._record_progress(pipeline,{},"pool","rejected",
++                "public_fee_context_incomplete",classification="reconstruction_incomplete")
++            self.assertEqual(pipeline.snapshot()["unique_classes"]["reconstruction_incomplete"],1)
++            pipeline.close()
++
++    def test_native_run_persists_completed_rejection_without_shutdown_failure(self):
++        candidate=dict(address="pool",signal_observed_at=0)
++        adapter=MagicMock()
++        def candidates(*_):yield candidate
++        def warmup(*_):
++            strategy._stage("pool","trigger_authenticated",slot=11)
++            strategy._stage("pool","warmup_started")
++            strategy._stage("pool","warmup_complete")
++            return {"aligned":True},object(),{"slot":12},{"slot":11},adapter,candidate
++        with tempfile.TemporaryDirectory() as td:
++            output=Path(td)/"report.json"
++            with patch.object(strategy,"OUT",output), \
++                 patch.object(strategy,"DLMM_BROKER_DB",Path(td)/"broker.sqlite"), \
++                 patch.object(strategy,"_prove_network_identity",return_value={"verified":True}), \
++                 patch.object(strategy,"ProgramAccountWakeStream") as stream, \
++                 patch.object(strategy,"_campaign_candidates",side_effect=candidates), \
++                 patch.object(strategy,"_new_adapter",return_value=adapter), \
++                 patch.object(strategy,"_fresh_supported_start",return_value={"slot":10}), \
++                 patch.object(strategy,"_triggered_warmup",side_effect=warmup), \
++                 patch.object(strategy,"pre_entry_features",return_value={}), \
++                 patch.object(strategy,"qualify",return_value={"passes":False,"failed":["two_way"]}), \
++                 patch("builtins.print"):
++                stream.return_value.run.side_effect=lambda stop,ready:ready.set()
++                result=strategy.run_live(target=1,max_attempted=1,max_runtime_seconds=60)
++            persisted=json.loads(output.read_text())
++            pipeline=Pipeline(output.with_suffix(".pipeline.sqlite"),"meteora",strategy.digest(strategy.load_policy()))
++            stats=pipeline.snapshot();pipeline.close()
++            self.assertEqual(persisted["opportunity_coverage"],stats)
++            self.assertEqual(result["opportunity_coverage"],stats)
++            self.assertEqual(stats["unresolved_triggers"],0)
++            self.assertEqual(stats["unique_classes"]["strategy_rejection"],1)
++            self.assertEqual(stats["unique_classes"]["reconstruction_incomplete"],0)
++            self.assertEqual(stats["stages"]["evidence_required"],1)
++            self.assertEqual(stats["stages"]["evidence_requested"],1)
++            self.assertEqual(stats["stages"]["trigger_evidence_requested"],1)
++            self.assertNotIn("campaign_shutdown_unresolved_trigger",stats["unique_terminal_reasons"])
++            self.assertEqual(persisted["accounting"]["cash"],1_000_000_000)
++
++    def test_preentry_cutoff_is_pending_context_without_full_evidence_obligation(self):
++        with tempfile.TemporaryDirectory() as td:
++            pipeline=Pipeline(Path(td)/"pipeline.sqlite","meteora","frozen")
++            strategy._record_progress(pipeline,{},"pool","evidence_pending",
++                "campaign_window_insufficient_preentry_time")
++            strategy._record_progress(pipeline,{},"pool","terminal",
++                "campaign_window_insufficient_preentry_time")
++            stats=pipeline.snapshot()
++            self.assertEqual(stats["stages"]["evidence_pending"],1)
++            self.assertEqual(stats["stages"].get("evidence_required",0),0)
++            self.assertEqual(stats["unique_classes"]["reconstruction_incomplete"],0)
++            self.assertEqual(stats["unique_classes"]["pending_at_observation_close"],1)
++            pipeline.close()
++
++    def test_verified_zero_warmup_cancels_only_full_vector_obligation(self):
++        adapter=MagicMock();candidate={"address":"pool"}
++        tape=MagicMock();tape.events=[]
++        with patch.object(strategy,"_await_fresh_swap_trigger",return_value=(
++                {"triggered":True}, {"slot":11},adapter,candidate)), \
++             patch.object(strategy,"_observe_window",return_value=(
++                {"verified":True},tape,{"slot":12},{"slot":11},adapter)), \
++             patch.object(strategy,"_stage") as stages:
++            result,*_=strategy._triggered_warmup(adapter,candidate,{"slot":10},
++                strategy.load_policy(),MagicMock(),[])
++        self.assertFalse(result["aligned"])
++        self.assertEqual(result["reason"],"verified_zero_warmup_after_fresh_swap")
++        stage_names=[call.args[1] for call in stages.call_args_list]
++        self.assertIn("warmup_complete",stage_names)
++        self.assertIn("evidence_not_required",stage_names)
++        self.assertNotIn("evidence_complete",stage_names)
++
++
++if __name__=="__main__":unittest.main()

@@ -1,0 +1,122 @@
+{
+  "prior_run_id": 35915320840,
+  "prior_sha": "f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa",
+  "artifact_id": 10776256813,
+  "artifact_sha256": "aa4347cf199363d9724f3eda15213f264c857d9a9f78a52cd883d0e488ec1ef0",
+  "purpose": "read-only native terminal replay; original smoke remains failed and excluded",
+  "lanes": {
+    "pump": {
+      "accounting": {
+        "basis": 0,
+        "capital_hour_denominator": 3600,
+        "capital_unit_seconds": 0,
+        "cash": 5110384300,
+        "initial": 5110384300,
+        "lane": "pump-acceleration-independent-v1",
+        "marked_equity": 5110384300,
+        "open_positions": 0,
+        "pending": 0,
+        "policy_hash": "b7718de9298e4c825616bed26c87731a65f43c4b12f152b14e1d574eb86eb8d5",
+        "realized": 0,
+        "reconciled": true,
+        "reserved": 0,
+        "run_id": "86c4997e-ecb5-4881-a70e-3ddfc7b9e3b2",
+        "settled": 0,
+        "unrealized": 0
+      },
+      "accounting_replay": {
+        "cash": 5110384300,
+        "events": 0,
+        "final_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "verified": true
+      },
+      "lane": "pump",
+      "open_positions": 0,
+      "read_only": true,
+      "settlement_inferred": false,
+      "verified": true
+    },
+    "meteora": {
+      "accounting": {
+        "available": 1000000000,
+        "capital_time_through_ns": 0,
+        "capital_unit_nanoseconds": 0,
+        "cash": 1000000000,
+        "economic_replay_verified": false,
+        "genesis": {
+          "asset": "SOL_lamports",
+          "capital": 1000000000,
+          "namespace": "solana_meteora_independent_v1",
+          "paper_only": true,
+          "policy_hash": "a69ec239772a86bc7526594c9822b6fc1e611b45b7e661f618099656b288d55b",
+          "run_id": "86c4997e-ecb5-4881-a70e-3ddfc7b9e3b2"
+        },
+        "journal_events": 1,
+        "journal_hash": "0cc72439de678795a7f9c2bb04aebc464115a1cdd6ec175e668905464573192d",
+        "marked_equity": 1000000000,
+        "net_cash_flows": 0,
+        "open_positions": 0,
+        "pending": 0,
+        "realized_pnl_lamports": 0,
+        "reconciled": true,
+        "reserved": 0,
+        "settled": 0,
+        "stale_marks": 0,
+        "unrealized_pnl_lamports": 0,
+        "unsettled": 0,
+        "writeoffs": 0
+      },
+      "economic_replay_claimed": false,
+      "lane": "meteora",
+      "open_positions": 0,
+      "read_only": true,
+      "settlement_inferred": false,
+      "verified": true
+    },
+    "pons": {
+      "accounting": {
+        "available": 1000000000000000000,
+        "booked_realized": 0,
+        "capital_at_risk_unit_nanoseconds": 0,
+        "capital_integral_complete": true,
+        "cash": 1000000000000000000,
+        "cash_basis_conservation": true,
+        "conservation": true,
+        "genesis": 1000000000000000000,
+        "namespace": "pons-selective-continuation-v1",
+        "native_execution_cost": 0,
+        "native_observation_complete": true,
+        "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+        "positions": 0,
+        "realized": 0,
+        "remaining_cost_basis": 0,
+        "reserved": 0,
+        "unobserved_native_positions": [],
+        "unsettled": 0
+      },
+      "lane": "pons",
+      "open_positions": 0,
+      "read_only": true,
+      "settlement_inferred": false,
+      "verified": true
+    },
+    "ramses": {
+      "accounting": {
+        "allocation_authority": false,
+        "by_quote_asset": {},
+        "conservation": true,
+        "funding_state": "awaiting_first_qualified_pinned_screen",
+        "open_positions": 0,
+        "paper_entry_ready": false,
+        "policy_hash": "bf75a70fcdf68cf231dd354eab7cb56879bc4c16184553db5c121ea0fdc5d4ef",
+        "position_count": 0,
+        "unlike_quote_units_summed": false
+      },
+      "lane": "ramses",
+      "open_positions": 0,
+      "read_only": true,
+      "settlement_inferred": false,
+      "verified": true
+    }
+  }
+}

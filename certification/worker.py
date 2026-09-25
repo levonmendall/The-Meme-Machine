@@ -21,6 +21,7 @@ import threading
 import time
 import uuid
 from collections import Counter
+from urllib.parse import urlsplit
 from certification.journal import Journal, canonical, digest
 from certification.governor import Governor
 
@@ -37,12 +38,17 @@ class Observer:
         self.raw=gzip.open(self.root/'rpc-evidence.jsonl.gz','ab')
         self.archive_ns=0;self.journal_ns=0;self.snapshot_ns=0
         self.requests=0;self.raw_records=0;self.provider_sessions={}
+        self.alchemy_methods=Counter()
         self.last_progress=None;self.last_report=None
         self.terminal_phase=None
         self.last_activity_write=0
         self.pons_rows=0;self.pons_qualifiers=0;self.pons_lifecycles=set();self.ramses_screens=0;self.ramses_terminals=0;self.ramses_lifecycles=0
+        self.meteora_archived={};self.meteora_rejection_counts=Counter()
+        self.public_http_requests=0;self.public_http_errors=Counter()
         self.governor=Governor(os.environ["MM_CERT_GOVERNOR_DB"])
         self.context=threading.local()
+        if lane in ('pump','meteora'):self.solana_usage=Counter({k:0 for k in ('complete_decisions','incomplete_decision_events','censored_decision_events','physical_requests','logical_rpc_calls','execution_refresh_calls','current_state_calls','queue_microseconds','transport_microseconds','retries')})
+        self.causal_events=0;self.causal_event_counts=Counter()
 
     def event(self, kind, body):
         with self.lock:
@@ -60,7 +66,7 @@ class Observer:
         if now-self.last_activity_write<5:return
         value=dict(lane=self.lane,pid=os.getpid(),process_nonce=PROCESS_NONCE,
             at_monotonic=now,provider_requests=self.requests,method_counts=dict(self.methods),
-            estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods) if self.lane in ('pump','meteora','pons','ramses') else None),
+            estimated_alchemy=__import__('certification.cu',fromlist=['estimate']).estimate(self.alchemy_methods),
             errors=dict(self.errors),provider_method_errors=dict(self.provider_method_errors),
             local_admission_errors=dict(self.local_admission_errors),
             provider_http_status_errors=dict(self.provider_http_status_errors),
@@ -68,8 +74,13 @@ class Observer:
             provider_session_count=len(self.provider_sessions),
             evidence_qualification_inferred=False)
         before=time.monotonic_ns()
-        temporary=self.root/'activity.json.tmp';temporary.write_text(canonical(value))
-        os.replace(temporary,self.root/'activity.json');self.last_activity_write=now
+        if self.lane in ('pump','meteora'):
+            from meme_machine.durable_publication import publish_report
+            publish_report(self.root/'activity.json',value,asynchronous=bool(os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')))
+        else:
+            temporary=self.root/'activity.json.tmp';temporary.write_text(canonical(value))
+            os.replace(temporary,self.root/'activity.json')
+        self.last_activity_write=now
         self.snapshot_ns+=time.monotonic_ns()-before
 
     def checkpoint(self, body, phase):
@@ -132,6 +143,65 @@ class Observer:
         self.checkpoint(snapshot,phase)
         return snapshot
 
+    def meteora_progress(self,result,phase):
+        """Archive growing public observations once, preserving the native report.
+
+        Run 35905479952 wrote the same rejection prefixes 1,441 times (414 MB).
+        The append-only journal retains every full row; repeating checkpoints use
+        counts and locations. Economic/lifecycle fields retain their native shape.
+        """
+        snapshot=dict(result)
+        archived={}
+        for field in ('discovery_api_rejections','discovery_errors','discovery_candidates',
+                      'compatibility_rejections'):
+            rows=result.get(field)
+            if not isinstance(rows,list):continue
+            previous=self.meteora_archived.get(field,0)
+            if len(rows)<previous:raise ValueError('meteora_observation_history_regressed:'+field)
+            for index in range(previous,len(rows)):
+                self.event('meteora_observation',dict(field=field,index=index,
+                    policy_hash=self.policy,observation=rows[index]))
+                if field=='discovery_api_rejections':
+                    self.meteora_rejection_counts.update(rows[index].get('failed') or ['unknown'])
+            self.meteora_archived[field]=len(rows)
+            archived[field]=dict(count=len(rows),journal='telemetry.sqlite',kind='meteora_observation')
+            snapshot.pop(field,None)
+        if 'frozen_policy' in snapshot:
+            frozen=snapshot.pop('frozen_policy');identity=digest(frozen)
+            previous=self.meteora_archived.get('frozen_policy')
+            if previous is None:self.event('meteora_frozen_policy',dict(policy=frozen,sha256=identity))
+            elif previous!=identity:raise ValueError('meteora_frozen_policy_changed')
+            self.meteora_archived['frozen_policy']=identity
+            snapshot['frozen_policy_sha256']=identity
+        snapshot['observation_archive']=archived
+        snapshot['discovery_api_rejection_counts']=dict(self.meteora_rejection_counts)
+        snapshot['public_http_requests']=self.public_http_requests
+        snapshot['public_http_errors']=dict(self.public_http_errors)
+        self.checkpoint(snapshot,phase)
+        return snapshot
+
+    def observe_public_api(self,module):
+        """Capture the existing public Meteora read path without issuing calls."""
+        original=module._api
+        @functools.wraps(original)
+        def observed(path,params=None):
+            started=time.monotonic();response=None;error=None
+            try:
+                response=original(path,params)
+                return response
+            except Exception as exc:
+                error=type(exc).__name__
+                raise
+            finally:
+                with self.lock:
+                    self.public_http_requests+=1
+                    if error:self.public_http_errors[error]+=1
+                self.event('public_http_evidence',dict(provider='meteora_public_data',
+                    network='solana',path=path,parameters=params,response=response,
+                    error_type=error,duration_seconds=time.monotonic()-started,
+                    qualification_inferred=False))
+        module._api=observed
+
     def status(self, phase, body=None):
         with self.lock:
             # A delayed background checkpoint is weaker than process terminal
@@ -163,12 +233,108 @@ class Observer:
                           snapshot_seconds=self.snapshot_ns/1e9,
                           scope='serialized observer wall time; excludes strategy-native telemetry, lock wait and final snapshot'),
                       runtime_resources=process_resources(),
-                      estimated_alchemy=(__import__('certification.cu',fromlist=['estimate']).estimate(self.methods)
-                          if self.lane in ('pump','meteora','pons','ramses') else None),
+                      estimated_alchemy=__import__('certification.cu',fromlist=['estimate']).estimate(self.alchemy_methods),
                       report=body,
                       terminal_monotonic=time.monotonic() if phase in ("returned","failed") else None)
-            raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
+            if self.lane in ('pump','meteora'):
+                data['solana_usage']=dict(self.solana_usage)
+                complete=self.solana_usage['complete_decisions']
+                data['solana_usage_health']=dict(excessive_http_per_decision=self.requests>max(100,20*complete),
+                    http_requests_per_complete_decision=self.requests/complete if complete else None)
+                from meme_machine.durable_publication import publish_report
+                publish_report(self.root/'status.json',data,asynchronous=bool(os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')))
+            else:
+                raw=canonical(data);tmp=self.root/'status.json.tmp';tmp.write_text(raw);os.replace(tmp,self.root/'status.json')
             self.snapshot_ns+=time.monotonic_ns()-before
+
+    def install_candidate_context(self):
+        # Lane-local thread scope: background discovery threads do not inherit a
+        # foreground candidate, and terminal records clear that attribution.
+        package='meme_machine' if self.lane in ('pump','meteora') else 'robinhood_research'
+        pipeline=importlib.import_module(package+'.pipeline').Pipeline
+        original=pipeline.record;observer=self
+        @functools.wraps(original)
+        def record(instance,candidate,stage,reason=None,classification=None,**details):
+            if stage not in ('trigger_started','trigger_terminal'):
+                if stage in ('terminal','settled','entry_cancelled','rejected','evidence_not_required'):
+                    observer.context.candidate=None
+                    observer.context.obligation=None
+                else:
+                    observer.context.candidate=str(candidate)
+                    observer.context.obligation=str(details.get('observation_id') or
+                        details.get('decision_at') or details.get('lifecycle_id') or stage)
+            result=original(instance,candidate,stage,reason,classification,**details)
+            if observer.lane in ('pump','meteora'):
+                with observer.lock:
+                    if stage==('evidence_complete' if observer.lane=='pump' else 'economic_vector'):
+                        observer.solana_usage['complete_decisions']+=1
+                    if classification in ('reconstruction_incomplete','pre_admission_evidence_incomplete'):
+                        observer.solana_usage['incomplete_decision_events']+=1
+                    if classification in ('capacity_censored','provider_failed','stale_before_evidence','stale_during_evidence','consumer_deadline','local_budget_exhausted'):
+                        observer.solana_usage['censored_decision_events']+=1
+            return result
+        pipeline.record=record
+
+    def causal_event(self,kind,body):
+        # New detailed reuse telemetry has a fixed storage budget. Exact totals
+        # remain available after sampling fills; no authority uses these counters.
+        with self.lock:
+            self.causal_event_counts[kind]+=1
+            if self.causal_events>=2048:return
+            self.causal_events+=1
+            self.event('candidate_evidence_cause',dict(kind=kind,**body))
+
+    def install_reuse_context(self):
+        observer=self
+        if self.lane in ('pump','meteora'):
+            from meme_machine.solana_evidence_broker import EvidenceBroker
+            original=EvidenceBroker.hydrate_transactions
+            @functools.wraps(original)
+            def hydrate(instance,rpc,signatures,**kwargs):
+                result=original(instance,rpc,signatures,**kwargs)
+                observer.causal_event('solana_hydration',dict(
+                    candidate=getattr(observer.context,'candidate',None),
+                    acquisition_candidate=kwargs.get('candidate_id'),owner=kwargs.get('owner'),
+                    obligation=kwargs.get('kind'),deadline=kwargs.get('deadline'),
+                    result=result[1]))
+                return result
+            EvidenceBroker.hydrate_transactions=hydrate
+        else:
+            from robinhood_research.immutable_rpc import Reuse
+            original=Reuse.lookup
+            @functools.wraps(original)
+            def lookup(instance,method,params,*args,**kwargs):
+                result=original(instance,method,params,*args,**kwargs)
+                observer.causal_event('immutable_reuse',dict(
+                    candidate=getattr(observer.context,'candidate',None),
+                    obligation=getattr(observer.context,'obligation',None),
+                    method=method,endpoint_identity=instance.domain,
+                    parameter_identity=digest(params),hit=bool(result[0])))
+                return result
+            Reuse.lookup=lookup
+
+    def finalize_causal(self):
+        from certification.causal import reconcile,native_states
+        paths=sorted(Path.cwd().rglob('*.pipeline.sqlite'))
+        paths+=sorted(Path.cwd().rglob('opportunity-pipeline.sqlite'))
+        summaries=[]
+        report=self.last_report
+        native_report=Path('robinhood-ramses-extended-market-report.json')
+        # Native terminal persistence can be newer than the last observer checkpoint.
+        # Bound the optional read; omission is explicit and never invents a settlement.
+        native_report_omitted=False
+        if self.lane=='ramses' and native_report.is_file():
+            if native_report.stat().st_size<=2*1024*1024:
+                report=json.loads(native_report.read_text())
+            else:native_report_omitted=True
+        for index,path in enumerate(dict.fromkeys(paths)):
+            summaries.append(dict(source=str(path.relative_to(Path.cwd())),
+                **reconcile(path,rows_path=self.root/f'candidate-causal-{index}.jsonl',
+                    native_states=native_states(self.lane,report,path))))
+        (self.root/'candidate-causal-summary.json').write_text(canonical(dict(
+            lane=self.lane,pipelines=summaries,market_authority=False,
+            reuse_causal_samples=self.causal_events,reuse_causal_counts=dict(self.causal_event_counts),
+            reuse_causal_sample_limit=2048,native_report_omitted=native_report_omitted))+'\n')
 
     def observe_work(self,module,name,stage):
         original=getattr(module,name)
@@ -206,6 +372,7 @@ class Observer:
                 session=instance._certification_session_id
                 observer.provider_sessions[session]=True
             network="solana" if solana else "robinhood"
+            provider=provider_identity(instance,network)
             queue_wait=None
             if solana:
                 request=args[0]
@@ -230,7 +397,12 @@ class Observer:
                 callback=getattr(instance,'evidence_transport_callback',None)
                 if callback is not None:callback()
                 transport_started=time.monotonic_ns()
-                result=original(instance,*args,**kwargs)
+                response=original(instance,*args,**kwargs)
+                if solana and os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
+                    from meme_machine.solana_provider_config import AlchemyEndpoint
+                    endpoint=AlchemyEndpoint.parse(instance.url)
+                    endpoint.public(response)
+                result=response
                 http_status=200
                 if solana:
                     replies=result if isinstance(result,list) else [result]
@@ -260,6 +432,16 @@ class Observer:
                     if transport_started is not None:
                         transport_elapsed=(time.monotonic_ns()-transport_started)/1e9
                         observer.requests+=1;observer.methods.update(methods);observer.latencies.append(transport_elapsed)
+                        if provider['provider_kind']=='alchemy':observer.alchemy_methods.update(methods)
+                        if solana:
+                            observer.solana_usage['physical_requests']+=1
+                            observer.solana_usage['logical_rpc_calls']+=len(methods)
+                            observer.solana_usage['execution_refresh_calls' if priority in (0,1) else 'current_state_calls']+=len(methods)
+                            observer.solana_usage['queue_microseconds']+=int((queue_wait or 0)*1e6)
+                            observer.solana_usage['transport_microseconds']+=int(transport_elapsed*1e6)
+                            retries=getattr(instance,'retries',0)
+                            observer.solana_usage['retries']+=max(0,retries-getattr(instance,'_usage_previous_retries',0))
+                            instance._usage_previous_retries=retries
                     unique_methods=list(dict.fromkeys(methods))
                     if error:
                         observer.errors[error]+=1
@@ -290,6 +472,10 @@ class Observer:
                         observer.governor.succeeded(network,unique_methods)
                     before=time.monotonic_ns()
                     record=dict(sequence=observer.raw_records,lane=observer.lane,session=session,
+                                provider=provider,
+                                candidate=getattr(observer.context,'candidate',None),
+                                candidate_attribution_scope='requesting caller; shared batch consumers remain linked by signature',
+                                evidence_obligation=getattr(observer.context,'obligation',None),
                                 transport_attempted=transport_started is not None,transport_duration_seconds=transport_elapsed,
                                 transport_started_monotonic_ns=transport_started,
                                 observed_at_ns=time.time_ns(),duration_seconds=elapsed,
@@ -301,14 +487,28 @@ class Observer:
                                 http_status=http_status,json_rpc_error_codes=rpc_error_codes,
                                 retry_count=getattr(instance,"retry_count",getattr(instance,"retries",None)),
                                 evidence_priority=priority,evidence_kind=getattr(instance,'evidence_kind',None),
+                                **(dict(solana_work_purpose=('execution_refresh' if priority in (0,1) else 'current_state')) if solana else {}),
                                 authentication='raw_transport_response_requires_lane_verification')
                     observer.raw.write((canonical(record)+'\n').encode());observer.raw.flush();os.fsync(observer.raw.fileno())
                     observer.archive_ns+=time.monotonic_ns()-before
                     observer.event('rpc_transport',dict(sequence=observer.raw_records,session=session,transport_attempted=transport_started is not None,
+                        provider=provider,
                         methods=methods,duration_seconds=elapsed,transport_duration_seconds=transport_elapsed,error=error,http_status=http_status,
                         json_rpc_error_codes=rpc_error_codes,queue_wait_seconds=queue_wait,raw_hash=digest(record)))
                     if transport_started is not None:observer.transport_activity()
         setattr(cls,name,observed)
+
+def provider_identity(instance,network):
+    endpoint=getattr(instance,'_endpoint',None) or getattr(instance,'url',None)
+    if not isinstance(endpoint,str):endpoint=''
+    host=(urlsplit(endpoint).hostname or '').lower()
+    kind=('alchemy' if host=='alchemy.com' or host.endswith('.alchemy.com')
+          else 'robinhood_public' if host=='rpc.mainnet.chain.robinhood.com'
+          else 'solana_public' if host=='api.mainnet-beta.solana.com'
+          else 'configured_provider' if host else 'unknown')
+    return dict(network=network,endpoint_identity=hashlib.sha256(endpoint.encode()).hexdigest() if endpoint else None,
+                provider_kind=kind,role=getattr(instance,'role',None))
+
 
 def compact_ramses_screen(screen):
     """Bounded public/checkpoint projection; full screen is retained in telemetry.sqlite."""
@@ -327,6 +527,7 @@ def compact_ramses_screen(screen):
             flow_imbalance_bps=row.get('flow_imbalance_bps'),
             mode=row.get('mode'),qualified=row.get('qualified'),
             reasons=row.get('reasons'),
+            evidence_status=row.get('evidence_status'),
             cost_evidence=dict(
                 available=cost.get('available'),
                 source=cost.get('source'),
@@ -406,6 +607,10 @@ def main():
     actual=policy_for(args.lane)
     if actual!=args.policy_hash:raise ValueError('frozen_policy_hash_changed')
     observer=Observer(args.output,args.lane,actual)
+    from certification.decision_conformance import install as install_conformance
+    conformance=install_conformance(args.output,args.lane,actual)
+    observer.install_candidate_context()
+    observer.install_reuse_context()
     observer.checkpoint(dict(source_sha=os.environ['MM_CERT_SOURCE_SHA']),'initializing')
     if args.lane in ('pump','meteora'):
         from meme_machine.solana_read_rpc import _ReadOnlyFailoverMixin
@@ -429,6 +634,9 @@ def main():
             module._save=save;module.main(campaign=args.campaign,discovery_seconds=args.seconds)
         elif args.lane=='meteora':
             module=importlib.import_module('tests.solana_dlmm_independent_v1')
+            from certification.lifecycle_timing import install_meteora
+            install_meteora(module)
+            observer.observe_public_api(module)
             observer.prioritize(module,"_lifecycle")
             observer.observe_work(module,'_triggered_warmup','fresh_trigger_and_exact_warmup')
             observer.observe_work(module,'_await_fresh_swap_trigger','dlmm_fresh_swap_trigger')
@@ -437,7 +645,7 @@ def main():
             original=module._atomic_checkpoint
             def checkpoint(report,stage,*a,**kw):
                 result=original(report,stage,*a,**kw)
-                observer.checkpoint(report,stage);return result
+                observer.meteora_progress(report,stage);return result
             module._atomic_checkpoint=checkpoint
             module.run_live(target=6,max_attempted=48,max_runtime_seconds=args.seconds,campaign=args.campaign)
         elif args.lane=='pons':
@@ -454,6 +662,8 @@ def main():
             observer.checkpoint(result,'lane_result')
         else:
             module=importlib.import_module('robinhood_research.ramses_extended_test')
+            from certification.lifecycle_timing import install_ramses
+            install_ramses(module)
             # Observe completed authentic scans and frontier checks without replacing
             # the discovery or lifecycle algorithm. Startup/scan stalls stay visible.
             observer.prioritize(module,"run_connected")
@@ -469,10 +679,11 @@ def main():
                 original_persist(snapshot)
             module._persist_public_result=persist
             module.main(campaign=args.campaign)
+        observer.finalize_causal()
         observer.event('process_terminal',dict(status='returned',policy_hash=policy_for(args.lane)))
         observer.status('returned')
     except BaseException as exc:
-        terminal=dict(status='failed',exception_type=type(exc).__name__)
+        terminal=dict(status='failed',exception_type=type(exc).__name__,policy_hash=policy_for(args.lane))
         if args.lane=='ramses' and type(exc).__name__=='BoundaryError':
             message=str(exc)
             terminal['boundary']=(message if re.fullmatch(r'[A-Za-z0-9_.:\\-]+',message) and len(message)<160
@@ -484,6 +695,7 @@ def main():
         observer.status('failed',report)
         raise
     finally:
+        conformance.close()
         observer.raw.close();observer.journal.close()
 
 if __name__=='__main__':main()

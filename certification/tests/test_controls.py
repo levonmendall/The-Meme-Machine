@@ -18,6 +18,7 @@ class ControlsTests(unittest.TestCase):
             shared_provider={n:dict(queues=[]) for n in ('solana','robinhood')},
             lanes={lane:dict(exit_code=0,unexpected_exit=False,process_restarts=0,
                 open_positions=0,accounting_reconciled=True,provider_requests=1,
+                funnel=dict(completed_scans=1),
                 gates={g:True for g in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated')}) for lane in LANES})
 
     def test_unresolved_immutable_work_fails_smoke_and_hourly_readiness(self):
@@ -28,6 +29,15 @@ class ControlsTests(unittest.TestCase):
             self.assertIn('robinhood:immutable_provider_jobs_not_drained',hourly_engineering(result)['failures'])
         result=self.smoke();result['shared_provider']['robinhood_reuse']=dict(state='observed',inflight_jobs=0)
         self.assertEqual(smoke_engineering(result)['status'],'PASS')
+
+    def test_census_failure_is_not_quiet_market_success(self):
+        result=self.smoke();result['lanes']['ramses']['funnel']={
+            'completed_scans':0,'infrastructure_censored_scans':2}
+        self.assertIn('ramses:no_completed_market_census',smoke_engineering(result)['failures'])
+        from certification.prospective_acceptance import _infra_fraction
+        self.assertEqual(_infra_fraction(result['lanes']['ramses']),1.0)
+        result['lanes']['ramses']['funnel']['completed_scans']=1
+        self.assertAlmostEqual(_infra_fraction(result['lanes']['ramses']),2/3)
 
     def test_exact_clean_smoke_can_start_observation_but_never_proves_full_certification(self):
         good=self.smoke();self.assertEqual(smoke_engineering(good)['status'],'PASS')
@@ -53,6 +63,40 @@ class ControlsTests(unittest.TestCase):
         result=self.smoke();result.update(phase='hourly',continuous_overlap_seconds=3600,
             certification=dict(status='FAIL',failures=['pons:accounting_reconciled']))
         self.assertEqual(hourly_engineering(result)['status'],'FAIL')
+
+    def test_durable_long_horizon_handoff_is_incomplete_not_failed_exposure(self):
+        result=self.smoke();result.update(phase='hourly',continuous_overlap_seconds=3600)
+        for lane in ('meteora','ramses'):
+            result['lanes'][lane]['open_positions']=1
+            result['lanes'][lane]['durable_handoff']=True
+            result['lanes'][lane]['continuous_uptime_seconds']=3600
+            result['lanes'][lane]['gates'].update({
+                'bounded_queue':True,'provider_limits':True,'no_starvation':True,
+                'accounting_reconciled':True,'freshness_finality_unchanged':True,
+                'durable_replay':True,
+            })
+        for lane in ('pump','pons'):
+            result['lanes'][lane]['continuous_uptime_seconds']=3600
+            result['lanes'][lane]['gates'].update({
+                'bounded_queue':True,'provider_limits':True,'no_starvation':True,
+                'accounting_reconciled':True,'freshness_finality_unchanged':True,
+                'durable_replay':True,
+            })
+        verdict=evaluate(result)
+        self.assertNotIn('meteora:unsettled_position',verdict['failures'])
+        self.assertNotIn('ramses:unsettled_position',verdict['failures'])
+        self.assertIn('meteora:position_continuation_pending',verdict['incomplete'])
+        self.assertIn('ramses:position_continuation_pending',verdict['incomplete'])
+        result['certification']=verdict
+        self.assertEqual(hourly_engineering(result)['status'],'PASS')
+        result['lanes']['meteora']['durable_handoff']=False
+        self.assertIn('meteora:unsettled_position_without_durable_handoff',
+                      hourly_engineering(result)['failures'])
+        result=self.smoke();result.update(phase='hourly',continuous_overlap_seconds=3600,
+            certification=dict(status='INCOMPLETE',failures=[]))
+        result['lanes']['pump'].update(open_positions=1,durable_handoff=True)
+        self.assertIn('pump:unsettled_position_without_durable_handoff',
+                      hourly_engineering(result)['failures'])
 
     def test_raw_transport_hash_missing_record_and_terminal_policy_are_checked(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -117,6 +161,25 @@ class ControlsTests(unittest.TestCase):
             db.commit();db.close();view=PressureView(path)
             self.assertEqual(view.snapshot()['lanes']['pons']['retries'],3)
             self.assertEqual(view.snapshot()['lanes']['pons']['retries'],3)
+
+    def test_public_rpc_is_not_billed_as_alchemy_in_shared_pressure(self):
+        import hashlib
+        from certification.pressure import PressureView
+        from unittest.mock import patch
+        public='https://rpc.mainnet.chain.robinhood.com';alchemy='https://robinhood-mainnet.g.alchemy.com/v2/test-secret'
+        with tempfile.TemporaryDirectory() as tmp,patch.dict('os.environ',{'MM_ROBINHOOD_READ_RPC_URL':alchemy}):
+            path=Path(tmp)/'provider.sqlite';db=sqlite3.connect(path)
+            db.executescript('CREATE TABLE transports(seq INTEGER PRIMARY KEY,body TEXT); CREATE TABLE limits(endpoint TEXT,cooldown REAL,interval REAL); CREATE TABLE queue(endpoint TEXT,created REAL);')
+            for url in (public,alchemy):
+                db.execute('INSERT INTO transports(body) VALUES(?)',(json.dumps(dict(lane='pons',
+                    endpoint_fingerprint=hashlib.sha256(url.encode()).hexdigest(),session=url[-1],methods=['eth_getLogs'])),))
+            db.commit();db.close();view=PressureView(path);result=view.snapshot()
+            row=result['lanes']['pons']
+            self.assertEqual(row['logical_calls'],2);self.assertEqual(row['alchemy_logical_calls'],1)
+            from certification.cu import estimate
+            self.assertEqual(row['estimated_cu'],estimate({'eth_getLogs':1})['estimated_cu'])
+            self.assertEqual(row['provider_methods']['robinhood_public']['eth_getLogs'],1)
+            self.assertNotIn('test-secret',json.dumps(result))
 
 
 if __name__=='__main__':unittest.main()

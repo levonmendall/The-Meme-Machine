@@ -1,0 +1,26 @@
+{
+  "censored_workflow": 35935431384,
+  "defects": {
+    "meteora": [
+      "source_census_starved_by_evidence",
+      "off_pool_mint_supply_projection_mismatch"
+    ],
+    "pons": [
+      "redundant_authenticated_factory_rounds",
+      "redundant_cached_age_trajectory",
+      "http_over_original_evidence_deadline"
+    ],
+    "pump": [
+      "known_negative_signatures_reentered_history_hydration"
+    ],
+    "ramses": [
+      "preentry_receipt_optional_timestamp_comparison"
+    ]
+  },
+  "predecessor_cohort": "prospective-four-lane-v5-market-assurance-20260923",
+  "predecessor_record_sha256": "90b6440a6429f8dc1f14f0ae63900bbcb2e7d8523c9719d55ad2561e6da8ff48",
+  "predecessor_records_excluded": true,
+  "predecessor_sha": "c6b924bb3b90f0e6ee8721d3b8ab44c8f3099b66",
+  "schema": "target-market-coverage-repair-lineage-v1",
+  "successor_cohort": "prospective-four-lane-v6-coverage-repair-20260924"
+}

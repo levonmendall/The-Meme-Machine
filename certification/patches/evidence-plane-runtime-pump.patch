@@ -1,0 +1,2247 @@
+diff --git a/meme_machine/durable_publication.py b/meme_machine/durable_publication.py
+index ad3d3fbcbaade911d15b4d573f55807b08a3d45e..856b42ae763c0f8a16e9174c87f778aa54854a55 100644
+--- a/meme_machine/durable_publication.py
++++ b/meme_machine/durable_publication.py
+@@ -23,12 +23,13 @@ def publish_json(path,value):
+     publish_bytes(path,(json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)+'\n').encode())
+ 
+ 
+-def publish_report(path,value):
++def publish_report(path,value,*,asynchronous=False):
+     """Export failure has no authority to cancel, settle or stop a lifecycle.
+ 
+     Return explicit diagnostics for the caller to include in its next report.
+     Canonical accounting/state writes MUST NOT use this best-effort interface.
+     """
++    if asynchronous:return background_report(path,value)
+     try:
+         publish_json(path,value)
+         return {'published':True,'error':None}
+@@ -36,3 +37,50 @@ def publish_report(path,value):
+         # A concurrent diagnostic dict change can invalidate one serialization.
+         # Preserve the previous complete report and all independent journals.
+         return {'published':False,'error':type(exc).__name__}
++
++
++class ReportPublisher:
++    """One bounded latest-snapshot mailbox; report I/O cannot hold a lane thread."""
++    def __init__(self,path):
++        import threading,queue
++        self.path=Path(path);self.queue=queue.Queue(maxsize=1);self.stop=threading.Event()
++        self.result={'published':False,'pending':False,'error':None};self.dropped=0
++        self.thread=threading.Thread(target=self._run,name='report-publisher',daemon=True);self.thread.start()
++    def submit(self,value):
++        import copy,queue
++        try:snapshot=copy.deepcopy(value)
++        except (RuntimeError,TypeError,ValueError) as exc:return dict(published=False,error=type(exc).__name__)
++        try:self.queue.put_nowait(snapshot)
++        except queue.Full:
++            try:self.queue.get_nowait();self.queue.task_done();self.dropped+=1
++            except queue.Empty:pass
++            try:self.queue.put_nowait(snapshot)
++            except queue.Full:self.dropped+=1
++        return dict(self.result,pending=True,superseded_reports=self.dropped)
++    def _run(self):
++        import queue
++        while not self.stop.is_set() or not self.queue.empty():
++            try:value=self.queue.get(timeout=.1)
++            except queue.Empty:continue
++            try:self.result=publish_report(self.path,value)
++            except BaseException as exc:self.result=dict(published=False,error=type(exc).__name__)
++            finally:self.queue.task_done()
++    def close(self,timeout=.25):
++        self.stop.set();self.thread.join(timeout=timeout)
++        return not self.thread.is_alive()
++
++_publishers={}
++
++def background_report(path,value):
++    key=str(Path(path).resolve())
++    publisher=_publishers.get(key)
++    if publisher is None:
++        if len(_publishers)>=4:return dict(published=False,error='publisher_registry_bound')
++        publisher=_publishers[key]=ReportPublisher(path)
++    return publisher.submit(value)
++
++def flush_reports(timeout=.25):
++    for publisher in _publishers.values():publisher.close(timeout)
++
++import atexit
++atexit.register(flush_reports)
+diff --git a/meme_machine/paper_accounting.py b/meme_machine/paper_accounting.py
+index 0cc6cee33637a7d52fd2aac10b521a9d5dcadb9e..ad8d10bea4901521ca2e15787a5c29c93d59ce30 100644
+--- a/meme_machine/paper_accounting.py
++++ b/meme_machine/paper_accounting.py
+@@ -34,6 +34,7 @@ class PaperBook:
+         self.db.execute('PRAGMA journal_mode=WAL')
+         self.db.execute('PRAGMA synchronous=FULL')
+         self.db.executescript('''
++          CREATE TABLE IF NOT EXISTS runtime_state(identity TEXT NOT NULL,key TEXT NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL,PRIMARY KEY(identity,key));
+           CREATE TABLE IF NOT EXISTS genesis(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL);
+           CREATE TABLE IF NOT EXISTS positions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+           CREATE TABLE IF NOT EXISTS journal(seq INTEGER PRIMARY KEY,body TEXT NOT NULL,
+@@ -230,6 +231,21 @@ class PaperBook:
+                 raise ValueError('paper_projection_differs_from_replay')
+             return dict(verified=True, events=count, final_hash=previous, cash=cash)
+ 
++    def runtime_state(self,identity,key):
++        with self.lock:
++            row=self.db.execute('SELECT body,hash FROM runtime_state WHERE identity=? AND key=?',(identity,key)).fetchone()
++            if row is None:return None
++            value=json.loads(row[0])
++            if _hash(value)!=row[1]:raise ValueError('pump_runtime_state_hash')
++            return value
++
++    def checkpoint_runtime(self,identity,key,value,*,claim=False):
++        with self.transaction():
++            self._load(identity)
++            command='INSERT OR IGNORE' if claim else 'INSERT OR REPLACE'
++            return bool(self.db.execute(command+' INTO runtime_state VALUES(?,?,?,?)',
++                (identity,key,_json(value),_hash(value))).rowcount)
++
+     def close(self):
+         self.replay()
+         self.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+diff --git a/meme_machine/pump_evidence_execution.py b/meme_machine/pump_evidence_execution.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..0020dec7facf85e60b18868b68807b189dd233ae
+--- /dev/null
++++ b/meme_machine/pump_evidence_execution.py
+@@ -0,0 +1,91 @@
++"""One physical current-state refresh for a reserved Pump entry.
++
++Historical evidence is exclusively local. A refresh is delayed until the durable
++finalized clock reaches the original two-second fill boundary. Rechecking a pending
++reservation reuses its one response; it never launches another refresh round.
++"""
++from types import SimpleNamespace
++import time
++from . import pump
++from .provider import PumpAdapter,Unavailable
++from .postgrad import PostGraduationAdapter,pumpswap_pool
++from .concentration import ConcentrationReader
++from .solana_evidence_runtime import PUMP_SCOPE,SWAP_SCOPE
++
++
++def execution_addresses(snapshot,session):
++    mint=snapshot['mint'];curve=pump.pda([b'bonding-curve',pump.un58(mint)])
++    addresses=[curve,mint,session.pump.fee_address]
++    if snapshot.get('surface')=='pumpswap':
++        addresses += [snapshot['pool'],snapshot['state']['base_vault'],snapshot['state']['quote_vault'],session.postgrad.fee_address]
++    return list(dict.fromkeys(addresses))
++
++class CachedExecutionRPC:
++    def __init__(self,plane,addresses,response,*,clock=time.time):
++        self.plane=plane;self.addresses=addresses;self.clock=clock;self.calls=0
++        replies=response if isinstance(response,list) else [response]
++        if len(replies)!=3 or {r.get('id') for r in replies}!={1,2,3}:
++            raise Unavailable('execution_refresh_response_identity')
++        self.replies={r['id']:r for r in replies}
++        if any('error' in r or 'result' not in r for r in replies):
++            raise Unavailable('execution_refresh_unavailable')
++        account=self.replies[1]['result']
++        if len(account.get('value') or [])!=len(addresses):raise Unavailable('execution_account_count')
++    def transport(self,*args):raise Unavailable('execution_refresh_already_completed')
++    def call(self,method,params=None,priority=False):
++        self.calls+=1
++        if method=='getMultipleAccounts':
++            all_accounts=self.replies[1]['result'];lookup=dict(zip(self.addresses,all_accounts['value']))
++            if any(key not in lookup for key in params[0]):raise Unavailable('execution_interest_incomplete')
++            return dict(context=all_accounts['context'],value=[lookup[k] for k in params[0]])
++        if method=='getGenesisHash':return self.replies[3]['result']
++        if method=='getTokenLargestAccounts':return self.replies[2]['result']
++        if method=='getBlockTime':return self.plane.block_time(params[0])
++        raise Unavailable('execution_historical_or_unplanned_call_forbidden:'+method)
++
++
++def prepare_reserved(session,row,*,new_rpc):
++    plane=session.plane
++    if plane is None:raise Unavailable('reserved_entry_evidence_plane_required')
++    context=row['execution_context'];scope=context['scope'];at=plane.clock()
++    life=row['lifecycle'];book=life.book
++    saved=book.runtime_state(life.lifecycle_id,'execution_refresh') if book is not None else None
++    if saved and saved.get('response') and 'execution_rpc' not in row:
++        row['execution_rpc']=CachedExecutionRPC(plane,context['addresses'],saved['response'])
++    elif saved and 'execution_rpc' not in row:
++        row['refresh_attempted']=True
++    frontier=plane.frontier(scope)
++    if frontier<=row['decision_slot'] or plane.block_time(frontier)<row['due']:
++        raise Unavailable('reserved_entry_waiting_finalized_fill_boundary')
++    if row.get('refresh_failed'):raise Unavailable(row['refresh_failed'])
++    if 'execution_rpc' not in row:
++        # Mark before transport. A failed physical round is not silently repeated.
++        if row.get('refresh_attempted'):raise Unavailable('execution_refresh_interrupted')
++        if book is not None and not book.checkpoint_runtime(life.lifecycle_id,'execution_refresh',{'attempted':True},claim=True):
++            raise Unavailable('execution_refresh_already_claimed')
++        row['refresh_attempted']=True
++        rpc=new_rpc(limit=40);rpc.evidence_priority=1;rpc.evidence_deadline=row['reserved_at']+20
++        remaining=rpc.evidence_deadline-plane.clock()
++        if remaining<=0:raise Unavailable('entry_fill_timeout')
++        requests=[dict(jsonrpc='2.0',id=1,method='getMultipleAccounts',params=[context['addresses'],dict(encoding='base64',commitment='finalized',minContextSlot=row['decision_slot']+1)]),
++                  dict(jsonrpc='2.0',id=2,method='getTokenLargestAccounts',params=[context['mint'],dict(commitment='finalized')]),
++                  dict(jsonrpc='2.0',id=3,method='getGenesisHash',params=[])]
++        started=time.monotonic()
++        plane.count('pump.current_state_refreshes')
++        try:
++            # Separate client/pacer: no history queue or history lock can be ahead
++            # of this request. Its wrapped physical transport uses shared priority 1.
++            rpc.calls+=3;rpc.http_requests+=1
++            rpc._pace(.5)
++            response=rpc.transport(requests)
++            row['execution_rpc']=CachedExecutionRPC(plane,context['addresses'],response)
++            if book is not None:book.checkpoint_runtime(life.lifecycle_id,'execution_refresh',dict(attempted=True,response=response))
++        except Exception as exc:
++            row['refresh_failed']='execution_refresh_genuinely_unavailable'
++            raise Unavailable(row['refresh_failed']) from exc
++        finally:
++            row['reserved_fill_latency']=dict(refresh_seconds=time.monotonic()-started,
++                finalized_wait_seconds=max(0,at-row['due']),historical_queue_seconds=0)
++    cached=row['execution_rpc']
++    return SimpleNamespace(plane=plane,rpc=cached,pump=PumpAdapter(cached),postgrad=PostGraduationAdapter(cached,scan_rpc=None),
++        reader=ConcentrationReader(cached),ensure=lambda *_:None)
+diff --git a/meme_machine/solana_evidence_plane.py b/meme_machine/solana_evidence_plane.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..4e6810610beace3d06c8568b62ccb1783cc10700
+--- /dev/null
++++ b/meme_machine/solana_evidence_plane.py
+@@ -0,0 +1,610 @@
++"""Transactional finalized evidence, independent of strategy/lifecycle authority.
++
++No network access, signing, economic policy, or implicit coverage inference lives
++here. A transport adapter must submit verified interval proofs explicitly. A
++connected socket, highest observed slot, or elapsed wall time is NOT such a proof.
++"""
++from __future__ import annotations
++
++from contextlib import contextmanager
++from dataclasses import dataclass
++import fcntl
++import gzip
++import hashlib
++import json
++import os
++from pathlib import Path
++import queue
++import sqlite3
++import threading
++import time
++import uuid
++
++
++def canonical(value):
++    return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
++
++
++def digest(value):
++    return hashlib.sha256(canonical(value).encode()).hexdigest()
++
++
++class EvidenceUnavailable(ValueError):
++    pass
++
++
++class EvidenceConflict(EvidenceUnavailable):
++    pass
++
++
++@dataclass(frozen=True)
++class FinalizedRecord:
++    identity: str
++    scope: str
++    slot: int
++    signature: str
++    program: str
++    addresses: tuple[str, ...]
++    market_time: int | None
++    payload: dict
++    source: str
++    endpoint_identity: str
++    observed_at: float
++    event_index: int = 0
++    transaction_index: int | None = None
++    kind: str = 'event'
++
++    def body(self):
++        if (not all((self.identity, self.scope, self.program))
++                or self.kind != 'account' and not self.signature
++                or type(self.slot) is not int or self.slot < 0
++                or type(self.event_index) is not int or self.event_index < 0
++                or self.kind not in ('event', 'transaction', 'account')
++                or self.source not in ('alchemy_finalized_stream', 'alchemy_finalized_repair')
++                or len(self.endpoint_identity) != 64
++                or any(c not in '0123456789abcdef' for c in self.endpoint_identity)
++                or not isinstance(self.payload, dict)
++                or not self.addresses or any(not isinstance(a, str) or not a for a in self.addresses)
++                or self.observed_at <= 0
++                or self.market_time is not None and
++                    (type(self.market_time) is not int or self.market_time > self.observed_at)
++                or self.transaction_index is not None and
++                    (type(self.transaction_index) is not int or self.transaction_index < 0)):
++            raise EvidenceUnavailable('invalid_finalized_record')
++        # Observation/source are lineage, not immutable economic content. A repair
++        # can confirm the same record without changing its first availability.
++        return dict(identity=self.identity, scope=self.scope, slot=self.slot,
++                    signature=self.signature, program=self.program,
++                    addresses=sorted(set(self.addresses)), market_time=self.market_time,
++                    event_index=self.event_index, transaction_index=self.transaction_index,
++                    kind=self.kind, payload=self.payload)
++
++
++@dataclass(frozen=True)
++class IntervalProof:
++    scope: str
++    lower_slot: int
++    upper_slot: int
++    source: str
++    endpoint_identity: str
++    witness: dict
++    observed_at: float
++
++    def validate(self):
++        if (not self.scope or type(self.lower_slot) is not int or self.lower_slot < 0
++                or type(self.upper_slot) is not int or self.upper_slot < self.lower_slot
++                or self.source not in ('alchemy_finalized_stream', 'alchemy_finalized_repair')
++                or len(self.endpoint_identity) != 64
++                or any(c not in '0123456789abcdef' for c in self.endpoint_identity)
++                or not isinstance(self.witness, dict) or self.observed_at <= 0):
++            raise EvidenceUnavailable('invalid_interval_proof')
++        # Caller supplies a completed source census, never just a transport ACK.
++        if (self.witness.get('finalized') is not True
++                or self.witness.get('complete') is not True
++                or self.witness.get('scope') != self.scope
++                or self.witness.get('lower_slot') != self.lower_slot
++                or self.witness.get('upper_slot') != self.upper_slot
++                or not self.witness.get('lineage_hash')):
++            raise EvidenceUnavailable('incomplete_interval_proof')
++
++
++SCHEMA = '''
++CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
++CREATE TABLE IF NOT EXISTS records(
++ identity TEXT PRIMARY KEY,scope TEXT NOT NULL,slot INTEGER NOT NULL,
++ signature TEXT NOT NULL,program TEXT NOT NULL,market_time INTEGER,event_index INTEGER NOT NULL,
++ transaction_index INTEGER,kind TEXT NOT NULL,body TEXT,hash TEXT NOT NULL,
++ first_seen REAL NOT NULL,archive TEXT);
++CREATE INDEX IF NOT EXISTS records_scope_slot ON records(scope,slot,event_index);
++CREATE INDEX IF NOT EXISTS records_scope_time ON records(scope,market_time,slot,event_index);
++CREATE INDEX IF NOT EXISTS records_signature ON records(signature);
++CREATE TABLE IF NOT EXISTS addresses(
++ address TEXT NOT NULL,identity TEXT NOT NULL REFERENCES records(identity),slot INTEGER NOT NULL,
++ PRIMARY KEY(address,identity));
++CREATE INDEX IF NOT EXISTS address_window ON addresses(address,slot);
++CREATE TABLE IF NOT EXISTS lineage(
++ identity TEXT NOT NULL REFERENCES records(identity),source TEXT NOT NULL,
++ endpoint TEXT NOT NULL,observed REAL NOT NULL,PRIMARY KEY(identity,source,endpoint));
++CREATE TABLE IF NOT EXISTS cursors(scope TEXT PRIMARY KEY,slot INTEGER NOT NULL,updated REAL NOT NULL);
++CREATE TABLE IF NOT EXISTS coverage(
++ id INTEGER PRIMARY KEY,scope TEXT NOT NULL,lo INTEGER NOT NULL,hi INTEGER NOT NULL,
++ available REAL NOT NULL,proof TEXT NOT NULL,UNIQUE(scope,lo,hi,proof));
++CREATE INDEX IF NOT EXISTS coverage_window ON coverage(scope,lo,hi);
++CREATE TABLE IF NOT EXISTS gaps(
++ id INTEGER PRIMARY KEY,scope TEXT NOT NULL,lo INTEGER NOT NULL,hi INTEGER,
++ reason TEXT NOT NULL,created REAL NOT NULL,repaired REAL,
++ repair_cursor TEXT,pages INTEGER NOT NULL DEFAULT 0,attempts INTEGER NOT NULL DEFAULT 0);
++CREATE INDEX IF NOT EXISTS gap_window ON gaps(scope,lo,hi,repaired);
++CREATE TABLE IF NOT EXISTS interests(
++ owner TEXT NOT NULL,scope TEXT NOT NULL,priority INTEGER NOT NULL,
++ lower_slot INTEGER NOT NULL,lifecycle TEXT NOT NULL,active INTEGER NOT NULL,
++ updated REAL NOT NULL,PRIMARY KEY(owner,scope));
++CREATE TABLE IF NOT EXISTS consumers(
++ owner TEXT PRIMARY KEY,scope TEXT NOT NULL,slot INTEGER NOT NULL,updated REAL NOT NULL);
++CREATE TABLE IF NOT EXISTS service_interests(
++ owner TEXT NOT NULL,scope TEXT NOT NULL,address TEXT NOT NULL,evidence_class TEXT NOT NULL,
++ PRIMARY KEY(owner,scope,address));
++CREATE INDEX IF NOT EXISTS service_interest_address ON service_interests(address,owner,scope);
++CREATE TABLE IF NOT EXISTS conflicts(
++ id INTEGER PRIMARY KEY,identity TEXT NOT NULL,prior TEXT NOT NULL,
++ incoming TEXT NOT NULL,observed REAL NOT NULL);
++CREATE TABLE IF NOT EXISTS archives(
++ name TEXT PRIMARY KEY,hash TEXT NOT NULL,bytes INTEGER NOT NULL,records INTEGER NOT NULL);
++CREATE TABLE IF NOT EXISTS counters(key TEXT PRIMARY KEY,value INTEGER NOT NULL);
++'''
++
++
++class EvidenceWriter:
++    """One process/thread owns all evidence mutations; consumers open read-only DBs."""
++    def __init__(self, path, *, clock=time.time, max_hot_bytes=256 * 1024 * 1024):
++        self.path = Path(path).resolve()
++        self.path.parent.mkdir(parents=True, exist_ok=True)
++        self.clock = clock
++        if type(max_hot_bytes) is not int or max_hot_bytes < 1024 * 1024:
++            raise EvidenceUnavailable('hot_store_capacity_bound')
++        self.max_hot_bytes = max_hot_bytes
++        self._owner = threading.get_ident()
++        self._lock = open(str(self.path) + '.writer.lock', 'a+b')
++        try:
++            fcntl.flock(self._lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
++        except BlockingIOError:
++            self._lock.close()
++            raise EvidenceUnavailable('evidence_writer_already_running') from None
++        try:
++            self.db = sqlite3.connect(self.path, isolation_level=None, timeout=5)
++            self.db.execute('PRAGMA auto_vacuum=INCREMENTAL')
++            self.db.execute('PRAGMA journal_mode=WAL')
++            self.db.execute('PRAGMA synchronous=FULL')
++            self.db.execute('PRAGMA foreign_keys=ON')
++            self.db.executescript(SCHEMA)
++            with self.transaction():
++                initialized = self.db.execute("SELECT value FROM meta WHERE key='initialized'").fetchone()
++                if initialized:
++                    self._count('restarts')
++                    # Last cursor is durable, but proves nothing after a crash.
++                    for scope, slot in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
++                        self._gap(scope, slot + 1, None, 'writer_restart')
++                self.db.execute("INSERT OR IGNORE INTO meta VALUES('initialized','1')")
++        except BaseException:
++            if hasattr(self, 'db'):
++                self.db.close()
++            self._lock.close()
++            raise
++
++    def _check(self):
++        if threading.get_ident() != self._owner:
++            raise EvidenceUnavailable('writer_thread_violation')
++
++    @contextmanager
++    def transaction(self):
++        self._check()
++        self.db.execute('BEGIN IMMEDIATE')
++        try:
++            yield
++            self.db.execute('COMMIT')
++        except BaseException:
++            self.db.execute('ROLLBACK')
++            raise
++
++    def _count(self, key, count=1):
++        self.db.execute('INSERT INTO counters VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=value+excluded.value', (key, count))
++
++    def _gap(self, scope, lo, hi, reason):
++        if not self.db.execute('SELECT 1 FROM gaps WHERE scope=? AND lo=? AND hi IS ? AND repaired IS NULL', (scope, lo, hi)).fetchone():
++            self.db.execute('INSERT INTO gaps(scope,lo,hi,reason,created) VALUES(?,?,?,?,?)', (scope, lo, hi, reason, self.clock()))
++            self._count('gaps_created')
++
++    def gap(self, scope, lo, hi=None, reason='stream_discontinuity'):
++        if type(lo) is not int or lo < 0 or hi is not None and (type(hi) is not int or hi < lo):
++            raise EvidenceUnavailable('invalid_gap')
++        with self.transaction():
++            self._gap(scope, lo, hi, reason)
++
++    def reconnect(self, scope, lower_slot):
++        """Close the missing range at an authenticated new subscription boundary.
++
++        This never repairs the gap or grants coverage for the new stream.
++        """
++        with self.transaction():
++            rows = self.db.execute('SELECT id,lo FROM gaps WHERE scope=? AND hi IS NULL AND repaired IS NULL', (scope,)).fetchall()
++            for identity, lo in rows:
++                if lower_slot < lo:
++                    raise EvidenceUnavailable('reconnect_cursor_regression')
++                self.db.execute('UPDATE gaps SET hi=? WHERE id=?', (max(lo, lower_slot), identity))
++
++    def ingest(self, records, *, proof=None, repair_receipt=None):
++        self._check()
++        records = tuple(records)
++        if len(records) > 2048:
++            raise EvidenceUnavailable('ingestion_batch_bound')
++        for record in records:
++            floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+record.scope,)).fetchone()
++            if floor and record.slot<int(floor[0]):raise EvidenceUnavailable('record_below_hot_retention_floor')
++        bodies = [(record, record.body()) for record in records]
++        if sum(len(canonical(body).encode()) for _, body in bodies) > 16 * 1024 * 1024:
++            raise EvidenceUnavailable('ingestion_payload_bound')
++        hot_bytes=sum(p.stat().st_size for p in (self.path,Path(str(self.path)+'-wal')) if p.exists())
++        if hot_bytes >= self.max_hot_bytes:
++            with self.transaction():
++                for scope,slot in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
++                    self._gap(scope,slot+1,None,'hot_store_capacity')
++                self._count('capacity_stops')
++            raise EvidenceUnavailable('hot_store_capacity')
++        if proof:
++            proof.validate()
++        conflict = None
++        with self.transaction():
++            if self.db.execute("SELECT value FROM meta WHERE key='poisoned'").fetchone():
++                raise EvidenceConflict('evidence_store_poisoned')
++            # Check the entire batch before persisting any of it.
++            staged = {}
++            for record, body in bodies:
++                checksum = digest(body)
++                old = self.db.execute('SELECT hash FROM records WHERE identity=?', (record.identity,)).fetchone()
++                previous = old[0] if old else staged.get(record.identity)
++                if previous and previous != checksum:
++                    conflict = (record.identity, previous, checksum)
++                    break
++                staged[record.identity] = checksum
++            if conflict:
++                self.db.execute('INSERT INTO conflicts(identity,prior,incoming,observed) VALUES(?,?,?,?)', (*conflict, self.clock()))
++                self.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
++                self._count('evidence_conflicts')
++            else:
++                for record, body in bodies:
++                    inserted = self.db.execute('INSERT OR IGNORE INTO records VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
++                        (record.identity, record.scope, record.slot, record.signature, record.program,
++                         record.market_time, record.event_index, record.transaction_index, record.kind,
++                         canonical(body), digest(body), record.observed_at)).rowcount
++                    self.db.executemany('INSERT OR IGNORE INTO addresses VALUES(?,?,?)',
++                        [(address, record.identity, record.slot) for address in body['addresses']])
++                    self.db.execute('INSERT OR IGNORE INTO lineage VALUES(?,?,?,?)',
++                        (record.identity, record.source, record.endpoint_identity, record.observed_at))
++                    self.db.execute('INSERT INTO cursors VALUES(?,?,?) ON CONFLICT(scope) DO UPDATE SET slot=MAX(slot,excluded.slot),updated=excluded.updated',
++                        (record.scope, record.slot, self.clock()))
++                    if inserted:
++                        self._count('ingested_' + record.kind)
++                if repair_receipt:
++                    gap_id, cursor, max_pages = repair_receipt
++                    self._repair_progress(gap_id, cursor, max_pages)
++                if proof:
++                    self._coverage(proof)
++        if conflict:
++            raise EvidenceConflict('conflicting_immutable_evidence:' + conflict[0])
++
++    def _coverage(self, proof):
++        self.db.execute('INSERT OR IGNORE INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
++            (proof.scope, proof.lower_slot, proof.upper_slot, proof.observed_at,
++             canonical(dict(source=proof.source, endpoint_identity=proof.endpoint_identity, witness=proof.witness))))
++        self.db.execute('INSERT INTO cursors VALUES(?,?,?) ON CONFLICT(scope) DO UPDATE SET slot=MAX(slot,excluded.slot),updated=excluded.updated',
++            (proof.scope, proof.upper_slot, self.clock()))
++        # A streaming resumption never retrospectively repairs missing history.
++        if proof.source == 'alchemy_finalized_repair':
++            n = self.db.execute('UPDATE gaps SET repaired=? WHERE scope=? AND lo>=? AND hi<=? AND repaired IS NULL',
++                (proof.observed_at, proof.scope, proof.lower_slot, proof.upper_slot)).rowcount
++            self._count('gaps_repaired', n)
++
++    def interest(self, owner, scope, *, lower_slot, priority=4, lifecycle='candidate'):
++        if (not owner or not scope or type(lower_slot) is not int or lower_slot < 0
++                or priority not in range(5) or lifecycle not in ('candidate', 'reserved', 'open', 'research')):
++            raise EvidenceUnavailable('invalid_interest')
++        if lifecycle == 'open' and priority != 0 or lifecycle == 'reserved' and priority > 1:
++            raise EvidenceUnavailable('lifecycle_evidence_priority')
++        with self.transaction():
++            self.db.execute('INSERT INTO interests VALUES(?,?,?,?,?,1,?) ON CONFLICT(owner,scope) DO UPDATE SET priority=excluded.priority,lower_slot=MIN(lower_slot,excluded.lower_slot),lifecycle=excluded.lifecycle,active=1,updated=excluded.updated',
++                (owner, scope, priority, lower_slot, lifecycle, self.clock()))
++
++    def release(self, owner, scope, *, lifecycle_resolved=False):
++        with self.transaction():
++            row = self.db.execute('SELECT lifecycle FROM interests WHERE owner=? AND scope=? AND active=1', (owner, scope)).fetchone()
++            if row and row[0] in ('open', 'reserved') and not lifecycle_resolved:
++                raise EvidenceUnavailable('unresolved_lifecycle_interest')
++            self.db.execute('UPDATE interests SET active=0,updated=? WHERE owner=? AND scope=?', (self.clock(), owner, scope))
++
++    def acknowledge(self, owner, scope, slot):
++        with self.transaction():
++            prior = self.db.execute('SELECT scope,slot FROM consumers WHERE owner=?', (owner,)).fetchone()
++            if prior and (scope != prior[0] or slot < prior[1]):
++                raise EvidenceUnavailable('consumer_cursor_regression')
++            self.db.execute('INSERT OR REPLACE INTO consumers VALUES(?,?,?,?)', (owner, scope, slot, self.clock()))
++
++    def repair_progress(self, gap_id, *, cursor, max_pages=16):
++        """Bounded durable page receipt. A page alone never grants coverage."""
++        with self.transaction():
++            self._repair_progress(gap_id, cursor, max_pages)
++
++    def _repair_progress(self, gap_id, cursor, max_pages):
++        row = self.db.execute('SELECT pages,repaired FROM gaps WHERE id=?', (gap_id,)).fetchone()
++        if not row or row[1] is not None or row[0] >= max_pages:
++            raise EvidenceUnavailable('repair_page_budget_or_state')
++        self.db.execute('UPDATE gaps SET pages=pages+1,attempts=attempts+1,repair_cursor=? WHERE id=?', (canonical(cursor), gap_id))
++        self._count('gap_repair_calls')
++
++    def archive_plan(self,before_time,*,max_records=1000):
++        """Snapshot a bounded immutable batch; filesystem work runs off-writer."""
++        self._check()
++        if not 1 <= max_records <= 1000:
++            raise EvidenceUnavailable('archive_batch_bound')
++        rows = self.db.execute('''SELECT r.identity,r.body,r.hash FROM records r
++          WHERE r.body IS NOT NULL AND COALESCE(r.market_time,r.first_seen) < ?
++          AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.active=1
++             AND i.scope=r.scope AND r.slot>=i.lower_slot)
++          AND NOT EXISTS(SELECT 1 FROM service_interests s JOIN interests i
++             ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1
++             AND r.kind='account' AND s.address=substr(r.scope,9))
++          AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
++              AND r.slot>=g.lo)
++          ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records)).fetchall()
++        return [dict(identity=k,body=json.loads(b),hash=h,
++            lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))],
++            coverage=[dict(lo=lo,hi=hi,available=at,proof=json.loads(proof)) for lo,hi,at,proof in self.db.execute('SELECT lo,hi,available,proof FROM coverage WHERE scope=? AND lo<=? AND hi>=?',(json.loads(b)['scope'],json.loads(b)['slot'],json.loads(b)['slot']))]) for k,b,h in rows]
++
++    @staticmethod
++    def write_archive(path,plan):
++        if not plan:return None
++        raw=('\n'.join(canonical(row) for row in plan)+'\n').encode()
++        compressed=gzip.compress(raw,mtime=0);checksum=hashlib.sha256(compressed).hexdigest()
++        path=Path(path);directory=path.parent/(path.name+'.archive');directory.mkdir(exist_ok=True)
++        target=directory/(checksum+'.jsonl.gz');publish_bytes(target,compressed)
++        return dict(name=target.name,hash=checksum,bytes=len(compressed))
++
++    def commit_archive(self,plan,receipt):
++        if not receipt:return 0
++        archived=0
++        with self.transaction():
++            added=self.db.execute('INSERT OR IGNORE INTO archives VALUES(?,?,?,?)',(receipt['name'],receipt['hash'],receipt['bytes'],len(plan))).rowcount
++            if added:self._count('archive_bytes',receipt['bytes'])
++            for row in plan:
++                # An interest can arrive while compression/fsync is in flight.
++                # Recheck pins before dropping even a single hot payload.
++                body=row['body'];scope=body['scope'];slot=body['slot']
++                pinned=self.db.execute('SELECT 1 FROM interests WHERE scope=? AND active=1 AND lower_slot<=? UNION ALL SELECT 1 FROM gaps WHERE scope=? AND repaired IS NULL AND lo<=? LIMIT 1',(scope,slot,scope,slot)).fetchone()
++                pinned=pinned or self._account_pinned(scope)
++                if not pinned:
++                    archived+=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount
++            self._count('archived_records',archived)
++        return archived
++
++    def _account_pinned(self,scope):
++        if not scope.startswith('account:'):return False
++        # An unchanged account observation may predate the reservation. Preserve
++        # it and its history until every referencing lifecycle releases its pin.
++        return self.db.execute('''SELECT 1 FROM service_interests s JOIN interests i
++            ON s.owner=i.owner AND s.scope=i.scope
++            WHERE s.address=? AND i.active=1 LIMIT 1''',(scope[8:],)).fetchone() is not None
++
++    def archive(self,before_time,*,max_records=1000):
++        plan=self.archive_plan(before_time,max_records=max_records)
++        return self.commit_archive(plan,self.write_archive(self.path,plan))
++
++    def retain(self, before_time, *, max_records=1000, archive_first=True):
++        """One bounded maintenance slice, preserving every unresolved lifecycle/gap.
++
++        Old immutable payloads and provenance are durable before index removal.
++        A monotone floor rejects reintroduction of pruned history; offline replay
++        uses a separate store. No consumer can grant coverage below that floor.
++        """
++        archived=self.archive(before_time,max_records=max_records) if archive_first else 0
++        with self.transaction():
++            for scope,top in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
++                floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
++                floor=top+1 if floor is None else floor
++                recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
++                if recent is not None:floor=min(floor,recent)
++                pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1 UNION ALL SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,scope))]
++                if pins:floor=min(floor,min(pins))
++                if self._account_pinned(scope):floor=0
++                old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
++                floor=max(int(old[0]) if old else 0,floor)
++                ids=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE scope=? AND slot<? AND body IS NULL LIMIT ?',(scope,floor,max_records))]
++                for identity in ids:
++                    self.db.execute('DELETE FROM lineage WHERE identity=?',(identity,))
++                    self.db.execute('DELETE FROM addresses WHERE identity=?',(identity,))
++                    self.db.execute('DELETE FROM records WHERE identity=?',(identity,))
++                self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
++                self.db.execute('DELETE FROM coverage WHERE scope=? AND hi<?',(scope,floor))
++                self.db.execute('DELETE FROM gaps WHERE scope=? AND hi<? AND repaired IS NOT NULL',(scope,floor))
++                for table in ('stream_receipts','stream_deliveries','stream_order'):
++                    if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(table,)).fetchone():
++                        self.db.execute('DELETE FROM '+table+' WHERE scope=? AND slot<?',(scope,floor))
++                self._count('compacted_records',len(ids))
++            # The archive directory is the immutable content-addressed inventory;
++            # old completed hot manifests need not grow without bound.
++            self.db.execute('DELETE FROM archives WHERE name NOT IN (SELECT DISTINCT archive FROM records WHERE archive IS NOT NULL)')
++        # PASSIVE cannot wait for readers. Pinned WAL bytes remain in telemetry and
++        # the existing hard capacity guard stops ingestion if they exhaust space.
++        self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
++        self.db.execute('PRAGMA incremental_vacuum(256)')
++        return archived
++
++    def close(self):
++        self._check()
++        self.db.close()
++        self._lock.close()
++
++
++class EvidenceReader:
++    def __init__(self, path):
++        self.path = Path(path).resolve()
++        self.queries = 0
++        self.db = sqlite3.connect(self.path.as_uri() + '?mode=ro', uri=True,
++                                  isolation_level=None, timeout=2)
++        self.db.execute('PRAGMA query_only=ON')
++
++    def _healthy(self):
++        if self.db.execute("SELECT 1 FROM meta WHERE key='poisoned'").fetchone():
++            raise EvidenceConflict('evidence_store_poisoned')
++
++    def covered(self, scope, lower_slot, upper_slot, *, as_of):
++        self._healthy()
++        if lower_slot < 0 or upper_slot < lower_slot:
++            raise EvidenceUnavailable('invalid_query_window')
++        floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
++        if floor and lower_slot<int(floor[0]):return False
++        # A later repair cannot rewrite a prospective decision's original cutoff.
++        if self.db.execute('''SELECT 1 FROM gaps WHERE scope=? AND lo<=?
++            AND (hi IS NULL OR hi>=?) AND created<=? AND (repaired IS NULL OR repaired>?) LIMIT 1''',
++            (scope, upper_slot, lower_slot, as_of, as_of)).fetchone():
++            return False
++        cursor = lower_slot
++        for lo, hi in self.db.execute('SELECT lo,hi FROM coverage WHERE scope=? AND available<=? AND hi>=? AND lo<=? ORDER BY lo,hi',
++                                     (scope, as_of, lower_slot, upper_slot)):
++            if lo > cursor:
++                return False
++            cursor = max(cursor, hi + 1)
++            if cursor > upper_slot:
++                return True
++        return False
++
++    def window(self, scope, lower_slot, upper_slot, *, as_of, address=None, kind=None, limit=2048):
++        if not 1 <= limit <= 10000:
++            raise EvidenceUnavailable('query_bound')
++        self.queries += 1
++        self.db.execute('BEGIN')
++        try:
++            if not self.covered(scope, lower_slot, upper_slot, as_of=as_of):
++                raise EvidenceUnavailable('unresolved_evidence_gap')
++            sql = 'SELECT r.body,r.archive,r.identity,r.hash FROM records r '
++            params = []
++            if address:
++                sql += 'JOIN addresses a ON a.identity=r.identity AND a.address=? '
++                params.append(address)
++            sql += 'WHERE r.scope=? AND r.slot BETWEEN ? AND ? AND r.first_seen<=? '
++            params.extend((scope, lower_slot, upper_slot, as_of))
++            if kind:
++                sql += 'AND r.kind=? '
++                params.append(kind)
++            sql += 'ORDER BY r.slot,r.transaction_index,r.event_index,r.identity LIMIT ?'
++            rows = self.db.execute(sql, (*params, limit + 1)).fetchall()
++            if len(rows) > limit:
++                raise EvidenceUnavailable('local_evidence_query_bound')
++            result = []
++            for body, archive, identity, checksum in rows:
++                if body is None:
++                    # Normal hot decisions never perform archive I/O implicitly.
++                    raise EvidenceUnavailable('evidence_requires_offline_archive_restore')
++                parsed = json.loads(body)
++                if digest(parsed) != checksum:
++                    raise EvidenceConflict('local_evidence_hash_mismatch:' + identity)
++                result.append(parsed)
++            return result
++        finally:
++            self.db.execute('ROLLBACK')
++
++    def telemetry(self):
++        self._healthy()
++        health={}
++        if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='service_health'").fetchone():
++            health={k:json.loads(v) for k,v in self.db.execute('SELECT * FROM service_health')}
++        return dict(service_health=health,ingestion_lag_seconds={k:max(0,time.time()-v['time']) for k,v in health.items() if k.startswith('finalized_frontier:')},cursors=[dict(scope=s, slot=n, updated=t) for s, n, t in self.db.execute('SELECT * FROM cursors')],
++            coverage_windows=self.db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],
++            unresolved_gaps=self.db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],
++            consumer_lag=[dict(owner=o, scope=s, slots=max(0, top-n), updated=t) for o,s,n,t,top in self.db.execute('SELECT c.owner,c.scope,c.slot,c.updated,r.slot FROM consumers c JOIN cursors r ON c.scope=r.scope')],
++            counters=dict(self.db.execute('SELECT * FROM counters')), local_queries=self.queries,
++            hot_bytes=sum(p.stat().st_size for p in (self.path, Path(str(self.path)+'-wal')) if p.exists()),
++            db_bytes=self.path.stat().st_size,
++            wal_bytes=(Path(str(self.path)+'-wal').stat().st_size if Path(str(self.path)+'-wal').exists() else 0),
++            interests=[dict(owner=o,scope=s,priority=p,lower_slot=l,lifecycle=k,updated=t) for o,s,p,l,k,a,t in self.db.execute('SELECT * FROM interests WHERE active=1')],
++            retention_floors={k.split(':',1)[1]:int(v) for k,v in self.db.execute("SELECT key,value FROM meta WHERE key LIKE 'retention_floor:%'")},
++            archive_bytes=(self.db.execute("SELECT value FROM counters WHERE key='archive_bytes'").fetchone() or [0])[0])
++
++    def close(self):
++        self.db.close()
++
++
++from .durable_publication import publish_bytes, publish_json
++
++
++class IngestionService:
++    """Bounded single-writer actor. Strategy queries have no callbacks into it.
++
++    Socket adapters own their I/O threads. They submit bounded immutable batches;
++    queue overload latches a discontinuity, which the writer commits before it
++    accepts another proof. Consumers cannot stall ingestion by holding Python locks.
++    """
++    def __init__(self, path, *, capacity=64):
++        self.path = path
++        self.queue = queue.Queue(maxsize=capacity)
++        self.failed = None
++        self._loss = threading.Event()
++        self._stop = threading.Event()
++        self.ready = threading.Event()
++        self.thread = threading.Thread(target=self._run, name='solana-evidence-writer', daemon=True)
++
++    def start(self):
++        self.thread.start()
++        if not self.ready.wait(5):
++            raise EvidenceUnavailable('writer_start_timeout')
++        self.check()
++
++    def check(self):
++        if self.failed:
++            raise EvidenceUnavailable('writer_failed') from self.failed
++
++    def submit(self, records, *, proof=None):
++        self.check()
++        # Freeze before queueing, including nested mutable payloads.
++        records = tuple(FinalizedRecord(**json.loads(canonical(r.__dict__))) for r in records)
++        if len(records) > 2048:
++            raise EvidenceUnavailable('ingestion_batch_bound')
++        if proof:
++            proof = IntervalProof(**json.loads(canonical(proof.__dict__)))
++        try:
++            self.queue.put_nowait((records, proof))
++        except queue.Full:
++            self._loss.set()
++            raise EvidenceUnavailable('ingestion_backlog_gap') from None
++
++    def _run(self):
++        writer = None
++        try:
++            writer = EvidenceWriter(self.path)
++            self.ready.set()
++            while not self._stop.is_set() or not self.queue.empty():
++                if self._loss.is_set():
++                    # Fail the service instead of losing the unknown interval or
++                    # accepting queued coverage that might bridge dropped data.
++                    for scope, slot in writer.db.execute('SELECT scope,slot FROM cursors').fetchall():
++                        writer.gap(scope, slot, reason='ingestion_queue_overflow')
++                    raise EvidenceUnavailable('ingestion_queue_overflow')
++                try:
++                    records, proof = self.queue.get(timeout=.05)
++                except queue.Empty:
++                    continue
++                try:
++                    writer.ingest(records, proof=proof)
++                finally:
++                    self.queue.task_done()
++        except BaseException as exc:
++            self.failed = exc
++            self.ready.set()
++        finally:
++            if writer:
++                writer.close()
++
++    def close(self):
++        self._stop.set()
++        self.thread.join(timeout=5)
++        if self.thread.is_alive():
++            raise EvidenceUnavailable('writer_stop_timeout')
++        self.check()
+diff --git a/meme_machine/solana_evidence_queries.py b/meme_machine/solana_evidence_queries.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..6534ccad16fcd95f4340dc2e869ff3a93c244af7
+--- /dev/null
++++ b/meme_machine/solana_evidence_queries.py
+@@ -0,0 +1,94 @@
++"""Read-only lane views. There is deliberately no RPC fallback in these classes."""
++from .solana_evidence_plane import EvidenceUnavailable
++
++
++class PumpEvidenceView:
++    def __init__(self,reader,scope):
++        self.reader=reader;self.scope=scope
++        self.local_decisions=0;self.blocked_by_gaps=0
++        self.foreground_historical_rpc=0
++
++    def events(self,address,*,lower_slot,upper_slot,lower_time,upper_time,as_of):
++        # The caller must supply authentic slot boundaries for the requested time
++        # interval. Earliest/latest observed trade is never a boundary proof.
++        if lower_time>upper_time:
++            raise EvidenceUnavailable('invalid_pump_time_window')
++        try:
++            rows=self.reader.window(self.scope,lower_slot,upper_slot,
++                as_of=as_of,address=address,kind='event',limit=10000)
++        except EvidenceUnavailable:
++            self.blocked_by_gaps+=1
++            raise
++        events=[]
++        for row in rows:
++            event=row['payload'].get('event')
++            if not isinstance(event,dict) or row['market_time'] is None:
++                raise EvidenceUnavailable('pump_normalized_event_missing')
++            if not lower_time<=row['market_time']<=upper_time:
++                continue
++            if event.get('slot')!=row['slot'] or event.get('market_time')!=row['market_time']:
++                raise EvidenceUnavailable('pump_event_lineage_mismatch')
++            events.append(dict(event))
++        self.local_decisions+=1
++        return events
++
++    def telemetry(self):
++        return dict(decisions_fully_local=self.local_decisions,
++                    decisions_blocked_by_gaps=self.blocked_by_gaps,
++                    foreground_historical_rpc_count=self.foreground_historical_rpc)
++
++
++class MeteoraEvidenceView:
++    def __init__(self,reader,scope):
++        self.reader=reader;self.scope=scope
++        self.local_intervals=0;self.blocked_by_gaps=0
++        self.historical_reconstruction_rpc=0
++
++    def interval(self,pool,*,start_slot,end_slot,as_of):
++        # Preserve the existing verifier's real lower-bound signature witness.
++        # Never invent a transaction at start_slot for an empty interval.
++        boundary=self.reader.db.execute('''SELECT r.slot FROM addresses a JOIN records r ON r.identity=a.identity
++            WHERE a.address=? AND r.scope=? AND r.kind='transaction'
++              AND a.slot<=? AND r.first_seen<=?
++            ORDER BY a.slot DESC LIMIT 1''',(pool,self.scope,start_slot,as_of)).fetchone()
++        if boundary is None:
++            raise EvidenceUnavailable('dlmm_signature_census_missing_start_boundary')
++        try:
++            rows=self.reader.window(self.scope,boundary[0],end_slot,
++                as_of=as_of,address=pool,kind='transaction',limit=65)
++        except EvidenceUnavailable:
++            self.blocked_by_gaps+=1
++            raise
++        signatures=[];transactions={};witnesses=[]
++        for row in rows:
++            tx=row['payload'];index=row['transaction_index']
++            order=None
++            if index is None:
++                receipt=self.reader.db.execute('SELECT rank,blockhash FROM stream_order WHERE scope=? AND slot=? AND signature=?',
++                    (self.scope,row['slot'],row['signature'])).fetchone()
++                if receipt is not None:order=dict(kind='filtered_finalized_block',rank=receipt[0],blockhash=receipt[1],scope=self.scope)
++            if ((type(index) is not int and order is None) or tx.get('slot')!=row['slot']
++                    or (tx.get('transaction') or {}).get('signatures',[None])[0]!=row['signature']):
++                raise EvidenceUnavailable('dlmm_local_transaction_identity_or_order')
++            signature=dict(signature=row['signature'],slot=row['slot'],
++                transactionIndex=index,blockTime=row['market_time'],
++                err=(tx.get('meta') or {}).get('err'),confirmationStatus='finalized')
++            if order is not None:signature['transactionOrder']=order
++            if row['slot']<=start_slot:
++                witnesses.append(signature)
++            else:
++                signatures.append(signature)
++                transactions[row['signature']]=tx
++        if not witnesses:
++            raise EvidenceUnavailable('dlmm_signature_census_missing_start_boundary')
++        key=lambda row:(row['slot'],row['transactionIndex'] if row['transactionIndex'] is not None else row['transactionOrder']['rank'])
++        signatures.append(max(witnesses,key=key))
++        signatures.sort(key=key,reverse=True)
++        self.local_intervals+=1
++        return signatures,transactions,dict(source='local_finalized_evidence_plane',
++            historical_provider_calls=0,relevant_successful=sum(not s['err'] and s['slot']>start_slot for s in signatures))
++
++    def telemetry(self):
++        return dict(intervals_satisfied_locally=self.local_intervals,
++                    gaps_blocking_reconstruction=self.blocked_by_gaps,
++                    historical_reconstruction_rpc_count=self.historical_reconstruction_rpc)
+diff --git a/meme_machine/solana_evidence_runtime.py b/meme_machine/solana_evidence_runtime.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..322aa445020795b6d263ea9e36b932ac994f9ce9
+--- /dev/null
++++ b/meme_machine/solana_evidence_runtime.py
+@@ -0,0 +1,166 @@
++"""Read-only production consumer and bounded lifecycle-interest IPC.
++
++This module has no historical provider dependency and no writer/proof interface.
++"""
++import json
++import os
++from pathlib import Path
++import socket
++import time
++from .solana_evidence_plane import EvidenceReader,EvidenceUnavailable,canonical
++from .solana_evidence_queries import PumpEvidenceView,MeteoraEvidenceView
++
++PUMP_SCOPE='program:pump'
++SWAP_SCOPE='program:pumpswap'
++METEORA_SCOPE='program:meteora'
++
++class RuntimeEvidence:
++    def __init__(self,path=None,*,owner,clock=time.time,command=None):
++        path=path or os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')
++        if not path:raise EvidenceUnavailable('shared_evidence_plane_required')
++        self.path=Path(path).resolve();self.reader=EvidenceReader(self.path)
++        self.owner=owner;self.clock=clock;self._command=command
++        self.counts={}
++    def command(self,**request):
++        request.setdefault('owner',self.owner)
++        if self._command:return self._command(request)
++        data=(canonical(request)+'\n').encode()
++        if len(data)>32768:raise EvidenceUnavailable('evidence_interest_command_bound')
++        with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as stream:
++            stream.settimeout(.25)
++            try:
++                stream.connect(str(self.path)+'.sock');stream.sendall(data)
++                reply=stream.makefile('rb').readline(32769)
++            except OSError as exc:raise EvidenceUnavailable('evidence_service_unavailable') from exc
++        result=json.loads(reply)
++        if result.get('ok') is not True:raise EvidenceUnavailable(result.get('error','evidence_command_rejected'))
++        return result
++    def count(self,key,count=1):
++        self.counts[key]=self.counts.get(key,0)+count
++        self.command(op='counter',key=key,count=count)
++    def interest(self,scope,*,lower_slot,addresses=(),lifecycle='candidate',priority=3,owner=None):
++        return self.command(op='interest',owner=owner or self.owner,scope=scope,
++            lower_slot=lower_slot,addresses=list(addresses),lifecycle=lifecycle,priority=priority)
++    def frontier(self,scope):
++        row=self.reader.db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND available<=?',(scope,self.clock())).fetchone()
++        if not row or row[0] is None:raise EvidenceUnavailable('evidence_cold_start')
++        return row[0]
++    def block_time(self,slot):
++        rows=self.reader.db.execute('SELECT DISTINCT market_time FROM stream_receipts WHERE slot=? AND seen<=?',(slot,self.clock())).fetchall()
++        if len(rows)!=1:raise EvidenceUnavailable('exact_finalized_block_time_unavailable')
++        return rows[0][0]
++    def bounds(self,scope,lower_time,upper_time,*,upper_slot=None):
++        cutoff=self.clock()
++        # A real block at/before the lower time is required. Earliest trade is not
++        # a boundary witness, and wall time cannot extend finalized coverage.
++        lo=self.reader.db.execute('SELECT slot FROM stream_receipts WHERE scope=? AND market_time<=? AND seen<=? ORDER BY market_time DESC,slot ASC LIMIT 1',
++            (scope,lower_time,cutoff)).fetchone()
++        if upper_slot is None:
++            hi=self.reader.db.execute('SELECT slot FROM stream_receipts WHERE scope=? AND market_time>=? AND seen<=? ORDER BY slot LIMIT 1',
++                (scope,upper_time,cutoff)).fetchone()
++        else:hi=(upper_slot,)
++        if not lo or not hi:raise EvidenceUnavailable('evidence_time_boundary_unavailable')
++        return lo[0],hi[0]
++    def acknowledge(self,scope,slot):
++        owner=self.owner+':'+scope
++        row=self.reader.db.execute('SELECT slot FROM consumers WHERE owner=?',(owner,)).fetchone()
++        if row is None or slot>=row[0]:self.command(op='ack',owner=owner,scope=scope,slot=slot)
++    def pump_events(self,scope,address,lower_time,upper_time,*,upper_slot=None):
++        try:
++            lo,hi=self.bounds(scope,lower_time,upper_time,upper_slot=upper_slot)
++            events=PumpEvidenceView(self.reader,scope).events(address,lower_slot=lo,upper_slot=hi,
++                lower_time=lower_time,upper_time=upper_time,as_of=self.clock())
++            self.acknowledge(scope,hi);return events
++        except EvidenceUnavailable:
++            self.count('pump.gap_blocked_queries');raise
++    def meteora_scope(self,pool):
++        scoped='pool:meteora:'+pool
++        if self.reader.db.execute('SELECT 1 FROM coverage WHERE scope=? LIMIT 1',(scoped,)).fetchone():return scoped
++        return METEORA_SCOPE
++    def meteora_interval(self,pool,start,end):
++        try:
++            scope=self.meteora_scope(pool)
++            result=MeteoraEvidenceView(self.reader,scope).interval(pool,start_slot=start,end_slot=end,as_of=self.clock())
++            self.acknowledge(scope,end);return result
++        except EvidenceUnavailable:
++            self.count('meteora.gap_blocked_reconstructions');raise
++    def telemetry(self):return dict(self.reader.telemetry(),lane_counters=dict(self.counts))
++    def close(self):self.reader.close()
++
++class LocalPumpHistory:
++    """Adapter for the real Pump runner's frozen history/decision interface."""
++    def __init__(self,plane,pool,graduation_time):
++        self.plane=plane;self.pool=pool;self.graduation_time=int(graduation_time)
++        self.snapshot=None;self.rows=[];self._window_complete=False;self._history_complete=False
++    def bind_snapshot(self,snapshot):self.snapshot=snapshot
++    def refresh(self,rpc,now,*,research=False,hydration_kind=None):
++        if self.snapshot is None:raise EvidenceUnavailable('pump_local_snapshot_boundary_required')
++        at=int(self.snapshot['market_time']);upper=self.snapshot['slot']
++        self._window_complete=self._history_complete=False
++        self.rows=self.plane.pump_events(SWAP_SCOPE,self.pool,at-30,at,upper_slot=upper)
++        self._window_complete=True
++        if research:
++            try:
++                self.rows=self.plane.pump_events(SWAP_SCOPE,self.pool,self.graduation_time,at,upper_slot=upper)
++                self._history_complete=True
++            except EvidenceUnavailable:
++                # Momentum can use its covered window; the independent second-leg
++                # path still requires complete graduation history and fails closed.
++                self._history_complete=False
++        return list(self.rows)
++    def decision_rows(self,now,seconds=30):
++        if not self._window_complete:raise EvidenceUnavailable('unresolved_evidence_gap')
++        at=int(self.snapshot['market_time'])
++        return [r for r in self.rows if at-seconds<=r['market_time']<=at]
++    def decision_window_status(self,now,seconds=30):return dict(complete=self._window_complete,source='local_finalized_evidence',historical_provider_calls=0)
++    def complete(self,now):return self._history_complete
++    def status(self,now):return dict(complete=self._history_complete,decision_window=self.decision_window_status(now),events=len(self.rows),historical_provider_calls=0)
++
++class LocalPumpTape:
++    def __init__(self,plane):self.plane=plane
++    def window(self,mint,now,max_slot=None):
++        rows=self.plane.pump_events(PUMP_SCOPE,mint,int(now)-60,int(now),upper_slot=max_slot)
++        return [e for e in rows if e.get('event_type')!='create']
++    def creation(self,mint):
++        rows=self.plane.reader.db.execute('''SELECT r.body,r.first_seen FROM addresses a JOIN records r ON r.identity=a.identity
++            WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY a.slot DESC LIMIT 1000''',
++            (mint,PUMP_SCOPE,self.plane.clock()))
++        for raw,seen in rows:
++            if raw:
++                event=json.loads(raw)['payload'].get('event',{})
++                if event.get('event_type')=='create':return dict(event,available_time=int(seen))
++        return None
++    def events_since(self,sequence):
++        hi=self.plane.frontier(PUMP_SCOPE)
++        rows=self.plane.reader.db.execute('''SELECT rowid,body,slot FROM records WHERE scope=? AND kind='event'
++            AND rowid>? AND slot<=? AND first_seen<=? ORDER BY rowid LIMIT 5000''',
++            (PUMP_SCOPE,sequence,hi,self.plane.clock())).fetchall()
++        events=[]
++        for seq,raw,slot in rows:
++            if raw is None:raise EvidenceUnavailable('pump_consumer_backlog_archived')
++            event=json.loads(raw)['payload']['event']
++            if event.get('event_type')!='create':events.append(event)
++            sequence=seq
++        if rows:self.plane.command(op='ack',owner=self.plane.owner,scope=PUMP_SCOPE,slot=rows[-1][2])
++        return events,sequence
++    def covered(self,now=None):
++        try:
++            hi=self.plane.frontier(PUMP_SCOPE)
++            row=self.plane.reader.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot<=? ORDER BY slot DESC LIMIT 1',(PUMP_SCOPE,hi)).fetchone()
++            if row is None:return False
++            at=row[0]
++            lo,_=self.plane.bounds(PUMP_SCOPE,at-60,at,upper_slot=hi)
++            return self.plane.reader.covered(PUMP_SCOPE,lo,hi,as_of=self.plane.clock())
++        except EvidenceUnavailable:return False
++    def status(self,now=None):return self.plane.telemetry()
++
++class LocalInterestRegistry:
++    def __init__(self,plane):self.plane=plane
++    def add_address(self,address):
++        try:lower=max(0,self.plane.frontier(SWAP_SCOPE)-1)
++        except EvidenceUnavailable:lower=0
++        self.plane.interest(SWAP_SCOPE,lower_slot=lower,addresses=[address],owner='pump:pool:'+address)
++        return SWAP_SCOPE
++    def remove_address(self,address):
++        return self.plane.command(op='release',owner='pump:pool:'+address,scope=SWAP_SCOPE,resolved=False)
++    def status(self):return self.plane.telemetry()
+diff --git a/meme_machine/solana_evidence_service.py b/meme_machine/solana_evidence_service.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..b49811ab098d52085f830475b7b8b683e501ecf0
+--- /dev/null
++++ b/meme_machine/solana_evidence_service.py
+@@ -0,0 +1,368 @@
++"""Finalized filtered-block fences over the existing single-writer evidence store.
++
++Only this source adapter can seal coverage. Consumers send lifecycle interests and
++read SQLite; they cannot send records, receipts, frontiers or interval proofs.
++A receipt authenticates a block's filtered census. Its linked finalized child is
++required to seal it. Silence, root notifications and socket ACKs never seal data.
++"""
++from dataclasses import replace
++import json
++import time
++import uuid
++from .solana_evidence_plane import EvidenceUnavailable, EvidenceConflict, IntervalProof, digest, canonical
++from .solana_evidence_transport import FinalizedNotificationDecoder
++
++SERVICE_SCHEMA='''
++CREATE TABLE IF NOT EXISTS stream_receipts(
++ scope TEXT NOT NULL,slot INTEGER NOT NULL,parent INTEGER NOT NULL,hash TEXT NOT NULL,
++ previous_hash TEXT NOT NULL,market_time INTEGER NOT NULL,census TEXT NOT NULL,
++ session TEXT NOT NULL,seen REAL NOT NULL,sealed INTEGER NOT NULL DEFAULT 0,
++ PRIMARY KEY(scope,slot));
++CREATE INDEX IF NOT EXISTS receipt_time ON stream_receipts(scope,market_time,slot);
++CREATE TABLE IF NOT EXISTS stream_deliveries(
++ scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,hash TEXT NOT NULL,
++ seen REAL NOT NULL,PRIMARY KEY(scope,slot,signature));
++CREATE TABLE IF NOT EXISTS service_interests(
++ owner TEXT NOT NULL,scope TEXT NOT NULL,address TEXT NOT NULL,evidence_class TEXT NOT NULL,
++ PRIMARY KEY(owner,scope,address));
++CREATE TABLE IF NOT EXISTS stream_order(scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,rank INTEGER NOT NULL,blockhash TEXT NOT NULL,PRIMARY KEY(scope,slot,signature));
++CREATE TABLE IF NOT EXISTS service_health(key TEXT PRIMARY KEY,value TEXT NOT NULL);
++'''
++
++def poison_conflicts(method):
++    from functools import wraps
++    @wraps(method)
++    def guarded(self,*args,**kwargs):
++        try:return method(self,*args,**kwargs)
++        except EvidenceConflict:
++            with self.writer.transaction():
++                self.writer.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
++                self.writer._count('source_conflicts')
++            raise
++    return guarded
++
++class FinalizedFence:
++    def __init__(self,writer,*,endpoint_identity,decoders=None):
++        self.writer=writer;self.endpoint_identity=endpoint_identity
++        self.decoders=decoders or {};self.session=uuid.uuid4().hex
++        writer.db.executescript(SERVICE_SCHEMA)
++        if writer.db.execute('SELECT 1 FROM stream_receipts LIMIT 1').fetchone():self.disconnect('service_restart')
++        with writer.transaction():
++            for key in ('pump.foreground_historical_rpc_calls','meteora.historical_reconstruction_rpc_calls'):
++                writer.db.execute('INSERT OR IGNORE INTO counters VALUES(?,0)',(key,))
++
++    def disconnect(self,reason='stream_disconnect'):
++        # Account notifications are content observations, never interval sources.
++        # Creating unrepairable interval gaps for them would pin expired account
++        # history forever. Program fences still fail closed across this restart;
++        # execution accounts require the independently bounded current refresh.
++        bounds=dict(self.writer.db.execute("SELECT scope,slot+1 FROM cursors WHERE scope NOT LIKE 'account:%'"))
++        with self.writer.transaction():
++            self.writer.db.execute('INSERT OR REPLACE INTO service_health VALUES(?,?)',
++                ('account_stream_discontinuity',canonical(dict(reason=reason,seen=self.writer.clock()))))
++        for scope,slot in self.writer.db.execute('SELECT scope,MIN(slot) FROM stream_receipts WHERE sealed=0 GROUP BY scope'):
++            bounds[scope]=min(bounds.get(scope,slot),slot)
++        for scope,slot in bounds.items():self.writer.gap(scope,slot,None,reason)
++        self.session=uuid.uuid4().hex
++
++    def _delivery(self,scope,slot,signature,payload,seen):
++        checksum=digest(payload)
++        with self.writer.transaction():
++            old=self.writer.db.execute('SELECT hash FROM stream_deliveries WHERE scope=? AND slot=? AND signature=?',
++                (scope,slot,signature)).fetchone()
++            if old and old[0]!=checksum:
++                raise EvidenceConflict('conflicting_stream_delivery')
++            self.writer.db.execute('INSERT OR IGNORE INTO stream_deliveries VALUES(?,?,?,?,?)',
++                (scope,slot,signature,checksum,seen))
++
++    @poison_conflicts
++    def logs(self,subscription,message,seen):
++        result=message['params']['result'];slot=result['context']['slot'];v=result['value']
++        decoder=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,
++            log_decoder=self.decoders[subscription.scope])
++        records=decoder.decode(subscription,message,seen)
++        # Store economic content separately from source delivery identity. Preserve
++        # original availability and log indices through all replays.
++        self.writer.ingest(records)
++        self._delivery(subscription.scope,slot,v['signature'],v,seen)
++        self.seal(subscription.scope,seen)
++
++    @poison_conflicts
++    def block(self,subscription,message,seen):
++        value=message['params']['result']['value'];slot=value['slot'];block=value.get('block')
++        if value.get('err') is not None or not isinstance(block,dict):
++            self.writer.gap(subscription.scope,slot,slot,'filtered_block_unavailable')
++            raise EvidenceUnavailable('filtered_block_unavailable')
++        parent=block.get('parentSlot');at=block.get('blockTime')
++        if (type(slot) is not int or type(parent) is not int or not 0<=parent<slot
++                or type(at) is not int or at>seen or not block.get('blockhash') or not block.get('previousBlockhash')):
++            raise EvidenceUnavailable('finalized_block_fence_shape')
++        if subscription.evidence_class=='transactions':
++            transactions=block.get('transactions')
++            if not isinstance(transactions,list) or len(transactions)>2048:
++                raise EvidenceUnavailable('filtered_block_bound')
++            signatures=[tx['transaction']['signatures'][0] for tx in transactions]
++            decoder=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity)
++            records=decoder.decode(subscription,message,seen)
++            enriched=[]
++            for rank,(tx,record) in enumerate(zip(transactions,records)):
++                message_keys=tx['transaction']['message'].get('accountKeys') or []
++                keys=[k if isinstance(k,str) else k['pubkey'] for k in message_keys]
++                loaded=(tx.get('meta') or {}).get('loadedAddresses') or {}
++                keys+=list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
++                body=dict(record.payload);body.pop('transactionIndex',None)
++                enriched.append(replace(record,payload=body,transaction_index=None,
++                    addresses=tuple(sorted(set(keys+[subscription.address])))))
++            self.writer.ingest(enriched)
++            with self.writer.transaction():
++                self.writer.db.executemany('INSERT OR IGNORE INTO stream_order VALUES(?,?,?,?,?)',
++                    [(subscription.scope,slot,sig,rank,block['blockhash']) for rank,sig in enumerate(signatures)])
++            for tx,signature in zip(transactions,signatures):
++                self._delivery(subscription.scope,slot,signature,tx,seen)
++        else:
++            signatures=block.get('signatures')
++        if (not isinstance(signatures,list) or len(signatures)>2048
++                or any(not isinstance(s,str) or not s for s in signatures)
++                or len(signatures)!=len(set(signatures))):
++            raise EvidenceUnavailable('filtered_census_shape')
++        census=canonical(signatures);scope=subscription.scope
++        with self.writer.transaction():
++            old=self.writer.db.execute('SELECT parent,hash,previous_hash,market_time,census FROM stream_receipts WHERE scope=? AND slot=?',(scope,slot)).fetchone()
++            values=(parent,block['blockhash'],block['previousBlockhash'],at,census)
++            if old and tuple(old)!=values:
++                raise EvidenceConflict('conflicting_finalized_block_receipt')
++            self.writer.db.execute('INSERT OR IGNORE INTO stream_receipts VALUES(?,?,?,?,?,?,?,?,?,0)',
++                (scope,slot,*values,self.session,seen))
++            prior=self.writer.db.execute('SELECT MAX(slot) FROM stream_receipts WHERE scope=? AND slot<?',(scope,slot)).fetchone()[0]
++            # Do not classify a skipped slot as a produced block; parent links are
++            # the explicit proof of skipped slots. An unknown parent is a gap.
++            if prior is not None and parent>prior:
++                self.writer._gap(scope,prior,parent,'missing_filtered_block_receipt')
++            self.writer.db.execute('INSERT OR REPLACE INTO service_health VALUES(?,?)',
++                ('finalized_frontier:'+scope,canonical(dict(slot=slot,time=at,seen=seen))))
++        self.writer.reconnect(scope,slot)
++        self.seal(scope,seen)
++
++    def seal(self,scope,seen):
++        pairs=self.writer.db.execute('''SELECT p.slot,p.hash,p.census,p.seen,c.slot,c.hash,c.previous_hash,c.seen
++            FROM stream_receipts p JOIN stream_receipts c ON c.scope=p.scope AND c.parent=p.slot
++            WHERE p.scope=? AND p.sealed=0 AND p.session=? AND c.session=? ORDER BY p.slot LIMIT 64''',
++            (scope,self.session,self.session)).fetchall()
++        for slot,blockhash,census,pseen,child,chash,previous,cseen in pairs:
++            if previous!=blockhash:
++                self.writer.gap(scope,slot,child,'finalized_parent_hash_mismatch')
++                raise EvidenceConflict('finalized_parent_hash_mismatch')
++            expected=set(json.loads(census))
++            delivered=dict(self.writer.db.execute('SELECT signature,seen FROM stream_deliveries WHERE scope=? AND slot=?',(scope,slot)))
++            if not expected.issubset(delivered):
++                self.writer.gap(scope,slot,slot,'missing_filtered_delivery')
++                continue
++            witness=dict(finalized=True,complete=True,scope=scope,lower_slot=slot,upper_slot=child-1,
++                source_contract='complete_filtered_block_census_with_linked_finalized_child',
++                parent_blockhash=blockhash,child_blockhash=chash,child_slot=child,
++                signature_count=len(expected),lineage_hash=digest([scope,slot,blockhash,census,child,chash]))
++            available=max([seen,pseen,cseen]+[delivered[s] for s in expected])
++            proof=IntervalProof(scope,slot,child-1,'alchemy_finalized_stream',self.endpoint_identity,witness,available)
++            self.writer.ingest([],proof=proof)
++            with self.writer.transaction():
++                n=self.writer.db.execute("UPDATE gaps SET repaired=? WHERE scope=? AND lo=? AND hi=? AND reason='missing_filtered_delivery' AND repaired IS NULL",(available,scope,slot,slot)).rowcount
++                self.writer._count('gaps_repaired',n)
++                self.writer.db.execute('UPDATE stream_receipts SET sealed=1 WHERE scope=? AND slot=?',(scope,slot))
++
++    def repair_records(self,record):
++        """Same normalized economic bytes for stream and HTTP repair lineage."""
++        tx=dict(record.payload);tx.pop('transactionIndex',None)
++        scope=record.scope
++        if scope in self.decoders:
++            sub=next(s for s in program_subscriptions() if s.scope==scope and s.evidence_class=='logs')
++            message={'method':'logsNotification','params':{'result':{'context':{'slot':record.slot},
++                'value':{'signature':record.signature,'logs':(tx.get('meta') or {}).get('logMessages'),
++                         'err':(tx.get('meta') or {}).get('err')}}}}
++            rows=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,log_decoder=self.decoders[scope]).decode(sub,message,record.observed_at)
++            return [replace(r,source='alchemy_finalized_repair') for r in rows]
++        keys=tx['transaction']['message'].get('accountKeys') or []
++        keys=[k if isinstance(k,str) else k['pubkey'] for k in keys]
++        loaded=(tx.get('meta') or {}).get('loadedAddresses') or {}
++        keys+=list(loaded.get('writable') or [])+list(loaded.get('readonly') or [])
++        previous=self.writer.db.execute('SELECT transaction_index FROM records WHERE identity=?',(record.identity,)).fetchone()
++        index=previous[0] if previous else record.transaction_index
++        return [replace(record,payload=tx,addresses=tuple(sorted(set(keys+[record.program]))),transaction_index=index)]
++
++    def command(self,request):
++        """Strict consumer IPC whitelist; no proof/ingest/SQL escape hatch."""
++        op=request.get('op')
++        if op=='interest':
++            owner=request['owner'];scope=request['scope']
++            self.writer.interest(owner,scope,lower_slot=request['lower_slot'],
++                priority=request['priority'],lifecycle=request['lifecycle'])
++            addresses=request.get('addresses',[])
++            if not isinstance(addresses,list) or len(addresses)>100:
++                raise EvidenceUnavailable('interest_account_bound')
++            with self.writer.transaction():
++                for address in addresses:
++                    if not isinstance(address,str) or not address or len(address)>128:
++                        raise EvidenceUnavailable('interest_address')
++                    self.writer.db.execute('INSERT OR REPLACE INTO service_interests VALUES(?,?,?,?)',
++                        (owner,scope,address,'account'))
++        elif op=='release':
++            self.writer.release(request['owner'],request['scope'],lifecycle_resolved=request.get('resolved') is True)
++        elif op=='ack':
++            self.writer.acknowledge(request['owner'],request['scope'],request['slot'])
++        elif op=='counter':
++            key=request['key'];count=request.get('count',1)
++            if not key.startswith(('pump.','meteora.')) or len(key)>120 or type(count) is not int or not 0<=count<=10000:
++                raise EvidenceUnavailable('consumer_counter_bound')
++            with self.writer.transaction():self.writer._count(key,count)
++        else:
++            raise EvidenceUnavailable('consumer_command_forbidden')
++        return {'ok':True}
++
++
++def program_subscriptions():
++    from .solana_evidence_transport import Subscription
++    from .solana_evidence_runtime import PUMP_SCOPE,SWAP_SCOPE,METEORA_SCOPE
++    from . import pump
++    from .postgrad import PUMPSWAP_PROGRAM
++    result=[]
++    for scope,address in [(PUMP_SCOPE,pump.PROGRAM),(SWAP_SCOPE,PUMPSWAP_PROGRAM)]:
++        result.extend(Subscription('service',scope,address,kind,4) for kind in ('logs','census'))
++    result.append(Subscription('service',METEORA_SCOPE,'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo','transactions',4))
++    return result
++
++
++def program_decoders():
++    from . import pump
++    from .pump_acceleration_evidence import pumpswap_trade_events
++    from .solana_evidence_runtime import PUMP_SCOPE,SWAP_SCOPE
++    def pump_events(tx):
++        return [dict(e,event_type='trade') for e in pump.trade_events(tx)]+[dict(e,event_type='create') for e in pump.create_events(tx)]
++    return {PUMP_SCOPE:pump_events,SWAP_SCOPE:pumpswap_trade_events}
++
++
++async def serve(path,endpoint,*,repair_rpc=None,stop=None):
++    """One supervised process, one SQLite writer, bounded source and IPC I/O."""
++    import asyncio
++    import hashlib
++    import os
++    from pathlib import Path
++    from websockets.asyncio.client import connect
++    from websockets.exceptions import ConnectionClosed
++    from .solana_evidence_plane import EvidenceWriter
++    from .solana_evidence_transport import alchemy_stream_endpoint,Subscription,AddressGapRepair
++    url=alchemy_stream_endpoint(endpoint);writer=EvidenceWriter(path)
++    fence=FinalizedFence(writer,endpoint_identity=hashlib.sha256(endpoint.encode()).hexdigest(),decoders=program_decoders())
++    stop=stop or asyncio.Event();path=Path(path);socket_path=str(path)+'.sock'
++    Path(socket_path).unlink(missing_ok=True)
++    async def consumer(reader,stream):
++        try:
++            line=await asyncio.wait_for(reader.readline(),.5)
++            if len(line)>32768:raise EvidenceUnavailable('consumer_command_bound')
++            response=fence.command(json.loads(line))
++        except (ValueError,KeyError,TypeError,TimeoutError) as exc:response={'ok':False,'error':type(exc).__name__}
++        stream.write((canonical(response)+'\n').encode());await stream.drain();stream.close()
++    server=await asyncio.start_unix_server(consumer,path=socket_path,limit=32769)
++    os.chmod(socket_path,0o600)
++    async def stream_source():
++        while not stop.is_set():
++            try:
++                async with connect(url,max_size=16*1024*1024,max_queue=32,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
++                    pending={};active={};registered=set();retiring=set();number=0
++                    async def register(sub):
++                        nonlocal number
++                        number+=1;pending[number]=sub;await ws.send(canonical(sub.request(number)))
++                    for sub in program_subscriptions():await register(sub)
++                    while not stop.is_set():
++                        # Durable interests survive consumer/service restarts. Account
++                        # observations remain content only, never interval authority.
++                        interests=writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 GROUP BY s.address ORDER BY MIN(i.priority),s.address LIMIT 256").fetchall()
++                        wanted={r[0] for r in interests}
++                        for sid,sub in list(active.items()):
++                            if sub.evidence_class=='account' and sub.address not in wanted:
++                                number+=1;retiring.add(number)
++                                await ws.send(canonical(dict(jsonrpc='2.0',id=number,method='accountUnsubscribe',params=[sid])))
++                                del active[sid];registered.discard(sub.address)
++                        for address, in interests:
++                            if address not in registered:
++                                await register(Subscription('service','account:'+address,address,'account',0));registered.add(address)
++                        try:raw=await asyncio.wait_for(ws.recv(),.5)
++                        except TimeoutError:continue
++                        message=json.loads(raw);seen=time.time()
++                        if message.get('id') in retiring:
++                            retiring.remove(message['id']);continue
++                        if 'id' in message:
++                            sub=pending.pop(message['id'])
++                            if 'error' in message or type(message.get('result')) is not int:
++                                raise EvidenceUnavailable('authoritative_subscription_rejected')
++                            active[message['result']]=sub;continue
++                        sub=active.get((message.get('params') or {}).get('subscription'))
++                        if sub is None:raise EvidenceUnavailable('unknown_source_subscription')
++                        if sub.evidence_class=='logs':fence.logs(sub,message,seen)
++                        elif sub.evidence_class=='account':
++                            writer.ingest(FinalizedNotificationDecoder(endpoint_identity=fence.endpoint_identity).decode(sub,message,seen))
++                        else:fence.block(sub,message,seen)
++            except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
++                if str(exc)=='hot_store_capacity':raise
++                if isinstance(exc,EvidenceConflict):
++                    with writer.transaction():writer.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
++                    raise
++                fence.disconnect(type(exc).__name__)
++                with writer.transaction():writer._count('stream_reconnects')
++                try:await asyncio.wait_for(stop.wait(),1)
++                except TimeoutError:pass
++    # Repair transport is detached from the SQLite writer and strategy consumers.
++    # One bounded page is in flight; commits are applied on this writer's thread.
++    async def repair_worker():
++        while not stop.is_set():
++            if repair_rpc is not None:
++                gap=writer.db.execute('SELECT id,scope,lo,hi,repair_cursor,pages FROM gaps WHERE repaired IS NULL AND hi IS NOT NULL AND pages<16 AND attempts<48 ORDER BY created LIMIT 1').fetchone()
++                if gap:
++                    gid,scope,lo,hi,cursor,pages=gap
++                    subscriptions={s.scope:s for s in program_subscriptions()}
++                    sub=subscriptions.get(scope)
++                    if sub:
++                        state=json.loads(cursor) if cursor else {'next':None}
++                        cfg=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,filters={'slot':{'gte':lo,'lte':hi}})
++                        if state.get('next'):cfg['paginationToken']=state['next']
++                        try:
++                            with writer.transaction():
++                                writer.db.execute('UPDATE gaps SET attempts=attempts+1 WHERE id=?',(gid,))
++                                writer._count('gap_repair_calls')
++                            active=writer.db.execute("SELECT 1 FROM interests WHERE scope=? AND active=1 AND lifecycle IN ('candidate','reserved','open') LIMIT 1",(scope,)).fetchone()
++                            value=await asyncio.to_thread(repair_rpc.call,'getTransactionsForAddress',[sub.address,cfg],bool(active))
++                            # Apply through the same bounded durable repair boundary.
++                            class ReceiptRPC:
++                                def call(self,*args):return value
++                            frontier=writer.db.execute('SELECT MAX(slot) FROM stream_receipts WHERE scope=?',(scope,)).fetchone()[0]
++                            AddressGapRepair(ReceiptRPC(),writer,endpoint_identity=fence.endpoint_identity,record_mapper=fence.repair_records).step(gid,sub.address,now=time.time(),finalized_through=frontier)
++                        except (OSError,ValueError,KeyError,TypeError,TimeoutError):
++                            with writer.transaction():writer._count('gap_repair_failures')
++            try:await asyncio.wait_for(stop.wait(),1)
++            except TimeoutError:pass
++    async def maintenance():
++        while not stop.is_set():
++            # Candidate interests have bounded leases; unresolved money/lifecycle
++            # interests never expire. No archive slice runs ahead of a reservation.
++            now=time.time()
++            with writer.transaction():
++                writer.db.execute("UPDATE interests SET active=0 WHERE lifecycle IN ('candidate','research') AND updated<?",(now-1200,))
++                writer.db.execute('DELETE FROM service_interests WHERE NOT EXISTS(SELECT 1 FROM interests i WHERE i.owner=service_interests.owner AND i.scope=service_interests.scope AND i.active=1)')
++                writer.db.execute('DELETE FROM interests WHERE active=0 AND updated<?',(now-7200,))
++            if not writer.db.execute("SELECT 1 FROM interests WHERE active=1 AND lifecycle='reserved' LIMIT 1").fetchone():
++                plan=writer.archive_plan(now-7200,max_records=256)
++                receipt=await asyncio.to_thread(writer.write_archive,writer.path,plan)
++                writer.commit_archive(plan,receipt)
++                writer.retain(now-7200,max_records=256,archive_first=False)
++            try:await asyncio.wait_for(stop.wait(),5)
++            except TimeoutError:pass
++    tasks=[asyncio.create_task(stream_source()),asyncio.create_task(repair_worker()),asyncio.create_task(maintenance())]
++    try:
++        stopper=asyncio.create_task(stop.wait())
++        done,_=await asyncio.wait([stopper,*tasks],return_when=asyncio.FIRST_COMPLETED)
++        for task in done:
++            if task is not stopper:task.result()
++    finally:
++        if 'stopper' in locals():stopper.cancel()
++        for task in tasks:task.cancel()
++        await asyncio.gather(*tasks,return_exceptions=True)
++        fence.disconnect('service_shutdown');server.close();await server.wait_closed()
++        writer.close();Path(socket_path).unlink(missing_ok=True)
+diff --git a/meme_machine/solana_evidence_transport.py b/meme_machine/solana_evidence_transport.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..b9bcb702c36491ded1cc648491f5e925f2236193
+--- /dev/null
++++ b/meme_machine/solana_evidence_transport.py
+@@ -0,0 +1,185 @@
++"""Alchemy-only finalized transport boundary and bounded offline-testable repair.
++
++A subscription notification is authoritative content, NOT an interval-completeness
++receipt. Only an adapter with a verified completeness witness can advance coverage.
++Public discovery is intentionally not accepted by these interfaces.
++"""
++from __future__ import annotations
++
++from dataclasses import dataclass
++import hashlib
++import json
++from urllib.parse import urlsplit, urlunsplit
++
++from .solana_evidence_plane import (
++    EvidenceUnavailable, FinalizedRecord, IntervalProof, digest,
++)
++
++
++@dataclass(frozen=True)
++class Subscription:
++    owner: str
++    scope: str
++    address: str
++    evidence_class: str
++    priority: int
++
++    def request(self, identity):
++        if (not self.owner or not self.scope or not self.address
++                or self.priority not in range(5)):
++            raise EvidenceUnavailable('invalid_subscription_interest')
++        if self.evidence_class == 'logs':
++            method='logsSubscribe'
++            params=[{'mentions':[self.address]}, {'commitment':'finalized'}]
++        elif self.evidence_class == 'account':
++            method='accountSubscribe'
++            params=[self.address, {'commitment':'finalized','encoding':'base64'}]
++        elif self.evidence_class in ('transactions','census'):
++            method='blockSubscribe'
++            params=[{'mentionsAccountOrProgram':self.address},
++                {'commitment':'finalized','encoding':'json','transactionDetails':('full' if self.evidence_class=='transactions' else 'signatures'),
++                 'showRewards':False,'maxSupportedTransactionVersion':1}]
++        else:
++            raise EvidenceUnavailable('unsupported_evidence_class')
++        return dict(jsonrpc='2.0',id=identity,method=method,params=params)
++
++
++def alchemy_stream_endpoint(http_url):
++    parts=urlsplit(http_url)
++    if (parts.scheme!='https' or parts.hostname!='solana-mainnet.g.alchemy.com'
++            or parts.username or parts.password or parts.port not in (None,443)
++            or not parts.path.startswith('/v2/') or len(parts.path)<=4
++            or parts.query or parts.fragment):
++        raise EvidenceUnavailable('authoritative_alchemy_endpoint_required')
++    # Same existing app key, documented streaming host; no app/key mutation.
++    return urlunsplit(('wss','solana-mainnet.streaming.alchemy.com',parts.path,'',''))
++
++
++class FinalizedNotificationDecoder:
++    """Decode content without inventing timestamps, transaction indexes or coverage.
++
++    log_decoder is the frozen lane decoder, returning normalized event dictionaries.
++    Unsupported/truncated logs become explicit gaps at the caller's stream boundary.
++    """
++    def __init__(self, *, endpoint_identity, log_decoder=None):
++        self.endpoint_identity=endpoint_identity
++        self.log_decoder=log_decoder
++
++    def decode(self, subscription, message, observed_at):
++        result=message['params']['result']
++        expected={'logs':'logsNotification','account':'accountNotification',
++                  'transactions':'blockNotification'}[subscription.evidence_class]
++        if message.get('method')!=expected:
++            raise EvidenceUnavailable('notification_subscription_mismatch')
++        if subscription.evidence_class=='transactions':
++            value=result['value']
++            if value.get('err') is not None or not isinstance(value.get('block'),dict):
++                raise EvidenceUnavailable('finalized_block_unavailable')
++            slot=value['slot'];block=value['block'];rows=[]
++            transactions=block.get('transactions')
++            if not isinstance(transactions,list) or len(transactions)>2048:
++                raise EvidenceUnavailable('filtered_block_bound')
++            for raw in transactions:
++                signature=raw['transaction']['signatures'][0]
++                body=dict(raw,slot=slot,blockTime=block.get('blockTime'))
++                # Enumeration of a filtered response is not the transaction's
++                # actual chain index. Missing explicit ordering fails at the reader.
++                transaction_index=raw.get('transactionIndex')
++                rows.append(FinalizedRecord(
++                    f'{subscription.scope}:tx:{signature}',subscription.scope,slot,
++                    signature,subscription.address,(subscription.address,),
++                    block.get('blockTime'),body,'alchemy_finalized_stream',
++                    self.endpoint_identity,observed_at,transaction_index=transaction_index,
++                    kind='transaction'))
++            return rows
++        slot=result['context']['slot'];value=result['value']
++        if subscription.evidence_class=='account':
++            return [FinalizedRecord(
++                f'{subscription.scope}:account:{subscription.address}:{slot}',
++                subscription.scope,slot,'',str(value.get('owner') or 'unknown'),
++                (subscription.address,),None,value,'alchemy_finalized_stream',
++                self.endpoint_identity,observed_at,kind='account')]
++        if self.log_decoder is None:
++            raise EvidenceUnavailable('frozen_log_decoder_required')
++        logs=value.get('logs')
++        if not isinstance(logs,list) or any(not isinstance(line,str) or 'truncat' in line.lower() for line in logs):
++            raise EvidenceUnavailable('incomplete_finalized_logs')
++        events=self.log_decoder(dict(slot=slot,meta=dict(err=value.get('err'),logMessages=logs)))
++        rows=[]
++        for event in events:
++            index=event['index'];signature=value['signature']
++            addresses=tuple(sorted({str(event[k]) for k in ('pool','mint','wallet') if event.get(k)}))
++            if not addresses:
++                raise EvidenceUnavailable('decoded_event_address_missing')
++            payload=dict(event=event,raw_lineage=dict(logs=logs,err=value.get('err')))
++            rows.append(FinalizedRecord(
++                f'{subscription.scope}:{slot}:{signature}:{index}',subscription.scope,slot,signature,
++                subscription.address,addresses,event.get('market_time'),payload,
++                'alchemy_finalized_stream',self.endpoint_identity,observed_at,event_index=index))
++        return rows
++
++
++class AddressGapRepair:
++    """One bounded page per call, outside strategy processing, no implicit fallback.
++
++    Uses the existing governed RPC interface. Entitlement/unsupported-method errors
++    leave the gap unresolved; this code never increases throughput or probes another
++    provider. A caller must keep this worker at background/active-gap priority.
++    """
++    def __init__(self, rpc, writer, *, endpoint_identity, max_pages=16, record_mapper=None):
++        if not 1<=max_pages<=16:
++            raise EvidenceUnavailable('repair_page_budget')
++        self.rpc=rpc;self.writer=writer
++        self.endpoint_identity=endpoint_identity;self.max_pages=max_pages;self.record_mapper=record_mapper
++
++    def step(self, gap_id, address, *, now, finalized_through):
++        row=self.writer.db.execute('SELECT scope,lo,hi,repaired,repair_cursor,pages FROM gaps WHERE id=?',(gap_id,)).fetchone()
++        if not row or row[3] is not None or row[2] is None or row[5]>=self.max_pages:
++            raise EvidenceUnavailable('repair_not_bounded_or_exhausted')
++        scope,lo,hi,_,cursor,pages=row
++        # The finalized boundary is supplied by authenticated service state, not
++        # inferred from wall time or an empty address-history response.
++        if type(finalized_through) is not int or finalized_through < hi:
++            raise EvidenceUnavailable('repair_upper_boundary_not_finalized')
++        state=json.loads(cursor) if cursor else {'next':None,'page_hashes':[],'signatures':[]}
++        cfg=dict(transactionDetails='full',sortOrder='asc',limit=100,
++                 commitment='finalized',encoding='json',maxSupportedTransactionVersion=1,
++                 filters={'slot':{'gte':lo,'lte':hi}})
++        if state['next'] is not None:
++            cfg['paginationToken']=state['next']
++        # priority=False: current-state/reserved work retains the existing governor's
++        # authority. This class never waits for repair from a foreground query.
++        result=self.rpc.call('getTransactionsForAddress',[address,cfg],False)
++        if not isinstance(result,dict) or not isinstance(result.get('data'),list):
++            raise EvidenceUnavailable('address_history_response_shape_unverified')
++        data=result['data']
++        if len(data)>100:
++            raise EvidenceUnavailable('address_history_page_bound')
++        records=[];seen=set(state['signatures'])
++        for tx in data:
++            slot=tx.get('slot');index=tx.get('transactionIndex')
++            if type(slot) is not int or not lo<=slot<=hi or type(index) is not int or index<0:
++                raise EvidenceUnavailable('repair_order_or_bounds')
++            signature=tx['transaction']['signatures'][0]
++            if signature in seen:
++                raise EvidenceUnavailable('repair_duplicate_signature')
++            seen.add(signature)
++            records.append(FinalizedRecord(f'{scope}:tx:{signature}',scope,slot,signature,address,
++                (address,),tx.get('blockTime'),tx,'alchemy_finalized_repair',
++                self.endpoint_identity,now,transaction_index=index,kind='transaction'))
++        if self.record_mapper is not None:
++            records=[mapped for record in records for mapped in self.record_mapper(record)]
++        token=result.get('paginationToken')
++        if token is not None and (not isinstance(token,str) or not token or token==state['next']):
++            raise EvidenceUnavailable('repair_pagination_stalled')
++        page_hashes=state['page_hashes']+[digest(result)]
++        # Commit page content, resume cursor and terminal coverage atomically.
++        proof = None
++        if token is None:
++            witness=dict(finalized=True,complete=True,scope=scope,lower_slot=lo,upper_slot=hi,
++                         lineage_hash=digest(page_hashes),method='getTransactionsForAddress',
++                         pagination_exhausted=True,page_count=pages+1)
++            proof=IntervalProof(scope,lo,hi,'alchemy_finalized_repair',self.endpoint_identity,witness,now)
++        self.writer.ingest(records, proof=proof, repair_receipt=(gap_id,
++            dict(next=token,page_hashes=page_hashes,signatures=sorted(seen)), self.max_pages))
++        return dict(complete=token is None,pages=pages+1,records=len(records))
+diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
+index 34ec19b966f12ca4793d4ad9682f75deb83a6c7f..d1f44270034b3f7cd65add0281cd4666e364043a 100644
+--- a/tests/pump_acceleration_natural_prospective.py
++++ b/tests/pump_acceleration_natural_prospective.py
+@@ -18,7 +18,6 @@ from types import SimpleNamespace
+ from meme_machine import pump
+ from meme_machine.concentration import ConcentrationReader
+ from meme_machine.engine import GAS
+-from meme_machine.market_native_shadow import discover_market_native
+ from meme_machine.postgrad import (
+     PostGraduationAdapter,buy_quote,graduation_handoff,pumpswap_pool,sell_quote,
+ )
+@@ -26,11 +25,10 @@ from meme_machine.provider import PumpAdapter,Unavailable
+ from meme_machine.pump_acceleration_confirmations import ConfirmationBook
+ from meme_machine.pump_acceleration_evidence import (
+     curve_progress_bps,early_holder_sell_share_bps,late_curve_trajectory,
+-    postgrad_volume_acceleration_bps,price_return_bps,pumpswap_trade_events,
++    postgrad_volume_acceleration_bps,price_return_bps,
+     reserve_price_parts,second_leg_shape,
+ )
+-from meme_machine.pump_acceleration_history import IncrementalPumpSwapHistory
+-from meme_machine.solana_evidence_consumers import StreamEvidenceService
++from meme_machine.solana_evidence_runtime import RuntimeEvidence,LocalPumpHistory,LocalPumpTape,LocalInterestRegistry,PUMP_SCOPE,SWAP_SCOPE
+ from meme_machine.pipeline import Pipeline,censor_class
+ from meme_machine.pump_acceleration_paper import PumpAccelerationPaperLifecycle
+ from meme_machine.pump_acceleration_strategy import (
+@@ -38,7 +36,7 @@ from meme_machine.pump_acceleration_strategy import (
+     SignalVector,entry_signal_persistence,flow_metrics,policy_hash,qualify,
+ )
+ from meme_machine.solana_evidence_broker import (
+-    DEFAULT_BROKER_DB,DynamicAddressLogStream,EvidenceBroker,
++    DEFAULT_BROKER_DB,EvidenceBroker,
+ )
+ from meme_machine.solana_read_rpc import discovery_ws_url,new_rpc,primary_rpc_url
+ from meme_machine.stream import PumpLogStream,PumpTape,WINDOW_SECONDS
+@@ -93,12 +91,12 @@ def _save(report):
+         report["accounting"]=ACCOUNTING.reconcile()
+         report["accounting_replay"]=ACCOUNTING.replay()
+     from meme_machine.durable_publication import publish_report
+-    report['publication']=publish_report(REPORT,report)
++    report['publication']=publish_report(REPORT,report,asynchronous=bool(os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')))
+ 
+ 
+ class Sessions:
+     def __init__(self):
+-        self.pacer=None;self.history=[]
++        self.pacer=None;self.history=[];self.plane=None
+         self.rotate("initial")
+ 
+     def rotate(self,reason):
+@@ -117,6 +115,20 @@ class Sessions:
+         self.postgrad=PostGraduationAdapter(self.rpc,scan_rpc=None)
+         self.history.append(dict(started=int(time.time()),reason=reason))
+ 
++    def prepare_reserved(self,row):
++        from meme_machine.pump_evidence_execution import prepare_reserved
++        return prepare_reserved(self,row,new_rpc=new_rpc)
++
++    def execution_interest(self,snapshot,*,owner=None,lifecycle='candidate'):
++        from meme_machine.pump_evidence_execution import execution_addresses
++        if self.plane is None:raise Unavailable('execution_evidence_plane_required')
++        scope=SWAP_SCOPE if snapshot.get('surface')=='pumpswap' else PUMP_SCOPE
++        addresses=execution_addresses(snapshot,self)
++        self.plane.interest(scope,lower_slot=snapshot['slot'],addresses=addresses,
++            lifecycle=lifecycle,priority=1 if lifecycle=='reserved' else 3,
++            owner=owner or 'pump:candidate:'+snapshot['mint'])
++        return dict(scope=scope,addresses=addresses,mint=snapshot['mint'])
++
+     def ensure(self,needed=20):
+         if self.rpc.calls+int(needed)>190:
+             self.rotate("bounded_evidence_session_rotation")
+@@ -291,10 +303,9 @@ def _postgrad_concentration(rpc,snapshot):
+ def _refresh_pool_events(
+     state,sessions,now,*,research=False,hydration_kind="pump_window"
+ ):
+-    sessions.ensure(90)
+     history=state["history"]
+     events=history.refresh(
+-        sessions.rpc,now,research=research,hydration_kind=hydration_kind)
++        None,now,research=research,hydration_kind=hydration_kind)
+     state["history_status"]=history.status(now)
+     return events
+ 
+@@ -355,8 +366,24 @@ def _reserve_position(
+     reserved_at=max(int(snapshot["available_time"]),int(time.time()))
+     import uuid
+     lifecycle_id=(ACCOUNTING.identity["run_id"] if ACCOUNTING else "research")+":"+uuid.uuid4().hex
++    from dataclasses import asdict,is_dataclass
++    context=FILL_PERSISTENCE_CONTEXT or {}
++    states=context.get('postgrad',{}) if mode!=MODE_LATE_CURVE else context.get('created',{})
++    native_state=states.get(qualification.mint,{})
++    execution=native_state.get('execution_context')
++    confirmations=context.get('confirmations')
++    recovery=dict(mode=mode,concentration=int(concentration),
++        confirmation_state=(dict(creator_launches=confirmations.creator_launches,mint_creator=confirmations.mint_creator) if confirmations is not None else None),
++        signal=asdict(signal) if is_dataclass(signal) else dict(vars(signal)),
++        state={k:sorted(v) if isinstance(v,set) else v for k,v in native_state.items()
++               if k not in ('history','history_status')},execution=execution)
++    evidence=dict(snapshot,_runtime_recovery=recovery)
++    if context.get('plane') is not None:
++        if execution is None:raise Unavailable('reservation_execution_interest_missing')
++        context['plane'].interest(execution['scope'],lower_slot=int(snapshot['slot']),
++            addresses=execution['addresses'],owner=lifecycle_id,lifecycle='reserved',priority=1)
+     life=PumpAccelerationPaperLifecycle(book=ACCOUNTING,lifecycle_id=lifecycle_id,
+-                                       entry_evidence=snapshot)
++                                       entry_evidence=evidence)
+     life.reserve(qualification,ENTRY_BUDGET+GAS,reserved_at)
+     _progress(qualification.mint,"entry_reserved",lifecycle_id=lifecycle_id)
+     qrow=dict(
+@@ -376,7 +403,7 @@ def _reserve_position(
+     pending[key]=dict(
+         lifecycle=life,reserved_at=reserved_at,due=reserved_at+ENTRY_DELAY_SECONDS,
+         decision_slot=int(snapshot["slot"]),qualifier_row=qrow,
+-        last_concentration=int(concentration),decision_signal=signal,
++        last_concentration=int(concentration),decision_signal=signal,execution_context=execution,
+     )
+ 
+ 
+@@ -391,13 +418,17 @@ def _fill_pending(
+         confirmations if confirmations is not None
+         else context.get("confirmations")
+     )
++    base_sessions=sessions
+     for key,row in list(pending.items()):
++        sessions=base_sessions
+         if now<int(row["due"]):
+             continue
+         mint,mode=key
+         life=row["lifecycle"]
+         try:
+             _assert_fill_deadline(row)
++            if hasattr(sessions,"prepare_reserved"):
++                sessions=sessions.prepare_reserved(row)
+             sessions.ensure(20)
+             if mode==MODE_LATE_CURVE:
+                 sessions.ensure(35)
+@@ -458,6 +489,7 @@ def _fill_pending(
+                 if int(snapshot["slot"])<=int(row["decision_slot"]) or int(snapshot["market_time"])<int(row["due"]):
+                     raise Unavailable("no_fresh_post_delay_quote")
+ 
++                state["history"].bind_snapshot(snapshot)
+                 events=_refresh_pool_events(
+                     state,sessions,now,
+                     research=(mode==MODE_SECOND_LEG),
+@@ -497,8 +529,12 @@ def _fill_pending(
+                 entry=dict(tokens=tokens,cost=cost,fee=quote.fee_amount,gas=GAS)
+ 
+             basis=cost+GAS
++            if life.book is not None:life.book.checkpoint_runtime(life.lifecycle_id,'fill_context',dict(entry=entry,concentration=int(row.get('last_concentration',0)),reserved_fill_latency=dict(row.get('reserved_fill_latency',{}),total_seconds=int(snapshot['available_time'])-row['reserved_at'])))
+             life.fill(tokens,basis,int(snapshot["available_time"]),surface,
+                       evidence=dict(snapshot=snapshot,entry=entry))
++            if getattr(base_sessions,'plane',None) is not None:
++                execution=row['execution_context']
++                base_sessions.plane.interest(execution['scope'],lower_slot=row['decision_slot'],addresses=execution['addresses'],owner=life.lifecycle_id,lifecycle='open',priority=0)
+             active[key]=dict(
+                 lifecycle=life,opened=int(snapshot["available_time"]),
+                 next_monitor=int(snapshot["available_time"])+5,
+@@ -510,6 +546,8 @@ def _fill_pending(
+                 fill_slot=int(snapshot["slot"]),entry=entry,
+             )
+             _progress(mint,"entry_filled",lifecycle_id=life.lifecycle_id)
++            row['qualifier_row']['reserved_fill_latency']=dict(row.get('reserved_fill_latency',{}),total_seconds=int(snapshot['available_time'])-row['reserved_at'])
++            if getattr(base_sessions,'plane',None) is not None:base_sessions.plane.count('pump.reserved_fills')
+             pending.pop(key,None)
+         except (Unavailable,ValueError,KeyError,TypeError) as exc:
+             reason=str(exc) or type(exc).__name__
+@@ -524,6 +562,12 @@ def _fill_pending(
+                     pass
+                 row["qualifier_row"].update(
+                     entry_status="cancelled",cancelled_at=decision_now,entry_limitation=reason)
++                plane=getattr(base_sessions,'plane',None)
++                if plane is not None:
++                    cause='missing_current_state' if row.get('refresh_failed') or 'refresh' in row.get('qualifier_row',{}).get('last_fill_limitation','') else 'finalized_coverage_or_thesis'
++                    row['qualifier_row']['timeout_cause']=cause
++                    plane.count('pump.entry_cancelled.'+cause)
++                    if row.get('execution_context'):plane.command(op='release',owner=life.lifecycle_id,scope=row['execution_context']['scope'],resolved=True)
+                 pending.pop(key,None)
+             else:
+                 row["qualifier_row"]["last_fill_limitation"]=reason
+@@ -541,6 +585,8 @@ def _service_pending_entries(report,pending,active,sessions,postgrad,*,monitor):
+         if pending:time.sleep(1)
+ 
+ def _record_attempt(report,signal,q,stage,extra=None):
++    plane=(FILL_PERSISTENCE_CONTEXT or {}).get('plane')
++    if stage=='full_point_in_time' and plane is not None:plane.count('pump.decisions_fully_local')
+     if stage=="full_point_in_time":
+         _progress(signal.mint,"evidence_complete",mode=signal.phase,
+                   decision_at=signal.observed_at)
+@@ -609,6 +655,16 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
+                 if curve.complete or curve.real_token==0:
+                     graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
+                     handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
++                    native=postgrad.get(mint)
++                    if native is None:
++                        prior=created[mint]
++                        native=dict(mint=mint,creation=prior['creation'],pregrad_wallets=set(prior['pregrad_wallets']),
++                            pool=pumpswap_pool(mint),graduation_time=int(graduation['market_time']),graduation_price=None)
++                        native['history']=LocalPumpHistory(sessions.plane,native['pool'],native['graduation_time'])
++                        postgrad[mint]=native
++                    if life.book is not None:
++                        life.book.checkpoint_runtime(life.lifecycle_id,'postgrad_context',
++                            {k:sorted(v) if isinstance(v,set) else v for k,v in native.items() if k not in ('history','history_status')})
+                     life.authenticate_graduation(now,True)
+                     snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
+                     quote=sell_quote(snapshot,life.position.tokens)
+@@ -634,6 +690,7 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
+                 graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
+                 handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
+                 snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
++                state["history"].bind_snapshot(snapshot)
+                 events=_refresh_pool_events(
+                     state,sessions,now,research=False,
+                     hydration_kind="position_monitor")
+@@ -688,6 +745,8 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
+                     exit_reason=closed["exit_reason"],
+                     realized_quote_units=closed["realized_quote_units"],
+                     marks=dict(row["marks"]),history=life.snapshot()["history"]))
++                if getattr(sessions,'plane',None) is not None:
++                    for scope in (PUMP_SCOPE,SWAP_SCOPE):sessions.plane.command(op='release',owner=life.lifecycle_id,scope=scope,resolved=True)
+                 active.pop(key,None)
+         except (Unavailable,ValueError,KeyError,TypeError) as exc:
+             row.setdefault("monitor_failures",[]).append(dict(
+@@ -714,13 +773,6 @@ def _terminal(report,row):
+     reason=row['terminal_reason'];counts[reason]=counts.get(reason,0)+1
+ 
+ 
+-def _pumpswap_prefetch_filter(address,value,slot):
+-    """Use public stream logs only as hydration hints, never as economics."""
+-    tx={'slot':int(slot),'meta':{'err':value.get('err'),
+-        'logMessages':value.get('logs') or []}}
+-    return any(event.get('pool')==str(address) for event in pumpswap_trade_events(tx))
+-
+-
+ def _retire_postgrad(report,postgrad,pending,active,stream,now):
+     protected={key[0] for key in pending}|{key[0] for key in active}
+     for mint,state in list(postgrad.items()):
+@@ -746,6 +798,54 @@ def _smoke_tail_should_exit(smoke_flat_tail,now,discovery_end,pending,active):
+     )
+ 
+ 
++def restore_runtime(book,plane,confirmations):
++    """Actual startup reconstruction; JSON reports are never consulted."""
++    created={};postgrad={};pending={};active={};qualifiers=[]
++    book.replay()
++    rows=book.db.execute('SELECT id,body FROM positions ORDER BY id').fetchall()
++    for identity,raw in rows:
++        projection=json.loads(raw)
++        life=PumpAccelerationPaperLifecycle.restore(book,identity)
++        state=life.entry_evidence.get('_runtime_recovery')
++        if state is None:
++            if life.position or life.reservation:raise Unavailable('legacy_runtime_context_unavailable')
++            continue
++        signal=SignalVector(**state['signal']);mode=state['mode'];mint=signal.mint;key=(mint,mode)
++        original=life.entry_evidence
++        q=life.history[0]
++        qrow=dict(lifecycle_id=identity,mint=mint,mode=mode,entry_status=projection['status'],
++            reserved_at=q['reserved_at'],policy_hash=policy_hash())
++        qualifiers.append(qrow)
++        saved=state.get('confirmation_state') or {}
++        for creator,launches in saved.get('creator_launches',{}).items():
++            confirmations.creator_launches.setdefault(creator,{}).update(launches)
++        confirmations.mint_creator.update(saved.get('mint_creator',{}))
++        native=dict(state['state'])
++        if 'pregrad_wallets' in native:native['pregrad_wallets']=set(native['pregrad_wallets'])
++        if mode==MODE_LATE_CURVE:created[mint]=native
++        else:
++            native['history']=LocalPumpHistory(plane,native['pool'],native['graduation_time'])
++            postgrad[mint]=native
++        if life.reservation is not None:
++            pending[key]=dict(lifecycle=life,reserved_at=q['reserved_at'],due=q['reserved_at']+ENTRY_DELAY_SECONDS,
++                decision_slot=original['slot'],qualifier_row=qrow,last_concentration=state['concentration'],
++                decision_signal=signal,execution_context=state['execution'])
++        saved_postgrad=book.runtime_state(identity,'postgrad_context')
++        if saved_postgrad:
++            saved_postgrad['pregrad_wallets']=set(saved_postgrad['pregrad_wallets'])
++            saved_postgrad['history']=LocalPumpHistory(plane,saved_postgrad['pool'],saved_postgrad['graduation_time'])
++            postgrad[mint]=saved_postgrad
++        if life.position is not None:
++            fill_context=book.runtime_state(identity,'fill_context') or {}
++            active[key]=dict(lifecycle=life,opened=life.position.opened_at,next_monitor=0,
++                entry=fill_context.get('entry',{}),marks={},last_concentration=fill_context.get('concentration',state['concentration']))
++        if life.position is not None or life.reservation is not None:
++            execution=state['execution']
++            plane.interest(execution['scope'],lower_slot=original['slot'],addresses=execution['addresses'],
++                owner=identity,lifecycle='open' if life.position else 'reserved',priority=0 if life.position else 1)
++    return created,postgrad,pending,active,qualifiers
++
++
+ def main(*,campaign=False,discovery_seconds=None):
+     global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT
+     from meme_machine.paper_accounting import PaperBook
+@@ -762,7 +862,12 @@ def main(*,campaign=False,discovery_seconds=None):
+     run_id=os.environ.get("MM_CERTIFICATION_RUN_ID") or uuid.uuid4().hex
+     accounting_path=REPORT.with_suffix(".accounting.sqlite3")
+     if accounting_path.exists():
+-        raise RuntimeError("existing_paper_book_requires_explicit_recovery")
++        import sqlite3
++        with sqlite3.connect(accounting_path.resolve().as_uri()+'?mode=ro',uri=True) as prior:
++            genesis=json.loads(prior.execute('SELECT body FROM genesis').fetchone()[0])
++        if os.environ.get('MM_CERTIFICATION_RUN_ID') not in (None,genesis['run_id']):
++            raise RuntimeError('paper_recovery_run_identity_mismatch')
++        run_id=genesis['run_id']
+     ACCOUNTING=PaperBook(str(accounting_path),run_id=run_id,lane=STRATEGY_ID,
+                          policy_hash=actual_policy_hash,initial=INITIAL_LAMPORTS)
+     PIPELINE=Pipeline(REPORT.with_suffix(".pipeline.sqlite"),"pump",actual_policy_hash)
+@@ -780,10 +885,9 @@ def main(*,campaign=False,discovery_seconds=None):
+             "late-curve RPC evaluation only after finalized-stream progress, "
+             "trajectory, independent-demand and extension gates can qualify; "
+             "post-graduation modes observe authenticated graduations within their entry horizons"),
+-        evidence_source="alchemy_http_primary_no_rescue",
++        evidence_source="alchemy_finalized_local_evidence_plane",
+         evidence_acquisition_mode=(
+-            "candidate_pool_finalized_stream_plus_bounded_decision_bootstrap_"
+-            "plus_incremental_durable_http_hydration"),
++            "continuous_finalized_ingestion_local_history_explicit_gap_repair"),
+         curve_progress_definition="prospectively observed CreateEvent initial_real_token_reserves -> reserve depletion",
+         velocity_window_seconds=30,extension_lookback_seconds=10,
+         entry_budget_lamports=ENTRY_BUDGET,entry_fraction_bps=POLICY.entry_fraction_bps,
+@@ -804,34 +908,24 @@ def main(*,campaign=False,discovery_seconds=None):
+         report['operational_configuration'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
+     _save(report)
+ 
+-    tape=PumpTape()
+-    broker_path=os.environ.get(
+-        "MM_SOLANA_EVIDENCE_BROKER_DB",DEFAULT_BROKER_DB)
++    plane=RuntimeEvidence(owner='pump')
++    tape=LocalPumpTape(plane)
++    discovery_tape=PumpTape()
++    broker_path=os.environ.get("MM_SOLANA_EVIDENCE_BROKER_DB",DEFAULT_BROKER_DB)
+     broker=EvidenceBroker(broker_path)
+-    stop=threading.Event();ready=threading.Event();pumpswap_ready=threading.Event()
+-    stream=PumpLogStream(primary_rpc_url(),tape,ws_url=discovery_ws_url())
+-    # Additional acquisition concurrency is allowed only underneath the shared
+-    # cross-process governor. Standalone runners retain their original transport cap.
+-    incremental=bool(campaign and os.environ.get('MM_CERT_GOVERNOR_DB'))
+-    pumpswap_stream=DynamicAddressLogStream(
+-        discovery_ws_url(),broker,"pumpswap_pool",coverage_seconds=30,prefetch=False,
+-        prefetch_filter=_pumpswap_prefetch_filter)
+-    evidence_service=None
++    stop=threading.Event();ready=threading.Event()
++    stream=PumpLogStream(primary_rpc_url(),discovery_tape,ws_url=discovery_ws_url())
++    pumpswap_stream=LocalInterestRegistry(plane)
+     thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
+-    pumpswap_thread=threading.Thread(
+-        target=pumpswap_stream.run,args=(stop,pumpswap_ready),daemon=True)
+-    thread.start();pumpswap_thread.start()
+-    if not ready.wait(15):
+-        report["limitations"].append("pump_stream_start_timeout")
+-        _save(report)
+-        raise SystemExit(1)
+-    if not pumpswap_ready.wait(15):
+-        report["limitations"].append("pumpswap_stream_start_timeout")
++    thread.start()
++    if not ready.wait(15):report['limitations'].append('public_discovery_start_timeout')
+ 
+-    sessions=Sessions()
+-    cursor=0;created={};postgrad={};pending={};active={};full_attempts=0
++    sessions=Sessions();sessions.plane=plane
++    cursor=0;full_attempts=0
++    created,postgrad,pending,active,recovered=restore_runtime(ACCOUNTING,plane,confirmations)
++    report["qualifiers"].extend(recovered)
+     FILL_PERSISTENCE_CONTEXT=dict(
+-        tape=tape,created=created,confirmations=confirmations
++        tape=tape,created=created,postgrad=postgrad,plane=plane,confirmations=confirmations
+     )
+     last_eval={};last_postgrad_eval={};last_save=0
+     discovery_end=int(time.time())+discovery_seconds
+@@ -839,9 +933,7 @@ def main(*,campaign=False,discovery_seconds=None):
+     end=discovery_end+FOLLOWUP_SECONDS
+ 
+     try:
+-        if evidence_service:evidence_service.start()
+         while int(time.time())<end:
+-            if evidence_service:evidence_service.check()
+             now=int(time.time())
+             _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
+             _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
+@@ -850,7 +942,9 @@ def main(*,campaign=False,discovery_seconds=None):
+                     smoke_flat_tail,now,discovery_end,pending,active):
+                 report['smoke_tail_exit']='flat_after_discovery'
+                 break
+-            fresh,cursor=tape.events_since(cursor)
++            try:fresh,cursor=tape.events_since(cursor)
++            except ValueError as exc:
++                report["evidence_plane_wait"]=str(exc);time.sleep(.25);continue
+             for event in fresh:
+                 creation=tape.creation(event["mint"])
+                 if creation is None:
+@@ -876,9 +970,8 @@ def main(*,campaign=False,discovery_seconds=None):
+                             mint=event["mint"],creation=state["creation"],
+                             graduation_time=int(event["market_time"]),
+                             pregrad_wallets=set(state["pregrad_wallets"]),pool=pool,
+-                            history=IncrementalPumpSwapHistory(
+-                                pool,int(event["market_time"]),broker=broker,
+-                                stream_key=stream_key),
++                            history=LocalPumpHistory(
++                                plane,pool,int(event["market_time"])),
+                             history_status={},graduation_price=None,
+                         )
+                     else:
+@@ -940,6 +1033,7 @@ def main(*,campaign=False,discovery_seconds=None):
+                     try:
+                         sessions.ensure(25)
+                         snapshot=sessions.pump.snapshot(mint,now,priority=True)
++                        created[mint]["execution_context"]=sessions.execution_interest(snapshot)
+                         ev=tape.window(mint,int(snapshot["market_time"]),max_slot=snapshot["slot"])
+                         pre_signal,trajectory,confirmation=_late_signal(
+                             creation,ev,snapshot,0,confirmations)
+@@ -1010,6 +1104,8 @@ def main(*,campaign=False,discovery_seconds=None):
+                     graduation=sessions.postgrad.graduation_snapshot(mint,now,priority=True)
+                     handoff=graduation_handoff(graduation,max(now,int(graduation["available_time"])))
+                     snapshot=sessions.postgrad.pumpswap_snapshot(handoff,now,priority=True)
++                    state["execution_context"]=sessions.execution_interest(snapshot)
++                    state["history"].bind_snapshot(snapshot)
+                     events=_refresh_pool_events(
+                         state,sessions,now,
+                         research=(age>=POLICY.min_second_leg_age_s))
+@@ -1136,10 +1232,7 @@ def main(*,campaign=False,discovery_seconds=None):
+                 _save(report);last_save=now
+             time.sleep(1)
+     finally:
+-        stop.set();thread.join(timeout=5);pumpswap_thread.join(timeout=5)
+-        if evidence_service:
+-            evidence_service.close()
+-            report['stream_evidence_sessions']=evidence_service.sessions
++        stop.set();thread.join(timeout=5)
+         sessions.finish()
+         report["sessions"]=sessions.history
+         report["stream"]=tape.status(int(time.time()))
+@@ -1168,7 +1261,7 @@ def main(*,campaign=False,discovery_seconds=None):
+             for k,v in active.items()]
+         report["threshold_changes_made"]=False
+         _save(report)
+-        broker.close()
++        broker.close();plane.close()
+         FILL_PERSISTENCE_CONTEXT=None
+         ACCOUNTING.close();ACCOUNTING=None
+         PIPELINE.close();PIPELINE=None
+diff --git a/tests/test_evidence_runtime_cutover.py b/tests/test_evidence_runtime_cutover.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..6cf75d43e1b6c7cfe2bd1574e1226f6d80ee3dbf
+--- /dev/null
++++ b/tests/test_evidence_runtime_cutover.py
+@@ -0,0 +1,149 @@
++"""Offline production-function gates. Stream contents are explicitly synthetic."""
++from pathlib import Path
++from types import SimpleNamespace
++import tempfile
++import unittest
++from unittest.mock import patch
++from meme_machine.solana_evidence_plane import EvidenceWriter,EvidenceUnavailable
++from meme_machine.solana_evidence_service import FinalizedFence
++from meme_machine.solana_evidence_transport import Subscription
++from meme_machine.solana_evidence_runtime import RuntimeEvidence,LocalPumpHistory,SWAP_SCOPE
++from meme_machine.pump_evidence_execution import execution_addresses,prepare_reserved
++from meme_machine.pump_acceleration_confirmations import ConfirmationBook
++from meme_machine.paper_accounting import PaperBook
++from meme_machine.provider import PumpAdapter
++from meme_machine.postgrad import PostGraduationAdapter,WSOL,PUMPSWAP_PROGRAM
++from tests import pump_acceleration_natural_prospective as lane
++from tests.test_postgrad import MINT,CREATOR,pumpswap_pool,pumpswap_snapshot,pumpswap_pool_account,complete_pump_snapshot,mint_account,fee_config,token_account
++from meme_machine import pump
++
++class ProductionCutover(unittest.TestCase):
++    def setUp(self):
++        self.temp=tempfile.TemporaryDirectory();self.clock=[104]
++        self.writer=EvidenceWriter(Path(self.temp.name)/'evidence',clock=lambda:self.clock[0])
++        self.events={}
++        for t in range(70,105):
++            wallets=range(4) if t<94 else range(20)
++            self.events[t]=[dict(index=i,slot=t,market_time=t,pool=pumpswap_pool(MINT),mint=MINT,
++                wallet='wallet'+str(i),buy=True,amount=100 if t<94 else 1000,
++                quote_amount=100 if t<94 else 1000) for i in wallets]
++        self.fence=FinalizedFence(self.writer,endpoint_identity='a'*64,decoders={SWAP_SCOPE:lambda tx:self.events.get(tx['slot'],[])})
++        logs=Subscription('service',SWAP_SCOPE,PUMPSWAP_PROGRAM,'logs',4)
++        census=Subscription('service',SWAP_SCOPE,PUMPSWAP_PROGRAM,'census',4)
++        for slot in range(70,105):
++            self.fence.logs(logs,dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=dict(signature='s'+str(slot),logs=[],err=None)))),104)
++            self.fence.block(census,dict(params=dict(result=dict(value=dict(slot=slot,err=None,block=dict(parentSlot=slot-1,blockTime=slot,blockhash='h'+str(slot),previousBlockhash='h'+str(slot-1),signatures=['s'+str(slot)]))))),104)
++        self.plane=RuntimeEvidence(self.writer.path,owner='pump',clock=lambda:self.clock[0],command=self.fence.command)
++        self.snapshot=pumpswap_snapshot(kind='real',now=100,slot=100)
++        self.confirm=ConfirmationBook({},60)
++        self.state=dict(creation=dict(creator=CREATOR),pregrad_wallets=set(),graduation_time=70,
++            graduation_price=[40_000_000_000,500_000_000_000_000],pool=pumpswap_pool(MINT),mint=MINT,
++            history=LocalPumpHistory(self.plane,pumpswap_pool(MINT),70))
++        self.state['history'].bind_snapshot(self.snapshot)
++        self.book=PaperBook(Path(self.temp.name)/'book',run_id='gate',lane=lane.STRATEGY_ID,policy_hash=lane.policy_hash(),initial=1_000_000_000)
++        self.network=patch('socket.socket.connect',side_effect=AssertionError('network_forbidden'));self.network.start()
++    def tearDown(self):self.network.stop();self.book.close();self.plane.close();self.writer.close();self.temp.cleanup()
++    def decision(self):
++        events=lane._refresh_pool_events(self.state,None,100,research=True)
++        signal,confirmation=lane._volume_price_signal(self.state,self.snapshot,self.state['history'].decision_rows(100),lane.MODE_POSTGRAD,0,self.confirm)
++        return signal,lane.qualify(signal)
++    def test_actual_strategy_construction_zero_historical_rpc(self):
++        signal,q=self.decision()
++        expected=[e for t,rows in self.events.items() if 70<=t<=100 for e in rows]
++        direct,_=lane._volume_price_signal(dict(self.state),self.snapshot,expected,lane.MODE_POSTGRAD,0,self.confirm)
++        self.assertEqual(signal,direct);self.assertEqual(q,lane.qualify(direct));self.assertTrue(q.qualified,q.reasons)
++        self.assertEqual(self.state['history'].status(100)['historical_provider_calls'],0)
++    def test_gap_blocks_real_decision_without_fallback(self):
++        self.writer.gap(SWAP_SCOPE,95,96)
++        with self.assertRaises(EvidenceUnavailable):self.decision()
++    def reserve(self):
++        signal,q=self.decision();self.assertTrue(q.qualified,q.reasons)
++        dummy=SimpleNamespace(pump=PumpAdapter(SimpleNamespace(call=lambda *a,**k:pump.MAINNET)),postgrad=PostGraduationAdapter(SimpleNamespace(call=lambda *a,**k:pump.MAINNET)))
++        self.state['execution_context']=dict(scope=SWAP_SCOPE,mint=MINT,addresses=execution_addresses(self.snapshot,dummy))
++        pending={};report=dict(qualifiers=[])
++        with patch.object(lane,'ACCOUNTING',self.book),patch.object(lane,'FILL_PERSISTENCE_CONTEXT',dict(plane=self.plane,postgrad={MINT:self.state},confirmations=self.confirm)),patch.object(lane.time,'time',return_value=100):
++            lane._reserve_position(report,pending,{},signal,q,self.snapshot,lane.MODE_POSTGRAD)
++        return report,pending
++    def test_reservation_recovers_without_duplicate_journal_events(self):
++        report,pending=self.reserve();before=self.book.replay()
++        recovered=lane.restore_runtime(self.book,self.plane,ConfirmationBook({},60))
++        self.assertEqual(self.book.replay(),before);self.assertEqual(len(recovered[2]),1)
++        self.assertEqual(next(iter(recovered[2].values()))['due'],102)
++    def test_reserved_fill_preempts_saturated_background(self):
++        from certification.governor import Governor
++        import sqlite3,time
++        report,pending=self.reserve();active={};calls=[]
++        governor=Governor(Path(self.temp.name)/'governor')
++        with sqlite3.connect(governor.path) as db:
++            db.executemany('INSERT INTO queue VALUES(?,?,?,?,?,?)',[(str(i),'solana','repair',50,time.monotonic(),time.monotonic()+30) for i in range(256)])
++        context=next(iter(pending.values()))['execution_context'];pool,pool_acc,base,quote=pumpswap_pool_account()
++        curve=complete_pump_snapshot(now=103,retired=True)
++        dummy=SimpleNamespace(pump=PumpAdapter(SimpleNamespace(call=lambda *a,**k:pump.MAINNET)),postgrad=PostGraduationAdapter(SimpleNamespace(call=lambda *a,**k:pump.MAINNET)))
++        accounts={context['addresses'][0]:curve['accounts'][0],MINT:mint_account(),dummy.pump.fee_address:fee_config(),pool:pool_acc,
++            base:token_account(MINT,pool,500_000_000_000_000),quote:token_account(WSOL,pool,50_000_000_000),dummy.postgrad.fee_address:fee_config()}
++        def transport(req):
++            calls.extend(r['method'] for r in req)
++            governor.acquire('solana','pump',1,deadline_seconds=1,methods=calls)
++            return [dict(id=1,result=dict(context=dict(slot=103),value=[accounts[a] for a in context['addresses']])),dict(id=2,result=dict(context=dict(slot=103),value=[])),dict(id=3,result=pump.MAINNET)]
++        rpc=SimpleNamespace(calls=0,http_requests=0,_pace=lambda _:None,transport=transport)
++        session=SimpleNamespace(plane=self.plane)
++        session.prepare_reserved=lambda row:prepare_reserved(session,row,new_rpc=lambda **_:rpc)
++        with patch.object(lane.time,'time',return_value=104):
++            lane._fill_pending(report,pending,active,session,{MINT:self.state},104,confirmations=self.confirm)
++        self.assertFalse(pending,report);self.assertEqual(len(active),1,report)
++        self.assertEqual(calls,['getMultipleAccounts','getTokenLargestAccounts','getGenesisHash'])
++        self.assertEqual(lane.ENTRY_FILL_TIMEOUT_SECONDS,20);self.assertEqual(lane.ENTRY_DELAY_SECONDS,2)
++        before=self.book.replay();restored=lane.restore_runtime(self.book,self.plane,ConfirmationBook({},60))
++        self.assertFalse(restored[2]);self.assertEqual(len(restored[3]),1);self.assertEqual(self.book.replay(),before)
++        self.assertTrue(report['qualifiers'][0]['fill_persistence']['persistent'])
++
++    def test_interrupted_refresh_claim_fails_closed_without_second_round(self):
++        report,pending=self.reserve();row=next(iter(pending.values()))
++        self.book.checkpoint_runtime(row['lifecycle'].lifecycle_id,'execution_refresh',{'attempted':True},claim=True)
++        restored=lane.restore_runtime(self.book,self.plane,ConfirmationBook({},60))[2]
++        session=SimpleNamespace(plane=self.plane)
++        session.prepare_reserved=lambda row:prepare_reserved(session,row,new_rpc=lambda **_:self.fail('duplicate physical refresh'))
++        with patch.object(lane.time,'time',return_value=104):
++            lane._fill_pending(report,restored,{},session,{MINT:self.state},104,confirmations=self.confirm)
++        self.assertEqual(len(restored),1);self.assertEqual(self.book.reconcile()['open_positions'],0)
++        self.assertEqual(next(iter(restored.values()))['qualifier_row']['last_fill_limitation'],'execution_refresh_interrupted')
++        with patch.object(lane.time,'time',return_value=120):
++            lane._fill_pending(report,restored,{},session,{MINT:self.state},120,confirmations=self.confirm)
++        self.assertFalse(restored);self.assertEqual(self.book.reconcile()['open_positions'],0)
++
++    def test_actual_main_uses_local_history_for_a_recovered_candidate(self):
++        import json
++        from unittest.mock import MagicMock
++        # A terminal journal entry retains authenticated discovery context. Startup
++        # reconstructs it without allowing a second reservation for the same entry.
++        self.book.close()
++        report_path=Path(self.temp.name)/'native.json'
++        self.book=PaperBook(report_path.with_suffix('.accounting.sqlite3'),run_id='gate',lane=lane.STRATEGY_ID,policy_hash=lane.policy_hash(),initial=lane.INITIAL_LAMPORTS)
++        report,pending=self.reserve();next(iter(pending.values()))['lifecycle'].cancel('offline_fixture_terminal',101)
++        before=self.book.replay()
++        current_calls=[];graduation=complete_pump_snapshot(now=100,retired=True);graduation['kind']='real'
++        def call(method,*a,**k):
++            current_calls.append(method)
++            if method!='getTokenLargestAccounts':raise AssertionError('historical provider call:'+method)
++            return dict(context=dict(slot=100),value=[])
++        session=SimpleNamespace(plane=self.plane,ensure=lambda *_:None,finish=lambda:None,history=[],
++            rpc=SimpleNamespace(call=call,provider_telemetry=lambda:{}),
++            postgrad=SimpleNamespace(graduation_snapshot=lambda *a,**k:graduation,pumpswap_snapshot=lambda *a,**k:self.snapshot),
++            execution_interest=lambda *a,**k:self.state['execution_context'])
++        runtime_plane=RuntimeEvidence(self.writer.path,owner='pump',clock=lambda:self.clock[0],command=self.fence.command)
++        self.clock[0]=104
++        def finish_iteration(_):self.clock[0]=10000
++        with patch.object(lane,'REPORT',report_path),patch.object(lane,'RuntimeEvidence',return_value=runtime_plane), \
++             patch.object(lane,'Sessions',return_value=session),patch.object(lane,'PumpLogStream') as stream, \
++             patch.object(lane,'primary_rpc_url',return_value='https://solana-mainnet.g.alchemy.com/v2/offline-fixture'), \
++             patch.object(lane.ConfirmationBook,'from_files',return_value=self.confirm), \
++             patch.object(lane.LocalPumpTape,'events_since',return_value=([],0)),patch.object(lane.LocalPumpTape,'covered',return_value=False), \
++             patch.object(lane.time,'time',side_effect=lambda:self.clock[0]),patch.object(lane.time,'sleep',side_effect=finish_iteration), \
++             patch.dict(lane.os.environ,{'MM_SOLANA_EVIDENCE_BROKER_DB':str(Path(self.temp.name)/'broker')}),patch('builtins.print'):
++            stream.return_value.run.side_effect=lambda stop,ready:ready.set()
++            lane.main(discovery_seconds=600)
++        result=json.loads(report_path.read_text())
++        self.assertEqual(len(result['full_evidence_candidates']),1,result['attempts'])
++        self.assertTrue(result['full_evidence_candidates'][0]['qualified'])
++        self.assertEqual(current_calls,['getTokenLargestAccounts'])
++        self.assertEqual(self.book.replay(),before)

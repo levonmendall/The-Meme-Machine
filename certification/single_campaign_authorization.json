@@ -1,0 +1,27 @@
+{
+  "schema": "meme-machine-single-campaign-authorization-v1",
+  "authorization_id": "evidence-planes-20260925-one-market-v1",
+  "enabled": true,
+  "maximum_market_workflows": 1,
+  "phases_in_same_workflow": [
+    "smoke",
+    "hourly"
+  ],
+  "fresh_smoke_required": true,
+  "automatic_successors": false,
+  "position_continuation_workflows": true,
+  "workflow_reruns": false,
+  "dispatch_retries": false,
+  "live_money": false,
+  "prior_run_observation": {
+    "run_id": 36077647211,
+    "status": "completed_success",
+    "source": "Previous owner-authorized one-shot smoke-to-hourly paper campaign completed. This fresh authorization is for the combined offline-certified Solana and Robinhood Evidence Plane architectures."
+  },
+  "prior_launch_attempt": {
+    "run_id": 36077647211,
+    "outcome": "completed_success",
+    "provider_or_market_work_started": true,
+    "reason": "Previous one-shot authority is consumed. Owner explicitly authorized exactly one fresh market workflow using the new Solana and Robinhood evidence architectures."
+  }
+}

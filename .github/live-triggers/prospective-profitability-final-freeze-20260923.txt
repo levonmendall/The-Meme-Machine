@@ -1,0 +1,16 @@
+Final prospective profitability / portfolio / autonomy certification boundary.
+
+This commit changes no strategy economics or runtime behavior.
+It freezes the exact acceptance implementation after:
+- current Pump/Pons profit-protection v2 strategy authority;
+- Meteora fee-density core-hold v2;
+- Ramses Active Wide Maker v3 authority/timing lock;
+- same-run chain binding and fail-closed provider capability gates;
+- one-position durable Meteora/Ramses hourly handoff;
+- self-chaining bounded continuation with terminal replay proof;
+- terminal continuation amendment of the original statistical block;
+- outcome-selection-safe review of hourly and continuation artifacts;
+- 90-day repository-supported evidence retention.
+
+Prospective evidence before this exact SHA is ineligible.
+Paper-only; no signing, transaction submission, live money, threshold relaxation, or automatic campaign scheduler activation.

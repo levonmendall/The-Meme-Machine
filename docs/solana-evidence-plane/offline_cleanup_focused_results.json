@@ -1,0 +1,70 @@
+{
+  "scope": "focused_nonmarket_cleanup",
+  "results": [
+    {
+      "log": "focused-1.log",
+      "sha256": "15817b0f8987617c06fccdf64a9c1d082069c34e2ffb66ef154c168508063a63",
+      "summary": "Ran 47 tests in 2.492s\n\nOK"
+    },
+    {
+      "log": "focused-2.log",
+      "sha256": "905b755d0e5be0464a836b5f975d478caed66bc168a143c5fc1ab1d68e56ce33",
+      "summary": "Ran 26 tests in 2.240s\n\nOK"
+    },
+    {
+      "log": "focused-3.log",
+      "sha256": "f4731423762abb1c0bacb88699654f731687edf0a3620cd5e2629dcd0bbd4723",
+      "summary": "Ran 8 tests in 0.129s\n\nOK"
+    },
+    {
+      "log": "focused-final.log",
+      "sha256": "4d257ddfff3dcf891a133bbe83d6bdec5f5e07dfef58283aba142278200418eb",
+      "summary": "Ran 30 tests in 2.329s\n\nOK"
+    },
+    {
+      "log": "focused-pump.log",
+      "sha256": "793bab7c7d29c004c8d4e77ef8a162010e370d8992341741f68b7554f17e2277",
+      "summary": "Ran 39 tests in 12.652s\n\nOK"
+    },
+    {
+      "log": "focused-meteora.log",
+      "sha256": "abf9f25b88f761062d6f6b989bd8f7ff940a96b9e649f20f3b8b70165eb5ffee",
+      "summary": "Ran 43 tests in 0.340s\n\nOK"
+    }
+  ],
+  "local_real_ipc": {
+    "passed": false,
+    "error_type": "PermissionError",
+    "errno": 1,
+    "message": "Operation not permitted",
+    "command": "python -m certification.evidence_ipc_check",
+    "interpretation": "Workspace denies Unix socket creation; unchanged real IPC gate retained for hosted certification. No escalation attempted."
+  },
+  "provider_calls": 0,
+  "market_runs": 0,
+  "failed_certification": {
+    "run_id": 36175955014,
+    "runtime_sha": "24101b0d5a15a834c99952d827625ebd0ef0287d",
+    "architecture_passed": true,
+    "real_ipc_passed": true,
+    "broad_suites_started": false,
+    "failure": [
+      "frozen_lane_drift:pump",
+      "frozen_lane_drift:meteora"
+    ],
+    "cause": "frozen_lanes source_diff_sha256 provenance still named pre-cleanup composed trees; all economic policy fields unchanged",
+    "artifact_id": 10882122695,
+    "artifact_sha256": "cb3d420366ff451b861f06aac08e578345eebff78a69c9d099e42a9b8a73859f",
+    "credential_artifact_scan_passed": true
+  },
+  "failed_standard_ci": {
+    "run_id": 36175955000,
+    "job_id": 108206479860,
+    "tests_run": 528,
+    "errors": 1,
+    "failures": 1,
+    "error": "CandidateCausalTests uses object.__new__(Observer); its fixture omitted new lock and solana_usage members",
+    "failure": "freeze manifest provenance hashes stale",
+    "fix": "initialize fixture members and assert complete/incomplete usage counters; update only two composed diff identities"
+  }
+}

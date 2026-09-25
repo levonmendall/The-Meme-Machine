@@ -14,8 +14,10 @@ PATTERNS={
     'meteora':['solana-dlmm-independent-v1-live*'],
     'pons':['pons-selective-continuation-v1-cohort.json','pons-selective-continuation-v1-cohort'],
     'ramses':['robinhood-ramses-extended-market-report.json','robinhood-ramses-extended-market.sqlite*',
-              'robinhood-ramses-all-pool-inventory-cache.json','robinhood-ramses-extended-market.sqlite.pipeline.sqlite*'],
+              'robinhood-ramses-all-pool-inventory-cache.json','robinhood-ramses-extended-market.sqlite.pipeline.sqlite*',
+              'robinhood-ramses-continuation*.sqlite','robinhood-ramses-continuation*.json'],
 }
+PATTERNS['ramses'].append('robinhood-ramses-lifecycle-log-cache.sqlite')
 
 
 def _sqlite(path):

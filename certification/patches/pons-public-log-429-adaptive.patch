@@ -1,0 +1,302 @@
+diff --git a/robinhood_research/provider.py b/robinhood_research/provider.py
+--- a/robinhood_research/provider.py
++++ b/robinhood_research/provider.py
+@@ -37,4 +37,5 @@ class Rpc:
+         self.logical = 0
+         self.retry_count = 0
+         self.methods, self.logical_methods = Counter(), Counter()
++        self.last_retry_after_seconds = None
+ 
+@@ -55,4 +56,5 @@ class Rpc:
+     def _http(self, method, params):
++        self.last_retry_after_seconds = None
+         body = json.dumps(dict(jsonrpc='2.0', id=1, method=method, params=params)).encode()
+         request = Request(self._endpoint, data=body, headers=RPC_HTTP_HEADERS)
+         try:
+@@ -70,3 +72,14 @@ class Rpc:
+                 except (ValueError, AttributeError):
+                     pass
++            if exc.code == 429:
++                try:
++                    retry_after = (
++                        None if exc.headers is None
++                        else exc.headers.get('Retry-After')
++                    )
++                    retry_after = float(retry_after)
++                    if 0.0 <= retry_after <= 1.0:
++                        self.last_retry_after_seconds = retry_after
++                except (TypeError, ValueError, AttributeError):
++                    self.last_retry_after_seconds = None
+             raise BoundaryError(f'provider_http_{exc.code}') from None
+diff --git a/robinhood_research/provider_topology.py b/robinhood_research/provider_topology.py
+--- a/robinhood_research/provider_topology.py
++++ b/robinhood_research/provider_topology.py
+@@ -133,4 +133,5 @@ class ProviderPacer:
+         if not 0.2 <= rps <= 25.0:
+             raise BoundaryError("invalid_provider_rps")
++        self.maximum_requests_per_second = rps
+         self.requests_per_second = rps
+         self.minimum_interval_seconds = 1.0 / rps
+@@ -142,4 +143,5 @@ class ProviderPacer:
+         self.paced_requests = 0
+         self.sleep_seconds = 0.0
+         self.backpressure_events = 0
++        self.recovery_events = 0
+ 
+@@ -159,4 +161,19 @@ class ProviderPacer:
+             self.backpressure_events+=1
+             return True
+ 
++    def recover_to(self, requests_per_second):
++        """Cautiously recover toward the constructor ceiling, never above it."""
++        rps=min(float(requests_per_second),self.maximum_requests_per_second)
++        if not 0.2 <= rps <= 25.0:
++            raise BoundaryError("invalid_provider_rps")
++        with self._lock:
++            if rps <= self.requests_per_second:
++                return False
++            self.requests_per_second=rps
++            self.minimum_interval_seconds=1.0/rps
++            now=float(self.clock())
++            self.next_at=max(self.next_at,now+self.minimum_interval_seconds)
++            self.recovery_events+=1
++            return True
++
+     def pace(self):
+@@ -176,4 +193,6 @@ class ProviderPacer:
+             paced_requests=self.paced_requests,
+             throttle_sleep_seconds=self.sleep_seconds,
+             backpressure_events=self.backpressure_events,
++            recovery_events=self.recovery_events,
++            ceiling_requests_per_second=self.maximum_requests_per_second,
+         )
+@@ -364,21 +383,86 @@ class ObservationFallbackRpc(PacedRpc):
+         self.recovery_rpc = recovery_rpc
+         self.recovery_requests = 0
+         self.recovery_failures = 0
++        self.public_log_429s = 0
++        self.public_log_retry_successes = 0
++        self.public_log_retry_failures = 0
++        self.public_log_retry_skipped_deadline = 0
++        self.public_log_cooldown_seconds = 0.0
++        self.public_log_success_streak = 0
++        self.alchemy_exact_log_recoveries = 0
++        self.unrecovered_log_ranges = 0
+         super().__init__(*args, **kwargs)
+ 
+     @staticmethod
+     def _recoverable(exc):
+         return str(exc) in RECOVERABLE_OBSERVATION_BOUNDARIES
+ 
++    def _public_log_429(self, method, exc):
++        return (
++            self.provider_kind == "robinhood_public"
++            and method == "eth_getLogs"
++            and str(exc) in ("provider_http_429","provider_rpc_429")
++        )
++
++    def _public_log_success(self):
++        if self.provider_kind != "robinhood_public":
++            return
++        self.public_log_success_streak += 1
++        if self.public_log_success_streak < 20:
++            return
++        self.public_log_success_streak = 0
++        current=float(self.pacer.requests_per_second)
++        self.pacer.recover_to(min(PUBLIC_DISCOVERY_RPS,current+0.1))
++
++    def _public_log_cooldown(self):
++        self.public_log_success_streak = 0
++        current=float(self.pacer.requests_per_second)
++        self.pacer.slow_to(max(1.0,current*0.75))
++        delay=getattr(self,"last_retry_after_seconds",None)
++        if delay is None or not 0.0 <= float(delay) <= 1.0:
++            delay=0.6
++        delay=float(delay)
++        deadline=getattr(self,"evidence_deadline",None)
++        if deadline is not None:
++            delay=min(delay,max(0.0,float(deadline)-time.monotonic()-0.05))
++        if delay <= 0:
++            self.public_log_retry_skipped_deadline += 1
++            return False
++        self.pacer.sleep(delay)
++        self.public_log_cooldown_seconds += delay
++        return True
++
+     def call(self, method, params, *, scope="connectivity"):
+         try:
+-            return super().call(method, params, scope=scope)
++            result=super().call(method, params, scope=scope)
++            if self.provider_kind=="robinhood_public" and method=="eth_getLogs":
++                self._public_log_success()
++            return result
+         except BoundaryError as exc:
++            if self._public_log_429(method,exc):
++                self.public_log_429s += 1
++                if self._public_log_cooldown():
++                    try:
++                        result=super().call(method,params,scope=scope)
++                        self.public_log_retry_successes += 1
++                        self._public_log_success()
++                        return result
++                    except BoundaryError as retry_exc:
++                        self.public_log_retry_failures += 1
++                        exc=retry_exc
+             if self.recovery_rpc is None or not self._recoverable(exc):
+                 raise
+             self.recovery_requests += 1
++            exact_log=(
++                self.provider_kind=="robinhood_public"
++                and method=="eth_getLogs"
++            )
++            if exact_log:
++                self.alchemy_exact_log_recoveries += 1
+             try:
+                 return self.recovery_rpc.call(method, params, scope=scope)
+             except BoundaryError:
+                 self.recovery_failures += 1
++                if exact_log:
++                    self.unrecovered_log_ranges += 1
+                 raise
+@@ -398,4 +485,15 @@ class ObservationFallbackRpc(PacedRpc):
+                 None if self.recovery_rpc is None else self.recovery_rpc.telemetry()
+             ),
++            public_eth_getLogs_429_control=dict(
++                public_429s=int(self.public_log_429s),
++                same_endpoint_retry_successes=int(self.public_log_retry_successes),
++                same_endpoint_retry_failures=int(self.public_log_retry_failures),
++                retry_skipped_deadline=int(self.public_log_retry_skipped_deadline),
++                cooldown_seconds=float(self.public_log_cooldown_seconds),
++                effective_requests_per_second=float(self.pacer.requests_per_second),
++                success_streak=int(self.public_log_success_streak),
++                alchemy_exact_range_recoveries=int(self.alchemy_exact_log_recoveries),
++                unrecovered_ranges=int(self.unrecovered_log_ranges),
++            ),
+         )
+         return data
+diff --git a/robinhood_tests/test_public_log_429_adaptive.py b/robinhood_tests/test_public_log_429_adaptive.py
+new file mode 100644
+--- /dev/null
++++ b/robinhood_tests/test_public_log_429_adaptive.py
+@@ -0,0 +1,121 @@
++from email.message import Message
++from urllib.error import HTTPError
++import unittest
++from unittest.mock import patch
++
++from robinhood_research import BoundaryError
++from robinhood_research.provider import Rpc
++from robinhood_research.provider_topology import ObservationFallbackRpc, ProviderPacer
++
++
++class Clock:
++    def __init__(self):
++        self.now=0.0
++    def time(self):
++        return self.now
++    def sleep(self,seconds):
++        self.now+=float(seconds)
++
++
++class Recovery:
++    def __init__(self):
++        self.calls=[]
++    def call(self,method,params,scope="connectivity"):
++        self.calls.append((method,params,scope))
++        return [{"recovered":True}]
++    def telemetry(self):
++        return {"calls":len(self.calls)}
++
++
++class PublicLog429AdaptiveTests(unittest.TestCase):
++    def rpc(self,transport,recovery=None,limit=100):
++        clock=Clock()
++        pacer=ProviderPacer(2.0,clock=clock.time,sleeper=clock.sleep)
++        rpc=ObservationFallbackRpc(
++            "https://rpc.mainnet.chain.robinhood.com",
++            role="pons_discovery_public_observation",
++            requests_per_second=2.0,
++            pacer=pacer,
++            recovery_rpc=recovery,
++            transport=transport,
++            retries=0,limit=limit,per_scope=limit,
++        )
++        return rpc,clock
++
++    def test_public_log_429_retries_identical_range_once_before_recovery(self):
++        calls=[]
++        def transport(method,params):
++            calls.append((method,params))
++            if len(calls)==1:
++                raise BoundaryError("provider_http_429")
++            return [{"ok":True}]
++        recovery=Recovery();rpc,clock=self.rpc(transport,recovery)
++        params=[{"fromBlock":"0x10","toBlock":"0x19","topics":[["0xaa"]]}]
++        result=rpc.call("eth_getLogs",params,scope="pons_natural")
++        self.assertEqual(result,[{"ok":True}])
++        self.assertEqual(calls,[("eth_getLogs",params),("eth_getLogs",params)])
++        self.assertEqual(recovery.calls,[])
++        ctl=rpc.telemetry()["public_eth_getLogs_429_control"]
++        self.assertEqual(ctl["public_429s"],1)
++        self.assertEqual(ctl["same_endpoint_retry_successes"],1)
++        self.assertEqual(ctl["alchemy_exact_range_recoveries"],0)
++        self.assertAlmostEqual(ctl["cooldown_seconds"],0.6)
++        self.assertEqual(ctl["effective_requests_per_second"],1.5)
++
++    def test_second_429_uses_exact_alchemy_recovery_once(self):
++        calls=[]
++        def transport(method,params):
++            calls.append((method,params))
++            raise BoundaryError("provider_http_429")
++        recovery=Recovery();rpc,_=self.rpc(transport,recovery)
++        params=[{"fromBlock":"0x20","toBlock":"0x29","topics":[["0xbb"]]}]
++        result=rpc.call("eth_getLogs",params,scope="pons_natural")
++        self.assertEqual(result,[{"recovered":True}])
++        self.assertEqual(calls,[("eth_getLogs",params),("eth_getLogs",params)])
++        self.assertEqual(recovery.calls,[("eth_getLogs",params,"pons_natural")])
++        ctl=rpc.telemetry()["public_eth_getLogs_429_control"]
++        self.assertEqual(ctl["same_endpoint_retry_failures"],1)
++        self.assertEqual(ctl["alchemy_exact_range_recoveries"],1)
++        self.assertEqual(ctl["unrecovered_ranges"],0)
++
++    def test_non_log_429_keeps_existing_direct_recovery_without_retry(self):
++        calls=[]
++        def transport(method,params):
++            calls.append((method,params))
++            raise BoundaryError("provider_http_429")
++        recovery=Recovery();rpc,_=self.rpc(transport,recovery)
++        rpc.call("eth_getBlockByNumber",["0x20",False],scope="pons_natural")
++        self.assertEqual(len(calls),1)
++        self.assertEqual(len(recovery.calls),1)
++        self.assertEqual(rpc.telemetry()["public_eth_getLogs_429_control"]["public_429s"],0)
++
++    def test_twenty_public_log_successes_cautiously_recover_rate(self):
++        attempts=[0]
++        def transport(method,params):
++            attempts[0]+=1
++            if attempts[0]==1:
++                raise BoundaryError("provider_http_429")
++            return []
++        rpc,_=self.rpc(transport)
++        params=[{"fromBlock":"0x1","toBlock":"0x1","topics":[]}]
++        rpc.call("eth_getLogs",params)
++        self.assertEqual(rpc.pacer.requests_per_second,1.5)
++        for _ in range(19):
++            rpc.call("eth_getLogs",params)
++        self.assertAlmostEqual(rpc.pacer.requests_per_second,1.6)
++        self.assertLessEqual(rpc.pacer.requests_per_second,2.0)
++
++    def test_retry_after_header_is_captured_only_when_short(self):
++        for header,expected in (("0.25",0.25),("5",None),("invalid",None)):
++            headers=Message();headers["Retry-After"]=header
++            error=HTTPError("https://redacted.invalid",429,"rate",headers,None)
++            rpc=Rpc("https://example.invalid",limit=40,retries=0)
++            with self.subTest(header=header),patch(
++                    "robinhood_research.provider.urlopen",side_effect=error):
++                with self.assertRaisesRegex(BoundaryError,"provider_http_429"):
++                    rpc._http("eth_getLogs",[{}])
++                self.assertEqual(rpc.last_retry_after_seconds,expected)
++
++
++if __name__=="__main__":
++    unittest.main()

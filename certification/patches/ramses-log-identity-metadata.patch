@@ -1,0 +1,1582 @@
+diff --git a/robinhood_research/abi.py b/robinhood_research/abi.py
+index 4786f84e2f87561846fc8f504b239e77a1fa6724..6764c9cee69e33fc5004c9901155ec080d468e03 100644
+--- a/robinhood_research/abi.py
++++ b/robinhood_research/abi.py
+@@ -83,3 +83,14 @@ def decode_event(abi, event):
+     for spec_i, value in zip(plain, data):
+         out[spec_i['name']] = scalar(spec_i['type'], value)
+     return dict(name=spec['name'], signature=signature(spec), args=out)
++
++
++def receipt_log_matches(event,receipt_log):
++    """Compare exact log identity/payload; header alone authenticates event time.
++
++    Robinhood public getLogs can append blockTimestamp=0x0 while the receipt
++    supplies the real value. That optional provider annotation is not log identity.
++    Preserve every other field comparison, including unknown extensions.
++    """
++    return ({k:v for k,v in event.items() if k!='blockTimestamp'} ==
++            {k:v for k,v in receipt_log.items() if k!='blockTimestamp'})
+diff --git a/robinhood_research/pons.py b/robinhood_research/pons.py
+index b76eb81bc0f5fb76bffa1848e4acfb1ce15c39a5..af96fffcd2bc5b755364464be80bf2b67ce30023 100644
+--- a/robinhood_research/pons.py
++++ b/robinhood_research/pons.py
+@@ -9,7 +9,7 @@ import json
+ from pathlib import Path
+ 
+ from . import BoundaryError
+-from .abi import decode_event, scalar, words
++from .abi import receipt_log_matches, decode_event, scalar, words
+ from .identity import authenticate, load, verify_compilation
+ from .protocols import PoolKey
+ 
+@@ -83,7 +83,7 @@ def raw_event(abi, event, *, address, receipt, header, observed_at, confirmation
+         or event['blockNumber'] != header['number'] or receipt['blockHash'] != header['hash']
+         or receipt['transactionHash'] != event['transactionHash']
+         or receipt['transactionIndex'] != event['transactionIndex']
+-        or int(receipt['status'],16) != 1 or event not in receipt['logs']):
++        or int(receipt['status'],16) != 1 or not any(receipt_log_matches(event,log) for log in receipt['logs'])):
+         raise BoundaryError('raw_event_identity_disagreement')
+     if int(header['timestamp'],16) > observed_at:
+         raise BoundaryError('future_event')
+diff --git a/robinhood_research/ramses.py b/robinhood_research/ramses.py
+index 581ebdc6dee3f1447ac26618e6fe03742c303fec..a985de7b8160ec8c4398c796d9defabe8556be33 100644
+--- a/robinhood_research/ramses.py
++++ b/robinhood_research/ramses.py
+@@ -11,7 +11,7 @@ import json
+ from math import isqrt
+ 
+ from . import BoundaryError
+-from .abi import decode_event, scalar, signature, topic, words
++from .abi import receipt_log_matches, decode_event, scalar, signature, topic, words
+ from .identity import load, verify_compilation
+ 
+ Q = 1 << 128
+@@ -295,7 +295,7 @@ def _raw_ramses_event(abi,event,*,address,receipt,header,observed_at):
+         or event['blockNumber']!=header['number'] or receipt['blockHash']!=header['hash']
+         or receipt['transactionHash']!=event['transactionHash']
+         or receipt['transactionIndex']!=event['transactionIndex']
+-        or int(receipt['status'],16)!=1 or event not in receipt['logs']):
++        or int(receipt['status'],16)!=1 or not any(receipt_log_matches(event,log) for log in receipt['logs'])):
+         raise BoundaryError('raw_event_identity_disagreement')
+     if int(header['timestamp'],16)>observed_at: raise BoundaryError('future_event')
+     return dict(decoded=decode_ramses_event(abi,event),event_at=int(header['timestamp'],16))
+diff --git a/robinhood_tests/fixtures/public_log_timestamp_35915320840.json b/robinhood_tests/fixtures/public_log_timestamp_35915320840.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..7235fe557e90081b657671d5d9c6e188355eea71
+--- /dev/null
++++ b/robinhood_tests/fixtures/public_log_timestamp_35915320840.json
+@@ -0,0 +1,1469 @@
++{
++  "provenance": {
++    "run_id": 35915320840,
++    "integration_sha": "f7e053a7dc4c91c506aaf2116a33e3ce4fbd22fa",
++    "artifact_id": 10776256813,
++    "artifact_sha256": "aa4347cf199363d9724f3eda15213f264c857d9a9f78a52cd883d0e488ec1ef0",
++    "scope": "archived Pons log; reusable strict raw-log identity regression, not a natural Ramses lifecycle"
++  },
++  "event": {
++    "address": "0x403483197a66d49d2078116fe365bc466271573e",
++    "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++    "blockNumber": "0x4384350",
++    "blockTimestamp": "0x0",
++    "data": "0x000000000000000000000000000000000000000000000000018e36a7bed569e4000000000000000000000000000000000000000000014e1dfa10c189af9370de0000000000000000000000000000000000000000000000000003fb6d328c5fc70000000000000000000000000000000000000000000000000000000000000000",
++    "logIndex": "0xb",
++    "removed": false,
++    "topics": [
++      "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
++      "0x0000000000000000000000008cf2969a0689f7514006e91f808a370f77e55bbd",
++      "0x000000000000000000000000613c774dfddcc676b76d8de599d6b2f9c12e22ba"
++    ],
++    "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++    "transactionIndex": "0x3"
++  },
++  "receipt": {
++    "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++    "blockNumber": "0x4384350",
++    "contractAddress": null,
++    "cumulativeGasUsed": "0x79f73",
++    "effectiveGasPrice": "0x321f0e0",
++    "from": "0x613c774dfddcc676b76d8de599d6b2f9c12e22ba",
++    "gasUsed": "0x5f632",
++    "gasUsedForL1": "0x0",
++    "l1BlockNumber": "0x18d60a0",
++    "logs": [
++      {
++        "address": "0x8366a39cc670b4001a1121b8f6a443a643e40951",
++        "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++        "blockNumber": "0x4384350",
++        "blockTimestamp": "0x6ab43502",
++        "data": "0xffffffffffffffffffffffffffffffffffffffffffffffffffb5305dd715e10200000000000000000000000000000000000000000000000000000000035b081d00000000000000000000000000000000000000000003638811459c563bb78bd100000000000000000000000000000000000000000000000000eec410b77de1c7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffcfce0000000000000000000000000000000000000000000000000000000000000007d",
++        "logIndex": "0x0",
++        "removed": false,
++        "topics": [
++          "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f",
++          "0x24107d152f14a76d292123265ae3f3c71f863fc2f4ef7ba49d64e78d28ea379e",
++          "0x0000000000000000000000008876789976decbfcbbbe364623c63652db8c0904"
++        ],
++        "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++        "transactionIndex": "0x3"
++      },
++      {
++        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
++        "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++        "blockNumber": "0x4384350",
++        "blockTimestamp": "0x6ab43502",
++        "data": "0x00000000000000000000000000000000000000000000000000000000035b081d",
++        "logIndex": "0x1",
++        "removed": false,
++        "topics": [
++          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
++          "0x0000000000000000000000008366a39cc670b4001a1121b8f6a443a643e40951",
++          "0x0000000000000000000000008876789976decbfcbbbe364623c63652db8c0904"
++        ],
++        "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++        "transactionIndex": "0x3"
++      },
++      {
++        "address": "0xe93237c50d904957cf27e7b1133b510c669c2e74",
++        "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++        "blockNumber": "0x4384350",
++        "blockTimestamp": "0x6ab43502",
++        "data": "0x000000000000000000000000000000000000000000000000018e36a7bed569e4",
++        "logIndex": "0x2",
++        "removed": false,
++        "topics": [
++          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
++          "0x000000000000000000000000eb60bcd1d920ad6e102690ccfc6fb488899e1510",
++          "0x0000000000000000000000008cf2969a0689f7514006e91f808a370f77e55bbd"
++        ],
++        "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++        "transactionIndex": "0x3"
++      },
++      {
++        "address": "0xe93237c50d904957cf27e7b1133b510c669c2e74",
++        "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++        "blockNumber": "0x4384350",
++        "blockTimestamp": "0x6ab43502",
++        "data": "0x000000000000000000000000000000000000000000000000018e36a7bed569e4000000000000000000000000000000000000000000000000018e60c0b36be192",
++        "logIndex": "0x3",
++        "removed": false,
++        "topics": [
++          "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
++          "0x000000000000000000000000eb60bcd1d920ad6e102690ccfc6fb488899e1510",
++          "0x0000000000000000000000008cf2969a0689f7514006e91f808a370f77e55bbd"
++        ],
++        "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++        "transactionIndex": "0x3"
++      },
++      {
++        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
++        "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++        "blockNumber": "0x4384350",
++        "blockTimestamp": "0x6ab43502",
++        "data": "0x00000000000000000000000000000000000000000000000000000000035b081d",
++        "logIndex": "0x4",
++        "removed": false,
++        "topics": [
++          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
++          "0x0000000000000000000000008876789976decbfcbbbe364623c63652db8c0904",
++          "0x000000000000000000000000eb60bcd1d920ad6e102690ccfc6fb488899e1510"
++        ],
++        "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++        "transactionIndex": "0x3"
++      },
++      {
++        "address": "0xeb60bcd1d920ad6e102690ccfc6fb488899e1510",
++        "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++        "blockNumber": "0x4384350",
++        "blockTimestamp": "0x6ab43502",
++        "data": "0x00000000000000000000000000000000000000000000000000000000035b081dfffffffffffffffffffffffffffffffffffffffffffffffffe71c958412a961c000000000000000000000000000000000000ae8f6e549296c006fe56cae9d98b0000000000000000000000000000000000000000000000001503d8b83e4ca307000000000000000000000000000000000000000000000000000000000003448f",
++        "logIndex": "0x5",
++        "removed": false,
++        "topics": [
++          "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67",
++          "0x0000000000000000000000008876789976decbfcbbbe364623c63652db8c0904",
++          "0x0000000000000000000000008cf2969a0689f7514006e91f808a370f77e55bbd"
++        ],
++        "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++        "transactionIndex": "0x3"
++      },
++      {
++        "address": "0xe93237c50d904957cf27e7b1133b510c669c2e74",
++        "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++        "blockNumber": "0x4384350",
++        "blockTimestamp": "0x6ab43502",
++        "data": "0x0000000000000000000000000000000000000000000000000000000000000000",
++        "logIndex": "0x6",
++        "removed": false,
++        "topics": [
++          "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
++          "0x0000000000000000000000008cf2969a0689f7514006e91f808a370f77e55bbd",
++          "0x000000000000000000000000403483197a66d49d2078116fe365bc466271573e"
++        ],
++        "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++        "transactionIndex": "0x3"
++      },
++      {
++        "address": "0xe93237c50d904957cf27e7b1133b510c669c2e74",
++        "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++        "blockNumber": "0x4384350",
++        "blockTimestamp": "0x6ab43502",
++        "data": "0x000000000000000000000000000000000000000000000000018e36a7bed569e4",
++        "logIndex": "0x7",
++        "removed": false,
++        "topics": [
++          "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
++          "0x0000000000000000000000008cf2969a0689f7514006e91f808a370f77e55bbd",
++          "0x000000000000000000000000403483197a66d49d2078116fe365bc466271573e"
++        ],
++        "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++        "transactionIndex": "0x3"
++      },
++      {
++        "address": "0xe93237c50d904957cf27e7b1133b510c669c2e74",
++        "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++        "blockNumber": "0x4384350",
++        "blockTimestamp": "0x6ab43502",
++        "data": "0x000000000000000000000000000000000000000000000000018e36a7bed569e4",
++        "logIndex": "0x8",
++        "removed": false,
++        "topics": [
++          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
++          "0x0000000000000000000000008cf2969a0689f7514006e91f808a370f77e55bbd",
++          "0x000000000000000000000000403483197a66d49d2078116fe365bc466271573e"
++        ],
++        "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++        "transactionIndex": "0x3"
++      },
++      {
++        "address": "0xe93237c50d904957cf27e7b1133b510c669c2e74",
++        "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++        "blockNumber": "0x4384350",
++        "blockTimestamp": "0x6ab43502",
++        "data": "0x000000000000000000000000000000000000000000000000018e36a7bed569e4000000000000000000000000000000000000000000000000018e60c0b36be192",
++        "logIndex": "0x9",
++        "removed": false,
++        "topics": [
++          "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
++          "0x0000000000000000000000008cf2969a0689f7514006e91f808a370f77e55bbd",
++          "0x000000000000000000000000403483197a66d49d2078116fe365bc466271573e"
++        ],
++        "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++        "transactionIndex": "0x3"
++      },
++      {
++        "address": "0xe3d9133c05aab2f6b24919f71e6bbf0b87cc54cc",
++        "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++        "blockNumber": "0x4384350",
++        "blockTimestamp": "0x6ab43502",
++        "data": "0x000000000000000000000000000000000000000000014e1dfa10c189af9370de",
++        "logIndex": "0xa",
++        "removed": false,
++        "topics": [
++          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
++          "0x000000000000000000000000403483197a66d49d2078116fe365bc466271573e",
++          "0x000000000000000000000000613c774dfddcc676b76d8de599d6b2f9c12e22ba"
++        ],
++        "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++        "transactionIndex": "0x3"
++      },
++      {
++        "address": "0x403483197a66d49d2078116fe365bc466271573e",
++        "blockHash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++        "blockNumber": "0x4384350",
++        "blockTimestamp": "0x6ab43502",
++        "data": "0x000000000000000000000000000000000000000000000000018e36a7bed569e4000000000000000000000000000000000000000000014e1dfa10c189af9370de0000000000000000000000000000000000000000000000000003fb6d328c5fc70000000000000000000000000000000000000000000000000000000000000000",
++        "logIndex": "0xb",
++        "removed": false,
++        "topics": [
++          "0xec36bf571f136799e8dc0b0b8bea4b04d8bd3d43de838aab0d5fc21d4cbfc455",
++          "0x0000000000000000000000008cf2969a0689f7514006e91f808a370f77e55bbd",
++          "0x000000000000000000000000613c774dfddcc676b76d8de599d6b2f9c12e22ba"
++        ],
++        "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++        "transactionIndex": "0x3"
++      }
++    ],
++    "logsBloom": "0x00000000000004000000000000080000080001001002000000000000000000000000000000000000000000000000000001000000040020400040400000200000000000000000400800008008000800002000040000000020000000100000000000000000000000400000000001000000000000000000400001000010000800000000004000000000000000000080000000080000010000040200000000000000020000000000000000000120000000000000008000000000000100020400000000000402000000000080010000000000008001000000000100000000040000000010000000000000004000001100000000000004000000000020000002000002",
++    "status": "0x1",
++    "to": "0x8cf2969a0689f7514006e91f808a370f77e55bbd",
++    "transactionHash": "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++    "transactionIndex": "0x3",
++    "type": "0x2"
++  },
++  "header": {
++    "baseFeePerGas": "0x321f0e0",
++    "difficulty": "0x1",
++    "extraData": "0xed62dbd185d43ba70495483775578e44ebf87102eaf06284c85abccec91c928d",
++    "gasLimit": "0x4000000000000",
++    "gasUsed": "0x11b5d8",
++    "hash": "0xcd4994a757a1c773290539fff790c582a5693d703b35284ecf6564bc3b1598ed",
++    "l1BlockNumber": "0x18d60a0",
++    "logsBloom": "0x0040008000000400000004020008100018000100100200000000000080000000000000001000000000001000080102000100000084002040004040000020228000000000000040080002800800080008200024000000002000002010000000000001000000000040004040000100000000800000000140000100001404080000010000400000000000400000408000000028000081400004030000000000020002000000000000000000012000000000000000800000000a0901400264000000000004020000000010804100000000200080010400220001084000000400000000300010000400000040000011000000000000040000000a0020000102040012",
++    "miner": "0xa4b000000000000000000073657175656e636572",
++    "mixHash": "0x0000000000000a7300000000018d60a0000000000000003d0000000000000000",
++    "nonce": "0x000000000004ce80",
++    "number": "0x4384350",
++    "parentHash": "0xfda028cda189bce27a161c3dc05c0ed03defe8bac9318554f76f7c26df586997",
++    "receiptsRoot": "0xc95d34f5f8842e3820ff882ab9885a8eb38b3c16e6d046e82032e6f50435631a",
++    "sendCount": "0xa73",
++    "sendRoot": "0xed62dbd185d43ba70495483775578e44ebf87102eaf06284c85abccec91c928d",
++    "sha3Uncles": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
++    "size": "0x2d98",
++    "stateRoot": "0x13f0ab03fad1f59efcfc2beabfc36e2d0819c1fc59c4cc02e5cc0f5498b46a3e",
++    "timestamp": "0x6ab43502",
++    "transactions": [
++      "0x8db8830d861cc4eaf09bd92c0667b9d677af3e0e0f8ed469a3005cb71cdc3067",
++      "0xe4a19172955b2bae86a02232ce3f4c2cf1522eb776e9cad5d16b5f46e87d73f3",
++      "0xfd686a1d856cd3df4d25692bc737361b535dc985ce1b9b2505e1a88587449829",
++      "0x42d02bdfc2d4d4a40b4011b93786f857c4c82043cf5ca0a33d881cbe6b6b223a",
++      "0xe1b852b3cf30d21efc9d337146a6ba04b78b7a2ca32eb5a558832b589fc0aaa1",
++      "0x92fbc434a8e63930d4a02a5fb6800723d5a87ab9fd69f9de1198600167a2d941",
++      "0x454024a99433a0993be2052f48e7d33704bd000a7bcbd99e479370863481361c",
++      "0x488eb26f495d9d74eb2cfafafaba08deb02bca6b9a78904f048342271e677d8b",
++      "0x212f4f5cc4177492d66be01b63e323965b93a846cc76785d2f41109c0d0111fc",
++      "0x8276d3796bd6d1f68ea1f5dcad651d459bd41e74733784a0f269a0655816ec51"
++    ],
++    "transactionsRoot": "0x82cdb60c88eae2b26d6733030c44c4340c9fb9e90c0b3edd8c6555aed5aa240b",
++    "uncles": []
++  },
++  "abi": [
++    {
++      "inputs": [
++        {
++          "internalType": "address",
++          "name": "pairToken_",
++          "type": "address"
++        },
++        {
++          "internalType": "address",
++          "name": "deployer_",
++          "type": "address"
++        },
++        {
++          "internalType": "address",
++          "name": "factory_",
++          "type": "address"
++        },
++        {
++          "internalType": "contract IPonsV2FeePolicy",
++          "name": "feePolicy_",
++          "type": "address"
++        },
++        {
++          "components": [
++            {
++              "internalType": "address",
++              "name": "protocolFeeRecipient",
++              "type": "address"
++            },
++            {
++              "internalType": "uint16",
++              "name": "protocolFeeShareBps",
++              "type": "uint16"
++            },
++            {
++              "internalType": "uint16",
++              "name": "buybackBurnBps",
++              "type": "uint16"
++            },
++            {
++              "internalType": "uint16",
++              "name": "hookFeeBps",
++              "type": "uint16"
++            },
++            {
++              "internalType": "uint16",
++              "name": "maxInternalPriceImpactBps",
++              "type": "uint16"
++            }
++          ],
++          "internalType": "struct FeePolicySnapshot",
++          "name": "policy_",
++          "type": "tuple"
++        },
++        {
++          "internalType": "contract IPonsV2FeeEscrow",
++          "name": "feeEscrow_",
++          "type": "address"
++        },
++        {
++          "internalType": "contract PonsV2BuybackVault",
++          "name": "buybackVault_",
++          "type": "address"
++        },
++        {
++          "internalType": "uint256",
++          "name": "phantomQuote_",
++          "type": "uint256"
++        },
++        {
++          "internalType": "uint256",
++          "name": "feeBps_",
++          "type": "uint256"
++        },
++        {
++          "internalType": "uint256",
++          "name": "creatorTaxBps_",
++          "type": "uint256"
++        },
++        {
++          "internalType": "bool",
++          "name": "buybackEnabled_",
++          "type": "bool"
++        },
++        {
++          "internalType": "uint256",
++          "name": "graduationThreshold_",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "nonpayable",
++      "type": "constructor"
++    },
++    {
++      "inputs": [],
++      "name": "AlreadyGraduated",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "AlreadyInitialized",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "CurveGraduated",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "InsufficientInputAmount",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "InsufficientLiquidity",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "InsufficientOutputAmount",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "InternalSwapRequiresOperator",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "InvalidFeePolicy",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "InvalidLaunchEconomics",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "MinimumOutputRequired",
++      "type": "error"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "uint256",
++          "name": "supplied",
++          "type": "uint256"
++        },
++        {
++          "internalType": "uint256",
++          "name": "expected",
++          "type": "uint256"
++        }
++      ],
++      "name": "NativeValueMismatch",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "NotFactory",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "NotFeeSweepOperator",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "NotInitialized",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "NotReadyToGraduate",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "ReentrancyGuardReentrantCall",
++      "type": "error"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "address",
++          "name": "token",
++          "type": "address"
++        }
++      ],
++      "name": "SafeERC20FailedOperation",
++      "type": "error"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "uint256",
++          "name": "actual",
++          "type": "uint256"
++        },
++        {
++          "internalType": "uint256",
++          "name": "minimum",
++          "type": "uint256"
++        }
++      ],
++      "name": "SlippageExceeded",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "TransferFailed",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "UnexpectedNativeValue",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "ZeroAddress",
++      "type": "error"
++    },
++    {
++      "inputs": [],
++      "name": "ZeroAmount",
++      "type": "error"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": true,
++          "internalType": "address",
++          "name": "token",
++          "type": "address"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "gasRemaining",
++          "type": "uint256"
++        }
++      ],
++      "name": "AutoGraduationFailed",
++      "type": "event"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": false,
++          "internalType": "bool",
++          "name": "enabled",
++          "type": "bool"
++        }
++      ],
++      "name": "BuybackEnabledUpdated",
++      "type": "event"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "quoteSpent",
++          "type": "uint256"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "tokensLocked",
++          "type": "uint256"
++        }
++      ],
++      "name": "BuybackLocked",
++      "type": "event"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": true,
++          "internalType": "address",
++          "name": "previousRecipient",
++          "type": "address"
++        },
++        {
++          "indexed": true,
++          "internalType": "address",
++          "name": "newRecipient",
++          "type": "address"
++        }
++      ],
++      "name": "CreatorFeeRecipientUpdated",
++      "type": "event"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": true,
++          "internalType": "address",
++          "name": "buyer",
++          "type": "address"
++        },
++        {
++          "indexed": true,
++          "internalType": "address",
++          "name": "recipient",
++          "type": "address"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "quoteIn",
++          "type": "uint256"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "tokensOut",
++          "type": "uint256"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "fee",
++          "type": "uint256"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "tax",
++          "type": "uint256"
++        }
++      ],
++      "name": "CurveBuy",
++      "type": "event"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": true,
++          "internalType": "address",
++          "name": "buyer",
++          "type": "address"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "refund",
++          "type": "uint256"
++        }
++      ],
++      "name": "CurveBuyRefunded",
++      "type": "event"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": false,
++          "internalType": "address",
++          "name": "recipient",
++          "type": "address"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "quoteOut",
++          "type": "uint256"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "tokenOut",
++          "type": "uint256"
++        }
++      ],
++      "name": "CurveCompleted",
++      "type": "event"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": true,
++          "internalType": "address",
++          "name": "seller",
++          "type": "address"
++        },
++        {
++          "indexed": true,
++          "internalType": "address",
++          "name": "recipient",
++          "type": "address"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "tokensIn",
++          "type": "uint256"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "quoteOut",
++          "type": "uint256"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "fee",
++          "type": "uint256"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "tax",
++          "type": "uint256"
++        }
++      ],
++      "name": "CurveSell",
++      "type": "event"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": true,
++          "internalType": "address",
++          "name": "protocolRecipient",
++          "type": "address"
++        },
++        {
++          "indexed": true,
++          "internalType": "address",
++          "name": "creatorRecipient",
++          "type": "address"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "protocolAmount",
++          "type": "uint256"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "creatorAmount",
++          "type": "uint256"
++        }
++      ],
++      "name": "FeesRescued",
++      "type": "event"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "protocolAmount",
++          "type": "uint256"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "buybackAmount",
++          "type": "uint256"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "creatorAmount",
++          "type": "uint256"
++        }
++      ],
++      "name": "FeesSwept",
++      "type": "event"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": false,
++          "internalType": "address",
++          "name": "token",
++          "type": "address"
++        }
++      ],
++      "name": "Initialized",
++      "type": "event"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": true,
++          "internalType": "address",
++          "name": "recipient",
++          "type": "address"
++        },
++        {
++          "indexed": false,
++          "internalType": "uint256",
++          "name": "amount",
++          "type": "uint256"
++        }
++      ],
++      "name": "SnipeTaxCharged",
++      "type": "event"
++    },
++    {
++      "anonymous": false,
++      "inputs": [
++        {
++          "indexed": true,
++          "internalType": "address",
++          "name": "account",
++          "type": "address"
++        }
++      ],
++      "name": "SnipeTaxExempted",
++      "type": "event"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "uint256",
++          "name": "quoteIn",
++          "type": "uint256"
++        },
++        {
++          "internalType": "uint256",
++          "name": "minTokensOut",
++          "type": "uint256"
++        },
++        {
++          "internalType": "address",
++          "name": "recipient",
++          "type": "address"
++        }
++      ],
++      "name": "buy",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "tokensOut",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "payable",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "buybackBurnBps",
++      "outputs": [
++        {
++          "internalType": "uint16",
++          "name": "",
++          "type": "uint16"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "buybackCreatorRecipient",
++      "outputs": [
++        {
++          "internalType": "address",
++          "name": "",
++          "type": "address"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "buybackEnabled",
++      "outputs": [
++        {
++          "internalType": "bool",
++          "name": "",
++          "type": "bool"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "buybackQuoteBalance",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "buybackVault",
++      "outputs": [
++        {
++          "internalType": "contract PonsV2BuybackVault",
++          "name": "",
++          "type": "address"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "creatorTaxBalance",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "creatorTaxBps",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "address",
++          "name": "recipient",
++          "type": "address"
++        }
++      ],
++      "name": "currentSnipeTaxBps",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "deployer",
++      "outputs": [
++        {
++          "internalType": "address",
++          "name": "",
++          "type": "address"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "address",
++          "name": "account",
++          "type": "address"
++        }
++      ],
++      "name": "exemptFromSnipeTax",
++      "outputs": [],
++      "stateMutability": "nonpayable",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "factory",
++      "outputs": [
++        {
++          "internalType": "address",
++          "name": "",
++          "type": "address"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "feeBps",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "feeEscrow",
++      "outputs": [
++        {
++          "internalType": "contract IPonsV2FeeEscrow",
++          "name": "",
++          "type": "address"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "feePolicy",
++      "outputs": [
++        {
++          "internalType": "contract IPonsV2FeePolicy",
++          "name": "",
++          "type": "address"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "getReserves",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "quoteReserve_",
++          "type": "uint256"
++        },
++        {
++          "internalType": "uint256",
++          "name": "tokenReserve_",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "address",
++          "name": "recipient",
++          "type": "address"
++        }
++      ],
++      "name": "graduate",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "quoteOut",
++          "type": "uint256"
++        },
++        {
++          "internalType": "uint256",
++          "name": "tokenOut",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "nonpayable",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "graduated",
++      "outputs": [
++        {
++          "internalType": "bool",
++          "name": "",
++          "type": "bool"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "graduationThreshold",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "address",
++          "name": "token_",
++          "type": "address"
++        }
++      ],
++      "name": "initialize",
++      "outputs": [],
++      "stateMutability": "nonpayable",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "isNativeQuote",
++      "outputs": [
++        {
++          "internalType": "bool",
++          "name": "",
++          "type": "bool"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "launchSupply",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "launchedAt",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "maxInternalPriceImpactBps",
++      "outputs": [
++        {
++          "internalType": "uint16",
++          "name": "",
++          "type": "uint16"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "pairToken",
++      "outputs": [
++        {
++          "internalType": "address",
++          "name": "",
++          "type": "address"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "phantomQuote",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "protocolFeeRecipient",
++      "outputs": [
++        {
++          "internalType": "address",
++          "name": "",
++          "type": "address"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "protocolFeeShareBps",
++      "outputs": [
++        {
++          "internalType": "uint16",
++          "name": "",
++          "type": "uint16"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "quoteFeeBalance",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "quoteReserve",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "quoteReserve_",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "readyToGraduate",
++      "outputs": [
++        {
++          "internalType": "bool",
++          "name": "",
++          "type": "bool"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "realQuoteReserve",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "rescueFees",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "protocolAmount",
++          "type": "uint256"
++        },
++        {
++          "internalType": "uint256",
++          "name": "creatorAmount",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "nonpayable",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "reservedTokens",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "uint256",
++          "name": "tokensIn",
++          "type": "uint256"
++        },
++        {
++          "internalType": "uint256",
++          "name": "minQuoteOut",
++          "type": "uint256"
++        },
++        {
++          "internalType": "address",
++          "name": "recipient",
++          "type": "address"
++        }
++      ],
++      "name": "sell",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "quoteOut",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "nonpayable",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "sellableTokens",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "bool",
++          "name": "enabled",
++          "type": "bool"
++        }
++      ],
++      "name": "setBuybackEnabled",
++      "outputs": [],
++      "stateMutability": "nonpayable",
++      "type": "function"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "address",
++          "name": "newRecipient",
++          "type": "address"
++        }
++      ],
++      "name": "setCreatorFeeRecipient",
++      "outputs": [],
++      "stateMutability": "nonpayable",
++      "type": "function"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "address",
++          "name": "account",
++          "type": "address"
++        }
++      ],
++      "name": "snipeTaxExempt",
++      "outputs": [
++        {
++          "internalType": "bool",
++          "name": "exempt",
++          "type": "bool"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "snipeTaxSeconds",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "snipeTaxStartBps",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [
++        {
++          "internalType": "uint256",
++          "name": "minBuybackTokensOut",
++          "type": "uint256"
++        }
++      ],
++      "name": "sweepFees",
++      "outputs": [],
++      "stateMutability": "nonpayable",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "token",
++      "outputs": [
++        {
++          "internalType": "address",
++          "name": "",
++          "type": "address"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "tokenReserve",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "tokenReserve_",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "trackedQuote",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    },
++    {
++      "inputs": [],
++      "name": "trackedTokens",
++      "outputs": [
++        {
++          "internalType": "uint256",
++          "name": "",
++          "type": "uint256"
++        }
++      ],
++      "stateMutability": "view",
++      "type": "function"
++    }
++  ]
++}
+diff --git a/robinhood_tests/test_rpc_log_timestamp_metadata.py b/robinhood_tests/test_rpc_log_timestamp_metadata.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..5663b23f6821d19a84c33097a4df55f0b9f41308
+--- /dev/null
++++ b/robinhood_tests/test_rpc_log_timestamp_metadata.py
+@@ -0,0 +1,38 @@
++import copy,json,unittest
++from pathlib import Path
++from robinhood_research import BoundaryError
++from robinhood_research.pons import raw_event
++from robinhood_research.ramses import _raw_ramses_event
++
++FIXTURE=Path(__file__).with_name('fixtures')/'public_log_timestamp_35915320840.json'
++
++class ProviderLogTimestampTests(unittest.TestCase):
++    def setUp(self):self.f=json.loads(FIXTURE.read_text())
++    def readers(self,event=None,receipt=None,header=None,observed_at=None):
++        e=event or self.f['event'];r=receipt or self.f['receipt'];h=header or self.f['header']
++        kw=dict(address=self.f['event']['address'],receipt=r,header=h,
++                observed_at=observed_at if observed_at is not None else int(h['timestamp'],16))
++        return (lambda:raw_event(self.f['abi'],e,confirmation='confirmed',**kw),
++                lambda:_raw_ramses_event(self.f['abi'],e,**kw))
++    def test_archived_optional_timestamp_mismatch_uses_authenticated_header_time(self):
++        self.assertNotIn(self.f['event'],self.f['receipt']['logs'])
++        for read in self.readers():
++            row=read();self.assertEqual(row['event_at'],int(self.f['header']['timestamp'],16))
++            self.assertTrue(row['decoded']['name'])
++        e=copy.deepcopy(self.f['event']);e.pop('blockTimestamp')
++        for read in self.readers(event=e):read()
++    def test_every_identity_payload_field_and_unknown_extension_still_must_match(self):
++        for field in ('address','blockHash','blockNumber','transactionHash','transactionIndex','logIndex','topics','data','removed','unknownExtension'):
++            e=copy.deepcopy(self.f['event'])
++            e[field]=True if field=='removed' else ['0x'+'00'*32] if field=='topics' else '0x01'
++            for read in self.readers(event=e):
++                with self.subTest(field=field),self.assertRaises((BoundaryError,ValueError)):read()
++        for field,value in [('status','0x0'),('transactionHash','0x01'),('transactionIndex','0x01'),('blockHash','0x01'),('logs',[])]:
++            r=copy.deepcopy(self.f['receipt']);r[field]=value
++            for read in self.readers(receipt=r):
++                with self.subTest(receipt_field=field),self.assertRaises(BoundaryError):read()
++    def test_future_header_remains_rejected(self):
++        for read in self.readers(observed_at=int(self.f['header']['timestamp'],16)-1):
++            with self.assertRaisesRegex(BoundaryError,'future_event'):read()
++
++if __name__=='__main__':unittest.main()

@@ -1,0 +1,29 @@
+diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
+index 1a4ec35a53e1b5dcb91bc94fd97681485a15092d..311d2c917a4ff15f15f8bb8ac9922388fe1097fa 100644
+--- a/tests/solana_dlmm_independent_v1.py
++++ b/tests/solana_dlmm_independent_v1.py
+@@ -1266,9 +1266,6 @@ def _position_lifecycle(
+         position=_advance_position(position,tape)
+         raw_reasons,recent,mark,uplift=_segment_exit(
+             position,effective_start,tape,terminal,entry_flow,policy)
+-        if book is not None:
+-            book.append(identity,'mark',dict(
+-                tape=asdict(tape),position_hash=digest(position),mark=mark))
+         observed_seconds=max(
+             duration,
+             max(0,int(terminal.get("time",0))-int(current.get("time",0))))
+@@ -1281,6 +1278,14 @@ def _position_lifecycle(
+             raw_reasons,elapsed_seconds=elapsed,
+             collapse_streaks=collapse_streaks,policy=policy,
+         )
++        if book is not None:
++            book.append(identity,'mark',dict(
++                tape=asdict(tape),position_hash=digest(position),mark=mark,
++                strategy_progress=dict(observed_seconds=observed_seconds,
++                    elapsed_seconds=elapsed,collapse_streaks=dict(collapse_streaks),
++                    raw_exit_reasons=raw_reasons,eligible_exit_reasons=eligible_reasons,
++                    effective_start_hash=digest(effective_start),
++                    effective_start=(effective_start if effective_start!=current else None))))
+         segments.append(dict(
+             elapsed_seconds=elapsed,lineage=tape.lineage,
+             swaps=len(tape.events),recent=recent,mark=mark,

@@ -1,0 +1,344 @@
+name: position-continuation
+on:
+  # A read-only push registers this workflow with Actions before any dispatch.
+  # The historical runtime ref stays immutable; registration grants no authority.
+  push:
+    branches: [repair/v9-position-continuation-dispatch-20260924]
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: Durable paper position lane to resume
+        required: true
+        type: choice
+        options: [meteora, ramses]
+      state_run_id:
+        description: GitHub Actions run containing the latest hourly/continuation artifact
+        required: true
+        type: string
+      slice_seconds:
+        description: Bounded continuation slice (60-3300 seconds)
+        required: true
+        default: "3000"
+        type: string
+
+      program:
+        description: Belongs to the frozen prospective program
+        type: boolean
+        default: false
+      expected_sha:
+        description: Frozen runtime SHA
+        type: string
+      campaign_run_id:
+        description: Original campaign workflow run
+        type: string
+      engineering_recovery:
+        description: Continue only the digest-pinned failed predecessor; no prospective credit
+        type: boolean
+        default: false
+      certification_run_id:
+        description: Full exact-SHA certificate required before predecessor recovery
+        type: string
+      smoke_continuation:
+        description: Continue a preserved smoke position without economic sample credit
+        type: boolean
+        default: false
+      single_campaign:
+        description: Position-only continuation of the one owner-authorized discovery campaign
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      lane:
+        type: string
+        required: true
+      state_run_id:
+        type: string
+        required: true
+      slice_seconds:
+        type: string
+        default: '3000'
+      program:
+        type: boolean
+        default: false
+      expected_sha:
+        type: string
+        required: true
+      campaign_run_id:
+        type: string
+        default: ''
+      engineering_recovery:
+        type: boolean
+        default: false
+      certification_run_id:
+        type: string
+        default: ''
+      smoke_continuation:
+        type: boolean
+        default: false
+      single_campaign:
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  registration:
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Register workflow without consuming position authority
+        run: echo 'Registration only; no checkout, providers, state changes, or dispatch.'
+  resume:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.expected_sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Claim exact position-only continuation from the consumed single campaign
+        if: inputs.single_campaign == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: >-
+          python -m certification.single_campaign_control continuation-claim
+          --lane "${{ inputs.lane }}"
+          --campaign-run-id "${{ inputs.campaign_run_id }}"
+          --state-run-id "${{ inputs.state_run_id }}"
+          --output single-campaign-continuation-claim.json
+      - name: Reject continuation without explicit single-campaign position authority
+        if: inputs.single_campaign != true
+        run: python -m certification.single_campaign_control prohibit --action continuation
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Restore exact prior position artifact
+        if: inputs.engineering_recovery != true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE_RUN_ID: ${{ inputs.state_run_id }}
+          CONTINUATION_LANE: ${{ inputs.lane }}
+          SMOKE_CONTINUATION: ${{ inputs.smoke_continuation }}
+        run: |
+          set -euo pipefail
+          source_prefix=four-lane-hourly
+          if [ "$SMOKE_CONTINUATION" = true ]; then source_prefix=four-lane-certification; fi
+          mapfile -t names < <(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${STATE_RUN_ID}/artifacts?per_page=100" \
+            --jq '.artifacts[].name' | grep -E \
+            "^(${source_prefix}-${STATE_RUN_ID}-[0-9]+|position-continuation-${CONTINUATION_LANE}-${STATE_RUN_ID}-[0-9]+)$" || true)
+          if [ "${#names[@]}" -ne 1 ]; then
+            printf 'expected exactly one continuation source artifact, found %s: %s\n' \
+              "${#names[@]}" "${names[*]-}" >&2
+            exit 3
+          fi
+          mkdir -p continuation-state
+          gh run download "${STATE_RUN_ID}" -n "${names[0]}" -D continuation-state
+      - name: Prepare exact certified lane worktrees
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/continuation-worktrees"
+      - name: Restore digest-pinned predecessor or verified recovery artifact chain
+        if: inputs.engineering_recovery == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CERTIFICATE_RUN: ${{ inputs.certification_run_id }}
+          STATE_RUN: ${{ inputs.state_run_id }}
+        run: >-
+          python -m certification.preserved_position_recovery prepare
+          --state-dir continuation-state --worktrees "$RUNNER_TEMP/continuation-worktrees"
+          --certificate-run-id "$CERTIFICATE_RUN" --state-run-id "$STATE_RUN"
+      - name: Resume one bounded position slice
+        env:
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+          MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON }}
+          MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON: ${{ secrets.MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON }}
+          CONTINUATION_LANE: ${{ inputs.lane }}
+          CONTINUATION_SLICE: ${{ inputs.slice_seconds }}
+          ENGINEERING_RECOVERY: ${{ inputs.engineering_recovery }}
+        run: |
+          set -euo pipefail
+          case "$CONTINUATION_LANE" in
+            meteora|ramses) ;;
+            *) echo "invalid continuation lane" >&2; exit 2 ;;
+          esac
+          export MM_CONTINUATION_LANE_ROOT="$RUNNER_TEMP/continuation-worktrees/$CONTINUATION_LANE"
+          if [ "$ENGINEERING_RECOVERY" = true ]; then
+            python -m certification.preserved_position_recovery run \
+              --state-dir continuation-state --worktrees "$RUNNER_TEMP/continuation-worktrees" \
+              --slice-seconds "$CONTINUATION_SLICE"
+            exit 0
+          fi
+          python -m certification.position_continuation \
+            --lane "$CONTINUATION_LANE" \
+            --state-dir continuation-state \
+            --slice-seconds "$CONTINUATION_SLICE" \
+            --output continuation-state/position-continuation-result.json
+      - name: Amend original prospective block when this lane reaches a terminal state
+        if: success() && inputs.engineering_recovery != true && inputs.smoke_continuation != true
+        env:
+          CONTINUATION_LANE: ${{ inputs.lane }}
+        run: |
+          set -euo pipefail
+          python - <<'PY' > /tmp/continuation-terminal
+          import json
+          from pathlib import Path
+          row=json.loads(Path("continuation-state/position-continuation-result.json").read_text())
+          print("yes" if row.get("handoff_required") is not True else "no")
+          PY
+          if [ "$(cat /tmp/continuation-terminal)" = "yes" ]; then
+            base="$(find continuation-state -type f -name 'prospective-observation.json' -print -quit)"
+            if [ -z "$base" ]; then
+              echo "original prospective observation missing from continuation state" >&2
+              exit 4
+            fi
+            python -m certification.prospective_acceptance amend-continuation \
+              --record "$base" \
+              --lane "$CONTINUATION_LANE" \
+              --state-dir continuation-state \
+              --continuation-result continuation-state/position-continuation-result.json \
+              --output "continuation-state/prospective-observation-${CONTINUATION_LANE}.json"
+          fi
+      - name: Preserve single-campaign position-continuation chain state
+        if: always() && inputs.single_campaign == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          CONTINUATION_JOB_RESULT: ${{ job.status }}
+        run: >-
+          python -m certification.single_campaign_control continuation-record
+          --lane "${{ inputs.lane }}"
+          --campaign-run-id "${{ inputs.campaign_run_id }}"
+          --result continuation-state/position-continuation-result.json
+          --job-result "$CONTINUATION_JOB_RESULT"
+          --output continuation-state/single-campaign-continuation-state.json
+      - name: Preserve updated restart-safe position state
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: position-continuation-${{ inputs.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: continuation-state/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Chain next bounded continuation slice when still open
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONTINUATION_LANE: ${{ inputs.lane }}
+          CONTINUATION_SLICE: ${{ inputs.slice_seconds }}
+        run: |
+          set -euo pipefail
+          python - <<'PY' > /tmp/continuation-next
+          import json
+          from pathlib import Path
+          row=json.loads(Path("continuation-state/position-continuation-result.json").read_text())
+          print("yes" if row.get("handoff_required") is True else "no")
+          PY
+          if [ "$(cat /tmp/continuation-next)" = "yes" ]; then
+            next_slice="$CONTINUATION_SLICE"
+            if [ "${{ inputs.engineering_recovery }}" = true ]; then next_slice=3000; fi
+            gh workflow run position-continuation.yml \
+              --ref "$GITHUB_REF_NAME" \
+              -f lane="$CONTINUATION_LANE" \
+              -f state_run_id="$GITHUB_RUN_ID" \
+              -f slice_seconds="$next_slice" \
+              -f program="${{ inputs.program || false }}" \
+              -f expected_sha="${{ inputs.expected_sha || github.sha }}" \
+              -f campaign_run_id="${{ inputs.campaign_run_id }}" \
+              -f engineering_recovery="${{ inputs.engineering_recovery || false }}" \
+              -f smoke_continuation="${{ inputs.smoke_continuation || false }}" \
+              -f single_campaign="${{ inputs.single_campaign || false }}" \
+              -f certification_run_id="${{ inputs.certification_run_id }}"
+          fi
+      - name: Activate successor only after the preserved predecessor is verified flat
+        if: success() && inputs.engineering_recovery == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          CERTIFICATE_RUN: ${{ inputs.certification_run_id }}
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          result=json.loads(Path('continuation-state/preserved-position-recovery.json').read_text())
+          if result.get('handoff_required') is True:
+              print('The original position continues under its frozen policy; fresh admission remains halted.')
+          elif result.get('verified_flat') is True:
+              subprocess.run([sys.executable,'-m','certification.prospective_program','start',
+                  '--run-id',os.environ['CERTIFICATE_RUN'],'--output','successor-activation.json'],check=True)
+          else:
+              raise RuntimeError('predecessor_not_verified_flat')
+          PY
+      - name: Preserve successor activation receipt
+        if: always() && inputs.engineering_recovery == true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: successor-activation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: successor-activation.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+  prospective-program-transition:
+    needs: resume
+    if: always() && github.event_name != 'push' && inputs.program == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Preserve continuation outcome and resume observation only when every lane is flat
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          CAMPAIGN_RUN_ID: ${{ inputs.campaign_run_id }}
+          CONTINUATION_LANE: ${{ inputs.lane }}
+          RESUME_RESULT: ${{ needs.resume.result }}
+          SMOKE_CONTINUATION: ${{ inputs.smoke_continuation }}
+        run: |
+          set -euo pipefail
+          if [ "$RESUME_RESULT" != success ]; then
+            python -m certification.prospective_program halt --reason position_continuation_failed --output program-checkpoint.json
+            exit 0
+          fi
+          gh run download "$GITHUB_RUN_ID" -n "position-continuation-${CONTINUATION_LANE}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" -D program-evidence
+          python - <<'PYCODE'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path('program-evidence')
+          result=json.loads((root/'position-continuation-result.json').read_text())
+          if result.get('handoff_required') is True:
+              print('Same durable position continues in the next bounded slice.')
+          else:
+              if os.environ['SMOKE_CONTINUATION']=='true':
+                  subprocess.run([sys.executable,'-m','certification.smoke_continuation','complete',
+                      '--run-id',os.environ['CAMPAIGN_RUN_ID'],'--result',str(root/'position-continuation-result.json'),
+                      '--output','program-checkpoint.json'],check=True)
+                  raise SystemExit(0)
+              lane=os.environ['CONTINUATION_LANE']
+              records=list(root.rglob('prospective-observation-'+lane+'.json'))
+              if len(records)!=1:raise RuntimeError('continuation_amendment_ambiguous')
+              subprocess.run([sys.executable,'-m','certification.prospective_program','advance',
+                  '--record',str(records[0]),'--output','program-checkpoint.json'],check=True)
+          PYCODE
+      - name: Preserve program transition evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: prospective-program-continuation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: program-checkpoint.json
+          if-no-files-found: warn
+          retention-days: 90

@@ -1,0 +1,75 @@
+name: single-campaign-launch
+on:
+  push:
+    branches: [launch/evidence-reconstruction-single-20260924]
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: evidence-reconstruction-owner-single-dispatch
+  cancel-in-progress: false
+jobs:
+  launch-once:
+    if: contains(github.event.head_commit.message, '[single-market-launch]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - name: Read deliberately published exact-runtime launch request
+        id: request
+        run: |
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          if os.environ['GITHUB_RUN_ATTEMPT'] != '1':
+              raise SystemExit('single_campaign_launcher_rerun_prohibited')
+          row=json.loads(Path('.github/single-campaign-launch-request.json').read_text())
+          if set(row) != {'runtime_sha', 'runtime_ref', 'certification_run_id', 'authorization_id'}:
+              raise SystemExit('single_campaign_launch_request_fields')
+          if not re.fullmatch('[0-9a-f]{40}', row['runtime_sha']):
+              raise SystemExit('single_campaign_launch_sha')
+          if not re.fullmatch('cert/single-market-[a-z0-9-]+', row['runtime_ref']):
+              raise SystemExit('single_campaign_launch_ref')
+          if type(row['certification_run_id']) is not int or row['certification_run_id'] <= 0:
+              raise SystemExit('single_campaign_launch_certificate')
+          if not re.fullmatch('[a-z0-9-]{8,100}', row['authorization_id']):
+              raise SystemExit('single_campaign_launch_authority')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              for key,value in row.items():
+                  print(f'{key}={value}', file=out)
+          PY
+      - name: Check out the already-certified runtime without modifying it
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ steps.request.outputs.runtime_sha }}
+          persist-credentials: false
+      - name: Consume one authorization and dispatch once after full quiet inventory
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ steps.request.outputs.runtime_sha }}
+          SINGLE_AUTHORIZATION_ID: ${{ steps.request.outputs.authorization_id }}
+          CERTIFICATE_RUN_ID: ${{ steps.request.outputs.certification_run_id }}
+          RUNTIME_REF: ${{ steps.request.outputs.runtime_ref }}
+        run: >-
+          python -m certification.single_campaign_control dispatch
+          --certificate-run-id "$CERTIFICATE_RUN_ID"
+          --runtime-ref "$RUNTIME_REF"
+          --output single-campaign-dispatch.json
+      - name: Preserve consumed authority even when dispatch response is ambiguous
+        if: always() && steps.request.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m certification.single_campaign_control review --output single-campaign-authority.json
+      - name: Preserve dispatch receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: single-campaign-dispatch-${{ github.run_id }}-${{ github.run_attempt }}
+          path: single-campaign-*.json
+          if-no-files-found: warn
+          retention-days: 90

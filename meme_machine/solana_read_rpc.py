@@ -1,7 +1,7 @@
 """Canonical read-only Solana RPC topology for Meme Machine.
 
 Provider policy:
-- Public Solana WebSocket is authoritative Pump discovery.
+- Public Solana WebSocket is Pump discovery-only, never decision evidence.
 - MM_SOLANA_READ_RPC_URL (Alchemy) is the Pump HTTP evidence primary.
 - Authenticated OnFinality is retained only for isolated diagnostics and is not part
   of Pump evidence acquisition after repeated sustained 429 failures.
@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 
 from .postgrad import PoolScanRPC
 from .provider import RPC, Unavailable
+from .solana_provider_config import AlchemyEndpoint
 
 
 PRIMARY_PROVIDER = "alchemy_solana_mainnet"
@@ -76,21 +77,8 @@ def _validate_onfinality_url(value, *, websocket=False, public_only=False):
 
 
 def _validate_alchemy_url(value):
-    parsed=urlparse(value)
-    if (
-        parsed.scheme!="https"
-        or parsed.hostname!=ALCHEMY_SOLANA_MAINNET_HOST
-        or parsed.port not in (None,443)
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.query
-        or parsed.fragment
-    ):
-        raise Unavailable("alchemy_rpc_endpoint_required")
-    parts=[part for part in parsed.path.split("/") if part]
-    if len(parts)!=2 or parts[0]!="v2" or not parts[1] or "<" in parts[1] or ">" in parts[1]:
-        raise Unavailable("alchemy_rpc_endpoint_required")
-    return value
+    try:return AlchemyEndpoint.parse(value).http_url
+    except ValueError:raise Unavailable("alchemy_rpc_endpoint_required") from None
 
 
 def onfinality_rpc_url(environ=None, *, required=False):
@@ -109,7 +97,7 @@ def primary_rpc_url(environ=None, *, required=False):
     value=str(source.get(ALCHEMY_ENV_NAME,"") or "").strip()
     if value:
         return _validate_alchemy_url(value)
-    if required:
+    if required or _source(environ).get("MM_SOLANA_EVIDENCE_PLANE_DB"):
         raise Unavailable("alchemy_rpc_missing")
     override=str(source.get(PUBLIC_OVERRIDE_ENV_NAME,"") or "").strip()
     if override:
@@ -148,9 +136,9 @@ def secondary_rpc_url(environ=None, *, required=False):
 class SolanaReadPacer:
     """One conservative request clock shared across bounded RPC objects.
 
-    OnFinality primary is governed at two physical requests per second. The pacer is
+    Alchemy is governed at two physical requests per second. The pacer is
     shared across bounded RPC objects so provider rotations and concentration reads do
-    not multiply the aggregate primary cadence. Alchemy remains rescue-only.
+    not multiply the aggregate primary cadence. No rescue provider is configured.
     """
 
     def __init__(self, minimum_interval=SOLANA_MIN_REQUEST_INTERVAL_SECONDS):
@@ -200,10 +188,11 @@ class SolanaReadPacer:
 
 
 class _ReadOnlyFailoverMixin:
-    """HTTP transport mixin with OnFinality-primary / Alchemy-rescue semantics."""
+    """HTTP transport mixin with single-provider semantics; legacy class name retained."""
 
     def _init_failover(self, secondary_url, pacer, primary_provider=PRIMARY_PROVIDER, secondary_provider=SECONDARY_PROVIDER):
-        self.secondary_url = secondary_url
+        if secondary_url is not None:raise Unavailable("solana_secondary_provider_disabled")
+        self.secondary_url = None
         self.primary_provider_label = primary_provider
         self.secondary_provider_label = secondary_provider
         self.read_pacer = pacer or SolanaReadPacer()
@@ -240,13 +229,25 @@ class _ReadOnlyFailoverMixin:
 
     @staticmethod
     def _request_url(url, request):
+        endpoint = AlchemyEndpoint.parse(url) if 'alchemy.com' in url else None
         data = json.dumps(request).encode()
         req = urllib.request.Request(url, data, {"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=8) as response:
-            raw = response.read(2_000_001)
-        if len(raw) > 2_000_000:
-            raise Unavailable("response_size_limit")
-        return json.loads(raw)
+        try:
+            with urllib.request.urlopen(req, timeout=8) as response:
+                raw = response.read(2_000_001)
+            if len(raw) > 2_000_000:raise Unavailable("response_size_limit")
+            value = json.loads(raw)
+            if endpoint:endpoint.public(value)
+            return value
+        except urllib.error.HTTPError as exc:
+            # Retain the existing numeric Retry-After behavior without publishing
+            # arbitrary headers, URLs or provider-supplied error text.
+            headers={}
+            try:headers['Retry-After']=str(max(.5,min(float(exc.headers.get('Retry-After')),30.0)))
+            except (TypeError,ValueError,AttributeError):pass
+            raise urllib.error.HTTPError('', int(exc.code), 'provider_http_error', headers, None) from None
+        except Exception:
+            raise Unavailable('provider_response_unavailable') from None
 
     @staticmethod
     def _single_response_issue(request, response):
@@ -266,10 +267,8 @@ class _ReadOnlyFailoverMixin:
     def _response_issue(cls, request, response):
         if not isinstance(request, list):
             return cls._single_response_issue(request, response)
-        # Do not rescue a semantic batch rejection to Alchemy here. The base
-        # call_many() implementation degrades missing/error/null batch items to
-        # bounded individual logical calls. Those individual calls try OnFinality
-        # again first and use Alchemy only if the same item still fails.
+        # Bounded logical retries stay on the same provider. Production has no
+        # secondary transport, even when the legacy class name is imported.
         return None
 
     @staticmethod
@@ -378,22 +377,12 @@ class _ReadOnlyFailoverMixin:
             raise
 
     def _http(self, request):
-        try:
-            return self._provider_attempt(self.primary_provider_label, self.url, request)
-        except Exception as primary_exc:
-            if not self.secondary_url:
-                raise
-            reason = self._exception_reason(primary_exc)
-            self.failover_count += 1
-            self.failover_reasons[reason] += 1
-            # RPC.call/call_many already counted the primary physical transport.
-            # Count the rescue transport explicitly so http_requests remains physical.
-            self.http_requests += 1
-            return self._provider_attempt(
-                self.secondary_provider_label,
-                self.secondary_url,
-                request,
-            )
+        if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
+            _validate_alchemy_url(self.url)
+            calls = request if isinstance(request,list) else [request]
+            if any(x.get('method') in ('getSignaturesForAddress','getTransaction','getTransactionsForAddress','getBlock') for x in calls):
+                raise Unavailable('foreground_historical_rpc_forbidden')
+        return self._provider_attempt(self.primary_provider_label, self.url, request)
 
     def provider_telemetry(self):
         return dict(
@@ -431,6 +420,9 @@ class ReadOnlyFailoverRPC(_ReadOnlyFailoverMixin, RPC):
         pacer=None,
         **kwargs,
     ):
+        if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
+            primary_url = _validate_alchemy_url(primary_url)
+            if primary_provider != PRIMARY_PROVIDER:raise Unavailable('authoritative_provider_label_required')
         self._init_failover(secondary_url, pacer, primary_provider, secondary_provider)
         super().__init__(primary_url, limit=limit, **kwargs)
 
@@ -451,6 +443,9 @@ class ReadOnlyFailoverPoolScanRPC(_ReadOnlyFailoverMixin, PoolScanRPC):
         pacer=None,
         **kwargs,
     ):
+        if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
+            primary_url = _validate_alchemy_url(primary_url)
+            if primary_provider != PRIMARY_PROVIDER:raise Unavailable('authoritative_provider_label_required')
         self._init_failover(secondary_url, pacer, primary_provider, secondary_provider)
         super().__init__(primary_url, limit=limit, **kwargs)
 

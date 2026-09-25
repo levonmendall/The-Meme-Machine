@@ -1,0 +1,16 @@
+name: meteora-one-side-nonmarket-certification
+on:
+  push:
+    branches: [repair/meteora-legacy-one-side-replay-20260924]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: meteora-one-side-exact-certificate
+  cancel-in-progress: false
+jobs:
+  certify:
+    if: contains(github.event.head_commit.message, '[meteora-one-side-cert]') && contains(github.event.head_commit.message, '[non-market-cert]')
+    uses: ./.github/workflows/non-market-certification.yml
+    secrets: inherit
+# Non-market only: no smoke, hourly campaign, successor, continuation, or market dispatch.

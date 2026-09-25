@@ -1,0 +1,78 @@
+diff --git a/meme_machine/pump_acceleration_history.py b/meme_machine/pump_acceleration_history.py
+index e065136992d2928f9bcf230e5173ca742669bded..5fab267a530f584eeaf48b150c75a2722914a589 100644
+--- a/meme_machine/pump_acceleration_history.py
++++ b/meme_machine/pump_acceleration_history.py
+@@ -316,7 +316,7 @@ class IncrementalPumpSwapHistory:
+         older=[]
+         for row in self.signature_rows.values():
+             sig=str(row["signature"])
+-            if sig in self.processed or row.get("err"):
++            if sig in self.processed or sig in self.stream_prefiltered_signatures or row.get("err"):
+                 continue
+             bt=row.get("blockTime")
+             if bt is None:
+@@ -388,7 +388,7 @@ class IncrementalPumpSwapHistory:
+         pending=0
+         for row in self.signature_rows.values():
+             sig=str(row["signature"]);bt=row.get("blockTime")
+-            if sig in self.processed or row.get("err") or bt is None:
++            if sig in self.processed or sig in self.stream_prefiltered_signatures or row.get("err") or bt is None:
+                 continue
+             if cutoff<=int(bt)<=now:
+                 pending+=1
+@@ -451,7 +451,7 @@ class IncrementalPumpSwapHistory:
+         for row in self.signature_rows.values():
+             sig=str(row["signature"])
+             bt=row.get("blockTime")
+-            if sig in self.processed or row.get("err") or bt is None:
++            if sig in self.processed or sig in self.stream_prefiltered_signatures or row.get("err") or bt is None:
+                 continue
+             if self.graduation_time<=int(bt)<=int(now):
+                 total+=1
+diff --git a/tests/test_pump_acceleration_history.py b/tests/test_pump_acceleration_history.py
+index 79e2bdce903cb90badf2889d18fd25aba09ba682..31b7890b7d44c75403cf0a735b5e1bf20aabaadc 100644
+--- a/tests/test_pump_acceleration_history.py
++++ b/tests/test_pump_acceleration_history.py
+@@ -297,3 +297,42 @@ class RefreshBudgetRegressionTests(unittest.TestCase):
+         self.assertEqual(history.stream_pending_transactions,0)
+         self.assertTrue(history.decision_window_status(103)['complete'])
+         self.assertEqual(rpc.tx_calls.count('s3'),1);self.assertNotIn('noise',rpc.tx_calls);self.assertEqual(len(history.stream_prefiltered_signatures),1)
++
++class NegativeHistoryReuseTests(unittest.TestCase):
++    def test_known_negative_cannot_reenter_hydration_or_poison_complete_window(self):
++        broker=EvidenceBroker(':memory:',clock=lambda:105,sleeper=lambda _:None)
++        self.addCleanup(broker.close)
++        broker.stream_begin('pool:one',70)
++        broker.record_event('pool:one',signature='s5',slot=5,observed_at=105,
++            payload=dict(err=None,logs=['Program Other111 invoke [1]','Program Other111 success']))
++        history=IncrementalPumpSwapHistory('pool',100,broker=broker,stream_key='pool:one')
++        rpc=FakeRPC();history._ingest_stream_window(rpc,105)
++        self.assertIn('s5',history.stream_prefiltered_signatures)
++        history._remember([dict(signature='s5',slot=5,blockTime=105,err=None)])
++        history.history_exhausted=True;history._coverage()
++        self.assertEqual(history.pending_relevant(105),0)
++        self.assertTrue(history.decision_window_status(105)['complete'])
++        self.assertTrue(history.complete(105))
++        for kind in ('pump_window','research_history'):history._decode_pending(rpc,105,kind)
++        self.assertEqual(rpc.tx_calls,[])
++        self.assertNotIn('s5',history.processed)
++        self.assertEqual(history.rows(105),[])
++        # Another pool's history gains no exclusion or body authority.
++        other=IncrementalPumpSwapHistory('other',100)
++        other._remember([dict(signature='s5',slot=5,blockTime=105,err=None)])
++        self.assertEqual(other.pending_relevant(105),1)
++        other._decode_pending(rpc,105)
++        self.assertEqual(rpc.tx_calls,['s5'])
++
++    def test_missing_or_truncated_logs_still_require_transaction_bodies(self):
++        for payload in ({},dict(err=None,logs=['Log truncated'])):
++            with self.subTest(payload=payload):
++                broker=EvidenceBroker(':memory:',clock=lambda:105,sleeper=lambda _:None)
++                try:
++                    broker.stream_begin('pool:one',70)
++                    broker.record_event('pool:one',signature='s5',slot=5,observed_at=105,payload=payload)
++                    history=IncrementalPumpSwapHistory('pool',100,broker=broker,stream_key='pool:one')
++                    rpc=FakeRPC();history._ingest_stream_window(rpc,105)
++                    self.assertNotIn('s5',history.stream_prefiltered_signatures)
++                    self.assertEqual(rpc.tx_calls,['s5'])
++                finally:broker.close()

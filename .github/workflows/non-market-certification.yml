@@ -1,8 +1,9 @@
 name: non-market-certification
 on:
   push:
-    branches: [cert/non-market-e2e-20260922]
+    branches: [cert/non-market-e2e-20260922, repair/market-scope-efficiency-final-20260923, cert/profitability-portfolio-autonomy-current-v1, cert/profitability-portfolio-autonomy-final-v1]
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
   actions: read
@@ -24,6 +25,8 @@ jobs:
           python-version: '3.12.14'
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/non-market-lanes"
+      - name: Verify frozen profitability portfolio autonomy protocol
+        run: python -m certification.protocol_freeze --output non-market-evidence/profitability-protocol-freeze.json
       - name: Reject retired provider references in prepared runtime
         run: >-
           python -m certification.provider_removal_gate
@@ -49,6 +52,8 @@ jobs:
           cp "$RUNNER_TEMP/non-market-lanes/ramses/robinhood_research/ramses_strategy_ledger.py" non-market-evidence/prepared-sources/ramses/
           git -C "$RUNNER_TEMP/non-market-lanes/meteora" diff --binary HEAD > non-market-evidence/prepared-sources/meteora/git-diff.patch
       - name: Supervisor, source mutation and terminal truth
+        env:
+          MM_TEST_LANE_WORKTREES: ${{ runner.temp }}/non-market-lanes
         run: |
           mkdir -p non-market-evidence
           set -o pipefail
@@ -99,6 +104,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m certification.guard --wait-seconds 0
+      - name: Secret-safe Solana and Robinhood chain binding
+        env:
+          MM_SOLANA_READ_RPC_URL: ${{ secrets.MM_SOLANA_READ_RPC_URL }}
+          MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
+          MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
+        run: python -m certification.chain_binding --output non-market-evidence/chain-binding.json
       - name: Short production-adapter connectivity probes without paper entries
         timeout-minutes: 3
         env:

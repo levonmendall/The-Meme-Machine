@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "run": 367,
+      "mint": "E7CJFXjdwt1CNfGKe1ALWTtV7UcXdDXAgJVqaoCpump",
+      "pool": "HNnx8L2YbZJTxbF94Te6agwnRfznnjG9vPBy6geSmTCg",
+      "lower_time": 1790305132,
+      "upper_time": 1790305162,
+      "successful_census_signatures": 69,
+      "missing_authoritative_bodies": 31,
+      "missing_signature_sha256": "af8503b154e8d7a2e6db09a10ed41840c9167d05c264b65dce770a4b46cb8220",
+      "missing_examples": [
+        "22EkhyArCc4vBxCQw1ZBK5g84NtzqqyszBfskXxZ8SB174GyB4mjNuwSMmB3bB3rp6Laf9qBXHafg2JzSNcaZXrD",
+        "23YPRUedAru9ftWx4MZ7UJpbLCk2gHngKwKip9LH1UEq5mfH89FB4PWmFuHCN4StXo7MxVeepienj6KuyKkQcSKe"
+      ],
+      "coverage_granted": false,
+      "status": "CENSORED_MISSING_AUTHORITATIVE_BODIES"
+    },
+    {
+      "run": 367,
+      "mint": "E7CJFXjdwt1CNfGKe1ALWTtV7UcXdDXAgJVqaoCpump",
+      "pool": "HNnx8L2YbZJTxbF94Te6agwnRfznnjG9vPBy6geSmTCg",
+      "lower_time": 1790305183,
+      "upper_time": 1790305213,
+      "successful_census_signatures": 98,
+      "missing_authoritative_bodies": 93,
+      "missing_signature_sha256": "c2b951f233a4ef83a3eee0154855da911dfd18facb70545bef70edcac1187db2",
+      "missing_examples": [
+        "1B9b6i7xTJvraTSohinKxqc9tnH9yq7QkmmbSULBremJ2uUG1k1adJgD7pxZM5wNMQh3pnHwpJiZzwu7Pyh1aVF",
+        "21J7FzNf4tijp47fJVPuyGnzcXTw3FBz5Z5TfaQZ7ouzaeiGViPtTQPhhCc2AEKM8nrgfMuJLqAaEhL9T2Bv2JRx"
+      ],
+      "coverage_granted": false,
+      "status": "CENSORED_MISSING_AUTHORITATIVE_BODIES"
+    },
+    {
+      "run": 367,
+      "mint": "hczZvue4nbvdfr6iMF1dUBbiXzpkQT5es7hszmApump",
+      "pool": "4HqMseDUzqtzauaoB6L63g6ztZtEt79gNiJckGKwUYcL",
+      "lower_time": 1790305220,
+      "upper_time": 1790305250,
+      "successful_census_signatures": 190,
+      "missing_authoritative_bodies": 190,
+      "missing_signature_sha256": "e5aa8c7333d1cbc62b29fb96b742cf954766e2f0c61e7248db2f668e13fa5610",
+      "missing_examples": [
+        "21YEG9okoETp3WRxy17kQQ1KVdHLDgDHbAdp4jPXUFX1cHy9F9DZNkXtpZUiLzkRhkvtBjtSMZE5PqvoAukimy74",
+        "242Q2dM8FroYPpejGNj4Yt1PCR6JV1QTRHyCKq51zeiS43CzqtH9x3sMhZuon6Xh6dYf2D78oWWqchypHap6YM2u"
+      ],
+      "coverage_granted": false,
+      "status": "CENSORED_MISSING_AUTHORITATIVE_BODIES"
+    },
+    {
+      "run": 367,
+      "mint": "jwXKYQYBCcNCbtXbYM1U94Q9B7DLvBuHyEvceKCpump",
+      "pool": "J8wSbeivVoY1X8cTTgy51coJ4AZApBs4foDit1Tu2quo",
+      "lower_time": 1790305365,
+      "upper_time": 1790305395,
+      "successful_census_signatures": 172,
+      "missing_authoritative_bodies": 168,
+      "missing_signature_sha256": "b150ccbeb0219c26cf97935eee763fae13d2ef1e13066abb1697e3cd2dbe4d23",
+      "missing_examples": [
+        "21yrodeofg3HT8PwCvoviqr63v8qC1RvKuWqKycGbatXjWuPL4ssQqD5dEYFpASbKMNaxkMkkUBsK6wpLSASFQxs",
+        "22JsfLXGPUWsuenAwLvQbnBonAjuiMCCEdJ8tRtGzENiQZXVXq5L4xTLkSjLfMcz5KUcua6MK6vcsVMdgNZ1LdKr"
+      ],
+      "coverage_granted": false,
+      "status": "CENSORED_MISSING_AUTHORITATIVE_BODIES"
+    },
+    {
+      "run": 368,
+      "mint": "2dQpmoshAWvtZaARnesm2agwVcP8E6ENZbg5n5wRpump",
+      "pool": "7JsquxfK3VR27t6jB8MMzd7v9g5UVFgoXhgSMnb92pEF",
+      "lower_time": 1790346143,
+      "upper_time": 1790346173,
+      "successful_census_signatures": 290,
+      "missing_authoritative_bodies": 290,
+      "missing_signature_sha256": "485b541e9f7118f77048338ee285f534ff6e3c6cc9e58e5578a6d9d0958ff507",
+      "missing_examples": [
+        "22CZ3X6tWtxFm7MgDunhrmufdkebXKyWGh3kbVtSz4f3fhjrSBKutQz2FxmweWPTXDFBX3om63xXuv4YH9M2jzDo",
+        "22WZ7Zvz6DFZqtfPKN3T4Wof5DBBix7uXz8N6KSGVVD6bAL9o6hdA57LQ2LdmYvbZ7gxqzBHeh21VDd1D3bHo7w5"
+      ],
+      "coverage_granted": false,
+      "status": "CENSORED_MISSING_AUTHORITATIVE_BODIES"
+    },
+    {
+      "run": 368,
+      "mint": "F524wawcC5u6zkzGhVFtc6Suukp1NhHasiQuBFkMpump",
+      "pool": "AxQPsUCYUxgHdnD1T2tbdTqGjWV4BSic2jKFGNgtqzSp",
+      "lower_time": 1790346791,
+      "upper_time": 1790346821,
+      "successful_census_signatures": 21,
+      "missing_authoritative_bodies": 18,
+      "missing_signature_sha256": "d1fb627ffe87252ef1b3017067b30b8f2682977bb96c894acd9637554562efee",
+      "missing_examples": [
+        "2Sswy5sd8rrGmo4VcRk6Recxr3cxwsDoxaLU6gx5Vx4rooUeqssr1zAibbUDyMZk9GBAWodC4XCUYRAQvjsFQRDt",
+        "2T8iYxYhk83wpf62sKrt4JPF2JwR3HAHDqukqnHZExw8WEFdMJiA5uLN8Q4FuKXfxG53zKNqHZSXJemUxoNsQm5W"
+      ],
+      "coverage_granted": false,
+      "status": "CENSORED_MISSING_AUTHORITATIVE_BODIES"
+    },
+    {
+      "run": 368,
+      "mint": "F524wawcC5u6zkzGhVFtc6Suukp1NhHasiQuBFkMpump",
+      "pool": "AxQPsUCYUxgHdnD1T2tbdTqGjWV4BSic2jKFGNgtqzSp",
+      "lower_time": 1790346813,
+      "upper_time": 1790346843,
+      "successful_census_signatures": 109,
+      "missing_authoritative_bodies": 100,
+      "missing_signature_sha256": "ffb0921d18e674f44509229cd9abd4c67cf90202c91e8ce57ed360d1f3ad276f",
+      "missing_examples": [
+        "2CDGUSXUZX8XxJv4ctvLzUmYaiQztSdckPsfTS3RcZBtFe11zFqKJwprsH8meiCwKoG4aGBynYsgb6hupAgx9Cay",
+        "2Cc8wHCK8dWG2MezmH1cfgwvqr7oLyFnqifpasU2dJzpcpo2HuktJepytDh87WsKz1g3VmZmR9AVgYL2QjUoVD6S"
+      ],
+      "coverage_granted": false,
+      "status": "CENSORED_MISSING_AUTHORITATIVE_BODIES"
+    }
+  ],
+  "public_observations_upgraded": false,
+  "provider_calls": 0
+}

@@ -12,7 +12,16 @@ LIVE_NAMES={'pons-selective-market-test','solana-dlmm-independent-v1',
             'pump-acceleration-natural-prospective','robinhood-ramses-extended-test','robinhood-ramses-extended',
             'four-lane-certification'}
 
-READ_ONLY_JOBS={'test','tests','lint','build','inspect-retained-failure'}
+UNIVERSAL_READ_ONLY_JOBS={'test','tests','lint','build','inspect-retained-failure'}
+REVIEWED_READ_ONLY_JOBS={'offline-prerequisites','review','deterministic','qualification'}
+READ_ONLY_WORKFLOWS={
+    'non-market-certification',
+    'v9-handoff-continuation-nonmarket-certification',
+    'v10-provider-pressure-nonmarket-certification',
+    'Ramses v4 offline certification',
+    'Ramses v4 launchable non-market certification',
+    'v12-active-strategy-certification',
+}
 
 
 def active_market_job(workflow,job,run=None,spec=None):
@@ -27,9 +36,17 @@ def active_market_job(workflow,job,run=None,spec=None):
             and run.get('head_sha')==(spec.get('lanes',{}).get('pump',{}).get('source_sha'))):
         return False
     if workflow in LIVE_NAMES:return True
-    # Mixed CI workflows also contain live jobs. Unknown active jobs are not
-    # silently assumed to be provider-free. Completed/skipped tests never block.
-    return job.get('name') not in READ_ONLY_JOBS
+    raw_name=str(job.get('name') or '')
+    # Preserve the long-standing CI invariant: exact generic test/lint/build jobs
+    # are provider-free even inside mixed workflows such as paper-milestone.
+    if raw_name in UNIVERSAL_READ_ONLY_JOBS:
+        return False
+    name=raw_name.split(' / ')[-1]
+    # Additional reusable-workflow job names are non-market only when the wrapper
+    # itself has been explicitly reviewed. Unknown wrappers continue to fail closed.
+    if workflow in READ_ONLY_WORKFLOWS and name in REVIEWED_READ_ONLY_JOBS:
+        return False
+    return True
 
 
 def fetch_json(url,token):

@@ -29,6 +29,15 @@ def atomic(path,data):
     path=Path(path);temp=path.with_suffix(path.suffix+'.tmp');temp.write_text(canonical(data)+'\n');os.replace(temp,path)
 
 
+def publish_dashboard(result,path):
+    """Diagnostic rendering has no authority over independent lane processes."""
+    try:
+        dashboard(result,path)
+        return dict(published=True,error=None)
+    except Exception as exc:
+        return dict(published=False,error=type(exc).__name__)
+
+
 def git(*args,cwd=ROOT):
     return subprocess.check_output(['git',*args],cwd=cwd,text=True).strip()
 
@@ -85,6 +94,20 @@ def canonical_patch_bytes(value):
                   b'index <blob>..<blob>',bytes(value))
 
 
+LANE_PATCHES={
+    'pump':('pump-accounting.patch','market-scope-efficiency-pump.patch'),
+    'meteora':('meteora-checkpoint.patch','market-scope-efficiency-meteora.patch'),
+    'pons':('pons-cohort-capital.patch','market-scope-efficiency-pons.patch'),
+    'ramses':('ramses-admission.patch','market-scope-efficiency-ramses.patch'),
+}
+
+def lane_patches(lane,row=None):
+    declared=(row or {}).get('overlay_patches')
+    if declared is not None:
+        return [ROOT/p for p in declared]
+    return [ROOT/'certification'/'patches'/name for name in LANE_PATCHES.get(lane,())]
+
+
 def source_integrity(worktrees):
     observed={}
     for lane,row in manifest()['lanes'].items():
@@ -102,18 +125,31 @@ def source_integrity(worktrees):
         for file,expected_hash in row.get('file_hashes',{}).items():
             if hashlib.sha256((cwd/file).read_bytes()).hexdigest()!=expected_hash:
                 raise ValueError('frozen_source_file_drift:'+lane+':'+file)
-        diff=subprocess.check_output(['git','diff','--binary','HEAD'],cwd=cwd)
+        # Git's default abbreviated index IDs vary with repository object count.
+        # Full IDs make the exact same prepared tree hash identically in CI and
+        # an isolated local checkout. Preserve every content/mode/path byte.
+        diff_args=['git','diff','--binary','--full-index','--no-ext-diff','--no-textconv','--no-renames']
+        diff=subprocess.check_output([*diff_args,'HEAD'],cwd=cwd)
         observed[lane]=hashlib.sha256(diff).hexdigest()
         expected_diff_hash=row.get('source_diff_sha256')
-        if expected_diff_hash is not None:
+        if row.get('source_integrity_mode')=='declared_overlay_index':
+            for patch_path in lane_patches(lane,row):
+                if not patch_path.is_file():
+                    raise ValueError('missing_declared_overlay:'+lane+':'+str(patch_path))
+            unstaged=subprocess.check_output(diff_args,cwd=cwd)
+            if unstaged:
+                raise ValueError('unreviewed_lane_mutation:'+lane)
+            staged=subprocess.check_output([*diff_args,'--cached','HEAD'],cwd=cwd)
+            if diff!=staged:
+                raise ValueError('lane_index_worktree_disagreement:'+lane)
+            if expected_diff_hash is None or observed[lane]!=expected_diff_hash:
+                raise ValueError('declared_overlay_diff_identity_mismatch:'+lane)
+        elif expected_diff_hash is not None:
             if observed[lane]!=expected_diff_hash:
                 raise ValueError('unreviewed_lane_mutation:'+lane)
         else:
             patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
             expected=(ROOT/'certification/patches'/patch).read_bytes() if patch else b''
-            # Legacy overlays compare semantic patch bytes. New/recomposed overlays
-            # pin Git's exact applied diff hash, which is insensitive to patch serialization
-            # but still fails closed on any executable source mutation.
             if canonical_patch_bytes(diff)!=canonical_patch_bytes(expected):
                 raise ValueError('unreviewed_lane_mutation:'+lane)
     return observed
@@ -121,12 +157,325 @@ def source_integrity(worktrees):
 
 def integration_integrity():
     """Bind executable supervisor inputs to the commit named in the evidence."""
-    tracked=subprocess.check_output(['git','diff','--binary','HEAD','--','certification'],cwd=ROOT)
+    tracked=subprocess.check_output(['git','diff','--binary','HEAD','--','certification','.github/workflows'],cwd=ROOT)
     if tracked:raise ValueError('uncommitted_integration_source')
-    extras=subprocess.check_output(['git','ls-files','--others','-z','--','certification'],cwd=ROOT).decode().split('\0')
+    extras=subprocess.check_output(['git','ls-files','--others','-z','--','certification','.github/workflows'],cwd=ROOT).decode().split('\0')
     for name in filter(None,extras):
-        if Path(name).suffix in ('.py','.patch'):
+        if Path(name).suffix in ('.py','.patch','.yml','.yaml','.json'):
             raise ValueError('untracked_integration_source:'+name)
+
+
+
+def _resolve_conflict_markers(text,path):
+    pattern=re.compile(r'(?ms)^<<<<<<< ours\n(.*?)^=======\n(.*?)^>>>>>>> theirs\n')
+    blocks=0
+    def choose(match):
+        nonlocal blocks
+        blocks+=1
+        ours,theirs=match.group(1),match.group(2)
+        if path=='meme_machine/pump_acceleration_paper.py':
+            if 'continuation_eligible' in ours and 'policy_hash' in theirs:
+                return ('    POLICY, STRATEGY_ID, ExitObservation, Qualification, '
+                        'continuation_eligible,\n'
+                        '    exit_decision, mode_max_hold_s, policy_hash,\n')
+            if 'realized_quote_units+=' in ours and 'self.book.transition' in theirs:
+                book='\n'.join(
+                    line for line in theirs.splitlines()
+                    if 'self.position.realized_quote_units=' not in line
+                )+'\n'
+                return book+ours
+        if path=='tests/pump_acceleration_natural_prospective.py':
+            if '_monitor_positions(' in theirs and 'partial_harvest_bps' in ours:
+                return theirs
+        raise ValueError('unreviewed_pump_overlay_conflict:'+path)
+    resolved=pattern.sub(choose,text)
+    if '<<<<<<< ' in resolved or '>>>>>>> ' in resolved or '\n=======\n' in resolved:
+        raise ValueError('unresolved_pump_overlay_conflict:'+path)
+    if not blocks:
+        raise ValueError('expected_pump_overlay_conflict_missing:'+path)
+    return resolved
+
+
+def _port_pump_partial_accounting(work):
+    accounting=work/'meme_machine/paper_accounting.py'
+    text=accounting.read_text()
+    old="""            elif action == 'mark':
+                if p['status'] != 'open':
+                    raise ValueError('invalid_paper_mark')
+                p['mark'] = amount
+            elif action == 'settled':
+                if p['status'] != 'open':
+                    raise ValueError('duplicate_or_invalid_paper_settlement')
+                p.update(status='settled', realized=amount-p['basis'], proceeds=amount,
+                         basis=0, mark=0, tokens=0, capital_at_risk=0)
+"""
+    new="""            elif action == 'mark':
+                if p['status'] != 'open':
+                    raise ValueError('invalid_paper_mark')
+                p['mark'] = amount
+            elif action == 'partial_harvest':
+                if p['status'] != 'open' or not tokens or tokens >= p['tokens']:
+                    raise ValueError('invalid_paper_partial_harvest')
+                old_tokens=p['tokens'];old_basis=p['basis']
+                basis_removed=old_basis*tokens//old_tokens
+                if basis_removed <= 0:
+                    raise ValueError('paper_partial_harvest_basis_zero')
+                p.update(
+                    basis=old_basis-basis_removed,
+                    mark=old_basis-basis_removed,
+                    tokens=old_tokens-tokens,
+                    realized=p['realized']+amount-basis_removed,
+                    capital_at_risk=old_basis-basis_removed,
+                )
+            elif action == 'settled':
+                if p['status'] != 'open':
+                    raise ValueError('duplicate_or_invalid_paper_settlement')
+                p.update(
+                    status='settled',
+                    realized=p['realized']+amount-p['basis'],
+                    proceeds=amount,basis=0,mark=0,tokens=0,capital_at_risk=0,
+                )
+"""
+    if text.count(old)!=1:
+        raise ValueError('pump_accounting_transition_anchor')
+    text=text.replace(old,new,1)
+    old="""                elif action == 'settled':
+                    if not old or old['status'] != 'open' or p['realized'] != p['proceeds']-old['basis']:
+                        raise ValueError('paper_replay_settlement')
+                    cash += p['proceeds']
+                elif action != 'mark' or not old or old['status'] != 'open':
+                    raise ValueError('paper_replay_transition')
+"""
+    new="""                elif action == 'partial_harvest':
+                    if not old or old['status'] != 'open':
+                        raise ValueError('paper_replay_partial_harvest')
+                    sold=old['tokens']-p['tokens']
+                    if sold <= 0 or sold >= old['tokens']:
+                        raise ValueError('paper_replay_partial_harvest_tokens')
+                    basis_removed=old['basis']*sold//old['tokens']
+                    proceeds=(p['realized']-old['realized'])+basis_removed
+                    if (basis_removed <= 0
+                            or p['basis'] != old['basis']-basis_removed
+                            or p['capital_at_risk'] != p['basis']
+                            or p['mark'] != p['basis']
+                            or proceeds < 0):
+                        raise ValueError('paper_replay_partial_harvest')
+                    cash += proceeds
+                elif action == 'settled':
+                    if (not old or old['status'] != 'open'
+                            or p['realized'] != old['realized']+p['proceeds']-old['basis']):
+                        raise ValueError('paper_replay_settlement')
+                    cash += p['proceeds']
+                elif action != 'mark' or not old or old['status'] != 'open':
+                    raise ValueError('paper_replay_transition')
+"""
+    if text.count(old)!=1:
+        raise ValueError('pump_accounting_replay_anchor')
+    accounting.write_text(text.replace(old,new,1))
+
+    lifecycle=work/'meme_machine/pump_acceleration_paper.py'
+    text=lifecycle.read_text()
+    old='    def harvest(self, tokens_sold: int, executable_proceeds_quote_units: int, now: int):\n'
+    new='    def harvest(self, tokens_sold: int, executable_proceeds_quote_units: int, now: int, *, evidence=None):\n'
+    if text.count(old)!=1:
+        raise ValueError('pump_harvest_signature_anchor')
+    text=text.replace(old,new,1)
+    old="""        if proceeds < 0:
+            raise ValueError("invalid_partial_harvest")
+        before_tokens=int(self.position.tokens)
+"""
+    new="""        if proceeds < 0:
+            raise ValueError("invalid_partial_harvest")
+        if self.book is not None:
+            self.book.transition(
+                self.lifecycle_id,"partial_harvest",int(now),
+                amount=proceeds,tokens=tokens_sold,
+                evidence=dict(execution=evidence),
+            )
+        before_tokens=int(self.position.tokens)
+"""
+    if text.count(old)!=1:
+        raise ValueError('pump_harvest_book_anchor')
+    lifecycle.write_text(text.replace(old,new,1))
+
+    runner=work/'tests/pump_acceleration_natural_prospective.py'
+    text=runner.read_text()
+    lines=text.splitlines()
+    frozen=[i for i,line in enumerate(lines) if line.startswith('FROZEN_POLICY_HASH=')]
+    if len(frozen)!=1:
+        raise ValueError('pump_frozen_policy_hash_anchor')
+    lines[frozen[0]]='FROZEN_POLICY_HASH="825084f162efdc10ca4d1faad747902b858bb6e7b4441f7ff48bf089a182f28b"'
+    text='\n'.join(lines)+'\n'
+    anchor="""            mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
+            age=now-int(row["opened"])
+"""
+    addition="""            mark=life.mark(proceeds,now,demand_score,confirmed,evidence=mark_evidence)
+            if mark.get("partial_harvest_bps"):
+                tokens_before=int(life.position.tokens)
+                if tokens_before>1:
+                    harvest_tokens=max(
+                        1,tokens_before*int(mark["partial_harvest_bps"])//10_000)
+                    harvest_tokens=min(tokens_before-1,harvest_tokens)
+                    if life.position.surface=="pump.fun":
+                        curve=pump.curve(snapshot["accounts"][0])
+                        supply,_=pump.mint_info(snapshot["accounts"][1])
+                        rates=pump.fees(snapshot["accounts"][2],curve,supply)
+                        partial_raw,_=pump.sell(curve,harvest_tokens,rates)
+                        harvest_proceeds=max(0,partial_raw-GAS)
+                    else:
+                        partial_quote=sell_quote(snapshot,harvest_tokens)
+                        harvest_proceeds=max(0,partial_quote.output_amount-GAS)
+                    harvest_evidence=dict(
+                        snapshot=snapshot,tokens_sold=harvest_tokens,
+                        net_proceeds=harvest_proceeds,network_cost=GAS)
+                    harvest=life.harvest(
+                        harvest_tokens,harvest_proceeds,now,
+                        evidence=harvest_evidence)
+                    report.setdefault("harvests",[]).append(dict(
+                        lifecycle_id=life.lifecycle_id,mint=mint,mode=mode,
+                        opened=row["opened"],observed_at=now,
+                        return_bps=mark["return_bps"],**harvest))
+            age=now-int(row["opened"])
+"""
+    if text.count(anchor)!=1:
+        raise ValueError('pump_monitor_harvest_anchor')
+    runner.write_text(text.replace(anchor,addition,1))
+
+    tests=work/'tests/test_paper_accounting.py'
+    text=tests.read_text()
+    marker="\nif __name__=='__main__':unittest.main()\n"
+    test="""    def test_partial_harvest_preserves_cash_basis_and_replay(self):
+        self.book.reserve('r:p',600,10,{})
+        self.book.transition('r:p','filled',12,amount=550,tokens=100)
+        self.book.transition('r:p','mark',20,amount=700)
+        self.book.transition('r:p','partial_harvest',21,amount=200,tokens=25)
+        rec=self.book.reconcile()
+        self.assertEqual(rec['cash'],650)
+        self.assertEqual(rec['basis'],413)
+        self.assertEqual(rec['realized'],63)
+        self.assertEqual(self.book.replay()['cash'],650)
+        self.book.transition('r:p','settled',30,amount=500)
+        rec=self.book.reconcile()
+        self.assertEqual(rec['cash'],1150)
+        self.assertEqual(rec['realized'],150)
+        self.assertEqual(self.book.replay()['cash'],1150)
+
+"""
+    if marker not in text:
+        raise ValueError('pump_accounting_test_anchor')
+    tests.write_text(text.replace(marker,'\n'+test+marker,1))
+
+
+def _apply_pump_profit_protection_accounting(work,patch_path):
+    merged=subprocess.run(
+        ['git','apply','--3way','--index',str(patch_path)],cwd=work,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+    )
+    if merged.returncode==0:
+        raise ValueError('pump_profit_protection_expected_rebase_not_needed')
+    unmerged=git('diff','--name-only','--diff-filter=U',cwd=work).splitlines()
+    expected={
+        'meme_machine/pump_acceleration_paper.py',
+        'tests/pump_acceleration_natural_prospective.py',
+    }
+    if set(unmerged)!=expected:
+        raise ValueError('unexpected_pump_overlay_conflicts:'+','.join(sorted(unmerged)))
+    for name in sorted(expected):
+        target=work/name
+        target.write_text(_resolve_conflict_markers(target.read_text(),name))
+    _port_pump_partial_accounting(work)
+    subprocess.run(['git','add','--all'],cwd=work,check=True)
+    if git('diff','--name-only','--diff-filter=U',cwd=work):
+        raise ValueError('unresolved_pump_profit_protection_overlay')
+    subprocess.run(['git','diff','--check','--cached'],cwd=work,check=True)
+
+
+def _resolve_meteora_checkpoint_conflicts(text):
+    pattern=re.compile(r'(?ms)^<<<<<<< ours\n(.*?)^=======\n(.*?)^>>>>>>> theirs\n')
+    count=0
+    def choose(match):
+        nonlocal count
+        count+=1
+        ours,theirs=match.group(1),match.group(2)
+        if '_eligible_exit_reasons' in ours and '_position_lifecycle' in theirs:
+            prefix=ours[:ours.index('def _lifecycle(')]
+            return prefix+theirs
+        if 'collapse_streaks' in ours and "book.append(identity,'mark'" in theirs:
+            return """        if book is not None:
+            book.append(identity,'mark',dict(
+                tape=asdict(tape),position_hash=digest(position),mark=mark))
+        observed_seconds=max(
+            duration,
+            max(0,int(terminal.get("time",0))-int(current.get("time",0))))
+        elapsed+=observed_seconds;tapes.append(tape)
+        for reason in collapse_streaks:
+            collapse_streaks[reason]=(
+                collapse_streaks[reason]+1 if reason in raw_reasons else 0
+            )
+        eligible_reasons=_eligible_exit_reasons(
+            raw_reasons,elapsed_seconds=elapsed,
+            collapse_streaks=collapse_streaks,policy=policy,
+        )
+        segments.append(dict(
+            elapsed_seconds=elapsed,lineage=tape.lineage,
+            swaps=len(tape.events),recent=recent,mark=mark,
+            dynamic_fee_uplift=uplift,
+            raw_exit_reasons=raw_reasons,
+            collapse_streaks=dict(collapse_streaks),
+            exit_reasons=eligible_reasons,
+            evidence_recovery_attempts=recoveries,
+        ))
+        current=terminal
+        if eligible_reasons:
+            exit_reason=eligible_reasons[0];break
+    _stage(address,"unwind",lifecycle_id=identity)
+"""
+        raise ValueError('unreviewed_meteora_checkpoint_conflict')
+    resolved=pattern.sub(choose,text)
+    if count!=2 or '<<<<<<< ' in resolved or '>>>>>>> ' in resolved:
+        raise ValueError('meteora_checkpoint_conflict_shape')
+    return resolved
+
+
+def _apply_meteora_core_hold_checkpoint(work,patch_path):
+    merged=subprocess.run(
+        ['git','apply','--3way','--index',str(patch_path)],cwd=work,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+    )
+    if merged.returncode==0:
+        return
+    unmerged=git('diff','--name-only','--diff-filter=U',cwd=work).splitlines()
+    if unmerged!=['tests/solana_dlmm_independent_v1.py']:
+        raise ValueError('unexpected_meteora_checkpoint_conflicts:'+','.join(unmerged))
+    target=work/unmerged[0]
+    target.write_text(_resolve_meteora_checkpoint_conflicts(target.read_text()))
+    subprocess.run(['git','add','--all'],cwd=work,check=True)
+    if git('diff','--name-only','--diff-filter=U',cwd=work):
+        raise ValueError('unresolved_meteora_checkpoint_overlay')
+    subprocess.run(['git','diff','--check','--cached'],cwd=work,check=True)
+
+
+def _apply_three_way_or_diagnose(work,patch_path,lane):
+    merged=subprocess.run(
+        ['git','apply','--3way','--index',str(patch_path)],cwd=work,
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+    )
+    if merged.returncode==0:
+        return
+    print(merged.stdout,flush=True)
+    unmerged=git('diff','--name-only','--diff-filter=U',cwd=work).splitlines()
+    for name in unmerged:
+        body=(work/name).read_text()
+        lines=body.splitlines()
+        for index,line in enumerate(lines):
+            if line.startswith('<<<<<<< '):
+                lo=max(0,index-15);hi=min(len(lines),index+90)
+                print('--- '+lane.upper()+' CONFLICT '+name+' ---',flush=True)
+                print('\n'.join(
+                    f'{number+1}: {lines[number]}' for number in range(lo,hi)
+                ),flush=True)
+    raise subprocess.CalledProcessError(
+        merged.returncode,merged.args,output=merged.stdout)
 
 
 def prepare(destination):
@@ -139,9 +488,22 @@ def prepare(destination):
         subprocess.run(['git','worktree','add','--detach',str(work),execution],cwd=ROOT,check=True)
         for file,expected in row['file_hashes'].items():
             if hashlib.sha256((work/file).read_bytes()).hexdigest()!=expected:raise ValueError('source_hash_mismatch:'+lane+':'+file)
-        patch={'pump':'pump-accounting.patch','meteora':'meteora-checkpoint.patch','pons':'pons-cohort-capital.patch','ramses':'ramses-admission.patch'}.get(lane)
-        if patch:
-            subprocess.run(['git','apply','--index',str(ROOT/'certification/patches'/patch)],cwd=work,check=True)
+        for patch_path in lane_patches(lane,row):
+            strict=subprocess.run(
+                ['git','apply','--check',str(patch_path)],cwd=work,
+                stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+            )
+            if strict.returncode==0:
+                subprocess.run(['git','apply','--index',str(patch_path)],cwd=work,check=True)
+                continue
+            if lane=='pump' and patch_path.name=='pump-accounting.patch':
+                _apply_pump_profit_protection_accounting(work,patch_path)
+                continue
+            if lane=='meteora' and patch_path.name=='meteora-checkpoint.patch':
+                _apply_meteora_core_hold_checkpoint(work,patch_path)
+                continue
+            _apply_three_way_or_diagnose(work,patch_path,lane)
+            continue
     atomic(destination/'manifest.json',spec)
     return destination
 
@@ -174,7 +536,7 @@ def verify(worktrees,output):
     return result
 
 
-def lane_environment(lane,source,run,run_id=None):
+def lane_environment(lane,source,run,run_id=None,phase=None):
     env={k:v for k,v in os.environ.items() if not k.startswith(('MM_','GITHUB_','GH_')) and not any(x in k.upper() for x in ('TOKEN','SECRET','PRIVATE_KEY'))}
     for key in source['rpc_configuration_variables']:
         if os.environ.get(key):env[key]=os.environ[key]
@@ -183,9 +545,13 @@ def lane_environment(lane,source,run,run_id=None):
         for key in ('MM_ROBINHOOD_RAMSES_COSTS_BY_POOL_JSON','MM_ROBINHOOD_RAMSES_SIGNALS_BY_POOL_JSON'):
             if key in os.environ:env[key]=os.environ[key]
     env.update(PYTHONPATH=str(ROOT),PYTHONUNBUFFERED='1',MM_CERT_SOURCE_SHA=source['source_sha'],
+               MM_CERT_INTEGRATION_SHA=git('rev-parse','HEAD'),
                MM_CERT_GOVERNOR_DB=str(run/'shared-provider.sqlite'),
-               MM_CERTIFICATION_RUN_ID=run_id or run.name,MM_CERTIFICATION_LANE=lane)
-    if lane in ('pump','meteora'):env['MM_SOLANA_EVIDENCE_BROKER_DB']=str(run/'shared-solana-evidence.sqlite')
+               MM_CERTIFICATION_RUN_ID=run_id or run.name,MM_CERTIFICATION_LANE=lane,
+               MM_CERTIFICATION_PHASE=str(phase or 'unknown'))
+    if lane in ('pump','meteora'):
+        env['MM_SOLANA_EVIDENCE_BROKER_DB']=str(run/'shared-solana-evidence.sqlite')
+        env['MM_SOLANA_EVIDENCE_PLANE_DB']=str(run/'solana-evidence-plane.sqlite')
     else:env.update(MM_CERTIFICATION_PROVIDER_DB=str(run/'shared-robinhood-admission.sqlite'),MM_CERTIFICATION_LANE=lane,
                     MM_CERTIFICATION_RPC_CACHE_DB=str(run/'shared-robinhood-evidence.sqlite'),
                     MM_CERTIFICATION_RPC_CAPABILITIES=str(run/'rpc-capabilities.json'))
@@ -200,7 +566,16 @@ def observe_checkpoint_report(lane,row,status,process_code):
         row.update(summarize(lane,status['report']))
 
 
-def finish_lanes(processes,files,rows,terminal_times,journal,run):
+def reconcile_stopped_lane(lane,worktrees):
+    proof=subprocess.run([sys.executable,str(ROOT/'certification/terminal_reconciliation.py'),
+        '--lane',lane,'--root',str((Path(worktrees)/lane).resolve())],
+        capture_output=True,text=True,timeout=45)
+    receipt=json.loads(proof.stdout)
+    if proof.returncode!=0:receipt['verified']=False
+    return receipt
+
+
+def finish_lanes(processes,files,rows,terminal_times,journal,run,worktrees=None):
     """Stop/reap every child before auditing any lane's possibly damaged evidence."""
     stopped=set()
     # SIGINT lets the worker's BaseException/finally path seal its raw archive.
@@ -227,11 +602,30 @@ def finish_lanes(processes,files,rows,terminal_times,journal,run):
     # suppressing the other three audits or the aggregate terminal result.
     for lane,(proc,launched) in processes.items():
         row=rows[lane]
+        if worktrees is not None:
+            try:
+                receipt=reconcile_stopped_lane(lane,worktrees)
+                row['terminal_reconciliation']=receipt
+                journal.append(lane,'terminal-reconciliation','native_accounting_replay',receipt)
+                if receipt.get('verified') is True:
+                    row['accounting_reconciled']=True
+                    row['open_positions']=receipt['open_positions']
+                    key='cohort_accounting' if lane=='pons' else 'native_accounting'
+                    row[key]=receipt['accounting']
+                    if 'accounting_replay' in receipt:row['accounting_replay']=receipt['accounting_replay']
+                    if receipt.get('durable_handoff') is True:
+                        row['durable_handoff']=True
+                        row['continuation_state']=receipt.get('continuation_state')
+                    if lane in stopped:row['shutdown_positions']='durable_native_state_reconciled'
+                else:row['accounting_reconciled']=False
+            except Exception as exc:
+                row['terminal_reconciliation']=dict(verified=False,error_type=type(exc).__name__)
+                row['accounting_reconciled']=False
         if lane in stopped:
             try:journal.append(lane,'supervisor_stop','forced_process_stop',dict(exit_code=proc.returncode))
             except Exception as exc:row['shutdown_journal_error']=type(exc).__name__
         try:
-            audit=audit_telemetry(run/lane,lane,row['policy_hash'])
+            audit=audit_telemetry(run/lane,lane,row['policy_hash'],require_returned=False)
             row['telemetry_audit']=audit
             row['gates'].update(telemetry_complete=True,paper_only=audit['read_only'])
             row['gates'].setdefault('policy_unchanged',True)
@@ -300,12 +694,15 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     last_console=0;last_sample=0;max_broker_active=0;broker_terminal=None;supervisor_error=None
     lane_roots=[str((Path(worktrees)/lane).resolve()) for lane in LANES]
     if len(set(lane_roots))!=len(LANES):raise ValueError('lane_state_roots_not_isolated')
+    from certification.evidence_supervisor import EvidenceProcess
+    evidence=EvidenceProcess(run,Path(worktrees)/'pump',lane_environment('pump',spec['lanes']['pump'],run,run_id,phase))
     try:
+        evidence.start()
         for lane,row in spec['lanes'].items():
             folder=run/lane;folder.mkdir()
             out=(folder/'process.log').open('wb');files[lane]=out
             cmd=[sys.executable,'-m','certification.worker','--lane',lane,'--output',str(folder),'--policy-hash',row['policy_hash'],'--seconds',str(seconds),'--campaign']
-            proc=subprocess.Popen(cmd,cwd=Path(worktrees)/lane,env=lane_environment(lane,row,run,run_id),stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
+            proc=subprocess.Popen(cmd,cwd=Path(worktrees)/lane,env=lane_environment(lane,row,run,run_id,phase),stdout=out,stderr=subprocess.STDOUT,start_new_session=True)
             launched=time.monotonic();processes[lane]=(proc,launched)
             rows[lane]=dict(pid=proc.pid,strategy_version=row['strategy_version'],policy_hash=row['policy_hash'],process_restarts=0,health='starting',natural_settled=0,forced_settled=0,
                 max_no_activity_seconds=0,gates=dict(responsive=True,state_isolated=True))
@@ -315,6 +712,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         common_start=max(start for _proc,start in processes.values())
         hard_deadline=common_start+seconds+3300
         while True:
+            evidence_health=evidence.check()
             now=time.monotonic();alive=False
             for lane,(proc,launched) in processes.items():
                 row=rows[lane];code=proc.poll();path=run/lane/'status.json';status={}
@@ -385,7 +783,10 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                         runtime_resources={k:r.get('runtime_resources') for k,r in rows.items()},
                         telemetry_cost={k:r.get('telemetry_cost') for k,r in rows.items()}))
                 last_sample=now
-            provider_efficiency(result);result['certification']=evaluate(result);atomic(run/'result.json',result);dashboard(result,run/'status.html')
+            provider_efficiency(result);result['certification']=evaluate(result)
+            from meme_machine.durable_publication import publish_report
+            publish_report(run/'result.json',result,asynchronous=True)
+            result['dashboard_publication']=publish_dashboard(result,run/'status.html')
             if now-last_console>=60:
                 print(canonical(dict(run_id=run_id,elapsed_seconds=now-started,lanes={k:{f:v for f,v in r.items() if f in ('health','phase','continuous_uptime_seconds','provider_requests','natural_settled','forced_settled','unexpected_exit')} for k,r in rows.items()})),flush=True)
                 last_console=now
@@ -401,7 +802,8 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         interrupted=True;supervisor_error=dict(error_type=type(exc).__name__)
         raise
     finally:
-        interrupted=finish_lanes(processes,files,rows,terminal_times,journal,run) or interrupted
+        interrupted=finish_lanes(processes,files,rows,terminal_times,journal,run,worktrees) or interrupted
+        evidence.close()
         broker_terminal=record_unfinished_broker_jobs(run/'shared-solana-evidence.sqlite',journal,time.time())
         try:source_unchanged=source_integrity(worktrees)==gate['source_diff_hashes']
         except (ValueError,OSError,subprocess.CalledProcessError):source_unchanged=False
@@ -416,7 +818,7 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         provider_efficiency(result);result['certification']=evaluate(result)
         if phase=='hourly':result['hourly_engineering']=hourly_engineering(result)
         provider_efficiency(result);atomic(run/'result.json',result);journal.close()
-        dashboard(result,run/'status.html')
+        publish_dashboard(result,run/'status.html')
         from certification.analysis import report
         report(run)
     return result
