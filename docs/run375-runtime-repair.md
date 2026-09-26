@@ -27,6 +27,7 @@ transaction.
 The repair:
 
 - records one `stream_completions` census digest per fully processed scope/block;
+- never emits that completion for census-only calls that have not processed the corresponding logs;
 - uses that atomic completion receipt when sealing interval coverage;
 - retains per-signature delivery rows for independent log-notification compatibility;
 - retains `stream_order` only for transaction-mode evidence consumed by Meteora;
