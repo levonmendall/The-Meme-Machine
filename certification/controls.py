@@ -204,7 +204,8 @@ def export_readiness(path,output):
     attestation['shared_provider']={network:dict(queues=result['shared_provider'][network]['queues']) for network in ('solana','robinhood')}
     if 'robinhood_reuse' in result['shared_provider']:
         attestation['shared_provider']['robinhood_reuse']={k:result['shared_provider']['robinhood_reuse'].get(k) for k in ('state','inflight_jobs')}
-    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting','funnel','durable_handoff','terminal_reconciliation')
+    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting','funnel','durable_handoff','terminal_reconciliation',
+               'continuous_uptime_seconds','pump_discovery_terminal','evidence_liveness','infrastructure_failure')
     attestation['lanes']={lane:{key:result['lanes'][lane].get(key) for key in lane_keys} for lane in LANES}
     with Path(output).open('a') as handle:
         handle.write('readiness='+json.dumps(attestation,separators=(',',':'))+'\n')

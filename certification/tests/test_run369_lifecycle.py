@@ -25,6 +25,16 @@ class Run369LifecycleTests(unittest.TestCase):
         result=dict(phase='smoke',status='FINISHED',continuous_overlap_seconds=599,lanes=lanes,
                     shared_provider={network:dict(queues=[]) for network in ('solana','robinhood')})
         self.assertEqual(smoke_engineering(result)['status'],'PASS')
+        # Compact readiness must retain the exact same engineering proof.
+        import json,tempfile
+        from pathlib import Path
+        from certification.controls import export_readiness
+        with tempfile.TemporaryDirectory() as temp:
+            source=Path(temp)/'source';output=Path(temp)/'output'
+            source.write_text(json.dumps(dict(result,run_id='fixture',source_manifest_hash='s',implementation_hash='i',integration_sha='sha')))
+            export_readiness(source,output)
+            receipt=json.loads(output.read_text().splitlines()[0].split('=',1)[1])
+            self.assertEqual(smoke_engineering(receipt)['status'],'PASS')
         result=copy.deepcopy(result);result['lanes']['pump']['unexpected_exit']=True
         result['lanes']['pump']['continuous_uptime_seconds']=10
         failures=smoke_engineering(result)['failures']
