@@ -27,6 +27,8 @@ jobs:
       - name: Prepare exact four-lane runtime
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/run371-repair-lanes"
       - name: Ramses transient provider-pressure regressions
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           cd "$RUNNER_TEMP/run371-repair-lanes/ramses"
           python -m unittest             robinhood_tests.test_ramses_run371_pressure             robinhood_tests.test_ramses_census_provider_defer             robinhood_tests.test_ramses_rate_limit -v
