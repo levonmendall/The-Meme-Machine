@@ -26,3 +26,5 @@ Focused regression note: small-message queue depth remains 64, while a 96 MiB by
 Large-frame decode now crosses a spawned-process boundary; only compact program-relevant transactions return to the service process.
 
 Transport hardening: websocket application receive now requests raw bytes; multi-MB decode/filter remains isolated in a spawned worker process.
+
+Composition hardening: shared Pump/PumpSwap protocol decoding is now strategy-independent and staged identically into Pump and Meteora worktrees.
