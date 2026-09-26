@@ -640,7 +640,7 @@
       },
       "prospect_admission": {
         "market_observation_scope": "Nonblacklisted Solana Meteora DLMM pools with exactly one WSOL leg, as defined by the frozen strategy; no minimum TVL or absolute volume.",
-        "investment_evaluation_scope": "exactly-one-WSOL-leg nonblacklisted pools with a fresh authenticated finalized swap, exact 12-second warmup, authenticated local fee density >=5%/day, two-way balance >=0.25, executable local range depth, bounded drift/stress unwind and strictly positive projected four-hour after-cost net",
+        "investment_evaluation_scope": "exactly-one-WSOL-leg nonblacklisted pools with a fresh authenticated finalized swap, exact 12-second warmup, authenticated local fee density >=4%/day, two-way balance >=0.20, competing range liquidity >=4x capital, executable local range depth, drift ratio <=0.80, stress unwind loss <=200 bps and strictly positive projected four-hour after-cost net",
         "authenticated_fee_density_entry_authority": true,
         "public_fee_density_role": "ranking_context_only_not_entry_authority",
         "strategy_thresholds_changed": true,
