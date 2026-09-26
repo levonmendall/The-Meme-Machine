@@ -51,22 +51,56 @@ CI_MARKERS = ('[forced-canary]', '[postgrad-live]', '[discovery-compare-live]',
     '[market-native-sample-supplement-live]', '[legacy-shadow-connectivity]')
 
 
-def configuration():
+def policy_configuration():
+    """Load the certified static single-campaign policy.
+
+    One-shot owner authorization is deliberately not stored in the runtime tree.
+    It is supplied by the external launch request after the runtime has already
+    been certified, so issuing fresh authority cannot invalidate that certificate.
+    """
     row = json.loads(CONFIG.read_text())
     expected = dict(enabled=True, maximum_market_workflows=1,
         phases_in_same_workflow=['smoke', 'hourly'], fresh_smoke_required=True,
         automatic_successors=False, position_continuation_workflows=True,
         workflow_reruns=False, dispatch_retries=False, live_money=False)
-    if (row.get('schema') != 'meme-machine-single-campaign-authorization-v1'
-            or not re.fullmatch(r'[a-z0-9-]{8,100}', row.get('authorization_id', ''))
+    dynamic = ('authorization_id', 'prior_run_observation', 'prior_launch_attempt')
+    if (row.get('schema') != 'meme-machine-single-campaign-policy-v2'
+            or any(key in row for key in dynamic)
             or any(row.get(k) != v for k, v in expected.items())):
-        raise ValueError('single_campaign_authorization_invalid')
+        raise ValueError('single_campaign_policy_invalid')
     return row
+
+
+def external_authorization_id(value=None):
+    value = os.environ.get('SINGLE_AUTHORIZATION_ID', '') if value is None else value
+    if not re.fullmatch(r'[a-z0-9-]{8,100}', value or ''):
+        raise ValueError('single_campaign_authorization_invalid')
+    return value
+
+
+def configuration():
+    row = policy_configuration()
+    value = os.environ.get('SINGLE_AUTHORIZATION_ID')
+    if value is not None:
+        row = dict(row, authorization_id=external_authorization_id(value))
+    return row
+
+
+def require_authorization(config):
+    value = config.get('authorization_id')
+    if value is None:
+        raise ValueError('single_campaign_authorization_missing')
+    return external_authorization_id(value)
+
+
+def runtime_policy(config):
+    """Return certificate-bound control bytes, excluding ephemeral owner authority."""
+    return {key: value for key, value in config.items() if key != 'authorization_id'}
 
 
 def prohibit_if_enabled(action):
     if CONFIG.exists():
-        configuration()  # A malformed control cannot silently restore automation.
+        policy_configuration()  # A malformed static control cannot restore automation.
         raise ValueError('single_campaign_prohibits_' + action)
 
 
@@ -109,14 +143,17 @@ def identities(sha, config):
         'four-lane-certification.yml', 'position-continuation.yml',
         'prospective-cohort-review.yml', 'single-campaign-launch.yml',
         'evidence-reconstruction-certification.yml')}
-    return dict(integration_sha=sha, executable_git_tree_sha256=tree_hash, implementation_hash=implementation_hash(),
-        protocol_sha256=ph, source_manifest_hash=digest(spec),
+    identity = dict(integration_sha=sha, executable_git_tree_sha256=tree_hash,
+        implementation_hash=implementation_hash(), protocol_sha256=ph,
+        source_manifest_hash=digest(spec),
         source_diff_hashes={lane: row['source_diff_sha256'] for lane, row in spec['lanes'].items()},
         lane_policies={lane: {key: row[key] for key in ('strategy_version', 'policy_hash')}
                       for lane, row in proto['frozen_lanes'].items()},
-        execution_configuration_sha256=digest(dict(authorization=config, workflows=workflows,
-            parameters=dict(phase='hourly', program=False, fresh_smoke=True,
-                            smoke_seconds=600, hourly_seconds=3600))))
+        execution_configuration_sha256=digest(dict(authorization_policy=runtime_policy(config),
+            workflows=workflows, parameters=dict(phase='hourly', program=False, fresh_smoke=True,
+                                                  smoke_seconds=600, hourly_seconds=3600))))
+    identity['certification_fingerprint'] = digest(identity)
+    return identity
 
 
 def all_pages(api, path, key):
@@ -491,6 +528,8 @@ def main():
     config = configuration()
     if args.command == 'prohibit':
         prohibit_if_enabled(args.action)
+    if args.command not in ('prohibit', 'contention'):
+        require_authorization(config)
     from certification.prospective_program import GitHub
     api = GitHub()
     if args.command == 'contention':

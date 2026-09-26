@@ -329,7 +329,8 @@ jobs:
               -f program="${{ inputs.program || false }}" \
               -f expected_sha="$GITHUB_SHA" \
               -f campaign_run_id="$GITHUB_RUN_ID" \
-              -f single_campaign="${{ inputs.single_campaign || false }}"
+              -f single_campaign="${{ inputs.single_campaign || false }}" \
+              -f authorization_id="${{ inputs.authorization_id }}"
           done < /tmp/continuation-lanes
 
   smoke-artifact-review:

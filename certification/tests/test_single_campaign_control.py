@@ -1,5 +1,6 @@
 import copy
 import hashlib
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -50,6 +51,8 @@ def market(identifier, status='queued', path=control.MARKET_WORKFLOW):
 
 class SingleCampaignTests(unittest.TestCase):
     def setUp(self):
+        self.env_patch = patch.dict(os.environ, {'SINGLE_AUTHORIZATION_ID': 'unit-single-campaign-v1'}, clear=False)
+        self.env_patch.start(); self.addCleanup(self.env_patch.stop)
         self.config = control.configuration()
         self.identity = dict(integration_sha=SHA, implementation_hash='impl', source_manifest_hash='sources',
                              source_diff_hashes={'pump': 'diff'}, protocol_sha256='policy')
@@ -96,6 +99,17 @@ class SingleCampaignTests(unittest.TestCase):
         return dict(integration_sha=SHA, phase=phase, run_id='native', status='FINISHED',
                     lanes={lane: dict(open_positions=int(lane == open_lane), accounting_reconciled=True,
                                       durable_handoff=(lane == open_lane)) for lane in control.LANES})
+
+    def test_authorization_is_external_to_certified_runtime_policy(self):
+        self.assertEqual(self.config['authorization_id'], 'unit-single-campaign-v1')
+        first = control.runtime_policy(self.config)
+        with patch.dict(os.environ, {'SINGLE_AUTHORIZATION_ID': 'unit-single-campaign-v2'}, clear=False):
+            second_config = control.configuration()
+        self.assertEqual(second_config['authorization_id'], 'unit-single-campaign-v2')
+        self.assertEqual(first, control.runtime_policy(second_config))
+        self.assertNotIn('authorization_id', first)
+        self.assertNotIn('prior_run_observation', first)
+        self.assertNotIn('prior_launch_attempt', first)
 
     def test_single_post_and_durable_duplicate_rejection(self):
         self.dispatch()
@@ -352,7 +366,11 @@ class SingleCampaignTests(unittest.TestCase):
         self.assertNotIn('\n  push:', four.split('permissions:', 1)[0])
         self.assertIn('single_campaign_control claim', four)
         self.assertIn('Start position-only continuation for durable open long-horizon positions', four)
+        launcher = (root/'single-campaign-launch.yml').read_text()
+        self.assertIn('SINGLE_AUTHORIZATION_ID: ${{ steps.request.outputs.authorization_id }}', launcher)
         continuation = (root/'position-continuation.yml').read_text()
+        self.assertIn('authorization_id:', continuation)
+        self.assertIn('-f authorization_id="${{ inputs.authorization_id }}"', continuation)
         self.assertLess(continuation.index('single_campaign_control continuation-claim'),
                         continuation.index('Restore exact prior position artifact'))
         self.assertIn('single-campaign-continuation-state.json',continuation)

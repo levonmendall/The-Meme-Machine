@@ -1,6 +1,5 @@
 {
-  "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "run371-all-repairs-20260925-one-market-v1",
+  "schema": "meme-machine-single-campaign-policy-v2",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -12,16 +11,5 @@
   "position_continuation_workflows": true,
   "workflow_reruns": false,
   "dispatch_retries": false,
-  "live_money": false,
-  "prior_run_observation": {
-    "run_id": 36209572689,
-    "status": "completed_failure",
-    "source": "Run 370 consumed the previous one-shot authority and failed during smoke from Solana Evidence Plane capacity/continuity defects. Those Solana defects and the independently discovered Pons entry-confirmation self-aging defect were repaired, combined, and successfully certified together before this fresh owner authorization."
-  },
-  "prior_launch_attempt": {
-    "run_id": 36209572689,
-    "outcome": "completed_failure",
-    "provider_or_market_work_started": true,
-    "reason": "Prior authority is consumed and cannot be retried. Owner explicitly authorized exactly one fresh PAPER market workflow using the fully combined and certified Run 371 all-repairs runtime."
-  }
+  "live_money": false
 }

@@ -98,9 +98,12 @@ def certificate(api,run_id,sha,worktrees=None):
         raise ValueError('program_certificate_identity_or_gate')
     if worktrees and source_integrity(worktrees)!=offline['source_diff_hashes']:
         raise ValueError('program_prepared_source_mismatch')
-    return dict(passed=True,integration_sha=sha,implementation_hash=implementation_hash(),
+    receipt=dict(passed=True,integration_sha=sha,implementation_hash=implementation_hash(),
         source_manifest_hash=offline['source_manifest_hash'],source_diff_hashes=offline['source_diff_hashes'],
         full_nonmarket_run_id=int(run_id),full_nonmarket_artifact_id=item['id'],artifact_digest=item['digest'])
+    receipt['certification_fingerprint']=digest({key:receipt[key] for key in (
+        'integration_sha','implementation_hash','source_manifest_hash','source_diff_hashes')})
+    return receipt
 
 
 class StateStore:
