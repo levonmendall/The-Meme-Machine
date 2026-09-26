@@ -279,7 +279,8 @@ class FinalizedFence:
                 or len(signatures)!=len(set(signatures))):
             raise EvidenceUnavailable('filtered_census_shape')
         census=canonical(signatures);scope=subscription.scope
-        self._block_complete(scope,slot,signatures,seen)
+        if subscription.evidence_class=='transactions' or (subscription.evidence_class=='census' and include_logs):
+            self._block_complete(scope,slot,signatures,seen)
         with self.writer.transaction():
             old=self.writer.db.execute('SELECT parent,hash,previous_hash,market_time,census FROM stream_receipts WHERE scope=? AND slot=?',(scope,slot)).fetchone()
             values=(parent,block['blockhash'],block['previousBlockhash'],at,census)
