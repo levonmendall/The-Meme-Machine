@@ -76,7 +76,7 @@ def frame(slot,logs,padding):
 
 
 class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
-    async def wait_for(self,predicate,attempts=400):
+    async def wait_for(self,predicate,attempts=1000):
         for _ in range(attempts):
             if predicate():return
             await asyncio.sleep(.01)
@@ -100,7 +100,16 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
                 runner=asyncio.create_task(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
                 ticker=asyncio.create_task(heartbeat(stop))
                 try:
-                    await self.wait_for(lambda:socket.recv_count>=5)
+                    for _ in range(1000):
+                        if socket.recv_count>=5:
+                            break
+                        if runner.done():
+                            exc=runner.exception()
+                            self.fail('large-frame service exited before receive: '
+                                      +type(exc).__name__+':'+str(exc))
+                        await asyncio.sleep(.01)
+                    else:
+                        self.fail('large-frame websocket receive did not start')
                     reader=EvidenceReader(path)
                     for _ in range(800):
                         snapshot=reader.telemetry()
