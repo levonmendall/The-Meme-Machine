@@ -1,0 +1,79 @@
+name: Moderate admission threshold preflight
+on:
+  push:
+    branches: [strategy/moderate-admission-thresholds-20260926]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Prepare exact lane worktrees
+        run: python -m certification.run prepare "${RUNNER_TEMP}/threshold-worktrees"
+      - name: Focused threshold regressions
+        env:
+          ROOT: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          (cd "${RUNNER_TEMP}/threshold-worktrees/pump" && PYTHONPATH="${ROOT}" python -m unittest -v             tests.test_pump_acceleration_policy_identity             tests.test_pump_acceleration_strategy             tests.test_pumpswap_survivor)
+          (cd "${RUNNER_TEMP}/threshold-worktrees/pons" && PYTHONPATH="${ROOT}" python -m unittest -v             robinhood_tests.test_pons_selective_continuation             robinhood_tests.test_pons_postgrad_survivor)
+          (cd "${RUNNER_TEMP}/threshold-worktrees/meteora" && PYTHONPATH="${ROOT}" python -m unittest -v             tests.test_solana_dlmm_independent_v1)
+      - name: Emit exact prepared identities
+        env:
+          ROOT: ${{ github.workspace }}
+        run: |
+          python - <<'PY'
+          import hashlib,json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ["ROOT"])
+          work=Path(os.environ["RUNNER_TEMP"])/"threshold-worktrees"
+          spec=json.loads((root/"certification/sources.json").read_text())
+          def digest(v):
+              return hashlib.sha256(json.dumps(v,sort_keys=True,separators=(",",":")).encode()).hexdigest()
+          out={}
+          for lane in ("pump","pons","meteora"):
+              cwd=work/lane
+              diff=subprocess.check_output([
+                  "git","diff","--binary","--full-index","--no-ext-diff",
+                  "--no-textconv","--no-renames","HEAD"
+              ],cwd=cwd)
+              row=spec["lanes"][lane]
+              files={}
+              for name in row.get("composed_file_hashes",row.get("file_hashes",{})):
+                  files[name]=hashlib.sha256((cwd/name).read_bytes()).hexdigest()
+              out[lane]={"source_diff_sha256":hashlib.sha256(diff).hexdigest(),
+                         "composed_file_hashes":files}
+          env=dict(os.environ);env["PYTHONPATH"]=str(root)
+          pump=json.loads(subprocess.check_output([
+              sys.executable,"-c",
+              "import json;from meme_machine.pump_acceleration_strategy import STRATEGY_ID,policy_hash;"
+              "from meme_machine.pumpswap_survivor import STRATEGY_ID as S,POLICY_HASH;"
+              "print(json.dumps({STRATEGY_ID:policy_hash(),S:POLICY_HASH},sort_keys=True))"
+          ],cwd=work/"pump",env=env,text=True))
+          pons=json.loads(subprocess.check_output([
+              sys.executable,"-c",
+              "import json;from robinhood_research.pons_selective_continuation import POLICY_HASH;"
+              "from robinhood_research.pons_postgrad_survivor import STRATEGY_VERSION,POLICY_HASH as S;"
+              "print(json.dumps({'pons-selective-continuation-v1':POLICY_HASH,STRATEGY_VERSION:S},sort_keys=True))"
+          ],cwd=work/"pons",env=env,text=True))
+          for lane,strategies in (("pump",pump),("pons",pons)):
+              out[lane]["strategies"]=strategies
+              out[lane]["composite_policy_hash"]=digest(dict(
+                  lane=lane,strategies=strategies,
+                  allocation=spec["lanes"][lane]["composite_policy"]["allocation"]))
+              if out[lane]["composite_policy_hash"] != spec["lanes"][lane]["policy_hash"]:
+                  raise SystemExit("composite hash mismatch:"+lane)
+          meteora=json.loads((work/"meteora"/"SOLANA_DLMM_INDEPENDENT_V1.json").read_text())
+          out["meteora"]["policy_hash"]=meteora["execution_certification"]["policy_hash"]
+          if out["meteora"]["policy_hash"] != spec["lanes"]["meteora"]["policy_hash"]:
+              raise SystemExit("meteora hash mismatch")
+          print("THRESHOLD_PREFLIGHT_JSON="+json.dumps(out,sort_keys=True))
+          PY
