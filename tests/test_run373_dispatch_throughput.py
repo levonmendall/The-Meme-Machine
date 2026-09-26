@@ -199,6 +199,61 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                 stop.set()
                 await asyncio.gather(runner,return_exceptions=True)
 
+    async def test_full_block_census_uses_one_completion_not_per_signature_rows(self):
+        # Run 375 showed that durable per-signature delivery + order rows created
+        # avoidable write amplification. Full-block ingestion is already atomic,
+        # so one census completion receipt is sufficient for Pump/PumpSwap.
+        frames=6
+        socket=SustainedSocket(
+            frames=frames,interval=.02,padding_bytes=4096,
+            relevant_transactions=250,
+        )
+        stop=asyncio.Event()
+        with tempfile.TemporaryDirectory() as temp,patch(
+            'meme_machine.solana_evidence_service.time.time',return_value=1790439000
+        ),patch(
+            'websockets.asyncio.client.connect',return_value=socket
+        ),patch(
+            'asyncio.start_unix_server',side_effect=local_server
+        ):
+            path=Path(temp)/'db'
+            runner=asyncio.create_task(service.serve(
+                path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop
+            ))
+            try:
+                await self.wait_for(lambda:database_ready(path),attempts=2000)
+                reader=EvidenceReader(path)
+                for _ in range(3000):
+                    counters=reader.telemetry()['counters']
+                    if counters.get('stream_accepted_messages',0)>=frames:
+                        break
+                    if runner.done():
+                        exc=runner.exception()
+                        self.fail('completion service exited: '
+                                  +(type(exc).__name__+':'+str(exc) if exc else 'clean'))
+                    await asyncio.sleep(.01)
+                else:
+                    self.fail('completion path did not ingest all frames')
+                await self.wait_for(
+                    lambda:reader.db.execute(
+                        'SELECT COUNT(*) FROM stream_completions WHERE scope=?',
+                        (SWAP_SCOPE,)).fetchone()[0]>=frames,
+                    attempts=2000,
+                )
+                self.assertEqual(reader.db.execute(
+                    'SELECT COUNT(*) FROM stream_deliveries WHERE scope=?',
+                    (SWAP_SCOPE,)).fetchone()[0],0)
+                self.assertEqual(reader.db.execute(
+                    'SELECT COUNT(*) FROM stream_order WHERE scope=?',
+                    (SWAP_SCOPE,)).fetchone()[0],0)
+                self.assertTrue(reader.covered(
+                    SWAP_SCOPE,1000,1000+frames-2,as_of=1790439000
+                ))
+                reader.close()
+            finally:
+                stop.set()
+                await asyncio.gather(runner,return_exceptions=True)
+
     async def test_capacity_overflow_drains_already_received_frames_before_gap(self):
         socket=BurstSocket(frames=8);stop=asyncio.Event()
         accepted_at_disconnect=[];reasons=[]
