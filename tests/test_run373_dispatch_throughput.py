@@ -250,7 +250,15 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                                   +(type(exc).__name__+':'+str(exc) if exc else 'clean'))
                     await asyncio.sleep(.01)
                 else:
-                    self.fail('Run 375 batching did not drain all frames')
+                    telemetry=reader.telemetry()
+                    self.fail('Run 375 batching did not drain all frames '
+                              +json.dumps({
+                                  'counters':{k:v for k,v in telemetry['counters'].items()
+                                              if k.startswith('stream_') or k.startswith('disconnect:')},
+                                  'ipc':telemetry['service_health'].get('ipc') or {},
+                                  'unresolved_gaps':telemetry.get('unresolved_gaps'),
+                                  'remaining_frames':socket.remaining,
+                              },sort_keys=True))
                 await self.wait_for(
                     lambda:(reader.telemetry()['service_health'].get('ipc') or {}).get(
                         'stream.commit_messages',0

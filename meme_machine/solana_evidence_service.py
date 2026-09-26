@@ -737,15 +737,28 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                             nonlocal pending_bytes,pending_frames
                             next_sequence=0;finished_workers=0;ready={}
                             while finished_workers<STREAM_DECODE_WORKERS or ready or pending_frames:
-                                item=await decoded.get()
+                                # Pull every completion already available before
+                                # entering the ordered commit pass. Without this,
+                                # the committer immediately consumed one decoded
+                                # frame and therefore could not form a batch even
+                                # while the decoded queue was backing up.
+                                completed=[await decoded.get()]
+                                while len(completed)<STREAM_DISPATCH_MAX_MESSAGES:
+                                    try:
+                                        completed.append(decoded.get_nowait())
+                                    except asyncio.QueueEmpty:
+                                        break
+                                counts['stream.decoded_drain_peak']=max(
+                                    counts.get('stream.decoded_drain_peak',0),len(completed))
                                 try:
-                                    if item[0]=='worker_done':
-                                        finished_workers+=1
-                                    else:
-                                        _,sequence,message,seen,size,decoded_at=item
-                                        ready[sequence]=(message,seen,size,decoded_at)
-                                        counts['stream.ordered_ready_peak']=max(
-                                            counts.get('stream.ordered_ready_peak',0),len(ready))
+                                    for item in completed:
+                                        if item[0]=='worker_done':
+                                            finished_workers+=1
+                                        else:
+                                            _,sequence,message,seen,size,decoded_at=item
+                                            ready[sequence]=(message,seen,size,decoded_at)
+                                            counts['stream.ordered_ready_peak']=max(
+                                                counts.get('stream.ordered_ready_peak',0),len(ready))
                                     while next_sequence in ready:
                                         message,seen,size,decoded_at=ready[next_sequence]
 
@@ -847,7 +860,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                         if pending_frames==0:drained.set()
                                         next_sequence+=1
                                 finally:
-                                    decoded.task_done()
+                                    for _ in completed:
+                                        decoded.task_done()
                             if pending_frames or ready:
                                 raise EvidenceUnavailable('stream_ordered_drain_incomplete')
 

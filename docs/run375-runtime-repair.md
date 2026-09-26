@@ -25,8 +25,11 @@ The Solana evidence receiver and parallel decoders remained responsive, but Run
 does not weaken `synchronous=FULL`.
 
 Consecutive full-block notifications are now grouped into a bounded owner
-transaction: at most eight frames and at most 16 MiB total. Each frame retains its
-own savepoint, receive order remains authoritative, account/control notifications
+transaction: at most eight frames and at most 16 MiB total. The committer first
+drains completions already present in the bounded decoded queue into its ordered
+ready buffer, which allows genuinely consecutive frames to coalesce instead of
+immediately committing the first decoded frame alone. Each frame retains its own
+savepoint, receive order remains authoritative, account/control notifications
 remain one-at-a-time, and any later malformed frame cannot contaminate earlier
 valid frames. The outer commit amortizes the fixed FULL-sync cost.
 
