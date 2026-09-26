@@ -23,7 +23,7 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Root Run 375 regressions
         run: |
-          python -m unittest             certification.tests.test_robinhood_provider_usage             tests.test_run373_dispatch_throughput             tests.test_run372_large_frame_runtime             tests.test_solana_evidence_service_runtime -v
+          python -m unittest             certification.tests.test_robinhood_provider_usage             tests.test_run373_dispatch_throughput             tests.test_run372_large_frame_runtime             tests.test_solana_evidence_fences             tests.test_solana_evidence_service_runtime -v
       - name: Prepare exact four-lane runtime
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/run375-repair-lanes"
       - name: Prepared Solana runtime regressions
