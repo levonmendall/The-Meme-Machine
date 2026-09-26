@@ -1,7 +1,7 @@
 name: Moderate admission threshold preflight
 on:
   push:
-    branches: [strategy/moderate-admission-thresholds-20260926]
+    branches: [strategy/moderate-admission-thresholds-20260926, repair/moderate-thresholds-certification-20260926]
   workflow_dispatch:
 permissions:
   contents: read
