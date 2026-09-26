@@ -695,6 +695,8 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
     lane_roots=[str((Path(worktrees)/lane).resolve()) for lane in LANES]
     if len(set(lane_roots))!=len(LANES):raise ValueError('lane_state_roots_not_isolated')
     from certification.evidence_supervisor import EvidenceProcess
+    from meme_machine.solana_evidence_health import HealthWatch
+    evidence_watches={lane:HealthWatch(time.monotonic()) for lane in ('pump','meteora')}
     evidence=EvidenceProcess(run,Path(worktrees)/'pump',lane_environment('pump',spec['lanes']['pump'],run,run_id,phase))
     try:
         evidence.start()
@@ -759,7 +761,6 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                     ended=reported if isinstance(reported,(int,float)) and launched<=reported<=now else now
                     terminal_times[lane]=ended
                     row.update(exit_code=code,ended_at=time.time(),continuous_uptime_seconds=ended-launched,unexpected_exit=code!=0 or ended-common_start<seconds,health='exited')
-                    journal.append(lane,'exit','process_exit',dict(exit_code=code,observed_monotonic=now,unexpected=row['unexpected_exit']))
                     report=Path(worktrees)/lane/REPORTS[lane]
                     if report.exists():
                         raw=report.read_bytes();(run/lane/REPORTS[lane]).write_bytes(raw)
@@ -769,7 +770,24 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
                                 from certification.terminal_receipts import emit_pons
                                 emit_pons(native)
                         except ValueError:row['report_parse_error']=True
+                    if lane in evidence_watches and evidence_watches[lane].failure:
+                        row['infrastructure_failure']=evidence_watches[lane].failure
+                    if lane=='pump' and phase=='smoke':
+                        from certification.solana_lifecycle import pump_flat_completion
+                        if pump_flat_completion(row):
+                            row.update(unexpected_exit=False,health='flat_after_discovery')
+                    if row.get('infrastructure_failure'):
+                        row['gates']['responsive']=False;row['health']='evidence_failed'
+                    journal.append(lane,'exit','process_exit',dict(exit_code=code,observed_monotonic=now,unexpected=row['unexpected_exit']))
                 row['open_positions_unknown']=row.get('open_positions') is None
+                if lane in evidence_watches and code is None and isinstance(evidence_health,dict):
+                    current=evidence_health.get('lanes',{}).get(lane)
+                    if isinstance(current,dict):
+                        watch=evidence_watches[lane];watch.observe(current,now)
+                        row['evidence_service_health']=watch.snapshot()
+                        if watch.failure:
+                            row['infrastructure_failure']=watch.failure
+                            row['gates']['responsive']=False;row['health']='evidence_failed'
                 row['process_health']=row['health']
                 row['pipeline_health']=pipeline_health(row,time.time())
                 if code is None and row['health']=='responsive' and row['pipeline_health']['state']=='stalled':
@@ -803,6 +821,10 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         raise
     finally:
         interrupted=finish_lanes(processes,files,rows,terminal_times,journal,run,worktrees) or interrupted
+        for lane,watch in evidence_watches.items():
+            if watch.failure:
+                rows[lane]['infrastructure_failure']=watch.failure
+                rows[lane]['gates']['responsive']=False
         evidence.close()
         broker_terminal=record_unfinished_broker_jobs(run/'shared-solana-evidence.sqlite',journal,time.time())
         try:source_unchanged=source_integrity(worktrees)==gate['source_diff_hashes']

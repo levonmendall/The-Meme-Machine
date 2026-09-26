@@ -222,6 +222,19 @@ class EvidenceWriter:
     @contextmanager
     def transaction(self):
         self._check()
+        # A source batch or command receipt owns the outer commit. Inner helpers
+        # must roll back with it; one fsync publishes the entire atomic operation.
+        if self.db.in_transaction:
+            name='nested_'+uuid.uuid4().hex
+            self.db.execute('SAVEPOINT '+name)
+            try:
+                yield
+                self.db.execute('RELEASE '+name)
+            except BaseException:
+                self.db.execute('ROLLBACK TO '+name)
+                self.db.execute('RELEASE '+name)
+                raise
+            return
         self.db.execute('BEGIN IMMEDIATE')
         try:
             yield
@@ -383,12 +396,15 @@ class EvidenceWriter:
         rows = self.db.execute('''SELECT r.identity,r.body,r.hash FROM records r
           WHERE r.body IS NOT NULL AND COALESCE(r.market_time,r.first_seen) < ?
           AND NOT EXISTS(SELECT 1 FROM interests i WHERE i.active=1
-             AND i.scope=r.scope AND r.slot>=i.lower_slot)
+             AND i.scope=r.scope AND r.slot>=i.lower_slot
+             AND (NOT EXISTS(SELECT 1 FROM service_interests s WHERE s.owner=i.owner AND s.scope=i.scope)
+               OR EXISTS(SELECT 1 FROM service_interests s JOIN addresses a ON a.address=s.address
+                         WHERE s.owner=i.owner AND s.scope=i.scope AND a.identity=r.identity)))
           AND NOT EXISTS(SELECT 1 FROM service_interests s JOIN interests i
              ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1
              AND r.kind='account' AND s.address=substr(r.scope,9))
           AND NOT EXISTS(SELECT 1 FROM gaps g WHERE g.scope=r.scope AND g.repaired IS NULL
-              AND r.slot>=g.lo)
+              AND r.slot>=g.lo AND (g.hi IS NULL OR r.slot<=g.hi))
           ORDER BY COALESCE(r.market_time,r.first_seen),r.identity LIMIT ?''', (before_time, max_records)).fetchall()
         return [dict(identity=k,body=json.loads(b),hash=h,
             lineage=[dict(source=src,endpoint_identity=ep,observed_at=at) for src,ep,at in self.db.execute('SELECT source,endpoint,observed FROM lineage WHERE identity=?',(k,))],
@@ -415,7 +431,12 @@ class EvidenceWriter:
                 # An interest can arrive while compression/fsync is in flight.
                 # Recheck pins before dropping even a single hot payload.
                 body=row['body'];scope=body['scope'];slot=body['slot']
-                pinned=self.db.execute('SELECT 1 FROM interests WHERE scope=? AND active=1 AND lower_slot<=? UNION ALL SELECT 1 FROM gaps WHERE scope=? AND repaired IS NULL AND lo<=? LIMIT 1',(scope,slot,scope,slot)).fetchone()
+                pinned=self.db.execute('''SELECT 1 FROM interests i WHERE scope=? AND active=1 AND lower_slot<=?
+                    AND (NOT EXISTS(SELECT 1 FROM service_interests s WHERE s.owner=i.owner AND s.scope=i.scope)
+                      OR EXISTS(SELECT 1 FROM service_interests s JOIN addresses a ON a.address=s.address
+                                WHERE s.owner=i.owner AND s.scope=i.scope AND a.identity=?))
+                    UNION ALL SELECT 1 FROM gaps WHERE scope=? AND repaired IS NULL AND lo<=? AND (hi IS NULL OR hi>=?) LIMIT 1''',
+                    (scope,slot,row['identity'],scope,slot,slot)).fetchone()
                 pinned=pinned or self._account_pinned(scope)
                 if not pinned:
                     archived+=self.db.execute('UPDATE records SET body=NULL,archive=? WHERE identity=? AND hash=? AND body IS NOT NULL',(receipt['name'],row['identity'],row['hash'])).rowcount

@@ -12,7 +12,7 @@ class FenceTests(unittest.TestCase):
         self.reader=EvidenceReader(self.writer.path);self.sub=Subscription('service','pump','program','census',4)
     def tearDown(self):self.reader.close();self.writer.close();self.temp.cleanup()
     def block(self,slot,parent,seen=100):
-        value=dict(slot=slot,err=None,block=dict(parentSlot=parent,blockhash=f'h{slot}',previousBlockhash=f'h{parent}',blockTime=slot,signatures=[f's{slot}']))
+        value=dict(slot=slot,err=None,block=dict(parentSlot=parent,blockhash=f'h{slot}',previousBlockhash=f'h{parent}',blockTime=slot,transactions=[dict(transaction=dict(signatures=[f's{slot}'],message=dict(accountKeys=['program'])),meta=dict(logMessages=[],err=None))]))
         self.fence.block(self.sub,{'params':{'result':{'value':value}}},seen)
     def log(self,slot,seen=100):
         msg={'method':'logsNotification','params':{'result':{'context':{'slot':slot},'value':{'signature':f's{slot}','logs':[],'err':None}}}}

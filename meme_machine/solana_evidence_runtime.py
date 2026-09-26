@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import socket
 import time
+import uuid
+import sqlite3
 from .solana_evidence_plane import EvidenceReader,EvidenceUnavailable,canonical
 from .solana_evidence_queries import PumpEvidenceView,MeteoraEvidenceView
 
@@ -18,31 +20,67 @@ class RuntimeEvidence:
     def __init__(self,path=None,*,owner,clock=time.time,command=None):
         path=path or os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')
         if not path:raise EvidenceUnavailable('shared_evidence_plane_required')
-        self.path=Path(path).resolve();self.reader=EvidenceReader(self.path)
+        self.path=Path(path).resolve()
+        try:self.reader=EvidenceReader(self.path)
+        except sqlite3.Error:self.reader=None
         self.owner=owner;self.clock=clock;self._command=command
         self.counts={}
+        self.health_observations={}
     def command(self,**request):
+        from .solana_evidence_control import COMMAND_SECONDS,ATTEMPT_SECONDS
         request.setdefault('owner',self.owner)
         request['consumer']=self.owner
         if self._command:return self._command(request)
+        request.setdefault('request_id',uuid.uuid4().hex)
+        request.setdefault('expires_at',time.time()+COMMAND_SECONDS)
         data=(canonical(request)+'\n').encode()
         if len(data)>32768:raise EvidenceUnavailable('evidence_interest_command_bound')
-        with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as stream:
-            stream.settimeout(.25)
+        end=time.monotonic()+COMMAND_SECONDS
+        for attempt in range(6):
+            remaining=end-time.monotonic()
+            if remaining<=0:break
             try:
-                stream.connect(str(self.path)+'.sock');stream.sendall(data)
-                reply=stream.makefile('rb').readline(32769)
-            except OSError as exc:raise EvidenceUnavailable('evidence_service_unavailable') from exc
-        result=json.loads(reply)
-        if result.get('ok') is not True:raise EvidenceUnavailable(result.get('error','evidence_command_rejected'))
-        return result
+                with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as stream:
+                    stream.settimeout(min(ATTEMPT_SECONDS,remaining))
+                    stream.connect(str(self.path)+'.sock');stream.sendall(data)
+                    with stream.makefile('rb') as source:reply=source.readline(32769)
+                if len(reply)>32768:raise ValueError('reply_bound')
+                result=json.loads(reply)
+                if result.get('state')=='pending' or result.get('error')=='evidence_control_overloaded':
+                    self.counts['ipc_retries']=self.counts.get('ipc_retries',0)+1
+                    time.sleep(min(.05,max(0,end-time.monotonic())));continue
+                if result.get('ok') is not True:raise EvidenceUnavailable(result.get('error','evidence_command_rejected'))
+                if result.get('request_id')!=request['request_id']:raise EvidenceUnavailable('evidence_ack_identity')
+                return result
+            except EvidenceUnavailable:raise
+            except (OSError,ValueError):
+                self.counts['ipc_retries']=self.counts.get('ipc_retries',0)+1
+                time.sleep(min(.05,max(0,end-time.monotonic())))
+        self.counts['ipc_unacknowledged']=self.counts.get('ipc_unacknowledged',0)+1
+        error=EvidenceUnavailable('evidence_command_unacknowledged')
+        error.request=request # retry this exact envelope; never mint a new counter ID
+        raise error
     def count(self,key,count=1):
         self.counts[key]=self.counts.get(key,0)+count
-        self.command(op='counter',key=key,count=count)
+        try:self.command(op='counter',key=key,count=count)
+        except EvidenceUnavailable:
+            # Diagnostic delivery does not own lane liveness or decision authority.
+            self.counts['ipc_counter_unacknowledged']=self.counts.get('ipc_counter_unacknowledged',0)+1
     def interest(self,scope,*,lower_slot,addresses=(),lifecycle='candidate',priority=3,owner=None):
         return self.command(op='interest',owner=owner or self.owner,scope=scope,
             lower_slot=lower_slot,addresses=list(addresses),lifecycle=lifecycle,priority=priority)
+    def admit_candidate(self,scope,*,addresses,owner):
+        """The lane consumes a classified infrastructure result, never a crash."""
+        try:
+            self.require_usable(scope)
+            frontier=self.frontier(scope)
+            self.interest(scope,lower_slot=max(0,frontier-1),addresses=addresses,owner=owner)
+            return dict(accepted=True)
+        except EvidenceUnavailable as exc:
+            return dict(accepted=False,terminal_classification='infrastructure_evidence_unavailable',
+                        reason=str(exc),economic_rejection=False)
     def frontier(self,scope):
+        self.require_usable(scope)
         row=self.reader.db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND available<=?',(scope,self.clock())).fetchone()
         if not row or row[0] is None:raise EvidenceUnavailable('evidence_cold_start')
         return row[0]
@@ -68,6 +106,7 @@ class RuntimeEvidence:
         if row is None or slot>=row[0]:self.command(op='ack',owner=owner,scope=scope,slot=slot)
     def pump_events(self,scope,address,lower_time,upper_time,*,upper_slot=None):
         try:
+            self.require_usable(scope)
             self.count('pump.local_evidence_reads')
             lo,hi=self.bounds(scope,lower_time,upper_time,upper_slot=upper_slot)
             events=PumpEvidenceView(self.reader,scope).events(address,lower_slot=lo,upper_slot=hi,
@@ -80,6 +119,7 @@ class RuntimeEvidence:
             self.count('pump.gap_blocked_queries')
             self.count('pump.incomplete_local_reads');raise
     def meteora_scope(self,pool):
+        if self.reader is None:self.require_usable(METEORA_SCOPE)
         scoped='pool:meteora:'+pool
         if self.reader.db.execute('SELECT 1 FROM coverage WHERE scope=? LIMIT 1',(scoped,)).fetchone():return scoped
         return METEORA_SCOPE
@@ -87,6 +127,7 @@ class RuntimeEvidence:
         try:
             self.count('meteora.local_evidence_reads')
             scope=self.meteora_scope(pool)
+            self.require_usable(METEORA_SCOPE)
             result=MeteoraEvidenceView(self.reader,scope).interval(pool,start_slot=start,end_slot=end,as_of=self.clock())
             self.acknowledge(scope,end)
             self.count('meteora.complete_local_reads')
@@ -98,8 +139,22 @@ class RuntimeEvidence:
     def _repair_assisted(self,lane,scope,lo,hi):
         if self.reader.db.execute("SELECT 1 FROM coverage WHERE scope=? AND lo<=? AND hi>=? AND available<=? AND proof LIKE '%alchemy_finalized_repair%' LIMIT 1",(scope,hi,lo,self.clock())).fetchone():
             self.count(lane+'.repair_assisted_windows')
-    def telemetry(self):return dict(self.reader.telemetry(),lane_counters=dict(self.counts))
-    def close(self):self.reader.close()
+    def health(self,scope):
+        from .solana_evidence_health import evidence_health
+        if self.reader is None:
+            try:self.reader=EvidenceReader(self.path)
+            except sqlite3.Error:return dict(state='FAILED',usable=False,reason='evidence_service_unavailable',scope=scope,observed_at=self.clock())
+        health=evidence_health(self.reader,scope,self.clock())
+        self.health_observations[scope]=health
+        return health
+    def require_usable(self,scope):
+        health=self.health(scope)
+        if not health['usable']:raise EvidenceUnavailable(health['reason'])
+        return health
+    def telemetry(self):
+        return dict(self.reader.telemetry() if self.reader else {},lane_counters=dict(self.counts),admission_health=dict(self.health_observations))
+    def close(self):
+        if self.reader:self.reader.close()
 
 class LocalPumpHistory:
     """Adapter for the real Pump runner's frozen history/decision interface."""

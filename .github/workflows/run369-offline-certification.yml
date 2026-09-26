@@ -1,0 +1,60 @@
+name: Run 369 deterministic runtime certification
+on:
+  push:
+    branches: [repair/run369-solana-runtime-20260925]
+permissions:
+  contents: read
+jobs:
+  certify-runtime-offline:
+    if: contains(github.event.head_commit.message, '[run369-offline-cert]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      MM_REAL_IPC_TESTS: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/evidence-lanes"
+      - name: Architecture gates before broad certification
+        run: python -m certification.solana_evidence_architecture_gate --worktrees "$RUNNER_TEMP/evidence-lanes" --output evidence-certification/architecture
+      - name: Root deterministic suite and resource bounds
+        run: |
+          set -o pipefail
+          python -m unittest discover -v 2>&1 | tee evidence-certification/root.log
+          python -m tests.resource_check > evidence-certification/root-resource.json
+          (cd "$RUNNER_TEMP/evidence-lanes/pump" && python -m tests.resource_check) > evidence-certification/pump-resource.json
+          (cd "$RUNNER_TEMP/evidence-lanes/meteora" && python -m tests.resource_check) > evidence-certification/meteora-resource.json
+          (cd "$RUNNER_TEMP/evidence-lanes/meteora" && python -m tests.dlmm_resource_check) > evidence-certification/meteora-dlmm-resource.json
+      - name: Frozen policies and source identities
+        run: python -m certification.protocol_freeze --output evidence-certification/policy-freeze.json
+      - name: Supervisor and accounting contracts
+        env:
+          MM_TEST_LANE_WORKTREES: ${{ runner.temp }}/evidence-lanes
+        run: |
+          set -o pipefail
+          python -m unittest discover -s certification/tests -v 2>&1 | tee evidence-certification/supervisor.log
+      - name: One final broad offline component certification
+        run: python -m certification.non_market --worktrees "$RUNNER_TEMP/evidence-lanes" --output evidence-certification/components
+      - name: Native ledger process interruption matrix
+        run: python -m certification.crash_matrix --worktrees "$RUNNER_TEMP/evidence-lanes" --output evidence-certification/crash
+      - name: Production restart safety
+        run: python -m certification.restart_safety --worktrees "$RUNNER_TEMP/evidence-lanes" --output evidence-certification/restart
+      - name: Integrated accounting and lifecycle acceptance
+        run: python -m certification.integrated_acceptance --worktrees "$RUNNER_TEMP/evidence-lanes" --output evidence-certification/integrated
+      - name: Scan application certification artifacts and logs for credentials
+        if: always()
+        run: python -m certification.solana_provider_gate --scan evidence-certification
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: run369-offline-certification
+          path: evidence-certification/
+          if-no-files-found: error
+          retention-days: 90
+# No provider secrets, connectivity probes, market workflows, deployment, or dispatch.

@@ -60,7 +60,13 @@ def summarize(lane, report):
     result['opportunity_coverage']=report.get('opportunity_coverage')
     result['scan_progress']=report.get('scan_progress')
     result['last_completed_scan']=report.get('last_completed_scan')
+    if lane in ('pump','meteora'):
+        result['evidence_liveness']=report.get('evidence_liveness')
+        result['infrastructure_failure']=report.get('infrastructure_failure')
     if lane=='pump':
+        result['pump_discovery_terminal']=dict(reason=report.get('smoke_tail_exit'),
+            configured_seconds=report.get('discovery_seconds'),deadline=report.get('discovery_deadline'),
+            completed_at=report.get('discovery_completed_at'))
         qualifiers=report.get('qualifiers',[])
         entry_status=Counter(x.get('entry_status','unknown') for x in qualifiers)
         entry_terminals=Counter('entry_cancelled:'+(x.get('entry_limitation') or 'unknown')
