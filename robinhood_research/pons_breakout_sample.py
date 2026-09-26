@@ -14,7 +14,10 @@ from . import BoundaryError
 from .abi import calldata, scalar, signature, topic, words
 from .identity import authenticate, load
 from .pons import authenticate_curve, factory_record, raw_event
-from .pons_natural_paper import (\n    V4_QUOTER, _graduation_transition, _one_word, _rpc as paper_rpc,\n    _v4_quoter_calldata,\n)
+from .pons_natural_paper import (
+    V4_QUOTER, _graduation_transition, _one_word, _rpc as paper_rpc,
+    _v4_quoter_calldata,
+)
 from .pons_selective_acquisition import _header_search, _rpc as evidence_rpc
 from .pons_selective_continuation import ZERO, breakout_vector
 from .pons_selective_v4 import collect_v4_activity
@@ -31,6 +34,8 @@ DISCOVERY_SECONDS=600
 MONITOR_SECONDS=900
 WINDOW_SECONDS=15
 POLL_SECONDS=5
+SHADOW_NOTIONAL_QUOTE=10**18*25//10_000
+FORWARD_HORIZONS_SECONDS=(30,60,120,300)
 
 
 def _event_topic(role,name):
@@ -128,6 +133,70 @@ def _discover_graduation(endpoint):
     finally:
         feed.close()
 
+
+
+def _zero_for_one(key, side):
+    """Direction for a native-quote V4 exact-input research quote."""
+    c0=str(key.currency0).lower();c1=str(key.currency1).lower()
+    if (c0==ZERO)==(c1==ZERO):
+        raise BoundaryError("breakout_shadow_requires_native_quote")
+    if side=="buy":
+        return c0==ZERO
+    if side=="sell":
+        return c1==ZERO
+    raise BoundaryError("breakout_shadow_quote_side")
+
+
+def _after_cost_return_bps(entry_quote, exit_quote):
+    basis=int(entry_quote["amount_in"])+int(entry_quote["gas_quote"])
+    proceeds=max(0,int(exit_quote["amount_out"])-int(exit_quote["gas_quote"]))
+    if basis<=0:
+        raise BoundaryError("breakout_shadow_basis")
+    return (proceeds-basis)*10_000//basis
+
+
+def _shadow_v4_quote(endpoint,key,pool_id,amount_in,*,side):
+    """Authenticated executable V4Quoter observation. Never signs or submits."""
+    rpc=paper_rpc(endpoint);rpc.verify_chain()
+    header=_latest_header(rpc);block=int(header["number"],16)
+    manager=load("uniswap_v4_manager")["address"].lower()
+    code=rpc.call(
+        "eth_getCode",[V4_QUOTER,hex(block)],scope="pons_breakout_shadow"
+    )
+    if not code or code=="0x":
+        raise BoundaryError("breakout_shadow_quoter_code_missing")
+    pm=_one_word(rpc.call(
+        "eth_call",[dict(to=V4_QUOTER,data=calldata("poolManager()")),hex(block)],
+        scope="pons_breakout_shadow",
+    ),"address")
+    if pm!=manager:
+        raise BoundaryError("breakout_shadow_quoter_manager")
+    data=_v4_quoter_calldata(
+        key,_zero_for_one(key,side),int(amount_in)
+    )
+    raw=rpc.call(
+        "eth_call",[dict(to=V4_QUOTER,data=data),hex(block)],
+        scope="pons_breakout_shadow",
+    )
+    values=words(raw)
+    if len(values)!=2:
+        raise BoundaryError("breakout_shadow_quote_shape")
+    amount_out=scalar("uint256",values[0])
+    quoter_gas=scalar("uint256",values[1])
+    if amount_out<=0 or quoter_gas<=0:
+        raise BoundaryError("breakout_shadow_quote_unavailable")
+    gas_price=int(rpc.call("eth_gasPrice",[],scope="pons_breakout_shadow"),16)
+    gas_units=quoter_gas*2
+    return dict(
+        side=side,pool_id=pool_id,block=block,
+        event_at=int(header["timestamp"],16),
+        amount_in=int(amount_in),amount_out=int(amount_out),
+        quoter_gas_estimate=int(quoter_gas),
+        gas_units_proxy=int(gas_units),gas_price=int(gas_price),
+        gas_quote=int(gas_units)*int(gas_price),
+        v4_quoter=V4_QUOTER,
+        provider_sessions=[rpc.telemetry()],
+    )
 
 def run(endpoint):
     result=dict(
