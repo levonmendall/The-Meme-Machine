@@ -1,7 +1,7 @@
 diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ramses_extended_test.py
 --- a/robinhood_research/ramses_extended_test.py
 +++ b/robinhood_research/ramses_extended_test.py
-@@ -93,6 +93,20 @@ def _campaign_candidate_boundary(reason):
+@@ -94,6 +94,23 @@ def _campaign_candidate_boundary(reason):
      if reason in CAMPAIGN_TRANSIENT_PROVIDER_BOUNDARIES:return 'provider_failed'
      return None
  
@@ -25,7 +25,7 @@ diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ram
  
  def _scan_with_capacity_recovery(scan_call,*,deadline,record_failure,clock=None,sleeper=None):
      """Retry local admission loss; defer exhausted transient transport fail-closed."""
-@@ -121,11 +135,14 @@ def _scan_with_capacity_recovery(scan_call,*,deadline,record_failure,clock=None,s
+@@ -121,10 +138,14 @@ def _scan_with_capacity_recovery(scan_call,*,deadline,record_failure,clock=None,s
                  # alive and may retry only after its existing scan cadence permits.
                  return dict(_scan_deferred=True,reason=reason)
              if reason not in ('provider_shared_admission_deadline','provider_shared_queue_capacity'):raise
@@ -43,7 +43,7 @@ diff --git a/robinhood_research/ramses_extended_test.py b/robinhood_research/ram
 +                return dict(_scan_deferred=True,reason=reason)
              sleeper(min(2**(attempt-1),max(0,deadline-clock())))
  
-@@ -621,10 +638,28 @@ def run(
+@@ -621,10 +642,32 @@ def run(
              if elapsed>=discovery_seconds:
                  break
  
