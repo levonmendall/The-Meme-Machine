@@ -130,6 +130,7 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                 path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop
             ))
             try:
+                await self.wait_for(path.exists,attempts=1000)
                 reader=EvidenceReader(path)
                 await self.wait_for(
                     lambda:reader.telemetry()['counters'].get('stream_accepted_messages',0)>=frames,
@@ -201,6 +202,7 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                 path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop
             ))
             try:
+                await self.wait_for(path.exists,attempts=1000)
                 reader=EvidenceReader(path)
                 await self.wait_for(
                     lambda:reader.telemetry()['counters'].get('stream_reconnects',0)>=1,
