@@ -240,7 +240,7 @@ def reduce_record(state,record,event_id,proto,ph,now,base_reviewed=False):
         row=current['lanes'][lane]
         healthy=healthy and all(row.get(k) is True for k in ('identity_match','accounting_reconciled',
             'telemetry_complete','freshness_finality_unchanged'))
-        pending_replay=(lane in ('meteora','ramses') and (row.get('economics') or {}).get('flat') is False
+        pending_replay=((lane in ('meteora','ramses') or row.get('position_handoff_verified') is True) and (row.get('economics') or {}).get('flat') is False
                         and row.get('durable_handoff') is True and row.get('native_accounting_replay') is True)
         healthy=healthy and (row.get('durable_replay') is True or pending_replay)
         healthy=healthy and not row.get('unexpected_exit') and not row.get('process_restarts') and not row.get('forced_settled')
@@ -251,7 +251,7 @@ def reduce_record(state,record,event_id,proto,ph,now,base_reviewed=False):
         return state
     pending=[lane for lane in LANES if (current['lanes'][lane].get('economics') or {}).get('flat') is not True]
     if pending:
-        if any(lane not in ('meteora','ramses') for lane in pending):
+        if any(lane not in ('meteora','ramses') and current['lanes'][lane].get('position_handoff_verified') is not True for lane in pending):
             state.update(phase='HALTED',halt_reason='unsupported_open_position',next_action='reconcile_and_repair')
         else:state.update(phase='CONTINUING',pending_lanes=pending,next_action='monitor_durable_positions')
         return state

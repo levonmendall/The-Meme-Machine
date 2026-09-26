@@ -19,11 +19,11 @@ from certification.evidence_obligations import summarize as summarize_obligation
 
 LANES=('pump','pons','meteora','ramses')
 SCOPE={
- 'pump':dict(authority='sources.json:lanes.pump.prospect_admission; pump_acceleration_strategy.POLICY',
-     universe='Native-SOL Pump curves in the frozen 60-85% late-curve strategy domain, plus its authenticated PumpSwap graduation/continuation modes; existing positions retain their lifecycle scope.',
+ 'pump':dict(authority='sources.json:lanes.pump.prospect_admission; pump_acceleration_strategy.POLICY; pumpswap_survivor.POLICY',
+     universe='Native-SOL Pump curves in the frozen 60-85% late-curve strategy domain, plus its authenticated PumpSwap graduation/continuation modes and independent canonical SOL PumpSwap Survivor regime aged 6h-7d; existing positions retain their lifecycle scope.',
      dimensions=['surface','phase','quote_asset'],denominator='Source stream completeness; absolute chain opportunity census unavailable.'),
- 'pons':dict(authority='pons_selective_cohort.operational_configuration; pons_selective_continuation.POLICY',
-     universe='Native-quote Pons curves in the frozen 50-85% progress, 120-600s age and 20-90s graduation-ETA domain, plus its authenticated graduation/re-entry modes; existing positions retain their lifecycle scope.',
+ 'pons':dict(authority='pons_selective_cohort.operational_configuration; pons_selective_continuation.POLICY; pons_postgrad_survivor.POLICY',
+     universe='Native-quote Pons curves in the frozen 50-85% progress, 120-600s age and 20-90s graduation-ETA domain, plus its authenticated graduation/re-entry modes and independent Pons V2 to V4 Survivor regime aged 6h-7d; existing positions retain their lifecycle scope.',
      dimensions=['curve','graduation_state','event_at'],denominator='Canonical discovery cursor/log windows; independent all-event denominator unavailable.'),
  'meteora':dict(authority='SOLANA_DLMM_INDEPENDENT_V1.json; solana_dlmm_independent_v1 discovery loop',
      universe='Nonblacklisted Solana Meteora DLMM pools with exactly one WSOL leg, as defined by the frozen strategy; no minimum TVL or absolute volume.',

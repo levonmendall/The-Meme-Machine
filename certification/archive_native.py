@@ -10,9 +10,9 @@ import sqlite3
 import time
 
 PATTERNS={
-    'pump':['pump-acceleration-natural-prospective*'],
+    'pump':['pump-acceleration-natural-prospective*','pump-survivor','directional-sleeve.sqlite*'],
     'meteora':['solana-dlmm-independent-v1-live*'],
-    'pons':['pons-selective-continuation-v1-cohort.json','pons-selective-continuation-v1-cohort'],
+    'pons':['pons-selective-continuation-v1-cohort.json','pons-selective-continuation-v1-cohort','directional-sleeve.sqlite*'],
     'ramses':['robinhood-ramses-extended-market-report.json','robinhood-ramses-extended-market.sqlite*',
               'robinhood-ramses-all-pool-inventory-cache.json','robinhood-ramses-extended-market.sqlite.pipeline.sqlite*',
               'robinhood-ramses-continuation*.sqlite','robinhood-ramses-continuation*.json'],

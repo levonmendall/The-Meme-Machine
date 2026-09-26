@@ -85,6 +85,17 @@ class ProgramTests(unittest.TestCase):
         row['lanes']['meteora']['native_accounting_replay']=False
         self.assertEqual(self.reduce(row)['phase'],'HALTED')
 
+    def test_directional_survivor_requires_verified_handoff_before_continuation(self):
+        for lane in ('pump','pons'):
+            row=copy.deepcopy(self.row)
+            row['lanes'][lane].update(durable_replay=False,durable_handoff=True,
+                native_accounting_replay=True,position_handoff_verified=True)
+            row['lanes'][lane]['economics']['flat']=False
+            state=self.reduce(row)
+            self.assertEqual(state['phase'],'CONTINUING');self.assertEqual(state['pending_lanes'],[lane])
+            row['lanes'][lane]['position_handoff_verified']=False
+            self.assertEqual(self.reduce(row)['phase'],'HALTED')
+
     def test_racing_state_commit_reloads_without_losing_other_event(self):
         memory={'head':'a','state':self.state,'race':True}
         class Store:

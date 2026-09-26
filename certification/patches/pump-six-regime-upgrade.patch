@@ -689,7 +689,7 @@ index 7c012258df379c2345ec52c33141e232209e09fc..5dd06fea9edb49ce3a358c061a04b27d
  
  
 diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
-index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c83c237ec 100644
+index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..e254d04a9c28d639866b3f37fa0c523787ede7ad 100644
 --- a/tests/pump_acceleration_natural_prospective.py
 +++ b/tests/pump_acceleration_natural_prospective.py
 @@ -15,6 +15,7 @@ from collections import Counter,deque
@@ -724,7 +724,7 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
      gross=max(0,int(cost)-int(entry_fee))
      after=pump.Curve(
          token=int(curve.token)-int(tokens),
-@@ -192,6 +193,28 @@ def _late_roundtrip_loss_bps(snapshot):
+@@ -192,6 +193,29 @@ def _late_roundtrip_loss_bps(snapshot):
      return max(0,(basis-executable)*10_000//max(1,basis))
  
  
@@ -733,7 +733,7 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
 +    cap=turnover_capacity(turnover,authenticated=turnover is not None)
 +    def loss(n):
 +        try:
-+            if "accounts" in snapshot:
++            if isinstance(snapshot.get("accounts"),(list,tuple)):
 +                return _late_roundtrip_loss_bps(snapshot,n)
 +            buy=buy_quote(snapshot,n)
 +            proceeds=sell_quote(snapshot,buy.output_amount).output_amount
@@ -742,9 +742,10 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
 +        except (ValueError,Unavailable,ZeroDivisionError):
 +            return None
 +    answer=resize(min(intended,cap),1,loss,ordinary_limit=POLICY.max_immediate_roundtrip_loss_bps)
++    execution_capacity=resize(intended,1,loss,ordinary_limit=POLICY.max_immediate_roundtrip_loss_bps)
 +    telemetry=answer.telemetry()
 +    telemetry.update(decision_size=intended,capital_cap=intended,turnover_cap=cap,
-+        liquidity_execution_cap=answer.final_size,
++        liquidity_execution_cap=execution_capacity.final_size,
 +        binding_cap=answer.binding_reason if answer.final_size<min(intended,cap)
 +            else "turnover" if cap<intended else "capital")
 +    return answer,telemetry
@@ -753,7 +754,7 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
  def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
      now=int(snapshot["market_time"])
      curve=pump.curve(snapshot["accounts"][0])
-@@ -215,7 +238,8 @@ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
+@@ -215,7 +239,8 @@ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
          net_buy_share_bps=flow["net_buy_share_bps"],
          concentration_bps=int(concentration_bps),
          extension_bps=int(trajectory["extension_bps"]),
@@ -763,7 +764,7 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
          skilled_wallet_clusters=int(confirmation["skilled_wallet_clusters"]),
          creator_quality_bps=confirmation["creator_quality_bps"],
          creator_history_launches=int(confirmation["creator_history_launches"]),
-@@ -328,6 +352,7 @@ def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_b
+@@ -328,6 +353,7 @@ def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_b
      common=dict(
          mint=snapshot["mint"],observed_at=now,surface="pumpswap",phase=mode,
          quote_asset="SOL",independent_buyer_clusters=flow["independent_buyer_clusters"],
@@ -771,7 +772,7 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
          buyer_growth=flow["buyer_growth"],
          repeat_buyer_clusters=flow["repeat_buyer_clusters"],
          repeat_buy_share_bps=flow["repeat_buy_share_bps"],
-@@ -471,7 +496,9 @@ def _fill_pending(
+@@ -471,7 +497,9 @@ def _fill_pending(
  
                  supply,_=pump.mint_info(snapshot["accounts"][1])
                  rates=pump.fees(snapshot["accounts"][2],curve,supply)
@@ -782,7 +783,7 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
                  surface="pump.fun"
                  entry=dict(tokens=tokens,cost=cost,fee=fee,gas=GAS)
              else:
-@@ -524,10 +551,14 @@ def _fill_pending(
+@@ -524,10 +552,14 @@ def _fill_pending(
                  row["last_concentration"]=int(concentration)
                  _assert_fill_deadline(row)
  
@@ -798,7 +799,7 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
              basis=cost+GAS
              if life.book is not None:life.book.checkpoint_runtime(life.lifecycle_id,'fill_context',dict(entry=entry,concentration=int(row.get('last_concentration',0)),reserved_fill_latency=dict(row.get('reserved_fill_latency',{}),total_seconds=int(snapshot['available_time'])-row['reserved_at'])))
              life.fill(tokens,basis,int(snapshot["available_time"]),surface,
-@@ -870,6 +901,8 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -870,6 +902,8 @@ def main(*,campaign=False,discovery_seconds=None):
          run_id=genesis['run_id']
      ACCOUNTING=PaperBook(str(accounting_path),run_id=run_id,lane=STRATEGY_ID,
                           policy_hash=actual_policy_hash,initial=INITIAL_LAMPORTS)
@@ -807,7 +808,7 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
      PIPELINE=Pipeline(REPORT.with_suffix(".pipeline.sqlite"),"pump",actual_policy_hash)
      report=dict(
          kind="pump_acceleration_natural_prospective",
-@@ -923,6 +956,12 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -923,6 +957,12 @@ def main(*,campaign=False,discovery_seconds=None):
      if not ready.wait(15):report['limitations'].append('public_discovery_start_timeout')
  
      sessions=Sessions();sessions.plane=plane
@@ -820,7 +821,7 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
      cursor=0;full_attempts=0
      created,postgrad,pending,active,recovered=restore_runtime(ACCOUNTING,plane,confirmations)
      report["qualifiers"].extend(recovered)
-@@ -940,6 +979,7 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -940,6 +980,7 @@ def main(*,campaign=False,discovery_seconds=None):
              now=int(time.time())
              _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
              _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
@@ -828,7 +829,7 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
              if campaign:_retire_postgrad(report,postgrad,pending,active,pumpswap_stream,int(time.time()))
              health=plane.health(PUMP_SCOPE)
              if health['usable']:health=plane.health(SWAP_SCOPE)
-@@ -1246,6 +1286,7 @@ def main(*,campaign=False,discovery_seconds=None):
+@@ -1246,6 +1287,7 @@ def main(*,campaign=False,discovery_seconds=None):
                  _save(report);last_save=now
              time.sleep(1)
      finally:
@@ -838,10 +839,10 @@ index 3cc819a9718fa4c507392cc86150b7f93e5ac4c6..6d4e1c6fbbf01a20368eb8355c41291c
          report["sessions"]=sessions.history
 diff --git a/tests/test_directional_capacity.py b/tests/test_directional_capacity.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..08a5fe2b7d8762f2f0235d34e4921effb42d2276
+index 0000000000000000000000000000000000000000..6e300fa0196a929e8383beda3c0c978e115a8a1a
 --- /dev/null
 +++ b/tests/test_directional_capacity.py
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,48 @@
 +"""Capacity connects to the unchanged Pump quote and qualification primitives."""
 +import ast,json,subprocess,unittest
 +from pathlib import Path
@@ -864,11 +865,19 @@ index 0000000000000000000000000000000000000000..08a5fe2b7d8762f2f0235d34e4921eff
 +  self.assertGreater(result.final_size,0);self.assertLessEqual(result.final_size,10_000_000)
 +  self.assertLessEqual(result.ordinary_loss_bps,600);self.assertLessEqual(result.double_loss_bps,600)
 +  self.assertEqual(telemetry['turnover_cap'],10_000_000)
++ def test_captured_pumpswap_account_map_uses_pool_quote_not_curve_decoder(self):
++  fixture=json.loads((Path(__file__).parent/'fixtures/postgrad_pumpswap_mainnet.json').read_text())
++  snapshot=fixture['capture']['snapshot']
++  result,t=runtime._capacity(snapshot,4_000_000_000,100_000_000)
++  self.assertEqual(result.final_size,100_000_000)
++  self.assertLessEqual(result.ordinary_loss_bps,600);self.assertLessEqual(result.double_loss_bps,600)
++  self.assertEqual(t['binding_cap'],'capital')
 + def test_turnover_does_not_enlarge_and_missing_fails_closed(self):
 +  with patch.object(runtime,'GAS',0),patch.object(runtime,'buy_quote',side_effect=lambda s,n:SimpleNamespace(input_amount=n,output_amount=n)),patch.object(runtime,'sell_quote',side_effect=lambda s,n:SimpleNamespace(output_amount=n)):
 +   for turnover,expected,binding in ((4000,100,'capital'),(2000,50,'turnover'),(0,0,'turnover')):
 +    result,t=runtime._capacity({},turnover,100)
 +    self.assertEqual(result.final_size,expected);self.assertEqual(t['binding_cap'],binding)
++    self.assertEqual(t['liquidity_execution_cap'],100);self.assertEqual(t['capital_cap'],100)
 +   with self.assertRaisesRegex(ValueError,'authenticated_turnover'):runtime._capacity({},None,100)
 + def test_liquidity_cliff_preserves_smaller_entry_with_exact_two_x(self):
 +  sizes=[]
@@ -882,6 +891,26 @@ index 0000000000000000000000000000000000000000..08a5fe2b7d8762f2f0235d34e4921eff
 +  with patch.object(runtime,'buy_quote',side_effect=Unavailable('offline_missing_quote')):
 +   result,_=runtime._capacity({},4000,100)
 +  self.assertEqual(result.final_size,0)
+diff --git a/tests/test_evidence_runtime_cutover.py b/tests/test_evidence_runtime_cutover.py
+index 07b8574665b1493fb22ba32ba20167d2f3805cb3..bddc7a427b5a4edbc20c2e51aa74ca9f661283ea 100644
+--- a/tests/test_evidence_runtime_cutover.py
++++ b/tests/test_evidence_runtime_cutover.py
+@@ -21,12 +21,13 @@ class ProductionCutover(unittest.TestCase):
+     def setUp(self):
+         self.temp=tempfile.TemporaryDirectory();self.clock=[104]
+         self.writer=EvidenceWriter(Path(self.temp.name)/'evidence',clock=lambda:self.clock[0])
++        # Synthetic turnover must fund the real native gas/fees under the /40 cap.
+         self.events={}
+         for t in range(70,105):
+             wallets=range(4) if t<94 else range(20)
+             self.events[t]=[dict(index=i,slot=t,market_time=t,pool=pumpswap_pool(MINT),mint=MINT,
+-                wallet='wallet'+str(i),buy=True,amount=100 if t<94 else 1000,
+-                quote_amount=100 if t<94 else 1000) for i in wallets]
++                wallet='wallet'+str(i),buy=True,amount=(100 if t<94 else 1000)*10000,
++                quote_amount=(100 if t<94 else 1000)*10000) for i in wallets]
+         self.fence=FinalizedFence(self.writer,endpoint_identity='a'*64,decoders={SWAP_SCOPE:lambda tx:self.events.get(tx['slot'],[])})
+         logs=Subscription('service',SWAP_SCOPE,PUMPSWAP_PROGRAM,'logs',4)
+         census=Subscription('service',SWAP_SCOPE,PUMPSWAP_PROGRAM,'census',4)
 diff --git a/tests/test_pump_acceleration_policy_identity.py b/tests/test_pump_acceleration_policy_identity.py
 index f20c412b3654451b1bc159f6c34c2aa329095806..b897084103301830eda9004917c90ab0e9fe277b 100644
 --- a/tests/test_pump_acceleration_policy_identity.py

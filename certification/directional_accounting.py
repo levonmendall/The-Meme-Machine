@@ -23,6 +23,7 @@ def combine(lane,current,survivor):
         c['remaining_cost_basis']+=s['basis'];c['booked_realized']+=s['realized']
         c['realized']=ceiling['realized'];c['unsettled']+=s['open_positions']+s['pending'];c['positions']+=s['open_positions']+s['pending']+s['settled']
         c['available']=ceiling['available'];c['reserved']=ceiling['reserved']
+        c['open_positions']=c['unsettled']
         c['native_execution_cost']+=survivor['native_execution_cost']
         c['capital_at_risk_unit_nanoseconds']+=s['capital_unit_seconds']*1_000_000_000
         c['cash_basis_conservation']=capital+c['booked_realized']==c['cash']+c['remaining_cost_basis']

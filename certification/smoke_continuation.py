@@ -12,7 +12,7 @@ import time
 
 from certification.prospective_program import (GitHub,CANONICAL_BRANCH,_member,
     commit_transition,dispatch,protocol,git,digest,implementation_hash)
-from certification.controls import smoke_engineering,export_readiness
+from certification.controls import smoke_engineering,export_readiness,position_handoff
 
 def register(state,result,assurance,artifact,run_id):
     if state is None or state.get('current_workflow_run_id')!=int(run_id):raise ValueError('smoke_program_owner')
@@ -23,7 +23,7 @@ def register(state,result,assurance,artifact,run_id):
             assurance.get('run_id')!=result.get('run_id') or assurance.get('operational_validity')!='valid'):
         raise ValueError('smoke_validity_unestablished')
     pending=[lane for lane,row in result['lanes'].items() if row.get('open_positions')]
-    if any(lane not in ('meteora','ramses') for lane in pending):raise ValueError('smoke_unsupported_open_lane')
+    if any(not position_handoff(lane,result['lanes'][lane]) for lane in pending):raise ValueError('smoke_unsupported_open_lane')
     prior=state.get('smoke_evidence_run_id')
     if prior:
         if prior!=int(run_id):raise ValueError('smoke_evidence_replacement')
@@ -31,7 +31,7 @@ def register(state,result,assurance,artifact,run_id):
     state=deepcopy(state)
     keys=('phase','status','run_id','continuous_overlap_seconds','source_manifest_hash','implementation_hash','integration_sha','shared_provider','lanes')
     readiness={k:result[k] for k in keys}
-    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting','funnel','durable_handoff','terminal_reconciliation','stream_state','method_counts','evidence_liveness')
+    lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting','funnel','durable_handoff','continuation_state','terminal_reconciliation','stream_state','method_counts','evidence_liveness')
     readiness['lanes']={lane:{k:r.get(k) for k in lane_keys} for lane,r in result['lanes'].items()}
     state.update(smoke_evidence_run_id=int(run_id),smoke_readiness=readiness,
         smoke_artifact=dict(id=artifact['id'],digest=artifact['digest']),smoke_pending_lanes=pending,

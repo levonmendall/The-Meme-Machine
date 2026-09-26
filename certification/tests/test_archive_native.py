@@ -12,6 +12,22 @@ from certification import archive_native as archive
 
 
 class EvidenceSnapshotTests(unittest.TestCase):
+    def test_directional_survivor_and_shared_authority_are_archived_together(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);work=root/'work';out=root/'frozen'
+            for lane in ('pump','pons'):
+                native=work/lane;native.mkdir(parents=True)
+                folder=native/'pump-survivor' if lane=='pump' else native/'pons-selective-continuation-v1-cohort/pons-survivor'
+                folder.mkdir(parents=True)
+                for path in (native/'directional-sleeve.sqlite',folder/'paper.sqlite',folder/'history.sqlite'):
+                    with sqlite3.connect(path) as db:
+                        db.execute('CREATE TABLE proof(value TEXT)');db.execute("INSERT INTO proof VALUES('durable')")
+            records=archive.collect(work,out)
+            self.assertFalse(any(r.get('error_type') for r in records))
+            for path in work.rglob('*.sqlite'):
+                with sqlite3.connect(out/path.relative_to(work)) as db:
+                    self.assertEqual(db.execute('SELECT value FROM proof').fetchone()[0],'durable')
+
     def test_wal_cleanup_during_collection_cannot_break_frozen_archive(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td);work=root/'work';lane=work/'pons';lane.mkdir(parents=True)

@@ -343,6 +343,7 @@ def merge_records(records):
 
 
 def make_record(result,proto,proto_hash,run_dir=None,chain_binding=None):
+    from certification.controls import position_handoff
     phase=result.get("phase");required=3600 if phase=="hourly" else 14400 if phase=="sustained" else None
     hours=float(result.get("continuous_overlap_seconds") or 0)/3600.0
     engineering=(result.get("hourly_engineering") or {}).get("status")=="PASS" if phase=="hourly" else (
@@ -394,6 +395,7 @@ def make_record(result,proto,proto_hash,run_dir=None,chain_binding=None):
             "freshness_finality_unchanged":gates.get("freshness_finality_unchanged") is True,
             "durable_replay":_durable_replay_ok(lane,row),
             "durable_handoff":row.get('durable_handoff') is True,
+            "position_handoff_verified":position_handoff(lane,row),
             "native_accounting_replay":(row.get('terminal_reconciliation') or {}).get('verified') is True,
             "infrastructure_censoring_fraction":_infra_fraction(row),
             "economics":economics,

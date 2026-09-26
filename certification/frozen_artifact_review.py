@@ -137,11 +137,11 @@ print((base/"ramses/process.log").read_text()[-16000:],flush=True)
 print("RAMSES_PROCESS_LOG_END",flush=True)
 
 if PHASE=="smoke":
+    from certification.controls import position_handoff
     failures=[]
     if (result.get("smoke_engineering") or {}).get("status")!="PASS":failures.append("smoke_engineering")
     for lane,data in result["lanes"].items():
-        if data.get("open_positions") and not (lane in ('meteora','ramses') and data.get('durable_handoff') is True
-                and (data.get('terminal_reconciliation') or {}).get('verified') is True):
+        if data.get("open_positions") and not (position_handoff(lane,data) and (data.get('terminal_reconciliation') or {}).get('verified') is True):
             failures.append(lane+":unpreserved_open_positions")
         if data.get("unexpected_exit") or data.get("process_restarts"):failures.append(lane+":continuity")
     tx=review["raw"]["pump"]["tx_batches"]

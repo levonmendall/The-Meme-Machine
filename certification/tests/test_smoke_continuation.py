@@ -35,6 +35,25 @@ class SmokeContinuationTests(unittest.TestCase):
             self.assertEqual(row['lanes']['ramses']['open_positions'],1)
             self.assertEqual(finished.get('records',[]),[])
 
+    def test_directional_smoke_handoff_preserves_proof_through_readiness(self):
+        for lane in ('pump','pons'):
+            row,state,audit=self.sample();row['lanes']['ramses'].update(open_positions=0,durable_handoff=False)
+            row['lanes'][lane].update(open_positions=2,durable_handoff=True,
+                continuation_state=dict(schema='directional-survivor-handoff-v1',lane=lane,positions=2),
+                terminal_reconciliation=dict(verified=True))
+            with patch('certification.smoke_continuation.implementation_hash',return_value='implementation'):
+                registered=register(state,row,audit,dict(id=2,digest='digest'),1)
+                self.assertEqual(registered['smoke_pending_lanes'],[lane])
+                self.assertEqual(registered['smoke_readiness']['lanes'][lane]['continuation_state']['positions'],2)
+                proof=dict(lane=lane,handoff_required=False,terminal_replay_verified=True,
+                    assurance_passed=True,runtime_identity=dict(integration_sha='sha'),
+                    accounting=dict(open_positions=0,reserved=0,unsettled=0))
+                finished=complete(registered,proof,1,'event')
+                self.assertEqual(readiness(finished,1)['lanes'][lane]['open_positions'],0)
+            row['lanes'][lane]['continuation_state']['positions']=1
+            with patch('certification.smoke_continuation.implementation_hash',return_value='implementation'):
+                with self.assertRaisesRegex(ValueError,'validity_unestablished'):register(state,row,audit,dict(id=2,digest='digest'),1)
+
     def test_open_smoke_without_native_replay_never_passes(self):
         row,_,_=self.sample();row['lanes']['ramses']['terminal_reconciliation']['verified']=False
         self.assertEqual(smoke_engineering(row)['status'],'FAIL')

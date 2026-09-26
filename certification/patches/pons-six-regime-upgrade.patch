@@ -490,7 +490,7 @@ index 38a4454449492b7cb12f0a108cbaf56c7552b126..f0aa38dd82cec1b115d26f5d8f2bc24a
 +            with closing(sleeve):native_terminal(sleeve,identity,position,int(at),verified=True)
 +        return rec
 diff --git a/robinhood_research/pons_selective_cohort.py b/robinhood_research/pons_selective_cohort.py
-index 515ffa8b9a7e0fd1fa2abcc13a366c708acb071e..c54f92e3f2b716a42dec02e09d11e17081fb260e 100644
+index 515ffa8b9a7e0fd1fa2abcc13a366c708acb071e..1f1ac4cdee429ce41a49beb924564aa88db792e6 100644
 --- a/robinhood_research/pons_selective_cohort.py
 +++ b/robinhood_research/pons_selective_cohort.py
 @@ -195,6 +195,7 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
@@ -501,15 +501,16 @@ index 515ffa8b9a7e0fd1fa2abcc13a366c708acb071e..c54f92e3f2b716a42dec02e09d11e170
          discovery_sessions=list(result["discovery_sessions"][-16:]),
          discovery_session_count=len(result['discovery_sessions']),
          provider_session_archive=str(PROVIDER_LOG),
-@@ -540,6 +541,7 @@ def run(endpoint,*,campaign=False):
+@@ -540,6 +541,8 @@ def run(endpoint,*,campaign=False):
                              ROOT/"pons-selective-cohort-capital.sqlite") if p.exists()]
      recovered=(recover_cohort(plane_path(ROOT/"candidate-evidence.sqlite"),POLICY_HASH) if occupied else None)
  
++    from .pons_selective_capital import CohortCapital
 +    CohortCapital(ROOT/'pons-selective-cohort-capital.sqlite',STRATEGY_CAPITAL_QUOTE).recover_shared_terminals(release_absent=True)
      initial_accounting=_cohort_accounting()
      started=time.time()
      result=dict(
-@@ -592,6 +594,13 @@ def run(endpoint,*,campaign=False):
+@@ -592,6 +595,13 @@ def run(endpoint,*,campaign=False):
          result["opportunity_coverage"]=pipeline.snapshot()
          result['capacity_censored']=result['opportunity_coverage']['unique_classes']['capacity_censored']
      rpc=_discovery(endpoint)
@@ -523,7 +524,7 @@ index 515ffa8b9a7e0fd1fa2abcc13a366c708acb071e..c54f92e3f2b716a42dec02e09d11e170
      feed=SequencerBlockClock();feed.connect()
      cursor=feed.wait_for_after(-1,timeout=5.0)
      if cursor is None:
-@@ -733,6 +742,7 @@ def run(endpoint,*,campaign=False):
+@@ -733,6 +743,7 @@ def run(endpoint,*,campaign=False):
              futures=[item for item in futures if id(item[1]) not in collected_futures]
              now=time.time()
              now_monotonic=time.monotonic()
@@ -531,7 +532,7 @@ index 515ffa8b9a7e0fd1fa2abcc13a366c708acb071e..c54f92e3f2b716a42dec02e09d11e170
              for event in fresh:
                  identity=(event["transactionHash"],event["logIndex"])
                  is_buy=bool(event.get('topics') and event['topics'][0].lower()==topic(
-@@ -953,6 +963,7 @@ def run(endpoint,*,campaign=False):
+@@ -953,6 +964,7 @@ def run(endpoint,*,campaign=False):
          _append_jsonl(PROVIDER_LOG,terminal_provider)
      finally:
          # Resolve any externally in-flight work; its durable generation still fences it.

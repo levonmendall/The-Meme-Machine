@@ -51,3 +51,11 @@ certification with preserved inputs, all four native suites, supervisor, crash,
 restart, accounting, integration and resource gates. It performs no provider
 connectivity probes or market collection and cannot authorize a market run.
 This implementation record is not a certification or profitability claim.
+
+Candidate `d39e71f25b40cb1ccb1924b8f377aa86bef5f743` failed full workflow
+`36264056375`: one missing Pons startup import and one PumpSwap account-map
+capacity dispatch error. Meteora 452 and Ramses 357 tests passed; Pons ran 419
+and Pump 372. Both affected regressions pass after repair. The next candidate
+also preserves both directional namespaces and sleeve authorities in archives,
+validates Survivor capture/replay, and recognizes only verified Survivor handoffs
+through the existing continuation controls. No market workflow was launched.
