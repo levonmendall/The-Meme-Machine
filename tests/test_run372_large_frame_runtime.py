@@ -111,7 +111,7 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
                         await asyncio.sleep(.01)
                     else:
                         self.fail('large-frame acceptance stalled '+json.dumps(reader.telemetry(),sort_keys=True)[:4000])
-                    await self.wait_for(lambda:'stream.raw_message_peak_bytes' in (reader.telemetry()['service_health'].get('ipc') or {}))
+                    await self.wait_for(lambda:'stream.decode_process_messages' in (reader.telemetry()['service_health'].get('ipc') or {}))
                     telemetry=reader.telemetry()
                     runtime=telemetry['service_health']['ipc']
                     self.assertEqual(runtime['stream.decode_process_messages'],4)
