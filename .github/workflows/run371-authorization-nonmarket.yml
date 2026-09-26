@@ -7,6 +7,5 @@ permissions:
   actions: read
 jobs:
   certify:
-    if: contains(github.event.head_commit.message, '[single-market-auth-cert]')
     uses: ./.github/workflows/non-market-certification.yml
     secrets: inherit
