@@ -23,7 +23,10 @@ jobs:
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Solana receive and compact-terminal regressions
         run: |
-          python -m unittest             tests.test_solana_evidence_service_runtime             tests.test_run370_storage             certification.tests.test_ramses_checkpoint_persistence -v
+          python -m unittest \
+            tests.test_solana_evidence_service_runtime \
+            tests.test_run370_storage \
+            certification.tests.test_ramses_checkpoint_persistence -v
       - name: Prepare exact four-lane runtime
         run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/run371-repair-lanes"
       - name: Ramses transient provider-pressure regressions
@@ -32,7 +35,8 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/run371-repair-lanes/ramses"
           PYTHONPATH="$RUNNER_TEMP/run371-repair-lanes/ramses:$GITHUB_WORKSPACE" \
-            python -m unittest \              robinhood_tests.test_ramses_census_provider_defer \
+            python -m unittest \
+              robinhood_tests.test_ramses_census_provider_defer \
               robinhood_tests.test_ramses_rate_limit -v
       - name: Record exact prepared Ramses diff identity
         run: |
