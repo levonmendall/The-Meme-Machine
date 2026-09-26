@@ -53,6 +53,14 @@ def summarize(lane, report):
     result=dict(natural_settled=0,forced_settled=0,open_positions=None,
                 accounting_reconciled=None,terminal_reasons={},funnel={},limitations=[])
     if not isinstance(report,dict):return result
+    terminal=report.get('process_terminal')
+    if isinstance(terminal,dict):
+        compact={}
+        for key in ('status','exception_type','boundary','policy_hash'):
+            value=terminal.get(key)
+            if isinstance(value,str) and len(value)<=160:
+                compact[key]=value
+        if compact:result['process_terminal']=compact
     result['stream_state']=report.get('stream') or report.get('wake_stream') or report.get('sequencer_discovery')
     result['evidence_state']=report.get('evidence_broker') or report.get('evidence_acquisition')
     result['provider_state']=report.get('active_provider') or report.get('active_discovery_provider') or report.get('provider')
