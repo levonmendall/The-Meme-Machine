@@ -1,10 +1,10 @@
 {
   "schema": "meme-machine-profitability-portfolio-autonomy-v1",
-  "cohort_id": "prospective-four-lane-six-regime-v13-20260926",
-  "frozen_parent_integration_sha": "af60b355995dfa960555288fa73808bb7aba5d25",
+  "cohort_id": "prospective-four-lane-six-regime-v14-moderate-admission-20260926",
+  "frozen_parent_integration_sha": "48e46b27086a8058fcbd7752a42420c1f9186af7",
   "paper_only": true,
   "live_money": false,
-  "purpose": "Prospective PAPER cohort for the frozen current Pump/Pons capacity revision and their independent Survivor regimes, sharing the existing four portfolio sleeves. Configuration promotion does not authorize market execution.",
+  "purpose": "Prospective PAPER cohort for the frozen moderate-admission threshold revision of current Pump, Pump Survivor, current Pons, Pons Survivor, and Meteora, with Ramses unchanged and all six regimes sharing the existing four portfolio sleeves. Configuration promotion does not authorize market execution.",
   "evidence_authority": {
     "cohort_begins_only_after_exact_sha_non_market_certification": true,
     "exact_integration_sha_must_remain_constant_for_entire_cohort": true,
@@ -20,29 +20,29 @@
     "statistical_block": "one completed natural market campaign window; multiple trades inside one block are not treated as independent statistical samples",
     "market_assurance_required": true,
     "prior_cohort_records_eligible": false,
-    "counterfactual_strategy_revision_reset": "new common v13 four-lane/six-regime cohort; no old policy-era economic block is eligible"
+    "counterfactual_strategy_revision_reset": "new common v14 four-lane/six-regime cohort after threshold revision; no prior policy-era economic block is eligible"
   },
   "frozen_lanes": {
     "pump": {
       "strategy_version": "pump-shared-sleeve-six-regime-v1",
       "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
-      "policy_hash": "e7d4bb2710f51ec464872a37b2692b87c730c21f6183ab09a6c12154dd37182e",
-      "source_diff_sha256": "bcaa6816be17df51d94c1666826b5f0b7b4f0c7061bbb3d01c11e4d51a4aca30"
+      "policy_hash": "0f909d1e7eb90cdbb504b4e52fec693ccaf810f87f80259be760c81361a3babc",
+      "source_diff_sha256": "2b34539c8cd84c109fbbfa43c2ceba598301059aaee473be260a12184dc7e96b"
     },
     "meteora": {
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
-      "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "9293d911b36fc19c9bd6b671792e9d46705dfb4107a82df50274685cba5e91ab"
+      "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
+      "source_diff_sha256": "4126f318e2b0da2dbe9444dccd07330d7662ab7a596ee8324fce6ba2f91ba0f6"
     },
     "pons": {
       "strategy_version": "pons-shared-sleeve-six-regime-v1",
       "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
       "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
-      "policy_hash": "930ac9dff72bff84ef6235e58346c2f7bb3c3c3fad52f8f8d73394838e09cbab",
-      "source_diff_sha256": "0fe0337d271027fc7867d4a0af60a70d306485525a844d89fad7415d20d56e62"
+      "policy_hash": "b9f3aff04336d22fac8a8a8f38c821a8fb776b8ccd891774a8d46012d9124db2",
+      "source_diff_sha256": "8c00c082d4d20a6ccdb5fc08bb0e59406f84e4f0abec7860bb1b1432588a49ca"
     },
     "ramses": {
       "strategy_version": "ramses-active-wide-maker-v4",
@@ -116,7 +116,7 @@
     "prospective_artifact_retention_days": 90,
     "prospective_artifact_retention_scope": "GitHub Actions repository maximum; exceeds the frozen 168-hour certification span",
     "frozen_paper_certification_program_authorized_before_economic_acceptance": true,
-    "certification_program_authority": "User instruction 2026-09-24: promote the replay-supported Pump strategy changes for the next paper run while preserving the separately certified Ramses v4 revision; no live-money authority."
+    "certification_program_authority": "User instruction 2026-09-26: reduce entry/admission restrictiveness for Pump, Pump Survivor, Pons, Pons Survivor, and Meteora, keep Ramses unchanged, certify the exact resulting PAPER runtime, and promote the changes to the active strategy when complete; no live-money authority."
   },
   "promotion": {
     "machinery_pass_is_not_profitability_pass": true,
@@ -126,20 +126,20 @@
     "live_money_authority": false
   },
   "previous_immutable_cohort": {
-    "path": "certification/cohorts/prospective-four-lane-v12-pump-counterfactual-ramses-v4-20260924.json",
-    "sha256": "35dc3d305dcfbb07bea99926eee67bdedf1de47e80a0726d96763512ea27f4c5"
+    "path": "certification/cohorts/prospective-four-lane-six-regime-v13-20260926.json",
+    "sha256": "00a342d395cdc45db13b1ed497dce94dfd92fda16b0d9034e3fe6f3af680d90b"
   },
   "frozen_strategies": {
     "pump": {
-      "pump-acceleration-independent-v1": "bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef",
-      "pumpswap-survivor-momentum-v1": "d480c982c531946ed4219d162a2f130fbb74ffd3ed05bbb660b5b131806d56ab"
+      "pump-acceleration-independent-v1": "a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d",
+      "pumpswap-survivor-momentum-v1": "1294bd415313aee54e527d153f0fe368c47f0c088cc77d43edf053b985707da5"
     },
     "meteora": {
-      "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966"
+      "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408"
     },
     "pons": {
-      "pons-selective-continuation-v1": "3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa",
-      "pons-postgrad-survivor-momentum-v1": "c2a2b109cf0acdb033237c66c6501b3b558f0e34821f44b3d25e0550cb62092b"
+      "pons-postgrad-survivor-momentum-v1": "35ab72e24297eaab6ccef064284dee981b752d675e745d9bc924070610288c18",
+      "pons-selective-continuation-v1": "cd59e9d822aaec19fd348e224040572b78a4a27c3346459f20bc9951fd91c7c3"
     },
     "ramses": {
       "ramses-active-wide-maker-v4": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e"
@@ -149,8 +149,8 @@
     "pump": {
       "lane": "pump",
       "strategies": {
-        "pump-acceleration-independent-v1": "bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef",
-        "pumpswap-survivor-momentum-v1": "d480c982c531946ed4219d162a2f130fbb74ffd3ed05bbb660b5b131806d56ab"
+        "pump-acceleration-independent-v1": "a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d",
+        "pumpswap-survivor-momentum-v1": "1294bd415313aee54e527d153f0fe368c47f0c088cc77d43edf053b985707da5"
       },
       "allocation": {
         "one_sleeve": true,
@@ -169,8 +169,8 @@
     "pons": {
       "lane": "pons",
       "strategies": {
-        "pons-selective-continuation-v1": "3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa",
-        "pons-postgrad-survivor-momentum-v1": "c2a2b109cf0acdb033237c66c6501b3b558f0e34821f44b3d25e0550cb62092b"
+        "pons-postgrad-survivor-momentum-v1": "35ab72e24297eaab6ccef064284dee981b752d675e745d9bc924070610288c18",
+        "pons-selective-continuation-v1": "cd59e9d822aaec19fd348e224040572b78a4a27c3346459f20bc9951fd91c7c3"
       },
       "allocation": {
         "one_sleeve": true,
