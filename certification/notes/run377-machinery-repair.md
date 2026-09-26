@@ -105,3 +105,10 @@ Runtime repairs are isolated on `repair/run377-runtime-six-regime-20260926`.
 The previous repair branch advanced concurrently with an independent, not-yet-promoted
 threshold task. Those commits are preserved and are not silently substituted into
 this task's frozen six-regime strategy contract.
+
+Candidate `9f9c8a4aaf242acc5ffc636f3ae0fab9ced26865` passed standard CI
+`36271244411` (687 tests), but full certificate `36271244619` failed because the
+new native Pump/Meteora regression imported an integration-only fixture helper.
+Pons (421 tests), Ramses (362 tests), and supervisor passed. No market ran on this
+SHA. The regression is now self-contained; its four cases pass from both actual
+prepared lane roots. Full certification is required again on the revised SHA.

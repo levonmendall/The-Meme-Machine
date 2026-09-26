@@ -3,11 +3,19 @@ import asyncio,json,sqlite3,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 from dataclasses import replace
-from meme_machine.solana_evidence_plane import EvidenceWriter,EvidenceReader,FinalizedRecord,canonical,digest
+from meme_machine.solana_evidence_plane import EvidenceWriter,EvidenceReader,FinalizedRecord,IntervalProof,canonical,digest
 from meme_machine.solana_provider_config import public_value,SECRET_PATTERN
 import meme_machine.solana_evidence_service as service
 from tests.test_run373_dispatch_throughput import BurstSocket,local_server,database_ready
-from tests.test_solana_evidence_plane import record,proof
+
+def record():
+ return FinalizedRecord('pump:signature:10:0','pump',10,'signature:10','program',('pool',),10,
+   dict(value=1),'alchemy_finalized_stream','a'*64,100)
+
+def proof():
+ return IntervalProof('pump',10,10,'alchemy_finalized_stream','a'*64,
+   dict(finalized=True,complete=True,scope='pump',lower_slot=10,upper_slot=10,
+        lineage_hash=digest(['pump',10,10])),100)
 
 class PersistenceWorkTests(unittest.TestCase):
  def test_credential_fast_path_is_equivalent_including_unicode_and_bare_key(self):
