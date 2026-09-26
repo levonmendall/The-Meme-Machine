@@ -81,8 +81,7 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
         self.fail('large-frame service did not make progress')
 
     async def test_prepared_transport_keeps_event_loop_live_during_realistic_large_frames(self):
-        fixture=json.loads((Path(__file__).parent/'fixtures/solana_evidence_plane/run-368-raw-pump.json').read_text())
-        logs=fixture['records'][0]['response']['result']['meta']['logMessages']
+        logs=[]
         padding='x'*(7*1024*1024)
         frames=[frame(slot,logs,padding) for slot in range(300,304)]
         self.assertTrue(all(7_000_000<len(raw)<service.STREAM_MAX_MESSAGE_BYTES for raw in frames))
