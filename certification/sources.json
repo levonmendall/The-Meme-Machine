@@ -8,7 +8,7 @@
       "source_branch": "strategy/pump-counterfactual-replay-v1-20260924",
       "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "strategy_version": "pump-shared-sleeve-six-regime-v1",
-      "policy_hash": "aaae4ec2083d9f01153b074994d3832635498d8abf4de033fb6a389719f8378d",
+      "policy_hash": "0f909d1e7eb90cdbb504b4e52fec693ccaf810f87f80259be760c81361a3babc",
       "file_hashes": {
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
         ".github/workflows/pump-acceleration-natural-prospective.yml": "697617d7ade8d42d68d991a5f73b0d8738117b56d2ecd3f9dd91cf03489d2a7f",
@@ -344,13 +344,13 @@
       },
       "active_regimes": {
         "pump-acceleration-independent-v1": "a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d",
-        "pumpswap-survivor-momentum-v1": "a169cd50449f0449ccd8f9e806ba70ebee16ce5deb9138bd1c16ec5b5c68eba5"
+        "pumpswap-survivor-momentum-v1": "1294bd415313aee54e527d153f0fe368c47f0c088cc77d43edf053b985707da5"
       },
       "composite_policy": {
         "lane": "pump",
         "strategies": {
           "pump-acceleration-independent-v1": "a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d",
-          "pumpswap-survivor-momentum-v1": "a169cd50449f0449ccd8f9e806ba70ebee16ce5deb9138bd1c16ec5b5c68eba5"
+          "pumpswap-survivor-momentum-v1": "1294bd415313aee54e527d153f0fe368c47f0c088cc77d43edf053b985707da5"
         },
         "allocation": {
           "one_sleeve": true,
