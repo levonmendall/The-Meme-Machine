@@ -142,7 +142,8 @@ diff --git a/robinhood_tests/test_ramses_rate_limit.py b/robinhood_tests/test_ra
 diff --git a/robinhood_tests/test_ramses_scan_capacity_recovery.py b/robinhood_tests/test_ramses_scan_capacity_recovery.py
 --- a/robinhood_tests/test_ramses_scan_capacity_recovery.py
 +++ b/robinhood_tests/test_ramses_scan_capacity_recovery.py
-@@ -25,14 +25,29 @@ class ScanRecoveryTests(unittest.TestCase):
+@@ -25,16 +25,32 @@
+             clock=lambda:now[0],sleeper=lambda _:self.fail('late retry')))
          self.assertEqual(calls,[1]);self.assertEqual(len(rows),1)
  
 -    def test_persistent_local_loss_is_bounded_and_auth_failure_is_not_recovered(self):
