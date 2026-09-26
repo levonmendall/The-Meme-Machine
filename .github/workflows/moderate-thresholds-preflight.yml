@@ -17,7 +17,7 @@ jobs:
           python-version: '3.12'
       - run: pip install -r requirements.txt
       - name: Prepare exact lane worktrees
-        run: python -m certification.run prepare "${RUNNER_TEMP}/threshold-worktrees"
+        run: python -m certification.run prepare --worktrees "${RUNNER_TEMP}/threshold-worktrees"
       - name: Focused threshold regressions
         env:
           ROOT: ${{ github.workspace }}
