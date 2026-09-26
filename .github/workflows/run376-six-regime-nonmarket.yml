@@ -1,7 +1,7 @@
 name: Run 376 integrated six-regime full non-market certification
 on:
   push:
-    branches: [repair/run376-six-regime-machinery-20260926]
+    branches: [repair/run376-six-regime-machinery-20260926, cert/moderate-admission-thresholds-v1-20260926]
   workflow_dispatch:
 permissions:
   contents: read
