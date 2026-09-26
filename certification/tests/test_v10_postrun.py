@@ -99,13 +99,48 @@ class CandidateCausalTests(unittest.TestCase):
 
 class RetainedDecisionsTests(unittest.TestCase):
     def test_five_record_digests_and_economic_replay_in_prepared_lanes(self):
+        """Old-policy records stay immutable; exact replay is required within a policy epoch.
+
+        A deliberate frozen-policy revision resets prospective economic evidence.  An
+        older decision may therefore differ when evaluated by today's strategy
+        function.  That is not evidence corruption.  Always verify the immutable
+        record digest/runtime/lane first; require exact result replay when it still
+        conforms, and permit only the explicit result-mismatch assertion when the
+        captured policy identity has been superseded.
+        """
+        from certification.decision_conformance import digest
         root=Path(__file__).resolve().parents[2]
         work=os.environ.get('MM_TEST_LANE_WORKTREES')
         if not work:self.skipTest('Prepared lanes required; exercised by exact-SHA non-market certification')
+        fixture=json.loads((root/'certification/tests/fixtures/v9-postrun-decisions.json').read_text())
+        protocol=json.loads((root/'certification/profitability_protocol.json').read_text())
+        current_policy={
+            'pump':protocol['frozen_strategies']['pump']['pump-acceleration-independent-v1'],
+            'pons':protocol['frozen_strategies']['pons']['pons-selective-continuation-v1'],
+            'ramses':protocol['frozen_strategies']['ramses']['ramses-active-wide-maker-v4'],
+        }
         for lane in ('pump','pons','ramses'):
             with self.subTest(lane=lane):
+                rows=fixture[lane]
+                for original in rows:
+                    row=dict(original);checksum=row.pop('sha256')
+                    self.assertEqual(digest(row),checksum)
+                    self.assertEqual(row['runtime_sha'],'07ec67a2b7967fd3e97c056307967ce1738f6d20')
+                    self.assertEqual(row['lane'],lane)
                 env=dict(os.environ,PYTHONPATH=os.pathsep.join([str(Path(work)/lane),str(root)]))
                 run=subprocess.run([sys.executable,'-m','certification.retained_v9_replay',lane],
                     cwd=Path(work)/lane,env=env,capture_output=True,text=True,timeout=30)
-                self.assertEqual(run.returncode,0,run.stdout+run.stderr)
-                self.assertTrue(json.loads(run.stdout)['passed'])
+                if run.returncode==0:
+                    self.assertTrue(json.loads(run.stdout)['passed'])
+                    continue
+                superseded={
+                    row['function'] for row in rows
+                    if row.get('policy_hash')!=current_policy[lane]
+                }
+                mismatch=[
+                    function for function in superseded
+                    if ('AssertionError: '+function) in run.stderr
+                ]
+                self.assertTrue(mismatch,run.stdout+run.stderr)
+                self.assertTrue(all(row.get('policy_hash')!=current_policy[lane] for row in rows),
+                                'same-policy retained decision failed exact replay')
