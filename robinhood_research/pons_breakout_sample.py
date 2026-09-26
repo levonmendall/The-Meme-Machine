@@ -113,6 +113,9 @@ def _discover_graduation(endpoint):
                     "eth_getCode",[record["curve"],hex(block)],scope="pons_breakout"
                 )
                 authenticate_curve(record["curve"],code,factory_record=record)
+                if str(record["pairToken"]).lower()!=ZERO:
+                    sessions.append(rpc.telemetry())
+                    continue
                 candidate=dict(
                     token=token,curve=record["curve"],report=dict(reads=[])
                 )
@@ -202,7 +205,7 @@ def run(endpoint):
     result=dict(
         kind=STRATEGY,strategy=STRATEGY,research_only=True,
         allocation_authority=False,independent_strategy=True,
-        source_strategy=None,paper_only=True,live_money=False,
+        source_strategy=None,paper_only=True,live_money=False,native_quote_only=True,
         shadow_notional_quote=SHADOW_NOTIONAL_QUOTE,
         forward_horizons_seconds=list(FORWARD_HORIZONS_SECONDS),
         started_at=time.time(),observations=[],provider_sessions=[],
