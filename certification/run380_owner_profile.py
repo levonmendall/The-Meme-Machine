@@ -21,12 +21,13 @@ for i,(_,txs) in enumerate(sorted(slots.items())):
  message=dict(method='blockNotification',params=dict(subscription=1,result=dict(value=dict(slot=slot,err=None,block=dict(parentSlot=slot-1,blockhash='h'+str(slot),previousBlockhash='h'+str(slot-1),blockTime=at,transactions=list(txs.values()))))))
  size=len(json.dumps(message,separators=(',',':')).encode());frames.append((Subscription('service','blocks','all','blocks',4),message,at+1,size))
 results={}
-for label in ('fresh','populated'):
+for label in ('populated','populated_cache16','populated_cache32'):
  with tempfile.TemporaryDirectory() as td:
   path=pathlib.Path(td)/'copy.sqlite'
-  if label=='populated':
+  if label.startswith('populated'):
    target=sqlite3.connect(path);db.backup(target);target.close()
   state=ServiceState(path,AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test'))
+  if 'cache' in label:state.writer.db.execute('pragma cache_size=-'+str(int(label.split('cache')[1])*1024))
   profiler=cProfile.Profile();start=time.perf_counter();profiler.enable()
   try:
    for frame in frames:state.source_batch([frame])
