@@ -35,7 +35,8 @@ jobs:
               cd "$RUNNER_TEMP/run372-large-frame-lanes/$lane"
               PYTHONPATH="$RUNNER_TEMP/run372-large-frame-lanes/$lane:$GITHUB_WORKSPACE" \
                 python -m unittest tests.test_run372_large_frame_runtime -v
-              grep -q "asyncio.to_thread(decode_source_message" meme_machine/solana_evidence_service.py
+              grep -q "decoder_pool.submit(" meme_machine/solana_evidence_service.py
+              grep -q "STREAM_PROCESS_DECODE_MIN_BYTES" meme_machine/solana_evidence_service.py
               grep -q "STREAM_DISPATCH_MAX_BYTES" meme_machine/solana_evidence_service.py
               ! grep -q "message=json.loads(raw);config.public(message)" meme_machine/solana_evidence_service.py
             )
