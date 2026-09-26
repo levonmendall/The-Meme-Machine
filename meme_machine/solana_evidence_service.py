@@ -64,6 +64,10 @@ STREAM_DISPATCH_MAX_MESSAGES=64
 STREAM_DISPATCH_MAX_BYTES=96*1024*1024
 STREAM_PROCESS_DECODE_MIN_BYTES=1024*1024
 STREAM_DECODE_WORKERS=2
+# Keep each synchronous=FULL owner transaction no larger than one maximum provider
+# frame while amortizing fsync cost across consecutive smaller finalized blocks.
+STREAM_COMMIT_BATCH_MAX_MESSAGES=8
+STREAM_COMMIT_BATCH_MAX_BYTES=16*1024*1024
 STREAM_SUBSCRIPTION_SYNC_SECONDS=.25
 STREAM_WATCHDOG_SECONDS=.1
 
@@ -138,11 +142,14 @@ class FinalizedFence:
                         'pump.repair_assisted_windows','meteora.repair_assisted_windows'):
                 writer.db.execute('INSERT OR IGNORE INTO counters VALUES(?,0)',(key,))
 
-    def health(self,key,value):
+    def _health(self,key,value):
         from .solana_provider_config import public_value
         public_value(value)
+        self.writer.db.execute('INSERT OR REPLACE INTO service_health VALUES(?,?)',(key,canonical(value)))
+
+    def health(self,key,value):
         with self.writer.transaction():
-            self.writer.db.execute('INSERT OR REPLACE INTO service_health VALUES(?,?)',(key,canonical(value)))
+            self._health(key,value)
 
     def count(self,key,n=1):
         with self.writer.transaction():self.writer._count(key,n)
@@ -423,19 +430,52 @@ class ServiceState:
         self.fence.health('hot_limit_bytes',self.writer.max_hot_bytes)
         self.repair_after={};self.failed=False
 
+    def _source_locked(self,sub,message,seen,byte_count):
+        self.writer._count('stream_messages');self.writer._count('stream_bytes',byte_count)
+        if sub.evidence_class=='blocks':
+            # One full block transport is reused by all three scopes. Empty
+            # scoped blocks also retain their authenticated parent witness.
+            for target in program_subscriptions():
+                if target.evidence_class!='logs':self.fence.block(target,message,seen,include_logs=True)
+        else:
+            self.writer.ingest(FinalizedNotificationDecoder(endpoint_identity=self.fence.endpoint_identity).decode(sub,message,seen))
+        self.writer._count('stream_accepted_messages')
+        # This method always runs under the writer transaction. Avoid two nested
+        # SAVEPOINT pairs per frame for heartbeat metadata.
+        self.fence._health('phase','ACTIVE');self.fence._health('heartbeat',time.time())
+
     def source(self,sub,message,seen,byte_count):
-        from .solana_evidence_transport import Subscription
         with self.writer.transaction():
-            self.writer._count('stream_messages');self.writer._count('stream_bytes',byte_count)
-            if sub.evidence_class=='blocks':
-                # One full block transport is reused by all three scopes. Empty
-                # scoped blocks also retain their authenticated parent witness.
-                for target in program_subscriptions():
-                    if target.evidence_class!='logs':self.fence.block(target,message,seen,include_logs=True)
-            else:
-                self.writer.ingest(FinalizedNotificationDecoder(endpoint_identity=self.fence.endpoint_identity).decode(sub,message,seen))
-            self.writer._count('stream_accepted_messages')
-            self.fence.health('phase','ACTIVE');self.fence.health('heartbeat',time.time())
+            self._source_locked(sub,message,seen,byte_count)
+
+    def source_batch(self,items):
+        """Commit consecutive full-block frames with one durable outer fsync.
+
+        Each frame retains its own SAVEPOINT so a malformed later frame cannot
+        contaminate prior valid frames. Prior frames are committed before the
+        original exception is re-raised, matching the former one-frame-at-a-time
+        failure boundary.
+        """
+        items=tuple(items)
+        if (not 1<=len(items)<=STREAM_COMMIT_BATCH_MAX_MESSAGES
+                or any(getattr(sub,'evidence_class',None)!='blocks'
+                       or type(size) is not int or size<0
+                       for sub,_,_,size in items)
+                or sum(size for _,_,_,size in items)>STREAM_COMMIT_BATCH_MAX_BYTES):
+            raise EvidenceUnavailable('stream_commit_batch_bound')
+        failure=None;committed=0
+        with self.writer.transaction():
+            for item in items:
+                try:
+                    with self.writer.transaction():
+                        self._source_locked(*item)
+                except Exception as exc:
+                    failure=exc
+                    break
+                committed+=1
+        if failure is not None:
+            raise failure
+        return committed
 
     def interests(self):
         return [r[0] for r in self.writer.db.execute("SELECT s.address FROM service_interests s JOIN interests i ON s.owner=i.owner AND s.scope=i.scope WHERE i.active=1 GROUP BY s.address ORDER BY MIN(i.priority),s.address LIMIT 257")]
@@ -707,6 +747,70 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                         counts['stream.ordered_ready_peak']=max(
                                             counts.get('stream.ordered_ready_peak',0),len(ready))
                                     while next_sequence in ready:
+                                        message,seen,size,decoded_at=ready[next_sequence]
+
+                                        # Full finalized block notifications dominate
+                                        # Run 375 persistence cost. Batch only
+                                        # consecutive block frames; account/control
+                                        # traffic keeps its existing per-message
+                                        # ordering and priority.
+                                        if 'id' not in message:
+                                            sid=(message.get('params') or {}).get('subscription')
+                                            sub=active.get(sid)
+                                            if sub is None and sid in retired_subscriptions:
+                                                sub=None
+                                            elif sub is None:
+                                                raise EvidenceUnavailable('unknown_source_subscription')
+                                            if sub is not None and sub.evidence_class=='blocks':
+                                                batch=[];batch_bytes=0;cursor=next_sequence
+                                                while (cursor in ready
+                                                       and len(batch)<STREAM_COMMIT_BATCH_MAX_MESSAGES):
+                                                    candidate,c_seen,c_size,c_decoded_at=ready[cursor]
+                                                    if 'id' in candidate:
+                                                        break
+                                                    c_sid=(candidate.get('params') or {}).get('subscription')
+                                                    c_sub=active.get(c_sid)
+                                                    if c_sub is None:
+                                                        break
+                                                    if c_sub.evidence_class!='blocks':
+                                                        break
+                                                    if batch and batch_bytes+c_size>STREAM_COMMIT_BATCH_MAX_BYTES:
+                                                        break
+                                                    if c_size>STREAM_COMMIT_BATCH_MAX_BYTES:
+                                                        raise EvidenceUnavailable('stream_commit_batch_bound')
+                                                    ready.pop(cursor)
+                                                    batch.append((c_sub,candidate,c_seen,c_size,c_decoded_at))
+                                                    batch_bytes+=c_size;cursor+=1
+                                                commit_started=time.monotonic()
+                                                wait_us=max(int(max(0.0,commit_started-row[4])*1_000_000)
+                                                            for row in batch)
+                                                counts['stream.ordered_commit_wait_peak_microseconds']=max(
+                                                    counts.get('stream.ordered_commit_wait_peak_microseconds',0),wait_us)
+                                                source_items=tuple((row[0],row[1],row[2],row[3]) for row in batch)
+                                                await work(lambda state,items=source_items:state.source_batch(items),2)
+                                                commit_us=int((time.monotonic()-commit_started)*1_000_000)
+                                                counts['stream.commit_messages']=counts.get('stream.commit_messages',0)+len(batch)
+                                                counts['stream.commit_batches']=counts.get('stream.commit_batches',0)+1
+                                                counts['stream.commit_batch_messages_peak']=max(
+                                                    counts.get('stream.commit_batch_messages_peak',0),len(batch))
+                                                counts['stream.commit_batch_bytes_peak']=max(
+                                                    counts.get('stream.commit_batch_bytes_peak',0),batch_bytes)
+                                                counts['stream.commit_batch_saved_transactions']=(
+                                                    counts.get('stream.commit_batch_saved_transactions',0)+max(0,len(batch)-1))
+                                                counts['stream.commit_peak_microseconds']=max(
+                                                    counts.get('stream.commit_peak_microseconds',0),commit_us)
+                                                counts['stream.commit_total_microseconds']=(
+                                                    counts.get('stream.commit_total_microseconds',0)+commit_us)
+                                                pending_bytes=max(0,pending_bytes-batch_bytes)
+                                                pending_frames=max(0,pending_frames-len(batch))
+                                                if pending_frames==0:drained.set()
+                                                next_sequence+=len(batch)
+                                                continue
+
+                                        # Subscription acknowledgements, retired
+                                        # notifications and account observations
+                                        # preserve the exact former one-at-a-time
+                                        # path.
                                         message,seen,size,decoded_at=ready.pop(next_sequence)
                                         commit_started=time.monotonic()
                                         ordered_wait_us=int(max(0.0,commit_started-decoded_at)*1_000_000)

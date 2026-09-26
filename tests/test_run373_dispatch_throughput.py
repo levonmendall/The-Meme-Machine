@@ -1,9 +1,10 @@
 import asyncio,json,sqlite3,tempfile,time,unittest
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
 from meme_machine.postgrad import PUMPSWAP_PROGRAM
-from meme_machine.solana_evidence_plane import EvidenceReader
+from meme_machine.solana_evidence_plane import EvidenceReader,EvidenceWriter
 from meme_machine.solana_evidence_runtime import SWAP_SCOPE
 import meme_machine.solana_evidence_service as service
 
@@ -194,6 +195,82 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(reader.covered(
                     SWAP_SCOPE,1000,1000+frames-2,as_of=1790439000
                 ))
+                reader.close()
+            finally:
+                stop.set()
+                await asyncio.gather(runner,return_exceptions=True)
+
+    async def test_run375_commit_batching_amortizes_full_sync_without_relaxing_bounds(self):
+        # Model the fixed durability cost of synchronous=FULL. The old one-frame
+        # commit path paid this cost for every block; bounded source_batch pays it
+        # once for several already-decoded consecutive blocks.
+        frames=48
+        socket=SustainedSocket(
+            frames=frames,interval=.02,padding_bytes=128*1024,
+            relevant_transactions=8,
+        )
+        stop=asyncio.Event()
+        original_transaction=EvidenceWriter.transaction
+
+        @contextmanager
+        def delayed_transaction(writer):
+            outer=not writer.db.in_transaction
+            with original_transaction(writer):
+                yield
+            if outer:
+                time.sleep(.03)
+
+        with tempfile.TemporaryDirectory() as temp,patch(
+            'meme_machine.solana_evidence_service.time.time',return_value=1790439000
+        ),patch.object(
+            service,'STREAM_DISPATCH_MAX_MESSAGES',16
+        ),patch.object(
+            service,'STREAM_DISPATCH_MAX_BYTES',96*1024*1024
+        ),patch.object(
+            EvidenceWriter,'transaction',delayed_transaction
+        ),patch(
+            'websockets.asyncio.client.connect',return_value=socket
+        ),patch(
+            'asyncio.start_unix_server',side_effect=local_server
+        ):
+            path=Path(temp)/'db'
+            runner=asyncio.create_task(service.serve(
+                path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop
+            ))
+            try:
+                await self.wait_for(lambda:database_ready(path),attempts=2500)
+                reader=EvidenceReader(path)
+                for _ in range(5000):
+                    telemetry=reader.telemetry();counters=telemetry['counters']
+                    if counters.get('stream_accepted_messages',0)>=frames:
+                        break
+                    if runner.done():
+                        exc=runner.exception()
+                        self.fail('Run 375 batching service exited: '
+                                  +(type(exc).__name__+':'+str(exc) if exc else 'clean'))
+                    await asyncio.sleep(.01)
+                else:
+                    self.fail('Run 375 batching did not drain all frames')
+                await self.wait_for(
+                    lambda:(reader.telemetry()['service_health'].get('ipc') or {}).get(
+                        'stream.commit_messages',0
+                    )>=frames+1,
+                    attempts=2500,
+                )
+                telemetry=reader.telemetry();counters=telemetry['counters']
+                ipc=telemetry['service_health']['ipc']
+                self.assertEqual(counters.get('disconnect:local_receive_dispatch_capacity',0),0)
+                self.assertEqual(ipc.get('stream.dispatch_queue_overflow',0),0)
+                self.assertGreaterEqual(ipc.get('stream.commit_batch_messages_peak',0),2)
+                self.assertGreater(ipc.get('stream.commit_batch_saved_transactions',0),0)
+                self.assertLessEqual(
+                    ipc.get('stream.commit_batch_bytes_peak',0),
+                    service.STREAM_COMMIT_BATCH_MAX_BYTES,
+                )
+                self.assertLessEqual(
+                    ipc.get('stream.dispatch_bytes_peak',0),
+                    service.STREAM_DISPATCH_MAX_BYTES,
+                )
                 reader.close()
             finally:
                 stop.set()
