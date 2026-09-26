@@ -1,0 +1,44 @@
+name: Run 375 runtime repair focused regressions
+on:
+  push:
+    branches: [repair/run375-runtime-repairs-20260926]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  focused:
+    if: contains(github.event.head_commit.message, '[run375-repair]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      MM_REAL_IPC_TESTS: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Root Run 375 regressions
+        run: |
+          python -m unittest             certification.tests.test_robinhood_provider_usage             tests.test_run373_dispatch_throughput             tests.test_run372_large_frame_runtime             tests.test_solana_evidence_service_runtime -v
+      - name: Prepare exact four-lane runtime
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/run375-repair-lanes"
+      - name: Prepared Solana runtime regressions
+        run: |
+          for lane in pump meteora; do
+            (
+              cd "$RUNNER_TEMP/run375-repair-lanes/$lane"
+              PYTHONPATH="$RUNNER_TEMP/run375-repair-lanes/$lane:$GITHUB_WORKSPACE"                 python -m unittest                   tests.test_run373_dispatch_throughput                   tests.test_run372_large_frame_runtime -v
+              grep -q "stream_completions" meme_machine/solana_evidence_service.py
+              grep -q "event_records=\[\]" meme_machine/solana_evidence_service.py
+            )
+          done
+      - name: Record exact prepared Solana lane diff identities
+        run: |
+          for lane in pump meteora; do
+            HASH="$(git -C "$RUNNER_TEMP/run375-repair-lanes/$lane" diff --binary --full-index --no-ext-diff --no-textconv --no-renames HEAD | sha256sum | awk '{print $1}')"
+            echo "$(echo "$lane" | tr '[:lower:]' '[:upper:]')_EXACT_DIFF_SHA256=$HASH"
+          done
