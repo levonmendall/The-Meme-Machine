@@ -254,7 +254,8 @@
       ],
       "integration_overlay_files": [
         "meme_machine/solana_evidence_service.py",
-        "tests/test_run372_large_frame_runtime.py"
+        "tests/test_run372_large_frame_runtime.py",
+        "meme_machine/solana_program_decoders.py"
       ]
     },
     "meteora": {
@@ -532,7 +533,8 @@
       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "integration_overlay_files": [
         "meme_machine/solana_evidence_service.py",
-        "tests/test_run372_large_frame_runtime.py"
+        "tests/test_run372_large_frame_runtime.py",
+        "meme_machine/solana_program_decoders.py"
       ]
     },
     "pons": {
