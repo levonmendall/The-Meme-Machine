@@ -73,10 +73,11 @@ def decode_source_message(raw,credential,program_addresses=()):
     transaction's static and loaded account keys before dropping unrelated bodies.
     The parent receives only the union relevant to Pump, PumpSwap, or Meteora.
     """
-    from .solana_provider_config import public_value
-    if not isinstance(raw,str) or len(raw)>STREAM_MAX_MESSAGE_BYTES:
+    if not isinstance(raw,(str,bytes)) or len(raw)>STREAM_MAX_MESSAGE_BYTES:
         raise EvidenceUnavailable('source_message_size_limit')
-    public_value(raw,credential)
+    needle=credential.encode() if isinstance(raw,bytes) else credential
+    if needle and needle in raw:
+        raise ValueError('provider_credential_publication_rejected')
     message=json.loads(raw)
     if not isinstance(message,dict):
         raise EvidenceUnavailable('source_message_shape')
@@ -606,9 +607,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         async def receive():
                             nonlocal inbound_bytes
                             while not stop.is_set():
-                                try:raw=await asyncio.wait_for(ws.recv(),.5)
+                                try:raw=await asyncio.wait_for(ws.recv(decode=False),.5)
                                 except TimeoutError:continue
-                                size=len(raw) if isinstance(raw,str) else STREAM_MAX_MESSAGE_BYTES+1
+                                size=len(raw) if isinstance(raw,(str,bytes)) else STREAM_MAX_MESSAGE_BYTES+1
                                 if (size>STREAM_MAX_MESSAGE_BYTES or inbound.full()
                                         or inbound_bytes+size>STREAM_DISPATCH_MAX_BYTES):
                                     count('stream.dispatch_queue_overflow')
