@@ -505,14 +505,25 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
     try:
         server=await asyncio.start_unix_server(consumer,path=socket_path,limit=MAX_COMMAND_BYTES+1,backlog=32)
         os.chmod(socket_path,0o600)
+        class StreamDispatchCapacity(OSError):
+            pass
+
         async def source():
             while not stop.is_set():
+                connection_tasks=[]
                 try:
-                    async with connect(config.stream_url,logger=logger,max_size=16*1024*1024,max_queue=4,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
-                        from collections import deque
+                    # The websocket reader is deliberately independent of SQLite
+                    # ingestion. Run 371 proved that awaiting the owner after every
+                    # message can fill the protocol receive queue and starve pong
+                    # handling while persistence/compaction/gap repair is busy.
+                    async with connect(config.stream_url,logger=logger,max_size=16*1024*1024,max_queue=16,ping_interval=10,ping_timeout=10,open_timeout=10) as ws:
+                        from collections import Counter,deque
                         number=1;pending={1:Subscription('service','chain:solana','all','blocks',2)};active={};registered=set();retiring=set();retired_subscriptions=deque(maxlen=256)
+                        inbound=asyncio.Queue(maxsize=64)
                         await ws.send(canonical(pending[1].request(1)))
-                        while not stop.is_set():
+
+                        async def sync_subscriptions():
+                            nonlocal number
                             wanted=set(await work(lambda state:state.interests(),0))
                             if len(wanted)>256:raise EvidenceUnavailable('restored_subscription_capacity')
                             for sid,sub in list(active.items()):
@@ -524,28 +535,60 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                             for address in sorted(wanted-registered):
                                 number+=1;sub=Subscription('service','account:'+address,address,'account',0)
                                 pending[number]=sub;registered.add(address);await ws.send(canonical(sub.request(number)))
-                            try:raw=await asyncio.wait_for(ws.recv(),.5)
-                            except TimeoutError:continue
-                            seen=time.time();message=json.loads(raw);config.public(message)
-                            if message.get('id') in retiring:retiring.remove(message['id']);continue
-                            if 'id' in message:
-                                sub=pending.pop(message['id'])
-                                if 'error' in message or type(message.get('result')) is not int:raise EvidenceUnavailable('authoritative_subscription_rejected')
-                                active[message['result']]=sub
-                                from collections import Counter
-                                status=dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted))
-                                await work(lambda state:state.fence.health('subscriptions',status));continue
-                            sub=active.get((message.get('params') or {}).get('subscription'))
-                            if sub is None and (message.get('params') or {}).get('subscription') in retired_subscriptions:continue
-                            if sub is None:raise EvidenceUnavailable('unknown_source_subscription')
-                            await work(lambda state:state.source(sub,message,seen,len(raw)),0 if sub.evidence_class=='account' else 2)
+                            return wanted
+
+                        async def receive():
+                            while not stop.is_set():
+                                try:raw=await asyncio.wait_for(ws.recv(),.5)
+                                except TimeoutError:continue
+                                item=(raw,time.time())
+                                try:inbound.put_nowait(item)
+                                except asyncio.QueueFull:
+                                    count('stream.dispatch_queue_overflow')
+                                    raise StreamDispatchCapacity() from None
+                                counts['stream.dispatch_queue_peak']=max(
+                                    counts.get('stream.dispatch_queue_peak',0),inbound.qsize())
+
+                        async def process():
+                            wanted=set()
+                            while not stop.is_set():
+                                try:raw,seen=await asyncio.wait_for(inbound.get(),.5)
+                                except TimeoutError:
+                                    wanted=await sync_subscriptions()
+                                    continue
+                                try:
+                                    wanted=await sync_subscriptions()
+                                    message=json.loads(raw);config.public(message)
+                                    if message.get('id') in retiring:
+                                        retiring.remove(message['id']);continue
+                                    if 'id' in message:
+                                        sub=pending.pop(message['id'])
+                                        if 'error' in message or type(message.get('result')) is not int:raise EvidenceUnavailable('authoritative_subscription_rejected')
+                                        active[message['result']]=sub
+                                        status=dict(active=len(active),by_evidence_class=dict(Counter(s.evidence_class for s in active.values())),pending=len(pending),wanted_accounts=len(wanted))
+                                        await work(lambda state:state.fence.health('subscriptions',status));continue
+                                    sub=active.get((message.get('params') or {}).get('subscription'))
+                                    if sub is None and (message.get('params') or {}).get('subscription') in retired_subscriptions:continue
+                                    if sub is None:raise EvidenceUnavailable('unknown_source_subscription')
+                                    await work(lambda state:state.source(sub,message,seen,len(raw)),0 if sub.evidence_class=='account' else 2)
+                                finally:
+                                    inbound.task_done()
+
+                        receiver=asyncio.create_task(receive());processor=asyncio.create_task(process());stopper=asyncio.create_task(stop.wait())
+                        connection_tasks=[receiver,processor,stopper]
+                        done,_=await asyncio.wait(connection_tasks,return_when=asyncio.FIRST_COMPLETED)
+                        for task in done:task.result()
                 except (OSError,ValueError,KeyError,TypeError,TimeoutError,ConnectionClosed) as exc:
                     if stop.is_set():return
                     if isinstance(exc,EvidenceConflict) or str(exc) in ('hot_store_capacity','storage_capacity_critical'):raise
-                    reason=disconnect_classification(exc)
+                    reason=('local_receive_dispatch_capacity' if isinstance(exc,StreamDispatchCapacity)
+                            else disconnect_classification(exc))
                     await work(lambda state:state.disconnected(reason))
                     try:await asyncio.wait_for(stop.wait(),1)
                     except TimeoutError:pass
+                finally:
+                    for task in connection_tasks:task.cancel()
+                    if connection_tasks:await asyncio.gather(*connection_tasks,return_exceptions=True)
 
         async def repair():
             while not stop.is_set():
