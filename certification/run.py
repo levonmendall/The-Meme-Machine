@@ -500,6 +500,183 @@ def _apply_three_way_or_diagnose(work,patch_path,lane):
         merged.returncode,merged.args,output=merged.stdout)
 
 
+
+def _replace_threshold_text(path, replacements):
+    text=path.read_text()
+    for old,new,count in replacements:
+        actual=text.count(old)
+        if actual!=count:
+            raise ValueError('threshold_overlay_anchor:'+str(path.name)+':'+str(actual)+':'+old[:48])
+        text=text.replace(old,new)
+    path.write_text(text)
+
+
+def _apply_moderate_threshold_overlay(work,patch_path,lane):
+    """Compose reviewed threshold deltas after earlier staged overlays.
+
+    These overlays intentionally touch files already modified by the six-regime
+    composition. Applying a second unified diff with --index is fragile because
+    Git's staged index is no longer the pinned HEAD. Use exact old->new anchors,
+    then stage the resulting bytes; source_integrity still binds the complete
+    final diff and every declared composed-file hash.
+    """
+    name=patch_path.name
+    touched=[]
+    if lane=='pump' and name=='pump-moderate-admission-thresholds-v1.patch':
+        p=work/'meme_machine/pump_acceleration_strategy.py'
+        _replace_threshold_text(p,[
+            ('version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1"',
+             'version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1-moderate-admission-v1"',1),
+            ('min_independent_clusters: int = 20','min_independent_clusters: int = 14',1),
+            ('min_buyer_growth: int = 4','min_buyer_growth: int = 3',1),
+            ('min_net_buy_share_bps: int = 5500','min_net_buy_share_bps: int = 5200',1),
+            ('max_concentration_bps: int = 2500','max_concentration_bps: int = 3000',1),
+            ('min_repeat_buy_share_bps: int = 1000','min_repeat_buy_share_bps: int = 800',1),
+            ('# A delayed fill must retain at least 60% of the decision-time buyer breadth.',
+             '# A delayed fill must retain at least 50% of the decision-time buyer breadth.',1),
+            ('min_fill_breadth_retention_bps: int = 6000','min_fill_breadth_retention_bps: int = 5000',1),
+            ('min_postgrad_independent_clusters: int = 8','min_postgrad_independent_clusters: int = 6',1),
+            ('min_postgrad_buyer_growth: int = 2','min_postgrad_buyer_growth: int = 1',1),
+            ('max_postgrad_concentration_bps: int = 3500','max_postgrad_concentration_bps: int = 4000',1),
+            ('max_early_holder_sell_share_bps: int = 4000','max_early_holder_sell_share_bps: int = 4500',1),
+            ('min_consolidation_s: int = 10','min_consolidation_s: int = 8',1),
+            ('min_breakout_bps: int = 200','min_breakout_bps: int = 150',1),
+            ('min_second_leg_buyer_growth: int = 2','min_second_leg_buyer_growth: int = 1',1),
+        ]);touched.append(p)
+        p=work/'meme_machine/pumpswap_survivor.py'
+        _replace_threshold_text(p,[
+            ('minimum_age_seconds=21600','minimum_age_seconds=14400',1),
+            ('minimum_liquidity_usd_micros=30_000_000_000','minimum_liquidity_usd_micros=20_000_000_000',1),
+            ('minimum_reset_bps=2500','minimum_reset_bps=1800',1),
+            ('minimum_fill_breadth_bps=6500','minimum_fill_breadth_bps=5000',1),
+            ('maximum_holder_concentration_bps=2500','maximum_holder_concentration_bps=3000',1),
+        ]);touched.append(p)
+        p=work/'meme_machine/pumpswap_survivor_runtime.py'
+        _replace_threshold_text(p,[('retention_bps=6500','retention_bps=5000',1)]);touched.append(p)
+        p=work/'tests/pump_acceleration_natural_prospective.py'
+        _replace_threshold_text(p,[('FROZEN_POLICY_HASH="bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef"',
+                                    'FROZEN_POLICY_HASH="a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d"',1)]);touched.append(p)
+        p=work/'tests/test_pump_acceleration_policy_identity.py'
+        _replace_threshold_text(p,[('FROZEN="bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef"',
+                                    'FROZEN="a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d"',1)]);touched.append(p)
+        p=work/'tests/test_pumpswap_survivor.py'
+        _replace_threshold_text(p,[
+            ("('liquidity_usd_micros',29_999_999_999,'liquidity_floor')",
+             "('liquidity_usd_micros',19_999_999_999,'liquidity_floor')",1),
+            ('[(21599,False),(21600,True),(604800,True),(604801,False)]',
+             '[(14399,False),(14400,True),(604800,True),(604801,False)]',1),
+            ('test_reset_exact_twenty_five_percent_and_one_fraction_below',
+             'test_reset_exact_eighteen_percent_and_one_fraction_below',1),
+            ("row['price']='150'","row['price']='164'",1),
+            ("row['price']='150.0001'","row['price']='164.0001'",1),
+        ]);touched.append(p)
+    elif lane=='pons' and name=='pons-moderate-admission-thresholds-v1.patch':
+        p=work/'robinhood_research/pons_selective_continuation.py'
+        _replace_threshold_text(p,[
+            ('POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1"',
+             'POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1-moderate-admission-v1"',1),
+            ('min_curve_progress_bps=5000','min_curve_progress_bps=4500',1),
+            ('max_curve_progress_bps=8500','max_curve_progress_bps=8800',1),
+            ('min_token_age_seconds=120','min_token_age_seconds=90',1),
+            ('max_token_age_seconds=600','max_token_age_seconds=900',1),
+            ('min_graduation_eta_seconds=20','min_graduation_eta_seconds=15',1),
+            ('max_graduation_eta_seconds=90','max_graduation_eta_seconds=120',1),
+            ('min_progress_15s_bps=300','min_progress_15s_bps=200',1),
+            ('min_buy_sell_ratio_bps=12_000','min_buy_sell_ratio_bps=11_000',1),
+            ('max_largest_buyer_flow_bps=4000','max_largest_buyer_flow_bps=4500',1),
+            ('max_top3_buyer_flow_bps=6000','max_top3_buyer_flow_bps=6500',1),
+            ('max_entry_impact_bps=300','max_entry_impact_bps=400',1),
+            ('min_fill_breadth_retention_bps=6000','min_fill_breadth_retention_bps=5000',1),
+            ('max_observation_seconds=30','max_observation_seconds=45',1),
+            ('min_price_retention_bps=9200','min_price_retention_bps=9000',1),
+            ('min_new_independent_buyers=3','min_new_independent_buyers=2',1),
+            ('min_buy_sell_ratio_bps=15_000','min_buy_sell_ratio_bps=13_000',2),
+            ('max_preholder_sell_share_bps=5000','max_preholder_sell_share_bps=6000',1),
+            ('min_pullback_bps=500','min_pullback_bps=300',1),
+            ('min_new_independent_buyers_15s=3','min_new_independent_buyers_15s=2',1),
+        ]);touched.append(p)
+        p=work/'robinhood_research/pons_postgrad_survivor.py'
+        _replace_threshold_text(p,[
+            ('min_seconds_after_graduation=6*60*60','min_seconds_after_graduation=4*60*60',1),
+            ('min_since_graduation_return_bps=500','min_since_graduation_return_bps=300',1),
+            ('min_long_return_bps=1000','min_long_return_bps=750',1),
+            ('min_6h_return_bps=500','min_6h_return_bps=300',1),
+            ('min_2h_return_bps=300','min_2h_return_bps=100',1),
+            ('min_6h_efficiency_bps=2500','min_6h_efficiency_bps=2000',1),
+            ('min_reset_pullback_bps=500','min_reset_pullback_bps=300',1),
+            ('max_reset_pullback_bps=3500','max_reset_pullback_bps=4000',1),
+            ('min_breakout_bps=100','min_breakout_bps=50',1),
+            ('max_breakout_extension_bps=1200','max_breakout_extension_bps=1500',1),
+            ('min_independent_buyers_30m=5','min_independent_buyers_30m=4',1),
+            ('min_new_independent_buyers_30m=2','min_new_independent_buyers_30m=1',1),
+            ('min_buy_sell_ratio_bps=14_000','min_buy_sell_ratio_bps=12_500',1),
+            ('min_buy_acceleration_bps=12_500','min_buy_acceleration_bps=11_000',1),
+            ('max_largest_buyer_share_bps=3500','max_largest_buyer_share_bps=4000',1),
+            ('min_turnover_multiple=40','min_turnover_multiple=30',1),
+            ('max_immediate_roundtrip_loss_bps=350','max_immediate_roundtrip_loss_bps=450',1),
+            ('max_double_size_roundtrip_loss_bps=500','max_double_size_roundtrip_loss_bps=650',1),
+            ('minimum_fill_breadth_bps=6000','minimum_fill_breadth_bps=5000',1),
+        ]);touched.append(p)
+        p=work/'robinhood_research/pons_survivor_runtime.py'
+        _replace_threshold_text(p,[
+            ('ordinary_limit=350,stress_limit=500','ordinary_limit=450,stress_limit=650',2),
+            ('retention_bps=6000','retention_bps=5000',1),
+        ]);touched.append(p)
+        p=work/'robinhood_tests/test_pons_selective_continuation.py'
+        _replace_threshold_text(p,[
+            ('POLICY_HASH,"3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa"',
+             'POLICY_HASH,"cd59e9d822aaec19fd348e224040572b78a4a27c3346459f20bc9951fd91c7c3"',1),
+            ('ENTRY_THRESHOLDS["min_curve_progress_bps"],5000','ENTRY_THRESHOLDS["min_curve_progress_bps"],4500',1),
+            ('ENTRY_THRESHOLDS["max_curve_progress_bps"],8500','ENTRY_THRESHOLDS["max_curve_progress_bps"],8800',1),
+            ('ENTRY_THRESHOLDS["min_token_age_seconds"],120','ENTRY_THRESHOLDS["min_token_age_seconds"],90',1),
+            ('ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"],6000','ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"],5000',1),
+        ]);touched.append(p)
+    elif lane=='meteora' and name=='meteora-moderate-admission-thresholds-v1.patch':
+        p=work/'SOLANA_DLMM_INDEPENDENT_V1.json'
+        _replace_threshold_text(p,[
+            ('"min_competing_range_liquidity_to_capital_multiple": 5','"min_competing_range_liquidity_to_capital_multiple": 4',1),
+            ('"min_two_way_balance": 0.25','"min_two_way_balance": 0.2',2),
+            ('"max_drift_ratio": 0.75','"max_drift_ratio": 0.8',1),
+            ('"max_stress_unwind_loss_bps": 150','"max_stress_unwind_loss_bps": 200',1),
+            ('min_competing_range_liquidity_to_capital_multiple = 5','min_competing_range_liquidity_to_capital_multiple = 4',1),
+            ('max_drift_ratio = 0.75','max_drift_ratio = 0.80',1),
+            ('max_stress_unwind_loss_bps = 150','max_stress_unwind_loss_bps = 200',1),
+            ('"min_authenticated_fee_density_24h_pct": 5','"min_authenticated_fee_density_24h_pct": 4',1),
+            ('authenticated_fee_density_24h_pct >= 5.0','authenticated_fee_density_24h_pct >= 4.0',1),
+            ('"live_fee_density_threshold_pct": 5','"live_fee_density_threshold_pct": 4',1),
+            ('The frozen 5%/day threshold','The frozen 4%/day threshold',1),
+            ('"revision": "2.0-profitability-fee-density-v1-core-hold-v2",',
+             '"revision": "2.1-moderate-admission-thresholds-v1",',1),
+            ('"policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966"',
+             '"policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408"',1),
+            ('"reference_profitability_policy_revision": "2.0-profitability-fee-density-v1-core-hold-v2"',
+             '"reference_profitability_policy_revision": "2.1-moderate-admission-thresholds-v1"',1),
+            ('"authenticated_fee_density_threshold_pct": 5','"authenticated_fee_density_threshold_pct": 4',1),
+        ]);touched.append(p)
+        p=work/'tests/test_solana_dlmm_independent_v1.py'
+        _replace_threshold_text(p,[
+            ('p["qualification"]["min_two_way_balance"],0.25','p["qualification"]["min_two_way_balance"],0.20',2),
+            ('p["qualification"]["min_authenticated_fee_density_24h_pct"],5.0','p["qualification"]["min_authenticated_fee_density_24h_pct"],4.0',1),
+            ('p["fee_model"]["live_fee_density_threshold_pct"],5.0','p["fee_model"]["live_fee_density_threshold_pct"],4.0',1),
+            ('p["revision"],"2.0-profitability-fee-density-v1-core-hold-v2"','p["revision"],"2.1-moderate-admission-thresholds-v1"',1),
+            ('authenticated_fee_density_24h_pct=5.0','authenticated_fee_density_24h_pct=4.0',1),
+            ('competing_liquidity_to_capital_multiple=5.0','competing_liquidity_to_capital_multiple=4.0',1),
+            ('two_way_balance=0.25','two_way_balance=0.20',1),
+            ('drift_ratio=0.75','drift_ratio=0.80',1),
+            ('{"loss_bps":150.0}','{"loss_bps":200.0}',1),
+            ('"authenticated_fee_density_24h_pct":4.999','"authenticated_fee_density_24h_pct":3.999',1),
+            ('"competing_liquidity_to_capital_multiple":4.99','"competing_liquidity_to_capital_multiple":3.99',1),
+            ('"two_way_balance":0.2499','"two_way_balance":0.1999',1),
+            ('"drift_ratio":0.7501','"drift_ratio":0.8001',1),
+            ('{"loss_bps":150.01}','{"loss_bps":200.01}',1),
+        ]);touched.append(p)
+    else:
+        return False
+    for path in touched:
+        subprocess.run(['git','add','--',str(path.relative_to(work))],cwd=work,check=True)
+    subprocess.run(['git','diff','--check','--cached'],cwd=work,check=True)
+    return True
+
 def prepare(destination):
     destination=Path(destination).resolve();destination.mkdir(parents=True,exist_ok=False)
     spec=manifest()
@@ -511,6 +688,8 @@ def prepare(destination):
         for file,expected in row['file_hashes'].items():
             if hashlib.sha256((work/file).read_bytes()).hexdigest()!=expected:raise ValueError('source_hash_mismatch:'+lane+':'+file)
         for patch_path in lane_patches(lane,row):
+            if _apply_moderate_threshold_overlay(work,patch_path,lane):
+                continue
             strict=subprocess.run(
                 ['git','apply','--check',str(patch_path)],cwd=work,
                 stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
