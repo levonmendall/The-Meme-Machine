@@ -26,6 +26,7 @@ CONFIG = ROOT / 'certification/single_campaign_authorization.json'
 STATE_PATH = 'certification/SINGLE_CAMPAIGN_STATE.json'
 CONTINUATION_STATE_PATH = 'certification/SINGLE_CAMPAIGN_CONTINUATION_STATE.json'
 MARKET_WORKFLOW = '.github/workflows/four-lane-certification.yml'
+LAUNCH_BRANCH = 'launch/certified-runtime-authority-v2'
 ACTIVE_STATUSES = ('queued', 'in_progress', 'waiting', 'pending', 'requested')
 OFFLINE_WORKFLOWS = {
     'non-market-certification.yml', 'evidence-reconstruction-certification.yml',
@@ -375,7 +376,7 @@ def exact_ref(api, runtime_ref, sha):
 def launcher_identity(api, run_id):
     run = api.request('GET', f'actions/runs/{int(run_id)}')
     if (str(run.get('path', '')).split('@')[0] != '.github/workflows/single-campaign-launch.yml'
-            or run.get('head_branch') != 'launch/evidence-reconstruction-single-20260924'
+            or run.get('head_branch') != LAUNCH_BRANCH
             or run.get('event') != 'push' or str(run.get('run_attempt')) != '1'
             or '[single-market-launch]' not in (run.get('head_commit') or {}).get('message', '')):
         raise ValueError('single_campaign_launcher_identity')

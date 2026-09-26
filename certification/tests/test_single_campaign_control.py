@@ -76,7 +76,7 @@ class SingleCampaignTests(unittest.TestCase):
         self.cert_patch.start(); self.addCleanup(self.cert_patch.stop)
         self.api = API()
         self.api.detail[5] = dict(path='.github/workflows/single-campaign-launch.yml',
-            head_branch='launch/evidence-reconstruction-single-20260924', event='push',
+            head_branch=control.LAUNCH_BRANCH, event='push',
             run_attempt=1, head_sha='b'*40, head_commit={'message': '[single-market-launch]'})
 
     def dispatch(self, attempt='1'):

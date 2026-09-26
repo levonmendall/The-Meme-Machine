@@ -1,7 +1,7 @@
 name: single-campaign-launch
 on:
   push:
-    branches: [launch/evidence-reconstruction-single-20260924]
+    branches: [launch/certified-runtime-authority-v2]
 permissions:
   contents: write
   actions: write
