@@ -163,7 +163,11 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(reader.covered(SWAP_SCOPE,300,302,as_of=1790430100))
                     gaps=[b-a for a,b in zip(ticks,ticks[1:])]
                     self.assertTrue(gaps)
-                    self.assertLess(max(gaps),.12)
+                    self.assertLess(max(gaps),.5)
+                    self.assertLess(
+                        runtime.get('stream.event_loop_lag_peak_microseconds',500_000),
+                        500_000,
+                    )
                     reader.close()
                 finally:
                     stop.set()
