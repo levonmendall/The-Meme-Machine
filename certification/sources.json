@@ -1004,7 +1004,8 @@
         "certification/patches/run369-pons-accounting.patch",
         "certification/patches/pons-entry-confirmation-ordering.patch",
         "certification/patches/pons-six-regime-upgrade.patch",
-        "certification/patches/pons-moderate-admission-thresholds-v1.patch"
+        "certification/patches/pons-moderate-admission-thresholds-v1.patch",
+        "certification/patches/pons-moderate-admission-age-regressions-v1.patch"
       ],
       "composed_file_hashes": {
         ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
