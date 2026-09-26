@@ -1,10 +1,20 @@
 diff --git a/meme_machine/pump_acceleration_strategy.py b/meme_machine/pump_acceleration_strategy.py
 --- a/meme_machine/pump_acceleration_strategy.py
 +++ b/meme_machine/pump_acceleration_strategy.py
-@@ -43 +43 @@
+@@ -40,7 +40,7 @@ def _points(value, low, high, maximum):
+ 
+ @dataclass(frozen=True)
+ class FrozenPolicy:
 -    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1"
 +    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1-moderate-admission-v1"
-@@ -51,4 +51,4 @@
+     entry_fraction_bps: int = 500
+     turnover_divisor: int = 40
+     execution_stress_multiple: int = 2
+@@ -48,15 +48,15 @@ class FrozenPolicy:
+     min_curve_progress_bps: int = 6000
+     max_curve_progress_bps: int = 8500
+     min_curve_velocity_bps_per_s: int = 10
+     min_curve_acceleration_bps_per_s2: int = -10
 -    min_independent_clusters: int = 20
 -    min_buyer_growth: int = 4
 -    min_net_buy_share_bps: int = 5500
@@ -13,81 +23,130 @@ diff --git a/meme_machine/pump_acceleration_strategy.py b/meme_machine/pump_acce
 +    min_buyer_growth: int = 3
 +    min_net_buy_share_bps: int = 5200
 +    max_concentration_bps: int = 3000
-@@ -59,3 +59,3 @@
+     max_extension_bps: int = 16000
+     max_immediate_roundtrip_loss_bps: int = 600
+     # Demand quality must include repeat participation rather than one-shot breadth.
+     min_repeat_buyer_clusters: int = 2
 -    min_repeat_buy_share_bps: int = 1000
 -    # A delayed fill must retain at least 60% of the decision-time buyer breadth.
 -    min_fill_breadth_retention_bps: int = 6000
 +    min_repeat_buy_share_bps: int = 800
 +    # A delayed fill must retain at least 50% of the decision-time buyer breadth.
 +    min_fill_breadth_retention_bps: int = 5000
-@@ -79,2 +79,2 @@
+@@ -75,6 +75,6 @@ class FrozenPolicy:
+     # Immediate post-graduation momentum gates.
+     min_postgrad_age_s: int = 5
+     max_postgrad_entry_age_s: int = 180
 -    min_postgrad_independent_clusters: int = 8
 -    min_postgrad_buyer_growth: int = 2
 +    min_postgrad_independent_clusters: int = 6
 +    min_postgrad_buyer_growth: int = 1
-@@ -91,2 +91,2 @@
+     min_postgrad_price_vs_graduation_bps: int = 1
+@@ -88,14 +88,14 @@ class FrozenPolicy:
+     postgrad_price_retention_hard_gate: bool = False
+     min_postgrad_volume_acceleration_bps: int = 0
 -    max_postgrad_concentration_bps: int = 3500
 -    max_early_holder_sell_share_bps: int = 4000
 +    max_postgrad_concentration_bps: int = 4000
 +    max_early_holder_sell_share_bps: int = 4500
-@@ -97 +97 @@
+     min_postgrad_score: int = 0
+ 
+     # PumpSwap second-leg gates.
+     min_second_leg_age_s: int = 30
 -    min_consolidation_s: int = 10
 +    min_consolidation_s: int = 8
-@@ -100,2 +100,2 @@
+     min_pullback_depth_bps: int = 100
+     max_pullback_depth_bps: int = 3500
 -    min_breakout_bps: int = 200
 -    min_second_leg_buyer_growth: int = 2
 +    min_breakout_bps: int = 150
 +    min_second_leg_buyer_growth: int = 1
+     min_second_leg_score: int = 0
 diff --git a/meme_machine/pumpswap_survivor.py b/meme_machine/pumpswap_survivor.py
 --- a/meme_machine/pumpswap_survivor.py
 +++ b/meme_machine/pumpswap_survivor.py
-@@ -13 +13 @@
+@@ -7,16 +7,16 @@ from certification.execution_capacity import buyer_persistence, turnover_capacity
+ 
+ STRATEGY_ID = 'pumpswap-survivor-momentum-v1'
+ POLICY = dict(
+     strategy=STRATEGY_ID, paper_only=True, quote='SOL',
 -    minimum_age_seconds=21600, maximum_age_seconds=604800,
 +    minimum_age_seconds=14400, maximum_age_seconds=604800,
-@@ -15,2 +15,2 @@
+     mayhem_clean_seconds=3600, mayhem_completion_required=True,
 -    minimum_liquidity_usd_micros=30_000_000_000,
 -    minimum_reset_bps=2500, base_seconds=3600, compression_bps=6000,
 +    minimum_liquidity_usd_micros=20_000_000_000,
 +    minimum_reset_bps=1800, base_seconds=3600, compression_bps=6000,
-@@ -19 +19 @@
+     short_structure_seconds=7200, long_structure_seconds=21600,
+     maximum_extension_bps=1500, maximum_base_range_extension_bps=15000,
 -    minimum_fill_breadth_bps=6500, target_sleeve_bps=25, turnover_divisor=40,
 +    minimum_fill_breadth_bps=5000, target_sleeve_bps=25, turnover_divisor=40,
-@@ -22 +22 @@
+     # These are the existing Pump hard execution/concentration ceilings.
+     maximum_roundtrip_loss_bps=600, maximum_double_loss_bps=600,
 -    maximum_holder_concentration_bps=2500, minimum_size_units=1,
 +    maximum_holder_concentration_bps=3000, minimum_size_units=1,
+     demand_window_seconds=1800,
+     ranking_tiebreak=['independent_buyers','repeat_buyers','repeat_buyer_share_bps'],
 diff --git a/meme_machine/pumpswap_survivor_runtime.py b/meme_machine/pumpswap_survivor_runtime.py
 --- a/meme_machine/pumpswap_survivor_runtime.py
 +++ b/meme_machine/pumpswap_survivor_runtime.py
-@@ -194 +194 @@
+@@ -190,5 +190,5 @@ class SurvivorRuntime:
+     def _enter(self,row,decision,generation,regime,identity):
+         return commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
+             strategy=STRATEGY_ID,policy_hash=POLICY_HASH,decision=decision,regime=regime,at=self.now(),
 -            target=self.capital*25//10000,minimum=GAS*2+1,retention_bps=6500,
 +            target=self.capital*25//10000,minimum=GAS*2+1,retention_bps=5000,
+             ordinary_limit=600,stress_limit=600,adapter=self,qualify=evaluate_entry)
 diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
 --- a/tests/pump_acceleration_natural_prospective.py
 +++ b/tests/pump_acceleration_natural_prospective.py
-@@ -53 +53 @@
+@@ -50,6 +50,6 @@ ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
+ ENTRY_DELAY_SECONDS=2
+ ENTRY_FILL_TIMEOUT_SECONDS=20
 -FROZEN_POLICY_HASH="bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef"
 +FROZEN_POLICY_HASH="a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d"
+ FILL_PERSISTENCE_CONTEXT=None
+ ACCOUNTING=None
+ PIPELINE=None
 diff --git a/tests/test_pump_acceleration_policy_identity.py b/tests/test_pump_acceleration_policy_identity.py
 --- a/tests/test_pump_acceleration_policy_identity.py
 +++ b/tests/test_pump_acceleration_policy_identity.py
-@@ -5 +5 @@
+@@ -2,4 +2,4 @@ import unittest
+ 
+ from meme_machine.pump_acceleration_strategy import policy_hash
+ 
 -FROZEN="bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef"
 +FROZEN="a57c69b4eddfbcff624834869c6ceb34900828d1c59cf84d3d3e004197c24b4d"
 diff --git a/tests/test_pumpswap_survivor.py b/tests/test_pumpswap_survivor.py
 --- a/tests/test_pumpswap_survivor.py
 +++ b/tests/test_pumpswap_survivor.py
-@@ -46 +46 @@
+@@ -43,6 +43,6 @@ class SurvivorTests(unittest.TestCase):
+         for key,value,reason in [
+             ('lineage_proven',False,'graduation_lineage'),('canonical_migration_pool',False,'graduation_lineage'),
 -            ('quote_asset','USDC','non_sol_quote'),('liquidity_usd_micros',29_999_999_999,'liquidity_floor'),
 +            ('quote_asset','USDC','non_sol_quote'),('liquidity_usd_micros',19_999_999_999,'liquidity_floor'),
-@@ -56 +56 @@
+             ('liquidity_usd_micros',None,'liquidity_floor'),('migration_price','163','migration_price_survival'),
+             ('creator_distribution_safe',None,'creator_distribution'),('hard_concentration_pass',False,'hard_concentration'),
+             ('exit_liquidity_available',False,'exit_liquidity'),('continuity_complete',False,'authoritative_evidence')]:
+@@ -53,6 +53,6 @@ class SurvivorTests(unittest.TestCase):
+                 self.assertIn(reason,evaluate_entry(f)['all_rejections'])
+ 
+     def test_age_inclusive_exact_bounds(self):
 -        for age,passes in [(21599,False),(21600,True),(604800,True),(604801,False)]:
 +        for age,passes in [(14399,False),(14400,True),(604800,True),(604801,False)]:
-@@ -120 +120 @@
+             f=facts();f['graduation_at']=f['now']-age
+             self.assertEqual('age' not in evaluate_entry(f)['all_rejections'],passes)
+@@ -117,10 +117,10 @@ class SurvivorTests(unittest.TestCase):
+         self.assertIn('migration_price_survival',evaluate_entry(f)['all_rejections'])
+ 
 -    def test_reset_exact_twenty_five_percent_and_one_fraction_below(self):
 +    def test_reset_exact_eighteen_percent_and_one_fraction_below(self):
-@@ -123 +123 @@
+         f=facts()
+         for row in f['price_points']:
 -            if row['at'] in (17800,20000,20800):row['price']='150'
 +            if row['at'] in (17800,20000,20800):row['price']='164'
-@@ -126 +126 @@
+         self.assertNotIn('meaningful_reset',evaluate_entry(f)['all_rejections'])
+         for row in f['price_points']:
 -            if row['at'] in (17800,20000,20800):row['price']='150.0001'
 +            if row['at'] in (17800,20000,20800):row['price']='164.0001'
+         self.assertIn('meaningful_reset',evaluate_entry(f)['all_rejections'])
