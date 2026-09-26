@@ -17,6 +17,15 @@ MAX_COMMAND_BYTES=32768
 MAX_RECEIPTS=8192
 
 
+def command_envelope(request,now):
+    consumer=request.get('consumer');identity=request.get('request_id');expiry=request.get('expires_at')
+    if (not isinstance(consumer,str) or not consumer or len(consumer)>128
+            or not isinstance(identity,str) or not 1<=len(identity)<=64
+            or type(expiry) not in (int,float) or not now-COMMAND_SECONDS*2<=expiry<=now+COMMAND_SECONDS):
+        raise EvidenceUnavailable('evidence_command_envelope')
+    return consumer,identity,expiry
+
+
 class PriorityOwner:
     def __init__(self, factory, *, capacity=64, reserved=8, clock=time.monotonic):
         self.capacity=capacity; self.reserved=reserved
@@ -121,25 +130,29 @@ def command_priority(request):
 class PendingCommands:
     """Coalesce socket retries before admission, retaining durable receipt checks.
 
-    Entries exist only while accepted owner work is queued/running, so this map
-    cannot exceed the existing bounded queue plus its one executing operation.
-    A disconnected waiter never cancels the single accepted mutation.
+    A pending response ends its socket waiter before work may commit. Keep the
+    completed reply through the durable receipt's existing expiry window, so a
+    retry needn't queue behind a second large commit just to read that receipt.
+    Cache capacity/expiry match durable receipts; accepted work still has the
+    original 64-entry owner bound. No market payloads are cached here.
     """
-    def __init__(self,owner):
+    def __init__(self,owner,*,capacity=MAX_RECEIPTS,clock=time.time):
         self.owner=owner;self.lock=threading.RLock();self.pending={}
+        self.capacity=capacity;self.clock=clock
 
     def submit(self,request):
         from .solana_evidence_plane import digest
-        key=(request['consumer'],request['request_id']);checksum=digest(request)
+        now=self.clock();consumer,identity,expiry=command_envelope(request,now)
+        key=(consumer,identity);checksum=digest(request)
         with self.lock:
+            for identity,row in list(self.pending.items()):
+                if row[1].done() and row[2]<now:self.pending.pop(identity)
             previous=self.pending.get(key)
             if previous:
                 if previous[0]!=checksum:raise EvidenceUnavailable('evidence_command_identity_conflict')
                 return previous[1]
+            if len(self.pending)>=self.capacity:raise EvidenceUnavailable('evidence_receipt_capacity')
             future=self.owner.submit(lambda state:state.fence.command(request),
                                      priority=command_priority(request))
-            self.pending[key]=(checksum,future)
-            def done(_):
-                with self.lock:self.pending.pop(key,None)
-            future.add_done_callback(done)
+            self.pending[key]=(checksum,future,expiry+COMMAND_SECONDS*2)
             return future

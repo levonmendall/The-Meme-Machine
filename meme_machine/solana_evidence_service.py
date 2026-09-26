@@ -319,16 +319,12 @@ class FinalizedFence:
         return [replace(record,payload=tx,addresses=tuple(sorted(set(keys+[record.program]))),transaction_index=index)]
 
     def command(self,request):
-        from .solana_evidence_control import MAX_RECEIPTS,COMMAND_SECONDS
+        from .solana_evidence_control import MAX_RECEIPTS,COMMAND_SECONDS,command_envelope
         # Direct in-process fixture callers retain the same whitelist. Production
         # IPC requires the versioned envelope before it reaches this method.
         if 'request_id' not in request:return self._apply_command(request)
-        consumer=request.get('consumer');identity=request['request_id'];expiry=request.get('expires_at')
         now=self.writer.clock()
-        if (not isinstance(consumer,str) or not consumer or len(consumer)>128
-                or not isinstance(identity,str) or not 1<=len(identity)<=64
-                or type(expiry) not in (int,float) or not now-COMMAND_SECONDS*2<=expiry<=now+COMMAND_SECONDS):
-            raise EvidenceUnavailable('evidence_command_envelope')
+        consumer,identity,expiry=command_envelope(request,now)
         checksum=digest(request)
         with self.writer.transaction():
             old=self.writer.db.execute('SELECT hash,response FROM command_receipts WHERE consumer=? AND request_id=?',(consumer,identity)).fetchone()

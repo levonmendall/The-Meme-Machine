@@ -48,9 +48,10 @@ waits one second receives an oldest-first slot, allowing counters, repair and
 bounded retention to progress during continuous commits. Background SQL still
 yields to lifecycle/foreground requests. Pending socket retries share one
 accepted future; identity conflicts fail closed and durable receipt checks remain
-authoritative. The pending map is bounded by the existing queue plus its single
-executing operation. Bounded per-priority queue/execution telemetry exposes IPC
-work as well as stream work.
+authoritative. The reply cache is bounded by the existing durable receipt ceiling
+of 8,192 identities and the existing receipt expiry window; admitted work retains
+the original 64-entry queue bound. Bounded per-priority queue/execution telemetry
+exposes IPC work as well as stream work.
 
 A real loopback websocket regression reproduces the old ping timeout when its
 bounded data queue pauses all transport reads, including pong processing. The
@@ -86,3 +87,34 @@ the original artifact; no flat-balance proof is invented for that failed startup
 
 These are development regressions. A fresh complete exact-SHA hosted certificate
 and successful smoke are still required before promotion or a final PAPER run.
+
+## Hosted certification caught a completed-reply race
+
+Candidate `da7f01634e7d1e432a5a48c20cf7220821e4c250` did not touch the market.
+Full non-market run `36277256492` and standard CI `36277256361` both failed the
+new dense production-pressure regression with `evidence_command_unacknowledged`.
+The full artifact `10917419560` has SHA256
+`46c9aa4a1affc317d7cdbb875d451c8552c67feae5cee82e4e6c2382b133ecba`.
+All 373 supervisor tests, 423 Pons tests and 363 Ramses tests passed; the only
+native errors were the same new pressure regression in Pump and Meteora.
+
+The command had committed, but its earlier socket waiter had already received
+pending. Removing the shared future immediately on completion forced the next
+retry behind another large commit merely to retrieve its durable receipt.
+Measured peak commits were 2.3–2.6 seconds. This second queue admission could
+exhaust the unchanged three-second acknowledgment deadline.
+
+Completed command futures now remain available through the existing durable
+receipt expiry window. A retry returns the already-committed response directly;
+new commands still use the original bounded owner queue. Envelope validation is
+shared with the durable fence; conflicting identities, expired envelopes and
+receipt-capacity exhaustion fail closed. Durable mutation/receipt atomicity,
+command deadline and strategy behavior are unchanged. The cache stores bounded
+control identities and replies, not market frames.
+
+The deterministic regression commits a command, blocks the owner in the next
+large commit, and retries after all original socket waiters have returned. The
+old candidate creates a second queued future and fails; the repair returns the
+completed future immediately. It also verifies conflicts, capacity and expiry
+collection. The production replay is rerun in both composed Solana lanes before
+submitting a fresh exact SHA to complete hosted certification.

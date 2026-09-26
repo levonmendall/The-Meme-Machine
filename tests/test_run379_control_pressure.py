@@ -54,7 +54,34 @@ class ControlPressureTests(unittest.TestCase):
    release.set();blocker.result(1);urgent.result(1)
    for f in (*futures,*others):self.assertEqual(f.result(1),{'ok':True})
    owner.submit(lambda s:None,priority=0).result(1)
-   self.assertEqual(len(calls),3);self.assertEqual(pending.pending,{})
+   self.assertEqual(len(calls),3);self.assertEqual(len(pending.pending),3)
+  finally:release.set();owner.close()
+
+ def test_completed_reply_retry_bypasses_busy_owner_until_receipt_expiry(self):
+  entered=threading.Event();release=threading.Event();calls=[];now=[100.0]
+  state=SimpleNamespace(close=lambda:None,
+    fence=SimpleNamespace(command=lambda request:(calls.append(request),{'ok':True})[1]))
+  owner=PriorityOwner(lambda:state);pending=PendingCommands(owner)
+  pending.capacity=2;pending.clock=lambda:now[0]
+  request=dict(consumer='pump',request_id='committed',op='counter',key='pump.reads',count=1,expires_at=103)
+  try:
+   owner.ready.result(1);first=pending.submit(request);self.assertEqual(first.result(1),{'ok':True})
+   blocker=owner.submit(lambda s:(entered.set(),release.wait(2)),priority=2)
+   self.assertTrue(entered.wait(1))
+   # Every original socket waiter has already returned pending. A later retry
+   # still reads the completed receipt without a second owner admission.
+   reply=pending.submit(dict(request));self.assertIs(reply,first)
+   self.assertEqual(reply.result(.05),{'ok':True});self.assertEqual(len(owner.queue),0)
+   with self.assertRaisesRegex(EvidenceUnavailable,'identity_conflict'):
+    pending.submit(dict(request,count=2))
+   second=pending.submit(dict(request,request_id='second'))
+   with self.assertRaisesRegex(EvidenceUnavailable,'evidence_receipt_capacity'):
+    pending.submit(dict(request,request_id='overflow'))
+   release.set();blocker.result(1);second.result(1);self.assertEqual(len(calls),2)
+   now[0]=110
+   with self.assertRaisesRegex(EvidenceUnavailable,'evidence_command_envelope'):pending.submit(request)
+   new=pending.submit(dict(request,request_id='fresh',expires_at=113))
+   self.assertEqual(new.result(1),{'ok':True});self.assertEqual(len(pending.pending),1)
   finally:release.set();owner.close()
 
 
