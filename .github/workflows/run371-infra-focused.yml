@@ -31,7 +31,11 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           cd "$RUNNER_TEMP/run371-repair-lanes/ramses"
-          python -m unittest             robinhood_tests.test_ramses_run371_pressure             robinhood_tests.test_ramses_census_provider_defer             robinhood_tests.test_ramses_rate_limit -v
+          PYTHONPATH="$RUNNER_TEMP/run371-repair-lanes/ramses:$GITHUB_WORKSPACE" \
+            python -m unittest \
+              robinhood_tests.test_ramses_run371_pressure \
+              robinhood_tests.test_ramses_census_provider_defer \
+              robinhood_tests.test_ramses_rate_limit -v
       - name: Record exact prepared Ramses diff identity
         run: |
           git -C "$RUNNER_TEMP/run371-repair-lanes/ramses" diff --binary --full-index --no-ext-diff --no-textconv --no-renames HEAD | sha256sum | awk '{print "RAMSES_EXACT_DIFF_SHA256=" $1}'
