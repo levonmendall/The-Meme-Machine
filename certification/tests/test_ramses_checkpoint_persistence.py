@@ -1,6 +1,7 @@
 import json
 import unittest
 
+from certification.report import summarize
 from certification.worker import Observer, compact_ramses_screen
 
 
@@ -95,6 +96,25 @@ class RamsesCheckpointCompactionTests(unittest.TestCase):
                          snapshot['natural_screens'][0]['rows'][0]['cost_evidence'])
         self.assertEqual(snapshot['observation_archive']['ramses_screens'],1)
         self.assertEqual(len(checkpoints),2)
+
+    def test_compact_summary_preserves_sanitized_process_terminal_boundary(self):
+        report={
+            'process_terminal':{
+                'status':'failed',
+                'exception_type':'BoundaryError',
+                'boundary':'provider_http_429',
+                'policy_hash':'a'*64,
+            },
+            'natural_screens':[],
+            'campaign_accounting':{
+                'open_positions':0,
+                'conservation':True,
+            },
+        }
+        compact=summarize('ramses',report)
+        self.assertEqual(compact['process_terminal']['boundary'],'provider_http_429')
+        self.assertEqual(compact['process_terminal']['exception_type'],'BoundaryError')
+        self.assertLess(len(json.dumps(compact['process_terminal'])),400)
 
     def test_observation_history_regression_fails_closed(self):
         observer=Observer.__new__(Observer)

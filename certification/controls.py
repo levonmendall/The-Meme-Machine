@@ -103,9 +103,61 @@ def position_handoff(lane,row):
         and row.get('open_positions')==state.get('positions'))
 
 
+def evidence_continuity(row, lane):
+    """Liveness is separate from candidate-local completeness and continuity.
+
+    Counts are run-cumulative: later repair cannot erase decisions already
+    censored by local capacity. No trade/qualifier requirement is introduced.
+    """
+    stream=row.get('stream_state') or {}
+    counts=stream.get('counters') or {}
+    local=stream.get('lane_counters') or {}
+    ipc=(stream.get('service_health') or {}).get('ipc') or {}
+    blocked=max(counts.get(lane+'.gap_blocked_queries',0),local.get(lane+'.gap_blocked_queries',0),
+                counts.get(lane+'.gap_blocked_reconstructions',0),local.get(lane+'.gap_blocked_reconstructions',0))
+    complete=max(counts.get(lane+'.complete_local_reads',0),local.get(lane+'.complete_local_reads',0))
+    incomplete=max(counts.get(lane+'.incomplete_local_reads',0),local.get(lane+'.incomplete_local_reads',0))
+    capacity=max(counts.get('disconnect:local_receive_dispatch_capacity',0),ipc.get('stream.dispatch_queue_overflow',0))
+    gaps=stream.get('unresolved_gaps',0)
+    failures=[]
+    if capacity and (blocked or gaps):failures.append(lane+':capacity_censored_local_evidence')
+    elif capacity>1:failures.append(lane+':capacity_disconnect_churn')
+    if gaps and blocked:failures.append(lane+':unresolved_gaps_block_local_evidence')
+    return dict(failures=failures, capacity_disconnects=capacity, unresolved_gaps=gaps,
+                gap_blocked_queries=blocked, complete_local_reads=complete,
+                incomplete_local_reads=incomplete, classification=(
+                    'infrastructure_censored' if failures else 'no_material_censoring_observed'))
+
+
+def regime_machinery(result):
+    expected=result.get('strategy_manifest')
+    if expected is None:return [] # Historical four-regime evidence remains readable.
+    failures=[]
+    if set(expected)!=set(LANES):return ['portfolio:four_lane_manifest_required']
+    if sum(len(r['strategies']) for r in expected.values())!=6:
+        failures.append('portfolio:six_active_regimes_required')
+    for lane in ('pump','pons'):
+        row=result.get('lanes',{}).get(lane,{})
+        survivor=row.get('survivor') or {}
+        policies=expected[lane]['strategies']
+        if set(row.get('active_regimes',[]))!=set(policies) or survivor.get('policies')!=policies:
+            failures.append(lane+':regime_identity_or_routing')
+        machinery=survivor.get('machinery') or {}
+        if (survivor.get('active') is not True or survivor.get('paper_only') is not True
+                or not machinery.get('completed_steps') or not machinery.get('successful_steps')
+                or not machinery.get('admission_enabled_steps')):
+            failures.append(lane+':survivor_evidence_progression_unproven')
+        key='native_accounting' if lane=='pump' else 'cohort_accounting'
+        book=row.get(key) or {}
+        if (book.get('one_funded_genesis') is not True
+                or (book.get('shared_sleeve') or {}).get('reconciled') is not True):
+            failures.append(lane+':shared_sleeve_unverified')
+    return failures
+
+
 def smoke_engineering(result):
     """A machinery preflight, never a four-hour or natural execution PASS."""
-    failures=[]
+    failures=regime_machinery(result)
     if result.get('phase')!='smoke' or result.get('status')!='FINISHED':failures.append('smoke_not_finished')
     from certification.solana_lifecycle import pump_flat_completion,authoritative_activity
     lanes=result.get('lanes',{})
@@ -134,12 +186,16 @@ def smoke_engineering(result):
             failures.append(lane+':no_completed_market_census')
         for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
             if row.get('gates',{}).get(gate) is not True:failures.append(lane+':'+gate)
+    continuity={lane:evidence_continuity(result.get('lanes',{}).get(lane,{}),lane)
+                for lane in ('pump','meteora')}
+    for value in continuity.values():failures.extend(value['failures'])
     shared=result.get('shared_provider',{})
     for network in ('solana','robinhood'):
         if network not in shared or shared[network].get('queues')!=[]:failures.append(network+':provider_queue_not_drained')
     if 'robinhood_reuse' in shared and shared['robinhood_reuse'].get('inflight_jobs')!=0:
         failures.append('robinhood:immutable_provider_jobs_not_drained')
     return dict(status='PASS' if not failures else 'FAIL',failures=failures,
+        evidence_continuity=continuity,
         scope='ten_minute_engineering_preflight_only; not natural or sustained certification')
 
 
@@ -150,7 +206,7 @@ def hourly_engineering(result):
     supervisor crash. False controls, accounting failures, restarts and short
     windows still fail this surface.
     """
-    failures=[]
+    failures=regime_machinery(result)
     if result.get('phase')!='hourly' or result.get('status')!='FINISHED':
         failures.append('hourly_not_finished')
     if result.get('continuous_overlap_seconds',0)<3600:
@@ -180,6 +236,9 @@ def hourly_engineering(result):
             failures.append(lane+':no_completed_market_census')
         for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
             if row.get('gates',{}).get(gate) is not True:failures.append(lane+':'+gate)
+    continuity={lane:evidence_continuity(result.get('lanes',{}).get(lane,{}),lane)
+                for lane in ('pump','meteora')}
+    for value in continuity.values():failures.extend(value['failures'])
     shared=result.get('shared_provider',{})
     for network in ('solana','robinhood'):
         if network not in shared or shared[network].get('queues')!=[]:
@@ -215,7 +274,7 @@ def export_readiness(path,output):
     if 'robinhood_reuse' in result['shared_provider']:
         attestation['shared_provider']['robinhood_reuse']={k:result['shared_provider']['robinhood_reuse'].get(k) for k in ('state','inflight_jobs')}
     lane_keys=('exit_code','unexpected_exit','process_restarts','open_positions','accounting_reconciled','provider_requests','gates','native_accounting','funnel','durable_handoff','terminal_reconciliation',
-               'continuous_uptime_seconds','pump_discovery_terminal','evidence_liveness','infrastructure_failure','stream_state','method_counts')
+               'continuous_uptime_seconds','pump_discovery_terminal','evidence_liveness','infrastructure_failure','stream_state','method_counts','process_terminal','pipeline_health','scan_progress')
     attestation['lanes']={lane:{key:result['lanes'][lane].get(key) for key in lane_keys} for lane in LANES}
     with Path(output).open('a') as handle:
         handle.write('readiness='+json.dumps(attestation,separators=(',',':'))+'\n')

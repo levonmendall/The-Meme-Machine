@@ -28,14 +28,14 @@
       "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
       "policy_hash": "e7d4bb2710f51ec464872a37b2692b87c730c21f6183ab09a6c12154dd37182e",
-      "source_diff_sha256": "3971deb0c701f3bc52471a8e566c1b3bc08b7de1d78a7d1b4c99ba41ee10e6cc"
+      "source_diff_sha256": "be03b60ca8197908f8da1a743134ed212d20958637740a737a6ee18cd4c08d36"
     },
     "meteora": {
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "38013fa55b079684bde71ef1d6849f0cfbc7eea18f957493f6b0f3a93ad29cb6"
+      "source_diff_sha256": "107cedda12d546e62271b170455c533383c0458c9638c7c8b648ebb5f3402d41"
     },
     "pons": {
       "strategy_version": "pons-shared-sleeve-six-regime-v1",
@@ -49,7 +49,7 @@
       "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
       "execution_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
       "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
-      "source_diff_sha256": "5247713b686c92870bc8abf09c94528235ff3227ce744ba9eb1ff4140810c8ce"
+      "source_diff_sha256": "0c4bfa59e9ab1cd1023f66969e073e81142eee4adf3676f1717a77a3f3d206df"
     }
   },
   "evidence_quality": {

@@ -1,0 +1,14 @@
+name: Run 376 integrated six-regime full non-market certification
+on:
+  push:
+    branches: [repair/run376-six-regime-machinery-20260926]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  full:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[non-market-cert]')
+    uses: ./.github/workflows/non-market-certification.yml
+    with:
+      preserved_only: true

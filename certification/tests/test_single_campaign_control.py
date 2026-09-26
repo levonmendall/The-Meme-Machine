@@ -299,6 +299,7 @@ class SingleCampaignTests(unittest.TestCase):
 
     def test_only_smoke_then_hourly_in_same_claim_no_phase_retry(self):
         state = self.claimed()
+        state.update(authorized_phases=['smoke','hourly'],successor_allowed=True)
         with self.assertRaisesRegex(ValueError, 'smoke_not_complete'):
             control.begin_phase(state, 'hourly')
         state = control.begin_phase(state, 'smoke')
@@ -321,18 +322,19 @@ class SingleCampaignTests(unittest.TestCase):
             control.begin_phase(state, 'hourly')
 
     def test_hourly_durable_position_allows_position_only_continuation(self):
-        state=control.begin_phase(self.claimed(),'smoke')
+        authorized=self.claimed()
+        authorized.update(authorized_phases=['smoke','hourly'],successor_allowed=True)
+        state=control.begin_phase(authorized,'smoke')
         state=control.end_phase(state,'smoke',self.native_result(),'success')
         state=control.begin_phase(state,'hourly')
         state=control.end_phase(state,'hourly',self.native_result('hourly',open_lane='meteora'),'success')
         self.assertEqual(state['phase'],'POSITION_CONTINUATION')
         self.assertTrue(state['continuation_allowed'])
-        self.assertFalse(state['successor_allowed'])
         self.assertIn('no new discovery',state['next_action'])
 
     def test_missing_result_and_cancelled_or_failed_phase_cannot_resume(self):
         for result, job in [(None, 'cancelled'), (self.native_result(), 'failure')]:
-            state = dict(phase='CLAIMED', phase_records={}, identity=self.identity, history=[])
+            state = dict(phase='CLAIMED', phase_records={}, identity=self.identity, history=[],authorized_phases=['smoke'])
             state = control.begin_phase(state, 'smoke')
             state = control.end_phase(state, 'smoke', result, job)
             self.assertTrue(state['phase'].startswith('HALTED'))

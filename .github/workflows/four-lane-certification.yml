@@ -49,6 +49,8 @@ env:
   DISPATCH_ID: ${{ inputs.dispatch_id }}
 jobs:
   single-campaign-authority:
+    outputs:
+      successor_allowed: ${{ steps.phase-authority.outputs.successor_allowed }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -63,6 +65,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m certification.single_campaign_control claim --output single-campaign-claim.json
+      - name: Export only the claimed phase authority
+        id: phase-authority
+        run: |
+          python - <<'PYCODE'
+          import json,os
+          state=json.load(open('single-campaign-claim.json'))
+          allowed=(state.get('successor_allowed') is True and 'hourly' in state.get('authorized_phases',[]))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+              print('successor_allowed='+str(allowed).lower(),file=out)
+          PYCODE
       - name: Preserve claimed authority
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -136,6 +148,11 @@ jobs:
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
           MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
         run: python -m certification.capabilities --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates/rpc-capabilities.json
+      - name: Record authorized smoke native-start boundary
+        if: inputs.single_campaign == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m certification.single_campaign_control native-start --phase smoke --output single-campaign-native-start.json
       - name: Concurrent paper smoke with original frozen lane runners
         env:
           GH_CHECKS_TOKEN: ${{ github.token }}
@@ -164,6 +181,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PHASE_JOB_RESULT: ${{ job.status }}
         run: python -m certification.single_campaign_control end-phase --phase smoke --result certification-smoke/result.json --job-result "$PHASE_JOB_RESULT" --output certification-artifact/single-campaign-phase.json
+      - name: Preserve compact smoke diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: four-lane-compact-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            certification-smoke/result.json
+            certification-smoke/status.html
+            certification-smoke-live-snapshots.jsonl
+            certification-smoke-publisher.jsonl
+            certification-artifact/single-campaign-phase.json
+            certification-gates/chain-binding.json
+          if-no-files-found: warn
+          retention-days: 90
       - name: Preserve success and failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -201,7 +232,7 @@ jobs:
 
   hourly-campaign:
     needs: [single-campaign-authority, concurrent-smoke, smoke-artifact-review, reused-smoke]
-    if: always() && !cancelled() && needs.single-campaign-authority.result == 'success' && inputs.single_campaign == true && (inputs.phase == 'hourly' || contains(github.event.head_commit.message, '[four-lane-hourly]')) && (needs.reused-smoke.result == 'success' || (needs.concurrent-smoke.result == 'success' && needs.smoke-artifact-review.result == 'success' && needs.concurrent-smoke.outputs.pending_positions == 'false'))
+    if: always() && !cancelled() && needs.single-campaign-authority.outputs.successor_allowed == 'true' && needs.single-campaign-authority.result == 'success' && inputs.single_campaign == true && (inputs.phase == 'hourly' || contains(github.event.head_commit.message, '[four-lane-hourly]')) && (needs.reused-smoke.result == 'success' || (needs.concurrent-smoke.result == 'success' && needs.smoke-artifact-review.result == 'success' && needs.concurrent-smoke.outputs.pending_positions == 'false'))
     runs-on: ubuntu-24.04
     timeout-minutes: 210
     steps:
@@ -258,6 +289,11 @@ jobs:
           MM_ROBINHOOD_READ_RPC_URL: ${{ secrets.MM_ROBINHOOD_READ_RPC_URL }}
           MM_ROBINHOOD_DLMM_RPC_URL: ${{ secrets.MM_ROBINHOOD_DLMM_RPC_URL }}
         run: python -m certification.capabilities --worktrees "$RUNNER_TEMP/four-lane-worktrees" --output certification-gates/rpc-capabilities.json
+      - name: Record authorized hourly native-start boundary
+        if: inputs.single_campaign == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m certification.single_campaign_control native-start --phase hourly --output single-campaign-native-start.json
       - name: One-hour continuous paper campaign, no process restart
         env:
           GH_CHECKS_TOKEN: ${{ github.token }}
@@ -296,6 +332,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PHASE_JOB_RESULT: ${{ job.status }}
         run: python -m certification.single_campaign_control end-phase --phase hourly --result certification-hourly/result.json --job-result "$PHASE_JOB_RESULT" --output certification-artifact/single-campaign-phase.json
+      - name: Preserve compact hourly diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: four-lane-hourly-compact-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            certification-hourly/result.json
+            certification-hourly/status.html
+            certification-hourly-live-snapshots.jsonl
+            certification-hourly-publisher.jsonl
+            certification-artifact/single-campaign-phase.json
+            certification-artifact/prospective-observation.json
+            certification-gates/chain-binding.json
+          if-no-files-found: warn
+          retention-days: 90
       - name: Preserve hourly success or failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

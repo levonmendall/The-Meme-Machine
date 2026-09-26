@@ -1,19 +1,22 @@
 import asyncio,json,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
-from meme_machine.solana_evidence_service import serve
+from meme_machine.solana_evidence_service import ServiceState,serve
 from meme_machine.solana_evidence_plane import EvidenceReader
 from meme_machine.postgrad import PUMPSWAP_PROGRAM
 from meme_machine.solana_evidence_runtime import SWAP_SCOPE
 
 class FakeSocket:
-    def __init__(self):self.queue=asyncio.Queue();self.subs={}
+    def __init__(self):self.queue=asyncio.Queue();self.subs={};self.recv_count=0
     async def __aenter__(self):return self
     async def __aexit__(self,*args):pass
     async def send(self,raw):
         req=json.loads(raw);self.subs[req['id']]=req
         await self.queue.put(json.dumps(dict(id=req['id'],result=req['id'])))
-    async def recv(self):return await self.queue.get()
+    async def recv(self,decode=None):
+        self.recv_count+=1
+        raw=await self.queue.get()
+        return raw.encode() if decode is False and isinstance(raw,str) else raw
     async def inject(self,slot,logs):
         for identity,req in self.subs.items():
             if req['method']!='blockSubscribe':continue
@@ -34,6 +37,37 @@ class ServiceRuntimeTests(unittest.IsolatedAsyncioTestCase):
             if predicate():return
             await asyncio.sleep(.01)
         self.fail('offline service did not make progress')
+    async def test_run371_receive_loop_drains_23_message_burst_while_owner_is_slow(self):
+        fixture=json.loads((Path(__file__).parent/'fixtures/solana_evidence_plane/run-368-raw-pump.json').read_text())
+        logs=fixture['records'][0]['response']['result']['meta']['logMessages']
+        original=ServiceState.source
+        def slow_source(state,*args,**kwargs):
+            time.sleep(.03)
+            return original(state,*args,**kwargs)
+        with tempfile.TemporaryDirectory() as temp,patch('meme_machine.solana_evidence_service.time.time',return_value=1790347000):
+            path=Path(temp)/'db';socket=FakeSocket();stop=asyncio.Event()
+            with patch.object(ServiceState,'source',slow_source),patch('websockets.asyncio.client.connect',return_value=socket),patch('asyncio.start_unix_server',side_effect=local_server):
+                task=asyncio.create_task(serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+                try:
+                    await self.wait_for(lambda:len(socket.subs)==1)
+                    for slot in range(200,223):
+                        await socket.inject(slot,logs)
+                    # Regression for Run 371: the application must keep calling recv
+                    # while the single SQLite owner is deliberately slower than the
+                    # incoming burst. The old inline await stalled here and allowed
+                    # websocket keepalive timeouts to create continuity gaps.
+                    await self.wait_for(lambda:socket.recv_count>=24)
+                    self.assertEqual(socket.queue.qsize(),0)
+                    reader=EvidenceReader(path)
+                    await self.wait_for(lambda:reader.db.execute('SELECT COUNT(*) FROM records').fetchone()[0]>=23)
+                    telemetry=reader.telemetry()
+                    self.assertEqual(telemetry['counters'].get('disconnect:local_receive_backpressure_ping_timeout',0),0)
+                    self.assertEqual(telemetry['counters'].get('disconnect:local_receive_dispatch_capacity',0),0)
+                    self.assertTrue(reader.covered(SWAP_SCOPE,200,221,as_of=time.time()))
+                    reader.close()
+                finally:
+                    stop.set();await task
+
     async def test_real_service_ingests_while_both_readers_are_paused_and_recovers(self):
         fixture=json.loads((Path(__file__).parent/'fixtures/solana_evidence_plane/run-368-raw-pump.json').read_text())
         logs=fixture['records'][0]['response']['result']['meta']['logMessages']

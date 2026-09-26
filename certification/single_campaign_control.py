@@ -1,4 +1,4 @@
-"""One owner-authorized smoke -> hourly workflow, with no retry or successor.
+"""One explicitly authorized smoke phase; no implicit hourly successor or retry.
 
 The separate Git ref consumes the authorization before the dispatch HTTP request.
 Uncertain writes/dispatch responses fail closed. No code in this module retries a
@@ -38,7 +38,8 @@ OFFLINE_WORKFLOWS = {
     'ramses-v4-offline-certification.yml',
     'ramses-v4-launchable-nonmarket-certification.yml',
     'v12-active-strategy-certification.yml',
-    'targeted-repair-validation.yml',
+    'targeted-repair-validation.yml', 'directional-six-regime-nonmarket.yml',
+    'run376-six-regime-nonmarket.yml',
 }
 OFFLINE_JOBS = {'test', 'tests', 'lint', 'build', 'offline-prerequisites',
                 'inspect-retained-failure', 'review', 'deterministic', 'qualification'}
@@ -411,7 +412,7 @@ def dispatch_once(api, config, identity, certificate_run_id, runtime_ref, launch
             raise ValueError('single_campaign_certificate_identity:' + key)
     quiet = contention(api, launcher_run)
     nonce = uuid.uuid4().hex
-    inputs = dict(phase='hourly', program='false', single_campaign='true',
+    inputs = dict(phase='smoke', program='false', single_campaign='true',
         authorization_id=config['authorization_id'], dispatch_id=nonce, expected_sha=sha,
         certification_run_id=str(certificate_run_id))
     state = dict(schema='meme-machine-single-campaign-state-v1', authorization_id=config['authorization_id'],
@@ -422,7 +423,7 @@ def dispatch_once(api, config, identity, certificate_run_id, runtime_ref, launch
         dispatch_may_have_been_sent=True, retry_allowed=False, successor_allowed=False,
         continuation_allowed=False,
         position_continuation_authorized=bool(config.get('position_continuation_workflows')),
-        created_at=time.time(), phase_records={},
+        created_at=time.time(), phase_records={}, authorized_phases=['smoke'],
         quiet_before_claim=quiet, history=[dict(action='consume_authorization_before_dispatch')])
     store.write(state)  # Any timeout/collision here stops before POST; never retry.
     exact_ref(api, runtime_ref, sha)
@@ -462,7 +463,9 @@ def claim(api, config, identity, run_id, attempt, authorization_id, nonce):
 
 def begin_phase(state, phase):
     state = deepcopy(state)
-    if phase not in ('smoke', 'hourly') or state['phase'] != 'CLAIMED':
+    if (phase not in state.get('authorized_phases', [])
+            or phase not in ('smoke','hourly') or state['phase'] != 'CLAIMED'
+            or phase=='hourly' and state.get('successor_allowed') is not True):
         raise ValueError('single_campaign_phase_not_authorized')
     records = state['phase_records']
     if phase in records:
@@ -471,7 +474,7 @@ def begin_phase(state, phase):
         smoke = records.get('smoke', {})
         if smoke.get('job_result') != 'success' or smoke.get('native_exposure') != 'flat':
             raise ValueError('single_campaign_smoke_not_complete_and_flat')
-    records[phase] = dict(started_at=time.time(), native_exposure='unknown')
+    records[phase] = dict(started_at=time.time(), native_exposure='not_started', native_started=False)
     state['history'].append(dict(action='begin_phase_once', phase=phase))
     return state
 
@@ -483,6 +486,7 @@ def end_phase(state, phase, result, job_result):
     if result is not None and (result.get('integration_sha') != state['identity']['integration_sha']
                                or result.get('phase') != phase):
         raise ValueError('single_campaign_phase_result_identity')
+    not_started=(result is None and state['phase_records'][phase].get('native_started') is False)
     lanes = (result or {}).get('lanes', {})
     observations = {lane: {key: lanes.get(lane, {}).get(key) for key in
         ('open_positions', 'open_positions_unknown', 'durable_handoff', 'accounting_reconciled')}
@@ -498,10 +502,16 @@ def end_phase(state, phase, result, job_result):
                  if row['open_positions'] not in (0,None)
                  and lane not in durable_open]
     state['phase_records'][phase].update(ended_at=time.time(), job_result=job_result,
-        native_exposure='flat' if known_flat else 'durable_open' if durable_open and not unsafe_open else 'unresolved',
+        native_exposure='not_started' if not_started else 'flat' if known_flat else 'durable_open' if durable_open and not unsafe_open else 'unresolved',
         native_positions=observations,
         native_run_id=(result or {}).get('run_id'), native_result_status=(result or {}).get('status'))
-    if phase=='hourly' and job_result=='success' and durable_open and not unsafe_open:
+    if not_started:
+        state.update(phase='HALTED',continuation_allowed=False,
+            next_action='phase_failed_before_native_start; no native exposure created')
+    elif phase=='smoke' and job_result=='success' and known_flat and state.get('successor_allowed') is not True:
+        state.update(phase='SMOKE_COMPLETE',continuation_allowed=False,
+            next_action='smoke_complete_flat; no successor authorized')
+    elif phase=='hourly' and job_result=='success' and durable_open and not unsafe_open:
         if state.get('position_continuation_authorized') is not True:
             state.update(phase='HALTED_UNRESOLVED',continuation_allowed=False,
                 next_action='owner_review_only; durable positions exist but continuation authority is absent')
@@ -518,7 +528,7 @@ def end_phase(state, phase, result, job_result):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('command', choices=('dispatch', 'claim', 'begin-phase', 'end-phase',
-                                            'finish', 'review', 'contention', 'prohibit',
+                                            'finish', 'review', 'contention', 'prohibit', 'native-start',
                                             'continuation-claim','continuation-record'))
     parser.add_argument('--phase', choices=('smoke', 'hourly'))
     parser.add_argument('--result'); parser.add_argument('--job-result')
@@ -566,8 +576,8 @@ def main():
                 raise ValueError('single_campaign_explicit_dispatch_required')
             if (os.environ.get('SINGLE_PROGRAM_MODE') == 'true'
                     or os.environ.get('SINGLE_SMOKE_RUN_ID')
-                    or os.environ.get('SINGLE_REQUESTED_PHASE') != 'hourly'):
-                raise ValueError('single_campaign_fresh_smoke_hourly_only')
+                    or os.environ.get('SINGLE_REQUESTED_PHASE') != 'smoke'):
+                raise ValueError('single_campaign_smoke_only')
             if args.command == 'claim':
                 state = claim(api, config, identity, run_id, attempt, auth, nonce)
             else:
@@ -577,16 +587,26 @@ def main():
                 if args.command == 'begin-phase':
                     owned_contention(api, state, run_id)
                     state = begin_phase(state, args.phase)
+                elif args.command == 'native-start':
+                    record=state['phase_records'].get(args.phase,{})
+                    if (args.phase not in state.get('authorized_phases',[]) or state['phase']!='CLAIMED'
+                            or not record or record.get('native_started') is not False
+                            or 'ended_at' in record):
+                        raise ValueError('single_campaign_native_start_not_authorized')
+                    record.update(native_started=True,native_exposure='unknown')
+                    state['history'].append(dict(action='native_start_once',phase=args.phase))
                 elif args.command == 'end-phase':
                     path = Path(args.result)
                     result = json.loads(path.read_text()) if path.exists() else None
                     state = end_phase(state, args.phase, result, args.job_result)
                 else:
-                    if state.get('phase')=='POSITION_CONTINUATION':
+                    if state.get('phase')=='SMOKE_COMPLETE':
+                        state['history'].append(dict(action='finish_smoke_only_flat'))
+                    elif state.get('phase')=='POSITION_CONTINUATION':
                         state['history'].append(dict(action='finish_preserved_position_only_continuation'))
                     else:
                         last = state['phase_records'].get('hourly', state['phase_records'].get('smoke', {}))
-                        state.update(phase='HALTED' if last.get('native_exposure') == 'flat' else 'HALTED_UNRESOLVED',
+                        state.update(phase='HALTED' if last.get('native_exposure') in ('flat','not_started') else 'HALTED_UNRESOLVED',
                             continuation_allowed=False,
                             next_action='owner_review_only; no successor, retry, replacement or continuation')
                 store.write(state)

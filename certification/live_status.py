@@ -20,6 +20,9 @@ from urllib.request import Request, urlopen
 
 from certification.report import LANES
 
+LIVE_STATUS_TARGET_BYTES=50_000
+LIVE_STATUS_MAX_BYTES=60_000
+
 
 def numeric_tree(value, depth=0, field=None):
     if depth > 9:return None
@@ -128,20 +131,119 @@ def snapshot(result, now=None):
     return out
 
 
-def output(result):
-    view=snapshot(result)
+def _small_dict(value,limit=24):
+    if not isinstance(value,dict):return value
+    return dict(list(value.items())[:limit])
+
+
+def compact_snapshot(view):
+    """Small GitHub Check projection. Full sanitized snapshots remain on disk."""
+    out={k:view.get(k) for k in (
+        'schema','published_at','observed_at','snapshot_age_seconds','stale','phase',
+        'certification_scope','required_observation_seconds','elapsed_seconds',
+        'continuous_overlap_seconds','certification_status','hourly_engineering_status',
+        'supervisor_exit_code','supervisor_failed')}
+    out['payload_mode']='compact'
+    out['lanes']={}
+    funnel_keys=(
+        'discovered','screened','unique_discovered','unique_admitted','unique_evaluated',
+        'unique_evidence_requested','unique_evidence_complete','unique_decision_evidence_complete',
+        'unique_reconstruction_complete','unique_reconstruction_incomplete','unique_qualified',
+        'unique_entry_reserved','unique_entry_filled','unique_entry_cancelled',
+        'unique_settled','completed_scans')
+    for lane in LANES:
+        row=(view.get('lanes') or {}).get(lane) or {}
+        funnel=row.get('funnel') or {}
+        pipeline=row.get('pipeline_health') or {}
+        out['lanes'][lane]=dict(
+            health=row.get('health'),
+            continuous_uptime_seconds=row.get('continuous_uptime_seconds'),
+            provider_requests=row.get('provider_requests'),
+            natural_settled=row.get('natural_settled'),
+            forced_settled=row.get('forced_settled'),
+            open_positions=row.get('open_positions'),
+            unexpected_exit=row.get('unexpected_exit'),
+            exit_code=row.get('exit_code'),
+            process_restarts=row.get('process_restarts'),
+            accounting_reconciled=row.get('accounting_reconciled'),
+            progress_age_seconds=row.get('progress_age_seconds'),
+            transport_activity_age_seconds=row.get('transport_activity_age_seconds'),
+            errors=_small_dict(row.get('errors')),
+            provider_http_status_errors=_small_dict(row.get('provider_http_status_errors')),
+            provider_method_errors=_small_dict(row.get('provider_method_errors')),
+            gates=_small_dict(row.get('gates'),12),
+            funnel={k:funnel.get(k) for k in funnel_keys if k in funnel},
+            pipeline_health={k:pipeline.get(k) for k in ('stage','state','stage_age_seconds','stall_bound_seconds')
+                             if k in pipeline},
+        )
+    shared=view.get('shared_provider') or {}
+    provider_summary={}
+    for network in ('solana','robinhood'):
+        row=shared.get(network)
+        if isinstance(row,dict):
+            queues=row.get('queues')
+            provider_summary[network]=dict(
+                state=row.get('state'),
+                queue_count=len(queues) if isinstance(queues,list) else None)
+    reuse=shared.get('robinhood_reuse')
+    if isinstance(reuse,dict):
+        provider_summary['robinhood_reuse']=dict(inflight_jobs=reuse.get('inflight_jobs'))
+    out['shared_provider']=provider_summary
+    return out
+
+
+def _render_output(view):
     rows=['Live paper telemetry; a healthy process is not natural certification.',
           'Snapshots older than 120 seconds are stale. Raw evidence is retained in workflow artifacts.',
           '', '| Lane | Health | Uptime s | Requests | Natural / forced settled | Open |',
           '|---|---|---:|---:|---:|---:|']
-    for lane,row in view['lanes'].items():
-        rows.append('| {} | {} | {} | {} | {} / {} | {} |'.format(lane,row['health'],
-            round(row['continuous_uptime_seconds'] or 0),row['provider_requests'],
-            row['natural_settled'],row['forced_settled'],row['open_positions']))
+    for lane,row in (view.get('lanes') or {}).items():
+        rows.append('| {} | {} | {} | {} | {} / {} | {} |'.format(
+            lane,row.get('health'),round(row.get('continuous_uptime_seconds') or 0),
+            row.get('provider_requests'),row.get('natural_settled'),
+            row.get('forced_settled'),row.get('open_positions')))
     raw=json.dumps(view,sort_keys=True,separators=(',',':'),allow_nan=False)
-    if len(raw.encode())>60000:raise ValueError('live_status_payload_capacity')
-    return dict(title='Four-lane paper progress: '+view['certification_status'],summary='\n'.join(rows),text='```json\n'+raw+'\n```')
+    return dict(title='Four-lane paper progress: '+str(view.get('certification_status','INCOMPLETE')),
+                summary='\n'.join(rows),text='```json\n'+raw+'\n```')
 
+
+def terminal_output(result,integration_sha=None):
+    """Tiny terminal payload used when a normal final Check update cannot publish."""
+    phase=result.get('phase')
+    engineering=(result.get('smoke_engineering') if phase=='smoke'
+                 else result.get('hourly_engineering') if phase=='hourly' else {}) or {}
+    lanes={}
+    for lane in LANES:
+        row=(result.get('lanes') or {}).get(lane) or {}
+        lanes[lane]=dict(
+            health=row.get('health'),
+            exit_code=row.get('exit_code'),
+            unexpected_exit=row.get('unexpected_exit'),
+            open_positions=row.get('open_positions'),
+            infrastructure_failure=bool(row.get('infrastructure_failure')))
+    payload=dict(
+        schema='four-lane-live-terminal-v1',payload_mode='terminal_fallback',
+        integration_sha=integration_sha if isinstance(integration_sha,str) and re.fullmatch(r'[a-f0-9]{40}',integration_sha) else None,
+        phase=phase,status=result.get('status'),
+        certification_status=(result.get('certification') or {}).get('status','INCOMPLETE'),
+        engineering_status=engineering.get('status'),
+        supervisor_exit_code=result.get('supervisor_exit_code'),
+        supervisor_failed=result.get('supervisor_failed',False),
+        lanes=lanes)
+    body=_render_output(dict(payload,certification_status=payload['certification_status']))
+    if len(body['text'].encode())>LIVE_STATUS_MAX_BYTES:
+        raise ValueError('terminal_live_status_payload_capacity')
+    return body
+
+
+def output(result):
+    view=snapshot(result);view['payload_mode']='full'
+    body=_render_output(view)
+    if len(body['text'].encode())<=LIVE_STATUS_TARGET_BYTES:return body
+    compact=compact_snapshot(view)
+    body=_render_output(compact)
+    if len(body['text'].encode())<=LIVE_STATUS_TARGET_BYTES:return body
+    return terminal_output(result)
 
 def request(method, endpoint, body):
     repo=os.environ['GITHUB_REPOSITORY']
@@ -190,7 +292,8 @@ def main():
         if not interrupted and proc.poll() is None:
             interrupted=True;proc.send_signal(signal.SIGINT)
     signal.signal(signal.SIGTERM,stop);signal.signal(signal.SIGINT,stop)
-    failures=0;broken=False;last=-float('inf');result=pending
+    failures=0;broken=False;publication_failures=0;last=-float('inf');result=pending
+    terminal_check_closed=False
     while True:
         code=proc.poll();now=time.monotonic()
         if now-last>=60 or code is not None:
@@ -208,17 +311,38 @@ def main():
                     handle.flush();os.fsync(handle.fileno())
                 body=dict(output=output(result))
                 if code is not None:
-                    body.update(status='completed',conclusion='cancelled' if interrupted else 'failure' if code or broken else 'neutral',
+                    body.update(status='completed',conclusion='cancelled' if interrupted else 'failure' if code else 'neutral',
                         completed_at=datetime.now(timezone.utc).isoformat())
-                request('PATCH',endpoint,body);event('published',snapshot_observed_at=result.get('observed_at',result.get('ended_at')))
+                request('PATCH',endpoint,body)
+                if code is not None:terminal_check_closed=True
+                event('published',snapshot_observed_at=result.get('observed_at',result.get('ended_at')),
+                      payload_mode='bounded',terminal=code is not None)
                 failures=0
             except Exception as exc:
-                failures+=1;broken=broken or failures>=3
+                failures+=1;publication_failures+=1;broken=broken or failures>=3
                 # Error messages can include URLs; record only the exception type.
-                event('publish_failed',error_type=type(exc).__name__,consecutive_failures=failures)
+                event('publish_failed',error_type=type(exc).__name__,consecutive_failures=failures,
+                      terminal=code is not None)
+                if code is not None:
+                    fallback=dict(
+                        output=terminal_output(result,context['integration_sha']),
+                        status='completed',
+                        conclusion='cancelled' if interrupted else 'failure' if code else 'neutral',
+                        completed_at=datetime.now(timezone.utc).isoformat())
+                    try:
+                        request('PATCH',endpoint,fallback)
+                        terminal_check_closed=True;failures=0
+                        event('terminal_fallback_published',supervisor_exit_code=code)
+                    except Exception as terminal_exc:
+                        publication_failures+=1
+                        event('terminal_fallback_failed',error_type=type(terminal_exc).__name__)
         if code is not None:break
         time.sleep(1)
-    event('publisher_finished',supervisor_exit_code=code,visibility_failed=broken,interrupted=interrupted)
-    raise SystemExit(code or (1 if broken or failures or interrupted else 0))
+    event('publisher_finished',supervisor_exit_code=code,
+          visibility_failed=bool(publication_failures),publication_failures=publication_failures,
+          terminal_check_closed=terminal_check_closed,interrupted=interrupted)
+    # Publication is observability only. The child supervisor remains authoritative.
+    # A genuine operator interruption is still not a successful workflow.
+    raise SystemExit(code or (1 if interrupted else 0))
 
 if __name__=='__main__':main()

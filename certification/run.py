@@ -108,6 +108,22 @@ def lane_patches(lane,row=None):
     return [ROOT/'certification'/'patches'/name for name in LANE_PATCHES.get(lane,())]
 
 
+def integration_overlay_files(lane,row=None):
+    """Integration-owned bytes explicitly composed into a frozen lane worktree."""
+    result=[]
+    for name in (row or {}).get('integration_overlay_files',[]):
+        if not isinstance(name,str):
+            raise ValueError('integration_overlay_file_shape:'+lane)
+        rel=Path(name)
+        if rel.is_absolute() or '..' in rel.parts or rel.suffix!='.py':
+            raise ValueError('integration_overlay_file_path:'+lane+':'+name)
+        source=ROOT/rel
+        if not source.is_file() or source.is_symlink():
+            raise ValueError('integration_overlay_file_missing:'+lane+':'+name)
+        result.append(rel)
+    return result
+
+
 def source_integrity(worktrees):
     observed={}
     for lane,row in manifest()['lanes'].items():
@@ -125,6 +141,12 @@ def source_integrity(worktrees):
         for file,expected_hash in row.get('composed_file_hashes',row.get('file_hashes',{})).items():
             if hashlib.sha256((cwd/file).read_bytes()).hexdigest()!=expected_hash:
                 raise ValueError('frozen_source_file_drift:'+lane+':'+file)
+        for rel in integration_overlay_files(lane,row):
+            source=ROOT/rel;target=cwd/rel
+            if (not target.is_file() or target.read_bytes()!=source.read_bytes()):
+                raise ValueError('integration_overlay_file_drift:'+lane+':'+str(rel))
+            if subprocess.check_output(['git','diff','--binary','HEAD','--',str(rel)],cwd=ROOT):
+                raise ValueError('uncommitted_integration_overlay_file:'+lane+':'+str(rel))
         # Git's default abbreviated index IDs vary with repository object count.
         # Full IDs make the exact same prepared tree hash identically in CI and
         # an isolated local checkout. Preserve every content/mode/path byte.
@@ -504,6 +526,12 @@ def prepare(destination):
                 continue
             _apply_three_way_or_diagnose(work,patch_path,lane)
             continue
+        for rel in integration_overlay_files(lane,row):
+            target=work/rel
+            target.parent.mkdir(parents=True,exist_ok=True)
+            target.write_bytes((ROOT/rel).read_bytes())
+            subprocess.run(['git','add','--',str(rel)],cwd=work,check=True)
+        subprocess.run(['git','diff','--check','--cached'],cwd=work,check=True)
     atomic(destination/'manifest.json',spec)
     return destination
 
@@ -836,6 +864,13 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
         result.update(supervisor_error=supervisor_error,integration_sha=git('rev-parse','HEAD'),implementation_hash=implementation_hash(),
             maximum_sampled_active_broker_jobs=max_broker_active,broker_shutdown_terminals=broker_terminal,
             source_diff_hashes=gate['source_diff_hashes'])
+        result['strategy_manifest']={lane:dict(
+            strategy_version=row['strategy_version'],policy_hash=row['policy_hash'],
+            source_sha=row.get('source_sha'),source_diff_sha256=row.get('source_diff_sha256'),
+            strategies=(row.get('composite_policy') or {}).get('strategies',
+                {row['strategy_version']:row['policy_hash']}),paper_only=True,
+            allocation=(row.get('composite_policy') or {}).get('allocation'))
+            for lane,row in spec['lanes'].items()}
         if phase=='smoke':result['smoke_engineering']=smoke_engineering(result)
         provider_efficiency(result);result['certification']=evaluate(result)
         if phase=='hourly':result['hourly_engineering']=hourly_engineering(result)

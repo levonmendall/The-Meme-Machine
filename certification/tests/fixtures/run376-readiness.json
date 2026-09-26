@@ -1,0 +1,856 @@
+{
+  "artifact_id": 10914286247,
+  "artifact_sha256": "570ea57cd361569d98d6486e311b7de6749b32479f24addc25959da8b079da5c",
+  "result": {
+    "broker_shutdown_terminals": {
+      "consumer_count": 0,
+      "consumer_reasons": {},
+      "count": 0,
+      "reasons": {}
+    },
+    "certification": {
+      "failures": [],
+      "incomplete": [
+        "continuous_four_hour_window_not_completed",
+        "pump:continuous_uptime_short",
+        "pump:unproven:bounded_queue",
+        "pump:unproven:provider_limits",
+        "pump:unproven:no_starvation",
+        "pump:unproven:durable_replay",
+        "pump:natural_lifecycle_missing",
+        "meteora:continuous_uptime_short",
+        "meteora:unproven:bounded_queue",
+        "meteora:unproven:provider_limits",
+        "meteora:unproven:no_starvation",
+        "meteora:unproven:durable_replay",
+        "meteora:natural_lifecycle_missing",
+        "pons:continuous_uptime_short",
+        "pons:unproven:bounded_queue",
+        "pons:unproven:provider_limits",
+        "pons:unproven:no_starvation",
+        "pons:unproven:durable_replay",
+        "pons:natural_lifecycle_missing",
+        "ramses:continuous_uptime_short",
+        "ramses:unproven:bounded_queue",
+        "ramses:unproven:provider_limits",
+        "ramses:unproven:no_starvation",
+        "ramses:unproven:durable_replay",
+        "ramses:natural_lifecycle_missing"
+      ],
+      "required_observation_seconds": 14400,
+      "scope": "four_hour_certification",
+      "status": "INCOMPLETE",
+      "target_three_per_lane_met": false
+    },
+    "continuous_overlap_seconds": 600.3169849630001,
+    "elapsed_seconds": 671.0957566019999,
+    "ended_at": 1790450733.9734483,
+    "implementation_hash": "d4a0c184475bf153c6ae8fbe3ea3df7d2827b4a6617c4b44831fd898142710a1",
+    "integration_sha": "2d93e6b5fdb751a3a3e9b057cca759bb0549839f",
+    "lanes": {
+      "meteora": {
+        "accounting_reconciled": true,
+        "continuous_uptime_seconds": 600.569416415,
+        "evidence_liveness": null,
+        "evidence_service_health": {
+          "failure": null,
+          "last": {
+            "frontier_slot": 450767776,
+            "lag_seconds": 14.618621349334717,
+            "observed_at": 1790450662.6186213,
+            "reason": "authoritative_current",
+            "scope": "program:meteora",
+            "state": "USABLE",
+            "usable": true
+          },
+          "usable_observations": 258
+        },
+        "exit_code": 0,
+        "funnel": {
+          "complete_economic_vectors": 0,
+          "complete_lifecycles": 0,
+          "complete_observations": 0,
+          "discovered": 1001,
+          "screened": 8,
+          "unique_admitted": 6,
+          "unique_capacity_censored": 0,
+          "unique_consumer_deadline": 1,
+          "unique_deployed": 0,
+          "unique_discovered": 1001,
+          "unique_economic_vector": 0,
+          "unique_entry_cancelled": 0,
+          "unique_entry_filled": 0,
+          "unique_entry_reserved": 0,
+          "unique_evaluated": 0,
+          "unique_evidence_complete": 0,
+          "unique_evidence_requested": 0,
+          "unique_forward_observation": 0,
+          "unique_fresh_state": 0,
+          "unique_local_budget_exhausted": 0,
+          "unique_no_authentic_activity": 3,
+          "unique_prospective_range": 0,
+          "unique_provider_failed": 0,
+          "unique_qualified": 0,
+          "unique_reconstruction_complete": 0,
+          "unique_reconstruction_incomplete": 5,
+          "unique_reconstruction_started": 0,
+          "unique_rejected": 0,
+          "unique_screened": 8,
+          "unique_settled": 0,
+          "unique_stale_after_complete_evidence": 0,
+          "unique_stale_before_evidence": 0,
+          "unique_stale_during_evidence": 8,
+          "unique_strategy_rejection": 0,
+          "unique_structural_ineligible": 2,
+          "unique_terminal": 19,
+          "unique_trigger_authenticated": 0,
+          "unique_trigger_evidence_requested": 6,
+          "unique_trigger_observed": 0,
+          "unique_trigger_started": 0,
+          "unique_trigger_terminal": 0,
+          "unique_unwind": 0,
+          "unique_warmup_complete": 0,
+          "unique_warmup_started": 0
+        },
+        "gates": {
+          "accounting_reconciled": true,
+          "freshness_finality_unchanged": true,
+          "paper_only": true,
+          "policy_unchanged": true,
+          "responsive": true,
+          "state_isolated": true,
+          "telemetry_complete": true
+        },
+        "infrastructure_failure": null,
+        "open_positions": 0,
+        "process_restarts": 0,
+        "provider_requests": 23,
+        "unexpected_exit": false
+      },
+      "pons": {
+        "accounting_reconciled": true,
+        "continuous_uptime_seconds": 668.43126949,
+        "exit_code": 0,
+        "funnel": {
+          "complete_evidence_vectors": 0,
+          "evaluated": 230,
+          "liquidity_writeoffs": 0,
+          "qualified": 0,
+          "unique_admitted": 0,
+          "unique_candidate_superseded": 34,
+          "unique_candidate_watching": 68,
+          "unique_canonical_completion": 41,
+          "unique_capacity_censored": 10,
+          "unique_consumer_deadline": 0,
+          "unique_current_state_complete": 41,
+          "unique_current_state_queued": 73,
+          "unique_current_state_requested": 68,
+          "unique_deployed": 0,
+          "unique_discovered": 120,
+          "unique_economic_vector": 0,
+          "unique_entry_cancelled": 0,
+          "unique_entry_filled": 0,
+          "unique_entry_reserved": 0,
+          "unique_evaluated": 0,
+          "unique_evidence_complete": 0,
+          "unique_evidence_not_required": 66,
+          "unique_evidence_requested": 0,
+          "unique_forward_observation": 0,
+          "unique_fresh_state": 0,
+          "unique_local_budget_exhausted": 0,
+          "unique_no_authentic_activity": 0,
+          "unique_prospect_admitted": 4,
+          "unique_prospect_incomplete": 0,
+          "unique_prospect_observed": 0,
+          "unique_prospect_screened": 66,
+          "unique_prospective_range": 0,
+          "unique_provider_failed": 0,
+          "unique_qualified": 0,
+          "unique_reconstruction_complete": 0,
+          "unique_reconstruction_incomplete": 0,
+          "unique_reconstruction_started": 0,
+          "unique_rejected": 66,
+          "unique_screened": 73,
+          "unique_settled": 0,
+          "unique_stale_after_complete_evidence": 0,
+          "unique_stale_before_evidence": 0,
+          "unique_stale_during_evidence": 0,
+          "unique_strategy_rejection": 49,
+          "unique_structural_ineligible": 22,
+          "unique_superseded_generation": 34,
+          "unique_terminal": 10,
+          "unique_trajectory_requested": 4,
+          "unique_trigger_authenticated": 0,
+          "unique_trigger_observed": 0,
+          "unique_trigger_started": 0,
+          "unique_trigger_terminal": 0,
+          "unique_unwind": 0,
+          "unique_warmup_complete": 0,
+          "unique_warmup_started": 0
+        },
+        "gates": {
+          "accounting_reconciled": true,
+          "freshness_finality_unchanged": true,
+          "paper_only": true,
+          "policy_unchanged": true,
+          "responsive": true,
+          "state_isolated": true,
+          "telemetry_complete": true
+        },
+        "open_positions": 0,
+        "process_restarts": 0,
+        "provider_requests": 1195,
+        "unexpected_exit": false
+      },
+      "pump": {
+        "accounting_reconciled": true,
+        "continuous_uptime_seconds": 604.373839926,
+        "evidence_liveness": {
+          "failure": null,
+          "last": {
+            "frontier_slot": 450767781,
+            "lag_seconds": 17.982529163360596,
+            "observed_at": 1790450667.9825292,
+            "reason": "authoritative_current",
+            "scope": "program:pumpswap",
+            "state": "USABLE",
+            "usable": true
+          },
+          "usable_observations": 258
+        },
+        "evidence_service_health": {
+          "failure": null,
+          "last": {
+            "frontier_slot": 450767780,
+            "lag_seconds": 18.035938262939453,
+            "observed_at": 1790450667.0359383,
+            "reason": "authoritative_current",
+            "scope": "program:pump",
+            "state": "USABLE",
+            "usable": true
+          },
+          "usable_observations": 260
+        },
+        "exit_code": 0,
+        "funnel": {
+          "discovered": 114,
+          "entry_cancelled": 0,
+          "entry_filled": 0,
+          "entry_reserved": 0,
+          "evidence_complete": 0,
+          "qualified": 0,
+          "settled": 0,
+          "unique_admitted": 3,
+          "unique_capacity_censored": 0,
+          "unique_consumer_deadline": 0,
+          "unique_current_state_complete": 0,
+          "unique_current_state_queued": 0,
+          "unique_current_state_requested": 0,
+          "unique_decision_evidence_complete": 1,
+          "unique_decision_evidence_requested": 3,
+          "unique_deployed": 0,
+          "unique_discovered": 114,
+          "unique_economic_vector": 0,
+          "unique_entry_cancelled": 0,
+          "unique_entry_filled": 0,
+          "unique_entry_reserved": 0,
+          "unique_evaluated": 1,
+          "unique_evidence_complete": 0,
+          "unique_evidence_not_required": 1,
+          "unique_evidence_requested": 3,
+          "unique_forward_observation": 0,
+          "unique_fresh_state": 0,
+          "unique_local_budget_exhausted": 0,
+          "unique_no_authentic_activity": 0,
+          "unique_prospect_admitted": 0,
+          "unique_prospect_incomplete": 0,
+          "unique_prospect_observed": 0,
+          "unique_prospect_screened": 0,
+          "unique_prospective_range": 0,
+          "unique_provider_failed": 0,
+          "unique_qualified": 0,
+          "unique_reconstruction_complete": 0,
+          "unique_reconstruction_incomplete": 3,
+          "unique_reconstruction_started": 0,
+          "unique_rejected": 1,
+          "unique_screened": 0,
+          "unique_settled": 0,
+          "unique_stale_after_complete_evidence": 0,
+          "unique_stale_before_evidence": 0,
+          "unique_stale_during_evidence": 3,
+          "unique_strategy_rejection": 1,
+          "unique_terminal": 3,
+          "unique_trigger_authenticated": 0,
+          "unique_trigger_observed": 0,
+          "unique_trigger_started": 0,
+          "unique_trigger_terminal": 0,
+          "unique_unwind": 0,
+          "unique_warmup_complete": 0,
+          "unique_warmup_started": 0
+        },
+        "gates": {
+          "accounting_reconciled": true,
+          "freshness_finality_unchanged": true,
+          "paper_only": true,
+          "policy_unchanged": true,
+          "responsive": true,
+          "state_isolated": true,
+          "telemetry_complete": true
+        },
+        "infrastructure_failure": null,
+        "open_positions": 0,
+        "process_restarts": 0,
+        "provider_requests": 465,
+        "pump_discovery_terminal": {
+          "completed_at": 1790450667,
+          "configured_seconds": 600,
+          "deadline": 1790450664,
+          "reason": "flat_after_discovery"
+        },
+        "stream_state": {
+          "counters": {
+            "archive_bytes": 125679459,
+            "archived_records": 85117,
+            "compacted_records": 10455,
+            "disconnect:local_receive_dispatch_capacity": 22,
+            "expired_candidate_interests": 0,
+            "gap_repair_attempts": 206,
+            "gap_repair_calls": 122,
+            "gap_repair_retries": 140,
+            "gaps_created": 66,
+            "gaps_repaired": 44,
+            "ingested_account": 3070,
+            "ingested_event": 73427,
+            "ingested_transaction": 39141,
+            "ipc.applied": 450,
+            "ipc.deduplicated": 37,
+            "ipc.rejected": 178,
+            "meteora.complete_local_reads": 0,
+            "meteora.historical_reconstruction_rpc_calls": 0,
+            "meteora.incomplete_local_reads": 0,
+            "meteora.local_evidence_reads": 0,
+            "meteora.local_triggers": 1,
+            "meteora.repair_assisted_windows": 0,
+            "pump.complete_local_reads": 2,
+            "pump.foreground_historical_rpc_calls": 0,
+            "pump.gap_blocked_queries": 91,
+            "pump.incomplete_local_reads": 91,
+            "pump.local_evidence_reads": 88,
+            "pump.repair_assisted_windows": 0,
+            "rejected_evidence_records": 0,
+            "stream_accepted_messages": 3963,
+            "stream_bytes": 4123086164,
+            "stream_messages": 3963,
+            "stream_reconnects": 22,
+            "stream_rejected_messages": 0
+          },
+          "lane_counters": {
+            "ipc_retries": 33,
+            "pump.complete_local_reads": 2,
+            "pump.gap_blocked_queries": 91,
+            "pump.incomplete_local_reads": 91,
+            "pump.local_evidence_reads": 88
+          },
+          "service_health": {
+            "ipc": {
+              "ipc.disconnected": 1,
+              "ipc.pending": 48,
+              "stream.commit_batch_bytes_peak": 15995849,
+              "stream.commit_batch_messages_peak": 5,
+              "stream.commit_batch_saved_transactions": 71,
+              "stream.commit_batches": 803,
+              "stream.commit_messages": 4317,
+              "stream.commit_peak_microseconds": 1388434,
+              "stream.commit_total_microseconds": 326110567,
+              "stream.decode_peak_microseconds": 334399,
+              "stream.decode_process_messages": 867,
+              "stream.decode_queue_wait_peak_microseconds": 84715,
+              "stream.decode_thread_messages": 3450,
+              "stream.decode_total_microseconds": 60136092,
+              "stream.decoded_drain_peak": 63,
+              "stream.dispatch_bytes_peak": 98422228,
+              "stream.dispatch_overflow_frame_bytes": 10355539,
+              "stream.dispatch_overflow_pending_bytes": 98422228,
+              "stream.dispatch_overflow_pending_frames": 64,
+              "stream.dispatch_queue_overflow": 22,
+              "stream.dispatch_queue_peak": 31,
+              "stream.drain_count": 22,
+              "stream.drain_peak_microseconds": 7303588,
+              "stream.event_loop_lag_peak_microseconds": 199402,
+              "stream.ordered_commit_wait_peak_microseconds": 7238750,
+              "stream.ordered_ready_peak": 63,
+              "stream.outstanding_frames_peak": 64,
+              "stream.raw_message_peak_bytes": 15429494,
+              "stream.received_messages": 4317,
+              "stream.retained_transactions": 230792,
+              "stream.source_transactions": 1020564,
+              "stream.subscription_sync_peak_microseconds": 1133829,
+              "stream.subscription_syncs": 580
+            },
+            "provider": {
+              "endpoint_identity": "267ddbf0c6aab1672c805ae5ad62c90cb30bb9883867f3286d66dedd572b3314",
+              "network": "solana-mainnet",
+              "provider": "alchemy_solana_mainnet"
+            }
+          },
+          "unresolved_gaps": 22
+        },
+        "unexpected_exit": false
+      },
+      "ramses": {
+        "accounting_reconciled": true,
+        "continuous_uptime_seconds": 600.3169849630001,
+        "exit_code": 0,
+        "funnel": {
+          "active_pools": 0,
+          "completed_scans": 3,
+          "infrastructure_censored_scans": 0,
+          "scans": 3,
+          "unique_admitted": 0,
+          "unique_capacity_censored": 0,
+          "unique_consumer_deadline": 0,
+          "unique_deployed": 0,
+          "unique_discovered": 3,
+          "unique_economic_vector": 0,
+          "unique_entry_cancelled": 0,
+          "unique_entry_filled": 0,
+          "unique_entry_reserved": 0,
+          "unique_evaluated": 3,
+          "unique_evidence_complete": 0,
+          "unique_evidence_not_required": 3,
+          "unique_evidence_requested": 0,
+          "unique_forward_observation": 0,
+          "unique_fresh_state": 0,
+          "unique_local_budget_exhausted": 0,
+          "unique_no_authentic_activity": 0,
+          "unique_prospective_range": 0,
+          "unique_provider_failed": 0,
+          "unique_qualified": 0,
+          "unique_reconstruction_complete": 0,
+          "unique_reconstruction_incomplete": 0,
+          "unique_reconstruction_started": 0,
+          "unique_rejected": 3,
+          "unique_screened": 3,
+          "unique_settled": 0,
+          "unique_stale_after_complete_evidence": 0,
+          "unique_stale_before_evidence": 0,
+          "unique_stale_during_evidence": 0,
+          "unique_strategy_rejection": 3,
+          "unique_terminal": 0,
+          "unique_trigger_authenticated": 0,
+          "unique_trigger_observed": 0,
+          "unique_trigger_started": 0,
+          "unique_trigger_terminal": 0,
+          "unique_unwind": 0,
+          "unique_warmup_complete": 0,
+          "unique_warmup_started": 0
+        },
+        "gates": {
+          "accounting_reconciled": true,
+          "freshness_finality_unchanged": true,
+          "paper_only": true,
+          "policy_unchanged": true,
+          "responsive": true,
+          "state_isolated": true,
+          "telemetry_complete": true
+        },
+        "open_positions": 0,
+        "process_restarts": 0,
+        "provider_requests": 167,
+        "unexpected_exit": false
+      }
+    },
+    "maximum_sampled_active_broker_jobs": 0,
+    "phase": "smoke",
+    "run_id": "d93ddf14-b126-4ff9-a92a-0b7bf5e5afa6",
+    "shared_provider": {
+      "robinhood": {
+        "admission_by_lane": {
+          "pons": {
+            "failed": 0,
+            "failed_by_method": {},
+            "failed_by_reason": {},
+            "failed_by_scope": {},
+            "granted": 1195,
+            "granted_by_priority": {
+              "10": 861,
+              "30": 334
+            },
+            "grants_by_minute": {
+              "0": 6,
+              "1": 79,
+              "10": 104,
+              "11": 96,
+              "2": 124,
+              "3": 126,
+              "4": 100,
+              "5": 109,
+              "6": 118,
+              "7": 122,
+              "8": 104,
+              "9": 107
+            },
+            "last_grant_monotonic": 718.845867858,
+            "max_wait_seconds": 7.685496889999996,
+            "requested": 1195,
+            "total_wait_seconds": 122.58633180600106
+          },
+          "ramses": {
+            "failed": 0,
+            "failed_by_method": {},
+            "failed_by_reason": {},
+            "failed_by_scope": {},
+            "granted": 167,
+            "granted_by_priority": {
+              "20": 137,
+              "50": 30
+            },
+            "grants_by_minute": {
+              "0": 7,
+              "1": 43,
+              "10": 3,
+              "2": 26,
+              "3": 25,
+              "4": 4,
+              "5": 4,
+              "6": 4,
+              "7": 4,
+              "8": 6,
+              "9": 41
+            },
+            "last_grant_monotonic": 640.301424218,
+            "max_wait_seconds": 8.316665726999986,
+            "requested": 167,
+            "total_wait_seconds": 83.19564291300026
+          }
+        },
+        "endpoints": [
+          {
+            "cooldown_remaining_seconds": 0,
+            "identity": "356037d82405f7b99eee047ef945ebe35e5a4cd68024880b4cdd9c276119b4fb",
+            "interval_seconds": 0.5,
+            "requests": 430
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "identity": "78ccdeee5ef1eac240a33a5d090abde993a67b38a8b42627004d153a1f8c7402",
+            "interval_seconds": 0.5,
+            "requests": 932
+          }
+        ],
+        "estimated_cu": {
+          "billing_estimate_only": true,
+          "estimated_cu": 65268,
+          "estimated_cu_by_method": {
+            "eth_call": 43888,
+            "eth_chainId": 0,
+            "eth_gasPrice": 4700,
+            "eth_getBlockByNumber": 9140,
+            "eth_getCode": 2060,
+            "eth_getLogs": 480,
+            "eth_getTransactionReceipt": 5000
+          },
+          "known_estimated_cu": 65268,
+          "logical_calls": 2767,
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "scope": "identified_alchemy_transports_only",
+          "unknown_provider_logical_calls": 0,
+          "unpriced_methods": {}
+        },
+        "lanes": {
+          "pons": {
+            "alchemy_logical_calls": 2550,
+            "billing_estimate_only": true,
+            "cu_scope": "identified_alchemy_transports_only",
+            "estimated_cu": 60198,
+            "estimated_cu_by_method": {
+              "eth_call": 40118,
+              "eth_chainId": 0,
+              "eth_gasPrice": 4640,
+              "eth_getBlockByNumber": 8560,
+              "eth_getCode": 1500,
+              "eth_getLogs": 480,
+              "eth_getTransactionReceipt": 4900
+            },
+            "http_status": {
+              "200": 1189,
+              "429": 6
+            },
+            "known_estimated_cu": 60198,
+            "logical_calls": 3500,
+            "logical_calls_per_physical_request": 2.928870292887029,
+            "max_queue_depth": 2,
+            "methods": {
+              "eth_call": 1543,
+              "eth_chainId": 26,
+              "eth_gasPrice": 232,
+              "eth_getBlockByNumber": 428,
+              "eth_getCode": 75,
+              "eth_getLogs": 951,
+              "eth_getTransactionReceipt": 245
+            },
+            "provider_methods": {
+              "alchemy": {
+                "eth_call": 1543,
+                "eth_chainId": 19,
+                "eth_gasPrice": 232,
+                "eth_getBlockByNumber": 428,
+                "eth_getCode": 75,
+                "eth_getLogs": 8,
+                "eth_getTransactionReceipt": 245
+              },
+              "robinhood_public": {
+                "eth_chainId": 7,
+                "eth_getLogs": 943
+              }
+            },
+            "queue_wait_seconds": 113.92697334700168,
+            "requests": 1195,
+            "retries": 0,
+            "rpc_errors": {},
+            "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+            "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+            "transport_seconds": 157.75927924099904,
+            "unknown_provider_logical_calls": 0,
+            "unpriced_methods": {}
+          },
+          "ramses": {
+            "alchemy_logical_calls": 217,
+            "billing_estimate_only": true,
+            "cu_scope": "identified_alchemy_transports_only",
+            "estimated_cu": 5070,
+            "estimated_cu_by_method": {
+              "eth_call": 3770,
+              "eth_chainId": 0,
+              "eth_gasPrice": 60,
+              "eth_getBlockByNumber": 580,
+              "eth_getCode": 560,
+              "eth_getTransactionReceipt": 100
+            },
+            "http_status": {
+              "200": 166,
+              "429": 1
+            },
+            "known_estimated_cu": 5070,
+            "logical_calls": 340,
+            "logical_calls_per_physical_request": 2.035928143712575,
+            "max_queue_depth": 2,
+            "methods": {
+              "eth_call": 145,
+              "eth_chainId": 10,
+              "eth_gasPrice": 3,
+              "eth_getBlockByNumber": 95,
+              "eth_getCode": 28,
+              "eth_getLogs": 54,
+              "eth_getTransactionReceipt": 5
+            },
+            "provider_methods": {
+              "alchemy": {
+                "eth_call": 145,
+                "eth_chainId": 7,
+                "eth_gasPrice": 3,
+                "eth_getBlockByNumber": 29,
+                "eth_getCode": 28,
+                "eth_getTransactionReceipt": 5
+              },
+              "robinhood_public": {
+                "eth_chainId": 3,
+                "eth_getBlockByNumber": 66,
+                "eth_getLogs": 54
+              }
+            },
+            "queue_wait_seconds": 81.89151234199993,
+            "requests": 167,
+            "retries": 0,
+            "rpc_errors": {},
+            "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+            "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+            "transport_seconds": 24.10162676400047,
+            "unknown_provider_logical_calls": 0,
+            "unpriced_methods": {}
+          }
+        },
+        "last_sequence": 1362,
+        "queues": [],
+        "state": "observed"
+      },
+      "robinhood_reuse": {
+        "cache_entries": 2457,
+        "database_bytes": 8294400,
+        "inflight_jobs": 0,
+        "lanes": {
+          "pons": {
+            "coalesced": {},
+            "hits": {
+              "eth_gasPrice": 13,
+              "eth_getBlockByNumber": 6
+            },
+            "misses": {
+              "eth_call": 1543,
+              "eth_chainId": 19,
+              "eth_gasPrice": 232,
+              "eth_getBlockByNumber": 428,
+              "eth_getCode": 75,
+              "eth_getLogs": 8,
+              "eth_getTransactionReceipt": 245
+            },
+            "session_hits": {
+              "eth_chainId": 245
+            }
+          },
+          "ramses": {
+            "coalesced": {},
+            "hits": {
+              "eth_call": 52,
+              "eth_getCode": 24
+            },
+            "misses": {
+              "eth_call": 145,
+              "eth_chainId": 7,
+              "eth_gasPrice": 3,
+              "eth_getBlockByNumber": 29,
+              "eth_getCode": 28,
+              "eth_getTransactionReceipt": 5
+            },
+            "session_hits": {}
+          }
+        },
+        "last_sequence": 3107,
+        "scope": "shared provider cache lookups; lane-native caches remain separately reported",
+        "state": "observed"
+      },
+      "solana": {
+        "lane_grants": [
+          {
+            "deadline_misses": 0,
+            "granted": 238,
+            "lane": "evidence",
+            "max_wait_seconds": 1.1464088220000122,
+            "queue_wait_seconds": 32.97206370999995,
+            "requested": 238
+          },
+          {
+            "deadline_misses": 0,
+            "granted": 23,
+            "lane": "meteora",
+            "max_wait_seconds": 0.48202677500000846,
+            "queue_wait_seconds": 6.27931027900005,
+            "requested": 23
+          },
+          {
+            "deadline_misses": 0,
+            "granted": 465,
+            "lane": "pump",
+            "max_wait_seconds": 4.5547196100000065,
+            "queue_wait_seconds": 143.93577572900114,
+            "requested": 465
+          }
+        ],
+        "method_pressure": [
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "getGenesisHash",
+            "provider": "solana",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "getMultipleAccounts",
+            "provider": "solana",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "getBlockTime",
+            "provider": "solana",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          },
+          {
+            "cooldown_remaining_seconds": 0,
+            "method": "getTransactionsForAddress",
+            "provider": "solana",
+            "rate_errors": 0,
+            "rate_streak": 0,
+            "success_streak": 0
+          }
+        ],
+        "providers": [
+          {
+            "cooldown": 0.0,
+            "grants": 726,
+            "next_at": 721.118869164,
+            "provider": "solana",
+            "rate_errors": 0
+          }
+        ],
+        "queues": []
+      },
+      "solana_reuse": {
+        "interpretation": "Hydration attributed to executing lane; cross-lane consumers share the same durable body. Consumer expirations are not unique opportunities.",
+        "lanes": {
+          "meteora": {
+            "immutable_read_events": [
+              {
+                "count": 7,
+                "kind": "miss",
+                "method": "getBlockTime"
+              },
+              {
+                "count": 1,
+                "kind": "miss",
+                "method": "getGenesisHash"
+              }
+            ],
+            "reuse": {},
+            "unique_bodies_hydrated": 0,
+            "unique_signatures_requested": 0
+          },
+          "pump": {
+            "immutable_read_events": [
+              {
+                "count": 186,
+                "kind": "miss",
+                "method": "getBlockTime"
+              },
+              {
+                "count": 10,
+                "kind": "cross_lane_hit",
+                "method": "getGenesisHash"
+              }
+            ],
+            "reuse": {},
+            "unique_bodies_hydrated": 0,
+            "unique_signatures_requested": 0
+          }
+        },
+        "unique_bodies_hydrated": 0,
+        "unique_signatures_observed": 0,
+        "unique_signatures_requested": 0
+      }
+    },
+    "smoke_engineering": {
+      "failures": [],
+      "scope": "ten_minute_engineering_preflight_only; not natural or sustained certification",
+      "status": "PASS"
+    },
+    "source_diff_hashes": {
+      "meteora": "f11e4d8386bcf83aa314b0bd127bc02049431139e0e9a0cc1188834a5dfd7a35",
+      "pons": "3dae04d625ba98f902db27c7ab12b1e80df61b8cff49c5762be9734d17449a74",
+      "pump": "50f0fc0a16a1bd5373a69a96080ff7cad34626e97c848bd1cc0c598e488a3bb8",
+      "ramses": "0c4bfa59e9ab1cd1023f66969e073e81142eee4adf3676f1717a77a3f3d206df"
+    },
+    "source_manifest_hash": "dd6cb4078b39638a0a7f6a21a895db3afa81f4e2dbdd0b7249924b8e09d63b4a",
+    "started_at": 1790450062.8776944,
+    "status": "FINISHED",
+    "supervisor_error": null
+  },
+  "runtime_sha": "2d93e6b5fdb751a3a3e9b057cca759bb0549839f",
+  "workflow_run_id": 36265299828
+}

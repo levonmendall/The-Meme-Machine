@@ -5,6 +5,7 @@ identity is immutable. Missing continuity is a sticky entry block until a new
 authenticated graduation identity, rather than a manufactured historical value.
 """
 import json
+import time
 import sqlite3
 from fractions import Fraction
 from contextlib import contextmanager
@@ -130,10 +131,18 @@ class Worker:
         from concurrent.futures import ThreadPoolExecutor
         self.pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='survivor')
         self.factory=factory;self.service=None;self.future=None;self.last=0;self.status={}
+        self.completed_steps=0;self.successful_steps=0;self.admission_enabled_steps=0
 
     def _step(self,admit):
         if self.service is None:self.service=self.factory()
-        return self.service.step(admit=admit)
+        status=self.service.step(admit=admit)
+        self.completed_steps+=1
+        if admit:self.admission_enabled_steps+=1
+        if not status.get('last_boundary'):self.successful_steps+=1
+        return dict(status,machinery=dict(completed_steps=self.completed_steps,
+            successful_steps=self.successful_steps,allocation_authority=bool(admit),
+            admission_enabled_steps=self.admission_enabled_steps,
+            last_step_completed_at=time.time()))
 
     def tick(self,now,*,admit=True):
         if self.future is not None:

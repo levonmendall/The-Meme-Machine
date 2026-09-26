@@ -1,0 +1,45 @@
+name: Run 374 live-status publisher repair certification
+on:
+  push:
+    branches: [repair/run374-live-status-publisher-20260926]
+permissions:
+  contents: read
+  actions: read
+  checks: read
+jobs:
+  focused:
+    if: contains(github.event.head_commit.message, '[run374-publisher]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Run live-status regressions
+        run: python -m unittest certification.tests.test_live_status -v
+      - name: Compile repaired publisher
+        run: python -m py_compile certification/live_status.py certification/tests/test_live_status.py
+      - name: Verify publisher journals are preserved
+        run: |
+          grep -q "certification-smoke-publisher.jsonl" .github/workflows/four-lane-certification.yml
+          grep -q "certification-hourly-publisher.jsonl" .github/workflows/four-lane-certification.yml
+      - name: Verify this workflow is non-market only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('.github/workflows/run374-live-status-repair.yml').read_text()
+          header=text.split('\njobs:',1)[0]
+          assert 'workflow_dispatch:' not in header
+          assert 'workflow_call:' not in header
+          assert 'uses: ./.github/workflows/non-market-certification.yml' in text
+          PY
+  full-non-market:
+    if: contains(github.event.head_commit.message, '[non-market-cert]')
+    uses: ./.github/workflows/non-market-certification.yml
+    secrets: inherit
+# NON-MARKET ONLY. No smoke, hourly campaign, continuation, market dispatch, signing or submission.

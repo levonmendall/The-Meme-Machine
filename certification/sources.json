@@ -219,7 +219,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "3971deb0c701f3bc52471a8e566c1b3bc08b7de1d78a7d1b4c99ba41ee10e6cc",
+      "source_diff_sha256": "be03b60ca8197908f8da1a743134ed212d20958637740a737a6ee18cd4c08d36",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -249,7 +249,7 @@
         "meme_machine/pumpswap_survivor_evidence.py": "99786102761a538b0a3e5694e95bae827adceaf5cca986b96ac4b4653b571323",
         "meme_machine/pumpswap_survivor_runtime.py": "674625ad2da3d32e4372687c8848fbc04f232b55a1f73b2a89dde41c2b45e68a",
         "meme_machine/solana_evidence_runtime.py": "076f62432840bc1caab499f239fb728a7b469670cd016723a30068c9de6b11fd",
-        "meme_machine/solana_evidence_service.py": "da723cd38f4357417346efbe6716a3bfb7540a86c722d6174fe957c337a67e6f",
+        "meme_machine/solana_evidence_service.py": "c485537deea15c6655ef2bedc163f838251289b22a87b7b388173c1e4c1af837",
         "tests/pump_acceleration_natural_prospective.py": "77cc37d83374ae74e0f24569cba64df83d7ffe9752e376481ac50a7d3e061854",
         "tests/test_directional_capacity.py": "cf03c522706e8eda4c5f93bc53762bf5dfc6c47765a990a55a4258120f26e8e8",
         "tests/test_evidence_runtime_cutover.py": "ee7a5140ceca1f188cecd89948789163e1a902fd23977d88305e1354bf578351",
@@ -286,14 +286,21 @@
         "integration_base": "af60b355995dfa960555288fa73808bb7aba5d25",
         "base_certification": "36244774274",
         "paper_only": true
-      }
+      },
+      "integration_overlay_files": [
+        "meme_machine/solana_evidence_service.py",
+        "tests/test_run372_large_frame_runtime.py",
+        "meme_machine/solana_program_decoders.py",
+        "tests/test_run373_dispatch_throughput.py",
+        "tests/test_run376_dispatch_pressure.py"
+      ]
     },
     "meteora": {
       "source_branch": "repair/meteora-legacy-one-side-source-20260924",
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
-      "source_diff_sha256": "38013fa55b079684bde71ef1d6849f0cfbc7eea18f957493f6b0f3a93ad29cb6",
+      "source_diff_sha256": "107cedda12d546e62271b170455c533383c0458c9638c7c8b648ebb5f3402d41",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -546,7 +553,14 @@
         "certification/patches/run370-capacity-meteora.patch",
         "certification/patches/run370-discovery-snapshot-meteora.patch"
       ],
-      "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b"
+      "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+      "integration_overlay_files": [
+        "meme_machine/solana_evidence_service.py",
+        "tests/test_run372_large_frame_runtime.py",
+        "meme_machine/solana_program_decoders.py",
+        "tests/test_run373_dispatch_throughput.py",
+        "tests/test_run376_dispatch_pressure.py"
+      ]
     },
     "pons": {
       "source_branch": "strategy/pons-profit-protection-v2-20260923",
@@ -1147,7 +1161,7 @@
         "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "5247713b686c92870bc8abf09c94528235ff3227ce744ba9eb1ff4140810c8ce",
+      "source_diff_sha256": "0c4bfa59e9ab1cd1023f66969e073e81142eee4adf3676f1717a77a3f3d206df",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
@@ -1162,7 +1176,8 @@
         "certification/patches/target-coverage-repair-ramses.patch",
         "certification/patches/evidence-reconstruction-ramses.patch",
         "certification/patches/robinhood-evidence-plane-ramses.patch",
-        "certification/patches/robinhood-provider-authority-ramses.patch"
+        "certification/patches/robinhood-provider-authority-ramses.patch",
+        "certification/patches/run371-ramses-transient-pressure.patch"
       ]
     }
   },

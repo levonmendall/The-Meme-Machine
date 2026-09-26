@@ -12,6 +12,14 @@ import sqlite3
 _active = ContextVar('robinhood_http_attempt', default=None)
 
 
+def _transient_file_size(path):
+    """Return zero when a SQLite transient file is checkpointed away mid-snapshot."""
+    try:
+        return Path(path).stat().st_size
+    except FileNotFoundError:
+        return 0
+
+
 def http_started():
     current = _active.get()
     if current is not None:
@@ -77,7 +85,7 @@ def snapshot(path, fingerprint):
         physical_count_semantics='initiated HTTP attempts; unresolved attempts may have reached provider',
         health=dict(queue_depth=sum(priorities.values()),queue_by_priority=priorities,repair_backlog=priorities.get(40,0),
             effective_interval_seconds=limits[0],cooldown_until_monotonic=limits[1],database_bytes=Path(path).stat().st_size,
-            wal_bytes=Path(str(path)+'-wal').stat().st_size if Path(str(path)+'-wal').exists() else 0),
+            wal_bytes=_transient_file_size(str(path)+'-wal')),
         historical_physical_requests='UNMEASURABLE before boundary instrumentation')
     return result
 
