@@ -18,6 +18,24 @@ def canonical(value):
     return json.dumps(value,sort_keys=True,separators=(',',':'))
 
 
+HISTORICAL_OVERLAY_SHA256='ce328f328c0ea95d3e681da3c8912a095c13cc0aa590999088c161843df48503'
+
+
+def historical_overlay_sha256():
+    # The original certified receipt was created by Git when seven-character
+    # index abbreviations were sufficient. Default abbreviation length grows as
+    # the repository object graph grows, which made identical pinned source+patch
+    # bytes produce a different receipt. Pin the original representation and
+    # fail closed if Git no longer reproduces the exact frozen overlay.
+    raw=subprocess.check_output([
+        'git','diff','--binary','--abbrev=7','HEAD'
+    ])
+    actual=hashlib.sha256(raw).hexdigest()
+    if actual!=HISTORICAL_OVERLAY_SHA256:
+        raise ValueError('historical_resolution_overlay_identity_mismatch')
+    return actual
+
+
 def main():
     p=argparse.ArgumentParser()
     p.add_argument('--copy',required=True)
@@ -85,8 +103,7 @@ def main():
     receipt=dict(
         scope='digest_pinned_historical_copy_zero_proceeds_resolution',
         source_sha=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
-        overlay_sha256=hashlib.sha256(
-            subprocess.check_output(['git','diff','--binary','HEAD'])).hexdigest(),
+        overlay_sha256=historical_overlay_sha256(),
         accounting_source_sha256=hashlib.sha256(code.read_bytes()).hexdigest(),
         lifecycle_id=identity,
         original_journal_hash=before['journal_hash'],
