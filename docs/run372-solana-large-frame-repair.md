@@ -20,3 +20,5 @@ artificially slows decoding, and requires the event loop to remain responsive wh
 coverage is completed without ping-timeout or dispatch-capacity disconnects.
 
 PAPER ONLY. No market workflow is authorized by this repair or its certification.
+
+Focused regression note: small-message queue depth remains 64, while a 96 MiB byte cap bounds large-frame memory.
