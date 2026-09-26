@@ -51,3 +51,9 @@ Prepared runtime identities:
 
 These identities are frozen in `certification/sources.json` before the full
 non-market certification.
+
+The first full non-market attempt (`36263125298`) stopped at protocol freeze
+because the frozen Pump/Meteora executable diff identities still named the Run
+373 runtime. Strategy versions, source SHAs, and policy hashes were unchanged.
+Only those two frozen `source_diff_sha256` values were advanced to the focused-
+certified Run 375 prepared identities before retrying non-market certification.
