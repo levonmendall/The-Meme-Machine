@@ -151,6 +151,8 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
                     else:
                         self.fail('large-frame acceptance stalled '+json.dumps(reader.telemetry(),sort_keys=True)[:4000])
                     await self.wait_for(lambda:(reader.telemetry()['service_health'].get('ipc') or {}).get('stream.decode_process_messages',0)>=4)
+                    await self.wait_for(lambda:'stream.event_loop_lag_peak_microseconds' in
+                                        (reader.telemetry()['service_health'].get('ipc') or {}))
                     telemetry=reader.telemetry()
                     runtime=telemetry['service_health']['ipc']
                     self.assertEqual(runtime['stream.decode_process_messages'],4)
@@ -165,7 +167,7 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
                     self.assertTrue(gaps)
                     self.assertLess(max(gaps),.5)
                     self.assertLess(
-                        runtime.get('stream.event_loop_lag_peak_microseconds',500_000),
+                        runtime['stream.event_loop_lag_peak_microseconds'],
                         500_000,
                     )
                     reader.close()
