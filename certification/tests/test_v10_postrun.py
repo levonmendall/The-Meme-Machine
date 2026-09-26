@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from certification.causal import reconcile,transition,native_states
 from certification.worker import Observer
+from certification.retained_v9_replay import require_historical_result
 
 
 class CandidateCausalTests(unittest.TestCase):
@@ -98,6 +99,13 @@ class CandidateCausalTests(unittest.TestCase):
 
 
 class RetainedDecisionsTests(unittest.TestCase):
+    def test_historical_result_is_exact_only_for_identical_policy(self):
+        row=dict(policy_hash='old',result={'persistent':False},function='f')
+        self.assertFalse(require_historical_result(row,'new',{'persistent':True}))
+        self.assertTrue(require_historical_result(row,'old',{'persistent':False}))
+        with self.assertRaises(AssertionError):
+            require_historical_result(row,'old',{'persistent':True})
+
     def test_five_record_digests_and_economic_replay_in_prepared_lanes(self):
         root=Path(__file__).resolve().parents[2]
         work=os.environ.get('MM_TEST_LANE_WORKTREES')
