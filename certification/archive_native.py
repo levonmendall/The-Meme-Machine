@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import stat
 import sqlite3
 import time
 
@@ -54,6 +55,12 @@ def copy_snapshot(source,target,records):
             if _sqlite(base):
                 records.append(dict(source=str(source),kind='sqlite_sidecar_in_database_backup'))
                 return
+    # The evidence service's Unix endpoint can remain present during graceful
+    # drain. It contains no durable bytes and is never an archive input. Record
+    # the exclusion instead of opening it (which aborts snapshot publication).
+    if stat.S_ISSOCK(source.stat().st_mode):
+        records.append(dict(source=str(source),kind='transient_ipc_socket_excluded'))
+        return
     target.parent.mkdir(parents=True,exist_ok=True)
     row=dict(source=str(source),target=str(target),started_at=time.time())
     try:

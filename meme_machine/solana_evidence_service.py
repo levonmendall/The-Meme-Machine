@@ -1004,6 +1004,15 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
 
         tasks=[asyncio.create_task(source()),asyncio.create_task(repair()),asyncio.create_task(maintenance()),asyncio.create_task(stop.wait())]
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
+        if stop.is_set():
+            # The stop waiter/maintenance often wins FIRST_COMPLETED. Reception
+            # stops immediately, but the source owns the admitted-frame drain.
+            # Do not cancel that owner while decoded frames still await commit.
+            try:await asyncio.wait_for(asyncio.shield(tasks[0]),30)
+            except TimeoutError:
+                await work(lambda state:setattr(state,'failed',True),0)
+                await work(lambda state:state.fence.health('shutdown_boundary','admitted_frame_drain_timeout'),0)
+                raise EvidenceUnavailable('admitted_frame_drain_timeout') from None
         for task in done:task.result()
     except BaseException:
         await work(lambda state:setattr(state,'failed',True),0)

@@ -290,7 +290,10 @@ class EvidenceWriter:
         except ValueError:
             with self.transaction():self._count('rejected_evidence_records',len(records))
             raise
-        if sum(len(canonical(body).encode()) for _, body in bodies) > 16 * 1024 * 1024:
+        # One immutable serialization supplies the size bound, content hash and
+        # hot encoding. It is local to this bounded ingest call, never a cache.
+        serialized = [canonical(body) for _, body in bodies]
+        if sum(len(raw.encode()) for raw in serialized) > 16 * 1024 * 1024:
             raise EvidenceUnavailable('ingestion_payload_bound')
         hot_bytes=sum(p.stat().st_size for p in (self.path,Path(str(self.path)+'-wal')) if p.exists())
         if hot_bytes >= self.max_hot_bytes:
@@ -307,8 +310,8 @@ class EvidenceWriter:
                 raise EvidenceConflict('evidence_store_poisoned')
             # Check the entire batch before persisting any of it.
             staged = {}
-            for record, body in bodies:
-                checksum = digest(body)
+            for (record, body), raw in zip(bodies, serialized):
+                checksum = hashlib.sha256(raw.encode()).hexdigest()
                 old = self.db.execute('SELECT hash FROM records WHERE identity=?', (record.identity,)).fetchone()
                 previous = old[0] if old else staged.get(record.identity)
                 if previous and previous != checksum:
@@ -320,11 +323,11 @@ class EvidenceWriter:
                 self.db.execute("INSERT OR REPLACE INTO meta VALUES('poisoned','1')")
                 self._count('evidence_conflicts')
             else:
-                for record, body in bodies:
+                for (record, body), raw in zip(bodies, serialized):
                     inserted = self.db.execute('INSERT OR IGNORE INTO records VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
                         (record.identity, record.scope, record.slot, record.signature, record.program,
                          record.market_time, record.event_index, record.transaction_index, record.kind,
-                         encode_body(body,self.db), staged[record.identity], record.observed_at)).rowcount
+                         encode_body(body,self.db,canonical_body=raw), staged[record.identity], record.observed_at)).rowcount
                     self.db.executemany('INSERT OR IGNORE INTO addresses VALUES(?,?,?)',
                         [(address, record.identity, record.slot) for address in body['addresses']])
                     self.db.execute('INSERT OR IGNORE INTO lineage VALUES(?,?,?,?)',

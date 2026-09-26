@@ -811,7 +811,7 @@ index 0000000000000000000000000000000000000000..73061db4c92e62a5b4cf50698e5a06f9
 +    def now(self):return int(time.time())
 +    def _provider(self):
 +        if self.rpc is None or self.rpc.used>150:
-+            self.rpc=configured_rpc(self.endpoint,limit=240,per_scope=220,retries=0)
++            self.rpc=configured_rpc(self.endpoint,limit=200,per_scope=200,retries=0)
 +        if not getattr(self,'deployments_verified',False):
 +            roles=('pons_v2_factory','pons_v2_hook','uniswap_v4_manager')
 +            results=self.rpc.batch([('eth_getCode',[load(role)['address'],'latest']) for role in roles],scope='pons_survivor')

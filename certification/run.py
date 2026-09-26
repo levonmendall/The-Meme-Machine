@@ -853,7 +853,12 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
             if watch.failure:
                 rows[lane]['infrastructure_failure']=watch.failure
                 rows[lane]['gates']['responsive']=False
-        evidence.close()
+        evidence_terminal_snapshot=evidence.snapshot()
+        evidence_shutdown=evidence.close()
+        # Capture run-time gaps before normal shutdown creates its explicit
+        # terminal discontinuity. Both Solana lanes share this exact authority.
+        if not isinstance(evidence_terminal_snapshot,dict):evidence_terminal_snapshot={}
+        if not isinstance(evidence_shutdown,dict):evidence_shutdown={}
         broker_terminal=record_unfinished_broker_jobs(run/'shared-solana-evidence.sqlite',journal,time.time())
         try:source_unchanged=source_integrity(worktrees)==gate['source_diff_hashes']
         except (ValueError,OSError,subprocess.CalledProcessError):source_unchanged=False
@@ -861,6 +866,8 @@ def launch(worktrees,output,seconds,phase,gate_file,smoke_result=None):
             row['gates']['freshness_finality_unchanged']=source_unchanged
             if not source_unchanged:row['gates']['policy_unchanged']=False
         result=dict(run_id=run_id,phase=phase,status='FAILED' if interrupted else 'FINISHED',started_at=start_wall,ended_at=time.time(),elapsed_seconds=time.monotonic()-started,continuous_overlap_seconds=max(0,min(terminal_times.values(),default=time.monotonic())-common_start),source_manifest_hash=digest(spec),lanes=rows,shared_provider=dict(solana=governor.status(),robinhood=pressure.snapshot(),robinhood_reuse=reuse.snapshot(),solana_reuse=solana_reuse.snapshot()))
+        result['shared_provider']['solana_evidence_plane']=evidence_terminal_snapshot
+        result['evidence_service_shutdown']=evidence_shutdown
         result.update(supervisor_error=supervisor_error,integration_sha=git('rev-parse','HEAD'),implementation_hash=implementation_hash(),
             maximum_sampled_active_broker_jobs=max_broker_active,broker_shutdown_terminals=broker_terminal,
             source_diff_hashes=gate['source_diff_hashes'])

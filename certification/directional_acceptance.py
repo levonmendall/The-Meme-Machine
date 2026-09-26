@@ -6,7 +6,8 @@ from certification.run import ROOT,source_integrity,manifest,git
 
 # The approved alpha remains byte-identical while certified infrastructure
 # overlays may change. Pin the successful Run 376 operational Ramses patch.
-INFRA_OVERLAYS={'certification/patches/run371-ramses-transient-pressure.patch'}
+PRESERVED_INFRA={'certification/patches/run371-ramses-transient-pressure.patch'}
+INFRA_OVERLAYS=PRESERVED_INFRA|{'certification/patches/run377-ramses-rpc-state-attribution.patch'}
 
 def strategy_contract(row):
  value=dict(row)
@@ -28,7 +29,7 @@ def run(worktrees,output):
  checks=dict(exactly_four_lanes=set(spec['lanes'])=={'pump','pons','meteora','ramses'},
              meteora_unchanged=strategy_contract(spec['lanes']['meteora'])==strategy_contract(base['lanes']['meteora']),
              ramses_unchanged=strategy_contract(spec['lanes']['ramses'])==strategy_contract(base['lanes']['ramses']))
- checks['preserved_ramses_runtime_repair']=all((ROOT/p).read_bytes()==subprocess.check_output(['git','show','2d93e6b5fdb751a3a3e9b057cca759bb0549839f:'+p],cwd=ROOT) for p in INFRA_OVERLAYS)
+ checks['preserved_ramses_runtime_repair']=all((ROOT/p).read_bytes()==subprocess.check_output(['git','show','2d93e6b5fdb751a3a3e9b057cca759bb0549839f:'+p],cwd=ROOT) for p in PRESERVED_INFRA)
  observed=source_integrity(roots);components={};suites={}
  for lane in ('pump','pons'):
   env=dict(os.environ,PYTHONPATH=str(ROOT))

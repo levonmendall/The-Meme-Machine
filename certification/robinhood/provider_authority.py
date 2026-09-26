@@ -95,6 +95,7 @@ def failure_class(error):
         return value
     known = {
         'provider_transport_failure', 'provider_missing_result',
+        'provider_state_unavailable',
         'provider_invalid_envelope', 'provider_invalid_batch_envelope',
         'provider_invalid_batch_ids', 'provider_invalid_json', 'provider_response_capacity',
         'provider_log_block_range_limit', 'provider_pool_budget_exhausted',

@@ -385,6 +385,7 @@ class Observer:
             else:
                 methods=[args[0]];wire=[(args[0],args[1])]
             instance.evidence_local_failure=None
+            instance.last_provider_rpc_error=None
             try:
                 priority=getattr(observer.context,"priority",10 if solana else 50)
                 if priority!=0:priority=getattr(instance,'evidence_priority',priority)
@@ -417,6 +418,9 @@ class Observer:
                 if match:http_status=int(match[1])
                 match=re.fullmatch(r'provider_rpc_(-?\d+)',message)
                 if match:rpc_error_codes=[int(match[1])]
+                detail=getattr(instance,'last_provider_rpc_error',None)
+                if isinstance(detail,dict) and type(detail.get('code')) is int:
+                    rpc_error_codes=[detail['code']]
                 # Only stable code-shaped errors are emitted; no free-form URLs.
                 error=message if message.replace('_','').replace('-','').isalnum() and len(message)<160 else type(exc).__name__
                 # Admission happens outside the native HTTP error boundary. Keep
@@ -486,6 +490,7 @@ class Observer:
                                 failure_domain=('local_admission' if error and transport_started is None
                                                 else 'provider' if error else None),
                                 http_status=http_status,json_rpc_error_codes=rpc_error_codes,
+                                provider_rpc_error_detail=getattr(instance,'last_provider_rpc_error',None),
                                 retry_count=getattr(instance,"retry_count",getattr(instance,"retries",None)),
                                 evidence_priority=priority,evidence_kind=getattr(instance,'evidence_kind',None),
                                 **(dict(solana_work_purpose=('execution_refresh' if priority in (0,1) else 'current_state')) if solana else {}),

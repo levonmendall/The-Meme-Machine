@@ -51,8 +51,8 @@ def install(db):
 def _json(value):return json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False)
 
 
-def encode(body,db):
-    raw=_json(body)
+def encode(body,db,*,canonical_body=None):
+    raw=_json(body) if canonical_body is None else canonical_body
     if len(raw)<2048:return raw
     # Copy only modified containers; callers retain their immutable original.
     value=dict(body,payload=dict(body['payload']))

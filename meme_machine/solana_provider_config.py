@@ -15,7 +15,15 @@ SECRET_PATTERN = re.compile(r'(?:https|wss)://[^\s"\'<>]*alchemy\.com/v2/[^\s"\'
 
 def public_value(value, credential=None):
     raw = value if isinstance(value, str) else json.dumps(value, sort_keys=True)
-    if SECRET_PATTERN.search(raw) or credential and credential in raw:
+    # Production blocks contain megabytes of ASCII/base64. Python's case-folding
+    # regex otherwise scans every byte repeatedly on the SQLite owner. Every
+    # ASCII match must contain one of these literal prefixes. Non-ASCII input
+    # still uses the original Unicode-aware expression without this fast path.
+    folded = raw.lower() if raw.isascii() else None
+    possible = (folded is None
+        or (('https://' in folded or 'wss://' in folded) and 'alchemy.com/v2/' in folded)
+        or any(prefix in folded for prefix in ('apikey', 'api_key', 'api-key', 'authorization')))
+    if possible and SECRET_PATTERN.search(raw) or credential and credential in raw:
         raise ValueError('provider_credential_publication_rejected')
     return value
 

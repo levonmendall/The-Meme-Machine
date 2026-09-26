@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import shutil
 import signal
+import stat
 import sqlite3
 import tempfile
 import unittest
@@ -12,6 +13,28 @@ from certification import archive_native as archive
 
 
 class EvidenceSnapshotTests(unittest.TestCase):
+    def test_run377_socket_cannot_abort_complete_durable_snapshot(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);source=root/'certification-smoke';source.mkdir()
+            endpoint=source/'solana-evidence-plane.sqlite.sock';endpoint.touch()
+            original=Path.stat
+            def metadata(path,*args,**kwargs):
+                result=original(path,*args,**kwargs)
+                if path==endpoint:
+                    values=list(result);values[0]=stat.S_IFSOCK|0o600
+                    return os.stat_result(values)
+                return result
+            with patch.object(Path,'stat',metadata):
+                with sqlite3.connect(source/'solana-evidence-plane.sqlite') as db:
+                    db.execute('CREATE TABLE proof(value TEXT)')
+                    db.execute("INSERT INTO proof VALUES('durable')")
+                manifest=archive.stage(root/'work',root,root/'snapshot','smoke')
+            self.assertTrue(manifest['snapshot_complete'])
+            self.assertIn('transient_ipc_socket_excluded',{r['kind'] for r in manifest['files']})
+            self.assertFalse(list((root/'snapshot').rglob('*.sock')))
+            with sqlite3.connect(root/'snapshot/certification-smoke/solana-evidence-plane.sqlite') as db:
+                self.assertEqual(db.execute('SELECT value FROM proof').fetchone(),('durable',))
+
     def test_directional_survivor_and_shared_authority_are_archived_together(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td);work=root/'work';out=root/'frozen'

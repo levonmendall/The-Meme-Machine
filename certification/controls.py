@@ -103,21 +103,24 @@ def position_handoff(lane,row):
         and row.get('open_positions')==state.get('positions'))
 
 
-def evidence_continuity(row, lane):
+def evidence_continuity(row, lane, shared=None):
     """Liveness is separate from candidate-local completeness and continuity.
 
     Counts are run-cumulative: later repair cannot erase decisions already
     censored by local capacity. No trade/qualifier requirement is introduced.
     """
-    stream=row.get('stream_state') or {}
-    counts=stream.get('counters') or {}
-    local=stream.get('lane_counters') or {}
+    stream=shared or row.get('stream_state') or {}
+    prior=row.get('stream_state') or {}
+    counts={k:max(v,(prior.get('counters') or {}).get(k,0)) for k,v in (stream.get('counters') or {}).items()}
+    for k,v in (prior.get('counters') or {}).items():counts[k]=max(v,counts.get(k,0))
+    local=prior.get('lane_counters') or {}
     ipc=(stream.get('service_health') or {}).get('ipc') or {}
     blocked=max(counts.get(lane+'.gap_blocked_queries',0),local.get(lane+'.gap_blocked_queries',0),
                 counts.get(lane+'.gap_blocked_reconstructions',0),local.get(lane+'.gap_blocked_reconstructions',0))
     complete=max(counts.get(lane+'.complete_local_reads',0),local.get(lane+'.complete_local_reads',0))
     incomplete=max(counts.get(lane+'.incomplete_local_reads',0),local.get(lane+'.incomplete_local_reads',0))
     capacity=max(counts.get('disconnect:local_receive_dispatch_capacity',0),ipc.get('stream.dispatch_queue_overflow',0))
+    capacity+=counts.get('disconnect:local_receive_backpressure_ping_timeout',0)
     gaps=stream.get('unresolved_gaps',0)
     failures=[]
     if capacity and (blocked or gaps):failures.append(lane+':capacity_censored_local_evidence')
@@ -186,9 +189,14 @@ def smoke_engineering(result):
             failures.append(lane+':no_completed_market_census')
         for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
             if row.get('gates',{}).get(gate) is not True:failures.append(lane+':'+gate)
-    continuity={lane:evidence_continuity(result.get('lanes',{}).get(lane,{}),lane)
+    continuity={lane:evidence_continuity(result.get('lanes',{}).get(lane,{}),lane,
+                    result.get('shared_provider',{}).get('solana_evidence_plane'))
                 for lane in ('pump','meteora')}
     for value in continuity.values():failures.extend(value['failures'])
+    if 'evidence_service_shutdown' in result and result['evidence_service_shutdown'].get('clean') is not True:
+        failures.append('solana:evidence_service_drain_incomplete')
+    if result.get('shared_provider',{}).get('solana_evidence_plane',{}).get('snapshot_error'):
+        failures.append('solana:terminal_evidence_snapshot_unavailable')
     shared=result.get('shared_provider',{})
     for network in ('solana','robinhood'):
         if network not in shared or shared[network].get('queues')!=[]:failures.append(network+':provider_queue_not_drained')
@@ -236,9 +244,14 @@ def hourly_engineering(result):
             failures.append(lane+':no_completed_market_census')
         for gate in ('telemetry_complete','policy_unchanged','paper_only','responsive','state_isolated'):
             if row.get('gates',{}).get(gate) is not True:failures.append(lane+':'+gate)
-    continuity={lane:evidence_continuity(result.get('lanes',{}).get(lane,{}),lane)
+    continuity={lane:evidence_continuity(result.get('lanes',{}).get(lane,{}),lane,
+                    result.get('shared_provider',{}).get('solana_evidence_plane'))
                 for lane in ('pump','meteora')}
     for value in continuity.values():failures.extend(value['failures'])
+    if 'evidence_service_shutdown' in result and result['evidence_service_shutdown'].get('clean') is not True:
+        failures.append('solana:evidence_service_drain_incomplete')
+    if result.get('shared_provider',{}).get('solana_evidence_plane',{}).get('snapshot_error'):
+        failures.append('solana:terminal_evidence_snapshot_unavailable')
     shared=result.get('shared_provider',{})
     for network in ('solana','robinhood'):
         if network not in shared or shared[network].get('queues')!=[]:
