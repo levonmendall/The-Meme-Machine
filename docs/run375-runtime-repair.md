@@ -41,19 +41,20 @@ PAPER ONLY. No market workflow is authorized by this repair or its certification
 
 ## Focused certification
 
-Focused workflow `36262997513` passed on the repaired integration runtime and
+Focused workflow `36263393571` passed on the repaired integration runtime and
 on both prepared Solana lane worktrees.
 
 Prepared runtime identities:
 
-- Pump: `331724a4fe47993d6eaf258309ddfa01b09a60e8bbde2650f149e4623b3e3afa`
-- Meteora: `faf2b08d5b170e04f59c9924d39caf468f37c2abe6864f97b8c9937b0cd8203f`
+- Pump: `50f0fc0a16a1bd5373a69a96080ff7cad34626e97c848bd1cc0c598e488a3bb8`
+- Meteora: `f11e4d8386bcf83aa314b0bd127bc02049431139e0e9a0cc1188834a5dfd7a35`
 
 These identities are frozen in `certification/sources.json` before the full
 non-market certification.
 
 The first full non-market attempt (`36263125298`) stopped at protocol freeze
-because the frozen Pump/Meteora executable diff identities still named the Run
-373 runtime. Strategy versions, source SHAs, and policy hashes were unchanged.
-Only those two frozen `source_diff_sha256` values were advanced to the focused-
-certified Run 375 prepared identities before retrying non-market certification.
+because the frozen Pump/Meteora executable diff identities still named the prior
+prepared repair runtime. Strategy versions, source SHAs, and policy hashes were unchanged.
+After stabilizing the regression at the unchanged production 64-frame/96-MiB
+bounds, the exact prepared identities were re-measured and frozen above before
+retrying non-market certification.
