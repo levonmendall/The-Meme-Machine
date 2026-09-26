@@ -302,7 +302,7 @@
         "broad_source_rows_count_as_observed_market": false,
         "counterfactual_replay_revision": "pump-price-retention-soft-v1"
       },
-      "source_diff_sha256": "bcaa6816be17df51d94c1666826b5f0b7b4f0c7061bbb3d01c11e4d51a4aca30",
+      "source_diff_sha256": "2b34539c8cd84c109fbbfa43c2ceba598301059aaee473be260a12184dc7e96b",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pump-accounting.patch",
@@ -328,18 +328,18 @@
         "config.synthetic.json": "801fe69afeb36b50dde3b84076b3ba8660b8c83c9636fbee915e79821481a80c",
         "meme_machine/postgrad.py": "c28ad0995ec3cbde1e0649fbdc7e8b4950db988d9bd9cec09bae05e7de006808",
         "meme_machine/pump_acceleration_paper.py": "eb6da16baff16d02e9181e7041bb024c0597586bcc7ee44e1b55db1470558198",
-        "meme_machine/pump_acceleration_strategy.py": "b9f3d0db67516af45a9a301738a64fa2dd3c12095589309baa215d207eadaaaf",
-        "meme_machine/pumpswap_survivor.py": "7c6fc8eccfe3ae0ddbdd42864b19331be89cd47df26ad884d0e88f8b321afb4e",
+        "meme_machine/pump_acceleration_strategy.py": "0b45f42ac6f9c529e72f1ab2f7c1475ebc50f889f94dbe62cd1ab8ed1a73c3c1",
+        "meme_machine/pumpswap_survivor.py": "169dde282931f8b4a7929703339c091241a10910e57120ed06d6ad1962373f89",
         "meme_machine/pumpswap_survivor_evidence.py": "99786102761a538b0a3e5694e95bae827adceaf5cca986b96ac4b4653b571323",
-        "meme_machine/pumpswap_survivor_runtime.py": "674625ad2da3d32e4372687c8848fbc04f232b55a1f73b2a89dde41c2b45e68a",
+        "meme_machine/pumpswap_survivor_runtime.py": "66b09dbc39a83ea9cf4501eae0eabe6c68e365cbe3ebf7325fcf654f2904407d",
         "meme_machine/solana_evidence_runtime.py": "076f62432840bc1caab499f239fb728a7b469670cd016723a30068c9de6b11fd",
         "meme_machine/solana_evidence_service.py": "bc54b9b438705dd25728bb3e38297cc3d95fffde7ab2f799b1726836eaacffcf",
-        "tests/pump_acceleration_natural_prospective.py": "77cc37d83374ae74e0f24569cba64df83d7ffe9752e376481ac50a7d3e061854",
+        "tests/pump_acceleration_natural_prospective.py": "fb2055be97ea7a5c023e92ab6423870a08a3abc9c47d7182cacf2cba7f902d40",
         "tests/test_directional_capacity.py": "cf03c522706e8eda4c5f93bc53762bf5dfc6c47765a990a55a4258120f26e8e8",
         "tests/test_evidence_runtime_cutover.py": "ee7a5140ceca1f188cecd89948789163e1a902fd23977d88305e1354bf578351",
-        "tests/test_pump_acceleration_policy_identity.py": "fba4105fc357f8dd88561310a102e5a4282700308f674cddf79ac7de0d747df1",
+        "tests/test_pump_acceleration_policy_identity.py": "ccce07684bb60d9bcc2f109bfb8ed92b2768f9d4c5dacbc1bcf6841c484c4cbd",
         "tests/test_pump_shared_survivor.py": "6107efc1f49040827fcf7c5ad20c7f8dcb636b1cc33ca30fea0d77128614a594",
-        "tests/test_pumpswap_survivor.py": "c24cab9016a2d5919d04b8faa8482dbf5abbd0a1bbe493c871ae2cf58688638b",
+        "tests/test_pumpswap_survivor.py": "ca43191878e7a3e7746f1213335a287e580c7d9740e4f7fa6b9332d88f508c7c",
         "tests/test_pumpswap_survivor_evidence.py": "d093ee1cbd26e66d8ef576ad5073d5e84ebfe1c93ee080d98a51efb2046c6a98"
       },
       "active_regimes": {
@@ -384,7 +384,7 @@
       "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
       "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
       "policy_hash": "78a9658dfc8dda7a35c20486527f24553b00b9a20b8140e65dedde90c9a93408",
-      "source_diff_sha256": "9293d911b36fc19c9bd6b671792e9d46705dfb4107a82df50274685cba5e91ab",
+      "source_diff_sha256": "4126f318e2b0da2dbe9444dccd07330d7662ab7a596ee8324fce6ba2f91ba0f6",
       "file_hashes": {
         ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
         "SOLANA_DLMM_INDEPENDENT_V1.json": "31c55cb5fa4d0f6be385f3a8cd301f06bdf94659a1a84de04fc7ffde1994dc93"
@@ -673,7 +673,11 @@
         "meme_machine/solana_program_decoders.py",
         "tests/test_run373_dispatch_throughput.py",
         "tests/test_run376_dispatch_pressure.py"
-      ]
+      ],
+      "composed_file_hashes": {
+        ".github/workflows/solana-dlmm-independent-v1.yml": "44c899b3fa9b94f0942afb61ced69c4d76a8291e710c854742d9641e2f914dbe",
+        "SOLANA_DLMM_INDEPENDENT_V1.json": "f64304f125edfde0af5dff04b53332bd811bce47cf27fd72e611dafc09abd916"
+      }
     },
     "pons": {
       "source_branch": "strategy/pons-profit-protection-v2-20260923",
@@ -984,7 +988,7 @@
         "upstream_acquisition_scope": "all authenticated Pons V2 buy/sell logs remain observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "0fe0337d271027fc7867d4a0af60a70d306485525a844d89fad7415d20d56e62",
+      "source_diff_sha256": "8c00c082d4d20a6ccdb5fc08bb0e59406f84e4f0abec7860bb1b1432588a49ca",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
@@ -1005,30 +1009,30 @@
       "composed_file_hashes": {
         ".github/workflows/pons-selective-market-test.yml": "6d2a9ee5423110b7c694874d969c50e5d660ddba27fd10647b9ab61f5733f0a7",
         "robinhood_research/pons_natural_paper.py": "fab9210ef7d11eaba8f8c1c09d154a991bf9b285e3b1aad6dac328a990abadfa",
-        "robinhood_research/pons_postgrad_survivor.py": "c52c770fd910eddcc5e7f1b8999782087ec3b5313b0084bb2a3ffeb359ed5d1e",
+        "robinhood_research/pons_postgrad_survivor.py": "17870496ccfa340bd85ee27820dfac798916f5a3ea090b691f5b11d4b8e998fe",
         "robinhood_research/pons_selective_capital.py": "400537c9f7f42c9c931c5eb28bad91d359249e406864f8b7ccdae6733c2db945",
         "robinhood_research/pons_selective_cohort.py": "d78051252c8a98347e6d240056fe91f192249b763c438103324832ebd62c51c9",
-        "robinhood_research/pons_selective_continuation.py": "e81c7a20a2e9583e1203950c774ef6e2ab6cd35e14bf47a1fd3b58f794ef5e2f",
+        "robinhood_research/pons_selective_continuation.py": "cfe06339efd62224f9c3fe5328c44b0c9c99c6cc68ab064d7a5853a763e1e643",
         "robinhood_research/pons_selective_ledger.py": "1b234d553ee301766a17fdaf4c000b80e3cd8c807166369e43e461bac11eb4f7",
         "robinhood_research/pons_selective_paper.py": "db1d4b5f4d52943e0cce4c65bbeb0102279373addcb0ad90c8736eca3952f895",
-        "robinhood_research/pons_survivor_runtime.py": "52fdd888f0236d24b4bea7bee6f28667211e2d20567fb661e157a009b0a26a88",
+        "robinhood_research/pons_survivor_runtime.py": "d91d4ed47b0c3011226a84bb60981d0e34d5bc462399d09a05e980fddabae451",
         "robinhood_tests/test_pons_capacity_persistence.py": "f75fe9aa976fb7f051c60695db2920ab6c7c09a87af5714c3f3195f108dab3ec",
         "robinhood_tests/test_pons_entry_confirmation_ordering.py": "005bd2f36441fe44af59ddea28cdaa77f8058198628ac4b62e601ab41b18c0ec",
         "robinhood_tests/test_pons_execution_acquisition.py": "c04c654de6cc3e0cc01e6b110dae03089ccde1510a083a1f31846946b18093fc",
         "robinhood_tests/test_pons_position_provider_recovery.py": "eb12226c7cdb18b8bd530c2a068a071fe339cbeb62524aedde5161ad34d820bf",
         "robinhood_tests/test_pons_postgrad_survivor.py": "730f8258130621d1d915706e322aa4b0393b60efc20a5f2bea3f722c5173e40d",
-        "robinhood_tests/test_pons_selective_continuation.py": "0a3cea0c158222aefc974feb568c80b5bc6a2f6e0ac35c135f3c2db7c328e648",
+        "robinhood_tests/test_pons_selective_continuation.py": "c344945284793ba6ba115d85301d3a2b2bcaac83ecb26a01155d78b6e73c307a",
         "robinhood_tests/test_pons_shared_survivor.py": "93a012622fdcc8ceb8ca3640a06a5c33fb0abec829cfb3d371f4241e10456e65"
       },
       "active_regimes": {
-        "pons-selective-continuation-v1": "cd59e9d822aaec19fd348e224040572b78a4a27c3346459f20bc9951fd91c7c3",
-        "pons-postgrad-survivor-momentum-v1": "35ab72e24297eaab6ccef064284dee981b752d675e745d9bc924070610288c18"
+        "pons-postgrad-survivor-momentum-v1": "35ab72e24297eaab6ccef064284dee981b752d675e745d9bc924070610288c18",
+        "pons-selective-continuation-v1": "cd59e9d822aaec19fd348e224040572b78a4a27c3346459f20bc9951fd91c7c3"
       },
       "composite_policy": {
         "lane": "pons",
         "strategies": {
-          "pons-selective-continuation-v1": "cd59e9d822aaec19fd348e224040572b78a4a27c3346459f20bc9951fd91c7c3",
-          "pons-postgrad-survivor-momentum-v1": "35ab72e24297eaab6ccef064284dee981b752d675e745d9bc924070610288c18"
+          "pons-postgrad-survivor-momentum-v1": "35ab72e24297eaab6ccef064284dee981b752d675e745d9bc924070610288c18",
+          "pons-selective-continuation-v1": "cd59e9d822aaec19fd348e224040572b78a4a27c3346459f20bc9951fd91c7c3"
         },
         "allocation": {
           "one_sleeve": true,
