@@ -1,0 +1,191 @@
+{
+  "schema": "meme-machine-profitability-portfolio-autonomy-v1",
+  "cohort_id": "prospective-four-lane-six-regime-v13-20260926",
+  "frozen_parent_integration_sha": "af60b355995dfa960555288fa73808bb7aba5d25",
+  "paper_only": true,
+  "live_money": false,
+  "purpose": "Prospective PAPER cohort for the frozen current Pump/Pons capacity revision and their independent Survivor regimes, sharing the existing four portfolio sleeves. Configuration promotion does not authorize market execution.",
+  "evidence_authority": {
+    "cohort_begins_only_after_exact_sha_non_market_certification": true,
+    "exact_integration_sha_must_remain_constant_for_entire_cohort": true,
+    "exact_source_manifest_hash_must_remain_constant": true,
+    "exact_implementation_hash_must_remain_constant": true,
+    "historical_or_strategy_development_runs_eligible": false,
+    "forced_or_synthetic_lifecycles_eligible": false,
+    "interrupted_or_failed_windows_count_for_reliability_and_censoring_but_not_as_successful_economic_blocks": true,
+    "strategy_or_policy_change_resets_affected_lane_cohort": true,
+    "integration_or_certification_code_change_resets_entire_cohort": true,
+    "no_threshold_tuning_during_cohort": true,
+    "no_outcome_dependent_run_selection": true,
+    "statistical_block": "one completed natural market campaign window; multiple trades inside one block are not treated as independent statistical samples",
+    "market_assurance_required": true,
+    "prior_cohort_records_eligible": false,
+    "counterfactual_strategy_revision_reset": "new common v13 four-lane/six-regime cohort; no old policy-era economic block is eligible"
+  },
+  "frozen_lanes": {
+    "pump": {
+      "strategy_version": "pump-shared-sleeve-six-regime-v1",
+      "source_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "execution_sha": "3c9553afb3caa92ab5f3db769f870df033a9630f",
+      "policy_hash": "e7d4bb2710f51ec464872a37b2692b87c730c21f6183ab09a6c12154dd37182e",
+      "source_diff_sha256": "bcaa6816be17df51d94c1666826b5f0b7b4f0c7061bbb3d01c11e4d51a4aca30"
+    },
+    "meteora": {
+      "strategy_version": "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2",
+      "source_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+      "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+      "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
+      "source_diff_sha256": "9293d911b36fc19c9bd6b671792e9d46705dfb4107a82df50274685cba5e91ab"
+    },
+    "pons": {
+      "strategy_version": "pons-shared-sleeve-six-regime-v1",
+      "source_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "execution_sha": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+      "policy_hash": "930ac9dff72bff84ef6235e58346c2f7bb3c3c3fad52f8f8d73394838e09cbab",
+      "source_diff_sha256": "0fe0337d271027fc7867d4a0af60a70d306485525a844d89fad7415d20d56e62"
+    },
+    "ramses": {
+      "strategy_version": "ramses-active-wide-maker-v4",
+      "source_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+      "execution_sha": "41b5f263efc31bedf9b39039a9f66bed264b70d3",
+      "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
+      "source_diff_sha256": "0c4bfa59e9ab1cd1023f66969e073e81142eee4adf3676f1717a77a3f3d206df"
+    }
+  },
+  "evidence_quality": {
+    "minimum_completed_market_blocks_per_lane": 24,
+    "minimum_observation_hours_per_lane": 24,
+    "minimum_calendar_span_hours": 168,
+    "minimum_natural_settlements_per_lane": 20,
+    "minimum_active_blocks_per_lane": 8,
+    "maximum_infrastructure_censoring_fraction": 0.1,
+    "required_forced_settlements": 0,
+    "terminal_accounting_reconciled_required": true,
+    "durable_replay_required": true,
+    "telemetry_complete_required": true,
+    "freshness_finality_unchanged_required": true,
+    "unresolved_exposure_at_final_evaluation_allowed": false,
+    "long_horizon_handoff_allowed_during_collection": true
+  },
+  "lane_economic_acceptance": {
+    "return_basis": "native realized after-cost return divided by lane funded paper capital; no cross-asset unit summation",
+    "campaign_return_per_hour": "normalized realized return divided by accepted market observation hours",
+    "confidence_rule": "mean campaign return per hour minus 1.96 standard errors must be strictly greater than zero",
+    "aggregate_realized_return_must_be_positive": true,
+    "deployed_capital_hour_return_must_be_positive_when_capital_time_nonzero": true,
+    "minimum_profit_factor": 1.2,
+    "maximum_compounded_peak_to_trough_drawdown": 0.15,
+    "minimum_single_campaign_return": -0.05,
+    "ramses_multi_quote_rule": "each funded quote-asset sleeve is evaluated separately; lane block return is the worst sleeve return and unlike quote units are never summed"
+  },
+  "portfolio_acceptance": {
+    "construction": "equal-weight normalized paper sleeves across pump, meteora, pons, ramses; 25% each; certification construct only and not live allocation authority",
+    "lane_weights": {
+      "pump": 0.25,
+      "meteora": 0.25,
+      "pons": 0.25,
+      "ramses": 0.25
+    },
+    "require_all_lanes_economic_pass": true,
+    "minimum_complete_portfolio_blocks": 24,
+    "minimum_calendar_span_hours": 168,
+    "confidence_rule": "mean equal-weight portfolio block return per hour minus 1.96 standard errors must be strictly greater than zero",
+    "minimum_profit_factor": 1.25,
+    "maximum_compounded_peak_to_trough_drawdown": 0.1,
+    "minimum_single_campaign_return": -0.04,
+    "pairwise_correlation": {
+      "minimum_joint_nonzero_blocks": 12,
+      "maximum_absolute_correlation": 0.85,
+      "insufficient_joint_sample_status": "INCOMPLETE"
+    }
+  },
+  "autonomy_acceptance": {
+    "exact_sha_launch_required": true,
+    "current_chain_binding_preflight_required": true,
+    "source_and_policy_integrity_each_run": true,
+    "provider_fail_closed_required": true,
+    "no_hidden_provider_fallback": true,
+    "maximum_process_restarts_per_block": 0,
+    "maximum_unexpected_exits_per_block": 0,
+    "accounting_ambiguity_allowed": false,
+    "telemetry_ambiguity_allowed": false,
+    "automatic_meteora_ramses_position_continuation_required": true,
+    "continuation_must_preserve_exact_integration_and_lane_identity": true,
+    "automatic_new_campaign_scheduler_may_activate_only_after_lane_and_portfolio_economic_pass": false,
+    "manual_strategy_or_policy_intervention_during_cohort_allowed": false,
+    "prospective_artifact_retention_days": 90,
+    "prospective_artifact_retention_scope": "GitHub Actions repository maximum; exceeds the frozen 168-hour certification span",
+    "frozen_paper_certification_program_authorized_before_economic_acceptance": true,
+    "certification_program_authority": "User instruction 2026-09-24: promote the replay-supported Pump strategy changes for the next paper run while preserving the separately certified Ramses v4 revision; no live-money authority."
+  },
+  "promotion": {
+    "machinery_pass_is_not_profitability_pass": true,
+    "natural_execution_pass_is_not_profitability_pass": true,
+    "profitability_pass_requires_every_lane_economic_pass": true,
+    "autonomous_operation_eligible_only_after_portfolio_and_autonomy_pass": true,
+    "live_money_authority": false
+  },
+  "previous_immutable_cohort": {
+    "path": "certification/cohorts/prospective-four-lane-v12-pump-counterfactual-ramses-v4-20260924.json",
+    "sha256": "35dc3d305dcfbb07bea99926eee67bdedf1de47e80a0726d96763512ea27f4c5"
+  },
+  "frozen_strategies": {
+    "pump": {
+      "pump-acceleration-independent-v1": "bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef",
+      "pumpswap-survivor-momentum-v1": "d480c982c531946ed4219d162a2f130fbb74ffd3ed05bbb660b5b131806d56ab"
+    },
+    "meteora": {
+      "solana-dlmm-independent-v2.0-profitability-fee-density-v1-core-hold-v2": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966"
+    },
+    "pons": {
+      "pons-selective-continuation-v1": "3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa",
+      "pons-postgrad-survivor-momentum-v1": "c2a2b109cf0acdb033237c66c6501b3b558f0e34821f44b3d25e0550cb62092b"
+    },
+    "ramses": {
+      "ramses-active-wide-maker-v4": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e"
+    }
+  },
+  "directional_sleeves": {
+    "pump": {
+      "lane": "pump",
+      "strategies": {
+        "pump-acceleration-independent-v1": "bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef",
+        "pumpswap-survivor-momentum-v1": "d480c982c531946ed4219d162a2f130fbb74ffd3ed05bbb660b5b131806d56ab"
+      },
+      "allocation": {
+        "one_sleeve": true,
+        "portfolio_allocation_increased": false,
+        "survivor_target_sleeve_bps": 25,
+        "priority": [
+          "positions",
+          "current",
+          "survivor"
+        ],
+        "reservation_authority": "durable_shared_sleeve_v1",
+        "same_regime_reentry": false,
+        "accounting_namespaces_separate": true
+      }
+    },
+    "pons": {
+      "lane": "pons",
+      "strategies": {
+        "pons-selective-continuation-v1": "3a83a94266a474cd566401d59a4228b9f100dd2593cff5950e83d8afd4e6dafa",
+        "pons-postgrad-survivor-momentum-v1": "c2a2b109cf0acdb033237c66c6501b3b558f0e34821f44b3d25e0550cb62092b"
+      },
+      "allocation": {
+        "one_sleeve": true,
+        "portfolio_allocation_increased": false,
+        "survivor_target_sleeve_bps": 25,
+        "priority": [
+          "positions",
+          "current",
+          "survivor"
+        ],
+        "reservation_authority": "durable_shared_sleeve_v1",
+        "same_regime_reentry": false,
+        "accounting_namespaces_separate": true
+      }
+    }
+  },
+  "market_run_authorized_by_this_upgrade": false
+}
