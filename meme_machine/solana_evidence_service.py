@@ -23,6 +23,9 @@ CREATE INDEX IF NOT EXISTS receipt_parent ON stream_receipts(scope,parent,sessio
 CREATE TABLE IF NOT EXISTS stream_deliveries(
  scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,hash TEXT NOT NULL,
  seen REAL NOT NULL,PRIMARY KEY(scope,slot,signature));
+CREATE TABLE IF NOT EXISTS stream_completions(
+ scope TEXT NOT NULL,slot INTEGER NOT NULL,census_hash TEXT NOT NULL,
+ seen REAL NOT NULL,PRIMARY KEY(scope,slot));
 CREATE TABLE IF NOT EXISTS service_interests(
  owner TEXT NOT NULL,scope TEXT NOT NULL,address TEXT NOT NULL,evidence_class TEXT NOT NULL,
  PRIMARY KEY(owner,scope,address));
@@ -179,6 +182,26 @@ class FinalizedFence:
             self.writer.db.execute('INSERT OR IGNORE INTO stream_deliveries VALUES(?,?,?,?,?)',
                 (scope,slot,signature,checksum,seen))
 
+    def _block_complete(self,scope,slot,signatures,seen):
+        """Persist one atomic receipt for a fully processed filtered block.
+
+        Full-block ingestion already processes the complete authenticated census in
+        one outer SQLite transaction. A per-signature delivery row therefore adds
+        write amplification without strengthening the proof. Keep legacy delivery
+        rows for independent log notifications, while block ingestion records one
+        census digest after every transaction has been normalized and persisted.
+        """
+        checksum=digest(signatures)
+        with self.writer.transaction():
+            old=self.writer.db.execute(
+                'SELECT census_hash FROM stream_completions WHERE scope=? AND slot=?',
+                (scope,slot)).fetchone()
+            if old and old[0]!=checksum:
+                raise EvidenceConflict('conflicting_stream_completion')
+            self.writer.db.execute('INSERT OR IGNORE INTO stream_completions VALUES(?,?,?,?)',
+                (scope,slot,checksum,seen))
+            self.writer._count('stream_block_completions')
+
     @poison_conflicts
     def logs(self,subscription,message,seen):
         result=message['params']['result'];slot=result['context']['slot'];v=result['value']
@@ -228,18 +251,27 @@ class FinalizedFence:
                 enriched.append(replace(record,payload=body,transaction_index=None,
                     addresses=tuple(sorted(set(keys+[subscription.address])))))
             self.writer.ingest(enriched)
-            with self.writer.transaction():
-                self.writer.db.executemany('INSERT OR IGNORE INTO stream_order VALUES(?,?,?,?,?)',
-                    [(subscription.scope,slot,sig,rank,block['blockhash']) for rank,sig in enumerate(signatures)])
-            for tx,signature in zip(transactions,signatures):
-                if subscription.evidence_class=='census' and include_logs:
+            # Transaction order is consumed by Meteora reconstruction. Pump and
+            # PumpSwap consume normalized events and do not query this table.
+            if subscription.evidence_class=='transactions':
+                with self.writer.transaction():
+                    self.writer.db.executemany('INSERT OR IGNORE INTO stream_order VALUES(?,?,?,?,?)',
+                        [(subscription.scope,slot,sig,rank,block['blockhash']) for rank,sig in enumerate(signatures)])
+            if subscription.evidence_class=='census' and include_logs:
+                event_records=[]
+                decoder=FinalizedNotificationDecoder(
+                    endpoint_identity=self.endpoint_identity,
+                    log_decoder=self.decoders[subscription.scope],
+                )
+                for tx,signature in zip(transactions,signatures):
                     meta=tx['meta']
                     log=dict(signature=signature,logs=meta.get('logMessages'),err=meta.get('err'))
                     notification=dict(method='logsNotification',params=dict(result=dict(context=dict(slot=slot),value=log)))
-                    records=FinalizedNotificationDecoder(endpoint_identity=self.endpoint_identity,log_decoder=self.decoders[subscription.scope]).decode(replace(subscription,evidence_class='logs'),notification,seen)
-                    self.writer.ingest(records)
-                    self._delivery(subscription.scope,slot,signature,log,seen)
-                elif subscription.evidence_class=='transactions':self._delivery(subscription.scope,slot,signature,tx,seen)
+                    event_records.extend(decoder.decode(
+                        replace(subscription,evidence_class='logs'),notification,seen))
+                # One bounded ingestion batch replaces one savepoint + delivery
+                # insert per transaction while preserving every normalized event.
+                self.writer.ingest(event_records)
         else:
             signatures=block.get('signatures')
         if (not isinstance(signatures,list) or len(signatures)>2048
@@ -247,6 +279,7 @@ class FinalizedFence:
                 or len(signatures)!=len(set(signatures))):
             raise EvidenceUnavailable('filtered_census_shape')
         census=canonical(signatures);scope=subscription.scope
+        self._block_complete(scope,slot,signatures,seen)
         with self.writer.transaction():
             old=self.writer.db.execute('SELECT parent,hash,previous_hash,market_time,census FROM stream_receipts WHERE scope=? AND slot=?',(scope,slot)).fetchone()
             values=(parent,block['blockhash'],block['previousBlockhash'],at,census)
@@ -274,15 +307,27 @@ class FinalizedFence:
                 self.writer.gap(scope,slot,child,'finalized_parent_hash_mismatch')
                 raise EvidenceConflict('finalized_parent_hash_mismatch')
             expected=set(json.loads(census))
-            delivered=dict(self.writer.db.execute('SELECT signature,seen FROM stream_deliveries WHERE scope=? AND slot=?',(scope,slot)))
-            if not expected.issubset(delivered):
-                self.writer.gap(scope,slot,slot,'missing_filtered_delivery')
-                continue
+            completion=self.writer.db.execute(
+                'SELECT census_hash,seen FROM stream_completions WHERE scope=? AND slot=?',
+                (scope,slot)).fetchone()
+            if completion is not None:
+                if completion[0]!=digest(json.loads(census)):
+                    raise EvidenceConflict('conflicting_stream_completion')
+                delivery_seen=[completion[1]]
+            else:
+                # Compatibility path for independently delivered log notifications.
+                delivered=dict(self.writer.db.execute(
+                    'SELECT signature,seen FROM stream_deliveries WHERE scope=? AND slot=?',
+                    (scope,slot)))
+                if not expected.issubset(delivered):
+                    self.writer.gap(scope,slot,slot,'missing_filtered_delivery')
+                    continue
+                delivery_seen=[delivered[s] for s in expected]
             witness=dict(finalized=True,complete=True,scope=scope,lower_slot=slot,upper_slot=child-1,
                 source_contract='complete_filtered_block_census_with_linked_finalized_child',
                 parent_blockhash=blockhash,child_blockhash=chash,child_slot=child,
                 signature_count=len(expected),lineage_hash=digest([scope,slot,blockhash,census,child,chash]))
-            available=max([seen,pseen,cseen]+[delivered[s] for s in expected])
+            available=max([seen,pseen,cseen]+delivery_seen)
             proof=IntervalProof(scope,slot,child-1,'alchemy_finalized_stream',self.endpoint_identity,witness,available)
             self.writer.ingest([],proof=proof)
             with self.writer.transaction():
