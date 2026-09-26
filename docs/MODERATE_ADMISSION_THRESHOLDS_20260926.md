@@ -26,3 +26,7 @@ Frozen lane policy identities:
 - Ramses unchanged: `58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e`
 
 Focused threshold preflight and the repository-wide deterministic CI passed before this certification trigger. Promotion to `cert/prospective-market-v1` is permitted only after the exact resulting SHA passes full non-market certification.
+
+## Certification repair note
+
+Full non-market certification exposed stale Pons age-boundary regressions after the intentional current-Pons token-age window changed from 120–600 seconds to 90–900 seconds. The repair changes only deterministic test fixtures and the test BatchContext launch-time parameter; active runtime logic and all thresholds remain unchanged. Retained historical v9 policy epochs remain digest-pinned separately from the v14 prospective policy.
