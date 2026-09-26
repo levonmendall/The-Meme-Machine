@@ -56,6 +56,7 @@ def promotion_order(facts):
 
 def bounded_promotions(observations,consumed,*,slots=1):
     if slots not in (0,1):raise ValueError('existing_single_hydration_dispatch_bound')
+    if len(observations)>E['max_market_events']:raise ValueError('bounded_observation_batch')
     unique={}
     for row in observations:
         key=(row['candidate'],row['generation'])
@@ -74,6 +75,7 @@ def fill_hysteresis(previous,observation):
         if p.get('observation')!=o:raise ValueError('conflicting_observation')
         return dict(p)
     if p.get('at') is not None and o['at']<=p['at']:raise ValueError('nonmonotone_observation')
+    if p.get('action')=='CANCEL':return dict(p)
     hard=list(o.get('hard_invalidators') or [])
     if o.get('trusted') is not True:hard.append('untrusted')
     age=o.get('quote_age_seconds')

@@ -1,0 +1,919 @@
+{
+  "chronology": {
+    "development": {
+      "grade_a_units": 6,
+      "qualified_units": 0,
+      "runs": [
+        357,
+        358,
+        360,
+        362
+      ]
+    },
+    "validation": {
+      "grade_a_units": 15,
+      "qualified_units": 7,
+      "runs": [
+        364,
+        366,
+        367,
+        368
+      ]
+    }
+  },
+  "comparison": {
+    "baseline": {
+      "complete_vector_denominator": 33,
+      "grade_a_denominator": 21,
+      "grade_a_qualifying_units": 7,
+      "qualifying_vector_rows": 7,
+      "recorded_attempt_denominator": 7,
+      "recorded_fills": 0
+    },
+    "canonical_workload_counterfactual": {
+      "denominator": 0,
+      "status": "UNMEASURABLE",
+      "value": null
+    },
+    "downside": {
+      "denominator": 0,
+      "status": "UNMEASURABLE",
+      "value": null
+    },
+    "executable_after_cost_economics": {
+      "denominator": 0,
+      "status": "UNMEASURABLE",
+      "value": null
+    },
+    "grade_a_winner_capture": {
+      "denominator": 0,
+      "status": "UNMEASURABLE",
+      "value": null
+    },
+    "grade_b_preservation": {
+      "denominator": 0,
+      "status": "UNMEASURABLE",
+      "value": null
+    },
+    "loser_admission": {
+      "denominator": 0,
+      "status": "UNMEASURABLE",
+      "value": null
+    },
+    "measured_modeled_roundtrip_bps": {
+      "denominator": 33,
+      "max": 680,
+      "min": 234
+    },
+    "selected": {
+      "complete_vector_denominator": 33,
+      "grade_a_denominator": 21,
+      "grade_a_qualifying_units": 7,
+      "qualifying_vector_rows": 7,
+      "recorded_attempt_denominator": 7,
+      "recorded_fills": 0
+    }
+  },
+  "decision_divergences": [],
+  "decisions": [
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0xbc709f3db7c9c818a9e66f2784b170bb67d698c9",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 246,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "flow_deceleration"
+      ],
+      "regime": 0,
+      "run": 357,
+      "source_transaction": "0xc552acb510b86919b8e087021c3da06db62123b2c503abc94491723c8e9d3cfa"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x848be85a663506885491f4dacc86dda7a600fc5b",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 676,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "largest_buyer_concentration",
+        "top3_buyer_concentration",
+        "roundtrip_cost"
+      ],
+      "regime": 0,
+      "run": 357,
+      "source_transaction": "0xf743ea081283bd0fdaa1067ef2b5a419fb9bab8db25866a13afaa3765d577089"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0xcf166ccf7415138985cbc48831f10215e21c0f92",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 680,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "flow_deceleration",
+        "largest_buyer_concentration",
+        "top3_buyer_concentration",
+        "roundtrip_cost"
+      ],
+      "regime": 0,
+      "run": 360,
+      "source_transaction": "0x448c0558472e751421cd97c9a371e1b6ea3513f2be0ea6f7d0548e16a11c2a3f"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0xcf166ccf7415138985cbc48831f10215e21c0f92",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 676,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "flow_deceleration",
+        "largest_buyer_concentration",
+        "top3_buyer_concentration",
+        "roundtrip_cost"
+      ],
+      "regime": 0,
+      "run": 360,
+      "source_transaction": "0x0dd4e0c71a46d7f36b22f4135b8226eefd40b405998c844e2e8d8df3ae77e559"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x17f39664f7681fe1525ba99652cb4ab3d2ac7963",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 657,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "roundtrip_cost"
+      ],
+      "regime": 0,
+      "run": 360,
+      "source_transaction": "0xb19d3008e09b15439cebf0462ace18d2e0baafb07177654559d0bb2732f8fad5"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x153418ad9993520acc1e0b83686cdc27618eb945",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 534,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "flow_deceleration"
+      ],
+      "regime": 0,
+      "run": 360,
+      "source_transaction": "0x5270e29bd875dd4af60afb740b12d7d1949464196cf8e24e9bef6873847c9002"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x153418ad9993520acc1e0b83686cdc27618eb945",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 534,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "flow_deceleration"
+      ],
+      "regime": 0,
+      "run": 360,
+      "source_transaction": "0x52bf3514156cfa48de853ddf22277562b014994ec3d03dc8c61e5a742ec3b077"
+    },
+    {
+      "amount_quote": 990000000000000,
+      "curve": "0xd2f5799ba8de219fe9a90f3d6309f747d4824363",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 361,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "independent_breadth",
+        "buyer_growth",
+        "largest_buyer_concentration",
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 362,
+      "source_transaction": "0x3bcc0532e9fa69f82c4e1d6dbd7de2e7eb1e6dfa8a0d3e572683df764fe01846"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0xdb94d8b78333f597e8496431aa4b7be87db9ca92",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 481,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": true,
+      "reasons": [],
+      "regime": 0,
+      "run": 364,
+      "source_transaction": "0x35ebf87edf6764a7e24cef6d9832818a6e99c03ea2d13683fbb5fb8051825829"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x9f395d861171254dccf4fff41612f697a3deb52f",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 449,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "stale_state_after_evidence",
+        "flow_deceleration"
+      ],
+      "regime": 0,
+      "run": 364,
+      "source_transaction": "0x3cc2d19722383f5a69fbe97d152e8c4472d31408218f762ad3936c16d8639dfe"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x9f395d861171254dccf4fff41612f697a3deb52f",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 448,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": true,
+      "reasons": [],
+      "regime": 0,
+      "run": 364,
+      "source_transaction": "0x702fec41e06b85945d54c6b5eeae4a22619e3f257b10f7e3c42b641612bc6e82"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0xc53fbb3be6eb65f099f7e9ba49a0a3fd2bec45ed",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 598,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": true,
+      "reasons": [],
+      "regime": 0,
+      "run": 364,
+      "source_transaction": "0xb10b11835d7abbc1f3ffd498304239380556e3c17aad637cd2cbd2f696b0d753"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x299cd303f6fc2c5ee790c30d3917aa9f1529c697",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 437,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "stale_state_after_evidence",
+        "flow_deceleration"
+      ],
+      "regime": 0,
+      "run": 364,
+      "source_transaction": "0xa20a6a134db2a0da772dd35812c9aba227b54b6d2f4a6e4fa330c36ebe35fc89"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0xd08359eff91628a935afa9613214a93c497cda00",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 671,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "largest_buyer_concentration",
+        "top3_buyer_concentration",
+        "roundtrip_cost"
+      ],
+      "regime": 0,
+      "run": 364,
+      "source_transaction": "0x9ddb96f4b28901a34640aa364536a55e6555d387d37a80e6e95e5fd5f84c14ac"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0xd08359eff91628a935afa9613214a93c497cda00",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 638,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "largest_buyer_concentration",
+        "top3_buyer_concentration",
+        "roundtrip_cost"
+      ],
+      "regime": 0,
+      "run": 364,
+      "source_transaction": "0xf33661f10e997b081618fd85886820a66fb7a5eec7b3f7673018ae3eae55f74c"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x333f06a5c0e380cb459800d219b6fea4f17593bd",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 248,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 366,
+      "source_transaction": "0xa47c53c73041d484f52aa6141b64660cbfd79fd529dc01b0151249587732aebd"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x0dce93e09dc68b72a58083e998e3864e9b421d9a",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 236,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": true,
+      "reasons": [],
+      "regime": 0,
+      "run": 366,
+      "source_transaction": "0x4fa37f17a3beb82f2b159f7a19eebef03b8a4a993cea4fa33a42e50ac59979ad"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x0dce93e09dc68b72a58083e998e3864e9b421d9a",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 235,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": true,
+      "reasons": [],
+      "regime": 1,
+      "run": 366,
+      "source_transaction": "0xa4826c44fcbf33af0e30b9dc60eb0a4e127c1a1b5f9d49480371cc763361a135"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x6dfa0a08523e07da4cb954ab2012b53771576298",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 236,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "independent_breadth",
+        "largest_buyer_concentration",
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 366,
+      "source_transaction": "0x54cccdd35b5511d7d9eaef39685963b71c3c787a9853acca3f44ace9060f6ce9"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x6dfa0a08523e07da4cb954ab2012b53771576298",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 235,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "independent_breadth",
+        "largest_buyer_concentration",
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 366,
+      "source_transaction": "0xd74c6c53e4771835414106a83a3a4bc31a7c2921ee2d4552dd1695787097177f"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x721ea96ef45f5038c63eb89e3dd405e5cb6e2c37",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 313,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "buyer_growth",
+        "largest_buyer_concentration",
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 366,
+      "source_transaction": "0x70db5ce4594dc1afed7901b6e4aaecb4cd0555aae8cc126502acdb2f5c462df3"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x29dbe28471e561918237fe07d52364e0b15e89e2",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 238,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "largest_buyer_concentration",
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 366,
+      "source_transaction": "0xcbc894fd3b09dc36b3eaa78e37f30b7f6a75705e4a914da371ef652e36303970"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x29dbe28471e561918237fe07d52364e0b15e89e2",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 245,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "largest_buyer_concentration",
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 366,
+      "source_transaction": "0x6b4791c194d0c1427ae52de2c4199f1ab69aebb69ae3d181c0b4478354808c3a"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x29dbe28471e561918237fe07d52364e0b15e89e2",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 237,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "largest_buyer_concentration",
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 366,
+      "source_transaction": "0xbac8eb0536cf74a9d446fc2fbaa6cc9f02558522ac4b845304de837837dbe33f"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x29dbe28471e561918237fe07d52364e0b15e89e2",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 236,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 366,
+      "source_transaction": "0x699e308dbfde3aa6a4967131e493e34496c0157deb9c0adc70a3d59950889de0"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x29dbe28471e561918237fe07d52364e0b15e89e2",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 236,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "flow_deceleration",
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 366,
+      "source_transaction": "0x53e7d3452dbc622fbf6e7a9c9791c86a7502816f6b87da7ec5a410d67af660a1"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x29dbe28471e561918237fe07d52364e0b15e89e2",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 235,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "independent_breadth",
+        "largest_buyer_concentration",
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 366,
+      "source_transaction": "0xd585dec5a869194c7bd82fb9c110267ee81a5f185712510306b13978d341103a"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x29dbe28471e561918237fe07d52364e0b15e89e2",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 236,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "independent_breadth",
+        "largest_buyer_concentration",
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 366,
+      "source_transaction": "0x01cd9101a24cc51229c694290f59918eeb51c25da28c95cc00fc571881c8c8cb"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x3140cb4474e33dfcd65d7322431fd237b3d94465",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 236,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": true,
+      "reasons": [],
+      "regime": 0,
+      "run": 367,
+      "source_transaction": "0x9050776ac48a0d250d73490c2f34bcac9a8c88a67720f7fb8d7284e09158e8ac"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x3140cb4474e33dfcd65d7322431fd237b3d94465",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 234,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": true,
+      "reasons": [],
+      "regime": 1,
+      "run": 367,
+      "source_transaction": "0xdead36e8602ff7fec85f3ee473ca50e8cc62b7df0447744efd2daf47abefd8ab"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x3140cb4474e33dfcd65d7322431fd237b3d94465",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 234,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "top3_buyer_concentration"
+      ],
+      "regime": 1,
+      "run": 367,
+      "source_transaction": "0x7dc01e0f990bcf06cb5f83a19cba49f6528b5363995746ac90839dfd831989b0"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0xf78349b777b733fa8d28fcac0eafa226df6bc92b",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 240,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "largest_buyer_concentration",
+        "top3_buyer_concentration"
+      ],
+      "regime": 0,
+      "run": 367,
+      "source_transaction": "0xb6a5f8b5ef77a013585a772b9bb8ce3161181372c7fd00da151b0132675a52b0"
+    },
+    {
+      "amount_quote": 2500000000000000,
+      "curve": "0x4971529e0ecd0804ef9193ac0d96be0cb8aca77f",
+      "forward_outcome": "UNKNOWN",
+      "modeled_roundtrip_loss_bps": 677,
+      "original_precanonical_state": "UNKNOWN",
+      "policy_1_state_on_completed_vector": "DEFERRED",
+      "qualified": false,
+      "reasons": [
+        "top3_buyer_concentration",
+        "roundtrip_cost"
+      ],
+      "regime": 0,
+      "run": 368,
+      "source_transaction": "0xd4aaf716394de79c69ee05c38ed0b6ea8d8911277431eb135c55ac7839320c79"
+    }
+  ],
+  "evidence_cutoff": "d1fc161401869522db9abbf50e3f6073e80a4374",
+  "fill_attempts": [
+    {
+      "baseline_status": "entry_failed",
+      "counterfactual_economics": "UNMEASURABLE",
+      "curve": "0xdb94d8b78333f597e8496431aa4b7be87db9ca92",
+      "entry_tokens": 0,
+      "forward_observations": 0,
+      "hard_invalidators": [
+        "nonpositive_net_demand",
+        "stale_quote"
+      ],
+      "policy_2_action": "CANCEL",
+      "quote_age_seconds": 19,
+      "run": 364,
+      "source_transaction": "0x35ebf87edf6764a7e24cef6d9832818a6e99c03ea2d13683fbb5fb8051825829"
+    },
+    {
+      "baseline_status": "entry_failed",
+      "counterfactual_economics": "UNMEASURABLE",
+      "curve": "0x9f395d861171254dccf4fff41612f697a3deb52f",
+      "entry_tokens": 0,
+      "forward_observations": 0,
+      "hard_invalidators": [
+        "nonpositive_net_demand",
+        "stale_quote"
+      ],
+      "policy_2_action": "CANCEL",
+      "quote_age_seconds": 18,
+      "run": 364,
+      "source_transaction": "0x702fec41e06b85945d54c6b5eeae4a22619e3f257b10f7e3c42b641612bc6e82"
+    },
+    {
+      "baseline_status": "entry_failed",
+      "counterfactual_economics": "UNMEASURABLE",
+      "curve": "0xc53fbb3be6eb65f099f7e9ba49a0a3fd2bec45ed",
+      "entry_tokens": 0,
+      "forward_observations": 0,
+      "hard_invalidators": [
+        "stale_quote"
+      ],
+      "policy_2_action": "CANCEL",
+      "quote_age_seconds": 21,
+      "run": 364,
+      "source_transaction": "0xb10b11835d7abbc1f3ffd498304239380556e3c17aad637cd2cbd2f696b0d753"
+    },
+    {
+      "baseline_status": "entry_failed",
+      "counterfactual_economics": "UNMEASURABLE",
+      "curve": "0x0dce93e09dc68b72a58083e998e3864e9b421d9a",
+      "entry_tokens": 0,
+      "forward_observations": 0,
+      "hard_invalidators": [
+        "stale_quote"
+      ],
+      "policy_2_action": "CANCEL",
+      "quote_age_seconds": 28,
+      "run": 366,
+      "source_transaction": "0x4fa37f17a3beb82f2b159f7a19eebef03b8a4a993cea4fa33a42e50ac59979ad"
+    },
+    {
+      "baseline_status": "entry_failed",
+      "counterfactual_economics": "UNMEASURABLE",
+      "curve": "0x0dce93e09dc68b72a58083e998e3864e9b421d9a",
+      "entry_tokens": 0,
+      "forward_observations": 0,
+      "hard_invalidators": [
+        "creator_distribution",
+        "nonpositive_net_demand",
+        "stale_quote"
+      ],
+      "policy_2_action": "CANCEL",
+      "quote_age_seconds": 27,
+      "run": 366,
+      "source_transaction": "0xa4826c44fcbf33af0e30b9dc60eb0a4e127c1a1b5f9d49480371cc763361a135"
+    },
+    {
+      "baseline_status": "entry_failed",
+      "counterfactual_economics": "UNMEASURABLE",
+      "curve": "0x3140cb4474e33dfcd65d7322431fd237b3d94465",
+      "entry_tokens": 0,
+      "forward_observations": 0,
+      "hard_invalidators": [
+        "stale_quote"
+      ],
+      "policy_2_action": "CANCEL",
+      "quote_age_seconds": 18,
+      "run": 367,
+      "source_transaction": "0x9050776ac48a0d250d73490c2f34bcac9a8c88a67720f7fb8d7284e09158e8ac"
+    },
+    {
+      "baseline_status": "entry_failed",
+      "counterfactual_economics": "UNMEASURABLE",
+      "curve": "0x3140cb4474e33dfcd65d7322431fd237b3d94465",
+      "entry_tokens": 0,
+      "forward_observations": 0,
+      "hard_invalidators": [
+        "stale_quote"
+      ],
+      "policy_2_action": "CANCEL",
+      "quote_age_seconds": 17,
+      "run": 367,
+      "source_transaction": "0xdead36e8602ff7fec85f3ee473ca50e8cc62b7df0447744efd2daf47abefd8ab"
+    }
+  ],
+  "fixture_sha256": "1be70cb9f53bfc9bce039f6913813a6d2a0a21dde39b6b10bf95b9123f47597f",
+  "manifest": {
+    "aggregate_or_partial_runs": {
+      "355": "full_artifact_exceeds_available_download_limit; audit_aggregate_only",
+      "356": "full_artifact_exceeds_available_download_limit; audit_aggregate_only",
+      "359": "full_artifact_exceeds_available_download_limit; audit_aggregate_only",
+      "361": "no_market_candidate_trace_in_retained_summary",
+      "363": "no_market_candidate_trace_in_retained_summary",
+      "365": "no_market_candidate_trace_in_retained_summary"
+    },
+    "complete_native_curves": 19,
+    "complete_vector_rows": 33,
+    "detailed_runs": [
+      {
+        "complete_native_curves": 2,
+        "complete_vectors": 2,
+        "grade_a_units": 2,
+        "native_curves": 220,
+        "qualified_grade_a_units": 0,
+        "recorded_lifecycle_attempts": 0,
+        "retained_decision_rows": 1907,
+        "rows_with_native_identity": 1099,
+        "run": 357,
+        "screened_observations": 1097
+      },
+      {
+        "complete_native_curves": 0,
+        "complete_vectors": 0,
+        "grade_a_units": 0,
+        "native_curves": 109,
+        "qualified_grade_a_units": 0,
+        "recorded_lifecycle_attempts": 0,
+        "retained_decision_rows": 692,
+        "rows_with_native_identity": 452,
+        "run": 358,
+        "screened_observations": 452
+      },
+      {
+        "complete_native_curves": 3,
+        "complete_vectors": 5,
+        "grade_a_units": 3,
+        "native_curves": 139,
+        "qualified_grade_a_units": 0,
+        "recorded_lifecycle_attempts": 0,
+        "retained_decision_rows": 1036,
+        "rows_with_native_identity": 704,
+        "run": 360,
+        "screened_observations": 1022
+      },
+      {
+        "complete_native_curves": 1,
+        "complete_vectors": 1,
+        "grade_a_units": 1,
+        "native_curves": 268,
+        "qualified_grade_a_units": 0,
+        "recorded_lifecycle_attempts": 0,
+        "retained_decision_rows": 3023,
+        "rows_with_native_identity": 2066,
+        "run": 362,
+        "screened_observations": 2963
+      },
+      {
+        "complete_native_curves": 5,
+        "complete_vectors": 7,
+        "grade_a_units": 5,
+        "native_curves": 279,
+        "qualified_grade_a_units": 3,
+        "recorded_lifecycle_attempts": 3,
+        "retained_decision_rows": 3231,
+        "rows_with_native_identity": 2027,
+        "run": 364,
+        "screened_observations": 3160
+      },
+      {
+        "complete_native_curves": 5,
+        "complete_vectors": 13,
+        "grade_a_units": 6,
+        "native_curves": 187,
+        "qualified_grade_a_units": 2,
+        "recorded_lifecycle_attempts": 2,
+        "retained_decision_rows": 1880,
+        "rows_with_native_identity": 1348,
+        "run": 366,
+        "screened_observations": 1852
+      },
+      {
+        "complete_native_curves": 2,
+        "complete_vectors": 4,
+        "grade_a_units": 3,
+        "native_curves": 100,
+        "qualified_grade_a_units": 2,
+        "recorded_lifecycle_attempts": 2,
+        "retained_decision_rows": 493,
+        "rows_with_native_identity": 406,
+        "run": 367,
+        "screened_observations": 485
+      },
+      {
+        "complete_native_curves": 1,
+        "complete_vectors": 1,
+        "grade_a_units": 1,
+        "native_curves": 217,
+        "qualified_grade_a_units": 0,
+        "recorded_lifecycle_attempts": 0,
+        "retained_decision_rows": 2789,
+        "rows_with_native_identity": 2151,
+        "run": 368,
+        "screened_observations": 2651
+      }
+    ],
+    "early_screen_rows_with_required_features": 0,
+    "forward_labeled_grade_a_units": 0,
+    "grade_a_units": 21,
+    "grade_b_supported_unique_opportunities": 0,
+    "primary_unit": "run + native curve + reentry regime established by the unchanged reentry_regime_reset between qualified vectors",
+    "supplementary_preflight": {
+      "candidate_states": {
+        "DEFERRED": 36,
+        "REJECTED_TERMINAL": 203
+      },
+      "forward_outcomes": 0,
+      "observations": 239,
+      "path": "pons-authenticated-rejection-audit.json",
+      "scope": "overlapping diagnostic subset; not added to primary denominator",
+      "sha256": "b0245041e0cece8fe33de1b6718c508f16522709e055e1a9683948c1820d6d7e"
+    }
+  },
+  "network_attempts": 0,
+  "passed": true,
+  "policies": {
+    "policy_0": "RETAINED",
+    "policy_1": "NOT_SELECTED: incremental preservation and workload unmeasurable",
+    "policy_2": "NOT_SELECTED: all seven recorded quotes violate unchanged freshness; no fresh executable soft-only comparison",
+    "policy_3": "NOT_EVALUATED: no replicated Grade-A forward outcome support",
+    "probe": "UNMEASURABLE"
+  },
+  "policy_hash": "19e2f4e51be263718ec520b1d315153e04bd216819fcacb3f74e9d9acfecba84",
+  "policy_spec_sha256": "1a1a6a026acaaec008157964efc2312f5dcc07b5532f0b52cb508df081008e09",
+  "production_strategy_changed": false,
+  "provider_calls": 0,
+  "robustness": {
+    "all_folds_retain_baseline": true,
+    "folds": [
+      {
+        "complete_vectors": 31,
+        "grade_a_units": 19,
+        "omitted_run": 357,
+        "reason": "forward_outcomes_and_workload_unestablished",
+        "revised_policy_acceptable": false,
+        "selected_policy": 0
+      },
+      {
+        "complete_vectors": 33,
+        "grade_a_units": 21,
+        "omitted_run": 358,
+        "reason": "forward_outcomes_and_workload_unestablished",
+        "revised_policy_acceptable": false,
+        "selected_policy": 0
+      },
+      {
+        "complete_vectors": 28,
+        "grade_a_units": 18,
+        "omitted_run": 360,
+        "reason": "forward_outcomes_and_workload_unestablished",
+        "revised_policy_acceptable": false,
+        "selected_policy": 0
+      },
+      {
+        "complete_vectors": 32,
+        "grade_a_units": 20,
+        "omitted_run": 362,
+        "reason": "forward_outcomes_and_workload_unestablished",
+        "revised_policy_acceptable": false,
+        "selected_policy": 0
+      },
+      {
+        "complete_vectors": 26,
+        "grade_a_units": 16,
+        "omitted_run": 364,
+        "reason": "forward_outcomes_and_workload_unestablished",
+        "revised_policy_acceptable": false,
+        "selected_policy": 0
+      },
+      {
+        "complete_vectors": 20,
+        "grade_a_units": 15,
+        "omitted_run": 366,
+        "reason": "forward_outcomes_and_workload_unestablished",
+        "revised_policy_acceptable": false,
+        "selected_policy": 0
+      },
+      {
+        "complete_vectors": 29,
+        "grade_a_units": 18,
+        "omitted_run": 367,
+        "reason": "forward_outcomes_and_workload_unestablished",
+        "revised_policy_acceptable": false,
+        "selected_policy": 0
+      },
+      {
+        "complete_vectors": 32,
+        "grade_a_units": 20,
+        "omitted_run": 368,
+        "reason": "forward_outcomes_and_workload_unestablished",
+        "revised_policy_acceptable": false,
+        "selected_policy": 0
+      }
+    ],
+    "method": "leave_one_run_out_no_refitting"
+  },
+  "schema": "pons-opportunity-comparison-v1",
+  "selected_policy": 0,
+  "unavailable": [
+    "early decision-time progress/age/trajectory for most screened rows",
+    "forward executable marks for unentered candidates",
+    "fresh qualification-to-fill soft-only observations",
+    "provider service/deadline counterfactuals",
+    "complete point-in-time wallet skill overlay",
+    "probe/scale observations"
+  ]
+}
