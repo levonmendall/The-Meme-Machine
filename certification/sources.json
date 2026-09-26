@@ -205,6 +205,20 @@
           "source_promotion": "3c9553afb3caa92ab5f3db769f870df033a9630f",
           "source_branch": "strategy/pump-counterfactual-replay-v1-20260924",
           "strategy_source_pinned": true
+        },
+        "run372_large_frame_transport_repair": {
+          "revision": "integration-owned-large-frame-transport-v1",
+          "incident_run_id": 36249156755,
+          "purpose": "Compose the repaired Solana evidence service into the actual Pump/Meteora worktrees and isolate 6-16 MB frame validation/JSON decode from the websocket event loop.",
+          "market_runtime_composition_gap_repaired": true,
+          "provider_ping_interval_changed": false,
+          "provider_ping_timeout_changed": false,
+          "evidence_requirements_changed": false,
+          "strategy_thresholds_changed": false,
+          "market_scope_changed": false,
+          "provider_limits_changed": false,
+          "paper_only_unchanged": true,
+          "deterministic_large_frame_regression": "four approximately 7 MB finalized block notifications with deliberately slow decode while event-loop heartbeat remains responsive"
         }
       },
       "prospect_admission": {
@@ -237,6 +251,10 @@
         "certification/patches/run369-runtime-pump.patch",
         "certification/patches/run370-capacity-pump.patch",
         "certification/patches/run370-discovery-snapshot-pump.patch"
+      ],
+      "integration_overlay_files": [
+        "meme_machine/solana_evidence_service.py",
+        "tests/test_run372_large_frame_runtime.py"
       ]
     },
     "meteora": {
@@ -468,6 +486,20 @@
           "provider_limits_changed": false,
           "evidence_requirements_changed": false,
           "paper_only_unchanged": true
+        },
+        "run372_large_frame_transport_repair": {
+          "revision": "integration-owned-large-frame-transport-v1",
+          "incident_run_id": 36249156755,
+          "purpose": "Compose the repaired Solana evidence service into the actual Pump/Meteora worktrees and isolate 6-16 MB frame validation/JSON decode from the websocket event loop.",
+          "market_runtime_composition_gap_repaired": true,
+          "provider_ping_interval_changed": false,
+          "provider_ping_timeout_changed": false,
+          "evidence_requirements_changed": false,
+          "strategy_thresholds_changed": false,
+          "market_scope_changed": false,
+          "provider_limits_changed": false,
+          "paper_only_unchanged": true,
+          "deterministic_large_frame_regression": "four approximately 7 MB finalized block notifications with deliberately slow decode while event-loop heartbeat remains responsive"
         }
       },
       "prospect_admission": {
@@ -497,7 +529,11 @@
         "certification/patches/run370-capacity-meteora.patch",
         "certification/patches/run370-discovery-snapshot-meteora.patch"
       ],
-      "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b"
+      "execution_sha": "a3579b4cc748fdbb7b4a466680f8a224773adc8b",
+      "integration_overlay_files": [
+        "meme_machine/solana_evidence_service.py",
+        "tests/test_run372_large_frame_runtime.py"
+      ]
     },
     "pons": {
       "source_branch": "strategy/pons-profit-protection-v2-20260923",
