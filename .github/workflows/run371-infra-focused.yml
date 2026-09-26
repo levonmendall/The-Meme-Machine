@@ -1,0 +1,35 @@
+name: Run 371 infrastructure repair focused regressions
+on:
+  push:
+    branches: [repair/run371-infra-continuity-20260926]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  focused:
+    if: contains(github.event.head_commit.message, '[run371-focused]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      MM_REAL_IPC_TESTS: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Solana receive and compact-terminal regressions
+        run: |
+          python -m unittest             tests.test_solana_evidence_service_runtime             tests.test_run370_storage             certification.tests.test_ramses_checkpoint_persistence -v
+      - name: Prepare exact four-lane runtime
+        run: python -m certification.run prepare --worktrees "$RUNNER_TEMP/run371-repair-lanes"
+      - name: Ramses transient provider-pressure regressions
+        run: |
+          cd "$RUNNER_TEMP/run371-repair-lanes/ramses"
+          python -m unittest             robinhood_tests.test_ramses_run371_pressure             robinhood_tests.test_ramses_census_provider_defer             robinhood_tests.test_ramses_rate_limit -v
+      - name: Record exact prepared Ramses diff identity
+        run: |
+          git -C "$RUNNER_TEMP/run371-repair-lanes/ramses" diff --binary --full-index --no-ext-diff --no-textconv --no-renames HEAD | sha256sum | awk '{print "RAMSES_EXACT_DIFF_SHA256=" $1}'
