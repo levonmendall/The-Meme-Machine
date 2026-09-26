@@ -1036,6 +1036,24 @@
           "paper_only_unchanged": true,
           "provider_limits_changed": false,
           "target_scope_changed": false
+        },
+        "run371_transient_pressure_repair": {
+          "revision": "frontier-and-scan-provider-defer-v1",
+          "incident_run_id": 36225681652,
+          "purpose": "Contain exhausted transient HTTP 429 and shared-provider admission boundaries at the individual Ramses frontier poll or market scan; discard incomplete screens and continue only on a later existing cadence.",
+          "partial_screen_can_qualify": false,
+          "transient_boundaries": [
+            "provider_http_429",
+            "provider_rpc_429",
+            "provider_rate_limit",
+            "provider_shared_admission_deadline",
+            "provider_shared_queue_capacity"
+          ],
+          "structural_boundaries_still_fail_closed": true,
+          "strategy_thresholds_changed": false,
+          "market_scope_changed": false,
+          "provider_limits_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -1062,7 +1080,8 @@
         "certification/patches/target-coverage-repair-ramses.patch",
         "certification/patches/evidence-reconstruction-ramses.patch",
         "certification/patches/robinhood-evidence-plane-ramses.patch",
-        "certification/patches/robinhood-provider-authority-ramses.patch"
+        "certification/patches/robinhood-provider-authority-ramses.patch",
+        "certification/patches/run371-ramses-transient-pressure.patch"
       ]
     }
   },
