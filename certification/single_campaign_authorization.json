@@ -1,6 +1,6 @@
 {
   "schema": "meme-machine-single-campaign-authorization-v1",
-  "authorization_id": "run372-run371-repairs-20260926-one-market-v1",
+  "authorization_id": "run374-run373-dispatch-repair-20260926-one-market-v1",
   "enabled": true,
   "maximum_market_workflows": 1,
   "phases_in_same_workflow": [
@@ -14,14 +14,14 @@
   "dispatch_retries": false,
   "live_money": false,
   "prior_run_observation": {
-    "run_id": 36225681652,
+    "run_id": 36253445901,
     "status": "completed_failure",
-    "source": "Run 371 consumed its one-shot authority and halted during smoke after exposing Solana stream-continuity/backpressure and Ramses transient provider-pressure defects. Those defects were repaired and the repaired runtime was focused-tested and fully non-market certified before this fresh owner authorization."
+    "source": "Run 373 consumed its one-shot authority and halted during smoke after exposing sustained Solana dispatch-buffer saturation. The successor repair moves subscription reconciliation off the per-frame critical path, decodes large frames in parallel, preserves websocket receive order for authoritative commits, drains already-admitted frames before fail-closed reconnect, stabilizes the historical Meteora receipt proof, and passed exact-SHA focused, repository-wide, and full non-market certification."
   },
   "prior_launch_attempt": {
-    "run_id": 36225681652,
+    "run_id": 36253445901,
     "outcome": "completed_failure",
     "provider_or_market_work_started": true,
-    "reason": "The Run 371 authority is consumed and cannot be retried. Owner explicitly authorized exactly one fresh PAPER market workflow using the repaired and certified Run 371 successor runtime."
+    "reason": "The Run 373 authority is consumed and cannot be retried. Owner explicitly authorized exactly one fresh PAPER market workflow using the fully certified Run 373 dispatch-throughput successor runtime."
   }
 }
