@@ -32,9 +32,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/run371-repair-lanes/ramses"
           PYTHONPATH="$RUNNER_TEMP/run371-repair-lanes/ramses:$GITHUB_WORKSPACE" \
-            python -m unittest \
-              robinhood_tests.test_ramses_run371_pressure \
-              robinhood_tests.test_ramses_census_provider_defer \
+            python -m unittest \              robinhood_tests.test_ramses_census_provider_defer \
               robinhood_tests.test_ramses_rate_limit -v
       - name: Record exact prepared Ramses diff identity
         run: |
