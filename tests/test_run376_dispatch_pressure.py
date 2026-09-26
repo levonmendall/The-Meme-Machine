@@ -8,7 +8,7 @@ from meme_machine.solana_evidence_transport import Subscription
 from meme_machine.solana_provider_config import AlchemyEndpoint
 from meme_machine.solana_evidence_runtime import SWAP_SCOPE
 import meme_machine.solana_evidence_service as service
-from tests.test_run373_dispatch_throughput import local_server,database_ready,block_frame
+from tests.test_run373_dispatch_throughput import local_server,database_ready,block_frame,BurstSocket
 
 
 def account_frame(slot):
@@ -19,17 +19,20 @@ def account_frame(slot):
 class MixedSocket:
     def __init__(self,frames=160):
         self.remaining=frames;self.queue=asyncio.Queue();self.index=0;self.deadline=None
+        self.account_ack_received=False
     async def __aenter__(self):return self
     async def __aexit__(self,*args):pass
     async def send(self,raw):
         req=json.loads(raw)
         await self.queue.put(json.dumps(dict(id=req['id'],result=req['id'])))
     async def recv(self,decode=None):
-        if not self.queue.empty():raw=await self.queue.get()
+        if not self.queue.empty() or not self.account_ack_received:
+            raw=await self.queue.get()
+            if json.loads(raw).get('id')==2:self.account_ack_received=True
         elif self.remaining:
             if self.deadline is None:
-                # Wait for initial account subscription before sending its data.
-                await asyncio.sleep(.12);self.deadline=time.monotonic()
+                # A real provider acknowledges the subscription before its data.
+                self.deadline=time.monotonic()
             self.deadline+=.012
             await asyncio.sleep(max(0,self.deadline-time.monotonic()))
             slot=1000+self.index//5
@@ -41,6 +44,47 @@ class MixedSocket:
 
 
 class Run376PressureTests(unittest.IsolatedAsyncioTestCase):
+    async def test_saturated_admission_waits_for_durable_drain_without_loss(self):
+        socket=BurstSocket(frames=24);stop=asyncio.Event()
+        original=service.ServiceState.source_batch
+        def slow_commit(state,items):
+            time.sleep(.05)
+            return original(state,items)
+        with tempfile.TemporaryDirectory() as folder,patch(
+            'websockets.asyncio.client.connect',return_value=socket
+        ),patch('asyncio.start_unix_server',side_effect=local_server),patch.object(
+            service,'STREAM_DISPATCH_MAX_MESSAGES',4
+        ),patch.object(service.ServiceState,'source_batch',slow_commit):
+            path=Path(folder)/'db'
+            runner=asyncio.create_task(service.serve(
+                path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop))
+            reader=None
+            try:
+                for _ in range(1000):
+                    if database_ready(path):break
+                    await asyncio.sleep(.01)
+                reader=EvidenceReader(path)
+                for _ in range(1500):
+                    t=reader.telemetry()
+                    if t['counters'].get('stream_accepted_messages',0)>=24:break
+                    if t['counters'].get('disconnect:local_receive_dispatch_capacity',0):break
+                    if runner.done():await runner
+                    await asyncio.sleep(.01)
+                self.assertEqual(t['counters'].get('disconnect:local_receive_dispatch_capacity',0),0,t)
+                self.assertEqual(t['counters'].get('stream_accepted_messages',0),24,t)
+                self.assertTrue(reader.covered(SWAP_SCOPE,1000,1022,as_of=time.time()))
+            finally:
+                if reader:reader.close()
+                stop.set();await asyncio.gather(runner,return_exceptions=True)
+            db=sqlite3.connect(path)
+            ipc=json.loads(dict(db.execute('SELECT key,value FROM service_health'))['ipc'])
+            self.assertLessEqual(ipc['stream.outstanding_frames_peak'],4)
+            self.assertGreater(ipc['stream.admission_waits'],0)
+            self.assertGreater(ipc['stream.admission_wait_total_microseconds'],0)
+            self.assertEqual(ipc.get('stream.dispatch_queue_overflow',0),0)
+            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone(),('ok',))
+            db.close()
+
     async def test_mixed_large_blocks_and_accounts_drain_without_capacity_churn(self):
         # Four accounts per 4 MiB block models the preserved 3070:~893 mix.
         # Accelerated cadence + fixed 30ms FULL-commit cost recreates ordered-ready
@@ -70,8 +114,8 @@ class Run376PressureTests(unittest.IsolatedAsyncioTestCase):
                     if t['counters'].get('stream_accepted_messages',0)>=160:break
                     if runner.done():await runner
                     await asyncio.sleep(.01)
-                self.assertEqual(t['counters'].get('disconnect:local_receive_dispatch_capacity',0),0)
-                self.assertEqual(t['counters'].get('stream_accepted_messages',0),160)
+                self.assertEqual(t['counters'].get('disconnect:local_receive_dispatch_capacity',0),0,t)
+                self.assertEqual(t['counters'].get('stream_accepted_messages',0),160,t)
                 self.assertTrue(reader.covered(SWAP_SCOPE,1000,1030,as_of=time.time()))
             finally:
                 if reader:reader.close()

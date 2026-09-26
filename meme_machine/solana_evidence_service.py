@@ -644,6 +644,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         decoded=asyncio.Queue(maxsize=STREAM_DISPATCH_MAX_MESSAGES)
                         pending_bytes=0;pending_frames=0;receive_sequence=0
                         drained=asyncio.Event();drained.set()
+                        capacity_available=asyncio.Event()
                         wanted=set()
                         await ws.send(canonical(pending[1].request(1)))
 
@@ -676,6 +677,27 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                         async def receive():
                             nonlocal pending_bytes,pending_frames,receive_sequence
                             while not stop.is_set() and not connection_stop.is_set():
+                                # Reserve room for one maximum-sized frame before
+                                # asking the transport for it. A full local queue
+                                # is backpressure, not missing evidence: let the
+                                # ordered committer free capacity instead of reading
+                                # a frame that we must discard and disconnect over.
+                                # The protocol queue and TCP flow control remain
+                                # bounded. A real transport discontinuity still gaps.
+                                wait_started=None
+                                while (pending_frames>=STREAM_DISPATCH_MAX_MESSAGES
+                                       or pending_bytes+STREAM_MAX_MESSAGE_BYTES>STREAM_DISPATCH_MAX_BYTES):
+                                    if wait_started is None:
+                                        wait_started=time.monotonic()
+                                        count('stream.admission_waits')
+                                    capacity_available.clear()
+                                    try:await asyncio.wait_for(capacity_available.wait(),.5)
+                                    except TimeoutError:pass
+                                    if stop.is_set() or connection_stop.is_set():return
+                                if wait_started is not None:
+                                    wait_us=int((time.monotonic()-wait_started)*1_000_000)
+                                    counts['stream.admission_wait_total_microseconds']=counts.get('stream.admission_wait_total_microseconds',0)+wait_us
+                                    counts['stream.admission_wait_peak_microseconds']=max(counts.get('stream.admission_wait_peak_microseconds',0),wait_us)
                                 try:raw=await asyncio.wait_for(ws.recv(decode=False),.5)
                                 except TimeoutError:continue
                                 size=len(raw) if isinstance(raw,(str,bytes)) else STREAM_MAX_MESSAGE_BYTES+1
@@ -830,6 +852,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                                     counts.get('stream.commit_total_microseconds',0)+commit_us)
                                                 pending_bytes=max(0,pending_bytes-batch_bytes)
                                                 pending_frames=max(0,pending_frames-len(batch))
+                                                capacity_available.set()
                                                 if pending_frames==0:drained.set()
                                                 next_sequence+=len(batch)
                                                 continue
@@ -871,6 +894,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
                                             counts.get('stream.commit_total_microseconds',0)+commit_us)
                                         pending_bytes=max(0,pending_bytes-size)
                                         pending_frames=max(0,pending_frames-1)
+                                        capacity_available.set()
                                         if pending_frames==0:drained.set()
                                         next_sequence+=1
                                 finally:
@@ -990,6 +1014,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None):
         for task in tasks:task.cancel()
         await asyncio.gather(*tasks,return_exceptions=True)
         if clients:await asyncio.gather(*list(clients),return_exceptions=True)
+        # Persist the final bounded counters after producers stop; a short drain
+        # can otherwise finish between maintenance snapshots and hide pressure.
+        await work(lambda state:state.fence.health('ipc',dict(counts)),0)
         await asyncio.to_thread(owner.close)
         await asyncio.to_thread(decoder_pool.shutdown,wait=True,cancel_futures=True)
         Path(socket_path).unlink(missing_ok=True)

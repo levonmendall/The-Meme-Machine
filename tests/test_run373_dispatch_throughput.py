@@ -282,8 +282,14 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
                 stop.set()
                 await asyncio.gather(runner,return_exceptions=True)
 
-    async def test_capacity_overflow_drains_already_received_frames_before_gap(self):
-        socket=BurstSocket(frames=8);stop=asyncio.Event()
+    async def test_oversized_frame_drains_already_received_frames_before_gap(self):
+        class OversizedSocket(BurstSocket):
+            async def recv(self,decode=None):
+                if self.remaining==4:
+                    self.remaining-=1
+                    return b'x'*(service.STREAM_MAX_MESSAGE_BYTES+1)
+                return await super().recv(decode=decode)
+        socket=OversizedSocket(frames=8);stop=asyncio.Event()
         accepted_at_disconnect=[];reasons=[]
         original_source=service.ServiceState.source
         original_disconnected=service.ServiceState.disconnected
@@ -322,11 +328,10 @@ class Run373DispatchThroughputTests(unittest.IsolatedAsyncioTestCase):
             try:
                 await self.wait_for(lambda:bool(reasons),attempts=3000)
                 self.assertEqual(reasons[0],'local_receive_dispatch_capacity')
-                # The old implementation cancelled processors immediately on
-                # overflow. One control ACK may still occupy an outstanding slot,
-                # so the four-frame test bound must still drain at least three
-                # admitted data frames before marking the discontinuity.
-                self.assertGreaterEqual(accepted_at_disconnect[0],3)
+                # Admission now waits for capacity. An oversized frame still
+                # cannot be admitted, and its four valid predecessors must drain
+                # before the fail-closed discontinuity is recorded.
+                self.assertEqual(accepted_at_disconnect[0],4)
             finally:
                 stop.set()
                 await asyncio.gather(runner,return_exceptions=True)
