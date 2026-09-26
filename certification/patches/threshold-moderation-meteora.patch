@@ -1,7 +1,7 @@
 diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
 --- a/SOLANA_DLMM_INDEPENDENT_V1.json
 +++ b/SOLANA_DLMM_INDEPENDENT_V1.json
-@@ -88,10 +88,10 @@
+@@ -88,8 +88,8 @@
    },
    "qualification": {
 -    "min_competing_range_liquidity_to_capital_multiple": 5,
@@ -13,7 +13,7 @@ diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
      "require_reversal": false,
      "stress_inventory_fraction_of_capital": 0.5,
      "max_stress_unwind_loss_bps": 150,
-@@ -103,16 +103,16 @@
+@@ -103,12 +103,12 @@
      "dynamic_fee_uplift_hard_gate": false,
      "unchanged_hard_risk_gates": [
 -      "min_competing_range_liquidity_to_capital_multiple = 5",
@@ -29,7 +29,7 @@ diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
 +    "min_authenticated_fee_density_24h_pct": 4,
      "high_density_tier_24h_pct": 20
    },
-@@ -123,9 +123,9 @@
+@@ -123,7 +123,7 @@
      "range_fee_capture": "authenticated warmup LP fees from swaps intersecting the proposed range, converted to SOL at authenticated bin prices",
      "historical_apr_is_not_an_entry_signal": true,
      "dynamic_fee_uplift_role": "recorded context and exit-state feature; not a hard entry gate",
@@ -39,25 +39,25 @@ diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
 -    "live_fee_density_threshold_pct": 5,
 +    "live_fee_density_threshold_pct": 4,
      "live_fee_density_high_tier_pct": 20,
-@@ -136,7 +136,7 @@
+@@ -136,4 +136,4 @@
    "flow_model": {
      "two_way_balance_definition": "2 * min(direction_A_volume,direction_B_volume) / total_directional_volume",
 -    "min_two_way_balance": 0.25,
 +    "min_two_way_balance": 0.2,
      "adverse_selection_proxy": [
-@@ -153,7 +153,7 @@
+@@ -153,4 +153,4 @@
        "active price reaches within 2 bins of either range boundary (immediate hard-risk exit)",
        "executable non-SOL inventory value exceeds 60% of initial capital (immediate hard-risk exit)",
 -      "recent verified flow has >=2 swaps, two_way_balance <0.25 and drift_ratio >0.75 (immediate adverse-selection exit)",
 +      "recent verified flow has >=2 swaps, two_way_balance <0.20 and drift_ratio >0.80 (immediate adverse-selection exit)",
        "after the 4h core hold, recent fee density remains below 50% of entry authenticated fee density for at least 2 consecutive verified 300s segments",
-@@ -199,7 +199,7 @@
+@@ -199,4 +199,4 @@
        "competitive_reallocation_exit": "deferred until competing pools can be authenticated contemporaneously without weakening the evidence boundary"
    },
 -  "revision": "2.0-profitability-fee-density-v1-core-hold-v2",
 +  "revision": "2.1-profitability-fee-density-v1-threshold-moderation-v1",
    "amendment_history": [
-@@ -282,6 +282,23 @@
+@@ -282,4 +282,22 @@
        "position_size_changed": false,
        "paper_only_unchanged": true
 +    },
@@ -80,13 +80,13 @@ diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
 +      "paper_only_unchanged": true
      }
    ],
-@@ -355,7 +372,7 @@
+@@ -355,4 +373,4 @@
    },
    "execution_certification": {
 -    "policy_hash": "90c711e5e3e521fb79f93bc386af5a3067d0a30c83ae3407c550f70db581f966",
 +    "policy_hash": "35156424b3889b29e4a6ba872e357638380eee50c6a947be593c92656ae5ff84",
      "purpose": "prospective_natural_paper_profitability_validation_of_authenticated_local_fee_density_strategy",
-@@ -365,10 +382,10 @@
+@@ -365,9 +383,9 @@
      "paper_only": true,
      "freshness_finality_unchanged": true,
      "exact_warmup_seconds": 12,
@@ -101,7 +101,7 @@ diff --git a/SOLANA_DLMM_INDEPENDENT_V1.json b/SOLANA_DLMM_INDEPENDENT_V1.json
 diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent_v1.py
 --- a/tests/solana_dlmm_independent_v1.py
 +++ b/tests/solana_dlmm_independent_v1.py
-@@ -1078,8 +1078,8 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
+@@ -1078,5 +1078,5 @@ def _segment_exit(position,real_start,tape,real_terminal,entry_flow,policy):
      directional=(
          recent["touch_swaps"]>=2
 -        and recent["two_way_balance"]<0.25
@@ -112,7 +112,7 @@ diff --git a/tests/solana_dlmm_independent_v1.py b/tests/solana_dlmm_independent
 diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_independent_v1.py
 --- a/tests/test_solana_dlmm_independent_v1.py
 +++ b/tests/test_solana_dlmm_independent_v1.py
-@@ -34,17 +34,17 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+@@ -34,9 +34,9 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
          self.assertEqual(p["range"]["max_holding_seconds"],86400)
          self.assertEqual(p["range"]["min_half_width_bins"],26)
          self.assertEqual(p["range"]["max_half_width_bins"],50)
@@ -125,12 +125,12 @@ diff --git a/tests/test_solana_dlmm_independent_v1.py b/tests/test_solana_dlmm_i
          self.assertEqual(
 -            p["fee_model"]["live_fee_density_threshold_pct"],5.0)
 +            p["fee_model"]["live_fee_density_threshold_pct"],4.0)
-@@ -47,7 +47,7 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+@@ -47,3 +47,3 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
          self.assertFalse(p["fee_model"]["require_dynamic_fee_uplift"])
          self.assertEqual(
 -            p["revision"],"2.0-profitability-fee-density-v1-core-hold-v2")
 +            p["revision"],"2.1-profitability-fee-density-v1-threshold-moderation-v1")
-@@ -388,22 +388,22 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
+@@ -388,26 +388,26 @@ class SolanaDlmmIndependentV1Tests(unittest.TestCase):
          p=strategy.load_policy()
          base=dict(
              volume_acceleration=0.1,
