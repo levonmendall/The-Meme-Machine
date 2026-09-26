@@ -699,7 +699,7 @@
         "upstream_acquisition_scope": "all authenticated Pons V2 buy/sell logs remain observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "48083016628092f421b81f297c0fb4d29601d7fabf3e6d39da88430e53bb1089",
+      "source_diff_sha256": "260fc7bb80271a42774dbecd289e9121855c981dc1a481321b61e99e34fe9ab0",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/pons-cohort-capital.patch",
@@ -711,7 +711,8 @@
         "certification/patches/v10-postrun-pons.patch",
         "certification/patches/pons-public-log-429-adaptive.patch",
         "certification/patches/robinhood-evidence-plane-pons.patch",
-        "certification/patches/robinhood-provider-authority-pons.patch"
+        "certification/patches/robinhood-provider-authority-pons.patch",
+        "certification/patches/run369-pons-accounting.patch"
       ]
     },
     "ramses": {

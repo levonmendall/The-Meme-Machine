@@ -1,0 +1,61 @@
+{
+  "schema": "run369-pons-accounting-minimized-v1",
+  "run_id": 36200179045,
+  "base_sha": "d1fc161401869522db9abbf50e3f6073e80a4374",
+  "artifact_sha256": "02e04c9d93ba3aafffe89f16af2e265ef27602a8c67d9c1197a8a4be9501c665",
+  "original_assurance_classes": {
+    "strategy_rejection": 47
+  },
+  "deferrals": [
+    {
+      "source_sequence": 24,
+      "candidate": "pons:4663:0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e:0xcc95b6bea547e87e89a82b41519beb8c520dc3b0",
+      "generation": 1,
+      "at": 1790378165.147423,
+      "reason": "measured_service_exceeds_remaining_slack",
+      "immutable_proof": null,
+      "latest": {
+        "generation": 2,
+        "state": "watching"
+      }
+    },
+    {
+      "source_sequence": 407,
+      "candidate": "pons:4663:0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e:0xb004bddef6c8d63794815857a324124d9afceec6",
+      "generation": 2,
+      "at": 1790378401.087713,
+      "reason": "measured_service_exceeds_remaining_slack",
+      "immutable_proof": {
+        "authentication_complete": true,
+        "block": 72614876,
+        "block_hash": "0x3ea0e80036753310f66e4ce2b109dcb73b7b7462ef500e30d9239dfc7728d932",
+        "boundary": "natural_non_native_quote_not_supported",
+        "creator_tax_bps": 300,
+        "current_snipe_bps": 0,
+        "curve": "0xb004bddef6c8d63794815857a324124d9afceec6",
+        "decision_age_seconds": 0.6403598656405052,
+        "fee_bps": 100,
+        "pair_token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "source_log_index": 13,
+        "source_transaction": "0xa6ac8a6aa7c8c537e2a9be0357f1b32c5ba0c3de44ca8477c974f9f68cdaf478",
+        "token": "0x3384acc9f9be6b71c1feb10bf2fedfd32aae7ddf"
+      },
+      "latest": {
+        "generation": 2,
+        "state": "provider_capacity_defer"
+      }
+    },
+    {
+      "source_sequence": 410,
+      "candidate": "pons:4663:0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e:0xb5e89606db159bc2f37ece1d9784c85d7755224c",
+      "generation": 8,
+      "at": 1790378403.0671961,
+      "reason": "measured_service_exceeds_remaining_slack",
+      "immutable_proof": null,
+      "latest": {
+        "generation": 10,
+        "state": "watching"
+      }
+    }
+  ]
+}
