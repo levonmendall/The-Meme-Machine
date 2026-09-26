@@ -1053,7 +1053,8 @@
           "strategy_thresholds_changed": false,
           "market_scope_changed": false,
           "provider_limits_changed": false,
-          "paper_only_unchanged": true
+          "paper_only_unchanged": true,
+          "certified_source_diff_sha256": "92a1c6ffcd3c4ce0089a0ed858819cfcdfd642820833d691d9ac99ea990ce781"
         }
       },
       "prospect_admission": {
@@ -1065,7 +1066,7 @@
         "upstream_acquisition_scope": "complete authenticated Ramses factory inventory remains observable",
         "broad_source_rows_count_as_observed_market": false
       },
-      "source_diff_sha256": "5247713b686c92870bc8abf09c94528235ff3227ce744ba9eb1ff4140810c8ce",
+      "source_diff_sha256": "92a1c6ffcd3c4ce0089a0ed858819cfcdfd642820833d691d9ac99ea990ce781",
       "source_integrity_mode": "declared_overlay_index",
       "overlay_patches": [
         "certification/patches/ramses-admission.patch",
