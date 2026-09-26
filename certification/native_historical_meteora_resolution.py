@@ -18,6 +18,16 @@ def canonical(value):
     return json.dumps(value,sort_keys=True,separators=(',',':'))
 
 
+def overlay_digest(root='.'):
+    # This immutable historical receipt used seven-character diff headers.
+    # Git's automatic abbreviation grows with the repository object count;
+    # that presentation change must not change a byte-identical replay proof.
+    # The SHA-256 still commits to the complete patch, not just its headers.
+    return hashlib.sha256(subprocess.check_output(
+        ['git','diff','--binary','--abbrev=7','--no-ext-diff',
+         '--no-textconv','--no-color','HEAD'],cwd=root)).hexdigest()
+
+
 def main():
     p=argparse.ArgumentParser()
     p.add_argument('--copy',required=True)
@@ -85,8 +95,7 @@ def main():
     receipt=dict(
         scope='digest_pinned_historical_copy_zero_proceeds_resolution',
         source_sha=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
-        overlay_sha256=hashlib.sha256(
-            subprocess.check_output(['git','diff','--binary','HEAD'])).hexdigest(),
+        overlay_sha256=overlay_digest(),
         accounting_source_sha256=hashlib.sha256(code.read_bytes()).hexdigest(),
         lifecycle_id=identity,
         original_journal_hash=before['journal_hash'],

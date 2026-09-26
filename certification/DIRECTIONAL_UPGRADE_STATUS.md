@@ -66,3 +66,13 @@ and regular CI. Workflow `36264525057` then found a direct crash-harness import
 path missing the neutral helper root. The corrected harness passes the complete
 20-boundary native SIGKILL matrix; all four runner restart probes also pass.
 Strategy and composite policy hashes are unchanged by this harness repair.
+
+Candidate `29e5671a68d603b124537d8cfbe9718c3e94fc0b`, workflow `36264890415`,
+passed all 1,601 native and 342 supervisor tests, crash/restart/integration/resource
+gates, six-regime integration, and the 91-test bounded preserved pass. The final
+aggregate found that Git's automatically longer diff object abbreviations changed
+the historical Meteora receipt hash. Source bytes, journals, economics and balances
+were identical to the immutable original proof. Pinning its original seven-character
+diff presentation reproduces the exact original receipt; no historical registry,
+strategy, policy, cohort or acceptance threshold changes. A real temporary Git
+repository regression covers configured abbreviation drift and content mutation.
