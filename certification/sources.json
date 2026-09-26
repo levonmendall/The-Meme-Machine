@@ -222,6 +222,22 @@
           "prepared_source_diff_sha256": "99eeb19627ea69eb45e4ef30aacff95884e57cd262e1456d178693def0f0de36",
           "focused_regression_run_id": 36251590507,
           "focused_regression_result": "success"
+        },
+        "run373_dispatch_throughput_repair": {
+          "revision": "ordered-parallel-dispatch-v1",
+          "incident_run_id": 36253445901,
+          "purpose": "Sustain Run 373 Solana block throughput without relaxing the 64-frame/96MiB dispatch bounds; move subscription reconciliation off the per-frame path; decode large frames in parallel; commit authoritative evidence in websocket receive order; drain admitted frames before fail-closed reconnect.",
+          "decode_workers": 2,
+          "subscription_sync_seconds": 0.25,
+          "dispatch_max_messages": 64,
+          "dispatch_max_bytes": 100663296,
+          "overflow_drains_before_disconnect": true,
+          "ordered_authoritative_commit": true,
+          "strategy_thresholds_changed": false,
+          "market_scope_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -258,7 +274,8 @@
       "integration_overlay_files": [
         "meme_machine/solana_evidence_service.py",
         "tests/test_run372_large_frame_runtime.py",
-        "meme_machine/solana_program_decoders.py"
+        "meme_machine/solana_program_decoders.py",
+        "tests/test_run373_dispatch_throughput.py"
       ]
     },
     "meteora": {
@@ -507,6 +524,22 @@
           "prepared_source_diff_sha256": "a5d7a4ed0caf221fc68e36a7499642f11ec7b45ceb864c84f9962db37e42b261",
           "focused_regression_run_id": 36251590507,
           "focused_regression_result": "success"
+        },
+        "run373_dispatch_throughput_repair": {
+          "revision": "ordered-parallel-dispatch-v1",
+          "incident_run_id": 36253445901,
+          "purpose": "Sustain Run 373 Solana block throughput without relaxing the 64-frame/96MiB dispatch bounds; move subscription reconciliation off the per-frame path; decode large frames in parallel; commit authoritative evidence in websocket receive order; drain admitted frames before fail-closed reconnect.",
+          "decode_workers": 2,
+          "subscription_sync_seconds": 0.25,
+          "dispatch_max_messages": 64,
+          "dispatch_max_bytes": 100663296,
+          "overflow_drains_before_disconnect": true,
+          "ordered_authoritative_commit": true,
+          "strategy_thresholds_changed": false,
+          "market_scope_changed": false,
+          "provider_limits_changed": false,
+          "evidence_requirements_changed": false,
+          "paper_only_unchanged": true
         }
       },
       "prospect_admission": {
@@ -540,7 +573,8 @@
       "integration_overlay_files": [
         "meme_machine/solana_evidence_service.py",
         "tests/test_run372_large_frame_runtime.py",
-        "meme_machine/solana_program_decoders.py"
+        "meme_machine/solana_program_decoders.py",
+        "tests/test_run373_dispatch_throughput.py"
       ]
     },
     "pons": {
