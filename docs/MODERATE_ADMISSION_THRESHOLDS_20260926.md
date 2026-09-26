@@ -34,3 +34,7 @@ Full non-market certification exposed stale Pons age-boundary regressions after 
 ## Final directional acceptance repair
 
 The six-regime directional gate previously required `meteora_unchanged`, which is incompatible with this authorized threshold-only Meteora revision. The gate now binds the prepared Meteora runtime to the exact v14 policy hash and revision and separately verifies that exit thresholds, positive expected-net authority, range width, core hold, and PAPER-only authority remain unchanged. Ramses remains required unchanged. No lane strategy or threshold was modified by this certification repair.
+
+## Six-regime acceptance repair
+
+The original six-regime acceptance gate assumed Meteora was unchanged because that earlier upgrade only added Pump/Pons Survivor regimes. For v14, the gate now allows exactly the declared Meteora moderate-admission threshold overlay, validates its policy/composed-file identities and active admission metadata against the Run 376 certified baseline, and executes Meteora's focused deterministic strategy regression. No additional strategy change is introduced by this certification repair.
