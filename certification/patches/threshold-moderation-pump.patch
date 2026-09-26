@@ -1,0 +1,114 @@
+diff --git a/meme_machine/pump_acceleration_strategy.py b/meme_machine/pump_acceleration_strategy.py
+--- a/meme_machine/pump_acceleration_strategy.py
++++ b/meme_machine/pump_acceleration_strategy.py
+@@ -40,7 +40,7 @@ def _points(value, low, high, maximum):
+ 
+ @dataclass(frozen=True)
+ class FrozenPolicy:
+-    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1"
++    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1-threshold-moderation-v1"
+     entry_fraction_bps: int = 500
+     turnover_divisor: int = 40
+     execution_stress_multiple: int = 2
+@@ -49,10 +49,10 @@ class FrozenPolicy:
+     max_curve_progress_bps: int = 8500
+     min_curve_velocity_bps_per_s: int = 10
+     min_curve_acceleration_bps_per_s2: int = -10
+-    min_independent_clusters: int = 20
+-    min_buyer_growth: int = 4
+-    min_net_buy_share_bps: int = 5500
+-    max_concentration_bps: int = 2500
++    min_independent_clusters: int = 12
++    min_buyer_growth: int = 3
++    min_net_buy_share_bps: int = 5250
++    max_concentration_bps: int = 3000
+     max_extension_bps: int = 16000
+     max_immediate_roundtrip_loss_bps: int = 600
+     # Demand quality must include repeat participation rather than one-shot breadth.
+@@ -76,8 +76,8 @@ class FrozenPolicy:
+     # Immediate post-graduation momentum gates.
+     min_postgrad_age_s: int = 5
+     max_postgrad_entry_age_s: int = 180
+-    min_postgrad_independent_clusters: int = 8
+-    min_postgrad_buyer_growth: int = 2
++    min_postgrad_independent_clusters: int = 6
++    min_postgrad_buyer_growth: int = 1
+     min_postgrad_price_vs_graduation_bps: int = 1
+@@ -89,8 +89,8 @@ class FrozenPolicy:
+     # as point-in-time ranking/confirmation evidence, not a binary veto.
+     postgrad_price_retention_hard_gate: bool = False
+     min_postgrad_volume_acceleration_bps: int = 0
+-    max_postgrad_concentration_bps: int = 3500
+-    max_early_holder_sell_share_bps: int = 4000
++    max_postgrad_concentration_bps: int = 4000
++    max_early_holder_sell_share_bps: int = 4500
+     min_postgrad_score: int = 0
+ 
+@@ -101,7 +101,7 @@ class FrozenPolicy:
+     min_pullback_depth_bps: int = 100
+     max_pullback_depth_bps: int = 3500
+     min_breakout_bps: int = 200
+-    min_second_leg_buyer_growth: int = 2
++    min_second_leg_buyer_growth: int = 1
+     min_second_leg_score: int = 0
+ 
+diff --git a/meme_machine/pumpswap_survivor.py b/meme_machine/pumpswap_survivor.py
+--- a/meme_machine/pumpswap_survivor.py
++++ b/meme_machine/pumpswap_survivor.py
+@@ -10,14 +10,14 @@ POLICY = dict(
+     strategy=STRATEGY_ID, paper_only=True, quote='SOL',
+     minimum_age_seconds=21600, maximum_age_seconds=604800,
+     mayhem_clean_seconds=3600, mayhem_completion_required=True,
+     minimum_liquidity_usd_micros=30_000_000_000,
+-    minimum_reset_bps=2500, base_seconds=3600, compression_bps=6000,
++    minimum_reset_bps=2000, base_seconds=3600, compression_bps=7500,
+     short_structure_seconds=7200, long_structure_seconds=21600,
+-    maximum_extension_bps=1500, maximum_base_range_extension_bps=15000,
+-    minimum_fill_breadth_bps=6500, target_sleeve_bps=25, turnover_divisor=40,
++    maximum_extension_bps=2000, maximum_base_range_extension_bps=20000,
++    minimum_fill_breadth_bps=6000, target_sleeve_bps=25, turnover_divisor=40,
+     # These are the existing Pump hard execution/concentration ceilings.
+     maximum_roundtrip_loss_bps=600, maximum_double_loss_bps=600,
+-    maximum_holder_concentration_bps=2500, minimum_size_units=1,
++    maximum_holder_concentration_bps=3000, minimum_size_units=1,
+     demand_window_seconds=1800,
+     ranking_tiebreak=['independent_buyers','repeat_buyers','repeat_buyer_share_bps'],
+     exits=dict(hard_stop_bps=-1200, first_profit_bps=2500, first_sell_bps=2500,
+diff --git a/meme_machine/pumpswap_survivor_runtime.py b/meme_machine/pumpswap_survivor_runtime.py
+--- a/meme_machine/pumpswap_survivor_runtime.py
++++ b/meme_machine/pumpswap_survivor_runtime.py
+@@ -190,8 +190,10 @@ class Runtime:
+     def _enter(self,row,decision,generation,regime,identity):
+         return commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
+             strategy=STRATEGY_ID,policy_hash=POLICY_HASH,decision=decision,regime=regime,at=self.now(),
+-            target=self.capital*25//10000,minimum=GAS*2+1,retention_bps=6500,
+-            ordinary_limit=600,stress_limit=600,adapter=self,qualify=evaluate_entry)
++            target=self.capital*POLICY['target_sleeve_bps']//10000,minimum=GAS*2+1,
++            retention_bps=POLICY['minimum_fill_breadth_bps'],
++            ordinary_limit=POLICY['maximum_roundtrip_loss_bps'],
++            stress_limit=POLICY['maximum_double_loss_bps'],adapter=self,qualify=evaluate_entry)
+ 
+diff --git a/tests/pump_acceleration_natural_prospective.py b/tests/pump_acceleration_natural_prospective.py
+--- a/tests/pump_acceleration_natural_prospective.py
++++ b/tests/pump_acceleration_natural_prospective.py
+@@ -704,7 +704,7 @@ INITIAL_LAMPORTS=1_000_000_000
+ ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
+ ENTRY_DELAY_SECONDS=2
+ ENTRY_FILL_TIMEOUT_SECONDS=20
+-FROZEN_POLICY_HASH="bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef"
++FROZEN_POLICY_HASH="a9c9eadfc6c7664dce708d06279e446d833867c98eb0993a3b62a001c4bdeae6"
+ FILL_PERSISTENCE_CONTEXT=None
+ ACCOUNTING=None
+ PIPELINE=None
+diff --git a/tests/test_pump_acceleration_policy_identity.py b/tests/test_pump_acceleration_policy_identity.py
+--- a/tests/test_pump_acceleration_policy_identity.py
++++ b/tests/test_pump_acceleration_policy_identity.py
+@@ -2,7 +2,7 @@ import unittest
+ 
+ from meme_machine.pump_acceleration_strategy import policy_hash
+ 
+-FROZEN="bfbe2a3f0109603c37e171202acbd91376c32af2013d99c388a3ba9e22ceebef"
++FROZEN="a9c9eadfc6c7664dce708d06279e446d833867c98eb0993a3b62a001c4bdeae6"
+ 
+ 
+ class FrozenPolicyIdentityTests(unittest.TestCase):
