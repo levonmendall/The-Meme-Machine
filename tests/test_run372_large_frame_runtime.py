@@ -89,8 +89,9 @@ class Run372LargeFrameTests(unittest.IsolatedAsyncioTestCase):
         original_decode=service.decode_source_message
         decode_calls=[0]
         def deliberately_slow_decode(raw,config):
-            decode_calls[0]+=1
-            time.sleep(.15)
+            if isinstance(raw,str) and len(raw)>7_000_000:
+                decode_calls[0]+=1
+                time.sleep(.15)
             return original_decode(raw,config)
 
         ticks=[]
